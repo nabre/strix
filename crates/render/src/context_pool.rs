@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! One kept vello_cpu render context, so rendering reuses its worker threads.
 //!
 //! A multi-threaded `RenderContext` starts its own rayon thread pool when it is built and
@@ -65,9 +66,9 @@ mod tests {
     use crate::{MAX_SIDE, RenderOptions, Rendered, render_page, render_region};
     use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
     use vello_cpu::{Resources, peniko};
-    use wordcraft_doc::props::{Highlight, Rgb};
-    use wordcraft_doc::{Document, Pos};
-    use wordcraft_layout::{LayoutCache, LayoutOptions, Page, layout};
+    use strix_doc::props::{Highlight, Rgb};
+    use strix_doc::{Document, Pos};
+    use strix_layout::{LayoutCache, LayoutOptions, Page, layout};
 
     /// Draw a scene that uses what the renderer uses (fills, strokes, transforms, a gradient,
     /// both fill rules, opacity and clip layers) across a `w`×`h` context and rasterise it. It

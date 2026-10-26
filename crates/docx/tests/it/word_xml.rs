@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word XML files (#548): Flat OPC (Word XML Document) and Word 2003 XML, from hand-written
 //! samples (never files produced by Word).
 
 use base64::Engine as _;
-use wordcraft_doc::props::Align;
-use wordcraft_doc::section::NumFormat;
-use wordcraft_doc::{Block, Document, InlineObject, Paragraph};
-use wordcraft_docx::{DocxError, XmlKind, read_xml, sniff_xml};
+use strix_doc::props::Align;
+use strix_doc::section::NumFormat;
+use strix_doc::{Block, Document, InlineObject, Paragraph};
+use strix_docx::{DocxError, XmlKind, read_xml, sniff_xml};
 
 fn paras(doc: &Document) -> Vec<&Paragraph> {
     doc.body.iter().filter_map(|b| b.as_para()).collect()

@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Several windows on one document. The document, its undo history, dirty flag, path and save
 //! state are shared; each window has its own [`WindowView`]: where its caret is and how it shows
 //! the document. The session holds one view per document (the drawn window's, for the active
 //! document); a front end keeps the other windows' views and moves them in and out with
 //! [`Session::take_view`] and [`Session::put_view`] as it draws each window.
 
-use wordcraft_doc::props::CharProps;
-use wordcraft_doc::{Pos, StoryRef};
+use strix_doc::props::CharProps;
+use strix_doc::{Pos, StoryRef};
 
 use super::{ColumnBlock, MathEdit, Selection, Session, TypedWord, ViewState, Widened, next_math_session};
 

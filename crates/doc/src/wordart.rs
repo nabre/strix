@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! WordArt: text effects on runs and text warps on shapes.
 //!
 //! Text effects are the run properties of [MS-DOCX] §2.6 (`w14:textFill`, `w14:textOutline`,
@@ -281,7 +282,7 @@ pub const WARP_PRESETS: [&str; 41] = [
     "textCascadeDown",
 ];
 
-/// The warps WordCraft draws bent (the others round-trip and draw flat), with menu labels.
+/// The warps Strix draws bent (the others round-trip and draw flat), with menu labels.
 pub const DRAWN_WARPS: [(&str, &str); 12] = [
     ("textArchUp", "Arch Up"),
     ("textArchDown", "Arch Down"),

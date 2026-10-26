@@ -1,0 +1,11 @@
+[package]
+name = "strix-calc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix live calculations: quantities with SI units, a linear math parser and worksheet evaluation"
+
+[lints]
+workspace = true
+
+[dependencies]

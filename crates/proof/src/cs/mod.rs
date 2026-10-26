@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Czech proofing using the installed Hunspell `cs_CZ` dictionary (never bundled).
 //! Suggestions use its runtime MAP/REP/TRY/KEY tables. Generic grammar checks have Czech
 //! messages; hyphenation keeps the existing fallback, without Czech pattern data.
@@ -144,7 +145,7 @@ mod tests {
 
     #[test]
     fn dictionary_lookup_accepts_czech_file_names() {
-        let dir = std::env::temp_dir().join(format!("wordcraft-cs-aliases-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-cs-aliases-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         for name in ["cs_CZ", "cs-CZ", "cs"] {
             std::fs::write(dir.join(format!("{name}.aff")), test_dict::AFF).unwrap();

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The accessibility checker (Review › Check Accessibility): what makes the body hard to use with
 //! a screen reader or hard to read, as `{"kind": "error|warning|tip", "rule", "issue", "where",
 //! "pos"?, "select"?, "fix"?, "action"?}` items.
@@ -8,10 +9,10 @@
 //! their wording are our own; the contrast rule uses the WCAG 2 contrast ratio.
 
 use serde_json::{Value, json};
-use wordcraft_doc::para::{InlineObject, OBJ};
-use wordcraft_doc::props::{Rgb, TextColor, VMerge};
-use wordcraft_doc::table::Table;
-use wordcraft_doc::{Block, Document, Paragraph, Path, Pos, StoryRef};
+use strix_doc::para::{InlineObject, OBJ};
+use strix_doc::props::{Rgb, TextColor, VMerge};
+use strix_doc::table::Table;
+use strix_doc::{Block, Document, Paragraph, Path, Pos, StoryRef};
 
 /// Most issues reported (a hostile document can't make the report huge).
 const MAX_ISSUES: usize = 500;
@@ -198,7 +199,7 @@ impl Checker<'_> {
                 "action": {"label": "Repeat Header Rows", "command": "table.repeatHeader", "params": {"value": true}},
             }));
         }
-        let empty = |c: &wordcraft_doc::table::Cell| {
+        let empty = |c: &strix_doc::table::Cell| {
             c.blocks.iter().all(|b| match &**b {
                 Block::Para(p) => p.text.trim().is_empty(),
                 _ => false,
@@ -258,8 +259,8 @@ pub fn contrast_ratio(a: Rgb, b: Rgb) -> f64 {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_doc::Document;
-    use wordcraft_doc::props::Rgb;
+    use strix_doc::Document;
+    use strix_doc::props::Rgb;
 
     use crate::Session;
 

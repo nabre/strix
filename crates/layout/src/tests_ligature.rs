@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The caret inside a ligature (#1974): a glyph that draws several letters (fi, ffi, lam-alef)
 //! gives each letter an even share of its advance, so the caret, clicks and selection edges can
 //! land between the letters. A single grapheme cluster (letter plus combining mark) stays atomic.
 
 use super::*;
-use wordcraft_doc::{Pos, StoryRef};
+use strix_doc::{Pos, StoryRef};
 
 fn lay(doc: &Document) -> DocLayout {
     let mut c = LayoutCache::new();
@@ -216,7 +217,7 @@ fn a_mixed_style_emoji_grapheme_has_atomic_caret_hit_and_wrap_boundaries() {
         })
         .unwrap();
         d.format_range(&Pos::body(0, 8), &Pos::body(0, 12), &|c| c.size = Some(48.0)).unwrap();
-        d.para_mut(StoryRef::Body, &wordcraft_doc::Path::top(0)).unwrap().props.bidi = Some(bidi);
+        d.para_mut(StoryRef::Body, &strix_doc::Path::top(0)).unwrap().props.bidi = Some(bidi);
         let wide = lay(&d);
         let pl = para_layout(&wide);
         if bidi {
@@ -248,7 +249,7 @@ fn a_mixed_bundled_font_combining_grapheme_preserves_drawing_and_atomic_boundari
             c.size = Some(48.0);
         })
         .unwrap();
-        d.para_mut(StoryRef::Body, &wordcraft_doc::Path::top(0)).unwrap().props.bidi = Some(bidi);
+        d.para_mut(StoryRef::Body, &strix_doc::Path::top(0)).unwrap().props.bidi = Some(bidi);
         let wide = lay(&d);
         let pl = para_layout(&wide);
         if bidi {
@@ -318,11 +319,11 @@ fn a_hyphenation_point_never_splits_a_ligature() {
 
 /// The paragraph's text without its inline-object markers (`U+FFFC`), and for every character
 /// start of that text the byte offset it has in the paragraph (plus the end).
-fn without_markers(p: &wordcraft_doc::Paragraph) -> (String, Vec<(usize, usize)>) {
+fn without_markers(p: &strix_doc::Paragraph) -> (String, Vec<(usize, usize)>) {
     let mut text = String::new();
     let mut at = Vec::new();
     for (i, c) in p.text.char_indices() {
-        if c == wordcraft_doc::para::OBJ {
+        if c == strix_doc::para::OBJ {
             continue;
         }
         at.push((text.len(), i));
@@ -344,17 +345,17 @@ fn marked_grapheme_document(marks: bool, bidi: bool) -> Document {
     .unwrap();
     d.format_range(&Pos::body(0, 8), &Pos::body(0, 12), &|c| c.size = Some(48.0)).unwrap();
     {
-        let p = d.para_mut(StoryRef::Body, &wordcraft_doc::Path::top(0)).unwrap();
+        let p = d.para_mut(StoryRef::Body, &strix_doc::Path::top(0)).unwrap();
         p.props.bidi = Some(bidi);
-        p.props.align = Some(wordcraft_doc::props::Align::Justify);
+        p.props.align = Some(strix_doc::props::Align::Justify);
     }
     if marks {
         // From the paragraph's end, so the earlier insertions keep their offsets.
         let marks = [
-            (13, wordcraft_doc::para::InlineObject::BookmarkStart { name: "g".into() }),
-            (12, wordcraft_doc::para::InlineObject::CommentStart { id: 7 }),
-            (1, wordcraft_doc::para::InlineObject::ControlStart { control: Box::default() }),
-            (0, wordcraft_doc::para::InlineObject::FieldStart { instr: "PAGE".into(), locked: false, dirty: false }),
+            (13, strix_doc::para::InlineObject::BookmarkStart { name: "g".into() }),
+            (12, strix_doc::para::InlineObject::CommentStart { id: 7 }),
+            (1, strix_doc::para::InlineObject::ControlStart { control: Box::default() }),
+            (0, strix_doc::para::InlineObject::FieldStart { instr: "PAGE".into(), locked: false, dirty: false }),
         ];
         for (at, mark) in marks {
             d.insert_object(&Pos::body(0, at), mark, &Default::default()).unwrap();
@@ -391,18 +392,18 @@ fn markers_at_a_mixed_style_graphemes_edges_keep_it_atomic() {
             d.last_section.page_w = 144.0 + width;
             let l = lay(&d);
             let pl = para_layout(&l);
-            let p = d.para(StoryRef::Body, &wordcraft_doc::Path::top(0)).unwrap();
+            let p = d.para(StoryRef::Body, &strix_doc::Path::top(0)).unwrap();
             let (clean, at) = without_markers(p);
             assert_eq!(clean, "x\u{1F469}\u{200D}\u{1F4BB}y", "{bidi}/{width}: markers are not text");
             let para_off = |clean_off: usize| at.binary_search_by_key(&clean_off, |e| e.0).ok().and_then(|k| at.get(k)).map(|e| e.1);
-            let clean_starts = wordcraft_doc::cluster::cluster_starts(&clean);
+            let clean_starts = strix_doc::cluster::cluster_starts(&clean);
             let mut boundaries: Vec<usize> = clean_starts.iter().filter_map(|&o| para_off(o)).collect();
             // The paragraph's end is a caret stop on the last line but not a grapheme start.
             boundaries.extend(para_off(clean.len()));
-            let markers: Vec<usize> = p.text.char_indices().filter(|&(_, c)| c == wordcraft_doc::para::OBJ).map(|(i, _)| i).collect();
+            let markers: Vec<usize> = p.text.char_indices().filter(|&(_, c)| c == strix_doc::para::OBJ).map(|(i, _)| i).collect();
             assert_eq!(markers.len(), 4, "{bidi}/{width}: the fixture carries all four zero-width markers");
             for &marker in &markers {
-                let clean_offset = p.text[..marker].chars().filter(|&c| c != wordcraft_doc::para::OBJ).map(char::len_utf8).sum::<usize>();
+                let clean_offset = p.text[..marker].chars().filter(|&c| c != strix_doc::para::OBJ).map(char::len_utf8).sum::<usize>();
                 assert!(clean_starts.contains(&clean_offset) || clean_offset == clean.len(), "marker must sit on a clean grapheme edge");
             }
             assert_eq!(pl.clusters.iter().filter(|c| c.kind == crate::para::ClKind::Marker).count(), 4);

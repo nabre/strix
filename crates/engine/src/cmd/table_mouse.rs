@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The rest of Word's table mouse (resizing is `table_resize`): selection areas just above a
 //! column, left of a row and along a cell's left edge inside it select the column, row or cell,
 //! and a drag from one selects every one up to the pointer; insert buttons left of a row border
@@ -10,11 +11,11 @@
 use std::collections::BTreeMap;
 
 use serde_json::Value;
-use wordcraft_doc::para::Anchor;
-use wordcraft_doc::props::TableFloat;
-use wordcraft_doc::{Document, Path, Pos, StoryRef, Table};
-use wordcraft_geom::{Point, Rect};
-use wordcraft_layout::{DocLayout, Placed};
+use strix_doc::para::Anchor;
+use strix_doc::props::TableFloat;
+use strix_doc::{Document, Path, Pos, StoryRef, Table};
+use strix_geom::{Point, Rect};
+use strix_layout::{DocLayout, Placed};
 
 use super::table_resize::{self, CellBox, Edge, REACH, ResizeTarget};
 use super::{sel_result, table};
@@ -185,7 +186,7 @@ fn row_bar(l: &DocLayout, doc: &Document, page: usize, geom: &ResizeTarget, y: f
         return None;
     }
     let rtl = t.props.bidi_visual;
-    let blocked = wordcraft_layout::hit::page_lines(p, StoryRef::Body).iter().any(|ln| {
+    let blocked = strix_layout::hit::page_lines(p, StoryRef::Body).iter().any(|ln| {
         ln.path.0.len() <= 1
             && ln.top < row.bottom - 0.5
             && ln.bottom > row.top + 0.5
@@ -574,7 +575,7 @@ fn fit_column(s: &mut Session, v: &Value) -> CmdResult {
     let t = s.doc.table(target.story, &target.table).ok_or_else(|| CmdError::Failed("there's no table there".into()))?;
     let g = line.checked_sub(1).ok_or_else(|| CmdError::Failed("there's no column left of that border".into()))?;
     let (narrowest, widest) =
-        wordcraft_layout::measure_table_columns(&s.doc, t).get(g).copied().ok_or_else(|| CmdError::Failed("there's no such column".into()))?;
+        strix_layout::measure_table_columns(&s.doc, t).get(g).copied().ok_or_else(|| CmdError::Failed("there's no such column".into()))?;
     let current = target.widths().get(g).copied().unwrap_or(0.0);
     // As in Word, the columns right of it keep their widths and move with the border, so the
     // table narrows or widens: up to the right margin (a nested table's cell's), never below the
@@ -600,7 +601,7 @@ fn room_right(l: &DocLayout, doc: &Document, page: usize, target: &ResizeTarget)
         return margin;
     };
     // A right-to-left table has its cells' start (left) margin on their right.
-    let m = wordcraft_layout::cell_margins(doc, t, row, cell);
+    let m = strix_layout::cell_margins(doc, t, row, cell);
     let inset = if t.props.bidi_visual { m[1] } else { m[3] };
     (b.rect.right() - inset).min(margin)
 }
@@ -609,7 +610,7 @@ fn room_right(l: &DocLayout, doc: &Document, page: usize, target: &ResizeTarget)
 mod tests {
     use super::*;
     use serde_json::json;
-    use wordcraft_doc::props::Align;
+    use strix_doc::props::Align;
 
     fn table_session(rows: usize, cols: usize) -> Session {
         let mut s = Session::new(Document::new());
@@ -642,7 +643,7 @@ mod tests {
         }
     }
 
-    fn para(s: &Session, r: usize, c: usize) -> wordcraft_doc::Paragraph {
+    fn para(s: &Session, r: usize, c: usize) -> strix_doc::Paragraph {
         s.doc.para(StoryRef::Body, &cell_pos(s, r, c).path).cloned().unwrap()
     }
 
@@ -891,14 +892,14 @@ mod tests {
         // A floating table with text wrapped to its left.
         let mut d = Document::from_text(&"Words that wrap round the floating table beside them. ".repeat(40));
         let mut t = Table::new(3, 1, 150.0);
-        t.props.float = Some(wordcraft_doc::props::TableFloat {
-            h_rel: wordcraft_doc::para::Anchor::Margin,
-            v_rel: wordcraft_doc::para::Anchor::Paragraph,
+        t.props.float = Some(strix_doc::props::TableFloat {
+            h_rel: strix_doc::para::Anchor::Margin,
+            v_rel: strix_doc::para::Anchor::Paragraph,
             x: 300.0,
             overlap: false,
             ..Default::default()
         });
-        d.insert_block(StoryRef::Body, &Path(vec![0]), wordcraft_doc::Block::Table(t)).unwrap();
+        d.insert_block(StoryRef::Body, &Path(vec![0]), strix_doc::Block::Table(t)).unwrap();
         let mut s = Session::new(d);
         let r0 = cell_rect(&mut s, 0, 0);
         assert!(r0.x > 300.0, "the table floats at the right: {r0:?}");
@@ -910,7 +911,7 @@ mod tests {
     fn a_paragraph_flush_above_the_table_keeps_the_row_bar() {
         let mut d = Document::from_text("Above");
         d.para_mut(StoryRef::Body, &Path::top(0)).unwrap().props.space_after = Some(0.0);
-        d.insert_block(StoryRef::Body, &Path::top(1), wordcraft_doc::Block::Table(Table::new(2, 2, 400.0))).unwrap();
+        d.insert_block(StoryRef::Body, &Path::top(1), strix_doc::Block::Table(Table::new(2, 2, 400.0))).unwrap();
         let mut s = Session::new(d);
         let r0 = cell_rect(&mut s, 0, 0);
         assert_eq!(spot_at(&mut s, 10.0, mid_y(r0)), Some(Spot::Row(0)));
@@ -998,7 +999,7 @@ mod tests {
         s.sel = Selection::caret(cell_pos(&s, 0, 0));
         s.run("text.insert", &json!({"text": "ab"})).unwrap();
         let (a, b, c) = (cell_rect(&mut s, 0, 0), cell_rect(&mut s, 0, 1), cell_rect(&mut s, 0, 2));
-        let fit = wordcraft_layout::measure_table_columns(&s.doc, &first_table(&s));
+        let fit = strix_layout::measure_table_columns(&s.doc, &first_table(&s));
         s.run("table.fitColumn", &json!({"page": 0, "x": a.right(), "y": mid_y(a)})).unwrap();
         let (a1, b1, c1) = (cell_rect(&mut s, 0, 0), cell_rect(&mut s, 0, 1), cell_rect(&mut s, 0, 2));
         assert!((a1.w - fit[0].1).abs() < 0.5 && a1.w < a.w - 50.0, "{a:?} → {a1:?}, {fit:?}");
@@ -1040,7 +1041,7 @@ mod tests {
         assert!(b.right() < host.right() - 40.0, "{b:?} in {host:?}");
         s.run("table.fitColumn", &json!({"page": 0, "x": a.right(), "y": mid_y(a)})).unwrap();
         let (a1, b1) = (rect(&mut s, &inner, 0), rect(&mut s, &inner, 1));
-        let text_right = host.right() - wordcraft_layout::cell_margins(&s.doc, &first_table(&s), 0, 0)[3];
+        let text_right = host.right() - strix_layout::cell_margins(&s.doc, &first_table(&s), 0, 0)[3];
         assert!(a1.w > a.w + 40.0 && (b1.w - b.w).abs() < 0.5, "{a:?} {b:?} → {a1:?} {b1:?}");
         assert!((b1.right() - text_right).abs() < 0.5, "the table fills its cell's text: {b1:?}, {text_right}");
         let host1 = rect(&mut s, &outer, 0);

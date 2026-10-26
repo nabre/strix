@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Decoded-media cache: hits need the same allocation, and the byte budget bounds what is kept.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use wordcraft_doc::Document;
-use wordcraft_doc::props::Rgb;
-use wordcraft_layout::display::{Draw, Stroke};
+use strix_doc::Document;
+use strix_doc::props::Rgb;
+use strix_layout::display::{Draw, Stroke};
 
 use super::{CACHE_BYTES, MediaCache, RenderOptions, render_items, wave_path};
 

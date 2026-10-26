@@ -1,8 +1,9 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Writing the glossary document (ECMA-376 Part 1 §17.12) from `Document::glossary`, once its
 //! entries differ from the file's (an untouched glossary is written back verbatim: see
 //! `read::glossary`).
 
-use wordcraft_doc::{Document, QUICK_PARTS_GALLERY};
+use strix_doc::{Document, QUICK_PARTS_GALLERY};
 
 use super::{CT_WML, PartRels, Writer, numbering_xml, push_part, styles_xml};
 use crate::package::{GLOSSARY_BEHAVIORS, GLOSSARY_CONTENT_TYPE, GLOSSARY_READ, GLOSSARY_TYPES, glossary_fingerprint, rt};

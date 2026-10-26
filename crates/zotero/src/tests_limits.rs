@@ -1,12 +1,13 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Hostile documents and calls stay cheap: work grows with the document, not with how often a
 //! crafted file or call repeats something (#3692).
 
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
-use wordcraft_doc::para::{NoteKind, OBJ};
-use wordcraft_doc::{CharProps, Document, InlineObject, Paragraph, PartKind, Run, StoryRef, para_block};
-use wordcraft_engine::Session;
+use strix_doc::para::{NoteKind, OBJ};
+use strix_doc::{CharProps, Document, InlineObject, Paragraph, PartKind, Run, StoryRef, para_block};
+use strix_engine::Session;
 
 use crate::wire::Call;
 use crate::{Bridge, Headless, fields};
@@ -61,7 +62,7 @@ fn rich_text_with_many_runs_is_linear() {
     let t = Instant::now();
     let frag = crate::rich::fragment(&html, true, &CharProps::default());
     let elapsed = t.elapsed();
-    let Some(wordcraft_doc::Block::Para(p)) = frag.blocks.first() else { panic!("no paragraph") };
+    let Some(strix_doc::Block::Para(p)) = frag.blocks.first() else { panic!("no paragraph") };
     assert_eq!(p.text, "ab".repeat(50_000));
     assert_eq!(p.runs.len(), 100_000);
     assert_eq!(p.runs.iter().map(|r| r.len).sum::<usize>(), p.text.len());
@@ -69,7 +70,7 @@ fn rich_text_with_many_runs_is_linear() {
     assert!(elapsed < Duration::from_secs(10), "{elapsed:?}");
     // Neighbours with the same formatting are one run.
     let frag = crate::rich::fragment("<i>a</i><i>b</i>c", true, &CharProps::default());
-    let Some(wordcraft_doc::Block::Para(p)) = frag.blocks.first() else { panic!("no paragraph") };
+    let Some(strix_doc::Block::Para(p)) = frag.blocks.first() else { panic!("no paragraph") };
     assert_eq!((p.text.as_str(), p.runs.len()), ("abc", 2));
     assert_eq!(p.props_of_char(1).italic, Some(true));
 }

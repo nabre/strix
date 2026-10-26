@@ -1,5 +1,6 @@
-//! WordCraft's egui front end: a Word-style window (title bar with Quick Access Toolbar, ribbon,
-//! rulers, page canvas, panes, status bar, Backstage, dialogs) over `wordcraft-engine`.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix's egui front end: a Word-style window (title bar with Quick Access Toolbar, ribbon,
+//! rulers, page canvas, panes, status bar, Backstage, dialogs) over `strix-engine`.
 //!
 //! The UI is thin: it reads `Session` state and acts through [`WordApp::run`] (command ids), so
 //! the menus, ribbon, shortcuts, control channel and MCP all reach the same behaviour.
@@ -95,10 +96,10 @@ pub mod zotero;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use wordcraft_engine::Session;
+use strix_engine::Session;
 
 pub use control::ControlRequest;
-pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters};
+pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters, save_exts, save_filters, save_format_name};
 
 /// Platform services injected by the host (file dialogs, file I/O).
 #[derive(Default)]
@@ -181,7 +182,7 @@ pub struct Services {
     pub forget_font: Option<Box<dyn Fn(&str)>>,
     /// Web: request browser to query and load local installed fonts (`window.queryLocalFonts()`).
     pub load_system_fonts: Option<Box<dyn Fn()>>,
-    /// Desktop: File › Options › General › Make WordCraft the default for Word documents (#295),
+    /// Desktop: File › Options › General › Make Strix the default for Word documents (#295),
     /// only from that button (never a programmatic command). Windows opens the Settings app's
     /// Default apps page (apps can't set defaults themselves); Linux and BSD set it with
     /// `xdg-mime`. `None` (web, macOS) hides the button; macOS shows how to do it in Finder
@@ -228,9 +229,9 @@ struct AwaitingSave {
 /// What [`Services::make_default_app`] did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefaultApp {
-    /// The system's default-apps settings opened; the user picks WordCraft there (Windows).
+    /// The system's default-apps settings opened; the user picks Strix there (Windows).
     SettingsOpened,
-    /// WordCraft is now the default app for Word documents (Linux, BSD).
+    /// Strix is now the default app for Word documents (Linux, BSD).
     MadeDefault,
 }
 
@@ -297,7 +298,7 @@ pub struct UiState {
     pub nav_pane: bool,
     /// Where the Styles pane sits (#1756). The session owns it while running (see [`WordApp::prefs`]).
     #[serde(deserialize_with = "lenient_styles_pane_dock")]
-    pub styles_pane_dock: wordcraft_engine::StylesPaneDock,
+    pub styles_pane_dock: strix_engine::StylesPaneDock,
     /// The floating Styles pane's `[x, y, width, height]`, also kept while it is docked.
     #[serde(deserialize_with = "lenient_float_rect")]
     pub styles_pane_float: Option<[f32; 4]>,
@@ -313,7 +314,7 @@ pub struct UiState {
     pub pane_order: Vec<String>,
     /// Headings whose sub-headings the Navigation pane hides (#1997); per session, not saved.
     #[serde(skip)]
-    pub nav_collapsed: std::collections::HashSet<wordcraft_doc::Path>,
+    pub nav_collapsed: std::collections::HashSet<strix_doc::Path>,
     pub show_discord: bool,
     /// User name (File › Options) for comments and tracked changes; empty keeps the default.
     pub author: String,
@@ -322,7 +323,7 @@ pub struct UiState {
     /// Interface language: `auto` (follow the system) or a code from [`i18n::LANGUAGES`].
     pub language: String,
     /// Editing preferences; the session owns them while running (see [`WordApp::prefs`]).
-    pub editing: wordcraft_engine::Prefs,
+    pub editing: strix_engine::Prefs,
     /// Read Aloud speed (1 = normal) and whether it skips citations and bibliographies.
     pub read_aloud_rate: f32,
     pub read_aloud_skip_citations: bool,
@@ -359,10 +360,10 @@ pub struct UiState {
     /// (off).
     pub caret_animation: bool,
     /// Custom keyboard shortcuts (Customize Keyboard, #368); the session owns them while running.
-    pub keyboard: wordcraft_engine::KeyMap,
+    pub keyboard: strix_engine::KeyMap,
     /// Custom ribbon tabs and groups, hidden tabs and the Quick Access Toolbar (Customize Ribbon,
     /// #379); the session owns them while running.
-    pub ribbon: wordcraft_engine::RibbonLayout,
+    pub ribbon: strix_engine::RibbonLayout,
     /// Caption labels the user added (References › Insert Caption › New Label), kept between
     /// runs like Word keeps them in its Normal template (#402).
     pub caption_labels: Vec<String>,
@@ -370,12 +371,12 @@ pub struct UiState {
     pub last_caption_label: String,
     /// Draw › Add Pen: the pens added to the pen gallery; the session owns them while running.
     /// Entries that aren't pens are dropped on reading.
-    #[serde(deserialize_with = "wordcraft_engine::cmd::draw::lenient_pens")]
-    pub ink_pens: Vec<wordcraft_engine::cmd::draw::CustomPen>,
+    #[serde(deserialize_with = "strix_engine::cmd::draw::lenient_pens")]
+    pub ink_pens: Vec<strix_engine::cmd::draw::CustomPen>,
     /// File › Options › General: initials for comments; empty = the user name's. The session
     /// owns them while running, like `author`.
     pub initials: String,
-    /// The File › Options pane last shown ([`wordcraft_engine::cmd::options::PANES`]).
+    /// The File › Options pane last shown ([`strix_engine::cmd::options::PANES`]).
     pub options_pane: String,
     /// File › Options › Advanced: how many recent documents File › Home and Open list (0–50).
     pub recent_count: usize,
@@ -431,7 +432,7 @@ impl Default for UiState {
             legacy_dark: None,
             nav_tab: "headings".into(),
             nav_pane: false,
-            styles_pane_dock: wordcraft_engine::StylesPaneDock::Right,
+            styles_pane_dock: strix_engine::StylesPaneDock::Right,
             styles_pane_float: None,
             styles_pane_width: None,
             pane_places: Default::default(),
@@ -441,7 +442,7 @@ impl Default for UiState {
             author: String::new(),
             window: None,
             language: i18n::AUTO.into(),
-            editing: wordcraft_engine::Prefs::default(),
+            editing: strix_engine::Prefs::default(),
             read_aloud_rate: 1.0,
             read_aloud_skip_citations: true,
             keytips_enabled: true,
@@ -454,8 +455,8 @@ impl Default for UiState {
             dark_page: false,
             check_spelling: true,
             caret_animation: true,
-            keyboard: wordcraft_engine::KeyMap::default(),
-            ribbon: wordcraft_engine::RibbonLayout::default(),
+            keyboard: strix_engine::KeyMap::default(),
+            ribbon: strix_engine::RibbonLayout::default(),
             caption_labels: Vec::new(),
             last_caption_label: String::new(),
             ink_pens: Vec::new(),
@@ -528,9 +529,9 @@ pub fn recent_fonts_from<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<St
 }
 
 /// An unknown saved position reads as the default.
-fn lenient_styles_pane_dock<'de, D: serde::Deserializer<'de>>(d: D) -> Result<wordcraft_engine::StylesPaneDock, D::Error> {
+fn lenient_styles_pane_dock<'de, D: serde::Deserializer<'de>>(d: D) -> Result<strix_engine::StylesPaneDock, D::Error> {
     let v = Value::deserialize(d)?;
-    Ok(v.as_str().and_then(wordcraft_engine::StylesPaneDock::parse).unwrap_or_default())
+    Ok(v.as_str().and_then(strix_engine::StylesPaneDock::parse).unwrap_or_default())
 }
 
 /// Anything but four finite numbers reads as no saved rect; `craft_ui::panes` brings a saved one
@@ -596,7 +597,7 @@ pub struct WordApp {
     /// Web: a recipient list was asked for (Select Recipients › Use an Existing List…), so the
     /// next text file from the picker loads as recipients instead of opening (#240).
     pub recipient_list_pending: bool,
-    /// The font database's [`generation`](wordcraft_fonts::FontDb::generation) last seen: when
+    /// The font database's [`generation`](strix_fonts::FontDb::generation) last seen: when
     /// fonts are added or removed (by any route) the font lists and the layout are refreshed.
     font_generation: u64,
     /// A file picked for the open dialog (Templates and Add-ins › Attach…, Organizer ›
@@ -703,11 +704,11 @@ pub struct WordApp {
     /// uses it to keep IME commits from setting the application-change signal.
     pub(crate) ime_origin: bool,
     /// Read Aloud: the start of the sentence the caret was last moved to, and the last error shown.
-    pub(crate) read_aloud_at: Option<wordcraft_engine::doc::Pos>,
+    pub(crate) read_aloud_at: Option<strix_engine::doc::Pos>,
     pub(crate) read_aloud_error: Option<String>,
     /// The file the document was last explicitly saved to in this session; AutoSave writes only
     /// there. A file that was merely opened isn't rewritten until the user saves it: saving drops
-    /// whatever WordCraft can't represent (content controls, charts, macros…).
+    /// whatever Strix can't represent (content controls, charts, macros…).
     autosave_path: Option<std::path::PathBuf>,
     /// Web: saves the browser's picker hasn't finished yet ([`async_saves`], #1315).
     saves_in_flight: Vec<SaveInFlight>,
@@ -768,7 +769,7 @@ impl WordApp {
     pub fn new(session: Session, services: Services) -> Self {
         // Numeral › System follows the system locale, found here rather than in layout.
         if let Some(tag) = sys_locale::get_locale() {
-            wordcraft_engine::set_system_locale(&tag);
+            strix_engine::set_system_locale(&tag);
         }
         // What the window shows starts as a new window's.
         let window_ui::WindowUi {
@@ -874,7 +875,7 @@ impl WordApp {
             read_aloud_error: None,
             autosave_path: None,
             saves_in_flight: Vec::new(),
-            font_generation: wordcraft_fonts::FontDb::global().generation(),
+            font_generation: strix_fonts::FontDb::global().generation(),
             recovery_seen: false,
             no_document: None,
             comment_drafts: Default::default(),
@@ -952,7 +953,7 @@ impl WordApp {
         let mut ui = self.ui.clone();
         ui.author = self.session.author.clone();
         ui.initials = self.session.initials.clone();
-        ui.dictionary = wordcraft_engine::proof::user_dictionary();
+        ui.dictionary = strix_engine::proof::user_dictionary();
         ui.editing = self.session.prefs.clone();
         ui.read_aloud_rate = self.session.read_aloud.rate();
         ui.read_aloud_skip_citations = self.session.read_aloud.skip_citations;
@@ -989,11 +990,11 @@ impl WordApp {
         if !author.trim().is_empty() {
             self.session.author = author;
         }
-        self.session.initials = std::mem::take(&mut self.ui.initials).chars().take(wordcraft_engine::cmd::options::MAX_INITIALS_CHARS).collect();
+        self.session.initials = std::mem::take(&mut self.ui.initials).chars().take(strix_engine::cmd::options::MAX_INITIALS_CHARS).collect();
         for w in std::mem::take(&mut self.ui.dictionary).iter().take(MAX_DICTIONARY) {
             let w = w.trim();
-            if !w.is_empty() && w.chars().count() <= wordcraft_engine::cmd::options::MAX_WORD_CHARS {
-                wordcraft_engine::proof::add_word(w);
+            if !w.is_empty() && w.chars().count() <= strix_engine::cmd::options::MAX_WORD_CHARS {
+                strix_engine::proof::add_word(w);
             }
         }
         self.session.prefs = std::mem::take(&mut self.ui.editing);
@@ -1001,7 +1002,7 @@ impl WordApp {
         self.session.view.proofing = self.session.prefs.check_spelling;
         // The saved dictionaries folder (#1063) is searched from the start.
         if let Some(f) = self.session.prefs.dictionaries_folder.as_deref() {
-            wordcraft_engine::cmd::options::use_dictionaries_folder(Some(f));
+            strix_engine::cmd::options::use_dictionaries_folder(Some(f));
         }
         self.session.read_aloud.set_rate(self.ui.read_aloud_rate);
         self.session.read_aloud.skip_citations = self.ui.read_aloud_skip_citations;
@@ -1027,10 +1028,10 @@ impl WordApp {
             return;
         }
         let end = self.session.sel.focus.clone();
-        let Some(off) = end.off.checked_sub(wordcraft_doc::para::OBJ.len_utf8()) else { return };
-        let start = wordcraft_doc::Pos { off, ..end.clone() };
+        let Some(off) = end.off.checked_sub(strix_doc::para::OBJ.len_utf8()) else { return };
+        let start = strix_doc::Pos { off, ..end.clone() };
         if self.session.doc.para_at(&start).and_then(|p| p.object_at(off)).is_some_and(|o| o.is_drawing()) {
-            self.session.sel = wordcraft_engine::Selection { anchor: start, focus: end };
+            self.session.sel = strix_engine::Selection { anchor: start, focus: end };
         }
     }
 
@@ -1182,7 +1183,7 @@ impl WordApp {
             if matches!(id, "file.save" | "file.saveAs")
                 && let Some(pw) = params.get("password").filter(|v| !v.is_null())
             {
-                if !wordcraft_engine::io::can_encrypt(&name) || pw.as_str().is_none_or(str::is_empty) {
+                if !strix_engine::io::can_encrypt(&name) || pw.as_str().is_none_or(str::is_empty) {
                     return Err("only Word documents (.docx, .docm, .dotx, .dotm) can be saved with a password, and it can't be empty".into());
                 }
                 self.session.run("file.encrypt", &json!({"password": pw})).map_err(|e| e.to_string())?;
@@ -1193,9 +1194,9 @@ impl WordApp {
             }
             // Word documents are encrypted with the document's password, if it has one.
             let password =
-                if matches!(id, "file.save" | "file.saveAs") { self.session.password.as_ref().map(wordcraft_engine::Password::as_str) } else { None };
-            let opts = wordcraft_engine::cmd::file::export_options(&self.session, &params);
-            let bytes = wordcraft_engine::io::save_bytes_with(&name, &self.session.doc, password, &opts)?;
+                if matches!(id, "file.save" | "file.saveAs") { self.session.password.as_ref().map(strix_engine::Password::as_str) } else { None };
+            let opts = strix_engine::cmd::file::export_options(&self.session, &params);
+            let bytes = strix_engine::io::save_bytes_with(&name, &self.session.doc, password, &opts)?;
             // A ticket left over from an earlier call isn't this save's.
             let saves = self.services.async_saves.clone();
             if let Some(saves) = &saves {
@@ -1319,7 +1320,7 @@ impl WordApp {
             "font.add" => {
                 if let (Some(store), Some(file), Some(data)) =
                     (&self.services.store_font, result.get("file").and_then(Value::as_str), params.get("data").and_then(Value::as_str))
-                    && let Some(bytes) = wordcraft_engine::cmd::insert::base64_decode(data)
+                    && let Some(bytes) = strix_engine::cmd::insert::base64_decode(data)
                 {
                     store(file, &bytes);
                 }
@@ -1340,7 +1341,7 @@ impl WordApp {
     /// Fonts were added or removed (a command, the web shell loading stored fonts): lay out
     /// again and refresh the font lists and their previews.
     fn watch_fonts(&mut self, ctx: &egui::Context) {
-        let db = wordcraft_fonts::FontDb::global();
+        let db = strix_fonts::FontDb::global();
         let generation = db.generation();
         if generation == self.font_generation {
             return;
@@ -1375,7 +1376,7 @@ impl WordApp {
             SaveChoice::DontSave => true,
             // A new document or an import-only Word file: ask where through Save As. The command
             // runs once that has saved, on a later frame with the non-blocking dialog (#94).
-            SaveChoice::Save if (self.session.path.is_none() || self.legacy_word_path()) && self.services.download.is_none() => {
+            SaveChoice::Save if (self.session.path.is_none() || self.imported_path()) && self.services.download.is_none() => {
                 return match self.save_as(file_dialogs::AfterSave::Continue { then, params, document }) {
                     file_dialogs::Asked::Done(r) => r,
                     file_dialogs::Asked::Pending => Ok(json!({"pending": "saveAs"})),
@@ -1404,12 +1405,13 @@ impl WordApp {
     /// User commands can ask for a supported Save As target or an opening password (#55).
     /// Scripts and agents use [`WordApp::execute`], which never opens these dialogs.
     pub(crate) fn execute_user(&mut self, id: &str, params: Value) -> Result<Value, String> {
-        // Legacy Word files are import-only (#2445). Only a user's implicit Save asks for
-        // a supported target; scripts and explicitly supplied paths keep their normal errors.
+        // Only Strix's own files (.xmath, .xmathm) are saved in place; a document opened from any
+        // other format is an import (#2445). A user's implicit Save asks where through Save As,
+        // a .xmath name proposed; scripts and explicitly supplied paths get the engine's answer.
         if id == "file.save"
             && params.get("path").and_then(Value::as_str).is_none()
             && self.has_document()
-            && self.legacy_word_path()
+            && self.imported_path()
             && self.services.download.is_none()
         {
             return match self.save_as(file_dialogs::AfterSave::Nothing) {
@@ -1421,7 +1423,7 @@ impl WordApp {
         let retry = (id == "file.open").then(|| params.clone());
         let r = self.execute(id, params);
         if let (Err(e), Some(params)) = (&r, retry)
-            && wordcraft_engine::io::needs_password(e)
+            && strix_engine::io::needs_password(e)
         {
             let path = params.get("path").and_then(Value::as_str).unwrap_or("");
             let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
@@ -1551,7 +1553,7 @@ impl WordApp {
     /// Whether a save before New/Open/Close counts: it happened, and kept everything.
     fn safely_saved(&mut self, saved: bool) -> bool {
         if saved && self.session.dirty {
-            self.status(tl!("That format doesn't keep everything, so the document is still open. Save it as a Word document (.docx) to go on."));
+            self.status(tl!("That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on."));
             return false;
         }
         saved
@@ -1857,7 +1859,7 @@ impl WordApp {
                 self.dialog = dialogs::Dialog::open(s("name").unwrap_or(""), self);
                 // New / Modify Table Style can open on a part (`"part": "firstRow"`…).
                 if let Some(dialogs::Dialog::TableStyle { region, .. }) = &mut self.dialog
-                    && let Some(part) = s("part").and_then(wordcraft_engine::cmd::table_style::part_named)
+                    && let Some(part) = s("part").and_then(strix_engine::cmd::table_style::part_named)
                 {
                     *region = dialogs_table_style::part_index(part);
                 }
@@ -2030,7 +2032,7 @@ impl WordApp {
                 self.open_dialog();
                 json!({})
             }
-            // File › Save As › Save as Word Template (#2852): the Save dialog for a .dotx, in the
+            // File › Save As › Save as Strix Template (#2852): the Save dialog for a .xmathm, in the
             // user templates folder. Opens system UI, like `ui.openFileDialog`.
             "ui.saveAsTemplate" => {
                 let dir = self.save_as_template_dialog();
@@ -2053,18 +2055,18 @@ impl WordApp {
             // Native printing submits the selected queue on a worker; the browser owns its dialog.
             "ui.printSettings" => return Some(printing::settings(&mut self.printing, p, self.services.printers.as_ref())),
             "ui.print" | "ui.printSubmit" => return Some(self.print_to_system(p)),
-            // File › Options › General › Make WordCraft the default… changes the user's system
+            // File › Options › General › Make Strix the default… changes the user's system
             // default apps (Linux) or opens system settings (Windows), so only a click on that
             // button does it ([`WordApp::make_default_app`]); scripts, the control channel and
             // MCP get an error.
             "ui.makeDefaultApp" => {
                 return Some(Err(
-                    "making WordCraft the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
+                    "making Strix the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
                         .into(),
                 ));
             }
             "ui.discord" => {
-                self.canvas.open_url = Some("https://discord.gg/artcraft".into());
+                self.canvas.open_url = Some("https://github.com/nabre/strix/discussions".into());
                 json!({})
             }
             "ui.caretAnimation" => {
@@ -2105,7 +2107,7 @@ impl WordApp {
                 Err(e) => return Some(Err(e)),
             },
             "ui.linkTextBox" => {
-                let from = wordcraft_engine::cmd::objects::text_box_target(&self.session).filter(|_| widgets::enabled(self, "shape.link"));
+                let from = strix_engine::cmd::objects::text_box_target(&self.session).filter(|_| widgets::enabled(self, "shape.link"));
                 let Some((pos, _)) = from else { return Some(Err("select a text box that isn't linked yet first".into())) };
                 self.canvas.link_from = Some(pos);
                 self.status(tl!("Click the empty text box the text should continue in (Esc cancels)"));
@@ -2121,26 +2123,26 @@ impl WordApp {
         printing::submit(self, p)
     }
 
-    /// File › Options › General › Make WordCraft the default…: hand over to the host's
+    /// File › Options › General › Make Strix the default…: hand over to the host's
     /// [`Services::make_default_app`] and say in the status bar what happened. An error when the
     /// host has no hook (web, macOS). Only the button calls this: it is deliberately not a
     /// command, so nothing programmatic (control channel, MCP, macros) can change system defaults.
     pub(crate) fn make_default_app(&mut self) -> Result<Value, String> {
         let Some(hook) = self.services.make_default_app.as_ref() else {
-            return Err("WordCraft can't change the default apps here; use your system's settings".into());
+            return Err("Strix can't change the default apps here; use your system's settings".into());
         };
         match hook() {
             Ok(DefaultApp::SettingsOpened) => {
-                self.status(tl!("In Default apps, choose WordCraft for the document types you want it to open."));
+                self.status(tl!("In Default apps, choose Strix for the document types you want it to open."));
                 Ok(json!({"settingsOpened": true}))
             }
             Ok(DefaultApp::MadeDefault) => {
-                self.status(tl!("WordCraft is now the default app for Word documents."));
+                self.status(tl!("Strix is now the default app for Word documents."));
                 Ok(json!({"default": true}))
             }
             Err(e) => {
                 log::warn!("make default app: {e}");
-                let msg = i18n::fmt(tl!("Couldn't make WordCraft the default: {error}"), &[("error", &e)]);
+                let msg = i18n::fmt(tl!("Couldn't make Strix the default: {error}"), &[("error", &e)]);
                 self.status(msg.clone());
                 Err(msg)
             }
@@ -2153,8 +2155,8 @@ impl WordApp {
 
     /// Media key of the selected picture, if any.
     pub(crate) fn selected_picture_media(&self) -> Option<String> {
-        match wordcraft_engine::cmd::objects::selected(&self.session) {
-            Some((_, wordcraft_doc::para::InlineObject::Image { media, .. })) => Some(media),
+        match strix_engine::cmd::objects::selected(&self.session) {
+            Some((_, strix_doc::para::InlineObject::Image { media, .. })) => Some(media),
             _ => None,
         }
     }
@@ -2225,14 +2227,11 @@ impl WordApp {
         r
     }
 
-    /// These paths have readers but no writer, so an interactive save needs another format.
-    fn legacy_word_path(&self) -> bool {
-        self.session
-            .path
-            .as_ref()
-            .and_then(|p| p.extension())
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("doc") || e.eq_ignore_ascii_case("dot"))
+    /// The document was opened from a format other than Strix's own (.xmath, .xmathm): a plain
+    /// Save doesn't write it in place, so an interactive Save asks where (Save As, a `.xmath`
+    /// name proposed).
+    fn imported_path(&self) -> bool {
+        self.session.path.as_ref().is_some_and(|p| !strix_engine::io::is_native(&p.to_string_lossy()))
     }
 
     /// The name a browser Save or Export without a name uses. An export is named after the
@@ -2247,7 +2246,7 @@ impl WordApp {
         }
         if id == "file.save"
             && self.services.host_save.is_some()
-            && !self.legacy_word_path()
+            && !self.imported_path()
             && let Some(name) = self.session.path.as_ref().and_then(|p| p.file_name())
         {
             return name.to_string_lossy().to_string();
@@ -2255,14 +2254,19 @@ impl WordApp {
         self.default_save_name()
     }
 
-    /// The name Save suggests: the open file's own Word format (so a .docm keeps its macros),
-    /// otherwise .docx.
+    /// The name Save suggests: a Strix file keeps its own extension; anything else (a new
+    /// document, one opened from another format) becomes a Strix document, `.xmath` (`.xmathm`
+    /// for a Word template).
     fn default_save_name(&self) -> String {
         let ext = self.session.path.as_ref().and_then(|p| p.extension()).map(|e| e.to_string_lossy().to_string());
-        match ext {
-            Some(e) if wordcraft_engine::io::is_word_package(&e) => format!("{}.{e}", self.title_stem()),
-            _ => format!("{}.docx", self.title_stem()),
-        }
+        let native = match ext {
+            Some(e) if strix_engine::io::is_native(&e) => e,
+            Some(e) => strix_engine::io::native_path(std::path::Path::new(&format!("x.{e}")))
+                .extension()
+                .map_or_else(|| strix_engine::io::NATIVE_DOC_EXT.to_string(), |e| e.to_string_lossy().into_owned()),
+            None => strix_engine::io::NATIVE_DOC_EXT.to_string(),
+        };
+        format!("{}.{native}", self.title_stem())
     }
 
     /// The window caption is painted with the semibold interface face (Inter). A file name in a
@@ -2271,11 +2275,11 @@ impl WordApp {
     /// those collections are too large to add here.
     fn ensure_caption_fonts(&mut self) {
         let stem = self.title_stem();
-        if stem.chars().any(wordcraft_fonts::is_cjk) {
+        if stem.chars().any(strix_fonts::is_cjk) {
             self.want_system_cjk = true;
         }
         let new = theme::faces_for_preedit(&stem, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
-            wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+            strix_fonts::FontDb::global().fallback_for(c, u32::MAX)
         });
         if !new.is_empty() {
             self.canvas.ime_faces.extend(new);
@@ -2298,14 +2302,14 @@ impl WordApp {
         let mut chars = std::collections::BTreeSet::new();
         for c in doc.comments.values() {
             chars.extend(c.author.chars());
-            chars.extend(doc.plain_text(wordcraft_doc::StoryRef::Part(c.part)).chars());
+            chars.extend(doc.plain_text(strix_doc::StoryRef::Part(c.part)).chars());
         }
-        if chars.iter().any(|c| wordcraft_fonts::is_cjk(*c)) {
+        if chars.iter().any(|c| strix_fonts::is_cjk(*c)) {
             self.want_system_cjk = true;
         }
         let text: String = chars.into_iter().collect();
         let new = theme::faces_for_preedit(&text, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
-            wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+            strix_fonts::FontDb::global().fallback_for(c, u32::MAX)
         });
         if !new.is_empty() {
             self.canvas.ime_faces.extend(new);
@@ -2328,12 +2332,12 @@ impl WordApp {
         }
         self.recover_fonts_for = Some(key);
         let chars: std::collections::BTreeSet<char> = docs.iter().flat_map(|d| d.name.chars()).collect();
-        if chars.iter().any(|c| wordcraft_fonts::is_cjk(*c)) {
+        if chars.iter().any(|c| strix_fonts::is_cjk(*c)) {
             self.want_system_cjk = true;
         }
         let text: String = chars.into_iter().collect();
         let new = theme::faces_for_preedit(&text, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
-            wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+            strix_fonts::FontDb::global().fallback_for(c, u32::MAX)
         });
         if !new.is_empty() {
             self.canvas.ime_faces.extend(new);
@@ -2350,11 +2354,11 @@ impl WordApp {
         }
         self.recent_fonts_for = self.ui.recent.clone();
         for p in &self.ui.recent {
-            if p.chars().any(wordcraft_fonts::is_cjk) {
+            if p.chars().any(strix_fonts::is_cjk) {
                 self.want_system_cjk = true;
             }
             let new = theme::faces_for_preedit(p, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
-                wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+                strix_fonts::FontDb::global().fallback_for(c, u32::MAX)
             });
             if !new.is_empty() {
                 for face in new {
@@ -2389,11 +2393,11 @@ impl WordApp {
                 text.push_str(s);
             }
         }
-        if text.chars().any(wordcraft_fonts::is_cjk) {
+        if text.chars().any(strix_fonts::is_cjk) {
             self.want_system_cjk = true;
         }
         let new = theme::faces_for_preedit(&text, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
-            wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+            strix_fonts::FontDb::global().fallback_for(c, u32::MAX)
         });
         if !new.is_empty() {
             self.canvas.ime_faces.extend(new);
@@ -2449,7 +2453,7 @@ impl WordApp {
         updates_ui::tick(self, ctx);
         let lang = i18n::Lang::from_pref(&self.ui.language);
         i18n::set_current(lang);
-        // New documents are written in the interface's language when WordCraft can proof it
+        // New documents are written in the interface's language when Strix can proof it
         // (a Polish interface: Polish spelling, grammar and hyphenation from the first word).
         // An English interface writes the region's English (English (UK) on a British system,
         // #1045), a Spanish one the region's Spanish (Spanish (Uruguay) on a Uruguayan system,
@@ -2630,7 +2634,7 @@ impl WordApp {
             let path = f.path().to_string_lossy().to_string();
             let lp = path.to_ascii_lowercase();
             let img = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".wmf", ".emf"].iter().any(|e| lp.ends_with(e));
-            let sheet = wordcraft_engine::cmd::mailings::is_spreadsheet_name(&lp);
+            let sheet = strix_engine::cmd::mailings::is_spreadsheet_name(&lp);
             let _ = if img {
                 self.caret_after_placed_picture(placed_picture);
                 let r = self.run("insert.picture", json!({"path": path}));
@@ -2639,7 +2643,7 @@ impl WordApp {
             } else if sheet {
                 // A spreadsheet isn't a document: it's a recipient list (#334).
                 self.load_recipients(json!({"path": path}))
-            } else if wordcraft_fonts::is_font_file_name(&lp) {
+            } else if strix_fonts::is_font_file_name(&lp) {
                 self.run("font.add", json!({"path": path}))
             } else {
                 self.open_file(&path, None)
@@ -2714,7 +2718,8 @@ impl WordApp {
             return Some(AutoSaveBlock::Browser);
         }
         let Some(path) = &self.session.path else { return Some(AutoSaveBlock::Unsaved) };
-        if !keeps_everything(&path.to_string_lossy()) {
+        // AutoSave runs a plain Save, which writes only Strix's own files in place.
+        if !strix_engine::io::is_native(&path.to_string_lossy()) {
             let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
             return Some(AutoSaveBlock::Format { name });
         }
@@ -3096,21 +3101,21 @@ impl WordApp {
             // Any recipient file ends the pending picker request, so a later .txt drop opens normally.
             let asked = std::mem::take(&mut self.recipient_list_pending);
             let list = lower.ends_with(".csv") || lower.ends_with(".tsv") || (lower.ends_with(".txt") && asked);
-            let sheet = wordcraft_engine::cmd::mailings::is_spreadsheet_name(&lower);
+            let sheet = strix_engine::cmd::mailings::is_spreadsheet_name(&lower);
             self.recipient_list_pending = asked && !list && !sheet;
             let r = if sheet {
-                self.load_recipients(json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))
-            } else if wordcraft_fonts::is_font_file_name(&lower) {
-                self.run("font.add", json!({"name": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))
+                self.load_recipients(json!({"path": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)}))
+            } else if strix_fonts::is_font_file_name(&lower) {
+                self.run("font.add", json!({"name": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)}))
             } else if list {
-                self.load_recipients(json!({"csv": wordcraft_engine::io::decode_text(&bytes)}))
+                self.load_recipients(json!({"csv": strix_engine::io::decode_text(&bytes)}))
             } else if img {
                 self.caret_after_placed_picture(placed_picture);
-                let r = self.insert_or_change_picture(json!({"data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}));
+                let r = self.insert_or_change_picture(json!({"data": strix_engine::cmd::insert::base64_encode(&bytes)}));
                 placed_picture = Self::placed_in_text(&r);
                 r
             } else {
-                self.run("file.open", json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))
+                self.run("file.open", json!({"path": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)}))
             };
             if r.is_ok() {
                 self.ui.backstage = false;
@@ -3129,7 +3134,7 @@ impl WordApp {
                 log::debug!("pasted picture ignored: the document is not the edit target");
                 continue;
             }
-            let _ = self.insert_or_change_picture(json!({"data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}));
+            let _ = self.insert_or_change_picture(json!({"data": strix_engine::cmd::insert::base64_encode(&bytes)}));
         }
     }
 
@@ -3184,7 +3189,7 @@ impl AutoSaveBlock {
             }
             AutoSaveBlock::Unsaved => tl!("Save the document to turn on AutoSave").to_string(),
             AutoSaveBlock::Format { name } => i18n::fmt(
-                tl!("AutoSave only keeps .docx, .odt and .rtf files; {name} can't keep all formatting. Save as .docx to turn on AutoSave."),
+                tl!("AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave."),
                 &[("name", name)],
             ),
             AutoSaveBlock::NotSavedHere => {
@@ -3199,13 +3204,13 @@ impl AutoSaveBlock {
     }
 }
 
-/// Whether saving to `name` keeps the whole document (the formats `file.save` treats as the
-/// document's own file, including macro-enabled documents and templates); anything else is a
-/// copy that leaves it unsaved, unless it is the file the document was opened from (#2376).
-/// AutoSave writes only these formats.
+/// Whether saving to `name` keeps the whole document (Strix's own .xmath/.xmathm, and the formats
+/// `file.save` treats as the document's file after a Save As, including macro-enabled documents
+/// and templates); anything else is a copy that leaves it unsaved, unless it is the file the
+/// document was opened from (#2376). AutoSave writes only Strix's own files.
 pub fn keeps_everything(name: &str) -> bool {
     let ext = std::path::Path::new(name).extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
-    matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "rtf" | "json" | "xml")
+    strix_engine::io::is_native(&ext) || matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "rtf" | "json" | "xml")
 }
 
 /// The dialog a user-run command opens when it lacks the input it needs (scripts and agents get
@@ -3425,7 +3430,7 @@ mod tests {
     #[test]
     fn word_shortcuts_do_not_zoom_the_window() {
         let ctx = egui::Context::default();
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let mut frame = |events: Vec<egui::Event>| {
             let input = egui::RawInput { events, ..Default::default() };
             // No painter here: dropping the font atlas delta unapplied trips an epaint debug assertion.
@@ -3523,7 +3528,7 @@ mod tests {
         assert!(h.state().canvas.focused, "a click on the dropped ribbon gives the page the keyboard");
         h.event(egui::Event::Text("x".into()));
         h.run_steps(2);
-        assert!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Hellox"), "typing after it reaches the page");
+        assert!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body).contains("Hellox"), "typing after it reaches the page");
         assert!(h.state().focus_ribbon, "typing leaves the dropped ribbon down");
         let page = crate::canvas::page_to_screen(h.state_mut(), 0, 300.0, 600.0).unwrap();
         h.event(egui::Event::PointerMoved(page));
@@ -3635,7 +3640,7 @@ mod tests {
     #[test]
     fn a_user_bound_ctrl_f1_through_the_app_runs_the_command() {
         let mut h = canvas_harness();
-        h.state_mut().session.keymap = wordcraft_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
+        h.state_mut().session.keymap = strix_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
         press_ctrl_f1(&mut h);
         assert!(h.state().session.view.focus_mode, "the bound command ran");
         assert!(!h.state().ui.ribbon_collapsed, "the ribbon is unchanged");
@@ -3660,7 +3665,7 @@ mod tests {
         hebrew.session.path = Some("מסמך.docx".into());
         frame(&mut hebrew);
         let letter = 'מ';
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(hebrew.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the caption borrows a face that covers the file name");
         }
         let n = hebrew.canvas.ime_faces.len();
@@ -3682,7 +3687,7 @@ mod tests {
     fn non_latin_names_in_the_recover_list_get_a_face() {
         let with_copy = |name: &str| {
             let root = std::env::temp_dir().join(format!(
-                "wordcraft-recover-fonts-{}-{}",
+                "strix-recover-fonts-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
             ));
@@ -3690,7 +3695,7 @@ mod tests {
             std::fs::create_dir_all(root.join(id)).unwrap();
             let snapshot = json!({
                 "version": 1, "generation": 1, "info": {"id": id, "name": name, "savedAt": "2026-10-11T10:42:00Z"},
-                "document": wordcraft_doc::Document::from_text("Recovered work")
+                "document": strix_doc::Document::from_text("Recovered work")
             });
             std::fs::write(root.join(id).join("snapshot-00000000000000000001.json"), serde_json::to_vec(&snapshot).unwrap()).unwrap();
             let mut a = app();
@@ -3736,7 +3741,7 @@ mod tests {
         arabic.run("review.newComment", json!({"text": "لتحديد نطاق الأعمال"})).unwrap();
         frame(&mut arabic);
         let letter = 'ن';
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(arabic.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the balloons borrow a face that covers the comment");
         }
         let n = arabic.canvas.ime_faces.len();
@@ -3762,7 +3767,7 @@ mod tests {
         arabic.ui.recent.push("/home/ice/نواقص 2026.docx".into());
         frame(&mut arabic);
         let letter = 'ن';
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(arabic.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the recent list borrows a face that covers the file name");
         }
         let n = arabic.canvas.ime_faces.len();
@@ -3792,7 +3797,7 @@ mod tests {
         assert!(!georgian.session.find.results.is_empty(), "the search actually found the Georgian word");
         frame(&mut georgian);
         let letter = 'ტ';
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(georgian.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the Results list borrows a face that covers the match");
         }
         let n = georgian.canvas.ime_faces.len();
@@ -3805,7 +3810,7 @@ mod tests {
         typing.run("text.insert", json!({"text": "unrelated"})).unwrap();
         typing.session.find.query = "ტექსტი".into();
         frame(&mut typing);
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(typing.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the typed query alone (no match yet) still gets a fallback face");
         }
     }
@@ -3832,7 +3837,7 @@ mod tests {
         assert_eq!(a.session.find.results, before, "typing alone doesn't recompute the stale results");
         frame(&mut a);
         let letter = 'ტ';
-        if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+        if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
             assert!(
                 a.canvas.ime_faces.iter().any(|f| f.covers(letter)),
                 "Georgian typed beside the match, inside its context window, gets a fallback face too"
@@ -3841,7 +3846,7 @@ mod tests {
     }
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::new()), Services::default())
     }
 
     /// All title-bar inputs have accessible names. Clicking the title opens Rename Document, the
@@ -3885,7 +3890,7 @@ mod tests {
         h.run_steps(2);
         assert!(h.state().dialog.is_none());
         assert_eq!(h.state().title_stem(), "Project notes");
-        assert_eq!(h.state().default_save_name(), "Project notes.docx");
+        assert_eq!(h.state().default_save_name(), "Project notes.xmath");
         assert!(h.state().session.doc.core.title.is_empty());
         assert!(!h.state().session.dirty);
         // A long name remains clickable, and Escape leaves it unchanged.
@@ -4011,7 +4016,7 @@ mod tests {
         let a = h.state_mut();
         assert!(!a.ui.backstage, "Esc leaves the Start screen");
         assert!(!a.has_document(), "for an empty window, not a blank document");
-        assert_eq!(a.sent_title, "WordCraft", "the window is titled with the app alone");
+        assert_eq!(a.sent_title, "Strix", "the window is titled with the app alone");
         // The ribbon's commands are off, but Help, the File tab and the settings work.
         for id in ["format.bold", "text.insert", "file.save", "file.saveAs", "file.print", "edit.paste", "insert.table", "ui.print"] {
             assert!(!widgets::enabled(a, id), "{id} is off with no document");
@@ -4034,7 +4039,7 @@ mod tests {
         h.key_press(egui::Key::Enter);
         h.run_steps(2);
         let a = h.state_mut();
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim(), "");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim(), "");
         assert!(!a.session.dirty && !a.has_document());
         assert!(a.close_requested(), "closing asks nothing");
         assert!(a.dialog.is_none());
@@ -4113,7 +4118,7 @@ mod tests {
         assert_ne!(a.session.document_id(), first);
         assert!(widgets::enabled(a, "format.bold"));
         a.run("text.insert", json!({"text": "Hello"})).unwrap();
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim(), "Hello");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim(), "Hello");
         assert!(a.sent_title.starts_with(&a.title_stem()), "{}", a.sent_title);
     }
 
@@ -4127,7 +4132,7 @@ mod tests {
         assert!(a.has_document());
 
         let dir = scratch("start-screen-open");
-        let path = docx_on_disk(&dir, "Signed copy");
+        let path = saved_on_disk(&dir, "Signed copy");
         let mut b = app();
         b.start_screen();
         assert!(b.run("file.open", json!({"path": dir.join("missing.docx").to_string_lossy()})).is_err());
@@ -4197,7 +4202,7 @@ mod tests {
         assert!(a.dialog.is_none(), "settings apply without the dialog");
         let (tp, _, _) = a.session.sel.focus.path.cell().unwrap();
         let t = a.session.doc.table(a.session.sel.focus.story, &tp).unwrap();
-        assert_eq!(t.props.align, Some(wordcraft_doc::props::Align::Center));
+        assert_eq!(t.props.align, Some(strix_doc::props::Align::Center));
         assert_eq!((t.rows[0].props.height, t.rows[0].props.header), (Some(36.0), true));
         assert_eq!(dialogs::TableForm::read(&a).unwrap().changes(&f), json!({}), "the dialog reopens with the new values");
         // Table direction (#362) is one more setting of the same step.
@@ -4280,7 +4285,7 @@ mod tests {
         frame(&mut a, vec![egui::Event::Text("abc".into())]);
         let Some(dialogs::Dialog::Find { query, .. }) = &a.dialog else { panic!("no Find dialog") };
         assert!(query.ends_with("abc"), "typing went into Find what: {query:?}");
-        assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).is_empty(), "nothing was typed into the document");
+        assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).is_empty(), "nothing was typed into the document");
     }
 
     /// #1610: opening a hyperlink must direct typing and paste into its address.
@@ -4314,7 +4319,7 @@ mod tests {
             let Some(dialogs::Dialog::Link { url, text, .. }) = &a.dialog else { panic!("no Link dialog") };
             assert_eq!(url, expected, "input replaces the initial address");
             assert_eq!(text, "Keep this text");
-            assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Keep this text");
+            assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body), "Keep this text");
             frame(&mut a, vec![key(egui::Key::Escape, egui::Modifiers::NONE)]);
             frame(&mut a, Vec::new());
             assert!(a.dialog.is_none(), "Cancel closes the dialog");
@@ -4549,7 +4554,7 @@ mod tests {
                 .pages
                 .iter()
                 .flat_map(|p| p.items.iter())
-                .map(|it| if let wordcraft_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 })
+                .map(|it| if let strix_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 })
                 .sum::<usize>()
         };
         let tick = 1.0 / 60.0;
@@ -4609,7 +4614,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut a = app();
         a.run("text.insert", json!({"text": "One readable paragraph in many narrow columns. ".repeat(300)})).unwrap();
-        a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
+        a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 740.0));
         let mut t = 0.0;
         let mut frame = |a: &mut WordApp, events: Vec<egui::Event>| {
@@ -4657,7 +4662,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut a = app();
         a.run("text.insert", json!({"text": "One readable paragraph in many narrow columns. ".repeat(300)})).unwrap();
-        a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
+        a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
         let original = a.session.doc.settings.clone();
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 740.0));
         let mut t = 0.0;
@@ -4702,10 +4707,10 @@ mod tests {
         assert!((a.canvas.scroll_offset.x - initial_scroll).abs() < 0.5);
         assert!(a.session.sel.is_collapsed());
         // An explicit caret move outside the visible columns must still reveal its destination.
-        a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 5000)})).unwrap();
+        a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 5000)})).unwrap();
         frame(&mut a, vec![], screen);
         assert!(a.canvas.scroll_offset.x > initial_scroll + a.session.view.read_width * a.canvas.scale);
-        a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
+        a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
         frame(&mut a, vec![], screen);
         assert!((a.canvas.scroll_offset.x - initial_scroll).abs() < 0.5);
         let over = a.canvas.canvas_rect.unwrap().center();
@@ -4739,7 +4744,7 @@ mod tests {
         let x = a.canvas.scroll_offset.x;
         // A heading navigation request must position its column at the leading edge,
         // not wherever egui's generic scroll_to_rect decides the caret is visible.
-        let target = wordcraft_doc::Pos::body(0, 5000);
+        let target = strix_doc::Pos::body(0, 5000);
         a.run("view.navigationPane", json!({"value": true})).unwrap();
         a.run("caret.set", json!({"pos": target})).unwrap();
         a.canvas.nav_to_caret = true;
@@ -4780,7 +4785,7 @@ mod tests {
         a.run("view.printLayout", json!({})).unwrap();
         frame(&mut a, vec![], narrow);
         assert!(!a.session.view.read_mode);
-        assert_eq!(a.session.view.mode, wordcraft_layout::ViewMode::Print);
+        assert_eq!(a.session.view.mode, strix_layout::ViewMode::Print);
         assert_eq!(a.session.doc.settings, original);
     }
 
@@ -4788,7 +4793,7 @@ mod tests {
     fn app_with_system_animations(system: &std::rc::Rc<std::cell::Cell<Option<bool>>>) -> WordApp {
         let system = system.clone();
         let services = Services { animations_enabled: Some(Box::new(move || system.get())), ..Default::default() };
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), services)
+        WordApp::new(Session::new(strix_doc::Document::new()), services)
     }
 
     /// Animation effects: "Use system setting" (the default) follows what the host reports and is
@@ -5398,7 +5403,7 @@ mod tests {
         }
         let page = a.session.layout().pages[0].clone();
         let (header, footer) = (page.header_story.expect("a header"), page.footer_story.expect("a footer"));
-        assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(header));
+        assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(header));
         let (x, foot_y) = (page.body.x + 20.0, (page.body.bottom() + page.h) / 2.0);
         // Scroll down to page 1's footer a wheel notch at a time: page 1's header goes off screen.
         let vp = a.canvas.viewport.expect("the canvas laid out");
@@ -5429,7 +5434,7 @@ mod tests {
         for _ in 0..40 {
             frame(&mut a, Vec::new());
         }
-        assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(footer), "editing the footer");
+        assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(footer), "editing the footer");
         assert_eq!(a.session.page_hint, 0, "on the clicked page");
         assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
         // The next page's header, just below: back in the header, still without scrolling.
@@ -5442,10 +5447,10 @@ mod tests {
         for _ in 0..40 {
             frame(&mut a, Vec::new());
         }
-        assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(header), "editing the header again");
+        assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(header), "editing the header again");
         assert_eq!(a.session.page_hint, 1, "on the clicked page");
         assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Part(footer)), "Foot");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Part(footer)), "Foot");
     }
 
     /// Runs one 1280 by 800 frame through the raw input hook, logic and UI, dropping texture deltas.
@@ -5649,7 +5654,7 @@ mod tests {
         }
         let footer = page.footer_story.expect("the clicked page has a footer");
         assert!(page.header_story.is_some_and(|h| h != footer), "the page has a separate header: {:?}", page.header_story);
-        assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(footer), "editing the clicked page's footer");
+        assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(footer), "editing the clicked page's footer");
         assert_eq!(a.session.page_hint, last, "on the clicked page");
         assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
     }
@@ -5840,7 +5845,7 @@ mod tests {
     }
 
     fn body_text(a: &WordApp) -> String {
-        a.session.doc.plain_text(wordcraft_doc::StoryRef::Body)
+        a.session.doc.plain_text(strix_doc::StoryRef::Body)
     }
 
     /// The reason the Save Changes prompt shows (a failed save), if that prompt is open.
@@ -5907,7 +5912,7 @@ mod tests {
         assert_eq!(last_copied(&ctx).as_deref(), Some(UNSAVED));
 
         a.run("select.collapse", json!({"end": true})).unwrap();
-        let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
+        let data = strix_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
         a.run("insert.picture", json!({"data": data})).unwrap();
         assert!(crate::objects::selected(&a).is_some());
         a.run("edit.copy", json!({})).unwrap();
@@ -5978,16 +5983,16 @@ mod tests {
 
     /// A fresh scratch folder for one test.
     fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("wordcraft-ui-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-ui-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
-    /// A .docx on disk that the app didn't write.
-    fn docx_on_disk(dir: &std::path::Path, text: &str) -> std::path::PathBuf {
-        let path = dir.join("contract.docx");
-        let mut s = Session::new(wordcraft_doc::Document::from_text(text));
+    /// A Strix document (.xmath) on disk that the app didn't write.
+    fn saved_on_disk(dir: &std::path::Path, text: &str) -> std::path::PathBuf {
+        let path = dir.join("contract.xmath");
+        let mut s = Session::new(strix_doc::Document::from_text(text));
         s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
         path
     }
@@ -6021,7 +6026,7 @@ mod tests {
     fn password_protected_documents_ask_for_the_password() {
         let dir = scratch("password");
         let path = dir.join("locked.docx");
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Locked away"));
+        let mut s = Session::new(strix_doc::Document::from_text("Locked away"));
         s.run("file.save", &json!({"path": path.to_string_lossy(), "password": "sesame"})).unwrap();
 
         let mut a = typed();
@@ -6047,7 +6052,7 @@ mod tests {
     #[test]
     fn open_opens_beside_unsaved_work() {
         let dir = scratch("open");
-        let path = docx_on_disk(&dir, "Signed contract");
+        let path = saved_on_disk(&dir, "Signed contract");
         let mut a = typed();
         let first = a.session.document_id();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -6136,47 +6141,63 @@ mod tests {
     #[test]
     fn window_close_save_writes_the_file_and_quits() {
         let dir = scratch("close-save");
-        let path = docx_on_disk(&dir, "Draft");
+        let path = saved_on_disk(&dir, "Draft");
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
         assert!(!a.close_requested());
         assert_eq!(prompt(&a), Some("saveChanges"));
         a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
-        let on_disk = wordcraft_engine::io::open_path(&path).unwrap().plain_text(wordcraft_doc::StoryRef::Body);
+        let on_disk = strix_engine::io::open_path(&path).unwrap().plain_text(strix_doc::StoryRef::Body);
         assert!(on_disk.contains("Revised Draft"), "the edit is on disk: {on_disk:?}");
         assert!(a.quit_requested, "the app may close");
         assert!(a.close_requested(), "the close that follows goes ahead");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// #2376: a text file opened, edited and saved still asked to save on close, and Save in that
-    /// prompt wrote the file but left the window open; only Don't Save closed it.
+    /// #2376, with Strix's own format: a text file opened and edited is an import, so Save (Ctrl+S
+    /// or Save in the close prompt) asks where through Save As, proposing `note.xmath`, and never
+    /// writes over the text file. Once saved as a Strix document, the window closes.
     #[test]
-    fn a_text_file_saved_over_itself_closes() {
+    fn a_text_file_saved_as_a_strix_document_closes() {
         let dir = scratch("close-txt");
         let path = dir.join("note.txt");
         std::fs::write(&path, b"").unwrap();
+        let native = dir.join("note.xmath");
+        let asked: std::rc::Rc<std::cell::RefCell<Vec<String>>> = Default::default();
+        let services = {
+            let (asked, native) = (asked.clone(), native.clone());
+            Services {
+                pick_save: Some(Box::new(move |name: &str| {
+                    asked.borrow_mut().push(name.to_string());
+                    Some(native.to_string_lossy().into_owned())
+                })),
+                ..Default::default()
+            }
+        };
 
-        // Saved with Ctrl+S, then closed: nothing to ask.
-        let mut a = app();
+        // Ctrl+S asks where, proposing a .xmath beside it, then the window closes without asking.
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Hello"})).unwrap();
         a.run("file.save", json!({})).unwrap();
-        assert!(a.close_requested(), "a saved text file closes");
+        assert_eq!(asked.borrow().as_slice(), ["note.xmath"]);
+        assert_eq!(std::fs::read(&path).unwrap(), b"", "the text file is untouched");
+        assert_eq!(a.session.path.as_deref(), Some(native.as_path()));
+        assert!(a.close_requested(), "a saved document closes");
         assert_eq!(prompt(&a), None);
 
-        // Edited again, then closed: Save in the prompt writes the file and lets the window close.
-        let mut a = app();
-        a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
+        // Edited again, then closed: Save in the prompt saves the Strix document in place.
+        a.quit_requested = false;
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
         assert!(!a.close_requested());
         assert_eq!(prompt(&a), Some("saveChanges"));
         let r = a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
         assert_eq!(r["done"], true, "{r}");
-        assert!(std::fs::read_to_string(&path).unwrap().contains("Revised Hello"), "the edit is on disk");
+        let on_disk = strix_engine::io::open_path(&native).unwrap().plain_text(strix_doc::StoryRef::Body);
+        assert!(on_disk.contains("Revised") && on_disk.contains("Hello"), "the edit is on disk: {on_disk:?}");
+        assert_eq!(asked.borrow().len(), 1, "no second Save As");
         assert!(a.quit_requested, "the app may close");
-        assert!(a.close_requested(), "the close that follows goes ahead");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -6187,7 +6208,7 @@ mod tests {
         let dir = scratch("close-save-fails");
         let folder = dir.join("folder");
         std::fs::create_dir_all(&folder).unwrap();
-        let path = docx_on_disk(&folder, "Draft");
+        let path = saved_on_disk(&folder, "Draft");
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
@@ -6197,7 +6218,7 @@ mod tests {
         assert!(!a.close_requested());
         a.status_msg = None;
         let err = a.run("ui.saveChanges", json!({"answer": "save"})).unwrap_err();
-        assert!(err.contains("Couldn't save contract.docx") && err.contains("still open"), "{err}");
+        assert!(err.contains("Couldn't save contract.xmath") && err.contains("still open"), "{err}");
         assert!(a.status_msg.as_ref().is_some_and(|(m, _)| *m == err), "the status bar says why: {:?}", a.status_msg);
         assert!(!a.quit_requested, "nothing closes");
         assert!(a.session.dirty && body_text(&a).contains("Revised Draft"), "nothing was discarded");
@@ -6276,7 +6297,7 @@ mod tests {
         use egui_kittest::kittest::Queryable;
         for (focus, closes, saves) in [(Some("Cancel"), false, false), (Some("Don't Save"), true, false), (None, true, true)] {
             let dir = scratch(&format!("enter-{}", focus.map_or(0, str::len)));
-            let path = docx_on_disk(&dir, "Draft");
+            let path = saved_on_disk(&dir, "Draft");
             let before = std::fs::read(&path).unwrap();
             let mut a = app();
             a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -6329,7 +6350,7 @@ mod tests {
             (vec![egui::Key::ArrowRight, egui::Key::ArrowRight, egui::Key::ArrowLeft], "Don't Save", true, false),
         ] {
             let dir = scratch(&format!("arrows-{}-{}", arrows.len(), focused.len()));
-            let path = docx_on_disk(&dir, "Draft");
+            let path = saved_on_disk(&dir, "Draft");
             let before = std::fs::read(&path).unwrap();
             let mut a = app();
             a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -6377,7 +6398,7 @@ mod tests {
     fn save_prompt_takes_focus_from_the_page() {
         use egui_kittest::kittest::Queryable;
         let dir = scratch("prompt-over-page");
-        let path = docx_on_disk(&dir, "Draft");
+        let path = saved_on_disk(&dir, "Draft");
         let before = std::fs::read(&path).unwrap();
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -6453,7 +6474,7 @@ mod tests {
         use egui::accesskit::Role;
         use egui_kittest::kittest::{By, NodeT, Queryable};
         let dir = scratch("save-accessibility");
-        let path = docx_on_disk(&dir, "Draft");
+        let path = saved_on_disk(&dir, "Draft");
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
@@ -6480,12 +6501,12 @@ mod tests {
         assert!(roles.contains(&Role::AlertDialog), "Save has no alert-dialog ancestor: {roles:?}");
         let dialog = h.get(By::new().predicate(|n| n.role() == Role::AlertDialog));
         let node = dialog.accesskit_node();
-        assert!(node.label().is_some_and(|s| s.contains("contract.docx") && s.contains("save changes")));
+        assert!(node.label().is_some_and(|s| s.contains("contract.xmath") && s.contains("save changes")));
         assert!(node.description().is_some_and(|s| s.contains("Your changes will be lost")));
         for label in ["Save", "Don't Save", "Cancel"] {
             assert!(dialog.query_by_role_and_label(Role::Button, label).is_some(), "missing {label}");
         }
-        let reason = "Couldn't save contract.docx: disk full";
+        let reason = "Couldn't save contract.xmath: disk full";
         if let Some(dialogs::Dialog::SaveChanges { message, .. }) = &mut h.state_mut().dialog {
             *message = reason.into();
         }
@@ -6526,7 +6547,7 @@ mod tests {
         assert!(a.status_msg.as_ref().is_some_and(|(m, _)| m.contains("blocked by the browser")), "the status bar says why");
     }
 
-    /// Make WordCraft the default… (#295) goes through the host's hook and reports the outcome in
+    /// Make Strix the default… (#295) goes through the host's hook and reports the outcome in
     /// the status bar; without a hook (web, macOS) it's an error and nothing runs.
     #[test]
     fn make_default_app_needs_the_hosts_hook_and_reports_the_outcome() {
@@ -6745,12 +6766,12 @@ mod tests {
         assert!((again.height() - fit.height()).abs() < 1.0, "One Page fits the page again: {fit:?} vs {again:?}");
     }
 
-    /// File › Options shows Make WordCraft the default… only when the host can do it (#295), and
+    /// File › Options shows Make Strix the default… only when the host can do it (#295), and
     /// the button runs the host's hook.
     #[test]
     fn the_default_app_button_shows_only_with_the_hosts_hook() {
         use egui_kittest::kittest::Queryable;
-        const LABEL: &str = "Make WordCraft the default for Word documents…";
+        const LABEL: &str = "Make Strix the default for Word documents…";
         for hook in [false, true] {
             let calls = std::rc::Rc::new(std::cell::Cell::new(0));
             let mut a = app();
@@ -6786,7 +6807,7 @@ mod tests {
     #[test]
     fn a_prompt_is_dropped_when_its_document_is_replaced() {
         let dir = scratch("stale");
-        let path = docx_on_disk(&dir, "Agent document");
+        let path = saved_on_disk(&dir, "Agent document");
         let ctx = egui::Context::default();
         let mut a = typed();
         a.run("file.close", json!({})).unwrap();
@@ -6839,7 +6860,7 @@ mod tests {
 
     #[test]
     fn paragraph_alignment_keeps_the_canvas_focused_for_typing() {
-        use wordcraft_doc::Align;
+        use strix_doc::Align;
 
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -6935,10 +6956,10 @@ mod tests {
         // The status bar's view buttons.
         h.get_by_role_and_label(Role::Button, "Web Layout").click();
         type_after_click(&mut h, "Web Layout", " web");
-        assert_eq!(h.state().session.view.mode, wordcraft_layout::ViewMode::Web);
+        assert_eq!(h.state().session.view.mode, strix_layout::ViewMode::Web);
         h.get_by_role_and_label(Role::Button, "Print Layout").click();
         type_after_click(&mut h, "Print Layout", " print");
-        assert_eq!(h.state().session.view.mode, wordcraft_layout::ViewMode::Print);
+        assert_eq!(h.state().session.view.mode, strix_layout::ViewMode::Print);
 
         // The language item opens its menu; a click elsewhere on the status bar cancels it.
         let lang_label = crate::ribbon::caret_language(h.state());
@@ -7132,13 +7153,13 @@ mod tests {
         h.event(key(egui::Key::Num1, egui::Modifiers::COMMAND | egui::Modifiers::ALT));
         h.step();
         let style =
-            |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&wordcraft_doc::Pos::body(0, 0)).and_then(|p| p.props.style.clone());
+            |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).and_then(|p| p.props.style.clone());
         assert_eq!(style(&h).as_deref(), Some("Heading1"));
         // Alt+F7 (next misspelling) can come with key text on some platforms; none is typed.
         h.event(key(egui::Key::F7, egui::Modifiers::ALT));
         h.event(egui::Event::Text("x".into()));
         h.step();
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns");
     }
 
     /// PR #4241: Ctrl/Cmd+Shift+C copies the selection's formatting and Ctrl/Cmd+Shift+V pastes it
@@ -7215,7 +7236,7 @@ mod tests {
             h.step();
         }
         let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
-        let body = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+        let body = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.plain_text(strix_doc::StoryRef::Body);
         h.event(egui::Event::Text("Kilns fire clay".into()));
         h.step();
         h.event(key(egui::Key::Backspace, egui::Modifiers::SHIFT));
@@ -7244,7 +7265,7 @@ mod tests {
         h.run_steps(4);
         h.key_press(egui::Key::Escape);
         h.run_steps(2);
-        assert!(wordcraft_engine::cmd::objects::object_selection(&h.state().session).is_some(), "Escape selects the box");
+        assert!(strix_engine::cmd::objects::object_selection(&h.state().session).is_some(), "Escape selects the box");
         h.key_press(egui::Key::Delete);
         h.run_steps(2);
         assert_eq!(h.state().session.doc.text_box_anchor(id), None, "Delete removed the WordArt");
@@ -7256,7 +7277,7 @@ mod tests {
         h.key_press(egui::Key::Escape);
         h.run_steps(2);
         let s = &h.state().session;
-        assert!(s.sel.is_collapsed() && s.sel.focus.story == wordcraft_doc::StoryRef::Body, "a second Escape leaves a caret in the body");
+        assert!(s.sel.is_collapsed() && s.sel.focus.story == strix_doc::StoryRef::Body, "a second Escape leaves a caret in the body");
     }
 
     /// #1218: Ctrl+Q resets the paragraph formatting and nothing else; it also closed the window
@@ -7278,7 +7299,7 @@ mod tests {
         let closes = |h: &egui_kittest::Harness<WordApp>| {
             h.output().viewport_output.values().flat_map(|v| v.commands.iter()).any(|c| matches!(c, egui::ViewportCommand::Close))
         };
-        let align = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&wordcraft_doc::Pos::body(0, 0)).and_then(|p| p.props.align);
+        let align = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).and_then(|p| p.props.align);
         h.event(egui::Event::Text("Kilns".into()));
         h.step();
         h.state_mut().run("para.alignCenter", json!({})).unwrap();
@@ -7326,7 +7347,7 @@ mod tests {
         h.event(egui::Event::ModifiersChanged(german_mods));
         h.event(egui::Event::Text("@".into()));
         h.step();
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "@", "Ctrl+Alt+Q types the @ character");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "@", "Ctrl+Alt+Q types the @ character");
     }
 
     /// #819: Alt+Q opens Search with its box focused, as in Word: the Q isn't typed into the
@@ -7365,7 +7386,7 @@ mod tests {
         h.event(egui::Event::Text("bold".into()));
         h.step();
         assert_eq!(query(&h).as_deref(), Some("bold"), "typing goes into the search box");
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns");
         h.event(key(egui::Key::Escape, egui::Modifiers::NONE));
         h.step();
         h.step();
@@ -7409,7 +7430,7 @@ mod tests {
     #[test]
     fn save_then_continue() {
         let dir = scratch("save");
-        let path = docx_on_disk(&dir, "Draft");
+        let path = saved_on_disk(&dir, "Draft");
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
@@ -7418,8 +7439,8 @@ mod tests {
         a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
         assert_eq!(prompt(&a), None);
         assert!(!a.has_document(), "the saved document closed");
-        let saved = wordcraft_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Revised Draft"));
+        let saved = strix_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Revised Draft"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -7482,51 +7503,48 @@ mod tests {
 
     /// Open `name` as the host page sends it (bytes of the typed document in that format).
     fn host_open(a: &mut WordApp, name: &str) {
-        let bytes = wordcraft_engine::io::save_bytes_with(name, &typed().session.doc, None, &Default::default()).unwrap();
-        a.execute("file.open", json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)})).unwrap();
+        let bytes = strix_engine::io::save_bytes_with(name, &typed().session.doc, None, &Default::default()).unwrap();
+        a.execute("file.open", json!({"path": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)})).unwrap();
         a.run("text.insert", json!({"text": "Edited "})).unwrap();
         assert!(a.session.dirty);
     }
 
-    /// Save hands the opened file back under its own name and format; Save As says so and
-    /// becomes the file the next Save writes.
+    /// Save hands a Strix document back under its own name; Save As says so and becomes the file
+    /// the next Save writes.
     #[test]
     fn host_saves_go_back_to_the_opened_file() {
         let (mut a, got) = host_app(false);
-        host_open(&mut a, "report.odt");
+        host_open(&mut a, "report.xmath");
         a.execute("file.save", json!({})).unwrap();
         assert!(!a.session.dirty);
         a.run("text.insert", json!({"text": "More "})).unwrap();
-        a.execute("file.saveAs", json!({"path": "report copy.docx"})).unwrap();
+        a.execute("file.saveAs", json!({"path": "report copy.xmath"})).unwrap();
         assert!(!a.session.dirty);
         a.run("text.insert", json!({"text": "Again "})).unwrap();
         a.execute("file.save", json!({})).unwrap();
         let got = got.borrow();
         let calls: Vec<(&str, bool)> = got.iter().map(|(n, s, _)| (n.as_str(), *s)).collect();
-        assert_eq!(calls, [("report.odt", false), ("report copy.docx", true), ("report copy.docx", false)]);
+        assert_eq!(calls, [("report.xmath", false), ("report copy.xmath", true), ("report copy.xmath", false)]);
         assert!(got.iter().all(|(_, _, len)| *len > 0));
     }
 
-    /// A Markdown file goes back as Markdown, which doesn't keep everything: the document stays
-    /// unsaved, as on the desktop.
+    /// A file opened from any other format (OpenDocument, Markdown, Word, Word 97–2003) is an
+    /// import: Save hands it back as a Strix document of the same name, never over the opened file
+    /// (#2445). The host page never had that name, so it's a new file: Save As.
     #[test]
-    fn host_save_of_markdown_keeps_its_format_and_stays_unsaved() {
-        let (mut a, got) = host_app(false);
-        host_open(&mut a, "notes.md");
-        a.execute("file.save", json!({})).unwrap();
-        assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some(("notes.md", false)));
-        assert!(a.session.dirty);
-        assert_eq!(a.session.path.as_deref(), Some(std::path::Path::new("notes.md")));
-    }
-
-    /// An import-only Word 97–2003 file is saved as a .docx, never back over itself (#2445). The
-    /// host page never had that name, so it's a new file: Save As.
-    #[test]
-    fn host_save_of_a_legacy_word_file_writes_a_docx() {
+    fn host_save_of_an_imported_file_writes_a_strix_document() {
+        for (opened, saved) in [("report.odt", "report.xmath"), ("notes.md", "notes.xmath"), ("letter.docx", "letter.xmath"), ("memo.dotx", "memo.xmathm")] {
+            let (mut a, got) = host_app(false);
+            host_open(&mut a, opened);
+            a.execute("file.save", json!({})).unwrap();
+            assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some((saved, true)), "{opened}");
+            assert!(!a.session.dirty, "{opened}");
+            assert_eq!(a.session.path.as_deref(), Some(std::path::Path::new(saved)), "{opened}");
+        }
         let (mut a, got) = host_app(false);
         a.session.path = Some("old.doc".into());
         a.execute("file.save", json!({})).unwrap();
-        assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some(("old.docx", true)));
+        assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some(("old.xmath", true)));
     }
 
     /// Saving a document the host page never sent is Save As, so the page doesn't overwrite a
@@ -7577,11 +7595,18 @@ mod tests {
         assert!(a.session.dirty);
     }
 
-    /// Macro-enabled documents and templates keep everything (#172), so once saved in this
-    /// session AutoSave covers them like a .docx.
+    /// Strix documents and templates, once saved in this session, are covered by AutoSave; Word's
+    /// formats (even the ones that keep everything, #172) are exports, so they aren't.
     #[test]
-    fn autosave_covers_macro_enabled_documents_and_templates() {
-        for ext in ["docm", "dotx", "dotm"] {
+    fn autosave_covers_strix_documents_and_templates() {
+        for ext in ["docx", "docm", "dotx", "dotm"] {
+            let dir = scratch(&format!("autosave-export-{ext}"));
+            let mut a = typed();
+            a.run("file.save", json!({"path": dir.join(format!("novel.{ext}")).to_string_lossy()})).unwrap();
+            assert!(matches!(a.autosave_block(), Some(AutoSaveBlock::Format { .. })), "{ext}");
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        for ext in ["xmath", "xmathm"] {
             let dir = scratch(&format!("autosave-{ext}"));
             let path = dir.join(format!("novel.{ext}"));
             let mut a = typed();
@@ -7590,8 +7615,8 @@ mod tests {
             a.run("text.insert", json!({"text": "More "})).unwrap();
             a.autosave_tick(now_ms() + 10_000.0);
             assert!(!a.session.dirty, "{ext}: AutoSave wrote the file");
-            let saved = wordcraft_engine::io::open_path(&path).unwrap();
-            assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("More "), "{ext}");
+            let saved = strix_engine::io::open_path(&path).unwrap();
+            assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("More "), "{ext}");
             let _ = std::fs::remove_dir_all(&dir);
         }
     }
@@ -7599,8 +7624,8 @@ mod tests {
     #[test]
     fn renaming_a_saved_file_keeps_autosave_and_replaces_its_recent_entry() {
         let dir = scratch("rename-autosave");
-        let path = dir.join("notes.docx");
-        let renamed = dir.join("Notes v2.docx");
+        let path = dir.join("notes.xmath");
+        let renamed = dir.join("Notes v2.xmath");
         let mut a = typed();
         a.run("file.save", json!({"path": path.to_string_lossy()})).unwrap();
         assert!(a.autosaves());
@@ -7612,8 +7637,8 @@ mod tests {
         a.run("text.insert", json!({"text": "More "})).unwrap();
         a.autosave_tick(now_ms() + 10_000.0);
         assert!(!a.session.dirty, "AutoSave wrote the renamed file");
-        let saved = wordcraft_engine::io::open_path(&renamed).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("More "));
+        let saved = strix_engine::io::open_path(&renamed).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("More "));
         assert!(!path.exists());
 
         // A file opened but not saved in this session doesn't gain AutoSave by being renamed.
@@ -7762,11 +7787,11 @@ mod tests {
     #[test]
     fn web_open_opens_beside_a_save_in_flight() {
         let dir = scratch("web-open-after-save");
-        let bytes = std::fs::read(docx_on_disk(&dir, "Picked document")).unwrap();
+        let bytes = std::fs::read(saved_on_disk(&dir, "Picked document")).unwrap();
         let (mut a, _saves, _last) = web_picker_app();
         let first = a.session.document_id();
         a.execute("file.save", json!({})).unwrap();
-        let data = wordcraft_engine::cmd::insert::base64_encode(&bytes);
+        let data = strix_engine::cmd::insert::base64_encode(&bytes);
         a.run("file.open", json!({"path": "picked.docx", "data": data})).unwrap();
         assert_eq!(prompt(&a), None);
         assert!(body_text(&a).contains("Picked document"), "the picked file opened: {:?}", body_text(&a));
@@ -7828,8 +7853,8 @@ mod tests {
         a.run("file.close", json!({})).unwrap();
         a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
         assert!(!a.has_document(), "closed once saved");
-        let saved = wordcraft_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains(UNSAVED));
+        let saved = strix_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains(UNSAVED));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -7984,7 +8009,7 @@ mod tests {
     fn mailings_results_never_save_over_the_original() {
         for id in MAILINGS {
             let dir = scratch(&format!("mailings-{}", id.len()));
-            let path = docx_on_disk(&dir, "Signed contract");
+            let path = saved_on_disk(&dir, "Signed contract");
             let mut a = app();
             a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
             a.run("text.insert", json!({"text": "Revised "})).unwrap();
@@ -8058,9 +8083,9 @@ mod tests {
     fn redo_after_a_mailing_cannot_put_the_result_under_a_saved_file() {
         for id in MAILINGS {
             let dir = scratch(&format!("mailings-redo-{}", id.len()));
-            let path = docx_on_disk(&dir, "Signed contract");
-            let copy = dir.join("copy.docx");
-            let on_file = |p: &std::path::Path| wordcraft_engine::io::open_path(p).unwrap().plain_text(wordcraft_doc::StoryRef::Body);
+            let path = saved_on_disk(&dir, "Signed contract");
+            let copy = dir.join("copy.xmath");
+            let on_file = |p: &std::path::Path| strix_engine::io::open_path(p).unwrap().plain_text(strix_doc::StoryRef::Body);
             let mut a = app();
             a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
             a.run("mailings.recipients", json!({"csv": "Name\nAda"})).unwrap();
@@ -8088,7 +8113,7 @@ mod tests {
     #[test]
     fn opened_files_are_not_autosaved_until_the_user_saves() {
         let dir = scratch("autosave");
-        let path = docx_on_disk(&dir, "Original");
+        let path = saved_on_disk(&dir, "Original");
         let before = std::fs::read(&path).unwrap();
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -8103,14 +8128,14 @@ mod tests {
         assert!(a.session.dirty);
         a.autosave_tick(now_ms() + 10_000.0);
         assert!(!a.session.dirty);
-        let saved = wordcraft_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Typed More Original"));
+        let saved = strix_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Typed More Original"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// #196: a saved .md file showed AutoSave on, but AutoSave writes only formats that keep
-    /// everything, so edits stayed unsaved. The switch is now off and blocked with a reason, and
-    /// scripts turning it on get that reason as an error; a .docx saved here is covered.
+    /// #196: a saved .md file showed AutoSave on, but AutoSave writes only Strix's own files, so
+    /// edits stayed unsaved. The switch is now off and blocked with a reason, and scripts turning
+    /// it on get that reason as an error; a .xmath saved here is covered.
     #[test]
     fn autosave_is_blocked_with_a_reason_for_files_it_cannot_keep() {
         let dir = scratch("autosave-md");
@@ -8120,25 +8145,25 @@ mod tests {
         assert_eq!(a.autosave_block(), Some(AutoSaveBlock::Unsaved), "a new document has no file yet");
         a.run("file.open", json!({"path": md.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Typed "})).unwrap();
-        a.run("file.save", json!({})).unwrap();
+        a.run("file.save", json!({"path": md.to_string_lossy()})).unwrap();
         assert!(a.autosave, "the preference stays on");
         assert_eq!(a.autosave_block(), Some(AutoSaveBlock::Format { name: "notes.md".into() }));
         assert!(!a.autosaves(), "the switch shows off");
         let why = a.autosave_block().map(|b| b.reason()).unwrap_or_default();
-        assert!(why.contains("notes.md") && why.contains(".docx"), "{why}");
+        assert!(why.contains("notes.md") && why.contains(".xmath"), "{why}");
         let err = a.run("file.autosave", json!({"value": true})).unwrap_err();
         assert_eq!(err, why, "scripts are told why");
         assert!(a.run("file.autosave", json!({"value": false})).is_ok(), "turning it off always works");
         a.autosave = true;
 
-        // Save As .docx (what the greyed switch offers) lifts the block.
-        let docx = dir.join("notes.docx");
-        a.run("file.saveAs", json!({"path": docx.to_string_lossy()})).unwrap();
+        // Save As .xmath (what the greyed switch offers) lifts the block.
+        let native = dir.join("notes.xmath");
+        a.run("file.saveAs", json!({"path": native.to_string_lossy()})).unwrap();
         assert_eq!(a.autosave_block(), None);
         assert!(a.autosaves());
         a.run("text.insert", json!({"text": "More "})).unwrap();
         a.autosave_tick(now_ms() + 10_000.0);
-        assert!(!a.session.dirty, "AutoSave wrote the .docx");
+        assert!(!a.session.dirty, "AutoSave wrote the .xmath");
         assert_eq!(a.run("file.autosave", json!({})).unwrap(), json!({"value": false}), "toggling turns it off");
         assert!(!a.autosaves());
         let _ = std::fs::remove_dir_all(&dir);
@@ -8149,7 +8174,7 @@ mod tests {
     #[test]
     fn autosave_is_unavailable_in_the_browser() {
         let services = Services { download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))), ..Default::default() };
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Hello"})).unwrap();
         a.run("file.save", json!({"path": "draft.docx"})).unwrap();
         assert_eq!(a.autosave_block(), Some(AutoSaveBlock::Browser));
@@ -8162,7 +8187,7 @@ mod tests {
     #[test]
     fn cancelling_open_keeps_autosave() {
         let dir = scratch("autosave-open");
-        let path = dir.join("novel.docx");
+        let path = dir.join("novel.xmath");
         let mut a = typed();
         a.services.pick_open = Some(Box::new(|_| None));
         a.run("file.save", json!({"path": path.to_string_lossy()})).unwrap();
@@ -8173,8 +8198,8 @@ mod tests {
         a.run("text.insert", json!({"text": " continues"})).unwrap();
         a.autosave_tick(now_ms() + 10_000.0);
         assert!(!a.session.dirty);
-        let saved = wordcraft_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("chapter continues"));
+        let saved = strix_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("chapter continues"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -8182,7 +8207,7 @@ mod tests {
     #[test]
     fn autosave_failures_are_reported_once() {
         let dir = scratch("autosave-fail");
-        let path = dir.join("gone").join("novel.docx");
+        let path = dir.join("gone").join("novel.xmath");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let mut a = typed();
         a.run("file.save", json!({"path": path.to_string_lossy()})).unwrap();
@@ -8202,15 +8227,17 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Web Save of an opened .docm downloads a .docm, so its macros stay (Codex review, docm lane).
+    /// Web Save of a Strix file downloads it under its own name; of any other file, as a Strix
+    /// document (`.xmath`, `.xmathm` for a Word template) of the same name. Macros stay only in an
+    /// explicit Save As to a macro-enabled Word format (Codex review, docm lane).
     #[test]
-    fn web_save_keeps_the_opened_word_format() {
-        let mut doc = wordcraft_doc::Document::new();
+    fn web_save_keeps_the_opened_strix_format() {
+        let mut doc = strix_doc::Document::new();
         doc.passthrough.insert("word/vbaProject.bin".into(), std::sync::Arc::new(vec![0xD0, 0xCF, 0x11, 0xE0, 1, 2, 3]));
         doc.passthrough.insert("word/vbaData.xml".into(), std::sync::Arc::new(b"<wne:vbaSuppData/>".to_vec()));
-        // The docx reader's list of parts the project relates to (wordcraft_docx VBA_RELATED).
+        // The docx reader's list of parts the project relates to (strix_docx VBA_RELATED).
         let related = "http://schemas.microsoft.com/office/2006/relationships/wordVbaData\tword/vbaData.xml\tapplication/vnd.ms-word.vbaData+xml\n";
-        doc.passthrough.insert("wordcraft:vbaProject.related".into(), std::sync::Arc::new(related.as_bytes().to_vec()));
+        doc.passthrough.insert("strix:vbaProject.related".into(), std::sync::Arc::new(related.as_bytes().to_vec()));
         let got: std::rc::Rc<std::cell::RefCell<Vec<(String, Vec<u8>)>>> = Default::default();
         let sink = got.clone();
         let services = Services {
@@ -8221,25 +8248,34 @@ mod tests {
             ..Default::default()
         };
         let mut a = WordApp::new(Session::new(doc), services);
-        for (opened, expect) in
-            [("m.docm", "m.docm"), ("t.DOTM", "t.DOTM"), ("t.dotx", "t.dotx"), ("notes.odt", "notes.docx"), ("readme.txt", "readme.docx")]
-        {
+        for (opened, expect) in [
+            ("s.xmath", "s.xmath"),
+            ("t.XMATHM", "t.XMATHM"),
+            ("m.docm", "m.xmath"),
+            ("t.DOTM", "t.xmathm"),
+            ("t.dotx", "t.xmathm"),
+            ("notes.odt", "notes.xmath"),
+            ("readme.txt", "readme.xmath"),
+        ] {
             a.session.path = Some(opened.into());
             a.run("file.save", json!({})).unwrap();
             let (name, bytes) = got.borrow_mut().pop().unwrap();
             assert_eq!(name, expect);
-            let back = wordcraft_engine::io::open_bytes(&name, &bytes).unwrap();
-            let macros = name.to_ascii_lowercase().ends_with('m');
-            for part in ["word/vbaProject.bin", "word/vbaData.xml"] {
-                assert_eq!(back.passthrough.contains_key(part), macros, "{opened}: {part}");
-            }
+            assert!(strix_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
+        }
+        // Save As .docm keeps the macros.
+        a.run("file.saveAs", json!({"path": "m.docm"})).unwrap();
+        let (name, bytes) = got.borrow_mut().pop().unwrap();
+        let back = strix_engine::io::open_bytes(&name, &bytes).unwrap();
+        for part in ["word/vbaProject.bin", "word/vbaData.xml"] {
+            assert!(back.passthrough.contains_key(part), "m.docm: {part}");
         }
         // Save As with an explicit name is a conversion: a .docx can't hold macros.
         a.session.path = Some("m.docm".into());
         a.run("file.saveAs", json!({"path": "m.docx"})).unwrap();
         let (name, bytes) = got.borrow_mut().pop().unwrap();
         assert_eq!(name, "m.docx");
-        assert!(!wordcraft_engine::io::open_bytes(&name, &bytes).unwrap().passthrough.contains_key("word/vbaProject.bin"));
+        assert!(!strix_engine::io::open_bytes(&name, &bytes).unwrap().passthrough.contains_key("word/vbaProject.bin"));
     }
 
     #[test]
@@ -8320,18 +8356,18 @@ mod tests {
         h.run_steps(2);
         h.get_by_label("Float").click();
         h.run_steps(3);
-        assert_eq!(h.state().session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Floating);
+        assert_eq!(h.state().session.view.styles_pane_dock, strix_engine::StylesPaneDock::Floating);
         let rect = h.state().ui.styles_pane_float.expect("the float rect is kept");
 
         let saved = serde_json::to_vec(&h.state().prefs()).unwrap();
         let mut next = app();
         next.apply_prefs(serde_json::from_slice(&saved).unwrap());
-        assert_eq!(next.session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Floating);
+        assert_eq!(next.session.view.styles_pane_dock, strix_engine::StylesPaneDock::Floating);
         assert_eq!(next.ui.styles_pane_float, Some(rect));
 
         let mut junk = app();
         junk.apply_prefs(serde_json::from_str(r#"{"stylesPaneDock": "top", "stylesPaneFloat": [1, "x", 3, 4], "navPane": true}"#).unwrap());
-        assert_eq!(junk.session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Right, "junk reads as the default");
+        assert_eq!(junk.session.view.styles_pane_dock, strix_engine::StylesPaneDock::Right, "junk reads as the default");
         assert_eq!(junk.ui.styles_pane_float, None);
         assert!(junk.session.view.nav_pane, "the rest of the file still loads");
     }
@@ -8736,11 +8772,11 @@ mod tests {
     #[test]
     fn the_full_screen_button_reports_the_commands_own_enabled_state() {
         use egui_kittest::kittest::{NodeT, Queryable};
-        use wordcraft_engine::{CommandSpec, Registry};
+        use strix_engine::{CommandSpec, Registry};
 
         // The browser build's reason for refusing full screen, forced here so the test says
         /// something on every platform.
-        fn unavailable(_: &wordcraft_engine::Session) -> Option<&'static str> {
+        fn unavailable(_: &strix_engine::Session) -> Option<&'static str> {
             Some("Use the browser's full screen (F11)")
         }
 
@@ -8991,7 +9027,7 @@ mod tests {
     }
 
     fn insert_picture(a: &mut WordApp, c: [u8; 4]) {
-        let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes(c));
+        let data = strix_engine::cmd::insert::base64_encode(&png_bytes(c));
         a.session.run("insert.picture", &json!({"data": data})).unwrap();
     }
 
@@ -9003,7 +9039,7 @@ mod tests {
     /// script inserts (control channel, MCP bridge) leaves the caret after it, and typing keeps it.
     #[test]
     fn inserted_picture_is_selected_for_the_user_not_for_scripts() {
-        let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
+        let data = strix_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
         for (id, params) in [("insert.picture", json!({"data": data})), ("insert.icon", json!({"id": "sun"}))] {
             let mut a = app();
             a.run(id, params.clone()).unwrap();
@@ -9272,7 +9308,7 @@ mod tests {
         let mut filter = dialogs::RecipientFilter::default();
         filter.rules.push(dialogs::FilterRow {
             field: "City".into(),
-            op: wordcraft_engine::cmd::mailings::FilterOp::Equal,
+            op: strix_engine::cmd::mailings::FilterOp::Equal,
             value: "London".into(),
             or: false,
         });
@@ -9333,7 +9369,7 @@ mod tests {
         let rows = [["Ada", "London"], ["Alan", "Wilmslow"], ["Grace", "London"], ["Émile", "Paris"]];
         let mut filter = dialogs::RecipientFilter::default();
         let rule =
-            dialogs::FilterRow { field: "City".into(), op: wordcraft_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
+            dialogs::FilterRow { field: "City".into(), op: strix_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
         filter.rules.push(rule);
         let state: State = (
             app(),
@@ -9457,11 +9493,11 @@ mod tests {
         a.run("mailings.rules", params).unwrap();
         assert!(a.dialog.is_none());
         let fields = |a: &WordApp| -> Vec<String> {
-            let (doc, body) = (&a.session.doc, wordcraft_doc::StoryRef::Body);
+            let (doc, body) = (&a.session.doc, strix_doc::StoryRef::Body);
             let paras = doc.para_paths(body).into_iter().filter_map(|p| doc.para(body, &p).cloned());
             paras
                 .flat_map(|p| p.objects)
-                .filter_map(|o| if let wordcraft_doc::para::InlineObject::Field { instr, .. } = o { Some(instr) } else { None })
+                .filter_map(|o| if let strix_doc::para::InlineObject::Field { instr, .. } = o { Some(instr) } else { None })
                 .collect()
         };
         assert_eq!(fields(&a), vec![r#"IF { MERGEFIELD City } = "London" "Local" "Away""#]);
@@ -9716,7 +9752,7 @@ mod tests {
         let control::Outcome::Done(v) = control::handle(&mut a, &ctx, &req) else { panic!("ui.render replies at once") };
         assert_eq!(v["ok"], true, "{v}");
         assert!(v["result"].get("path").is_none(), "no file: {v}");
-        let png = wordcraft_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
+        let png = strix_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
         assert_eq!(&png[..4], b"\x89PNG", "{v}");
         assert!(v["result"]["width"].as_u64().unwrap() > 0 && v["result"]["pages"].as_u64().unwrap() >= 1, "{v}");
 
@@ -9725,7 +9761,7 @@ mod tests {
         assert_eq!(v["ok"], true, "{v}");
         assert_eq!(v["request"], 41);
         assert!(v["result"].get("path").is_none(), "no file: {v}");
-        let png = wordcraft_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
+        let png = strix_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
         assert_eq!(&png[..4], b"\x89PNG");
         assert_eq!(v["result"]["width"], 2, "{v}");
         assert_eq!(v["result"]["height"], 1, "{v}");
@@ -9771,7 +9807,7 @@ mod tests {
         h.step();
         h.step();
         assert!(h.state().canvas.context_menu_open);
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns fire");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns fire");
     }
 
     /// #712: Find, Replace and Go To open as in Word. Ctrl+F puts the keyboard in the Navigation
@@ -9808,7 +9844,7 @@ mod tests {
         h.step();
         assert_eq!(nav_query(&h), "cool", "typed into the pane's search box");
         assert_eq!(h.state().session.find.results.len(), 1);
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns fire clay. Kilns cool.");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns fire clay. Kilns cool.");
         // Manual navigation remains available until the next search edit.
         h.state_mut().ui.nav_tab = "headings".into();
         h.step();
@@ -9955,7 +9991,7 @@ mod tests {
     #[test]
     fn a_drop_before_font_warm_up_is_not_lost() {
         let (mut app, ctx) = (app(), egui::Context::default());
-        let path = std::env::temp_dir().join(format!("wordcraft-drop-warmup-{}.txt", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-drop-warmup-{}.txt", std::process::id()));
         std::fs::write(&path, b"dropped text").expect("write the dropped document");
         let mut raw = shot_raw(egui::vec2(640.0, 480.0), false);
         raw.dropped_files.push(std::sync::Arc::new(DroppedText(path.clone())));
@@ -9966,7 +10002,7 @@ mod tests {
         })
         .drop_without_applying_deltas();
         assert_eq!(app.fonts_frames, 1, "the UI returned for font warm-up");
-        assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end_matches(['\r', '\n']), "dropped text");
+        assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end_matches(['\r', '\n']), "dropped text");
         let _ = std::fs::remove_file(&path);
     }
 
@@ -10059,7 +10095,7 @@ mod tests {
     #[test]
     fn a_late_screenshot_callback_never_writes_or_replies() {
         let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-        let path = std::env::temp_dir().join(format!("wordcraft-late-shot-{}.png", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-late-shot-{}.png", std::process::id()));
         let _ = std::fs::remove_file(&path);
         let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
         let callbacks = issue_ready(&mut app, &ctx, egui::vec2(640.0, 480.0));
@@ -10133,7 +10169,7 @@ mod tests {
     #[test]
     fn screenshot_success_writes_the_requested_path_and_correlates_the_token() {
         let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-        let path = std::env::temp_dir().join(format!("wordcraft-shot-ok-{}.png", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-shot-ok-{}.png", std::process::id()));
         let _ = std::fs::remove_file(&path);
         let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
         let token = app.shots.requests[0].token;
@@ -10153,7 +10189,7 @@ mod tests {
     #[test]
     fn screenshot_document_switch_cancels_instead_of_rebinding() {
         let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-        let path = std::env::temp_dir().join(format!("wordcraft-shot-doc-switch-{}.png", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-shot-doc-switch-{}.png", std::process::id()));
         let _ = std::fs::remove_file(&path);
         let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
         let document = app.session.document_id();
@@ -10339,7 +10375,7 @@ mod tests {
         })
         .drop_without_applying_deltas();
         assert_eq!(passes, 2, "the discard forced a second pass");
-        assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "x");
+        assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body), "x");
         assert!(!app.synthetic_pending, "the final UI pass acknowledged the step");
         assert_eq!(app.synthetic.len(), 1, "only the offered step was removed");
 
@@ -10354,7 +10390,7 @@ mod tests {
         .drop_without_applying_deltas();
         assert!(!app.synthetic_pending);
         assert!(app.synthetic.is_empty());
-        assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "xy", "each step typed once");
+        assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body), "xy", "each step typed once");
     }
 
     /// A synthetic step waits for the font warm-up frames rather than being injected into a pass

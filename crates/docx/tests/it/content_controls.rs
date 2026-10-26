@@ -1,12 +1,13 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Content controls (`w:sdt`) keep their properties, levels and nesting through a round trip.
 //! All markup here is synthetic, written from ECMA-376 §17.5.2 and the [MS-DOCX] `w14`/`w15`
 //! extensions.
 
 use std::io::Write;
 
-use wordcraft_doc::control::{ControlKind, ControlLock, ListItem};
-use wordcraft_doc::{Block, ContentControl, Document, StoryRef};
-use wordcraft_docx::{read, write};
+use strix_doc::control::{ControlKind, ControlLock, ListItem};
+use strix_doc::{Block, ContentControl, Document, StoryRef};
+use strix_docx::{read, write};
 
 const NS: &str = r#"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml""#;
 const ROOT_RELS: &str = r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>"#;
@@ -98,7 +99,7 @@ fn document_xml(docx: &[u8]) -> String {
 
 fn controls(d: &Document) -> Vec<ContentControl> {
     let mut out = Vec::new();
-    wordcraft_doc::control::walk_controls(&d.body, &mut |c| out.push(c.clone()));
+    strix_doc::control::walk_controls(&d.body, &mut |c| out.push(c.clone()));
     out
 }
 
@@ -186,8 +187,8 @@ fn edited_documents_still_write_whole_controls() {
     let ranges = d.control_ranges(StoryRef::Body);
     let name = ranges.iter().find(|r| r.control.id == Some(7)).unwrap().clone();
     let intro = ranges.iter().find(|r| r.control.title == "Intro").unwrap().clone();
-    let from = wordcraft_doc::Pos { off: 3, ..intro.end.clone() };
-    let to = wordcraft_doc::Pos { off: name.start.off + 4, ..name.start.clone() };
+    let from = strix_doc::Pos { off: 3, ..intro.end.clone() };
+    let to = strix_doc::Pos { off: name.start.off + 4, ..name.start.clone() };
     d.delete_range(&from, &to).unwrap();
     // Both controls are still there, emptied where the deletion went through them.
     let after = d.control_ranges(StoryRef::Body);
@@ -293,7 +294,7 @@ fn toc_gallery_around_the_engine_form_goes_to_the_toc() {
         let d = read(&bytes).unwrap();
         assert!(controls(&d).is_empty(), "pass {pass}");
         let heading = d.body[0].as_para().unwrap();
-        assert!(heading.objects.iter().any(|o| matches!(o, wordcraft_doc::InlineObject::Field { instr, .. } if instr.trim().starts_with("TOC"))));
+        assert!(heading.objects.iter().any(|o| matches!(o, strix_doc::InlineObject::Field { instr, .. } if instr.trim().starts_with("TOC"))));
         bytes = write(&d).unwrap();
         let xml = document_xml(&bytes);
         assert_eq!(xml.matches("<w:sdt>").count(), 1, "pass {pass}: {xml}");

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Fonts the user adds without rebuilding (#582): `font.add`, `font.list`, `font.remove`.
 //!
 //! An added font joins the process-wide font database on top of the bundled and system fonts
@@ -6,7 +7,7 @@
 //! folder (desktop); without one it lasts for the session (the web shell stores it itself).
 
 use serde_json::{Value, json};
-use wordcraft_fonts::{FontDb, UserFont};
+use strix_fonts::{FontDb, UserFont};
 
 use crate::cmd::insert::base64_decode;
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
@@ -40,7 +41,7 @@ fn font_json(f: &UserFont) -> Value {
 #[cfg(not(target_arch = "wasm32"))]
 fn read_font_file(path: &str) -> Result<Vec<u8>, CmdError> {
     // Through `io`, which keeps automation inside its read root (#769).
-    crate::io::read_file_capped(path, wordcraft_fonts::MAX_FONT_FILE_BYTES as u64, "font file").map_err(CmdError::Failed)
+    crate::io::read_file_capped(path, strix_fonts::MAX_FONT_FILE_BYTES as u64, "font file").map_err(CmdError::Failed)
 }
 
 /// Adding or removing a font writes to the user font folder: automation confined to a write root
@@ -60,8 +61,8 @@ fn add(s: &mut Session, v: &Value) -> CmdResult {
     }
     let (name, bytes) = if let Some(d) = p::str(v, "data") {
         // Base64 is a third larger than the file: refuse before decoding an oversized one.
-        if d.len() / 4 * 3 > wordcraft_fonts::MAX_FONT_FILE_BYTES + 3 {
-            return Err(CmdError::Failed(format!("the font file is larger than {} MB", wordcraft_fonts::MAX_FONT_FILE_BYTES >> 20)));
+        if d.len() / 4 * 3 > strix_fonts::MAX_FONT_FILE_BYTES + 3 {
+            return Err(CmdError::Failed(format!("the font file is larger than {} MB", strix_fonts::MAX_FONT_FILE_BYTES >> 20)));
         }
         let bytes = base64_decode(d).ok_or_else(|| CmdError::Params("bad base64 data".into()))?;
         (p::str(v, "name").unwrap_or("font").to_string(), bytes)
@@ -123,8 +124,8 @@ mod tests {
 
     #[test]
     fn confined_automation_changes_only_a_font_store_inside_its_write_root() {
-        let root = std::env::temp_dir().join(format!("wordcraft-font-store-{}", std::process::id()));
-        let outside = std::env::temp_dir().join(format!("wordcraft-font-store-out-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("strix-font-store-{}", std::process::id()));
+        let outside = std::env::temp_dir().join(format!("strix-font-store-out-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::create_dir_all(&outside).unwrap();
         let write = crate::file_access::AutomationRoots::new(None, Some(&root)).unwrap();

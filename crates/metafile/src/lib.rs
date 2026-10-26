@@ -1,4 +1,5 @@
-//! WordCraft metafiles: reads Windows Metafiles (WMF) and Enhanced Metafiles (EMF) into a neutral
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix metafiles: reads Windows Metafiles (WMF) and Enhanced Metafiles (EMF) into a neutral
 //! vector model of filled and stroked paths, RGBA bitmaps and text runs, in a picture frame with y down.
 //!
 //! The reader is pure Rust over byte slices (no file system), so it builds for wasm. Every read is

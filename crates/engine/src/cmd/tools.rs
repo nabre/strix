@@ -1,13 +1,14 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Tools and the long tail: Repeat, macros, AutoCorrect, Compare, accessibility checker,
 //! document inspector, restrict editing, versions, templates, Quick Parts, and more.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::props::{CharProps, NumRef};
+use strix_doc::para::InlineObject;
+use strix_doc::props::{CharProps, NumRef};
 
-use wordcraft_doc::{Block, Document, Paragraph, Pos, RevisionKind, StoryRef, para_block};
+use strix_doc::{Block, Document, Paragraph, Pos, RevisionKind, StoryRef, para_block};
 
 use super::{delete_selection, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -286,8 +287,8 @@ fn plain_word(w: &str) -> bool {
 pub struct AutoCap {
     /// Undo steps pushed (ever) right after the change (`u64::MAX` until the caller has pushed its step).
     pub(crate) depth: u64,
-    story: wordcraft_doc::StoryRef,
-    path: wordcraft_doc::Path,
+    story: strix_doc::StoryRef,
+    path: strix_doc::Path,
     /// Byte offset of the word in its paragraph.
     start: usize,
     /// The token before a sentence capital's word, lowercase ("there."); empty when none or when
@@ -559,12 +560,13 @@ pub fn specs() -> Vec<CommandSpec> {
         .pure(),
         CommandSpec::new("file.saveTemplate", "Save as Template", "File › Save As", |s, v| {
             let path = p::req_str(v, "path")?;
-            // A .dotm keeps its name (#2852); anything else becomes a .dotx.
-            let path = if super::user_templates::is_template_name(path) { path.to_string() } else { format!("{path}.dotx") };
+            // A template name keeps its extension (Strix's .xmathm, or Word's .dotx/.dotm to
+            // export one, #2852); anything else becomes a Strix template, .xmathm.
+            let path = if super::user_templates::is_template_name(path) { path.to_string() } else { format!("{path}.{}", crate::io::NATIVE_TEMPLATE_EXT) };
             crate::io::save_path(std::path::Path::new(&path), &s.doc).map_err(CmdError::Failed)?;
             Ok(json!({"path": path}))
         })
-        .params(r#"{"path": string}"#)
+        .params(r#"{"path": string (a Strix template, .xmathm, which is added when the name has no template extension; .dotx or .dotm exports a Word template)}"#)
         .pure(),
         CommandSpec::new("file.autosave", "AutoSave", "Quick Access Toolbar", |s, v| {
             s.autosave = p::bool(v, "value").unwrap_or(!s.autosave);
@@ -588,10 +590,10 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!({"hint": "Save or export a copy (PDF, Word document) to share it."}))
         })
         .pure(),
-        CommandSpec::new("insert.quickParts", "Quick Parts", "Insert › Text", |s, v| quick_parts(s, v, wordcraft_doc::QUICK_PARTS_GALLERY)).params(
+        CommandSpec::new("insert.quickParts", "Quick Parts", "Insert › Text", |s, v| quick_parts(s, v, strix_doc::QUICK_PARTS_GALLERY)).params(
             r#"{"save"?: name (from the selection), "in"?: "document" (save into the document's own building blocks, kept in its file; else this session's), "insert"?: name, "delete"?: name} → {"parts": names (this session's, then the document's Quick Parts), "document": the document's Quick Parts}"#,
         ),
-        CommandSpec::new("insert.autoText", "AutoText", "Insert › Text › Quick Parts", |s, v| quick_parts(s, v, wordcraft_doc::AUTO_TEXT_GALLERY))
+        CommandSpec::new("insert.autoText", "AutoText", "Insert › Text › Quick Parts", |s, v| quick_parts(s, v, strix_doc::AUTO_TEXT_GALLERY))
             .key(super::non_mac("Alt+F3"))
             .params(r#"{"save"?: name, "in"?: "document", "insert"?: name, "delete"?: name} → {"parts": names, "document": the document's AutoText}"#),
         CommandSpec::new("insert.docProperty", "Document Property", "Insert › Text › Quick Parts", |s, v| {
@@ -629,7 +631,7 @@ pub fn specs() -> Vec<CommandSpec> {
             if !title.is_empty() {
                 lines.push(title);
             }
-            let frag = wordcraft_doc::edit::Fragment {
+            let frag = strix_doc::edit::Fragment {
                 blocks: lines.iter().map(|l| Block::Para(Paragraph::with_text(l, CharProps::default()).styled("NoSpacing"))).collect(),
                 ..Default::default()
             };
@@ -746,10 +748,10 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .params(r#"{"char": string}"#),
         CommandSpec::new("para.defineNumber", "Define New Number Format", "Home › Paragraph › Numbering", |s, v| {
-            let fmt = wordcraft_doc::section::NumFormat::from_ooxml(p::str(v, "format").unwrap_or("decimal"));
+            let fmt = strix_doc::section::NumFormat::from_ooxml(p::str(v, "format").unwrap_or("decimal"));
             let text = p::str(v, "text").unwrap_or("%1.").to_string();
             let start = p::u64(v, "start").unwrap_or(1).min(100_000) as u32;
-            let id = s.doc.numbering.try_add_list(wordcraft_doc::ListKind::Numbered)?;
+            let id = s.doc.numbering.try_add_list(strix_doc::ListKind::Numbered)?;
             if let Some(a) = s.doc.numbering.abstract_of(id).map(|a| a.id)
                 && let Some(abs) = s.doc.numbering.abstracts.iter_mut().find(|x| x.id == a)
                 && let Some(l) = abs.levels.first_mut()
@@ -824,7 +826,7 @@ pub fn specs() -> Vec<CommandSpec> {
 fn language(s: &mut Session, v: &Value) -> CmdResult {
     let lang = match p::str(v, "lang") {
         Some(t) => Some(
-            wordcraft_proof::lang::normalize_tag(t)
+            strix_proof::lang::normalize_tag(t)
                 .ok_or_else(|| CmdError::Params(format!("`lang` must be a language tag such as pl-PL or en-US, not {t:?}")))?,
         ),
         None => None,
@@ -977,7 +979,7 @@ pub fn autocorrect_word(s: &mut Session, on_enter: bool) -> Result<(), CmdError>
     }
     // A whole-word replacement, else "wait..." → "wait…". Proofing decides what is English the
     // same way (#835); every English (en-GB, en-CA…) counts (#1281).
-    let english = s.doc.para_at(&f).is_none_or(|_| wordcraft_proof::ProofLang::from_tag(lang.as_deref()).is_english());
+    let english = s.doc.para_at(&f).is_none_or(|_| strix_proof::ProofLang::from_tag(lang.as_deref()).is_english());
     let found = if ac.replace_text { ac.replacement_in(&word, english) } else { None };
     let (from, rep) = match found {
         Some(r) => (start, Some(r)),
@@ -1006,7 +1008,7 @@ pub fn autocorrect_word(s: &mut Session, on_enter: bool) -> Result<(), CmdError>
     let at = |off: usize| Pos { off, ..f.clone() };
     // 1st, 22nd, 103rd → superscript suffix.
     if let Some(n) = ordinal_suffix(&word).filter(|_| ac.ordinals) {
-        s.doc.format_range(&at(end - n), &at(end), &|c| c.vert_align = Some(wordcraft_doc::props::VertAlign::Superscript))?;
+        s.doc.format_range(&at(end - n), &at(end), &|c| c.vert_align = Some(strix_doc::props::VertAlign::Superscript))?;
         return Ok(());
     }
     // Web addresses become links (trailing punctuation stays outside).
@@ -1089,7 +1091,7 @@ fn prev_token(before: &str) -> String {
 
 /// Turkish, Azerbaijani (and Crimean Tatar) map `i`/`İ` and `ı`/`I` as pairs (#1923).
 pub(crate) fn is_turkic(lang: Option<&str>) -> bool {
-    if wordcraft_proof::ProofLang::from_tag(lang) == wordcraft_proof::ProofLang::Tr {
+    if strix_proof::ProofLang::from_tag(lang) == strix_proof::ProofLang::Tr {
         return true; // tr, tur, any region, same normalisation as proofing
     }
     let Some(tag) = lang.map(str::trim) else { return false };
@@ -1162,7 +1164,7 @@ fn case_fix(caps: &AutoCorrectPrefs, word: &str, turkic: bool) -> Option<(usize,
 /// [`autocorrect_word`]): the two marks are removed and the text between them is made bold or
 /// italic, for plain and complex-script text. Returns the closing mark's formatting, which is
 /// the formatting outside the span, when anything changed.
-pub fn emphasis_autoformat(s: &mut Session, on_enter: bool) -> Result<Option<wordcraft_doc::props::CharProps>, CmdError> {
+pub fn emphasis_autoformat(s: &mut Session, on_enter: bool) -> Result<Option<strix_doc::props::CharProps>, CmdError> {
     let Some((open, close, bold)) = emphasis_at_caret(s, on_enter) else { return Ok(None) };
     let f = s.sel.focus.clone();
     let para = s.doc.para_mut(f.story, &f.path)?;
@@ -1231,7 +1233,7 @@ fn emphasis_span(text: &str) -> Option<(usize, usize, bool)> {
     if !edge_ok(inner.chars().next())
         || !edge_ok(inner.chars().next_back())
         || !inner.chars().any(char::is_alphanumeric)
-        || inner.contains(wordcraft_doc::para::OBJ)
+        || inner.contains(strix_doc::para::OBJ)
     {
         return None;
     }
@@ -1362,9 +1364,9 @@ fn compare(s: &mut Session, v: &Value) -> CmdResult {
     let date = super::now_iso();
     let old: Vec<Arc<Block>> = s.doc.body.clone();
     let new: Vec<Arc<Block>> = revised.body.clone();
-    s.doc.revisions.push(wordcraft_doc::Revision { kind: RevisionKind::Insert, author: author.clone(), date: date.clone(), move_name: None });
+    s.doc.revisions.push(strix_doc::Revision { kind: RevisionKind::Insert, author: author.clone(), date: date.clone(), move_name: None });
     let ins = (s.doc.revisions.len() - 1) as u32;
-    s.doc.revisions.push(wordcraft_doc::Revision { kind: RevisionKind::Delete, author: author.clone(), date: date.clone(), move_name: None });
+    s.doc.revisions.push(strix_doc::Revision { kind: RevisionKind::Delete, author: author.clone(), date: date.clone(), move_name: None });
     let del = (s.doc.revisions.len() - 1) as u32;
     let key = |b: &Arc<Block>| match &**b {
         Block::Para(p) => opts.key(&p.plain_text()),
@@ -1684,7 +1686,7 @@ fn inspect_doc(s: &mut Session, v: &Value) -> CmdResult {
         "hidden": hidden.iter().take(MAX_HIDDEN_LISTED).map(|h| h.report(&s.doc)).collect::<Vec<_>>(),
         "truncated": hidden.len() > MAX_HIDDEN_LISTED,
         "unsupported": unsupported_hidden(&s.doc),
-        "headers": s.doc.parts.values().filter(|p| matches!(p.kind, wordcraft_doc::PartKind::Header | wordcraft_doc::PartKind::Footer)).count(),
+        "headers": s.doc.parts.values().filter(|p| matches!(p.kind, strix_doc::PartKind::Header | strix_doc::PartKind::Footer)).count(),
     });
     let mut removed_notes = Vec::new();
     for r in &remove {
@@ -1729,7 +1731,7 @@ const MAX_NOTE_TEXT: usize = 1000;
 /// is hidden too and so is all its text, so the paragraph itself goes.
 struct Hidden {
     story: StoryRef,
-    path: wordcraft_doc::Path,
+    path: strix_doc::Path,
     range: std::ops::Range<usize>,
     whole: bool,
 }
@@ -1773,7 +1775,7 @@ fn remove_hidden(doc: &mut Document) -> Result<Vec<Value>, CmdError> {
     let mut out = Vec::new();
     for id in refs {
         if kept.contains(&id)
-            || !doc.parts.get(&id).is_some_and(|p| matches!(p.kind, wordcraft_doc::PartKind::Footnote | wordcraft_doc::PartKind::Endnote))
+            || !doc.parts.get(&id).is_some_and(|p| matches!(p.kind, strix_doc::PartKind::Footnote | strix_doc::PartKind::Endnote))
         {
             continue;
         }
@@ -1790,7 +1792,7 @@ fn remove_hidden(doc: &mut Document) -> Result<Vec<Value>, CmdError> {
 /// Whether a whole hidden paragraph can go, mark and all. It stays when it is the last block of
 /// its story or cell (they end with a paragraph), carries a section break, holds content control
 /// markers (their partners may be elsewhere), or sits between two tables (they'd join on reopen).
-fn removable(doc: &Document, story: StoryRef, path: &wordcraft_doc::Path, p: &Paragraph) -> bool {
+fn removable(doc: &Document, story: StoryRef, path: &strix_doc::Path, p: &Paragraph) -> bool {
     let i = path.last();
     let Some(c) = doc.container(story, path) else { return false };
     let is_table = |j: Option<usize>| j.and_then(|j| c.get(j)).is_some_and(|b| matches!(**b, Block::Table(_)));
@@ -1855,7 +1857,7 @@ fn all_stories(doc: &Document) -> Vec<StoryRef> {
 
 /// What the inspector calls a story.
 fn story_kind(doc: &Document, st: StoryRef) -> &'static str {
-    use wordcraft_doc::PartKind;
+    use strix_doc::PartKind;
     match st {
         StoryRef::Body => "body",
         StoryRef::Part(id) => match doc.parts.get(&id).map(|p| p.kind) {
@@ -1938,7 +1940,7 @@ fn unsupported_hidden(doc: &Document) -> Vec<Value> {
 
 /// Tables whose table style (or one of its conditional parts: header row, bands, first or last
 /// column, total row) hides text. The inspector doesn't resolve table styles, so it lists them.
-fn tables_hiding_text(doc: &Document, story: StoryRef, blocks: &wordcraft_doc::Blocks, depth: usize, out: &mut Vec<Value>) {
+fn tables_hiding_text(doc: &Document, story: StoryRef, blocks: &strix_doc::Blocks, depth: usize, out: &mut Vec<Value>) {
     if depth > 32 {
         return;
     }
@@ -1978,10 +1980,10 @@ fn quick_parts(s: &mut Session, v: &Value, gallery: &str) -> CmdResult {
             if name.trim().is_empty() {
                 return Err(CmdError::Params("a building block needs a name".into()));
             }
-            let blocks: wordcraft_doc::Blocks = frag.blocks.into_iter().map(Arc::new).collect();
+            let blocks: strix_doc::Blocks = frag.blocks.into_iter().map(Arc::new).collect();
             match s.doc.glossary.iter_mut().find(|e| e.name == name && e.gallery == gallery) {
                 Some(e) => e.blocks = blocks,
-                None => s.doc.glossary.push(wordcraft_doc::BuildingBlock {
+                None => s.doc.glossary.push(strix_doc::BuildingBlock {
                     name: name.to_string(),
                     gallery: gallery.to_string(),
                     category: "General".into(),
@@ -2005,7 +2007,7 @@ fn quick_parts(s: &mut Session, v: &Value, gallery: &str) -> CmdResult {
             None => {
                 let e = document_entry(&s.doc, name, gallery).and_then(|i| s.doc.glossary.get(i));
                 let e = e.ok_or_else(|| CmdError::Params(format!("no Quick Part `{name}`")))?;
-                wordcraft_doc::edit::Fragment { blocks: e.blocks.iter().map(|b| (**b).clone()).collect(), parts: Default::default() }
+                strix_doc::edit::Fragment { blocks: e.blocks.iter().map(|b| (**b).clone()).collect(), parts: Default::default() }
             }
         };
         let at = delete_selection(s)?;

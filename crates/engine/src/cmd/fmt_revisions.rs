@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Tracked formatting changes (#41): recording them while Track Changes is on, describing them
 //! ("Formatted: Bold, Size: 14 pt") and accepting or rejecting them.
 //!
@@ -12,11 +13,11 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use wordcraft_doc::props::VMerge;
-use wordcraft_doc::props::{CellProps, CharProps, ParaProps, PropChange, RowProps, TableProps};
-use wordcraft_doc::section::SectionProps;
-use wordcraft_doc::table::{Cell, Row, Table};
-use wordcraft_doc::{Block, Blocks, Document, Paragraph, Revision, RevisionKind};
+use strix_doc::props::VMerge;
+use strix_doc::props::{CellProps, CharProps, ParaProps, PropChange, RowProps, TableProps};
+use strix_doc::section::SectionProps;
+use strix_doc::table::{Cell, Row, Table};
+use strix_doc::{Block, Blocks, Document, Paragraph, Revision, RevisionKind};
 
 use crate::Session;
 

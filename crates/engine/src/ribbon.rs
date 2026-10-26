@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Customize Ribbon and the Quick Access Toolbar (`tools.customizeRibbon`): which ribbon tabs are
 //! shown and in what order, custom tabs, custom groups (on built-in or custom tabs) holding any
 //! commands, and the commands on the Quick Access Toolbar.
@@ -442,7 +443,7 @@ mod tests {
     /// through the command (as agents do) without opening the dialog.
     #[test]
     fn layout_changes_through_the_command() {
-        let mut s = crate::Session::new(wordcraft_doc::Document::new());
+        let mut s = crate::Session::new(strix_doc::Document::new());
         let mut run = |v: Value| s.run("tools.customizeRibbon", &v);
         let r = run(json!({"newTab": {"name": "Mine", "after": "Home"}, "hide": "Draw"})).unwrap();
         assert_eq!(r["tab"], "Mine");

@@ -1,3 +1,4 @@
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Hardware parity with Microsoft Word
 
 > **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-15 · **Change:** trivial (Pen / stylus row: two-stroke and closed-head arrows; previously trivial: Pen / stylus row: ink, eraser and Ink to Shape incl. arrows landed; previously trivial: a window too big for its screen shrinks to fit when it opens, #1215; previously trivial: 32-bit Windows starts on OpenGL; previously major: first version) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4 and Word for Windows
@@ -10,7 +11,7 @@ pens, microphones (Dictate) and speakers (Read Aloud), and displays.
 **Dimension: ~40% (estimated), 20–40 h to full** (pen/ink hours are counted with the Draw tab in
 [`target-app-parity.md`](target-app-parity.md)).
 
-| Hardware | Word | WordCraft macOS | Windows | Linux / BSD | Web | Parity | Hours |
+| Hardware | Word | Strix macOS | Windows | Linux / BSD | Web | Parity | Hours |
 |---|---|---|---|---|---|---|---|
 | Printers: native print dialog, printer choice, copies, duplex, page ranges, tray, scaling | ✅ (`WordPDE.plugin` print-dialog extension on Mac) | 🟡 Direct CUPS printing; printer, copies, collation, duplex, ranges, grayscale and scale to paper size | 🟡 Direct spooler printing; printer, copies, collation, duplex, ranges, grayscale and scale to paper size | 🟡 Direct spooler printing; printer, copies, collation, duplex, ranges, grayscale and scale to paper size | ✅ browser print dialog (#209) | 35% | 5–8 |
 | GPU rendering, HiDPI/Retina, pixel-aligned text | ✅ | ✅ wgpu + vello_cpu rasteriser, whole-pixel text (#110, #165) | ✅ DirectX 12 default (#50), OpenGL when DirectX 12 has no GPU driver (#316) or on 32-bit; startup crash on Intel UHD (#170) | ✅ (soft text on KDE at some zooms, #140) | ✅ | 80% | 3–5 (bugs) |

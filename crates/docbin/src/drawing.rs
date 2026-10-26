@@ -1,12 +1,13 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Floating shapes and pictures: the `PlcfSpa` anchors of the main document and the headers
 //! ([MS-DOC] §2.8.27 PlcfSpa, §2.9.253 Spa) joined with the OfficeArt shapes they name, and the
 //! text box stories (`PlcftxbxTxt`, §2.8.30) that fill text boxes.
 
 use std::collections::HashMap;
 
-use wordcraft_doc::fill::Fill;
-use wordcraft_doc::para::{Anchor, Float, FloatAlign, GroupChild, InlineObject, ShapeKind, Wrap};
-use wordcraft_doc::props::Rgb;
+use strix_doc::fill::Fill;
+use strix_doc::para::{Anchor, Float, FloatAlign, GroupChild, InlineObject, ShapeKind, Wrap};
+use strix_doc::props::Rgb;
 
 use crate::media::Pictures;
 use crate::officeart::{Node, Sp};
@@ -97,7 +98,7 @@ pub(crate) fn anchors(
         let (mut x, mut y) = (tw(xl as i64), tw(yt as i64));
         let (mut w, mut h) = (tw(xr as i64 - xl as i64).clamp(0.0, MAX_PT), tw(yb as i64 - yt as i64).clamp(0.0, MAX_PT));
         let sp = node.sp();
-        let rot = wordcraft_geom::normalize_degrees(if sp.props.rot.is_finite() { sp.props.rot } else { 0.0 });
+        let rot = strix_geom::normalize_degrees(if sp.props.rot.is_finite() { sp.props.rot } else { 0.0 });
         // A shape turned by 45°–135° (or 225°–315°) is anchored by its turned bounds: the
         // unrotated frame has the other aspect, about the same centre.
         if (45.0..135.0).contains(&rot) || (225.0..315.0).contains(&rot) {
@@ -249,7 +250,7 @@ fn members_into(nodes: &[Node], t: (f32, f32, f32, f32), depth: usize, b: &Build
     let (x0, y0, sx, sy) = t;
     let fit = |v: f32| if v.is_finite() { v.clamp(-1e7, 1e7) } else { 0.0 };
     for n in nodes {
-        if out.len() >= wordcraft_doc::para::MAX_GROUP_CHILDREN {
+        if out.len() >= strix_doc::para::MAX_GROUP_CHILDREN {
             return;
         }
         let sp = n.sp();

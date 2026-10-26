@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The close control of a floating window (dialogs, the Read Aloud player, the file browser),
 //! as on a Word dialog on Windows (#1885): a box at the right end of the title bar, the full
 //! title-bar height and about 1.6× that wide, all of it clickable. It fills red with a white ✕
@@ -138,7 +139,7 @@ mod tests {
     /// The Read Aloud player and the file browser use the same box, and close from it.
     #[test]
     fn the_player_and_the_file_browser_close_from_the_box() {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         app.session.read_aloud.open = true;
         let mut h = harness(app);
         for _ in 0..4 {
@@ -159,7 +160,7 @@ mod tests {
     /// can't close a dialog by accident.
     #[test]
     fn the_box_is_not_in_the_tab_order() {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         let _ = app.run("ui.dialog", json!({"name": "wordCount"}));
         let mut h = harness(app);
         for _ in 0..4 {

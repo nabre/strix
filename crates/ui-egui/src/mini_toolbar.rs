@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word's floating mini toolbar: the small translucent bar over a non-collapsed text selection
 //! with the most-used formatting controls. It mirrors Word's trigger (selection, not caret),
 //! position (above, clamped to the viewport, flipping below when tight) and dismissal rules.
@@ -206,7 +207,7 @@ pub fn context_menu_visible(app: &WordApp) -> bool {
         && app.session.math.is_none()
         && app.session.cell_range().is_none()
         && !crate::ribbon::has_picture_selected(&app.session)
-        && wordcraft_engine::cmd::objects::object_selection(&app.session).is_none()
+        && strix_engine::cmd::objects::object_selection(&app.session).is_none()
 }
 
 /// The existing two-row toolbar in the context menu's popup, above its command panel. Sharing
@@ -268,7 +269,7 @@ fn content(app: &mut WordApp, ui: &mut egui::Ui, t: &Tokens) {
         let size =
             st.get("size").and_then(Value::as_f64).map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { s.to_string() }).unwrap_or_default();
         let sizes: Vec<String> =
-            wordcraft_engine::cmd::format::SIZES.iter().map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { s.to_string() }).collect();
+            strix_engine::cmd::format::SIZES.iter().map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { s.to_string() }).collect();
         if let Some(v) = widgets::combo_hint(ui, "mini_size", COMBO_SIZE_W, &size, &sizes, None, tl!("Font Size"))
             && let Ok(x) = v.trim().parse::<f64>()
         {
@@ -292,13 +293,13 @@ fn content(app: &mut WordApp, ui: &mut egui::Ui, t: &Tokens) {
             highlight_menu(ui, app);
         });
         let fc = app.canvas.last_font_color.clone();
-        let sw = wordcraft_doc::Rgb::parse(&fc).map(crate::theme::c32);
+        let sw = strix_doc::Rgb::parse(&fc).map(crate::theme::c32);
         widgets::split(ui, app, "fontcolor", "Font Color", "format.color", json!({"color": fc}), false, sw, |ui, app| {
             font_color_menu(ui, app);
         });
         sep(ui, t);
 
-        use wordcraft_doc::Align as A;
+        use strix_doc::Align as A;
         widgets::small(ui, app, "alignLeft", None, "Align Left", "para.alignLeft", json!({}), align == A::Left);
         widgets::small(ui, app, "alignCenter", None, "Center", "para.alignCenter", json!({}), align == A::Center);
         widgets::small(ui, app, "alignRight", None, "Align Right", "para.alignRight", json!({}), align == A::Right);
@@ -315,8 +316,8 @@ fn sep(ui: &mut egui::Ui, t: &Tokens) {
 
 /// The split-button icon and colour bar for the remembered highlight choice.
 pub(crate) fn highlight_button_appearance(name: &str) -> (&'static str, Option<egui::Color32>, &'static str) {
-    let highlight = wordcraft_doc::props::Highlight::from_ooxml(name);
-    let icon = if highlight == wordcraft_doc::props::Highlight::None { "highlightNoColor" } else { "highlight" };
+    let highlight = strix_doc::props::Highlight::from_ooxml(name);
+    let icon = if highlight == strix_doc::props::Highlight::None { "highlightNoColor" } else { "highlight" };
     (icon, highlight.rgb().map(crate::theme::c32), highlight.ooxml())
 }
 
@@ -325,7 +326,7 @@ pub(crate) fn highlight_button_appearance(name: &str) -> (&'static str, Option<e
 /// button removes highlighting (#2105).
 pub(crate) fn highlight_menu(ui: &mut egui::Ui, app: &mut WordApp) {
     egui::Grid::new("mini_hl").spacing(Vec2::new(3.0, 3.0)).show(ui, |ui| {
-        for (i, h) in wordcraft_doc::props::Highlight::ALL.iter().enumerate().skip(1) {
+        for (i, h) in strix_doc::props::Highlight::ALL.iter().enumerate().skip(1) {
             let Some(c) = h.rgb() else { continue };
             let (r, resp) = ui.allocate_exact_size(Vec2::new(18.0, 18.0), Sense::click());
             ui.painter().rect_filled(r, 2.0, egui::Color32::from_rgb(c.0, c.1, c.2));
@@ -378,7 +379,7 @@ mod tests {
 
     #[test]
     fn reading_mode_hides_formatting_even_with_an_existing_selection() {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         app.run("text.insert", json!({"text": "Selectable text"})).unwrap();
         app.run("select.all", json!({})).unwrap();
         assert!(!app.session.sel.is_collapsed());
@@ -494,8 +495,8 @@ mod tests {
     /// controls (both rows end together).
     #[test]
     fn every_control_fits_inside_the_bar() {
-        use wordcraft_engine::Session;
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Default::default());
+        use strix_engine::Session;
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Default::default());
         a.run("text.insert", json!({"text": "The quick brown fox jumps over the lazy dog"})).unwrap();
         a.run("select.text", json!({"text": "brown fox"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(Vec2::new(1440.0, 900.0)).build_ui_state(
@@ -525,7 +526,7 @@ mod tests {
 
     /// The whole window over a document with `pick` selected, run until the bar is up.
     fn bar_over(pick: &str) -> egui_kittest::Harness<'static, WordApp> {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         a.run("text.insert", json!({"text": "The quick brown fox jumps over the lazy dog"})).unwrap();
         a.run("select.text", json!({"text": pick})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(Vec2::new(1440.0, 900.0)).build_ui_state(
@@ -571,7 +572,7 @@ mod tests {
         use egui_kittest::kittest::Queryable;
         let mut h = bar_over("brown fox");
         let selection = h.state().session.sel.clone();
-        let caret = h.state_mut().session.layout().caret(&wordcraft_doc::Pos::body(0, 12)).unwrap();
+        let caret = h.state_mut().session.layout().caret(&strix_doc::Pos::body(0, 12)).unwrap();
         let at = crate::canvas::page_to_screen(h.state_mut(), caret.page, caret.x, caret.top + caret.height / 2.0).unwrap();
         h.event(egui::Event::PointerMoved(at));
         for pressed in [true, false] {
@@ -636,7 +637,7 @@ mod tests {
         assert!(!h.state().canvas.context_menu_open);
         h.event(egui::Event::Text(" typed".into()));
         steps(&mut h);
-        assert!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body).ends_with(" typed"), "typing resumes in the document");
+        assert!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body).ends_with(" typed"), "typing resumes in the document");
 
         h.state_mut().run("ui.contextMenu", json!({})).unwrap();
         steps(&mut h);
@@ -898,7 +899,7 @@ mod tests {
     #[test]
     fn the_font_colour_menus_automatic_returns_focus_to_the_document() {
         use egui_kittest::kittest::{By, Queryable};
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("Hello")), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Hello")), Default::default());
         a.run("select.all", json!({})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(Vec2::new(400.0, 400.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -919,7 +920,7 @@ mod tests {
     /// like the No Color button beside the swatches (it ran through `run_from_ribbon` already).
     #[test]
     fn picking_a_highlight_swatch_returns_focus_to_the_document() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("Hello")), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Hello")), Default::default());
         a.run("select.all", json!({})).unwrap();
         let origin = egui::Id::unique("hl_swatch_origin");
         let mut h = egui_kittest::Harness::builder().with_size(Vec2::new(400.0, 300.0)).build_ui_state(
@@ -952,7 +953,7 @@ mod tests {
             (true, None, "Align Right", "Align Left"),
             (true, Some("para.alignLeft"), "Align Left", "Align Right"),
         ] {
-            let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("سلام دنیا")), Default::default());
+            let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("سلام دنیا")), Default::default());
             a.run("select.all", json!({})).unwrap();
             if rtl {
                 a.run("para.rtl", json!({})).unwrap();

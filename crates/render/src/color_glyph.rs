@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Colour glyphs (#1269): emoji and other glyphs whose font draws them from COLR paint graphs or
 //! bitmap strikes (sbix, CBDT) instead of outlines. The fonts crate reads the colour data
 //! ([`FontFace::color_glyph`]); this module decodes bitmaps, caches the result per glyph and size,
@@ -10,8 +11,8 @@ use std::sync::{Arc, Mutex};
 use vello_cpu::kurbo::{self, Affine, Point, Rect, Shape};
 use vello_cpu::peniko;
 use vello_cpu::{Pixmap, RenderContext};
-use wordcraft_fonts::FontFace;
-use wordcraft_fonts::color::{BitmapBytes, ColorGlyph, ColorOp, ColorPaint, CompositeMode, Extend, GlyphColor, Stop};
+use strix_fonts::FontFace;
+use strix_fonts::color::{BitmapBytes, ColorGlyph, ColorOp, ColorPaint, CompositeMode, Extend, GlyphColor, Stop};
 
 /// A colour glyph ready to draw: COLR ops, or a decoded bitmap and where it goes (font units, y
 /// down from the pen position).
@@ -23,7 +24,7 @@ pub(crate) enum Drawable {
 impl Drawable {
     fn bytes(&self) -> usize {
         match self {
-            Drawable::Layers(ops) => wordcraft_fonts::color::ops_bytes(ops),
+            Drawable::Layers(ops) => strix_fonts::color::ops_bytes(ops),
             Drawable::Bitmap { pixmap, .. } => pixmap.width() as usize * pixmap.height() as usize * 4,
         }
     }
@@ -93,12 +94,12 @@ fn build(face: &FontFace, gid: u32, ppem: u32) -> Option<Drawable> {
 }
 
 /// Decode a bitmap glyph's PNG, which may be at most the `w`×`h` its strike claims (and at most
-/// [`MAX_BITMAP_SIDE`](wordcraft_fonts::color::MAX_BITMAP_SIDE) a side): a hostile font could claim
+/// [`MAX_BITMAP_SIDE`](strix_fonts::color::MAX_BITMAP_SIDE) a side): a hostile font could claim
 /// a small glyph and hand over a huge image, so the size is read from the header before decoding.
 /// A smaller, non-empty image is drawn stretched to the glyph's box: CBDT-only fonts have no
 /// outline to fall back to.
 fn decode_png(png: &[u8], w: u32, h: u32) -> Option<Pixmap> {
-    let side = wordcraft_fonts::color::MAX_BITMAP_SIDE;
+    let side = strix_fonts::color::MAX_BITMAP_SIDE;
     if w == 0 || h == 0 || w > side || h > side {
         return None;
     }
@@ -342,7 +343,7 @@ fn blend_mode(m: CompositeMode) -> peniko::BlendMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wordcraft_fonts::color::{GlyphColor, Stop};
+    use strix_fonts::color::{GlyphColor, Stop};
 
     fn render(ops: &[ColorOp]) -> crate::Rendered {
         let mut ctx = RenderContext::new(40, 40);
@@ -439,7 +440,7 @@ mod tests {
         assert!(decode_png(&png(8, 8), 4, 4).is_none(), "wider and taller than claimed");
         assert!(decode_png(&png(8, 4), 4, 4).is_none(), "wider than claimed");
         assert!(decode_png(&png(4, 8), 4, 4).is_none(), "taller than claimed");
-        let side = wordcraft_fonts::color::MAX_BITMAP_SIDE;
+        let side = strix_fonts::color::MAX_BITMAP_SIDE;
         assert!(decode_png(&png(4, 4), side + 1, 4).is_none(), "past the cap");
     }
 

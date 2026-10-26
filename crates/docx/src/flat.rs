@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word XML Document: a whole WordprocessingML package as one XML file (the Flat OPC format Word
 //! saves as "Word XML Document (*.xml)"): a `pkg:package` root holding one `pkg:part` per package
 //! part, each with its name and content type, and the part's XML inline (`pkg:xmlData`) or its
@@ -15,7 +16,7 @@ use base64::Engine as _;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::name::ResolveResult;
 use quick_xml::reader::NsReader;
-use wordcraft_doc::Document;
+use strix_doc::Document;
 
 use crate::package::{ContentTypes, MAX_ENTRIES, MAX_PART, MAX_TOTAL, Package};
 use crate::xml::{self, W, esc};

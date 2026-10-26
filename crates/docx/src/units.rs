@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Lenient number parsing for OOXML attribute values.
 
 use crate::xml::El;
@@ -113,12 +114,12 @@ pub fn n(v: i64) -> String {
 
 /// Points → twips string.
 pub fn twips(pt: f32) -> String {
-    wordcraft_geom::to_twips(pt.clamp(-MAX_LEN_PT, MAX_LEN_PT)).to_string()
+    strix_geom::to_twips(pt.clamp(-MAX_LEN_PT, MAX_LEN_PT)).to_string()
 }
 
 /// Points → EMU string (never negative for sizes).
 pub fn emu(pt: f32) -> String {
-    wordcraft_geom::to_emu(pt.clamp(-MAX_LEN_PT, MAX_LEN_PT)).to_string()
+    strix_geom::to_emu(pt.clamp(-MAX_LEN_PT, MAX_LEN_PT)).to_string()
 }
 
 #[cfg(test)]

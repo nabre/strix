@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! #1378: an RTF file with several sections converts to DOCX with one `w:sectPr` per section.
 //! The RTF is original and synthetic, laid out the way word processors write sections: document
 //! page defaults, then `\sectd` + section words + the section's header/footer groups, a `\sect`
@@ -5,7 +6,7 @@
 
 use std::io::Read;
 
-use wordcraft_engine::io;
+use strix_engine::io;
 
 const RTF: &str = r"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0 Times New Roman;}}
 \paperw11906\paperh16838\margl1134\margr1134\margt1417\margb1134

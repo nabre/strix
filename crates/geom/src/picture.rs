@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Decoding a picture within a memory budget. Every crate that decodes a document's or the
 //! clipboard's pictures goes through [`probe`] (or [`probe_dib`]): the header gives the format and
 //! size, and the decode is refused before anything is allocated when its peak would pass the
@@ -13,7 +14,7 @@ use image::{DynamicImage, ImageDecoder, ImageFormat};
 /// Why a picture isn't decoded.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refusal {
-    /// Not a raster picture WordCraft decodes (a metafile, SVG or other bytes).
+    /// Not a raster picture Strix decodes (a metafile, SVG or other bytes).
     NotAPicture,
     /// A kind of picture that is never decoded, because its decoder can't be held to a budget.
     Unsupported(&'static str),

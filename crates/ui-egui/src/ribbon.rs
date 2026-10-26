@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The ribbon: tab strip and every tab's groups. Each control runs a command by id.
 
 use egui::{Align2, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -9,17 +10,17 @@ use crate::theme::{Tokens, medium, regular, semibold};
 use crate::widgets::{CONTENT_H, LABEL_H, big, big_toggle, group, menu_button, small, split};
 use crate::{WordApp, icons};
 
-pub const TABS: [&str; 13] = wordcraft_engine::ribbon::TABS;
+pub const TABS: [&str; 13] = strix_engine::ribbon::TABS;
 
 /// True when the caret/selection touches a picture (#147).
-pub fn has_picture_selected(s: &wordcraft_engine::Session) -> bool {
-    matches!(wordcraft_engine::cmd::objects::selected(s), Some((_, wordcraft_doc::para::InlineObject::Image { .. })))
+pub fn has_picture_selected(s: &strix_engine::Session) -> bool {
+    matches!(strix_engine::cmd::objects::selected(s), Some((_, strix_doc::para::InlineObject::Image { .. })))
 }
 
 /// Whether the selection is a shape, text box or Drawing Canvas (so Shape Format is shown).
-pub fn has_shape_selected(s: &wordcraft_engine::Session) -> bool {
-    match wordcraft_engine::cmd::objects::selected(s) {
-        Some((_, o)) => matches!(o, wordcraft_doc::para::InlineObject::Shape { .. }) || o.is_canvas(),
+pub fn has_shape_selected(s: &strix_engine::Session) -> bool {
+    match strix_engine::cmd::objects::selected(s) {
+        Some((_, o)) => matches!(o, strix_doc::para::InlineObject::Shape { .. }) || o.is_canvas(),
         None => false,
     }
 }
@@ -75,7 +76,7 @@ fn reading_toolbar(app: &mut WordApp, ui: &mut Ui, t: Tokens) {
                     }
                 });
                 ui.separator();
-                use wordcraft_engine::cmd::view::ReadPageColor;
+                use strix_engine::cmd::view::ReadPageColor;
                 let colors =
                     [(ReadPageColor::None, "None", "none"), (ReadPageColor::Sepia, "Sepia", "sepia"), (ReadPageColor::Inverse, "Inverse", "inverse")];
                 let current = app.session.view.read_page_color;
@@ -104,18 +105,18 @@ fn reading_toolbar(app: &mut WordApp, ui: &mut Ui, t: Tokens) {
         });
 }
 
-/// Whether the selection is a SmartArt graphic WordCraft can edit (so SmartArt Design is shown).
-pub fn has_smart_art_selected(s: &wordcraft_engine::Session) -> bool {
-    wordcraft_engine::cmd::smart_art::selected_smart_art(s).is_some()
+/// Whether the selection is a SmartArt graphic Strix can edit (so SmartArt Design is shown).
+pub fn has_smart_art_selected(s: &strix_engine::Session) -> bool {
+    strix_engine::cmd::smart_art::selected_smart_art(s).is_some()
 }
 
-/// Whether the selection is a chart WordCraft can edit (so Chart Design is shown).
-pub fn has_chart_selected(s: &wordcraft_engine::Session) -> bool {
-    wordcraft_engine::cmd::chart::selected_chart(s).is_some()
+/// Whether the selection is a chart Strix can edit (so Chart Design is shown).
+pub fn has_chart_selected(s: &strix_engine::Session) -> bool {
+    strix_engine::cmd::chart::selected_chart(s).is_some()
 }
 
 /// Contextual tabs for the current selection (pure, tested).
-pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
+pub fn contextual_tabs(s: &strix_engine::Session) -> Vec<&'static str> {
     let mut tabs = Vec::new();
     if s.sel.focus.path.cell().is_some() {
         tabs.push("Table Design");
@@ -138,7 +139,7 @@ pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
         tabs.push("Equation");
     }
     // Outline view (drawn first, next to File, as Word does).
-    if s.view.mode == wordcraft_layout::ViewMode::Outline {
+    if s.view.mode == strix_layout::ViewMode::Outline {
         tabs.push("Outlining");
     }
     tabs
@@ -280,7 +281,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         app.ui.tab = prev;
     }
     // Outline view brings up the Outlining tab; closing it goes back.
-    if app.session.view.mode == wordcraft_layout::ViewMode::Outline {
+    if app.session.view.mode == strix_layout::ViewMode::Outline {
         if app.outline_prev_tab.is_none() {
             app.outline_prev_tab = Some(app.ui.tab.clone());
             app.ui.tab = "Outlining".into();
@@ -343,7 +344,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         text_w: ui.ctx().fonts_mut(|f| f.layout_no_wrap(shown.to_string(), medium(12.5), t.text).size().x),
                         file: tab == "File",
                         active: *tab == app.ui.tab,
-                        contextual: !custom && wordcraft_engine::ribbon::CONTEXTUAL_TABS.contains(&tab.as_str()),
+                        contextual: !custom && strix_engine::ribbon::CONTEXTUAL_TABS.contains(&tab.as_str()),
                     })
                     .collect();
                 let plan = plan_strip(&specs, button_levels, ui.available_width(), MORE_TABS_W + 2.0);
@@ -404,7 +405,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         // The tabs that don't fit go into a » menu at the end of the strip (#897, #2026).
                         for (i, ((tab, custom), _)) in tabs.iter().zip(&plan.fits).enumerate().filter(|(_, (_, fits))| **fits) {
                             let (tab, custom) = (tab.as_str(), *custom);
-                            let contextual = !custom && wordcraft_engine::ribbon::CONTEXTUAL_TABS.contains(&tab);
+                            let contextual = !custom && strix_engine::ribbon::CONTEXTUAL_TABS.contains(&tab);
                             // A custom tab's name is the user's own text: shown as typed.
                             let shown = if custom { tab } else { tl!(tab) };
                             let w = plan.widths.get(i).copied().unwrap_or(0.0) - 2.0;
@@ -591,7 +592,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
 
 /// Custom groups (Customize Ribbon, #379): up to three commands as large buttons, more as small
 /// labelled buttons in columns of three. Each shows the command's own icon and label.
-fn custom_groups(app: &mut WordApp, ui: &mut Ui, groups: &[wordcraft_engine::ribbon::CustomGroup]) {
+fn custom_groups(app: &mut WordApp, ui: &mut Ui, groups: &[strix_engine::ribbon::CustomGroup]) {
     for g in groups {
         let ids: Vec<(&str, String)> =
             g.commands.iter().filter_map(|id| app.session.registry.get(id).map(|s| (s.id, tl!(s.label).to_string()))).collect();
@@ -664,9 +665,9 @@ fn stack(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
 /// Setup (#1433).
 pub(crate) fn size_menu(ui: &mut Ui, app: &mut WordApp) {
     // The current paper size is checked.
-    let x = wordcraft_engine::cmd::page::sect(&app.session);
-    let current = wordcraft_geom::paper_name(x.page_w, x.page_h);
-    for (n, w, h) in wordcraft_geom::PAPER_SIZES {
+    let x = strix_engine::cmd::page::sect(&app.session);
+    let current = strix_geom::paper_name(x.page_w, x.page_h);
+    for (n, w, h) in strix_geom::PAPER_SIZES {
         // Paper names are the industry's (Letter, A4, B5 (JIS)) and stay as they are; the
         // envelopes say what they are. Sizes in the measurement unit, written the region's
         // way (`21 cm × 29,7 cm`, #838).
@@ -819,7 +820,7 @@ pub(crate) const PROOFING_LANGUAGES: [(&str, &str); 16] = [
     ("es-UY", "Spanish (Uruguay)"),
 ];
 
-/// The English name of a proofing language tag, as the status bar shows it (no tag: WordCraft's
+/// The English name of a proofing language tag, as the status bar shows it (no tag: Strix's
 /// default, US English): a listed language by its name; another region of one by the language
 /// and the region ("French (Canada)"); a bare language subtag by its usual variant; else the tag.
 pub(crate) fn language_name(tag: Option<&str>) -> String {
@@ -847,19 +848,19 @@ pub(crate) fn language_name(tag: Option<&str>) -> String {
                 None => tag.to_string(),
             }
         }
-        // A bare language subtag ("pt", "pl"): the variant WordCraft proofs.
-        None => match wordcraft_engine::proof::ProofLang::from_tag(Some(tag)) {
-            wordcraft_engine::proof::ProofLang::Pl => "Polish".into(),
-            wordcraft_engine::proof::ProofLang::Hr => "Croatian".into(),
-            wordcraft_engine::proof::ProofLang::Pt => "Portuguese (Brazil)".into(),
-            wordcraft_engine::proof::ProofLang::It => "Italian".into(),
-            wordcraft_engine::proof::ProofLang::Tr => "Turkish".into(),
-            wordcraft_engine::proof::ProofLang::Ru => "Russian".into(),
-            wordcraft_engine::proof::ProofLang::Cs => "Czech".into(),
-            wordcraft_engine::proof::ProofLang::Id => "Indonesian".into(),
-            wordcraft_engine::proof::ProofLang::Es => "Spanish (Spain)".into(),
-            wordcraft_engine::proof::ProofLang::De => "German (Germany)".into(),
-            wordcraft_engine::proof::ProofLang::En if tag.eq_ignore_ascii_case("en") => "English (United States)".into(),
+        // A bare language subtag ("pt", "pl"): the variant Strix proofs.
+        None => match strix_engine::proof::ProofLang::from_tag(Some(tag)) {
+            strix_engine::proof::ProofLang::Pl => "Polish".into(),
+            strix_engine::proof::ProofLang::Hr => "Croatian".into(),
+            strix_engine::proof::ProofLang::Pt => "Portuguese (Brazil)".into(),
+            strix_engine::proof::ProofLang::It => "Italian".into(),
+            strix_engine::proof::ProofLang::Tr => "Turkish".into(),
+            strix_engine::proof::ProofLang::Ru => "Russian".into(),
+            strix_engine::proof::ProofLang::Cs => "Czech".into(),
+            strix_engine::proof::ProofLang::Id => "Indonesian".into(),
+            strix_engine::proof::ProofLang::Es => "Spanish (Spain)".into(),
+            strix_engine::proof::ProofLang::De => "German (Germany)".into(),
+            strix_engine::proof::ProofLang::En if tag.eq_ignore_ascii_case("en") => "English (United States)".into(),
             _ => tag.to_string(),
         },
     }
@@ -940,7 +941,7 @@ pub(crate) fn caret_language(app: &WordApp) -> String {
 }
 
 /// The formatting at the caret, resolved through the styles and the document default.
-fn caret_char(app: &WordApp) -> wordcraft_doc::resolve::ResolvedChar {
+fn caret_char(app: &WordApp) -> strix_doc::resolve::ResolvedChar {
     let s = &app.session;
     let style = s.doc.para_at(&s.sel.focus).and_then(|p| p.props.style.clone());
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props())
@@ -957,20 +958,20 @@ pub(crate) fn caret_no_proof(app: &WordApp) -> bool {
     caret_char(app).no_proof
 }
 
-/// Does WordCraft check spelling and grammar in the caret's language at all (Bulgarian: no)?
+/// Does Strix check spelling and grammar in the caret's language at all (Bulgarian: no)?
 pub(crate) fn caret_language_proofed(app: &WordApp) -> bool {
-    wordcraft_engine::proof::has_dictionary(caret_lang_tag(app).as_deref())
+    strix_engine::proof::has_dictionary(caret_lang_tag(app).as_deref())
 }
 
 /// The Hunspell dictionary the caret's language needs but doesn't have (`pl_PL`), if any (#1167).
 pub(crate) fn caret_missing_dictionary(app: &WordApp) -> Option<&'static str> {
-    wordcraft_engine::proof::missing_dictionary(caret_lang_tag(app).as_deref())
+    strix_engine::proof::missing_dictionary(caret_lang_tag(app).as_deref())
 }
 
 /// The dictionary file and reason when the caret's language has a dictionary installed that
 /// couldn't be read, so "no dictionary" would send the user to reinstall it for nothing (#2830).
 pub(crate) fn caret_unreadable_dictionary(app: &WordApp) -> Option<(std::path::PathBuf, String)> {
-    wordcraft_engine::proof::unreadable_dictionary(caret_lang_tag(app).as_deref()).map(|(_, file, reason)| (file, reason))
+    strix_engine::proof::unreadable_dictionary(caret_lang_tag(app).as_deref()).map(|(_, file, reason)| (file, reason))
 }
 
 /// Review › Language (and the status bar's language): set the selection's proofing language, or
@@ -995,8 +996,8 @@ pub(crate) fn language_menu(ui: &mut Ui, app: &mut WordApp) {
             || (tag == "it-IT" && current.eq_ignore_ascii_case("it"))
             || (tag == "hr-HR" && current.eq_ignore_ascii_case("hr"))
             || (tag == "tr-TR" && current.eq_ignore_ascii_case("tr"))
-            || (tag == "cs-CZ" && wordcraft_engine::proof::ProofLang::from_tag(Some(&current)) == wordcraft_engine::proof::ProofLang::Cs)
-            || (tag == "id-ID" && wordcraft_engine::proof::ProofLang::from_tag(Some(&current)) == wordcraft_engine::proof::ProofLang::Id)
+            || (tag == "cs-CZ" && strix_engine::proof::ProofLang::from_tag(Some(&current)) == strix_engine::proof::ProofLang::Cs)
+            || (tag == "id-ID" && strix_engine::proof::ProofLang::from_tag(Some(&current)) == strix_engine::proof::ProofLang::Id)
             || (tag == "es-ES" && current.eq_ignore_ascii_case("es"))
             || (tag == "en-US" && current.eq_ignore_ascii_case("en"))
     };
@@ -1048,8 +1049,8 @@ fn mi_check(ui: &mut Ui, app: &mut WordApp, label: &str, checked: bool, id: &str
 }
 
 /// Word's text wrapping styles in menu order: label, model value, `arrange.wrap` parameter.
-pub(crate) const WRAP_STYLES: [(&str, wordcraft_doc::para::Wrap, &str); 7] = {
-    use wordcraft_doc::para::Wrap;
+pub(crate) const WRAP_STYLES: [(&str, strix_doc::para::Wrap, &str); 7] = {
+    use strix_doc::para::Wrap;
     [
         ("In Line with Text", Wrap::Inline, "inline"),
         ("Square", Wrap::Square, "square"),
@@ -1065,7 +1066,7 @@ pub(crate) const WRAP_STYLES: [(&str, wordcraft_doc::para::Wrap, &str); 7] = {
 /// current one checked), then Move with Text / Fix Position on Page for a floating one. The
 /// canvas context menu shows it; the ribbon's Wrap Text button can share it.
 pub(crate) fn wrap_text_items(ui: &mut Ui, app: &mut WordApp) {
-    use wordcraft_engine::cmd::objects::{moves_with_text, selected};
+    use strix_engine::cmd::objects::{moves_with_text, selected};
     let state = selected(&app.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, moves_with_text(f))));
     let wrap = state.map(|(w, _)| w);
     for (label, w, v) in WRAP_STYLES {
@@ -1073,7 +1074,7 @@ pub(crate) fn wrap_text_items(ui: &mut Ui, app: &mut WordApp) {
     }
     ui.separator();
     // An inline object is neither: it's part of the text.
-    let with_text = state.filter(|(w, _)| *w != wordcraft_doc::para::Wrap::Inline).map(|(_, m)| m);
+    let with_text = state.filter(|(w, _)| *w != strix_doc::para::Wrap::Inline).map(|(_, m)| m);
     mi_check(ui, app, "Move with Text", with_text == Some(true), "arrange.moveWithText", json!({"value": true}));
     mi_check(ui, app, "Fix Position on Page", with_text == Some(false), "arrange.moveWithText", json!({"value": false}));
 }
@@ -1141,7 +1142,7 @@ fn home(app: &mut WordApp, ui: &mut Ui) {
                     .map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { format!("{s}") })
                     .unwrap_or_default();
                 let sizes: Vec<String> =
-                    wordcraft_engine::cmd::format::SIZES.iter().map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { s.to_string() }).collect();
+                    strix_engine::cmd::format::SIZES.iter().map(|s| if s.fract() == 0.0 { format!("{s:.0}") } else { s.to_string() }).collect();
                 if let Some(v) = crate::widgets::combo_hint(ui, "size", 52.0, &size, &sizes, None, tl!("Font Size"))
                     && let Ok(x) = v.trim().parse::<f64>()
                 {
@@ -1200,7 +1201,7 @@ fn home(app: &mut WordApp, ui: &mut Ui) {
                     crate::mini_toolbar::highlight_menu,
                 );
                 let fc = app.canvas.last_font_color.clone();
-                let sw = wordcraft_doc::Rgb::parse(&fc).map(crate::theme::c32);
+                let sw = strix_doc::Rgb::parse(&fc).map(crate::theme::c32);
                 split(ui, app, "fontcolor", "Font Color", "format.color", json!({"color": fc}), false, sw, |ui, app| {
                     mi(ui, app, "Automatic", "format.color", json!({"color": "auto"}));
                     let theme = app.session.doc.settings.theme_colors.clone();
@@ -1214,7 +1215,7 @@ fn home(app: &mut WordApp, ui: &mut Ui) {
         // The buttons show alignment as seen on the page (Align Right is a right-to-left paragraph's start).
         let align = rp.as_ref().map(|r| r.align.visual(r.bidi)).unwrap_or_default();
         let rtl = rp.as_ref().is_some_and(|r| r.bidi);
-        let lists = wordcraft_engine::cmd::para::list_buttons(&app.session.doc, rp.as_ref().and_then(|r| r.numbering));
+        let lists = strix_engine::cmd::para::list_buttons(&app.session.doc, rp.as_ref().and_then(|r| r.numbering));
         stack(ui, |ui| {
             crate::widgets::row(ui, |ui| {
                 split(ui, app, "bullets", "Bullets", "para.bullets", json!({}), lists.bullets, None, |ui, app| {
@@ -1290,7 +1291,7 @@ fn home(app: &mut WordApp, ui: &mut Ui) {
             });
             ui.add_space(3.0);
             crate::widgets::row(ui, |ui| {
-                use wordcraft_doc::Align as A;
+                use strix_doc::Align as A;
                 small(ui, app, "alignLeft", None, "Align Left", "para.alignLeft", json!({}), align == A::Left);
                 small(ui, app, "alignCenter", None, "Center", "para.alignCenter", json!({}), align == A::Center);
                 small(ui, app, "alignRight", None, "Align Right", "para.alignRight", json!({}), align == A::Right);
@@ -1464,7 +1465,7 @@ fn insert(app: &mut WordApp, ui: &mut Ui) {
                 // This session's building blocks, then the document's own Quick Parts.
                 let mut parts: Vec<String> = app.session.building_blocks.keys().cloned().collect();
                 let mut seen: std::collections::HashSet<String> = parts.iter().cloned().collect();
-                let glossary = app.session.doc.glossary.iter().filter(|e| e.gallery == wordcraft_doc::QUICK_PARTS_GALLERY);
+                let glossary = app.session.doc.glossary.iter().filter(|e| e.gallery == strix_doc::QUICK_PARTS_GALLERY);
                 parts.extend(glossary.filter(|e| seen.insert(e.name.clone())).map(|e| e.name.clone()));
                 for name in parts {
                     if ui.button(&name).clicked() {
@@ -1524,7 +1525,7 @@ fn insert(app: &mut WordApp, ui: &mut Ui) {
 /// Insert › Drop Cap's menu (#2601): None, Dropped and In margin (the current one checked),
 /// then the Drop Cap dialog.
 fn drop_cap_items(ui: &mut Ui, app: &mut WordApp) {
-    let current = wordcraft_engine::cmd::insert::drop_cap_state(&app.session).position;
+    let current = strix_engine::cmd::insert::drop_cap_state(&app.session).position;
     for (label, v) in [("None", "none"), ("Dropped", "dropped"), ("In margin", "margin")] {
         mi_check(ui, app, label, current == v, "insert.dropCap", json!({"position": v}));
     }
@@ -1533,8 +1534,8 @@ fn drop_cap_items(ui: &mut Ui, app: &mut WordApp) {
 }
 
 fn draw(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_doc::freeform::InkTool;
-    use wordcraft_engine::cmd::draw::{DrawMode, lasso_selection};
+    use strix_doc::freeform::InkTool;
+    use strix_engine::cmd::draw::{DrawMode, lasso_selection};
     let mode = app.session.view.draw.mode;
     // The pen the colour and thickness menus change: the one in use, else the pen.
     let tool = mode.pen().unwrap_or(InkTool::Pen);
@@ -1598,8 +1599,8 @@ fn draw(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The command that picks up `tool`.
-fn pen_command(tool: wordcraft_doc::freeform::InkTool) -> &'static str {
-    use wordcraft_doc::freeform::InkTool;
+fn pen_command(tool: strix_doc::freeform::InkTool) -> &'static str {
+    use strix_doc::freeform::InkTool;
     match tool {
         InkTool::Pen => "draw.pen",
         InkTool::Pencil => "draw.pencil",
@@ -1609,7 +1610,7 @@ fn pen_command(tool: wordcraft_doc::freeform::InkTool) -> &'static str {
 
 /// After the colour or thickness menu changed `tool`'s settings, the gallery pen that was in use
 /// (`custom`) takes them too.
-fn update_gallery_pen(app: &mut WordApp, custom: Option<usize>, tool: wordcraft_doc::freeform::InkTool) {
+fn update_gallery_pen(app: &mut WordApp, custom: Option<usize>, tool: strix_doc::freeform::InkTool) {
     let set = app.session.view.draw.settings(tool);
     if let Some(p) = custom.and_then(|i| app.session.view.draw.pens.get_mut(i))
         && p.kind == tool
@@ -1621,8 +1622,8 @@ fn update_gallery_pen(app: &mut WordApp, custom: Option<usize>, tool: wordcraft_
 
 /// A pen of the gallery: its kind's icon over a bar of its colour and thickness; a click picks it
 /// up, right-click offers Remove Pen.
-fn gallery_pen(ui: &mut Ui, app: &mut WordApp, i: usize, pen: wordcraft_engine::cmd::draw::CustomPen, active: bool) {
-    use wordcraft_doc::freeform::InkTool;
+fn gallery_pen(ui: &mut Ui, app: &mut WordApp, i: usize, pen: strix_engine::cmd::draw::CustomPen, active: bool) {
+    use strix_doc::freeform::InkTool;
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(34.0, CONTENT_H), Sense::click());
     crate::widgets::bg(ui, r, &resp, active, &t);
@@ -1671,7 +1672,7 @@ fn style_set_box(app: &mut WordApp, ui: &mut Ui) -> (Rect, Rect) {
 fn design(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Themes", None, app, |ui, app| {
         menu_button(ui, app, "themes", Some("Themes"), "Themes", true, "design.themes", |ui, app| {
-            for (name, ..) in wordcraft_engine::cmd::design::THEMES {
+            for (name, ..) in strix_engine::cmd::design::THEMES {
                 mi(ui, app, name, "design.theme", json!({"name": name}));
             }
         });
@@ -1680,12 +1681,12 @@ fn design(app: &mut WordApp, ui: &mut Ui) {
         style_set_box(app, ui);
         stack(ui, |ui| {
             menu_button(ui, app, "colors", Some("Colors"), "Theme Colors", false, "design.themeColors", |ui, app| {
-                for (name, ..) in wordcraft_engine::cmd::design::THEMES {
+                for (name, ..) in strix_engine::cmd::design::THEMES {
                     mi(ui, app, name, "design.themeColors", json!({"name": name}));
                 }
             });
             menu_button(ui, app, "fonts", Some("Fonts"), "Theme Fonts", false, "design.themeFonts", |ui, app| {
-                for (name, h, b, _) in wordcraft_engine::cmd::design::THEMES {
+                for (name, h, b, _) in strix_engine::cmd::design::THEMES {
                     mi_text(ui, app, &format!("{}: {h} / {b}", tl!(name)), "design.themeFonts", json!({"heading": h, "body": b}));
                 }
             });
@@ -1735,7 +1736,7 @@ fn design(app: &mut WordApp, ui: &mut Ui) {
 // Layout › Margins, Orientation, Size and Columns: the caret section's setting has a check
 // mark, as Text Direction's does (#1206).
 fn margins_items(ui: &mut Ui, app: &mut WordApp) {
-    let current = wordcraft_engine::cmd::page::margins_preset_at(&app.session);
+    let current = strix_engine::cmd::page::margins_preset_at(&app.session);
     // The two uniform presets name their margin in the measurement unit (`2,54 cm`, #838).
     for (l, k, uniform) in [
         ("Normal  {size} all", "normal", Some(72.0)),
@@ -1757,13 +1758,13 @@ fn margins_items(ui: &mut Ui, app: &mut WordApp) {
 }
 
 fn orientation_items(ui: &mut Ui, app: &mut WordApp) {
-    let land = wordcraft_engine::cmd::page::sect(&app.session).landscape;
+    let land = strix_engine::cmd::page::sect(&app.session).landscape;
     mi_check(ui, app, "Portrait", !land, "layout.orientation", json!({"value": "portrait"}));
     mi_check(ui, app, "Landscape", land, "layout.orientation", json!({"value": "landscape"}));
 }
 
 fn columns_items(ui: &mut Ui, app: &mut WordApp) {
-    let current = wordcraft_engine::cmd::page::columns_preset_at(&app.session);
+    let current = strix_engine::cmd::page::columns_preset_at(&app.session);
     for (l, k, params) in [
         ("One", "one", json!({"count": 1})),
         ("Two", "two", json!({"count": 2})),
@@ -1780,9 +1781,9 @@ fn columns_items(ui: &mut Ui, app: &mut WordApp) {
 fn layout(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Page Setup", Some("layout.pageSetup"), app, |ui, app| {
         // Text Direction works on what the caret is in: table cells, a text box, else the section.
-        let dir = wordcraft_engine::cmd::page::text_direction_at(&app.session);
+        let dir = strix_engine::cmd::page::text_direction_at(&app.session);
         menu_button(ui, app, "textDirection", Some("Text\nDirection"), "Text Direction", true, "layout.textDirection", |ui, app| {
-            use wordcraft_doc::props::TextDirection;
+            use strix_doc::props::TextDirection;
             for (label, d) in
                 [("Horizontal", TextDirection::Horizontal), ("Rotate all text 90°", TextDirection::Down), ("Rotate all text 270°", TextDirection::Up)]
             {
@@ -1892,11 +1893,11 @@ fn layout(app: &mut WordApp, ui: &mut Ui) {
 /// Arrange › Wrap Text: how the selected object sits in the text, and (Square, Tight, Through)
 /// which of its sides text flows on.
 fn wrap_menu(ui: &mut Ui, app: &mut WordApp) {
-    let (wrap, side) = wordcraft_engine::cmd::objects::selected(&app.session)
+    let (wrap, side) = strix_engine::cmd::objects::selected(&app.session)
         .and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.wrap_text)))
         .unwrap_or_default();
     menu_button(ui, app, "wrapText", Some("Wrap\nText"), "Wrap Text", true, "arrange.wrapText", |ui, app| {
-        use wordcraft_doc::para::{Wrap, WrapText};
+        use strix_doc::para::{Wrap, WrapText};
         for (l, w, v) in [
             ("In Line with Text", Wrap::Inline, "inline"),
             ("Square", Wrap::Square, "square"),
@@ -1933,7 +1934,7 @@ fn rotate_menu(ui: &mut Ui, app: &mut WordApp, label: Option<&str>) {
 
 /// Size › Rotation: the selected object's exact angle (a drag of the field is one undo step).
 fn rotation_field(ui: &mut Ui, app: &mut WordApp) {
-    let deg0 = wordcraft_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| f.spin().deg)).unwrap_or(0.0);
+    let deg0 = strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| f.spin().deg)).unwrap_or(0.0);
     ui.label(egui::RichText::new(tl!("Rotation:")).small());
     let mut deg = deg0;
     let r = ui.add(egui::DragValue::new(&mut deg).speed(1.0).range(-360.0..=360.0).max_decimals(1).suffix("°"));
@@ -2011,7 +2012,7 @@ fn references(app: &mut WordApp, ui: &mut Ui) {
             let current = app.session.bib_style.clone();
             let label = crate::i18n::fmt(tl!("Style: {style}"), &[("style", &current)]);
             menu_button(ui, app, "styles", Some(&label), "Citation Style", false, "references.citationStyle", |ui, app| {
-                for st in &wordcraft_engine::cmd::citations::STYLES {
+                for st in &strix_engine::cmd::citations::STYLES {
                     mi_check(ui, app, st.name, st.name == current, "references.citationStyle", json!({"style": st.name}));
                 }
             });
@@ -2383,7 +2384,7 @@ fn view(app: &mut WordApp, ui: &mut Ui) {
 /// The Outlining tab (Outline view): outline levels, moving, expanding and collapsing, what is
 /// shown, and closing the view.
 fn outlining(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_engine::layout::outline::{BODY, para_level};
+    use strix_engine::layout::outline::{BODY, para_level};
     let o = app.session.view.outline.clone();
     let level = app.session.doc.para_at(&app.session.sel.focus).map(|p| para_level(&app.session.doc, p)).unwrap_or(BODY);
     let name = |l: u8| if l >= BODY { tl!("Body Text").to_string() } else { crate::i18n::fmt(tl!("Level {n}"), &[("n", &l.to_string())]) };
@@ -2442,7 +2443,7 @@ fn help(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Help", None, app, |ui, app| {
         big(ui, app, "help", "Help", "ui.dialog", json!({"name": "about"}), false);
         big(ui, app, "checkForUpdates", "Check for\nUpdates…", "ui.checkForUpdates", json!({}), false);
-        big(ui, app, "discord", "Community\nDiscord", "ui.discord", json!({}), false);
+        big(ui, app, "discord", "Community", "ui.discord", json!({}), false);
     });
     group(ui, "Agents", None, app, |ui, app| {
         big(ui, app, "macros", "Commands", "ui.dialog", json!({"name": "commands"}), false);
@@ -2452,8 +2453,8 @@ fn help(app: &mut WordApp, ui: &mut Ui) {
 /// SmartArt Design: the selected graphic's items (Add Shape, Promote, Demote, Text Pane), its
 /// layout (a gallery of previews), its colours and Reset.
 fn smart_art_design(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_doc::smart_art::{SmartArtColors, SmartArtLayout};
-    let Some(g) = wordcraft_engine::cmd::smart_art::selected_smart_art(&app.session) else { return };
+    use strix_doc::smart_art::{SmartArtColors, SmartArtLayout};
+    let Some(g) = strix_engine::cmd::smart_art::selected_smart_art(&app.session) else { return };
     let theme = app.session.doc.settings.theme_colors.clone();
     // The Text Pane's current item, else the last.
     let current = app.smart_art_item.filter(|i| *i < g.items.len());
@@ -2513,7 +2514,7 @@ fn smart_art_design(app: &mut WordApp, ui: &mut Ui) {
 /// Chart Design: the selected chart's elements (title, legend, data labels), its data and type,
 /// and its size.
 fn chart_design(app: &mut WordApp, ui: &mut Ui) {
-    let Some(chart) = wordcraft_engine::cmd::chart::selected_chart(&app.session) else { return };
+    let Some(chart) = strix_engine::cmd::chart::selected_chart(&app.session) else { return };
     group(ui, "Chart Layouts", None, app, |ui, app| {
         menu_button(ui, app, "chartTitle", Some("Chart Title"), "Chart Title", true, "", |ui, app| {
             mi_check(ui, app, "None", chart.title.is_none(), "chart.title", json!({"text": null}));
@@ -2523,10 +2524,10 @@ fn chart_design(app: &mut WordApp, ui: &mut Ui) {
         menu_button(ui, app, "legend", Some("Legend"), "Legend", true, "", |ui, app| {
             mi_check(ui, app, "None", chart.legend.is_none(), "chart.legend", json!({"pos": "none"}));
             for (label, pos) in [
-                ("Right", wordcraft_doc::chart::LegendPos::Right),
-                ("Top", wordcraft_doc::chart::LegendPos::Top),
-                ("Left", wordcraft_doc::chart::LegendPos::Left),
-                ("Bottom", wordcraft_doc::chart::LegendPos::Bottom),
+                ("Right", strix_doc::chart::LegendPos::Right),
+                ("Top", strix_doc::chart::LegendPos::Top),
+                ("Left", strix_doc::chart::LegendPos::Left),
+                ("Bottom", strix_doc::chart::LegendPos::Bottom),
             ] {
                 mi_check(ui, app, label, chart.legend == Some(pos), "chart.legend", json!({"pos": pos.id()}));
             }
@@ -2549,7 +2550,7 @@ fn chart_design(app: &mut WordApp, ui: &mut Ui) {
 fn graphic_size(ui: &mut Ui, app: &mut WordApp) {
     group(ui, "Size", None, app, |ui, app| {
         let (w0, h0) =
-            wordcraft_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
+            strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
         stack(ui, |ui| {
             for (label, key, v0) in [("H:", "height", h0), ("W:", "width", w0)] {
                 crate::widgets::row(ui, |ui| {
@@ -2572,17 +2573,17 @@ fn graphic_size(ui: &mut Ui, app: &mut WordApp) {
 
 /// Shape Fill › Gradient: No Gradient, Light and Dark Variations of the shape's colour, More
 /// Gradients… (the Format Shape pane).
-pub(crate) fn gradient_menu(ui: &mut Ui, app: &mut WordApp, fill: Option<&wordcraft_doc::fill::Fill>) {
-    use wordcraft_engine::cmd::shape_fill;
-    let pos = wordcraft_engine::cmd::objects::selected(&app.session).map(|(p, _)| p);
+pub(crate) fn gradient_menu(ui: &mut Ui, app: &mut WordApp, fill: Option<&strix_doc::fill::Fill>) {
+    use strix_engine::cmd::shape_fill;
+    let pos = strix_engine::cmd::objects::selected(&app.session).map(|(p, _)| p);
     let main = match (fill, &pos) {
         (Some(f), Some(p)) => crate::format_shape::variation_base(ui.ctx(), p, f),
         (Some(f), None) => f.main_color(),
-        _ => app.session.doc.settings.theme_colors.get(4).copied().unwrap_or(wordcraft_doc::Rgb(68, 114, 196)),
+        _ => app.session.doc.settings.theme_colors.get(4).copied().unwrap_or(strix_doc::Rgb(68, 114, 196)),
     };
     // No Gradient: the shape's colour, solid.
     ui.label(egui::RichText::new(tl!("No Gradient")).small().weak());
-    if crate::format_shape::swatch(ui, &wordcraft_doc::fill::Fill::solid(main), "No Gradient") {
+    if crate::format_shape::swatch(ui, &strix_doc::fill::Fill::solid(main), "No Gradient") {
         let _ = app.run("shape.fill", json!({"color": main.hex()}));
         ui.close();
     }
@@ -2612,8 +2613,8 @@ pub(crate) fn gradient_menu(ui: &mut Ui, app: &mut WordApp, fill: Option<&wordcr
 
 /// Shape Format: fill, outline and effects of the selected shape, and its arrangement.
 fn shape_format(app: &mut WordApp, ui: &mut Ui) {
-    let (stroke, glow_size, fill) = match wordcraft_engine::cmd::objects::selected(&app.session) {
-        Some((_, wordcraft_doc::para::InlineObject::Shape { stroke, effects, fill, .. })) => (stroke, effects.glow.map(|g| g.size), fill),
+    let (stroke, glow_size, fill) = match strix_engine::cmd::objects::selected(&app.session) {
+        Some((_, strix_doc::para::InlineObject::Shape { stroke, effects, fill, .. })) => (stroke, effects.glow.map(|g| g.size), fill),
         Some((_, o)) => (None, None, o.canvas_style().and_then(|c| c.fill.clone())),
         _ => (None, None, None),
     };
@@ -2631,7 +2632,7 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
                 crate::colors::menu(ui, app, &theme, Target::cmd("shape.outline"));
                 ui.separator();
                 ui.menu_button(tl!("Weight"), |ui| {
-                    let color = stroke.unwrap_or(wordcraft_doc::Rgb::BLACK).hex();
+                    let color = stroke.unwrap_or(strix_doc::Rgb::BLACK).hex();
                     for w in [0.25, 0.5, 0.75, 1.0, 1.5, 2.25, 3.0, 4.5, 6.0] {
                         mi(ui, app, &format!("{w} pt"), "shape.outline", json!({"color": color, "width": w}));
                     }
@@ -2643,7 +2644,7 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     alt_text_group(ui, app);
-    if wordcraft_engine::cmd::canvas::selected_canvas(&app.session).is_some() {
+    if strix_engine::cmd::canvas::selected_canvas(&app.session).is_some() {
         group(ui, "Drawing Canvas", None, app, |ui, app| {
             menu_button(ui, app, "canvas", Some("Drawing\nCanvas"), "Drawing Canvas", true, "", |ui, app| {
                 mi(ui, app, "Fit", "canvas.fit", json!({}));
@@ -2682,7 +2683,7 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Size", None, app, |ui, app| {
         let (w0, h0) =
-            wordcraft_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
+            strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
         stack(ui, |ui| {
             crate::widgets::row(ui, |ui| {
                 for (label, key, v0) in [("W:", "width", w0), ("H:", "height", h0)] {
@@ -2708,8 +2709,8 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
 /// Shape Format › Text: the text box's Text Direction and Align Text, and Create Link (Break Link
 /// once it is linked to another box).
 fn shape_text_group(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_doc::props::{TextVert, VAlign};
-    let target = wordcraft_engine::cmd::objects::text_box_target(&app.session);
+    use strix_doc::props::{TextVert, VAlign};
+    let target = strix_engine::cmd::objects::text_box_target(&app.session);
     let body = target.and_then(|(_, id)| app.session.doc.parts.get(&id).map(|p| p.body)).unwrap_or_default();
     group(ui, "Text", None, app, |ui, app| {
         stack(ui, |ui| {
@@ -2725,7 +2726,7 @@ fn shape_text_group(app: &mut WordApp, ui: &mut Ui) {
             });
             menu_button(ui, app, "alignText", Some("Align Text"), "Align Text", false, "", |ui, app| {
                 for (label, anchor) in [("Top", VAlign::Top), ("Middle", VAlign::Center), ("Bottom", VAlign::Bottom)] {
-                    mi_check(ui, app, label, body.anchor == anchor, "shape.alignText", json!({"anchor": wordcraft_doc::props::anchor_ooxml(anchor)}));
+                    mi_check(ui, app, label, body.anchor == anchor, "shape.alignText", json!({"anchor": strix_doc::props::anchor_ooxml(anchor)}));
                 }
             });
             if body.next.is_some() {
@@ -2746,11 +2747,11 @@ fn alt_text_group(ui: &mut Ui, app: &mut WordApp) {
 }
 
 /// Shape Format › Shape Effects: Shadow, Glow and Soft Edges, each with presets and a "No …" entry.
-fn shape_effects_menu(ui: &mut Ui, app: &mut WordApp, theme: &[wordcraft_doc::Rgb], glow_size: Option<f32>) {
+fn shape_effects_menu(ui: &mut Ui, app: &mut WordApp, theme: &[strix_doc::Rgb], glow_size: Option<f32>) {
     ui.menu_button(tl!("Shadow"), |ui| {
         mi(ui, app, "No Shadow", "shape.effects", json!({"shadow": null}));
         ui.separator();
-        for (id, label) in wordcraft_doc::effects::SHADOW_PRESETS {
+        for (id, label) in strix_doc::effects::SHADOW_PRESETS {
             mi(ui, app, label, "shape.effects", json!({"shadow": id}));
         }
     });
@@ -2811,8 +2812,8 @@ fn picture_format(app: &mut WordApp, ui: &mut Ui) {
             // pixels, one undo step for the whole drag (same pattern as Size › W/H).
             // The current value isn't stored anywhere, so the slider reopens where it
             // was last left for this picture.
-            let (media, off) = match wordcraft_engine::cmd::objects::selected(&app.session) {
-                Some((pos, wordcraft_doc::para::InlineObject::Image { media, .. })) => (media, pos.off),
+            let (media, off) = match strix_engine::cmd::objects::selected(&app.session) {
+                Some((pos, strix_doc::para::InlineObject::Image { media, .. })) => (media, pos.off),
                 _ => (String::new(), 0),
             };
             let key = egui::Id::unique(("picture_transparency", media, off));
@@ -2861,8 +2862,8 @@ fn picture_format(app: &mut WordApp, ui: &mut Ui) {
     });
     // The launcher opens the Size dialog: scale, Lock aspect ratio, the original size (#2573).
     group(ui, "Size", Some("picture.size"), app, |ui, app| {
-        let (media, off, w0, h0, crop0, alt0) = match wordcraft_engine::cmd::objects::selected(&app.session) {
-            Some((pos, wordcraft_doc::para::InlineObject::Image { media, w, h, alt, crop, .. })) => (media, pos.off, w, h, crop, alt),
+        let (media, off, w0, h0, crop0, alt0) = match strix_engine::cmd::objects::selected(&app.session) {
+            Some((pos, strix_doc::para::InlineObject::Image { media, w, h, alt, crop, .. })) => (media, pos.off, w, h, crop, alt),
             _ => (String::new(), 0, 0.0, 0.0, [0.0; 4], String::new()),
         };
         // `picture.size` locks the aspect ratio unless told otherwise, so one dimension suffices.
@@ -2980,7 +2981,7 @@ fn table_design(app: &mut WordApp, ui: &mut Ui) {
             .styles
             .styles
             .iter()
-            .filter(|s| s.kind == wordcraft_doc::StyleKind::Table && !s.hidden)
+            .filter(|s| s.kind == strix_doc::StyleKind::Table && !s.hidden)
             .map(|s| (s.builtin, s.id.clone(), crate::i18n::style_name(s)))
             .collect();
         styles.sort_by_key(|(builtin, _, _)| *builtin);
@@ -3001,8 +3002,8 @@ fn table_design(app: &mut WordApp, ui: &mut Ui) {
                     .doc
                     .styles
                     .get(&id)
-                    .filter(|st| st.kind == wordcraft_doc::StyleKind::Table)
-                    .map(wordcraft_engine::cmd::table_style::is_builtin_table_style)
+                    .filter(|st| st.kind == strix_doc::StyleKind::Table)
+                    .map(strix_engine::cmd::table_style::is_builtin_table_style)
             });
             let can_modify = current.is_some();
             // Built-in table styles can't be deleted.
@@ -3054,7 +3055,7 @@ fn cell_size_boxes(ui: &mut Ui, app: &mut WordApp) {
     let row = t.rows.get(r).map(|x| x.props.clone()).unwrap_or_default();
     let stored_w = t.grid.get(t.grid_col(r, c)).copied();
     let laid = app.session.layout().pages.iter().flat_map(|pg| pg.items.iter()).find_map(|it| match it {
-        wordcraft_layout::Placed::Cell { rect, table, row, cell, story: st, .. } if *table == tp && *row == r && *cell == c && *st == story => {
+        strix_layout::Placed::Cell { rect, table, row, cell, story: st, .. } if *table == tp && *row == r && *cell == c && *st == story => {
             Some(*rect)
         }
         _ => None,
@@ -3068,7 +3069,7 @@ fn cell_size_boxes(ui: &mut Ui, app: &mut WordApp) {
         .iter()
         .flat_map(|pg| pg.items.iter())
         .filter_map(|it| match it {
-            wordcraft_layout::Placed::Cell { rect, table, row, story: st, .. } if *table == tp && *row == r && *st == story => Some(rect.h),
+            strix_layout::Placed::Cell { rect, table, row, story: st, .. } if *table == tp && *row == r && *st == story => Some(rect.h),
             _ => None,
         })
         .reduce(f32::min);
@@ -3076,7 +3077,7 @@ fn cell_size_boxes(ui: &mut Ui, app: &mut WordApp) {
     let k = unit.pt_per_unit();
     let h0 = row.height.or(row_h).unwrap_or(0.0);
     let w0 = laid.map(|x| x.w).or(stored_w).unwrap_or(0.0);
-    let exact = row.height_rule == wordcraft_doc::props::HeightRule::Exact;
+    let exact = row.height_rule == strix_doc::props::HeightRule::Exact;
     // The edited value in points, and whether it continues a drag (joins the previous Undo step).
     let boxed = |ui: &mut Ui, label: &str, pt: f32| -> Option<(f32, bool)> {
         let mut out = None;
@@ -3189,12 +3190,12 @@ fn table_layout(app: &mut WordApp, ui: &mut Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     /// Two clicks arm and disarm the painter; the double-click handling then leaves it sticky (#2785).
     #[test]
     fn double_click_on_format_painter_makes_it_sticky() {
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
         app.run("edit.formatPainter", json!({})).unwrap();
         assert!(matches!(app.session.painter, Some((_, _, false))), "one click arms it for one use");
         app.run("edit.formatPainter", json!({})).unwrap();
@@ -3209,14 +3210,14 @@ mod tests {
         });
         let mut b = Vec::new();
         image::DynamicImage::ImageRgba8(img).write_to(&mut std::io::Cursor::new(&mut b), image::ImageFormat::Png).unwrap();
-        wordcraft_engine::cmd::insert::base64_encode(&b)
+        strix_engine::cmd::insert::base64_encode(&b)
     }
 
     /// The style set gallery fills exactly its own box and the next control starts after a gap,
     /// so Colors and Fonts can't overlap the thumbnails (#638).
     #[test]
     fn design_style_set_gallery_stays_in_its_box() {
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         let mut seen = None;
         let mut h = egui_kittest::Harness::builder().with_size(vec2(1440.0, 200.0)).build_ui(|ui| {
             ui.horizontal_top(|ui| {
@@ -3238,8 +3239,8 @@ mod tests {
     #[test]
     fn underline_menu_entries_apply_their_style() {
         use egui_kittest::kittest::Queryable;
-        use wordcraft_doc::props::Underline;
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Lanterns")), crate::Services::default());
+        use strix_doc::props::Underline;
+        let mut a = WordApp::new(Session::new(strix_doc::Document::from_text("Lanterns")), crate::Services::default());
         a.run("select.all", json!({})).unwrap();
         // The app's real interface fonts carry the macOS shortcut symbols (⌘⇧⌥⌃); egui's
         // bare test defaults do not.
@@ -3249,7 +3250,7 @@ mod tests {
             .build_ui_state(|ui, app: &mut WordApp| underline_menu(ui, app), a);
         h.run_steps(2);
         let run =
-            |h: &egui_kittest::Harness<'_, WordApp>| h.state().session.doc.para_at(&wordcraft_doc::Pos::body(0, 0)).unwrap().runs[0].props.clone();
+            |h: &egui_kittest::Harness<'_, WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).unwrap().runs[0].props.clone();
         for (_, name) in UNDERLINE_STYLES {
             assert!(h.query_by_label(name).is_some(), "{name} is a named entry");
         }
@@ -3282,7 +3283,7 @@ mod tests {
         h.step();
         h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() });
         h.run_steps(3);
-        assert_eq!(run(&h).underline_color, wordcraft_doc::Rgb::parse("C00000"));
+        assert_eq!(run(&h).underline_color, strix_doc::Rgb::parse("C00000"));
         assert_eq!(run(&h).underline, Some(Underline::Double), "a colour keeps the style");
         open_colors(&mut h);
         h.get_by_label_contains("Automatic").click();
@@ -3296,7 +3297,7 @@ mod tests {
     #[test]
     fn menu_buttons_follow_their_command() {
         use crate::widgets::menu_enabled;
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
         for id in ["table.selectTable", "table.deleteTable", "table.autofit"] {
             assert!(!menu_enabled(&a, id), "{id} is off outside a table");
         }
@@ -3313,7 +3314,7 @@ mod tests {
     #[test]
     fn page_setup_menus_mark_the_current_setting() {
         use egui_kittest::kittest::{By, NodeT, Queryable};
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
         app.run("layout.margins", json!({"preset": "narrow"})).unwrap();
         app.run("layout.orientation", json!({"value": "landscape"})).unwrap();
         app.run("layout.size", json!({"name": "A4"})).unwrap();
@@ -3360,7 +3361,7 @@ mod tests {
         assert_eq!(c.listed, PROOFING_LANGUAGES.map(|(t, _)| t == "pt-BR"));
     }
 
-    /// The Englishes WordCraft proofs differently are in the menu, checked by their tags, and
+    /// The Englishes Strix proofs differently are in the menu, checked by their tags, and
     /// every English region has a name (#1281, #1045).
     #[test]
     fn english_dialects_are_in_the_language_menu() {
@@ -3392,7 +3393,7 @@ mod tests {
         }
     }
 
-    /// #3360, #3553: the Spanishes WordCraft proofs are in the menu, checked by their tags; other
+    /// #3360, #3553: the Spanishes Strix proofs are in the menu, checked by their tags; other
     /// Spanish regions show by name, and a bare `es` is Spain's.
     #[test]
     fn spanish_varieties_are_in_the_language_menu() {
@@ -3438,7 +3439,7 @@ mod tests {
 
     #[test]
     fn picture_format_tab_appears_when_picture_selected() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         assert!(!has_picture_selected(&s));
         assert!(!contextual_tabs(&s).contains(&"Picture Format"));
         s.run("insert.picture", &json!({"data": png_data()})).unwrap();
@@ -3451,7 +3452,7 @@ mod tests {
 
     #[test]
     fn shape_format_tab_appears_when_shape_selected() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("insert.shape", &json!({"kind": "rectangle"})).unwrap();
         assert!(contextual_tabs(&s).contains(&"Shape Format"));
         assert!(!contextual_tabs(&s).contains(&"Picture Format"));
@@ -3463,7 +3464,7 @@ mod tests {
     #[test]
     fn page_setup_launcher_opens_the_dialog() {
         // A group launcher runs its command with no parameters (#471).
-        let mut app = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut app = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         app.run("layout.pageSetup", json!({})).unwrap();
         assert!(matches!(app.dialog, Some(crate::dialogs::Dialog::PageSetup { .. })));
         // `ui.dialog` needs a dialog name, so it can't be a launcher.
@@ -3477,7 +3478,7 @@ mod tests {
 
     #[test]
     fn smart_art_picker_inserts_and_design_tab_follows_the_selection() {
-        let mut app = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut app = crate::WordApp::new(Session::new(strix_doc::Document::new()), Default::default());
         // Insert › SmartArt without a layout opens the picker.
         let _ = app.run("insert.smartArt", json!({}));
         assert_eq!(app.dialog.as_ref().map(crate::dialogs::Dialog::name), Some("insertSmartArt"));
@@ -3493,7 +3494,7 @@ mod tests {
 
     #[test]
     fn chart_design_tab_appears_when_chart_selected_and_buttons_open_dialogs() {
-        let mut app = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut app = crate::WordApp::new(Session::new(strix_doc::Document::new()), Default::default());
         // Insert › Chart without a type opens the gallery; choosing inserts.
         let _ = app.run("insert.chart", json!({}));
         assert_eq!(app.dialog.as_ref().map(crate::dialogs::Dialog::name), Some("insertChart"));
@@ -3513,7 +3514,7 @@ mod tests {
     /// made for three, so "Hide White Space" was drawn under "Show". Every tab, every language.
     #[test]
     fn ribbon_groups_fit_above_their_labels() {
-        let app = WordApp::new(Session::new(wordcraft_engine::sample::sample_document()), crate::Services::default());
+        let app = WordApp::new(Session::new(strix_engine::sample::sample_document()), crate::Services::default());
         // Wide enough that no tab hides groups behind its scroll arrows.
         let mut h = egui_kittest::Harness::builder().with_size(vec2(2560.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -3548,7 +3549,7 @@ mod tests {
             return;
         }
         use egui_kittest::kittest::Queryable;
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
         app.run("insert.table", json!({"rows": 3, "cols": 3})).unwrap();
         app.run("ui.language", json!({"value": "pl"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(vec2(1280.0, 900.0)).build_ui_state(
@@ -3580,7 +3581,7 @@ mod tests {
         use egui_kittest::kittest::Queryable;
         for lang in ["en", "pl", "de"] {
             for width in [300.0, 420.0, 520.0, 640.0, 765.0, 1280.0] {
-                let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+                let mut app = WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
                 app.run("insert.table", json!({"rows": 3, "cols": 3})).unwrap();
                 app.run("ui.language", json!({"value": lang})).unwrap();
                 app.run("ui.tab", json!({"tab": "Table Layout"})).unwrap();
@@ -3649,7 +3650,7 @@ mod tests {
     #[test]
     fn the_tab_strip_buttons_have_names() {
         use egui_kittest::kittest::Queryable;
-        let app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let app = WordApp::new(Session::new(strix_doc::Document::from_text("Text")), crate::Services::default());
         let mut h = egui_kittest::Harness::builder().with_size(vec2(760.0, 700.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
@@ -3689,7 +3690,7 @@ mod tests {
     fn language_menu_reaches_every_language() {
         use egui_kittest::kittest::{By, NodeT, Queryable};
         let item = |label: &'static str| By::new().label_contains(label);
-        let app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Bonjour")), crate::Services::default());
+        let app = WordApp::new(Session::new(strix_doc::Document::from_text("Bonjour")), crate::Services::default());
         let mut h =
             egui_kittest::Harness::builder().with_size(vec2(400.0, 600.0)).build_ui_state(|ui, app: &mut WordApp| language_menu(ui, app), app);
         h.run();
@@ -3717,7 +3718,7 @@ mod tests {
     #[test]
     fn every_proofing_language_is_picked_from_the_language_menu() {
         use egui_kittest::kittest::{By, NodeT, Queryable};
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Colour")), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::from_text("Colour")), crate::Services::default());
         app.run("select.all", json!({})).unwrap();
         let mut h =
             egui_kittest::Harness::builder().with_size(vec2(400.0, 600.0)).build_ui_state(|ui, app: &mut WordApp| language_menu(ui, app), app);
@@ -3750,11 +3751,11 @@ mod tests {
     fn picture_width_typed_in_pixels_keeps_the_proportions() {
         use egui::accesskit::Role;
         use egui_kittest::kittest::Queryable;
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("file.options", json!({"units": "centimeters"})).unwrap();
         a.run("insert.picture", json!({"data": png_data()})).unwrap();
         a.run("ui.tab", json!({"tab": "Picture Format"})).unwrap();
-        let size = |a: &crate::WordApp| wordcraft_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
+        let size = |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
         assert_eq!(size(&a), Some((15.0, 7.5)), "20×10 px at 96 ppi");
         // Wide enough for the whole tab: the Size group is its last.
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(2560.0, 900.0)).build_ui_state(
@@ -3796,13 +3797,13 @@ mod tests {
     /// it as a change.
     #[test]
     fn picture_format_leaves_a_tiny_picture_alone() {
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         let img = image::RgbaImage::from_pixel(1, 1, image::Rgba([0, 0, 0, 255]));
         let mut png = Vec::new();
         img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-        a.run("insert.picture", json!({"data": wordcraft_engine::cmd::insert::base64_encode(&png)})).unwrap();
+        a.run("insert.picture", json!({"data": strix_engine::cmd::insert::base64_encode(&png)})).unwrap();
         a.run("ui.tab", json!({"tab": "Picture Format"})).unwrap();
-        let size = |a: &crate::WordApp| wordcraft_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
+        let size = |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
         assert_eq!(size(&a), Some((0.75, 0.75)));
         let undo = a.session.undo_depth();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(2560.0, 900.0)).build_ui_state(
@@ -3825,11 +3826,11 @@ mod tests {
     fn align_menu_reaches_left_and_right_not_just_center() {
         use egui_kittest::kittest::{By, Queryable};
         let item = |label: &'static str| By::new().label_contains(label);
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("insert.picture", json!({"data": png_data()})).unwrap();
         let frame =
-            |a: &crate::WordApp| wordcraft_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.x)));
-        assert!(matches!(frame(&a), Some((wordcraft_doc::para::Wrap::Inline, _))), "a freshly inserted picture is inline");
+            |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.x)));
+        assert!(matches!(frame(&a), Some((strix_doc::para::Wrap::Inline, _))), "a freshly inserted picture is inline");
         let mut h = egui_kittest::Harness::builder()
             .with_size(egui::vec2(300.0, 300.0))
             .build_ui_state(|ui, app: &mut crate::WordApp| align_menu(ui, app, None), a);
@@ -3840,7 +3841,7 @@ mod tests {
         h.get(item("Align Right")).click();
         h.run();
         let (wrap, right_x) = frame(h.state()).unwrap();
-        assert_eq!(wrap, wordcraft_doc::para::Wrap::Square, "aligning floats an inline picture, as arrange.align already does");
+        assert_eq!(wrap, strix_doc::para::Wrap::Square, "aligning floats an inline picture, as arrange.align already does");
         // A positive x alone doesn't pin Right down: Center's x is positive too whenever the
         // picture is narrower than the text column, so Right could silently dispatch Center.
         h.get(item("Align")).click();
@@ -3860,7 +3861,7 @@ mod tests {
     /// too (a 0.5 pt high line; a chart narrower than 36 pt), as Picture Format does.
     #[test]
     fn shape_and_chart_formats_leave_out_of_range_sizes_alone() {
-        let size = |a: &crate::WordApp| wordcraft_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
+        let size = |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h)));
         let shown = |a: crate::WordApp| {
             let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(2560.0, 900.0)).build_ui_state(
                 |ui, app: &mut crate::WordApp| {
@@ -3874,7 +3875,7 @@ mod tests {
             let a = h.state();
             (size(a), a.session.undo_depth())
         };
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("insert.shape", json!({"kind": "rectangle"})).unwrap();
         a.run("picture.size", json!({"width": 3000.0, "height": 1.0, "lockAspect": false})).unwrap();
         a.run("ui.tab", json!({"tab": "Shape Format"})).unwrap();
@@ -3882,7 +3883,7 @@ mod tests {
         assert_eq!(before.0, Some((3000.0, 1.0)));
         assert_eq!(shown(a), before, "Shape Format shown, the shape untouched");
 
-        let mut a = crate::WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("insert.chart", json!({"type": "doughnut"})).unwrap();
         a.run("picture.size", json!({"width": 20.0, "height": 2500.0, "lockAspect": false})).unwrap();
         a.run("ui.tab", json!({"tab": "Chart Design"})).unwrap();

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Font database: bundled OFL fonts, user fonts, the installed system fonts (cataloged the first
 //! time a lookup needs them, native only), outline cache.
 
@@ -2083,10 +2084,10 @@ mod tests {
         assert_eq!(off(&spread), Some(23));
     }
     #[test]
-    #[ignore = "requires a locally licensed kaiu.ttf; set WORDCRAFT_TEST_KAI_FONT"]
+    #[ignore = "requires a locally licensed kaiu.ttf; set STRIX_TEST_KAI_FONT"]
     fn kai_contours_include_complete_character_body() {
         use kurbo::Shape;
-        let path = std::env::var_os("WORDCRAFT_TEST_KAI_FONT").expect("set WORDCRAFT_TEST_KAI_FONT");
+        let path = std::env::var_os("STRIX_TEST_KAI_FONT").expect("set STRIX_TEST_KAI_FONT");
         let db = super::FontDb::with_font_dirs(vec![]);
         db.set_system_fallback(false);
         assert!(db.add_font(std::fs::read(path).unwrap()) > 0);

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Colour menus and the Colors dialog (More Colors…, #606).
 //!
 //! Every colour drop-down (Font Color, Shading, Page Color, Shape Fill/Outline, pen colours, and
@@ -12,7 +13,7 @@
 
 use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Ui, pos2, vec2};
 use serde_json::{Value, json};
-use wordcraft_doc::Rgb;
+use strix_doc::Rgb;
 
 use crate::WordApp;
 use crate::theme::{Tokens, c32};
@@ -249,17 +250,17 @@ pub enum Pick {
 
 /// Stable storage id for the Recent Colors list.
 fn recent_id() -> Id {
-    Id::unique("wordcraft.recentColors")
+    Id::unique("strix.recentColors")
 }
 
 /// Stable storage id for the pending More Colors request.
 fn request_id() -> Id {
-    Id::unique("wordcraft.moreColorsRequest")
+    Id::unique("strix.moreColorsRequest")
 }
 
 /// Stable storage id for the Colors dialog's open flag.
 fn open_flag_id() -> Id {
-    Id::unique("wordcraft.colorsDialogOpen")
+    Id::unique("strix.colorsDialogOpen")
 }
 
 /// Removes and returns a temporary value.
@@ -452,7 +453,7 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         ctx.data_mut(|m| m.insert_temp(open_flag_id(), false));
         return;
     };
-    let resp = egui::Modal::new(Id::unique("wordcraft.colorsDialog")).show(ctx, |ui| body(ui, &mut d));
+    let resp = egui::Modal::new(Id::unique("strix.colorsDialog")).show(ctx, |ui| body(ui, &mut d));
     let mut done = resp.inner;
     if done.is_none() && resp.should_close() {
         done = Some(false);
@@ -735,7 +736,7 @@ fn custom(ui: &mut Ui, d: &mut ColorsDialog) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     #[test]
     fn parse_accepts_hex_short_hex_and_rgb_triples() {
@@ -825,7 +826,7 @@ mod tests {
     /// first in Recent Colors.
     #[test]
     fn custom_font_color_applies_and_joins_recent_colors() {
-        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         let _ = app.run("document.setText", json!({"text": "Custom colour"}));
         let _ = app.run("select.all", json!({}));
         let _ = app.run("format.color", json!({"color": "112233"}));

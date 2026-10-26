@@ -1,15 +1,16 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use std::sync::Arc;
 
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::props::NumRef;
-use wordcraft_doc::{Block, CharProps, Document, ListKind, Paragraph, Table, Watermark, para_block};
+use strix_doc::para::InlineObject;
+use strix_doc::props::NumRef;
+use strix_doc::{Block, CharProps, Document, ListKind, Paragraph, Table, Watermark, para_block};
 
 use crate::*;
 
 /// Verify preset lines and connectors emit the requested PDF line-cap operator.
 #[test]
 fn shape_line_caps_reach_pdf_content() {
-    use wordcraft_doc::{
+    use strix_doc::{
         connector::{LineCap as ShapeCap, ShapeExtra},
         para::{Anchor, Float, ShapeKind, Wrap},
     };
@@ -20,7 +21,7 @@ fn shape_line_caps_reach_pdf_content() {
                 w: 40.0,
                 h: 0.0,
                 fill: None,
-                stroke: Some(wordcraft_doc::props::Rgb::BLACK),
+                stroke: Some(strix_doc::props::Rgb::BLACK),
                 stroke_width: 10.0,
                 float: Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 100.0, y: 100.0, ..Default::default() },
                 story: None,
@@ -69,7 +70,7 @@ fn sample() -> Document {
     let n = h1.len();
     h1.insert_object(n, InlineObject::BookmarkStart { name: "intro".into() }, &CharProps::default()).unwrap();
     b.push(para_block(h1));
-    let mut p = Paragraph::with_text("Hello WordCraft, ", CharProps::default());
+    let mut p = Paragraph::with_text("Hello Strix, ", CharProps::default());
     let n = p.len();
     p.insert_text(n, "bold words", &CharProps { bold: Some(true), ..Default::default() }).unwrap();
     let n = p.len();
@@ -112,7 +113,7 @@ fn sample() -> Document {
     b.push(para_block(big));
     b.push(para_block(Paragraph::with_text(
         "Dotted and wavy",
-        CharProps { underline: Some(wordcraft_doc::props::Underline::Wave), ..Default::default() },
+        CharProps { underline: Some(strix_doc::props::Underline::Wave), ..Default::default() },
     )));
     d.body = b;
     d.settings.watermark = Some(Watermark::default());
@@ -181,7 +182,7 @@ fn exports_pages_text_and_structure() {
     let all = squash(&text.concat());
     for w in [
         "Introduction",
-        "Hello WordCraft,",
+        "Hello Strix,",
         "bold words",
         "website",
         "Details",
@@ -194,7 +195,7 @@ fn exports_pages_text_and_structure() {
     ] {
         assert!(all.contains(w), "{w:?} missing from {all:?}");
     }
-    assert!(squash(&text[0]).contains("Hello WordCraft, bold words and a website back to top"), "{:?}", text[0]);
+    assert!(squash(&text[0]).contains("Hello Strix, bold words and a website back to top"), "{:?}", text[0]);
 
     let raw = String::from_utf8_lossy(&export(&d, &PdfOptions { compress: false, ..Default::default() }).unwrap()).into_owned();
     assert!(raw.contains("/FontFile2") || raw.contains("/FontFile3"), "embedded fonts");
@@ -262,7 +263,7 @@ fn hostile_documents_export() {
 
 #[test]
 fn tracked_deletions_are_left_out_without_markup() {
-    use wordcraft_doc::{Revision, RevisionKind};
+    use strix_doc::{Revision, RevisionKind};
     let mut d = Document::new();
     d.revisions.push(Revision { kind: RevisionKind::Delete, author: "Ada".into(), date: String::new(), move_name: None });
     d.revisions.push(Revision { kind: RevisionKind::Insert, author: "Ada".into(), date: String::new(), move_name: None });
@@ -282,7 +283,7 @@ fn tracked_deletions_are_left_out_without_markup() {
 
 #[test]
 fn deleted_heading_text_stays_out_of_bookmarks_and_tags() {
-    use wordcraft_doc::{Revision, RevisionKind};
+    use strix_doc::{Revision, RevisionKind};
     let mut d = Document::new();
     d.revisions.push(Revision { kind: RevisionKind::Delete, author: "Ada".into(), date: String::new(), move_name: None });
     let del = CharProps { del: Some(0), ..Default::default() };
@@ -310,10 +311,10 @@ fn deleted_heading_text_stays_out_of_bookmarks_and_tags() {
 fn hidden_heading_text_stays_out_of_bookmarks_and_tags() {
     let mut d = Document::new();
     // Hidden text both directly and through a character style.
-    d.styles.upsert(wordcraft_doc::Style {
+    d.styles.upsert(strix_doc::Style {
         id: "Secret".into(),
         name: "Secret".into(),
-        kind: wordcraft_doc::StyleKind::Character,
+        kind: strix_doc::StyleKind::Character,
         chr: CharProps { hidden: Some(true), ..Default::default() },
         ..Default::default()
     });
@@ -387,7 +388,7 @@ fn long_fragmented_hidden_headings_export_in_linear_time() {
             h.runs = (0..n)
                 .map(|i| {
                     let hidden = !(visible_every_other && i % 2 == 1);
-                    wordcraft_doc::Run { len: 1, props: CharProps { hidden: Some(hidden), bold: Some(i % 4 < 2), ..Default::default() } }
+                    strix_doc::Run { len: 1, props: CharProps { hidden: Some(hidden), bold: Some(i % 4 < 2), ..Default::default() } }
                 })
                 .collect();
             para_block(h)
@@ -421,11 +422,11 @@ fn table_style_hidden_heading_text_stays_out_of_bookmarks_and_tags() {
     // Hidden by the table style's header row, so only the layout's resolution (table conditional
     // formatting under the runs' own) says the text is hidden.
     let mut d = Document::new();
-    d.styles.upsert(wordcraft_doc::Style {
+    d.styles.upsert(strix_doc::Style {
         id: "SecretHeader".into(),
         name: "Secret Header".into(),
-        kind: wordcraft_doc::StyleKind::Table,
-        table: Some(wordcraft_doc::styles::TableStyleParts {
+        kind: strix_doc::StyleKind::Table,
+        table: Some(strix_doc::styles::TableStyleParts {
             header_chr: CharProps { hidden: Some(true), ..Default::default() },
             ..Default::default()
         }),
@@ -518,7 +519,7 @@ fn fields_put_their_shown_text_in_the_text_layer() {
     f.insert_object(5, field("PAGE"), &CharProps::default()).unwrap();
     let n = f.len();
     f.insert_object(n, field("NUMPAGES"), &CharProps::default()).unwrap();
-    let id = d.add_part(wordcraft_doc::PartKind::Footer, vec![para_block(f)]);
+    let id = d.add_part(strix_doc::PartKind::Footer, vec![para_block(f)]);
     d.last_section.footers.default = Some(id);
     let mut body = Paragraph::with_text("Body", CharProps::default());
     body.props.page_break_before = None;
@@ -545,7 +546,7 @@ fn styleref_headers_show_each_page_s_chapter() {
         form: String::new(),
     };
     h.insert_object(0, field, &CharProps::default()).unwrap();
-    let id = d.add_part(wordcraft_doc::PartKind::Header, vec![para_block(h)]);
+    let id = d.add_part(strix_doc::PartKind::Header, vec![para_block(h)]);
     d.last_section.headers.default = Some(id);
     d.body = ["Alpha", "Beta"]
         .iter()
@@ -567,7 +568,7 @@ fn styleref_headers_show_each_page_s_chapter() {
 /// Bundled Source Sans 3 renamed to `family`, with glyph `gid` turned into a composite glyph whose
 /// component list is cut off: fonts still parse and shape, but krilla's subsetter rejects it.
 fn unsubsettable_font(family: &str, gid: u16) -> Vec<u8> {
-    let mut f = wordcraft_fonts::bundled()[0].to_vec();
+    let mut f = strix_fonts::bundled()[0].to_vec();
     let rename = |f: &mut Vec<u8>, from: &[u8], to: &[u8]| {
         let mut i = 0;
         while i + from.len() <= f.len() {
@@ -713,21 +714,21 @@ fn rounded_rectangle_corners_follow_their_radius() {
     // `roundRect` with its own `adj`: Word's address boxes use small corners (adj 3565: 3.6% of
     // the shorter side), which were drawn at 16%.
     use kurbo::Shape;
-    use wordcraft_doc::para::{Anchor, Float, ShapeKind, Wrap};
+    use strix_doc::para::{Anchor, Float, ShapeKind, Wrap};
     let doc = |corner: Option<u32>| {
         let float = Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 72.0, y: 200.0, ..Default::default() };
         let shape = InlineObject::Shape {
             kind: ShapeKind::RoundedRectangle,
             w: 200.0,
             h: 100.0,
-            fill: Some(wordcraft_doc::fill::Fill::solid(wordcraft_doc::props::Rgb(0xD9, 0xD9, 0xD9))),
+            fill: Some(strix_doc::fill::Fill::solid(strix_doc::props::Rgb(0xD9, 0xD9, 0xD9))),
             stroke: None,
             stroke_width: 0.0,
             float,
             story: None,
             freeform: None,
             effects: Default::default(),
-            extra: wordcraft_doc::connector::ShapeExtra { corner, ..Default::default() },
+            extra: strix_doc::connector::ShapeExtra { corner, ..Default::default() },
         };
         let mut p = Paragraph::with_text("Anchor", CharProps::default());
         p.insert_object(0, shape, &CharProps::default()).unwrap();
@@ -749,7 +750,7 @@ fn rounded_rectangle_corners_follow_their_radius() {
 
 #[test]
 fn unsubsettable_font_is_drawn_as_outlines() {
-    let db = wordcraft_fonts::FontDb::global();
+    let db = strix_fonts::FontDb::global();
     let o = db.face("Source Sans 3", "Regular").glyph_for('o');
     let family = "Broken Sans 3";
     db.add_font(unsubsettable_font(family, u16::try_from(o).unwrap()));
@@ -777,13 +778,13 @@ fn unsubsettable_font_is_drawn_as_outlines() {
 fn flat_lines_in_a_group_are_drawn() {
     // A horizontal divider inside a group has no height (`a:ext cy="0"`): it used to be left out
     // of the PDF, though the screen drew it. A floating line on its own gets a 1 pt frame.
-    use wordcraft_doc::para::{Anchor, Float, GroupChild, ShapeKind, Wrap};
+    use strix_doc::para::{Anchor, Float, GroupChild, ShapeKind, Wrap};
     let line = |w: f32, h: f32| InlineObject::Shape {
         kind: ShapeKind::Line,
         w,
         h,
         fill: None,
-        stroke: Some(wordcraft_doc::props::Rgb(192, 0, 0)),
+        stroke: Some(strix_doc::props::Rgb(192, 0, 0)),
         stroke_width: 1.5,
         float: Float::default(),
         story: None,
@@ -813,7 +814,7 @@ fn flat_lines_in_a_group_are_drawn() {
 /// #1740: a triple border is three lines in the PDF (it was drawn as a double one).
 #[test]
 fn triple_borders_export_three_lines() {
-    use wordcraft_doc::props::{Border, BorderStyle, Borders};
+    use strix_doc::props::{Border, BorderStyle, Borders};
     let pdf = |style: BorderStyle| {
         let mut p = Paragraph::with_text("Ruled", CharProps::default());
         p.props.borders = Some(Borders { bottom: Some(Border { style, width: 0.75, color: None, space: 1.0 }), ..Default::default() });
@@ -883,8 +884,8 @@ fn field_result_ligatures_extract_all_their_letters() {
     // Source Sans 3 joins "fi" and "ffi", so this doesn't depend on the installed fonts.
     let font = CharProps { font: Some("Source Sans 3".into()), ..Default::default() };
     let result = "the first office";
-    let face = wordcraft_fonts::FontDb::global().face("Source Sans 3", "Regular");
-    assert!(wordcraft_fonts::shape(&face, result, &[], |c| c).len() < result.chars().count(), "the result has ligatures");
+    let face = strix_fonts::FontDb::global().face("Source Sans 3", "Regular");
+    assert!(strix_fonts::shape(&face, result, &[], |c| c).len() < result.chars().count(), "the result has ligatures");
     let mut d = Document::new();
     let mut p = Paragraph::with_text("See  here.", font.clone());
     p.insert_object(
@@ -920,7 +921,7 @@ fn synthetic_bold_text_is_extracted_once() {
 fn turned_cell_text_exports_as_text() {
     // Table Layout › Text Direction (#226): turned cell text is drawn in a turned frame and
     // stays real text in the PDF.
-    for dir in [wordcraft_doc::props::TextDirection::Down, wordcraft_doc::props::TextDirection::Up] {
+    for dir in [strix_doc::props::TextDirection::Down, strix_doc::props::TextDirection::Up] {
         let mut t = Table::new(1, 2, 300.0);
         t.rows[0].cells[0].blocks = vec![para_block(Paragraph::with_text("Turned", CharProps::default()))];
         t.rows[0].cells[0].props.text_direction = dir;
@@ -933,8 +934,8 @@ fn turned_cell_text_exports_as_text() {
 
 #[test]
 fn inline_chart_is_a_figure_with_its_text_inside_it() {
-    use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, TextAlign};
-    use wordcraft_doc::props::Rgb;
+    use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, TextAlign};
+    use strix_doc::props::Rgb;
     let items = vec![GraphicItem::Text {
         rect: [0.0, 0.0, 216.0, 20.0],
         text: "Q1".into(),
@@ -947,7 +948,7 @@ fn inline_chart_is_a_figure_with_its_text_inside_it() {
     let graphic = Graphic { kind: GraphicKind::Chart, items, ..Default::default() };
     let obj = InlineObject::Graphic { w: 216.0, h: 144.0, alt: "Sales by quarter".into(), float: Default::default(), graphic: Arc::new(graphic) };
     let mut d = Document::from_text("Chart");
-    d.insert_object(&wordcraft_doc::Pos::body(0, 0), obj, &Default::default()).unwrap();
+    d.insert_object(&strix_doc::Pos::body(0, 0), obj, &Default::default()).unwrap();
     let raw = |tagged| String::from_utf8_lossy(&export(&d, &PdfOptions { tagged, compress: false, ..Default::default() }).unwrap()).into_owned();
     assert!(raw(true).contains("/Figure"), "tagged chart is a figure");
     assert!(!raw(false).contains("/Figure"));
@@ -955,13 +956,13 @@ fn inline_chart_is_a_figure_with_its_text_inside_it() {
 
 #[test]
 fn chart_without_alt_text_is_a_figure_called_chart() {
-    use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg};
+    use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg};
     let segs = vec![PathSeg::Move(1.0, 1.0), PathSeg::Line(50.0, 50.0)];
-    let items = vec![GraphicItem::Path { segs, fill: None, stroke: Some(wordcraft_doc::props::Rgb::BLACK), stroke_width: 1.0 }];
+    let items = vec![GraphicItem::Path { segs, fill: None, stroke: Some(strix_doc::props::Rgb::BLACK), stroke_width: 1.0 }];
     let graphic = Graphic { kind: GraphicKind::Chart, items, ..Default::default() };
     let obj = InlineObject::Graphic { w: 216.0, h: 144.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) };
     let mut d = Document::from_text("Chart");
-    d.insert_object(&wordcraft_doc::Pos::body(0, 0), obj, &Default::default()).unwrap();
+    d.insert_object(&strix_doc::Pos::body(0, 0), obj, &Default::default()).unwrap();
     let raw = String::from_utf8_lossy(&export(&d, &PdfOptions { tagged: true, compress: false, ..Default::default() }).unwrap()).into_owned();
     assert!(raw.contains("/Alt(chart)"), "no chart alt text");
     assert!(!raw.contains("/Alt(picture)"));
@@ -1086,7 +1087,7 @@ fn progressive_jpeg_header(w: u16, h: u16) -> Vec<u8> {
 /// #3644: a progressive JPEG's coefficients count toward the budget, beside its output.
 #[test]
 fn progressive_jpeg_coefficients_count_toward_the_image_budget() {
-    assert!(wordcraft_geom::decode_fits(7900, 7900, wordcraft_geom::MAX_DECODED_BYTES));
+    assert!(strix_geom::decode_fits(7900, 7900, strix_geom::MAX_DECODED_BYTES));
     assert!(load_image(&Arc::new(progressive_jpeg_header(7900, 7900))).is_none());
     let mut baseline = Vec::new();
     image::RgbImage::new(64, 64).write_to(&mut std::io::Cursor::new(&mut baseline), image::ImageFormat::Jpeg).unwrap();
@@ -1113,7 +1114,7 @@ fn inline_picture_figure_keeps_its_alt_text() {
 }
 
 /// A tagged PDF of one picture in a paragraph, placed by `float`, with alt text "A red square".
-fn tagged_picture_pdf(float: wordcraft_doc::para::Float) -> String {
+fn tagged_picture_pdf(float: strix_doc::para::Float) -> String {
     let mut d = Document::new();
     let media = d.add_media(red_right_half_emf(), "emf");
     let mut p = Paragraph::with_text("Figure: ", CharProps::default());
@@ -1128,7 +1129,7 @@ fn tagged_picture_pdf(float: wordcraft_doc::para::Float) -> String {
 /// screen readers skip it; the same picture not marked decorative stays a Figure with its alt text.
 #[test]
 fn decorative_pictures_are_artifacts_not_figures() {
-    use wordcraft_doc::para::{AltText, Anchor, Float, Wrap};
+    use strix_doc::para::{AltText, Anchor, Float, Wrap};
     let decorative = AltText { decorative: true, ..Default::default() };
     let floating = Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 72.0, y: 200.0, ..Default::default() };
     let cases = [
@@ -1150,7 +1151,7 @@ fn decorative_pictures_are_artifacts_not_figures() {
 /// other stays a Figure with its alt text.
 #[test]
 fn rotated_group_tags_each_picture_on_its_own() {
-    use wordcraft_doc::para::{AltText, Float, GroupChild};
+    use strix_doc::para::{AltText, Float, GroupChild};
     let mut d = Document::new();
     let media = d.add_media(red_right_half_emf(), "emf");
     let picture =
@@ -1485,12 +1486,12 @@ fn outline_keeps_visible_objects() {
 #[test]
 fn comments_print_in_balloons_beside_scaled_pages() {
     let mut d = Document::from_text("Intro line.\nThe quarterly figures look strong.\nClosing line.");
-    let part = d.add_part(wordcraft_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Check the totals", CharProps::default()))]);
-    d.comments.insert(0, wordcraft_doc::Comment { author: "Ada Reviewer".into(), part, ..Default::default() });
-    let part = d.add_part(wordcraft_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Totals checked", CharProps::default()))]);
-    d.comments.insert(1, wordcraft_doc::Comment { author: "Ben Editor".into(), part, parent: Some(0), ..Default::default() });
-    d.insert_object(&wordcraft_doc::Pos::body(1, 13), InlineObject::CommentEnd { id: 0 }, &CharProps::default()).unwrap();
-    d.insert_object(&wordcraft_doc::Pos::body(1, 4), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
+    let part = d.add_part(strix_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Check the totals", CharProps::default()))]);
+    d.comments.insert(0, strix_doc::Comment { author: "Ada Reviewer".into(), part, ..Default::default() });
+    let part = d.add_part(strix_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Totals checked", CharProps::default()))]);
+    d.comments.insert(1, strix_doc::Comment { author: "Ben Editor".into(), part, parent: Some(0), ..Default::default() });
+    d.insert_object(&strix_doc::Pos::body(1, 13), InlineObject::CommentEnd { id: 0 }, &CharProps::default()).unwrap();
+    d.insert_object(&strix_doc::Pos::body(1, 4), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
     let size = |bytes: &[u8]| {
         let pdf = hayro_syntax::Pdf::new(bytes.to_vec()).expect("parse");
         pdf.pages().iter().map(|p| p.media_box()).map(|r| (r.width().round(), r.height().round())).collect::<Vec<_>>()
@@ -1508,9 +1509,9 @@ fn comments_print_in_balloons_beside_scaled_pages() {
     assert_eq!(size(&marked), vec![(612.0, 792.0)]);
     // Tagged or not, with links and an outline, it still writes.
     let mut d2 = sample();
-    let part = d2.add_part(wordcraft_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("On the heading", CharProps::default()))]);
-    d2.comments.insert(0, wordcraft_doc::Comment { author: "Ada".into(), part, ..Default::default() });
-    d2.insert_object(&wordcraft_doc::Pos::body(1, 3), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
+    let part = d2.add_part(strix_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("On the heading", CharProps::default()))]);
+    d2.comments.insert(0, strix_doc::Comment { author: "Ada".into(), part, ..Default::default() });
+    d2.insert_object(&strix_doc::Pos::body(1, 3), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
     for tagged in [false, true] {
         let bytes = export(&d2, &PdfOptions { tagged, comments: true, ..Default::default() }).unwrap();
         assert!(squash(&extract_text(&bytes).concat()).contains("On the heading"));
@@ -1527,7 +1528,7 @@ fn internal_links_export_in_linear_time() {
         d.body = (0..n)
             .map(|i| {
                 // Eight links a paragraph, like a dense table of contents or cross-references.
-                let mut p = wordcraft_doc::Paragraph::new();
+                let mut p = strix_doc::Paragraph::new();
                 for k in 0..8 {
                     let link = CharProps { link: Some(format!("#mark{}", (i * 7 + k) % n)), ..CharProps::default() };
                     p.insert_text(p.len(), &format!("see {k} "), &link).unwrap();
@@ -1560,10 +1561,10 @@ fn all_caps_and_small_caps_text_extracts_as_displayed() {
     // (as Word's PDFs do), and later text without caps keeps its own case: a capital glyph
     // first drawn for a lowercase letter must not make every later capital read as lowercase.
     let mut d = Document::new();
-    d.styles.upsert(wordcraft_doc::Style {
+    d.styles.upsert(strix_doc::Style {
         id: "CapsPara".into(),
         name: "Caps Para".into(),
-        kind: wordcraft_doc::StyleKind::Paragraph,
+        kind: strix_doc::StyleKind::Paragraph,
         chr: CharProps { caps: Some(true), ..Default::default() },
         ..Default::default()
     });
@@ -1597,10 +1598,10 @@ fn caps_list_labels_extract_as_displayed() {
     // #1473: a lowercase-letter list label in an All Caps paragraph is drawn with capital glyphs;
     // it reads as those capitals, and a later plain capital A still reads as "A".
     let mut d = Document::new();
-    d.styles.upsert(wordcraft_doc::Style {
+    d.styles.upsert(strix_doc::Style {
         id: "CapsPara".into(),
         name: "Caps Para".into(),
-        kind: wordcraft_doc::StyleKind::Paragraph,
+        kind: strix_doc::StyleKind::Paragraph,
         chr: CharProps { caps: Some(true), ..Default::default() },
         ..Default::default()
     });
@@ -1620,8 +1621,8 @@ fn rtl_sample() -> Document {
     let mut d = Document::from_text("שלום עולם\nمرحبا بالعالم\nייפוי כח מס' 123 – Power of Attorney\nHello world\nالسلام مَرْحَبًا שָׁלוֹם");
     // Right to left: all but "Hello world".
     for i in [0, 1, 2, 4] {
-        let at = wordcraft_doc::Pos::body(i, 0);
-        d.format_paragraphs(&at, &at, &|p: &mut wordcraft_doc::ParaProps| p.bidi = Some(true)).unwrap();
+        let at = strix_doc::Pos::body(i, 0);
+        d.format_paragraphs(&at, &at, &|p: &mut strix_doc::ParaProps| p.bidi = Some(true)).unwrap();
     }
     for (i, rtl) in [true, true, true, false, true].into_iter().enumerate() {
         let Some(Block::Para(p)) = d.body.get(i).map(|b| &**b) else { panic!("paragraph {i}") };
@@ -1741,7 +1742,7 @@ fn stream_glyphs(bytes: &[u8]) -> Vec<StreamGlyph> {
 /// as a dotless body that other letters share, so the RTL tests met it only where it's installed.
 #[test]
 fn stream_glyphs_read_actual_text() {
-    let font = Font::new(wordcraft_fonts::bundled()[0].to_vec().into(), 0).unwrap();
+    let font = Font::new(strix_fonts::bundled()[0].to_vec().into(), 0).unwrap();
     let glyph = |range| KrillaGlyph::new(GlyphId::new(10), 0.5, 0.0, 0.0, 0.0, range, None);
     let mut pdf = krilla::Document::new();
     let mut page = pdf.start_page_with(PageSettings::new(Size::from_wh(200.0, 100.0).unwrap()));
@@ -1763,7 +1764,7 @@ fn viewer_words(bytes: &[u8]) -> Vec<String> {
     let mut words = Vec::new();
     let mut word: Vec<String> = Vec::new();
     let mut flush = |word: &mut Vec<String>| {
-        if word.concat().chars().any(wordcraft_fonts::is_rtl) {
+        if word.concat().chars().any(strix_fonts::is_rtl) {
             word.reverse();
         }
         if !word.is_empty() {
@@ -1870,9 +1871,9 @@ fn right_to_left_glyphs_stay_where_layout_put_them() {
     let lay = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
     let page = &lay.pages[0];
     let h = f64::from(page.h);
-    let db = wordcraft_fonts::FontDb::global();
+    let db = strix_fonts::FontDb::global();
     let mut want = Vec::new();
-    for item in wordcraft_layout::display::page_display(&d, page, &DisplayOptions::default()) {
+    for item in strix_layout::display::page_display(&d, page, &DisplayOptions::default()) {
         let Draw::Glyphs { face, size, glyphs, .. } = item else { continue };
         let scale = f64::from(size) / face.upem.max(1.0);
         for (g, x, y) in glyphs {
@@ -2026,7 +2027,7 @@ fn metadata_language_overrides_and_fallbacks_are_preserved() {
 #[test]
 fn bundled_unicode_glyphs_are_visible_and_extractable() {
     const TEXT: &str = "café naïve — coöperate Ελληνικά Привет Tiếng Việt";
-    let fonts = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
+    let fonts = strix_fonts::FontDb::with_font_dirs(Vec::new());
     let bundled = fonts.face("Source Sans 3", "Regular");
     assert_eq!(bundled.family, "Source Sans 3");
     assert_eq!(bundled.style, "Regular");
@@ -2039,7 +2040,7 @@ fn bundled_unicode_glyphs_are_visible_and_extractable() {
     let lay = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
     let mut drawn = String::new();
     for page in &lay.pages {
-        for draw in wordcraft_layout::display::page_display(&d, page, &DisplayOptions::default()) {
+        for draw in strix_layout::display::page_display(&d, page, &DisplayOptions::default()) {
             if let Draw::Glyphs { face, glyphs, text, .. } = draw {
                 assert_eq!(face.data(), bundled.data(), "page glyphs must use the bundled face without system fallback");
                 assert!(glyphs.iter().all(|(id, _, _)| *id != 0), "page glyphs must not use .notdef");
@@ -2072,7 +2073,7 @@ fn legacy_font_effects_keep_their_text() {
 
 #[test]
 fn shape_dash_arrays_export() {
-    use wordcraft_doc::{
+    use strix_doc::{
         connector::ShapeExtra,
         line_dash::LineDash,
         para::{Anchor, Float, ShapeKind, Wrap},
@@ -2084,7 +2085,7 @@ fn shape_dash_arrays_export() {
                 w: 70.0,
                 h: 28.0,
                 fill: None,
-                stroke: Some(wordcraft_doc::props::Rgb(192, 0, 0)),
+                stroke: Some(strix_doc::props::Rgb(192, 0, 0)),
                 stroke_width: 1.0,
                 float: Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 100.0, y: 100.0, ..Default::default() },
                 story: None,
@@ -2105,7 +2106,7 @@ fn shape_dash_arrays_export() {
 
 #[test]
 fn zero_width_connector_dashes() {
-    use wordcraft_doc::{
+    use strix_doc::{
         connector::ShapeExtra,
         line_dash::LineDash,
         para::{Anchor, Float, ShapeKind, Wrap},
@@ -2116,15 +2117,15 @@ fn zero_width_connector_dashes() {
             w: 70.0,
             h: 28.0,
             fill: None,
-            stroke: Some(wordcraft_doc::props::Rgb(192, 0, 0)),
+            stroke: Some(strix_doc::props::Rgb(192, 0, 0)),
             stroke_width: 0.0,
             float: Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 100.0, y: 100.0, ..Default::default() },
             story: None,
             freeform: (kind == ShapeKind::Freeform).then(|| {
-                std::sync::Arc::new(wordcraft_doc::freeform::Freeform {
+                std::sync::Arc::new(strix_doc::freeform::Freeform {
                     w: 70.0,
                     h: 28.0,
-                    paths: vec![wordcraft_doc::freeform::FreePath { pts: vec![[0.0, 0.0], [70.0, 0.0], [70.0, 28.0]], closed: true }],
+                    paths: vec![strix_doc::freeform::FreePath { pts: vec![[0.0, 0.0], [70.0, 0.0], [70.0, 28.0]], closed: true }],
                     ..Default::default()
                 })
             }),
@@ -2200,9 +2201,9 @@ fn pages_print_scaled_to_other_paper() {
     assert_eq!(size(&legal), vec![(612.0, 1008.0)]);
     // Print Markup's page with balloons goes on the same paper.
     let mut c = Document::from_text("Quarterly figures are in.");
-    let part = c.add_part(wordcraft_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Check the totals", CharProps::default()))]);
-    c.comments.insert(0, wordcraft_doc::Comment { author: "Ada".into(), part, ..Default::default() });
-    c.insert_object(&wordcraft_doc::Pos::body(0, 4), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
+    let part = c.add_part(strix_doc::PartKind::Comment, vec![para_block(Paragraph::with_text("Check the totals", CharProps::default()))]);
+    c.comments.insert(0, strix_doc::Comment { author: "Ada".into(), part, ..Default::default() });
+    c.insert_object(&strix_doc::Pos::body(0, 4), InlineObject::CommentStart { id: 0 }, &CharProps::default()).unwrap();
     let marked = export(&c, &PdfOptions { comments: true, include_markup: true, paper: a4, ..Default::default() }).unwrap();
     assert_eq!(size(&marked), vec![(595.0, 842.0)]);
     assert!(squash(&extract_text(&marked).concat()).contains("Check the totals"));
@@ -2217,13 +2218,13 @@ fn pages_print_scaled_to_other_paper() {
 /// transparent fill with its opacity.
 #[test]
 fn shape_gradients_export_as_shadings() {
-    use wordcraft_doc::fill::{Fill as ShapeFill, Gradient, GradientFlip, GradientKind, PathShape};
-    use wordcraft_doc::wordart::GradStop;
+    use strix_doc::fill::{Fill as ShapeFill, Gradient, GradientFlip, GradientKind, PathShape};
+    use strix_doc::wordart::GradStop;
     let stops = vec![GradStop { pos: 0.0, color: Rgb::BLACK, transparency: 0.0 }, GradStop { pos: 100.0, color: Rgb::WHITE, transparency: 0.0 }];
     let grad =
         |kind| ShapeFill::Gradient(Arc::new(Gradient { stops: stops.clone(), kind, tile: None, rot_with_shape: true, flip: GradientFlip::None }));
     let mut d = Document::from_text("");
-    let at = wordcraft_doc::Pos { story: wordcraft_doc::StoryRef::Body, path: wordcraft_doc::Path::top(0), off: 0 };
+    let at = strix_doc::Pos { story: strix_doc::StoryRef::Body, path: strix_doc::Path::top(0), off: 0 };
     for fill in [
         grad(GradientKind::Linear { angle: 90.0, scaled: false }),
         grad(GradientKind::Path { shape: PathShape::Circle, focus: [50.0; 4] }),
@@ -2252,17 +2253,17 @@ fn shape_gradients_export_as_shadings() {
 
 /// A tagged PDF of a paragraph with one blue rectangle placed by `float`: a text box showing
 /// "Inside the box" when `text_box`.
-fn tagged_shape_pdf(float: wordcraft_doc::para::Float, text_box: bool) -> String {
-    use wordcraft_doc::para::ShapeKind;
+fn tagged_shape_pdf(float: strix_doc::para::Float, text_box: bool) -> String {
+    use strix_doc::para::ShapeKind;
     let mut d = Document::from_text("Body");
     let story = text_box
-        .then(|| d.add_part(wordcraft_doc::PartKind::TextBox, vec![para_block(Paragraph::with_text("Inside the box", CharProps::default()))]));
+        .then(|| d.add_part(strix_doc::PartKind::TextBox, vec![para_block(Paragraph::with_text("Inside the box", CharProps::default()))]));
     let kind = if text_box { ShapeKind::TextBox } else { ShapeKind::Rectangle };
     let shape = InlineObject::Shape {
         kind,
         w: 120.0,
         h: 60.0,
-        fill: Some(wordcraft_doc::fill::Fill::solid(wordcraft_doc::props::Rgb(0, 0, 0xFF))),
+        fill: Some(strix_doc::fill::Fill::solid(strix_doc::props::Rgb(0, 0, 0xFF))),
         stroke: None,
         stroke_width: 0.0,
         float,
@@ -2271,7 +2272,7 @@ fn tagged_shape_pdf(float: wordcraft_doc::para::Float, text_box: bool) -> String
         effects: Default::default(),
         extra: Default::default(),
     };
-    d.insert_object(&wordcraft_doc::Pos::body(0, 4), shape, &Default::default()).unwrap();
+    d.insert_object(&strix_doc::Pos::body(0, 4), shape, &Default::default()).unwrap();
     String::from_utf8_lossy(&export(&d, &PdfOptions { compress: false, tagged: true, ..Default::default() }).unwrap()).into_owned()
 }
 
@@ -2280,7 +2281,7 @@ fn tagged_shape_pdf(float: wordcraft_doc::para::Float, text_box: bool) -> String
 /// frame: its text is read as text, not replaced by its description.
 #[test]
 fn described_shapes_are_figures_with_their_description() {
-    use wordcraft_doc::para::{AltText, Anchor, Float, Wrap};
+    use strix_doc::para::{AltText, Anchor, Float, Wrap};
     let described = AltText { text: "Arrow pointing to the exit".into(), ..Default::default() };
     let floating = Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 72.0, y: 200.0, ..Default::default() };
     let cases = [
@@ -2309,7 +2310,7 @@ fn described_shapes_are_figures_with_their_description() {
 #[test]
 fn a_watermark_fills_its_box() {
     // Word stretches the watermark's text over its shape (`fitshape`): one em down the box's
-    // height, the advance across its width, the box centred on the margins. WordCraft made the
+    // height, the advance across its width, the box centred on the margins. Strix made the
     // text 70 % of the page diagonal, whatever the box.
     let mut d = Document::new();
     d.body = vec![para_block(Paragraph::with_text("Body", CharProps::default()))];
@@ -2388,7 +2389,7 @@ fn raw_pdf(d: &Document) -> String {
 fn borders_are_dashed_with_words_patterns() {
     // Word draws a border's dots one width on and one off, its dashes three on and one off, and
     // dash-dot as three, one, one, one; underlines keep their own patterns.
-    use wordcraft_doc::props::{Border, BorderStyle, Borders};
+    use strix_doc::props::{Border, BorderStyle, Borders};
     let bordered = |style: BorderStyle, width: f32| {
         let mut p = Paragraph::with_text("Rule", CharProps::default());
         p.props.borders = Some(Borders { bottom: Some(Border { style, width, ..Default::default() }), ..Default::default() });

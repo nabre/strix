@@ -1,9 +1,10 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "wordcraft-engine"
+name = "strix-engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "WordCraft engine: session, selection, undo, the command registry (every action is a command), Word's command catalog, file I/O dispatch"
+description = "Strix engine: session, selection, undo, the command registry (every action is a command), Word's command catalog, file I/O dispatch"
 
 [lints]
 workspace = true
@@ -15,16 +16,17 @@ workspace = true
 test-support = []
 
 [dependencies]
-wordcraft-geom = { workspace = true, features = ["image"] }
-wordcraft-doc = { workspace = true }
-wordcraft-fonts = { workspace = true }
-wordcraft-layout = { workspace = true }
-wordcraft-render = { workspace = true }
-wordcraft-proof = { workspace = true }
-wordcraft-docx = { workspace = true }
-wordcraft-docbin = { workspace = true }
-wordcraft-pdf = { workspace = true }
-wordcraft-formats = { workspace = true }
+strix-geom = { workspace = true, features = ["image"] }
+strix-doc = { workspace = true }
+strix-calc = { workspace = true }
+strix-fonts = { workspace = true }
+strix-layout = { workspace = true }
+strix-render = { workspace = true }
+strix-proof = { workspace = true }
+strix-docx = { workspace = true }
+strix-docbin = { workspace = true }
+strix-pdf = { workspace = true }
+strix-formats = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

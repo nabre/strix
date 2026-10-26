@@ -1,7 +1,8 @@
-//! WordCraft PDF export through the shared `craft-pdf` writer and Krilla drawing primitives.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix PDF export through the shared `craft-pdf` writer and Krilla drawing primitives.
 //!
 //! [`export`] lays the document out and draws each page's display list
-//! ([`wordcraft_layout::display::page_display`]) into a PDF page:
+//! ([`strix_layout::display::page_display`]) into a PDF page:
 //!
 //! - **Text as real text:** glyph runs are written with embedded, subsetted fonts and a Unicode
 //!   mapping taken from the paragraph text, so text is selectable, searchable and extractable.
@@ -41,16 +42,16 @@ use krilla::paint::{Fill, FillRule, LineCap, LineJoin, Stroke, StrokeDash};
 use krilla::surface::Surface;
 use krilla::tagging::{Artifact, ArtifactType, ContentTag, Identifier, Node, SpanTag, Tag, TagGroup, TagKind, TagTree};
 use krilla::text::{Font, GlyphId, KrillaGlyph};
-use wordcraft_doc::graphic::GraphicKind;
-use wordcraft_doc::para::{InlineObject, ShapeKind};
-use wordcraft_doc::{Document, Path as DocPath, Rgb, StoryRef};
-use wordcraft_fonts::FaceRef;
-use wordcraft_geom::Rect;
-use wordcraft_layout::display::Paint;
-use wordcraft_layout::display::{DisplayOptions, Draw, ItemDisplay, Stroke as LineStyle};
-use wordcraft_layout::para::{ClKind, LineEnd};
-use wordcraft_layout::{DocLayout, LayoutCache, LayoutOptions, NumeralMode, Page, Placed, layout};
-use wordcraft_metafile::{Picture, PlacedItem};
+use strix_doc::graphic::GraphicKind;
+use strix_doc::para::{InlineObject, ShapeKind};
+use strix_doc::{Document, Path as DocPath, Rgb, StoryRef};
+use strix_fonts::FaceRef;
+use strix_geom::Rect;
+use strix_layout::display::Paint;
+use strix_layout::display::{DisplayOptions, Draw, ItemDisplay, Stroke as LineStyle};
+use strix_layout::para::{ClKind, LineEnd};
+use strix_layout::{DocLayout, LayoutCache, LayoutOptions, NumeralMode, Page, Placed, layout};
+use strix_metafile::{Picture, PlacedItem};
 
 /// Largest page side we write (200", the PDF limit).
 const MAX_SIDE: f32 = 14_400.0;
@@ -265,7 +266,7 @@ impl Fit {
             Fit { paper_w: page.w, paper_h: page.h, page_w: page.w, k: 1.0, dx: 0.0, dy: 0.0 }
         };
         let Some((w, h)) = paper else { return own };
-        let f = wordcraft_geom::fit_to_paper(own.paper_w, own.paper_h, w, h);
+        let f = strix_geom::fit_to_paper(own.paper_w, own.paper_h, w, h);
         Fit { paper_w: f.paper_w, paper_h: f.paper_h, page_w: own.page_w, k: own.k * f.k, dx: f.dx, dy: own.dy * f.k + f.dy }
     }
 
@@ -277,7 +278,7 @@ impl Fit {
 
 /// The outlines of `glyphs` (glyph id, pen position) at `size`, as one path in page coordinates.
 fn glyph_outlines(face: &FaceRef, size: f32, glyphs: &[(u32, f32, f32)]) -> Option<Path> {
-    let db = wordcraft_fonts::FontDb::global();
+    let db = strix_fonts::FontDb::global();
     let scale = f64::from(size) / face.upem.max(1.0);
     let mut pb = PathBuilder::new();
     for &(g, x, y) in glyphs {
@@ -368,13 +369,13 @@ fn visual_order(text: &str, glyphs: &[(u32, f32, f32)], clusters: &[std::ops::Ra
     let tie = |idx: &[usize]| -> i64 {
         let Some(r) = idx.first().and_then(|&g| clusters.get(g)) else { return 0 };
         let start = i64::try_from(r.start).unwrap_or(i64::MAX);
-        if text.get(r.clone()).is_some_and(|t| t.chars().any(wordcraft_fonts::is_rtl)) { -start } else { start }
+        if text.get(r.clone()).is_some_and(|t| t.chars().any(strix_fonts::is_rtl)) { -start } else { start }
     };
     groups.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| tie(&a.1).cmp(&tie(&b.1))));
     groups
         .into_iter()
         .flat_map(|(_, mut idx)| {
-            let rtl = idx.first().and_then(|&g| text.get(clusters.get(g)?.clone())).is_some_and(|t| t.chars().any(wordcraft_fonts::is_rtl));
+            let rtl = idx.first().and_then(|&g| text.get(clusters.get(g)?.clone())).is_some_and(|t| t.chars().any(strix_fonts::is_rtl));
             if rtl {
                 idx.sort_by_key(|&g| std::cmp::Reverse(parts.get(g).map_or(0, |r| r.start)));
             }
@@ -435,7 +436,7 @@ fn clamp_side(v: f32) -> f32 {
 
 fn metadata(doc: &Document, opts: &PdfOptions) -> Metadata {
     let c = &doc.core;
-    let mut m = Metadata { creator: "WordCraft".into(), producer: "WordCraft".into(), ..Default::default() };
+    let mut m = Metadata { creator: "Strix".into(), producer: "Strix".into(), ..Default::default() };
     let title = opts.title.clone().unwrap_or_else(|| c.title.clone());
     if !title.trim().is_empty() {
         m.title = Some(title);
@@ -581,13 +582,13 @@ fn grown(r: &Rect, g: f32, dx: f32, dy: f32) -> Rect {
 }
 
 /// A shape's shadow and glow, behind it: bands of its silhouette (the same approximation of a
-/// blur as the raster renderer, see [`wordcraft_doc::effects::bands`]).
+/// blur as the raster renderer, see [`strix_doc::effects::bands`]).
 fn shape_effects(
     s: &mut Surface,
     kind: ShapeKind,
     corner: Option<u32>,
     rect: &Rect,
-    fx: &wordcraft_doc::effects::ShapeEffects,
+    fx: &strix_doc::effects::ShapeEffects,
     filled: bool,
     stroked: bool,
     sw: f32,
@@ -611,12 +612,12 @@ fn shape_effects(
     };
     if let Some(sh) = fx.shadow {
         let (dx, dy) = sh.offset();
-        for (g, a) in wordcraft_doc::effects::bands(-sh.blur / 2.0, sh.blur / 2.0, sh.opacity()) {
+        for (g, a) in strix_doc::effects::bands(-sh.blur / 2.0, sh.blur / 2.0, sh.opacity()) {
             silhouette(s, sh.color, a, g, dx, dy);
         }
     }
     if let Some(gl) = fx.glow {
-        for (g, a) in wordcraft_doc::effects::bands(0.0, gl.size, gl.opacity()) {
+        for (g, a) in strix_doc::effects::bands(0.0, gl.size, gl.opacity()) {
             silhouette(s, gl.color, a, g, 0.0, 0.0);
         }
     }
@@ -625,7 +626,7 @@ fn shape_effects(
 }
 
 /// Outline of a basic shape in a rectangle (same geometry as the raster renderer); `corner` is a
-/// rounded rectangle's ([`wordcraft_doc::connector::ShapeExtra::corner`]).
+/// rounded rectangle's ([`strix_doc::connector::ShapeExtra::corner`]).
 fn shape_path(kind: ShapeKind, r: &Rect, corner: Option<u32>) -> Option<Path> {
     let flat_ok = kind.is_open() && r.w.max(r.h) > 0.0 && r.w.min(r.h) >= 0.0;
     if !(ok(r.x) && ok(r.y) && ok(r.w) && ok(r.h)) || !(flat_ok || r.w > 0.0 && r.h > 0.0) {
@@ -657,7 +658,7 @@ fn shape_path(kind: ShapeKind, r: &Rect, corner: Option<u32>) -> Option<Path> {
         // A freeform is drawn from its own paths; without them, its frame.
         ShapeKind::Rectangle | ShapeKind::TextBox | ShapeKind::Freeform => poly(&mut pb, &[(x0, y0), (x1, y0), (x1, y1), (x0, y1)]),
         ShapeKind::RoundedRectangle => {
-            let rad = wordcraft_doc::connector::corner_radius(corner, r.w, r.h);
+            let rad = strix_doc::connector::corner_radius(corner, r.w, r.h);
             let k = rad * (1.0 - K);
             pb.move_to(x0 + rad, y0);
             pb.line_to(x1 - rad, y0);
@@ -693,7 +694,7 @@ fn shape_path(kind: ShapeKind, r: &Rect, corner: Option<u32>) -> Option<Path> {
         }
         ShapeKind::Arrow | ShapeKind::ArrowLeft | ShapeKind::ArrowUp | ShapeKind::ArrowDown => {
             let pts: Vec<(f32, f32)> =
-                wordcraft_doc::wrap::arrow_outline(kind, r.w, r.h).iter().map(|&(u, v)| (x0 + u * r.w, y0 + v * r.h)).collect();
+                strix_doc::wrap::arrow_outline(kind, r.w, r.h).iter().map(|&(u, v)| (x0 + u * r.w, y0 + v * r.h)).collect();
             poly(&mut pb, &pts)
         }
         ShapeKind::Star => {
@@ -749,7 +750,7 @@ struct Exporter<'a> {
     /// take seconds to export.
     /// Bookmarks by exact name, and by ASCII-lowercased name for the case-blind fallback; the
     /// first in document order wins either way.
-    bookmarks: std::cell::OnceCell<(HashMap<String, wordcraft_doc::Pos>, HashMap<String, wordcraft_doc::Pos>)>,
+    bookmarks: std::cell::OnceCell<(HashMap<String, strix_doc::Pos>, HashMap<String, strix_doc::Pos>)>,
 }
 
 /// What the content being drawn is, for tagging.
@@ -775,7 +776,7 @@ impl Exporter<'_> {
                 let variations = face.is_variable().then_some(face.coords.as_slice());
                 let font = match write::font(face.data(), face.index(), variations) {
                     Ok(font) => Some(font),
-                    // Keep WordCraft's existing policy: unreadable faces are skipped.
+                    // Keep Strix's existing policy: unreadable faces are skipped.
                     Err(WriteError::InvalidFont) => None,
                     Err(error) => {
                         // Allocation, validation or backend failures must fail the export,
@@ -808,7 +809,7 @@ impl Exporter<'_> {
     fn vector(&mut self, key: &str) -> Option<Arc<Vector>> {
         let doc = self.doc;
         let bytes = doc.media.get(key)?;
-        if !wordcraft_metafile::is_metafile(bytes) {
+        if !strix_metafile::is_metafile(bytes) {
             return None;
         }
         if let Some(v) = self.vectors.get(key) {
@@ -996,7 +997,7 @@ impl Exporter<'_> {
     /// A heading's text for bookmarks and tags: what the pages show. That leaves out what its
     /// layout `pl` left out (hidden text, resolved as laid out, so table formatting counts too) and,
     /// without markup, tracked deletions.
-    fn title_text(&self, p: &wordcraft_doc::Paragraph, pl: &wordcraft_layout::para::ParaLayout) -> String {
+    fn title_text(&self, p: &strix_doc::Paragraph, pl: &strix_layout::para::ParaLayout) -> String {
         let mut dropped = pl.left_out.clone();
         if !self.opts.include_markup {
             dropped.extend(p.deleted_ranges());
@@ -1005,7 +1006,7 @@ impl Exporter<'_> {
     }
 
     /// The structure entry for a paragraph (created on first sight, in reading order).
-    fn entry(&mut self, story: StoryRef, path: &DocPath, pl: &wordcraft_layout::para::ParaLayout) -> usize {
+    fn entry(&mut self, story: StoryRef, path: &DocPath, pl: &strix_layout::para::ParaLayout) -> usize {
         if let Some(i) = self.tag_index.get(&(story, path.clone())) {
             return *i;
         }
@@ -1073,7 +1074,7 @@ impl Exporter<'_> {
             Draw::Image { rect, media, crop, alpha, .. } => self.picture(s, rect, media, crop, *alpha),
             Draw::Path { segs, fill: f, stroke, stroke_width, dash, cap } => {
                 let mut pb = PathBuilder::new();
-                append_path(&mut pb, &wordcraft_layout::display::seg_path(segs));
+                append_path(&mut pb, &strix_layout::display::seg_path(segs));
                 let Some(p) = pb.finish() else { return };
                 s.set_fill(f.as_ref().map(paint_fill));
                 s.set_stroke(stroke.map(|c| Stroke {
@@ -1131,7 +1132,7 @@ impl Exporter<'_> {
                 if let (Some(rad), Some(c), true) = (fx.soft_edge, f.as_ref(), can_fill) {
                     let rad = rad.min(rect.w.min(rect.h) / 2.0).max(0.0);
                     s.set_stroke(None);
-                    for (g, a) in wordcraft_doc::effects::bands(-rad, 0.0, 1.0) {
+                    for (g, a) in strix_doc::effects::bands(-rad, 0.0, 1.0) {
                         if let Some(p) = shape_path(*kind, &grown(rect, g, 0.0, 0.0), *corner) {
                             s.set_fill(Some(paint_fill(&c.faded(a))));
                             s.draw_path(&p);
@@ -1155,7 +1156,7 @@ impl Exporter<'_> {
                 s.set_stroke(None);
             }
             Draw::Art { path, fx, color, alpha, .. } => {
-                for l in wordcraft_layout::wordart::art_layers(path, fx, *color, *alpha) {
+                for l in strix_layout::wordart::art_layers(path, fx, *color, *alpha) {
                     let mut pb = PathBuilder::new();
                     append_path(&mut pb, &l.path);
                     let Some(p) = pb.finish() else { continue };
@@ -1303,7 +1304,7 @@ impl Exporter<'_> {
 
     /// The page's picture or texture fill: tiled at 96 dpi for a `tile` fill (when that is a sane
     /// number of tiles), else stretched over the page.
-    fn page_picture(&mut self, s: &mut Surface, pic: &wordcraft_doc::PagePicture, w: f32, h: f32) {
+    fn page_picture(&mut self, s: &mut Surface, pic: &strix_doc::PagePicture, w: f32, h: f32) {
         const MAX_TILES: f32 = 4096.0;
         if !(w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0) {
             return;
@@ -1344,7 +1345,7 @@ impl Exporter<'_> {
             s.set_fill(None);
             return;
         };
-        let [cl, ct, vis_w, vis_h] = wordcraft_metafile::crop_window(*crop).map(|v| v as f32);
+        let [cl, ct, vis_w, vis_h] = strix_metafile::crop_window(*crop).map(|v| v as f32);
         let (fw, fh) = (rect.w / vis_w, rect.h / vis_h);
         let Some(size) = Size::from_wh(fw.max(0.01), fh.max(0.01)) else { return };
         let fade = alpha < 0.999;
@@ -1674,9 +1675,9 @@ impl Exporter<'_> {
 
     /// Draws a metafile text run as PDF text (outlines when the font cannot be embedded). `tf` maps
     /// the run's own space (see [`PlacedItem::Text`]) to the page.
-    fn vector_text(&mut self, s: &mut Surface, t: &wordcraft_metafile::Text, tf: kurbo::Affine) {
-        let face = wordcraft_fonts::word::resolve(&t.font, t.bold, t.italic).face;
-        let shaped = wordcraft_fonts::shape(&face, &t.text, &[], |c| c);
+    fn vector_text(&mut self, s: &mut Surface, t: &strix_metafile::Text, tf: kurbo::Affine) {
+        let face = strix_fonts::word::resolve(&t.font, t.bold, t.italic).face;
+        let shaped = strix_fonts::shape(&face, &t.text, &[], |c| c);
         let glyphs: Vec<_> = shaped.iter().map(|g| (g.cluster, f64::from(g.x_advance), f64::from(g.x_offset), f64::from(g.y_offset))).collect();
         let Some(lay) = t.layout(face.upem, face.ascent, face.descent, &glyphs) else { return };
         let font = self.font(&face);
@@ -1729,11 +1730,11 @@ impl Exporter<'_> {
     /// the box's width, its em down the box's height with the em's foot (the font's descent below
     /// the baseline) on the box's bottom; the box centred on the margins (`area`, else the page)
     /// and, when diagonal, turned 45° counterclockwise.
-    fn watermark(&mut self, s: &mut Surface, wm: &wordcraft_doc::Watermark, w: f32, h: f32, area: Rect) {
-        let r = wordcraft_fonts::word::resolve(&wm.font, false, false);
+    fn watermark(&mut self, s: &mut Surface, wm: &strix_doc::Watermark, w: f32, h: f32, area: Rect) {
+        let r = strix_fonts::word::resolve(&wm.font, false, false);
         let face = r.face;
         let text: String = wm.text.chars().take(200).collect();
-        let shaped = wordcraft_fonts::shape(&face, &text, &[], |c| c);
+        let shaped = strix_fonts::shape(&face, &text, &[], |c| c);
         let upem = face.upem.max(1.0) as f32;
         let raw_w: f32 = shaped.iter().map(|g| g.x_advance as f32).sum::<f32>() / upem;
         if raw_w <= 0.0 || !raw_w.is_finite() {
@@ -1742,7 +1743,7 @@ impl Exporter<'_> {
         let [bw, bh] = wm.frame(w, h);
         let size = bh.min(2000.0);
         let stretch = bw / (raw_w * size);
-        let descent = (wordcraft_fonts::word::line_metrics(&face).1 / face.upem.max(1.0)) as f32;
+        let descent = (strix_fonts::word::line_metrics(&face).1 / face.upem.max(1.0)) as f32;
         let angle = if wm.diagonal { -std::f32::consts::FRAC_PI_4 } else { 0.0 };
         let (c, sn) = (angle.cos(), angle.sin());
         let (dx, dy) = (-bw / 2.0, bh / 2.0 - descent.clamp(0.0, 1.0) * bh);
@@ -1803,7 +1804,7 @@ struct Vector {
 
 /// Parses a metafile and embeds its bitmaps. None when the picture has no usable size.
 fn build_vector(bytes: &[u8]) -> Option<Vector> {
-    let mut pic = wordcraft_metafile::parse(bytes).ok()?;
+    let mut pic = strix_metafile::parse(bytes).ok()?;
     if !pic.has_size() {
         return None;
     }
@@ -1864,7 +1865,7 @@ fn vector_picture(ex: &mut Exporter, s: &mut Surface, v: &Vector, r: &Rect, crop
                 s.pop();
             }
             PlacedItem::Text { index, tf } => {
-                if let Some(wordcraft_metafile::Item::Text(t)) = v.pic.items.get(index) {
+                if let Some(strix_metafile::Item::Text(t)) = v.pic.items.get(index) {
                     ex.vector_text(s, t, tf);
                 }
             }
@@ -1906,10 +1907,10 @@ fn cluster_ends(clusters: &[usize], len: usize) -> Vec<usize> {
 /// can't fail the whole export).
 fn load_image(data: &Arc<Vec<u8>>) -> Option<Image> {
     // The shared probe also charges what the decoder holds beside its output (#3644).
-    if !wordcraft_geom::picture::probe(data).is_ok_and(|p| p.fits(wordcraft_geom::MAX_DECODED_BYTES)) {
+    if !strix_geom::picture::probe(data).is_ok_and(|p| p.fits(strix_geom::MAX_DECODED_BYTES)) {
         return None;
     }
-    load_image_within(data, wordcraft_geom::MAX_DECODED_BYTES)
+    load_image_within(data, strix_geom::MAX_DECODED_BYTES)
 }
 
 /// [`load_image`] with an explicit RGBA byte budget (a small one in tests).
@@ -1932,7 +1933,7 @@ fn load_image_within(data: &Arc<Vec<u8>>, budget: u64) -> Option<Image> {
         let (w, h) = d.dimensions();
         (w, h, u64::from(d.color_type().bytes_per_pixel()))
     };
-    if !wordcraft_geom::decode_peak_fits(hw, hh, native, budget) {
+    if !strix_geom::decode_peak_fits(hw, hh, native, budget) {
         return None;
     }
     let dec = reader()?.decode().ok()?;
@@ -1947,11 +1948,11 @@ fn load_image_within(data: &Arc<Vec<u8>>, budget: u64) -> Option<Image> {
 }
 
 /// Map the document cap to the PDF backend for both shape and path outlines.
-fn pdf_line_cap(cap: wordcraft_doc::connector::LineCap) -> LineCap {
+fn pdf_line_cap(cap: strix_doc::connector::LineCap) -> LineCap {
     match cap {
-        wordcraft_doc::connector::LineCap::Flat => LineCap::Butt,
-        wordcraft_doc::connector::LineCap::Square => LineCap::Square,
-        wordcraft_doc::connector::LineCap::Round => LineCap::Round,
+        strix_doc::connector::LineCap::Flat => LineCap::Butt,
+        strix_doc::connector::LineCap::Square => LineCap::Square,
+        strix_doc::connector::LineCap::Round => LineCap::Round,
     }
 }
 

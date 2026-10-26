@@ -1,10 +1,11 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Style Inspector (Home › Styles): the paragraph style and the character style at the caret,
 //! the direct formatting layered on each, and a way to clear each level.
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
-use wordcraft_doc::props::{CharProps, ParaProps};
+use strix_doc::props::{CharProps, ParaProps};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};

@@ -1,4 +1,5 @@
-//! WordCraft rasteriser: draws a page's display list with vello_cpu.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix rasteriser: draws a page's display list with vello_cpu.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 use std::collections::HashMap;
@@ -7,14 +8,14 @@ use std::sync::{Arc, Mutex, Weak};
 use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
 use vello_cpu::peniko;
 use vello_cpu::{Pixmap, RenderContext, Resources};
-use wordcraft_doc::Document;
-use wordcraft_doc::para::ShapeKind;
-use wordcraft_doc::props::Rgb;
-use wordcraft_fonts::FontDb;
-use wordcraft_layout::Page;
-use wordcraft_layout::display::Paint;
-use wordcraft_layout::display::{DisplayOptions, Draw, Stroke, page_layers};
-use wordcraft_metafile::{Item, Picture, PlacedItem, Seg};
+use strix_doc::Document;
+use strix_doc::para::ShapeKind;
+use strix_doc::props::Rgb;
+use strix_fonts::FontDb;
+use strix_layout::Page;
+use strix_layout::display::Paint;
+use strix_layout::display::{DisplayOptions, Draw, Stroke, page_layers};
+use strix_metafile::{Item, Picture, PlacedItem, Seg};
 
 mod color_glyph;
 pub mod icon_lib;
@@ -58,12 +59,12 @@ impl Rendered {
         out
     }
     /// Whether the pixels are exactly `width`×`height` RGBA, within a page raster's budget
-    /// ([`wordcraft_geom::MAX_RASTER_PIXELS`]): the fields are public, so an encoder is never asked
+    /// ([`strix_geom::MAX_RASTER_PIXELS`]): the fields are public, so an encoder is never asked
     /// to pad a short buffer out to a huge claimed size (or, for JPEG, to assert on a mismatch).
     fn encodable(&self) -> bool {
-        let budget = wordcraft_geom::MAX_RASTER_PIXELS.saturating_mul(4);
-        wordcraft_geom::rgba_fits(self.width, self.height, budget)
-            && wordcraft_geom::rgba_bytes(self.width, self.height).is_some_and(|b| b == self.pixels.len() as u64)
+        let budget = strix_geom::MAX_RASTER_PIXELS.saturating_mul(4);
+        strix_geom::rgba_fits(self.width, self.height, budget)
+            && strix_geom::rgba_bytes(self.width, self.height).is_some_and(|b| b == self.pixels.len() as u64)
     }
     /// PNG bytes (empty on failure, logged).
     pub fn to_png(&self) -> Vec<u8> {
@@ -212,10 +213,10 @@ const MAX_DECODE_SIDE: u32 = u16::MAX as u32;
 /// allocation cap (512 MB, what `load_from_memory` applied) bound the decode during paint.
 pub fn decode_pixmap(bytes: &[u8]) -> Option<Pixmap> {
     // The shared probe also charges what the decoder holds beside its output (#3644).
-    if !wordcraft_geom::picture::probe(bytes).is_ok_and(|p| p.fits(wordcraft_geom::MAX_DECODED_BYTES)) {
+    if !strix_geom::picture::probe(bytes).is_ok_and(|p| p.fits(strix_geom::MAX_DECODED_BYTES)) {
         return None;
     }
-    decode_pixmap_within(bytes, wordcraft_geom::MAX_DECODED_BYTES)
+    decode_pixmap_within(bytes, strix_geom::MAX_DECODED_BYTES)
 }
 
 /// [`decode_pixmap`] with an explicit RGBA byte budget (a small one in tests).
@@ -236,7 +237,7 @@ fn decode_pixmap_within(bytes: &[u8], budget: u64) -> Option<Pixmap> {
         let (w, h) = d.dimensions();
         (w, h, u64::from(d.color_type().bytes_per_pixel()))
     };
-    if !wordcraft_geom::decode_peak_fits(hw, hh, native, budget) {
+    if !strix_geom::decode_peak_fits(hw, hh, native, budget) {
         // Logged once a picture: its refusal is cached with it (`pixmap_for`).
         log::warn!(
             "a {hw}×{hh} picture of {native} bytes a pixel needs more than {budget} bytes to decode: it is not drawn (in the text, a grey box takes its place)"
@@ -279,10 +280,10 @@ pub fn image_size(bytes: &[u8]) -> Option<(u32, u32)> {
 /// extension it is stored under (`"wmf"` or `"emf"`), or None for anything else (#802). Very large
 /// frames are scaled down to 22 inches on the longer side, keeping the shape.
 pub fn metafile_size(bytes: &[u8]) -> Option<(f32, f32, &'static str)> {
-    if !wordcraft_metafile::is_metafile(bytes) {
+    if !strix_metafile::is_metafile(bytes) {
         return None;
     }
-    let pic = wordcraft_metafile::parse(bytes).ok()?;
+    let pic = strix_metafile::parse(bytes).ok()?;
     let (w, h) = (pic.width, pic.height);
     if !(w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0) {
         return None;
@@ -322,7 +323,7 @@ impl Vector {
 /// the caller falls back to the raster path (and the grey box).
 fn vector_for(doc: &Document, key: &str) -> Option<Arc<Vector>> {
     let bytes = doc.media.get(key)?;
-    if !wordcraft_metafile::is_metafile(bytes) {
+    if !strix_metafile::is_metafile(bytes) {
         return None;
     }
     if let Some(v) = lock(vectors()).get(key, bytes) {
@@ -339,7 +340,7 @@ fn vector_for(doc: &Document, key: &str) -> Option<Arc<Vector>> {
 
 /// Parses a metafile and decodes its bitmaps. None when the picture has no usable size.
 fn build_vector(bytes: &[u8]) -> Option<Vector> {
-    let mut pic = wordcraft_metafile::parse(bytes).ok()?;
+    let mut pic = strix_metafile::parse(bytes).ok()?;
     if !pic.has_size() {
         return None;
     }
@@ -406,9 +407,9 @@ fn draw_vector(ctx: &mut RenderContext, v: &Vector, r: &kurbo::Rect, crop: &[f32
 }
 
 /// Draws a metafile text run: `tf` maps the run's own space (see [`PlacedItem::Text`]) to the device.
-fn draw_vector_text(ctx: &mut RenderContext, t: &wordcraft_metafile::Text, tf: Affine) {
-    let face = wordcraft_fonts::word::resolve(&t.font, t.bold, t.italic).face;
-    let shaped = wordcraft_fonts::shape(&face, &t.text, &[], |c| c);
+fn draw_vector_text(ctx: &mut RenderContext, t: &strix_metafile::Text, tf: Affine) {
+    let face = strix_fonts::word::resolve(&t.font, t.bold, t.italic).face;
+    let shaped = strix_fonts::shape(&face, &t.text, &[], |c| c);
     let glyphs: Vec<_> = shaped.iter().map(|g| (g.cluster, f64::from(g.x_advance), f64::from(g.x_offset), f64::from(g.y_offset))).collect();
     let Some(lay) = t.layout(face.upem, face.ascent, face.descent, &glyphs) else { return };
     let k = lay.em / face.upem.max(1.0);
@@ -678,13 +679,13 @@ pub fn render_page(doc: &Document, page: &Page, scale: f32, opts: &RenderOptions
 
 /// Render a page into a `w`×`h` raster with `view` (page points → pixels).
 pub fn render_region(doc: &Document, page: &Page, w: u32, h: u32, view: Affine, opts: &RenderOptions) -> Rendered {
-    render_region_capped(doc, page, w, h, view, opts, wordcraft_geom::MAX_RASTER_PIXELS)
+    render_region_capped(doc, page, w, h, view, opts, strix_geom::MAX_RASTER_PIXELS)
 }
 
 /// [`render_region`] with an explicit pixel cap (a small one in tests).
 fn render_region_capped(doc: &Document, page: &Page, w: u32, h: u32, view: Affine, opts: &RenderOptions, max_pixels: u64) -> Rendered {
     let (w, h) = (w.clamp(1, MAX_SIDE), h.clamp(1, MAX_SIDE));
-    let (cw, ch) = wordcraft_geom::fit_pixels(w, h, max_pixels);
+    let (cw, ch) = strix_geom::fit_pixels(w, h, max_pixels);
     // Over the cap the whole picture is drawn smaller, not cropped.
     let view = if (cw, ch) == (w, h) { view } else { Affine::scale_non_uniform(cw as f64 / w as f64, ch as f64 / h as f64) * view };
     let (w16, h16) = (cw as u16, ch as u16);
@@ -735,7 +736,7 @@ pub fn background_at(doc: &Document, page: &Page, opts: &RenderOptions, x: f32, 
     for (alpha, items) in page_layers(doc, page, &opts.display) {
         // A faded layer: its own colour there, blended in at its opacity.
         let mut layer = bg;
-        blend_backgrounds(&items, wordcraft_geom::Point::new(x, y), opts, &mut layer, 0);
+        blend_backgrounds(&items, strix_geom::Point::new(x, y), opts, &mut layer, 0);
         for (v, n) in bg.iter_mut().zip(layer) {
             *v += (n - *v) * alpha;
         }
@@ -744,7 +745,7 @@ pub fn background_at(doc: &Document, page: &Page, opts: &RenderOptions, x: f32, 
     Rgb(c(bg[0]), c(bg[1]), c(bg[2]))
 }
 
-fn blend_backgrounds(items: &[Draw], p: wordcraft_geom::Point, opts: &RenderOptions, bg: &mut [f32; 3], depth: u32) {
+fn blend_backgrounds(items: &[Draw], p: strix_geom::Point, opts: &RenderOptions, bg: &mut [f32; 3], depth: u32) {
     if depth > 16 {
         return;
     }
@@ -784,12 +785,12 @@ fn blend_backgrounds(items: &[Draw], p: wordcraft_geom::Point, opts: &RenderOpti
 /// list entry. Not the face's ascent: a font with a tall one (Amiri Quran's is 1.8 em) put the
 /// name below the row (#2570). Outlines come straight from the face, not the shared outline
 /// cache, so a face read just for the preview leaves nothing behind once dropped (#848).
-pub fn render_text_line(face: &wordcraft_fonts::FontFace, text: &str, size: f32, w: f32, h: f32, margin: f32, scale: f32) -> Rendered {
+pub fn render_text_line(face: &strix_fonts::FontFace, text: &str, size: f32, w: f32, h: f32, margin: f32, scale: f32) -> Rendered {
     let fin = |v: f32, d: f32| if v.is_finite() && v >= 0.0 { v } else { d };
     let (size, w, h, margin) = (fin(size, 12.0).min(1000.0) as f64, fin(w, 1.0), fin(h, 1.0), fin(margin, 0.0).min(1000.0) as f64);
     let scale = if scale.is_finite() && scale > 0.0 { scale.min(16.0) } else { 1.0 };
     let (pw, ph) = (((w * scale).ceil() as u32).clamp(1, MAX_SIDE), ((h * scale).ceil() as u32).clamp(1, MAX_SIDE));
-    let (cw, ch) = wordcraft_geom::fit_pixels(pw, ph, wordcraft_geom::MAX_RASTER_PIXELS);
+    let (cw, ch) = strix_geom::fit_pixels(pw, ph, strix_geom::MAX_RASTER_PIXELS);
     let (w16, h16) = (cw as u16, ch as u16);
     let mut ctx = RenderContext::new_with(w16, h16, vello_cpu::RenderSettings { num_threads: 0, ..Default::default() });
     ctx.set_transform(Affine::IDENTITY);
@@ -803,7 +804,7 @@ pub fn render_text_line(face: &wordcraft_fonts::FontFace, text: &str, size: f32,
     let baseline = (h as f64 + cap * k) / 2.0;
     let mut x = margin;
     let colour = face.has_color_glyphs();
-    for g in wordcraft_fonts::shape(face, text, &[], |c| c) {
+    for g in strix_fonts::shape(face, text, &[], |c| c) {
         let at = view * Affine::translate((x + g.x_offset as f64 * k, baseline - g.y_offset as f64 * k)) * Affine::scale(k);
         if colour && let Some(d) = color_glyph::drawable(face, g.gid, size * scale as f64, false) {
             color_glyph::draw(&mut ctx, &d, at, upem, color(Rgb(0, 0, 0), 1.0), 1.0);
@@ -826,10 +827,10 @@ pub fn render_text_line(face: &wordcraft_fonts::FontFace, text: &str, size: f32,
     Rendered { width: w16 as u32, height: h16 as u32, pixels }
 }
 
-fn draw_watermark(ctx: &mut RenderContext, view: Affine, page: &Page, wm: &wordcraft_doc::Watermark, opts: &RenderOptions) {
-    let r = wordcraft_fonts::word::resolve(&wm.font, false, false);
+fn draw_watermark(ctx: &mut RenderContext, view: Affine, page: &Page, wm: &strix_doc::Watermark, opts: &RenderOptions) {
+    let r = strix_fonts::word::resolve(&wm.font, false, false);
     let face = r.face;
-    let glyphs = wordcraft_fonts::shape(&face, &wm.text, &[], |c| c);
+    let glyphs = strix_fonts::shape(&face, &wm.text, &[], |c| c);
     let upem = face.upem.max(1.0);
     let raw_w: f64 = glyphs.iter().map(|g| g.x_advance as f64).sum::<f64>() / upem;
     if raw_w <= 0.0 {
@@ -843,7 +844,7 @@ fn draw_watermark(ctx: &mut RenderContext, view: Affine, page: &Page, wm: &wordc
     let size = bh.min(2000.0);
     let k = size / upem;
     let stretch = bw / (raw_w * size);
-    let descent = (wordcraft_fonts::word::line_metrics(&face).1 / upem).clamp(0.0, 1.0);
+    let descent = (strix_fonts::word::line_metrics(&face).1 / upem).clamp(0.0, 1.0);
     let angle = if wm.diagonal { -std::f64::consts::FRAC_PI_4 } else { 0.0 };
     let b = page.body;
     let (cx, cy) =
@@ -1072,11 +1073,11 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
             }
         }
         Draw::Mark { x, baseline, size, ch, color: mark } => {
-            let face = wordcraft_fonts::word::resolve("Source Sans 3", false, false).face;
+            let face = strix_fonts::word::resolve("Source Sans 3", false, false).face;
             let gid = face.glyph_for(*ch);
             let face = if gid == 0 {
                 match FontDb::global().fallback_for(*ch, face.id()) {
-                    Some(f) => wordcraft_fonts::FaceRef::of(&f),
+                    Some(f) => strix_fonts::FaceRef::of(&f),
                     None => return,
                 }
             } else {
@@ -1090,7 +1091,7 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
             ctx.fill_path(&o);
         }
         Draw::MarkText { x, baseline, size, text } => {
-            let base_face = wordcraft_fonts::word::resolve("Source Sans 3", false, false).face;
+            let base_face = strix_fonts::word::resolve("Source Sans 3", false, false).face;
             ctx.set_paint(color(opts.ink(opts.mark_color), 0.9));
             let mut gx = *x as f64;
             for ch in text.chars() {
@@ -1098,7 +1099,7 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
                 if face.glyph_for(ch) == 0
                     && let Some(f) = FontDb::global().fallback_for(ch, face.id())
                 {
-                    face = wordcraft_fonts::FaceRef::of(&f);
+                    face = strix_fonts::FaceRef::of(&f);
                 }
                 let gid = face.glyph_for(ch);
                 let k = *size as f64 / face.upem.max(1.0);
@@ -1124,7 +1125,7 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
                 return;
             };
             let (pw, ph) = (pm.width().max(1) as f64, pm.height().max(1) as f64);
-            let [cl, ct, vis_w, vis_h] = wordcraft_metafile::crop_window(*crop);
+            let [cl, ct, vis_w, vis_h] = strix_metafile::crop_window(*crop);
             let sx = r.width() / (pw * vis_w);
             let sy = r.height() / (ph * vis_h);
             ctx.set_transform(view);
@@ -1146,7 +1147,7 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
             }
         }
         Draw::Path { segs, fill, stroke, stroke_width, dash, cap } => {
-            let path = wordcraft_layout::display::seg_path(segs);
+            let path = strix_layout::display::seg_path(segs);
             if path.elements().is_empty() {
                 return;
             }
@@ -1168,12 +1169,12 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
             }
         }
         Draw::Art { path, fx, color: c, alpha, text_bg } => {
-            let Some(b) = wordcraft_layout::wordart::path_box(path) else { return };
+            let Some(b) = strix_layout::wordart::path_box(path) else { return };
             if !b.inflate(200.0, 200.0).overlaps(*visible) {
                 return;
             }
             ctx.set_transform(view);
-            for l in wordcraft_layout::wordart::art_layers(path, fx, *c, *alpha) {
+            for l in strix_layout::wordart::art_layers(path, fx, *c, *alpha) {
                 // The letters read against their highlight like plain text (#1252); shadows don't.
                 let ink = |c: Rgb| if l.letters { opts.ink_text(c, *text_bg) } else { opts.ink(c) };
                 set_paint_inked(ctx, &l.paint, ink);
@@ -1221,13 +1222,13 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
                 };
                 if let Some(sh) = fx.shadow {
                     let (dx, dy) = sh.offset();
-                    for (g, a) in wordcraft_doc::effects::bands(-sh.blur / 2.0, sh.blur / 2.0, sh.opacity()) {
+                    for (g, a) in strix_doc::effects::bands(-sh.blur / 2.0, sh.blur / 2.0, sh.opacity()) {
                         ctx.set_paint(color(opts.ink(sh.color), a));
                         silhouette(ctx, g, kurbo::Vec2::new(dx as f64, dy as f64));
                     }
                 }
                 if let Some(gl) = fx.glow {
-                    for (g, a) in wordcraft_doc::effects::bands(0.0, gl.size, gl.opacity()) {
+                    for (g, a) in strix_doc::effects::bands(0.0, gl.size, gl.opacity()) {
                         ctx.set_paint(color(opts.ink(gl.color), a));
                         silhouette(ctx, g, kurbo::Vec2::ZERO);
                     }
@@ -1236,7 +1237,7 @@ fn draw(ctx: &mut RenderContext, doc: &Document, it: &Draw, view: Affine, visibl
             // Soft edges: the fill fades out toward the outline (which fades with it).
             if let (Some(rad), Some(f), true) = (fx.soft_edge, fill, can_fill) {
                 let rad = rad.min(rect.w.min(rect.h) / 2.0).max(0.0);
-                for (g, a) in wordcraft_doc::effects::bands(-rad, 0.0, 1.0) {
+                for (g, a) in strix_doc::effects::bands(-rad, 0.0, 1.0) {
                     let rr = r.inflate(g as f64, g as f64);
                     if rr.width() > 0.0 && rr.height() > 0.0 {
                         set_paint(ctx, &f.faded(a), opts);
@@ -1312,16 +1313,16 @@ fn ink_path(pts: &[(f32, f32)]) -> Option<BezPath> {
 }
 
 /// Map the document cap to the raster backend without changing ink-tool stroke styles.
-fn screen_cap(cap: wordcraft_doc::connector::LineCap) -> kurbo::Cap {
+fn screen_cap(cap: strix_doc::connector::LineCap) -> kurbo::Cap {
     match cap {
-        wordcraft_doc::connector::LineCap::Flat => kurbo::Cap::Butt,
-        wordcraft_doc::connector::LineCap::Square => kurbo::Cap::Square,
-        wordcraft_doc::connector::LineCap::Round => kurbo::Cap::Round,
+        strix_doc::connector::LineCap::Flat => kurbo::Cap::Butt,
+        strix_doc::connector::LineCap::Square => kurbo::Cap::Square,
+        strix_doc::connector::LineCap::Round => kurbo::Cap::Round,
     }
 }
 
 /// Outline of a basic shape in a rectangle; `corner` is a rounded rectangle's
-/// ([`wordcraft_doc::connector::ShapeExtra::corner`]).
+/// ([`strix_doc::connector::ShapeExtra::corner`]).
 pub fn shape_path(kind: ShapeKind, r: kurbo::Rect, corner: Option<u32>) -> BezPath {
     let (cx, cy) = (r.center().x, r.center().y);
     let poly = |pts: &[(f64, f64)]| {
@@ -1340,7 +1341,7 @@ pub fn shape_path(kind: ShapeKind, r: kurbo::Rect, corner: Option<u32>) -> BezPa
         // A freeform is drawn from its own paths; without them, its frame.
         ShapeKind::Rectangle | ShapeKind::TextBox | ShapeKind::Freeform => r.to_path(0.1),
         ShapeKind::RoundedRectangle => {
-            let radius = wordcraft_doc::connector::corner_radius(corner, r.width() as f32, r.height() as f32);
+            let radius = strix_doc::connector::corner_radius(corner, r.width() as f32, r.height() as f32);
             kurbo::RoundedRect::from_rect(r, f64::from(radius)).to_path(0.1)
         }
         ShapeKind::Ellipse => kurbo::Ellipse::from_rect(r).to_path(0.1),
@@ -1371,7 +1372,7 @@ pub fn shape_path(kind: ShapeKind, r: kurbo::Rect, corner: Option<u32>) -> BezPa
         }
         ShapeKind::Arrow | ShapeKind::ArrowLeft | ShapeKind::ArrowUp | ShapeKind::ArrowDown => {
             let (w, h) = (r.width(), r.height());
-            let pts: Vec<(f64, f64)> = wordcraft_doc::wrap::arrow_outline(kind, w as f32, h as f32)
+            let pts: Vec<(f64, f64)> = strix_doc::wrap::arrow_outline(kind, w as f32, h as f32)
                 .iter()
                 .map(|&(u, v)| (r.x0 + f64::from(u) * w, r.y0 + f64::from(v) * h))
                 .collect();
@@ -1414,7 +1415,7 @@ pub fn render_area(doc: &Document, page: &Page, x: f32, y: f32, w: f32, h: f32, 
 pub fn render_items(doc: &Document, items: &[Draw], x: f32, y: f32, w: f32, h: f32, scale: f32, opts: &RenderOptions) -> Rendered {
     let scale = if scale.is_finite() && scale > 0.0 { scale } else { 1.0 };
     let (pw, ph) = (((w * scale).ceil() as u32).clamp(1, MAX_SIDE), ((h * scale).ceil() as u32).clamp(1, MAX_SIDE));
-    let (cw, ch) = wordcraft_geom::fit_pixels(pw, ph, wordcraft_geom::MAX_RASTER_PIXELS);
+    let (cw, ch) = strix_geom::fit_pixels(pw, ph, strix_geom::MAX_RASTER_PIXELS);
     let (w16, h16) = (cw as u16, ch as u16);
     let view = Affine::scale_non_uniform(cw as f64 / pw as f64, ch as f64 / ph as f64)
         * Affine::scale(scale as f64)
@@ -1436,8 +1437,8 @@ pub fn render_items(doc: &Document, items: &[Draw], x: f32, y: f32, w: f32, h: f
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wordcraft_layout::display::page_display;
-    use wordcraft_layout::{LayoutCache, LayoutOptions, layout};
+    use strix_layout::display::page_display;
+    use strix_layout::{LayoutCache, LayoutOptions, layout};
 
     /// The first and last pixel rows with ink in a black-on-white [`render_text_line`] raster.
     fn ink_rows(img: &Rendered) -> Option<(usize, usize)> {
@@ -1476,14 +1477,14 @@ mod tests {
         for at in [hhea + 4, os2 + 68, os2 + 74] {
             data[at..at + 2].copy_from_slice(&tall);
         }
-        assert!(wordcraft_fonts::FontDb::global().add_font(data) > 0);
-        let db = wordcraft_fonts::FontDb::global();
+        assert!(strix_fonts::FontDb::global().add_font(data) > 0);
+        let db = strix_fonts::FontDb::global();
         let tall_face = db.face("Talled Sans 3", "Regular");
-        let normal = db.face(wordcraft_fonts::FALLBACK_FAMILY, "Regular");
+        let normal = db.face(strix_fonts::FALLBACK_FAMILY, "Regular");
         assert_eq!(tall_face.family, "Talled Sans 3");
         assert!(tall_face.ascent > normal.ascent * 1.5, "patched ascent {} vs {}", tall_face.ascent, normal.ascent);
         // The font list's entry: 13 pt text in a 244×22 pt row, 2 pt in.
-        let entry = |f: &wordcraft_fonts::FontFace| ink_rows(&render_text_line(f, "Amiri Quran", 13.0, 244.0, 22.0, 2.0, 2.0));
+        let entry = |f: &strix_fonts::FontFace| ink_rows(&render_text_line(f, "Amiri Quran", 13.0, 244.0, 22.0, 2.0, 2.0));
         let (top, bottom) = entry(&normal).unwrap();
         let (tall_top, tall_bottom) = entry(&tall_face).unwrap();
         assert_eq!((tall_top, tall_bottom), (top, bottom), "same glyphs, same place in the row");
@@ -1496,9 +1497,9 @@ mod tests {
     /// #299: the caret's background is the page colour, a highlight, or the dark page.
     #[test]
     fn background_at_caret_follows_page_colour_highlight_and_dark_mode() {
-        use wordcraft_doc::Pos;
-        use wordcraft_doc::props::Highlight;
-        let mut d = Document::from_text("Hello WordCraft");
+        use strix_doc::Pos;
+        use strix_doc::props::Highlight;
+        let mut d = Document::from_text("Hello Strix");
         let mid = |d: &Document, off: usize| {
             let l = layout(d, &mut LayoutCache::new(), &LayoutOptions::default());
             let c = l.caret_on(&Pos::body(0, off), 0).unwrap();
@@ -1527,9 +1528,9 @@ mod tests {
     fn background_follows_a_shapes_outline_not_its_box() {
         let opts = RenderOptions::default();
         let ellipse = Draw::Shape {
-            rect: wordcraft_geom::Rect::new(100.0, 100.0, 200.0, 100.0),
+            rect: strix_geom::Rect::new(100.0, 100.0, 200.0, 100.0),
             kind: ShapeKind::Ellipse,
-            fill: Some(wordcraft_layout::display::Paint::solid(Rgb::BLACK)),
+            fill: Some(strix_layout::display::Paint::solid(Rgb::BLACK)),
             stroke: None,
             stroke_width: 0.0,
             effects: Default::default(),
@@ -1539,7 +1540,7 @@ mod tests {
         };
         let at = |x: f32, y: f32| {
             let mut bg = [255.0; 3];
-            blend_backgrounds(std::slice::from_ref(&ellipse), wordcraft_geom::Point::new(x, y), &opts, &mut bg, 0);
+            blend_backgrounds(std::slice::from_ref(&ellipse), strix_geom::Point::new(x, y), &opts, &mut bg, 0);
             bg
         };
         assert_eq!(at(200.0, 150.0), [0.0; 3], "the centre is the fill");
@@ -1549,7 +1550,7 @@ mod tests {
 
     #[test]
     fn renders_text_dark_pixels() {
-        let d = Document::from_text("Hello WordCraft");
+        let d = Document::from_text("Hello Strix");
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let img = render_page(&d, &l.pages[0], 1.0, &RenderOptions::default());
         assert_eq!((img.width, img.height), (612, 792));
@@ -1564,13 +1565,13 @@ mod tests {
     /// cell, not across it.
     #[test]
     fn turned_cell_text_is_painted_turned() {
-        use wordcraft_doc::props::TextDirection;
+        use strix_doc::props::TextDirection;
         let ink = |dir: TextDirection| {
             let mut d = Document::from_text("before\nafter");
-            let mut t = wordcraft_doc::Table::new(1, 2, 400.0);
-            t.rows[0].cells[0].blocks = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("WWWWWWWWWWWW", Default::default()))];
+            let mut t = strix_doc::Table::new(1, 2, 400.0);
+            t.rows[0].cells[0].blocks = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("WWWWWWWWWWWW", Default::default()))];
             t.rows[0].cells[0].props.text_direction = dir;
-            d.insert_block(wordcraft_doc::StoryRef::Body, &wordcraft_doc::Path::top(1), wordcraft_doc::Block::Table(t)).unwrap();
+            d.insert_block(strix_doc::StoryRef::Body, &strix_doc::Path::top(1), strix_doc::Block::Table(t)).unwrap();
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             let img = render_page(&d, &l.pages[0], 1.0, &RenderOptions::default());
             // Dark pixels inside the first cell (x 72..272, clear of its borders), well below
@@ -1586,15 +1587,15 @@ mod tests {
     /// cast to, and none on the other; a glow surrounds it.
     #[test]
     fn shape_shadow_is_cast_offset_from_the_shape() {
-        use wordcraft_doc::effects::{Glow, Shadow, ShapeEffects};
-        use wordcraft_doc::para::InlineObject;
+        use strix_doc::effects::{Glow, Shadow, ShapeEffects};
+        use strix_doc::para::InlineObject;
         let draw = |effects: ShapeEffects| {
             let mut d = Document::from_text("");
             let shape = InlineObject::Shape {
                 kind: ShapeKind::Rectangle,
                 w: 100.0,
                 h: 60.0,
-                fill: Some(wordcraft_doc::fill::Fill::solid(Rgb(0, 0, 255))),
+                fill: Some(strix_doc::fill::Fill::solid(Rgb(0, 0, 255))),
                 stroke: None,
                 stroke_width: 0.0,
                 float: Default::default(),
@@ -1603,7 +1604,7 @@ mod tests {
                 effects,
                 extra: Default::default(),
             };
-            let at = wordcraft_doc::Pos { story: wordcraft_doc::StoryRef::Body, path: wordcraft_doc::Path::top(0), off: 0 };
+            let at = strix_doc::Pos { story: strix_doc::StoryRef::Body, path: strix_doc::Path::top(0), off: 0 };
             d.insert_object(&at, shape, &Default::default()).unwrap();
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             render_page(&d, &l.pages[0], 1.0, &RenderOptions::default())
@@ -1644,9 +1645,9 @@ mod tests {
     #[test]
     fn shape_gradients_and_transparency_are_drawn() {
         use std::sync::Arc;
-        use wordcraft_doc::fill::{Fill, Gradient, GradientFlip, GradientKind, PathShape};
-        use wordcraft_doc::para::{Float, InlineObject, Wrap};
-        use wordcraft_doc::wordart::GradStop;
+        use strix_doc::fill::{Fill, Gradient, GradientFlip, GradientKind, PathShape};
+        use strix_doc::para::{Float, InlineObject, Wrap};
+        use strix_doc::wordart::GradStop;
         let shape = |fill: Fill, x: f32| InlineObject::Shape {
             kind: ShapeKind::Rectangle,
             w: 100.0,
@@ -1664,7 +1665,7 @@ mod tests {
         let grad =
             |kind| Fill::Gradient(Arc::new(Gradient { stops: stops.clone(), kind, tile: None, rot_with_shape: true, flip: GradientFlip::None }));
         let mut d = Document::from_text("");
-        let at = wordcraft_doc::Pos { story: wordcraft_doc::StoryRef::Body, path: wordcraft_doc::Path::top(0), off: 0 };
+        let at = strix_doc::Pos { story: strix_doc::StoryRef::Body, path: strix_doc::Path::top(0), off: 0 };
         // Left to right: top-to-bottom linear, circular, navy under 30%-opaque white.
         let objs = [
             shape(grad(GradientKind::Linear { angle: 90.0, scaled: false }), 0.0),
@@ -1735,7 +1736,7 @@ mod tests {
         let mut d = Document::new();
         d.media.insert("bg.png".into(), Arc::new(png));
         for kind in ["tile", "frame"] {
-            d.settings.page_picture = Some(wordcraft_doc::PagePicture { media: "bg.png".into(), fill_type: kind.into(), title: String::new() });
+            d.settings.page_picture = Some(strix_doc::PagePicture { media: "bg.png".into(), fill_type: kind.into(), title: String::new() });
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             let img = render_page(&d, &l.pages[0], 1.0, &RenderOptions::default());
             let i = ((300 * img.width + 300) * 4) as usize;
@@ -1756,7 +1757,7 @@ mod tests {
         image::RgbaImage::from_pixel(8, 8, image::Rgba([10, 200, 30, 255]))
             .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
             .unwrap();
-        let mut d = Document::from_text("Hello WordCraft");
+        let mut d = Document::from_text("Hello Strix");
         d.media.insert("bg.png".into(), Arc::new(png));
         d.settings.page_color = Some(Rgb(0x10, 0x10, 0x40));
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
@@ -1774,7 +1775,7 @@ mod tests {
         assert_eq!(background_at(&d, page, &white, 5.0, 5.0), Rgb::WHITE);
         let inverse = RenderOptions { read_paper: Some(Rgb::WHITE), dark: true, ..Default::default() };
         assert_eq!(background_at(&d, page, &inverse, 5.0, 5.0), Rgb(DARK_PAPER, DARK_PAPER, DARK_PAPER));
-        d.settings.page_picture = Some(wordcraft_doc::PagePicture { media: "bg.png".into(), fill_type: "tile".into(), title: String::new() });
+        d.settings.page_picture = Some(strix_doc::PagePicture { media: "bg.png".into(), fill_type: "tile".into(), title: String::new() });
         assert_eq!(at(&render_page(&d, page, 1.0, &RenderOptions::default()), 300, 300), [10, 200, 30], "the page picture");
         assert_eq!(at(&render_page(&d, page, 1.0, &sepia), 300, 300), [0xE2, 0xD9, 0xD0]);
         // The text is drawn in its own color on sepia paper: its darkest pixel is within 8 levels of its value on white.
@@ -1897,7 +1898,7 @@ mod tests {
         // Two RGBA buffers of 7900 × 7900 fit 512 MB, but RGB output beside three full-size
         // coefficient planes (9 bytes a pixel) doesn't (#3644).
         let jpeg = progressive_jpeg_header(7900, 7900);
-        assert!(wordcraft_geom::decode_fits(7900, 7900, wordcraft_geom::MAX_DECODED_BYTES));
+        assert!(strix_geom::decode_fits(7900, 7900, strix_geom::MAX_DECODED_BYTES));
         assert!(decode_pixmap(&jpeg).is_none());
         let mut baseline = Vec::new();
         image::RgbImage::new(64, 64).write_to(&mut std::io::Cursor::new(&mut baseline), image::ImageFormat::Jpeg).unwrap();
@@ -1943,8 +1944,8 @@ mod tests {
             .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
             .unwrap();
         let media = d.add_media(png, "png");
-        let mut hp = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut hp = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 40.0,
             h: 40.0,
@@ -1954,7 +1955,7 @@ mod tests {
             ole: None,
         };
         hp.insert_object(0, obj, &Default::default()).unwrap();
-        let id = d.add_part(wordcraft_doc::PartKind::Header, vec![wordcraft_doc::para_block(hp)]);
+        let id = d.add_part(strix_doc::PartKind::Header, vec![strix_doc::para_block(hp)]);
         d.last_section.headers.default = Some(id);
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions::default();
@@ -1988,9 +1989,9 @@ mod tests {
     #[test]
     fn dimmed_header_borders_dont_darken_where_they_meet() {
         let mut d = Document::from_text("");
-        let t = wordcraft_doc::Table::new(2, 2, 200.0);
-        let blocks = vec![std::sync::Arc::new(wordcraft_doc::Block::Table(t)), wordcraft_doc::para_block(wordcraft_doc::Paragraph::new())];
-        let id = d.add_part(wordcraft_doc::PartKind::Header, blocks);
+        let t = strix_doc::Table::new(2, 2, 200.0);
+        let blocks = vec![std::sync::Arc::new(strix_doc::Block::Table(t)), strix_doc::para_block(strix_doc::Paragraph::new())];
+        let id = d.add_part(strix_doc::PartKind::Header, blocks);
         d.last_section.headers.default = Some(id);
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let render = |dim_header: bool| {
@@ -2020,15 +2021,15 @@ mod tests {
         let mut d = Document::from_text("Body");
         // Two rows and two columns: the middle border is drawn by both cells beside it, and a cell's
         // top and left rules cross at its top-left corner.
-        let header = vec![std::sync::Arc::new(wordcraft_doc::Block::Table(wordcraft_doc::Table::new(2, 2, 300.0)))];
-        let id = d.add_part(wordcraft_doc::PartKind::Header, header);
+        let header = vec![std::sync::Arc::new(strix_doc::Block::Table(strix_doc::Table::new(2, 2, 300.0)))];
+        let id = d.add_part(strix_doc::PartKind::Header, header);
         d.last_section.headers.default = Some(id);
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let page = &l.pages[0];
         let rules: Vec<(f32, f32, f32, f32)> = page
             .header
             .iter()
-            .filter_map(|it| if let wordcraft_layout::Placed::Rule { x0, y0, x1, y1, .. } = it { Some((*x0, *y0, *x1, *y1)) } else { None })
+            .filter_map(|it| if let strix_layout::Placed::Rule { x0, y0, x1, y1, .. } = it { Some((*x0, *y0, *x1, *y1)) } else { None })
             .collect();
         let (vx, vy0, _, vy1) = *rules.iter().filter(|(x0, _, x1, _)| x0 == x1).min_by(|a, b| a.0.total_cmp(&b.0)).expect("a vertical rule");
         let (hx0, hy, hx1, _) =
@@ -2066,7 +2067,7 @@ mod tests {
         // Pure hues keep their colour; dark blue turns light blue.
         assert_eq!(invert_lightness(Rgb(255, 0, 0)), Rgb(255, 0, 0));
         assert_eq!(invert_lightness(Rgb(0, 0, 0x80)), Rgb(0x7F, 0x7F, 0xFF));
-        let d = Document::from_text("Hello WordCraft");
+        let d = Document::from_text("Hello Strix");
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions { dark: true, ..Default::default() };
         assert_eq!(opts.ink(Rgb::WHITE), Rgb(DARK_PAPER, DARK_PAPER, DARK_PAPER));
@@ -2081,15 +2082,15 @@ mod tests {
     /// ones have a grey copy down-right, imprinted ones up-left.
     #[test]
     fn legacy_font_effects_are_drawn() {
-        use wordcraft_doc::CharProps;
-        use wordcraft_doc::wordart::{TextEffects, TextFill};
+        use strix_doc::CharProps;
+        use strix_doc::wordart::{TextEffects, TextFill};
         const SIZE: f32 = 40.0;
         const SCALE: f32 = 2.0;
         const MIN_DIRECTION_PIXELS: usize = 100;
         let shot = |c: CharProps, offset: f32| {
             let mut d = Document::from_text("x");
             let cp = CharProps { size: Some(SIZE), bold: Some(true), ..c };
-            d.body = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("HHHH", cp))];
+            d.body = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("HHHH", cp))];
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             render_area(&d, &l.pages[0], -offset, -offset, 400.0, 150.0, SCALE, &RenderOptions::default())
         };
@@ -2141,10 +2142,10 @@ mod tests {
     }
 
     /// A document whose only text is a yellow-highlighted run.
-    fn yellow_highlight_doc() -> (Document, wordcraft_layout::DocLayout) {
-        let cp = wordcraft_doc::CharProps { highlight: Some(wordcraft_doc::props::Highlight::Yellow), size: Some(24.0), ..Default::default() };
+    fn yellow_highlight_doc() -> (Document, strix_layout::DocLayout) {
+        let cp = strix_doc::CharProps { highlight: Some(strix_doc::props::Highlight::Yellow), size: Some(24.0), ..Default::default() };
         let mut d = Document::from_text("x");
-        d.body = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("HHHH HHHH", cp))];
+        d.body = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("HHHH HHHH", cp))];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         (d, l)
     }
@@ -2176,8 +2177,8 @@ mod tests {
     /// (Automatic and explicit black text both draw white); a light page is the identity.
     #[test]
     fn dark_page_text_backgrounds_keep_text_readable() {
-        use wordcraft_doc::props::{Highlight, TextColor};
-        use wordcraft_layout::display::text_color;
+        use strix_doc::props::{Highlight, TextColor};
+        use strix_layout::display::text_color;
         let dark = RenderOptions { dark: true, ..Default::default() };
         let light = RenderOptions::default();
         let colours: Vec<Rgb> = Highlight::ALL.iter().filter_map(|h| h.rgb()).collect();
@@ -2205,7 +2206,7 @@ mod tests {
     /// dimmed highlight still reaches 4.5:1 on a dark page.
     #[test]
     fn dark_page_coloured_text_on_highlights_reads() {
-        use wordcraft_doc::props::Highlight;
+        use strix_doc::props::Highlight;
         let dark = RenderOptions { dark: true, ..Default::default() };
         let colours: Vec<Rgb> = Highlight::ALL.iter().filter_map(|h| h.rgb()).collect();
         let texts: Vec<Rgb> = [Rgb(0, 0, 255), Rgb(255, 0, 0)].into_iter().chain(colours.iter().copied()).collect();
@@ -2223,11 +2224,11 @@ mod tests {
     /// like the text it underlines, not the dark grey plain inversion gives white.
     #[test]
     fn dark_page_underline_on_a_dark_highlight_reads() {
-        use wordcraft_doc::props::{Highlight, Underline};
+        use strix_doc::props::{Highlight, Underline};
         let cp =
-            wordcraft_doc::CharProps { highlight: Some(Highlight::Black), underline: Some(Underline::Thick), size: Some(24.0), ..Default::default() };
+            strix_doc::CharProps { highlight: Some(Highlight::Black), underline: Some(Underline::Thick), size: Some(24.0), ..Default::default() };
         let mut d = Document::from_text("x");
-        d.body = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("HHHH HHHH", cp))];
+        d.body = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("HHHH HHHH", cp))];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let items = page_display(&d, &l.pages[0], &DisplayOptions::default());
         let (x0, x1, y, w) = items
@@ -2248,10 +2249,10 @@ mod tests {
     /// highlight draws light on a dark page, like plain text does, not dark grey on near-black.
     #[test]
     fn dark_page_shadowed_text_on_a_dark_highlight_reads() {
-        use wordcraft_doc::props::Highlight;
-        let cp = wordcraft_doc::CharProps { highlight: Some(Highlight::Black), shadow: Some(true), size: Some(24.0), ..Default::default() };
+        use strix_doc::props::Highlight;
+        let cp = strix_doc::CharProps { highlight: Some(Highlight::Black), shadow: Some(true), size: Some(24.0), ..Default::default() };
         let mut d = Document::from_text("x");
-        d.body = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("HHHH HHHH", cp))];
+        d.body = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("HHHH HHHH", cp))];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let items = page_display(&d, &l.pages[0], &DisplayOptions::default());
         let b = items
@@ -2259,7 +2260,7 @@ mod tests {
             .find_map(|i| match i {
                 Draw::Art { path, text_bg, .. } => {
                     assert!(text_bg.is_some(), "the run's highlight is the letters' background");
-                    wordcraft_layout::wordart::path_box(path)
+                    strix_layout::wordart::path_box(path)
                 }
                 _ => None,
             })
@@ -2305,8 +2306,8 @@ mod tests {
     fn metafile_picture_is_drawn_as_vectors() {
         let mut d = Document::new();
         let media = d.add_media(red_right_half_emf(), "emf");
-        let mut p = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut p = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 70.0,
             h: 70.0,
@@ -2316,7 +2317,7 @@ mod tests {
             ole: None,
         };
         p.insert_object(0, obj, &Default::default()).unwrap();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions::default();
         let rect = page_display(&d, &l.pages[0], &opts.display)
@@ -2348,8 +2349,8 @@ mod tests {
             for (crop, at, red) in [([0.47, 0.47, 0.5, 0.5], 0.7, false), ([0.5, 0.47, 0.47, 0.5], 0.3, true)] {
                 let mut d = Document::new();
                 let media = d.add_media(bytes.clone(), ext);
-                let mut p = wordcraft_doc::Paragraph::new();
-                let obj = wordcraft_doc::para::InlineObject::Image {
+                let mut p = strix_doc::Paragraph::new();
+                let obj = strix_doc::para::InlineObject::Image {
                     media,
                     w: 70.0,
                     h: 70.0,
@@ -2359,7 +2360,7 @@ mod tests {
                     ole: None,
                 };
                 p.insert_object(0, obj, &Default::default()).unwrap();
-                d.body = vec![wordcraft_doc::para_block(p)];
+                d.body = vec![strix_doc::para_block(p)];
                 let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
                 let opts = RenderOptions::default();
                 let rect = page_display(&d, &l.pages[0], &opts.display)
@@ -2385,8 +2386,8 @@ mod tests {
         emf.extend([emf_rec(27, &le32(&[0, 50])), emf_rec(54, &le32(&[100, 50])), emf_rec(14, &[0; 12])].concat());
         let mut d = Document::new();
         let media = d.add_media(emf, "emf");
-        let mut p = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut p = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 70.0,
             h: 70.0,
@@ -2396,7 +2397,7 @@ mod tests {
             ole: None,
         };
         p.insert_object(0, obj, &Default::default()).unwrap();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions::default();
         let rect = page_display(&d, &l.pages[0], &opts.display)
@@ -2431,8 +2432,8 @@ mod tests {
         emf.extend([font, emf_rec(37, &le32(&[1])), emf_rec(24, &le32(&[0])), text, emf_rec(14, &[0; 12])].concat());
         let mut d = Document::new();
         let media = d.add_media(emf, "emf");
-        let mut p = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut p = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 70.0,
             h: 70.0,
@@ -2442,7 +2443,7 @@ mod tests {
             ole: None,
         };
         p.insert_object(0, obj, &Default::default()).unwrap();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions::default();
         let rect = page_display(&d, &l.pages[0], &opts.display)
@@ -2477,8 +2478,8 @@ mod tests {
         emf.extend([font, emf_rec(37, &le32(&[1])), emf_rec(24, &le32(&[0])), text, emf_rec(14, &[0; 12])].concat());
         let mut d = Document::new();
         let media = d.add_media(emf, "emf");
-        let mut p = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut p = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 70.0,
             h: 70.0,
@@ -2488,7 +2489,7 @@ mod tests {
             ole: None,
         };
         p.insert_object(0, obj, &Default::default()).unwrap();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let start = std::time::Instant::now();
         let img = render_page(&d, &l.pages[0], 1.0, &RenderOptions::default());
@@ -2515,8 +2516,8 @@ mod tests {
         let mut d = Document::new();
         // The header alone has no records, so the metafile does not parse.
         let media = d.add_media(red_right_half_emf()[..88].to_vec(), "emf");
-        let mut p = wordcraft_doc::Paragraph::new();
-        let obj = wordcraft_doc::para::InlineObject::Image {
+        let mut p = strix_doc::Paragraph::new();
+        let obj = strix_doc::para::InlineObject::Image {
             media,
             w: 70.0,
             h: 70.0,
@@ -2526,7 +2527,7 @@ mod tests {
             ole: None,
         };
         p.insert_object(0, obj, &Default::default()).unwrap();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let opts = RenderOptions::default();
         let rect = page_display(&d, &l.pages[0], &opts.display)
@@ -2561,7 +2562,7 @@ mod tests {
 
     #[test]
     fn dashed_outline_has_gaps() {
-        use wordcraft_doc::{
+        use strix_doc::{
             connector::ShapeExtra,
             line_dash::LineDash,
             para::{Anchor, Float, InlineObject, Wrap},
@@ -2580,10 +2581,10 @@ mod tests {
                 effects: Default::default(),
                 extra: ShapeExtra { dash, ..Default::default() },
             };
-            let mut p = wordcraft_doc::Paragraph::new();
+            let mut p = strix_doc::Paragraph::new();
             p.insert_object(0, shape, &Default::default()).unwrap();
             let mut d = Document::new();
-            d.body = vec![wordcraft_doc::para_block(p)];
+            d.body = vec![strix_doc::para_block(p)];
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             render_page(&d, &l.pages[0], 4.0, &RenderOptions::default())
         };
@@ -2597,7 +2598,7 @@ mod tests {
     /// Distinguish flat, square and round endpoints for both preset lines and connector paths.
     #[test]
     fn shape_line_caps_reach_the_screen() {
-        use wordcraft_doc::{
+        use strix_doc::{
             connector::{LineCap, ShapeExtra},
             para::{Anchor, Float, InlineObject, Wrap},
         };
@@ -2617,10 +2618,10 @@ mod tests {
                     effects: Default::default(),
                     extra: ShapeExtra { cap, ..Default::default() },
                 };
-                let mut p = wordcraft_doc::Paragraph::new();
+                let mut p = strix_doc::Paragraph::new();
                 p.insert_object(0, shape, &Default::default()).unwrap();
                 let mut d = Document::new();
-                d.body = vec![wordcraft_doc::para_block(p)];
+                d.body = vec![strix_doc::para_block(p)];
                 let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
                 let image = render_page(&d, &l.pages[0], 4.0, &RenderOptions::default());
                 let painted = |x, y| image.pixel(x, y)[0] < 80;
@@ -2633,7 +2634,7 @@ mod tests {
 
     #[test]
     fn zero_width_connector_dashes() {
-        use wordcraft_doc::{
+        use strix_doc::{
             connector::ShapeExtra,
             line_dash::LineDash,
             para::{Anchor, Float, InlineObject, Wrap},
@@ -2651,10 +2652,10 @@ mod tests {
             effects: Default::default(),
             extra: ShapeExtra { dash: LineDash::Dash, ..Default::default() },
         };
-        let mut p = wordcraft_doc::Paragraph::new();
+        let mut p = strix_doc::Paragraph::new();
         p.insert_object(0, shape, &Default::default()).unwrap();
         let mut d = Document::new();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
         let image = render_page(&d, &l.pages[0], 8.0, &RenderOptions::default());
         // A 0.75 pt stroke has a 3 pt dash followed by a 2.25 pt gap.
@@ -2667,7 +2668,7 @@ mod tests {
     /// and non-finite ones. A normal dash pattern still dashes.
     #[test]
     fn hostile_dash_patterns_draw_solid_and_finish() {
-        use wordcraft_doc::graphic::PathSeg;
+        use strix_doc::graphic::PathSeg;
         let line = |dash: Vec<f32>| Draw::Path {
             segs: vec![PathSeg::Move(10.0, 20.0), PathSeg::Line(90.0, 20.0)],
             fill: None,
@@ -2707,26 +2708,26 @@ mod tests {
     /// square, left white with the default corner; turned a quarter, the same.
     #[test]
     fn rendered_rounded_rectangles_follow_their_corner() {
-        use wordcraft_doc::para::{Anchor, Float, ShapeKind, Wrap};
+        use strix_doc::para::{Anchor, Float, ShapeKind, Wrap};
         let rendered = |corner: Option<u32>, rot: f32| {
             let float = Float { wrap: Wrap::InFrontOfText, h_rel: Anchor::Page, v_rel: Anchor::Page, x: 100.0, y: 100.0, rot, ..Default::default() };
-            let shape = wordcraft_doc::para::InlineObject::Shape {
+            let shape = strix_doc::para::InlineObject::Shape {
                 kind: ShapeKind::RoundedRectangle,
                 w: 200.0,
                 h: 200.0,
-                fill: Some(wordcraft_doc::fill::Fill::solid(wordcraft_doc::props::Rgb(0, 0, 0))),
+                fill: Some(strix_doc::fill::Fill::solid(strix_doc::props::Rgb(0, 0, 0))),
                 stroke: None,
                 stroke_width: 0.0,
                 float,
                 story: None,
                 freeform: None,
                 effects: Default::default(),
-                extra: wordcraft_doc::connector::ShapeExtra { corner, ..Default::default() },
+                extra: strix_doc::connector::ShapeExtra { corner, ..Default::default() },
             };
-            let mut p = wordcraft_doc::Paragraph::new();
+            let mut p = strix_doc::Paragraph::new();
             p.insert_object(0, shape, &Default::default()).unwrap();
             let mut d = Document::new();
-            d.body = vec![wordcraft_doc::para_block(p)];
+            d.body = vec![strix_doc::para_block(p)];
             let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());
             render_page(&d, &l.pages[0], 1.0, &RenderOptions::default())
         };

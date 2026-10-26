@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! `word/settings.xml` merged into the file's original settings part.
 //!
 //! The model owns only some settings (`super::settings_xml`). Regenerating the part from the
@@ -253,7 +254,7 @@ fn merge_compat(orig: &str, generated: &str) -> Option<String> {
 }
 
 /// Does `original` (a settings part) hold anything the model doesn't write? Then the reader keeps
-/// it for [`merge`]. False for parts WordCraft wrote itself, and for anything it can't scan.
+/// it for [`merge`]. False for parts Strix wrote itself, and for anything it can't scan.
 pub fn has_unowned(original: &[u8]) -> bool {
     let Some(xml) = std::str::from_utf8(original).ok() else { return false };
     let Some((_, _, kids)) = children(xml, "w:settings") else { return false };

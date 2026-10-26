@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::RecoveryInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -6,7 +7,7 @@ use std::io::{self, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
-use wordcraft_doc::Document;
+use strix_doc::Document;
 
 const INTERVAL: Duration = Duration::from_secs(10);
 const MAX_BYTES: u64 = 256 << 20;
@@ -495,7 +496,7 @@ impl Recovery {
         let (tx, jobs) = mpsc::sync_channel(1);
         let (events, rx) = mpsc::channel();
         std::thread::Builder::new()
-            .name("wordcraft-recovery".into())
+            .name("strix-recovery".into())
             .spawn(move || {
                 let mut store = match Store::new(root) {
                     Ok(s) => s,
@@ -722,12 +723,12 @@ mod tests {
     use super::*;
     use crate::Session;
     use serde_json::json;
-    use wordcraft_doc::StoryRef;
+    use strix_doc::StoryRef;
 
     struct Temp(PathBuf);
     impl Temp {
         fn new() -> Self {
-            let path = std::env::temp_dir().join(format!("wordcraft-recovery-test-{}", new_id().unwrap()));
+            let path = std::env::temp_dir().join(format!("strix-recovery-test-{}", new_id().unwrap()));
             private_dir(&path).unwrap();
             Self(path)
         }

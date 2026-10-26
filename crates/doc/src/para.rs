@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Paragraphs: text with formatting runs and inline objects.
 //!
 //! A paragraph's text is one `String`. Formatting is a list of [`Run`]s whose byte lengths sum to
@@ -274,12 +275,12 @@ fn is_zero_u32(v: &u32) -> bool {
 
 impl Float {
     /// The rotation and flips, the angle normalised to `0..360` (a NaN angle is no rotation).
-    pub fn spin(&self) -> wordcraft_geom::Spin {
-        wordcraft_geom::Spin::new(self.rot, self.flip_h, self.flip_v)
+    pub fn spin(&self) -> strix_geom::Spin {
+        strix_geom::Spin::new(self.rot, self.flip_h, self.flip_v)
     }
     /// Set the rotation and flips (the angle normalised).
-    pub fn set_spin(&mut self, s: wordcraft_geom::Spin) {
-        self.rot = wordcraft_geom::normalize_degrees(s.deg);
+    pub fn set_spin(&mut self, s: strix_geom::Spin) {
+        self.rot = strix_geom::normalize_degrees(s.deg);
         self.flip_h = s.flip_h;
         self.flip_v = s.flip_v;
     }
@@ -287,7 +288,7 @@ impl Float {
     /// rotated object takes beyond its frame (zero unrotated; negative where the turned object
     /// is narrower than its frame, as a wide picture turned 90° is).
     pub fn spin_pad(&self, w: f32, h: f32) -> (f32, f32) {
-        let (w, h) = (wordcraft_geom::finite(w).clamp(0.0, 4000.0), wordcraft_geom::finite(h).clamp(0.0, 4000.0));
+        let (w, h) = (strix_geom::finite(w).clamp(0.0, 4000.0), strix_geom::finite(h).clamp(0.0, 4000.0));
         let (bw, bh) = self.spin().extent(w, h);
         ((bw - w) / 2.0, (bh - h) / 2.0)
     }
@@ -528,7 +529,7 @@ pub enum InlineObject {
         locked: bool,
         /// `w:dirty` (ECMA-376 §17.16.5.35): the cached result is stale — another program that
         /// couldn't compute it set the flag so Word refreshes the field on open. Kept through
-        /// saves; cleared when WordCraft computes a result, like Word's F9.
+        /// saves; cleared when Strix computes a result, like Word's F9.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         dirty: bool,
         /// Shows its code (`{ PAGE }`) instead of its result, the other way round from the

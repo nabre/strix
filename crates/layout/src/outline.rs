@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Outline view (View › Outline): the body as an outline of its headings. No pages: the text runs
 //! on one long sheet like Draft. Each paragraph is indented by its outline level and has a symbol
 //! in front of it: a circled plus for a heading with something under it, a circled minus for a
@@ -12,10 +13,10 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use wordcraft_doc::para::ShapeKind;
-use wordcraft_doc::props::{Align, Border, BorderStyle, CharProps, Rgb};
-use wordcraft_doc::{Block, Document, Paragraph, StoryRef};
-use wordcraft_geom::Rect;
+use strix_doc::para::ShapeKind;
+use strix_doc::props::{Align, Border, BorderStyle, CharProps, Rgb};
+use strix_doc::{Block, Document, Paragraph, StoryRef};
+use strix_geom::Rect;
 
 use crate::{DocLayout, Page, ParaLayout, Placed};
 
@@ -169,7 +170,7 @@ pub(crate) fn symbol_items(pl: &Arc<ParaLayout>, x: f32, y: f32, level: u8, chil
     let disc = |r: f32| Placed::Shape {
         rect: Rect::new(cx - r, cy - r, r * 2.0, r * 2.0),
         kind: ShapeKind::Ellipse,
-        fill: Some(wordcraft_doc::fill::Fill::solid(SYMBOL_GREY)),
+        fill: Some(strix_doc::fill::Fill::solid(SYMBOL_GREY)),
         stroke: None,
         stroke_width: 0.0,
         freeform: None,

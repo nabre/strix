@@ -1,13 +1,14 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Tables: the table sprms (sgc 5) carried by a row-end (TTP) mark's grpprl, and the
 //! assembly of cell-ended paragraphs into [`Table`] blocks ([MS-DOC] §2.6.3, §2.4.3).
 
 use std::sync::Arc;
 
-use wordcraft_doc::Rgb;
-use wordcraft_doc::para::Paragraph;
-use wordcraft_doc::props::{Align, Border, BorderStyle, Borders, CellProps, HeightRule, RowProps, TableProps, VAlign, VMerge};
-use wordcraft_doc::table::{Cell, Row, Table};
-use wordcraft_doc::{Block, Blocks, para_block};
+use strix_doc::Rgb;
+use strix_doc::para::Paragraph;
+use strix_doc::props::{Align, Border, BorderStyle, Borders, CellProps, HeightRule, RowProps, TableProps, VAlign, VMerge};
+use strix_doc::table::{Cell, Row, Table};
+use strix_doc::{Block, Blocks, para_block};
 
 use crate::fmt;
 use crate::sprm::{self, Prl};

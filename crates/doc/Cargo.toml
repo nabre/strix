@@ -1,9 +1,10 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "wordcraft-doc"
+name = "strix-doc"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "WordCraft document model: stories, paragraphs, runs, tables, sections, styles, numbering, fields, notes, comments, revisions; edit primitives"
+description = "Strix document model: stories, paragraphs, runs, tables, sections, styles, numbering, fields, notes, comments, revisions; edit primitives"
 
 [lints]
 workspace = true
@@ -14,7 +15,7 @@ workspace = true
 test-support = []
 
 [dependencies]
-wordcraft-geom = { workspace = true }
+strix-geom = { workspace = true }
 base64 = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

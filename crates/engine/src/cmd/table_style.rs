@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Table Design › Table Styles: create, modify and delete table styles (whole table, header and
 //! total rows, first and last columns, banded rows and columns), stored as table styles in the
 //! document's style sheet (ECMA-376 §17.7.6).
@@ -5,9 +6,9 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use wordcraft_doc::props::{Align, Border, BorderStyle, Borders, ParaProps, Rgb, TextColor, Underline, VAlign};
-use wordcraft_doc::styles::{PartFormat, Style, StyleKind, TablePart, TableStyleParts, TableStyleProps};
-use wordcraft_doc::{Block, Table};
+use strix_doc::props::{Align, Border, BorderStyle, Borders, ParaProps, Rgb, TextColor, Underline, VAlign};
+use strix_doc::styles::{PartFormat, Style, StyleKind, TablePart, TableStyleParts, TableStyleProps};
+use strix_doc::{Block, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 

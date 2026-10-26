@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Text boxes' text direction, alignment and linked boxes (Shape Format › Text).
 
 #[allow(unused_imports)]
 use super::*;
-use wordcraft_doc::props::{TextVert, VAlign};
-use wordcraft_doc::{PartKind, Pos, TextBody, para_block};
+use strix_doc::props::{TextVert, VAlign};
+use strix_doc::{PartKind, Pos, TextBody, para_block};
 
 fn lay(doc: &Document) -> DocLayout {
     let mut c = LayoutCache::new();
@@ -17,7 +18,7 @@ fn text_box(d: &mut Document, para: usize, text: &str, w: f32, h: f32, body: Tex
         p.body = body;
     }
     let shape = InlineObject::Shape {
-        kind: wordcraft_doc::para::ShapeKind::TextBox,
+        kind: strix_doc::para::ShapeKind::TextBox,
         w,
         h,
         fill: None,
@@ -187,13 +188,13 @@ fn own_margins_and_resize_to_fit_keep_the_text_in_view() {
 fn inline_box_that_resizes_to_fit_takes_its_texts_height() {
     // #2791: an inline box with Resize shape to fit text, saved 10 cm tall around three short
     // lines, shrinks to them as in Word; the page break after it stays on the first page.
-    let brk = wordcraft_doc::para::PAGE_BREAK;
+    let brk = strix_doc::para::PAGE_BREAK;
     let doc = |auto_fit: bool| {
         let filler: Vec<String> = (1..=FILLER).map(|i| format!("Filler line {i}")).collect();
         let mut d = super::tests::pagination_fixture_document(&format!("{}\n\n\n{brk}\nSecond page text.", filler.join("\n")));
         // Exact spacing is only for the filler/short text. The object paragraph must retain
         // automatic spacing so its inline box really contributes its physical height.
-        d.para_mut(StoryRef::Body, &Path::top(FILLER)).unwrap().props.line_spacing = Some(wordcraft_doc::props::LineSpacing::Multiple(1.15));
+        d.para_mut(StoryRef::Body, &Path::top(FILLER)).unwrap().props.line_spacing = Some(strix_doc::props::LineSpacing::Multiple(1.15));
         let probe = lay(&d);
         super::tests::assert_pagination_fixture_font(&probe);
         let body_para = |layout: &DocLayout, index: usize| {
@@ -223,7 +224,7 @@ fn inline_box_that_resizes_to_fit_takes_its_texts_height() {
         d.parts.get_mut(&id).unwrap().blocks = (1..=3)
             .map(|i| {
                 let mut p = Paragraph::with_text(&format!("Text box line {i}"), Default::default());
-                p.props.line_spacing = Some(wordcraft_doc::props::LineSpacing::Exactly(14.0));
+                p.props.line_spacing = Some(strix_doc::props::LineSpacing::Exactly(14.0));
                 p.props.space_before = Some(0.0);
                 p.props.space_after = Some(8.0);
                 para_block(p)

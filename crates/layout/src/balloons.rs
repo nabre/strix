@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Print Markup: the comments in balloons in a markup area on the right of each page, joined to
 //! the text they comment on, the way Word prints and exports a document "showing markup".
 //!
@@ -15,10 +16,10 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::props::{Border, BorderStyle, CharProps, Rgb, TextColor};
-use wordcraft_doc::{Document, Paragraph, Pos, StoryRef};
-use wordcraft_geom::Rect;
+use strix_doc::para::InlineObject;
+use strix_doc::props::{Border, BorderStyle, CharProps, Rgb, TextColor};
+use strix_doc::{Document, Paragraph, Pos, StoryRef};
+use strix_geom::Rect;
 
 use crate::display::{author_order, revision_color};
 use crate::{BoxContext, BoxLayout, Ctx, DocLayout, Edges, Placed, fit_box, layout_box, push_para};

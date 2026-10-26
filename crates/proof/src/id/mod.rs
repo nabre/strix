@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Indonesian proofing using the installed Hunspell `id_ID` dictionary (never bundled; Debian and
 //! Ubuntu ship it as `hunspell-id`, LibreOffice as its `dict-id` extension). Suggestions use the
 //! dictionary's own MAP/REP/TRY/KEY tables. Grammar is limited to generic repeated-word and
@@ -143,7 +144,7 @@ mod tests {
 
     #[test]
     fn dictionary_lookup_accepts_indonesian_file_names() {
-        let dir = std::env::temp_dir().join(format!("wordcraft-id-aliases-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-id-aliases-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         for name in ["id_ID", "id-ID", "id", "in_ID"] {
             std::fs::write(dir.join(format!("{name}.aff")), test_dict::AFF).unwrap();

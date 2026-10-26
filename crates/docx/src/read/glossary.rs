@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The glossary document (ECMA-376 Part 1 §17.12): the document's own building blocks (Quick
 //! Parts, AutoText…), read into `Document::glossary`.
 //!
@@ -8,7 +9,7 @@
 
 use std::sync::Arc;
 
-use wordcraft_doc::{Blocks, BuildingBlock};
+use strix_doc::{Blocks, BuildingBlock};
 
 use super::Reader;
 use super::story::StoryCtx;

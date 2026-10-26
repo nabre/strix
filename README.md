@@ -1,3 +1,4 @@
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 <p align="center">
   <a href="https://getartcraft.com/">
     <picture>
@@ -8,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img src="assets/app-icon/hicolor/256x256/apps/ai.storyteller.wordcraft.png" width="128" height="128" alt="WordCraft icon: a document page and pen on a blue tile">
+  <img src="assets/app-icon/hicolor/256x256/apps/io.github.nabre.strix.png" width="128" height="128" alt="Strix icon: a document page and pen on a blue tile">
 </p>
 
-<h1 align="center">WordCraft</h1>
+<h1 align="center">Strix</h1>
 
 <p align="center">
   <b>Writing and document design; an open-source, modern word processor, built in pure Rust.</b>
@@ -30,8 +31,8 @@
   <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%2F%20Apache--2.0-2b47b5?style=flat-square">
   <img alt="Agent-drivable over MCP" src="https://img.shields.io/badge/agents-MCP%20%C2%B7%20CLI-3b5bdb?style=flat-square">
   <br>
-  <a href="https://sonarcloud.io/project/overview?id=storytold_wordcraft"><img alt="Scanned by SonarCloud" src="https://img.shields.io/badge/Scanned_by-SonarCloud-4b9fd5?style=flat-square&logo=sonarqubecloud&logoColor=white"></a>
-  <a href="https://coderabbit.ai"><img alt="Reviewed by CodeRabbit" src="https://img.shields.io/coderabbit/prs/github/storytold/wordcraft?style=flat-square&label=Reviewed%20by%20CodeRabbit&logo=coderabbit"></a>
+  <a href="https://sonarcloud.io/project/overview?id=nabre_strix"><img alt="Scanned by SonarCloud" src="https://img.shields.io/badge/Scanned_by-SonarCloud-4b9fd5?style=flat-square&logo=sonarqubecloud&logoColor=white"></a>
+  <a href="https://coderabbit.ai"><img alt="Reviewed by CodeRabbit" src="https://img.shields.io/coderabbit/prs/github/nabre/strix?style=flat-square&label=Reviewed%20by%20CodeRabbit&logo=coderabbit"></a>
 </p>
 
 <p align="center">
@@ -39,7 +40,7 @@
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/wordcraft"><b>WordCraft on getartcraft.com</b></a> ·
+  <a href="https://github.com/nabre/strix"><b>Strix on getartcraft.com</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -47,8 +48,8 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/hero.png" alt="WordCraft with the Home tab of the ribbon open over a two-page document titled The Open Studio Handbook. The Navigation pane on the left lists the document's headings, the Styles gallery shows live previews of Normal, Heading 1, Title and Subtitle, and a word in the first paragraph is selected." width="100%">
-  <br><sub><b>The Open Studio Handbook</b>, WordCraft's built-in sample: the ribbon, live Styles gallery, rulers and the Navigation pane.</sub>
+  <img src="docs/images/hero.png" alt="Strix with the Home tab of the ribbon open over a two-page document titled The Open Studio Handbook. The Navigation pane on the left lists the document's headings, the Styles gallery shows live previews of Normal, Heading 1, Title and Subtitle, and a word in the first paragraph is selected." width="100%">
+  <br><sub><b>The Open Studio Handbook</b>, Strix's built-in sample: the ribbon, live Styles gallery, rulers and the Navigation pane.</sub>
 </p>
 
 > [!NOTE]
@@ -58,7 +59,7 @@
 
 <p align="center">
   <a href="#a-tour">A tour</a> ·
-  <a href="#why-wordcraft">Why WordCraft</a> ·
+  <a href="#why-strix">Why Strix</a> ·
   <a href="#what-works-today">What works today</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#for-agents-cli-and-mcp">For agents</a> ·
@@ -71,8 +72,8 @@
 
 ## A tour
 
-Every screenshot below is WordCraft itself, rendered offscreen by its own UI test harness
-(`cargo run -p wordcraft-ui-egui --example ui_shot`).
+Every screenshot below is Strix itself, rendered offscreen by its own UI test harness
+(`cargo run -p strix-ui-egui --example ui_shot`).
 
 <table>
 <tr>
@@ -81,7 +82,7 @@ Every screenshot below is WordCraft itself, rendered offscreen by its own UI tes
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/design.png" alt="The Design tab showing style-set previews; the document is set in a serif theme with plum headings underlined by thin rules and a pale diagonal DRAFT watermark behind the text" width="100%"><p align="center"><sub><b>Design.</b> Themes, style sets, paragraph spacing, watermarks, page colour and borders.</sub></p></td>
-<td width="50%" valign="top"><img src="docs/images/dark.png" alt="WordCraft in dark mode with the Insert tab open and formatting marks shown: pilcrows at paragraph ends and dots for spaces" width="100%"><p align="center"><sub><b>Dark mode</b> with formatting marks, and the Insert tab: tables, pictures, shapes, links, headers, footers, fields and symbols.</sub></p></td>
+<td width="50%" valign="top"><img src="docs/images/dark.png" alt="Strix in dark mode with the Insert tab open and formatting marks shown: pilcrows at paragraph ends and dots for spaces" width="100%"><p align="center"><sub><b>Dark mode</b> with formatting marks, and the Insert tab: tables, pictures, shapes, links, headers, footers, fields and symbols.</sub></p></td>
 </tr>
 <tr>
 <td colspan="2"><img src="docs/images/layout.png" alt="The Layout tab at 80% zoom: the first paragraph opens with a three-line drop cap E, a dark blue circle sits beside the second section with its paragraph wrapping around it and hyphenating art-ist at the line end, every line is numbered in the left margin and a thin blue border surrounds the page" width="100%"><p align="center"><sub><b>Layout.</b> Drop caps, text wrapping around pictures and shapes, automatic hyphenation, line numbers and page borders.</sub></p></td>
@@ -91,7 +92,7 @@ Every screenshot below is WordCraft itself, rendered offscreen by its own UI tes
 </tr>
 </table>
 
-## Why WordCraft
+## Why Strix
 
 - **Familiar.** Ribbon tabs, groups, shortcuts and behaviour: Enter continues a list,
   Tab demotes it, Ctrl/⌘+B bolds the word under the caret, the Styles gallery previews styles live,
@@ -134,34 +135,34 @@ The honest picture, area by area, is in [ROADMAP.md](ROADMAP.md), the
 ## Quick start
 
 ```sh
-git clone https://github.com/storytold/wordcraft
-cd wordcraft
-cargo run --release -p wordcraft -- --sample        # the desktop app with the sample document
-cargo run --release -p wordcraft -- report.docx     # open a document
+git clone https://github.com/nabre/strix
+cd strix
+cargo run --release -p strix -- --sample        # the desktop app with the sample document
+cargo run --release -p strix -- report.docx     # open a document
 ```
 
 Command line:
 
 ```sh
-wordcraft-cli convert report.docx report.pdf        # docx, pdf, odt, rtf, html, md, tex, txt, png
-wordcraft-cli text report.docx                      # plain text
-wordcraft-cli inspect report.docx                   # structure as JSON
-wordcraft-cli run --template sample \
+strix-cli convert report.docx report.pdf        # docx, pdf, odt, rtf, html, md, tex, txt, png
+strix-cli text report.docx                      # plain text
+strix-cli inspect report.docx                   # structure as JSON
+strix-cli run --template sample \
   --cmd 'select.text={"text":"Membership"}' --cmd format.bold --save out.docx
-wordcraft-cli run --script job.json                 # the same from a file: commands, then save to docx and pdf
+strix-cli run --script job.json                 # the same from a file: commands, then save to docx and pdf
 ```
 
-Web: `cd apps/wordcraft-web && trunk serve`, then open <http://127.0.0.1:8771/?sample>.
+Web: `cd apps/strix-web && trunk serve`, then open <http://127.0.0.1:8771/?sample>.
 
 ## For agents: CLI and MCP
 
-WordCraft was designed to be driven by people *and* by AI agents.
+Strix was designed to be driven by people *and* by AI agents.
 
 ```sh
-claude mcp add wordcraft -- wordcraft-cli mcp                  # headless documents
-# confine the agent to folders: wordcraft-cli mcp --automation-read-root DIR --automation-write-root DIR
-wordcraft --control 7981 &                                     # or drive the running app…
-claude mcp add wordcraft-app -- wordcraft-cli mcp --connect 127.0.0.1:7981
+claude mcp add strix -- strix-cli mcp                  # headless documents
+# confine the agent to folders: strix-cli mcp --automation-read-root DIR --automation-write-root DIR
+strix --control 7981 &                                     # or drive the running app…
+claude mcp add strix-app -- strix-cli mcp --connect 127.0.0.1:7981
 ```
 
 Tools include `list_commands`, `execute`, `batch`, `type_text`, `select_text`, `inspect_document`,
@@ -172,42 +173,42 @@ play it back (`tools.recordMacro`, `tools.macros`).
 
 ## Logs
 
-The desktop app writes its log records to standard error and to `logs/wordcraft.log` next to its
-preferences: on Linux `$XDG_CONFIG_HOME/wordcraft/logs/` (by default `~/.config/wordcraft/logs/`),
-on macOS `~/Library/Application Support/WordCraft/logs/`, on Windows `%APPDATA%\WordCraft\logs\`.
+The desktop app writes its log records to standard error and to `logs/strix.log` next to its
+preferences: on Linux `$XDG_CONFIG_HOME/strix/logs/` (by default `~/.config/strix/logs/`),
+on macOS `~/Library/Application Support/Strix/logs/`, on Windows `%APPDATA%\Strix\logs\`.
 A start from a desktop menu or the Dock has no terminal, so this file is what to attach to a bug
 report: unreadable parts of a .docx, pictures or fonts a PDF export had to leave out and panics the
-command guard recovered from land there. Each launch moves the previous log to `wordcraft.1.log`
-(and that one to `wordcraft.2.log`), so the log of a run that crashed survives the next start; a
-log stops growing at 16 MiB. `--version` writes no file, and runs with `WORDCRAFT_NO_PREFS` (agents'
+command guard recovered from land there. Each launch moves the previous log to `strix.1.log`
+(and that one to `strix.2.log`), so the log of a run that crashed survives the next start; a
+log stops growing at 16 MiB. `--version` writes no file, and runs with `STRIX_NO_PREFS` (agents'
 test runs) log to standard error only. Document text is never logged; a panic message leaves out
 the text it quotes.
 
-By default WordCraft's own crates log at `info` and everything else at `warn`. `RUST_LOG` replaces
+By default Strix's own crates log at `info` and everything else at `warn`. `RUST_LOG` replaces
 that with env_logger-style directives, for example `RUST_LOG=debug`,
-`RUST_LOG=warn,wordcraft_docx=trace` or `RUST_LOG=info,wgpu_core=warn`; a directive ending in `*`
-covers every target starting with it (`wordcraft*=debug`). The logger is
-`apps/wordcraft/src/logging.rs`.
+`RUST_LOG=warn,strix_docx=trace` or `RUST_LOG=info,wgpu_core=warn`; a directive ending in `*`
+covers every target starting with it (`strix*=debug`). The logger is
+`apps/strix/src/logging.rs`.
 
 ## Architecture
 
 | Layer | Crate | Job |
 |---|---|---|
-| L0 | `wordcraft-geom` | units and measurements |
-| L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof` | document model and editing; fonts and shaping; spelling, grammar, hyphenation |
-| L2 | `wordcraft-layout`, `wordcraft-docx`, `wordcraft-formats` | line breaking, pagination, tables, notes, hit testing; OOXML; ODT/RTF/HTML/Markdown/TXT |
-| L3 | `wordcraft-render`, `wordcraft-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
-| L4 | `wordcraft-engine` | session, undo, 422 commands, document feature catalog |
-| L5 | `wordcraft-mcp` | MCP server |
-| L6 | `wordcraft-ui-egui` | the word processor front end (swappable) |
-| apps | `wordcraft`, `wordcraft-cli`, `wordcraft-web` | desktop, command line, browser |
+| L0 | `strix-geom` | units and measurements |
+| L1 | `strix-doc`, `strix-fonts`, `strix-proof` | document model and editing; fonts and shaping; spelling, grammar, hyphenation |
+| L2 | `strix-layout`, `strix-docx`, `strix-formats` | line breaking, pagination, tables, notes, hit testing; OOXML; ODT/RTF/HTML/Markdown/TXT |
+| L3 | `strix-render`, `strix-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
+| L4 | `strix-engine` | session, undo, 422 commands, document feature catalog |
+| L5 | `strix-mcp` | MCP server |
+| L6 | `strix-ui-egui` | the word processor front end (swappable) |
+| apps | `strix`, `strix-cli`, `strix-web` | desktop, command line, browser |
 
 `cargo xtask ci` runs formatting, clippy, ~800 tests, the asset-attribution check, the layering
 check and the wasm build. Contributor and agent instructions: [AGENTS.md](AGENTS.md).
 
 ## Roadmap
 
-WordCraft is in **alpha**. It has commands for 97% of the ribbon and menu features in its feature catalog
+Strix is in **alpha**. It has commands for 97% of the ribbon and menu features in its feature catalog
 ([`docs/parity-checklist.md`](docs/parity-checklist.md)) today; counting
 depth, file fidelity, stability and the rest, we estimate it is about 60% ready for real work,
 about 55% for a typical professional's weekly work and about 63% for everyday essentials. Beta
@@ -217,19 +218,19 @@ closer pagination fidelity, a stability sweep and native printing. Details and e
 
 ## Downloads
 
-**Download WordCraft** from GitHub: the [latest release](https://github.com/storytold/wordcraft/releases/latest) has every build listed below, and [all releases](https://github.com/storytold/wordcraft/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
+**Download Strix** from GitHub: the [latest release](https://github.com/nabre/strix/releases/latest) has every build listed below, and [all releases](https://github.com/nabre/strix/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
 
 ### Windows
 
 | Build | Installer (all users) | Installer (just me) | Portable |
 |---|---|---|---|
-| x64 (64-bit Intel/AMD) | `wordcraft-<ver>-windows-x64.msi` | `wordcraft-<ver>-windows-user-x64.msi` | `wordcraft-<ver>-windows-x64-portable.zip` |
-| arm64 (Snapdragon and other ARM PCs) | `wordcraft-<ver>-windows-arm64.msi` | `wordcraft-<ver>-windows-user-arm64.msi` | `wordcraft-<ver>-windows-arm64-portable.zip` |
-| x86 (32-bit) | `wordcraft-<ver>-windows-x86.msi` | `wordcraft-<ver>-windows-user-x86.msi` | `wordcraft-<ver>-windows-x86-portable.zip` |
+| x64 (64-bit Intel/AMD) | `strix-<ver>-windows-x64.msi` | `strix-<ver>-windows-user-x64.msi` | `strix-<ver>-windows-x64-portable.zip` |
+| arm64 (Snapdragon and other ARM PCs) | `strix-<ver>-windows-arm64.msi` | `strix-<ver>-windows-user-arm64.msi` | `strix-<ver>-windows-arm64-portable.zip` |
+| x86 (32-bit) | `strix-<ver>-windows-x86.msi` | `strix-<ver>-windows-user-x86.msi` | `strix-<ver>-windows-x86-portable.zip` |
 
-The all-users installer puts WordCraft in Program Files and needs administrator rights. The
-just-me installer needs none: it installs into `%LOCALAPPDATA%\Programs\WordCraft` for your
-account only. Choose one: installing both gives two WordCraft entries in Settings › Apps and two
+The all-users installer puts Strix in Program Files and needs administrator rights. The
+just-me installer needs none: it installs into `%LOCALAPPDATA%\Programs\Strix` for your
+account only. Choose one: installing both gives two Strix entries in Settings › Apps and two
 in the Start menu. Installers and executables are code-signed.
 
 **If the app doesn't open on Windows:** the desktop app initializes only DirectX 12 by default.
@@ -240,7 +241,7 @@ PowerShell, from the folder containing the executable:
 
 ```powershell
 $env:WGPU_BACKEND = "vulkan"
-& .\wordcraft.exe
+& .\strix.exe
 Remove-Item Env:WGPU_BACKEND                     # restore the default for later launches
 ```
 
@@ -252,15 +253,15 @@ Windows, creating a DirectX 12 graphics pipeline fails immediately and the app e
 window appears. `WGPU_BACKEND=vulkan` (or `dx12`) still overrides that.
 
 **If the app quits right after its window appears with "Parent device is lost" in the log:**
-WordCraft compiles DirectX 12 shaders with FXC, the compiler built into Windows, so it needs no
+Strix compiles DirectX 12 shaders with FXC, the compiler built into Windows, so it needs no
 `dxcompiler.dll`/`dxil.dll` and ignores any copy another program put on `PATH` (#603).
 `WGPU_DX12_COMPILER` (`fxc`, `dxc`, `auto`) overrides this; with `dxc`, a matching
-`dxcompiler.dll` *and* `dxil.dll` must sit next to `wordcraft.exe`. `WGPU_BACKEND = "vulkan"`
+`dxcompiler.dll` *and* `dxil.dll` must sit next to `strix.exe`. `WGPU_BACKEND = "vulkan"`
 also avoids DirectX 12 altogether.
 
 **If the app is slow on an older Windows PC:** when DirectX 12 finds no graphics card with a
 driver for it (for example Intel 4th-generation graphics on Windows 11), it only offers the built-in
-software renderer, which draws every frame on the processor. WordCraft normally uses OpenGL instead,
+software renderer, which draws every frame on the processor. Strix normally uses OpenGL instead,
 without setting anything. If OpenGL has no usable adapter, it can use DirectX 12's WARP software
 adapter. The log file records the choice (lines starting with
 `graphics:`). `WGPU_BACKEND` still overrides it, e.g. `$env:WGPU_BACKEND = "gl"` or `"dx12"`.
@@ -269,69 +270,69 @@ adapter. The log file records the choice (lines starting with
 
 | Build | File | Notes |
 |---|---|---|
-| App, universal (Apple silicon + Intel) | `wordcraft-<ver>-macos-universal.dmg` | Signed and notarized |
-| Command-line tool, universal | `wordcraft-cli-<ver>-macos-universal.zip` | Signed and notarized |
+| App, universal (Apple silicon + Intel) | `strix-<ver>-macos-universal.dmg` | Signed and notarized |
+| Command-line tool, universal | `strix-cli-<ver>-macos-universal.zip` | Signed and notarized |
 
 ### Linux
 
 | Format | x86_64 | aarch64 (ARM64) | Notes |
 |---|---|---|---|
-| AppImage | `wordcraft-<ver>-linux-x86_64.AppImage` | `wordcraft-<ver>-linux-aarch64.AppImage` | Runs anywhere; updates itself with [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) (`.zsync` files) |
-| Flatpak | `wordcraft-<ver>-linux-x86_64.flatpak` | `wordcraft-<ver>-linux-aarch64.flatpak` | Sandboxed; `flatpak install --user <file>` |
-| Debian/Ubuntu | `wordcraft-<ver>-linux-x86_64.deb` | `wordcraft-<ver>-linux-aarch64.deb` | |
-| Fedora/RHEL/openSUSE | `wordcraft-<ver>-linux-x86_64.rpm` | `wordcraft-<ver>-linux-aarch64.rpm` | |
-| Tarball | `wordcraft-<ver>-linux-x86_64.tar.gz` | `wordcraft-<ver>-linux-aarch64.tar.gz` | Unpack anywhere |
+| AppImage | `strix-<ver>-linux-x86_64.AppImage` | `strix-<ver>-linux-aarch64.AppImage` | Runs anywhere; updates itself with [AppImageUpdate](https://github.com/AppImageCommunity/AppImageUpdate) (`.zsync` files) |
+| Flatpak | `strix-<ver>-linux-x86_64.flatpak` | `strix-<ver>-linux-aarch64.flatpak` | Sandboxed; `flatpak install --user <file>` |
+| Debian/Ubuntu | `strix-<ver>-linux-x86_64.deb` | `strix-<ver>-linux-aarch64.deb` | |
+| Fedora/RHEL/openSUSE | `strix-<ver>-linux-x86_64.rpm` | `strix-<ver>-linux-aarch64.rpm` | |
+| Tarball | `strix-<ver>-linux-x86_64.tar.gz` | `strix-<ver>-linux-aarch64.tar.gz` | Unpack anywhere |
 
-RISC-V (riscv64): `wordcraft-<ver>-linux-riscv64.tar.gz`, a tarball cross-compiled for glibc 2.39+
+RISC-V (riscv64): `strix-<ver>-linux-riscv64.tar.gz`, a tarball cross-compiled for glibc 2.39+
 (Ubuntu 24.04, Debian 13 and newer).
 
 **Wayland:** on a Wayland desktop the app runs through XWayland when it is available, because
 winit (the windowing library) supports dragging files into the window only on X11. To use the
 native Wayland backend instead (for example for sharper text with fractional scaling, at the cost
-of file drag-and-drop), start it with `WORDCRAFT_WAYLAND=1`:
+of file drag-and-drop), start it with `STRIX_WAYLAND=1`:
 
 ```sh
-WORDCRAFT_WAYLAND=1 wordcraft
+STRIX_WAYLAND=1 strix
 ```
 
 **Arch Linux (AUR).** Community members maintain three AUR packages; the project doesn't publish
 to the AUR itself. Install one of them:
 | Package | What it installs | Choose it when |
 |---|---|---|
-| [`wordcraft-bin`](https://aur.archlinux.org/packages/wordcraft-bin) | The release tarball above, prebuilt (x86_64, aarch64) | You want the latest release without compiling (quickest) |
-| [`wordcraft`](https://aur.archlinux.org/packages/wordcraft) | The latest release, built from source with `cargo` | You prefer to build releases yourself |
-| [`wordcraft-git`](https://aur.archlinux.org/packages/wordcraft-git) | The current `main` branch, built from source | You want unreleased changes and accept an occasional broken build |
-For example `yay -S wordcraft-bin` or `paru -S wordcraft-bin`.
+| [`strix-bin`](https://aur.archlinux.org/packages/strix-bin) | The release tarball above, prebuilt (x86_64, aarch64) | You want the latest release without compiling (quickest) |
+| [`strix`](https://aur.archlinux.org/packages/strix) | The latest release, built from source with `cargo` | You prefer to build releases yourself |
+| [`strix-git`](https://aur.archlinux.org/packages/strix-git) | The current `main` branch, built from source | You want unreleased changes and accept an occasional broken build |
+For example `yay -S strix-bin` or `paru -S strix-bin`.
 
 #### Community packages
 
-These packages are maintained by community members, not by the WordCraft team.
+These packages are maintained by community members, not by the Strix team.
 
 On Gentoo, the [::snakebyte overlay](https://github.com/switch87/snakebyte-overlay) packages the
-Linux release as `app-office/wordcraft-bin` (prebuilt) and `app-office/wordcraft` (built from source):
+Linux release as `app-office/strix-bin` (prebuilt) and `app-office/strix` (built from source):
 
 ```sh
 eselect repository add snakebyte git https://github.com/switch87/snakebyte-overlay.git
 emaint sync -r snakebyte
-echo 'app-office/wordcraft-bin ~amd64' >> /etc/portage/package.accept_keywords/wordcraft
-emerge --ask app-office/wordcraft-bin
+echo 'app-office/strix-bin ~amd64' >> /etc/portage/package.accept_keywords/strix
+emerge --ask app-office/strix-bin
 ```
 
 ### FreeBSD
 
 | Build | File |
 |---|---|
-| x86_64 | `wordcraft-<ver>-freebsd-x86_64.tar.gz` |
+| x86_64 | `strix-<ver>-freebsd-x86_64.tar.gz` |
 
 ### Web (WebAssembly)
 
 | Build | File | Notes |
 |---|---|---|
-| Static site | `wordcraft-web-<ver>.zip` | Runs in a modern browser; host it on any static server |
+| Static site | `strix-web-<ver>.zip` | Runs in a modern browser; host it on any static server |
 
 ## The Crafting Apps
 
-WordCraft is one of the **Crafting Apps**: free, open-source creative tools from the
+Strix is one of the **Crafting Apps**: free, open-source creative tools from the
 [ArtCraft](https://getartcraft.com/) team, each written from scratch in Rust and each able to
 stand on its own.
 
@@ -344,7 +345,7 @@ stand on its own.
 | <img src="https://raw.githubusercontent.com/storytold/pdfcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.pdfcraft.png" alt="" width="32" height="32"> | **PdfCraft** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/pdfcraft) | [Website](https://getartcraft.com/apps/pdfcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.effectcraft.png" alt="" width="32" height="32"> | **EffectCraft** | Motion graphics and visual effects | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.designcraft.png" alt="" width="32" height="32"> | **DesignCraft** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/wordcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.wordcraft.png" alt="" width="32" height="32"> | **WordCraft** | **Writing and document design · you are here** | [GitHub](https://github.com/storytold/wordcraft) | [Website](https://getartcraft.com/apps/wordcraft) |
+| <img src="https://raw.githubusercontent.com/nabre/strix/main/assets/app-icon/hicolor/64x64/apps/io.github.nabre.strix.png" alt="" width="32" height="32"> | **Strix** | **Writing and document design · you are here** | [GitHub](https://github.com/nabre/strix) | [Website](https://github.com/nabre/strix) |
 
 And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video studio for artists who want real control.
 
@@ -367,13 +368,13 @@ And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video stud
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/wordcraft">WordCraft</a>
+  <a href="https://github.com/nabre/strix">Strix</a>
 </p>
 
 ## License and credits
 
-WordCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notices are in [NOTICE](NOTICE).
+Strix is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Copyright (c) 2026 nabre and the Strix contributors. Strix is a fork of WordCraft, Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
@@ -383,11 +384,11 @@ Hyphenator II word list. Polish spelling reads the Hunspell `pl_PL` dictionary i
 do Russian, Portuguese, Czech, Italian, Croatian and Turkish spelling (how to install them:
 [docs/spelling-dictionaries.md](docs/spelling-dictionaries.md)), and
 Polish hyphenation the TeX patterns by Hanna Kołodziejska, Bogusław Jackowski and Marek Ryćko (MIT
-option). The sample documents and templates are original text written for WordCraft.
+option). The sample documents and templates are original text written for Strix.
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and WordCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+part of this repository and Strix, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
 
 <p align="center">

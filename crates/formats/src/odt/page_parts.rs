@@ -1,8 +1,9 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Headers and footers of the master pages in `styles.xml` (ODF 1.3 §16.10), read with the body
 //! reader (#863).
 use std::collections::HashSet;
 
-use wordcraft_doc::{Document, Part, PartKind};
+use strix_doc::{Document, Part, PartKind};
 
 use super::{Body, Ev, FBlock, Pages, SectionProps, Styles, events, get, model};
 

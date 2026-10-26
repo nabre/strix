@@ -1,10 +1,11 @@
-//! Office Math (OMML, ECMA-376 Part 1 §22.1) → [`wordcraft_doc::math`] tree.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Office Math (OMML, ECMA-376 Part 1 §22.1) → [`strix_doc::math`] tree.
 
-use wordcraft_doc::math::{
+use strix_doc::math::{
     Arg, BrkBin, BrkBinSub, ColJc, FracKind, LimLoc, MAX_DEPTH, MNode, MRun, MScr, MSty, Math, MathJc, MathProps, ScriptKind, merge_runs,
 };
-use wordcraft_doc::props::Rgb;
-use wordcraft_doc::symbol_fonts;
+use strix_doc::props::Rgb;
+use strix_doc::symbol_fonts;
 
 use crate::xml::El;
 
@@ -18,12 +19,12 @@ pub fn read_omath(e: &El, jc: MathJc) -> Math {
 /// is kept: the writer replaces it only when the colour changes.
 pub fn lift_color(math: &mut Math) -> Option<Rgb> {
     let (mut shared, mut uniform) = (None, true);
-    wordcraft_doc::math_edit::each_run_mut(&mut math.nodes, &mut |r| match shared {
+    strix_doc::math_edit::each_run_mut(&mut math.nodes, &mut |r| match shared {
         None => shared = Some(r.color),
         Some(c) => uniform &= c == r.color,
     });
     let c = shared.flatten().filter(|_| uniform)?;
-    wordcraft_doc::math_edit::each_run_mut(&mut math.nodes, &mut |r| r.color = None);
+    strix_doc::math_edit::each_run_mut(&mut math.nodes, &mut |r| r.color = None);
     Some(c)
 }
 
@@ -371,7 +372,7 @@ mod tests {
         let MNode::Rad { deg_hide, e, .. } = &num[1] else { panic!() };
         assert!(*deg_hide);
         assert!(matches!(e[0], MNode::Script { kind: ScriptKind::Sup, .. }));
-        assert_eq!(wordcraft_doc::math::to_linear(&m.nodes), "x=(-b±√(b^2-4ac))/2a");
+        assert_eq!(strix_doc::math::to_linear(&m.nodes), "x=(-b±√(b^2-4ac))/2a");
         assert!(m.omml.starts_with("<m:oMath>"));
     }
 
@@ -392,7 +393,7 @@ mod tests {
     /// Every run's text in the tree, in reading order.
     fn texts(m: &mut Math) -> Vec<String> {
         let mut out = Vec::new();
-        wordcraft_doc::math_edit::each_run_mut(&mut m.nodes, &mut |r| out.push(r.text.clone()));
+        strix_doc::math_edit::each_run_mut(&mut m.nodes, &mut |r| out.push(r.text.clone()));
         out
     }
 
@@ -468,7 +469,7 @@ mod tests {
         let got = texts(&mut m).concat();
         assert_eq!(got, "xαβ\u{2011}γ");
         let mut font = None;
-        wordcraft_doc::math_edit::each_run_mut(&mut m.nodes, &mut |r| {
+        strix_doc::math_edit::each_run_mut(&mut m.nodes, &mut |r| {
             if r.nor {
                 font = Some(r.font.clone());
             }

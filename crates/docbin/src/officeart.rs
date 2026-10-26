@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! OfficeArt (Escher) drawing records, as Word 97-2003 stores them ([MS-ODRAW], public Microsoft
 //! Open Specifications): the record header, the BLIP store and its pictures, shape containers with
 //! their property tables, and the `OfficeArtContent` of the Table stream ([MS-DOC] §2.9.172).
@@ -10,7 +11,7 @@ use std::io::Write;
 
 use image::ImageEncoder;
 
-use wordcraft_doc::props::Rgb;
+use strix_doc::props::Rgb;
 
 /// Deepest container nesting walked (groups inside groups…).
 const MAX_DEPTH: usize = 12;

@@ -1,10 +1,11 @@
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Turkish interface
 
-> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-23 · **Change:** trivial (the catalog moved to storytold/craft-i18n, `locales/tr/wordcraft.tsv`; previously trivial: interface-language tests: a missing translation never fails a test, `cargo xtask i18n-report` in `cargo xtask ci` prints the strings each language lacks, and lookup and template tests use inline fixture catalogs or the pseudo-language; previously minor: Turkish interface catalog completed, 2,325 entries, #774; previously minor: Turkish interface catalog and regression checks) · **Target:** WordCraft 0.5.0
+> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-23 · **Change:** trivial (the catalog moved to storytold/craft-i18n, `locales/tr/wordcraft.tsv`; previously trivial: interface-language tests: a missing translation never fails a test, `cargo xtask i18n-report` in `cargo xtask ci` prints the strings each language lacks, and lookup and template tests use inline fixture catalogs or the pseudo-language; previously minor: Turkish interface catalog completed, 2,325 entries, #774; previously minor: Turkish interface catalog and regression checks) · **Target:** Strix 0.5.0
 
 Choose **File › Options › Interface language › Türkçe**, or follow a Turkish system display language
 (`tr-TR`, `tr-CY`, `tr_TR.UTF-8`). The catalog code is `tr`; `ui.language` with `{"value":"tr"}`
-selects it explicitly, and `WORDCRAFT_LANGUAGE=tr-TR` does the same for a headless screenshot or a
+selects it explicitly, and `STRIX_LANGUAGE=tr-TR` does the same for a headless screenshot or a
 launch while the preference is `auto`. The choice is saved with the other interface settings.
 Document text, command ids, CLI/MCP/control responses and file paths do not change.
 
@@ -45,7 +46,7 @@ still work. Other interface languages and document search are unchanged.
 
 ## Verification and remaining scope
 
-`cargo test -p wordcraft-ui-egui --lib i18n::tests` covers Turkish locale tags and preference order,
+`cargo test -p strix-ui-egui --lib i18n::tests` covers Turkish locale tags and preference order,
 saving and restoring `tr`, unknown preferences, unchanged document content and the glyphs
 `ÇçĞğİıÖöŞşÜü` in the bundled Inter (Regular, Medium, SemiBold) and JetBrains Mono. A command-search
 test checks dotted and dotless I under Turkish casing with fixture labels, and that English labels

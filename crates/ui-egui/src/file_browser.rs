@@ -1,7 +1,8 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The built-in file browser (#576): Open, Save As, Export, Insert Picture and recipient lists
 //! when the system's file dialog can't be shown — a Linux desktop with neither a file chooser
 //! portal nor zenity (labwc, sway… with only xdg-desktop-portal-wlr) — or when the user asks for
-//! it (File › Open › Browse in WordCraft…).
+//! it (File › Open › Browse in Strix…).
 //!
 //! A folder path field with Up and Home folder, the folder's subfolders and the files of the
 //! chosen type, a file name field and the file types. It only lists folders the user navigates to
@@ -152,8 +153,13 @@ impl FileBrowser {
                 (String::new(), open_filters(purpose).iter().map(|(l, e)| ((*l).to_string(), e.iter().map(|x| (*x).to_string()).collect())).collect())
             }
             FileDialogRequest::Save { name, .. } => {
+                // The suggested name's own format first (Strix Document for a save, the export's
+                // format for an export), then every other format Strix saves.
                 let ext = Path::new(name).extension().and_then(std::ffi::OsStr::to_str).filter(|e| !e.is_empty());
-                let mut f: Vec<(String, Vec<String>)> = ext.map(|e| (format!("*.{e}"), vec![e.to_string()])).into_iter().collect();
+                let mut f: Vec<(String, Vec<String>)> = match ext {
+                    Some(e) if !strix_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => vec![(format!("*.{e}"), vec![e.to_string()])],
+                    _ => crate::file_dialogs::save_filters(name),
+                };
                 f.push(("All files".into(), vec!["*".into()]));
                 (name.clone(), f)
             }
@@ -332,7 +338,7 @@ fn body(ui: &mut Ui, b: &mut FileBrowser, t: &Tokens) -> Option<Option<PathBuf>>
     if b.unavailable {
         ui.label(
             egui::RichText::new(tl!(
-                "The system file dialog isn't available, so WordCraft shows its own. To get the system dialog, install a file chooser portal (such as xdg-desktop-portal-gtk) or zenity."
+                "The system file dialog isn't available, so Strix shows its own. To get the system dialog, install a file chooser portal (such as xdg-desktop-portal-gtk) or zenity."
             ))
             .color(t.text_dim),
         );
@@ -492,10 +498,10 @@ mod tests {
     use crate::Services;
     use serde_json::json;
     use std::sync::mpsc::channel;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("wordcraft-ui-browser-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-ui-browser-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -560,7 +566,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Saved without a portal"})).unwrap();
         a.save_as_dialog();
         assert!(a.file_dialog_open());
@@ -572,8 +578,8 @@ mod tests {
         a.close_file_browser(Some(path));
         assert!(!a.file_dialog_open());
         assert!(!a.session.dirty);
-        let saved = wordcraft_engine::io::open_path(&dir.join("novel.docx")).unwrap();
-        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Saved without a portal"));
+        let saved = strix_engine::io::open_path(&dir.join("novel.xmath")).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Saved without a portal"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -582,7 +588,7 @@ mod tests {
     #[test]
     fn an_empty_folder_says_there_are_no_items() {
         let dir = scratch("empty_state");
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let mut b =
             FileBrowser::new(FileDialogRequest::Open { purpose: "document".into() }, AfterPick::OpenDocument { document: 0 }, dir.clone(), false);
         b.navigate(dir.clone());
@@ -610,14 +616,14 @@ mod tests {
             h.step();
         }
         assert!(texts(&h).iter().any(|t| t.contains("No items to show.")), "empty-state hint shown");
-        std::fs::write(dir.join("chapter.docx"), b"x").unwrap();
+        std::fs::write(dir.join("chapter.xmath"), b"x").unwrap();
         if let Some(b) = &mut h.state_mut().file_browser.open {
             b.navigate(dir.clone());
         }
         for _ in 0..2 {
             h.step();
         }
-        assert!(texts(&h).iter().any(|t| t.contains("chapter.docx")), "the file is listed");
+        assert!(texts(&h).iter().any(|t| t.contains("chapter.xmath")), "the file is listed");
         assert!(!texts(&h).iter().any(|t| t.contains("No items to show.")), "the hint is gone");
         let _ = std::fs::remove_dir_all(&dir);
     }

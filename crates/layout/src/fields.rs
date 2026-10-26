@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Field results computed at layout time (page numbers) and note numbering.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use wordcraft_doc::section::NumFormat;
+use strix_doc::section::NumFormat;
 
 /// Context for fields that depend on where text lands.
 #[derive(Clone, Debug, Default)]
@@ -70,11 +71,11 @@ impl FieldCtx {
     /// A key for caches of paragraph `p` with STYLEREF fields (0 when they show their stored
     /// result): a hash of the results its STYLEREF fields have on this page, so an edit to body
     /// text that no STYLEREF shows leaves header paragraphs cached.
-    pub fn styleref_key(&self, p: &wordcraft_doc::Paragraph) -> u64 {
+    pub fn styleref_key(&self, p: &strix_doc::Paragraph) -> u64 {
         let Some((ix, at)) = &self.styleref else { return 0 };
         let mut h = std::collections::hash_map::DefaultHasher::new();
         for o in &p.objects {
-            if let wordcraft_doc::para::InlineObject::Field { instr, .. } = o
+            if let strix_doc::para::InlineObject::Field { instr, .. } = o
                 && field_name(instr) == "STYLEREF"
             {
                 std::hash::Hash::hash(&ix.eval(instr, *at), &mut h);
@@ -272,7 +273,7 @@ pub fn dollar_text(value: f64) -> Option<String> {
 }
 
 /// The light grey behind a field shown as its code.
-pub const FIELD_SHADING: wordcraft_doc::props::Rgb = wordcraft_doc::props::Rgb(0xD9, 0xD9, 0xD9);
+pub const FIELD_SHADING: strix_doc::props::Rgb = strix_doc::props::Rgb(0xD9, 0xD9, 0xD9);
 
 /// What a field shows in code view: its instruction in braces, `{ PAGE }`.
 pub fn field_code_text(instr: &str) -> String {

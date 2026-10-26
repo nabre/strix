@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Programmatic control of the running app (agents, tests, MCP bridge).
 //!
 //! Methods (JSON lines over the host's transport, see `docs/control-protocol.md`):
@@ -254,7 +255,7 @@ pub fn handle(app: &mut WordApp, ctx: &egui::Context, req: &ControlRequest) -> O
             Err(e) => err(e),
         },
         "ui.inspect" => ok(inspect(app, ctx)),
-        "ui.parity" => ok(wordcraft_engine::catalog::parity(&app.session.registry)),
+        "ui.parity" => ok(strix_engine::catalog::parity(&app.session.registry)),
         "ui.click" => {
             let (Some(x), Some(y)) = (f("x"), f("y")) else { return err("missing x/y") };
             let button = match s("button") {
@@ -395,13 +396,13 @@ pub fn handle(app: &mut WordApp, ctx: &egui::Context, req: &ControlRequest) -> O
 
 /// A page rendered by the engine, as base64 PNG in the reply (the same shape as the headless
 /// MCP server's `ui.render`).
-fn render_png(session: &wordcraft_engine::Session, page: u64, scale: f32) -> Result<Value, String> {
+fn render_png(session: &strix_engine::Session, page: u64, scale: f32) -> Result<Value, String> {
     let page = usize::try_from(page.max(1)).unwrap_or(usize::MAX).saturating_sub(1);
     let l = session.export_layout();
     let pg = l.pages.get(page).ok_or_else(|| format!("no page {}", page.saturating_add(1)))?;
-    let img = wordcraft_render::render_page(&session.doc, pg, scale.clamp(0.1, 8.0), &Default::default());
+    let img = strix_render::render_page(&session.doc, pg, scale.clamp(0.1, 8.0), &Default::default());
     let png = img.to_png();
-    Ok(json!({"png": wordcraft_engine::cmd::insert::base64_encode(&png), "width": img.width, "height": img.height, "pages": l.pages.len()}))
+    Ok(json!({"png": strix_engine::cmd::insert::base64_encode(&png), "width": img.width, "height": img.height, "pages": l.pages.len()}))
 }
 
 /// The bounded admission policy for `ui.screenshot` captures. This is the screenshot queue;
@@ -1005,7 +1006,7 @@ pub(crate) fn drain_screenshots(app: &mut WordApp, ctx: &egui::Context) {
 }
 
 /// The screenshot as a straight-alpha PNG, using one RGBA copy rather than the extra full-image
-/// copy [`wordcraft_render::Rendered::to_png`] makes for its premultiplied input. The callback's
+/// copy [`strix_render::Rendered::to_png`] makes for its premultiplied input. The callback's
 /// `ColorImage` is premultiplied; PNG stores straight alpha.
 fn screenshot_png(image: &egui::ColorImage) -> Option<Vec<u8>> {
     let [width, height] = image.size;
@@ -1057,7 +1058,7 @@ pub fn save_screenshot(image: &egui::ColorImage, path: Option<&str>, token: u64)
         return error_reply(token, format!("screenshot PNG uses {} bytes, over the {SCREENSHOT_MAX_IMAGE_BYTES}-byte per-image limit", png.len()));
     }
     let Some(path) = path else {
-        let encoded = wordcraft_engine::cmd::insert::base64_encode(&png);
+        let encoded = strix_engine::cmd::insert::base64_encode(&png);
         if encoded.len() > SCREENSHOT_MAX_IMAGE_BYTES {
             return error_reply(
                 token,
@@ -1073,7 +1074,7 @@ pub fn save_screenshot(image: &egui::ColorImage, path: Option<&str>, token: u64)
         if !path.to_ascii_lowercase().ends_with(".png") {
             return error_reply(token, format!("{path}: a screenshot path must end in .png"));
         }
-        if let Err(e) = wordcraft_engine::io::write_file(path, &png) {
+        if let Err(e) = strix_engine::io::write_file(path, &png) {
             return error_reply(token, e);
         }
     }
@@ -1223,9 +1224,9 @@ mod screenshot_tests {
 
         let other = dir.join("other");
         std::fs::create_dir_all(&other).unwrap();
-        let roots = wordcraft_engine::file_access::AutomationRoots::new(None, Some(&other)).unwrap();
+        let roots = strix_engine::file_access::AutomationRoots::new(None, Some(&other)).unwrap();
         let outside = dir.join("outside.png");
-        let r = wordcraft_engine::file_access::confine(roots.as_ref(), || save_screenshot(&img, outside.to_str(), 104));
+        let r = strix_engine::file_access::confine(roots.as_ref(), || save_screenshot(&img, outside.to_str(), 104));
         assert_eq!(r["ok"], false);
         assert!(!outside.exists());
     }

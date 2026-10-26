@@ -1,9 +1,10 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "wordcraft-control-key"
+name = "strix-control-key"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "WordCraft control-port key file: where it lives and how to read it (shared by the app and the MCP bridge)"
+description = "Strix control-port key file: where it lives and how to read it (shared by the app and the MCP bridge)"
 
 [lints]
 workspace = true

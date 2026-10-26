@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Keyboard: typing, editing keys and command shortcuts (the user's custom keys from Customize
 //! Keyboard first, then the registry's `shortcut` fields).
 
@@ -5,11 +6,11 @@ use egui::{Key, Modifiers};
 use serde_json::{Value, json};
 
 use crate::WordApp;
-use wordcraft_engine::ImeEditOutcome;
+use strix_engine::ImeEditOutcome;
 
 /// The most pre-edit text a UI pass will hold and paint. A composition is a word or a phrase;
 /// anything larger is a malformed or hostile event, and laying it out every frame would cost.
-const MAX_IME_PREEDIT_BYTES: usize = wordcraft_doc::ime_text::MAX_IME_TEXT_BYTES;
+const MAX_IME_PREEDIT_BYTES: usize = strix_doc::ime_text::MAX_IME_TEXT_BYTES;
 
 /// The largest IME commit inserted in one event. Real commits are short; a multi-megabyte one is
 /// refused rather than turned into document text without a bound.
@@ -477,7 +478,7 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
                     app.canvas.ime_preedit.clear();
                     app.canvas.ime_preedit_range = None;
                     if !text.is_empty() {
-                        if text.len() > MAX_IME_COMMIT_BYTES || text.chars().count() > wordcraft_engine::MAX_EQUATION_TYPE_CHARS {
+                        if text.len() > MAX_IME_COMMIT_BYTES || text.chars().count() > strix_engine::MAX_EQUATION_TYPE_CHARS {
                             // Refuse the whole commit (no prefix in either equation mode) and ask
                             // the platform to start the composition afresh. It is not the
                             // replacement for a preceding deletion.
@@ -636,7 +637,7 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
                     continue;
                 }
                 // Escape puts the pen or eraser down (back to selecting).
-                if key == Key::Escape && app.session.view.draw.mode != wordcraft_engine::cmd::draw::DrawMode::Select {
+                if key == Key::Escape && app.session.view.draw.mode != strix_engine::cmd::draw::DrawMode::Select {
                     app.canvas.ink = None;
                     let _ = app.run("draw.select", json!({}));
                     continue;
@@ -663,15 +664,15 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
                 // it (#1538). The anchor position is just after the box's object character.
                 if key == Key::Escape
                     && crate::canvas::in_text_box(app)
-                    && let wordcraft_doc::StoryRef::Part(id) = app.session.sel.focus.story
+                    && let strix_doc::StoryRef::Part(id) = app.session.sel.focus.story
                     && let Some(end) = app.session.doc.text_box_anchor(id)
-                    && let Some(off) = end.off.checked_sub(wordcraft_doc::para::OBJ.len_utf8())
+                    && let Some(off) = end.off.checked_sub(strix_doc::para::OBJ.len_utf8())
                 {
-                    let start = wordcraft_doc::Pos { off, ..end.clone() };
+                    let start = strix_doc::Pos { off, ..end.clone() };
                     let _ = app.run("select.range", json!({"anchor": start, "focus": end}));
                     continue;
                 }
-                if key == Key::Escape && matches!(app.session.sel.focus.story, wordcraft_doc::StoryRef::Part(_)) && app.session.sel.is_collapsed() {
+                if key == Key::Escape && matches!(app.session.sel.focus.story, strix_doc::StoryRef::Part(_)) && app.session.sel.is_collapsed() {
                     let _ = app.run("insert.closeHeader", json!({}));
                     continue;
                 }
@@ -814,7 +815,7 @@ fn finish_alt_code(app: &mut WordApp) {
     let mut params = json!({"code": code});
     if system_composes {
         // Windows: the code pages of the system locale (Polish 1250/852, Russian 1251/866…).
-        let (ansi, oem) = wordcraft_engine::cmd::text::system_code_pages();
+        let (ansi, oem) = strix_engine::cmd::text::system_code_pages();
         params = json!({"code": code, "ansi": ansi, "oem": oem});
         // The system's composed character comes as text after the digits' swallowed text.
         app.canvas.swallow_text = false;
@@ -886,7 +887,7 @@ fn type_text(app: &mut WordApp, text: &str, ime: bool) {
 ///
 /// A smart quote, an AutoCorrect replacement or a relocated insert makes this false: the edit is
 /// AutoFormat work, not the input method's own change.
-fn inserted_literal_at(app: &WordApp, text: &str, start: &wordcraft_doc::Pos) -> bool {
+fn inserted_literal_at(app: &WordApp, text: &str, start: &strix_doc::Pos) -> bool {
     let Some(para) = app.session.doc.para_at(start) else { return false };
     let Some(end) = start.off.checked_add(text.len()) else { return false };
     para.text.get(start.off..end) == Some(text)
@@ -894,7 +895,7 @@ fn inserted_literal_at(app: &WordApp, text: &str, start: &wordcraft_doc::Pos) ->
 
 /// The bounded visible-logical window around the body selection, cached by `(revision, cursor,
 /// anchor)` so an idle pass does not walk a long paragraph again. Every edit bumps `rev`.
-fn ime_window(app: &mut WordApp) -> Option<wordcraft_doc::ime_text::ImeWindow> {
+fn ime_window(app: &mut WordApp) -> Option<strix_doc::ime_text::ImeWindow> {
     let rev = app.session.rev();
     let cursor = app.session.sel.focus.clone();
     let anchor = app.session.sel.anchor.clone();
@@ -905,7 +906,7 @@ fn ime_window(app: &mut WordApp) -> Option<wordcraft_doc::ime_text::ImeWindow> {
     {
         return w.clone();
     }
-    let window = app.session.doc.ime_surrounding(&cursor, &anchor, wordcraft_doc::ime_text::MAX_IME_TEXT_BYTES);
+    let window = app.session.doc.ime_surrounding(&cursor, &anchor, strix_doc::ime_text::MAX_IME_TEXT_BYTES);
     app.canvas.ime_window_cache = Some((rev, cursor, anchor, window.clone()));
     window
 }
@@ -988,11 +989,11 @@ pub(crate) fn observe_ime(app: &mut WordApp, ctx: &egui::Context, geometry: Opti
 fn ime_target(app: &WordApp) -> egui::ImeTarget {
     let document = app.session.document_id();
     if let Some(math) = &app.session.math {
-        egui::ImeTarget::new(egui::Id::unique(("wordcraft-ime-equation", document)), math.session)
+        egui::ImeTarget::new(egui::Id::unique(("strix-ime-equation", document)), math.session)
     } else {
         // A body replaced under the same document id (setText, version restore, compare,
         // Undo/Redo) advances the epoch, so the platform clears the old composition.
-        egui::ImeTarget::new(egui::Id::unique(("wordcraft-ime-body", document, app.session.sel.focus.story)), app.session.ime_body_epoch())
+        egui::ImeTarget::new(egui::Id::unique(("strix-ime-body", document, app.session.sel.focus.story)), app.session.ime_body_epoch())
     }
 }
 
@@ -1127,7 +1128,7 @@ fn note_automatic_change(app: &mut WordApp, outcome: ImeEditOutcome) {
 /// text that follows joins it too ([`type_text`]), so one Undo takes back the typing with its
 /// correction. Neither path runs inside an equation, whose text is not the document's.
 fn delete_surrounding(app: &mut WordApp, before: usize, after: usize) {
-    delete_surrounding_common(app, before, after, wordcraft_doc::ime_text::DeleteUnit::Chars);
+    delete_surrounding_common(app, before, after, strix_doc::ime_text::DeleteUnit::Chars);
 }
 
 /// An input method's byte-counted `DeleteSurroundingBytes` (macOS and Wayland): erase the UTF-8
@@ -1136,7 +1137,7 @@ fn delete_surrounding(app: &mut WordApp, before: usize, after: usize) {
 /// character leaves that character whole. The selection and paragraph marks stay outside the
 /// range.
 fn delete_surrounding_bytes(app: &mut WordApp, before: usize, after: usize) {
-    delete_surrounding_common(app, before, after, wordcraft_doc::ime_text::DeleteUnit::Bytes);
+    delete_surrounding_common(app, before, after, strix_doc::ime_text::DeleteUnit::Bytes);
 }
 
 /// Refuse a body surrounding request and discard the composition it invalidates.
@@ -1171,7 +1172,7 @@ fn shift_offset(off: usize, shift: i64) -> Option<usize> {
 /// `restore_placeholder` sets the caret to the control's content start before inserting. Finding
 /// that exact state proves the growth came from a placeholder insertion at a position before the
 /// erased range, so the stored suffix really moved by the measured signed delta.
-fn restored_placeholder_end(s: &wordcraft_engine::Session, deleted_start: usize) -> Option<usize> {
+fn restored_placeholder_end(s: &strix_engine::Session, deleted_start: usize) -> Option<usize> {
     let at = &s.sel.focus;
     let r = s.doc.control_at(at)?;
     if !r.control.showing_placeholder || r.content_start() != *at || r.start.path != r.end.path {
@@ -1192,9 +1193,9 @@ fn restored_placeholder_end(s: &wordcraft_engine::Session, deleted_start: usize)
 
 /// The exact state a refused IME delete-surrounding transaction restores.
 struct ImeRollback {
-    snapshot: Option<wordcraft_engine::EditSnapshot>,
-    original: wordcraft_engine::Selection,
-    pending: Option<wordcraft_doc::props::CharProps>,
+    snapshot: Option<strix_engine::EditSnapshot>,
+    original: strix_engine::Selection,
+    pending: Option<strix_doc::props::CharProps>,
     goal_x: Option<f32>,
 }
 
@@ -1222,7 +1223,7 @@ fn ime_edit_satisfied(app: &mut WordApp) -> bool {
 fn ime_delete_side(
     app: &mut WordApp,
     rollback: &mut ImeRollback,
-    cursor: &wordcraft_doc::Pos,
+    cursor: &strix_doc::Pos,
     start: usize,
     end: usize,
     join_undo: bool,
@@ -1238,10 +1239,10 @@ fn ime_delete_side(
     // A control already showing its placeholder cannot have received a new one from this
     // deletion; its unchanged text must not be mistaken for a restored placeholder.
     let showing_before =
-        app.session.doc.control_at(&wordcraft_doc::Pos { off: end, ..cursor.clone() }).is_some_and(|r| r.control.showing_placeholder);
-    app.session.sel = wordcraft_engine::Selection {
-        anchor: wordcraft_doc::Pos { off: start, ..cursor.clone() },
-        focus: wordcraft_doc::Pos { off: end, ..cursor.clone() },
+        app.session.doc.control_at(&strix_doc::Pos { off: end, ..cursor.clone() }).is_some_and(|r| r.control.showing_placeholder);
+    app.session.sel = strix_engine::Selection {
+        anchor: strix_doc::Pos { off: start, ..cursor.clone() },
+        focus: strix_doc::Pos { off: end, ..cursor.clone() },
     };
     if join_undo {
         app.session.join_next_undo();
@@ -1299,7 +1300,7 @@ fn ime_surrounding_offsets(
 }
 
 /// Both delete-surrounding paths: one visible-logical mapping for the query and the deletion.
-fn delete_surrounding_common(app: &mut WordApp, before: usize, after: usize, unit: wordcraft_doc::ime_text::DeleteUnit) {
+fn delete_surrounding_common(app: &mut WordApp, before: usize, after: usize, unit: strix_doc::ime_text::DeleteUnit) {
     if before == 0 && after == 0 {
         return;
     }
@@ -1391,9 +1392,9 @@ fn delete_surrounding_common(app: &mut WordApp, before: usize, after: usize, uni
         rollback.apply(app);
         return;
     }
-    app.session.sel = wordcraft_engine::Selection {
-        anchor: wordcraft_doc::Pos { off: anchor_off, ..cursor.clone() },
-        focus: wordcraft_doc::Pos { off: focus_off, ..cursor },
+    app.session.sel = strix_engine::Selection {
+        anchor: strix_doc::Pos { off: anchor_off, ..cursor.clone() },
+        focus: strix_doc::Pos { off: focus_off, ..cursor },
     };
     if deleted {
         // Only the next `text.insert` at this exact selection may join the deletion; any
@@ -1424,7 +1425,7 @@ fn delete_in_equation(app: &mut WordApp, before: usize, after: usize) {
     app.session.clear_ime_joins();
     app.canvas.ime_preedit.clear();
     app.canvas.ime_preedit_range = None;
-    if before > wordcraft_engine::MAX_EQUATION_DELETE_UNITS || after > wordcraft_engine::MAX_EQUATION_DELETE_UNITS {
+    if before > strix_engine::MAX_EQUATION_DELETE_UNITS || after > strix_engine::MAX_EQUATION_DELETE_UNITS {
         app.canvas.ime_interrupt_now = true;
         return;
     }
@@ -1470,7 +1471,7 @@ fn alt_code_echoed(app: &mut WordApp, echo: &AltCodeEcho, text: &str) -> bool {
         let ours =
             start.filter(|_| s.sel.is_collapsed()).filter(|st| s.doc.para_at(&f).and_then(|p| p.text.get(*st..f.off)) == Some(echo.typed.as_str()));
         if let Some(start) = ours {
-            app.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos { off: start, ..f.clone() }, focus: f };
+            app.session.sel = strix_engine::Selection { anchor: strix_doc::Pos { off: start, ..f.clone() }, focus: f };
             let _ = app.run("text.insert", json!({"text": text}));
         }
     }
@@ -1584,8 +1585,8 @@ mod tests {
     /// #1678: a Ctrl+F1 the user binds runs their command instead of collapsing the ribbon.
     #[test]
     fn a_bound_ctrl_f1_beats_the_ribbon_toggle() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
-        a.session.keymap = wordcraft_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        a.session.keymap = strix_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
         assert!(dispatch(&mut a, Key::F1, Modifiers { ctrl: true, command: true, ..Default::default() }));
         assert!(a.session.view.focus_mode && !a.ui.ribbon_collapsed);
     }
@@ -1594,8 +1595,8 @@ mod tests {
     /// opening the command search.
     #[test]
     fn a_bound_alt_q_still_opens_command_search() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
-        a.session.keymap = wordcraft_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Alt+Q": "view.focus"}}));
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        a.session.keymap = strix_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Alt+Q": "view.focus"}}));
         assert!(dispatch(&mut a, Key::Q, Modifiers { alt: true, ..Default::default() }));
         if cfg!(target_os = "macos") {
             // Option+Q is no interface shortcut on macOS, so the binding runs.
@@ -1657,7 +1658,7 @@ mod tests {
             clipboard_picture: Some(Box::new(|| Some(ClipboardPicture::Pixels { width: 4, height: 4, rgba: vec![200; 4 * 4 * 4] }))),
             ..Default::default()
         };
-        WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services)
+        WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services)
     }
 
     /// How many pictures the document holds (the Selection Pane's list).
@@ -1781,18 +1782,18 @@ mod tests {
         if cfg!(target_os = "macos") {
             return;
         }
-        let doc_text = |a: &WordApp| a.session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+        let doc_text = |a: &WordApp| a.session.doc.plain_text(strix_doc::StoryRef::Body);
         let ctx = egui::Context::default();
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         // Windows reads codes in the system locale's code pages (0233 is é in 1252 and 1250, й in
         // 1251); elsewhere the ANSI page is 1252 and the OEM page the locale's own. The app records
         // the locale when it starts, so ask after `WordApp::new`.
         let (ansi, oem_page) = if cfg!(target_os = "windows") {
-            wordcraft_engine::cmd::text::system_code_pages()
+            strix_engine::cmd::text::system_code_pages()
         } else {
-            (1252, wordcraft_engine::cmd::text::system_oem_code_page())
+            (1252, strix_engine::cmd::text::system_oem_code_page())
         };
-        let typed = wordcraft_engine::cmd::text::alt_code_char("0233", ansi, oem_page).unwrap_or('?');
+        let typed = strix_engine::cmd::text::alt_code_char("0233", ansi, oem_page).unwrap_or('?');
         let alt = Modifiers { alt: true, ..Default::default() };
         let key = |key, pressed, modifiers| egui::Event::Key { key, physical_key: Some(key), pressed, repeat: false, modifiers };
         let frame = |a: &mut WordApp, events: Vec<egui::Event>| {
@@ -1820,7 +1821,7 @@ mod tests {
             frame(&mut a, vec![key(k, true, alt), key(k, false, alt)]);
         }
         frame(&mut a, vec![key(Key::AltLeft, false, alt), egui::Event::ModifiersChanged(Modifiers::NONE)]);
-        let oem = wordcraft_engine::cmd::text::alt_code_char("233", ansi, oem_page);
+        let oem = strix_engine::cmd::text::alt_code_char("233", ansi, oem_page);
         assert_eq!(doc_text(&a).trim_end(), format!("{typed}é{}", oem.unwrap_or('?')));
         // A bare Alt tap still opens keytips.
         frame(&mut a, vec![egui::Event::ModifiersChanged(alt), key(Key::AltLeft, true, alt)]);
@@ -1838,9 +1839,9 @@ mod tests {
         if cfg!(target_os = "macos") {
             return;
         }
-        let doc_text = |a: &WordApp| a.session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+        let doc_text = |a: &WordApp| a.session.doc.plain_text(strix_doc::StoryRef::Body);
         let ctx = egui::Context::default();
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         let none = Modifiers::NONE;
         let key = |key, pressed, modifiers| egui::Event::Key { key, physical_key: Some(key), pressed, repeat: false, modifiers };
         let frame = |a: &mut WordApp, events: Vec<egui::Event>| {
@@ -1881,7 +1882,7 @@ mod tests {
     }
 
     fn alt_frame_app() -> (egui::Context, WordApp) {
-        let a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         (egui::Context::default(), a)
     }
 
@@ -1901,7 +1902,7 @@ mod tests {
         let alt_shift = Modifiers { alt: true, shift: true, ..Default::default() };
         let key = |pressed| egui::Event::Key { key: Key::Minus, physical_key: Some(Key::Minus), pressed, repeat: false, modifiers: alt_shift };
         alt_frame(&ctx, &mut a, vec![key(true), egui::Event::Text("\u{2014}".into()), key(false)]);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end(), "\u{2014}");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end(), "\u{2014}");
     }
 
     /// Holding a digit with Alt adds it once: its auto-repeat presses don't (#961).
@@ -1915,7 +1916,7 @@ mod tests {
         alt_frame(&ctx, &mut a, vec![alt_key(Key::Num5, true, false)]);
         assert_eq!(a.canvas.alt_code, "65");
         alt_frame(&ctx, &mut a, vec![egui::Event::ModifiersChanged(Modifiers::NONE)]);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end(), "A");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end(), "A");
     }
 
     /// Switching to another window mid-code drops the digits: releasing Alt later types nothing.
@@ -1929,7 +1930,7 @@ mod tests {
         alt_frame(&ctx, &mut a, vec![egui::Event::WindowFocused(false)]);
         assert_eq!(a.canvas.alt_code, "");
         alt_frame(&ctx, &mut a, vec![egui::Event::WindowFocused(true), egui::Event::ModifiersChanged(Modifiers::NONE)]);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end(), "");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end(), "");
     }
 
     /// Windows composes Alt codes with the system's code pages: for a code up to 255 its
@@ -1938,7 +1939,7 @@ mod tests {
     #[test]
     fn system_composed_alt_code_character_wins_up_to_255() {
         let (ctx, mut a) = alt_frame_app();
-        let text = |a: &WordApp| a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end().to_string();
+        let text = |a: &WordApp| a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end().to_string();
         let _ = a.run("text.typeCode", json!({"code": "0185", "ansi": 1252}));
         a.canvas.alt_code_echo = Some(AltCodeEcho { typed: "¹".into(), system_composes: true, byte_code: true });
         alt_frame(&ctx, &mut a, vec![egui::Event::Text("ą".into())]);
@@ -1954,7 +1955,7 @@ mod tests {
     }
 
     fn body(a: &WordApp) -> String {
-        a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end_matches(['\r', '\n']).to_string()
+        a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end_matches(['\r', '\n']).to_string()
     }
 
     fn surround(before_chars: usize, after_chars: usize) -> egui::Event {
@@ -1973,11 +1974,11 @@ mod tests {
         ] {
             let (ctx, mut a) = alt_frame_app();
             a.run("document.setText", json!({"text": "ABCDE"})).unwrap();
-            a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 2));
+            a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 2));
             alt_frame(&ctx, &mut a, vec![egui::Event::Ime(egui::ImeEvent::Preedit { text: "に".into(), active_range_chars: None })]);
             assert_eq!(a.canvas.ime_preedit, "に");
             a.run("document.setText", json!({"text": "ABCDE"})).unwrap();
-            a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 2));
+            a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 2));
             let depth = a.session.undo_depth();
             alt_frame(&ctx, &mut a, replacement);
             assert_eq!(body(&a), "ABCDE", "queued events cannot replace text in the new body");
@@ -2024,7 +2025,7 @@ mod tests {
                 alt_frame(&ctx, &mut a, vec![egui::Event::Ime(egui::ImeEvent::Preedit { text: "old".into(), active_range_chars: None })]);
             }
             a.run("document.setText", json!({"text": "ABCDE"})).unwrap();
-            a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 2));
+            a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 2));
             let depth = a.session.undo_depth();
             let mut events = Vec::new();
             match fresh_case {
@@ -2079,14 +2080,14 @@ mod tests {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "aé👍b"})).unwrap();
         // The caret is before `b`, after the four-byte emoji.
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 7));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 7));
         alt_frame(&ctx, &mut a, vec![surround_bytes(4, 0), egui::Event::Text("x".into())]);
         assert_eq!(body(&a), "aéxb");
         a.run("edit.undo", json!({})).unwrap();
         assert_eq!(body(&a), "aé👍b", "delete plus commit is one undo step");
 
         // A range that starts inside the emoji is not a UTF-8 boundary: nothing changes.
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 7));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 7));
         alt_frame(&ctx, &mut a, vec![surround_bytes(3, 0)]);
         assert_eq!(body(&a), "aé👍b");
         // Beyond the paragraph is refused too, and never joins the next paragraph.
@@ -2106,7 +2107,7 @@ mod tests {
     fn delete_surrounding_bytes_replaces_a_combining_mark_and_accepts_empty_commit() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "e\u{301}"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, "e\u{301}".len()));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, "e\u{301}".len()));
         alt_frame(&ctx, &mut a, vec![surround_bytes(2, 0), egui::Event::Text(String::new())]);
         assert_eq!(body(&a), "e");
         // A deletion-only batch and a 0/0 batch stay harmless.
@@ -2122,7 +2123,7 @@ mod tests {
     fn ime_commit_replaces_delete_surrounding_bytes_in_one_undo_step() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "e\u{301}"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, "e\u{301}".len()));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, "e\u{301}".len()));
         alt_frame(&ctx, &mut a, vec![surround_bytes("e\u{301}".len(), 0), egui::Event::Ime(egui::ImeEvent::Commit("é".into()))]);
         assert_eq!(body(&a), "é", "the combining sequence is replaced by the IME's committed text");
         a.run("edit.undo", json!({})).unwrap();
@@ -2136,7 +2137,7 @@ mod tests {
     fn ime_commit_in_a_later_frame_joins_the_delete_surrounding_undo_step() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "teh"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 3));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 3));
         let depth = a.session.undo_depth();
 
         alt_frame(&ctx, &mut a, vec![surround_bytes(3, 0)]);
@@ -2185,9 +2186,9 @@ mod tests {
             a.run("caret.right", json!({})).unwrap();
         }
         alt_frame(&ctx, &mut a, vec![surround(usize::MAX, usize::MAX)]);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end(), "one\n\nthree");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end(), "one\n\nthree");
         alt_frame(&ctx, &mut a, vec![surround(5, 5), egui::Event::Text("2".into())]);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end(), "one\n2\nthree");
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end(), "one\n2\nthree");
     }
 
     /// The agent's rewrite belongs to the typing it corrects: one Undo takes back the typing
@@ -2273,12 +2274,12 @@ mod tests {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "ab"})).unwrap();
         // Wrap `b` in a rich-text control that refuses edits, leaving `a` editable.
-        a.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos::body(0, 1), focus: wordcraft_doc::Pos::body(0, 2) };
+        a.session.sel = strix_engine::Selection { anchor: strix_doc::Pos::body(0, 1), focus: strix_doc::Pos::body(0, 2) };
         a.run("developer.richText", json!({"tag": "locked"})).unwrap();
         a.run("developer.properties", json!({"control": "locked", "lockEdit": true})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 1));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 1));
         let depth = a.session.undo_depth();
-        let pending = wordcraft_doc::props::CharProps { bold: Some(true), ..Default::default() };
+        let pending = strix_doc::props::CharProps { bold: Some(true), ..Default::default() };
         a.session.pending = Some(pending.clone());
         a.session.goal_x = Some(123.0);
         alt_frame(&ctx, &mut a, vec![surround(1, 1)]);
@@ -2305,15 +2306,15 @@ mod tests {
     fn a_refused_ime_commit_after_a_successful_delete_restores_pending_and_interrupts() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "zaXY"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos::body(0, 0), focus: wordcraft_doc::Pos::body(0, 2) };
+        a.session.sel = strix_engine::Selection { anchor: strix_doc::Pos::body(0, 0), focus: strix_doc::Pos::body(0, 2) };
         a.run("developer.richText", json!({"tag": "fill"})).unwrap();
         a.run("select.text", json!({"text": "X"})).unwrap();
         a.run("developer.richText", json!({"tag": "locked"})).unwrap();
         a.run("developer.properties", json!({"control": "locked", "lockEdit": true})).unwrap();
         a.run("review.restrict", json!({"mode": "forms"})).unwrap();
         let locked =
-            a.session.doc.control_ranges(wordcraft_doc::StoryRef::Body).into_iter().find(|r| r.control.tag == "locked").expect("the locked control");
-        a.session.sel = wordcraft_engine::Selection::caret(locked.content_start());
+            a.session.doc.control_ranges(strix_doc::StoryRef::Body).into_iter().find(|r| r.control.tag == "locked").expect("the locked control");
+        a.session.sel = strix_engine::Selection::caret(locked.content_start());
         a.session.pending = None;
         a.canvas.ime_reset = false;
         let _ = a.session.take_pending_ime_application_change();
@@ -2324,7 +2325,7 @@ mod tests {
         let locked = a
             .session
             .doc
-            .control_ranges(wordcraft_doc::StoryRef::Body)
+            .control_ranges(strix_doc::StoryRef::Body)
             .into_iter()
             .find(|r| r.control.tag == "locked")
             .expect("the locked control remains");
@@ -2345,7 +2346,7 @@ mod tests {
         let (ctx, mut a) = alt_frame_app();
         a.run("review.trackChanges", json!({"value": true})).unwrap();
         a.run("text.insert", json!({"text": "abXY"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 2));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 2));
         alt_frame(&ctx, &mut a, vec![surround(1, 1)]);
         assert_eq!(body(&a), "aY", "the own insertion `b` and the following `X` are erased");
         assert_eq!(a.session.sel.focus.off, 1, "the caret points after the stored deletion");
@@ -2361,17 +2362,17 @@ mod tests {
         a.run("document.setText", json!({"text": "aXY"})).unwrap();
         // Lock the following `X`; inserting `b` before it under Track Changes is this author's own
         // insertion, which a tracked delete removes from the stored text instead of marking.
-        a.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos::body(0, 1), focus: wordcraft_doc::Pos::body(0, 2) };
+        a.session.sel = strix_engine::Selection { anchor: strix_doc::Pos::body(0, 1), focus: strix_doc::Pos::body(0, 2) };
         a.run("developer.richText", json!({"tag": "locked"})).unwrap();
         a.run("developer.properties", json!({"control": "locked", "lockEdit": true})).unwrap();
         a.run("review.trackChanges", json!({"value": true})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 1));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 1));
         a.run("text.insert", json!({"text": "b"})).unwrap();
         assert_eq!(body(&a), "abXY");
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 2));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 2));
         let depth = a.session.undo_depth();
         let revisions = a.session.doc.revisions.len();
-        let pending = wordcraft_doc::props::CharProps { bold: Some(true), ..Default::default() };
+        let pending = strix_doc::props::CharProps { bold: Some(true), ..Default::default() };
         a.session.pending = Some(pending.clone());
         a.session.goal_x = Some(123.0);
         alt_frame(&ctx, &mut a, vec![surround(1, 1)]);
@@ -2388,16 +2389,16 @@ mod tests {
     /// Selects a body range, wraps it in a rich-text content control with `tag`, and sets its
     /// placeholder.
     fn wrap_in_control(a: &mut WordApp, start: usize, end: usize, tag: &str, placeholder: &str) {
-        a.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos::body(0, start), focus: wordcraft_doc::Pos::body(0, end) };
+        a.session.sel = strix_engine::Selection { anchor: strix_doc::Pos::body(0, start), focus: strix_doc::Pos::body(0, end) };
         a.run("developer.richText", json!({"tag": tag})).unwrap();
         a.run("developer.properties", json!({"control": tag, "placeholder": placeholder})).unwrap();
     }
 
     /// Finds the body content control with `tag`, panicking if it is absent.
-    fn control(a: &WordApp, tag: &str) -> wordcraft_doc::ControlRange {
+    fn control(a: &WordApp, tag: &str) -> strix_doc::ControlRange {
         a.session
             .doc
-            .control_ranges(wordcraft_doc::StoryRef::Body)
+            .control_ranges(strix_doc::StoryRef::Body)
             .into_iter()
             .find(|r| r.control.tag == tag)
             .unwrap_or_else(|| panic!("the {tag} control remains"))
@@ -2415,7 +2416,7 @@ mod tests {
         let r = control(&a, "name");
         let placeholder = r.control.placeholder_shown().to_string();
         assert!(placeholder.len() > "Ada".len(), "the fixture grows the paragraph: {placeholder:?}");
-        a.session.sel = wordcraft_engine::Selection::caret(r.end.clone());
+        a.session.sel = strix_engine::Selection::caret(r.end.clone());
         let depth = a.session.undo_depth();
 
         alt_frame(&ctx, &mut a, vec![surround(3, 1)]);
@@ -2439,7 +2440,7 @@ mod tests {
         a.run("document.setText", json!({"text": "Name: AdaX"})).unwrap();
         wrap_in_control(&mut a, 6, 9, "name", "N");
         let r = control(&a, "name");
-        a.session.sel = wordcraft_engine::Selection::caret(r.end.clone());
+        a.session.sel = strix_engine::Selection::caret(r.end.clone());
         let depth = a.session.undo_depth();
 
         alt_frame(&ctx, &mut a, vec![surround(3, 1)]);
@@ -2465,7 +2466,7 @@ mod tests {
         let r = control(&a, "name");
         let placeholder = r.control.placeholder_shown().to_string();
         assert!(placeholder.len() > 1);
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 1));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 1));
         let depth = a.session.undo_depth();
 
         alt_frame(&ctx, &mut a, vec![surround(0, 1)]);
@@ -2488,7 +2489,7 @@ mod tests {
         a.run("document.setText", json!({"text": "ab"})).unwrap();
         wrap_in_control(&mut a, 1, 2, "locked", "b");
         a.run("developer.properties", json!({"control": "locked", "lockEdit": true})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 1));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 1));
         let depth = a.session.undo_depth();
 
         alt_frame(
@@ -2516,7 +2517,7 @@ mod tests {
     fn body_delete_join_does_not_leak_to_an_intervening_command() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "abcd"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection::caret(wordcraft_doc::Pos::body(0, 4));
+        a.session.sel = strix_engine::Selection::caret(strix_doc::Pos::body(0, 4));
         let base = a.session.undo_depth();
 
         alt_frame(&ctx, &mut a, vec![surround(1, 0)]);
@@ -2540,7 +2541,7 @@ mod tests {
     fn cross_block_delete_surrounding_is_refused_and_interrupts() {
         let (ctx, mut a) = alt_frame_app();
         a.run("document.setText", json!({"text": "one\ntwo"})).unwrap();
-        a.session.sel = wordcraft_engine::Selection { anchor: wordcraft_doc::Pos::body(0, 1), focus: wordcraft_doc::Pos::body(1, 1) };
+        a.session.sel = strix_engine::Selection { anchor: strix_doc::Pos::body(0, 1), focus: strix_doc::Pos::body(1, 1) };
         alt_frame(&ctx, &mut a, vec![surround(1, 0)]);
         assert_eq!(body(&a), "one\ntwo", "nothing is deleted across blocks");
         assert!(a.canvas.ime_interrupt_now, "the refused request interrupts the composition");
@@ -2628,7 +2629,7 @@ mod tests {
         alt_frame(&ctx, &mut a, vec![egui::Event::Ime(egui::ImeEvent::Preedit { text: "p".into(), active_range_chars: None })]);
         assert_eq!(a.canvas.ime_preedit, "p");
         a.canvas.ime_interrupt_now = false;
-        alt_frame(&ctx, &mut a, vec![surround(wordcraft_engine::MAX_EQUATION_DELETE_UNITS + 1, 0)]);
+        alt_frame(&ctx, &mut a, vec![surround(strix_engine::MAX_EQUATION_DELETE_UNITS + 1, 0)]);
         assert_eq!(body(&a), "abc", "the over-cap request deletes nothing");
         assert!(a.canvas.ime_preedit.is_empty(), "the refused request's pre-edit is not left painted");
         assert_eq!(a.canvas.ime_preedit_range, None);
@@ -2641,7 +2642,7 @@ mod tests {
     fn over_cap_equation_delete_clears_the_previous_replacement_join() {
         let (ctx, mut a) = alt_frame_app();
         a.run("insert.equation", json!({"linear": "abcd"})).unwrap();
-        alt_frame(&ctx, &mut a, vec![surround(1, 0), surround(wordcraft_engine::MAX_EQUATION_DELETE_UNITS + 1, 0)]);
+        alt_frame(&ctx, &mut a, vec![surround(1, 0), surround(strix_engine::MAX_EQUATION_DELETE_UNITS + 1, 0)]);
         assert_eq!(body(&a), "abc", "the first, valid deletion stands");
         assert!(a.canvas.ime_interrupt_now, "the over-cap request interrupts the composition");
         let depth = a.session.undo_depth();
@@ -2701,7 +2702,7 @@ mod tests {
         // command, with no prefix committed and the composition interrupted.
         a.run("insert.equation", json!({})).unwrap();
         a.canvas.ime_interrupt_now = false;
-        let long = "c".repeat(wordcraft_engine::MAX_EQUATION_TYPE_CHARS + 1);
+        let long = "c".repeat(strix_engine::MAX_EQUATION_TYPE_CHARS + 1);
         alt_frame(&ctx, &mut a, vec![egui::Event::Ime(egui::ImeEvent::Commit(long))]);
         assert_eq!(body(&a), "", "no equation prefix is committed");
         assert!(a.canvas.ime_interrupt_now, "the refused commit starts the composition afresh");
@@ -2711,7 +2712,7 @@ mod tests {
     #[test]
     fn observe_ime_drops_a_preedit_without_focus() {
         let ctx = egui::Context::default();
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         a.canvas.ime_preedit = "に".into();
         a.canvas.ime_preedit_range = Some(0..1);
         a.canvas.focused = false;
@@ -2724,17 +2725,17 @@ mod tests {
     #[test]
     fn typing_with_smart_art_selected_types_into_an_item() {
         let ctx = egui::Context::default();
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("insert.smartArt", json!({"layout": "matrix", "items": ["Ada", "Bea"]})).unwrap();
         for t in ["x", "y"] {
             ctx.run_ui(egui::RawInput { events: vec![egui::Event::Text(t.into())], ..Default::default() }, |ui| canvas_events(&mut a, ui.ctx()))
                 .drop_without_applying_deltas();
         }
-        let g = wordcraft_engine::cmd::smart_art::selected_smart_art(&a.session).expect("the graphic stays");
+        let g = strix_engine::cmd::smart_art::selected_smart_art(&a.session).expect("the graphic stays");
         assert_eq!(g.items.iter().map(|i| i.text.as_str()).collect::<Vec<_>>(), ["Adaxy", "Bea"]);
         assert!(a.session.view.smart_art_pane, "the Text Pane opens");
         a.run("edit.undo", json!({})).unwrap();
-        let g = wordcraft_engine::cmd::smart_art::selected_smart_art(&a.session).expect("still there");
+        let g = strix_engine::cmd::smart_art::selected_smart_art(&a.session).expect("still there");
         assert_eq!(g.items[0].text, "Ada", "one undo step for the typing");
     }
 }

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Spanish proofing (#3360, #3553) using the installed Hunspell dictionaries (never bundled;
 //! LibreOffice ships them as its `dict-es` extension, Debian and Ubuntu as `hunspell-es`). Each
 //! variety reads its own dictionary: Spain ([`ProofLang::Es`]) `es_ES`, Mexico
@@ -178,7 +179,7 @@ mod tests {
 
     #[test]
     fn each_variety_looks_for_its_own_dictionary_first() {
-        let dir = std::env::temp_dir().join(format!("wordcraft-es-aliases-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-es-aliases-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let (es, mx, la, uy) = (ProofLang::Es, ProofLang::EsMx, ProofLang::Es419, ProofLang::EsUy);
         // Alone in the folder, each file name is found by the varieties that list it.

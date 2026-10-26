@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! `cargo xtask ico <out.ico> <in.png>…`: pack PNG images into a Windows `.ico`.
 //!
 //! Vista and later read PNG-compressed icon entries, so each PNG is stored as is. The size comes
@@ -95,7 +96,7 @@ mod tests {
 
     #[test]
     fn committed_icon_is_valid() {
-        let path = crate::root().join("assets/app-icon/wordcraft.ico");
+        let path = crate::root().join("assets/app-icon/strix.ico");
         let Ok(ico) = std::fs::read(&path) else { return };
         assert_eq!(&ico[..4], &[0, 0, 1, 0]);
         let n = u16::from_le_bytes([ico[4], ico[5]]) as usize;

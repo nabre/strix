@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Drawing Canvas (#344): Insert › Illustrations › Shapes › New Drawing Canvas.
 //!
 //! A canvas is an [`InlineObject::Group`] with a [`CanvasStyle`]: a frame with its own fill and
@@ -7,8 +8,8 @@
 //! Shape Fill and Shape Outline colour its background and border.
 
 use serde_json::{Value, json};
-use wordcraft_doc::para::{CanvasStyle, Float, GroupChild, InlineObject, MAX_GROUP_CHILDREN};
-use wordcraft_doc::{PartKind, Pos, StoryRef};
+use strix_doc::para::{CanvasStyle, Float, GroupChild, InlineObject, MAX_GROUP_CHILDREN};
+use strix_doc::{PartKind, Pos, StoryRef};
 
 use super::objects::object_selection;
 use super::{delete_selection, sel_result};
@@ -58,8 +59,8 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let w = p::f32(v, "width").unwrap_or(432.0).clamp(MIN_SIDE, MAX_SIDE);
     let h = p::f32(v, "height").unwrap_or(216.0).clamp(MIN_SIDE, MAX_SIDE);
     let style = CanvasStyle {
-        fill: p::str(v, "fill").and_then(wordcraft_doc::props::Rgb::parse).map(wordcraft_doc::fill::Fill::solid),
-        stroke: p::str(v, "outline").and_then(wordcraft_doc::props::Rgb::parse),
+        fill: p::str(v, "fill").and_then(strix_doc::props::Rgb::parse).map(strix_doc::fill::Fill::solid),
+        stroke: p::str(v, "outline").and_then(strix_doc::props::Rgb::parse),
         stroke_width: 0.75,
     };
     let props = s.typing_props();
@@ -257,7 +258,7 @@ mod tests {
     /// selected canvas, not into the text, and the canvas's frame keeps its size (#344).
     #[test]
     fn shapes_inserted_with_a_canvas_selected_go_inside_it() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": "Before "})).unwrap();
         s.run("insert.canvas", &json!({})).unwrap();
         let c = canvas(&s);
@@ -279,8 +280,8 @@ mod tests {
         assert_eq!(
             style,
             CanvasStyle {
-                fill: wordcraft_doc::props::Rgb::parse("FFF2CC").map(wordcraft_doc::fill::Fill::solid),
-                stroke: wordcraft_doc::props::Rgb::parse("1F4E79"),
+                fill: strix_doc::props::Rgb::parse("FFF2CC").map(strix_doc::fill::Fill::solid),
+                stroke: strix_doc::props::Rgb::parse("1F4E79"),
                 stroke_width: 1.5
             }
         );
@@ -302,7 +303,7 @@ mod tests {
     /// Scale Drawing scales frame and members together.
     #[test]
     fn fit_expand_and_scale_change_the_frame() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("insert.canvas", &json!({"width": 400, "height": 300})).unwrap();
         s.run("insert.shape", &json!({"kind": "rectangle", "width": 100, "height": 40})).unwrap();
         s.run("insert.shape", &json!({"kind": "ellipse", "width": 50, "height": 50})).unwrap();

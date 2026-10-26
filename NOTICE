@@ -1,3 +1,28 @@
+Strix
+Copyright (c) 2026 nabre and the Strix contributors.
+Licensed under the MIT License or the Apache License, Version 2.0, at your option
+(LICENSE-MIT, LICENSE-APACHE).
+
+Modifications
+
+Strix is a modified version of WordCraft (https://github.com/storytold/wordcraft), forked at
+upstream commit d7d9702bda1fe626952024dc37fd2624323dad0f on 2026-10-26 (imported in this
+repository as commit 0857478). The Strix contributors have changed the files since then: renamed
+the product, crates, binaries, identifiers and packaging from WordCraft to Strix, replaced the app
+icon, and continue to develop it. Files changed since the fork carry the line "Modified by the
+Strix contributors (fork of WordCraft)"; files that cannot hold a comment (JSON, images, binary
+data) are covered by this notice. The full list of changes is `git diff --stat 0857478`.
+Strix is not affiliated with or endorsed by the ArtCraft Team or the WordCraft project.
+
+Interface translations (locales/): vendored from storytold/craft-i18n at commit
+9205108cfdced5177706264038848b68b2422d2b, MIT OR Apache-2.0, Copyright (c) the craft-i18n
+contributors; translators are credited in locales/ATTRIBUTION-craft-i18n.md. The strix.tsv
+catalogs are modified (product name, later Strix rows); common.tsv files are unmodified.
+
+The original WordCraft notice follows, unchanged.
+
+------------------------------------------------------------------------------------------------
+
 WordCraft
 Copyright (c) 2026 ArtCraft Team and the WordCraft contributors.
 Licensed under the MIT License or the Apache License, Version 2.0, at your option

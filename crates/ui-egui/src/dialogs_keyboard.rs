@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Tools › Customize Keyboard (#368; File › Options › Keyboard shortcuts, command search): pick
 //! a category and a command, see its keys, press a new key combination, see which command uses
 //! it now, then Assign / Remove / Reset All. Every change runs `tools.customizeKeyboard`, so
@@ -6,7 +7,7 @@
 use egui::{Sense, Ui, vec2};
 use serde::Serialize;
 use serde_json::json;
-use wordcraft_engine::keymap::normalize;
+use strix_engine::keymap::normalize;
 
 use crate::WordApp;
 use crate::theme::{Tokens, semibold};
@@ -322,7 +323,7 @@ fn capture(ui: &mut Ui, f: &mut KeyboardForm) -> bool {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     use crate::dialogs::Dialog;
     use crate::{Services, WordApp};
@@ -331,7 +332,7 @@ mod tests {
     /// damaged saved map doesn't lose the other preferences.
     #[test]
     fn customize_keyboard_opens_and_custom_keys_persist() {
-        let app = || WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let app = || WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let mut a = app();
         a.run("tools.customizeKeyboard", json!({})).unwrap();
         assert!(matches!(a.dialog, Some(Dialog::CustomizeKeyboard { .. })));
@@ -352,7 +353,7 @@ mod tests {
     fn keys_list_without_shortcuts_says_none() {
         use super::customize_keyboard;
 
-        let app = || WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let app = || WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let mut a = app();
         a.run("tools.customizeKeyboard", json!({})).unwrap();
         let id = a
@@ -391,7 +392,7 @@ mod tests {
 
     /// The dialog on its own in a harness; fonts are installed on the first frame.
     fn harness(category: &str, command: Option<&str>) -> egui_kittest::Harness<'static, (WordApp, super::KeyboardForm)> {
-        let app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let mut form = super::KeyboardForm::read(&app);
         form.category = category.to_string();
         form.command = match command {
@@ -443,7 +444,7 @@ mod tests {
     /// targets a command the list doesn't show (also for rows far down the list).
     #[test]
     fn selected_command_is_scrolled_into_view() {
-        let probe = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let probe = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let all = super::commands(&probe, "");
         for index in [all.len() / 2, all.len() - 1] {
             let (id, label) = &all[index];
@@ -458,7 +459,7 @@ mod tests {
     #[test]
     fn changing_category_shows_the_new_selection() {
         use egui_kittest::kittest::Queryable;
-        let probe = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let probe = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let all = super::commands(&probe, "");
         let mut h = harness("", None);
         let wheel = |h: &mut KbHarness<'_>, at: egui::Pos2, dy: f32| {
@@ -494,7 +495,7 @@ mod tests {
     fn command_filter_searches_all_commands() {
         use super::{matching_commands, select_in};
 
-        let app = || WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let app = || WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         let a = app();
         // Empty query keeps the category scope.
         let file_cmds = matching_commands(&a, "File", "");

@@ -1,33 +1,35 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
-default-members = ["crates/*", "apps/wordcraft", "apps/wordcraft-cli", "xtask"]
+default-members = ["crates/*", "apps/strix", "apps/strix-cli", "xtask"]
 
 [workspace.package]
 version = "0.11.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
-repository = "https://github.com/storytold/wordcraft"
+repository = "https://github.com/nabre/strix"
 
 [workspace.dependencies]
 # internal
-wordcraft-geom = { path = "crates/geom" }
-wordcraft-doc = { path = "crates/doc" }
-wordcraft-fonts = { path = "crates/fonts" }
-wordcraft-layout = { path = "crates/layout" }
-wordcraft-docx = { path = "crates/docx" }
-wordcraft-docbin = { path = "crates/docbin" }
-wordcraft-formats = { path = "crates/formats" }
-wordcraft-render = { path = "crates/render" }
-wordcraft-pdf = { path = "crates/pdf" }
-wordcraft-proof = { path = "crates/proof" }
-wordcraft-engine = { path = "crates/engine" }
-wordcraft-mcp = { path = "crates/mcp" }
-wordcraft-zotero = { path = "crates/zotero" }
-wordcraft-control-key = { path = "crates/control-key" }
-wordcraft-ui-egui = { path = "crates/ui-egui" }
-wordcraft-metafile = { path = "crates/metafile" }
+strix-geom = { path = "crates/geom" }
+strix-calc = { path = "crates/calc" }
+strix-doc = { path = "crates/doc" }
+strix-fonts = { path = "crates/fonts" }
+strix-layout = { path = "crates/layout" }
+strix-docx = { path = "crates/docx" }
+strix-docbin = { path = "crates/docbin" }
+strix-formats = { path = "crates/formats" }
+strix-render = { path = "crates/render" }
+strix-pdf = { path = "crates/pdf" }
+strix-proof = { path = "crates/proof" }
+strix-engine = { path = "crates/engine" }
+strix-mcp = { path = "crates/mcp" }
+strix-zotero = { path = "crates/zotero" }
+strix-control-key = { path = "crates/control-key" }
+strix-ui-egui = { path = "crates/ui-egui" }
+strix-metafile = { path = "crates/metafile" }
 
 # foundation
 kurbo = { version = "0.13", features = ["serde"] }

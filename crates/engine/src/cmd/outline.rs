@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Outline view and the Outlining tab: outline levels (Heading 1–9 or body text), promote and
 //! demote, moving paragraphs with what is under them, expand and collapse, Show Level, Show First
 //! Line Only, Show Text Formatting. What's collapsed and shown is view state ([`OutlineState`]),
@@ -8,9 +9,9 @@ use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use wordcraft_doc::{Block, Document, Pos, StoryRef};
-use wordcraft_layout::ViewMode;
-use wordcraft_layout::outline::{self as ol, BODY, OutlineView};
+use strix_doc::{Block, Document, Pos, StoryRef};
+use strix_layout::ViewMode;
+use strix_layout::outline::{self as ol, BODY, OutlineView};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};

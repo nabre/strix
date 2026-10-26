@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Draw › Ink to Shape: a small geometric recogniser that tells whether a hand-drawn stroke is a
 //! straight line, a rectangle (or square), an ellipse (or circle), a triangle or another polygon
 //! of up to eight corners. Our own fit: an open stroke is a line when it stays close to the chord
@@ -9,7 +10,7 @@
 //! [`pair_arrow`] makes one arrow of two strokes: a line, and a head (an open V or a small closed
 //! triangle) whose apex sits at one of its ends. Anything else (scribbles, curves, letters) stays ink.
 
-use wordcraft_doc::freeform::MAX_POINTS;
+use strix_doc::freeform::MAX_POINTS;
 
 /// A shape recognised in a stroke, in the stroke's own coordinates.
 #[derive(Clone, Debug, PartialEq)]

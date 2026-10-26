@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! OLE property sets constructed from MS-OLEPS, exercised through the public DOC reader.
 use super::{Piece, body_texts, text_doc};
 use std::io::{Cursor, Seek, SeekFrom, Write};
@@ -31,7 +32,7 @@ fn summary(cp: u16, values: &[(u32, u32, Vec<u8>)]) -> Vec<u8> {
     header
 }
 
-fn open_with_metadata(bytes: &[u8], template: bool) -> wordcraft_doc::Document {
+fn open_with_metadata(bytes: &[u8], template: bool) -> strix_doc::Document {
     let file = text_doc(&[Piece { compressed: false, text: "Body stays readable\r".into() }], &[], 0);
     let mut cfb = cfb::CompoundFile::open(Cursor::new(file)).unwrap();
     cfb.create_stream("/\u{5}SummaryInformation").unwrap().write_all(bytes).unwrap();

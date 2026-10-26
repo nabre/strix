@@ -1,7 +1,8 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Content control properties (`w:sdtPr`, ECMA-376 §17.5.2; check boxes and repeating
 //! sections from the [MS-DOCX] `w14`/`w15` extensions).
 
-use wordcraft_doc::control::{CHECKED, ContentControl, ControlKind, ControlLock, ListItem, MAX_CONTROL_TEXT, MAX_LIST_ITEMS, UNCHECKED};
+use strix_doc::control::{CHECKED, ContentControl, ControlKind, ControlLock, ListItem, MAX_CONTROL_TEXT, MAX_LIST_ITEMS, UNCHECKED};
 
 use crate::xml::El;
 
@@ -10,7 +11,7 @@ const MAX_EXTRA: usize = 64 * 1024;
 
 fn text(v: Option<&str>) -> String {
     let v = v.unwrap_or("");
-    v.chars().filter(|c| *c != wordcraft_doc::para::OBJ && !c.is_control()).take(MAX_CONTROL_TEXT).collect()
+    v.chars().filter(|c| *c != strix_doc::para::OBJ && !c.is_control()).take(MAX_CONTROL_TEXT).collect()
 }
 
 /// An on/off element: on unless its value (`w:val`, or the extension's own) says off.
@@ -24,7 +25,7 @@ fn symbol(e: Option<&El>, default: char) -> (char, String) {
         .attr("w14:val")
         .and_then(|h| u32::from_str_radix(h.trim(), 16).ok())
         .and_then(char::from_u32)
-        .filter(|c| *c as u32 >= 0x20 && *c != wordcraft_doc::para::OBJ);
+        .filter(|c| *c as u32 >= 0x20 && *c != strix_doc::para::OBJ);
     (ch.unwrap_or(default), text(e.attr("w14:font")))
 }
 

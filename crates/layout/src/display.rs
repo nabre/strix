@@ -1,14 +1,15 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Page → draw items, shared by the raster renderer, the PDF exporter and thumbnails.
 
 use std::collections::HashMap;
 
-use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
-use wordcraft_doc::para::{InlineObject, ShapeKind};
-use wordcraft_doc::props::{Border, BorderStyle, Rgb, TextColor, TextDirection, Underline};
-use wordcraft_doc::section::SectionStart;
-use wordcraft_doc::{Block, Document, Path, StoryRef};
-use wordcraft_fonts::{BezPath, FaceRef};
-use wordcraft_geom::{Rect, Spin};
+use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
+use strix_doc::para::{InlineObject, ShapeKind};
+use strix_doc::props::{Border, BorderStyle, Rgb, TextColor, TextDirection, Underline};
+use strix_doc::section::SectionStart;
+use strix_doc::{Block, Document, Path, StoryRef};
+use strix_fonts::{BezPath, FaceRef};
+use strix_geom::{Rect, Spin};
 
 use crate::math::MItem;
 use crate::para::{ClKind, LineEnd, ParaLayout};
@@ -73,8 +74,8 @@ impl Paint {
 /// gradient runs from the centre of its focus rectangle out to the farthest corner, drawn
 /// circular whatever its outline (rectangular and shape-following ones are approximated).
 /// `tileRect` and `flip` are kept but not drawn. `None` for no fill.
-pub fn paint_for(fill: &wordcraft_doc::fill::Fill, frame: Rect) -> Option<Paint> {
-    use wordcraft_doc::fill::{Fill, GradientKind};
+pub fn paint_for(fill: &strix_doc::fill::Fill, frame: Rect) -> Option<Paint> {
+    use strix_doc::fill::{Fill, GradientKind};
     let g = match fill.sanitized()? {
         Fill::Solid { color, transparency } => return Some(Paint::Solid(color, 1.0 - transparency / 100.0)),
         Fill::Gradient(g) => g,
@@ -199,17 +200,17 @@ pub enum Draw {
         stroke_width: f32,
         /// Alternating dash/space lengths in page points; empty means solid.
         dash: Vec<f32>,
-        cap: wordcraft_doc::connector::LineCap,
-        /// Shadow, glow and soft edges (drawn with [`wordcraft_doc::effects::bands`]).
-        effects: wordcraft_doc::effects::ShapeEffects,
-        /// A rounded rectangle's corner ([`wordcraft_doc::connector::ShapeExtra::corner`]).
+        cap: strix_doc::connector::LineCap,
+        /// Shadow, glow and soft edges (drawn with [`strix_doc::effects::bands`]).
+        effects: strix_doc::effects::ShapeEffects,
+        /// A rounded rectangle's corner ([`strix_doc::connector::ShapeExtra::corner`]).
         corner: Option<u32>,
     },
     /// An ink stroke: a line through `pts` (page points) with round ends and joins, `width`
     /// wide, in `color` at opacity `alpha`.
     Ink { pts: Vec<(f32, f32)>, color: Rgb, width: f32, alpha: f32 },
     /// A vector path (a chart's or diagram's polygons, slices, lines): filled, then stroked.
-    Path { segs: Vec<PathSeg>, fill: Option<Paint>, stroke: Option<Rgb>, stroke_width: f32, dash: Vec<f32>, cap: wordcraft_doc::connector::LineCap },
+    Path { segs: Vec<PathSeg>, fill: Option<Paint>, stroke: Option<Rgb>, stroke_width: f32, dash: Vec<f32>, cap: strix_doc::connector::LineCap },
     /// An inline chart, diagram or described shape's draws, as one figure with its alt text (for
     /// tagged PDF). `kind` is the graphic's, `None` for a shape (see [`crate::shape_figure_alt`]).
     Figure { alt: String, kind: Option<GraphicKind>, draws: Vec<Draw> },
@@ -228,7 +229,7 @@ pub enum Draw {
     /// Text drawn from its outlines with WordArt effects (and bent, in a warped text box):
     /// `path` in page coordinates, painted as [`crate::wordart::art_layers`] says. `color` is the
     /// run's own colour, the fill when the effects set none. `text_bg`: as for [`Draw::Glyphs`].
-    Art { path: BezPath, fx: Box<wordcraft_doc::wordart::TextEffects>, color: Rgb, alpha: f32, text_bg: Option<Rgb> },
+    Art { path: BezPath, fx: Box<strix_doc::wordart::TextEffects>, color: Rgb, alpha: f32, text_bg: Option<Rgb> },
     /// A formatting-mark label (a section break's name) in the UI's mark colour, left edge at
     /// `x`, drawn with the same face as [`Draw::Mark`]. Screen only, like every mark.
     MarkText { x: f32, baseline: f32, size: f32, text: String },
@@ -293,7 +294,7 @@ pub struct DisplayOptions {
     pub revisions: MarkupOptions,
     /// Leave this object out of the page: while it is dragged, the preview under the pointer
     /// stands in for it, so the page must not also show it where it was.
-    pub hide_object: Option<wordcraft_doc::Pos>,
+    pub hide_object: Option<strix_doc::Pos>,
 }
 
 impl Default for DisplayOptions {
@@ -314,7 +315,7 @@ impl Default for DisplayOptions {
 
 /// An object left out of a page's drawing ([`DisplayOptions::hide_object`]).
 struct Hidden {
-    object: wordcraft_doc::Pos,
+    object: strix_doc::Pos,
     /// The text box stories it shows (its own and its group members', resolved to the story each
     /// one shows): a box's text is drawn as lines of its story, so it goes with the box.
     boxes: Vec<u32>,
@@ -322,7 +323,7 @@ struct Hidden {
 
 impl Hidden {
     /// The object at `object` and the text box stories whose lines belong to it.
-    fn new(doc: &Document, object: &wordcraft_doc::Pos) -> Hidden {
+    fn new(doc: &Document, object: &strix_doc::Pos) -> Hidden {
         let boxes = doc
             .para(object.story, &object.path)
             .and_then(|p| p.object_at(object.off))
@@ -704,7 +705,7 @@ fn cell_clip(clips: &Clips, story: StoryRef, path: &[u32]) -> Option<Rect> {
 
 /// The text boxes among `items` whose text is warped (Text Effects › Transform, drawn bent): their
 /// story, frame and warp. Empty, without a walk of the document, when none is.
-fn warped_boxes(doc: &Document, items: &[Placed]) -> Vec<(u32, Rect, wordcraft_doc::wordart::TextWarp)> {
+fn warped_boxes(doc: &Document, items: &[Placed]) -> Vec<(u32, Rect, strix_doc::wordart::TextWarp)> {
     items
         .iter()
         .filter_map(|it| {
@@ -724,7 +725,7 @@ fn warped_text(
     doc: &Document,
     lines: &[&Placed],
     rect: Rect,
-    warp: &wordcraft_doc::wordart::TextWarp,
+    warp: &strix_doc::wordart::TextWarp,
     opts: &DisplayOptions,
     authors: &Authors,
     alpha: f32,
@@ -735,7 +736,7 @@ fn warped_text(
         item(doc, it, opts, authors, alpha, &mut raw);
     }
     // The letters: runs with effects as they are, plain runs from their glyphs.
-    let mut arts: Vec<(BezPath, Box<wordcraft_doc::wordart::TextEffects>, Rgb, f32)> = Vec::new();
+    let mut arts: Vec<(BezPath, Box<strix_doc::wordart::TextEffects>, Rgb, f32)> = Vec::new();
     let mut hidden = Vec::new();
     for d in &raw {
         match d {
@@ -1082,8 +1083,8 @@ fn lines(
                     } else if let Some(p) = para {
                         let t = p.text.get(c.start..c.end).unwrap_or("");
                         // Symbol-font characters (Wingdings…) read as the Unicode symbols drawn.
-                        if wordcraft_doc::symbol_fonts::is_symbol_font(&st.rc.font) {
-                            text.push_str(&wordcraft_doc::symbol_fonts::map_text(&st.rc.font, t));
+                        if strix_doc::symbol_fonts::is_symbol_font(&st.rc.font) {
+                            text.push_str(&strix_doc::symbol_fonts::map_text(&st.rc.font, t));
                         } else if st.rc.caps || st.rc.small_caps {
                             // All Caps and Small Caps read as the capitals drawn (#1473), mapped
                             // as drawn, so a glyph never stands for two cases and ß reads as SS (#1581).
@@ -1370,7 +1371,7 @@ fn lines(
                     }
                 }
                 Some(o @ InlineObject::Field { .. }) => {
-                    if let Some(wordcraft_doc::legacy_form::LegacyForm::CheckBox { checked, .. }) = o.legacy_form() {
+                    if let Some(strix_doc::legacy_form::LegacyForm::CheckBox { checked, .. }) = o.legacy_form() {
                         let color = pl.styles.get(c.style as usize).map_or(Rgb::BLACK, |st| text_color(&st.rc.color, None));
                         let frame = Rect::new(cx, base - c.obj_h, c.adv, c.obj_h + c.obj_d);
                         check_box(frame, checked, color, alpha, out);
@@ -1528,7 +1529,7 @@ pub fn section_break_label(start: SectionStart) -> &'static str {
 
 /// Width of a [`Draw::MarkText`] label.
 pub fn mark_text_width(text: &str, size: f32) -> f32 {
-    let face = wordcraft_fonts::word::resolve("Source Sans 3", false, false).face;
+    let face = strix_fonts::word::resolve("Source Sans 3", false, false).face;
     let k = size / face.upem.max(1.0) as f32;
     text.chars().map(|c| face.advance(face.glyph_for(c)) as f32 * k).sum()
 }
@@ -1689,12 +1690,12 @@ fn page_segs(segs: &[PathSeg], map: impl Fn(f32, f32) -> (f32, f32)) -> Vec<Path
 fn shape_draws(
     rect: Rect,
     kind: ShapeKind,
-    fill: Option<&wordcraft_doc::fill::Fill>,
+    fill: Option<&strix_doc::fill::Fill>,
     stroke: Option<Rgb>,
     stroke_width: f32,
-    effects: wordcraft_doc::effects::ShapeEffects,
-    freeform: Option<&wordcraft_doc::freeform::Freeform>,
-    extra: &wordcraft_doc::connector::ShapeExtra,
+    effects: strix_doc::effects::ShapeEffects,
+    freeform: Option<&strix_doc::freeform::Freeform>,
+    extra: &strix_doc::connector::ShapeExtra,
     opts: &DisplayOptions,
     out: &mut Vec<Draw>,
 ) {
@@ -1801,11 +1802,11 @@ fn line_draws(
     kind: ShapeKind,
     stroke: Option<Rgb>,
     stroke_width: f32,
-    effects: wordcraft_doc::effects::ShapeEffects,
-    extra: &wordcraft_doc::connector::ShapeExtra,
+    effects: strix_doc::effects::ShapeEffects,
+    extra: &strix_doc::connector::ShapeExtra,
     out: &mut Vec<Draw>,
 ) {
-    use wordcraft_doc::connector::{connector_segs, end_direction};
+    use strix_doc::connector::{connector_segs, end_direction};
     match connector_segs(kind, rect.w, rect.h) {
         Some(segs) => {
             let segs = segs
@@ -1876,15 +1877,15 @@ fn text_glyphs(doc: &Document, r: Rect, it: &GraphicItem, alpha: f32, k: f32) ->
     }
     let family = font.as_deref().filter(|f| !f.is_empty()).unwrap_or(&doc.settings.minor_font);
     let size = size.clamp(1.0, 400.0);
-    let resolved = wordcraft_fonts::word::resolve(family, *bold, false);
+    let resolved = strix_fonts::word::resolve(family, *bold, false);
     let face = resolved.face.get();
-    let shaped = wordcraft_fonts::shape(face, text, &[], |c| c);
+    let shaped = strix_fonts::shape(face, text, &[], |c| c);
     if shaped.is_empty() {
         return None;
     }
     let k = size / face.upem.max(1.0) as f32;
     let width: f32 = shaped.iter().map(|g| g.x_advance as f32 * k).sum();
-    let (ascent, descent) = wordcraft_fonts::word::line_metrics(face);
+    let (ascent, descent) = strix_fonts::word::line_metrics(face);
     let baseline = r.y + r.h / 2.0 + (ascent - descent) as f32 * k / 2.0;
     let mut pen = match align {
         TextAlign::Left => r.x,
@@ -2061,12 +2062,12 @@ fn object_draws(o: &InlineObject, rect: Rect, outer: Spin, alpha: f32, opts: &Di
 /// A shape's `effects` as drawn turned by `spin` (all the turns it is drawn inside): glows and
 /// soft edges turn with the shape, and so does a shadow's offset when it rotates with the shape
 /// (`rotWithShape`); one that doesn't keeps its direction on the page, so its angle is turned back.
-pub(crate) fn effects_in(effects: wordcraft_doc::effects::ShapeEffects, spin: Spin) -> wordcraft_doc::effects::ShapeEffects {
+pub(crate) fn effects_in(effects: strix_doc::effects::ShapeEffects, spin: Spin) -> strix_doc::effects::ShapeEffects {
     let mut e = effects;
     if let Some(s) = e.shadow.as_mut().filter(|s| !s.rot_with_shape && !spin.is_identity()) {
         let a = s.angle.to_radians();
         let (dx, dy) = spin.unapply(0.0, 0.0, a.cos(), a.sin());
-        s.angle = wordcraft_geom::normalize_degrees(dy.atan2(dx).to_degrees());
+        s.angle = strix_geom::normalize_degrees(dy.atan2(dx).to_degrees());
     }
     e
 }
@@ -2080,7 +2081,7 @@ pub(crate) fn inline_rect(obj: Option<&InlineObject>, cx: f32, base: f32, adv: f
     let room = Rect::new(cx + l, base - obj_h + t, (adv - l - r).max(0.0), (obj_h - t - b).max(0.0));
     let Some((w, h, float)) = frame.filter(|(_, _, f)| f.rot != 0.0) else { return room };
     // The room is the rotated bounds of the frame: undo the rotation.
-    let (w, h) = (wordcraft_geom::finite(w).clamp(1.0, 4000.0), wordcraft_geom::finite(h).clamp(1.0, 4000.0));
+    let (w, h) = (strix_geom::finite(w).clamp(1.0, 4000.0), strix_geom::finite(h).clamp(1.0, 4000.0));
     let (bw, _) = float.spin().extent(w, h);
     let k = if bw > 0.0 { room.w / bw } else { 1.0 };
     let (fw, fh) = (w * k, h * k);
@@ -2088,7 +2089,7 @@ pub(crate) fn inline_rect(obj: Option<&InlineObject>, cx: f32, base: f32, adv: f
 }
 
 /// A Drawing Canvas's background and outline over its frame `rect`.
-fn canvas_background(rect: Rect, c: &wordcraft_doc::para::CanvasStyle) -> Draw {
+fn canvas_background(rect: Rect, c: &strix_doc::para::CanvasStyle) -> Draw {
     Draw::Shape {
         rect,
         kind: ShapeKind::Rectangle,
@@ -2192,7 +2193,7 @@ fn upright_east_asian(items: Vec<Draw>) -> Vec<Draw> {
 #[cfg(test)]
 mod tests_clips {
     use super::*;
-    use wordcraft_doc::Path as DocPath;
+    use strix_doc::Path as DocPath;
 
     /// A cell whose area is told apart by `x`.
     fn cell(story: StoryRef, table: Vec<u32>, row: usize, cell: usize, clip: bool, x: f32) -> Placed {

@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! References tab: table of contents, footnotes/endnotes, captions; field updates.
 
 use serde_json::{Value, json};
-use wordcraft_doc::numbering::{Counters, LevelSuffix};
-use wordcraft_doc::para::{InlineObject, NoteKind, OBJ};
-use wordcraft_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
-use wordcraft_doc::section::NumFormat;
-use wordcraft_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, para_block};
+use strix_doc::numbering::{Counters, LevelSuffix};
+use strix_doc::para::{InlineObject, NoteKind, OBJ};
+use strix_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
+use strix_doc::section::NumFormat;
+use strix_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, para_block};
 
 use super::{delete_selection, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -72,9 +73,11 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("references.caption", "Insert Caption", "References › Captions", caption)
             .params(r#"{"label"?: "Figure|Table|Equation|any label", "text"?: string, "position"?: "below|above", "excludeLabel"?: bool, "format"?: "ARABIC|alphabetic|ALPHABETIC|roman|ROMAN", "chapter"?: heading level 1-9, "separator"?: "-|.|:|—|–"}"#),
         // F9: update fields; the selected ones that showed their code show their result again.
+        // Calculation regions (docs/calc.md) are recalculated too.
         CommandSpec::new("references.updateFields", "Update Field", "References", |s, v| {
             update_fields_in(s, v.get("all").and_then(Value::as_bool).unwrap_or(false))?;
             super::fields::show_results(s)?;
+            super::calc::recalculate(s, &strix_calc::Options::default());
             sel_result(s)
         })
         .params(r#"{"all"?: bool (the body and every header, footer, note and text box, wherever the caret is; default: the story the caret is in)}"#)
@@ -290,7 +293,7 @@ fn toc_entries(s: &Session, f: &FieldCode) -> Vec<TocEntry> {
             let l = heading_style_level(p).or_else(|| {
                 s.doc
                     .styles
-                    .resolve_para(&wordcraft_doc::ParaProps { style: p.props.style.clone(), ..Default::default() })
+                    .resolve_para(&strix_doc::ParaProps { style: p.props.style.clone(), ..Default::default() })
                     .outline_level
                     .map(|l| l + 1)
             })?;
@@ -389,7 +392,7 @@ pub fn caret_in_toc(s: &Session) -> bool {
 
 /// The range field `range_toc_to_field` converts: an unlocked, top-level TOC (not a table of
 /// figures) when the body has no engine TOC yet.
-fn convertible_toc_range(s: &Session, r: &wordcraft_doc::FieldRange) -> bool {
+fn convertible_toc_range(s: &Session, r: &strix_doc::FieldRange) -> bool {
     let field = FieldCode::parse(&r.instr);
     toc_range(s).is_none()
         && field.name == "TOC"
@@ -552,7 +555,7 @@ pub(crate) fn toc_bookmark(s: &mut Session, i: usize, lead: usize) -> Result<Str
 }
 
 fn bookmark_heading(s: &mut Session, path: &Path, lead: usize) -> Result<String, CmdError> {
-    const MARK: usize = wordcraft_doc::para::OBJ.len_utf8();
+    const MARK: usize = strix_doc::para::OBJ.len_utf8();
     let para = s.doc.para(StoryRef::Body, path).ok_or_else(|| CmdError::Failed("heading is gone".into()))?;
     if let Some(InlineObject::BookmarkStart { name }) = para.object_at(lead)
         && name.starts_with("_Toc")
@@ -625,7 +628,7 @@ fn regenerate_toc(s: &mut Session, leader: Option<TabLeader>, tabs: &[(String, V
     // column's, as Word does (#3889); after a field paragraph ending a section, the next section's.
     let after_break = s.doc.body.get(start).and_then(|b| b.as_para()).is_some_and(|p| p.section.is_some());
     let section = s.doc.section_index_of(start + usize::from(after_break));
-    let column = |x: &wordcraft_doc::SectionProps| x.column_boxes().first().map_or(x.text_width(), |(_, w)| *w);
+    let column = |x: &strix_doc::SectionProps| x.column_boxes().first().map_or(x.text_width(), |(_, w)| *w);
     let width = s.doc.sections().get(section).map_or_else(|| column(&super::page::sect(s)), |(_, x)| column(x));
     let entries = toc_entries(s, &f);
     let links: Vec<Option<String>> = if f.has('h') {
@@ -686,11 +689,11 @@ fn regenerate_toc(s: &mut Session, leader: Option<TabLeader>, tabs: &[(String, V
 /// sets before that. Those stops are for a number set off by a tab (`1.1<tab>Title`); with the
 /// number set off by a space, or no number, a short entry's page tab would stop at one of them
 /// (without the leader), and so would the tab on the last line of an entry that wraps.
-fn entry_tabs(s: &Session, props: &wordcraft_doc::ParaProps, text: &str, right: TabStop) -> Vec<TabStop> {
+fn entry_tabs(s: &Session, props: &strix_doc::ParaProps, text: &str, right: TabStop) -> Vec<TabStop> {
     let mut tabs = props.tabs.clone().unwrap_or_default();
     tabs.retain(|t| t.pos < right.pos - 0.5 && !matches!(t.align, TabAlign::Right | TabAlign::Bar));
     if !text.contains('\t') {
-        let style = s.doc.styles.resolve_para(&wordcraft_doc::ParaProps { style: props.style.clone(), ..Default::default() });
+        let style = s.doc.styles.resolve_para(&strix_doc::ParaProps { style: props.style.clone(), ..Default::default() });
         for t in style.tabs {
             if t.pos < right.pos - 0.5 && !matches!(t.align, TabAlign::Right | TabAlign::Bar) {
                 tabs.push(TabStop { pos: t.pos, align: TabAlign::Clear, leader: TabLeader::None });
@@ -729,7 +732,7 @@ fn note(s: &mut Session, v: &Value, kind: NoteKind) -> CmdResult {
 /// `references.noteOptions`: footnote or endnote placement, number format, start and restart,
 /// for the whole document (each section then follows it) or the selection's sections.
 pub(super) fn note_options(s: &mut Session, v: &Value) -> CmdResult {
-    use wordcraft_doc::section::{MAX_NOTE_START, NotePos, NoteProps, NoteRestart, NumFormat};
+    use strix_doc::section::{MAX_NOTE_START, NotePos, NoteProps, NoteRestart, NumFormat};
     let fmt = |k: &str| -> Result<Option<NumFormat>, CmdError> {
         match p::str(v, k) {
             None => Ok(None),
@@ -789,7 +792,7 @@ pub(super) fn note_options(s: &mut Session, v: &Value) -> CmdResult {
             to.num_restart = if clear { None } else { from.num_restart };
         }
     };
-    fn pick(sect: &mut wordcraft_doc::SectionProps, endnote: bool) -> &mut NoteProps {
+    fn pick(sect: &mut strix_doc::SectionProps, endnote: bool) -> &mut NoteProps {
         if endnote { &mut sect.endnote_pr } else { &mut sect.footnote_pr }
     }
     if change.is_empty() {
@@ -903,14 +906,14 @@ fn caption(s: &mut Session, v: &Value) -> CmdResult {
 
 /// Renumber the body's SEQ fields in document order, honouring `\* format`, `\s level` (restart
 /// after each heading of that level), `\r n` (reset to n), `\c` (repeat) and `\h` (hide), and
-/// fill body STYLEREF fields ([`wordcraft_layout::styleref`]): chapter numbers (`STYLEREF n \s`,
+/// fill body STYLEREF fields ([`strix_layout::styleref`]): chapter numbers (`STYLEREF n \s`,
 /// the last level-n heading's number, or its count when the heading isn't numbered) and the
 /// text or number of the nearest paragraph of a style.
 pub fn update_seq(s: &mut Session) -> Result<(), CmdError> {
     let mut headings = [0u32; 9];
     let mut seq: std::collections::HashMap<String, (u32, u32)> = Default::default();
     // Built on the first STYLEREF (field results don't change what it finds).
-    let mut styles: Option<wordcraft_layout::styleref::StyleIndex> = None;
+    let mut styles: Option<strix_layout::styleref::StyleIndex> = None;
     for path in s.doc.para_paths(StoryRef::Body) {
         let Some(p) = s.doc.para(StoryRef::Body, &path) else { continue };
         if let Some(l) = heading_style_level(p)
@@ -939,13 +942,13 @@ pub fn update_seq(s: &mut Session) -> Result<(), CmdError> {
                     } else if !f.has('c') {
                         n.0 = n.0.saturating_add(1);
                     }
-                    let fmt = wordcraft_layout::fields::format_switch(instr).unwrap_or_default();
-                    updates.push((k, if f.has('h') { String::new() } else { wordcraft_layout::fields::field_number(instr, fmt, n.0) }));
+                    let fmt = strix_layout::fields::format_switch(instr).unwrap_or_default();
+                    updates.push((k, if f.has('h') { String::new() } else { strix_layout::fields::field_number(instr, fmt, n.0) }));
                 }
                 "STYLEREF" => {
-                    let ix = styles.get_or_insert_with(|| wordcraft_layout::styleref::StyleIndex::build(&s.doc));
+                    let ix = styles.get_or_insert_with(|| strix_layout::styleref::StyleIndex::build(&s.doc));
                     if let Some(i) = ix.index_of(&path) {
-                        updates.push((k, text_result(instr, ix.eval(instr, wordcraft_layout::styleref::At::Body(i)))));
+                        updates.push((k, text_result(instr, ix.eval(instr, strix_layout::styleref::At::Body(i)))));
                     }
                 }
                 _ => {}
@@ -1034,7 +1037,7 @@ pub fn update_fields_in(s: &mut Session, all: bool) -> Result<(), CmdError> {
                 }
                 continue;
             }
-            let name = wordcraft_layout::fields::field_name(instr);
+            let name = strix_layout::fields::field_name(instr);
             match name.as_str() {
                 "DATE" | "TIME" | "CREATEDATE" | "SAVEDATE" | "PRINTDATE" => {
                     let pic = date_picture(instr).unwrap_or_else(|| if name == "TIME" { "h:mm am/pm".into() } else { "M/d/yyyy".into() });
@@ -1047,8 +1050,8 @@ pub fn update_fields_in(s: &mut Session, all: bool) -> Result<(), CmdError> {
                         if !has_switch(instr, 'p') { bookmark_text(&s.doc, target) } else { None }
                     } else if !has_switch(instr, 'p') {
                         pages.get(target).map(|(num, page_fmt)| {
-                            let fmt = wordcraft_layout::fields::format_switch(instr).unwrap_or(*page_fmt);
-                            wordcraft_layout::fields::field_number(instr, fmt, *num)
+                            let fmt = strix_layout::fields::format_switch(instr).unwrap_or(*page_fmt);
+                            strix_layout::fields::field_number(instr, fmt, *num)
                         })
                     } else {
                         None
@@ -1118,7 +1121,7 @@ pub fn update_fields_in(s: &mut Session, all: bool) -> Result<(), CmdError> {
 /// are not "now"; `REF`, `PAGEREF`, `TOC` and citations are refreshed on an explicit update
 /// (`fields.updateAll`) and not on open, again as Word does. A field carrying `w:fldLock` keeps
 /// its stored result, which is what the lock is for.
-pub fn refresh_date_fields(doc: &mut wordcraft_doc::Document) {
+pub fn refresh_date_fields(doc: &mut strix_doc::Document) {
     let stories: Vec<StoryRef> = std::iter::once(StoryRef::Body).chain(doc.parts.keys().copied().map(StoryRef::Part)).collect();
     for story in stories {
         for path in doc.para_paths(story) {
@@ -1126,7 +1129,7 @@ pub fn refresh_date_fields(doc: &mut wordcraft_doc::Document) {
             let mut updates: Vec<(usize, String)> = Vec::new();
             for (k, o) in p.objects.iter().enumerate() {
                 let InlineObject::Field { instr, locked: false, .. } = o else { continue };
-                let name = wordcraft_layout::fields::field_name(instr);
+                let name = strix_layout::fields::field_name(instr);
                 if !matches!(name.as_str(), "DATE" | "TIME") {
                     continue;
                 }
@@ -1149,7 +1152,7 @@ pub fn refresh_date_fields(doc: &mut wordcraft_doc::Document) {
 }
 
 /// The summary property a TITLE, SUBJECT, AUTHOR, KEYWORDS or COMMENTS field shows.
-fn summary_property<'a>(core: &'a wordcraft_doc::CoreProps, field: &str) -> &'a str {
+fn summary_property<'a>(core: &'a strix_doc::CoreProps, field: &str) -> &'a str {
     match field {
         "TITLE" => &core.title,
         "SUBJECT" => &core.subject,
@@ -1160,7 +1163,7 @@ fn summary_property<'a>(core: &'a wordcraft_doc::CoreProps, field: &str) -> &'a 
     }
 }
 
-fn set_summary_property(core: &mut wordcraft_doc::CoreProps, field: &str, value: String) {
+fn set_summary_property(core: &mut strix_doc::CoreProps, field: &str, value: String) {
     match field {
         "TITLE" => core.title = value,
         "SUBJECT" => core.subject = value,
@@ -1182,16 +1185,16 @@ fn new_property_value(instr: &str) -> Option<String> {
 /// when the format does not cover the count (see [`super::table_formula::number_format_covers`]),
 /// with the field's capitalization switches.
 fn count_text(instr: &str, n: usize) -> String {
-    let fmt = wordcraft_layout::fields::format_switch(instr)
+    let fmt = strix_layout::fields::format_switch(instr)
         .filter(|f| super::table_formula::number_format_covers(*f, n as f64))
         .unwrap_or(NumFormat::Decimal);
-    wordcraft_layout::fields::field_number(instr, fmt, u32::try_from(n).unwrap_or(u32::MAX))
+    strix_layout::fields::field_number(instr, fmt, u32::try_from(n).unwrap_or(u32::MAX))
 }
 
 /// A field's computed text with its capitalization switches (`\* Upper`, `\* Lower`, `\* Caps`,
 /// `\* FirstCap`) applied in order.
 fn text_result(instr: &str, text: String) -> String {
-    wordcraft_layout::fields::apply_case_switch(instr, text)
+    strix_layout::fields::apply_case_switch(instr, text)
 }
 
 /// The property name of a `DOCPROPERTY` field: the word (or quoted text) after the field name,
@@ -1208,7 +1211,7 @@ fn doc_property_arg(instr: &str) -> Option<String> {
 /// The value of a document property under the name a `DOCPROPERTY` field uses: a custom property
 /// when one has this name, else the built-in property (English names, case-insensitively, as
 /// Word's field accepts) from `core`. `None` for a name this application doesn't know.
-fn doc_property(doc: &wordcraft_doc::Document, core: &wordcraft_doc::CoreProps, name: &str) -> Option<String> {
+fn doc_property(doc: &strix_doc::Document, core: &strix_doc::CoreProps, name: &str) -> Option<String> {
     if let Some(v) = doc.custom_prop(name) {
         return Some(v.to_string());
     }
@@ -1238,7 +1241,7 @@ pub fn date_picture(instr: &str) -> Option<String> {
 
 /// The text a bookmark marks (field results included), up to its end in the same paragraph or
 /// the paragraph's end. `None` when there is no such bookmark.
-pub fn bookmark_text(doc: &wordcraft_doc::Document, name: &str) -> Option<String> {
+pub fn bookmark_text(doc: &strix_doc::Document, name: &str) -> Option<String> {
     let (_, start) = doc.bookmarks().into_iter().find(|(n, _)| n == name)?;
     let para = doc.para(start.story, &start.path)?;
     let end = para
@@ -1268,7 +1271,7 @@ mod tests {
     /// #775: body STYLEREF fields show the nearest paragraph of the style before them.
     #[test]
     fn body_styleref_finds_the_heading_before_it() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Intro\nChapter One\ntext here\nChapter Two\nend"));
+        let mut s = Session::new(strix_doc::Document::from_text("Intro\nChapter One\ntext here\nChapter Two\nend"));
         for t in ["Chapter One", "Chapter Two"] {
             s.run("select.text", &json!({"text": t})).unwrap();
             s.run("styles.apply", &json!({"style": "Heading 1"})).unwrap();
@@ -1282,7 +1285,7 @@ mod tests {
         s.run("insert.field", &json!({"instr": "STYLEREF \"Heading 1\" \\p"})).unwrap();
         s.run("insert.field", &json!({"instr": "STYLEREF \"No Such Style\""})).unwrap();
         let results: Vec<String> = fields(&s).into_iter().map(|f| f.1).collect();
-        assert_eq!(results, ["below", wordcraft_layout::styleref::NO_TEXT, "Chapter One", "above"]);
+        assert_eq!(results, ["below", strix_layout::styleref::NO_TEXT, "Chapter One", "above"]);
     }
 
     /// #775: a template's running header `STYLEREF "heading 1"` (a complex field, opened from
@@ -1330,7 +1333,7 @@ mod tests {
                     p.header
                         .iter()
                         .filter_map(|it| {
-                            if let wordcraft_layout::Placed::Lines { para, .. } = it {
+                            if let strix_layout::Placed::Lines { para, .. } = it {
                                 Some(para.shown.iter().map(|x| x.1.clone()).collect::<String>())
                             } else {
                                 None
@@ -1360,7 +1363,7 @@ mod tests {
     /// (`\p`), or none at all (`\n`).
     #[test]
     fn toc_switches_shape_the_entries() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Intro\nPart\nDeep\nNote"));
+        let mut s = Session::new(strix_doc::Document::from_text("Intro\nPart\nDeep\nNote"));
         for (text, style) in [("Intro", "Heading 1"), ("Part", "Heading 2"), ("Deep", "Heading 3"), ("Note", "Quote")] {
             s.run("select.text", &json!({"text": text})).unwrap();
             s.run("styles.apply", &json!({"style": style})).unwrap();
@@ -1393,7 +1396,7 @@ mod tests {
     /// numbers that restart after each Heading 1 (`STYLEREF 1 \s`, `SEQ … \s 1`).
     #[test]
     fn caption_numbering_with_chapters() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("One\nPic\nPic two\nTwo\nPic three"));
+        let mut s = Session::new(strix_doc::Document::from_text("One\nPic\nPic two\nTwo\nPic three"));
         for t in ["One", "Two"] {
             s.run("select.text", &json!({"text": t})).unwrap();
             s.run("styles.apply", &json!({"style": "Heading 1"})).unwrap();
@@ -1420,7 +1423,7 @@ mod tests {
 
     #[test]
     fn update_fields_ref_and_pageref() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Bookmark target text here.\nSecond paragraph."));
+        let mut s = Session::new(strix_doc::Document::from_text("Bookmark target text here.\nSecond paragraph."));
         s.run("select.text", &json!({"text": "Bookmark target text"})).unwrap();
         s.run("insert.bookmark", &json!({"name": "TargetMark"})).unwrap();
         s.run("caret.docEnd", &json!({})).unwrap();
@@ -1442,8 +1445,8 @@ mod tests {
 
     /// A document with a body AUTHOR field and a header holding AUTHOR, NUMWORDS and a locked TITLE,
     /// all stale; the author is "Ada".
-    fn doc_with_header_fields() -> (wordcraft_doc::Document, u32) {
-        use wordcraft_doc::{CharProps, Paragraph, PartKind};
+    fn doc_with_header_fields() -> (strix_doc::Document, u32) {
+        use strix_doc::{CharProps, Paragraph, PartKind};
         let field = |instr: &str, locked: bool| InlineObject::Field {
             instr: instr.into(),
             result: "stale".into(),
@@ -1452,7 +1455,7 @@ mod tests {
             code: false,
             form: String::new(),
         };
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.creator = "Ada".into();
         let mut p = Paragraph::new();
         for (instr, locked) in [("AUTHOR", false), ("NUMWORDS", false), ("TITLE", true)] {
@@ -1461,7 +1464,7 @@ mod tests {
         }
         let body_path = doc.para_paths(StoryRef::Body).remove(0);
         doc.para_mut(StoryRef::Body, &body_path).unwrap().insert_object(0, field("AUTHOR", false), &CharProps::default()).unwrap();
-        let hdr = doc.add_part(PartKind::Header, vec![std::sync::Arc::new(wordcraft_doc::Block::Para(p))]);
+        let hdr = doc.add_part(PartKind::Header, vec![std::sync::Arc::new(strix_doc::Block::Para(p))]);
         (doc, hdr)
     }
 
@@ -1479,7 +1482,7 @@ mod tests {
 
     #[test]
     fn update_fields_filename() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.path = Some(std::path::PathBuf::from("/docs/my_thesis.docx"));
         s.run("insert.field", &serde_json::json!({"instr": "FILENAME"})).unwrap();
         let fields = story_fields(&s, StoryRef::Body);
@@ -1492,7 +1495,7 @@ mod tests {
 
     #[test]
     fn update_fields_filename_titled_unsaved() {
-        let mut doc = wordcraft_doc::Document::new();
+        let mut doc = strix_doc::Document::new();
         doc.core.title = "Important Document".into();
         let mut s = Session::new(doc);
         s.run("insert.field", &serde_json::json!({"instr": "FILENAME"})).unwrap();
@@ -1504,7 +1507,7 @@ mod tests {
             .items
             .iter()
             .filter_map(|it| {
-                if let wordcraft_layout::Placed::Lines { para, .. } = it {
+                if let strix_layout::Placed::Lines { para, .. } = it {
                     Some(para.shown.iter().map(|x| x.1.clone()).collect::<String>())
                 } else {
                     None
@@ -1548,8 +1551,8 @@ mod tests {
 
     /// A session whose body reads "one two three" and whose header holds stale fields with
     /// these codes, the caret in the header.
-    fn header_fields_session(doc: wordcraft_doc::Document, instrs: &[&str]) -> (Session, u32) {
-        use wordcraft_doc::{CharProps, Paragraph, PartKind};
+    fn header_fields_session(doc: strix_doc::Document, instrs: &[&str]) -> (Session, u32) {
+        use strix_doc::{CharProps, Paragraph, PartKind};
         let mut p = Paragraph::new();
         for instr in instrs {
             let off = p.len();
@@ -1558,7 +1561,7 @@ mod tests {
             p.insert_object(off, field, &CharProps::default()).unwrap();
         }
         let mut doc = doc;
-        let hdr = doc.add_part(PartKind::Header, vec![std::sync::Arc::new(wordcraft_doc::Block::Para(p))]);
+        let hdr = doc.add_part(PartKind::Header, vec![std::sync::Arc::new(strix_doc::Block::Para(p))]);
         let mut s = Session::new(doc);
         let path = s.doc.para_paths(StoryRef::Part(hdr)).remove(0);
         s.sel = crate::session::Selection::caret(Pos::new(StoryRef::Part(hdr), path, 0));
@@ -1569,7 +1572,7 @@ mod tests {
     /// NUMCHARS counts the body's characters without spaces; the counts take a `\*` format.
     #[test]
     fn document_information_fields_show_the_properties() {
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.subject = "Budget".into();
         doc.core.keywords = "plan; costs".into();
         doc.core.description = "Draft for review".into();
@@ -1586,7 +1589,7 @@ mod tests {
     /// (at most 255 characters); the field and later ones, DOCPROPERTY too, show the new value.
     #[test]
     fn summary_fields_with_a_new_value_replace_the_property() {
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.subject = "Old".into();
         let long = "x".repeat(300);
         let long_code = format!("COMMENTS \"{long}\"");
@@ -1613,7 +1616,7 @@ mod tests {
     /// One word after the name sets the property without quotes; a switch alone sets nothing.
     #[test]
     fn summary_fields_take_one_word_without_quotes() {
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.subject = "Old".into();
         doc.core.creator = "Grace".into();
         doc.core.title = "Plan".into();
@@ -1629,7 +1632,7 @@ mod tests {
     /// and `\* CardText` and `\* OrdText` are lowercase unless one of them follows.
     #[test]
     fn update_fields_apply_the_capitalization_switches() {
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.subject = "budget".into();
         doc.core.creator = "Ada LOVELACE".into();
         doc.core.title = "weekly report on sales".into();
@@ -1673,7 +1676,7 @@ mod tests {
     /// The capitalization switches also apply to REF, PAGEREF, SEQ and FILENAME results in the body.
     #[test]
     fn body_fields_apply_the_capitalization_switches() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Bookmark target text here.\nSecond paragraph."));
+        let mut s = Session::new(strix_doc::Document::from_text("Bookmark target text here.\nSecond paragraph."));
         s.run("select.text", &json!({"text": "Bookmark target text"})).unwrap();
         s.run("insert.bookmark", &json!({"name": "TargetMark"})).unwrap();
         s.run("caret.docEnd", &json!({})).unwrap();
@@ -1689,7 +1692,7 @@ mod tests {
     /// A count the field's number format does not cover keeps its digits.
     #[test]
     fn counts_past_the_number_format_keep_their_digits() {
-        let mut doc = wordcraft_doc::Document::from_text("one two three");
+        let mut doc = strix_doc::Document::from_text("one two three");
         doc.core.revision = 1_000_000;
         let codes = [r"REVNUM \* ROMAN", r"REVNUM \* CardText", r"REVNUM \* alphabetic", r"NUMWORDS \* ROMAN"];
         let (mut s, hdr) = header_fields_session(doc, &codes);
@@ -1715,7 +1718,7 @@ mod tests {
 
     #[test]
     fn toc_tabs_ignore_nonentries() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Before\nContents\nOld\t9\nAfter"));
+        let mut s = Session::new(strix_doc::Document::from_text("Before\nContents\nOld\t9\nAfter"));
         let stop = |pos| TabStop { pos, align: TabAlign::Left, leader: TabLeader::None };
         for (i, pos) in [(0, 96.0), (1, 84.0), (2, 24.0)] {
             let p = s.doc.para_mut(StoryRef::Body, &Path::top(i)).unwrap();
@@ -1738,7 +1741,7 @@ mod tests {
     /// (or over) the paragraph that holds it, not after the whole table; the number counts on.
     #[test]
     fn caption_for_an_object_in_a_cell_stays_in_the_cell() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("insert.table", &json!({"rows": 1, "cols": 2})).unwrap();
         s.run("insert.shape", &json!({"kind": "ellipse", "width": 60, "height": 40})).unwrap();
         let (at, _) = crate::cmd::objects::selected(&s).expect("the shape is selected");
@@ -1750,7 +1753,7 @@ mod tests {
         assert_eq!(texts[1], "Figure 1: Kiln", "the caption is under the shape, in the cell");
         assert_eq!(s.doc.body.iter().filter(|b| b.as_para().is_some_and(|p| p.props.style.as_deref() == Some("Caption"))).count(), 0);
         // Above: over the shape's paragraph, and it is Figure 1 (the one below becomes 2).
-        let end = Pos { off: at.off + wordcraft_doc::para::OBJ.len_utf8(), ..at.clone() };
+        let end = Pos { off: at.off + strix_doc::para::OBJ.len_utf8(), ..at.clone() };
         s.sel = Selection { anchor: at.clone(), focus: end };
         assert!(crate::cmd::objects::object_selection(&s).is_some());
         s.run("references.caption", &json!({"label": "Figure", "text": "Lid", "position": "above"})).unwrap();
@@ -1758,7 +1761,7 @@ mod tests {
         assert_eq!(texts.len(), 3, "{texts:?}");
         assert_eq!((texts[0].as_str(), texts[2].as_str()), ("Figure 1: Lid", "Figure 2: Kiln"));
         // A picture outside a table: the caption goes right after its paragraph.
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Before\nAfter"));
+        let mut s = Session::new(strix_doc::Document::from_text("Before\nAfter"));
         s.run("select.text", &json!({"text": "Before"})).unwrap();
         s.run("caret.end", &json!({})).unwrap();
         s.run("insert.shape", &json!({"kind": "ellipse", "width": 60, "height": 40})).unwrap();

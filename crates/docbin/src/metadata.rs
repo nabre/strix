@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Optional document text properties from [MS-OLEPS] §2.21 and §2.25.1.
 //! Broken metadata must not prevent opening the document or allocate from unchecked sizes.
 
 use std::io::{Read, Seek};
 
-use wordcraft_doc::CoreProps;
+use strix_doc::CoreProps;
 
 const MAX_STREAM: u64 = 2 << 20;
 const MAX_STRING: usize = 64 << 10;
@@ -152,8 +153,8 @@ fn text(value: &[u8], codepage: u16) -> Option<String> {
         let bytes = bytes.split(|b| *b == 0).next().unwrap_or_default();
         if codepage == 65001 {
             Some(String::from_utf8_lossy(bytes).into_owned())
-        } else if wordcraft_doc::encoding::SINGLE_BYTE_CODE_PAGES.contains(&codepage) {
-            Some(bytes.iter().map(|b| wordcraft_doc::encoding::windows_byte(codepage, *b)).collect())
+        } else if strix_doc::encoding::SINGLE_BYTE_CODE_PAGES.contains(&codepage) {
+            Some(bytes.iter().map(|b| strix_doc::encoding::windows_byte(codepage, *b)).collect())
         } else {
             None
         }

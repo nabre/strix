@@ -1,6 +1,7 @@
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Local document recovery
 
-Desktop WordCraft periodically keeps a local copy of unsaved work, including new drafts.
+Desktop Strix periodically keeps a local copy of unsaved work, including new drafts.
 File › Recover lists available copies. The page opens at startup when copies are found,
 unless a document was explicitly created or opened before the startup scan completed.
 In particular, a window launched for New/Open keeps the requested document visible;
@@ -37,9 +38,9 @@ unsaved documents leaves a copy of each, and the next start lists them all.
 
 ## Storage and timing
 
-Copies live in `recovery/` under the app's profile folder. `WORDCRAFT_PROFILE_DIR` selects a
+Copies live in `recovery/` under the app's profile folder. `STRIX_PROFILE_DIR` selects a
 separate profile for isolated runs, including preferences, logs and control keys.
-`WORDCRAFT_NO_PREFS` disables recovery as well as preferences. Headless engine/CLI sessions
+`STRIX_NO_PREFS` disables recovery as well as preferences. Headless engine/CLI sessions
 and the browser do not create recovery files implicitly.
 
 One worker thread and one store serve every open document, so a record is locked once per
@@ -91,9 +92,9 @@ dialogs.
 `ui.recoveryDiscard={"id":"id"}` opens confirmation; `{"answer":"discard"}` or
 `{"answer":"cancel"}` answers it.
 
-Focused tests are `cargo test -p wordcraft-engine recovery`,
-`cargo test -p wordcraft-engine --test it recovery_format::`, and
-`cargo test -p wordcraft-ui-egui recovery`. They cover lifecycle, preservation, original-file
+Focused tests are `cargo test -p strix-engine recovery`,
+`cargo test -p strix-engine --test it recovery_format::`, and
+`cargo test -p strix-ui-egui recovery`. They cover lifecycle, preservation, original-file
 protection, failed writes, corruption, locks, password cleanup and the actual recovery buttons.
 The contribution also uses a native SIGKILL/restart replay in temporary profiles for both new
 drafts and edited existing files. It uses synthetic inputs and hashes the original before and

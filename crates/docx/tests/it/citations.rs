@@ -1,12 +1,13 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Citation-manager documents (Zotero and the like): `ADDIN` fields keep their formatted,
 //! multi-paragraph results, and custom document properties round-trip. All markup here is
 //! synthetic, written from ECMA-376.
 
 use std::io::Write;
 
-use wordcraft_doc::para::OBJ;
-use wordcraft_doc::{CharProps, Document, InlineObject, Path, StoryRef};
-use wordcraft_docx::{read, write};
+use strix_doc::para::OBJ;
+use strix_doc::{CharProps, Document, InlineObject, Path, StoryRef};
+use strix_docx::{read, write};
 
 const W_NS: &str = r#"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#;
 const ROOT_RELS: &str = r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/></Relationships>"#;

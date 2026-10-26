@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Several open documents in one session. The active document lives in the session's own fields,
 //! where every command works on it; the others wait as [`DocState`] values and are swapped in,
 //! field by field, when they become active. Swapping moves the fields: nothing is cloned, laid
@@ -9,9 +10,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 use serde_json::json;
-use wordcraft_doc::props::CharProps;
-use wordcraft_doc::{Document, Pos, StoryRef};
-use wordcraft_layout::LayoutCache;
+use strix_doc::props::CharProps;
+use strix_doc::{Document, Pos, StoryRef};
+use strix_layout::LayoutCache;
 
 use super::{ColumnBlock, FindState, LayoutSlots, MathEdit, Selection, Session, TypedWord, Undo, ViewState, Widened, doc_bib_style};
 use crate::CmdError;

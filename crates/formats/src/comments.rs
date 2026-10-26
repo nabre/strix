@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Print Markup for the text formats: HTML, Markdown and plain text copies end with the
 //! document's comments, numbered in document order, each with its author, the text it comments
 //! on, what it says and its replies (like the notes at the end of a printed document).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use wordcraft_doc::para::{InlineObject, OBJ};
-use wordcraft_doc::{Document, StoryRef};
+use strix_doc::para::{InlineObject, OBJ};
+use strix_doc::{Document, StoryRef};
 
 /// Longest quoted anchor text (characters).
 const MAX_QUOTE: usize = 200;

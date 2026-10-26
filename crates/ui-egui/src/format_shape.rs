@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The Format Shape pane (Shape Fill › More Gradients…, a shape's Format Shape…): the selected
 //! shapes' fill, as Word's Fill section: no fill, a solid colour with its transparency, or a
 //! gradient (preset, type, direction, angle, stops, rotate with shape). Every change runs
@@ -6,12 +7,12 @@
 use std::sync::Arc;
 
 use egui::{Color32, Id, Mesh, Pos2, Rect, Response, Sense, Stroke, Ui, pos2, vec2};
-use wordcraft_doc::Rgb;
-use wordcraft_doc::fill::{Fill, Gradient, GradientKind, PathShape};
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::wordart::GradStop;
-use wordcraft_engine::cmd::shape_fill::{self, LINEAR_DIRECTIONS, PATH_DIRECTIONS, stops};
-use wordcraft_layout::display::paint_for;
+use strix_doc::Rgb;
+use strix_doc::fill::{Fill, Gradient, GradientKind, PathShape};
+use strix_doc::para::InlineObject;
+use strix_doc::wordart::GradStop;
+use strix_engine::cmd::shape_fill::{self, LINEAR_DIRECTIONS, PATH_DIRECTIONS, stops};
+use strix_layout::display::paint_for;
 
 use crate::WordApp;
 use crate::theme::Tokens;
@@ -35,7 +36,7 @@ pub fn forget_drag(ctx: &egui::Context) {
 /// The gradient a variation applied to the object at a position, and the colour it was built
 /// from.
 #[derive(Clone)]
-struct Variation(wordcraft_doc::Pos, Fill, Rgb);
+struct Variation(strix_doc::Pos, Fill, Rgb);
 
 /// Stable storage id for the gradient variation remembered for the last object.
 fn variation_id() -> Id {
@@ -47,7 +48,7 @@ fn variation_id() -> Id {
 /// Gradient, doesn't drift), else the fill's main colour.
 // ponytail: remembered for the last variation only, in this session; a gradient from a file
 // uses its middle stop (Word keeps the scheme colour it was built from).
-pub fn variation_base(ctx: &egui::Context, pos: &wordcraft_doc::Pos, fill: &Fill) -> Rgb {
+pub fn variation_base(ctx: &egui::Context, pos: &strix_doc::Pos, fill: &Fill) -> Rgb {
     match ctx.data(|d| d.get_temp::<Variation>(variation_id())) {
         Some(Variation(p, f, base)) if p == *pos && f == *fill => base,
         _ => fill.main_color(),
@@ -55,13 +56,13 @@ pub fn variation_base(ctx: &egui::Context, pos: &wordcraft_doc::Pos, fill: &Fill
 }
 
 /// Notes that `fill`, made from `base`, was applied to the object at `pos`.
-pub fn remember_variation(ctx: &egui::Context, pos: wordcraft_doc::Pos, fill: Fill, base: Rgb) {
+pub fn remember_variation(ctx: &egui::Context, pos: strix_doc::Pos, fill: Fill, base: Rgb) {
     ctx.data_mut(|d| d.insert_temp(variation_id(), Variation(pos, fill, base)));
 }
 
 /// The first selected shape's or canvas's fill: `None` with no shape selected.
 pub(crate) fn current(app: &WordApp) -> Option<Option<Fill>> {
-    let (_, o) = wordcraft_engine::cmd::objects::selected(&app.session)?;
+    let (_, o) = strix_engine::cmd::objects::selected(&app.session)?;
     match o {
         InlineObject::Shape { fill, .. } => Some(fill),
         o => o.canvas_style().map(|c| c.fill.clone()),
@@ -447,7 +448,7 @@ pub fn swatch(ui: &mut Ui, fill: &Fill, tip: &str) -> bool {
 /// Paints `fill` over `r`: a grid of vertex colours, fine enough for previews.
 pub fn paint_fill(p: &egui::Painter, r: Rect, fill: &Fill) {
     const N: u32 = 16;
-    let frame = wordcraft_geom::Rect { x: r.min.x, y: r.min.y, w: r.width(), h: r.height() };
+    let frame = strix_geom::Rect { x: r.min.x, y: r.min.y, w: r.width(), h: r.height() };
     let Some(paint) = paint_for(fill, frame) else { return };
     let at = |q: Pos2| {
         let (c, a) = paint.at(q.x, q.y);
@@ -479,11 +480,11 @@ mod tests {
     use crate::WordApp;
     use egui_kittest::kittest::Queryable;
     use serde_json::json;
-    use wordcraft_doc::fill::Fill;
-    use wordcraft_doc::para::InlineObject;
+    use strix_doc::fill::Fill;
+    use strix_doc::para::InlineObject;
 
     fn fill(app: &WordApp) -> Option<Fill> {
-        match wordcraft_engine::cmd::objects::selected(&app.session) {
+        match strix_engine::cmd::objects::selected(&app.session) {
             Some((_, InlineObject::Shape { fill, .. })) => fill,
             o => panic!("{o:?}"),
         }
@@ -493,7 +494,7 @@ mod tests {
     /// solid and back to no fill, each one undo step.
     #[test]
     fn gradient_menu_and_format_shape_pane_set_the_fill() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         a.run("insert.shape", json!({"kind": "rectangle"})).unwrap();
         // Shape Fill › Gradient's body (ribbon buttons are drawn without accessible names).
         let mut m = egui_kittest::Harness::builder().build_ui_state(
@@ -506,7 +507,7 @@ mod tests {
         m.run_steps(2);
         m.get_all_by_label("Linear Down").next().expect("a light variation").click();
         m.run_steps(2);
-        let a = std::mem::replace(m.state_mut(), WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default()));
+        let a = std::mem::replace(m.state_mut(), WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default()));
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
@@ -535,13 +536,13 @@ mod drift_tests {
     use crate::WordApp;
     use egui_kittest::kittest::Queryable;
     use serde_json::json;
-    use wordcraft_doc::fill::Fill;
+    use strix_doc::fill::Fill;
 
     /// Picking variations in turn builds each from the shape's colour, not from the last
     /// variation's, and No Gradient brings that colour back.
     #[test]
     fn variations_dont_drift_and_no_gradient_restores_the_colour() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         a.run("insert.shape", json!({"kind": "rectangle"})).unwrap();
         a.run("shape.fill", json!({"color": "156082"})).unwrap();
         let mut m = egui_kittest::Harness::builder().build_ui_state(
@@ -564,6 +565,6 @@ mod drift_tests {
         assert!(matches!(first, Some(Fill::Gradient(_))));
         assert_eq!(first, again, "the same variation twice gives the same gradient");
         let back = pick(&mut m, "No Gradient");
-        assert_eq!(back, Some(Fill::solid(wordcraft_doc::Rgb(0x15, 0x60, 0x82))));
+        assert_eq!(back, Some(Fill::solid(strix_doc::Rgb(0x15, 0x60, 0x82))));
     }
 }

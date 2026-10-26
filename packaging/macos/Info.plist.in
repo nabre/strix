@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Template: packaging/macos/package.sh substitutes @VERSION@ (full, e.g. 0.2.0-rc.1),
      @SHORT_VERSION@ (numeric X.Y.Z) and @BUILD_SHA@. -->
@@ -7,13 +8,13 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>WordCraft</string>
+  <string>Strix</string>
   <key>CFBundleName</key>
-  <string>WordCraft</string>
+  <string>Strix</string>
   <key>CFBundleExecutable</key>
-  <string>WordCraft</string>
+  <string>Strix</string>
   <key>CFBundleIdentifier</key>
-  <string>ai.storyteller.wordcraft</string>
+  <string>io.github.nabre.strix</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -24,12 +25,12 @@
   <string>@SHORT_VERSION@</string>
   <key>CFBundleVersion</key>
   <string>@SHORT_VERSION@</string>
-  <key>WordCraftVersion</key>
+  <key>StrixVersion</key>
   <string>@VERSION@</string>
-  <key>WordCraftBuildCommit</key>
+  <key>StrixBuildCommit</key>
   <string>@BUILD_SHA@</string>
   <key>CFBundleIconFile</key>
-  <string>WordCraft</string>
+  <string>Strix</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.productivity</string>
   <!-- Must match MACOSX_DEPLOYMENT_TARGET in package.sh. Big Sur is the first release on
@@ -43,11 +44,36 @@
   <key>NSRequiresAquaSystemAppearance</key>
   <false/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © the WordCraft authors. MIT OR Apache-2.0.</string>
+  <string>Copyright © the Strix contributors and the WordCraft authors. MIT OR Apache-2.0.</string>
 
-  <!-- Documents WordCraft opens (system type declarations). -->
+  <!-- Documents Strix opens. Its own .xmath documents and .xmathm templates come first and are
+       owned by Strix; the other formats are imported and exported. -->
   <key>CFBundleDocumentTypes</key>
   <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Strix Document</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>io.github.nabre.strix.xmath</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Strix Template</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>io.github.nabre.strix.xmathm</string>
+      </array>
+    </dict>
     <dict>
       <key>CFBundleTypeName</key>
       <string>Word Document</string>
@@ -66,6 +92,55 @@
         <string>public.html</string>
         <string>public.plain-text</string>
       </array>
+    </dict>
+  </array>
+
+  <!-- Strix's own file types: OOXML (OPC) packages, so zip archives underneath. -->
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.github.nabre.strix.xmath</string>
+      <key>UTTypeDescription</key>
+      <string>Strix Document</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.zip-archive</string>
+        <string>public.composite-content</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>xmath</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/vnd.strix.xmath</string>
+        </array>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.github.nabre.strix.xmathm</string>
+      <key>UTTypeDescription</key>
+      <string>Strix Template</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.zip-archive</string>
+        <string>public.composite-content</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>xmathm</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/vnd.strix.xmathm</string>
+        </array>
+      </dict>
     </dict>
   </array>
 </dict>

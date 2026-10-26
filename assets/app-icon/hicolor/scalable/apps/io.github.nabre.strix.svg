@@ -1,0 +1,75 @@
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Strix app icon: an owl (genus Strix), half feathers, half circuit, with a quill. Original
+       artwork by the Strix contributors (MIT OR Apache-2.0); colours from the Atollo palette. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0F3D2E"/>
+      <stop offset="1" stop-color="#05140F"/>
+    </linearGradient>
+    <linearGradient id="quill" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#EA580C"/>
+      <stop offset="1" stop-color="#FB923C"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#6EE7B7"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="#10B981" stroke-opacity="0.35" stroke-width="4"/>
+
+  <!-- Body and head: one dark silhouette with leaf-shaped ear tufts. -->
+  <path d="M120 92 C150 120 170 136 196 146 C230 134 282 134 316 146 C342 136 362 120 392 92
+           C398 150 392 186 376 214 C398 262 396 330 360 380 C330 420 290 440 256 446
+           C222 440 182 420 152 380 C116 330 114 262 136 214 C120 186 114 150 120 92 Z" fill="#17614A"/>
+  <path d="M136 214 C104 270 108 350 152 404 C150 350 156 300 176 262 Z" fill="#047857"/>
+  <path d="M376 214 C408 270 404 350 360 404 C362 350 356 300 336 262 Z" fill="#047857"/>
+  <path d="M120 92 C150 120 170 136 196 146 L178 172 C150 160 130 136 120 92 Z" fill="#10B981"/>
+  <path d="M392 92 C362 120 342 136 316 146 L334 172 C362 160 382 136 392 92 Z" fill="#10B981"/>
+
+  <!-- Breast feathers (right half) and circuit traces (left half). -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M262 300 C290 304 318 296 340 280" stroke="#047857" stroke-width="12"/>
+    <path d="M262 334 C292 338 318 330 334 318" stroke="#047857" stroke-width="12"/>
+    <path d="M262 368 C288 372 306 366 318 356" stroke="#047857" stroke-width="12"/>
+    <path d="M250 296 H210 L186 272 V244" stroke="#10B981" stroke-width="6"/>
+    <path d="M250 336 H196 L170 310" stroke="#10B981" stroke-width="6"/>
+    <path d="M250 376 H214 L196 394" stroke="#10B981" stroke-width="6"/>
+  </g>
+  <g fill="#0F3D2E" stroke="#6EE7B7" stroke-width="5">
+    <circle cx="186" cy="238" r="8"/>
+    <circle cx="166" cy="306" r="8"/>
+    <circle cx="192" cy="398" r="8"/>
+  </g>
+
+  <!-- Facial disc. -->
+  <path d="M256 176 C220 160 160 168 148 220 C140 262 178 290 222 282 C240 278 252 268 256 258
+           C260 268 272 278 290 282 C334 290 372 262 364 220 C352 168 292 160 256 176 Z" fill="#D1F0E0"/>
+
+  <!-- Left eye: circuit ring with pi. -->
+  <circle cx="204" cy="224" r="40" fill="#0A2A20"/>
+  <circle cx="204" cy="224" r="30" fill="none" stroke="#10B981" stroke-width="5" stroke-dasharray="14 6"/>
+  <path d="M190 212 H218 M197 212 V238 M211 212 C211 226 211 234 216 238" fill="none" stroke="#6EE7B7" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Right eye: living iris. -->
+  <circle cx="308" cy="224" r="40" fill="#0A2A20"/>
+  <circle cx="308" cy="224" r="30" fill="url(#iris)"/>
+  <circle cx="308" cy="224" r="14" fill="#0A2A20"/>
+  <circle cx="300" cy="216" r="5" fill="#FFFFFF"/>
+
+  <!-- Brows and beak. -->
+  <path d="M156 190 C190 172 226 178 250 200" fill="none" stroke="#047857" stroke-width="10" stroke-linecap="round"/>
+  <path d="M356 190 C322 172 286 178 262 200" fill="none" stroke="#047857" stroke-width="10" stroke-linecap="round"/>
+  <path d="M242 252 L270 252 L256 286 Z" fill="#FBBF24"/>
+
+  <!-- Quill crossing the body, nib bottom left. -->
+  <path d="M206 430 C250 360 330 268 420 170 C428 214 404 270 362 318 C320 366 262 404 206 430 Z" fill="url(#quill)"/>
+  <path d="M206 430 C270 352 340 270 420 170" fill="none" stroke="#FFF7ED" stroke-opacity="0.8" stroke-width="4" stroke-linecap="round"/>
+  <g stroke="#C2410C" stroke-width="3" stroke-linecap="round" opacity="0.7">
+    <path d="M300 334 L340 316"/>
+    <path d="M330 300 L372 278"/>
+    <path d="M360 262 L398 236"/>
+  </g>
+  <path d="M206 430 L184 462 L196 438 Z" fill="#FBBF24" stroke="#FBBF24" stroke-width="4" stroke-linejoin="round"/>
+</svg>

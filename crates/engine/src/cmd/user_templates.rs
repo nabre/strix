@@ -1,5 +1,7 @@
-//! Personal templates (#2852): the `.dotx`/`.dotm` files in the user templates folder, which
-//! File › New lists next to the built-in templates.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Personal templates (#2852): Strix's own `.xmathm` templates, and the Word `.dotx`/`.dotm`
+//! templates it imports, in the user templates folder, which File › New lists next to the
+//! built-in templates.
 //!
 //! The folder is the user's own (File › Options › Advanced › File locations, else the app's
 //! `Templates` folder, which the front end passes as `dir`). As in Word, the templates at its top
@@ -37,7 +39,7 @@ const MAX_CORE_XML: u64 = 64 << 10;
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("file.listTemplates", "Personal Templates", "File › New", list)
-            .params(r#"{"dir"?: string (the user templates folder; default: the one saved in File › Options)} → {"dir", "templates": [{"label" (the file name without its extension), "title": string|null (dc:title), "path", "category" ("" at the top level, else the subfolder's name), "modified": ISO-8601|null}] (.dotx and .dotm, at most 500, by category then label), "truncated": bool}; a network folder is refused"#)
+            .params(r#"{"dir"?: string (the user templates folder; default: the one saved in File › Options)} → {"dir", "templates": [{"label" (the file name without its extension), "title": string|null (dc:title), "path", "category" ("" at the top level, else the subfolder's name), "modified": ISO-8601|null}] (.xmathm, .dotx and .dotm, at most 500, by category then label), "truncated": bool}; a network folder is refused"#)
             .pure(),
     ]
 }
@@ -190,18 +192,27 @@ fn entries(dir: &std::path::Path) -> (Vec<crate::io::DirEntry>, Vec<std::path::P
 #[cfg(not(target_arch = "wasm32"))]
 fn label_of(name: &str) -> String {
     let mut label = name;
-    while is_template_name(label) {
-        let Some(stem) = label.get(..label.len().saturating_sub(5)) else { break };
+    while let Some(ext) = template_ext_len(label) {
+        let Some(stem) = label.get(..label.len().saturating_sub(ext)) else { break };
         label = stem;
     }
     let label = label.trim_end();
     if label.is_empty() { name.to_string() } else { label.to_string() }
 }
 
-/// A Word template by its name: `.dotx` or `.dotm`, in any case.
-pub fn is_template_name(name: &str) -> bool {
+/// The template extensions, with their dot: Strix's own first, then Word's.
+const TEMPLATE_EXTS: &[&str] = &[".xmathm", ".dotx", ".dotm"];
+
+/// The length, in bytes, of the template extension `name` ends in (dot included), when there is
+/// a name before it.
+fn template_ext_len(name: &str) -> Option<usize> {
     let lower = name.to_ascii_lowercase();
-    (lower.ends_with(".dotx") || lower.ends_with(".dotm")) && lower.len() > 5
+    TEMPLATE_EXTS.iter().find(|e| lower.ends_with(*e) && lower.len() > e.len()).map(|e| e.len())
+}
+
+/// A template by its name: Strix's `.xmathm`, or Word's `.dotx` or `.dotm`, in any case.
+pub fn is_template_name(name: &str) -> bool {
+    template_ext_len(name).is_some()
 }
 
 /// The template's title from its core properties, read from the package's directory and at most
@@ -229,7 +240,7 @@ mod tests {
 
     /// A real template written by the engine, with `title` as its core title (empty: none).
     fn template(path: &std::path::Path, text: &str, title: &str) {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("document.setText", &json!({"text": text})).unwrap();
         s.doc.core.title = title.into();
         crate::io::save_path(path, &s.doc).unwrap();
@@ -250,7 +261,9 @@ mod tests {
         template(&d.join("Weekly report.dotx"), "Report body", "");
         template(&d.join("letterhead.dotx"), "Letter body", "Company letterhead");
         template(&d.join("Macros.dotm"), "Macro body", "");
+        template(&d.join("Strix memo.xmathm"), "Memo body", "");
         template(&d.join("Not a template.docx"), "Doc body", "");
+        template(&d.join("Not a template either.xmath"), "Doc body", "");
         std::fs::write(d.join("notes.txt"), "x").unwrap();
         std::fs::write(d.join("Broken.dotx"), b"this is no zip").unwrap();
         std::fs::write(d.join(".hidden.dotx"), b"x").unwrap();
@@ -259,7 +272,7 @@ mod tests {
         template(&d.join("Legal/Deeper/Too deep.dotx"), "x", "");
         std::fs::create_dir_all(d.join("Empty")).unwrap();
 
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         let r = s.run("file.listTemplates", &json!({"dir": d.to_string_lossy()})).unwrap();
         assert_eq!(
             labels(&r),
@@ -267,6 +280,7 @@ mod tests {
                 ("".into(), "Broken".into()),
                 ("".into(), "letterhead".into()),
                 ("".into(), "Macros".into()),
+                ("".into(), "Strix memo".into()),
                 ("".into(), "Weekly report".into()),
                 ("Legal".into(), "NDA".into()),
             ],
@@ -283,7 +297,7 @@ mod tests {
 
     #[test]
     fn refuses_network_relative_and_missing_folders() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         for dir in [r"\\host\share\Templates", "//host/share/Templates", "relative/Templates", "", "   "] {
             assert!(matches!(s.run("file.listTemplates", &json!({"dir": dir})), Err(CmdError::Params(_))), "{dir:?}");
         }
@@ -300,7 +314,7 @@ mod tests {
     fn the_saved_folder_is_listed_without_dir() {
         let d = scratch("saved");
         template(&d.join("Saved.dotx"), "x", "");
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("file.options", &json!({"userTemplatesFolder": d.to_string_lossy()})).unwrap();
         let r = s.run("file.listTemplates", &json!({})).unwrap();
         assert_eq!(labels(&r), [("".to_string(), "Saved".to_string())]);
@@ -327,20 +341,20 @@ mod tests {
         let d = scratch("new");
         let path = d.join("Memo.dotx");
         template(&path, "Memo text", "");
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.path = Some(d.join("Earlier.docx"));
         s.run("file.newFromTemplate", &json!({"path": path.to_string_lossy()})).unwrap();
         assert_eq!(s.path, None);
         assert!(s.dirty);
         assert_eq!(s.doc.settings.attached_template.as_deref(), Some(path.to_string_lossy().as_ref()));
-        assert!(s.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Memo text"));
+        assert!(s.doc.plain_text(strix_doc::StoryRef::Body).contains("Memo text"));
         let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
     fn the_templates_folder_option_is_saved_and_checked() {
         let d = scratch("option");
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         for bad in [json!(r"\\host\share"), json!("//host/share"), json!("relative/x"), json!(7)] {
             assert!(s.run("file.options", &json!({"userTemplatesFolder": bad})).is_err(), "{bad}");
         }
@@ -372,15 +386,21 @@ mod tests {
         assert_eq!(label_of(".dotx.dotm"), ".dotx", "never empty");
         assert_eq!(label_of(" .dotx"), " .dotx", "nothing left: the whole name");
         assert_eq!(label_of("é.dotx"), "é");
+        assert_eq!(label_of("Letter.xmathm"), "Letter");
+        assert_eq!(label_of("Old.dotx.xmathm"), "Old");
+        assert_eq!(label_of(".xmathm"), ".xmathm");
         let _ = std::fs::remove_dir_all(&d);
     }
 
-    /// Save as Template keeps a .dotm (any case) and makes anything else a .dotx.
+    /// Save as Template keeps a template extension (any case) and makes anything else a Strix
+    /// template, .xmathm.
     #[test]
     fn save_template_keeps_a_template_extension() {
         let d = scratch("save");
-        let mut s = Session::new(wordcraft_doc::Document::new());
-        for (asked, saved) in [("A.dotm", "A.dotm"), ("B.DOTX", "B.DOTX"), ("C", "C.dotx"), ("D.docx", "D.docx.dotx")] {
+        let mut s = Session::new(strix_doc::Document::new());
+        for (asked, saved) in
+            [("A.dotm", "A.dotm"), ("B.DOTX", "B.DOTX"), ("C", "C.xmathm"), ("D.docx", "D.docx.xmathm"), ("E.XMATHM", "E.XMATHM"), ("F.xmath", "F.xmath.xmathm")]
+        {
             let r = s.run("file.saveTemplate", &json!({"path": d.join(asked).to_string_lossy()})).unwrap();
             assert_eq!(r["path"], json!(d.join(saved).to_string_lossy()));
             assert!(d.join(saved).is_file(), "{saved}");
@@ -390,7 +410,8 @@ mod tests {
 
     #[test]
     fn template_names() {
-        assert!(is_template_name("a.dotx") && is_template_name("B.DOTM"));
+        assert!(is_template_name("a.dotx") && is_template_name("B.DOTM") && is_template_name("c.xmathm") && is_template_name("D.XMATHM"));
         assert!(!is_template_name(".dotx") && !is_template_name("a.docx") && !is_template_name("a.dot"));
+        assert!(!is_template_name(".xmathm") && !is_template_name("a.xmath") && !is_template_name("é"));
     }
 }

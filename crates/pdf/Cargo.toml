@@ -1,19 +1,20 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "wordcraft-pdf"
+name = "strix-pdf"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "WordCraft PDF export (craft-pdf / Krilla): embedded font subsets with selectable text, links, outline, tagging"
+description = "Strix PDF export (craft-pdf / Krilla): embedded font subsets with selectable text, links, outline, tagging"
 
 [lints]
 workspace = true
 
 [dependencies]
-wordcraft-doc = { workspace = true }
-wordcraft-geom = { workspace = true, features = ["image"] }
-wordcraft-fonts = { workspace = true }
-wordcraft-layout = { workspace = true }
-wordcraft-metafile = { workspace = true }
+strix-doc = { workspace = true }
+strix-geom = { workspace = true, features = ["image"] }
+strix-fonts = { workspace = true }
+strix-layout = { workspace = true }
+strix-metafile = { workspace = true }
 craft-pdf = { workspace = true }
 kurbo = { workspace = true }
 image = { workspace = true }

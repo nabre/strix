@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word forms keep their legacy form fields (`w:ffData`) and their rows' skipped grid columns
 //! (`w:gridBefore`/`w:wBefore`, `w:gridAfter`/`w:wAfter`) through a round trip (#1174). All
 //! markup here is synthetic, written from ECMA-376 §17.16.17 and §17.4.14-17.
 
 use std::io::Write;
 
-use wordcraft_doc::Block;
-use wordcraft_docx::{read, write};
+use strix_doc::Block;
+use strix_docx::{read, write};
 
 const NS: &str = r#"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#;
 const ROOT_RELS: &str = r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>"#;

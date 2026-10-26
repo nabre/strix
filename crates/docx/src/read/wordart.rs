@@ -1,10 +1,11 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! WordArt text effects in `w:rPr` ([MS-DOCX] §2.6.1: `w14:textFill`, `w14:textOutline`,
 //! `w14:shadow`, `w14:glow`, `w14:reflection`). Lengths are EMUs, angles 60000ths of a degree,
 //! percentages 1000ths of a percent.
 
-use wordcraft_doc::effects::{Glow, Shadow};
-use wordcraft_doc::props::Rgb;
-use wordcraft_doc::wordart::{GradStop, MAX_STOPS, Reflection, TextEffects, TextFill, TextOutline};
+use strix_doc::effects::{Glow, Shadow};
+use strix_doc::props::Rgb;
+use strix_doc::wordart::{GradStop, MAX_STOPS, Reflection, TextEffects, TextFill, TextOutline};
 
 use crate::units::{int, measure};
 use crate::xml::El;

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! One native window per open document. Each window is an egui viewport, driven by
 //! [`craft_window::Viewports`]: one window draws in the root viewport, every other one in an
 //! immediate viewport of its own, and each draws the whole interface (title bar, ribbon, page,
@@ -32,13 +33,13 @@ use std::collections::HashMap;
 use craft_window::{Document, Frame, Viewports, WindowEvent, WindowId, WindowList, WindowMenu};
 use egui::{ViewportCommand, ViewportId};
 use serde_json::{Value, json};
-use wordcraft_engine::WindowView;
+use strix_engine::WindowView;
 
 use crate::{WordApp, documents, window_ui::WindowUi};
 
 /// The window title for a document called `name`.
 pub(crate) fn title(name: &str, dirty: bool) -> String {
-    format!("{name}{} - WordCraft", if dirty { " •" } else { "" })
+    format!("{name}{} - Strix", if dirty { " •" } else { "" })
 }
 
 /// An open window.
@@ -241,7 +242,7 @@ pub(crate) struct ViewportInput {
 
 impl egui::Plugin for ViewportInput {
     fn debug_name(&self) -> &'static str {
-        "wordcraft_viewport_input"
+        "strix_viewport_input"
     }
 
     fn input_hook(&mut self, _ctx: &egui::Context, input: &mut egui::RawInput) {
@@ -562,7 +563,7 @@ impl WordApp {
     /// The drawn window's title: its document's name as View › Window › Switch Windows gives it.
     pub(crate) fn window_title(&self) -> String {
         if !self.has_document() {
-            return "WordCraft".to_string();
+            return "Strix".to_string();
         }
         let name = self.windows.menu_title(self.windows.shown).map(str::to_string).unwrap_or_else(|| self.title_stem());
         title(&name, self.session.dirty)
@@ -595,7 +596,7 @@ impl WordApp {
             &mut list,
             |_, key| match titles.get(key).filter(|t| !t.is_empty()) {
                 Some(t) => base.clone().with_title(t.clone()),
-                None => base.clone().with_title("WordCraft"),
+                None => base.clone().with_title("Strix"),
             },
             |ui, _, key| self.draw_window(ui, *key),
         );
@@ -770,8 +771,8 @@ mod tests {
 
     use egui::{RawInput, ViewportCommand, ViewportEvent, ViewportId, ViewportIdMap, ViewportInfo};
     use serde_json::json;
-    use wordcraft_doc::StoryRef;
-    use wordcraft_engine::Session;
+    use strix_doc::StoryRef;
+    use strix_engine::Session;
 
     use crate::{Services, WordApp};
 
@@ -866,7 +867,7 @@ mod tests {
     }
 
     fn app(text: &str) -> WordApp {
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         a.run("text.insert", json!({"text": text})).unwrap();
         a
     }
@@ -921,10 +922,10 @@ mod tests {
     }
 
     fn docx_on_disk(name: &str, body: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("wordcraft-windows-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-windows-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(format!("{name}.docx"));
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": body})).unwrap();
         s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
         path
@@ -936,7 +937,7 @@ mod tests {
     fn open_focuses_the_files_window_or_reuses_a_blank_one() {
         let path = docx_on_disk("report", "Report");
         let ctx = backend();
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         frames(&ctx, &mut a, 2);
         let window = a.windows.shown();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
@@ -1032,13 +1033,13 @@ mod tests {
     #[test]
     fn quitting_from_the_empty_window_asks_about_the_other_windows() {
         let ctx = backend();
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         frames(&ctx, &mut a, 2);
         a.run("file.close", json!({})).unwrap();
         assert!(!a.has_document());
         let empty = a.windows.shown();
         let placeholder = a.session.document_id();
-        let other = a.session.with_document(placeholder, |s| s.add_document(wordcraft_doc::Document::new())).unwrap();
+        let other = a.session.with_document(placeholder, |s| s.add_document(strix_doc::Document::new())).unwrap();
         a.session.with_document(other, |s| s.run("text.insert", &json!({"text": "Agent"}))).unwrap().unwrap();
         frames(&ctx, &mut a, 2);
         assert_eq!((a.window_count(), a.windows.shown()), (2, empty), "the agent's document has a window behind");
@@ -1317,7 +1318,7 @@ mod tests {
             ..Default::default()
         };
         let ctx = backend();
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         frames(&ctx, &mut a, 2);
         a.run("file.open", json!({"path": docx_on_disk("first", "First").to_string_lossy()})).unwrap();
         a.run("file.new", json!({})).unwrap();

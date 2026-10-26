@@ -1,8 +1,9 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Vertical sections (`w:textDirection` in `w:sectPr`): lines run down the page and stack from
 //! the right (`tbRl`), or run up and stack from the left (`btLr`).
 
 use super::*;
-use wordcraft_doc::Pos;
+use strix_doc::Pos;
 
 fn lay(doc: &Document) -> DocLayout {
     let mut c = LayoutCache::new();
@@ -106,7 +107,7 @@ fn east_asian_characters_stand_upright_in_top_to_bottom_text() {
 
 #[test]
 fn headers_stay_horizontal_and_a_vertical_section_starts_a_page() {
-    use wordcraft_doc::section::SectionStart;
+    use strix_doc::section::SectionStart;
     let mut d = Document::from_text("Horizontal\nVertical");
     // Section 1 ends after paragraph 0 (continuous), section 2 is vertical.
     let first = SectionProps { start: SectionStart::Continuous, ..Default::default() };
@@ -123,11 +124,11 @@ fn headers_stay_horizontal_and_a_vertical_section_starts_a_page() {
 /// goes to the text beside or after it, not to a cell of the table nearer the click.
 #[test]
 fn a_click_outside_a_floating_table_in_a_vertical_section_skips_its_cells() {
-    use wordcraft_doc::para::Anchor;
-    use wordcraft_doc::props::TableFloat;
+    use strix_doc::para::Anchor;
+    use strix_doc::props::TableFloat;
     let mut d = Document::from_text("Text");
     d.last_section.text_direction = TextDirection::Down;
-    let mut t = wordcraft_doc::Table::new(3, 2, 200.0);
+    let mut t = strix_doc::Table::new(3, 2, 200.0);
     t.props.float = Some(TableFloat {
         h_rel: Anchor::Column,
         v_rel: Anchor::Paragraph,

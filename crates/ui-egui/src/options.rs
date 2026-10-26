@@ -1,6 +1,7 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! File › Options (#485): a list of panes on the left (General, Display, Proofing, Save,
 //! Language, Accessibility, Advanced, Agents), the chosen pane's settings on the right. Only
-//! settings WordCraft carries out are shown. Each pane is one function below, so a new setting
+//! settings Strix carries out are shown. Each pane is one function below, so a new setting
 //! goes into its pane's function. Settings agents can change too go through `file.options`; the
 //! rest live in [`crate::UiState`] (saved in `ui.json`).
 
@@ -10,8 +11,8 @@ use egui::{RichText, Ui, vec2};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
-use wordcraft_engine::cmd::options::{MAX_WORD_CHARS, PANES};
-use wordcraft_geom::Unit;
+use strix_engine::cmd::options::{MAX_WORD_CHARS, PANES};
+use strix_geom::Unit;
 
 use crate::WordApp;
 use crate::theme::{Tokens, semibold};
@@ -72,7 +73,7 @@ pub fn parse_length(text: &str, unit: Unit) -> Option<f64> {
             break;
         }
     }
-    wordcraft_geom::parse_measure(&text, unit).map(|pt| f64::from(pt / unit.pt_per_unit()))
+    strix_geom::parse_measure(&text, unit).map(|pt| f64::from(pt / unit.pt_per_unit()))
 }
 
 /// Copy the session's settings the UI reads without the app.
@@ -227,9 +228,9 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
     section(ui, "Start-up");
     let mut start = app.ui.start_screen;
     if ui
-        .checkbox(&mut start, tl!("Show the Start screen when WordCraft starts"))
+        .checkbox(&mut start, tl!("Show the Start screen when Strix starts"))
         .on_hover_text(tl!(
-            "On: WordCraft opens on File › Home, with a blank document, the templates and your recent documents. Off: it opens a blank document."
+            "On: Strix opens on File › Home, with a blank document, the templates and your recent documents. Off: it opens a blank document."
         ))
         .changed()
     {
@@ -240,7 +241,7 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
     egui::Grid::new("options_user").num_columns(2).spacing(vec2(8.0, 6.0)).show(ui, |ui| {
         let user_label = ui.label(tl!("User name:"));
         let mut n = app.session.author.clone();
-        let protected = wordcraft_engine::cmd::protect::enforced(&app.session.doc);
+        let protected = strix_engine::cmd::protect::enforced(&app.session.doc);
         if ui.add_enabled(!protected, egui::TextEdit::singleline(&mut n).desired_width(260.0)).labelled_by(user_label.id).changed() && !protected {
             app.session.author = n;
         }
@@ -250,7 +251,7 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
         let hint = app.session.user_initials();
         if ui
             .add(
-                egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(wordcraft_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint),
+                egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(strix_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint),
             )
             .labelled_by(initials_label.id)
             .changed()
@@ -320,7 +321,7 @@ fn proofing(app: &mut WordApp, ui: &mut Ui) {
 
 /// Where the spelling dictionaries come from (#1063): a folder searched before the system's
 /// usual places, saved with the settings, and the dictionary each language found. An app started
-/// from Finder or the Dock doesn't see `WORDCRAFT_DICTIONARIES`, so this is how it finds a
+/// from Finder or the Dock doesn't see `STRIX_DICTIONARIES`, so this is how it finds a
 /// dictionary kept in a folder of the user's own.
 fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
     let saved = app.session.prefs.dictionaries_folder.clone().unwrap_or_default();
@@ -351,15 +352,15 @@ fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
     note(ui, "Hunspell .aff and .dic files here (pl_PL, pt_BR, it_IT, hr_HR, tr_TR) are used before the system's.");
     // The dictionary each language found, looked up again after the folder changes.
     let found_id = egui::Id::unique("options_dictionaries_found");
-    let generation = wordcraft_engine::proof::dictionary_generation();
+    let generation = strix_engine::proof::dictionary_generation();
     let cached = ui.data(|d| d.get_temp::<(u64, Vec<(String, Option<String>, Option<String>)>)>(found_id)).filter(|(g, _)| *g == generation);
     let found = match cached {
         Some((_, f)) => f,
         None => {
-            let f: Vec<(String, Option<String>, Option<String>)> = wordcraft_engine::proof::installed_dictionaries()
+            let f: Vec<(String, Option<String>, Option<String>)> = strix_engine::proof::installed_dictionaries()
                 .into_iter()
                 .map(|(lang, dic)| {
-                    let error = wordcraft_engine::proof::dictionary_load_error(lang);
+                    let error = strix_engine::proof::dictionary_load_error(lang);
                     (language_name(lang).to_string(), dic.map(|d| d.to_string_lossy().into_owned()), error)
                 })
                 .collect();
@@ -380,8 +381,8 @@ fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The interface name of a language with a Hunspell dictionary.
-fn language_name(lang: wordcraft_engine::proof::ProofLang) -> &'static str {
-    use wordcraft_engine::proof::ProofLang;
+fn language_name(lang: strix_engine::proof::ProofLang) -> &'static str {
+    use strix_engine::proof::ProofLang;
     match lang {
         ProofLang::Pl => tl!("Polish"),
         ProofLang::Pt => tl!("Portuguese (Brazil)"),
@@ -403,7 +404,7 @@ fn language_name(lang: wordcraft_engine::proof::ProofLang) -> &'static str {
 /// The custom dictionary: the words Add to Dictionary kept, each with a Remove button, and a
 /// field to add one.
 fn custom_dictionary(app: &mut WordApp, ui: &mut Ui) {
-    let words = wordcraft_engine::proof::user_dictionary();
+    let words = strix_engine::proof::user_dictionary();
     if words.is_empty() {
         note(ui, "No words yet. Add to Dictionary on a misspelled word puts it here.");
     }
@@ -442,7 +443,7 @@ fn save(app: &mut WordApp, ui: &mut Ui) {
     // The browser can't write to the user's files, so AutoSave can't be turned on there (#176).
     let browser = app.autosave_block() == Some(crate::AutoSaveBlock::Browser);
     let mut autosave = app.autosave && !browser;
-    let r = ui.add_enabled(!browser, egui::Checkbox::new(&mut autosave, tl!("AutoSave documents you have saved in WordCraft")));
+    let r = ui.add_enabled(!browser, egui::Checkbox::new(&mut autosave, tl!("AutoSave documents you have saved in Strix")));
     if browser {
         r.on_disabled_hover_text(crate::AutoSaveBlock::Browser.reason());
     } else if r.changed() {
@@ -479,7 +480,7 @@ fn language(app: &mut WordApp, ui: &mut Ui) {
     let text = if crate::ribbon::caret_no_proof(app) {
         tl!("The text at the insertion point is marked Do not check spelling or grammar.").to_string()
     } else if !crate::ribbon::caret_language_proofed(app) {
-        crate::i18n::fmt(tl!("{language}: WordCraft doesn't check spelling or grammar in this language yet."), &[("language", &lang)])
+        crate::i18n::fmt(tl!("{language}: Strix doesn't check spelling or grammar in this language yet."), &[("language", &lang)])
     } else {
         let unreadable = crate::ribbon::caret_unreadable_dictionary(app);
         crate::chrome::dictionary_problem(&lang, &unreadable, crate::ribbon::caret_missing_dictionary(app))
@@ -490,7 +491,7 @@ fn language(app: &mut WordApp, ui: &mut Ui) {
 
 /// Draws Accessibility options: the animation setting and Read Aloud speed and skip-citations.
 fn accessibility(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_engine::speech::{MAX_RATE, MIN_RATE};
+    use strix_engine::speech::{MAX_RATE, MIN_RATE};
     section(ui, "Visual effects");
     animations_picker(app, ui);
     ui.add_space(8.0);
@@ -612,7 +613,7 @@ fn advanced(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
-/// The user templates folder (#2852): where File › New finds personal templates and Save as Word
+/// The user templates folder (#2852): where File › New finds personal templates and Save as Strix
 /// Template starts. Empty is the app's own folder, shown as the hint.
 fn templates_folder(app: &mut WordApp, ui: &mut Ui) {
     let saved = app.session.prefs.user_templates_folder.clone().unwrap_or_default();
@@ -639,12 +640,12 @@ fn templates_folder(app: &mut WordApp, ui: &mut Ui) {
         }
     });
     ui.data_mut(|d| d.insert_temp(id, folder));
-    note(ui, "File › New lists the .dotx and .dotm templates here under Personal; Save as Word Template starts here.");
+    note(ui, "File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.");
 }
 
 fn agents(ui: &mut Ui) {
     section(ui, "Agents");
-    ui.label(tl!("Every command is available to scripts and AI agents: run `wordcraft-cli mcp` for an MCP server, or start the app with `--control <port>` for the JSON control channel."));
+    ui.label(tl!("Every command is available to scripts and AI agents: run `strix-cli mcp` for an MCP server, or start the app with `--control <port>` for the JSON control channel."));
 }
 
 /// Interface theme: Light, Dark, or follow the system's appearance (#115).
@@ -811,23 +812,23 @@ fn overlay<T: DeserializeOwned>(
     }
 }
 
-/// File ▸ Options ▸ General: make WordCraft the default app for Word documents (#295). Only where
+/// File ▸ Options ▸ General: make Strix the default app for Word documents (#295). Only where
 /// the host can (`Services::make_default_app`: Windows opens Default apps, Linux and BSD use
 /// `xdg-mime`); macOS shows how to do it in Finder, the web shows nothing.
 fn default_app_button(app: &mut WordApp, ui: &mut Ui) {
     if app.services.make_default_app.is_some() {
         let hint = if cfg!(target_os = "windows") {
-            tl!("Opens Settings › Default apps, where you choose WordCraft for .docx and the other document types.")
+            tl!("Opens Settings › Default apps, where you choose Strix for .docx and the other document types.")
         } else {
-            tl!("Opens .docx, .doc, .rtf and .odt files and Word templates with WordCraft from now on.")
+            tl!("Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.")
         };
-        if ui.button(tl!("Make WordCraft the default for Word documents…")).on_hover_text(hint).clicked() {
+        if ui.button(tl!("Make Strix the default for Word documents…")).on_hover_text(hint).clicked() {
             // Straight to the hook, not through `run`: only a click may change system defaults.
             let _ = app.make_default_app();
         }
     } else if cfg!(target_os = "macos") {
         ui.label(
-            egui::RichText::new(tl!("To open Word documents with WordCraft by default: select one in Finder, choose File › Get Info, pick WordCraft under Open with, then click Change All."))
+            egui::RichText::new(tl!("To open Word documents with Strix by default: select one in Finder, choose File › Get Info, pick Strix under Open with, then click Change All."))
                 .small()
                 .weak(),
         );
@@ -837,7 +838,7 @@ fn default_app_button(app: &mut WordApp, ui: &mut Ui) {
 /// File ▸ Options ▸ Numerals: how digits look on screen (display only, like Word's
 /// File › Options › Advanced › Numeral).
 fn numeral_picker(app: &mut WordApp, ui: &mut Ui) {
-    use wordcraft_layout::NumeralMode;
+    use strix_layout::NumeralMode;
     ui.horizontal(|ui| {
         let label = ui.label(tl!("Numerals:"));
         let mut sel = app.session.view.numeral;
@@ -857,7 +858,7 @@ fn numeral_picker(app: &mut WordApp, ui: &mut Ui) {
 mod tests {
     use egui_kittest::kittest::{NodeT, Queryable};
     use serde_json::json;
-    use wordcraft_geom::Unit;
+    use strix_geom::Unit;
 
     use super::{decimal, length, parse_length, unit};
 
@@ -877,7 +878,7 @@ mod tests {
     }
 
     fn app() -> WordApp {
-        WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default())
+        WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default())
     }
 
     fn nav_harness(language: &str, percent: u16) -> egui_kittest::Harness<'static, WordApp> {
@@ -901,7 +902,7 @@ mod tests {
     #[test]
     fn user_name_field_disables_when_protection_starts() {
         let mut h = nav_harness("en", 100);
-        let user_name = || egui_kittest::kittest::By::new().role(egui::accesskit::Role::TextInput).value("WordCraft User");
+        let user_name = || egui_kittest::kittest::By::new().role(egui::accesskit::Role::TextInput).value("Strix User");
         assert!(!h.get(user_name()).accesskit_node().is_disabled());
         h.state_mut().run("review.restrict", json!({"mode": "readOnly"})).unwrap();
         h.run_steps(4);
@@ -924,7 +925,7 @@ mod tests {
                 for selected in ["general", "accessibility"] {
                     h.state_mut().run("file.options", json!({"pane": selected})).unwrap();
                     h.run_steps(4);
-                    for id in wordcraft_engine::cmd::options::PANES {
+                    for id in strix_engine::cmd::options::PANES {
                         let label = crate::i18n::tr(crate::i18n::Lang::from_pref(language), super::pane_label(id));
                         let node =
                             h.query_all_by_label(label).find(|n| n.accesskit_node().toggled().is_some()).expect("pane has its full accessible name");
@@ -1021,7 +1022,7 @@ mod tests {
         assert_eq!(b.session.prefs.units, Some(Unit::Centimeters));
         assert_eq!(b.session.initials, "VK");
         assert_eq!((b.ui.recent_count, b.ui.print_backgrounds), (30, true));
-        assert!(wordcraft_engine::proof::user_dictionary().contains(&"zqxoptionsword".to_string()));
+        assert!(strix_engine::proof::user_dictionary().contains(&"zqxoptionsword".to_string()));
 
         let junk = br#"{"theme": "dark", "recentCount": "lots", "printBackgrounds": 7, "optionsPane": ["x"], "dark": true,
             "editing": {"measurementUnits": "furlongs", "typingReplacesSelection": false, "marks": {"tabs": "yes", "spaces": true}}}"#;
@@ -1044,11 +1045,11 @@ mod tests {
         let mut a = app();
         a.run("file.options", json!({"dictionariesFolder": dir.to_string_lossy()})).unwrap();
         let saved = serde_json::to_vec(&a.prefs()).unwrap();
-        wordcraft_engine::proof::hunspell::set_dictionary_dir(None);
+        strix_engine::proof::hunspell::set_dictionary_dir(None);
         let mut b = app();
         b.apply_prefs(UiState::from_json(&saved).unwrap());
         assert_eq!(b.session.prefs.dictionaries_folder.as_deref(), Some(dir.to_string_lossy().as_ref()));
-        assert_eq!(wordcraft_engine::proof::hunspell::search_dirs(None).first(), Some(&dir), "searched first");
+        assert_eq!(strix_engine::proof::hunspell::search_dirs(None).first(), Some(&dir), "searched first");
     }
 
     /// #1792: Check spelling as you type is saved with the other proofing choices, so after a
@@ -1164,7 +1165,7 @@ mod tests {
     fn animation_effects_is_an_accessibility_option() {
         use crate::theme::Animations;
         let services = Services { animations_enabled: Some(Box::new(|| Some(false))), ..Default::default() };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("file.options", json!({"pane": "accessibility"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1203,10 +1204,10 @@ mod tests {
         );
         h.run_steps(4);
         assert!(h.query_by_label("Start-up").is_some(), "the section is there");
-        h.get_by_label("Show the Start screen when WordCraft starts").click();
+        h.get_by_label("Show the Start screen when Strix starts").click();
         h.run_steps(4);
         assert!(!h.state().ui.start_screen, "the checkbox turns it off");
-        h.get_by_label("Show the Start screen when WordCraft starts").click();
+        h.get_by_label("Show the Start screen when Strix starts").click();
         h.run_steps(4);
         assert!(h.state().ui.start_screen, "and on again");
     }
@@ -1273,7 +1274,7 @@ mod tests {
         let mut a = app();
         a.run("file.options", json!({"region": "pl-PL"})).unwrap();
         a.run("file.new", json!({})).unwrap();
-        assert_eq!(wordcraft_geom::paper_name(a.session.doc.last_section.page_w, a.session.doc.last_section.page_h), Some("A4"));
+        assert_eq!(strix_geom::paper_name(a.session.doc.last_section.page_w, a.session.doc.last_section.page_h), Some("A4"));
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Hunspell-style affix dictionaries — the subset the SJP.PL Polish dictionary (`pl_PL`) uses.
 //!
 //! A word is correct when it is a stem, a stem with one suffix, a stem with one prefix, or a stem
@@ -8,7 +9,7 @@
 //!
 //! The rules and stems come from a Hunspell `.aff`/`.dic` pair ([`AffixDict::from_hunspell`]),
 //! read at runtime from the dictionaries installed on the system ([`crate::hunspell`]). They can
-//! also be stored in WordCraft's compact format ([`AffixDict::to_bytes`]): the rules as text
+//! also be stored in Strix's compact format ([`AffixDict::to_bytes`]): the rules as text
 //! lines and the stems front-coded, raw-deflated together (the Polish dictionary is under 1 MB).
 //!
 //! Supported: one-character flags (at most 128 distinct, any Unicode character — `FLAG UTF-8`),
@@ -879,7 +880,7 @@ impl AffixDict {
         &self.comments
     }
 
-    /// Serialize to WordCraft's compact format: raw-deflate of `WCAFF1`, the comments, the
+    /// Serialize to Strix's compact format: raw-deflate of `WCAFF1`, the comments, the
     /// tables and rules as text lines, a `WORDS` line, then one line per stem, front-coded
     /// against the previous one (a byte with the shared prefix length in bytes, the rest of the
     /// word, `/` and its flags if any).

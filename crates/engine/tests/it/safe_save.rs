@@ -1,17 +1,18 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Original synthetic save cases. Every test owns its directory and document copies.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::json;
-use wordcraft_doc::{Document, StoryRef};
-use wordcraft_engine::{Session, io};
+use strix_doc::{Document, StoryRef};
+use strix_engine::{Session, io};
 
 struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
-        let path = std::env::temp_dir().join(format!("wordcraft-safe-save-test-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        let path = std::env::temp_dir().join(format!("strix-safe-save-test-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         std::fs::create_dir(&path).unwrap();
         Self(path)
     }

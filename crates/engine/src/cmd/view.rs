@@ -1,8 +1,9 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! View tab and status bar: views, zoom, show/hide, panes.
 
 use serde_json::{Value, json};
-use wordcraft_doc::{Zoom, ZoomFit};
-use wordcraft_layout::{NumeralMode, ViewMode};
+use strix_doc::{Zoom, ZoomFit};
+use strix_layout::{NumeralMode, ViewMode};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};

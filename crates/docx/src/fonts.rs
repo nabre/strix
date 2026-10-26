@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Fonts a file embeds through its font table (#1171).
 //!
 //! The reader keeps the font table and its font parts as opaque passthrough parts, for writing
@@ -6,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use wordcraft_doc::Document;
+use strix_doc::Document;
 
 use crate::package::{EMBEDDED_PARTS, EmbeddedManifest, FONT_TABLE_PART};
 

@@ -1,11 +1,12 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Read Aloud (Review › Speech) and moving the caret past citations.
 //!
 //! The player lives in [`crate::speech`]; these commands drive it, so the player window, the
 //! ribbon, the CLI and agents all control reading the same way.
 
 use serde_json::Value;
-use wordcraft_doc::para::OBJ;
-use wordcraft_doc::{InlineObject, Pos};
+use strix_doc::para::OBJ;
+use strix_doc::{InlineObject, Pos};
 
 use super::sel_result;
 use crate::speech::{self, State};
@@ -159,8 +160,8 @@ fn past_citation(s: &mut Session, _: &Value) -> CmdResult {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_doc::props::CharProps;
-    use wordcraft_doc::{Document, InlineObject, Path, Pos, StoryRef};
+    use strix_doc::props::CharProps;
+    use strix_doc::{Document, InlineObject, Path, Pos, StoryRef};
 
     use crate::Session;
     use crate::speech::State;

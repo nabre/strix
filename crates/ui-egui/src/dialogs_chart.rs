@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Insert Chart / Change Chart Type (a gallery of chart types with previews drawn in code) and
 //! Edit Data (the chart's categories and series in an editable grid). Each ends by running one
 //! command (`insert.chart`, `chart.type`, `chart.editData`), so agents get the same result
@@ -6,7 +7,7 @@
 use egui::{Color32, Pos2, Rect, Sense, Shape, Stroke, Ui, pos2, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
-use wordcraft_doc::chart::{ChartSpec, ChartType, MAX_POINTS, MAX_SERIES};
+use strix_doc::chart::{ChartSpec, ChartType, MAX_POINTS, MAX_SERIES};
 
 use crate::WordApp;
 use crate::theme::{Tokens, c32};
@@ -22,7 +23,7 @@ pub struct ChartTypeForm {
 
 impl ChartTypeForm {
     pub fn new(app: &WordApp, change: bool) -> Option<ChartTypeForm> {
-        let current = wordcraft_engine::cmd::chart::selected_chart(&app.session);
+        let current = strix_engine::cmd::chart::selected_chart(&app.session);
         if change && current.is_none() {
             return None;
         }
@@ -43,7 +44,7 @@ pub struct ChartDataForm {
 
 impl ChartDataForm {
     pub fn new(app: &WordApp) -> Option<ChartDataForm> {
-        let c = wordcraft_engine::cmd::chart::selected_chart(&app.session)?;
+        let c = strix_engine::cmd::chart::selected_chart(&app.session)?;
         Some(Self::of(&c))
     }
 

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Several open documents. On the desktop each has a window of its own ([`crate::windows`]); the
 //! web app shows them in one window, which shows the session's active document. What the app
 //! keeps about a document (AutoSave's file, comment drafts) follows the active one. In one
@@ -8,7 +9,7 @@
 //! another, each in its window.
 
 use serde_json::{Value, json};
-use wordcraft_engine::DocInfo;
+use strix_engine::DocInfo;
 
 use crate::{WordApp, panes};
 
@@ -218,13 +219,13 @@ pub(crate) fn switch_windows_menu(ui: &mut egui::Ui, app: &mut WordApp) {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_doc::StoryRef;
-    use wordcraft_engine::Session;
+    use strix_doc::StoryRef;
+    use strix_engine::Session;
 
     use crate::{Services, WordApp};
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::new()), Services::default())
     }
 
     fn harness(a: WordApp) -> egui_kittest::Harness<'static, WordApp> {

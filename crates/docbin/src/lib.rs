@@ -1,9 +1,10 @@
-//! WordCraft reader for the Word 97-2003 binary file format (`.doc`, [MS-DOC]).
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix reader for the Word 97-2003 binary file format (`.doc`, [MS-DOC]).
 //!
-//! [`read`] turns the bytes of a `.doc` file into a [`wordcraft_doc::Document`]. There is no
+//! [`read`] turns the bytes of a `.doc` file into a [`strix_doc::Document`]. There is no
 //! writer: saving always goes through the other formats. The reader is written from the public
 //! specification ([MS-DOC], Word (.doc) Binary File Format, Microsoft Open Specifications) and,
-//! like every WordCraft parser, is lenient by design (unknown structures are skipped, bad numbers
+//! like every Strix parser, is lenient by design (unknown structures are skipped, bad numbers
 //! fall back to defaults) and bounded (stream sizes, piece counts and property counts are
 //! capped), so hostile input yields an error or a best-effort document, never a panic.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -26,15 +27,15 @@ mod table;
 
 use std::io::{Read, Seek};
 
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::para::NoteKind;
-use wordcraft_doc::para::Paragraph;
-use wordcraft_doc::para::Run;
-use wordcraft_doc::props::CharProps;
-use wordcraft_doc::props::NumRef;
-use wordcraft_doc::section::HeaderSet;
-use wordcraft_doc::styles::StyleSheet;
-use wordcraft_doc::{Document, PartKind};
+use strix_doc::para::InlineObject;
+use strix_doc::para::NoteKind;
+use strix_doc::para::Paragraph;
+use strix_doc::para::Run;
+use strix_doc::props::CharProps;
+use strix_doc::props::NumRef;
+use strix_doc::section::HeaderSet;
+use strix_doc::styles::StyleSheet;
+use strix_doc::{Document, PartKind};
 
 use fkp::Bins;
 use piece::{PieceTable, PrmRef};
@@ -122,7 +123,7 @@ impl Work {
     fn log(&self) {
         let dropped = self.dropped();
         for c in &dropped {
-            log::warn!(".doc: the document repeats more than WordCraft copies ({MAX_WORK} bytes): {}", c.left_out());
+            log::warn!(".doc: the document repeats more than Strix copies ({MAX_WORK} bytes): {}", c.left_out());
         }
         #[cfg(test)]
         LAST_DROPPED.with(|d| *d.borrow_mut() = dropped);
@@ -158,7 +159,7 @@ pub enum DocbinError {
     /// The password does not open the document.
     #[error("the password is incorrect")]
     WrongPassword,
-    /// The document is encrypted in a way WordCraft can't read (AES, an external provider, an
+    /// The document is encrypted in a way Strix can't read (AES, an external provider, an
     /// unknown header).
     #[error("encrypted document: {0}")]
     Encryption(String),
@@ -177,9 +178,9 @@ pub fn is_encrypted(bytes: &[u8]) -> bool {
     stream(&mut comp, "WordDocument").is_some_and(|w| fib::peek_encryption(&w).is_some())
 }
 
-/// Open the compound file around a `.doc`, after [`wordcraft_doc::cfb_guard::check`].
+/// Open the compound file around a `.doc`, after [`strix_doc::cfb_guard::check`].
 fn open_container(bytes: &[u8]) -> Result<cfb::CompoundFile<std::io::Cursor<&[u8]>>, DocbinError> {
-    wordcraft_doc::cfb_guard::check(bytes).map_err(DocbinError::Container)?;
+    strix_doc::cfb_guard::check(bytes).map_err(DocbinError::Container)?;
     cfb::CompoundFile::open(std::io::Cursor::new(bytes)).map_err(|e| DocbinError::Container(e.to_string()))
 }
 
@@ -437,7 +438,7 @@ struct WalkCtx<'a> {
 struct ParaBuild {
     text: String,
     runs: Vec<Run>,
-    props: wordcraft_doc::props::ParaProps,
+    props: strix_doc::props::ParaProps,
     mark: CharProps,
     /// The current run's properties, so runs only break when formatting changes.
     cur: Option<CharProps>,

@@ -1,18 +1,19 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Insert › Chart and the Chart Design tab: insert a chart, change its type, data, title, legend
 //! and data labels.
 //!
 //! A chart is an inline [`InlineObject::Graphic`] whose graphic keeps its model
 //! ([`ChartSpec`]); it is drawn by the same code that draws charts read from files, and saved as
-//! a chart part with its data in it (see `wordcraft_docx::chart_xml`). Charts made by other
+//! a chart part with its data in it (see `strix_docx::chart_xml`). Charts made by other
 //! programs are shown as they are; the chart commands only edit charts with a model.
 
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use wordcraft_doc::chart::{ChartSeries, ChartSpec, ChartType, LegendPos, MAX_POINTS, MAX_SERIES};
-use wordcraft_doc::graphic::{Graphic, GraphicKind};
-use wordcraft_doc::para::{Float, InlineObject};
-use wordcraft_doc::props::Rgb;
+use strix_doc::chart::{ChartSeries, ChartSpec, ChartType, LegendPos, MAX_POINTS, MAX_SERIES};
+use strix_doc::graphic::{Graphic, GraphicKind};
+use strix_doc::para::{Float, InlineObject};
+use strix_doc::props::Rgb;
 
 use super::objects::selected;
 use super::{delete_selection, sel_result};
@@ -119,7 +120,7 @@ fn has_chart(s: &Session) -> Option<&'static str> {
     match selected(s) {
         Some((_, InlineObject::Graphic { graphic, .. })) if graphic.chart.is_some() => None,
         Some((_, InlineObject::Graphic { graphic, .. })) if graphic.kind == GraphicKind::Chart => {
-            Some("this chart was made in another program: WordCraft shows it but can't edit it")
+            Some("this chart was made in another program: Strix shows it but can't edit it")
         }
         _ => Some("select a chart first"),
     }
@@ -128,7 +129,7 @@ fn has_chart(s: &Session) -> Option<&'static str> {
 /// The graphic for `spec` drawn `w` × `h` points in the theme's colours.
 pub fn chart_graphic(spec: ChartSpec, theme: &[Rgb], w: f32, h: f32) -> Graphic {
     let spec = spec.sanitized();
-    let items = wordcraft_docx::chart_items(&spec, theme, w, h);
+    let items = strix_docx::chart_items(&spec, theme, w, h);
     Graphic { kind: GraphicKind::Chart, items, w, h, source: None, chart: Some(Arc::new(spec)), smart_art: None }
 }
 
@@ -211,9 +212,9 @@ fn categories(v: &Value) -> Result<Vec<String>, CmdError> {
 
 fn cell_text(v: &Value) -> String {
     match v {
-        Value::String(t) => wordcraft_doc::chart::clean_text(t),
+        Value::String(t) => strix_doc::chart::clean_text(t),
         Value::Null => String::new(),
-        other => wordcraft_doc::chart::clean_text(&other.to_string()),
+        other => strix_doc::chart::clean_text(&other.to_string()),
     }
 }
 

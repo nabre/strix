@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Resizing tables with the mouse, like Word: over a column border (or the left edge) the pointer
 //! turns into a column-resize arrow, over a row's bottom border a row-resize arrow; over a table
 //! a small handle shows past its bottom-right corner. Dragging shows a dashed preview of the new border
@@ -8,8 +9,8 @@
 
 use egui::{Pos2, Rect, Stroke, Ui, pos2};
 use serde_json::json;
-use wordcraft_engine::cmd::table_resize::{self, Edge, Plan, ResizeTarget, Share};
-use wordcraft_layout::DocLayout;
+use strix_engine::cmd::table_resize::{self, Edge, Plan, ResizeTarget, Share};
+use strix_layout::DocLayout;
 
 use crate::WordApp;
 use crate::theme::Tokens;
@@ -293,7 +294,7 @@ pub(crate) fn caret_handles(
     painter: &egui::Painter,
     layout: &DocLayout,
     rects: &[Rect],
-) -> Vec<(usize, Option<wordcraft_geom::Rect>, Option<wordcraft_geom::Rect>)> {
+) -> Vec<(usize, Option<strix_geom::Rect>, Option<strix_geom::Rect>)> {
     let focus = &app.session.sel.focus;
     let Some((tp, _, _)) = focus.path.cell() else { return Vec::new() };
     let clip = painter.clip_rect();
@@ -302,7 +303,7 @@ pub(crate) fn caret_handles(
         .enumerate()
         .filter(|(_, r)| r.intersects(clip))
         .map(|(page, _)| {
-            let (m, z) = wordcraft_engine::cmd::table_mouse::caret_handles(layout, &app.session.doc, focus.story, &tp, page);
+            let (m, z) = strix_engine::cmd::table_mouse::caret_handles(layout, &app.session.doc, focus.story, &tp, page);
             (page, m, z)
         })
         .filter(|(_, m, z)| m.is_some() || z.is_some())
@@ -334,7 +335,7 @@ pub(crate) mod tests {
 
     /// The same, each step `dt` seconds apart (short enough for a double-click: 1/60).
     pub(crate) fn table_window_stepping(dt: f32) -> H {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         a.run("insert.table", json!({"rows": 2, "cols": 3})).unwrap();
         a.run("text.insert", json!({"text": "Product"})).unwrap();
         a.run("select.text", json!({"text": "Product"})).unwrap();
@@ -353,12 +354,12 @@ pub(crate) mod tests {
     }
 
     /// Cell (`row`, `cell`)'s rect in page points.
-    pub(crate) fn cell(h: &mut H, row: usize, cell: usize) -> wordcraft_geom::Rect {
+    pub(crate) fn cell(h: &mut H, row: usize, cell: usize) -> strix_geom::Rect {
         h.state_mut().session.layout().pages[0]
             .items
             .iter()
             .find_map(|it| match it {
-                wordcraft_layout::Placed::Cell { rect, row: r, cell: c, .. } if *r == row && *c == cell => Some(*rect),
+                strix_layout::Placed::Cell { rect, row: r, cell: c, .. } if *r == row && *c == cell => Some(*rect),
                 _ => None,
             })
             .unwrap()

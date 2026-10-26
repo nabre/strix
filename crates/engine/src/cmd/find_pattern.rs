@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word's Find and Replace patterns (#543): special characters (`^p`, `^t`, `^#` …) and the
 //! "Use wildcards" language (`?`, `*`, `[a-z]`, `{n,m}`, `@`, `<`, `>`, `( )`), translated to a
 //! regular expression for the linear-time `regex` engine, so no pattern can backtrack
@@ -32,7 +33,7 @@ pub struct Opts {
     pub ignore_space: bool,
     /// Word's "Use wildcards".
     pub wildcards: bool,
-    /// A regular expression (WordCraft's own option; wins over wildcards).
+    /// A regular expression (Strix's own option; wins over wildcards).
     pub regex: bool,
     /// Take the text literally: no `^` codes.
     pub literal: bool,

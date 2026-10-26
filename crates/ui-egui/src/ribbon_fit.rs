@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Ribbon groups that shrink to fit the window (#662), the way Word's ribbon does: when a tab is
 //! wider than the window, groups give up their small buttons' labels and the Styles gallery shows
 //! fewer tiles (compact), then fold into a single drop-down button that opens the whole group
@@ -333,7 +334,7 @@ mod ui_tests {
     use serde_json::json;
 
     fn harness(width: f32) -> egui_kittest::Harness<'static, WordApp> {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), crate::Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), crate::Services::default());
         app.run("ui.tab", json!({"tab": "Home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(width, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -393,7 +394,7 @@ mod ui_tests {
         // The item's accessible name carries its shortcut.
         h.get_by_label_contains("UPPERCASE").click();
         h.run_steps(3);
-        let text = h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+        let text = h.state().session.doc.plain_text(strix_doc::StoryRef::Body);
         assert!(!text.chars().any(|c| c.is_lowercase()), "UPPERCASE ran");
         assert!(shown(&h, "Increase Font Size"), "a menu inside counts as inside");
         h.get_by_role_and_label(Role::Button, "Font").click();

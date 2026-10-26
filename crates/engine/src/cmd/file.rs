@@ -1,7 +1,8 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! File tab (Backstage): new, open, save, export, print, properties; document inspection.
 
 use serde_json::{Value, json};
-use wordcraft_doc::{Block, Document, StoryRef};
+use strix_doc::{Block, Document, StoryRef};
 
 use super::{pos_json, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
@@ -93,13 +94,13 @@ pub fn specs() -> Vec<CommandSpec> {
             .pure(),
         CommandSpec::new("file.save", "Save", "File", save)
             .key("Mod+S / Shift+F12 / Alt+Shift+F2")
-            .params(r#"{"path"?: string, "password"?: string (encrypt this and later saves with it, as file.encrypt does), "markup"?: bool (Print Markup for a PDF, PNG, HTML, Markdown or text copy: comments shown; default file.printMarkup), "format"?: "wordml2003" (an .xml file as a Word 2003 XML Document) | "flatopc" (as a Word XML Document, the default; saving over a Word 2003 XML file keeps that format)}"#)
+            .params(r#"{"path"?: string (without it, saves in place only a Strix document, .xmath or .xmathm: a new document asks where, and one opened from another format is an error, so use file.saveAs with a .xmath path; with it, the extension picks the format: .xmath (also when there is none), .xmathm, or an export such as .docx, .pdf, .odt), "password"?: string (encrypt this and later saves with it, as file.encrypt does), "markup"?: bool (Print Markup for a PDF, PNG, HTML, Markdown or text copy: comments shown; default file.printMarkup), "format"?: "wordml2003" (an .xml file as a Word 2003 XML Document) | "flatopc" (as a Word XML Document, the default; saving over a Word 2003 XML file keeps that format)}"#)
             .pure(),
-        CommandSpec::new("file.saveAs", "Save As", "File", save_as).key(super::mac_or("F12 / Mod+Shift+S", "F12 / Alt+F2")).params(r#"{"path": string, "password"?: string, "markup"?: bool, "format"?: string (as file.save)}"#).pure(),
+        CommandSpec::new("file.saveAs", "Save As", "File", save_as).key(super::mac_or("F12 / Mod+Shift+S", "F12 / Alt+F2")).params(r#"{"path": string (.xmath, the default when it has no extension, or .xmathm saves the Strix document; any other format Strix saves, such as .docx, .pdf, .odt, .rtf, .md, .html, .txt, exports it), "password"?: string, "markup"?: bool, "format"?: string (as file.save)}"#).pure(),
         // Pure: the password must not land in Repeat or a recorded macro, and it isn't an edit
         // to undo; it marks the document as changed itself.
         CommandSpec::new("file.encrypt", "Encrypt with Password", "File › Info › Protect Document", encrypt)
-            .params(r#"{"password": string (Word documents are saved encrypted with it) | null or "" (saved unencrypted)}"#)
+            .params(r#"{"password": string (Strix and Word documents are saved encrypted with it) | null or "" (saved unencrypted)}"#)
             .pure(),
         CommandSpec::new("file.exportPdf", "Export PDF", "File › Export", |s, v| {
             // No path (the command search, say): the app asks where to save, as File › Export
@@ -317,7 +318,7 @@ fn encrypt(s: &mut Session, v: &Value) -> CmdResult {
         Some(Value::Null) => None,
         Some(Value::String(pw)) if pw.is_empty() => None,
         Some(Value::String(pw)) => {
-            wordcraft_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
+            strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
             Some(crate::io::Password::new(pw))
         }
         _ => return Err(CmdError::Params("`password` must be a string, or null to remove the password".into())),
@@ -332,22 +333,54 @@ fn encrypt(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"encrypted": s.password.is_some()}))
 }
 
+/// The file an explicit save `path` names: a name without an extension (or ending in a dot) is a
+/// Strix document, `.xmath`.
+fn with_native_default(path: &str) -> std::path::PathBuf {
+    let path = std::path::PathBuf::from(path);
+    if path.extension().is_none_or(|e| e.is_empty()) && path.file_name().is_some() {
+        let mut name = path.file_name().map(|n| n.to_string_lossy().trim_end_matches('.').to_string()).unwrap_or_default();
+        if !name.is_empty() {
+            name.push('.');
+            name.push_str(crate::io::NATIVE_DOC_EXT);
+            return path.with_file_name(name);
+        }
+    }
+    path
+}
+
+/// Save: in place only for Strix's own files (`.xmath`, `.xmathm`). With a `path` it writes there
+/// in the format the extension names (none: `.xmath`); a non-native format is an export, and only
+/// a format that keeps everything becomes the document's file. Without one, a new document asks
+/// where (Save As), and a document opened from another format is refused with what to do
+/// instead: the user interface turns that into Save As with a `.xmath` name proposed.
 fn save(s: &mut Session, v: &Value) -> CmdResult {
-    let path = match p::str(v, "path").map(std::path::PathBuf::from).or_else(|| s.path.clone()) {
+    let explicit = p::str(v, "path");
+    let path = match explicit.map(with_native_default).or_else(|| s.path.clone()) {
         Some(p) => p,
         None => {
             s.push_ui_request(json!({"open": "saveAs"}));
             return Ok(json!({"saved": false}));
         }
     };
+    if explicit.is_none() && !crate::io::is_native(&path.to_string_lossy()) {
+        let name = path.file_name().map_or_else(|| path.to_string_lossy().into_owned(), |n| n.to_string_lossy().into_owned());
+        let proposed = crate::io::native_path(&path);
+        return Err(CmdError::Failed(format!(
+            "{name} isn't a Strix document: Save writes only Strix files (.{}, .{}) in place. Use file.saveAs with a .{} path (such as {:?}) to save it as a Strix document, or with any other path to export a copy",
+            crate::io::NATIVE_DOC_EXT,
+            crate::io::NATIVE_TEMPLATE_EXT,
+            crate::io::NATIVE_DOC_EXT,
+            proposed.to_string_lossy()
+        )));
+    }
     if let Some(pw) = v.get("password").filter(|pw| !pw.is_null()) {
         let Some(pw) = pw.as_str().filter(|pw| !pw.is_empty()) else {
             return Err(CmdError::Params("`password` must be a non-empty string (file.encrypt removes a password)".into()));
         };
         if !crate::io::can_encrypt(&path.to_string_lossy()) {
-            return Err(CmdError::Params("only Word documents (.docx, .docm, .dotx, .dotm) can be saved with a password".into()));
+            return Err(CmdError::Params("only Strix and Word documents (.xmath, .xmathm, .docx, .docm, .dotx, .dotm) can be saved with a password".into()));
         }
-        wordcraft_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
+        strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
         s.clear_recovery_before_password()?;
         s.password = Some(crate::io::Password::new(pw));
     }
@@ -378,9 +411,10 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     }
     let encrypted = password.is_some() && crate::io::can_encrypt(&path.to_string_lossy());
     // A save in a format that doesn't keep everything (plain text, Markdown, a page image) is a
-    // copy, except over the document's own file: a note.txt opened and saved is saved (#2376).
+    // copy, except over the document's own file: a note.txt saved over itself by its path is
+    // saved (#2376). A plain Save without a path only ever writes a Strix file (see above).
     let own_file = s.path.as_deref() == Some(path.as_path());
-    if own_file || ["docx", "docm", "dotx", "dotm", "odt", "rtf", "json", "xml"].contains(&ext.as_str()) {
+    if own_file || crate::io::is_native(&ext) || ["docx", "docm", "dotx", "dotm", "odt", "rtf", "json", "xml"].contains(&ext.as_str()) {
         s.path = Some(path.clone());
         s.dirty = false;
         s.relayout();
@@ -393,7 +427,7 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
 fn is_word_2003_file(path: &std::path::Path) -> bool {
     // The root element and its namespaces come first.
     let Ok(head) = crate::io::read_file_head(&path.to_string_lossy(), 64 * 1024) else { return false };
-    wordcraft_docx::sniff_xml(&head) == wordcraft_docx::XmlKind::WordMl2003
+    strix_docx::sniff_xml(&head) == strix_docx::XmlKind::WordMl2003
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -434,12 +468,12 @@ fn export_png(s: &mut Session, v: &Value) -> CmdResult {
     let pg = l.pages.get(page).ok_or_else(|| CmdError::Params(format!("no page {}", page + 1)))?;
     // A page image is the printed page: headers and footers at full strength. Dimming them is
     // the on-screen cue while editing the body, not part of the page.
-    let mut opts = wordcraft_render::RenderOptions::default();
+    let mut opts = strix_render::RenderOptions::default();
     opts.display.dim_header = false;
     if !path.to_ascii_lowercase().ends_with(".png") {
         return Err(CmdError::Params("path must end in .png".into()));
     }
-    let img = wordcraft_render::render_page(&s.doc, pg, scale, &opts);
+    let img = strix_render::render_page(&s.doc, pg, scale, &opts);
     let png = img.to_png();
     crate::io::write_file(path, &png).map_err(CmdError::Failed)?;
     Ok(json!({"path": path, "width": img.width, "height": img.height, "bytes": png.len()}))
@@ -587,7 +621,7 @@ fn inspect(s: &mut Session, v: &Value) -> CmdResult {
 fn paragraph(s: &mut Session, v: &Value) -> CmdResult {
     let path: Vec<u32> = serde_json::from_value(v.get("path").cloned().unwrap_or(json!([0]))).map_err(|e| CmdError::Params(e.to_string()))?;
     let story = super::story_param(s, v);
-    let p = s.doc.para(story, &wordcraft_doc::Path(path)).ok_or_else(|| CmdError::Params("no paragraph there".into()))?;
+    let p = s.doc.para(story, &strix_doc::Path(path)).ok_or_else(|| CmdError::Params("no paragraph there".into()))?;
     let resolved = s.doc.styles.resolve_para(&p.props);
     Ok(json!({"paragraph": p, "resolved": resolved}))
 }
@@ -598,7 +632,7 @@ fn layout_summary(s: &mut Session, _: &Value) -> CmdResult {
         .pages
         .iter()
         .map(|p| {
-            let lines: usize = p.items.iter().map(|it| if let wordcraft_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 }).sum();
+            let lines: usize = p.items.iter().map(|it| if let strix_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 }).sum();
             json!({"number": p.number, "w": p.w, "h": p.h, "section": p.section, "lines": lines, "firstBlock": p.first_block, "header": p.header_story, "footer": p.footer_story})
         })
         .collect();

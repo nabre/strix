@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Regenerate every app icon from assets/app-icon/wordcraft.svg.
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+# Regenerate every app icon from assets/app-icon/strix.svg.
 #
 # Needs: resvg (brew install resvg / cargo install resvg). On macOS, iconutil also writes the
 # .icns. The outputs are committed, so builds and packaging never need these tools.
@@ -8,8 +9,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="$ROOT/assets/app-icon"
-SVG="$DIR/wordcraft.svg"
-ID="ai.storyteller.wordcraft"
+SVG="$DIR/strix.svg"
+ID="io.github.nabre.strix"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -27,9 +28,9 @@ render() {
   return 0
 }
 
-render "$SVG" 1024 "$DIR/wordcraft-1024.png"
-# Runtime window/Dock icon on macOS (embedded by apps/wordcraft); other platforms use hicolor 256.
-render "$MAC" 512 "$DIR/wordcraft-macos-512.png"
+render "$SVG" 1024 "$DIR/strix-1024.png"
+# Runtime window/Dock icon on macOS (embedded by apps/strix); other platforms use hicolor 256.
+render "$MAC" 512 "$DIR/strix-macos-512.png"
 
 # Linux hicolor theme.
 for s in 16 24 32 48 64 128 256 512; do
@@ -45,18 +46,18 @@ for s in 16 20 24 32 40 48 64 128 256; do
   render "$SVG" "$s" "$TMP/ico-$s.png"
   ICO_PNGS+=("$TMP/ico-$s.png")
 done
-(cd "$ROOT" && cargo run -q -p xtask -- ico "$DIR/wordcraft.ico" "${ICO_PNGS[@]}")
+(cd "$ROOT" && cargo run -q -p xtask -- ico "$DIR/strix.ico" "${ICO_PNGS[@]}")
 
 # macOS .icns.
 if command -v iconutil >/dev/null; then
-  SET="$TMP/wordcraft.iconset"
+  SET="$TMP/strix.iconset"
   mkdir -p "$SET"
   for s in 16 32 128 256 512; do
     render "$MAC" "$s" "$SET/icon_${s}x${s}.png"
     render "$MAC" $((s * 2)) "$SET/icon_${s}x${s}@2x.png"
   done
-  iconutil -c icns -o "$DIR/wordcraft.icns" "$SET"
+  iconutil -c icns -o "$DIR/strix.icns" "$SET"
 else
-  echo "warning: iconutil not found (macOS only); wordcraft.icns not regenerated" >&2
+  echo "warning: iconutil not found (macOS only); strix.icns not regenerated" >&2
 fi
 echo "icons written to $DIR"

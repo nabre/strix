@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Insert tab: pages, tables, pictures, shapes, links, bookmarks, headers/footers, text, symbols.
 
 use serde_json::{Value, json};
-use wordcraft_doc::para::{Float, InlineObject, ShapeKind, Wrap};
-use wordcraft_doc::props::{Align, Border, Borders, CharProps, Rgb, TabAlign, TabStop, TextColor};
-use wordcraft_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, Table, para_block};
+use strix_doc::para::{Float, InlineObject, ShapeKind, Wrap};
+use strix_doc::props::{Align, Border, Borders, CharProps, Rgb, TabAlign, TabStop, TextColor};
+use strix_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, Table, para_block};
 
 use super::{delete_selection, sel_result, split_para, type_text};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -113,7 +114,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(drop_cap_off),
         CommandSpec::new("insert.horizontalLine", "Horizontal Line", "Home › Paragraph › Borders", |s, _| {
             super::para::fmt(s, &|p| {
-                p.borders = Some(wordcraft_doc::props::Borders { bottom: Some(wordcraft_doc::props::Border::single(1.5)), ..Default::default() })
+                p.borders = Some(strix_doc::props::Borders { bottom: Some(strix_doc::props::Border::single(1.5)), ..Default::default() })
             })
         }),
         CommandSpec::new("insert.textFromFile", "Text from File", "Insert › Text › Object", |s, v| {
@@ -251,10 +252,10 @@ fn place_picture(s: &mut Session, bytes: Vec<u8>, width: Option<f32>, alt: &str)
     }
     // Natural size: pixels at 96 ppi, or a metafile's own frame (WMF, EMF: #802). A picture that
     // is never decoded (a TIFF with JPEG strips, #3645) isn't inserted.
-    let (natural_w, natural_h, ext) = match wordcraft_geom::picture::probe(&bytes) {
+    let (natural_w, natural_h, ext) = match strix_geom::picture::probe(&bytes) {
         Ok(pic) => (pic.width as f32 * 0.75, pic.height as f32 * 0.75, image_ext(&bytes)),
-        Err(wordcraft_geom::picture::Refusal::Unsupported(why)) => return Err(CmdError::Failed(why.into())),
-        Err(_) => match wordcraft_render::metafile_size(&bytes) {
+        Err(strix_geom::picture::Refusal::Unsupported(why)) => return Err(CmdError::Failed(why.into())),
+        Err(_) => match strix_render::metafile_size(&bytes) {
             Some(size) => size,
             None => return Err(CmdError::Failed("not a supported image (PNG, JPEG, GIF, WebP, BMP, WMF, EMF)".into())),
         },
@@ -284,12 +285,12 @@ fn place_picture(s: &mut Session, bytes: Vec<u8>, width: Option<f32>, alt: &str)
     Ok(json!({"media": key, "width": w, "height": h}))
 }
 
-/// Insert › Icons: a library icon (original artwork drawn in code, `wordcraft_render::icon_lib`)
+/// Insert › Icons: a library icon (original artwork drawn in code, `strix_render::icon_lib`)
 /// rendered to a PNG picture `size` points square (default 1 inch) in `color` (default black).
 /// Without an `id` it lists the library (narrowed by `query` and `category`) and asks a front end
 /// for its icon picker.
 fn icon(s: &mut Session, v: &Value) -> CmdResult {
-    use wordcraft_render::icon_lib;
+    use strix_render::icon_lib;
     let Some(id) = p::str(v, "id") else {
         let category = p::str(v, "category").and_then(icon_lib::Category::parse);
         let icons: Vec<Value> = icon_lib::search(p::str(v, "query").unwrap_or(""), category)
@@ -335,7 +336,7 @@ fn shape(s: &mut Session, v: &Value) -> CmdResult {
         Some("none") | None => (false, false),
         Some(x) => return Err(CmdError::Params(format!("`arrow`: none, start, end or both, not `{x}`"))),
     };
-    let extra = wordcraft_doc::connector::ShapeExtra { arrow_start, arrow_end, ..Default::default() };
+    let extra = strix_doc::connector::ShapeExtra { arrow_start, arrow_end, ..Default::default() };
     // Connectors float in front of the text, so they can be glued to floating shapes.
     let float = if kind.is_connector() {
         Float { wrap: Wrap::InFrontOfText, ..Default::default() }
@@ -347,7 +348,7 @@ fn shape(s: &mut Session, v: &Value) -> CmdResult {
         kind,
         w,
         h,
-        fill: fill.map(wordcraft_doc::fill::Fill::solid),
+        fill: fill.map(strix_doc::fill::Fill::solid),
         stroke,
         stroke_width: 1.0,
         float,
@@ -379,7 +380,7 @@ fn text_box(s: &mut Session, v: &Value) -> CmdResult {
         kind: ShapeKind::TextBox,
         w,
         h,
-        fill: Some(wordcraft_doc::fill::Fill::solid(Rgb::WHITE)),
+        fill: Some(strix_doc::fill::Fill::solid(Rgb::WHITE)),
         stroke: Some(Rgb::BLACK),
         stroke_width: 0.75,
         float: Float::default(),
@@ -478,15 +479,15 @@ pub fn bookmark_name_ok(name: &str) -> bool {
 }
 
 /// Where bookmark `name` is: see [`bookmark_span`]. `None` when there is no such bookmark.
-pub fn bookmark_range(doc: &wordcraft_doc::Document, name: &str) -> Option<(Pos, Pos)> {
+pub fn bookmark_range(doc: &strix_doc::Document, name: &str) -> Option<(Pos, Pos)> {
     let (_, start) = doc.bookmarks().into_iter().find(|(n, _)| n == name)?;
     Some(bookmark_span(doc, name, &start))
 }
 
 /// The text of bookmark `name` whose start mark is at `start`: from just after that mark to its
 /// end mark — in a later paragraph when it spans several (the start again when it has no end).
-pub fn bookmark_span(doc: &wordcraft_doc::Document, name: &str, start: &Pos) -> (Pos, Pos) {
-    let from = Pos { off: start.off.saturating_add(wordcraft_doc::para::OBJ.len_utf8()), ..start.clone() };
+pub fn bookmark_span(doc: &strix_doc::Document, name: &str, start: &Pos) -> (Pos, Pos) {
+    let from = Pos { off: start.off.saturating_add(strix_doc::para::OBJ.len_utf8()), ..start.clone() };
     let end = doc.para_paths(start.story).into_iter().skip_while(|p| *p != start.path).find_map(|path| {
         let para = doc.para(start.story, &path)?;
         let off = para.object_offsets().into_iter().find(|o| {
@@ -501,7 +502,7 @@ pub fn bookmark_span(doc: &wordcraft_doc::Document, name: &str, start: &Pos) -> 
 /// Remove bookmark `name`'s start and end marks, in whichever paragraphs and stories they are,
 /// keeping the selection on the same text. Returns whether the bookmark was there.
 fn remove_bookmark(s: &mut Session, name: &str) -> Result<bool, CmdError> {
-    let mark_len = wordcraft_doc::para::OBJ.len_utf8();
+    let mark_len = strix_doc::para::OBJ.len_utf8();
     let mut found = false;
     let stories: Vec<StoryRef> = std::iter::once(StoryRef::Body).chain(s.doc.parts.keys().map(|k| StoryRef::Part(*k))).collect();
     for story in stories {
@@ -567,11 +568,11 @@ fn hf_part(s: &mut Session, header: bool) -> u32 {
     let layout = s.layout();
     let page = if s.sel.focus.story == StoryRef::Body { layout.page_of(&s.sel.focus) } else { Some(s.page_hint) };
     let slot = page.and_then(|pg| layout.pages.get(pg)).map(|pg| pg.hf_slot).unwrap_or_default();
-    fn slot_of(slot: wordcraft_layout::HfSlot, set: &mut wordcraft_doc::section::HeaderSet) -> &mut Option<u32> {
+    fn slot_of(slot: strix_layout::HfSlot, set: &mut strix_doc::section::HeaderSet) -> &mut Option<u32> {
         match slot {
-            wordcraft_layout::HfSlot::First => &mut set.first,
-            wordcraft_layout::HfSlot::Even => &mut set.even,
-            wordcraft_layout::HfSlot::Default => &mut set.default,
+            strix_layout::HfSlot::First => &mut set.first,
+            strix_layout::HfSlot::Even => &mut set.even,
+            strix_layout::HfSlot::Default => &mut set.default,
         }
     }
     let mut sect = s.doc.section_mut(block).clone();
@@ -587,7 +588,7 @@ fn hf_part(s: &mut Session, header: bool) -> u32 {
 }
 
 /// Three independently editable cells spanning the section's text width.
-fn three_column_hf(s: &Session, style: &str) -> wordcraft_doc::Blocks {
+fn three_column_hf(s: &Session, style: &str) -> strix_doc::Blocks {
     let block = s.sel.focus.path.0.first().copied().unwrap_or(0) as usize;
     // The section `section_mut` would pick, read without making anything unique.
     let sections = s.doc.sections();
@@ -725,9 +726,9 @@ fn page_hf_part(s: &mut Session, page: usize, header: bool) -> Result<u32, CmdEr
     let sect = s.doc.section_mut(block);
     let set = if header { &mut sect.headers } else { &mut sect.footers };
     match slot {
-        wordcraft_layout::HfSlot::First => set.first = Some(id),
-        wordcraft_layout::HfSlot::Even => set.even = Some(id),
-        wordcraft_layout::HfSlot::Default => set.default = Some(id),
+        strix_layout::HfSlot::First => set.first = Some(id),
+        strix_layout::HfSlot::Even => set.even = Some(id),
+        strix_layout::HfSlot::Default => set.default = Some(id),
     }
     s.new_header_parts.push(id);
     Ok(id)
@@ -752,7 +753,7 @@ fn new_empty_headers(s: &Session) -> Vec<u32> {
 
 /// The document as saved: without the headers/footers just made and still empty, so an unwritten
 /// one is never saved (`None` when there are none, to save the document as it is).
-pub(crate) fn saved_copy(s: &Session) -> Option<wordcraft_doc::Document> {
+pub(crate) fn saved_copy(s: &Session) -> Option<strix_doc::Document> {
     let ids = new_empty_headers(s);
     if ids.is_empty() {
         return None;
@@ -763,11 +764,11 @@ pub(crate) fn saved_copy(s: &Session) -> Option<wordcraft_doc::Document> {
 
 /// Takes headers/footers `ids` out of the document and every section that refers to them;
 /// whether anything was taken away.
-fn strip_headers(doc: &mut wordcraft_doc::Document, ids: &[u32]) -> bool {
+fn strip_headers(doc: &mut strix_doc::Document, ids: &[u32]) -> bool {
     if ids.is_empty() {
         return false;
     }
-    let clear = |set: &mut wordcraft_doc::section::HeaderSet| {
+    let clear = |set: &mut strix_doc::section::HeaderSet| {
         for slot in [&mut set.default, &mut set.first, &mut set.even] {
             if slot.is_some_and(|id| ids.contains(&id)) {
                 *slot = None;
@@ -932,7 +933,7 @@ fn symbol(s: &mut Session, v: &Value) -> CmdResult {
     // font later keeps the symbol; other fonts are ordinary run formatting. `w:sym` holds a 16-bit
     // code, so a character beyond the Basic Multilingual Plane stays ordinary text in that font.
     // Each character decides for itself, so a mixed string keeps its symbols and its text apart.
-    let font_is_symbol = wordcraft_doc::symbol_fonts::is_symbol_font(font);
+    let font_is_symbol = strix_doc::symbol_fonts::is_symbol_font(font);
     let mut r = Ok(());
     let mut buf = [0u8; 4];
     for ch in c.chars() {
@@ -981,8 +982,8 @@ fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
     }
     let mut t =
         Paragraph::with_text(&title, CharProps { size: Some(44.0), color: Some(TextColor::Rgb(accent)), ..Default::default() }).styled("Title");
-    t.props.borders = Some(wordcraft_doc::props::Borders {
-        bottom: Some(wordcraft_doc::props::Border { style: wordcraft_doc::props::BorderStyle::Single, width: 2.0, color: Some(accent), space: 6.0 }),
+    t.props.borders = Some(strix_doc::props::Borders {
+        bottom: Some(strix_doc::props::Border { style: strix_doc::props::BorderStyle::Single, width: 2.0, color: Some(accent), space: 6.0 }),
         ..Default::default()
     });
     blocks.push(Block::Para(t));
@@ -995,7 +996,7 @@ fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
     let mut date = Paragraph::with_text(&format_date("MMMM d, yyyy"), CharProps::default());
     date.insert_text(date.len(), "\u{000C}", &CharProps::default())?;
     blocks.push(Block::Para(date));
-    let frag = wordcraft_doc::edit::Fragment { blocks, ..Default::default() };
+    let frag = strix_doc::edit::Fragment { blocks, ..Default::default() };
     let start = s.doc.start_of(StoryRef::Body);
     let at = s.doc.split_paragraph(&start)?;
     let _ = at;
@@ -1026,7 +1027,7 @@ fn drop_cap(s: &mut Session, v: &Value) -> CmdResult {
     let none = p::str(v, "position") == Some("none") || lines == Some(0.0);
     let margin = p::str(v, "position") == Some("margin");
     let lines = lines.map_or(3.0, |l| l.round().clamp(1.0, 10.0)) as u8;
-    let distance = p::f32(v, "distance").map_or(0.0, |d| d.clamp(0.0, wordcraft_doc::resolve::MAX_DROP_CAP_DISTANCE));
+    let distance = p::f32(v, "distance").map_or(0.0, |d| d.clamp(0.0, strix_doc::resolve::MAX_DROP_CAP_DISTANCE));
     // A family name, not a paragraph of text.
     let font = p::str(v, "font").map(str::trim).filter(|f| !f.is_empty()).map(|f| f.chars().take(64).collect::<String>());
     super::para::fmt(s, &|p| {
@@ -1092,8 +1093,8 @@ mod tests {
     #[test]
     fn tiffs_with_jpeg_strips_are_refused() {
         let tiff = jpeg_strip_tiff();
-        assert_eq!(wordcraft_render::image_size(&tiff), Some((4, 4)), "its header reads");
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        assert_eq!(strix_render::image_size(&tiff), Some((4, 4)), "its header reads");
+        let mut s = Session::new(strix_doc::Document::new());
         let e = s.run("insert.picture", &json!({"data": base64_encode(&tiff)})).unwrap_err().to_string();
         assert!(e.contains("TIFF"), "{e}");
         assert!(s.doc.media.is_empty());
@@ -1109,7 +1110,7 @@ mod tests {
     /// body, not on page 1 (#3331).
     #[test]
     fn close_header_returns_to_the_body_selection() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": "One"})).unwrap();
         s.run("insert.pageBreak", &json!({})).unwrap();
         s.run("text.insert", &json!({"text": "Two words here"})).unwrap();
@@ -1132,7 +1133,7 @@ mod tests {
     /// away again so the saved file stays as it was.
     #[test]
     fn edit_header_on_a_page_creates_its_slot() {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": "One"})).unwrap();
         s.run("insert.pageBreak", &json!({})).unwrap();
         s.run("text.insert", &json!({"text": "Two"})).unwrap();
@@ -1145,7 +1146,7 @@ mod tests {
         s.run("insert.closeHeader", &json!({})).unwrap();
         assert_eq!(s.doc.last_section.headers, Default::default());
         assert!(!s.doc.parts.contains_key(&id));
-        let back = wordcraft_docx::read(&wordcraft_docx::write(&s.doc).unwrap()).unwrap();
+        let back = strix_docx::read(&strix_docx::write(&s.doc).unwrap()).unwrap();
         assert!(back.parts.values().all(|p| !matches!(p.kind, PartKind::Header | PartKind::Footer)), "no empty header saved");
         // Written footer stays.
         let r = s.run("insert.editFooter", &json!({"page": 0})).unwrap();
@@ -1195,7 +1196,7 @@ mod tests {
     }
 
     fn two_pages() -> Session {
-        let mut s = Session::new(wordcraft_doc::Document::new());
+        let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": "One"})).unwrap();
         s.run("insert.pageBreak", &json!({})).unwrap();
         s.run("text.insert", &json!({"text": "Two"})).unwrap();
@@ -1236,13 +1237,13 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn an_empty_new_header_is_never_saved() {
-        let dir = std::env::temp_dir().join(format!("wordcraft-hf960-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-hf960-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("x.docx");
         let mut s = two_pages();
         s.run("insert.editHeader", &json!({"page": 0})).unwrap();
         s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
-        let back = wordcraft_docx::read(&std::fs::read(&path).unwrap()).unwrap();
+        let back = strix_docx::read(&std::fs::read(&path).unwrap()).unwrap();
         assert!(back.parts.values().all(|p| p.kind != PartKind::Header), "no empty header saved");
         assert_eq!(headers(&s), 1, "still open for typing");
         s.run("insert.closeHeader", &json!({})).unwrap();
@@ -1303,7 +1304,7 @@ mod tests {
     /// selects the bookmark's text, as in Word.
     #[test]
     fn deleting_a_bookmark_removes_its_start_and_end() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Alpha beta\ngamma delta"));
+        let mut s = Session::new(strix_doc::Document::from_text("Alpha beta\ngamma delta"));
         s.sel = Selection { anchor: Pos::body(0, 6), focus: Pos::body(1, 5) };
         s.run("insert.bookmark", &json!({"name": "Across"})).unwrap();
         assert_eq!(bookmark_marks(&s), vec![(0, true, "Across".into()), (1, false, "Across".into())]);
@@ -1324,7 +1325,7 @@ mod tests {
     /// looked for in the start's paragraph, so a bookmark across paragraphs left a stray end.
     #[test]
     fn adding_a_bookmark_again_moves_all_of_it() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Alpha beta\ngamma delta"));
+        let mut s = Session::new(strix_doc::Document::from_text("Alpha beta\ngamma delta"));
         s.sel = Selection { anchor: Pos::body(0, 6), focus: Pos::body(1, 5) };
         s.run("insert.bookmark", &json!({"name": "Spot"})).unwrap();
         s.run("select.text", &json!({"text": "delta"})).unwrap();
@@ -1366,7 +1367,7 @@ mod tests {
         assert!(!bookmark_name_ok(&"я".repeat(41)));
 
         // Verification through `insert.bookmark` command
-        let mut s = Session::new(wordcraft_doc::Document::from_text("Test content"));
+        let mut s = Session::new(strix_doc::Document::from_text("Test content"));
         assert!(s.run("insert.bookmark", &json!({"name": "быстрый_доступ_к_документам"})).is_ok());
         assert!(s.run("insert.bookmark", &json!({"name": "_Hidden"})).is_ok());
         assert!(s.run("insert.bookmark", &json!({"name": "1mark"})).is_err());
@@ -1377,7 +1378,7 @@ mod tests {
     /// Insert › Symbol with a font: only the symbol takes it, the caret's font carries on after.
     #[test]
     fn a_mixed_symbol_string_keeps_symbols_and_text_apart() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("a"));
+        let mut s = Session::new(strix_doc::Document::from_text("a"));
         s.run("caret.docEnd", &json!({})).unwrap();
         s.run("insert.symbol", &json!({"char": "\u{F041}A", "font": "My Custom Font"})).unwrap();
         let p = s.doc.para(StoryRef::Body, &Path::top(0)).unwrap();
@@ -1388,7 +1389,7 @@ mod tests {
 
     #[test]
     fn an_astral_symbol_stays_text_in_its_font() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("a"));
+        let mut s = Session::new(strix_doc::Document::from_text("a"));
         s.run("caret.docEnd", &json!({})).unwrap();
         s.run("insert.symbol", &json!({"char": "\u{1F600}", "font": "Wingdings"})).unwrap();
         let p = s.doc.para(StoryRef::Body, &Path::top(0)).unwrap();
@@ -1398,7 +1399,7 @@ mod tests {
 
     #[test]
     fn symbol_takes_its_own_font() {
-        let mut s = Session::new(wordcraft_doc::Document::from_text("ab"));
+        let mut s = Session::new(strix_doc::Document::from_text("ab"));
         s.run("caret.docEnd", &json!({})).unwrap();
         s.run("insert.symbol", &json!({"char": "\u{2665}", "font": "DejaVu Sans"})).unwrap();
         s.run("text.insert", &json!({"text": "c"})).unwrap();

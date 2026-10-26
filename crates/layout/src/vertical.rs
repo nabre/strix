@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Vertical sections (Layout › Text Direction, `w:textDirection` in `w:sectPr`).
 //!
 //! A vertical section is laid out unturned on a page turned onto its side — lines as long as the
@@ -6,10 +7,10 @@
 //! (`tbRl`), bottom-to-top ones from the left (`btLr`). Pictures, shapes and text boxes keep
 //! standing upright where the turn carries them; headers and footers stay horizontal.
 
-use wordcraft_doc::StoryRef;
-use wordcraft_doc::props::{Borders, TextDirection};
-use wordcraft_doc::section::SectionProps;
-use wordcraft_geom::{Point, Rect};
+use strix_doc::StoryRef;
+use strix_doc::props::{Borders, TextDirection};
+use strix_doc::section::SectionProps;
+use strix_geom::{Point, Rect};
 
 use crate::{Page, Placed, turn_point, turn_rect};
 

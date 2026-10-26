@@ -1,4 +1,5 @@
-//! WordCraft engine: the editing session and its commands.
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+//! Strix engine: the editing session and its commands.
 //!
 //! **Everything is a command.** Each user-visible action is a [`CommandSpec`] with a stable id
 //! (`format.bold`, `insert.table`), a label, the ribbon/menu location, a default shortcut, a
@@ -60,11 +61,11 @@ pub const MAX_EQUATION_TYPE_CHARS: usize = 10_000;
 /// side of the caret. A hostile IME count must not become an unbounded command.
 pub const MAX_EQUATION_DELETE_UNITS: usize = 64;
 
-pub use wordcraft_doc as doc;
-pub use wordcraft_geom::Region;
-pub use wordcraft_layout as layout;
-pub use wordcraft_proof as proof;
-pub use wordcraft_render as render;
+pub use strix_doc as doc;
+pub use strix_geom::Region;
+pub use strix_layout as layout;
+pub use strix_proof as proof;
+pub use strix_render as render;
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum CmdError {
@@ -78,8 +79,8 @@ pub enum CmdError {
     Failed(String),
 }
 
-impl From<wordcraft_doc::DocError> for CmdError {
-    fn from(e: wordcraft_doc::DocError) -> Self {
+impl From<strix_doc::DocError> for CmdError {
+    fn from(e: strix_doc::DocError) -> Self {
         CmdError::Failed(e.to_string())
     }
 }
@@ -205,6 +206,8 @@ mod tests_documents;
 mod tests_fonts;
 #[cfg(test)]
 mod tests_ime_noop;
+#[cfg(test)]
+mod tests_native;
 #[cfg(test)]
 mod tests_revision_checks;
 #[cfg(test)]

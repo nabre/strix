@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Layout, Review and Mailings dialogs (#407): Line Numbers (Layout › Line Numbers › Line
 //! Numbering Options…), Hyphenation (Hyphenation Options… and Manual…), Language (Review ›
 //! Language), Envelopes and Labels (Mailings › Create), Formula (Table Layout › Data, #1201)
@@ -14,9 +15,9 @@ use egui::{Ui, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use wordcraft_doc::section::LineNumberRestart;
-use wordcraft_engine::cmd::mailings::{ENVELOPE_SIZES, LABEL_PRODUCTS};
-use wordcraft_engine::cmd::objects::fit_size;
+use strix_doc::section::LineNumberRestart;
+use strix_engine::cmd::mailings::{ENVELOPE_SIZES, LABEL_PRODUCTS};
+use strix_engine::cmd::objects::fit_size;
 
 use crate::WordApp;
 use crate::options::MeasureExt;
@@ -153,7 +154,7 @@ fn run(app: &mut WordApp, id: &str, params: Value) -> bool {
     }
 }
 
-fn unit() -> wordcraft_geom::Unit {
+fn unit() -> strix_geom::Unit {
     crate::options::unit()
 }
 
@@ -176,7 +177,7 @@ pub struct LineNumbersForm {
 
 impl LineNumbersForm {
     pub fn read(app: &WordApp) -> LineNumbersForm {
-        let sp = wordcraft_engine::cmd::page::sect(&app.session);
+        let sp = strix_engine::cmd::page::sect(&app.session);
         let l = sp.line_numbers.clone();
         let cur = l.clone().unwrap_or_default();
         LineNumbersForm {
@@ -313,7 +314,7 @@ pub struct ManualForm {
 impl ManualForm {
     /// From the selection, or from the start of the document.
     pub fn start(app: &mut WordApp) -> ManualForm {
-        let from = if app.session.sel.is_collapsed() { Value::Null } else { wordcraft_engine::cmd::pos_json(&app.session.sel.ordered().0) };
+        let from = if app.session.sel.is_collapsed() { Value::Null } else { strix_engine::cmd::pos_json(&app.session.sel.ordered().0) };
         let from = if from.is_null() { json!({"block": 0, "off": 0}) } else { from };
         Self::next(app, from)
     }
@@ -720,11 +721,11 @@ impl FormulaForm {
         let s = &app.session;
         let (tp, r, c) = s.sel.focus.path.cell()?;
         let t = s.doc.table(s.sel.focus.story, &tp)?;
-        let lang = wordcraft_engine::cmd::default_lang(s);
+        let lang = strix_engine::cmd::default_lang(s);
         let number = |row: Option<usize>, col: Option<usize>| {
             let cell = t.rows.get(row?)?.cells.get(col?)?;
             let text = cell.blocks.iter().filter_map(|b| b.as_para()).map(|p| p.plain_text()).collect::<Vec<_>>().join(" ");
-            wordcraft_doc::locale_number::parse_number(text.trim(), lang.as_deref())
+            strix_doc::locale_number::parse_number(text.trim(), lang.as_deref())
         };
         let formula = if number(r.checked_sub(1), Some(c)).is_some() {
             "=SUM(ABOVE)"
@@ -877,14 +878,14 @@ impl SplitCellsForm {
     pub fn read(app: &WordApp) -> Option<SplitCellsForm> {
         let s = &app.session;
         let (tp, _, _) = s.sel.focus.path.cell()?;
-        let mut cells = wordcraft_engine::cmd::table::selected_cells(s);
+        let mut cells = strix_engine::cmd::table::selected_cells(s);
         cells.sort_unstable();
         cells.dedup();
         let mut rows: Vec<usize> = cells.iter().map(|&(r, _)| r).collect();
         rows.dedup();
         let per_row = rows.iter().map(|&r| cells.iter().filter(|c| c.0 == r).count()).max().unwrap_or(1);
         // A vertically merged cell is one cell, however many rows it covers.
-        let targets = wordcraft_engine::cmd::table::split_targets(s);
+        let targets = strix_engine::cmd::table::split_targets(s);
         let t = s.doc.table(s.sel.focus.story, &tp);
         let (span, height) = match (targets.as_slice(), t) {
             ([(top, g)], Some(t)) => t
@@ -1003,7 +1004,7 @@ pub struct TextToTableForm {
 impl TextToTableForm {
     /// The selected paragraphs; none when the selection can't be converted (a table inside it).
     pub fn read(app: &WordApp) -> Option<TextToTableForm> {
-        let lines = wordcraft_engine::cmd::table::text_table_lines(&app.session).ok()?;
+        let lines = strix_engine::cmd::table::text_table_lines(&app.session).ok()?;
         // Tabs when the text has them, else paragraphs (Word doesn't guess commas).
         let separator = if lines.iter().any(|l| l.contains('\t')) { "tab" } else { "paragraph" };
         let mut f = TextToTableForm {
@@ -1031,14 +1032,14 @@ impl TextToTableForm {
 
     /// The column count the text gives with the chosen separator.
     pub fn guess_columns(&mut self) {
-        let cols = wordcraft_engine::cmd::table::text_table_cells(&self.lines, self.sep(), None).1;
+        let cols = strix_engine::cmd::table::text_table_cells(&self.lines, self.sep(), None).1;
         self.columns = cols.clamp(1, 63) as u32;
         self.count_rows();
     }
 
     /// The row count for the chosen separator and columns.
     pub fn count_rows(&mut self) {
-        self.rows = wordcraft_engine::cmd::table::text_table_cells(&self.lines, self.sep(), Some(self.columns as usize)).0.len();
+        self.rows = strix_engine::cmd::table::text_table_cells(&self.lines, self.sep(), Some(self.columns as usize)).0.len();
     }
 
     /// The initial column width in points: 0 for Auto, `None` when it isn't a measurement from
@@ -1048,7 +1049,7 @@ impl TextToTableForm {
         if text.is_empty() || text.eq_ignore_ascii_case("auto") || text == tl!("Auto") {
             return Some(0.0);
         }
-        wordcraft_geom::parse_measure(text, unit()).filter(|pt| (0.0..=22.0 * 72.0).contains(pt))
+        strix_geom::parse_measure(text, unit()).filter(|pt| (0.0..=22.0 * 72.0).contains(pt))
     }
 
     /// Word's message when the initial column width is out of range (only with that option).
@@ -1183,7 +1184,7 @@ fn table_to_text_ui(app: &mut WordApp, ui: &mut Ui, f: &mut TableToTextForm) -> 
 #[serde(rename_all = "camelCase")]
 pub struct SizeForm {
     /// Where the object sized is (the selected one when the dialog opened).
-    pub at: wordcraft_doc::Pos,
+    pub at: strix_doc::Pos,
     pub width: f32,
     pub height: f32,
     /// Changing one side changes the other in proportion (on for pictures, as in Word).
@@ -1206,10 +1207,10 @@ pub struct SizeForm {
 /// An object's picture, crop and size, bit for bit: what [`SizeForm::follow`] compares.
 type Seen = (String, [u32; 4], [u32; 2]);
 
-fn seen(o: &wordcraft_doc::para::InlineObject) -> Seen {
+fn seen(o: &strix_doc::para::InlineObject) -> Seen {
     let (w, h) = o.frame().map_or((0.0, 0.0), |(w, h, _)| (w, h));
     match o {
-        wordcraft_doc::para::InlineObject::Image { media, crop, .. } => (media.clone(), crop.map(f32::to_bits), [w.to_bits(), h.to_bits()]),
+        strix_doc::para::InlineObject::Image { media, crop, .. } => (media.clone(), crop.map(f32::to_bits), [w.to_bits(), h.to_bits()]),
         _ => (String::new(), [0; 4], [w.to_bits(), h.to_bits()]),
     }
 }
@@ -1217,14 +1218,14 @@ fn seen(o: &wordcraft_doc::para::InlineObject) -> Seen {
 impl SizeForm {
     /// The selected picture's or shape's size; None when nothing that has one is selected.
     pub fn read(app: &WordApp) -> Option<SizeForm> {
-        use wordcraft_doc::para::InlineObject;
-        let (at, o) = wordcraft_engine::cmd::objects::selected(&app.session)?;
+        use strix_doc::para::InlineObject;
+        let (at, o) = strix_engine::cmd::objects::selected(&app.session)?;
         let (w, h, _) = o.frame()?;
         let full = match &o {
-            InlineObject::Image { media, .. } => wordcraft_engine::cmd::objects::original_size(&app.session, media),
+            InlineObject::Image { media, .. } => strix_engine::cmd::objects::original_size(&app.session, media),
             _ => None,
         };
-        let original = wordcraft_engine::cmd::objects::cropped_original_size(&app.session, &o);
+        let original = strix_engine::cmd::objects::cropped_original_size(&app.session, &o);
         Some(SizeForm {
             at,
             width: w,
@@ -1244,7 +1245,7 @@ impl SizeForm {
     /// on what is selected, or there is nothing to size (false: close the dialog). OK and Reset
     /// never work from numbers read from another object or an older state of this one.
     pub fn follow(&mut self, app: &WordApp) -> bool {
-        match wordcraft_engine::cmd::objects::selected(&app.session) {
+        match strix_engine::cmd::objects::selected(&app.session) {
             Some((at, o)) if at == self.at && seen(&o) == self.seen => true,
             Some(_) => SizeForm::read(app).map(|f| *self = f).is_some(),
             None => false,
@@ -1404,9 +1405,9 @@ pub struct PageNumbersForm {
 impl PageNumbersForm {
     /// The section's numbering as it is at the caret.
     pub fn read(app: &WordApp) -> PageNumbersForm {
-        let sp = wordcraft_engine::cmd::page::sect(&app.session);
+        let sp = strix_engine::cmd::page::sect(&app.session);
         PageNumbersForm {
-            section: wordcraft_engine::cmd::page::section_index_of_focus(&app.session),
+            section: strix_engine::cmd::page::section_index_of_focus(&app.session),
             format: sp.page_num_format.ooxml().to_string(),
             cont: sp.page_num_start.is_none(),
             start: sp.page_num_start.unwrap_or(1).clamp(1, 100_000),
@@ -1417,7 +1418,7 @@ impl PageNumbersForm {
     /// section. The form then shows that section's numbering, so OK never writes numbers read
     /// from another one (the Size dialog follows its object the same way).
     pub fn follow(&mut self, app: &WordApp) {
-        if self.section != wordcraft_engine::cmd::page::section_index_of_focus(&app.session) {
+        if self.section != strix_engine::cmd::page::section_index_of_focus(&app.session) {
             *self = PageNumbersForm::read(app);
         }
     }
@@ -1456,14 +1457,14 @@ fn page_numbers_ui(app: &mut WordApp, ui: &mut Ui, f: &mut PageNumbersForm) -> b
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     use super::*;
     use crate::dialogs::Dialog;
     use crate::{Services, WordApp};
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::from_text("Dear Jo,\nThanks.")), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::from_text("Dear Jo,\nThanks.")), Services::default())
     }
 
     fn form(a: &mut WordApp) -> LayoutDialog {
@@ -1504,7 +1505,7 @@ mod tests {
     /// command call without `start` keeps the section's start.
     #[test]
     fn page_numbers_dialog_sets_the_format_and_start() {
-        use wordcraft_doc::section::NumFormat;
+        use strix_doc::section::NumFormat;
         let mut a = app();
         a.run("ui.dialog", json!({"name": "pageNumbers"})).unwrap();
         let LayoutDialog::PageNumbers(mut f) = form(&mut a) else { panic!("page numbers") };
@@ -1542,7 +1543,7 @@ mod tests {
         a.run("caret.end", json!({})).unwrap();
         a.run("layout.break", json!({"kind": "continuous"})).unwrap();
         a.run("caret.end", json!({})).unwrap();
-        assert_eq!(wordcraft_engine::cmd::page::section_index_of_focus(&a.session), 1, "the caret is in the new section");
+        assert_eq!(strix_engine::cmd::page::section_index_of_focus(&a.session), 1, "the caret is in the new section");
         a.run("layout.pageNumberFormat", json!({"format": "lowerRoman", "start": 9})).unwrap();
         f.follow(&a);
         assert_eq!((f.section, f.format.as_str(), f.start), (1, "lowerRoman", 9));
@@ -1558,7 +1559,7 @@ mod tests {
         a.run("ui.dialog", json!({"name": "lineNumbers"})).unwrap();
         let LayoutDialog::LineNumbers(f) = form(&mut a) else { panic!("line numbers") };
         assert!(!f.auto_distance);
-        let cm = 18.0 / wordcraft_geom::PT_PER_CM;
+        let cm = 18.0 / strix_geom::PT_PER_CM;
         assert!((f.distance - cm).abs() < 0.01, "distance was {} cm", f.distance);
         let sent = f.params()["distance"].as_f64().unwrap_or_default();
         assert!((sent - 18.0).abs() < 0.05, "params sent {sent} pt");
@@ -1566,7 +1567,7 @@ mod tests {
         a.run("layout.hyphenation", json!({"value": true, "zone": 36.0})).unwrap();
         a.run("ui.dialog", json!({"name": "hyphenation"})).unwrap();
         let LayoutDialog::Hyphenation(h) = form(&mut a) else { panic!("hyphenation") };
-        assert!((h.zone - 36.0 / wordcraft_geom::PT_PER_CM).abs() < 0.01, "zone was {} cm", h.zone);
+        assert!((h.zone - 36.0 / strix_geom::PT_PER_CM).abs() < 0.01, "zone was {} cm", h.zone);
         let sent = h.params()["zone"].as_f64().unwrap_or_default();
         assert!((sent - 36.0).abs() < 0.05, "params sent {sent} pt");
     }
@@ -1597,14 +1598,14 @@ mod tests {
         for source in ["default", "paragraph", "character"] {
             let mut a = app();
             a.run("select.all", json!({})).unwrap();
-            let proofing = wordcraft_doc::CharProps { lang: Some("en-GB".into()), no_proof: Some(true), ..Default::default() };
+            let proofing = strix_doc::CharProps { lang: Some("en-GB".into()), no_proof: Some(true), ..Default::default() };
             match source {
                 "default" => a.session.doc.styles.default_chr.overlay(&proofing),
                 "paragraph" => a.session.doc.styles.styles.iter_mut().find(|s| s.id == "Normal").unwrap().chr.overlay(&proofing),
                 _ => {
-                    a.session.doc.styles.styles.push(wordcraft_doc::Style {
+                    a.session.doc.styles.styles.push(strix_doc::Style {
                         id: "ProofingCharacter".into(),
-                        kind: wordcraft_doc::StyleKind::Character,
+                        kind: strix_doc::StyleKind::Character,
                         chr: proofing,
                         ..Default::default()
                     });
@@ -1677,7 +1678,7 @@ mod tests {
         h.get_by_label("OK").click();
         h.run_steps(3);
         let saved = serde_json::to_vec(&h.state().prefs()).unwrap();
-        let mut b = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        let mut b = WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         b.apply_prefs(serde_json::from_slice(&saved).unwrap());
         b.logic(&egui::Context::default());
         assert_eq!(LanguageForm::read(&b).lang, "fr-FR");
@@ -1707,7 +1708,7 @@ mod tests {
         let secs = a.session.doc.sections();
         assert_eq!(secs.len(), 2);
         assert!((secs[0].1.page_w - 623.6).abs() < 0.1);
-        assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Thanks."));
+        assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).contains("Thanks."));
     }
 
     /// A table `cols` wide, typed cell by cell (empty cells are skipped over); the caret ends in
@@ -1729,7 +1730,7 @@ mod tests {
     fn fields(a: &WordApp) -> Vec<(String, String)> {
         let mut out = Vec::new();
         a.session.doc.objects_in_reading_order(&mut |o| {
-            if let wordcraft_doc::InlineObject::Field { instr, result, .. } = o {
+            if let strix_doc::InlineObject::Field { instr, result, .. } = o {
                 out.push((instr.clone(), result.clone()));
             }
         });
@@ -1819,7 +1820,7 @@ mod tests {
         // The merged cell spans both rows; its two parts do too.
         assert_eq!(table_shape(&a), [2, 2], "merged into one cell, then split in two");
         let t = a.session.doc.body.iter().find_map(|b| b.as_table()).unwrap();
-        assert!(t.rows[1].cells.iter().all(|c| c.props.vmerge == wordcraft_doc::props::VMerge::Continue));
+        assert!(t.rows[1].cells.iter().all(|c| c.props.vmerge == strix_doc::props::VMerge::Continue));
 
         let mut a = app();
         a.run("ui.dialog", json!({"name": "splitCells"})).unwrap();
@@ -1914,7 +1915,7 @@ mod tests {
     /// from the text, the row count follows the columns, and OK converts with the settings.
     #[test]
     fn text_to_table_opens_its_dialog() {
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("a\tb\tc\nd")), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::from_text("a\tb\tc\nd")), Services::default());
         a.run("select.all", json!({})).unwrap();
         assert_eq!(a.run("table.fromText", json!({})).unwrap(), json!({"pending": "textToTable"}));
         assert!(a.session.doc.body.iter().all(|b| b.as_table().is_none()), "nothing converted yet");
@@ -1948,7 +1949,7 @@ mod tests {
         assert_eq!((f.separator.as_str(), f.columns, f.rows), ("paragraph", 1, 2), "a comma in one paragraph only");
 
         // Word opens comma text on Paragraphs too; Commas counts the columns, short lines pad.
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("a,b,c\nd,e,f\ng,h\ni")), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::from_text("a,b,c\nd,e,f\ng,h\ni")), Services::default());
         a.run("select.all", json!({})).unwrap();
         a.run("table.fromText", json!({})).unwrap();
         let LayoutDialog::TextToTable(mut f) = form(&mut a) else { panic!("text to table") };
@@ -2014,7 +2015,7 @@ mod tests {
         f.product = LABEL_PRODUCTS.iter().position(|p| p.id == "a4-3x8").unwrap();
         let r = a.session.run("mailings.labels", &f.params()).unwrap();
         assert_eq!(r["labels"], 24);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).matches("Ada Lovelace").count(), 24);
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).matches("Ada Lovelace").count(), 24);
         f.single = true;
         (f.row, f.col) = (3, 2);
         assert_eq!(a.session.run("mailings.labels", &f.params()).unwrap()["filled"], 1);
@@ -2026,18 +2027,18 @@ mod tests {
         let img = image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]));
         let mut png = Vec::new();
         img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-        wordcraft_engine::cmd::insert::base64_encode(&png)
+        strix_engine::cmd::insert::base64_encode(&png)
     }
 
     /// An app with a `w`×`h` pixel picture, inserted and selected as by Insert › Pictures.
     fn picture_app(w: u32, h: u32) -> WordApp {
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         a.run("insert.picture", json!({"data": png_data(w, h)})).unwrap();
         a
     }
 
     fn selected_size(a: &WordApp) -> (f32, f32) {
-        let (_, o) = wordcraft_engine::cmd::objects::selected(&a.session).unwrap();
+        let (_, o) = strix_engine::cmd::objects::selected(&a.session).unwrap();
         o.frame().map(|(w, h, _)| (w, h)).unwrap()
     }
 

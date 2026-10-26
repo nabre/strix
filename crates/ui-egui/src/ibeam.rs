@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The text pointer over the page on Windows (#1746, #1417, #1126). Windows' I-beam inverts what
 //! lies under it, but over the GPU-drawn window it stays white, so it vanishes on white paper.
 //! There the system pointer hides wherever it would be the I-beam and an I-beam is drawn in its
@@ -5,7 +6,7 @@
 //! it shows on anything. Other systems' I-beams show on any page and are left alone.
 
 use egui::{Color32, CursorIcon, Id, LayerId, Order, Pos2, Stroke};
-use wordcraft_doc::props::Rgb;
+use strix_doc::props::Rgb;
 
 /// Whether this system's I-beam is replaced by a drawn one.
 pub(crate) const DRAWN: bool = cfg!(target_os = "windows");
@@ -18,7 +19,7 @@ pub(crate) fn replace(ctx: &egui::Context, p: Pos2, bg: Rgb) -> bool {
     }
     ctx.set_cursor_icon(CursorIcon::None);
     // Above the page and whatever floats over it, as the system pointer would be.
-    let painter = ctx.layer_painter(LayerId::new(Order::Tooltip, Id::unique("wordcraft_ibeam")));
+    let painter = ctx.layer_painter(LayerId::new(Order::Tooltip, Id::unique("strix_ibeam")));
     paint(&painter, p, crate::canvas::caret_contrast(bg));
     true
 }
@@ -63,12 +64,12 @@ mod tests {
     type H = egui_kittest::Harness<'static, WordApp>;
 
     fn window(drawn: bool, dark: bool) -> H {
-        window_at(drawn, dark, 1.0, 1440.0, "Hello WordCraft")
+        window_at(drawn, dark, 1.0, 1440.0, "Hello Strix")
     }
 
     /// A window at `ppp` physical pixels per point showing `text`.
     fn window_at(drawn: bool, dark: bool, ppp: f32, width: f32, text: &str) -> H {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text(text)), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text(text)), Default::default());
         a.canvas.drawn_ibeam = drawn;
         a.session.view.dark_mode = dark;
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(width, 900.0)).with_pixels_per_point(ppp).build_ui_state(
@@ -152,7 +153,7 @@ mod tests {
     #[test]
     fn the_drawn_i_beam_is_whole_pixels_wide_at_125_and_150_percent() {
         for ppp in [1.25f32, 1.5] {
-            let mut h = window_at(true, true, ppp, 1440.0, "Hello WordCraft");
+            let mut h = window_at(true, true, ppp, 1440.0, "Hello Strix");
             let at = crate::canvas::page_to_screen(h.state_mut(), 0, 300.0, 400.0).unwrap();
             let strokes = stem_strokes(&mut h, at);
             assert_eq!(strokes.len(), 2, "ppp {ppp}: the stem's edge and fill");
@@ -173,7 +174,7 @@ mod tests {
         h.state_mut().session.view.zoom = 0.5;
         h.run_steps(3);
         let canvas = crate::theme::Tokens::get(&h.ctx).canvas;
-        let off = crate::canvas::caret_contrast(wordcraft_doc::props::Rgb(canvas.r(), canvas.g(), canvas.b()));
+        let off = crate::canvas::caret_contrast(strix_doc::props::Rgb(canvas.r(), canvas.g(), canvas.b()));
         assert_eq!(off, Color32::BLACK, "the light canvas");
         // The fill is drawn last.
         let fill = |h: &mut H, at: egui::Pos2| stem_strokes(h, at).last().map(|s| s.color);

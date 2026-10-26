@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Automatic space between Asian text and Latin text or digits (`w:autoSpaceDE`, `w:autoSpaceDN`,
 //! #2358). Word's PDF of the issue's file shows about a quarter of the font size between 院 and 94
 //! at 16 pt. Assertions compare a layout with the flags on to the same layout with them off, never
@@ -5,8 +6,8 @@
 
 use super::*;
 use crate::para::ClKind;
-use wordcraft_doc::props::Align;
-use wordcraft_doc::section::{DocGrid, DocGridType};
+use strix_doc::props::Align;
+use strix_doc::section::{DocGrid, DocGridType};
 
 fn lay(doc: &Document) -> DocLayout {
     layout(doc, &mut LayoutCache::new(), &LayoutOptions::default())

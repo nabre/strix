@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
+<!-- Strix's own file types: a document (.xmath) and a template (.xmathm). Both are OOXML (OPC)
+     packages, so they are zip archives underneath; the extension tells them apart. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/vnd.strix.xmath">
+    <comment>Strix document</comment>
+    <sub-class-of type="application/zip"/>
+    <generic-icon name="x-office-document"/>
+    <glob pattern="*.xmath" weight="80"/>
+  </mime-type>
+  <mime-type type="application/vnd.strix.xmathm">
+    <comment>Strix template</comment>
+    <sub-class-of type="application/zip"/>
+    <generic-icon name="x-office-document-template"/>
+    <glob pattern="*.xmathm" weight="80"/>
+  </mime-type>
+</mime-info>

@@ -1,7 +1,8 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! #1690, finding 3: malformed command IDs must never target another comment.
 use serde_json::{Value, json};
-use wordcraft_doc::{Document, StoryRef};
-use wordcraft_engine::{CmdError, Session};
+use strix_doc::{Document, StoryRef};
+use strix_engine::{CmdError, Session};
 
 fn commented() -> Session {
     let mut s = Session::new(Document::new());
@@ -33,11 +34,11 @@ fn invalid_ids_leave_state_untouched(command: &str) {
                 before,
                 "{command}, id={id}, at_comment={at_comment}"
             );
-            let back = wordcraft_docx::read(&wordcraft_docx::write(&s.doc).unwrap()).unwrap();
+            let back = strix_docx::read(&strix_docx::write(&s.doc).unwrap()).unwrap();
             assert_eq!(back.comments.len(), 1);
             let comment = back.comments.get(&0).unwrap();
             assert!(!comment.resolved);
-            assert_eq!(back.plain_text(wordcraft_doc::StoryRef::Part(comment.part)), "Keep this comment");
+            assert_eq!(back.plain_text(strix_doc::StoryRef::Part(comment.part)), "Keep this comment");
         }
     }
 }
@@ -83,8 +84,8 @@ fn largest_comment_id_is_accepted_without_a_caret_fallback() {
     let mut s = commented();
     let comment = s.doc.comments.remove(&0).unwrap();
     s.doc.comments.insert(u32::MAX, comment);
-    for object in &mut s.doc.para_mut(StoryRef::Body, &wordcraft_doc::Path::top(0)).unwrap().objects {
-        if let wordcraft_doc::para::InlineObject::CommentStart { id } | wordcraft_doc::para::InlineObject::CommentEnd { id } = object {
+    for object in &mut s.doc.para_mut(StoryRef::Body, &strix_doc::Path::top(0)).unwrap().objects {
+        if let strix_doc::para::InlineObject::CommentStart { id } | strix_doc::para::InlineObject::CommentEnd { id } = object {
             *id = u32::MAX;
         }
     }
@@ -127,7 +128,7 @@ fn valid_comment_ids_and_omitted_caret_ids_keep_undo_redo_and_docx_fidelity() {
             };
             let mut back = after.clone();
             for _ in 0..2 {
-                back = wordcraft_docx::read(&wordcraft_docx::write(&back).unwrap()).unwrap();
+                back = strix_docx::read(&strix_docx::write(&back).unwrap()).unwrap();
                 assert_eq!(comments(&back), comments(&after), "{command}");
                 assert_eq!(back.plain_text(StoryRef::Body), after.plain_text(StoryRef::Body), "{command}");
             }

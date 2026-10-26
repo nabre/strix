@@ -1,3 +1,4 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 name: Release
 
 on:
@@ -22,8 +23,8 @@ jobs:
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/release.yml@main
     with:
-      app-name: wordcraft
-      app-title: WordCraft
+      app-name: strix
+      app-title: Strix
       craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
       web-craft-fonts: true
       version: ${{ inputs.version }}

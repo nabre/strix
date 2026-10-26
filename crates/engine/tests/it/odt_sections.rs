@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! #1379: an ODT file with several page styles and a column section converts to DOCX with one
 //! `w:sectPr` per section. The ODT is original and synthetic, built from ODF 1.3: paragraphs
 //! whose automatic styles name a master page (`style:master-page-name`), one restarting page
@@ -5,7 +6,7 @@
 
 use std::io::{Read, Write};
 
-use wordcraft_engine::io;
+use strix_engine::io;
 
 const NS: &str = r#"xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0""#;
 

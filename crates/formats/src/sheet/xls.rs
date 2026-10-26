@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Legacy Excel 97–2003 workbooks (`.xls`, BIFF8 in a compound file; #778), read from the
 //! published [MS-XLS] structure: the `Workbook` stream's globals (BOUNDSHEET sheet list,
 //! shared-string table SST with its CONTINUE records, FORMAT and XF number formats, DATEMODE)
@@ -44,7 +45,7 @@ const TABLE: u16 = 0x0236;
 
 /// Whether `bytes` is a compound file holding an Excel workbook stream.
 pub fn is_xls(bytes: &[u8]) -> bool {
-    if !bytes.starts_with(&MAGIC) || wordcraft_doc::cfb_guard::check(bytes).is_err() {
+    if !bytes.starts_with(&MAGIC) || strix_doc::cfb_guard::check(bytes).is_err() {
         return false;
     }
     let Ok(comp) = cfb::CompoundFile::open(Cursor::new(bytes)) else { return false };
@@ -68,7 +69,7 @@ pub fn read_rows(bytes: &[u8], pick: super::Pick<'_>) -> Result<(Vec<String>, Ve
 }
 
 fn workbook_stream(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    wordcraft_doc::cfb_guard::check(bytes).map_err(|e| format!("not a valid Excel 97–2003 workbook ({e})"))?;
+    strix_doc::cfb_guard::check(bytes).map_err(|e| format!("not a valid Excel 97–2003 workbook ({e})"))?;
     let mut comp = cfb::CompoundFile::open(Cursor::new(bytes)).map_err(|e| format!("not a valid Excel 97–2003 workbook ({e})"))?;
     if !comp.is_stream("/Workbook") {
         if comp.is_stream("/Book") {
@@ -545,7 +546,7 @@ mod tests {
     /// a FAT far larger than the file.
     #[test]
     fn a_repeating_difat_is_refused_before_cfb_opens_it() {
-        let f = wordcraft_doc::cfb_guard::repeating_difat_sample();
+        let f = strix_doc::cfb_guard::repeating_difat_sample();
         assert!(!is_xls(&f));
         assert!(sheet_names(&f).is_err_and(|e| e.contains("FAT sectors in a file of")));
     }
@@ -586,7 +587,7 @@ mod tests {
         let difat_sectors = |f: &[u8]| f.get(0x48..0x4C).map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
         assert!(difat_sectors(&files[3].1) > 0, "the 8 MB file lists FAT sectors past the header's");
         for (what, f) in &files {
-            assert_eq!(wordcraft_doc::cfb_guard::check(f), Ok(()), "{what}");
+            assert_eq!(strix_doc::cfb_guard::check(f), Ok(()), "{what}");
             assert!(is_xls(f), "{what}");
             assert_eq!(sheet_names(f).unwrap(), vec!["Sheet1"], "{what}");
             let (_, r) = read_rows(f, Pick::Index(0)).unwrap();

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Review dialogs and the Restrict Editing pane (#412): Compare / Combine Documents (with the
 //! More >> comparison settings), AutoCorrect Options (AutoCorrect, AutoFormat As You Type and
 //! Math AutoCorrect) and the Restrict Editing side pane. Each ends by running a command
@@ -8,8 +9,8 @@
 use egui::{Ui, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
-use wordcraft_engine::Password;
-use wordcraft_engine::cmd::tools::AutoCorrectPrefs;
+use strix_engine::Password;
+use strix_engine::cmd::tools::AutoCorrectPrefs;
 
 use crate::WordApp;
 use crate::theme::{Tokens, semibold};
@@ -544,7 +545,7 @@ fn math_tab(ui: &mut Ui, f: &mut AutoCorrectForm) {
     let filter = f.math_filter.trim().trim_start_matches('\\').to_string();
     egui::ScrollArea::vertical().id_salt("ac_math").max_height(240.0).auto_shrink([false, true]).show(ui, |ui| {
         egui::Grid::new("ac_math_grid").num_columns(2).spacing(vec2(16.0, 1.0)).striped(true).show(ui, |ui| {
-            for (name, c) in wordcraft_doc::math_symbols::SYMBOLS.iter().filter(|(n, _)| filter.is_empty() || n.starts_with(filter.as_str())) {
+            for (name, c) in strix_doc::math_symbols::SYMBOLS.iter().filter(|(n, _)| filter.is_empty() || n.starts_with(filter.as_str())) {
                 ui.label(format!("\\{name}"));
                 ui.label(c.to_string());
                 ui.end_row();
@@ -582,7 +583,7 @@ pub const EDIT_MODES: [(&str, &str); 4] =
 
 /// The styles the formatting restriction lists: paragraph and character styles not hidden.
 fn listed_styles(app: &WordApp) -> Vec<(String, String)> {
-    use wordcraft_doc::StyleKind;
+    use strix_doc::StyleKind;
     let mut v: Vec<(String, String)> = app
         .session
         .doc
@@ -745,8 +746,8 @@ fn enforced_ui(app: &mut WordApp, ui: &mut Ui, st: &mut RestrictPane, mode: &str
         ui.add_space(6.0);
         if ui.button(tl!("Find Next Editable Region")).clicked() {
             let from = app.session.sel.ordered().1;
-            if let Some((a, b)) = wordcraft_engine::cmd::protect::next_region(&app.session, &from) {
-                app.session.sel = wordcraft_engine::Selection { anchor: a, focus: b };
+            if let Some((a, b)) = strix_engine::cmd::protect::next_region(&app.session, &from) {
+                app.session.sel = strix_engine::Selection { anchor: a, focus: b };
                 app.canvas.want_focus = true;
             }
         }
@@ -789,7 +790,7 @@ fn stop(app: &mut WordApp, st: &mut RestrictPane) {
             st.asking = false;
             st.message.clear();
         }
-        Err(e) if e.contains(wordcraft_engine::cmd::protect::UNSUPPORTED_PASSWORD) => {
+        Err(e) if e.contains(strix_engine::cmd::protect::UNSUPPORTED_PASSWORD) => {
             st.message = tl!("This password type isn't supported.").to_string();
         }
         Err(e) => st.message = e,
@@ -799,13 +800,13 @@ fn stop(app: &mut WordApp, st: &mut RestrictPane) {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     use super::*;
     use crate::{Services, WordApp};
 
     fn app(text: &str) -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::from_text(text)), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::from_text(text)), Services::default())
     }
 
     #[test]
@@ -820,7 +821,7 @@ mod tests {
         for c in "brb ".chars() {
             b.session.run("text.insert", &json!({"text": c.to_string()})).unwrap();
         }
-        assert_eq!(b.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Be right back ");
+        assert_eq!(b.session.doc.plain_text(strix_doc::StoryRef::Body), "Be right back ");
         // A damaged AutoCorrect section reads as the defaults; the rest of the file still loads.
         let mut v: Value = serde_json::from_str(&saved).unwrap();
         v["editing"]["autocorrect"] = json!({"entries": 7, "capDays": "x"});
@@ -940,6 +941,6 @@ mod tests {
             h.event(egui::Event::Text(t.to_string()));
             h.step();
         }
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Hello. world");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Hello. world");
     }
 }

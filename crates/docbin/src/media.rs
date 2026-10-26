@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Inline pictures: `sprmCPicLocation` → a `PICF` in the Data stream → embedded image bytes
 //! ([MS-DOC] §2.9.190 PICF, §1.3.5 Pictures), and the shared store of every picture the
 //! document reads (inline and floating).
@@ -163,7 +164,7 @@ impl Pictures {
         let key = format!("image{}.{ext}", self.media.len() + 1);
         if placeholder {
             if self.placeholders < 10 {
-                log::warn!("docbin: picture `{key}` is in a format WordCraft can't draw ({ext}); it shows as a placeholder");
+                log::warn!("docbin: picture `{key}` is in a format Strix can't draw ({ext}); it shows as a placeholder");
             }
             self.placeholders = self.placeholders.saturating_add(1);
         }

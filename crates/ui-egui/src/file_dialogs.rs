@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! File dialogs (Open, Save As, Export, Insert/Change Picture) that don't freeze the window (#94).
 //!
 //! A host with [`Services::file_dialog`](crate::Services::file_dialog) shows the native dialog
@@ -26,7 +27,7 @@ pub enum FileDialogRequest {
     /// Pick one or more files (Add Font…); the answer lists every one picked.
     OpenMany { purpose: String },
     /// Pick a path to save to, given a suggested file name and, if it matters, the folder to
-    /// start in (Save as Word Template starts in the user templates folder, #2852).
+    /// start in (Save as Strix Template starts in the user templates folder, #2852).
     Save { name: String, dir: Option<String> },
 }
 
@@ -39,19 +40,104 @@ pub type FileDialogAnswer = Result<Vec<String>, String>;
 const MAX_FONTS_PER_PICK: usize = 2000;
 
 const PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
-const DOCUMENTS: &[&str] = &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "rtf", "txt", "md", "html", "htm", "tex", "json", "xml"];
+/// Strix's own formats: a document and a template.
+const NATIVE: &[&str] = &[strix_engine::io::NATIVE_DOC_EXT, strix_engine::io::NATIVE_TEMPLATE_EXT];
+/// Every document format Open reads: Strix's own, then the ones it imports.
+const DOCUMENTS: &[&str] = &[
+    strix_engine::io::NATIVE_DOC_EXT,
+    strix_engine::io::NATIVE_TEMPLATE_EXT,
+    "docx",
+    "docm",
+    "dotx",
+    "dotm",
+    "doc",
+    "dot",
+    "odt",
+    "rtf",
+    "txt",
+    "md",
+    "markdown",
+    "html",
+    "htm",
+    "tex",
+    "latex",
+    "ltx",
+    "json",
+    "xml",
+];
 
 /// The file types Open offers, as (label, extensions; `*` is any file): pictures for Insert/Change
-/// Picture, recipient lists for Select Recipients › Use an Existing List…, documents otherwise.
-/// The host's system dialog and the built-in browser offer the same.
+/// Picture, recipient lists for Select Recipients › Use an Existing List…, documents otherwise:
+/// Strix's own first, then everything it opens, then each format it imports. The host's system
+/// dialog and the built-in browser offer the same; the labels are English, translated where shown.
 pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'static str])] {
     match purpose {
         "picture" => &[("Pictures", PICTURES)],
-        "font" => &[("Fonts", wordcraft_fonts::FONT_FILE_EXTS)],
+        "font" => &[("Fonts", strix_fonts::FONT_FILE_EXTS)],
         "sources" => &[("Word sources", &["xml"]), ("All files", &["*"])],
-        "recipients" => &[("Recipient lists", wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
-        _ => &[("Documents", DOCUMENTS), ("Word document", &["docx"]), ("All files", &["*"])],
+        "recipients" => &[("Recipient lists", strix_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
+        _ => &[
+            ("Strix documents (*.xmath, *.xmathm)", NATIVE),
+            ("All supported files", DOCUMENTS),
+            ("Word documents", &["docx", "docm", "dotx", "dotm", "doc", "dot"]),
+            ("OpenDocument Text", &["odt"]),
+            ("Rich Text Format", &["rtf"]),
+            ("Web pages", &["html", "htm"]),
+            ("Markdown", &["md", "markdown"]),
+            ("LaTeX", &["tex", "latex", "ltx"]),
+            ("Plain text", &["txt"]),
+            ("XML documents", &["xml"]),
+            ("JSON", &["json"]),
+            ("All files", &["*"]),
+        ],
     }
+}
+
+/// A readable English name for a format Save As writes (translated where shown).
+pub fn save_format_name(ext: &str) -> &'static str {
+    match ext {
+        "xmath" => "Strix Document",
+        "xmathm" => "Strix Template",
+        "docx" => "Word Document",
+        "docm" => "Word Macro-Enabled Document",
+        "dotx" => "Word Template",
+        "dotm" => "Word Macro-Enabled Template",
+        "pdf" => "PDF",
+        "txt" => "Plain Text",
+        "md" => "Markdown",
+        "html" => "Web Page",
+        "rtf" => "Rich Text Format",
+        "odt" => "OpenDocument Text",
+        "tex" => "LaTeX",
+        "png" => "PNG Image",
+        "json" => "JSON",
+        "xml" => "XML",
+        _ => "Other format",
+    }
+}
+
+/// The extensions Save As offers for the suggested file `name`: every format the engine saves
+/// ([`strix_engine::io::SAVE_EXTS`]: Strix Document, Strix Template, then the exports), with the
+/// suggested name's own format first. A dialog makes the first one its default, which it adds to
+/// a name typed without an extension; a name with no format Strix saves suggests `.xmath`.
+pub fn save_exts(name: &str) -> Vec<String> {
+    let saves = strix_engine::io::SAVE_EXTS;
+    let suggested = std::path::Path::new(name)
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .map(str::to_ascii_lowercase)
+        .filter(|e| saves.contains(&e.as_str()))
+        .unwrap_or_else(|| strix_engine::io::NATIVE_DOC_EXT.to_string());
+    let mut exts: Vec<String> = Vec::with_capacity(saves.len());
+    exts.push(suggested.clone());
+    exts.extend(saves.iter().filter(|e| **e != suggested).map(|e| (*e).to_string()));
+    exts
+}
+
+/// The "Save as type" list (#1399): one named entry per format, in [`save_exts`]' order, labelled
+/// in the interface language (`Strix Document (*.xmath)`).
+pub fn save_filters(name: &str) -> Vec<(String, Vec<String>)> {
+    save_exts(name).into_iter().map(|e| (format!("{} (*.{e})", tl!(save_format_name(&e))), vec![e])).collect()
 }
 
 /// What to do with the path picked in a dialog.
@@ -400,7 +486,7 @@ impl WordApp {
         // app's own.
         let saved = self.session.prefs.user_templates_folder.as_deref().map(str::trim).filter(|f| !f.is_empty());
         match saved {
-            Some(f) if wordcraft_engine::cmd::user_templates::check_dir(f).is_ok() && std::path::Path::new(f).is_dir() => {
+            Some(f) if strix_engine::cmd::user_templates::check_dir(f).is_ok() && std::path::Path::new(f).is_dir() => {
                 Some(std::path::PathBuf::from(f))
             }
             Some(f) => {
@@ -411,7 +497,7 @@ impl WordApp {
         }
     }
 
-    /// File › Save As › Save as Word Template (#2852): ask where to save a `.dotx`, starting in
+    /// File › Save As › Save as Strix Template (#2852): ask where to save a `.xmathm`, starting in
     /// the user templates folder (the app's own is made on first use), then save there as Save As
     /// does. Returns the folder the dialog starts in.
     pub(crate) fn save_as_template_dialog(&mut self) -> Option<String> {
@@ -424,7 +510,7 @@ impl WordApp {
             log::warn!("couldn't make the templates folder {}: {e}", d.display());
         }
         let dir = dir.filter(|d| d.is_dir()).map(|d| d.to_string_lossy().into_owned());
-        let name = format!("{}.dotx", self.title_stem());
+        let name = format!("{}.{}", self.title_stem(), strix_engine::io::NATIVE_TEMPLATE_EXT);
         let after = AfterPick::SaveAs { after: AfterSave::Nothing, document: self.session.document_id() };
         let _ = self.ask_file(FileDialogRequest::Save { name, dir: dir.clone() }, after);
         dir
@@ -489,7 +575,7 @@ mod tests {
 
     use super::*;
     use crate::Services;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     const UNSAVED: &str = "My unsaved novel chapter";
 
@@ -523,9 +609,10 @@ mod tests {
         file.into_inner().into_inner()
     }
 
-    /// #2445: Save on an imported binary Word file asks for DOCX, preserving the import on Cancel.
+    /// #2445: Save on an imported binary Word file asks for a Strix document (.xmath), preserving
+    /// the import on Cancel.
     #[test]
-    fn imported_word_save_asks_for_docx_and_preserves_the_original() {
+    fn imported_word_save_asks_for_xmath_and_preserves_the_original() {
         for ext in ["doc", "DOT", "DOC", "dot"] {
             let dir = scratch(&format!("imported-{ext}"));
             let original = dir.join(format!("contract.{ext}"));
@@ -533,13 +620,13 @@ mod tests {
             std::fs::write(&original, &bytes).unwrap();
             let (mut a, shown) = async_app();
             a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
-            assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Legacy contract"));
+            assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).contains("Legacy contract"));
             a.run("text.insert", json!({"text": "Revised "})).unwrap();
             let draft = a.session.doc.clone();
             let revision = a.session.rev();
             let result = a.run("file.save", json!({})).unwrap();
             assert_eq!(result["pending"], "saveAs");
-            assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.docx".into(), dir: None });
+            assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
             answer(&shown, None);
             assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], false);
             assert_eq!(a.session.doc, draft);
@@ -549,7 +636,7 @@ mod tests {
             assert_eq!(std::fs::read(&original).unwrap(), bytes);
 
             a.run("file.save", json!({})).unwrap();
-            let saved = dir.join("revised.docx");
+            let saved = dir.join("revised.xmath");
             answer(&shown, Some(&saved.to_string_lossy()));
             assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], true);
             assert!(!a.session.dirty);
@@ -586,7 +673,7 @@ mod tests {
         assert!(a.has_document() && a.session.dirty && !a.quit_requested);
         assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
         assert_eq!(std::fs::read(&original).unwrap(), bytes);
-        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body), draft.plain_text(wordcraft_doc::StoryRef::Body));
+        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body), draft.plain_text(strix_doc::StoryRef::Body));
 
         a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
         answer(&shown, None);
@@ -655,7 +742,7 @@ mod tests {
         a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
         let error = a.execute("file.save", json!({})).unwrap_err();
-        assert!(error.contains("can't save as `.doc`"), "{error}");
+        assert!(error.contains("isn't a Strix document") && error.contains("contract.xmath"), "{error}");
         let error = a.run("file.save", json!({"path": original.to_string_lossy()})).unwrap_err();
         assert!(error.contains("can't save as `.doc`"), "{error}");
         assert!(shown.borrow().is_empty());
@@ -666,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn imported_word_save_controls_ask_for_docx() {
+    fn imported_word_save_controls_ask_for_xmath() {
         use egui_kittest::kittest::Queryable;
         let dir = scratch("imported-entry-points");
         let original = dir.join("contract.doc");
@@ -689,7 +776,7 @@ mod tests {
         h.get_by_label("Save").click();
         h.run_steps(3);
         assert!(h.state().file_dialog_open(), "the Save button asks for a supported target");
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.docx".into(), dir: None });
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
         answer(&shown, None);
         h.run_steps(3);
 
@@ -700,12 +787,61 @@ mod tests {
         h.event(egui::Event::Key { key: egui::Key::S, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::COMMAND });
         h.run_steps(3);
         assert!(h.state().file_dialog_open(), "the focused editor's Mod+S asks too");
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.docx".into(), dir: None });
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
         answer(&shown, None);
         h.run_steps(3);
         assert!(h.state().session.dirty);
         assert_eq!(h.state().session.path.as_deref(), Some(original.as_path()));
         assert_eq!(std::fs::read(&original).unwrap(), bytes);
+    }
+
+    /// Save on a document opened from a .docx (or any format but Strix's own) asks where through
+    /// Save As with a `.xmath` of the same name proposed; the .docx is never written over. Once
+    /// saved as a Strix document, Save writes it in place without asking.
+    #[test]
+    fn imported_docx_save_proposes_xmath() {
+        let dir = scratch("imported-docx");
+        let original = dir.join("report.docx");
+        strix_engine::io::save_path(&original, &strix_doc::Document::from_text("Quarterly report")).unwrap();
+        let bytes = std::fs::read(&original).unwrap();
+        let (mut a, shown) = async_app();
+        a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
+        typed(&mut a);
+        assert_eq!(a.run("file.save", json!({})).unwrap()["pending"], "saveAs");
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.xmath".into(), dir: None });
+        let native = dir.join("report.xmath");
+        answer(&shown, Some(&native.to_string_lossy()));
+        assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], true);
+        assert_eq!(a.session.path.as_deref(), Some(native.as_path()));
+        assert_eq!(std::fs::read(&original).unwrap(), bytes, "the .docx is untouched");
+        a.run("text.insert", json!({"text": "Again "})).unwrap();
+        assert_eq!(a.run("file.save", json!({})).unwrap()["saved"], true);
+        assert!(shown.borrow().is_empty(), "no second dialog");
+        assert!(saved_text(&native).contains("Again "));
+        // F12 on the Strix document proposes its own name.
+        a.run("file.saveAs", json!({})).unwrap();
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.xmath".into(), dir: None });
+        answer(&shown, None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The Open dialog offers Strix's own formats first, then everything it opens, then each
+    /// import format; Save As offers Strix Document first and Strix Template second.
+    #[test]
+    fn dialogs_offer_strix_formats_first() {
+        let open = open_filters("document");
+        assert_eq!(open[0], ("Strix documents (*.xmath, *.xmathm)", &["xmath", "xmathm"][..]));
+        assert_eq!(open[1].0, "All supported files");
+        for ext in strix_engine::io::OPEN_EXTS.iter().filter(|e| !e.contains('.')) {
+            assert!(open[1].1.contains(ext), "All supported files lists .{ext}");
+        }
+        assert!(open.iter().any(|(_, e)| e.contains(&"docx")) && open.last().is_some_and(|(_, e)| *e == ["*"]));
+        let save = save_filters("Document1.xmath");
+        assert_eq!(save[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
+        assert_eq!(save[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));
+        assert_eq!(save.len(), strix_engine::io::SAVE_EXTS.len());
+        assert_eq!(save_exts("report.pdf")[0], "pdf", "an export suggests its own format first");
+        assert_eq!(save_exts("odd.name")[0], "xmath");
     }
 
     /// Dialogs the fake host was asked to show, each with the channel its answer goes through.
@@ -723,7 +859,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        (WordApp::new(Session::new(wordcraft_doc::Document::new()), services), shown)
+        (WordApp::new(Session::new(strix_doc::Document::new()), services), shown)
     }
 
     /// Answer the dialog the host is showing (the last one asked for).
@@ -743,22 +879,22 @@ mod tests {
     }
 
     fn body_text(a: &WordApp) -> String {
-        a.session.doc.plain_text(wordcraft_doc::StoryRef::Body)
+        a.session.doc.plain_text(strix_doc::StoryRef::Body)
     }
 
     fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("wordcraft-ui-dialogs-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-ui-dialogs-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     fn saved_text(path: &std::path::Path) -> String {
-        wordcraft_engine::io::open_path(path).unwrap().plain_text(wordcraft_doc::StoryRef::Body)
+        strix_engine::io::open_path(path).unwrap().plain_text(strix_doc::StoryRef::Body)
     }
 
-    /// Save as Word Template (#2852) suggests a .dotx in the user templates folder, which is made
-    /// on first use; the picked path is saved as a template. A folder named in File › Options
+    /// Save as Strix Template (#2852) suggests a .xmathm in the user templates folder, which is
+    /// made on first use; the picked path is saved as a template. A folder named in File › Options
     /// replaces the app's own.
     #[test]
     fn save_as_template_starts_in_the_templates_folder() {
@@ -770,14 +906,14 @@ mod tests {
         let r = a.run("ui.saveAsTemplate", json!({})).unwrap();
         assert!(own.is_dir(), "the app's templates folder is made on first use");
         assert_eq!(r["dir"], json!(own.to_string_lossy()));
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.dotx".into(), dir: Some(own.to_string_lossy().into_owned()) });
-        let path = own.join("Memo.dotx");
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmathm".into(), dir: Some(own.to_string_lossy().into_owned()) });
+        let path = own.join("Memo.xmathm");
         answer(&shown, Some(&path.to_string_lossy()));
         let ctx = egui::Context::default();
         ctx.run_ui(egui::RawInput::default(), |ui| a.logic(ui.ctx())).drop_without_applying_deltas();
         assert!(path.is_file(), "saved as a template");
         assert_eq!(saved_text(&path), UNSAVED);
-        let listed = wordcraft_engine::cmd::user_templates::list_templates(&own.to_string_lossy()).unwrap();
+        let listed = strix_engine::cmd::user_templates::list_templates(&own.to_string_lossy()).unwrap();
         assert_eq!(listed.templates.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["Memo"]);
 
         // A folder chosen in Options wins.
@@ -787,7 +923,7 @@ mod tests {
         assert_eq!(a.user_templates_dir(), Some(chosen.clone()));
         a.run("ui.saveAsTemplate", json!({})).unwrap();
         assert!(
-            matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, dir: Some(d) } if name == "Memo.dotx" && *d == chosen.to_string_lossy())
+            matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, dir: Some(d) } if name == "Memo.xmathm" && *d == chosen.to_string_lossy())
         );
         answer(&shown, None);
         let _ = std::fs::remove_dir_all(&dir);
@@ -797,12 +933,12 @@ mod tests {
     #[test]
     fn save_as_answer_arriving_later_is_saved() {
         let dir = scratch("later");
-        let path = dir.join("novel.docx");
+        let path = dir.join("novel.xmath");
         let (mut a, shown) = async_app();
         typed(&mut a);
         a.save_as_dialog();
         assert!(a.file_dialog_open());
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.docx".into(), dir: None });
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmath".into(), dir: None });
         let ctx = egui::Context::default();
         let frame = |a: &mut WordApp| ctx.run_ui(egui::RawInput::default(), |ui| a.logic(ui.ctx())).drop_without_applying_deltas();
         frame(&mut a);
@@ -816,14 +952,14 @@ mod tests {
     }
 
     /// #689: Save As honours the filename typed in the dialog, not just the folder: a document
-    /// opened as `a/one.docx` and saved as `b/two.docx` is written there and takes that path.
+    /// opened as `a/one.xmath` and saved as `b/two.xmath` is written there and takes that path.
     #[test]
     fn save_as_with_a_new_filename_saves_under_it() {
         let dir = scratch("rename");
-        let opened = dir.join("one.docx");
-        let picked = dir.join("sub").join("two.docx");
+        let opened = dir.join("one.xmath");
+        let picked = dir.join("sub").join("two.xmath");
         std::fs::create_dir_all(dir.join("sub")).unwrap();
-        wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("original"))
+        strix_engine::Session::new(strix_doc::Document::from_text("original"))
             .run("file.save", &json!({"path": opened.to_string_lossy()}))
             .unwrap();
         let (mut a, shown) = async_app();
@@ -840,7 +976,7 @@ mod tests {
         let r = a.run("file.saveAs", json!({})).unwrap();
         assert_eq!(r, json!({"saved": false}));
         assert!(a.file_dialog_open(), "F12's saveAs request opens the dialog");
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "two.docx".into(), dir: None });
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "two.xmath".into(), dir: None });
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1093,14 +1229,14 @@ mod tests {
         let called = Rc::new(Cell::new(false));
         let called2 = called.clone();
         let services = Services { load_system_fonts: Some(Box::new(move || called2.set(true))), ..Default::default() };
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         a.run("font.loadSystem", json!({})).unwrap();
         assert!(called.get());
     }
 
     #[test]
     fn load_system_fonts_without_hook_reports_status() {
-        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         a.run("font.loadSystem", json!({})).unwrap();
         assert_eq!(a.status_msg.as_ref().map(|(s, _)| s.as_str()), Some("All system fonts are already available."));
     }

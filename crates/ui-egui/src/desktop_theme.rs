@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The desktop's own light/dark choice, for an interface setting that follows it.
 //!
 //! winit reports no system theme on Linux — `ActiveEventLoop::system_theme` is `None` on every
@@ -35,7 +36,7 @@ impl DesktopTheme {
     /// and headless screenshots don't, so they never depend on the machine's desktop theme.
     pub fn start(changed: impl Fn() + Send + 'static) -> Self {
         let (tx, rx) = channel();
-        let started = std::thread::Builder::new().name("wordcraft-desktop-theme".into()).spawn(move || {
+        let started = std::thread::Builder::new().name("strix-desktop-theme".into()).spawn(move || {
             // One session-bus connection for the life of the watcher, opened again only after
             // it fails.
             let mut bus = Bus::new();
@@ -179,7 +180,7 @@ mod tests {
     /// headless screenshots never depend on the host's theme or spawn D-Bus pollers.
     #[test]
     fn a_new_app_does_not_watch_the_desktop() {
-        let app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
         assert!(!app.desktop_theme.watching());
     }
 }

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Column (block) selection: Alt+drag, or Ctrl+Shift+F8 then the arrow keys, selects the same
 //! horizontal range on a run of lines. Copy and Cut take one line per block row, Delete /
 //! Backspace remove just the block, character formatting applies to each row's piece, paragraph
@@ -9,9 +10,9 @@
 //! such cells, as in Word (`table::extend_selection`).
 
 use serde_json::{Value, json};
-use wordcraft_doc::edit::Fragment;
-use wordcraft_doc::props::CharProps;
-use wordcraft_doc::{Block, Paragraph, Pos};
+use strix_doc::edit::Fragment;
+use strix_doc::props::CharProps;
+use strix_doc::{Block, Paragraph, Pos};
 
 use super::{parse_pos, pos_json};
 use crate::{CmdError, CmdResult, ColumnBlock, CommandSpec, Selection, Session, p};

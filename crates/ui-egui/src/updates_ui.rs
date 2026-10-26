@@ -1,6 +1,15 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Software updates, background check at startup, and startup prompt modal.
 
 use crate::WordApp;
+
+/// Strix has no release channel of its own yet. `craft_update`'s suites point at WordCraft's
+/// releases, so checking would offer to replace Strix with WordCraft: checks stay off until
+/// Strix publishes its own update feed.
+pub(crate) const UPDATE_CHANNEL: bool = false;
+
+/// Where Strix releases are published meanwhile.
+pub(crate) const RELEASES_URL: &str = "https://github.com/nabre/strix/releases";
 
 #[cfg(not(target_arch = "wasm32"))]
 use craft_update::updater::{Action, Status, Updater};
@@ -46,6 +55,11 @@ impl WordApp {
 }
 
 pub(crate) fn check(app: &mut WordApp) {
+    if !UPDATE_CHANNEL {
+        app.updates_rt.manual_window_open = true;
+        app.updates_rt.status_message = Some(crate::i18n::fmt(tl!("Automatic updates are not available yet. New versions are published at {url}"), &[("url", RELEASES_URL)]));
+        return;
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.updates_rt.check_requested = true;
@@ -65,6 +79,10 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
     {
         let rt = &mut app.updates_rt;
         rt.repaint = Some(ctx.clone());
+        if !UPDATE_CHANNEL {
+            rt.check_requested = false;
+            return;
+        }
         if std::mem::take(&mut rt.check_requested) {
             rt.updater.check_now(ctx);
         } else if rt.startup_check {
@@ -78,7 +96,7 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
 
 pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
-    {
+    if UPDATE_CHANNEL {
         // The restart helper is scheduled before the app closes, so no update starts over unsaved work.
         let clean = !(app.session.dirty || app.save_unconfirmed() || app.printing.busy() || crate::panes::has_comment_drafts(app));
         match app.updates_rt.updater.show_if(ctx, clean) {
@@ -92,7 +110,7 @@ pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
             Status::Idle => (false, None),
             Status::Checking => (true, None),
             Status::UpToDate => {
-                (true, Some(tl!("WordCraft {version} is currently the newest version available.").replace("{version}", env!("CARGO_PKG_VERSION"))))
+                (true, Some(tl!("Strix {version} is currently the newest version available.").replace("{version}", env!("CARGO_PKG_VERSION"))))
             }
             Status::Failed(e) => (true, Some(tl!("Could not check for updates:\n{error}").replace("{error}", e))),
         };

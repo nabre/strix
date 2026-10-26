@@ -1,10 +1,11 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Lists: `PlfLst` (the LSTF definitions with their LVLs appended) and `PlfLfo` (the LFO
 //! instances with LFOLVL overrides) resolved into the numbering model
 //! ([MS-DOC] §2.8.1 "Determining List Formatting of a Paragraph", §2.9).
 
-use wordcraft_doc::numbering::{AbstractNum, Level, LevelSuffix, Num, Numbering};
-use wordcraft_doc::props::{Align, CharProps, ParaProps};
-use wordcraft_doc::section::NumFormat;
+use strix_doc::numbering::{AbstractNum, Level, LevelSuffix, Num, Numbering};
+use strix_doc::props::{Align, CharProps, ParaProps};
+use strix_doc::section::NumFormat;
 
 use crate::fib::{Fib, pair};
 use crate::fmt;

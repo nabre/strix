@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! References dialogs (#402): Caption (with New Label and Numbering), Cross-reference (#916),
 //! Index and Mark Index Entry, Custom Table of Contents (with Options and the TOC styles), Table of
 //! Figures (#3013), and the Source Manager with Create / Edit Source. Each fills a form from the
@@ -9,8 +10,8 @@
 use egui::{Sense, Ui, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
-use wordcraft_doc::{Block, Source, StyleKind};
-use wordcraft_engine::cmd::references::FieldCode;
+use strix_doc::{Block, Source, StyleKind};
+use strix_engine::cmd::references::FieldCode;
 
 use crate::WordApp;
 use crate::dialogs::{Dialog, buttons};
@@ -250,7 +251,7 @@ impl CaptionForm {
             }
         }
         // In a table the caption is for the table, unless a picture or shape in it is selected.
-        let in_table = wordcraft_engine::cmd::objects::object_selection(&app.session).is_none()
+        let in_table = strix_engine::cmd::objects::object_selection(&app.session).is_none()
             && app.session.sel.focus.path.depth() > 0
             && app
                 .session
@@ -375,7 +376,7 @@ const REF_TYPES: [(&str, &str); 5] =
 /// (Insert Caption › New Label, or already in the document's captions) as `label:<Name>` (#2940).
 fn ref_types(app: &WordApp) -> Vec<(String, String)> {
     let mut types: Vec<(String, String)> = REF_TYPES.iter().map(|(v, l)| (v.to_string(), l.to_string())).collect();
-    let in_document = wordcraft_engine::cmd::citations::caption_labels(&app.session);
+    let in_document = strix_engine::cmd::citations::caption_labels(&app.session);
     for l in app.ui.caption_labels.iter().chain(&in_document) {
         let value = format!("label:{l}");
         if !BUILT_IN_LABELS.contains(&l.as_str()) && !types.iter().any(|(v, _)| *v == value) {
@@ -401,7 +402,7 @@ pub struct CrossRefForm {
 
 impl CrossRefForm {
     pub fn read(app: &WordApp, to: &str) -> CrossRefForm {
-        let targets: Vec<String> = wordcraft_engine::cmd::citations::ref_targets(&app.session, to).into_iter().map(|(t, _)| t).collect();
+        let targets: Vec<String> = strix_engine::cmd::citations::ref_targets(&app.session, to).into_iter().map(|(t, _)| t).collect();
         let selected = (!targets.is_empty()).then_some(0);
         CrossRefForm { to: to.into(), show: "text".into(), targets, selected }
     }
@@ -546,7 +547,7 @@ pub struct IndexForm {
 /// The first field in the body whose name is `name`.
 fn body_field(app: &WordApp, name: &str) -> Option<FieldCode> {
     app.session.doc.body.iter().filter_map(|b| b.as_para()).flat_map(|p| p.objects.iter()).find_map(|o| match o {
-        wordcraft_doc::InlineObject::Field { instr, .. } => {
+        strix_doc::InlineObject::Field { instr, .. } => {
             Some(FieldCode::parse(instr)).filter(|f| f.name == name && (name != "TOC" || !f.is_table_of_figures()))
         }
         _ => None,
@@ -765,7 +766,7 @@ impl TocForm {
     /// The table in the document, or the defaults for a new one.
     pub fn read(app: &WordApp) -> TocForm {
         let f = body_field(app, "TOC").unwrap_or_else(|| FieldCode::parse(r#"TOC \o "1-3" \h \z \u"#));
-        let levels = f.arg('o').and_then(wordcraft_engine::cmd::references::level_range).map_or(3, |r| r.1);
+        let levels = f.arg('o').and_then(strix_engine::cmd::references::level_range).map_or(3, |r| r.1);
         let listed: Vec<(String, u8)> = f
             .arg('t')
             .map(|t| {
@@ -795,9 +796,9 @@ impl TocForm {
             page_numbers: !f.has('n'),
             right_align: f.arg('p').is_none_or(|p| p.contains('\t')),
             leader: match leader {
-                Some(wordcraft_doc::props::TabLeader::None) => "none",
-                Some(wordcraft_doc::props::TabLeader::Hyphen) => "hyphen",
-                Some(wordcraft_doc::props::TabLeader::Underscore) => "underscore",
+                Some(strix_doc::props::TabLeader::None) => "none",
+                Some(strix_doc::props::TabLeader::Hyphen) => "hyphen",
+                Some(strix_doc::props::TabLeader::Underscore) => "underscore",
                 _ => "dot",
             }
             .into(),
@@ -959,7 +960,7 @@ pub struct FiguresForm {
 impl FiguresForm {
     pub fn read(app: &WordApp) -> FiguresForm {
         let mut labels: Vec<String> = BUILT_IN_LABELS.iter().map(ToString::to_string).collect();
-        for l in app.ui.caption_labels.iter().cloned().chain(wordcraft_engine::cmd::citations::caption_labels(&app.session)) {
+        for l in app.ui.caption_labels.iter().cloned().chain(strix_engine::cmd::citations::caption_labels(&app.session)) {
             if !labels.contains(&l) {
                 labels.push(l);
             }
@@ -1286,14 +1287,14 @@ fn sources_ui(app: &mut WordApp, ui: &mut Ui, selected: &mut Option<usize>) -> N
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_doc::{InlineObject, StoryRef};
-    use wordcraft_engine::Session;
+    use strix_doc::{InlineObject, StoryRef};
+    use strix_engine::Session;
 
     use super::*;
     use crate::Services;
 
     fn app(text: &str) -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::from_text(text)), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::from_text(text)), Services::default())
     }
 
     fn form(a: &WordApp) -> RefsDialog {
@@ -1565,7 +1566,7 @@ mod tests {
         assert!(h.state().dialog.is_none(), "OK closes the dialog");
         let mut a = h.into_state();
         assert!(instrs(&a).contains(&r#"TOC \c "Table""#.to_string()), "{:?}", instrs(&a));
-        let entries: Vec<(String, Option<wordcraft_doc::props::TabLeader>)> = a
+        let entries: Vec<(String, Option<strix_doc::props::TabLeader>)> = a
             .session
             .doc
             .body
@@ -1574,7 +1575,7 @@ mod tests {
             .filter(|p| p.props.style.as_deref() == Some("ListEntry"))
             .map(|p| (p.plain_text(), p.props.tabs.as_ref().and_then(|t| t.last()).map(|t| t.leader)))
             .collect();
-        assert_eq!(entries, [("Table 1: Press\t1".to_string(), Some(wordcraft_doc::props::TabLeader::Underscore))]);
+        assert_eq!(entries, [("Table 1: Press\t1".to_string(), Some(strix_doc::props::TabLeader::Underscore))]);
         a.run("caret.docEnd", json!({})).unwrap();
         a.run("ui.dialog", json!({"name": "tableOfFigures"})).unwrap();
         let RefsDialog::Figures(mut f) = form(&a) else { panic!() };

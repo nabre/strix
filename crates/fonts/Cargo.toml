@@ -1,9 +1,10 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "wordcraft-fonts"
+name = "strix-fonts"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "WordCraft fonts: font database (bundled OFL + system), metrics, glyph outlines, shaping"
+description = "Strix fonts: font database (bundled OFL + system), metrics, glyph outlines, shaping"
 
 [lints]
 workspace = true

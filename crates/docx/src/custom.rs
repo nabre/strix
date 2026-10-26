@@ -1,8 +1,9 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Custom document properties (`docProps/custom.xml`, ECMA-376 Part 1 §22.3). Citation
 //! managers keep their document preferences here (Zotero: `ZOTERO_PREF_1`…), so they must
 //! survive a round trip intact.
 
-use wordcraft_doc::CustomProp;
+use strix_doc::CustomProp;
 
 use crate::xml::{El, MAX_DEPTH, Node, W, esc};
 

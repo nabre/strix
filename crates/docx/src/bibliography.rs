@@ -1,9 +1,10 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word bibliography sources: a `b:Sources` document — the custom XML part of a document, or
 //! Word's own `Sources.xml` master list, imported through Manage Sources (#2640).
 
 use std::collections::HashSet;
 
-use wordcraft_doc::Source;
+use strix_doc::Source;
 
 use crate::DocxError;
 use crate::xml::El;

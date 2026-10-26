@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Developer › Controls › Properties: a content control's title, tag, locks and, by kind, its
 //! list entries, date format or check box symbols. OK runs `developer.properties` with the
 //! settings, so scripts and agents get the same result without the dialog.
@@ -42,8 +43,8 @@ impl ControlForm {
         let b = |k: &str| v.get(k).and_then(Value::as_bool).unwrap_or(false);
         let at = v.get("start").cloned().unwrap_or(Value::Null);
         // The content starts just after the start marker.
-        let at = match serde_json::from_value::<wordcraft_doc::Pos>(at) {
-            Ok(p) => serde_json::to_value(wordcraft_doc::Pos { off: p.off + wordcraft_doc::para::OBJ.len_utf8(), ..p }).unwrap_or(Value::Null),
+        let at = match serde_json::from_value::<strix_doc::Pos>(at) {
+            Ok(p) => serde_json::to_value(strix_doc::Pos { off: p.off + strix_doc::para::OBJ.len_utf8(), ..p }).unwrap_or(Value::Null),
             Err(_) => Value::Null,
         };
         let items = v
@@ -202,7 +203,7 @@ fn entries(ui: &mut Ui, f: &mut ControlForm) {
     {
         f.items.remove(i);
     }
-    if f.items.len() < wordcraft_doc::control::MAX_LIST_ITEMS && ui.button(tl!("Add")).clicked() {
+    if f.items.len() < strix_doc::control::MAX_LIST_ITEMS && ui.button(tl!("Add")).clicked() {
         f.items.push(Entry::default());
     }
 }

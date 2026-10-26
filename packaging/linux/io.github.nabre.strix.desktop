@@ -1,0 +1,15 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[Desktop Entry]
+Type=Application
+Name=Strix
+GenericName=Word Processor
+Comment=Write and design documents; open and export Word files
+Exec=strix %F
+TryExec=strix
+Icon=io.github.nabre.strix
+Terminal=false
+StartupNotify=true
+StartupWMClass=io.github.nabre.strix
+Categories=Office;WordProcessor;
+Keywords=word;processor;document;xmath;docx;writer;text;letter;report;
+MimeType=application/vnd.strix.xmath;application/vnd.strix.xmathm;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.ms-word.document.macroEnabled.12;application/vnd.openxmlformats-officedocument.wordprocessingml.template;application/vnd.ms-word.template.macroEnabled.12;application/msword;application/msword-template;application/vnd.oasis.opendocument.text;application/rtf;text/rtf;text/markdown;text/x-tex;text/html;

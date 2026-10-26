@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 # CI only: import the Developer ID certificate into a temporary keychain so codesign can use it.
 #
 # Inputs (env): APPLE_CERTIFICATE (base64 .p12), APPLE_CERTIFICATE_PASSWORD, KEYCHAIN_PASSWORD
@@ -24,9 +25,9 @@ KC_PASS="${KEYCHAIN_PASSWORD:-$(openssl rand -hex 24)}"
 # a predictable name in a shared temp folder could be planted beforehand (a link that sends the key
 # somewhere readable, or a keychain someone else made) (#3692). The bundle is removed on exit; the
 # keychain is kept for the signing steps that follow, unless this script fails.
-WORK="$(mktemp -d "$TMP/wordcraft-signing.XXXXXXXX")"
-CERT="$WORK/wordcraft-signing.p12"
-KEYCHAIN="$WORK/wordcraft-signing.keychain-db"
+WORK="$(mktemp -d "$TMP/strix-signing.XXXXXXXX")"
+CERT="$WORK/strix-signing.p12"
+KEYCHAIN="$WORK/strix-signing.keychain-db"
 cleanup() {
   local status=$?
   rm -f "$CERT"

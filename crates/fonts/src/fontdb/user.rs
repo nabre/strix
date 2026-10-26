@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Fonts an end user adds at run time, without rebuilding (#582).
 //!
 //! The bundled faces (and the system fonts) stay the baseline: a user font only adds faces, never
@@ -7,7 +8,7 @@
 //!
 //! Desktop: [`FontDb::load_user_fonts`] names a folder (the app's `fonts` folder); the fonts there
 //! load at start-up and each font added later is copied there (unwrapped from WOFF/WOFF2). Without
-//! a folder (the web, tests, `WORDCRAFT_NO_PREFS`) added fonts last for the session; the web
+//! a folder (the web, tests, `STRIX_NO_PREFS`) added fonts last for the session; the web
 //! shell keeps them in the browser itself.
 
 use std::path::{Path, PathBuf};
@@ -999,7 +1000,7 @@ pub(crate) mod tests {
     fn a_link_planted_at_the_temporary_name_is_not_written_through() {
         // #3703 review: the temporary file is created afresh, so a planted link can't carry the
         // font bytes to a file outside the folder.
-        let root = std::env::temp_dir().join(format!("wordcraft-font-part-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("strix-font-part-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let dir = root.join("fonts");
         std::fs::create_dir_all(&dir).unwrap();
@@ -1021,7 +1022,7 @@ pub(crate) mod tests {
     #[test]
     fn fonts_stored_at_once_under_one_name_each_get_their_own_file() {
         // #3703 review: concurrent adds of one name never share a temporary or a destination.
-        let dir = std::env::temp_dir().join(format!("wordcraft-font-race-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-font-race-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let paths: Vec<_> = (0..8u8)
             .map(|i| {

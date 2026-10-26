@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Bake the contributor credits into the binary as static Rust tables (craftrules
 //! standards/contributors.md), and embed the craft-i18n interface catalogs. Nothing is read at
 //! run time.
@@ -9,11 +10,12 @@
 //!
 //! A missing or malformed file gives empty tables (or no names) and a warning.
 //!
-//! - `CRAFT_I18N_DIR`, a craft-i18n checkout (storytold/craft-i18n, at the SHA in
-//!   `craft-i18n.rev`): `craft_i18n.rs` holds `CRAFT_I18N`, one (locale, shared catalog, WordCraft
-//!   catalog) entry per locale that has a `wordcraft.tsv`. Unset, or not a checkout (a warning),
-//!   it is empty and the interface is English only; with `CRAFT_I18N_REQUIRED=1` (releases) that
-//!   is an error instead. Recipe: craft-i18n's `docs/integration.md`.
+//! - The interface catalogs in this repository's `locales/` (vendored from storytold/craft-i18n at
+//!   the SHA in `craft-i18n.rev`, then maintained here): `craft_i18n.rs` holds `CRAFT_I18N`, one
+//!   (locale, shared catalog, Strix catalog) entry per locale that has a `strix.tsv`.
+//!   `CRAFT_I18N_DIR` points at another folder with the same `locales/` layout instead. A missing
+//!   folder gives an empty table (a warning) and an English-only interface; with
+//!   `CRAFT_I18N_REQUIRED=1` (releases) that is an error instead.
 
 use std::fmt::Write as _;
 
@@ -37,32 +39,28 @@ fn main() {
     }
 }
 
-/// The catalog this app reads in each locale: `locales/<locale>/wordcraft.tsv`.
-const APP_CATALOG: &str = "wordcraft.tsv";
+/// The catalog this app reads in each locale: `locales/<locale>/strix.tsv`.
+const APP_CATALOG: &str = "strix.tsv";
 
-/// `CRAFT_I18N` from `CRAFT_I18N_DIR`: the `Embedded` list the craft-i18n crate reads.
+/// `CRAFT_I18N` from `locales/` (or `CRAFT_I18N_DIR`): the `Embedded` list the craft-i18n crate reads.
 fn craft_i18n() -> String {
     println!("cargo::rerun-if-env-changed=CRAFT_I18N_DIR");
     println!("cargo::rerun-if-env-changed=CRAFT_I18N_REQUIRED");
     let required = std::env::var("CRAFT_I18N_REQUIRED").is_ok_and(|v| v.trim() == "1");
-    let entries = match std::env::var_os("CRAFT_I18N_DIR").filter(|d| !d.is_empty()) {
-        // Not canonicalized: on Windows that gives `\\?\C:\…`, which `include_str!` can't read.
-        Some(dir) => match locales(&std::path::PathBuf::from(dir).join("locales")) {
-            Ok(entries) => entries,
-            Err(e) => {
-                let level = if required { "error" } else { "warning" };
-                println!("cargo::{level}=CRAFT_I18N_DIR: {e}; the interface is English only");
-                Vec::new()
-            }
-        },
-        None => {
-            if required {
-                println!("cargo::error=CRAFT_I18N_REQUIRED=1 but CRAFT_I18N_DIR is unset: a release must embed the translations");
-            }
+    // `CRAFT_I18N_DIR`, else the repository root (absolute, as `CARGO_MANIFEST_DIR` is). Not
+    // canonicalized: on Windows that gives `\\?\C:\…`, which `include_str!` can't read.
+    let dir = std::env::var_os("CRAFT_I18N_DIR")
+        .filter(|d| !d.is_empty())
+        .map_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(".."), std::path::PathBuf::from);
+    let entries = match locales(&dir.join("locales")) {
+        Ok(entries) => entries,
+        Err(e) => {
+            let level = if required { "error" } else { "warning" };
+            println!("cargo::{level}=interface catalogs: {e}; the interface is English only");
             Vec::new()
         }
     };
-    let mut o = String::from("/// (locale, shared catalog, WordCraft's catalog), one entry per locale; `\"\"` for a missing file.\n");
+    let mut o = String::from("/// (locale, shared catalog, Strix's catalog), one entry per locale; `\"\"` for a missing file.\n");
     o.push_str("pub static CRAFT_I18N: &craft_i18n::Embedded = &[\n");
     for (code, shared, app) in entries {
         // `{:?}` escapes the path (Windows backslashes) as a Rust string literal.
@@ -82,7 +80,7 @@ fn locales(dir: &std::path::Path) -> Result<Vec<(String, Option<std::path::PathB
     if !dir.is_absolute() {
         return Err(format!("{} is not an absolute path", dir.display()));
     }
-    let list = std::fs::read_dir(dir).map_err(|e| format!("{} is not a craft-i18n checkout ({e})", dir.display()))?;
+    let list = std::fs::read_dir(dir).map_err(|e| format!("{} is not a catalog folder ({e})", dir.display()))?;
     println!("cargo::rerun-if-changed={}", dir.display());
     let mut out = Vec::new();
     for entry in list.flatten() {

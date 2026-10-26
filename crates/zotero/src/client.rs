@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Running one integration command against Zotero over its socket.
 //!
 //! [`run_command`] connects, sends the command, then answers each of Zotero's calls through a
@@ -9,7 +10,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
 use serde_json::Value;
-use wordcraft_engine::Session;
+use strix_engine::Session;
 
 use crate::wire::{self, Call};
 use crate::{Bridge, Host, ZoteroError};

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Tools › Customize Ribbon (#379; File › Options, command search, right-click on the ribbon or
 //! the Quick Access Toolbar): two pages. Ribbon: commands by category on the left, the ribbon's
 //! tabs with their custom groups on the right; show or hide tabs, add custom tabs and groups,
@@ -395,13 +396,13 @@ fn qat_page(app: &mut WordApp, ui: &mut Ui, f: &mut RibbonForm, h: f32) {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use wordcraft_engine::Session;
+    use strix_engine::Session;
 
     use crate::dialogs::Dialog;
     use crate::{Services, WordApp};
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
+        WordApp::new(Session::new(strix_doc::Document::new()), Services::default())
     }
 
     /// #379: Tools › Customize Ribbon opens the dialog; a custom tab with a group, a hidden tab and

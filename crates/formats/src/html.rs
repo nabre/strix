@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! HTML.
 //!
 //! Import is a tolerant tag-soup reader (no DOM): a tokenizer plus a stack of open elements with
@@ -15,8 +16,8 @@
 
 use std::sync::Arc;
 
-use wordcraft_doc::props::VAlign;
-use wordcraft_doc::{Align, Document};
+use strix_doc::props::VAlign;
+use strix_doc::{Align, Document};
 
 use crate::model::{
     self, Cell, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, Meta, Para, base64_encode, data_uri, make_img, mime_of, parse_color,
@@ -1029,7 +1030,7 @@ impl<'r> Builder<'r> {
                     let borderless = !t.bordered;
                     // Keep at most MAX_ROWS rows (the model drops the rest anyway): bounds the
                     // O(rows × rowspan) work of `insert_covered` on a table of millions of `<tr>`.
-                    let rows: Vec<_> = t.rows.into_iter().filter(|r| !r.is_empty()).take(wordcraft_doc::table::MAX_ROWS).collect();
+                    let rows: Vec<_> = t.rows.into_iter().filter(|r| !r.is_empty()).take(strix_doc::table::MAX_ROWS).collect();
                     let mut ft = FTable { rows, widths: Vec::new(), borderless };
                     if !ft.rows.is_empty() {
                         ft.insert_covered();
@@ -1216,7 +1217,7 @@ impl<'r> Builder<'r> {
             "sub" => fmt.sub = true,
             "small" => fmt.size = Some(fmt.size.map_or(10.0, |s| (s * 0.833).max(1.0))),
             "big" => fmt.size = Some(fmt.size.map_or(14.0, |s| (s * 1.2).min(1638.0))),
-            "mark" => fmt.background = Some(wordcraft_doc::Rgb(255, 255, 0)),
+            "mark" => fmt.background = Some(strix_doc::Rgb(255, 255, 0)),
             "font" => {
                 if let Some(c) = attr(attrs, "color").and_then(parse_color) {
                     fmt.color = Some(c);
@@ -1244,7 +1245,7 @@ impl<'r> Builder<'r> {
                 }
             }
             "a" => {
-                if let Some(h) = attr(attrs, "href").filter(|h| wordcraft_doc::link::is_safe_href(h)) {
+                if let Some(h) = attr(attrs, "href").filter(|h| strix_doc::link::is_safe_href(h)) {
                     fmt.link = model::kept_link(h.trim());
                 }
             }
@@ -1447,7 +1448,7 @@ fn read_math(lx: &mut Lexer, name: String, attrs: Vec<(String, String)>) -> crat
             }
             Tok::Start { name, attrs, self_close } => {
                 let el = El { name, attrs, children: Vec::new() };
-                if self_close || stack.len() > wordcraft_doc::math::MAX_DEPTH {
+                if self_close || stack.len() > strix_doc::math::MAX_DEPTH {
                     if let Some(top) = stack.last_mut() {
                         top.children.push(Item::El(el));
                     }
@@ -1600,7 +1601,7 @@ pub fn import_with(s: &str, images: ImageLoader) -> Document {
 
 /// [`import_with`] onto `page` (its size and margins), which tables size to: HTML gives no page
 /// size, so the caller picks it (the region's paper, #1381).
-pub fn import_on(s: &str, images: ImageLoader, page: &wordcraft_doc::SectionProps) -> Document {
+pub fn import_on(s: &str, images: ImageLoader, page: &strix_doc::SectionProps) -> Document {
     model::begin_import();
     model::to_doc_in(&parse_with(s, images), page.clone())
 }
@@ -1658,7 +1659,7 @@ fn fmt_tags(f: &Fmt) -> (String, Vec<&'static str>) {
     let mut open = String::new();
     let mut close: Vec<&str> = Vec::new();
     // A script or other non-web target is written as plain text (`is_safe_href`).
-    if let Some(l) = f.link.as_deref().filter(|l| wordcraft_doc::link::is_safe_href(l)) {
+    if let Some(l) = f.link.as_deref().filter(|l| strix_doc::link::is_safe_href(l)) {
         open.push_str(&format!("<a href=\"{}\">", esc(l)));
         close.push("</a>");
     }
@@ -1943,7 +1944,7 @@ pub fn export_flow(flow: &Flow, lang: &str) -> String {
     let mut out = String::new();
     out.push_str("<!DOCTYPE html>\n");
     out.push_str(&format!("<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n", esc(lang)));
-    out.push_str("<meta name=\"generator\" content=\"WordCraft\">\n");
+    out.push_str("<meta name=\"generator\" content=\"Strix\">\n");
     out.push_str(&format!("<title>{}</title>\n", esc(&m.title)));
     for (k, v) in [("author", &m.author), ("description", &m.description), ("keywords", &m.keywords), ("subject", &m.subject)] {
         if !v.is_empty() {
@@ -1984,7 +1985,7 @@ mod tests {
     fn table_style(html: &str) -> Option<String> {
         let doc = crate::model::to_doc(&parse(html));
         doc.body.iter().find_map(|b| match &**b {
-            wordcraft_doc::Block::Table(t) => Some(t.props.style.clone().unwrap_or_default()),
+            strix_doc::Block::Table(t) => Some(t.props.style.clone().unwrap_or_default()),
             _ => None,
         })
     }
@@ -2077,7 +2078,7 @@ mod tests {
         let f = parse("<p style='text-align:center'><span style=\"color:#ff0000;font-weight:700\">red</span> <a href=\"http://x\">l</a><br>n</p>");
         let FBlock::Para(p) = &f.blocks[0] else { panic!() };
         assert_eq!(p.align, Some(Align::Center));
-        assert!(matches!(&p.inlines[0], Inline::Text(t, f) if t == "red" && f.bold && f.color == Some(wordcraft_doc::Rgb(255,0,0))));
+        assert!(matches!(&p.inlines[0], Inline::Text(t, f) if t == "red" && f.bold && f.color == Some(strix_doc::Rgb(255,0,0))));
         assert!(p.inlines.iter().any(|i| matches!(i, Inline::Text(t, f) if t == "l" && f.link.as_deref() == Some("http://x"))));
         assert!(p.text().ends_with("l\nn"));
     }
@@ -2238,14 +2239,14 @@ mod tests {
 
     /// A document that reads "I read " then a phonetic guide over `base`, then " daily.".
     fn ruby_doc(base: &str, ruby: &str) -> Document {
-        let props = wordcraft_doc::CharProps::default();
-        let mut p = wordcraft_doc::Paragraph::with_text("I read ", props.clone());
+        let props = strix_doc::CharProps::default();
+        let mut p = strix_doc::Paragraph::with_text("I read ", props.clone());
         let n = p.len();
         p.insert_object(n, crate::model::ruby_object(base.into(), ruby.into(), 20.0), &props).unwrap();
         let n = p.len();
         p.insert_text(n, " daily.", &props).unwrap();
         let mut d = Document::new();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         d
     }
 
@@ -2263,8 +2264,8 @@ mod tests {
     /// The first document ruby: its base text and reading.
     fn doc_ruby(d: &Document) -> Option<(String, String)> {
         d.body.iter().find_map(|b| match &**b {
-            wordcraft_doc::Block::Para(p) => p.objects.iter().find_map(|o| match o {
-                wordcraft_doc::InlineObject::Ruby { base, ruby, .. } => Some((base.clone(), ruby.clone())),
+            strix_doc::Block::Para(p) => p.objects.iter().find_map(|o| match o {
+                strix_doc::InlineObject::Ruby { base, ruby, .. } => Some((base.clone(), ruby.clone())),
                 _ => None,
             }),
             _ => None,
@@ -2272,10 +2273,10 @@ mod tests {
     }
 
     /// The first document ruby: base size, ruby size, raise and alignment.
-    fn doc_ruby_attrs(d: &Document) -> Option<(f32, f32, f32, wordcraft_doc::para::RubyAlign)> {
+    fn doc_ruby_attrs(d: &Document) -> Option<(f32, f32, f32, strix_doc::para::RubyAlign)> {
         d.body.iter().find_map(|b| match &**b {
-            wordcraft_doc::Block::Para(p) => p.objects.iter().find_map(|o| match o {
-                wordcraft_doc::InlineObject::Ruby { base_size, size, raise, align, .. } => Some((*base_size, *size, *raise, *align)),
+            strix_doc::Block::Para(p) => p.objects.iter().find_map(|o| match o {
+                strix_doc::InlineObject::Ruby { base_size, size, raise, align, .. } => Some((*base_size, *size, *raise, *align)),
                 _ => None,
             }),
             _ => None,
@@ -2340,12 +2341,12 @@ mod tests {
 
     #[test]
     fn ruby_keeps_the_run_formatting() {
-        let props = wordcraft_doc::CharProps { bold: Some(true), ..Default::default() };
-        let mut p = wordcraft_doc::Paragraph::with_text("I read ", props.clone());
+        let props = strix_doc::CharProps { bold: Some(true), ..Default::default() };
+        let mut p = strix_doc::Paragraph::with_text("I read ", props.clone());
         let n = p.len();
         p.insert_object(n, crate::model::ruby_object("漢字".into(), "かんじ".into(), 20.0), &props).unwrap();
         let mut d = Document::new();
-        d.body = vec![wordcraft_doc::para_block(p)];
+        d.body = vec![strix_doc::para_block(p)];
         assert!(export(&d).contains("<strong><ruby>漢字<rt>かんじ</rt></ruby></strong>"), "{}", export(&d));
         // Importing it back keeps the formatting for the base text and the reading.
         let f = parse("<p><strong><ruby>漢字<rt>かんじ</rt></ruby></strong></p>");
@@ -2402,7 +2403,7 @@ mod tests {
         assert_eq!(p.align, Some(Align::Center));
         match &p.inlines[0] {
             Inline::Text(_, fmt) => {
-                assert_eq!(fmt.color, Some(wordcraft_doc::props::Rgb(0xFF, 0x00, 0x00)));
+                assert_eq!(fmt.color, Some(strix_doc::props::Rgb(0xFF, 0x00, 0x00)));
                 assert_eq!(fmt.size, Some(16.0));
                 assert!(fmt.bold);
             }
@@ -2418,7 +2419,7 @@ mod tests {
         assert_eq!(t.rows[0][1].valign, Some(VAlign::Center));
         assert_eq!(t.rows[0][2].valign, Some(VAlign::Bottom));
         let doc = crate::model::to_doc(&f);
-        let wordcraft_doc::Block::Table(dt) = &*doc.body[0] else { panic!() };
+        let strix_doc::Block::Table(dt) = &*doc.body[0] else { panic!() };
         assert_eq!(dt.rows[0].cells[0].props.valign, Some(VAlign::Top));
         assert_eq!(dt.rows[0].cells[1].props.valign, Some(VAlign::Center));
         assert_eq!(dt.rows[0].cells[2].props.valign, Some(VAlign::Bottom));

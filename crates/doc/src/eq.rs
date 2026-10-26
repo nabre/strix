@@ -1,10 +1,11 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The EQ field's overstrike switch (ECMA-376 Part 1 §17.16.5.20, `\o`): its arguments are drawn
 //! on top of one another, centred (`\ac`, the default), left-aligned (`\al`) or right-aligned
 //! (`\ar`). Home › Font › Enclose Characters stores a character in a circle, square, triangle or
 //! diamond as one: ` eq \o\ac(○,字)`.
 //!
 //! Which of the two enclosure styles a field has is kept in the document model as a trailing
-//! `\* enlarge` (WordCraft's own; nothing is written for the default "shrink text" style). In a
+//! `\* enlarge` (Strix's own; nothing is written for the default "shrink text" style). In a
 //! `.docx` the style is Word's: the font sizes of the field code's runs (the text smaller than the
 //! symbol, or the symbol larger than the text), so the marker never reaches a file.
 

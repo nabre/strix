@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Character, paragraph, table and cell properties.
 //!
 //! Every field is an `Option`: `None` means "inherit" (from the style chain, then document
@@ -404,7 +405,7 @@ pub struct CharProps {
     /// Kerning for fonts at or above this size (points); 0 = off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kern: Option<f32>,
-    /// OpenType ligatures (`w14:ligatures`). `None` leaves WordCraft's default: standard and
+    /// OpenType ligatures (`w14:ligatures`). `None` leaves Strix's default: standard and
     /// contextual ligatures.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ligatures: Option<Ligatures>,

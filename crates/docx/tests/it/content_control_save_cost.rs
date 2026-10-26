@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! What saving a document with many content controls costs (#13).
 //!
 //! A form-shaped document: a control per paragraph, inline, or a control around two paragraphs.
@@ -7,11 +8,11 @@
 
 use std::time::Instant;
 
-use wordcraft_doc::control::{ContentControl, ControlKind};
-use wordcraft_doc::para::InlineObject;
-use wordcraft_doc::props::CharProps;
-use wordcraft_doc::{Document, Paragraph, para_block};
-use wordcraft_docx::write;
+use strix_doc::control::{ContentControl, ControlKind};
+use strix_doc::para::InlineObject;
+use strix_doc::props::CharProps;
+use strix_doc::{Document, Paragraph, para_block};
+use strix_docx::write;
 
 /// One paragraph per control, the control inline in it.
 fn inline_controls(n: usize) -> Document {
@@ -117,8 +118,8 @@ fn a_document_with_many_block_content_controls_saves_in_linear_time() {
 fn the_controls_are_written_where_they_were() {
     // Inline controls: both markers in the same paragraph, so the control is written in it.
     let bytes = write(&inline_controls(50)).expect("write");
-    let back = wordcraft_docx::read(&bytes).expect("read back");
-    let ranges = back.control_ranges(wordcraft_doc::StoryRef::Body);
+    let back = strix_docx::read(&bytes).expect("read back");
+    let ranges = back.control_ranges(strix_doc::StoryRef::Body);
     assert_eq!(ranges.len(), 50, "every control survives the round trip");
     for r in &ranges {
         assert_eq!(r.start.path, r.end.path, "the control is written inline: {:?}", r.start.path);
@@ -126,8 +127,8 @@ fn the_controls_are_written_where_they_were() {
 
     // Block controls: the markers in different paragraphs, so the control is written around them.
     let bytes = write(&block_controls(50)).expect("write");
-    let back = wordcraft_docx::read(&bytes).expect("read back");
-    let ranges = back.control_ranges(wordcraft_doc::StoryRef::Body);
+    let back = strix_docx::read(&bytes).expect("read back");
+    let ranges = back.control_ranges(strix_doc::StoryRef::Body);
     assert_eq!(ranges.len(), 50, "every control survives the round trip");
     for r in &ranges {
         assert_ne!(r.start.path, r.end.path, "the control is written around the paragraphs");

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Word 2003 XML Document (WordprocessingML 2003, root `w:wordDocument`, from the public Office
 //! 2003 XML Reference Schemas). Import; the writer is `wordml2003_write`.
 //!
@@ -13,7 +14,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use base64::Engine as _;
-use wordcraft_doc::Document;
+use strix_doc::Document;
 
 use crate::DocxError;
 use crate::flat::W2003_NS;

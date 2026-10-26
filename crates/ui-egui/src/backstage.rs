@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! File tab (Backstage): Home/New, Open, Info, Save As, Print, Export, Close, Options, About.
 
 use egui::{Align2, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -124,7 +125,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                for (label, id) in [("About", "about"), ("Discord community", "discord")] {
+                for (label, id) in [("About", "about"), ("Community", "discord")] {
                     let (r, resp) = ui.allocate_exact_size(vec2(200.0, 32.0), Sense::click());
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), tl!(label)));
                     if resp.hovered() {
@@ -248,13 +249,13 @@ fn template_tile(ui: &mut Ui, app: &mut WordApp, label: &str, template: &str) {
         let key = format!("tpl:{template}:{ppp}");
         let region = app.session.region();
         let tex = ui.ctx().data(|d| d.get_temp::<egui::TextureHandle>(egui::Id::unique(&key))).or_else(|| {
-            let mut s = wordcraft_engine::Session::new(wordcraft_doc::Document::new());
+            let mut s = strix_engine::Session::new(strix_doc::Document::new());
             // The blank tile shows the region's paper (#838).
             s.system_region = region;
             let _ = s.run("file.new", &json!({"template": template}));
             let l = s.export_layout();
             let page = l.pages.first()?;
-            let img = wordcraft_render::render_page(&s.doc, page, 150.0 / page.w * ppp, &crate::canvas::screen_render_options());
+            let img = strix_render::render_page(&s.doc, page, 150.0 / page.w * ppp, &crate::canvas::screen_render_options());
             let px = img.to_straight();
             let h = ui.ctx().load_texture(
                 &key,
@@ -298,7 +299,7 @@ fn matching_templates(query: &str) -> Vec<(&'static str, &'static str)> {
 /// Home: a greeting, Blank plus a short row of templates with a link to New, then Recent.
 fn home_page(app: &mut WordApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    let hour = wordcraft_engine::cmd::now_iso().get(11..13).and_then(|h| h.parse::<u32>().ok()).unwrap_or(9);
+    let hour = strix_engine::cmd::now_iso().get(11..13).and_then(|h| h.parse::<u32>().ok()).unwrap_or(9);
     heading(
         ui,
         if hour < 12 {
@@ -397,7 +398,7 @@ fn new_page(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// A personal template: what the gallery needs of a [`PersonalTemplate`] listing entry.
-type PersonalTemplate = wordcraft_engine::cmd::user_templates::PersonalTemplate;
+type PersonalTemplate = strix_engine::cmd::user_templates::PersonalTemplate;
 
 /// The templates folder setting and listing File › New shows, and the pass it was last shown in.
 #[derive(Clone)]
@@ -442,7 +443,7 @@ fn personal_templates(app: &WordApp, ui: &Ui) -> (Option<std::path::PathBuf>, Ve
         Some(f) if f.is_dir() => {
             #[cfg(test)]
             PERSONAL_LISTINGS.with(|n| n.set(n.get().saturating_add(1)));
-            wordcraft_engine::cmd::user_templates::list_templates(&f.to_string_lossy()).map(|l| l.templates).unwrap_or_else(|e| {
+            strix_engine::cmd::user_templates::list_templates(&f.to_string_lossy()).map(|l| l.templates).unwrap_or_else(|e| {
                 log::debug!("personal templates: {e}");
                 Vec::new()
             })
@@ -584,11 +585,11 @@ fn open_page(app: &mut WordApp, ui: &mut Ui) {
         let _ = app.run("ui.openFileDialog", json!({}));
     }
     // Linux and the BSDs (#576): the system dialog needs a file chooser portal or zenity; when it
-    // doesn't show up, WordCraft's own browser is always one click away.
+    // doesn't show up, Strix's own browser is always one click away.
     #[cfg(all(unix, not(target_os = "macos"), not(target_arch = "wasm32")))]
     if ui
-        .button(egui::RichText::new(tl!("Browse in WordCraft…")).font(medium(14.0)))
-        .on_hover_text(tl!("Open a file with WordCraft's own browser when the system file dialog doesn't appear."))
+        .button(egui::RichText::new(tl!("Browse in Strix…")).font(medium(14.0)))
+        .on_hover_text(tl!("Open a file with Strix's own browser when the system file dialog doesn't appear."))
         .clicked()
     {
         let _ = app.run("ui.fileBrowser", json!({}));
@@ -609,11 +610,11 @@ fn save_as_page(app: &mut WordApp, ui: &mut Ui) {
     if ui.button(egui::RichText::new(tl!("Browse…")).font(medium(14.0))).clicked() {
         app.save_as_dialog();
     }
-    // A Word template in the user templates folder, which File › New lists under Personal (#2852).
+    // A Strix template in the user templates folder, which File › New lists under Personal (#2852).
     ui.add_space(8.0);
     if ui
-        .button(egui::RichText::new(tl!("Save as Word Template…")).font(medium(14.0)))
-        .on_hover_text(tl!("Saves a .dotx template in your templates folder. It shows up in File › New under Personal."))
+        .button(egui::RichText::new(tl!("Save as Strix Template…")).font(medium(14.0)))
+        .on_hover_text(tl!("Saves a .xmathm template in your templates folder. It shows up in File › New under Personal."))
         .clicked()
     {
         let _ = app.run("ui.saveAsTemplate", json!({}));
@@ -756,7 +757,7 @@ mod tests {
     /// line and showed a resize pointer on its right edge that did nothing.
     #[test]
     fn the_side_menu_edge_is_not_a_resize_handle() {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         app.ui.language = "en".into();
         app.ui.backstage = true;
         let ctx = egui::Context::default();
@@ -788,9 +789,9 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn opening_a_missing_recent_file_keeps_file_open_with_the_error() {
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         app.ui.backstage = true;
-        let missing = std::env::temp_dir().join(format!("wordcraft-missing-{}.docx", std::process::id()));
+        let missing = std::env::temp_dir().join(format!("strix-missing-{}.docx", std::process::id()));
         let err = super::open_recent(&mut app, &missing.to_string_lossy()).unwrap_err();
         assert!(!err.is_empty());
         assert!(app.ui.backstage, "File stays open");
@@ -810,7 +811,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     fn recovery_fixture() -> (WordApp, std::path::PathBuf) {
         let root = std::env::temp_dir().join(format!(
-            "wordcraft-recovery-ui-{}-{}",
+            "strix-recovery-ui-{}-{}",
             std::process::id(),
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
@@ -821,12 +822,12 @@ mod tests {
             dir.join("snapshot-00000000000000000001.json"),
             serde_json::to_vec(&json!({
                 "version": 1, "generation": 1, "info": {"id": id, "name": "Synthetic draft", "savedAt": "2026-10-11T10:42:00Z"},
-                "document": wordcraft_doc::Document::from_text("Recovered synthetic work")
+                "document": strix_doc::Document::from_text("Recovered synthetic work")
             }))
             .unwrap(),
         )
         .unwrap();
-        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         app.ui.language = "en".into();
         (app, root)
     }
@@ -956,13 +957,13 @@ mod tests {
             h.run_steps(4);
             assert!(!h.state().session.recovery_ready());
             let document = h.state().session.document_id();
-            let text = h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+            let text = h.state().session.doc.plain_text(strix_doc::StoryRef::Body);
             assert_ne!(document, previous);
             poll.set(true);
             settle_recovery(&mut h);
             assert!(!h.state().ui.backstage, "the requested template must stay visible");
             assert_eq!(h.state().session.document_id(), document);
-            assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), text);
+            assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), text);
             assert_eq!(h.state().session.recovery_documents().len(), 1, "older copies remain available");
             h.state_mut().ui.backstage = true;
             h.run_steps(4);
@@ -996,7 +997,7 @@ mod tests {
         settle_recovery(&mut h);
         assert!(!h.state().ui.backstage);
         assert_eq!(h.state().session.document_id(), document);
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Requested synthetic document");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Requested synthetic document");
         assert_eq!(h.state().session.recovery_documents().len(), 1);
         h.state_mut().ui.backstage = true;
         h.run_steps(4);
@@ -1052,11 +1053,11 @@ mod tests {
         settle_recovery(&mut h);
         assert!(h.state().dialog.is_none(), "nothing is replaced, so nothing to ask");
         assert_ne!(h.state().session.document_id(), work);
-        assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Recovered synthetic work");
+        assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Recovered synthetic work");
         assert!(h.state().session.dirty && h.state().session.path.is_none());
         assert!(h.state().autosave_path.is_none());
         assert!(!h.state().ui.backstage);
-        let kept = h.state_mut().session.with_document(work, |s| s.doc.plain_text(wordcraft_doc::StoryRef::Body)).unwrap();
+        let kept = h.state_mut().session.with_document(work, |s| s.doc.plain_text(strix_doc::StoryRef::Body)).unwrap();
         assert_eq!(kept, "Current unsaved work");
         assert!(h.state().session.recovery_documents().is_empty(), "the restored document keeps the copy");
         assert!(!root.join("must-not-write.docx").exists());
@@ -1082,14 +1083,14 @@ mod tests {
     }
 
     fn write_template(path: &std::path::Path, text: &str) {
-        let mut s = wordcraft_engine::Session::new(wordcraft_doc::Document::new());
+        let mut s = strix_engine::Session::new(strix_doc::Document::new());
         s.run("document.setText", &json!({"text": text})).unwrap();
-        wordcraft_engine::io::save_path(path, &s.doc).unwrap();
+        strix_engine::io::save_path(path, &s.doc).unwrap();
     }
 
     fn new_page_harness(templates: Option<std::path::PathBuf>) -> egui_kittest::Harness<'static, WordApp> {
         let services = Services { templates_dir: templates, ..Default::default() };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("ui.backstage", json!({"value": true, "page": "new"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 1100.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1137,7 +1138,7 @@ mod tests {
         assert!(!a.ui.backstage, "File closes");
         assert_eq!(a.session.path, None, "an untitled document");
         assert_eq!(a.session.doc.settings.attached_template.as_deref(), Some(memo.to_string_lossy().as_ref()));
-        assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Memo from the template"));
+        assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).contains("Memo from the template"));
         drop(h);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1185,7 +1186,7 @@ mod tests {
         let first = h.state().session.document_id();
         h.get_by_label("Memo").click();
         h.run_steps(3);
-        let body = |h: &egui_kittest::Harness<'static, WordApp>| h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body);
+        let body = |h: &egui_kittest::Harness<'static, WordApp>| h.state().session.doc.plain_text(strix_doc::StoryRef::Body);
         assert!(h.state().dialog.is_none(), "nothing is asked");
         assert!(body(&h).contains("From the template"));
         assert_eq!(h.state().session.doc.settings.attached_template.as_deref(), Some(memo.to_string_lossy().as_ref()));
@@ -1231,7 +1232,7 @@ mod tests {
     fn an_unusable_saved_folder_falls_back_to_the_apps_own() {
         let own = personal_dir("fallback");
         let services = Services { templates_dir: Some(own.clone()), ..Default::default() };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         for bad in [r"\\host\share".to_string(), "//host/share".into(), own.join("gone").to_string_lossy().into_owned(), "relative".into()] {
             a.session.prefs.user_templates_folder = Some(bad.clone());
             assert_eq!(a.user_templates_dir(), Some(own.clone()), "{bad}");
@@ -1245,7 +1246,7 @@ mod tests {
     /// and Recent; New has every template and no Recent list.
     #[test]
     fn home_and_new_show_different_sections() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1271,8 +1272,8 @@ mod tests {
     #[test]
     fn templates_and_recent_documents_are_named_buttons() {
         use egui::accesskit::Role;
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
-        let dir = std::env::temp_dir().join("wordcraft-3176-missing");
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
+        let dir = std::env::temp_dir().join("strix-3176-missing");
         let path = |folder: &str, file: &str| dir.join(folder).join(file).to_string_lossy().into_owned();
         let (spring, autumn) = (path("spring", "Report.docx"), path("autumn", "Report.docx"));
         a.ui.recent = vec![path("notes", "Quarterly notes.docx"), spring.clone(), autumn.clone()];
@@ -1289,7 +1290,7 @@ mod tests {
         h.get_by_role_and_label(Role::Button, "Letter").click();
         h.run_steps(4);
         assert!(!h.state().ui.backstage, "the Letter button opens the template");
-        assert!(!h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body).is_empty(), "with the template's text");
+        assert!(!h.state().session.doc.plain_text(strix_doc::StoryRef::Body).is_empty(), "with the template's text");
     }
 
     /// Clicking the back arrow closes the File page and gives the keyboard back to the page,
@@ -1299,7 +1300,7 @@ mod tests {
     /// AccessKit.
     #[test]
     fn back_arrow_returns_to_the_page_with_accessibility_on() {
-        let a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
@@ -1327,7 +1328,7 @@ mod tests {
     /// the File page — only the chevron itself does, same scoping as the macOS chevron (#2972).
     #[test]
     fn clicking_beside_the_back_arrow_does_not_close_the_file_page() {
-        let a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         let mut h = a11y_harness(a);
         h.state_mut().run("ui.backstage", json!({"value": true})).unwrap();
         h.run_steps(4);
@@ -1371,7 +1372,7 @@ mod tests {
     /// list". The same spot clicked in the editor (the title bar) must not either.
     #[test]
     fn mac_back_chevron_returns_to_the_page_with_accessibility_on() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.integrated_titlebar = true;
         a.mac_titlebar = crate::chrome::MacTitleBar { height: 28.0, content_left: 70.0 };
         let chevron = mac_chevron(&a);
@@ -1395,7 +1396,7 @@ mod tests {
     #[test]
     fn blank_document_from_the_file_page_with_accessibility_on() {
         let work = |mac: bool| {
-            let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("Work")), Services::default());
+            let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Work")), Services::default());
             a.integrated_titlebar = mac;
             a11y_harness(a)
         };
@@ -1408,7 +1409,7 @@ mod tests {
                 h.get_by_label("Blank document").click();
                 h.run_steps(4);
                 assert!(!h.state().ui.backstage, "{page}: Blank document returns to the editor");
-                assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "", "{page}: a new blank document");
+                assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "", "{page}: a new blank document");
                 assert!(h.state().dialog.is_none(), "{page}: nothing asks first");
             }
             let mut h = work(mac);
@@ -1417,7 +1418,7 @@ mod tests {
             h.key_press(egui::Key::Escape);
             h.run_steps(4);
             assert!(!h.state().ui.backstage, "Escape closes the File page");
-            assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Work", "Escape keeps the document");
+            assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Work", "Escape keeps the document");
         }
     }
 
@@ -1426,7 +1427,7 @@ mod tests {
     #[test]
     fn options_back_arrow_with_accessibility_on() {
         for (mac, start) in [(false, false), (true, false), (false, true), (true, true)] {
-            let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+            let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
             a.integrated_titlebar = mac;
             if start {
                 a.ui.start_screen = true;
@@ -1470,7 +1471,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("XYZ")), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("XYZ")), services);
         a.session.author = "GAMMA".into();
         a.run("ui.backstage", json!({"value": true, "page": "info"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1501,7 +1502,7 @@ mod tests {
         a.run("file.save", json!({})).unwrap();
         a.run("file.save", json!({})).unwrap();
         let (name, bytes) = got.borrow_mut().pop().unwrap();
-        let back = wordcraft_engine::io::open_bytes(&name, &bytes).unwrap();
+        let back = strix_engine::io::open_bytes(&name, &bytes).unwrap();
         assert_eq!((back.core.title.as_str(), back.core.creator.as_str()), ("ALPHA", "BETA"));
         assert_eq!(back.core.last_modified_by, "GAMMA");
         assert_eq!(back.core.revision, core.revision + 2, "each save advances the revision");
@@ -1518,7 +1519,7 @@ mod tests {
 
     #[test]
     fn save_as_page_shows_browse_and_no_open_list() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("ui.backstage", json!({"value": true, "page": "saveAs"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1535,7 +1536,7 @@ mod tests {
 
     #[test]
     fn backstage_save_navigates_to_save_as_when_unnamed() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1564,7 +1565,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1599,12 +1600,12 @@ mod tests {
             })),
             ..Default::default()
         };
-        let dir = std::env::temp_dir().join(format!("wordcraft-backstage-save-repro-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-backstage-save-repro-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("Document1.docx");
 
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Hello from the repro"})).unwrap();
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1648,12 +1649,12 @@ mod tests {
             })),
             ..Default::default()
         };
-        let dir = std::env::temp_dir().join(format!("wordcraft-backstage-save-error-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("strix-backstage-save-error-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         // `dir` is deliberately never created, so the write fails: its parent doesn't exist.
         let bogus = dir.join("missing").join("out.docx");
 
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "unsaved text"})).unwrap();
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1691,7 +1692,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), services);
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1711,7 +1712,7 @@ mod tests {
     /// first when there are unsaved changes; Cancel leaves the Backstage as it was.
     #[test]
     fn backstage_close_asks_then_closes() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("text.insert", json!({"text": "Draft"})).unwrap();
         a.run("ui.backstage", json!({"value": true, "page": "info"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1744,7 +1745,7 @@ mod tests {
     /// A document without unsaved changes closes without a prompt.
     #[test]
     fn backstage_close_on_a_clean_document_closes_at_once() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
@@ -1763,7 +1764,7 @@ mod tests {
 
     #[test]
     fn backstage_save_as_sidebar_opens_save_as_page() {
-        let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Services::default());
         a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {

@@ -1,12 +1,13 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! DrawingML colours shared by charts and SmartArt: a colour element with its modifiers, and the
 //! paint of a fill or line (solid, the first stop of a gradient, a pattern's foreground).
 
 use std::sync::Arc;
 
-use wordcraft_doc::THEME_COLORS;
-use wordcraft_doc::fill::{Fill, Gradient, GradientFlip, GradientKind, PathShape};
-use wordcraft_doc::props::Rgb;
-use wordcraft_doc::wordart::{GradStop, MAX_STOPS};
+use strix_doc::THEME_COLORS;
+use strix_doc::fill::{Fill, Gradient, GradientFlip, GradientKind, PathShape};
+use strix_doc::props::Rgb;
+use strix_doc::wordart::{GradStop, MAX_STOPS};
 
 use crate::units::int;
 use crate::xml::El;
@@ -242,7 +243,7 @@ pub(crate) fn adjust_lum(c: Rgb, f: impl Fn(f64) -> f64) -> Rgb {
 
 #[cfg(test)]
 mod tests {
-    use wordcraft_doc::THEME_COLORS;
+    use strix_doc::THEME_COLORS;
 
     use super::*;
 
