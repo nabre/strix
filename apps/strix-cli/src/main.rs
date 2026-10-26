@@ -19,7 +19,7 @@ strix-cli — Strix from the command line
 
 USAGE:
   strix-cli convert <in> <out> [--markup] [--update-fields] [--format wordml2003|flatopc]
-                                              convert between formats (docx, doc [read], pdf, odt, rtf, html, md, tex, txt, json, png,
+                                              convert between formats (xmath and xmathm: Strix's own; docx, doc [read], pdf, odt, rtf, html, md, tex, txt, json, png,
                                               xml); --update-fields refreshes unlocked fields before saving;
                                               an .xml file is a Word XML Document (Flat OPC), or with
                                               --format wordml2003 a Word 2003 XML Document;

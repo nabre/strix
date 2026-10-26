@@ -10,7 +10,7 @@ use strix_engine::Session;
 use strix_ui_egui::async_saves::{AsyncSaves, SaveOutcome};
 use strix_ui_egui::{Inbox, Services, WordApp};
 
-const DOC_EXTS: &[&str] = &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "rtf", "txt", "md", "html", "htm", "tex", "json", "xml"];
+const DOC_EXTS: &[&str] = &["xmath", "xmathm", "docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "rtf", "txt", "md", "html", "htm", "tex", "json", "xml"];
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
 const RECIPIENT_EXTS: &[&str] = strix_engine::cmd::mailings::RECIPIENT_EXTENSIONS;
 mod font_store;
@@ -463,7 +463,7 @@ fn trigger_save_file_picker(
     bytes: &[u8],
 ) -> Result<(), String> {
     let js = |e: wasm_bindgen::JsValue| format!("{e:?}");
-    let ext = std::path::Path::new(name).extension().and_then(std::ffi::OsStr::to_str).unwrap_or("docx").to_ascii_lowercase();
+    let ext = std::path::Path::new(name).extension().and_then(std::ffi::OsStr::to_str).unwrap_or(strix_engine::io::NATIVE_DOC_EXT).to_ascii_lowercase();
     let dot_ext = format!(".{ext}");
     let mime = mime_for(name);
 
@@ -653,6 +653,8 @@ fn mime_for(name: &str) -> &'static str {
         Some("png") => "image/png",
         Some("jpg" | "jpeg") => "image/jpeg",
         Some("pdf") => "application/pdf",
+        Some("xmath") => "application/vnd.strix.xmath",
+        Some("xmathm") => "application/vnd.strix.xmathm",
         Some("docx") => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         Some("odt") => "application/vnd.oasis.opendocument.text",
         Some("rtf") => "application/rtf",

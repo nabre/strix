@@ -626,7 +626,9 @@ mod tests {
             let revision = a.session.rev();
             let result = a.run("file.save", json!({})).unwrap();
             assert_eq!(result["pending"], "saveAs");
-            assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
+            // A Word 97-2003 template (.dot) becomes a Strix template.
+            let proposed = if ext.eq_ignore_ascii_case("dot") { "contract.xmathm" } else { "contract.xmath" };
+            assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: proposed.into(), dir: None });
             answer(&shown, None);
             assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], false);
             assert_eq!(a.session.doc, draft);
