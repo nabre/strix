@@ -32,7 +32,7 @@ impl Family {
             Kind::Circle { .. } => Family::Circle,
             Kind::Arc { .. } => Family::Arc,
             Kind::Point { .. } => Family::Point,
-            Kind::Dim { .. } => Family::Dim,
+            Kind::Dim { .. } | Kind::Angle { .. } => Family::Dim,
             Kind::Text { .. } => Family::Text,
         }
     }

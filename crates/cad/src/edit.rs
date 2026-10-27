@@ -47,6 +47,17 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
             vec![out]
         }
         Kind::Point { p } | Kind::Text { p, .. } => vec![vec![p.pt()]],
+        // The arc and the two rays out to it.
+        Kind::Angle { c, a, b, r, .. } => {
+            let (c, a, b) = (c.pt(), a.pt(), b.pt());
+            let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
+            let (start, sweep) = (crate::kernel::direction(ua), crate::kernel::angle_ccw(ua, ub));
+            vec![
+                vec![c, c.plus(ua.scale(r.max(a.minus(c).len())))],
+                vec![c, c.plus(ub.scale(r.max(b.minus(c).len())))],
+                arc_points(c, *r, start.to_degrees(), (start + sweep).to_degrees()),
+            ]
+        }
     }
 }
 
@@ -233,7 +244,7 @@ impl Drawing {
                     }
                 }
                 Kind::Point { p } => out.push((p.pt(), SnapKind::End)),
-                Kind::Text { .. } | Kind::Dim { .. } => {}
+                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } => {}
             }
         }
         out.retain(|(p, _)| p.is_finite());
@@ -341,6 +352,11 @@ fn move_kind(k: &mut Kind, d: Pt) {
         Kind::Circle { c, .. } | Kind::Arc { c, .. } => shift_p(c, d),
         Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| shift_p(p, d)),
         Kind::Point { p } | Kind::Text { p, .. } => shift_p(p, d),
+        Kind::Angle { c, a, b, .. } => {
+            shift_p(c, d);
+            shift_p(a, d);
+            shift_p(b, d);
+        }
     }
 }
 
@@ -443,6 +459,13 @@ impl Drawing {
                 let m = mid(pa, pb);
                 vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))]
             }
+            // The vertex, the two rays' points and the arc's middle (its radius).
+            Kind::Angle { c, a, b, r, .. } => {
+                let (pc, pa, pb) = (c.pt(), a.pt(), b.pt());
+                let (ua, ub) = (pa.minus(pc).unit(), pb.minus(pc).unit());
+                let half = crate::kernel::direction(ua) + crate::kernel::angle_ccw(ua, ub) / 2.0;
+                vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(*r)))]
+            }
         }
     }
 
@@ -464,8 +487,16 @@ impl Drawing {
         let Some(e) = self.entities.get_mut(i) else { return false };
         let tiny = crate::kernel::RESOLUTION;
         match (&mut e.kind, g) {
-            (Kind::Line { a, .. } | Kind::Dim { a, .. }, Grip::A) => shift_p(a, d),
-            (Kind::Line { b, .. } | Kind::Dim { b, .. }, Grip::B) => shift_p(b, d),
+            (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, Grip::A) => shift_p(a, d),
+            (Kind::Line { b, .. } | Kind::Dim { b, .. } | Kind::Angle { b, .. }, Grip::B) => shift_p(b, d),
+            (Kind::Angle { c, .. }, Grip::Center) => shift_p(c, d),
+            (Kind::Angle { c, r, .. }, Grip::DimLine) => {
+                let nr = to.minus(c.pt()).len();
+                if nr <= tiny {
+                    return false;
+                }
+                *r = nr;
+            }
             (Kind::Line { a, b }, Grip::Mid) => {
                 shift_p(a, d);
                 shift_p(b, d);

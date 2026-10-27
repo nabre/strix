@@ -74,17 +74,36 @@ fn paper_size_follows_the_scale() {
 fn a_dimension_shows_the_size_or_a_parameter() {
     let ws = sheet(&["L = 4.5 m"]);
     let mut d = Drawing { unit: Unit::Mm, scale: 50.0, ..Drawing::default() };
-    d.add(Entity::new(Kind::Dim { a: P::new(0.0, 0.0), b: P::new(4500.0, 0.0), offset: 8.0, orient: Orient::Aligned, text: None })).unwrap();
+    d.add(Entity::new(Kind::Dim {
+        a: P::new(0.0, 0.0),
+        b: P::new(4500.0, 0.0),
+        offset: 8.0,
+        orient: Orient::Aligned,
+        text: None,
+        below: None,
+        mark: None,
+    }))
+    .unwrap();
     d.add(Entity::new(Kind::Dim {
         a: P::new(0.0, 0.0),
         b: P::new(4500.0, 0.0),
         offset: -8.0,
         orient: Orient::Aligned,
         text: Some("L = {{L}}".into()),
+        below: None,
+        mark: None,
     }))
     .unwrap();
-    d.add(Entity::new(Kind::Dim { a: P::new(0.0, 0.0), b: P::new(30.0, 40.0), offset: 5.0, orient: Orient::Horizontal, text: Some("<> mm".into()) }))
-        .unwrap();
+    d.add(Entity::new(Kind::Dim {
+        a: P::new(0.0, 0.0),
+        b: P::new(30.0, 40.0),
+        offset: 5.0,
+        orient: Orient::Horizontal,
+        text: Some("<> mm".into()),
+        below: None,
+        mark: None,
+    }))
+    .unwrap();
     let r = d.render(Some(&ws));
     let texts: Vec<String> = r
         .prims
@@ -810,4 +829,41 @@ fn lines_tangent_to_two_circles() {
     // A line is not a circle.
     let l = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(1.0, 0.0) };
     assert!(line_tan_tan(&l, Pt::new(0.0, 0.0), &b, Pt::new(10.0, 1.0)).is_none());
+}
+
+#[test]
+fn dimension_style_marks_texts_below_and_angles() {
+    let mut d = Drawing::default();
+    // The default style is not written: old drawings keep their bytes.
+    assert!(!d.to_json().contains("dimStyle"));
+    d.add(Entity::new(Kind::Dim {
+        a: P::new(0.0, 0.0),
+        b: P::new(100.0, 0.0),
+        offset: 8.0,
+        orient: Orient::Aligned,
+        text: None,
+        below: Some("L".into()),
+        mark: Some(Mark::Arrow),
+    }))
+    .unwrap();
+    let r = d.render(None);
+    let filled = r.prims.iter().filter(|p| matches!(p, Prim::Path { fill: true, closed: true, .. })).count();
+    assert_eq!(filled, 2, "an arrowhead at each end");
+    let texts: Vec<(&str, Anchor)> =
+        r.prims.iter().filter_map(|p| if let Prim::Text { text, anchor, .. } = p { Some((text.as_str(), *anchor)) } else { None }).collect();
+    assert!(texts.contains(&("100", Anchor::BottomCenter)) && texts.contains(&("L", Anchor::TopCenter)), "{texts:?}");
+    // The style's text height reaches the dimension; a hostile size is clamped.
+    d.dim_style.text = 1e9;
+    d.sanitize();
+    assert_eq!(d.dim_style.text, 50.0);
+    assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.text == 50.0);
+    // An angular dimension of a right angle reads 90°.
+    let mut d = Drawing::default();
+    d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b: P::new(0.0, 10.0), r: 20.0, text: None, mark: None })).unwrap();
+    let r = d.render(None);
+    assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { text, .. } if text == "90°")), "{:?}", r.prims);
+    // Hostile radius: nothing drawn, no panic.
+    d.entities[0].kind = Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, text: None, mark: None };
+    d.sanitize();
+    let _ = d.render(None);
 }

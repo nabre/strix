@@ -296,7 +296,7 @@ pub fn curves(e: &Entity) -> Vec<Curve> {
                 })
                 .collect()
         }
-        Kind::Point { .. } | Kind::Text { .. } | Kind::Dim { .. } => Vec::new(),
+        Kind::Point { .. } | Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } => Vec::new(),
     }
 }
 

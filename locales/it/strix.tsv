@@ -2729,3 +2729,24 @@ preview	Title	Esempio
 	Tan, tan, tan: pick the first object	Tan, tan, tan: scegli il primo oggetto
 	Tan, tan, tan: pick the second object	Tan, tan, tan: scegli il secondo oggetto
 	Tan, tan, tan: pick the third object	Tan, tan, tan: scegli il terzo oggetto
+	Dimension Style	Stile quote
+	Text height	Altezza testo
+	Mark size	Dimensione terminale
+	End mark	Terminale
+	Extension gap	Distacco richiamo
+	Extension beyond	Prolungamento richiamo
+	Text gap	Distacco testo
+	Angular dimension	Quota angolare
+	Angular dimension: the vertex, a point on each side, where the arc goes	Quota angolare: il vertice, un punto su ciascun lato, dove va l'arco
+	Angular dimension: the vertex	Quota angolare: il vertice
+	Angular dimension: a point on the first side	Quota angolare: un punto sul primo lato
+	Angular dimension: a point on the second side	Quota angolare: un punto sul secondo lato
+	Angular dimension: where the arc goes	Quota angolare: dove va l'arco
+	Text below	Testo sotto
+	By style	Da stile
+	Tick	Tratto obliquo
+	First ray X	Primo lato X
+	First ray Y	Primo lato Y
+	Second ray X	Secondo lato X
+	Second ray Y	Secondo lato Y
+	Arc radius	Raggio arco

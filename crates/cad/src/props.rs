@@ -5,7 +5,7 @@
 
 use crate::MAX_COORD;
 use crate::geom::Pt;
-use crate::model::{Drawing, Kind, Num, Orient, P};
+use crate::model::{Align, Drawing, Kind, Mark, Num, Orient, P};
 
 /// What a field holds, for its editor and its unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,8 +20,8 @@ pub enum FieldKind {
     Paper,
     /// Free text.
     Text,
-    /// `aligned`, `horizontal` or `vertical`.
-    Orient,
+    /// One of a few words (an orientation, an end mark, an alignment).
+    Choice(&'static [&'static str]),
     /// `true` or `false`.
     Bool,
 }
@@ -73,6 +73,28 @@ fn parse_f64(text: &str) -> Result<f64, String> {
     if v.is_finite() { Ok(v) } else { Err("not a finite number".into()) }
 }
 
+/// The orientations, end marks (`style`: the drawing's) and alignments a field offers.
+pub const ORIENTS: &[&str] = &["aligned", "horizontal", "vertical"];
+pub const MARKS: &[&str] = &["style", "tick", "arrow", "dot", "none"];
+pub const ALIGNS: &[&str] = &["left", "center", "right"];
+
+fn mark_text(m: Option<Mark>) -> String {
+    m.map_or("style", Mark::name).into()
+}
+
+fn parse_mark(text: &str) -> Result<Option<Mark>, String> {
+    match text.trim() {
+        "style" => Ok(None),
+        t => Mark::parse(t).map(Some).ok_or_else(|| "mark: style, tick, arrow, dot or none".into()),
+    }
+}
+
+/// A dimension's text: empty is none (the measured size).
+fn dim_text(text: &str) -> Option<String> {
+    let v: String = text.chars().take(200).collect();
+    (!v.trim().is_empty()).then_some(v)
+}
+
 fn f(key: &str, label: &'static str, kind: FieldKind, text: String) -> Field {
     Field { key: key.into(), label, kind, text }
 }
@@ -113,14 +135,16 @@ impl Drawing {
                 out.push(f("closed", "Closed", FieldKind::Bool, closed.to_string()));
             }
             Kind::Point { p } => point(&mut out, p, ("x", "X"), ("y", "Y")),
-            Kind::Text { p, value, height, angle } => {
+            Kind::Text { p, value, height, angle, align } => {
                 out.push(f("value", "Text", FieldKind::Text, value.clone()));
                 point(&mut out, p, ("x", "X"), ("y", "Y"));
                 out.push(f("height", "Height", FieldKind::Paper, number(*height)));
                 out.push(f("rotation", "Rotation", FieldKind::Derived, number(*angle)));
+                out.push(f("align", "Alignment", FieldKind::Choice(ALIGNS), align.name().into()));
             }
-            Kind::Dim { a, b, offset, orient, text } => {
+            Kind::Dim { a, b, offset, orient, text, below, mark } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
+                out.push(f("below", "Text below", FieldKind::Text, below.clone().unwrap_or_default()));
                 point(&mut out, a, ("ax", "Start X"), ("ay", "Start Y"));
                 point(&mut out, b, ("bx", "End X"), ("by", "End Y"));
                 out.push(f("offset", "Distance", FieldKind::Paper, number(*offset)));
@@ -129,7 +153,18 @@ impl Drawing {
                     Orient::Horizontal => "horizontal",
                     Orient::Vertical => "vertical",
                 };
-                out.push(f("orient", "Orientation", FieldKind::Orient, o.into()));
+                out.push(f("orient", "Orientation", FieldKind::Choice(ORIENTS), o.into()));
+                out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+            }
+            Kind::Angle { c, a, b, r, text, mark } => {
+                out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
+                point(&mut out, c, ("cx", "Vertex X"), ("cy", "Vertex Y"));
+                point(&mut out, a, ("ax", "First ray X"), ("ay", "First ray Y"));
+                point(&mut out, b, ("bx", "Second ray X"), ("by", "Second ray Y"));
+                out.push(f("radius", "Arc radius", FieldKind::Derived, number(*r)));
+                let (ua, ub) = (a.pt().minus(c.pt()), b.pt().minus(c.pt()));
+                out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
+                out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
             }
         }
         out
@@ -140,10 +175,10 @@ impl Drawing {
         let e = self.entities.get_mut(i).ok_or("no such object")?;
         let bad = || format!("no field {key} on this object");
         match (&mut e.kind, key) {
-            (Kind::Line { a, .. } | Kind::Dim { a, .. }, "ax") => a.0 = parse_num(text)?,
-            (Kind::Line { a, .. } | Kind::Dim { a, .. }, "ay") => a.1 = parse_num(text)?,
-            (Kind::Line { b, .. } | Kind::Dim { b, .. }, "bx") => b.0 = parse_num(text)?,
-            (Kind::Line { b, .. } | Kind::Dim { b, .. }, "by") => b.1 = parse_num(text)?,
+            (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, "ax") => a.0 = parse_num(text)?,
+            (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, "ay") => a.1 = parse_num(text)?,
+            (Kind::Line { b, .. } | Kind::Dim { b, .. } | Kind::Angle { b, .. }, "bx") => b.0 = parse_num(text)?,
+            (Kind::Line { b, .. } | Kind::Dim { b, .. } | Kind::Angle { b, .. }, "by") => b.1 = parse_num(text)?,
             (Kind::Line { a, b }, "length" | "angle") => {
                 let v = parse_f64(text)?;
                 let d = b.pt().minus(a.pt());
@@ -158,8 +193,15 @@ impl Drawing {
                 let to = a.pt().polar(len, ang);
                 *b = P(Num::new(to.x), Num::new(to.y));
             }
-            (Kind::Circle { c, .. } | Kind::Arc { c, .. }, "cx") => c.0 = parse_num(text)?,
-            (Kind::Circle { c, .. } | Kind::Arc { c, .. }, "cy") => c.1 = parse_num(text)?,
+            (Kind::Circle { c, .. } | Kind::Arc { c, .. } | Kind::Angle { c, .. }, "cx") => c.0 = parse_num(text)?,
+            (Kind::Circle { c, .. } | Kind::Arc { c, .. } | Kind::Angle { c, .. }, "cy") => c.1 = parse_num(text)?,
+            (Kind::Angle { r, .. }, "radius") => {
+                let v = parse_f64(text)?;
+                if v <= 0.0 {
+                    return Err("a radius is more than 0".into());
+                }
+                *r = v;
+            }
             (Kind::Circle { r, .. } | Kind::Arc { r, .. }, "r") => {
                 let n = parse_num(text)?;
                 if n.expr.is_none() && n.value <= 0.0 {
@@ -203,10 +245,10 @@ impl Drawing {
             }
             (Kind::Text { height, .. }, "height") => *height = parse_f64(text)?.clamp(0.5, 50.0),
             (Kind::Text { angle, .. }, "rotation") => *angle = parse_f64(text)? % 360.0,
-            (Kind::Dim { text: t, .. }, "text") => {
-                let v: String = text.chars().take(200).collect();
-                *t = (!v.trim().is_empty()).then_some(v);
-            }
+            (Kind::Text { align, .. }, "align") => *align = Align::parse(text).ok_or("alignment: left, center or right")?,
+            (Kind::Dim { text: t, .. } | Kind::Angle { text: t, .. }, "text") => *t = dim_text(text),
+            (Kind::Dim { below, .. }, "below") => *below = dim_text(text),
+            (Kind::Dim { mark, .. } | Kind::Angle { mark, .. }, "mark") => *mark = parse_mark(text)?,
             (Kind::Dim { offset, .. }, "offset") => *offset = parse_f64(text)?.clamp(-500.0, 500.0),
             (Kind::Dim { orient, .. }, "orient") => {
                 *orient = match text.trim() {

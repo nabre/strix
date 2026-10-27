@@ -53,6 +53,8 @@ pub enum Tool {
     Point,
     Text,
     Dim(Orient),
+    /// An angular dimension: the vertex, a point on each ray, where the arc goes.
+    DimAngle,
     Move,
     Copy,
 }
@@ -77,6 +79,7 @@ impl Tool {
             "dim" | "dimAligned" | "quota" => Tool::Dim(Orient::Aligned),
             "dimHorizontal" => Tool::Dim(Orient::Horizontal),
             "dimVertical" => Tool::Dim(Orient::Vertical),
+            "dimAngular" | "dan" | "quotaAngolare" => Tool::DimAngle,
             "move" | "m" | "sposta" => Tool::Move,
             "copy" | "co" | "copia" => Tool::Copy,
             _ => return None,
@@ -119,6 +122,10 @@ impl Tool {
             (Tool::Dim(_), 0) => "Dimension: first point",
             (Tool::Dim(_), 1) => "Dimension: second point",
             (Tool::Dim(_), _) => "Dimension: where the dimension line goes",
+            (Tool::DimAngle, 0) => "Angular dimension: the vertex",
+            (Tool::DimAngle, 1) => "Angular dimension: a point on the first side",
+            (Tool::DimAngle, 2) => "Angular dimension: a point on the second side",
+            (Tool::DimAngle, _) => "Angular dimension: where the arc goes",
             (Tool::Move | Tool::Copy, 0) => "Base point (select the objects first)",
             (Tool::Move | Tool::Copy, _) => "Second point",
         }
@@ -410,6 +417,29 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
             d.padding = pad.sanitized();
             commit(app, &d);
+        }
+        "ui.cadDimStyle" => {
+            // The drawing's annotation style: {"text"?, "markSize"?, "extGap"?, "extOver"?,
+            // "textGap"? (mm), "mark"? (tick, arrow, dot, none)}.
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            let st = &mut d.dim_style;
+            for (key, slot) in [
+                ("text", &mut st.text),
+                ("markSize", &mut st.mark_size),
+                ("extGap", &mut st.ext_gap),
+                ("extOver", &mut st.ext_over),
+                ("textGap", &mut st.text_gap),
+            ] {
+                if let Some(v) = p.get(key) {
+                    *slot = v.as_f64().ok_or(format!("{key}: a size in mm"))?;
+                }
+            }
+            if let Some(m) = p.get("mark") {
+                st.mark = m.as_str().and_then(strix_cad::Mark::parse).ok_or("mark: tick, arrow, dot or none")?;
+            }
+            d.dim_style = d.dim_style.sanitized();
+            commit(app, &d);
+            return Ok(serde_json::to_value(app.cad.as_ref().map(|e| e.drawing.dim_style)).unwrap_or_default());
         }
         "ui.cadFit" => {
             if let Some(ed) = app.cad.as_mut() {
@@ -955,6 +985,7 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Dim(Orient::Aligned) => "Aligned dimension",
         Tool::Dim(Orient::Horizontal) => "Horizontal dimension",
         Tool::Dim(Orient::Vertical) => "Vertical dimension",
+        Tool::DimAngle => "Angular dimension",
         Tool::Move => "Move",
         Tool::Copy => "Copy",
     }
@@ -1305,10 +1336,16 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
         for prim in &ed.rendered.prims {
             match prim {
-                Prim::Path { pts, closed, color, width, .. } => {
+                Prim::Path { pts, closed, color, width, fill, .. } => {
                     let screen: Vec<Pos2> = pts.iter().map(|&q| view.to_screen(paper_to_drawing(&ed.rendered, q))).collect();
                     let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
-                    painter.add(if *closed { Shape::closed_line(screen, stroke) } else { Shape::line(screen, stroke) });
+                    painter.add(if *fill {
+                        Shape::convex_polygon(screen, rgb(*color), stroke)
+                    } else if *closed {
+                        Shape::closed_line(screen, stroke)
+                    } else {
+                        Shape::line(screen, stroke)
+                    });
                 }
                 Prim::Dot { at, r, color } => {
                     painter.circle_filled(
@@ -1321,8 +1358,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     let shown: String = text.chars().filter(|&c| !strix_cad::is_marker(c)).collect();
                     let size = ((*height / 0.7) * ed.zoom / k).clamp(6.0, 200.0) as f32;
                     let align = match anchor {
-                        Anchor::BottomCenter => Align2::CENTER_BOTTOM,
+                        Anchor::BottomCenter | Anchor::BaselineCenter => Align2::CENTER_BOTTOM,
+                        Anchor::TopCenter => Align2::CENTER_TOP,
                         Anchor::BaselineLeft => Align2::LEFT_BOTTOM,
+                        Anchor::BaselineRight => Align2::RIGHT_BOTTOM,
                         Anchor::MiddleLeft => Align2::LEFT_CENTER,
                         Anchor::MiddleRight => Align2::RIGHT_CENTER,
                     };
@@ -1996,7 +2035,22 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
             let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
             done(ed);
-            with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None }))
+            with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None, below: None, mark: None }))
+        }
+        Tool::DimAngle if n >= 4 => {
+            let (c, mut a, mut b, at) = (pts[0], pts[1], pts[2], pts[3]);
+            // The angle measured is the side the arc is placed in.
+            let (ua, ub, ut) = (a.minus(c), b.minus(c), at.minus(c));
+            if kernel::angle_ccw(ua, ut) > kernel::angle_ccw(ua, ub) {
+                std::mem::swap(&mut a, &mut b);
+            }
+            let r = ut.len();
+            done(ed);
+            if r <= kernel::RESOLUTION || ua.len() <= kernel::RESOLUTION || ub.len() <= kernel::RESOLUTION {
+                ed.message = "An angle needs two sides and an arc away from the vertex".into();
+                return None;
+            }
+            with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, text: None, mark: None }))
         }
         Tool::Move | Tool::Copy if ed.selection.is_empty() => {
             // No objects yet: the command asks for them first.
@@ -2042,7 +2096,9 @@ fn close_polyline(ed: &mut CadEditor) -> Option<Drawing> {
 fn add_text(ed: &mut CadEditor, text: &str) -> Option<Drawing> {
     let p = *ed.points.first()?;
     ed.points.clear();
-    with(ed, Entity::new(Kind::Text { p: pt(p), value: text.to_string(), height: 3.5, angle: 0.0 }))
+    // New texts take the drawing's annotation text height.
+    let height = ed.drawing.dim_style.text;
+    with(ed, Entity::new(Kind::Text { p: pt(p), value: text.to_string(), height, angle: 0.0, align: strix_cad::Align::Left }))
 }
 
 /// The drawing editor's tabs, in order: drawing and modifying (with the layers), annotations,
@@ -2223,6 +2279,55 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
                 tool == Tool::Dim(Orient::Horizontal),
             );
             small(ui, app, "cadDimV", Some("Vertical"), "Vertical dimension", "ui.cadTool", t("dimVertical"), tool == Tool::Dim(Orient::Vertical));
+            small(
+                ui,
+                app,
+                "cadArc",
+                Some("Angular"),
+                "Angular dimension: the vertex, a point on each side, where the arc goes",
+                "ui.cadTool",
+                t("dimAngular"),
+                tool == Tool::DimAngle,
+            );
+        });
+    });
+    // The drawing's annotation style: one place for how every dimension and new text looks.
+    let Some(style) = app.cad.as_ref().map(|e| e.drawing.dim_style) else { return };
+    group(ui, "Dimension Style", None, app, |ui, app| {
+        let size = |ui: &mut Ui, app: &mut WordApp, label: &str, key: &str, now: f64| {
+            ui.horizontal(|ui| {
+                ui.label(tl!(label));
+                let mut v = now;
+                let r = ui.add(egui::DragValue::new(&mut v).range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"));
+                // Applied once the value is set: one undo step.
+                if (r.drag_stopped() || r.lost_focus()) && v != now {
+                    let _ = app.run("ui.cadDimStyle", json!({ key: v }));
+                }
+            });
+        };
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing = vec2(1.0, 2.0);
+            size(ui, app, "Text height", "text", style.text);
+            size(ui, app, "Mark size", "markSize", style.mark_size);
+            ui.horizontal(|ui| {
+                ui.label(tl!("End mark"));
+                egui::ComboBox::from_id_salt("cad_dim_mark")
+                    .selected_text(tl!(crate::cad_panel::choice_label(style.mark.name())))
+                    .width(90.0)
+                    .show_ui(ui, |ui| {
+                        for (m, name) in strix_cad::Mark::ALL {
+                            if ui.selectable_label(style.mark == m, tl!(crate::cad_panel::choice_label(name))).clicked() {
+                                let _ = app.run("ui.cadDimStyle", json!({"mark": name}));
+                            }
+                        }
+                    });
+            });
+        });
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing = vec2(1.0, 2.0);
+            size(ui, app, "Extension gap", "extGap", style.ext_gap);
+            size(ui, app, "Extension beyond", "extOver", style.ext_over);
+            size(ui, app, "Text gap", "textGap", style.text_gap);
         });
     });
     group(ui, "Text", None, app, |ui, app| {
@@ -2617,6 +2722,32 @@ mod tests {
             feed(ed, p, None);
         }
         assert!(feed(ed, Pt::new(0.0, 1.0), None).is_none() && !ed.message.is_empty());
+    }
+
+    /// The angular dimension measures the side its arc is placed in; the annotation style is
+    /// one undo step and clamps what it is given.
+    #[test]
+    fn angular_dimensions_and_the_dimension_style() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::parse("dimAngular").unwrap());
+        for p in [Pt::new(0.0, 0.0), Pt::new(10.0, 0.0), Pt::new(0.0, 10.0)] {
+            assert!(feed(ed, p, None).is_none());
+        }
+        // The arc placed in the other sector: 270°, the rays swapped.
+        let d = feed(ed, Pt::new(-5.0, -5.0), None).expect("angular dimension");
+        let Kind::Angle { a, b, .. } = &d.entities.last().unwrap().kind else { panic!() };
+        assert_eq!((a.pt(), b.pt()), (Pt::new(0.0, 10.0), Pt::new(10.0, 0.0)));
+        app.run("ui.cadDimStyle", json!({"text": 3.5, "mark": "arrow"})).unwrap();
+        let st = app.cad.as_ref().unwrap().drawing.dim_style;
+        assert_eq!((st.text, st.mark), (3.5, strix_cad::Mark::Arrow));
+        assert!(app.run("ui.cadDimStyle", json!({"mark": "star"})).is_err());
+        app.run("ui.cadDimStyle", json!({"markSize": -4})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, 0.0);
+        app.run("edit.undo", json!({})).unwrap();
+        reload(&mut app);
+        assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, 2.5);
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

@@ -155,7 +155,7 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
             break;
         }
         match prim {
-            Prim::Path { pts, closed, color, width, .. } => {
+            Prim::Path { pts, closed, color, width, fill, .. } => {
                 let mut segs: Vec<PathSeg> = Vec::with_capacity(pts.len() + 1);
                 for (k, &(x, y)) in pts.iter().enumerate() {
                     segs.push(if k == 0 { PathSeg::Move(pt(x), pt(y)) } else { PathSeg::Line(pt(x), pt(y)) });
@@ -163,7 +163,12 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                 if *closed {
                     segs.push(PathSeg::Close);
                 }
-                items.push(GraphicItem::Path { segs, fill: None, stroke: Some(rgb(*color)), stroke_width: pt(*width).max(0.25) });
+                items.push(GraphicItem::Path {
+                    segs,
+                    fill: fill.then(|| rgb(*color)),
+                    stroke: Some(rgb(*color)),
+                    stroke_width: pt(*width).max(0.25),
+                });
             }
             Prim::Dot { at, r, color } => {
                 let (cx, cy, rr) = (pt(at.0), pt(at.1), pt(*r));
@@ -204,7 +209,10 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                     Anchor::MiddleRight => ([x - w, y - size * 0.55, w, size * 1.1], TextAlign::Right),
                     Anchor::MiddleLeft => ([x, y - size * 0.55, w, size * 1.1], TextAlign::Left),
                     Anchor::BottomCenter => ([x - w / 2.0, y - size * 1.1, w, size * 1.1], TextAlign::Center),
+                    Anchor::TopCenter => ([x - w / 2.0, y, w, size * 1.1], TextAlign::Center),
                     Anchor::BaselineLeft => ([x, y - size * 0.9, w, size * 1.1], TextAlign::Left),
+                    Anchor::BaselineCenter => ([x - w / 2.0, y - size * 0.9, w, size * 1.1], TextAlign::Center),
+                    Anchor::BaselineRight => ([x - w, y - size * 0.9, w, size * 1.1], TextAlign::Right),
                 };
                 if pieces.len() <= 1 {
                     items.push(GraphicItem::Text { rect, text: visible, size, color: rgb(*color), bold: false, align, font: None });

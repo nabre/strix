@@ -50,7 +50,7 @@ impl Rendered {
         );
         for prim in &self.prims {
             match prim {
-                Prim::Path { pts, closed, color, width, dash } => {
+                Prim::Path { pts, closed, color, width, dash, fill } => {
                     if pts.len() < 2 {
                         continue;
                     }
@@ -58,8 +58,9 @@ impl Rendered {
                     let tag = if *closed { "polygon" } else { "polyline" };
                     let _ = write!(
                         out,
-                        r#"<{tag} points="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round""#,
+                        r#"<{tag} points="{}" fill="{}" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round""#,
                         points.join(" "),
+                        if *fill { hex(*color) } else { "none".into() },
                         hex(*color),
                         n(width.max(0.05))
                     );
@@ -75,7 +76,10 @@ impl Rendered {
                 Prim::Text { at, text, height, angle, anchor, color } => {
                     let (ta, base) = match anchor {
                         Anchor::BaselineLeft => ("start", "auto"),
+                        Anchor::BaselineCenter => ("middle", "auto"),
+                        Anchor::BaselineRight => ("end", "auto"),
                         Anchor::BottomCenter => ("middle", "text-after-edge"),
+                        Anchor::TopCenter => ("middle", "text-before-edge"),
                         Anchor::MiddleLeft => ("start", "central"),
                         Anchor::MiddleRight => ("end", "central"),
                     };

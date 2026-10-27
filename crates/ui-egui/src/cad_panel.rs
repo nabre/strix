@@ -390,12 +390,12 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                         let mut on = f.text == "true";
                         ui.checkbox(&mut on, "").changed().then(|| on.to_string())
                     }
-                    FieldKind::Orient => {
+                    FieldKind::Choice(words) => {
                         let mut pick = None;
-                        egui::ComboBox::from_id_salt(("cad_orient", &id)).selected_text(tl!(capital(&f.text))).show_ui(ui, |ui| {
-                            for o in ["aligned", "horizontal", "vertical"] {
-                                if ui.selectable_label(f.text == o, tl!(capital(o))).clicked() {
-                                    pick = Some(o.to_string());
+                        egui::ComboBox::from_id_salt(("cad_choice", &id, &f.key)).selected_text(tl!(choice_label(&f.text))).show_ui(ui, |ui| {
+                            for &w in words {
+                                if ui.selectable_label(f.text == w, tl!(choice_label(w))).clicked() {
+                                    pick = Some(w.to_string());
                                 }
                             }
                         });
@@ -427,11 +427,21 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
     changed.then_some(d)
 }
 
-fn capital(s: &str) -> &'static str {
+/// A choice field's word as the pane shows it (English; translated by the caller).
+pub(crate) fn choice_label(s: &str) -> &'static str {
     match s {
         "aligned" => "Aligned",
         "horizontal" => "Horizontal",
-        _ => "Vertical",
+        "vertical" => "Vertical",
+        "style" => "By style",
+        "tick" => "Tick",
+        "arrow" => "Arrow",
+        "dot" => "Dot",
+        "none" => "None",
+        "left" => "Left",
+        "center" => "Center",
+        "right" => "Right",
+        _ => "",
     }
 }
 

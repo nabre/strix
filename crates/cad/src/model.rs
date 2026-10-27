@@ -185,6 +185,99 @@ pub enum Orient {
     Vertical,
 }
 
+/// The mark at each end of a dimension line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Mark {
+    /// An architectural tick (a 45° stroke).
+    #[default]
+    Tick,
+    /// A filled arrowhead.
+    Arrow,
+    /// A filled dot.
+    Dot,
+    None,
+}
+
+impl Mark {
+    pub const ALL: [(Mark, &'static str); 4] = [(Mark::Tick, "tick"), (Mark::Arrow, "arrow"), (Mark::Dot, "dot"), (Mark::None, "none")];
+
+    pub fn name(self) -> &'static str {
+        Mark::ALL.iter().find(|(m, _)| *m == self).map_or("tick", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<Mark> {
+        Mark::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(m, _)| *m)
+    }
+}
+
+/// Where a text sits on its point, along its line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Align {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+impl Align {
+    pub const ALL: [(Align, &'static str); 3] = [(Align::Left, "left"), (Align::Center, "center"), (Align::Right, "right")];
+
+    pub fn name(self) -> &'static str {
+        Align::ALL.iter().find(|(a, _)| *a == self).map_or("left", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<Align> {
+        Align::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(a, _)| *a)
+    }
+}
+
+/// The drawing's annotation style: how its dimensions and new texts look. Paper millimetres, so
+/// annotations read the same at any scale.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DimStyle {
+    /// Dimension text height (and new texts'), mm.
+    pub text: f64,
+    /// The dimension lines' end mark, unless a dimension sets its own.
+    pub mark: Mark,
+    /// The mark's length, mm.
+    pub mark_size: f64,
+    /// Extension lines start this far from the measured point…
+    pub ext_gap: f64,
+    /// …and pass the dimension line by this, mm.
+    pub ext_over: f64,
+    /// Between a dimension's text and its line, mm.
+    pub text_gap: f64,
+}
+
+impl Default for DimStyle {
+    fn default() -> Self {
+        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0 }
+    }
+}
+
+impl DimStyle {
+    /// Every size finite and within reason (text 0.5–50 mm, the others 0–20 mm).
+    pub fn sanitized(self) -> DimStyle {
+        let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
+        let d = DimStyle::default();
+        DimStyle {
+            text: c(self.text, 0.5, 50.0, d.text),
+            mark: self.mark,
+            mark_size: c(self.mark_size, 0.0, 20.0, d.mark_size),
+            ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
+            ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
+            text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
+        }
+    }
+
+    pub fn is_default(&self) -> bool {
+        *self == DimStyle::default()
+    }
+}
+
 /// What an entity is.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -215,7 +308,8 @@ pub enum Kind {
     Point {
         p: P,
     },
-    /// Text at `p` (its baseline's left end), `height` paper mm, `angle` degrees.
+    /// Text at `p` (on its baseline, at its left end, middle or right end as `align` says),
+    /// `height` paper mm, `angle` degrees.
     Text {
         p: P,
         value: String,
@@ -223,10 +317,13 @@ pub enum Kind {
         height: f64,
         #[serde(default)]
         angle: f64,
+        #[serde(default, skip_serializing_if = "is_left")]
+        align: Align,
     },
     /// A linear dimension between `a` and `b`, its line `offset` paper mm along the left normal
     /// (negative: the other side). `text`: `<>` is the measured size, `{{L}}` the value of
-    /// parameter `L`; `None` shows the size.
+    /// parameter `L`; `None` shows the size. `below`: a second text under the line. `mark`: its
+    /// own end mark, else the drawing's style's.
     Dim {
         a: P,
         b: P,
@@ -236,7 +333,27 @@ pub enum Kind {
         orient: Orient,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         text: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        below: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mark: Option<Mark>,
     },
+    /// An angular dimension at `c`, counter-clockwise from the ray to `a` to the ray to `b`, its
+    /// arc `r` drawing units from `c`. `text` as a linear dimension's (`<>` is the angle).
+    Angle {
+        c: P,
+        a: P,
+        b: P,
+        r: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mark: Option<Mark>,
+    },
+}
+
+fn is_left(a: &Align) -> bool {
+    *a == Align::Left
 }
 
 fn text_height() -> f64 {
@@ -289,11 +406,21 @@ pub struct Drawing {
     pub entities: Vec<Entity>,
     /// The picture's padding around the drawing, paper mm.
     pub padding: Padding,
+    /// How dimensions and new texts look.
+    #[serde(skip_serializing_if = "DimStyle::is_default")]
+    pub dim_style: DimStyle,
 }
 
 impl Default for Drawing {
     fn default() -> Self {
-        Drawing { unit: Unit::Mm, scale: 1.0, layers: vec![Layer::default()], entities: Vec::new(), padding: Padding::default() }
+        Drawing {
+            unit: Unit::Mm,
+            scale: 1.0,
+            layers: vec![Layer::default()],
+            entities: Vec::new(),
+            padding: Padding::default(),
+            dim_style: DimStyle::default(),
+        }
     }
 }
 
@@ -377,6 +504,7 @@ impl Drawing {
     pub fn sanitize(&mut self) {
         self.scale = if self.scale.is_finite() { self.scale.clamp(1e-3, 1e6) } else { 1.0 };
         self.padding = self.padding.sanitized();
+        self.dim_style = self.dim_style.sanitized();
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());
@@ -408,8 +536,14 @@ impl Drawing {
                     *height = clamp_paper(*height, 2.5).max(0.5);
                     *angle = if angle.is_finite() { *angle % 360.0 } else { 0.0 };
                 }
-                Kind::Dim { offset, text, .. } => {
+                Kind::Dim { offset, text, below, .. } => {
                     *offset = if offset.is_finite() { offset.clamp(-500.0, 500.0) } else { 8.0 };
+                    for t in [text, below].into_iter().flatten() {
+                        t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
+                    }
+                }
+                Kind::Angle { r, text, .. } => {
+                    *r = if r.is_finite() { r.abs().min(MAX_COORD) } else { 0.0 };
                     if let Some(t) = text {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }
@@ -463,6 +597,11 @@ impl Drawing {
                     out.push((r, NumKind::Length));
                     out.push((start, NumKind::Angle));
                     out.push((end, NumKind::Angle));
+                }
+                Kind::Angle { c, a, b, .. } => {
+                    point(c, &mut out);
+                    point(a, &mut out);
+                    point(b, &mut out);
                 }
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| point(p, &mut out)),
                 Kind::Point { p } | Kind::Text { p, .. } => point(p, &mut out),

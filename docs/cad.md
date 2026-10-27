@@ -189,6 +189,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
    (Dimensions, Text), CAD View (Precision, Object Snaps), CAD Output (Picture) — each with Close
    Drawing; the document's tabs are disabled until the drawing is closed.
+   **Annotations** (CAD Annotate tab): the drawing's **dimension style** (`dimStyle`, paper mm:
+   text height — also new texts' —, end mark tick/arrow/dot/none, mark size, extension gap and
+   overshoot, text gap; `ui.cadDimStyle`, one undo step, sizes clamped); a dimension may set its
+   own end mark (`mark`, "By style" otherwise) and a **text below** its line (`below`, with `<>`
+   and `{{L}}` like the text above). **Angular dimension** (`angle {c, a, b, r}`; tool
+   `dimAngular`: the vertex, a point on each side, where the arc goes — the side it is placed in
+   is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
+   the angle (`<>°`) level just outside the arc's middle. Texts have an **alignment** (left,
+   centre, right on their point). Arrowheads are filled paths (`Prim::Path { fill }`).
    **Circle ways** (Draw › Circle menu; typed `c`, then `2p`, `3p`, `ttr`, `ttt`, or `d` after the
    centre): centre and radius, centre and diameter, 2 points (a diameter), 3 points, Tan Tan
    Radius (two objects picked near where the circle should touch them, then the radius typed or
