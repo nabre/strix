@@ -157,7 +157,9 @@ impl FileBrowser {
                 // format for an export), then every other format Strix saves.
                 let ext = Path::new(name).extension().and_then(std::ffi::OsStr::to_str).filter(|e| !e.is_empty());
                 let mut f: Vec<(String, Vec<String>)> = match ext {
-                    Some(e) if !strix_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => vec![(format!("*.{e}"), vec![e.to_string()])],
+                    Some(e) if !strix_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => {
+                        vec![(format!("*.{e}"), vec![e.to_string()])]
+                    }
                     _ => crate::file_dialogs::save_filters(name),
                 };
                 f.push(("All files".into(), vec!["*".into()]));

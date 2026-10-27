@@ -27,10 +27,10 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use strix_ui_egui::{Inbox, Services, WordApp};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::Closure;
-use strix_ui_egui::{Inbox, Services, WordApp};
 
 /// The longest user name taken from `?author=`.
 const MAX_AUTHOR_CHARS: usize = 200;
@@ -104,13 +104,9 @@ impl Bridge {
     fn post_save(&self, path: &str, bytes: &[u8], save_as: bool) -> Result<(), String> {
         let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.to_string());
         let buffer = js_sys::Uint8Array::from(bytes).buffer();
-        let message = message(&[
-            ("type", "strix:save".into()),
-            ("name", name.as_str().into()),
-            ("saveAs", save_as.into()),
-            ("bytes", buffer.clone().into()),
-        ])
-        .ok_or_else(|| "couldn't build the message".to_string())?;
+        let message =
+            message(&[("type", "strix:save".into()), ("name", name.as_str().into()), ("saveAs", save_as.into()), ("bytes", buffer.clone().into())])
+                .ok_or_else(|| "couldn't build the message".to_string())?;
         self.parent
             .post_message_with_transfer(&message, &self.origin, &js_sys::Array::of1(&buffer))
             .map_err(|e| e.as_string().unwrap_or_else(|| format!("{e:?}")))

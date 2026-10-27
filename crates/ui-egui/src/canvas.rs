@@ -119,6 +119,9 @@ pub struct CanvasState {
     /// The frame drawn around the equation being edited, on screen (its options strip opens the
     /// equation's menu).
     pub eq_options: Option<EquationFrame>,
+    /// Last frame the caret was in a calculated equation: leaving it recalculates the document,
+    /// as a worksheet does when you leave a region (docs/calc.md).
+    pub in_calc_equation: bool,
     /// Screen rect of the selection's first line, for the floating mini toolbar.
     pub mini_anchor: Option<Rect>,
     /// The selection the mini toolbar was put away for by a click outside the document (the
@@ -334,6 +337,7 @@ impl Default for CanvasState {
             context_menu_from_keys: false,
             context_menu_at: None,
             eq_options: None,
+            in_calc_equation: false,
             mini_anchor: None,
             mini_dismissed: None,
             pasted: false,
@@ -1596,11 +1600,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // across a table the whole cells of the rows it takes.
         let selected: Vec<_> = if let Some(sel) = preview_sel(app) {
             let (a, b) = sel.ordered();
-            if a == b {
-                Vec::new()
-            } else {
-                strix_engine::cmd::table_mouse::selection_rects(&layout, page_doc(app), &a, &b, app.session.page_hint)
-            }
+            if a == b { Vec::new() } else { strix_engine::cmd::table_mouse::selection_rects(&layout, page_doc(app), &a, &b, app.session.page_hint) }
         } else if crate::objects::selected(app).is_some() {
             Vec::new()
         } else if let Some(range) = app.session.cell_range() {
@@ -1656,6 +1656,16 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // top left, an options strip at its right) and draw the caret inside it.
         let mut math_caret = false;
         app.canvas.eq_options = None;
+        let in_calc = app.session.math.as_ref().is_some_and(|m| {
+            app.session
+                .doc
+                .para_at(&m.at)
+                .and_then(|p| p.object_at(m.at.off))
+                .is_some_and(|o| matches!(o, strix_doc::InlineObject::Equation { math, .. } if math.calc))
+        });
+        if std::mem::replace(&mut app.canvas.in_calc_equation, in_calc) && app.session.math.is_none() {
+            let _ = app.run("calc.recalculate", json!({}));
+        }
         if let Some(m) = app.session.math.clone()
             && let Some(bx) = layout.equation_box(&m.at, app.session.page_hint)
             && let Some(pr) = rects.get(bx.page)
@@ -1691,6 +1701,21 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     t.equation_box,
                 );
             }
+            // The Calculate button: filled while the equation is a calculation region.
+            let calc_on = app
+                .session
+                .doc
+                .para_at(&m.at)
+                .and_then(|p| p.object_at(m.at.off))
+                .is_some_and(|o| matches!(o, strix_doc::InlineObject::Equation { math, .. } if math.calc));
+            if calc_on {
+                painter.rect_filled(frame.calc, 2.0, t.accent);
+            } else {
+                painter.rect_filled(frame.calc, 2.0, Color32::WHITE);
+                painter.rect_stroke(frame.calc, 2.0, Stroke::new(1.0, t.equation_box), egui::StrokeKind::Inside);
+            }
+            let ink = if calc_on { t.on_accent } else { t.equation_box };
+            painter.text(frame.calc.center(), egui::Align2::CENTER_CENTER, "=", regular(12.0), ink);
             app.canvas.eq_options = Some(frame);
             if let Some(slot) = ml.slot(&m.pos.path, m.pos.off) {
                 let x = (pr.min.x + (ex + slot.x) * s).round() + 0.5;
@@ -1924,6 +1949,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     }
     // Shift+F10 opens the same menu below the caret, for the selection or the word there (#821).
     let from_keys = std::mem::take(&mut app.canvas.context_menu_from_keys);
+    // A click on the Calculate button turns the equation into a calculation region or back.
+    if let Some(f) = app.canvas.eq_options
+        && resp.clicked()
+        && resp.interact_pointer_pos().is_some_and(|p| f.calc.contains(p))
+    {
+        let _ = app.run("equation.calc", json!({}));
+    }
     // A click on the equation frame's options strip opens the equation's menu below the strip.
     let eq_strip = app.canvas.eq_options.map(|f| f.strip).filter(|r| resp.clicked() && resp.interact_pointer_pos().is_some_and(|p| r.contains(p)));
     if from_keys {
@@ -2558,7 +2590,7 @@ fn mouse(app: &mut WordApp, ui: &Ui, resp: &egui::Response, rects: &[Rect], layo
     let story = app.session.sel.focus.story;
     // Inside an equation, clicks place the caret in it (and double-clicks don't select words);
     // so do clicks on the grip and options strip of its frame.
-    let on_frame = app.canvas.eq_options.is_some_and(|f| f.strip.contains(p) || f.grip.contains(p));
+    let on_frame = app.canvas.eq_options.is_some_and(|f| f.strip.contains(p) || f.grip.contains(p) || f.calc.contains(p));
     if (resp.double_clicked() || resp.triple_clicked()) && (on_frame || layout.equation_hit(page, x, y, story).is_some()) {
         return;
     }
@@ -2590,11 +2622,8 @@ fn mouse(app: &mut WordApp, ui: &Ui, resp: &egui::Response, rects: &[Rect], layo
     }
     // Double-click in the header/footer area edits it (creating it when the page has none, #960);
     // double-click in the body leaves it. Print Layout only: the other views show no margins.
-    let hf_zone = if app.session.view.mode == strix_layout::ViewMode::Print && !app.session.view.read_mode {
-        layout.header_footer_zone(page, y)
-    } else {
-        None
-    };
+    let hf_zone =
+        if app.session.view.mode == strix_layout::ViewMode::Print && !app.session.view.read_mode { layout.header_footer_zone(page, y) } else { None };
     let hf_enter = enters_header_footer(app, story, hf_zone);
     if resp.double_clicked() {
         // Its first press already moved into the header/footer and placed the caret.
@@ -3605,6 +3634,9 @@ pub struct EquationFrame {
     pub outline: Rect,
     pub grip: Rect,
     pub strip: Rect,
+    /// The Calculate button just right of the frame (docs/calc.md): on, the equation is a live
+    /// calculation region.
+    pub calc: Rect,
 }
 
 /// Lay the frame out around `bx` on the page drawn at `page` (`scale` screen pixels a point):
@@ -3618,7 +3650,8 @@ fn equation_frame(page: Rect, bx: &strix_layout::hit::EquationBox, scale: f32) -
     let outline = Rect::from_min_max(pos2(x0, top), pos2(x1 + strip_w, bottom));
     let strip = Rect::from_min_max(pos2(x1, top), pos2(x1 + strip_w, bottom));
     let grip = Rect::from_min_size(pos2(x0 - 5.0, top - 3.0), vec2(7.0, 14.0));
-    EquationFrame { outline, grip, strip }
+    let calc = Rect::from_min_size(pos2(x1 + strip_w + 3.0, top), vec2(14.0, 14.0));
+    EquationFrame { outline, grip, strip, calc }
 }
 
 /// The input method's cursor in its composition, in chars: the end of the range it reports, or the
@@ -5739,7 +5772,7 @@ mod tests {
         let (mut h, id) = comment_harness();
         click_balloon(&mut h, id);
         type_in(&mut h, "Typed ");
-        let path = std::env::temp_dir().join(format!("strix-1348-save-{}.docx", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-1348-save-{}.xmath", std::process::id()));
         h.state_mut().run("file.save", json!({"path": path.to_string_lossy()})).unwrap();
         let text = comment_text(h.state(), id);
         assert!(text.contains("Typed"), "the draft was written before saving: {text:?}");
@@ -5817,7 +5850,7 @@ mod tests {
     fn saving_with_a_refused_comment_draft_saves_the_document() {
         let (mut h, id) = refused_draft();
         h.state_mut().session.dirty = true;
-        let path = std::env::temp_dir().join(format!("strix-1348-refused-{}.docx", std::process::id()));
+        let path = std::env::temp_dir().join(format!("strix-1348-refused-{}.xmath", std::process::id()));
         let r = h.state_mut().run("file.save", json!({"path": path.to_string_lossy()}));
         let saved = strix_engine::io::open_path(&path);
         let _ = std::fs::remove_file(&path);
@@ -6373,8 +6406,7 @@ mod tests {
     /// only Go To selects the bookmark's text (#1236).
     #[test]
     fn a_link_to_a_bookmark_puts_the_caret_at_its_start() {
-        let mut a =
-            WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Alpha beta gamma\nSee here")), Default::default());
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Alpha beta gamma\nSee here")), Default::default());
         a.run("select.text", json!({"text": "beta"})).unwrap();
         a.run("insert.bookmark", json!({"name": "Spot"})).unwrap();
         a.run("select.text", json!({"text": "here"})).unwrap();

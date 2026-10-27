@@ -2510,12 +2510,7 @@ fn display_has_glyphs_and_marks() {
 #[test]
 fn a_tracked_paragraph_mark_shows_in_its_authors_colour() {
     let mut d = Document::from_text("Split\nhere");
-    d.revisions.push(strix_doc::Revision {
-        kind: strix_doc::RevisionKind::Insert,
-        author: "Ana".into(),
-        date: String::new(),
-        move_name: None,
-    });
+    d.revisions.push(strix_doc::Revision { kind: strix_doc::RevisionKind::Insert, author: "Ana".into(), date: String::new(), move_name: None });
     d.para_mut(strix_doc::StoryRef::Body, &strix_doc::Path::top(0)).unwrap().mark.ins = Some(0);
     let l = lay(&d);
     let marks = |markup: bool| -> Vec<Option<strix_doc::props::Rgb>> {
@@ -2959,10 +2954,8 @@ fn footnotes_sit_at_page_bottom() {
         &Default::default(),
     )
     .unwrap();
-    let eid = d.add_part(
-        strix_doc::PartKind::Endnote,
-        vec![strix_doc::para_block(strix_doc::Paragraph::with_text("An endnote.", Default::default()))],
-    );
+    let eid =
+        d.add_part(strix_doc::PartKind::Endnote, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("An endnote.", Default::default()))]);
     d.insert_object(
         &Pos::body(5, 2),
         InlineObject::NoteRef { kind: strix_doc::para::NoteKind::Endnote, id: eid, custom: String::new() },
@@ -3326,10 +3319,8 @@ fn line_numbers_borders_text_boxes() {
     let mut d = Document::from_text("one\ntwo\nthree");
     d.last_section.line_numbers = Some(Default::default());
     d.last_section.page_borders = Some(strix_doc::props::Borders::box_(strix_doc::props::Border::single(1.0)));
-    let id = d.add_part(
-        strix_doc::PartKind::TextBox,
-        vec![strix_doc::para_block(strix_doc::Paragraph::with_text("inside the box", Default::default()))],
-    );
+    let id =
+        d.add_part(strix_doc::PartKind::TextBox, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("inside the box", Default::default()))]);
     let tb = InlineObject::Shape {
         kind: strix_doc::para::ShapeKind::TextBox,
         w: 144.0,
@@ -4036,8 +4027,7 @@ fn drop_cap_with_a_huge_font_lays_out() {
 
 #[test]
 fn drop_cap_indents_its_lines() {
-    let mut p =
-        strix_doc::Paragraph::with_text(&"Every line of this paragraph wraps around a large first letter. ".repeat(6), Default::default());
+    let mut p = strix_doc::Paragraph::with_text(&"Every line of this paragraph wraps around a large first letter. ".repeat(6), Default::default());
     p.props.drop_cap = Some(3);
     let mut d = Document::from_text("x");
     d.body = vec![strix_doc::para_block(p)];
@@ -4064,8 +4054,7 @@ fn drop_cap_indents_its_lines() {
 
 /// The first laid-out paragraph of a one-paragraph document with a drop cap set by `set`.
 fn drop_cap_layout(set: impl Fn(&mut strix_doc::props::ParaProps)) -> std::sync::Arc<crate::para::ParaLayout> {
-    let mut p =
-        strix_doc::Paragraph::with_text(&"Every line of this paragraph wraps around a large first letter. ".repeat(6), Default::default());
+    let mut p = strix_doc::Paragraph::with_text(&"Every line of this paragraph wraps around a large first letter. ".repeat(6), Default::default());
     p.props.drop_cap = Some(3);
     set(&mut p.props);
     let mut d = Document::from_text("x");
@@ -4324,8 +4313,7 @@ fn text_box(d: &mut Document, at: usize, text: &str, w: f32, h: f32, float: stri
 }
 
 fn text_box_at(d: &mut Document, pos: &Pos, text: &str, w: f32, h: f32, float: strix_doc::para::Float) -> u32 {
-    let id =
-        d.add_part(strix_doc::PartKind::TextBox, vec![strix_doc::para_block(strix_doc::Paragraph::with_text(text, Default::default()))]);
+    let id = d.add_part(strix_doc::PartKind::TextBox, vec![strix_doc::para_block(strix_doc::Paragraph::with_text(text, Default::default()))]);
     let shape = InlineObject::Shape {
         kind: strix_doc::para::ShapeKind::TextBox,
         w,
@@ -4583,8 +4571,7 @@ fn ink_end(pl: &ParaLayout, ln: &para::Line) -> f32 {
 }
 
 fn footnote(d: &mut Document, pos: &Pos, text: &str) -> u32 {
-    let id =
-        d.add_part(strix_doc::PartKind::Footnote, vec![strix_doc::para_block(strix_doc::Paragraph::with_text(text, Default::default()))]);
+    let id = d.add_part(strix_doc::PartKind::Footnote, vec![strix_doc::para_block(strix_doc::Paragraph::with_text(text, Default::default()))]);
     d.insert_object(pos, InlineObject::NoteRef { kind: strix_doc::para::NoteKind::Footnote, id, custom: String::new() }, &Default::default())
         .unwrap();
     id
@@ -4606,16 +4593,14 @@ fn page_float(x: f32, y: f32) -> strix_doc::para::Float {
 fn text_boxes_show_in_headers_footers_cells_and_notes() {
     let mut d = Document::from_text(&"Body paragraph.\n".repeat(4));
     // Header: an inline box and a box placed on the page.
-    let hid =
-        d.add_part(strix_doc::PartKind::Header, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Head", Default::default()))]);
+    let hid = d.add_part(strix_doc::PartKind::Header, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Head", Default::default()))]);
     d.last_section.headers.default = Some(hid);
     let e = d.end_of(StoryRef::Part(hid));
     let inline = text_box_at(&mut d, &e, "Inline in header", 100.0, 30.0, Default::default());
     let e = d.end_of(StoryRef::Part(hid));
     let placed = text_box_at(&mut d, &e, "On the page", 100.0, 40.0, page_float(400.0, 20.0));
     // Footer: a box placed on the page (the footer is laid out twice to find it).
-    let fid =
-        d.add_part(strix_doc::PartKind::Footer, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Foot", Default::default()))]);
+    let fid = d.add_part(strix_doc::PartKind::Footer, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Foot", Default::default()))]);
     d.last_section.footers.default = Some(fid);
     let e = d.end_of(StoryRef::Part(fid));
     let in_footer = text_box_at(&mut d, &e, "Footer box", 100.0, 30.0, page_float(300.0, 740.0));
@@ -4722,8 +4707,7 @@ fn many_text_boxes_and_a_header_box_all_show() {
         d.split_paragraph(&end).unwrap();
     }
     let ids: Vec<u32> = (0..400).map(|k| text_box_at(&mut d, &Pos::body(k, 0), &format!("Box {k}"), 100.0, 30.0, Default::default())).collect();
-    let hid =
-        d.add_part(strix_doc::PartKind::Header, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Head", Default::default()))]);
+    let hid = d.add_part(strix_doc::PartKind::Header, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Head", Default::default()))]);
     d.last_section.headers.default = Some(hid);
     let e = d.end_of(StoryRef::Part(hid));
     let in_header = text_box_at(&mut d, &e, "Header box", 100.0, 30.0, Default::default());
@@ -5260,9 +5244,8 @@ fn floats_are_drawn_in_their_stacking_order() {
     let xs: Vec<f32> = shapes(&lay(&d).pages[0].items).iter().map(|r| r.x).collect();
     assert_eq!(xs, [100.0, 200.0], "no order: as anchored");
     // Behind the text too: the higher one comes first in the XML and stays on top.
-    let behind = |x: f32, z: u32| {
-        rect_shape(50.0, 50.0, strix_doc::para::Float { z, wrap: strix_doc::para::Wrap::BehindText, ..page_float(x, 100.0) })
-    };
+    let behind =
+        |x: f32, z: u32| rect_shape(50.0, 50.0, strix_doc::para::Float { z, wrap: strix_doc::para::Wrap::BehindText, ..page_float(x, 100.0) });
     let mut d = Document::from_text("Text");
     for (i, (x, z)) in [(100.0, 20), (200.0, 10)].into_iter().enumerate() {
         let off = 4 + i * strix_doc::para::OBJ.len_utf8();
@@ -5429,10 +5412,8 @@ fn header_cell_float_placed_on_the_page() {
         let mut cp = strix_doc::Paragraph::with_text("Right cell", Default::default());
         cp.insert_object(0, rect_shape(360.0, 288.0, wm(outside_cell)), &Default::default()).unwrap();
         t.rows[0].cells[1].blocks = vec![strix_doc::para_block(cp)];
-        let id = d.add_part(
-            strix_doc::PartKind::Header,
-            vec![std::sync::Arc::new(strix_doc::Block::Table(t)), strix_doc::para_block(Default::default())],
-        );
+        let id =
+            d.add_part(strix_doc::PartKind::Header, vec![std::sync::Arc::new(strix_doc::Block::Table(t)), strix_doc::para_block(Default::default())]);
         d.last_section.headers.default = Some(id);
     };
     header(&mut d, true);
@@ -6005,10 +5986,7 @@ fn unequal_formats_lay_out_in_linear_time() {
         let mut p = strix_doc::Paragraph::with_text("", Default::default());
         p.text = "ab ".repeat(n);
         p.runs = (0..n)
-            .map(|i| strix_doc::Run {
-                len: 3,
-                props: strix_doc::CharProps { spacing: Some(f32::NAN), bold: Some(i % 2 == 0), ..Default::default() },
-            })
+            .map(|i| strix_doc::Run { len: 3, props: strix_doc::CharProps { spacing: Some(f32::NAN), bold: Some(i % 2 == 0), ..Default::default() } })
             .collect();
         let mut d = Document::from_text("");
         d.body = vec![strix_doc::para_block(p)];
@@ -7276,8 +7254,7 @@ fn line_spans(l: &DocLayout) -> Vec<(f32, f32, f32, f32)> {
 /// A shape floating at the column's top-left with `wrap`, beside a long paragraph.
 fn wrapped_shape_doc(kind: strix_doc::para::ShapeKind, w: f32, h: f32, float: strix_doc::para::Float) -> Document {
     let mut d = Document::from_text(&"Words flow around the shape here. ".repeat(40));
-    let float =
-        strix_doc::para::Float { h_rel: strix_doc::para::Anchor::Column, v_rel: strix_doc::para::Anchor::Paragraph, dist: 9.0, ..float };
+    let float = strix_doc::para::Float { h_rel: strix_doc::para::Anchor::Column, v_rel: strix_doc::para::Anchor::Paragraph, dist: 9.0, ..float };
     let shape = InlineObject::Shape {
         kind,
         w,
@@ -7805,10 +7782,8 @@ fn footnotes_restart_on_each_page_and_section() {
 fn endnotes_at_section_end_and_footnotes_below_text() {
     use strix_doc::section::{NotePos, NoteProps};
     let mut d = Document::from_text("Alpha\nBeta\nGamma\nDelta");
-    let eid = d.add_part(
-        strix_doc::PartKind::Endnote,
-        vec![strix_doc::para_block(strix_doc::Paragraph::with_text("An endnote.", Default::default()))],
-    );
+    let eid =
+        d.add_part(strix_doc::PartKind::Endnote, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("An endnote.", Default::default()))]);
     d.insert_object(
         &Pos::body(0, 5),
         InlineObject::NoteRef { kind: strix_doc::para::NoteKind::Endnote, id: eid, custom: String::new() },
@@ -8960,8 +8935,7 @@ fn automatic_paragraph_spacing_drops_at_cell_edges() {
             })
             .collect();
         d.insert_block(StoryRef::Body, &Path::top(1), strix_doc::Block::Table(t)).unwrap();
-        d.insert_block(StoryRef::Body, &Path::top(2), strix_doc::Block::Para(strix_doc::Paragraph::with_text("Below", Default::default())))
-            .unwrap();
+        d.insert_block(StoryRef::Body, &Path::top(2), strix_doc::Block::Para(strix_doc::Paragraph::with_text("Below", Default::default()))).unwrap();
         let l = lay(&d);
         let in_cell = |i: u32| l.caret(&Pos { story: StoryRef::Body, path: Path(vec![1, 0, 0, i]), off: 0 }).unwrap().top;
         (in_cell(0), in_cell(1), l.caret(&Pos::body(2, 0)).unwrap().top)
@@ -9099,8 +9073,7 @@ fn highlight_fill_is_marked_as_a_text_background() {
 #[test]
 fn underline_on_a_highlight_carries_the_text_background() {
     use strix_doc::props::{Highlight, Underline};
-    let cp =
-        strix_doc::CharProps { highlight: Some(Highlight::Teal), underline: Some(Underline::Single), strike: Some(true), ..Default::default() };
+    let cp = strix_doc::CharProps { highlight: Some(Highlight::Teal), underline: Some(Underline::Single), strike: Some(true), ..Default::default() };
     let mut d = Document::from_text("x");
     d.body = vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Marked", cp))];
     let l = lay(&d);
@@ -9234,12 +9207,9 @@ fn footnote_page_field_from_a_split_paragraph_shows_its_page() {
     let mut d = page_field_doc(0, &["Head", &long, "Tail"]);
     let end = d.end_of(StoryRef::Body);
     // A custom mark, so the note marks aren't mistaken for page numbers.
-    let id = d.add_part(
-        strix_doc::PartKind::Footnote,
-        vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Note on page ", Default::default()))],
-    );
-    d.insert_object(&end, InlineObject::NoteRef { kind: strix_doc::para::NoteKind::Footnote, id, custom: "*".into() }, &Default::default())
-        .unwrap();
+    let id =
+        d.add_part(strix_doc::PartKind::Footnote, vec![strix_doc::para_block(strix_doc::Paragraph::with_text("Note on page ", Default::default()))]);
+    d.insert_object(&end, InlineObject::NoteRef { kind: strix_doc::para::NoteKind::Footnote, id, custom: "*".into() }, &Default::default()).unwrap();
     let note = d.para_mut(StoryRef::Part(id), &Path::top(0)).unwrap();
     let n = note.len();
     note.insert_object(
@@ -10862,8 +10832,7 @@ fn footer_float_wraps_body() {
             table.props.float.as_mut().unwrap().x = 0.0;
             doc.body = (0..17)
                 .map(|i| {
-                    let mut p =
-                        strix_doc::Paragraph::with_text(&format!("Body row {i:02}: original footer wrapping control."), Default::default());
+                    let mut p = strix_doc::Paragraph::with_text(&format!("Body row {i:02}: original footer wrapping control."), Default::default());
                     p.props = ParaProps {
                         space_before: Some(0.0),
                         space_after: Some(0.0),
@@ -11421,8 +11390,7 @@ fn keep_next_counts_list_indent() {
         ..Default::default()
     };
     let para = |text: &str, props: ParaProps| {
-        let mut p =
-            Paragraph::with_text(text, strix_doc::CharProps { font: Some("Source Sans 3".into()), size: Some(12.0), ..Default::default() });
+        let mut p = Paragraph::with_text(text, strix_doc::CharProps { font: Some("Source Sans 3".into()), size: Some(12.0), ..Default::default() });
         p.props = props;
         strix_doc::para_block(p)
     };

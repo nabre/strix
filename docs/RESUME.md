@@ -1,38 +1,35 @@
-# Resume notes (paused 2026-10-27)
+# Resume notes
 
-Work paused by the owner. Branch `strix-rebrand`. Commits: `655616f` (rebrand, i18n, strix-calc)
-and the WIP commit that adds this file. Nothing has been verified by `cargo xtask ci` yet.
+Last updated 2026-10-27. Branch `main`.
 
 ## Done
-- WordCraft → Strix rename (crates, apps, ids `io.github.nabre.strix`, packaging); upstream
-  notices kept; NOTICE has the Strix header + Modifications section (Apache-2.0 §4). Licence
-  skill: `.claude/skills/license-compliance/` (local, `.claude/` is gitignored), run its `check.sh`.
-- New app icon `assets/app-icon/strix.svg` + PNG/hicolor/.ico/.icns renders.
-- Update check disabled (`crates/ui-egui/src/updates_ui.rs`, `UPDATE_CHANNEL = false`).
-- ArtCraft Discord/getartcraft links removed; Community → github.com/nabre/strix/discussions.
-- i18n catalogs vendored in `locales/` (`strix.tsv` + `common.tsv`), embedded by
-  `crates/ui-egui/build.rs` in every build; Italian completed and reviewed. OS language: `auto`.
-- `crates/calc` (strix-calc, L1): units, worksheet evaluation, 17 tests. Engine commands
-  `calc.insert`, `calc.recalculate`, `calc.variables` in `crates/engine/src/cmd/calc.rs`
-  (5 tests); F9 (`references.updateFields`) also recalculates. Design: `docs/calc.md`.
+- WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
+  files removed (their licence requires forks to remove them).
+- New icon, Atollo palette in `theme::Tokens` (contrast tests pass).
+- Update check disabled until Strix has its own release feed.
+- i18n catalogs in `locales/`, Italian complete; OS language followed (`auto`).
+- Native files: Strix saves only `.xmath`/`.xmathm`; every other editable format is import-only;
+  static exports PDF, PNG, LaTeX, HTML, Markdown (`io::EXPORT_EXTS`, `io::check_writable`).
+- Live calculations (docs/calc.md): `strix-calc`; `calc.insert`, `calc.recalculate`,
+  `calc.variables`, `equation.calc` (Calculate button `=` beside the equation frame),
+  `calc.newEquations` (default on); recalculation on leaving a calculated equation and on F9;
+  flag saved as `strix:calc="1"`.
+- README and ROADMAP reoriented: Strix is a tool for solving math/engineering problems, with a
+  built-in CAD planned.
 
-## In progress (resume here)
-1. **Native `.xmath` / `.xmathm`** (OOXML package; other formats import/export). An agent was
-   stopped mid-way: engine/io, docx Flavor, `crates/engine/src/tests_native.rs`, CLI
-   (`apps/strix-cli/tests/it/convert_native.rs`), `crates/ui-egui/src/file_dialogs.rs`, mcp tools,
-   web, `docs/file-format-parity.md` are partly done. Re-check the brief (Save on non-native →
-   Save As with `.xmath`; Save as Template → `.xmathm`; OS associations with
-   `application/vnd.strix.xmath(m)`), then build and test.
-2. **Atollo theme**: `crates/ui-egui/src/theme.rs` tokens switched to the Atollo palette
-   (Reef Emerald `#047857` light accent, Emerald `#10B981` dark accent, Deep Forest nav, VS Code
-   Modern neutrals). Not yet tested: run `cargo test -p strix-ui-egui --lib theme::` (contrast
-   tests) and look at a `ui_shot` screenshot.
-3. Then: full `cargo xtask ci`, regenerate `docs/parity-checklist.md` (`cargo xtask parity`),
-   fix fallout, commit.
+## Known
+- Windows-only test failures inherited from upstream: `strix-proof`
+  `hunspell::tests::reads_are_bounded_and_regular_files_only`, `strix-layout`
+  `tests::hit_and_caret_agree`; `strix-engine` `tests::ime_body_epoch_marks_body_replacements_not_edits`
+  is flaky under the parallel run (passes alone).
+- GitHub Actions don't start: the account's billing/spending limit blocks them (private repo).
+  The inherited workflows (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud, release signing)
+  still need adapting to Strix.
 
 ## Next
-- Calc stage 2+ (docs/calc.md): Calculate ribbon tab and Variables pane, Italian strings for
-  them, user functions, ranges/Σ, tabular calculation, solve.
-- Owner decisions pending: delete `docs/brand/artcraft-*` trademark files; redraw the macOS DMG
-  background (`packaging/macos/dmg/background.svg` still says "WordCraft", old blue).
-- Discord icon in `crates/ui-egui/src/icons.rs` ("discord") should become a generic community icon.
+- Calc stage 2+: Variables pane, unit picker, `°C`/`°F`, user functions, ranges/Σ, tabular
+  calculation, solve, plots.
+- Built-in CAD (parametric drawings bound to calculation parameters): design first.
+- Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").
+- Discord icon in `crates/ui-egui/src/icons.rs` ("discord") → a generic community icon.
+- Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.

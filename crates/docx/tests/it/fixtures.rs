@@ -2863,9 +2863,7 @@ fn native_ink_keeps_alternate_content_and_preview_with_renamed_prefixes() {
         let g = graphics(&d);
         assert_eq!(g.len(), 1, "fallback must not replace native ink");
         let InlineObject::Graphic { graphic, .. } = &g[0] else { panic!() };
-        assert!(
-            graphic.items.iter().any(|item| matches!(item, strix_doc::graphic::GraphicItem::Image { media, .. } if d.media.contains_key(media)))
-        );
+        assert!(graphic.items.iter().any(|item| matches!(item, strix_doc::graphic::GraphicItem::Image { media, .. } if d.media.contains_key(media))));
         for _ in 0..2 {
             let out = strix_docx::write(&d).unwrap();
             let files = unzip(&out);
@@ -3374,14 +3372,15 @@ fn a_list_level_without_a_list_takes_the_style_s_list() {
 #[test]
 fn cell_hide_mark_reads_and_round_trips() {
     let body = r#"<w:tbl><w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/><w:hideMark/></w:tcPr><w:p/></w:tc><w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/></w:tcPr><w:p/></w:tc></w:tr></w:tbl><w:p/>"#;
-    let hides = |d: &Document| -> Vec<bool> {
-        d.body
-            .iter()
-            .find_map(|b| {
-                if let strix_doc::Block::Table(t) = &**b { Some(t.rows[0].cells.iter().map(|c| c.props.hide_mark).collect()) } else { None }
-            })
-            .unwrap()
-    };
+    let hides =
+        |d: &Document| -> Vec<bool> {
+            d.body
+                .iter()
+                .find_map(|b| {
+                    if let strix_doc::Block::Table(t) = &**b { Some(t.rows[0].cells.iter().map(|c| c.props.hide_mark).collect()) } else { None }
+                })
+                .unwrap()
+        };
     let d = read_body(body);
     assert_eq!(hides(&d), [true, false]);
     let again = strix_docx::read(&strix_docx::write(&d).unwrap()).unwrap();

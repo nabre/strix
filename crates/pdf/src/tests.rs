@@ -180,19 +180,9 @@ fn exports_pages_text_and_structure() {
     assert_eq!(pdf.pages().len(), lay.pages.len());
     let text = extract_text(&bytes);
     let all = squash(&text.concat());
-    for w in [
-        "Introduction",
-        "Hello Strix,",
-        "bold words",
-        "website",
-        "Details",
-        "alpha item",
-        "beta item",
-        "Cell00",
-        "Cell11",
-        "Second page",
-        "DRAFT",
-    ] {
+    for w in
+        ["Introduction", "Hello Strix,", "bold words", "website", "Details", "alpha item", "beta item", "Cell00", "Cell11", "Second page", "DRAFT"]
+    {
         assert!(all.contains(w), "{w:?} missing from {all:?}");
     }
     assert!(squash(&text[0]).contains("Hello Strix, bold words and a website back to top"), "{:?}", text[0]);
@@ -426,10 +416,7 @@ fn table_style_hidden_heading_text_stays_out_of_bookmarks_and_tags() {
         id: "SecretHeader".into(),
         name: "Secret Header".into(),
         kind: strix_doc::StyleKind::Table,
-        table: Some(strix_doc::styles::TableStyleParts {
-            header_chr: CharProps { hidden: Some(true), ..Default::default() },
-            ..Default::default()
-        }),
+        table: Some(strix_doc::styles::TableStyleParts { header_chr: CharProps { hidden: Some(true), ..Default::default() }, ..Default::default() }),
         ..Default::default()
     });
     let mut t = Table::new(2, 2, 400.0);
@@ -2256,8 +2243,8 @@ fn shape_gradients_export_as_shadings() {
 fn tagged_shape_pdf(float: strix_doc::para::Float, text_box: bool) -> String {
     use strix_doc::para::ShapeKind;
     let mut d = Document::from_text("Body");
-    let story = text_box
-        .then(|| d.add_part(strix_doc::PartKind::TextBox, vec![para_block(Paragraph::with_text("Inside the box", CharProps::default()))]));
+    let story =
+        text_box.then(|| d.add_part(strix_doc::PartKind::TextBox, vec![para_block(Paragraph::with_text("Inside the box", CharProps::default()))]));
     let kind = if text_box { ShapeKind::TextBox } else { ShapeKind::Rectangle };
     let shape = InlineObject::Shape {
         kind,

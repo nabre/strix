@@ -35,9 +35,7 @@ fn has_floating(s: &Session) -> Option<&'static str> {
 fn movable_story(s: &Session, story: StoryRef) -> bool {
     match story {
         StoryRef::Body => true,
-        StoryRef::Part(id) => {
-            s.doc.parts.get(&id).is_some_and(|p| matches!(p.kind, strix_doc::PartKind::Header | strix_doc::PartKind::Footer))
-        }
+        StoryRef::Part(id) => s.doc.parts.get(&id).is_some_and(|p| matches!(p.kind, strix_doc::PartKind::Header | strix_doc::PartKind::Footer)),
     }
 }
 /// Charts and diagrams are not written back on save yet, so their size, position and wrapping stay
@@ -946,9 +944,7 @@ pub(crate) fn anchor_paragraph(
     // Top-level text on the page: (path, left, top, starts the paragraph).
     let pieces: Vec<(&strix_doc::Path, f32, f32, bool)> = items
         .filter_map(|it| match it {
-            strix_layout::Placed::Lines { story: s, path, l0, x, y: top, .. } if *s == story && path.depth() == 0 => {
-                Some((path, *x, *top, *l0 == 0))
-            }
+            strix_layout::Placed::Lines { story: s, path, l0, x, y: top, .. } if *s == story && path.depth() == 0 => Some((path, *x, *top, *l0 == 0)),
             _ => None,
         })
         .collect();
@@ -2827,10 +2823,7 @@ mod tests {
         assert!(can_link(&s).is_some(), "linked once: Break Link first");
         // The second box shows the first one's story.
         let l = s.layout();
-        assert_eq!(
-            l.pages[0].items.iter().filter(|it| matches!(it, strix_layout::Placed::Object { text_box: Some(t), .. } if *t == a)).count(),
-            2
-        );
+        assert_eq!(l.pages[0].items.iter().filter(|it| matches!(it, strix_layout::Placed::Object { text_box: Some(t), .. } if *t == a)).count(), 2);
         // Linking back to the start, or to a box with text, is refused.
         s.run("select.objects", &json!({"index": 1})).unwrap();
         assert!(s.run("shape.link", &json!({"target": 0})).is_err());
@@ -2905,8 +2898,7 @@ mod tests {
         s.run("arrange.bounds", &json!({"width": 80, "height": 60})).unwrap();
         let cols: Vec<(f32, f32)> = {
             let layout = s.layout();
-            let mut v: Vec<(f32, f32)> =
-                strix_layout::hit::page_lines(&layout.pages[0], StoryRef::Body).iter().map(|l| (l.left, l.right)).collect();
+            let mut v: Vec<(f32, f32)> = strix_layout::hit::page_lines(&layout.pages[0], StoryRef::Body).iter().map(|l| (l.left, l.right)).collect();
             v.sort_by(|a, b| a.0.total_cmp(&b.0));
             v.dedup_by(|a, b| (a.0 - b.0).abs() < 1.0);
             v

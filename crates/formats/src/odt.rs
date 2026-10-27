@@ -886,8 +886,7 @@ fn styles_xml(pages: &[(String, strix_doc::SectionProps)], body_font: &str) -> S
 }
 
 fn meta_xml(m: &Meta) -> String {
-    let mut s =
-        format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta {NS}><office:meta><meta:generator>Strix</meta:generator>");
+    let mut s = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta {NS}><office:meta><meta:generator>Strix</meta:generator>");
     if !m.title.is_empty() {
         s.push_str(&format!("<dc:title>{}</dc:title>", x(&m.title)));
     }
@@ -3068,14 +3067,11 @@ mod tests {
         let content = format!(
             r##"<office:document-content {NS_T}><office:automatic-styles><style:style style:name="Table1.A" style:family="table-column"><style:table-column-properties style:column-width="1in"/></style:style><style:style style:name="Table1.B" style:family="table-column"><style:table-column-properties style:column-width="3in"/></style:style></office:automatic-styles><office:body><office:text><table:table><table:table-column table:style-name="Table1.A"/><table:table-column table:style-name="Table1.B"/><table:table-row><table:table-cell><text:p>A</text:p></table:table-cell><table:table-cell><text:p>B</text:p></table:table-cell></table:table-row></table:table></office:text></office:body></office:document-content>"##
         );
-        let grid = |doc: &Document| match doc
-            .body
-            .iter()
-            .find_map(|b| if let strix_doc::Block::Table(t) = &**b { Some(t.grid.clone()) } else { None })
-        {
-            Some(g) => g,
-            None => panic!("no table"),
-        };
+        let grid =
+            |doc: &Document| match doc.body.iter().find_map(|b| if let strix_doc::Block::Table(t) = &**b { Some(t.grid.clone()) } else { None }) {
+                Some(g) => g,
+                None => panic!("no table"),
+            };
         let mut doc = import(&package(&content, None)).unwrap();
         assert_eq!(grid(&doc), vec![72.0, 216.0]);
         let widths = vec![150.0, 100.0];

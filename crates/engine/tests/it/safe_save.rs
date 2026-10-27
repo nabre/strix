@@ -91,9 +91,9 @@ fn temporary_links_cannot_redirect_a_save_into_the_original_or_a_neighbour() {
 #[test]
 fn failed_save_as_keeps_original_dirty_session_and_destination() {
     let d = Scratch::new();
-    let path = d.path("original.docx");
+    let path = d.path("original.xmath");
     let bytes = original(&path);
-    let blocked = d.path("blocked.docx");
+    let blocked = d.path("blocked.xmath");
     std::fs::create_dir(&blocked).unwrap();
     std::fs::write(blocked.join("keep"), b"Keep this destination.").unwrap();
     let mut s = Session::new(edited());
@@ -106,15 +106,15 @@ fn failed_save_as_keeps_original_dirty_session_and_destination() {
     assert_eq!(s.doc.plain_text(StoryRef::Body), before);
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
     assert_eq!(std::fs::read(blocked.join("keep")).unwrap(), b"Keep this destination.");
-    assert_eq!(d.names(), ["blocked.docx", "original.docx"]);
+    assert_eq!(d.names(), ["blocked.xmath", "original.xmath"]);
 }
 
 #[test]
 fn successful_save_as_keeps_original_and_updates_session_only_after_saving() {
     let d = Scratch::new();
-    let path = d.path("original.docx");
+    let path = d.path("original.xmath");
     let bytes = original(&path);
-    let copy = d.path("copy.docx");
+    let copy = d.path("copy.xmath");
     let mut s = Session::new(edited());
     s.path = Some(path.clone());
     s.dirty = true;
@@ -123,30 +123,30 @@ fn successful_save_as_keeps_original_and_updates_session_only_after_saving() {
     assert_eq!(s.path.as_ref(), Some(&copy));
     assert_eq!(std::fs::read(path).unwrap(), bytes);
     saved(&copy);
-    assert_eq!(d.names(), ["copy.docx", "original.docx"]);
+    assert_eq!(d.names(), ["copy.xmath", "original.xmath"]);
 }
 
 #[test]
 fn missing_parent_keeps_original_and_session_unchanged() {
     let d = Scratch::new();
-    let path = d.path("original.docx");
+    let path = d.path("original.xmath");
     let bytes = original(&path);
     let mut s = Session::new(edited());
     s.path = Some(path.clone());
     s.dirty = true;
-    assert!(s.run("file.saveAs", &json!({"path": d.path("missing/copy.docx")})).is_err());
+    assert!(s.run("file.saveAs", &json!({"path": d.path("missing/copy.xmath")})).is_err());
     assert!(s.dirty);
     assert_eq!(s.path, Some(path.clone()));
     assert_eq!(std::fs::read(path).unwrap(), bytes);
-    assert_eq!(d.names(), ["original.docx"]);
+    assert_eq!(d.names(), ["original.xmath"]);
 }
 
 #[test]
 fn encrypted_save_reopens_only_with_password_and_leaves_neighbours_alone() {
     let d = Scratch::new();
-    let path = d.path("contract.docx");
+    let path = d.path("contract.xmath");
     original(&path);
-    let neighbour = d.path("contract.docx.tmp");
+    let neighbour = d.path("contract.xmath.tmp");
     std::fs::write(&neighbour, b"Keep this sibling.").unwrap();
     io::save_path_with(&path, &edited(), Some("synthetic-test-password"), &io::ExportOptions::default()).unwrap();
     assert!(io::needs_password(&io::open_path(&path).unwrap_err()));
@@ -154,7 +154,7 @@ fn encrypted_save_reopens_only_with_password_and_leaves_neighbours_alone() {
     assert!(encrypted);
     assert_eq!(doc.plain_text(StoryRef::Body), edited().plain_text(StoryRef::Body));
     assert_eq!(std::fs::read(&neighbour).unwrap(), b"Keep this sibling.");
-    assert_eq!(d.names(), ["contract.docx", "contract.docx.tmp"]);
+    assert_eq!(d.names(), ["contract.xmath", "contract.xmath.tmp"]);
 }
 
 #[cfg(unix)]

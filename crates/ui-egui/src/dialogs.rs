@@ -1494,10 +1494,7 @@ impl Dialog {
         let st = app.session.doc.styles.get(id)?;
         let rc = app.session.doc.styles.resolve_char(
             if st.kind == strix_doc::StyleKind::Paragraph { Some(id) } else { None },
-            &strix_doc::CharProps {
-                style: if st.kind == strix_doc::StyleKind::Character { Some(id.into()) } else { None },
-                ..Default::default()
-            },
+            &strix_doc::CharProps { style: if st.kind == strix_doc::StyleKind::Character { Some(id.into()) } else { None }, ..Default::default() },
         );
         let rp = app.session.doc.styles.resolve_para(&strix_doc::ParaProps { style: Some(id.into()), ..Default::default() });
         Some(Dialog::ModifyStyle {

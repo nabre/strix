@@ -250,9 +250,7 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
         let mut i = app.session.initials.clone();
         let hint = app.session.user_initials();
         if ui
-            .add(
-                egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(strix_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint),
-            )
+            .add(egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(strix_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint))
             .labelled_by(initials_label.id)
             .changed()
         {

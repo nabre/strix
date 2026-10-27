@@ -183,6 +183,7 @@ spyware
 stakeholder
 standup
 startup
+strix
 subfolder
 sunscreen
 superfood
@@ -232,7 +233,6 @@ wifi
 wiki
 wikipedia
 wireframe
-strix
 workaround
 workflow
 workforce

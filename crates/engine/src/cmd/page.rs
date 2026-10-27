@@ -1144,9 +1144,8 @@ mod tests {
     /// there breaks the word.
     #[test]
     fn hyphenation_options_and_manual_hyphenation() {
-        let mut s = Session::new(strix_doc::Document::from_text(
-            &"a extraordinarily be uncharacteristic of responsibilities the considerations ".repeat(12),
-        ));
+        let mut s =
+            Session::new(strix_doc::Document::from_text(&"a extraordinarily be uncharacteristic of responsibilities the considerations ".repeat(12)));
         let r = s.run("layout.hyphenation", &json!({"zone": 36, "caps": false, "limit": 3})).unwrap();
         assert_eq!(r, json!({"value": false, "zone": 36.0, "caps": false, "limit": 3}));
         s.run("layout.hyphenation", &json!({})).unwrap();

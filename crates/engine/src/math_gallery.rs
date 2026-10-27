@@ -543,9 +543,7 @@ mod tests {
     fn has_leftover(a: &[MNode]) -> bool {
         a.iter().any(|n| match n {
             MNode::Run(r) => r.text.contains('⬚') || r.text.contains('▒') || r.text.contains('┬') || r.text.contains('┴'),
-            other => {
-                (0..strix_doc::math_edit::child_count(other)).any(|c| strix_doc::math_edit::child(other, c).is_some_and(|x| has_leftover(x)))
-            }
+            other => (0..strix_doc::math_edit::child_count(other)).any(|c| strix_doc::math_edit::child(other, c).is_some_and(|x| has_leftover(x))),
         })
     }
 
@@ -556,9 +554,7 @@ mod tests {
         a.windows(2).any(|w| {
             matches!(w[0], MNode::Lim { .. } | MNode::Script { .. })
                 && matches!(&w[1], MNode::Run(r) if r.text.starts_with(|c: char| c.is_alphabetic()))
-        }) || a
-            .iter()
-            .any(|n| (0..strix_doc::math_edit::child_count(n)).any(|c| strix_doc::math_edit::child(n, c).is_some_and(|x| split_operand(x))))
+        }) || a.iter().any(|n| (0..strix_doc::math_edit::child_count(n)).any(|c| strix_doc::math_edit::child(n, c).is_some_and(|x| split_operand(x))))
     }
 
     #[test]

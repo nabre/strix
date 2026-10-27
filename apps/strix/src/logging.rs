@@ -604,9 +604,7 @@ mod tests {
                 let l = std::sync::Arc::clone(&logger);
                 std::thread::spawn(move || {
                     for i in 0..100 {
-                        l.log(
-                            &log::Record::builder().level(log::Level::Info).target("strix").args(format_args!("thread {t} record {i}")).build(),
-                        );
+                        l.log(&log::Record::builder().level(log::Level::Info).target("strix").args(format_args!("thread {t} record {i}")).build());
                     }
                 })
             })

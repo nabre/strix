@@ -389,10 +389,7 @@ fn cjk_catalogs_are_covered_by_the_embedded_interface_faces() {
         // So the interface reads no installed CJK font for these languages.
         let mut texts: Vec<&str> = l.catalog_texts().collect();
         texts.push(&names);
-        assert_eq!(
-            strix_fonts::ui_uncovered_cjk(&texts, &strix_fonts::ui_cjk_fonts_for(l.prefers_hans(), l.prefers_korean())),
-            Vec::<char>::new()
-        );
+        assert_eq!(strix_fonts::ui_uncovered_cjk(&texts, &strix_fonts::ui_cjk_fonts_for(l.prefers_hans(), l.prefers_korean())), Vec::<char>::new());
     }
 }
 

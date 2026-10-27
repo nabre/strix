@@ -1603,7 +1603,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("strix-backstage-save-repro-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("Document1.docx");
+        let path = dir.join("Document1.xmath");
 
         let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Hello from the repro"})).unwrap();

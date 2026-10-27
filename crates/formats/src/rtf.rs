@@ -3397,9 +3397,7 @@ mod tests {
         };
         let Some(strix_doc::Block::Para(p)) = doc.body.first().map(|b| &**b) else { panic!("no paragraph") };
         p.run_ranges()
-            .map(|(r, cp)| {
-                (p.text[r].to_string(), rev(cp.ins, strix_doc::RevisionKind::Insert), rev(cp.del, strix_doc::RevisionKind::Delete))
-            })
+            .map(|(r, cp)| (p.text[r].to_string(), rev(cp.ins, strix_doc::RevisionKind::Insert), rev(cp.del, strix_doc::RevisionKind::Delete)))
             .collect()
     }
 
@@ -3541,10 +3539,8 @@ mod tests {
         // "Bold" was made bold by Alice; before, it was plain italic.
         let old = CharProps { italic: Some(true), ..Default::default() };
         let cp = CharProps { bold: Some(true), fmt_change: PropChange::boxed(0, old), ..Default::default() };
-        let doc = doc_with(
-            vec![strix_doc::Paragraph::with_text("Bold", cp)],
-            vec![Revision::new(RevisionKind::Format, "Alice", "2024-03-15T10:30:00Z")],
-        );
+        let doc =
+            doc_with(vec![strix_doc::Paragraph::with_text("Bold", cp)], vec![Revision::new(RevisionKind::Format, "Alice", "2024-03-15T10:30:00Z")]);
         let rtf = export(&doc);
         assert!(rtf.contains("\\crauth1\\crdate-1480361314"), "{rtf}");
         assert!(rtf.contains("{\\*\\oldcprops"), "{rtf}");

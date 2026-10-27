@@ -308,8 +308,7 @@ fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
     let nodes = vec![strix_doc::math::MNode::Run(strix_doc::math::MRun { text: s.clone(), lit: true, ..Default::default() })];
     paint_math(app, ui, r, &format!("sym:{s}"), &s, Some(nodes), false, 11.0);
     let display = math_placeholder(ui, &s);
-    let name =
-        strix_doc::math_symbols::name_of(c).map(|n| format!("{display}  \\{n}")).unwrap_or_else(|| format!("{display}  U+{:04X}", c as u32));
+    let name = strix_doc::math_symbols::name_of(c).map(|n| format!("{display}  \\{n}")).unwrap_or_else(|| format!("{display}  U+{:04X}", c as u32));
     resp.on_hover_text(name).clicked()
 }
 
@@ -403,6 +402,42 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 "equation.number",
                 json!({}),
                 numbered,
+            );
+        });
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing = vec2(1.0, 0.0);
+            let info = app.session.run("equation.get", &json!({})).ok();
+            let calc = info.as_ref().and_then(|v| v.get("calc")).and_then(|v| v.as_bool()).unwrap_or(false);
+            small(
+                ui,
+                app,
+                "formula",
+                Some("Calculate"),
+                "Make this equation a live calculation: define with := and show results with =",
+                "equation.calc",
+                json!({}),
+                calc,
+            );
+            let by_default = app.session.prefs.calc_new_equations;
+            small(
+                ui,
+                app,
+                "check",
+                Some("Calculate New Equations"),
+                "New equations are live calculations",
+                "calc.newEquations",
+                json!({}),
+                by_default,
+            );
+            small(
+                ui,
+                app,
+                "equation",
+                Some("Recalculate"),
+                "Recalculate every calculation in the document (F9)",
+                "calc.recalculate",
+                json!({}),
+                false,
             );
         });
         ui.vertical(|ui| {

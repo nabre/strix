@@ -1627,8 +1627,7 @@ mod tests {
         /// gallery shows the same names — right-click the row, and report whether its Delete is
         /// greyed out.
         fn delete_is_disabled(style: &str) -> bool {
-            let mut app =
-                crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Hello")), crate::Services::default());
+            let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::from_text("Hello")), crate::Services::default());
             app.run("styles.create", serde_json::json!({"name": "Callout"})).unwrap();
             // The pane writes in the "semibold" family, which the app installs with the rest of the
             // interface fonts (`chrome::title_bar`). Fonts take effect the frame after they are set,

@@ -1164,8 +1164,7 @@ fn caption_label(p: &Paragraph, text: &str) -> Option<String> {
                 t.chars().any(char::is_alphanumeric).then(|| t.to_string())
             };
             let first = fields.first().map_or(0, |(o, _)| *o);
-            let after_previous =
-                i.checked_sub(1).and_then(|k| fields.get(k)).map_or(0, |(o, _)| o.saturating_add(strix_doc::para::OBJ.len_utf8()));
+            let after_previous = i.checked_sub(1).and_then(|k| fields.get(k)).map_or(0, |(o, _)| o.saturating_add(strix_doc::para::OBJ.len_utf8()));
             said(0, first).or_else(|| said(after_previous, *seq_at)).or_else(|| instr.split_whitespace().nth(1).map(|id| id.replace('_', " ")))?
         }
         None => text.get(..text.find(|c: char| c.is_ascii_digit())?)?.trim().to_string(),

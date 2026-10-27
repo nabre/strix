@@ -2,6 +2,7 @@
 //! Command implementations, one module per area. Each module exposes `specs()`.
 
 pub mod accessibility;
+pub mod calc;
 pub mod canvas;
 pub mod caret;
 pub mod chart;
@@ -12,7 +13,6 @@ pub mod controls;
 pub mod design;
 pub mod draw;
 pub mod edit;
-pub mod calc;
 pub mod equation;
 pub mod fields;
 pub mod file;

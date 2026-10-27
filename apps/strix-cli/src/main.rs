@@ -537,6 +537,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                 if Path::new(out).is_dir() {
                     return Err(format!("{out}: is a folder, not a file").into());
                 }
+                strix_engine::io::check_writable(out).map_err(|e| format!("{out}: {e}"))?;
                 if !out.to_ascii_lowercase().ends_with(".png") {
                     strix_engine::io::save_bytes(out, &s.doc)?;
                 }
@@ -922,9 +923,7 @@ mod tests {
         let (roots, _) = automation_roots("mcp", &args(&["--automation-read-root", &read])).unwrap();
         let roots = roots.unwrap();
         assert!(roots.write_root().is_none());
-        assert!(
-            roots.check(&format!("{write}/x.docx"), strix_engine::file_access::Access::Write).unwrap_err().contains("write authority is absent")
-        );
+        assert!(roots.check(&format!("{write}/x.docx"), strix_engine::file_access::Access::Write).unwrap_err().contains("write authority is absent"));
 
         // No flags: nothing is confined and the arguments pass through.
         let (roots, left) = automation_roots("mcp", &args(&["--connect", "127.0.0.1:9"])).unwrap();
@@ -1107,8 +1106,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
-        let docx_path = dir.join("sample.docx");
-        // Create sample docx via `run --save sample.docx`
+        let docx_path = dir.join("sample.xmath");
+        // Create sample Strix document via `run --save sample.xmath`
         assert!(run(&args(&["run", "--template", "sample", "--save", &docx_path.to_string_lossy()])).is_ok());
         assert!(docx_path.exists());
 
@@ -1186,15 +1185,15 @@ mod tests {
     }
 
     #[test]
-    fn script_builds_a_document_and_saves_docx_and_pdf_relative_to_the_script() {
+    fn script_builds_a_document_and_saves_xmath_and_pdf_relative_to_the_script() {
         let dir = script_dir("two");
         let script = write_script(
             &dir,
-            r#"{"template":"blank","commands":[{"command":"text.insert","params":{"text":"Hello script"}},{"command":"format.bold"}],"save":["out.docx","out.pdf"]}"#,
+            r#"{"template":"blank","commands":[{"command":"text.insert","params":{"text":"Hello script"}},{"command":"format.bold"}],"save":["out.xmath","out.pdf"]}"#,
         );
         run(&args(&["run", "--script", &script])).unwrap();
         assert!(std::fs::read(dir.join("out.pdf")).unwrap().starts_with(b"%PDF"));
-        let doc = open(&dir.join("out.docx"), None).unwrap().doc;
+        let doc = open(&dir.join("out.xmath"), None).unwrap().doc;
         let json = serde_json::to_string(&doc).unwrap();
         assert!(json.contains("Hello script") && json.contains("\"bold\":true"));
     }
@@ -1202,23 +1201,28 @@ mod tests {
     #[test]
     fn script_with_a_bad_output_writes_no_output() {
         let dir = script_dir("badout");
-        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.docx","b.xyz"]}"#);
+        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.xyz"]}"#);
         let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
         assert_eq!(e.matches("b.xyz").count(), 1, "{e}");
-        assert!(!dir.join("a.docx").exists());
-        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.docx","nope/b.docx"]}"#);
+        assert!(!dir.join("a.xmath").exists());
+        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","nope/b.xmath"]}"#);
         assert!(run(&args(&["run", "--script", &script])).is_err());
-        assert!(!dir.join("a.docx").exists());
+        assert!(!dir.join("a.xmath").exists());
+        // Word formats are import-only: a .docx output is refused before anything is written.
+        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.docx"]}"#);
+        let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
+        assert!(e.contains("only opens it"), "{e}");
+        assert!(!dir.join("a.xmath").exists() && !dir.join("b.docx").exists());
     }
 
     #[test]
     fn script_with_a_folder_as_output_writes_no_output() {
         let dir = script_dir("folderout");
         std::fs::create_dir(dir.join("b.pdf")).unwrap();
-        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.docx","b.pdf"]}"#);
+        let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.pdf"]}"#);
         let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
         assert!(e.contains("b.pdf"), "{e}");
-        assert!(!dir.join("a.docx").exists());
+        assert!(!dir.join("a.xmath").exists());
     }
 
     /// APFS refuses file names that aren't valid UTF-8, so the fixture can't be made on macOS
@@ -1231,19 +1235,19 @@ mod tests {
         let mut name = dir.as_os_str().to_os_string().into_vec();
         name.extend_from_slice(b"/caf\xe9.json");
         let path = PathBuf::from(OsString::from_vec(name));
-        std::fs::write(&path, r#"{"commands":["caret.docEnd"],"save":["o.txt"]}"#).unwrap();
+        std::fs::write(&path, r#"{"commands":["caret.docEnd"],"save":["o.md"]}"#).unwrap();
         let raw = vec![OsString::from("run"), OsString::from("--script"), path.into_os_string()];
         run(&raw).unwrap();
-        assert!(dir.join("o.txt").exists());
+        assert!(dir.join("o.md").exists());
     }
 
     #[test]
     fn command_line_template_wins_over_the_scripts_file() {
         let dir = script_dir("source");
-        let input = dir.join("in.docx");
+        let input = dir.join("in.xmath");
         run(&args(&["run", "--template", "blank", "--cmd", "text.insert={\"text\":\"FROM FILE\"}", "--save", &input.to_string_lossy()])).unwrap();
-        let script = write_script(&dir, r#"{"file":"in.docx","commands":["caret.docEnd"]}"#);
-        let (a, b) = (dir.join("a.txt"), dir.join("b.txt"));
+        let script = write_script(&dir, r#"{"file":"in.xmath","commands":["caret.docEnd"]}"#);
+        let (a, b) = (dir.join("a.md"), dir.join("b.md"));
         run(&args(&["run", "--script", &script, "--template", "blank", "--save", &a.to_string_lossy()])).unwrap();
         assert!(!std::fs::read_to_string(&a).unwrap().contains("FROM FILE"));
         run(&args(&["run", "--script", &script, "--save", &b.to_string_lossy()])).unwrap();
@@ -1270,7 +1274,7 @@ mod tests {
     fn script_commands_run_before_cmd_flags() {
         let dir = script_dir("order");
         let script = write_script(&dir, r#"{"commands":[{"command":"text.insert","params":{"text":"first"}}]}"#);
-        let out = dir.join("o.txt");
+        let out = dir.join("o.md");
         run(&args(&["run", "--script", &script, "--cmd", "text.insert={\"text\":\" second\"}", "--save", &out.to_string_lossy()])).unwrap();
         assert!(std::fs::read_to_string(&out).unwrap().contains("first second"));
     }
@@ -1278,11 +1282,13 @@ mod tests {
     #[test]
     fn script_failure_names_the_command_and_writes_nothing() {
         let dir = script_dir("fail");
-        let script =
-            write_script(&dir, r#"{"commands":[{"command":"text.insert","params":{"text":"x"}},{"command":"no.such.command"}],"save":["out.docx"]}"#);
+        let script = write_script(
+            &dir,
+            r#"{"commands":[{"command":"text.insert","params":{"text":"x"}},{"command":"no.such.command"}],"save":["out.xmath"]}"#,
+        );
         let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
         assert!(e.contains("command 2") && e.contains("no.such.command"), "{e}");
-        assert!(!dir.join("out.docx").exists());
+        assert!(!dir.join("out.xmath").exists());
     }
 
     #[test]

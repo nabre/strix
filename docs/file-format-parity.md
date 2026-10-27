@@ -20,20 +20,23 @@ Both hold exactly the OOXML (OPC) package the `.docx` and `.dotx` writers produc
 reader limits and the same atomic save (`crates/docx/src/package.rs`,
 `crates/engine/src/io/safe_save.rs`): a `.xmath` is the `Document` flavour, a `.xmathm` the
 `Template` flavour, so renaming one to `.docx`/`.dotx` opens it in Word. Password encryption works
-for both. Everything else in the table below is imported (Open) or exported (Save As, Export).
+for both. Calculated equations carry `strix:calc="1"` (docs/calc.md), which no other format
+keeps, so **every other editable format is import-only**: Strix opens `.docx`, `.docm`, `.dotx`,
+`.dotm`, `.doc`, `.odt`, `.rtf`, `.txt`, Word XML and the rest, but never writes them. Static
+copies go out as PDF, PNG, LaTeX (`.tex`), HTML and Markdown (`io::EXPORT_EXTS`). The write
+columns of the table below describe the inherited writers, kept for internal use and tests only.
 
 - **Save** (`file.save` without a path) writes in place only a `.xmath`/`.xmathm`. A new document
   asks where (Save As); a document opened from any other format asks where in the app, with a
   `.xmath` of the same name proposed (`.xmathm` for a Word template), and a script or agent gets an
   error telling it to use `file.saveAs` with a `.xmath` path. The opened file is never written over
   by a plain Save.
-- **Save As** (`file.saveAs`, or `file.save` with a path) writes the format the extension names; a
-  name without one gets `.xmath`. Formats that keep everything (`.docx`, `.docm`, `.dotx`, `.dotm`,
-  `.odt`, `.rtf`, `.json`, `.xml`) become the document's file after a Save As, as in Word; the next
-  plain Save then asks for a `.xmath`. The rest are copies.
-- **Save as Template** (`file.saveTemplate`) writes a `.xmathm` unless the name already ends in a
-  template extension (`.dotx`/`.dotm` export a Word template). The personal templates folder lists
-  `.xmathm`, `.dotx` and `.dotm`.
+- **Save As** (`file.saveAs`, or `file.save` with a path) writes a `.xmath`/`.xmathm` (a name
+  without an extension gets `.xmath`) or a static export (PDF, PNG, LaTeX, HTML, Markdown), which
+  is a copy: the document keeps its Strix file. Any other extension is refused with what to do
+  instead (`io::check_writable`); so are mail merge to a file and the command line's outputs.
+- **Save as Template** (`file.saveTemplate`) always writes a `.xmathm`. The personal templates
+  folder lists `.xmathm`, and still `.dotx`/`.dotm` to start documents from.
 - **AutoSave** covers only a `.xmath`/`.xmathm` saved in this session.
 - **Dialogs**: Open offers "Strix documents (*.xmath, *.xmathm)" first, then all supported files,
   then each import format; Save As offers Strix Document (`.xmath`, the default) and Strix

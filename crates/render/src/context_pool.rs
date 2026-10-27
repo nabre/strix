@@ -64,11 +64,11 @@ impl ContextPool {
 mod tests {
     use super::*;
     use crate::{MAX_SIDE, RenderOptions, Rendered, render_page, render_region};
-    use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
-    use vello_cpu::{Resources, peniko};
     use strix_doc::props::{Highlight, Rgb};
     use strix_doc::{Document, Pos};
     use strix_layout::{LayoutCache, LayoutOptions, Page, layout};
+    use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
+    use vello_cpu::{Resources, peniko};
 
     /// Draw a scene that uses what the renderer uses (fills, strokes, transforms, a gradient,
     /// both fill rules, opacity and clip layers) across a `w`×`h` context and rasterise it. It

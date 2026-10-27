@@ -165,11 +165,19 @@ fn exports_leave_the_strix_document_its_file() {
     let mut s = session("Chapter one");
     s.run("file.saveAs", &json!({"path": native.to_string_lossy()})).unwrap();
     s.run("text.insert", &json!({"text": "!"})).unwrap();
-    for copy in ["book.md", "book.txt", "book.html"] {
+    for copy in ["book.md", "book.pdf", "book.html"] {
         s.run("file.saveAs", &json!({"path": dir.join(copy).to_string_lossy()})).unwrap();
         assert!(dir.join(copy).is_file());
         assert_eq!(s.path.as_deref(), Some(native.as_path()), "{copy} is a copy");
         assert!(s.dirty, "{copy} leaves the document unsaved");
+    }
+    // Import-only formats are never written.
+    for refused in ["book.txt", "book.docx", "book.odt"] {
+        let e = s.run("file.saveAs", &json!({"path": dir.join(refused).to_string_lossy()})).unwrap_err().to_string();
+        assert!(e.contains("only opens it"), "{refused}: {e}");
+        assert!(!dir.join(refused).exists(), "{refused} written");
+        assert_eq!(s.path.as_deref(), Some(native.as_path()));
+        assert!(s.dirty);
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

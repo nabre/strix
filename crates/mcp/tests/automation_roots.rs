@@ -132,8 +132,8 @@ fn saves_and_exports_go_only_into_the_write_root() {
     let sep = std::path::MAIN_SEPARATOR;
     ok(&mut server, "type_text", json!({"text": "Hello"}));
 
-    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.docx"))}));
-    assert!(base.join("out/doc.docx").is_file());
+    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.xmath"))}));
+    assert!(base.join("out/doc.xmath").is_file());
     ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.pdf"))}));
     ok(&mut server, "save_document", json!({"path": s(&base.join("out/page.png"))}));
     assert!(base.join("out/page.png").is_file());
@@ -144,25 +144,25 @@ fn saves_and_exports_go_only_into_the_write_root() {
     assert!(!error, "{text}");
     assert!(base.join("out/printed.pdf").is_file());
 
-    refused(&mut server, "save_document", json!({"path": s(&base.join("in/doc.docx"))}), "outside the write root");
+    refused(&mut server, "save_document", json!({"path": s(&base.join("in/doc.xmath"))}), "outside the write root");
     refused(&mut server, "save_document", json!({"path": s(&base.join("outside/doc.html"))}), "outside the write root");
     refused(&mut server, "save_document", json!({"path": s(&base.join("outside/page.png"))}), "outside the write root");
     refused(
         &mut server,
         "save_document",
-        json!({"path": format!("{}{sep}..{sep}outside{sep}up.docx", s(&base.join("out")))}),
+        json!({"path": format!("{}{sep}..{sep}outside{sep}up.xmath", s(&base.join("out")))}),
         "outside the write root",
     );
     let (error, text) = run(&mut server, "mailings.recipients", json!({"csv": "Name\nAda\n"}));
     assert!(!error, "{text}");
     for (command, params) in [
-        ("file.saveAs", json!({"path": s(&base.join("outside/x.docx"))})),
+        ("file.saveAs", json!({"path": s(&base.join("outside/x.xmath"))})),
         ("file.exportPdf", json!({"path": s(&base.join("outside/x.pdf"))})),
         ("file.printPdf", json!({"path": s(&base.join("outside/printed.pdf"))})),
         ("file.printPdf", json!({"path": format!("{}{sep}..{sep}outside{sep}up", s(&base.join("out")))})),
         ("file.exportPng", json!({"path": s(&base.join("outside/x.png"))})),
         ("file.saveTemplate", json!({"path": s(&base.join("outside/x.dotx"))})),
-        ("mailings.finish", json!({"path": s(&base.join("outside/merged.docx"))})),
+        ("mailings.finish", json!({"path": s(&base.join("outside/merged.xmath"))})),
     ] {
         let (error, text) = run(&mut server, command, params);
         assert!(error && text.contains("outside the write root"), "{command}: {text}");
@@ -173,20 +173,20 @@ fn saves_and_exports_go_only_into_the_write_root() {
         std::fs::read_dir(base.join("outside")).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
     written.sort();
     assert_eq!(written, ["pic.png", "secret.txt", "t.docx"], "nothing was written outside the roots");
-    assert!(!base.join("in/doc.docx").exists());
+    assert!(!base.join("in/doc.xmath").exists());
 }
 
 #[test]
 fn a_root_left_out_grants_none_of_its_access() {
     let (mut server, base) = confined("read-only", true, false);
     ok(&mut server, "open_document", json!({"path": s(&base.join("in/a.txt"))}));
-    refused(&mut server, "save_document", json!({"path": s(&base.join("out/doc.docx"))}), "write authority is absent");
-    refused(&mut server, "save_document", json!({"path": s(&base.join("in/doc.docx"))}), "write authority is absent");
-    assert!(!base.join("out/doc.docx").exists());
+    refused(&mut server, "save_document", json!({"path": s(&base.join("out/doc.xmath"))}), "write authority is absent");
+    refused(&mut server, "save_document", json!({"path": s(&base.join("in/doc.xmath"))}), "write authority is absent");
+    assert!(!base.join("out/doc.xmath").exists());
 
     let (mut server, base) = confined("write-only", false, true);
     refused(&mut server, "open_document", json!({"path": s(&base.join("in/a.txt"))}), "read authority is absent");
-    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.docx"))}));
+    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.xmath"))}));
 }
 
 #[test]
@@ -206,11 +206,12 @@ fn links_out_of_a_root_are_refused() {
         return;
     }
     refused(&mut server, "open_document", json!({"path": s(&base.join("in/leak.txt"))}), "outside the read root");
-    refused(&mut server, "save_document", json!({"path": s(&base.join("out/away/doc.docx"))}), "outside the write root");
-    assert!(!base.join("outside/doc.docx").exists());
+    refused(&mut server, "save_document", json!({"path": s(&base.join("out/away/doc.xmath"))}), "outside the write root");
+    assert!(!base.join("outside/doc.xmath").exists());
 }
 
 /// The names in `dir`, sorted.
+#[cfg(unix)]
 fn names(dir: &Path) -> Vec<String> {
     let mut names: Vec<String> = std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
     names.sort();
@@ -223,17 +224,17 @@ fn a_link_outside_the_write_root_into_it_is_not_written() {
     // #3735: the link's target is inside the write root, but a save replaces the link itself,
     // and its temporary file would sit beside it, outside.
     let (mut server, base) = confined("link-in", true, true);
-    std::fs::write(base.join("out/doc.docx"), "inside").unwrap();
-    std::os::unix::fs::symlink(base.join("out/doc.docx"), base.join("outside/alias.docx")).unwrap();
+    std::fs::write(base.join("out/doc.xmath"), "inside").unwrap();
+    std::os::unix::fs::symlink(base.join("out/doc.xmath"), base.join("outside/alias.xmath")).unwrap();
     let before = names(&base.join("outside"));
     ok(&mut server, "type_text", json!({"text": "Hello"}));
-    refused(&mut server, "save_document", json!({"path": s(&base.join("outside/alias.docx"))}), "outside the write root");
-    let (error, text) = run(&mut server, "file.exportPdf", json!({"path": s(&base.join("outside/alias.docx"))}));
+    refused(&mut server, "save_document", json!({"path": s(&base.join("outside/alias.xmath"))}), "outside the write root");
+    let (error, text) = run(&mut server, "file.exportPdf", json!({"path": s(&base.join("outside/alias.xmath"))}));
     assert!(error && text.contains("outside the write root"), "{text}");
     assert_eq!(names(&base.join("outside")), before, "no temporary file, nothing replaced");
-    assert!(std::fs::symlink_metadata(base.join("outside/alias.docx")).unwrap().file_type().is_symlink());
-    assert_eq!(std::fs::read_to_string(base.join("out/doc.docx")).unwrap(), "inside");
+    assert!(std::fs::symlink_metadata(base.join("outside/alias.xmath")).unwrap().file_type().is_symlink());
+    assert_eq!(std::fs::read_to_string(base.join("out/doc.xmath")).unwrap(), "inside");
     // Saving to the real file inside still works.
-    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.docx"))}));
-    assert_ne!(std::fs::read(base.join("out/doc.docx")).unwrap(), b"inside");
+    ok(&mut server, "save_document", json!({"path": s(&base.join("out/doc.xmath"))}));
+    assert_ne!(std::fs::read(base.join("out/doc.xmath")).unwrap(), b"inside");
 }

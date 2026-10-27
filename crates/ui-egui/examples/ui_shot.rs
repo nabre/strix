@@ -22,11 +22,8 @@ fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<ControlRequest>();
     let lines: Vec<serde_json::Value> =
         script.lines().filter(|l| !l.trim().is_empty()).map(|l| serde_json::from_str(l).expect("json line")).collect();
-    let doc = if lines.first().is_some_and(|l| l.get("empty").is_some()) {
-        strix_doc::Document::new()
-    } else {
-        strix_engine::sample::sample_document()
-    };
+    let doc =
+        if lines.first().is_some_and(|l| l.get("empty").is_some()) { strix_doc::Document::new() } else { strix_engine::sample::sample_document() };
     let mut app = WordApp::new(Session::new(doc), Services::default()).with_control(rx);
     app.integrated_titlebar = true;
     if lines.first().is_some_and(|l| l.get("startScreen").is_some()) {

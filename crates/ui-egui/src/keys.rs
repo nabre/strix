@@ -1238,12 +1238,9 @@ fn ime_delete_side(
     };
     // A control already showing its placeholder cannot have received a new one from this
     // deletion; its unchanged text must not be mistaken for a restored placeholder.
-    let showing_before =
-        app.session.doc.control_at(&strix_doc::Pos { off: end, ..cursor.clone() }).is_some_and(|r| r.control.showing_placeholder);
-    app.session.sel = strix_engine::Selection {
-        anchor: strix_doc::Pos { off: start, ..cursor.clone() },
-        focus: strix_doc::Pos { off: end, ..cursor.clone() },
-    };
+    let showing_before = app.session.doc.control_at(&strix_doc::Pos { off: end, ..cursor.clone() }).is_some_and(|r| r.control.showing_placeholder);
+    app.session.sel =
+        strix_engine::Selection { anchor: strix_doc::Pos { off: start, ..cursor.clone() }, focus: strix_doc::Pos { off: end, ..cursor.clone() } };
     if join_undo {
         app.session.join_next_undo();
     }
@@ -1392,10 +1389,8 @@ fn delete_surrounding_common(app: &mut WordApp, before: usize, after: usize, uni
         rollback.apply(app);
         return;
     }
-    app.session.sel = strix_engine::Selection {
-        anchor: strix_doc::Pos { off: anchor_off, ..cursor.clone() },
-        focus: strix_doc::Pos { off: focus_off, ..cursor },
-    };
+    app.session.sel =
+        strix_engine::Selection { anchor: strix_doc::Pos { off: anchor_off, ..cursor.clone() }, focus: strix_doc::Pos { off: focus_off, ..cursor } };
     if deleted {
         // Only the next `text.insert` at this exact selection may join the deletion; any
         // intervening ordinary command consumes and discards the promise and owns its own Undo

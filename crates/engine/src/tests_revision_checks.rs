@@ -425,12 +425,7 @@ fn slot_mut(doc: &mut strix_doc::Document, slot: Slot) -> &mut Option<strix_doc:
 /// A session whose note separator `slot` holds the text "SEP" as a tracked insertion (revision 0).
 fn tracked_separator_session(slot: Slot) -> Session {
     let mut doc = strix_doc::Document::new();
-    doc.revisions.push(strix_doc::Revision {
-        kind: strix_doc::RevisionKind::Insert,
-        author: "Alice".into(),
-        date: String::new(),
-        move_name: None,
-    });
+    doc.revisions.push(strix_doc::Revision { kind: strix_doc::RevisionKind::Insert, author: "Alice".into(), date: String::new(), move_name: None });
     let props = strix_doc::CharProps { ins: Some(0), ..Default::default() };
     let p = strix_doc::Paragraph::with_text("SEP", props);
     *slot_mut(&mut doc, slot) = Some(vec![strix_doc::para_block(p)]);

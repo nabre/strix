@@ -2426,3 +2426,12 @@ preview	Title	Esempio
 	Font size	Dimensione carattere
 	Font Size:	Dimensione carattere:
 	Entire Font	Carattere intero
+# Strix (2026-10-27): live calculations.
+	Calculate New Equations	Calcola nuove equazioni
+	Calculation Region	Regione di calcolo
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	File › Nuovo elenca qui i modelli .xmathm, .dotx e .dotm in Personali; Salva come modello Strix parte da qui.
+	Make this equation a live calculation: define with := and show results with =	Rendi questa equazione un calcolo dinamico: definisci con := e mostra i risultati con =
+	New equations are live calculations	Le nuove equazioni sono calcoli dinamici
+	Recalculate	Ricalcola
+	Recalculate every calculation in the document (F9)	Ricalcola tutti i calcoli del documento (F9)
+	Regions	Regioni

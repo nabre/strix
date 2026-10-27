@@ -15,7 +15,7 @@ const PNG: &[u8] = &[
 fn typing_after_insert_picture_keeps_it_in_the_saved_file() {
     let dir = std::env::temp_dir().join(format!("strix-cli-965-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let (pic, out) = (dir.join("pic.png"), dir.join("p.docx"));
+    let (pic, out) = (dir.join("pic.png"), dir.join("p.xmath"));
     std::fs::write(&pic, PNG).unwrap();
     let picture = format!(r#"insert.picture={{"path":{},"width":250}}"#, serde_json::json!(pic.to_string_lossy()));
     let cmds = [r#"text.insert={"text":"x"}"#, "text.newParagraph", &picture, "text.newParagraph", r#"text.insert={"text":"cap"}"#];

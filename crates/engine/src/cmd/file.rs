@@ -378,13 +378,14 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
             return Err(CmdError::Params("`password` must be a non-empty string (file.encrypt removes a password)".into()));
         };
         if !crate::io::can_encrypt(&path.to_string_lossy()) {
-            return Err(CmdError::Params("only Strix and Word documents (.xmath, .xmathm, .docx, .docm, .dotx, .dotm) can be saved with a password".into()));
+            return Err(CmdError::Params("only Strix documents (.xmath, .xmathm) can be saved with a password".into()));
         }
         strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
         s.clear_recovery_before_password()?;
         s.password = Some(crate::io::Password::new(pw));
     }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    crate::io::check_writable(&ext).map_err(CmdError::Params)?;
     let mut opts = export_options(s, v);
     match v.get("format").filter(|f| !f.is_null()) {
         None => {
@@ -413,8 +414,9 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     // A save in a format that doesn't keep everything (plain text, Markdown, a page image) is a
     // copy, except over the document's own file: a note.txt saved over itself by its path is
     // saved (#2376). A plain Save without a path only ever writes a Strix file (see above).
-    let own_file = s.path.as_deref() == Some(path.as_path());
-    if own_file || crate::io::is_native(&ext) || ["docx", "docm", "dotx", "dotm", "odt", "rtf", "json", "xml"].contains(&ext.as_str()) {
+    // A static export (PDF, PNG, LaTeX, HTML, Markdown) is a copy: only a Strix file becomes the
+    // document's own file.
+    if crate::io::is_native(&ext) {
         s.path = Some(path.clone());
         s.dirty = false;
         s.relayout();

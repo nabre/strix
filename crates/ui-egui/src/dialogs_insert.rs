@@ -784,8 +784,7 @@ fn glyph_texture(app: &mut WordApp, ctx: &egui::Context, font: &str, c: char) ->
 fn glyph_image(font: &str, c: char, ppp: f32) -> Option<egui::ColorImage> {
     use strix_doc::props::{Align, CharProps, LineSpacing};
     let size = 16.0;
-    let mut p =
-        strix_doc::Paragraph::with_text(&c.to_string(), CharProps { font: Some(font.to_string()), size: Some(size), ..Default::default() });
+    let mut p = strix_doc::Paragraph::with_text(&c.to_string(), CharProps { font: Some(font.to_string()), size: Some(size), ..Default::default() });
     p.props.align = Some(Align::Center);
     p.props.space_before = Some(((CELL - size * 1.3) / 2.0).max(0.0));
     p.props.space_after = Some(0.0);

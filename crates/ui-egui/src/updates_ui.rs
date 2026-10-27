@@ -57,7 +57,8 @@ impl WordApp {
 pub(crate) fn check(app: &mut WordApp) {
     if !UPDATE_CHANNEL {
         app.updates_rt.manual_window_open = true;
-        app.updates_rt.status_message = Some(crate::i18n::fmt(tl!("Automatic updates are not available yet. New versions are published at {url}"), &[("url", RELEASES_URL)]));
+        app.updates_rt.status_message =
+            Some(crate::i18n::fmt(tl!("Automatic updates are not available yet. New versions are published at {url}"), &[("url", RELEASES_URL)]));
         return;
     }
     #[cfg(not(target_arch = "wasm32"))]

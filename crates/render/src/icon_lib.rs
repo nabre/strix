@@ -18,9 +18,9 @@
 
 use std::sync::OnceLock;
 
+use strix_doc::props::Rgb;
 use vello_cpu::Resources;
 use vello_cpu::kurbo::{self, Affine, BezPath};
-use strix_doc::props::Rgb;
 
 use crate::Rendered;
 

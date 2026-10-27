@@ -5,9 +5,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 
-use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
-use vello_cpu::peniko;
-use vello_cpu::{Pixmap, RenderContext, Resources};
 use strix_doc::Document;
 use strix_doc::para::ShapeKind;
 use strix_doc::props::Rgb;
@@ -16,6 +13,9 @@ use strix_layout::Page;
 use strix_layout::display::Paint;
 use strix_layout::display::{DisplayOptions, Draw, Stroke, page_layers};
 use strix_metafile::{Item, Picture, PlacedItem, Seg};
+use vello_cpu::kurbo::{self, Affine, BezPath, Shape};
+use vello_cpu::peniko;
+use vello_cpu::{Pixmap, RenderContext, Resources};
 
 mod color_glyph;
 pub mod icon_lib;
@@ -2350,15 +2350,8 @@ mod tests {
                 let mut d = Document::new();
                 let media = d.add_media(bytes.clone(), ext);
                 let mut p = strix_doc::Paragraph::new();
-                let obj = strix_doc::para::InlineObject::Image {
-                    media,
-                    w: 70.0,
-                    h: 70.0,
-                    alt: String::new(),
-                    float: Default::default(),
-                    crop,
-                    ole: None,
-                };
+                let obj =
+                    strix_doc::para::InlineObject::Image { media, w: 70.0, h: 70.0, alt: String::new(), float: Default::default(), crop, ole: None };
                 p.insert_object(0, obj, &Default::default()).unwrap();
                 d.body = vec![strix_doc::para_block(p)];
                 let l = layout(&d, &mut LayoutCache::new(), &LayoutOptions::default());

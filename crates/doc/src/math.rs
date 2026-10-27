@@ -31,6 +31,10 @@ pub struct Math {
     /// Shown as its linear-format text (Equation › Convert › Linear) instead of built up.
     #[serde(default, skip_serializing_if = "is_default")]
     pub linear: bool,
+    /// A live calculation region (docs/calc.md): evaluated with the document's other calculated
+    /// equations and its result written back. Saved as `strix:calc="1"` on `m:oMath`.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub calc: bool,
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {

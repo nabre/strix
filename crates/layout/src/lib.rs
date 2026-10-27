@@ -4179,9 +4179,10 @@ fn place_para_in_flow(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block:
         // A paragraph that starts with a page break starts on the new page, its space before
         // there (Word).
         let starts_with_break = l0 == 1
-            && pl.lines.first().is_some_and(|l| {
-                p.text.get(l.start..l.stop).is_some_and(|t| !t.is_empty() && t.chars().all(|c| c == strix_doc::para::PAGE_BREAK))
-            });
+            && pl
+                .lines
+                .first()
+                .is_some_and(|l| p.text.get(l.start..l.stop).is_some_and(|t| !t.is_empty() && t.chars().all(|c| c == strix_doc::para::PAGE_BREAK)));
         match forced_break {
             Some(LineEnd::PageBreak) if mark_with_break => {
                 pb.new_page(block, body_top);

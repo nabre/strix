@@ -921,10 +921,10 @@ mod tests {
         assert_eq!((text(&a), a.ui.tab.as_str(), prompt(&a)), ("Second".into(), crate::DEFAULT_TAB, None));
     }
 
-    fn docx_on_disk(name: &str, body: &str) -> std::path::PathBuf {
+    fn strix_file_on_disk(name: &str, body: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("strix-windows-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join(format!("{name}.docx"));
+        let path = dir.join(format!("{name}.xmath"));
         let mut s = Session::new(strix_doc::Document::new());
         s.run("text.insert", &json!({"text": body})).unwrap();
         s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
@@ -935,7 +935,7 @@ mod tests {
     /// untouched blank document open replaces it in its own window.
     #[test]
     fn open_focuses_the_files_window_or_reuses_a_blank_one() {
-        let path = docx_on_disk("report", "Report");
+        let path = strix_file_on_disk("report", "Report");
         let ctx = backend();
         let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         frames(&ctx, &mut a, 2);
@@ -965,7 +965,7 @@ mod tests {
     fn closing_a_window_asks_first_and_the_root_adopts_another() {
         let ctx = backend();
         let mut a = app("Kept");
-        a.run("file.save", json!({"path": docx_on_disk("kept", "Kept").to_string_lossy()})).unwrap();
+        a.run("file.save", json!({"path": strix_file_on_disk("kept", "Kept").to_string_lossy()})).unwrap();
         let kept = a.session.document_id();
         frames(&ctx, &mut a, 2);
         a.run("file.new", json!({})).unwrap();
@@ -1320,7 +1320,7 @@ mod tests {
         let ctx = backend();
         let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         frames(&ctx, &mut a, 2);
-        a.run("file.open", json!({"path": docx_on_disk("first", "First").to_string_lossy()})).unwrap();
+        a.run("file.open", json!({"path": strix_file_on_disk("first", "First").to_string_lossy()})).unwrap();
         a.run("file.new", json!({})).unwrap();
         frames(&ctx, &mut a, 2);
         assert!(a.window_count() == 2 && a.session.is_untouched_blank());
@@ -1336,7 +1336,7 @@ mod tests {
     /// Finder (between frames, in the focused window).
     #[test]
     fn every_open_replaces_an_untouched_blank_document_in_its_window() {
-        let second = docx_on_disk("second", "Second");
+        let second = strix_file_on_disk("second", "Second");
         let path = second.to_string_lossy().to_string();
         let opens: [(&str, fn(&mut WordApp, &egui::Context, &Shown, &str)); 3] = [
             ("dialog", |a, ctx, shown, path| {

@@ -28,7 +28,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("insert.equation", "Equation", "Insert › Symbols", insert)
             .key("Alt+=")
-            .params(r#"{"linear"?: string, "latex"?: string, "builtin"?: "pythagoras|area|quadratic|binomial|expansion|euler|derivative|taylor|gaussian|fourier|trig1|trig2|normal|bayes", "display"?: bool, "edit"?: bool (default true)}"#),
+            .params(r#"{"linear"?: string, "latex"?: string, "builtin"?: "pythagoras|area|quadratic|binomial|expansion|euler|derivative|taylor|gaussian|fourier|trig1|trig2|normal|bayes", "display"?: bool, "edit"?: bool (default true), "calc"?: bool (a calculation region; default calc.newEquations)}"#),
         CommandSpec::new("equation.edit", "Edit Equation", "Equation", edit)
             .pure()
             .when(near_equation)
@@ -85,7 +85,7 @@ fn near_equation_or_all(_: &Session) -> Option<&'static str> {
 }
 
 /// The equation the caret is at: on its U+FFFC or just after it (or the one being edited).
-fn equation_at_caret(s: &Session) -> Option<Pos> {
+pub(crate) fn equation_at_caret(s: &Session) -> Option<Pos> {
     if let Some(m) = &s.math {
         return Some(m.at.clone());
     }
@@ -237,7 +237,8 @@ fn insert_nodes_as_equation(s: &mut Session, nodes: Arg, v: &Value) -> CmdResult
         Some(p) if !nodes.is_empty() => p,
         _ => MathPos::new(Vec::new(), me::units(&nodes)),
     };
-    let obj = InlineObject::Equation { linear, display, math: Math { nodes, ..Default::default() } };
+    let calc = p::bool(v, "calc").unwrap_or(s.prefs.calc_new_equations);
+    let obj = InlineObject::Equation { linear, display, math: Math { nodes, calc, ..Default::default() } };
     let end = s.doc.insert_object(&at, obj, &props)?;
     if p::bool(v, "edit").unwrap_or(true) {
         let Some(session) = crate::next_math_session() else {
@@ -772,6 +773,7 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
         "latex": to_latex(&nodes),
         "display": display,
         "linearForm": math.linear,
+        "calc": math.calc,
         "editing": s.math.is_some(),
         "pos": s.math.as_ref().map(|m| serde_json::to_value(&m.pos).unwrap_or(Value::Null)),
         "at": super::pos_json(&at),

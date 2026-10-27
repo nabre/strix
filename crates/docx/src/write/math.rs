@@ -44,7 +44,8 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
             w.close("m:oMathParaPr");
         }
     }
-    if !math.omml.is_empty() && math.omml.starts_with("<m:oMath") && crate::xml::parse(wrap_ns(&math.omml).as_bytes()).is_ok() {
+    // A calculated equation is written from its nodes: the source XML can't carry the flag.
+    if !math.calc && !math.omml.is_empty() && math.omml.starts_with("<m:oMath") && crate::xml::parse(wrap_ns(&math.omml).as_bytes()).is_ok() {
         w.raw(&math.omml);
     } else {
         let parsed;
@@ -54,7 +55,7 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
         } else {
             &math.nodes
         };
-        w.open("m:oMath", &[]);
+        w.open("m:oMath", if math.calc { &[("strix:calc", "1")] } else { &[] });
         arg_inner(w, nodes, 0);
         w.close("m:oMath");
     }

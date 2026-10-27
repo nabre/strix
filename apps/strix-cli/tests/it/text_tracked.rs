@@ -12,7 +12,7 @@ fn text_omits_tracked_deletions() {
     let dir = std::env::temp_dir().join(format!("wc-cli-866-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("t.docx");
+    let path = dir.join("t.xmath");
     let path_s = path.to_str().unwrap();
 
     let make = cli()

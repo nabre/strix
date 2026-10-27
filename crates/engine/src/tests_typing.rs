@@ -2235,14 +2235,14 @@ fn an_overlong_word_is_not_added_as_an_exception() {
 /// Each body paragraph's laid-out number (`None`: none) and its style.
 fn numbers(s: &mut Session) -> Vec<(Option<String>, String)> {
     let l = s.layout();
-    let labels: Vec<Option<String>> = l
-        .pages
-        .iter()
-        .flat_map(|p| &p.items)
-        .filter_map(|i| {
-            if let strix_layout::Placed::Lines { para, l0: 0, .. } = i { Some(para.label.as_ref().map(|lb| lb.text.clone())) } else { None }
-        })
-        .collect();
+    let labels: Vec<Option<String>> =
+        l.pages
+            .iter()
+            .flat_map(|p| &p.items)
+            .filter_map(|i| {
+                if let strix_layout::Placed::Lines { para, l0: 0, .. } = i { Some(para.label.as_ref().map(|lb| lb.text.clone())) } else { None }
+            })
+            .collect();
     let styles = s.doc.body.iter().filter_map(|b| b.as_para()).map(|p| p.props.style.clone().unwrap_or_else(|| "Normal".into()));
     labels.into_iter().zip(styles).collect()
 }

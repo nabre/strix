@@ -36,8 +36,25 @@ pub const OPEN_EXTS: &[&str] = &[
     "wcraft.json",
     "json",
 ];
-/// Formats Strix saves (Save As): its own first, then the ones it exports.
-pub const SAVE_EXTS: &[&str] = &[NATIVE_DOC_EXT, NATIVE_TEMPLATE_EXT, "docx", "docm", "dotx", "dotm", "pdf", "txt", "md", "html", "rtf", "odt", "tex", "png", "json", "xml"];
+/// Static copies Strix exports (File › Export, Save As with one of these): the document itself stays
+/// a Strix file, because only `.xmath`/`.xmathm` keep live calculations and drawings.
+pub const EXPORT_EXTS: &[&str] = &["pdf", "png", "tex", "html", "md"];
+/// Formats Strix saves (Save As): its own first, then the static exports. Every other format it
+/// opens (.docx, .odt, .rtf, .txt, .xml …) is import-only.
+pub const SAVE_EXTS: &[&str] = &[NATIVE_DOC_EXT, NATIVE_TEMPLATE_EXT, "pdf", "png", "tex", "html", "md"];
+
+/// Whether a user-facing save may write `ext_or_name` (a bare extension or a file name): a Strix
+/// file or a static export. The error says what to do instead.
+pub fn check_writable(ext_or_name: &str) -> Result<(), String> {
+    let ext = ext_named(ext_or_name);
+    if is_native(&ext) || EXPORT_EXTS.contains(&ext.as_str()) {
+        return Ok(());
+    }
+    let shown = if ext.is_empty() { "this format".to_string() } else { format!(".{ext}") };
+    Err(format!(
+        "Strix can't save {shown}: it only opens it. Save as a Strix document (.{NATIVE_DOC_EXT}) or template (.{NATIVE_TEMPLATE_EXT}), which keep live calculations and drawings, or export a static copy as PDF, PNG, LaTeX, HTML or Markdown"
+    ))
+}
 
 /// Magic number for ZIP package signatures (used by .xmath/.xmathm and .docx/.docm/.dotx/.dotm).
 const ZIP_SIG: &[u8] = b"PK\x03\x04";
@@ -168,9 +185,9 @@ pub(crate) fn canonical(_path: &std::path::Path) -> Option<std::path::PathBuf> {
     None
 }
 
-/// Can files with this extension be saved with a password (Word's packages)?
+/// Can files with this extension be saved with a password (Strix files only)?
 pub fn can_encrypt(name: &str) -> bool {
-    is_word_package(&ext_of(name))
+    is_native(&ext_of(name))
 }
 
 /// Finish a document just read from a file: never leave it empty, and bring its unlocked
@@ -230,10 +247,8 @@ pub fn open_bytes_in(name: &str, bytes: &[u8], password: Option<&str>, region: &
 /// installed then lays out and exports with it instead of a fallback. Faces already available
 /// stay as they are.
 fn load_embedded_fonts(doc: &Document) {
-    let files: Vec<(Vec<u8>, String)> = strix_docx::embedded_fonts(doc)
-        .into_iter()
-        .filter_map(|f| strix_fonts::decode_font_file(&f.data).ok().map(|data| (data, f.name)))
-        .collect();
+    let files: Vec<(Vec<u8>, String)> =
+        strix_docx::embedded_fonts(doc).into_iter().filter_map(|f| strix_fonts::decode_font_file(&f.data).ok().map(|data| (data, f.name))).collect();
     if !files.is_empty() {
         strix_fonts::FontDb::global().add_document_fonts(files);
     }
@@ -379,13 +394,7 @@ fn looks_like_web_page(bytes: &[u8]) -> bool {
 /// XML Document by its root element, a web page under a Word or RTF name as one
 /// (#2853), any other text through the plain-text import with encoding detection (#569).
 /// Anything else is refused with a clear error rather than shown as garbage.
-fn open_by_content(
-    name: &str,
-    ext: &str,
-    bytes: &[u8],
-    password: Option<&str>,
-    page: &strix_doc::SectionProps,
-) -> Result<(Document, bool), String> {
+fn open_by_content(name: &str, ext: &str, bytes: &[u8], password: Option<&str>, page: &strix_doc::SectionProps) -> Result<(Document, bool), String> {
     let (mut doc, encrypted) = if bytes.starts_with(OLE_SIG) && strix_docx::is_encrypted(bytes) {
         (strix_docx::read_with_password(bytes, password).map_err(|e| e.to_string())?, true)
     } else if bytes.starts_with(ZIP_SIG) {

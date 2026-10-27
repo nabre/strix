@@ -1196,6 +1196,7 @@ impl WordApp {
             let password =
                 if matches!(id, "file.save" | "file.saveAs") { self.session.password.as_ref().map(strix_engine::Password::as_str) } else { None };
             let opts = strix_engine::cmd::file::export_options(&self.session, &params);
+            strix_engine::io::check_writable(&name)?;
             let bytes = strix_engine::io::save_bytes_with(&name, &self.session.doc, password, &opts)?;
             // A ticket left over from an earlier call isn't this save's.
             let saves = self.services.async_saves.clone();
@@ -2061,8 +2062,7 @@ impl WordApp {
             // MCP get an error.
             "ui.makeDefaultApp" => {
                 return Some(Err(
-                    "making Strix the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
-                        .into(),
+                    "making Strix the default app needs a click in File › Options › General; scripts and agents can't change system defaults".into(),
                 ));
             }
             "ui.discord" => {
@@ -6025,7 +6025,7 @@ mod tests {
     #[test]
     fn password_protected_documents_ask_for_the_password() {
         let dir = scratch("password");
-        let path = dir.join("locked.docx");
+        let path = dir.join("locked.xmath");
         let mut s = Session::new(strix_doc::Document::from_text("Locked away"));
         s.run("file.save", &json!({"path": path.to_string_lossy(), "password": "sesame"})).unwrap();
 
@@ -6036,7 +6036,7 @@ mod tests {
         assert_eq!(prompt(&a), Some("password"));
         assert!(body_text(&a).contains(UNSAVED), "nothing opens until the password fits");
         let state = serde_json::to_string(&a.dialog).unwrap();
-        assert!(state.contains("locked.docx") && !state.contains("sesame"));
+        assert!(state.contains("locked.xmath") && !state.contains("sesame"));
 
         let mut b = app();
         b.run("file.encrypt", json!({})).unwrap();
@@ -7444,11 +7444,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Save As to a format that doesn't keep everything (a .png of page 1, plain text) reports
-    /// `saved` but leaves the document unsaved; the prompt took that as saved and replaced it.
+    /// Save As to a format that doesn't keep everything (a .png of page 1, Markdown, a PDF)
+    /// reports `saved` but leaves the document unsaved; the prompt took that as saved and replaced it.
     #[test]
     fn a_save_that_drops_content_does_not_continue() {
-        for ext in ["png", "txt"] {
+        for ext in ["png", "md", "pdf"] {
             let dir = scratch(&format!("lossy-{ext}"));
             let picked = dir.join(format!("novel.{ext}")).to_string_lossy().to_string();
             let mut a = typed();
@@ -7467,16 +7467,29 @@ mod tests {
     }
 
     /// Web: a download in a format that doesn't keep everything marked the document saved, so
-    /// the prompt and the leave-page guard let it go.
+    /// the prompt and the leave-page guard let it go. Import-only formats aren't downloaded at
+    /// all; only a Strix document or template saves it.
     #[test]
     fn web_downloads_that_drop_content_leave_the_document_unsaved() {
-        for name in ["novel.png", "novel.txt", "novel.md"] {
+        for name in ["novel.png", "novel.pdf", "novel.md", "novel.html"] {
             let mut a = typed();
             a.services.download = Some(Box::new(|_, _| Ok(())));
             a.execute("file.saveAs", json!({"path": name})).unwrap();
             assert!(a.session.dirty, "{name}");
         }
-        for name in ["novel.docx", "novel.docm", "novel.DOTX", "novel.dotm", "novel.odt", "novel.rtf"] {
+        for name in ["novel.docx", "novel.docm", "novel.DOTX", "novel.dotm", "novel.odt", "novel.rtf", "novel.txt"] {
+            let mut a = typed();
+            let downloaded = std::rc::Rc::new(std::cell::Cell::new(false));
+            let seen = downloaded.clone();
+            a.services.download = Some(Box::new(move |_, _| {
+                seen.set(true);
+                Ok(())
+            }));
+            assert!(a.execute("file.saveAs", json!({"path": name})).is_err(), "{name} is import-only");
+            assert!(!downloaded.get(), "{name}: nothing downloaded");
+            assert!(a.session.dirty, "{name}");
+        }
+        for name in ["novel.xmath", "novel.XMATHM"] {
             let mut a = typed();
             a.services.download = Some(Box::new(|_, _| Ok(())));
             a.execute("file.saveAs", json!({"path": name})).unwrap();
@@ -7533,7 +7546,9 @@ mod tests {
     /// (#2445). The host page never had that name, so it's a new file: Save As.
     #[test]
     fn host_save_of_an_imported_file_writes_a_strix_document() {
-        for (opened, saved) in [("report.odt", "report.xmath"), ("notes.md", "notes.xmath"), ("letter.docx", "letter.xmath"), ("memo.dotx", "memo.xmathm")] {
+        for (opened, saved) in
+            [("report.odt", "report.xmath"), ("notes.md", "notes.xmath"), ("letter.docx", "letter.xmath"), ("memo.dotx", "memo.xmathm")]
+        {
             let (mut a, got) = host_app(false);
             host_open(&mut a, opened);
             a.execute("file.save", json!({})).unwrap();
@@ -7596,14 +7611,18 @@ mod tests {
     }
 
     /// Strix documents and templates, once saved in this session, are covered by AutoSave; Word's
-    /// formats (even the ones that keep everything, #172) are exports, so they aren't.
+    /// formats (even the ones that keep everything, #172) are import-only: saving to one is
+    /// refused, so AutoSave stays blocked on a document never saved.
     #[test]
     fn autosave_covers_strix_documents_and_templates() {
         for ext in ["docx", "docm", "dotx", "dotm"] {
             let dir = scratch(&format!("autosave-export-{ext}"));
+            let path = dir.join(format!("novel.{ext}"));
             let mut a = typed();
-            a.run("file.save", json!({"path": dir.join(format!("novel.{ext}")).to_string_lossy()})).unwrap();
-            assert!(matches!(a.autosave_block(), Some(AutoSaveBlock::Format { .. })), "{ext}");
+            assert!(a.run("file.save", json!({"path": path.to_string_lossy()})).is_err(), "{ext}");
+            assert!(!path.exists(), "{ext}: nothing written");
+            assert!(!a.autosaves(), "{ext}");
+            assert!(a.session.dirty && a.session.path.is_none(), "{ext}");
             let _ = std::fs::remove_dir_all(&dir);
         }
         for ext in ["xmath", "xmathm"] {
@@ -7846,7 +7865,7 @@ mod tests {
     #[test]
     fn save_as_picked_saves_then_continues() {
         let dir = scratch("saveas");
-        let path = dir.join("novel.docx");
+        let path = dir.join("novel.xmath");
         let picked = path.to_string_lossy().to_string();
         let mut a = typed();
         a.services.pick_save = Some(Box::new(move |_| Some(picked.clone())));
@@ -7986,14 +8005,14 @@ mod tests {
         for id in MAILINGS {
             let mut a = app();
             a.run("mailings.recipients", json!({"csv": "Name\nAda"})).unwrap();
-            a.run("file.save", json!({"path": dir.join("saved.docx").to_string_lossy()})).unwrap();
+            a.run("file.save", json!({"path": dir.join("saved.xmath").to_string_lossy()})).unwrap();
             assert!(!a.session.dirty);
             let document = a.session.document_id();
             a.run(id, mailing(id)).unwrap();
             assert_eq!(prompt(&a), None, "{id}");
             assert_ne!(a.session.document_id(), document, "{id}");
         }
-        let out = dir.join("merged.docx");
+        let out = dir.join("merged.xmath");
         let mut a = typed();
         a.run("mailings.recipients", json!({"csv": "Name\nAda"})).unwrap();
         a.run("mailings.finish", json!({"path": out.to_string_lossy()})).unwrap();
@@ -8176,7 +8195,7 @@ mod tests {
         let services = Services { download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))), ..Default::default() };
         let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Hello"})).unwrap();
-        a.run("file.save", json!({"path": "draft.docx"})).unwrap();
+        a.run("file.save", json!({"path": "draft.xmath"})).unwrap();
         assert_eq!(a.autosave_block(), Some(AutoSaveBlock::Browser));
         assert!(!a.autosaves());
         let err = a.run("file.autosave", json!({"value": true})).unwrap_err();
@@ -8228,8 +8247,8 @@ mod tests {
     }
 
     /// Web Save of a Strix file downloads it under its own name; of any other file, as a Strix
-    /// document (`.xmath`, `.xmathm` for a Word template) of the same name. Macros stay only in an
-    /// explicit Save As to a macro-enabled Word format (Codex review, docm lane).
+    /// document (`.xmath`, `.xmathm` for a Word template) of the same name. Word formats, the
+    /// macro-enabled ones included, are import-only: Save As to one is refused.
     #[test]
     fn web_save_keeps_the_opened_strix_format() {
         let mut doc = strix_doc::Document::new();
@@ -8263,19 +8282,12 @@ mod tests {
             assert_eq!(name, expect);
             assert!(strix_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
         }
-        // Save As .docm keeps the macros.
-        a.run("file.saveAs", json!({"path": "m.docm"})).unwrap();
-        let (name, bytes) = got.borrow_mut().pop().unwrap();
-        let back = strix_engine::io::open_bytes(&name, &bytes).unwrap();
-        for part in ["word/vbaProject.bin", "word/vbaData.xml"] {
-            assert!(back.passthrough.contains_key(part), "m.docm: {part}");
-        }
-        // Save As with an explicit name is a conversion: a .docx can't hold macros.
+        // Word formats are import-only: Save As .docm or .docx is refused and downloads nothing.
         a.session.path = Some("m.docm".into());
-        a.run("file.saveAs", json!({"path": "m.docx"})).unwrap();
-        let (name, bytes) = got.borrow_mut().pop().unwrap();
-        assert_eq!(name, "m.docx");
-        assert!(!strix_engine::io::open_bytes(&name, &bytes).unwrap().passthrough.contains_key("word/vbaProject.bin"));
+        for name in ["m.docm", "m.docx"] {
+            assert!(a.run("file.saveAs", json!({"path": name})).is_err(), "{name}");
+            assert!(got.borrow().is_empty(), "{name}: nothing downloaded");
+        }
     }
 
     #[test]
@@ -9368,8 +9380,7 @@ mod tests {
         type State = (WordApp, Vec<String>, Vec<Vec<String>>, String, dialogs::RecipientFilter);
         let rows = [["Ada", "London"], ["Alan", "Wilmslow"], ["Grace", "London"], ["Émile", "Paris"]];
         let mut filter = dialogs::RecipientFilter::default();
-        let rule =
-            dialogs::FilterRow { field: "City".into(), op: strix_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
+        let rule = dialogs::FilterRow { field: "City".into(), op: strix_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
         filter.rules.push(rule);
         let state: State = (
             app(),
@@ -9669,14 +9680,14 @@ mod tests {
             assert!(r.is_ok(), "{id}: {r:?}");
             assert!(!a.canvas.scroll_to_caret, "{id} scrolled to the caret");
         };
-        keeps_view(&mut a, "file.saveAs", json!({"path": path("report.docx")}));
+        keeps_view(&mut a, "file.saveAs", json!({"path": path("report.xmath")}));
         a.run("text.insert", json!({"text": "x"})).unwrap();
         keeps_view(&mut a, "file.save", json!({}));
         keeps_view(&mut a, "file.encrypt", json!({"password": "hunter2"}));
         keeps_view(&mut a, "file.exportPdf", json!({"path": path("report.pdf")}));
         keeps_view(&mut a, "file.exportPng", json!({"path": path("report.png")}));
         keeps_view(&mut a, "file.printPdf", json!({"path": path("printed.pdf")}));
-        keeps_view(&mut a, "file.saveTemplate", json!({"path": path("report.dotx")}));
+        keeps_view(&mut a, "file.saveTemplate", json!({"path": path("report.xmathm")}));
         keeps_view(&mut a, "file.print", json!({}));
         keeps_view(&mut a, "file.printMarkup", json!({"value": true}));
         keeps_view(&mut a, "file.properties", json!({"title": "Quarterly report"}));

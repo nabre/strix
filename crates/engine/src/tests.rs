@@ -4696,12 +4696,13 @@ fn mailings_results_are_new_untitled_documents() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// #2376: a note.txt opened and saved stayed unsaved, so closing asked to save it forever. Saving
-/// the document's own file by its path is a save in any format; Save As to plain text elsewhere is
-/// a copy. A plain Save (no path) writes only Strix's own files, so it refuses the note.
+/// #2376 under the native-only rule: an opened note is imported. A plain Save refuses it and
+/// proposes a `.xmath`; saving a `.txt` over itself by its path is refused too (plain text is
+/// import-only), and a Markdown copy over itself is an export that leaves the document unsaved.
+/// Saving as `.xmath` makes that the document's file.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn saving_a_text_file_over_itself_saves_the_document() {
+fn an_imported_note_saves_only_as_a_strix_document() {
     let dir = std::env::temp_dir().join(format!("strix-engine-own-txt-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -4717,21 +4718,24 @@ fn saving_a_text_file_over_itself_saves_the_document() {
         assert!(s.dirty, "{name}: nothing saved");
         assert_eq!(std::fs::read(&path).unwrap(), b"", "{name}: untouched");
 
-        // Saving the same file by name is a save.
-        run(&mut s, "file.save", json!({"path": path.to_string_lossy()}));
-        assert!(!s.dirty, "{name}: saved over itself");
-        assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"), "{name}: written");
-        run(&mut s, "text.insert", json!({"text": " again"}));
-        run(&mut s, "file.save", json!({"path": path.to_string_lossy()}));
-        assert!(!s.dirty, "{name}: saved by its own path");
-
-        // Plain text somewhere else is still a copy: the document keeps its file and its changes.
-        run(&mut s, "text.insert", json!({"text": "!"}));
-        let copy = dir.join(format!("copy-{name}"));
-        run(&mut s, "file.saveAs", json!({"path": copy.to_string_lossy()}));
-        assert!(copy.exists());
-        assert!(s.dirty, "{name}: a copy elsewhere leaves it unsaved");
+        // Saving the same file by name: plain text is refused, Markdown is a static copy.
+        let r = s.run("file.save", &json!({"path": path.to_string_lossy()}));
+        if name.ends_with(".txt") {
+            assert!(r.unwrap_err().to_string().contains("only opens it"), "{name}");
+            assert_eq!(std::fs::read(&path).unwrap(), b"", "{name}: untouched");
+        } else {
+            r.unwrap();
+            assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"), "{name}: exported");
+        }
+        assert!(s.dirty, "{name}: still unsaved");
         assert_eq!(s.path.as_deref(), Some(path.as_path()));
+
+        // Save As a Strix document makes that the document's file.
+        let native = dir.join("note.xmath");
+        run(&mut s, "file.saveAs", json!({"path": native.to_string_lossy()}));
+        assert!(!s.dirty, "{name}: saved");
+        assert_eq!(s.path.as_deref(), Some(native.as_path()));
+        let _ = std::fs::remove_file(&native);
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -6546,32 +6550,36 @@ fn word_xml_saves_and_opens_through_io() {
     assert!(err.contains("not a Word XML document"), "{err}");
 }
 
-/// #1081: `format: "wordml2003"` saves an `.xml` file as a Word 2003 XML Document, a plain save
-/// over such a file keeps that format, and `format: "flatopc"` converts it back.
+/// #1081 under the native-only rule: Word XML (2003 or Flat OPC) is import-only. The save
+/// commands refuse an `.xml` path in every `format` and write nothing; a Word 2003 XML file
+/// still opens.
 #[test]
-fn word_2003_xml_saves_through_the_save_commands() {
+fn word_xml_is_import_only_through_the_save_commands() {
     let mut s = s();
     run(&mut s, "text.insert", json!({"text": "Kept for old readers"}));
     let dir = std::env::temp_dir().join(format!("strix-2003-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("old.xml").to_string_lossy().to_string();
-    let kind = |p: &str| strix_docx::sniff_xml(&std::fs::read(p).unwrap());
-    run(&mut s, "file.saveAs", json!({"path": path, "format": "wordml2003"}));
-    assert_eq!(kind(&path), strix_docx::XmlKind::WordMl2003);
-    assert!(crate::io::open_path(std::path::Path::new(&path)).unwrap().plain_text(strix_doc::StoryRef::Body).contains("Kept for old readers"));
-    // Not a Strix document: a plain Save refuses it, an explicit one over it keeps its format.
-    assert!(s.run("file.save", &json!({})).is_err());
-    run(&mut s, "file.save", json!({"path": path}));
-    assert_eq!(kind(&path), strix_docx::XmlKind::WordMl2003);
-    run(&mut s, "file.save", json!({"path": path, "format": "flatopc"}));
-    assert_eq!(kind(&path), strix_docx::XmlKind::FlatOpc);
-    for bad in [
+    for args in [
+        json!({"path": path, "format": "wordml2003"}),
+        json!({"path": path, "format": "flatopc"}),
+        json!({"path": path}),
         json!({"path": dir.join("a.docx").to_string_lossy(), "format": "wordml2003"}),
         json!({"path": path, "format": "bogus"}),
         json!({"path": path, "format": 7}),
     ] {
-        assert!(s.run("file.save", &bad).is_err(), "{bad}");
+        for id in ["file.save", "file.saveAs"] {
+            assert!(s.run(id, &args).is_err(), "{id} {args}");
+        }
     }
+    assert!(!std::path::Path::new(&path).exists(), "no .xml written");
+    assert!(!dir.join("a.docx").exists(), "no .docx written");
+    assert!(s.dirty && s.path.is_none());
+    // Opening a Word 2003 XML Document still works (written here by the low-level writer).
+    let opts = crate::io::ExportOptions { word2003: true, ..Default::default() };
+    crate::io::save_path_with(std::path::Path::new(&path), &s.doc, None, &opts).unwrap();
+    assert_eq!(strix_docx::sniff_xml(&std::fs::read(&path).unwrap()), strix_docx::XmlKind::WordMl2003);
+    assert!(crate::io::open_path(std::path::Path::new(&path)).unwrap().plain_text(strix_doc::StoryRef::Body).contains("Kept for old readers"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -9798,7 +9806,7 @@ fn a_version_snapshot_does_not_survive_a_document_switch() {
 fn a_version_snapshot_does_not_survive_a_comparison() {
     let dir = std::env::temp_dir().join(format!("strix-compare-versions-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let original = dir.join("original.docx");
+    let original = dir.join("original.xmath");
     let mut other = Session::new(strix_doc::Document::from_text("Original document."));
     other.run("file.save", &json!({"path": original.to_string_lossy()})).unwrap();
 
@@ -9832,7 +9840,7 @@ fn a_version_snapshot_does_not_survive_an_untitled_comparison() {
 fn a_repeated_comparison_is_still_an_edit() {
     let dir = std::env::temp_dir().join(format!("strix-compare-twice-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let original = dir.join("original.docx");
+    let original = dir.join("original.xmath");
     let mut other = Session::new(strix_doc::Document::from_text("Original document."));
     other.run("file.save", &json!({"path": original.to_string_lossy()})).unwrap();
 

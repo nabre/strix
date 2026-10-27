@@ -668,7 +668,7 @@ mod tests {
         a.run("file.close", json!({})).unwrap();
         assert_eq!(a.run("ui.saveChanges", json!({"answer": "save"})).unwrap()["pending"], "saveAs");
         assert!(a.has_document() && !a.quit_requested);
-        answer(&shown, Some(&dir.join("missing").join("contract.docx").to_string_lossy()));
+        answer(&shown, Some(&dir.join("missing").join("contract.xmath").to_string_lossy()));
         let error = a.poll_file_dialog().unwrap().unwrap_err();
         assert!(error.contains("still open"), "{error}");
         assert!(matches!(a.dialog, Some(crate::dialogs::Dialog::SaveChanges { .. })));
@@ -685,11 +685,11 @@ mod tests {
 
         a.run("file.close", json!({})).unwrap();
         a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
-        let saved = dir.join("contract.docx");
+        let saved = dir.join("contract.xmath");
         answer(&shown, Some(&saved.to_string_lossy()));
         assert_eq!(a.poll_file_dialog().unwrap().unwrap()["done"], true);
-        // File › Close keeps the window (#1712): the document closes once the DOCX save succeeds.
-        assert!(!a.has_document() && !a.quit_requested, "Close runs only after the DOCX save succeeds");
+        // File › Close keeps the window (#1712): the document closes once the Strix document is saved.
+        assert!(!a.has_document() && !a.quit_requested, "Close runs only after the save succeeds");
         assert!(saved_text(&saved).contains("Revised Legacy contract"));
         assert_eq!(std::fs::read(&original).unwrap(), bytes);
         let _ = std::fs::remove_dir_all(dir);
@@ -704,7 +704,7 @@ mod tests {
             let original = dir.join("contract.doc");
             let bytes = legacy_word_bytes();
             std::fs::write(&original, &bytes).unwrap();
-            let destination = dir.join("existing.docx");
+            let destination = dir.join("existing.xmath");
             let sentinel = b"Existing destination must survive";
             std::fs::write(&destination, sentinel).unwrap();
             let (mut a, shown) = async_app();
@@ -746,7 +746,7 @@ mod tests {
         let error = a.execute("file.save", json!({})).unwrap_err();
         assert!(error.contains("isn't a Strix document") && error.contains("contract.xmath"), "{error}");
         let error = a.run("file.save", json!({"path": original.to_string_lossy()})).unwrap_err();
-        assert!(error.contains("can't save as `.doc`"), "{error}");
+        assert!(error.contains("only opens it"), "{error}");
         assert!(shown.borrow().is_empty());
         assert!(a.session.dirty);
         assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
@@ -961,9 +961,7 @@ mod tests {
         let opened = dir.join("one.xmath");
         let picked = dir.join("sub").join("two.xmath");
         std::fs::create_dir_all(dir.join("sub")).unwrap();
-        strix_engine::Session::new(strix_doc::Document::from_text("original"))
-            .run("file.save", &json!({"path": opened.to_string_lossy()}))
-            .unwrap();
+        strix_engine::Session::new(strix_doc::Document::from_text("original")).run("file.save", &json!({"path": opened.to_string_lossy()})).unwrap();
         let (mut a, shown) = async_app();
         a.run("file.open", json!({"path": opened.to_string_lossy()})).unwrap();
         assert_eq!(a.session.path.as_deref(), Some(opened.as_path()));
@@ -989,7 +987,7 @@ mod tests {
     #[test]
     fn a_failed_save_as_says_so_and_keeps_the_document() {
         let dir = scratch("write-fails");
-        let bogus = dir.join("does-not-exist").join("out.docx");
+        let bogus = dir.join("does-not-exist").join("out.xmath");
         let (mut a, shown) = async_app();
         typed(&mut a);
         a.run("ui.backstage", json!({"value": true, "page": "saveAs"})).unwrap();
@@ -1014,7 +1012,7 @@ mod tests {
     #[test]
     fn a_failed_autosave_switch_save_as_says_so_and_leaves_autosave_off() {
         let dir = scratch("autosave-switch-write-fails");
-        let bogus = dir.join("does-not-exist").join("out.docx");
+        let bogus = dir.join("does-not-exist").join("out.xmath");
         let (mut a, shown) = async_app();
         typed(&mut a);
         assert!(matches!(a.autosave_block(), Some(crate::AutoSaveBlock::Unsaved)), "a new document blocks AutoSave until saved");
@@ -1108,7 +1106,7 @@ mod tests {
     #[test]
     fn save_changes_waits_for_the_save_as_answer() {
         let dir = scratch("prompt");
-        let path = dir.join("novel.docx");
+        let path = dir.join("novel.xmath");
         let (mut a, shown) = async_app();
         typed(&mut a);
         a.run("file.close", json!({})).unwrap();

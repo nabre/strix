@@ -1239,7 +1239,7 @@ mod tests {
     fn an_empty_new_header_is_never_saved() {
         let dir = std::env::temp_dir().join(format!("strix-hf960-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("x.docx");
+        let path = dir.join("x.xmath");
         let mut s = two_pages();
         s.run("insert.editHeader", &json!({"page": 0})).unwrap();
         s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();

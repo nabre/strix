@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stage 1: `strix-calc` engine done; commands and UI in progress · **Last updated:** 2026-10-26 · **Change:** new
+> **Status:** stage 1 done: engine, commands, Calculate button; Variables pane next · **Last updated:** 2026-10-27 · **Change:** new
 
 Strix documents can hold live engineering calculations, in the spirit of SMath Studio and
 Mathcad: you define parameters with units, Strix remembers them, and later expressions reuse them
@@ -10,10 +10,17 @@ the last computed values as ordinary equations.
 
 ## Model
 
-A **calc region** is an ordinary equation (`InlineObject::Equation`, OMML on disk) whose linear
-text is a calc statement. Regions are evaluated in reading order (document order: body top to
-bottom, a paragraph left to right), like a Mathcad worksheet. Only regions see each other; normal
-equations are never touched.
+A **calc region** is an equation (`InlineObject::Equation`) marked as calculated: `Math::calc`,
+saved in the `.xmath` package as `strix:calc="1"` on its `m:oMath` (a Strix namespace listed in
+`mc:Ignorable`). The **Calculate** button beside the equation's frame (`=`, filled when on), or
+`equation.calc`, turns it on and off. New equations are calculated by default; the
+**Calculate New Equations** preference (`calc.newEquations`, Equation › Equation Options) changes
+that. Regions are evaluated in reading order (body top to bottom, a paragraph left to right),
+like a Mathcad worksheet. Only calculated equations see each other; other equations are never
+read or touched. Leaving a calculated equation recalculates the document, as does F9.
+
+Strix saves only `.xmath`/`.xmathm` (plus static PDF, PNG, LaTeX, HTML and Markdown exports): a
+`.docx` or any other editable format would lose the regions, so they are import-only.
 
 | Statement | Meaning | Shown |
 |---|---|---|
@@ -58,6 +65,8 @@ commas, `2e-3`. Results show 4 significant digits by default (`calc.options`).
 | Id | Does |
 |---|---|
 | `calc.insert` | insert a calc region (`{"text": "L := 4.5 m"}`), then recalculate |
+| `equation.calc` | the Calculate button: the equation at the caret is a region or not (`{"value"?: bool}`) |
+| `calc.newEquations` | preference: new equations are regions (default on) |
 | `calc.recalculate` | evaluate every region in order, update results; returns errors |
 | `calc.variables` | the parameters defined at the end of the document (or at the caret): name, value, unit, where |
 | `calc.options` | significant digits, auto-recalculate on/off |

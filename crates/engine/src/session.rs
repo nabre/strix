@@ -739,11 +739,15 @@ pub struct Prefs {
     /// in Word). A damaged saved value reads as the defaults.
     #[serde(deserialize_with = "crate::cmd::tools::lenient_autocorrect")]
     pub autocorrect: crate::cmd::tools::AutoCorrectPrefs,
+    /// New equations are calculation regions (docs/calc.md), evaluated live
+    /// (`calc.newEquations`). On by default: Strix is a tool for working out problems.
+    pub calc_new_equations: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
         Prefs {
+            calc_new_equations: true,
             count_notes: true,
             markup: Default::default(),
             print_markup: false,
@@ -770,11 +774,7 @@ impl Default for Prefs {
 impl Prefs {
     /// What the spelling check skips.
     pub fn spelling(&self) -> strix_proof::Options {
-        strix_proof::Options {
-            ignore_uppercase: self.ignore_uppercase,
-            ignore_numbers: self.ignore_numbers,
-            ignore_internet: self.ignore_internet,
-        }
+        strix_proof::Options { ignore_uppercase: self.ignore_uppercase, ignore_numbers: self.ignore_numbers, ignore_internet: self.ignore_internet }
     }
 }
 

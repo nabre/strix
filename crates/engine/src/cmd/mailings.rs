@@ -1102,6 +1102,7 @@ fn finish(s: &mut Session, v: &Value) -> CmdResult {
     }
     out.ensure_nonempty();
     if let Some(path) = p::str(v, "path") {
+        crate::io::check_writable(path).map_err(CmdError::Params)?;
         crate::io::save_path(std::path::Path::new(path), &out).map_err(CmdError::Failed)?;
         return Ok(json!({"records": count, "path": path}));
     }
@@ -1542,11 +1543,15 @@ mod tests {
     fn finishing_a_merge_to_a_file_is_not_an_edit() {
         let dir = std::env::temp_dir().join(format!("strix-merge-to-file-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let out = dir.join("merged.docx");
+        let out = dir.join("merged.xmath");
         let mut s = Session::new(Document::from_text("Hello"));
         s.run("text.insert", &json!({"text": "!"})).unwrap();
         s.run("mailings.recipients", &json!({"rows": [{"Name": "Ada"}]})).unwrap();
         let (depth, dirty, text) = (s.undo_depth(), s.dirty, s.doc.plain_text(StoryRef::Body));
+        // Word formats are import-only: a merge to a .docx is refused and writes nothing.
+        let word = dir.join("merged.docx");
+        assert!(s.run("mailings.finish", &json!({"path": word.to_string_lossy()})).is_err());
+        assert!(!word.exists(), "no .docx written");
         s.run("mailings.finish", &json!({"path": out.to_string_lossy()})).unwrap();
         assert!(out.exists(), "the merged copy was written");
         assert_eq!(s.doc.plain_text(StoryRef::Body), text, "the open document is unchanged");

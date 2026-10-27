@@ -8,11 +8,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use strix_fonts::FontFace;
+use strix_fonts::color::{BitmapBytes, ColorGlyph, ColorOp, ColorPaint, CompositeMode, Extend, GlyphColor, Stop};
 use vello_cpu::kurbo::{self, Affine, Point, Rect, Shape};
 use vello_cpu::peniko;
 use vello_cpu::{Pixmap, RenderContext};
-use strix_fonts::FontFace;
-use strix_fonts::color::{BitmapBytes, ColorGlyph, ColorOp, ColorPaint, CompositeMode, Extend, GlyphColor, Stop};
 
 /// A colour glyph ready to draw: COLR ops, or a decoded bitmap and where it goes (font units, y
 /// down from the pen position).

@@ -253,12 +253,7 @@ impl Backend for Remote {
         } else if unauthorized(&v) {
             self.conn = None;
             Err(self.key_warning().map_or_else(
-                || {
-                    format!(
-                        "unauthorized: the Strix app at {} refused the control key (from STRIX_CONTROL_KEY or the app's key file)",
-                        self.addr
-                    )
-                },
+                || format!("unauthorized: the Strix app at {} refused the control key (from STRIX_CONTROL_KEY or the app's key file)", self.addr),
                 |w| format!("unauthorized: {w}"),
             ))
         } else {

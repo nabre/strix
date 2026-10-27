@@ -1091,7 +1091,7 @@ mod tests {
         assert_eq!(s.doc, expected);
         assert!(s.path.is_none() && s.dirty);
         assert_eq!(fs::read(&file).unwrap(), original);
-        let saved = t.0.join("recovered.json");
+        let saved = t.0.join("recovered.xmath");
         s.run("file.save", &json!({"path": saved})).unwrap();
         settle(&mut s);
         assert!(records(&root).is_empty());
@@ -1178,7 +1178,7 @@ mod tests {
     #[test]
     fn opening_protected_file_and_password_save_never_leave_plaintext_copies() {
         let t = Temp::new();
-        let original = t.0.join("protected.docx");
+        let original = t.0.join("protected.xmath");
         let root = t.0.join("profile");
         crate::io::save_path_with(
             &original,
@@ -1198,7 +1198,7 @@ mod tests {
         s.run("text.insert", &json!({"text": "New confidential draft"})).unwrap();
         save_now(&mut s);
         assert_eq!(records(&root).len(), 1);
-        let saved = t.0.join("saved.docx");
+        let saved = t.0.join("saved.xmath");
         s.run("file.save", &json!({"path": saved, "password": "synthetic-password"})).unwrap();
         settle(&mut s);
         assert!(fs::read_dir(root).unwrap().next().is_none());
@@ -1284,7 +1284,7 @@ mod tests {
         assert_eq!(records(&t.0).len(), 3);
         let kept = s.recovery_slot.id.clone().unwrap();
         s.close_document(ids[0]).unwrap();
-        s.with_document(ids[1], |s| s.run("file.save", &json!({"path": files.0.join("saved.json")})).unwrap()).unwrap();
+        s.with_document(ids[1], |s| s.run("file.save", &json!({"path": files.0.join("saved.xmath")})).unwrap()).unwrap();
         settle(&mut s);
         assert_eq!(records(&t.0), [kept], "only the open dirty document's copy is left");
         assert!(s.recovery_documents().is_empty());
@@ -1336,7 +1336,7 @@ mod tests {
         assert_eq!(records(&t.0).len(), 3);
         let dirty = s.recovery_slot.id.clone().unwrap();
         // No tick between these and the exit.
-        s.with_document(ids[0], |s| s.run("file.save", &json!({"path": files.0.join("saved.json")})).unwrap()).unwrap();
+        s.with_document(ids[0], |s| s.run("file.save", &json!({"path": files.0.join("saved.xmath")})).unwrap()).unwrap();
         s.close_document(ids[1]).unwrap();
         s.finish_recovery();
         assert_eq!(records(&t.0), [dirty]);

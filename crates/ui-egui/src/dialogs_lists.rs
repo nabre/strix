@@ -115,8 +115,7 @@ impl ListForm {
     /// Starts from the caret's list, or from a new 1. a. i. list.
     pub fn read(app: &WordApp) -> ListForm {
         let s = &app.session;
-        let levels =
-            caret_list(s).and_then(|n| levels_of(s, n)).unwrap_or_else(|| strix_doc::numbering::levels_for(strix_doc::ListKind::Numbered));
+        let levels = caret_list(s).and_then(|n| levels_of(s, n)).unwrap_or_else(|| strix_doc::numbering::levels_for(strix_doc::ListKind::Numbered));
         let levels = (0..LEVELS).map(|i| LevelForm::read(i, &levels.get(i).map(level_json).unwrap_or(Value::Null))).collect();
         let mut styles: Vec<(String, String)> = s
             .doc

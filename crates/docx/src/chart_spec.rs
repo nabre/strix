@@ -394,12 +394,8 @@ pub(crate) fn spec_of(space: &El) -> Option<ChartSpec> {
 /// The points of a `c:strLit` / `c:numLit` (or a cache) as texts by index, `ptCount` long.
 fn literal(e: &El) -> Vec<String> {
     let Some(lit) = e.els().find(|c| matches!(c.name.as_str(), "c:strLit" | "c:numLit")) else { return Vec::new() };
-    let n = lit
-        .child("c:ptCount")
-        .and_then(|c| c.attr("val"))
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(0)
-        .min(strix_doc::chart::MAX_POINTS + 1);
+    let n =
+        lit.child("c:ptCount").and_then(|c| c.attr("val")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0).min(strix_doc::chart::MAX_POINTS + 1);
     let mut out = vec![String::new(); n];
     for p in lit.children("c:pt") {
         if let Some(slot) = p.attr("idx").and_then(|i| i.parse::<usize>().ok()).and_then(|i| out.get_mut(i)) {

@@ -1893,9 +1893,8 @@ fn layout(app: &mut WordApp, ui: &mut Ui) {
 /// Arrange › Wrap Text: how the selected object sits in the text, and (Square, Tight, Through)
 /// which of its sides text flows on.
 fn wrap_menu(ui: &mut Ui, app: &mut WordApp) {
-    let (wrap, side) = strix_engine::cmd::objects::selected(&app.session)
-        .and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.wrap_text)))
-        .unwrap_or_default();
+    let (wrap, side) =
+        strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.wrap_text))).unwrap_or_default();
     menu_button(ui, app, "wrapText", Some("Wrap\nText"), "Wrap Text", true, "arrange.wrapText", |ui, app| {
         use strix_doc::para::{Wrap, WrapText};
         for (l, w, v) in [
@@ -2549,8 +2548,7 @@ fn chart_design(app: &mut WordApp, ui: &mut Ui) {
 /// Chart Design and SmartArt Design › Size: the selected graphic's height and width.
 fn graphic_size(ui: &mut Ui, app: &mut WordApp) {
     group(ui, "Size", None, app, |ui, app| {
-        let (w0, h0) =
-            strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
+        let (w0, h0) = strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
         stack(ui, |ui| {
             for (label, key, v0) in [("H:", "height", h0), ("W:", "width", w0)] {
                 crate::widgets::row(ui, |ui| {
@@ -2682,8 +2680,7 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Size", None, app, |ui, app| {
-        let (w0, h0) =
-            strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
+        let (w0, h0) = strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
         stack(ui, |ui| {
             crate::widgets::row(ui, |ui| {
                 for (label, key, v0) in [("W:", "width", w0), ("H:", "height", h0)] {
@@ -3249,8 +3246,7 @@ mod tests {
             .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
             .build_ui_state(|ui, app: &mut WordApp| underline_menu(ui, app), a);
         h.run_steps(2);
-        let run =
-            |h: &egui_kittest::Harness<'_, WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).unwrap().runs[0].props.clone();
+        let run = |h: &egui_kittest::Harness<'_, WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).unwrap().runs[0].props.clone();
         for (_, name) in UNDERLINE_STYLES {
             assert!(h.query_by_label(name).is_some(), "{name} is a named entry");
         }
@@ -3828,8 +3824,7 @@ mod tests {
         let item = |label: &'static str| By::new().label_contains(label);
         let mut a = crate::WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
         a.run("insert.picture", json!({"data": png_data()})).unwrap();
-        let frame =
-            |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.x)));
+        let frame = |a: &crate::WordApp| strix_engine::cmd::objects::selected(&a.session).and_then(|(_, o)| o.frame().map(|(_, _, f)| (f.wrap, f.x)));
         assert!(matches!(frame(&a), Some((strix_doc::para::Wrap::Inline, _))), "a freshly inserted picture is inline");
         let mut h = egui_kittest::Harness::builder()
             .with_size(egui::vec2(300.0, 300.0))

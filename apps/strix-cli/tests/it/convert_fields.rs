@@ -21,11 +21,11 @@ fn convert_refresh_is_opt_in() {
     }
     let input = dir.join("in.json");
     std::fs::write(&input, serde_json::to_vec(&doc).unwrap()).unwrap();
-    let docx = dir.join("in.docx");
+    let docx = dir.join("in.xmath");
     let make = Command::new(env!("CARGO_BIN_EXE_strix-cli")).arg("convert").arg(&input).arg(&docx).output().unwrap();
     assert!(make.status.success(), "{}", String::from_utf8_lossy(&make.stderr));
     for refresh in [false, true] {
-        let output = dir.join(if refresh { "refreshed.json" } else { "cached.json" });
+        let output = dir.join(if refresh { "refreshed.xmath" } else { "cached.xmath" });
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_strix-cli"));
         cmd.arg("convert").arg(&docx).arg(&output);
         if refresh {
@@ -33,7 +33,7 @@ fn convert_refresh_is_opt_in() {
         }
         let run = cmd.output().unwrap();
         assert!(run.status.success(), "{}", String::from_utf8_lossy(&run.stderr));
-        let out: Document = serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
+        let out: Document = strix_engine::io::open_path(&output).unwrap();
         let results: Vec<_> = out
             .para(StoryRef::Body, &Path::top(0))
             .unwrap()

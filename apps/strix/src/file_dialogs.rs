@@ -247,10 +247,10 @@ mod tests {
     /// every savable extension exactly once.
     #[test]
     fn save_dialog_lists_one_named_type_per_format() {
-        let filters = save_filters("report.odt");
+        let filters = save_filters("report.html");
         assert_eq!(filters.len(), strix_engine::io::SAVE_EXTS.len());
-        assert_eq!(filters[0].1, vec!["odt".to_string()]);
-        assert!(filters[0].0.contains("OpenDocument"), "{}", filters[0].0);
+        assert_eq!(filters[0].1, vec!["html".to_string()]);
+        assert!(filters[0].0.contains("Web Page"), "{}", filters[0].0);
         let all: Vec<&String> = filters.iter().flat_map(|(_, e)| e).collect();
         for e in strix_engine::io::SAVE_EXTS {
             assert_eq!(all.iter().filter(|x| x.as_str() == *e).count(), 1, "{e}");
@@ -260,21 +260,25 @@ mod tests {
         labels.sort();
         labels.dedup();
         assert_eq!(labels.len(), filters.len(), "labels are distinct");
-        // Unknown names fall back to Strix's own format first, its template second.
+        // Unknown and import-only names fall back to Strix's own format first, its template second.
         assert_eq!(save_filters("no extension")[0].1, vec!["xmath".to_string()]);
+        assert_eq!(save_filters("report.odt")[0].1, vec!["xmath".to_string()]);
+        assert!(!all.iter().any(|e| ["docx", "odt", "rtf", "txt", "json", "xml"].contains(&e.as_str())), "import-only formats are never offered");
         let native = save_filters("Document1.xmath");
         assert_eq!(native[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
         assert_eq!(native[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));
     }
 
-    /// #689: the Save dialog's default extension is the suggested name's own format, so a file
-    /// name the user types without one is saved in the document's format instead of coming back
-    /// bare and failing.
+    /// #689: the Save dialog's default extension is the suggested name's own format when Strix
+    /// saves it, so a file name the user types without one isn't left bare; an import-only format
+    /// (.docx, .odt) suggests Strix's own, .xmath.
     #[test]
     fn save_dialog_defaults_to_the_suggested_format() {
         assert_eq!(save_exts("novel.xmath")[0], "xmath");
-        assert_eq!(save_exts("novel.docx")[0], "docx");
-        assert_eq!(save_exts("report.odt")[0], "odt");
+        assert_eq!(save_exts("novel.docx")[0], "xmath");
+        assert_eq!(save_exts("report.odt")[0], "xmath");
+        assert_eq!(save_exts("plan.xmathm")[0], "xmathm");
+        assert_eq!(save_exts("notes.md")[0], "md");
         assert_eq!(save_exts("annual report.pdf")[0], "pdf");
         // A suggested name always has an extension; anything unreadable falls back to Strix's own.
         assert_eq!(save_exts("no extension")[0], "xmath");

@@ -1383,11 +1383,7 @@ fn bookmarks_become_objects() {
     let doc = read(&struct_doc(&spec)).expect("opens");
     let p0 = doc.body.first().and_then(|b| b.as_para()).expect("para");
     // The start anchor sits before the text, the end after "Hello".
-    assert!(
-        matches!(p0.objects.first(), Some(strix_doc::para::InlineObject::BookmarkStart { name }) if name == "bm1"),
-        "objects: {:?}",
-        p0.objects
-    );
+    assert!(matches!(p0.objects.first(), Some(strix_doc::para::InlineObject::BookmarkStart { name }) if name == "bm1"), "objects: {:?}", p0.objects);
     assert!(matches!(p0.objects.get(1), Some(strix_doc::para::InlineObject::BookmarkEnd { name }) if name == "bm1"), "objects: {:?}", p0.objects);
     assert_eq!(p0.text, "\u{FFFC}Hello\u{FFFC} world");
 }

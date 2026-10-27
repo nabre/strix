@@ -217,10 +217,8 @@ fn rtl_indents_and_alignment_are_measured_from_the_right() {
 fn rtl_list_label_sits_on_the_right() {
     let mut d = doc_of(&[("مورد اول", true), ("مورد دوم", true)]);
     let id = d.numbering.add_list(strix_doc::ListKind::Numbered);
-    d.format_paragraphs(&Pos::body(0, 0), &Pos::body(1, 0), &|p: &mut ParaProps| {
-        p.numbering = Some(strix_doc::props::NumRef { num: id, level: 0 })
-    })
-    .unwrap();
+    d.format_paragraphs(&Pos::body(0, 0), &Pos::body(1, 0), &|p: &mut ParaProps| p.numbering = Some(strix_doc::props::NumRef { num: id, level: 0 }))
+        .unwrap();
     let l = lay(&d);
     let (pl, x) = first_line(&l, 0);
     let lab = pl.label.as_ref().expect("numbered");

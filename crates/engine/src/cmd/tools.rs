@@ -560,13 +560,13 @@ pub fn specs() -> Vec<CommandSpec> {
         .pure(),
         CommandSpec::new("file.saveTemplate", "Save as Template", "File › Save As", |s, v| {
             let path = p::req_str(v, "path")?;
-            // A template name keeps its extension (Strix's .xmathm, or Word's .dotx/.dotm to
-            // export one, #2852); anything else becomes a Strix template, .xmathm.
-            let path = if super::user_templates::is_template_name(path) { path.to_string() } else { format!("{path}.{}", crate::io::NATIVE_TEMPLATE_EXT) };
+            // A Strix template keeps its name; anything else becomes one, .xmathm (#2852). Word
+            // templates (.dotx/.dotm) are import-only.
+            let path = if crate::io::is_native_template(path) { path.to_string() } else { format!("{path}.{}", crate::io::NATIVE_TEMPLATE_EXT) };
             crate::io::save_path(std::path::Path::new(&path), &s.doc).map_err(CmdError::Failed)?;
             Ok(json!({"path": path}))
         })
-        .params(r#"{"path": string (a Strix template, .xmathm, which is added when the name has no template extension; .dotx or .dotm exports a Word template)}"#)
+        .params(r#"{"path": string (a Strix template, .xmathm, which is added when the name lacks it)}"#)
         .pure(),
         CommandSpec::new("file.autosave", "AutoSave", "Quick Access Toolbar", |s, v| {
             s.autosave = p::bool(v, "value").unwrap_or(!s.autosave);
@@ -1774,9 +1774,7 @@ fn remove_hidden(doc: &mut Document) -> Result<Vec<Value>, CmdError> {
     refs.dedup();
     let mut out = Vec::new();
     for id in refs {
-        if kept.contains(&id)
-            || !doc.parts.get(&id).is_some_and(|p| matches!(p.kind, strix_doc::PartKind::Footnote | strix_doc::PartKind::Endnote))
-        {
+        if kept.contains(&id) || !doc.parts.get(&id).is_some_and(|p| matches!(p.kind, strix_doc::PartKind::Footnote | strix_doc::PartKind::Endnote)) {
             continue;
         }
         // Only the echo is capped; every such note goes.

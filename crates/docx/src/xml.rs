@@ -19,6 +19,9 @@ pub const MAX_ELEMENTS: usize = 8_000_000;
 pub const MAX_ATTRS: usize = 1024;
 
 /// Known namespaces and the canonical prefix we use for them (read and write).
+/// The namespace of Strix's own attributes (`strix:calc`), listed in `mc:Ignorable`.
+pub const STRIX_NS: &str = "urn:io.github.nabre.strix:2026";
+
 pub const NAMESPACES: &[(&str, &str)] = &[
     ("w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main"),
     ("r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
@@ -37,6 +40,8 @@ pub const NAMESPACES: &[(&str, &str)] = &[
     ("dgm", "http://schemas.openxmlformats.org/drawingml/2006/diagram"),
     ("dsp", "http://schemas.microsoft.com/office/drawing/2008/diagram"),
     ("m", "http://schemas.openxmlformats.org/officeDocument/2006/math"),
+    // Strix's own markup (calculated equations), ignorable by other readers.
+    ("strix", STRIX_NS),
     ("v", "urn:schemas-microsoft-com:vml"),
     ("o", "urn:schemas-microsoft-com:office:office"),
     ("w10", "urn:schemas-microsoft-com:office:word"),
@@ -569,7 +574,7 @@ impl W {
 /// `xmlns:` declarations for the body-part namespaces, plus `mc:Ignorable`.
 pub fn body_ns() -> Vec<(String, String)> {
     let mut v: Vec<(String, String)> = NAMESPACES.iter().map(|(p, u)| (format!("xmlns:{p}"), (*u).to_string())).collect();
-    v.push(("mc:Ignorable".into(), "w14 w15 wp14".into()));
+    v.push(("mc:Ignorable".into(), "w14 w15 wp14 strix".into()));
     v
 }
 

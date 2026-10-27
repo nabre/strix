@@ -536,11 +536,8 @@ fn latex_labels_in_a_row_are_read_in_linear_time() {
     assert!(started.elapsed() < std::time::Duration::from_secs(10), "{:?}", started.elapsed());
     let d = crate::latex::import("\\label{one}First \\label{two}second \\label{three}third.".as_bytes());
     let p = d.para_at(&strix_doc::Pos::body(0, 0)).unwrap();
-    let names: Vec<&str> = p
-        .objects
-        .iter()
-        .filter_map(|o| if let strix_doc::InlineObject::BookmarkStart { name } = o { Some(name.as_str()) } else { None })
-        .collect();
+    let names: Vec<&str> =
+        p.objects.iter().filter_map(|o| if let strix_doc::InlineObject::BookmarkStart { name } = o { Some(name.as_str()) } else { None }).collect();
     assert_eq!(names, ["one", "two", "three"]);
     assert_eq!(d.plain_text(strix_doc::StoryRef::Body).replace('\u{FFFC}', ""), "First second third.");
 }

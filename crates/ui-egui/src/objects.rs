@@ -1305,15 +1305,7 @@ mod tests {
                 w: 200.0,
                 h: 100.0,
                 alt: String::new(),
-                float: strix_doc::para::Float {
-                    wrap: Wrap::InFrontOfText,
-                    x: 150.0,
-                    y: 180.0,
-                    rot: initial,
-                    flip_h,
-                    flip_v,
-                    ..Default::default()
-                },
+                float: strix_doc::para::Float { wrap: Wrap::InFrontOfText, x: 150.0, y: 180.0, rot: initial, flip_h, flip_v, ..Default::default() },
                 crop: [0.0; 4],
                 ole: None,
             };

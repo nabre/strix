@@ -578,8 +578,7 @@ fn is_toc(instr: &str) -> bool {
 /// The actual matching end must also be the end the styled writer would choose: at the end
 /// of the last contiguous TOC entry, with no section break or trailing content outside it.
 fn toc_range_end(body: &Blocks, start: usize) -> Option<usize> {
-    let entry =
-        |p: &strix_doc::Paragraph| p.section.is_none() && p.props.style.as_deref().is_some_and(|s| s.starts_with("TOC") && s != "TOCHeading");
+    let entry = |p: &strix_doc::Paragraph| p.section.is_none() && p.props.style.as_deref().is_some_and(|s| s.starts_with("TOC") && s != "TOCHeading");
     let mut depth = 0_usize;
     for (i, b) in body.iter().enumerate().skip(start) {
         let p = b.as_para().filter(|p| entry(p))?;

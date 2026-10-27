@@ -291,11 +291,7 @@ fn toc_entries(s: &Session, f: &FieldCode) -> Vec<TocEntry> {
         let hidden = f.has('u') && p.props.outline_level == Some(9);
         let by_heading = o.and_then(|(a, b)| {
             let l = heading_style_level(p).or_else(|| {
-                s.doc
-                    .styles
-                    .resolve_para(&strix_doc::ParaProps { style: p.props.style.clone(), ..Default::default() })
-                    .outline_level
-                    .map(|l| l + 1)
+                s.doc.styles.resolve_para(&strix_doc::ParaProps { style: p.props.style.clone(), ..Default::default() }).outline_level.map(|l| l + 1)
             })?;
             (a..=b).contains(&l).then_some(l)
         });
@@ -1185,9 +1181,8 @@ fn new_property_value(instr: &str) -> Option<String> {
 /// when the format does not cover the count (see [`super::table_formula::number_format_covers`]),
 /// with the field's capitalization switches.
 fn count_text(instr: &str, n: usize) -> String {
-    let fmt = strix_layout::fields::format_switch(instr)
-        .filter(|f| super::table_formula::number_format_covers(*f, n as f64))
-        .unwrap_or(NumFormat::Decimal);
+    let fmt =
+        strix_layout::fields::format_switch(instr).filter(|f| super::table_formula::number_format_covers(*f, n as f64)).unwrap_or(NumFormat::Decimal);
     strix_layout::fields::field_number(instr, fmt, u32::try_from(n).unwrap_or(u32::MAX))
 }
 

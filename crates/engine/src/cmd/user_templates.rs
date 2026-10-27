@@ -392,18 +392,26 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
-    /// Save as Template keeps a template extension (any case) and makes anything else a Strix
-    /// template, .xmathm.
+    /// Save as Template always writes a Strix template: a .xmathm name (any case) is kept and
+    /// anything else, Word templates included (import-only), gets .xmathm added.
     #[test]
-    fn save_template_keeps_a_template_extension() {
+    fn save_template_always_writes_a_strix_template() {
         let d = scratch("save");
         let mut s = Session::new(strix_doc::Document::new());
-        for (asked, saved) in
-            [("A.dotm", "A.dotm"), ("B.DOTX", "B.DOTX"), ("C", "C.xmathm"), ("D.docx", "D.docx.xmathm"), ("E.XMATHM", "E.XMATHM"), ("F.xmath", "F.xmath.xmathm")]
-        {
+        for (asked, saved) in [
+            ("A.dotm", "A.dotm.xmathm"),
+            ("B.DOTX", "B.DOTX.xmathm"),
+            ("C", "C.xmathm"),
+            ("D.docx", "D.docx.xmathm"),
+            ("E.XMATHM", "E.XMATHM"),
+            ("F.xmath", "F.xmath.xmathm"),
+        ] {
             let r = s.run("file.saveTemplate", &json!({"path": d.join(asked).to_string_lossy()})).unwrap();
             assert_eq!(r["path"], json!(d.join(saved).to_string_lossy()));
             assert!(d.join(saved).is_file(), "{saved}");
+            if asked != saved {
+                assert!(!d.join(asked).exists(), "{asked} not written");
+            }
         }
         let _ = std::fs::remove_dir_all(&d);
     }

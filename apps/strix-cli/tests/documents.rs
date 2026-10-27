@@ -15,7 +15,7 @@ fn run(args: &[&str], out: &Path) -> Output {
 fn run_saves_the_document_opened_last() {
     let dir = std::env::temp_dir().join(format!("strix-cli-documents-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let (src, out) = (dir.join("opened.txt"), dir.join("out.txt"));
+    let (src, out) = (dir.join("opened.txt"), dir.join("out.md"));
     std::fs::write(&src, "Opened\n").unwrap();
     let open = format!(r#"file.open={{"path":{}}}"#, serde_json::json!(src.to_string_lossy()));
 
