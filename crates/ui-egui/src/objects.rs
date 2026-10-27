@@ -102,6 +102,11 @@ pub fn selected(app: &WordApp) -> Option<(Pos, &InlineObject)> {
     strix_engine::cmd::objects::object_selection(&app.session).filter(|(p, _)| selectable_story(app, p.story))
 }
 
+/// Whether the selected object is a CAD drawing.
+pub(crate) fn selected_cad(app: &WordApp) -> bool {
+    matches!(selected(app), Some((_, InlineObject::Graphic { graphic, .. })) if graphic.kind == strix_doc::graphic::GraphicKind::Cad)
+}
+
 /// Whether objects of `story` can be selected and dragged on the canvas: the body and
 /// headers/footers.
 fn selectable_story(app: &WordApp, story: StoryRef) -> bool {
@@ -170,6 +175,13 @@ fn screen(pages: &[Rect], scale: f32, page: usize, r: strix_geom::Rect) -> Optio
 pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, pages: &[Rect], layout: &DocLayout, scale: f32, at: Pos2) -> bool {
     if let Some(taken) = crate::crop::pointer(app, ui, resp, pages, layout, scale, at) {
         return taken;
+    }
+    // A double-click on a CAD drawing (its first click selected it) opens the drawing editor. It
+    // comes with the second click's release, which would otherwise end that press's pending drag.
+    if resp.double_clicked() && app.canvas.obj_drag.as_ref().is_none_or(|d| !d.drag.moved) && selected_cad(app) {
+        app.canvas.obj_drag = None;
+        let _ = app.run("ui.cadEdit", json!({}));
+        return true;
     }
     if let Some(mut d) = app.canvas.obj_drag.take() {
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {

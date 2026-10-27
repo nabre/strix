@@ -2589,11 +2589,7 @@ fn mouse(app: &mut WordApp, ui: &Ui, resp: &egui::Response, rects: &[Rect], layo
     let mods = ui.input(|i| i.modifiers);
     let story = app.session.sel.focus.story;
     // A double-click on a CAD drawing (its first click selected it) opens the drawing editor.
-    if resp.double_clicked()
-        && strix_engine::cmd::objects::selected(&app.session).is_some_and(
-            |(_, o)| matches!(o, strix_doc::InlineObject::Graphic { graphic, .. } if graphic.kind == strix_doc::graphic::GraphicKind::Cad),
-        )
-    {
+    if resp.double_clicked() && crate::objects::selected_cad(app) {
         let _ = app.run("ui.cadEdit", json!({}));
         return;
     }
@@ -5467,6 +5463,41 @@ mod tests {
         assert_eq!(h.state().session.undo_depth(), depth + 1, "one undo step for the edit");
         assert!(h.state_mut().session.undo());
         assert_eq!(h.state().session.doc.plain_text(StoryRef::Part(part)), "Original");
+    }
+
+    /// A double-click on a CAD drawing opens it in the drawing editor (the second click's release
+    /// used to end the pending drag of its press, so the double-click never got through).
+    #[test]
+    fn double_click_on_a_cad_drawing_opens_the_editor() {
+        use egui::{Event, PointerButton};
+        let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+        a.run("view.commentsPane", json!({"value": false})).unwrap();
+        a.session.run("insert.cad", &json!({})).unwrap();
+        let (pos, ..) = strix_engine::cmd::cad::edited(&a.session).expect("the new drawing is selected");
+        a.run("select.range", json!({"anchor": pos, "focus": pos})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 2200.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            a,
+        );
+        for _ in 0..6 {
+            h.step();
+        }
+        let hint = h.state().session.page_hint;
+        let obj = h.state_mut().session.layout().object(&pos, hint).expect("drawing laid out");
+        let (x, y) = (obj.rect.x + obj.rect.w / 2.0, obj.rect.y + obj.rect.h / 2.0);
+        let at = page_to_screen(h.state_mut(), obj.page, x, y).expect("drawing on screen");
+        h.event(Event::PointerMoved(at));
+        for _ in 0..2 {
+            h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+            h.step();
+            h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+            h.step();
+        }
+        assert!(h.state().cad.is_some(), "the editor is open");
     }
 
     /// #960: double-clicking the top margin of a document without a header creates one and
