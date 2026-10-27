@@ -332,7 +332,8 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
     if !found.iter().any(|i| matches!(i, Item::Equation { answer, .. } if *answer > 0)) {
         return Vec::new();
     }
-    let (sheets, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s));
+    let zones = super::exercise::zones(s);
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones);
     found
         .iter()
         .zip(&outcomes)
@@ -345,8 +346,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
                 Outcome::Equation(Some(r)) => match (&r.name, &r.value, &r.error) {
                     (_, _, Some(e)) => format!("⚠ {e}"),
                     (Some(name), Some(_), None) => {
-                        let ws =
-                            super::exercise::zones(s).get(*top).copied().flatten().and_then(|e| sheets.exercises.get(&e)).unwrap_or(&sheets.main);
+                        let ws = zones.get(*top).copied().flatten().and_then(|e| sheets.exercises.get(&e)).unwrap_or(&sheets.main);
                         format!("{name} = {}", ws.shown(name).unwrap_or_default())
                     }
                     _ => r.display.clone().or_else(|| text.clone()).unwrap_or_default(),

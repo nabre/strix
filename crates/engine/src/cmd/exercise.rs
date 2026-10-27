@@ -141,9 +141,15 @@ fn ensure_styles(s: &mut Session) {
             STYLE_PROMPT,
             "Exercise Prompt",
             ParaProps { space_after: Some(2.0), ..Default::default() },
-            CharProps { italic: Some(true), ..Default::default() },
+            // Generated text is not proofed (a lone "a)" is no spelling error).
+            CharProps { italic: Some(true), no_proof: Some(true), ..Default::default() },
         ),
-        para_style(STYLE_RESULT, "Exercise Result", ParaProps { space_after: Some(2.0), ..Default::default() }, CharProps::default()),
+        para_style(
+            STYLE_RESULT,
+            "Exercise Result",
+            ParaProps { space_after: Some(2.0), ..Default::default() },
+            CharProps { no_proof: Some(true), ..Default::default() },
+        ),
     ];
     for st in wanted {
         if s.doc.styles.get(&st.id).is_none() {
@@ -347,7 +353,13 @@ fn scan(s: &Session) -> Layout {
         };
         let ex = if in_exercise { out.exercises.len().checked_sub(1).filter(|_| current.is_some() || part != Part::Other) } else { None };
         out.parts.push((ex, part));
-        let grow = |r: &mut Option<(usize, usize)>| *r = Some(r.map_or((i, i), |(a, _)| (a, i)));
+        // A range grows only over contiguous blocks: a later control with the same tag (pasted,
+        // say) is another instance and is left alone, so a rewrite never spans user content.
+        let grow = |r: &mut Option<(usize, usize)>| match *r {
+            None => *r = Some((i, i)),
+            Some((a, b)) if b + 1 == i => *r = Some((a, i)),
+            Some(_) => {}
+        };
         if part == Part::Results {
             grow(&mut out.results);
         }
@@ -543,18 +555,19 @@ pub(crate) fn update(s: &mut Session) -> bool {
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
-    let answers = super::calc::answers(s, &opts);
+    let mut answers: std::collections::HashMap<(usize, u32), Vec<String>> = std::collections::HashMap::new();
+    for (top, question, text) in super::calc::answers(s, &opts) {
+        if let Some(ex) = layout.parts.get(top).and_then(|(x, _)| *x) {
+            answers.entry((ex, question)).or_default().push(text);
+        }
+    }
     let mut lines = vec![(STYLE_HEADING, w.results.to_string())];
     for (n, e) in layout.exercises.iter().enumerate() {
         let title = if e.title.is_empty() { String::new() } else { format!(" — {}", e.title) };
         lines.push((STYLE_RESULT, format!("{} {}{title}", w.exercise, n + 1)));
         for (k, q) in e.questions.iter().enumerate() {
-            let found: Vec<&String> = answers
-                .iter()
-                .filter(|(top, a, _)| *a as usize == k + 1 && layout.parts.get(*top).and_then(|(x, _)| *x) == Some(n))
-                .map(|(_, _, t)| t)
-                .collect();
-            let value = if found.is_empty() { w.no_result.to_string() } else { found.iter().map(|t| t.as_str()).collect::<Vec<_>>().join("; ") };
+            let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
+            let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
             lines.push((STYLE_RESULT, format!("{}) {q}: {value}", letter(k))));
         }
     }
@@ -718,6 +731,20 @@ mod tests {
         let vars = s.run("calc.variables", &json!({})).unwrap();
         let names: Vec<&str> = vars["variables"].as_array().unwrap().iter().map(|v| v["name"].as_str().unwrap()).collect();
         assert_eq!(names, ["a"]);
+    }
+
+    #[test]
+    fn a_second_summary_never_takes_user_text_with_it() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        // A copy of the summary pasted at the top, with the user's text between the two.
+        let n = s.doc.body.len();
+        let summary: Vec<_> = s.doc.body[n - 3..].to_vec();
+        s.doc.body.splice(0..0, summary);
+        update(&mut s);
+        let after = texts(&s);
+        assert!(after.contains(&"Intro".to_string()), "{after:?}");
+        assert!(after.contains(&"Uno".to_string()), "{after:?}");
     }
 
     #[test]

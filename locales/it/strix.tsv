@@ -2430,15 +2430,11 @@ preview	Title	Esempio
 	Regions	Regioni
 	Math	Matematica
 	Calculations	Calcoli
-	New
-Calculation	Nuovo
-calcolo
+	New\nCalculation	Nuovo\ncalcolo
 	New Calculation	Nuovo calcolo
 	Make the equation at the cursor a live calculation, or an ordinary one	Rendi l'equazione al cursore un calcolo dinamico, o un'equazione normale
 	Tables	Tabelle
-	Calculated
-Table	Tabella
-calcolata
+	Calculated\nTable	Tabella\ncalcolata
 	Calculated Table	Tabella calcolata
 	Calculate This Table	Calcola questa tabella
 	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	La tabella al cursore è calcolata: dai un nome alle colonne nella prima riga (L [m], M [kN·m] = q·L²/8) e sommale con Σ =
@@ -2454,16 +2450,12 @@ calcolata
 	Show Trailing Zeros	Mostra zeri finali
 	Make this equation a live calculation: write it with = and the unknown is solved for	Rendi questa equazione un calcolo dinamico: scrivila con = e l'incognita viene ricavata
 	Drawing	Disegno
-	CAD
-Drawing	Disegno
-CAD
+	CAD\nDrawing	Disegno\nCAD
 	CAD Drawing	Disegno CAD
 	Insert a CAD drawing whose sizes can follow the calculations	Inserisci un disegno CAD le cui misure possono seguire i calcoli
 	Calculate	Calcola
 	Exercise	Esercizio
-	New
-Exercise	Nuovo
-esercizio
+	New\nExercise	Nuovo\nesercizio
 	New Exercise	Nuovo esercizio
 	Add Question	Aggiungi domanda
 	Add a question at the end of the exercise at the cursor	Aggiungi una domanda alla fine dell'esercizio al cursore
