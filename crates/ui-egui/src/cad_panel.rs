@@ -441,6 +441,9 @@ pub(crate) fn choice_label(s: &str) -> &'static str {
         "left" => "Left",
         "center" => "Center",
         "right" => "Right",
+        "lines" => "Lines",
+        "cross" => "Cross",
+        "solid" => "Solid",
         _ => "",
     }
 }

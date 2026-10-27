@@ -47,6 +47,8 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
             vec![out]
         }
         Kind::Point { p } | Kind::Text { p, .. } => vec![vec![p.pt()]],
+        // A strip is laid out from its path ([`Drawing::shape`]).
+        Kind::Strip { .. } => Vec::new(),
         // The arc and the two rays out to it.
         Kind::Angle { c, a, b, r, .. } => {
             let (c, a, b) = (c.pt(), a.pt(), b.pt());
@@ -244,7 +246,7 @@ impl Drawing {
                     }
                 }
                 Kind::Point { p } => out.push((p.pt(), SnapKind::End)),
-                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } => {}
+                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Strip { .. } => {}
             }
         }
         out.retain(|(p, _)| p.is_finite());
@@ -255,7 +257,8 @@ impl Drawing {
     pub fn hit(&self, p: Pt, tol: f64) -> Option<usize> {
         let mut best: Option<(usize, f64)> = None;
         for (i, e) in self.entities.iter().enumerate() {
-            let d = outline(e)
+            let d = self
+                .shape(e)
                 .iter()
                 .map(|line| match line.as_slice() {
                     [only] => only.minus(p).len(),
@@ -282,11 +285,22 @@ impl Drawing {
     /// Copies the entities at `indices`, moved by `d`; returns the copies' indices.
     pub fn copy(&mut self, indices: &[usize], d: Pt) -> Vec<usize> {
         let mut out = Vec::new();
+        // Old id to the copy's: a strip copied with its path follows the copied path.
+        let mut ids: Vec<(String, String)> = Vec::new();
         for &i in indices {
             let Some(mut e) = self.entities.get(i).cloned() else { continue };
+            let old = e.id.clone();
             move_kind(&mut e.kind, d);
-            if self.add(e).is_ok() {
+            if let Ok(id) = self.add(e) {
+                ids.push((old, id));
                 out.push(self.entities.len() - 1);
+            }
+        }
+        for &i in &out {
+            if let Some(Kind::Strip { along, .. }) = self.entities.get_mut(i).map(|e| &mut e.kind)
+                && let Some((_, new)) = ids.iter().find(|(old, _)| old == along)
+            {
+                *along = new.clone();
             }
         }
         out
@@ -297,11 +311,28 @@ impl Drawing {
         let mut sorted = indices.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
+        let gone: Vec<String> = sorted.iter().filter_map(|&i| self.entities.get(i)).map(|e| e.id.clone()).collect();
         for &i in sorted.iter().rev() {
             if i < self.entities.len() {
                 self.entities.remove(i);
             }
         }
+        // A strip goes with its path.
+        self.entities.retain(|e| !matches!(&e.kind, Kind::Strip { along, .. } if gone.contains(along)));
+    }
+
+    /// What entity `e` is drawn with, for picking and highlighting: its outline, or a strip's
+    /// band (drawing units).
+    pub fn shape(&self, e: &Entity) -> Vec<Vec<Pt>> {
+        match &e.kind {
+            Kind::Strip { .. } => self.strip_shape(e).map(|s| {
+                let mut ring = s.polygon;
+                ring.extend(ring.first().copied());
+                vec![ring]
+            }),
+            _ => None,
+        }
+        .unwrap_or_else(|| outline(e))
     }
 }
 
@@ -340,6 +371,8 @@ fn move_kind(k: &mut Kind, d: Pt) {
             shift_p(a, d);
             shift_p(b, d);
         }
+        // A strip follows its path.
+        Kind::Strip { .. } => {}
     }
 }
 
@@ -370,7 +403,7 @@ pub enum Grip {
 }
 
 /// The paper mm a drawing unit measures.
-fn paper_per_unit(d: &Drawing) -> f64 {
+pub(crate) fn paper_per_unit(d: &Drawing) -> f64 {
     let k = d.unit.mm() / d.scale;
     if k.is_finite() && k > 0.0 { k } else { 1.0 }
 }
@@ -433,6 +466,7 @@ impl Drawing {
                 out
             }
             Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Strip { .. } => Vec::new(),
             Kind::Dim { a, b, offset, orient, .. } => {
                 let (pa, pb) = (a.pt(), b.pt());
                 let n = dim_dir(pa, pb, *orient).left();

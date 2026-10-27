@@ -23,6 +23,7 @@ mod model;
 mod props;
 mod render;
 mod select;
+mod strip;
 mod svg;
 
 #[cfg(test)]
@@ -31,10 +32,13 @@ mod tests;
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
-pub use model::{Align, Dash, DimStyle, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Stroke, Unit, fill};
-pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, num_text};
+pub use model::{
+    Align, Dash, DimStyle, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
+};
+pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
+pub use strip::StripShape;
 pub use svg::MISSING_COLOR;
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in

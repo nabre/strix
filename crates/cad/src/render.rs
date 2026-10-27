@@ -143,6 +143,33 @@ impl Drawing {
                 }
                 Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
                 Kind::Angle { .. } => self.angular(e, k, color, width.min(0.25), ws, &mut prims),
+                // A hatched strip: the band filled, or its hatch lines (thin, as hatches are).
+                Kind::Strip { pattern, .. } => {
+                    let paper = |p: Pt| (p.x * k, p.y * k);
+                    if *pattern == crate::model::Pattern::Solid {
+                        if let Some(s) = self.strip_shape(e) {
+                            prims.push(Prim::Path {
+                                pts: s.polygon.into_iter().map(paper).collect(),
+                                closed: true,
+                                color,
+                                width: 0.0,
+                                dash: Vec::new(),
+                                fill: true,
+                            });
+                        }
+                    } else {
+                        for (a, b) in self.strip_lines(e) {
+                            prims.push(Prim::Path {
+                                pts: vec![paper(a), paper(b)],
+                                closed: false,
+                                color,
+                                width: width.min(0.18),
+                                dash: Vec::new(),
+                                fill: false,
+                            });
+                        }
+                    }
+                }
             }
         }
         let mut r = place(prims, self.padding);

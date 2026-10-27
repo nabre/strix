@@ -338,6 +338,22 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
     },
+    /// A hatched strip along the line or polyline with id `along` (it follows it), `width` paper
+    /// mm wide on its `side`, filled with `pattern`: lines at `angle` degrees to the line,
+    /// `spacing` paper mm apart. Annotative: its sizes are paper sizes, the same at any scale.
+    Strip {
+        along: String,
+        #[serde(default = "strip_width")]
+        width: f64,
+        #[serde(default)]
+        side: Side,
+        #[serde(default)]
+        pattern: Pattern,
+        #[serde(default = "strip_angle")]
+        angle: f64,
+        #[serde(default = "strip_spacing")]
+        spacing: f64,
+    },
     /// An angular dimension at `c`, counter-clockwise from the ray to `a` to the ray to `b`, its
     /// arc `r` drawing units from `c`. `text` as a linear dimension's (`<>` is the angle).
     Angle {
@@ -350,6 +366,39 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
     },
+}
+
+/// Which side of its line a strip lies on, looking along the line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Side {
+    #[default]
+    Left,
+    Right,
+}
+
+/// How a strip is filled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Pattern {
+    /// Lines across the strip at its angle to the line (ground, insulation).
+    #[default]
+    Lines,
+    /// Lines both ways.
+    Cross,
+    Solid,
+}
+
+fn strip_width() -> f64 {
+    3.0
+}
+
+fn strip_angle() -> f64 {
+    45.0
+}
+
+fn strip_spacing() -> f64 {
+    1.5
 }
 
 fn is_left(a: &Align) -> bool {
@@ -564,6 +613,13 @@ impl Drawing {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }
                 }
+                Kind::Strip { width, angle, spacing, along, .. } => {
+                    let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
+                    *width = c(*width, 0.1, 100.0, strip_width());
+                    *angle = c(*angle, 5.0, 175.0, strip_angle());
+                    *spacing = c(*spacing, 0.2, 50.0, strip_spacing());
+                    along.truncate(64);
+                }
                 Kind::Angle { r, text, .. } => {
                     *r = if r.is_finite() { r.abs().min(MAX_COORD) } else { 0.0 };
                     if let Some(t) = text {
@@ -626,6 +682,7 @@ impl Drawing {
                     point(b, &mut out);
                 }
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| point(p, &mut out)),
+                Kind::Strip { .. } => {}
                 Kind::Point { p } | Kind::Text { p, .. } => point(p, &mut out),
             }
         }

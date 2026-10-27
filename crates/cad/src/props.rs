@@ -5,7 +5,7 @@
 
 use crate::MAX_COORD;
 use crate::geom::Pt;
-use crate::model::{Align, Drawing, Kind, Mark, Num, Orient, P};
+use crate::model::{Align, Drawing, Kind, Mark, Num, Orient, P, Pattern, Side};
 
 /// What a field holds, for its editor and its unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +77,8 @@ fn parse_f64(text: &str) -> Result<f64, String> {
 pub const ORIENTS: &[&str] = &["aligned", "horizontal", "vertical"];
 pub const MARKS: &[&str] = &["style", "tick", "arrow", "dot", "none"];
 pub const ALIGNS: &[&str] = &["left", "center", "right"];
+pub const SIDES: &[&str] = &["left", "right"];
+pub const PATTERNS: &[&str] = &["lines", "cross", "solid"];
 
 fn mark_text(m: Option<Mark>) -> String {
     m.map_or("style", Mark::name).into()
@@ -155,6 +157,18 @@ impl Drawing {
                 };
                 out.push(f("orient", "Orientation", FieldKind::Choice(ORIENTS), o.into()));
                 out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+            }
+            Kind::Strip { width, side, pattern, angle, spacing, .. } => {
+                out.push(f("width", "Width", FieldKind::Paper, number(*width)));
+                out.push(f("side", "Side", FieldKind::Choice(SIDES), if *side == Side::Left { "left" } else { "right" }.into()));
+                let p = match pattern {
+                    Pattern::Lines => "lines",
+                    Pattern::Cross => "cross",
+                    Pattern::Solid => "solid",
+                };
+                out.push(f("pattern", "Pattern", FieldKind::Choice(PATTERNS), p.into()));
+                out.push(f("angle", "Angle", FieldKind::Derived, number(*angle)));
+                out.push(f("spacing", "Spacing", FieldKind::Paper, number(*spacing)));
             }
             Kind::Angle { c, a, b, r, text, mark } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
@@ -248,6 +262,24 @@ impl Drawing {
             (Kind::Text { align, .. }, "align") => *align = Align::parse(text).ok_or("alignment: left, center or right")?,
             (Kind::Dim { text: t, .. } | Kind::Angle { text: t, .. }, "text") => *t = dim_text(text),
             (Kind::Dim { below, .. }, "below") => *below = dim_text(text),
+            (Kind::Strip { width, .. }, "width") => *width = parse_f64(text)?,
+            (Kind::Strip { spacing, .. }, "spacing") => *spacing = parse_f64(text)?,
+            (Kind::Strip { angle, .. }, "angle") => *angle = parse_f64(text)?,
+            (Kind::Strip { side, .. }, "side") => {
+                *side = match text.trim() {
+                    "left" => Side::Left,
+                    "right" => Side::Right,
+                    _ => return Err("side: left or right".into()),
+                }
+            }
+            (Kind::Strip { pattern, .. }, "pattern") => {
+                *pattern = match text.trim() {
+                    "lines" => Pattern::Lines,
+                    "cross" => Pattern::Cross,
+                    "solid" => Pattern::Solid,
+                    _ => return Err("pattern: lines, cross or solid".into()),
+                }
+            }
             (Kind::Dim { mark, .. } | Kind::Angle { mark, .. }, "mark") => *mark = parse_mark(text)?,
             (Kind::Dim { offset, .. }, "offset") => *offset = parse_f64(text)?.clamp(-500.0, 500.0),
             (Kind::Dim { orient, .. }, "orient") => {

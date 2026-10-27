@@ -2759,3 +2759,10 @@ preview	Title	Esempio
 	Column, Row Below (F_A)	Colonna, riga a pedice (F_A)
 	Row, Column Below (A_F)	Riga, colonna a pedice (A_F)
 	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Ogni valore è un parametro con il nome della colonna e l'etichetta della riga (la prima colonna), uniti da un pedice: F_A oppure A_F
+	Hatch	Retino
+	Hatched\nStrip	Fascia\ntratteggiata
+	Hatched strip	Fascia tratteggiata
+	Hatched strip: pick the line or polyline it follows	Fascia tratteggiata: scegli la linea o polilinea da seguire
+	Hatched strip: click on the side it goes	Fascia tratteggiata: fai clic sul lato in cui va
+	Side	Lato
+	Solid	Pieno

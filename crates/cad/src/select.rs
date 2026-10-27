@@ -5,7 +5,6 @@
 //! object of it, like AutoCAD's Quick Properties).
 
 use crate::MAX_LAYERS;
-use crate::edit::outline;
 use crate::geom::Pt;
 use crate::kernel::{Curve, curves, intersect};
 use crate::model::{Dash, Drawing, Kind, Layer, Stroke};
@@ -20,11 +19,13 @@ pub enum Family {
     Point,
     Dim,
     Text,
+    Hatch,
 }
 
 impl Family {
     /// In the Properties pane's order: geometry, then annotations.
-    pub const ALL: [Family; 7] = [Family::Line, Family::Polyline, Family::Circle, Family::Arc, Family::Point, Family::Dim, Family::Text];
+    pub const ALL: [Family; 8] =
+        [Family::Line, Family::Polyline, Family::Circle, Family::Arc, Family::Point, Family::Dim, Family::Text, Family::Hatch];
 
     pub fn of(k: &Kind) -> Family {
         match k {
@@ -35,6 +36,7 @@ impl Family {
             Kind::Point { .. } => Family::Point,
             Kind::Dim { .. } | Kind::Angle { .. } => Family::Dim,
             Kind::Text { .. } => Family::Text,
+            Kind::Strip { .. } => Family::Hatch,
         }
     }
 
@@ -48,6 +50,7 @@ impl Family {
             Family::Point => "Point",
             Family::Dim => "Dimension",
             Family::Text => "Text",
+            Family::Hatch => "Hatch",
         }
     }
 }
@@ -171,12 +174,18 @@ fn edges(pts: &[Pt], closed: bool) -> Vec<(Pt, Pt)> {
 
 /// How far `p` is from entity `e`: from its exact curves when it has some, else from its
 /// outline (a point, a text's position, a dimension's lines).
-fn entity_distance(e: &crate::Entity, p: Pt) -> f64 {
+fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
     let exact = curves(e);
     if !exact.is_empty() {
         return exact.iter().map(|c| c.distance(p)).fold(f64::INFINITY, f64::min);
     }
-    outline(e)
+    // A strip is picked inside its band.
+    if let Some(s) = d.strip_shape(e)
+        && point_in_polygon(p, &s.polygon)
+    {
+        return 0.0;
+    }
+    d.shape(e)
         .iter()
         .map(|line| match line.as_slice() {
             [only] => only.minus(p).len(),
@@ -211,7 +220,7 @@ impl Drawing {
             .enumerate()
             .filter(|(i, _)| self.selectable(*i))
             .filter_map(|(i, e)| {
-                let d = entity_distance(e, p);
+                let d = entity_distance(self, e, p);
                 (d <= tol).then_some((i, d))
             })
             .collect();
@@ -248,7 +257,7 @@ impl Drawing {
                     let inside = first.is_some_and(|p| point_in_polygon(p, poly));
                     return if crossing { cut || inside } else { inside && !cut };
                 }
-                let lines = outline(e);
+                let lines = self.shape(e);
                 let pts: Vec<Pt> = lines.iter().flatten().copied().collect();
                 if pts.is_empty() {
                     return false;
@@ -269,7 +278,7 @@ impl Drawing {
             .enumerate()
             .filter(|(i, _)| self.selectable(*i))
             .filter(|(_, e)| {
-                outline(e).iter().any(|l| match l.as_slice() {
+                self.shape(e).iter().any(|l| match l.as_slice() {
                     [only] => sides.iter().any(|&(a, b)| seg_dist(*only, a, b) <= 1e-9),
                     _ => l.windows(2).any(|w| sides.iter().any(|&(c, d)| segments_meet(w[0], w[1], c, d))),
                 })

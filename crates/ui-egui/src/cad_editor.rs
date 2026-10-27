@@ -16,7 +16,7 @@ use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, pos2, 
 use serde_json::json;
 use strix_cad::{
     Anchor, Dash, Drawing, Entity, Focus, Grip, Kind, Num, Order, Orient, P, Prim, Pt, Rendered, SelectOption, SnapKind, Snaps, StrokeEdit, kernel,
-    outline, parse_point,
+    parse_point,
 };
 use strix_doc::InlineObject;
 
@@ -55,6 +55,8 @@ pub enum Tool {
     Dim(Orient),
     /// An angular dimension: the vertex, a point on each ray, where the arc goes.
     DimAngle,
+    /// A hatched strip: the line or polyline it follows, then a point on its side.
+    Strip,
     Move,
     Copy,
 }
@@ -80,6 +82,7 @@ impl Tool {
             "dimHorizontal" => Tool::Dim(Orient::Horizontal),
             "dimVertical" => Tool::Dim(Orient::Vertical),
             "dimAngular" | "dan" | "quotaAngolare" => Tool::DimAngle,
+            "strip" | "fascia" => Tool::Strip,
             "move" | "m" | "sposta" => Tool::Move,
             "copy" | "co" | "copia" => Tool::Copy,
             _ => return None,
@@ -126,6 +129,8 @@ impl Tool {
             (Tool::DimAngle, 1) => "Angular dimension: a point on the first side",
             (Tool::DimAngle, 2) => "Angular dimension: a point on the second side",
             (Tool::DimAngle, _) => "Angular dimension: where the arc goes",
+            (Tool::Strip, 0) => "Hatched strip: pick the line or polyline it follows",
+            (Tool::Strip, _) => "Hatched strip: click on the side it goes",
             (Tool::Move | Tool::Copy, 0) => "Base point (select the objects first)",
             (Tool::Move | Tool::Copy, _) => "Second point",
         }
@@ -975,6 +980,7 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Dim(Orient::Horizontal) => "Horizontal dimension",
         Tool::Dim(Orient::Vertical) => "Vertical dimension",
         Tool::DimAngle => "Angular dimension",
+        Tool::Strip => "Hatched strip",
         Tool::Move => "Move",
         Tool::Copy => "Copy",
     }
@@ -1366,7 +1372,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         for &i in &ed.selection {
             let color = if partial && scope.contains(&i) { orange } else { t.accent };
             if let Some(e) = ed.drawing.entities.get(i) {
-                for line in outline(e) {
+                for line in ed.drawing.shape(e) {
                     let screen: Vec<Pos2> = line.iter().map(|&p| view.to_screen(p)).collect();
                     if let [only] = screen.as_slice() {
                         painter.circle_stroke(*only, 5.0, Stroke::new(2.0, color));
@@ -1416,7 +1422,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         if let Some(e) = candidate.and_then(|i| ed.drawing.entities.get(i)) {
             let halo =
                 if removing { Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 90) } else { Color32::from_rgba_unmultiplied(0x10, 0xB9, 0x81, 90) };
-            for line in outline(e) {
+            for line in ed.drawing.shape(e) {
                 let screen: Vec<Pos2> = line.iter().map(|&p| view.to_screen(p)).collect();
                 if let [only] = screen.as_slice() {
                     painter.circle_filled(*only, 6.0, halo);
@@ -1490,7 +1496,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 if ghost.move_grip(i, g, p)
                     && let Some(e) = ghost.entities.get(i)
                 {
-                    for line in outline(e) {
+                    for line in ed.drawing.shape(e) {
                         let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
                         if screen.len() > 1 {
                             painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, t.accent), 5.0, 3.0));
@@ -2026,6 +2032,34 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             done(ed);
             with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None, below: None, mark: None }))
         }
+        Tool::Strip if n == 1 => {
+            // The path first: something it can follow must be there.
+            if ed.drawing.nearest_path(pts[0]).is_none() {
+                done(ed);
+                ed.message = "There is no line, polyline, circle or arc to follow".into();
+            }
+            None
+        }
+        Tool::Strip if n >= 2 => {
+            let picked = ed.drawing.nearest_path(pts[0]).map(|(i, _)| i);
+            done(ed);
+            let i = picked?;
+            let along = ed.drawing.entities.get(i)?.id.clone();
+            let side = ed.drawing.side_of(i, pts[1]);
+            // Sized like the drawing's annotations.
+            let style = ed.drawing.dim_style;
+            with(
+                ed,
+                Entity::new(Kind::Strip {
+                    along,
+                    width: (style.text * 1.2).max(1.0),
+                    side,
+                    pattern: strix_cad::Pattern::Lines,
+                    angle: 45.0,
+                    spacing: (style.text * 0.5).max(0.5),
+                }),
+            )
+        }
         Tool::DimAngle if n >= 4 => {
             let (c, mut a, mut b, at) = (pts[0], pts[1], pts[2], pts[3]);
             // The angle measured is the side the arc is placed in.
@@ -2318,6 +2352,9 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
             size(ui, app, "Extension beyond", "extOver", style.ext_over);
             size(ui, app, "Text gap", "textGap", style.text_gap);
         });
+    });
+    group(ui, "Hatch", None, app, |ui, app| {
+        big_checked(ui, app, "cadStrip", "Hatched\nStrip", "ui.cadTool", t("strip"), tool == Tool::Strip);
     });
     group(ui, "Text", None, app, |ui, app| {
         big_checked(ui, app, "cadText", "Text", "ui.cadTool", t("text"), tool == Tool::Text);
@@ -2737,6 +2774,21 @@ mod tests {
         app.run("edit.undo", json!({})).unwrap();
         reload(&mut app);
         assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, 2.5);
+    }
+
+    /// Hatched strip: a click on the line it follows, a click on its side.
+    #[test]
+    fn a_hatched_strip_along_a_line() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::parse("strip").unwrap());
+        // The starter rectangle's bottom edge (y = 0), the strip below it (outside).
+        assert!(feed(ed, Pt::new(60.0, 0.5), None).is_none());
+        let d = feed(ed, Pt::new(60.0, -10.0), None).expect("a strip");
+        let Some(Kind::Strip { along, side, .. }) = d.entities.last().map(|e| &e.kind) else { panic!() };
+        // The rectangle runs counter-clockwise: below its bottom edge is the edge's right.
+        assert_eq!((along.as_str(), *side), ("e1", strix_cad::Side::Right));
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

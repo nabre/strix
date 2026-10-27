@@ -1266,6 +1266,13 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
                 false,
             );
         }
+        // A hatched strip: a line with short slanted strokes along one side.
+        "cadStrip" => {
+            pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
+            for x in [3.0, 6.5, 10.0, 13.5] {
+                pen.line_c(&[(x, 8.0), (x + 3.5, 13.0)], a);
+            }
+        }
         // Layers: three sheets stacked, the top one in the accent.
         "cadLayers" => {
             pen.line_c(&[(2.0, 13.0), (10.0, 17.0), (18.0, 13.0)], c);

@@ -224,6 +224,13 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
    the angle (`<>°`) level just outside the arc's middle. Texts have an **alignment** (left,
    centre, right on their point). Arrowheads are filled paths (`Prim::Path { fill }`).
+   **Hatched strip** (CAD Annotate › Hatch; `strip {along, width, side, pattern, angle,
+   spacing}`): a band along a line, polyline, circle or arc (found by its id, so it follows it
+   when it moves or the calculations redraw it), `width` paper mm wide on its left or right,
+   filled solid or hatched with lines (or crossed) at `angle` to each segment, `spacing` paper mm
+   apart square to them, running on from one segment to the next; corners mitred (at most four
+   widths). Annotative: the same on paper at any scale. Copied with its path it follows the copy;
+   deleting the path deletes it. Tool `strip`: a click on the path, a click on the side.
    **Circle ways** (Draw › Circle menu; typed `c`, then `2p`, `3p`, `ttr`, `ttt`, or `d` after the
    centre): centre and radius, centre and diameter, 2 points (a diameter), 3 points, Tan Tan
    Radius (two objects picked near where the circle should touch them, then the radius typed or

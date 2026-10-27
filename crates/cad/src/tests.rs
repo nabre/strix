@@ -1037,3 +1037,50 @@ fn the_scale_fits_the_space() {
     assert_eq!(hostile.fit, Some(Fit { width: 0.0, height: 5000.0 }));
     assert!(Drawing::from_json(r#"{"fit":{"width":0,"height":0}}"#).unwrap().fit.is_none());
 }
+
+/// A hatched strip follows its line or polyline: a band `width` paper mm wide on its side,
+/// hatched across at its angle, `spacing` apart; copied with its path it follows the copy,
+/// deleted with it it goes; nonsense sizes are clamped.
+#[test]
+fn strips_follow_their_path() {
+    let ws = sheet(&["L = 2 m"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit":"m","scale":50,"entities":[
+            {"id":"g","type":"polyline","pts":[[0,0],["L",0],["L",1]]},
+            {"type":"strip","along":"g","width":4,"side":"right","angle":90,"spacing":2}]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    let strip = d.entities[1].clone();
+    // 1:50 in metres: 4 paper mm is 0.2 m, below the path (right of it going along x).
+    let s = d.strip_shape(&strip).unwrap();
+    assert_eq!(s.path.len(), 3);
+    assert!(s.edge.iter().zip(&s.path).all(|(e, p)| e.minus(*p).len() >= 0.2 - 1e-9));
+    assert!((s.edge[0].y + 0.2).abs() < 1e-9, "{:?}", s.edge);
+    // Lines square to the path, 2 mm (0.1 m) apart, each crossing the whole band.
+    let lines = d.strip_lines(&strip);
+    assert!(lines.len() >= 25, "{}", lines.len());
+    for (a, b) in &lines {
+        assert!((b.minus(*a).len() - 0.2).abs() < 1e-6 || b.minus(*a).len() < 0.2 * 4.0 + 1e-9, "{a:?} {b:?}");
+    }
+    // The path grows with L: so does the strip.
+    let ws = sheet(&["L = 4 m"]);
+    d.resolve(&ws);
+    assert!(d.strip_lines(&strip).len() > lines.len());
+    // Drawn as thin lines; solid as one filled band.
+    assert!(d.render(None).prims.iter().filter(|p| matches!(p, Prim::Path { closed: false, .. })).count() > 25);
+    d.set_field(1, 0, "pattern", "solid").unwrap();
+    assert_eq!(d.render(None).prims.iter().filter(|p| matches!(p, Prim::Path { fill: true, .. })).count(), 1);
+    // Copied together, the copy follows the copied path; deleting the path takes the strip.
+    let copies = d.copy(&[0, 1], Pt::new(10.0, 0.0));
+    let new_path = d.entities[copies[0]].id.clone();
+    assert!(matches!(&d.entities[copies[1]].kind, Kind::Strip { along, .. } if *along == new_path));
+    d.remove(&[0]);
+    assert!(d.entities.iter().all(|e| !matches!(&e.kind, Kind::Strip { along, .. } if along == "g")));
+    // Hostile sizes are clamped; a strip with no path draws nothing.
+    let mut h = Drawing::from_json(r#"{"entities":[{"type":"strip","along":"nope","width":1e300,"spacing":0,"angle":-5}]}"#).unwrap();
+    assert!(matches!(h.entities[0].kind, Kind::Strip { width, spacing, angle, .. } if width == 100.0 && spacing == 0.2 && angle == 5.0));
+    assert!(h.strip_shape(&h.entities[0].clone()).is_none());
+    let _ = h.render(None);
+    h.sanitize();
+}
