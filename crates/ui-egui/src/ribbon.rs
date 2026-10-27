@@ -2616,6 +2616,8 @@ Table",
                 false,
             );
         });
+        let steps = app.session.prefs.calc_steps;
+        crate::widgets::big_toggle(ui, app, "steps", "Show\nSteps", "calc.steps", steps);
         menu_button(ui, app, "numberFormat", Some("Number Format"), "How results are rounded", true, "calc.options", |ui, app| {
             let count = app.session.prefs.calc_count.clone();
             mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));

@@ -760,6 +760,9 @@ pub struct Prefs {
     pub calc_count: String,
     /// Keep trailing zeros in calculated results (`2.500`).
     pub calc_zeros: bool,
+    /// Show the solution steps of formulas and solved equations under them (`calc.steps`):
+    /// formula, substitution, result, one under the other.
+    pub calc_steps: bool,
 }
 
 impl Default for Prefs {
@@ -769,6 +772,7 @@ impl Default for Prefs {
             calc_digits: 3,
             calc_count: "auto".to_string(),
             calc_zeros: false,
+            calc_steps: true,
             count_notes: true,
             markup: Default::default(),
             print_markup: false,

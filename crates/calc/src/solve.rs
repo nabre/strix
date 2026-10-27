@@ -9,7 +9,7 @@ use crate::{CalcError, MAX_DEPTH};
 pub(crate) fn free_names(expr: &Expr, out: &mut Vec<String>) {
     fn walk(expr: &Expr, bound: &mut Vec<String>, out: &mut Vec<String>) {
         match expr {
-            Expr::Num(_) => {}
+            Expr::Num(_) | Expr::Unit(_) => {}
             Expr::Name(n) => {
                 if !bound.contains(n) && !out.contains(n) {
                     out.push(n.clone());
@@ -48,7 +48,7 @@ fn count(expr: &Expr, x: &str) -> usize {
     let mut stack = vec![expr];
     while let Some(e) = stack.pop() {
         match e {
-            Expr::Num(_) => {}
+            Expr::Num(_) | Expr::Unit(_) => {}
             Expr::Name(name) => n += usize::from(name == x),
             Expr::Neg(a) => stack.push(a),
             Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
@@ -101,8 +101,11 @@ pub(crate) fn isolate(lhs: &Expr, rhs: &Expr, x: &str) -> Option<Expr> {
                     (BinOp::Sub, false) => bin(BinOp::Sub, a2, other),
                     (BinOp::Mul, true) => bin(BinOp::Div, other, b2),
                     (BinOp::Mul, false) => bin(BinOp::Div, other, a2),
+                    // A number goes in front: `4·A`, not `A·4`.
+                    (BinOp::Div, true) if matches!(b2, Expr::Num(_)) => bin(BinOp::Mul, b2, other),
                     (BinOp::Div, true) => bin(BinOp::Mul, other, b2),
                     (BinOp::Div, false) => bin(BinOp::Div, a2, other),
+                    (BinOp::Pow, true) if b2 == Expr::Num(2.0) => call(Func::Sqrt, other),
                     (BinOp::Pow, true) => bin(BinOp::Pow, other, bin(BinOp::Div, Expr::Num(1.0), b2)),
                     (BinOp::Pow, false) => bin(BinOp::Div, call(Func::Ln, other), call(Func::Ln, a2)),
                 };

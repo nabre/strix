@@ -67,7 +67,12 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 - An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
   listed by `calc.recalculate`. Names depending on a failed definition are undefined.
 - Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
-  parameter wins over a unit of the same spelling.
+  parameter wins over a unit of the same spelling, **except right after a number**: there unit
+  names are units (ISO 80000: a quantity is a number times a unit), so with a mass `m = 400 kg`,
+  `L = 4.5 m` is still metres and `q = 12 kN/m` still per metre. The units after a number run on
+  through `·`, `/`, spaces and powers (`9.81 m/s²`, `30 kN·m`) and stop at the first name that
+  is not a unit. To multiply by a parameter spelled like a unit, put it first or use brackets:
+  `L·2 kN`, `(2 kN)·L`, `2·m`.
 
 ## Sums, products, ranges and vectors
 
@@ -198,6 +203,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: a unit after a number is always the unit; solution steps (formula, substitution, result) under formulas and solved equations.
 - 2026-10-27: units styled (Unit character style, upright, thin space).
 - 2026-10-27: automatic recalculation after edits (waiting while the caret is in the item);
   every table cell is data or a statement; dimensionless units (`% ‰ ppm ° rad gon sr`) kept

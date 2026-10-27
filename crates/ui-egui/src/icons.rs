@@ -1201,6 +1201,12 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
         }
         // A new calculation: an equals sign beside x.
         "calculation" => pen.text(10.0, 10.0, 12.0, "x=", a, false),
+        // Steps: three aligned lines, the last one a result.
+        "steps" => {
+            pen.lines(4.0, 16.0, &[5.5, 10.0]);
+            pen.line_c(&[(4.0, 14.5), (16.0, 14.5)], a);
+            pen.text(9.5, 10.0, 7.0, "=", c, false);
+        }
         "numberFormat" => pen.text(10.0, 10.0, 9.0, "0.00", a, false),
         "moreDigits" => {
             pen.text(8.0, 7.0, 8.0, ".0", c, false);

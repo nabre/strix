@@ -2493,3 +2493,5 @@ preview	Title	Esempio
 	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	I dati sono i primi parametri dei calcoli dell'esercizio: la risoluzione li usa tramite il simbolo. Cambiando variante l'esercizio viene ricalcolato.
 	Exercise Data	Dati esercizio
 	Unit	Unità di misura
+	Show\nSteps	Mostra\npassaggi
+	Show Steps	Mostra passaggi

@@ -108,6 +108,9 @@ pub(crate) enum BinOp {
 pub(crate) enum Expr {
     Num(f64),
     Name(String),
+    /// A unit written after a number (`4.5 m`, `12 kN/m`): always the unit, even where a
+    /// parameter has the same name (ISO 80000: a quantity is a number times a unit).
+    Unit(String),
     Neg(Box<Expr>),
     Bin(BinOp, Box<Expr>, Box<Expr>),
     Call(Func, Vec<Expr>),
@@ -255,11 +258,75 @@ impl Parser<'_> {
 
     fn implicit(&mut self) -> R<Expr> {
         let mut left = self.power()?;
+        // A number followed by units: the units are read as such (`4.5 m`, `9.81 m/s²`).
+        if matches!(left, Expr::Num(_)) && self.unit_at(self.i) {
+            let unit = self.unit_chain()?;
+            left = self.bin(BinOp::Mul, left, unit)?;
+        }
         while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt | Tok::Nary(_))) {
             let right = self.power()?;
             left = self.bin(BinOp::Mul, left, right)?;
         }
         Ok(left)
+    }
+
+    /// True when token `i` is a unit name (and not a function call).
+    fn unit_at(&self, i: usize) -> bool {
+        match self.toks.get(i).map(|t| &t.tok) {
+            Some(Tok::Ident(name)) => {
+                crate::units::unit(name).is_some() && !matches!(self.toks.get(i + 1).map(|t| &t.tok), Some(Tok::LParen) | Some(Tok::LBracket))
+            }
+            _ => false,
+        }
+    }
+
+    /// Units multiplied, divided and raised to powers: `kN·m`, `m/s²`, `kg m^-3`. Stops at
+    /// anything that isn't a unit (`2 m·a` is two metres times `a`).
+    fn unit_chain(&mut self) -> R<Expr> {
+        let mut e = self.unit_factor()?;
+        loop {
+            match self.peek() {
+                Some(Tok::Star) if self.unit_at(self.i + 1) => {
+                    self.bump();
+                    let f = self.unit_factor()?;
+                    e = self.bin(BinOp::Mul, e, f)?;
+                }
+                Some(Tok::Slash) if self.unit_at(self.i + 1) => {
+                    self.bump();
+                    let f = self.unit_factor()?;
+                    e = self.bin(BinOp::Div, e, f)?;
+                }
+                Some(Tok::Ident(_)) if self.unit_at(self.i) => {
+                    let f = self.unit_factor()?;
+                    e = self.bin(BinOp::Mul, e, f)?;
+                }
+                _ => return Ok(e),
+            }
+        }
+    }
+
+    /// One unit with its power: `m`, `m²`, `s^-2`.
+    fn unit_factor(&mut self) -> R<Expr> {
+        let Some(Tok::Ident(name)) = self.peek().cloned() else {
+            return Err(CalcError::syntax(self.pos(), "expected a unit"));
+        };
+        self.bump();
+        let mut e = self.node(Expr::Unit(name))?;
+        loop {
+            match self.peek() {
+                Some(&Tok::Sup(n)) => {
+                    self.bump();
+                    let exponent = self.node(Expr::Num(f64::from(n)))?;
+                    e = self.bin(BinOp::Pow, e, exponent)?;
+                }
+                Some(Tok::Caret) => {
+                    self.bump();
+                    let exponent = self.nested(Self::exponent)?;
+                    e = self.bin(BinOp::Pow, e, exponent)?;
+                }
+                _ => return Ok(e),
+            }
+        }
     }
 
     fn power(&mut self) -> R<Expr> {

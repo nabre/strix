@@ -1,6 +1,6 @@
 //! Number formatting and unit-expression rendering.
 
-use crate::parser::{BinOp, Expr};
+use crate::parser::{BinOp, Expr, Func};
 use crate::units::power_text;
 use crate::{Count, Options};
 
@@ -134,13 +134,25 @@ fn fixed(ds: &[u8], exp: i32, places: i32, zeros: bool) -> String {
 /// Renders a unit expression in normal form: `·` between factors, `²`/`³` or `^n` for powers,
 /// parentheses only where needed. Re-parsing the result gives the same value and the same text.
 pub(crate) fn render(expr: &Expr) -> String {
+    render_with(expr, &|_| None)
+}
+
+/// [`render`], with names `sub` gives text for written as that text (`L` → `(4.5 m)`): the
+/// substitution line of a solution. The text must already carry the parentheses it needs.
+pub(crate) fn render_with(expr: &Expr, sub: &dyn Fn(&str) -> Option<String>) -> String {
+    let render = |e: &Expr| render_with(e, sub);
+    let wrap = |e: &Expr, parens: bool| if parens { format!("({})", render_with(e, sub)) } else { render_with(e, sub) };
     match expr {
         Expr::Num(v) => format!("{v}"),
-        Expr::Name(name) => name.clone(),
+        Expr::Name(name) => sub(name).unwrap_or_else(|| name.clone()),
+        Expr::Unit(name) => name.clone(),
         Expr::Neg(inner) => format!("-{}", wrap(inner, is_sum(inner))),
         Expr::Call(func, args) => {
             let args: Vec<String> = args.iter().map(render).collect();
-            format!("{}({})", func.name(), args.join("; "))
+            match (func, args.as_slice()) {
+                (Func::Sqrt, [a]) => format!("√({a})"),
+                _ => format!("{}({})", func.name(), args.join("; ")),
+            }
         }
         Expr::Vector(items) => {
             let items: Vec<String> = items.iter().map(render).collect();
@@ -189,10 +201,6 @@ fn integer(expr: &Expr) -> Option<i64> {
         _ => return None,
     };
     if v.fract() == 0.0 && v.abs() <= 1e6 { Some(sign * v as i64) } else { None }
-}
-
-fn wrap(expr: &Expr, parens: bool) -> String {
-    if parens { format!("({})", render(expr)) } else { render(expr) }
 }
 
 fn is_sum(expr: &Expr) -> bool {

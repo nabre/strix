@@ -219,6 +219,7 @@ impl<'a> Ctx<'a> {
         match expr {
             Expr::Num(v) => Ok(Quantity::number(finite(*v)?).into()),
             Expr::Name(name) => self.resolve(name),
+            Expr::Unit(name) => unit(name).map(Value::Scalar).ok_or_else(|| CalcError::UnknownUnit(name.clone())),
             Expr::Neg(inner) => Ok(match self.eval(inner)? {
                 Value::Scalar(q) => Value::Scalar(q.negate()),
                 Value::Vector(mut v) => {

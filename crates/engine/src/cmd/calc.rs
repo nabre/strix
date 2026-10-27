@@ -42,6 +42,12 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"{"value"?: bool (default: toggle)}: new equations are calculation regions (a preference)"#),
+        CommandSpec::new("calc.steps", "Show Steps", "Math › Results", |s, v| {
+            s.prefs.calc_steps = p::bool(v, "value").unwrap_or(!s.prefs.calc_steps);
+            let report = recalculate_now(s);
+            Ok(json!({"steps": s.prefs.calc_steps, "recalculated": report}))
+        })
+        .params(r#"{"value"?: bool (default: toggle)} → formulas and solved equations show their solution under them: the formula solved for the unknown, the values substituted, the result (a preference)"#),
         CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool} → the format: how results are rounded (a preference), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Table Layout › Data", toggle_table)
@@ -63,7 +69,16 @@ pub fn specs() -> Vec<CommandSpec> {
 
 /// The number format: the preferences, overridden by the call's parameters.
 fn options(s: &Session, v: &Value) -> Options {
-    let mut o = Options { digits: s.prefs.calc_digits.min(15), count: count(&s.prefs.calc_count), zeros: s.prefs.calc_zeros, ..Options::default() };
+    let mut o = Options {
+        digits: s.prefs.calc_digits.min(15),
+        count: count(&s.prefs.calc_count),
+        zeros: s.prefs.calc_zeros,
+        steps: s.prefs.calc_steps,
+        ..Options::default()
+    };
+    if let Some(steps) = p::bool(v, "steps") {
+        o.steps = steps;
+    }
     if let Some(d) = p::u64(v, "digits") {
         o.digits = u8::try_from(d.min(15)).unwrap_or(3);
     }
@@ -106,7 +121,44 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
 
 /// The linear text of an equation, as the calc engine reads it.
 fn equation_text(linear: &str, math: &Math) -> String {
+    // An equation showing its solution steps is rows aligned at `&`: the statement is the first.
+    if let [strix_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
+        && let Some(first) = rows.first()
+    {
+        return to_linear(first).replace('&', "");
+    }
     if math.nodes.is_empty() || math.linear { linear.to_string() } else { to_linear(&math.nodes) }
+}
+
+/// The equation's whole linear text (all its rows).
+fn equation_full(linear: &str, math: &Math) -> String {
+    if math.nodes.is_empty() || math.linear { linear.to_string() } else { to_linear(&math.nodes) }
+}
+
+/// `line` with the alignment mark before its first `=` outside brackets: `a &= F/m`.
+fn aligned(line: &str) -> String {
+    let mut depth = 0i32;
+    for (i, c) in line.char_indices() {
+        match c {
+            '(' | '[' | '{' | '〖' => depth += 1,
+            ')' | ']' | '}' | '〗' => depth -= 1,
+            '=' if depth == 0 => return format!("{}&{}", line.get(..i).unwrap_or_default(), line.get(i..).unwrap_or_default()),
+            _ => {}
+        }
+    }
+    line.to_string()
+}
+
+/// The equation a statement and its steps show: the statement alone, or the statement and the
+/// steps as rows aligned at `=`, one under the other.
+fn with_steps(statement: &str, steps: Option<&Vec<String>>) -> String {
+    match steps {
+        Some(lines) if !lines.is_empty() => {
+            let rows: Vec<String> = std::iter::once(statement).chain(lines.iter().map(String::as_str)).map(aligned).collect();
+            format!("█({})", rows.join("@"))
+        }
+        _ => statement.to_string(),
+    }
 }
 
 /// What the worksheet reads, in reading order.
@@ -114,7 +166,7 @@ fn equation_text(linear: &str, math: &Math) -> String {
 enum Item {
     /// An equation in top-level block `top`: its text if it is a calc region, `None` otherwise,
     /// and the question it answers (`Math::answer`, 0 for none).
-    Equation { top: usize, text: Option<String>, answer: u32 },
+    Equation { top: usize, text: Option<String>, answer: u32, full: String },
     /// A calculated table (top-level block `top`): its cells' text, row by row.
     Table { top: usize, cells: Vec<Vec<String>> },
 }
@@ -153,7 +205,12 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                         return;
                     }
                     if let InlineObject::Equation { linear, math, .. } = o {
-                        out.push(Item::Equation { top, text: math.calc.then(|| equation_text(linear, math)), answer: math.answer });
+                        out.push(Item::Equation {
+                            top,
+                            text: math.calc.then(|| equation_text(linear, math)),
+                            answer: math.answer,
+                            full: equation_full(linear, math),
+                        });
                     }
                 }
             }
@@ -190,8 +247,9 @@ fn regions(blocks: &[Arc<Block>]) -> Vec<(usize, Option<String>)> {
 
 /// What evaluating an item gave.
 enum Outcome {
-    /// The result and the units in the equation's text (to style).
-    Equation(Option<RegionResult>, Vec<String>),
+    /// The result and the units of each row the equation shows (the statement, then its steps),
+    /// to style.
+    Equation(Option<RegionResult>, Vec<Vec<String>>),
     Table(TableResult),
 }
 
@@ -236,7 +294,8 @@ fn run_sheet(
             let outcome = match item {
                 Item::Equation { text: Some(text), .. } => {
                     let r = ws.eval_statement(text);
-                    let units = ws.units_in(r.display.as_deref().unwrap_or(text));
+                    let first = r.display.clone().unwrap_or_else(|| text.clone());
+                    let units = std::iter::once(&first).chain(r.steps.iter().flatten()).map(|row| ws.units_in(row)).collect();
                     Outcome::Equation(Some(r), units)
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
@@ -255,13 +314,13 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let found = items(&s.doc.body);
     let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     let mut updates: Vec<Option<String>> = Vec::new();
-    let mut units: Vec<Vec<String>> = Vec::new();
+    let mut units: Vec<Vec<Vec<String>>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
         match (item, outcome) {
-            (Item::Equation { text: Some(text), .. }, Outcome::Equation(Some(r), found_units)) => {
+            (Item::Equation { text: Some(text), full, .. }, Outcome::Equation(Some(r), found_units)) => {
                 units.push(found_units.clone());
                 if r.kind != RegionKind::NotCalc {
                     calc_regions += 1;
@@ -269,11 +328,12 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 if let Some(e) = &r.error {
                     errors.push(json!({"region": i, "text": text, "error": e.to_string()}));
                 }
+                // What the equation should show: the statement (rewritten or as typed) and its steps.
+                let statement = r.display.clone().unwrap_or_else(|| text.clone());
+                let desired = with_steps(&statement, r.steps.as_ref());
                 // The linear format of a built-up equation drops spaces: only a real change rewrites it.
-                let same = |d: &String| {
-                    d.split_whitespace().eq(text.split_whitespace()) || d.replace(char::is_whitespace, "") == text.replace(char::is_whitespace, "")
-                };
-                updates.push(r.display.clone().filter(|d| !same(d)));
+                let squash = |t: &str| t.replace(char::is_whitespace, "");
+                updates.push((squash(&desired) != squash(full)).then_some(desired));
             }
             (Item::Equation { .. }, _) => {
                 updates.push(None);
@@ -315,7 +375,7 @@ fn fingerprint(found: &[Item]) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for item in found {
         match item {
-            Item::Equation { text, answer, .. } => (text, answer).hash(&mut h),
+            Item::Equation { text, answer, full, .. } => (text, answer, full).hash(&mut h),
             Item::Table { cells, .. } => cells.hash(&mut h),
         }
     }
@@ -378,7 +438,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
         .iter()
         .zip(&outcomes)
         .filter_map(|(item, outcome)| {
-            let Item::Equation { top, answer, text } = item else { return None };
+            let Item::Equation { top, answer, text, .. } = item else { return None };
             if *answer == 0 {
                 return None;
             }
@@ -411,7 +471,7 @@ pub(crate) fn recalculate_now(s: &mut Session) -> Value {
 
 /// Replaces the text of the regions with an update and styles their units, touching only the
 /// blocks that change. Returns how many regions changed only in style.
-fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Option<String>], units: &[Vec<String>], color: Rgb) -> usize {
+fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Option<String>], units: &[Vec<Vec<String>>], color: Rgb) -> usize {
     let mut index = 0usize;
     let mut restyled = 0usize;
     let mut tops: Vec<usize> = found.iter().filter(|(_, t)| t.is_some()).map(|(t, _)| *t).collect();
@@ -430,20 +490,24 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
         let mut each = |p: &mut Paragraph| {
             let mut touched = false;
             for o in &mut p.objects {
-                if let InlineObject::Equation { linear, math, .. } = o {
+                if let InlineObject::Equation { linear, math, display } = o {
                     if index >= MAX_REGIONS {
                         return;
                     }
                     let found_units = units.get(index).map(Vec::as_slice).unwrap_or_default();
                     if let Some(Some(text)) = updates.get(index) {
                         let mut nodes = parse_linear(text);
-                        style_units(&mut nodes, found_units, color, 0);
+                        style_rows(&mut nodes, found_units, color);
+                        // Steps go one under the other: the equation stands on its own line.
+                        if text.starts_with('█') {
+                            *display = true;
+                        }
                         *math = Math { nodes, jc: math.jc, calc: true, answer: math.answer, ..Math::default() };
                         *linear = to_linear(&math.nodes);
                         touched = true;
                     } else if math.calc {
                         let mut nodes = if math.nodes.is_empty() { parse_linear(linear) } else { math.nodes.clone() };
-                        style_units(&mut nodes, found_units, color, 0);
+                        style_rows(&mut nodes, found_units, color);
                         if nodes != math.nodes {
                             math.nodes = nodes;
                             math.omml.clear();
@@ -486,6 +550,20 @@ pub(crate) fn unit_color(s: &mut Session) -> Rgb {
     }
 }
 
+/// Styles the units of each row with that row's units: a name that is a unit in the result
+/// (`m` in `25 m/s²`) stays a parameter in the formula (`m` in `F = m·a`).
+fn style_rows(nodes: &mut strix_doc::math::Arg, rows: &[Vec<String>], color: Rgb) {
+    use strix_doc::math::MNode;
+    match nodes.as_mut_slice() {
+        [MNode::EqArr { rows: arr }] => {
+            for (k, row) in arr.iter_mut().enumerate() {
+                style_units(row, rows.get(k).map(Vec::as_slice).unwrap_or_default(), color, 1);
+            }
+        }
+        _ => style_units(nodes, rows.first().map(Vec::as_slice).unwrap_or_default(), color, 0),
+    }
+}
+
 /// Characters a unit name is made of (letters, `°`, `%`, `‰`, `µ`, `Ω`).
 fn unit_char(c: char) -> bool {
     c.is_alphabetic() || matches!(c, '°' | '%' | '‰') || is_superscript(c)
@@ -506,6 +584,28 @@ fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, de
     }
     let mut out = Vec::with_capacity(root.len());
     for mut n in std::mem::take(root) {
+        // The linear format makes `50 cm^2` "…c" then `m²`: put the unit back together.
+        if let MNode::Script { base, .. } = &mut n
+            && let [MNode::Run(b)] = base.as_mut_slice()
+            && let Some(MNode::Run(prev)) = out.last_mut()
+            && !prev.nor
+        {
+            let letters: Vec<(usize, char)> = prev.text.char_indices().rev().take_while(|(_, c)| c.is_alphabetic()).take(4).collect();
+            for &(at, _) in &letters {
+                let candidate = format!("{}{}", prev.text.get(at..).unwrap_or_default(), b.text);
+                if units.contains(&candidate) {
+                    prev.text.truncate(at);
+                    b.text = candidate;
+                    break;
+                }
+            }
+            if units.contains(&b.text) && prev.text.ends_with(|c: char| c.is_ascii_digit()) {
+                prev.text.push('\u{2009}');
+            }
+            if prev.text.is_empty() {
+                out.pop();
+            }
+        }
         let MNode::Run(r) = n else {
             for c in 0..child_count(&n) {
                 if let Some(ch) = child_mut(&mut n, c) {
@@ -796,7 +896,30 @@ mod tests {
         for t in ["F = 10 N", "m = 4 kg", "F = m·a", "a = m/s^2"] {
             add(&mut s, t);
         }
-        assert_eq!(texts(&s), ["F=10N", "m=4kg", "F=m·a⇒a=2.5m/s²", "a=2.5m/s²"]);
+        assert_eq!(texts(&s), ["F=10N", "m=4kg", "F=m·a", "a=2.5m/s²"]);
+        // The solved equation shows its steps under it, aligned at `=`: formula, values, result.
+        let fulls: Vec<(String, bool)> = s
+            .doc
+            .body
+            .iter()
+            .filter_map(|b| match &**b {
+                Block::Para(p) => Some(p.objects.iter().filter_map(|o| match o {
+                    InlineObject::Equation { linear, math, display } => {
+                        Some((equation_full(linear, math).replace(char::is_whitespace, ""), *display))
+                    }
+                    _ => None,
+                })),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        let (steps, display) = &fulls[2];
+        assert!(steps.starts_with("█(F&=m·a@a&=F/m@a&="), "{steps}");
+        assert!(steps.ends_with("@a&=2.5m/s²)"), "{steps}");
+        assert!(*display, "the steps stand on their own lines");
+        // Turned off, the result goes back on the equation's line.
+        s.run("calc.steps", &json!({"value": false})).unwrap();
+        assert_eq!(texts(&s)[2], "F=m·a⇒a=2.5m/s²");
         let vars = s.run("calc.variables", &json!({})).unwrap();
         assert_eq!(vars["variables"][2]["name"], "a");
         assert_eq!(vars["variables"][2]["region"], 2);
@@ -919,14 +1042,23 @@ mod tests {
     fn units_take_the_unit_style() {
         let mut s = session();
         add(&mut s, "L = 4.5 m");
-        add(&mut s, "M = 2 kN·L =");
+        add(&mut s, "M = L·2 kN =");
         let coloured = |s: &Session, n| runs(s, n).into_iter().filter(|(_, c)| *c).map(|(t, _)| t).collect::<Vec<_>>();
         assert_eq!(coloured(&s, 0), ["m"]);
         assert_eq!(coloured(&s, 1), ["kN", "kJ"], "{:?}", runs(&s, 1));
+        // A unit with a power typed as `^2` is styled whole.
+        add(&mut s, "A = 50 cm^2");
+        assert_eq!(coloured(&s, 2), ["cm"], "{:?}", runs(&s, 2));
         // A parameter spelled like a unit is not a unit.
         add(&mut s, "m = 3 kg");
         add(&mut s, "m*2 =");
-        assert_eq!(coloured(&s, 3), ["kg"], "{:?}", runs(&s, 3));
+        assert_eq!(coloured(&s, 4), ["kg"], "{:?}", runs(&s, 4));
+        // In steps, `m` is the mass in the formula and the metre in the result.
+        add(&mut s, "F = 10 kN");
+        add(&mut s, "F = m·a");
+        let rows = runs(&s, 6);
+        assert!(rows.iter().any(|(t, c)| t.contains('m') && !c), "the mass m is not a unit: {rows:?}");
+        assert!(rows.iter().any(|(t, c)| t == "m" && *c), "the metre in the result is: {rows:?}");
         // The style's colour is the units' colour.
         let st = s.doc.styles.get_mut(UNIT_STYLE).unwrap();
         st.chr.color = Some(TextColor::Rgb(Rgb(200, 0, 0)));

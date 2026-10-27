@@ -210,8 +210,11 @@ fn redefinition_semantics() {
     assert_eq!(results[2].error, Some(CalcError::UnknownName("a".into())));
     assert!(results[3].error.is_some());
     assert_eq!(results[4].error, Some(CalcError::UnknownName("b".into())));
-    // A parameter wins over a unit and a constant.
-    assert_eq!(last(&["m := 3", "2 m ="]), "2 m = 6");
+    // A parameter wins over a unit and a constant, except right after a number, where a unit
+    // name is the unit (`2 m` is two metres; `2·m` multiplies by the parameter).
+    assert_eq!(last(&["m := 3", "2·m ="]), "2·m = 6");
+    assert_eq!(last(&["m := 3", "2 m ="]), "2 m = 2 m");
+    assert_eq!(last(&["m := 3", "m*2 ="]), "m*2 = 6");
     assert_eq!(last(&["g := 2", "g ="]), "g = 2");
     assert_eq!(last(&["m := 3", "1 km = m"]), "1 km = 1000 m"); // display units are units only
     let mut sheet = Worksheet::new(Options::default());
@@ -380,7 +383,7 @@ fn limits() {
     assert_eq!(last_error(&[&powers]), CalcError::TooComplex);
     // Long non-calc text stays untouched without an error.
     let prose = "x".repeat(10_000);
-    assert_eq!(run(&[&prose])[0], RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None });
+    assert_eq!(run(&[&prose])[0], RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None });
     // A too-long definition undefines its name.
     let long_def = format!("a := {}", "1+".repeat(3000) + "1");
     let results = run(&["a := 1", &long_def, "a ="]);
@@ -482,6 +485,7 @@ fn hostile_input_never_panics() {
             decimal_comma: round % 3 == 0,
             zeros: round % 2 == 0,
             count: [Count::Auto, Count::Decimals, Count::Significant][round % 3],
+            steps: round % 2 == 1,
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -826,4 +830,47 @@ fn every_cell_can_be_data_a_formula_or_an_equation() {
     // A definition in a cell defines a parameter for later regions; the row's names don't leak.
     assert_eq!(ws.eval_statement("x =").display.as_deref(), Some("x = 3 m"));
     assert_eq!(ws.eval_statement("M =").display.as_deref(), Some("M = [30.375; 45; 20] kN·m"));
+}
+
+fn steps(statements: &[&str]) -> Option<Vec<String>> {
+    let opts = Options { steps: true, ..Options::default() };
+    evaluate(statements, &opts).pop().and_then(|r| r.steps)
+}
+
+#[test]
+fn solutions_show_formula_substitution_and_result() {
+    // Solved for the unknown: formula, substitution, result.
+    assert_eq!(steps(&["F = 10 N", "m = 4 kg", "F = m·a"]).unwrap(), ["a = F/m", "a = (10 N)/(4 kg)", "a = 2.5 m/s²"]);
+    // A formula already solved: substitution and result.
+    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["M = (12 kN/m)·(4.5 m)²/8", "M = 30.375 kJ"]);
+    assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
+    // Plain numbers in the substitution need no parentheses; negatives do.
+    assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["c = 2·(-3)", "c = -6"]);
+    // Solved numerically: the equation with the values, then the result.
+    assert_eq!(steps(&["k = 6", "x^2 + x = k"]).unwrap(), ["x² + x = 6", "x = 2"]);
+    // Data, and statements that ask for a unit, have no steps.
+    assert_eq!(steps(&["L = 4.5 m"]), None);
+    assert_eq!(steps(&["L = 4.5 m", "M = 2 L = mm"]), None);
+    // With steps, a solved equation stays as written.
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(&["F = 10 N", "m = 4 kg", "F = m·a ⇒ a = 1 m/s^2"], &opts).pop().unwrap();
+    assert_eq!(r.display.as_deref(), Some("F = m·a"));
+}
+
+#[test]
+fn a_unit_after_a_number_is_always_the_unit() {
+    // `m` is a mass here, yet `4.5 m` is four and a half metres.
+    assert_eq!(last(&["m = 400 kg", "L = 4.5 m", "L ="]), "L = 4.5 m");
+    assert_eq!(last(&["m = 400 kg", "q = 12 kN/m", "q ="]), "q = 12 kN/m");
+    assert_eq!(last(&["s = 3", "v = 9.81 m/s^2", "v ="]), "v = 9.81 m/s²");
+    // Multiplying by the parameter takes a dot.
+    assert_eq!(last(&["m = 400 kg", "F = 2·m", "F ="]), "F = 800 kg");
+    // A chain stops at what is not a unit.
+    assert_eq!(last(&["a = 3 m/s^2", "F = 2 kg·a", "F ="]), "F = 6 N");
+    assert_eq!(last(&["2 kN/4 m^2 ="]), "2 kN/4 m^2 = 500 Pa");
+    // The styling finds the units after numbers even when a parameter shares the name.
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("m = 400 kg");
+    assert_eq!(ws.units_in("x = 4.5 m"), ["m"]);
+    assert_eq!(ws.units_in("F = m·a"), Vec::<String>::new());
 }

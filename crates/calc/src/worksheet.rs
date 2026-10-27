@@ -22,6 +22,8 @@ pub struct Options {
     /// Decimal comma: `1,5` is one and a half (input and output) and `;` separates function
     /// arguments.
     pub decimal_comma: bool,
+    /// Work out the solution steps of formulas and solved equations ([`RegionResult::steps`]).
+    pub steps: bool,
 }
 
 /// What [`Options::digits`] counts.
@@ -38,7 +40,7 @@ pub enum Count {
 
 impl Default for Options {
     fn default() -> Self {
-        Options { digits: 3, count: Count::Auto, zeros: false, decimal_comma: false }
+        Options { digits: 3, count: Count::Auto, zeros: false, decimal_comma: false, steps: false }
     }
 }
 
@@ -75,11 +77,15 @@ pub struct RegionResult {
     pub display: Option<String>,
     /// Why the statement failed.
     pub error: Option<CalcError>,
+    /// With [`Options::steps`], the solution as lines shown under the statement, one under the
+    /// other: the formula solved for the unknown (`a = F/m`, when it had to be isolated), the
+    /// values substituted (`a = (10 N)/(4 kg)`) and the result (`a = 2.5 m/s²`).
+    pub steps: Option<Vec<String>>,
 }
 
 impl RegionResult {
     fn not_calc() -> Self {
-        RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None }
+        RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None }
     }
 }
 
@@ -124,14 +130,49 @@ impl Worksheet {
     pub fn units_in(&self, text: &str) -> Vec<String> {
         let Ok(tokens) = lex(text.get(..text.len().min(MAX_INPUT_CHARS * 4)).unwrap_or(text), self.opts.decimal_comma) else { return Vec::new() };
         let mut out: Vec<String> = Vec::new();
-        for t in tokens {
-            if let Tok::Ident(n) = t.tok
-                && self.scope.get(&n).is_none()
-                && constant(&n).is_none()
-                && unit(&n).is_some()
-                && !out.contains(&n)
-            {
-                out.push(n);
+        // Each part between `=`, `:=`, `⇒` and comparisons, parsed as an expression: units after
+        // numbers, and names that can only be units here.
+        let split = |t: &Tok| matches!(t, Tok::Equals | Tok::Define | Tok::Cmp(_));
+        for part in tokens.split(|t| split(&t.tok)) {
+            let Ok(expr) = parse(part, text.chars().count()) else {
+                // Not an expression (a stale `[…]` or `⚠`): names that are units, as before.
+                for t in part {
+                    if let Tok::Ident(n) = &t.tok
+                        && self.scope.get(n).is_none()
+                        && constant(n).is_none()
+                        && unit(n).is_some()
+                        && !out.contains(n)
+                    {
+                        out.push(n.clone());
+                    }
+                }
+                continue;
+            };
+            let mut stack = vec![&expr];
+            while let Some(e) = stack.pop() {
+                match e {
+                    Expr::Unit(n) => {
+                        if !out.contains(n) {
+                            out.push(n.clone());
+                        }
+                    }
+                    Expr::Name(n) if self.scope.get(n).is_none() && constant(n).is_none() && unit(n).is_some() => {
+                        if !out.contains(n) {
+                            out.push(n.clone());
+                        }
+                    }
+                    Expr::Name(_) | Expr::Num(_) => {}
+                    Expr::Neg(a) => stack.push(a),
+                    Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
+                        stack.push(a);
+                        stack.push(b);
+                    }
+                    Expr::Call(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
+                    Expr::Nary(n) => {
+                        stack.extend([&n.from, &n.to].into_iter().flatten().map(|b| &**b));
+                        stack.push(&n.body);
+                    }
+                }
             }
         }
         out
@@ -171,6 +212,7 @@ impl Worksheet {
         };
         match e {
             Expr::Num(_) | Expr::Range(..) => None,
+            Expr::Unit(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
             Expr::Name(n) if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n) => Some(h.clone()),
             Expr::Name(n) if self.scope.get(n).is_some() => None,
             Expr::Name(n) if constant(n).is_some() => None,
@@ -368,8 +410,13 @@ impl Worksheet {
                 value: None,
                 display: Some(format!("{text} ⇒ {shown} {}", if holds { '✓' } else { '✗' })),
                 error: (!holds).then_some(CalcError::CheckFailed(shown)),
+                steps: None,
             },
-            Err(err) => RegionResult { kind: RegionKind::Check, name: None, value: None, display: Some(format!("{text} ⇒ ⚠")), error: Some(err) },
+            Err(err) => {
+                RegionResult {
+                    kind: RegionKind::Check, name: None, value: None, display: Some(format!("{text} ⇒ ⚠")), error: Some(err), steps: None
+                }
+            }
         }
     }
 
@@ -380,12 +427,12 @@ impl Worksheet {
             Ok(v) => {
                 self.scope.set(name, v.clone());
                 self.set_hint(name, hint);
-                RegionResult { kind, name: Some(name.to_string()), value: Some(v), display, error: None }
+                RegionResult { kind, name: Some(name.to_string()), value: Some(v), display, error: None, steps: None }
             }
             Err(err) => {
                 self.scope.remove(name);
                 self.set_hint(name, None);
-                RegionResult { kind, name: Some(name.to_string()), value: None, display, error: Some(err) }
+                RegionResult { kind, name: Some(name.to_string()), value: None, display, error: Some(err), steps: None }
             }
         }
     }
@@ -446,7 +493,7 @@ impl Worksheet {
                 } else {
                     (b.ok(), None, None)
                 };
-                RegionResult { kind: RegionKind::Check, name: None, value, display, error: check.err().or(shown_err) }
+                RegionResult { kind: RegionKind::Check, name: None, value, display, error: check.err().or(shown_err), steps: None }
             }
             [x] => {
                 let alone = matches!(&lhs, Expr::Name(n) if n == x) || matches!(&rhs, Expr::Name(n) if n == x);
@@ -460,6 +507,14 @@ impl Worksheet {
                 };
                 let x_hint = other.as_ref().and_then(|e| self.hint(e));
                 let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
+                if self.opts.steps && !shows {
+                    result.steps = self.steps(x, other.as_ref(), &lhs, &rhs, alone, x_hint.as_deref());
+                    // The steps show the result: the statement stays as written.
+                    if result.steps.is_some() {
+                        result.display = (!alone).then(|| text.trim().to_string());
+                        return result;
+                    }
+                }
                 if shows {
                     let (_, d, e) = self.show_value(&shown_left(), value, part(2), len, x_hint);
                     result.kind = if alone { RegionKind::DefineAndShow } else { RegionKind::Solved };
@@ -480,6 +535,49 @@ impl Worksheet {
             }
             _ => RegionResult { error: Some(CalcError::Underdetermined(unknowns.clone())), ..RegionResult::not_calc() },
         }
+    }
+
+    /// The solution steps for unknown `x` (now defined): with `form` (`x = form`), the formula
+    /// when it had to be isolated, the substitution and the result; without (solved
+    /// numerically), the equation with the values substituted and the result. `None` when there
+    /// is nothing to substitute (`L = 4.5 m`) or no value.
+    fn steps(&self, x: &str, form: Option<&Expr>, lhs: &Expr, rhs: &Expr, alone: bool, hint: Option<&str>) -> Option<Vec<String>> {
+        let v = self.scope.get(x)?;
+        let (number, unit) = self.auto_hinted(v, hint);
+        let result = format!("{x} = {}", with_unit(&number, &unit));
+        // A parameter's value as written in the substitution: in parentheses when it has a unit,
+        // a sign or a power of ten, so the line reads unambiguously.
+        let sub = |name: &str| -> Option<String> {
+            if name == x {
+                return None;
+            }
+            let shown = self.shown(name)?;
+            let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
+            Some(if bare { shown } else { format!("({shown})") })
+        };
+        let mut names = Vec::new();
+        match form {
+            Some(f) => free_names(f, &mut names),
+            None => {
+                free_names(lhs, &mut names);
+                free_names(rhs, &mut names);
+            }
+        }
+        if !names.iter().any(|n| n != x && self.scope.get(n).is_some()) {
+            return None;
+        }
+        let mut lines = Vec::new();
+        match form {
+            Some(f) => {
+                if !alone {
+                    lines.push(format!("{x} = {}", render(f)));
+                }
+                lines.push(format!("{x} = {}", crate::format::render_with(f, &sub)));
+            }
+            None => lines.push(format!("{} = {}", crate::format::render_with(lhs, &sub), crate::format::render_with(rhs, &sub))),
+        }
+        lines.push(result);
+        Some(lines)
     }
 
     /// The value of `x` that makes `lhs = rhs` true.
@@ -517,7 +615,7 @@ impl Worksheet {
         };
         let left_text = text.get(..eq_token.byte).unwrap_or(text).trim();
         let (value, display, error) = self.show(left_text, left, eq_token.pos, rhs, len);
-        RegionResult { kind: RegionKind::Evaluation, name: None, value, display: Some(display), error }
+        RegionResult { kind: RegionKind::Evaluation, name: None, value, display: Some(display), error, steps: None }
     }
 
     fn definition(&mut self, text: &str, tokens: &[Token], def: usize, eq: Option<usize>, len: usize) -> RegionResult {
@@ -530,6 +628,7 @@ impl Worksheet {
             value: None,
             display: left_text.map(|l| format!("{l} = ⚠")),
             error: Some(err),
+            steps: None,
         };
         let name = match tokens.get(..def) {
             Some([Token { tok: Tok::Ident(name), .. }]) if name.chars().next().is_some_and(char::is_alphabetic) => name.clone(),
@@ -571,7 +670,7 @@ impl Worksheet {
                 self.scope.remove(&name);
             }
         }
-        RegionResult { kind, name: Some(name), value, display, error }
+        RegionResult { kind, name: Some(name), value, display, error, steps: None }
     }
 
     /// Evaluates `expr` (ending at character `expr_end`) and formats `<left> = <value>` with
@@ -666,11 +765,11 @@ impl Worksheet {
                     self.scope.remove(&name);
                 }
                 let kind = if first_eq.is_some() { RegionKind::DefineAndShow } else { RegionKind::Definition };
-                RegionResult { kind, name: valid.then_some(name), value: None, display: first_eq.and_then(warn), error: Some(err) }
+                RegionResult { kind, name: valid.then_some(name), value: None, display: first_eq.and_then(warn), error: Some(err), steps: None }
             }
             None => match first_eq {
                 Some(b) if text.trim_end().ends_with('=') => {
-                    RegionResult { kind: RegionKind::Evaluation, name: None, value: None, display: warn(b), error: Some(err) }
+                    RegionResult { kind: RegionKind::Evaluation, name: None, value: None, display: warn(b), error: Some(err), steps: None }
                 }
                 _ => RegionResult::not_calc(),
             },
