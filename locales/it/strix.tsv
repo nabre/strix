@@ -2495,3 +2495,63 @@ preview	Title	Esempio
 	Unit	Unità di misura
 	Show\nSteps	Mostra\npassaggi
 	Show Steps	Mostra passaggi
+	Edit\nDrawing	Modifica\ndisegno
+	Edit Drawing	Modifica disegno
+	Line	Linea
+	Circle	Cerchio
+	Polyline	Polilinea
+	Rectangle	Rettangolo
+	Arc	Arco
+	Point	Punto
+	Text	Testo
+	Dimensions	Quote
+	Aligned	Allineata
+	Horizontal	Orizzontale
+	Vertical	Verticale
+	Modify	Modifica
+	Select	Seleziona
+	Move	Sposta
+	Copy	Copia
+	Delete	Elimina
+	Precision	Precisione
+	Snap	Snap
+	Ortho	Orto
+	Grid	Griglia
+	Zoom\nFit	Adatta\nzoom
+	Close\nDrawing	Chiudi\ndisegno
+	Close	Chiudi
+	Polyline: points, Enter to end, c to close	Polilinea: punti, Invio per finire, c per chiudere
+	Rectangle by two corners	Rettangolo da due vertici
+	Arc: centre, start, end (counter-clockwise)	Arco: centro, inizio, fine (antiorario)
+	Text: a position, then type it	Testo: una posizione, poi scrivilo
+	Horizontal dimension	Quota orizzontale
+	Vertical dimension	Quota verticale
+	Move the selection: base point, second point	Sposta la selezione: punto base, secondo punto
+	Copy the selection: base point, second point	Copia la selezione: punto base, secondo punto
+	Delete the selection (Del)	Elimina la selezione (Canc)
+	Snap to ends, midpoints, centres and the grid	Aggancia a estremi, punti medi, centri e griglia
+	Hold lines level or plumb (F8)	Linee orizzontali o verticali (F8)
+	Show the grid	Mostra la griglia
+	Select objects: click, or drag a window (left to right) or a crossing (right to left)	Seleziona oggetti: clic, oppure trascina una finestra (da sinistra a destra) o un riquadro intersecante (da destra a sinistra)
+	Line: first point	Linea: primo punto
+	Line: next point (Enter or Esc to end)	Linea: punto successivo (Invio o Esc per finire)
+	Polyline: first point	Polilinea: primo punto
+	Polyline: next point (Enter to end, c to close)	Polilinea: punto successivo (Invio per finire, c per chiudere)
+	Rectangle: first corner	Rettangolo: primo vertice
+	Rectangle: other corner	Rettangolo: vertice opposto
+	Circle: centre	Cerchio: centro
+	Circle: radius (a point or a number)	Cerchio: raggio (un punto o un numero)
+	Arc: centre	Arco: centro
+	Arc: start point	Arco: punto iniziale
+	Arc: end point (counter-clockwise)	Arco: punto finale (antiorario)
+	Point: location	Punto: posizione
+	Text: position	Testo: posizione
+	Text: type the text and press Enter	Testo: scrivi il testo e premi Invio
+	Dimension: first point	Quota: primo punto
+	Dimension: second point	Quota: secondo punto
+	Dimension: where the dimension line goes	Quota: posizione della linea di quota
+	Base point (select the objects first)	Punto base (seleziona prima gli oggetti)
+	Second point	Secondo punto
+	Ortho (F8)	Orto (F8)
+	Unit:	Unità:
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co) or press Enter	Scrivi un punto (x,y  @dx,dy  @d<a), una distanza, un comando (l, pl, rec, c, a, t, m, co) o premi Invio

@@ -50,6 +50,11 @@ pub struct Rendered {
     pub prims: Vec<Prim>,
     /// Width and height in paper mm (at least 10 × 10).
     pub size: (f64, f64),
+    /// Where the drawing sits on the paper: a point at drawing coordinates (x, y) is at paper
+    /// (x·scale − origin.0, origin.1 − y·scale) mm.
+    pub origin: (f64, f64),
+    /// Paper mm per drawing unit (`unit_mm / N` at `1:N`).
+    pub scale: f64,
 }
 
 /// Space kept around the drawing, paper mm.
@@ -111,7 +116,8 @@ impl Drawing {
                     let p = p.pt();
                     prims.push(Prim::Text {
                         at: (p.x * k, p.y * k),
-                        text: value.clone(),
+                        // Texts take placeholders too (`{{L:both}}`).
+                        text: crate::model::fill(value, ws),
                         height: *height,
                         angle: *angle,
                         anchor: Anchor::BaselineLeft,
@@ -121,7 +127,9 @@ impl Drawing {
                 Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
             }
         }
-        place(prims)
+        let mut r = place(prims);
+        r.scale = k;
+        r
     }
 
     /// A linear dimension: extension lines, the dimension line with ticks, and its text.
@@ -206,7 +214,7 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
             }
             // A text's extent is estimated: 0.6 em per character along its angle, one em up.
             Prim::Text { at, text, height, angle, anchor, .. } => {
-                let w = 0.8 * height * text.chars().filter(|&c| c != crate::UNIT_START && c != crate::UNIT_END).count() as f64;
+                let w = 0.8 * height * text.chars().filter(|&c| !crate::is_marker(c)).count() as f64;
                 let (c, s) = (angle.to_radians().cos(), angle.to_radians().sin());
                 let (x_start, y_start) = match anchor {
                     Anchor::BottomCenter => (-w / 2.0, 0.0),
@@ -221,7 +229,7 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
         }
     }
     if !x0.is_finite() {
-        return Rendered { prims, size: (10.0, 10.0) };
+        return Rendered { prims, size: (10.0, 10.0), origin: (0.0, 10.0), scale: 1.0 };
     }
     let (ox, oy) = (x0 - MARGIN, y1 + MARGIN);
     let map = |(x, y): (f64, f64)| (x - ox, oy - y);
@@ -233,5 +241,5 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
         }
     }
     let size = ((x1 - x0 + 2.0 * MARGIN).clamp(10.0, 5000.0), (y1 - y0 + 2.0 * MARGIN).clamp(10.0, 5000.0));
-    Rendered { prims, size }
+    Rendered { prims, size, origin: (ox, oy), scale: 1.0 }
 }

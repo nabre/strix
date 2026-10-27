@@ -7,9 +7,10 @@
 //!   are questions, lettered a), b)… and nested up to three levels (a.1), a.1.1)) by their list
 //!   level (Tab, Shift+Tab); any other content there (notes in the Exercise Note style, tables,
 //!   figures) is free, between the questions;
-//! - the **solution** (`strix:exercise.solution`): a heading, the questions repeated
-//!   automatically (`strix:exercise.prompt`, read-only), then free content; an equation in it is
-//!   marked as the result of a question (`Math::answer`, `equation.answer`);
+//! - the **solution** (`strix:exercise.solution`): a heading, then each question repeated
+//!   automatically (one read-only `strix:exercise.prompt` per question) followed by its free
+//!   working, kept when the questions change; an equation in it is marked as the result of a
+//!   question (`Math::answer`, `equation.answer`: by default the question it is worked under);
 //! - the **data** (`strix:exercise.data`, read-only): the exercise's initial data with their
 //!   values in the active variant, generated from the data kept on the exercise control (Exercise
 //!   Properties pane, `exercise.setData`); they are the first parameters of the exercise's
@@ -391,8 +392,11 @@ struct Exercise {
     /// First and last top-level block of the statement, and of the generated data.
     text_blocks: Option<(usize, usize)>,
     data_blocks: Option<(usize, usize)>,
-    /// First and last top-level block of the repeated questions.
-    prompt: Option<(usize, usize)>,
+    /// The repeated questions, one control each: first and last top-level block of each (one
+    /// block, but a document from before per-question prompts has one control over all).
+    prompts: Vec<(usize, usize)>,
+    /// First and last top-level block of the solution (heading, prompts and working).
+    solution_blocks: Option<(usize, usize)>,
     /// First and last top-level block of the questions.
     question_blocks: Option<(usize, usize)>,
     /// The questions control still shows its placeholder.
@@ -494,6 +498,9 @@ fn scan(s: &Session) -> Layout {
             grow(&mut out.results);
         }
         let Some(e) = ex.and_then(|e| out.exercises.get_mut(e)) else { continue };
+        if matches!(part, Part::Solution | Part::Prompt) {
+            grow(&mut e.solution_blocks);
+        }
         match (part, &**b) {
             (Part::Title, Block::Para(p)) => {
                 let placeholder = tags.iter().any(|(t, ph)| t == TAG_EXERCISE && *ph);
@@ -513,7 +520,16 @@ fn scan(s: &Session) -> Layout {
                 }
             }
             (Part::Questions, _) => grow(&mut e.question_blocks),
-            (Part::Prompt, _) => grow(&mut e.prompt),
+            (Part::Prompt, _) => {
+                // A prompt control opening here is the next question's; a block without one
+                // continues the control before it.
+                let opens = matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::ControlStart { control } if control.tag == TAG_PROMPT)));
+                match e.prompts.last_mut() {
+                    Some(g) if !opens && g.1 + 1 == i => g.1 = i,
+                    _ if opens => e.prompts.push((i, i)),
+                    _ => {}
+                }
+            }
             (Part::Data, _) => grow(&mut e.data_blocks),
             (Part::Text, _) => grow(&mut e.text_blocks),
             _ => {}
@@ -881,7 +897,11 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
 
 fn answer(s: &mut Session, v: &Value) -> CmdResult {
     let at = super::equation::equation_at_caret(s).ok_or_else(|| CmdError::Disabled("no equation at the caret".into()))?;
-    let question = p::u64(v, "question").ok_or_else(|| CmdError::Params("question: the 1-based question number (0 = none)".into()))?;
+    // Without a number, the question the equation is worked under (the prompt above it).
+    let question = match p::u64(v, "question") {
+        Some(q) => q,
+        None => question_above(s, &at).ok_or_else(|| CmdError::Params("question: the 1-based question number (0 = none)".into()))?,
+    };
     let question = u32::try_from(question.min(MAX_QUESTIONS as u64)).unwrap_or(0);
     let para = s.doc.para_mut(at.story, &at.path).map_err(|e| CmdError::Failed(e.to_string()))?;
     let Some(InlineObject::Equation { math, .. }) = para.object_at_mut(at.off) else {
@@ -893,6 +913,15 @@ fn answer(s: &mut Session, v: &Value) -> CmdResult {
     s.touch();
     let changed = update(s);
     Ok(json!({"answer": question, "summaryChanged": changed}))
+}
+
+/// The 1-based number of the question whose prompt is the nearest above `at` in its solution.
+fn question_above(s: &Session, at: &strix_doc::Pos) -> Option<u64> {
+    let top = at.path.0.first().map(|&t| t as usize)?;
+    let layout = scan(s);
+    let e = layout.exercises.iter().find(|e| e.solution_blocks.is_some_and(|(a, b)| (a..=b).contains(&top)))?;
+    let above = e.prompts.iter().filter(|g| g.0 < top).count();
+    (above > 0 && !e.questions.is_empty()).then_some(above as u64)
 }
 
 fn info(s: &mut Session, _: &Value) -> CmdResult {
@@ -915,6 +944,176 @@ fn info(s: &mut Session, _: &Value) -> CmdResult {
         "answer": answer,
         "exercises": layout.exercises.len(),
     }))
+}
+
+/// The repeated question `q`: its own read-only control, indented like its list.
+fn prompt_para(ctl: &ContentControl, q: Option<&Question>) -> Paragraph {
+    let text = q.map(|q| format!("{} {}", q.label, q.text)).unwrap_or_default();
+    let mut p = para(STYLE_PROMPT, &text, vec![ctl.clone()], 1, None);
+    if let Some(q) = q.filter(|q| q.level > 0) {
+        p.props.indent_left = Some(LEVEL_INDENT * f32::from(q.level));
+    }
+    p
+}
+
+/// The question text a prompt paragraph repeats (without its label).
+fn prompt_text(s: &Session, i: usize) -> Option<String> {
+    match s.doc.body.get(i).map(|b| &**b) {
+        Some(Block::Para(p)) => Some(plain(p).split_once(' ').map(|(_, t)| t.trim().to_string()).unwrap_or_default()),
+        _ => None,
+    }
+}
+
+/// Pairs of (prompt, question) indices in a longest common subsequence of equal texts.
+fn matched(old: &[String], new: &[&str]) -> Vec<(usize, usize)> {
+    let (n, m) = (old.len(), new.len());
+    let mut t = vec![vec![0u16; m + 1]; n + 1];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            let v = if old.get(i).map(String::as_str) == new.get(j).copied() {
+                t.get(i + 1).and_then(|r| r.get(j + 1)).map_or(0, |v| v + 1)
+            } else {
+                let a = t.get(i + 1).and_then(|r| r.get(j)).copied().unwrap_or(0);
+                let b = t.get(i).and_then(|r| r.get(j + 1)).copied().unwrap_or(0);
+                a.max(b)
+            };
+            if let Some(c) = t.get_mut(i).and_then(|r| r.get_mut(j)) {
+                *c = v;
+            }
+        }
+    }
+    let at = |i: usize, j: usize| t.get(i).and_then(|r| r.get(j)).copied().unwrap_or(0);
+    let (mut i, mut j, mut out) = (0, 0, Vec::new());
+    while i < n && j < m {
+        if old.get(i).map(String::as_str) == new.get(j).copied() {
+            out.push((i, j));
+            i += 1;
+            j += 1;
+        } else if at(i + 1, j) >= at(i, j + 1) {
+            i += 1;
+        } else {
+            j += 1;
+        }
+    }
+    out
+}
+
+/// Makes the last block of the solution ending at `end` an empty paragraph holding only the
+/// control ends, so new prompts can go before it without taking the user's working with them.
+/// Returns that block's index.
+fn free_end(s: &mut Session, end: usize) -> Option<usize> {
+    let Some(Block::Para(last)) = s.doc.body.get(end).map(|b| &**b) else { return None };
+    if plain(last).is_empty() && last.objects.iter().all(|o| matches!(o, InlineObject::ControlEnd)) {
+        return Some(end);
+    }
+    let Some(Block::Para(last)) = s.doc.body.get_mut(end).map(Arc::make_mut) else { return None };
+    let mut ends = 0;
+    while last.text.ends_with(OBJ) && matches!(last.objects.last(), Some(InlineObject::ControlEnd)) && ends < 8 {
+        last.text.pop();
+        last.objects.pop();
+        if let Some(r) = last.runs.last_mut() {
+            r.len = r.len.saturating_sub(OBJ.len_utf8());
+            if r.len == 0 {
+                last.runs.pop();
+            }
+        }
+        ends += 1;
+    }
+    last.touch();
+    s.doc.body.insert(end + 1, para_block(para("Normal", "", Vec::new(), ends, None)));
+    Some(end + 1)
+}
+
+/// Rebuilds the repeated questions of exercise `e`, one prompt per question. The working the
+/// user wrote after a prompt stays with it: a prompt whose question is unchanged keeps its place,
+/// a removed question's prompt goes (its working joins the question before), a new question's
+/// prompt comes in before the next kept one, with an empty paragraph to write in.
+fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
+    let Some(&(first, _)) = e.prompts.first() else { return false };
+    let Some(ctl) = opener(s, first, TAG_PROMPT) else { return false };
+    let want: Vec<Option<&Question>> = if e.questions.is_empty() { vec![None] } else { e.questions.iter().map(Some).collect() };
+    let mut changed = false;
+    // A document from before per-question prompts (one control over all) or a lost layout:
+    // the first group is rewritten, one prompt and a paragraph to write in per question.
+    if e.prompts.iter().any(|&(a, b)| b > a) {
+        let mut new = Vec::new();
+        for (k, q) in want.iter().enumerate() {
+            new.push(prompt_para(&ctl, *q));
+            if k + 1 < want.len() {
+                new.push(para("Normal", "", Vec::new(), 0, None));
+            }
+        }
+        for &(a, b) in e.prompts.iter().skip(1).rev() {
+            s.doc.body.drain(a..=b);
+        }
+        return replace(s, first, e.prompts.first().map_or(first, |g| g.1), new);
+    }
+    let slots: Vec<usize> = e.prompts.iter().map(|g| g.0).collect();
+    let texts: Vec<String> = slots.iter().map(|&i| prompt_text(s, i).unwrap_or_default()).collect();
+    let wanted: Vec<&str> = want.iter().map(|q| q.map_or("", |q| q.text.as_str())).collect();
+    let pairs: Vec<(usize, usize)> = if slots.len() == want.len() || (slots.len() == 1 && texts.first().is_some_and(String::is_empty)) {
+        // As many prompts as questions (a question edited in place), or the empty placeholder
+        // taking the first question.
+        (0..slots.len().min(want.len())).map(|k| (k, k)).collect()
+    } else {
+        matched(&texts, &wanted)
+    };
+    // Edits from the bottom up, so the indices above stay valid. A new question goes before the
+    // next kept prompt, or at the end of the solution.
+    let end = e.solution_blocks.map_or(slots.last().copied().unwrap_or(first), |r| r.1);
+    let mut inserts: Vec<(usize, Paragraph)> = Vec::new();
+    let mut next_slot: Option<usize> = None;
+    for (j, q) in want.iter().enumerate().rev() {
+        match pairs.iter().find(|(_, w)| *w == j) {
+            Some(&(k, _)) => next_slot = slots.get(k).copied(),
+            None => inserts.push((next_slot.unwrap_or(usize::MAX), prompt_para(&ctl, *q))),
+        }
+    }
+    // Kept prompts rewritten in place (labels and texts may change), removed ones dropped.
+    for (k, &i) in slots.iter().enumerate().rev() {
+        match pairs.iter().find(|(o, _)| *o == k) {
+            Some(&(_, j)) => {
+                let new = prompt_para(&ctl, want.get(j).copied().flatten());
+                changed |= replace(s, i, i, vec![new]);
+            }
+            None => {
+                s.doc.body.remove(i);
+                changed = true;
+                inserts.iter_mut().for_each(|(at, _)| {
+                    if *at != usize::MAX && *at > i {
+                        *at -= 1;
+                    }
+                });
+            }
+        }
+    }
+    if inserts.is_empty() {
+        return changed;
+    }
+    let removed = slots.iter().enumerate().filter(|&(k, &i)| i <= end && !pairs.iter().any(|&(o, _)| o == k)).count();
+    let end = end.saturating_sub(removed);
+    // At the end, before the paragraph closing the solution.
+    let tail = inserts.iter().any(|(at, _)| *at == usize::MAX).then(|| free_end(s, end)).flatten();
+    // `inserts` is bottom-up for each anchor: inserting each at its anchor puts them in order.
+    for (at, p) in inserts {
+        let at = if at == usize::MAX { tail.unwrap_or(end) } else { at };
+        if at > s.doc.body.len() {
+            continue;
+        }
+        s.doc.body.insert(at, para_block(p));
+        // Room to write: a prompt is never right after or before another one.
+        if is_prompt(s, at + 1) {
+            s.doc.body.insert(at + 1, para_block(para("Normal", "", Vec::new(), 0, None)));
+        }
+        if at > 0 && is_prompt(s, at - 1) {
+            s.doc.body.insert(at, para_block(para("Normal", "", Vec::new(), 0, None)));
+        }
+    }
+    true
+}
+
+fn is_prompt(s: &Session, i: usize) -> bool {
+    matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.props.style.as_deref() == Some(STYLE_PROMPT))
 }
 
 /// Replaces top-level blocks `from..=to` with `new` when they differ; returns whether it did.
@@ -952,28 +1151,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = false;
     // The repeated questions, last exercise first so earlier block indices stay valid.
     for e in layout.exercises.iter().rev() {
-        let Some((from, to)) = e.prompt else { continue };
-        let Some(ctl) = opener(s, from, TAG_PROMPT) else { continue };
-        let new: Vec<Paragraph> = if e.questions.is_empty() {
-            vec![para(STYLE_PROMPT, "", vec![ctl], 1, None)]
-        } else {
-            let n = e.questions.len();
-            let mut first = Some(ctl);
-            e.questions
-                .iter()
-                .enumerate()
-                .map(|(k, q)| {
-                    let mut p =
-                        para(STYLE_PROMPT, &format!("{} {}", q.label, q.text), first.take().into_iter().collect(), usize::from(k + 1 == n), None);
-                    // Nested questions are indented like their list.
-                    if q.level > 0 {
-                        p.props.indent_left = Some(LEVEL_INDENT * f32::from(q.level));
-                    }
-                    p
-                })
-                .collect()
-        };
-        changed |= replace(s, from, to, new);
+        changed |= update_prompts(s, e);
     }
     // The data parts. The repeated questions may have changed size: read the structure again, so
     // every range below is current.
@@ -1029,7 +1207,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
-            lines.push((STYLE_RESULT, format!("{} {}: {value}", q.label, q.text)));
+            // Only the question's letter and its result: the question itself is above, in the exercise.
+            lines.push((STYLE_RESULT, format!("{} {value}", q.label)));
         }
     }
     let ctl = layout
@@ -1105,12 +1284,13 @@ mod tests {
                 "La reazione",
                 "Risoluzione",
                 "a) Il momento massimo",
+                "",
                 "b) La reazione",
                 "",
                 "Riepilogo dei risultati",
                 "Esercizio 1 — Trave appoggiata",
-                "a) Il momento massimo: risultato non indicato",
-                "b) La reazione: risultato non indicato",
+                "a) risultato non indicato",
+                "b) risultato non indicato",
             ],
         );
         // The structure is made of locked controls.
@@ -1121,12 +1301,14 @@ mod tests {
         assert_eq!(opener(&s, 1, TAG_EXERCISE).map(|c| c.lock), Some(ControlLock::SdtLocked));
         assert_eq!(opener(&s, 6, TAG_PROMPT).map(|c| c.lock), Some(ControlLock::SdtContentLocked));
         // A second exercise: the summary stays one, at the end.
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(8), 0));
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(9), 0));
         s.run("exercise.insert", &json!({"title": "Secondo", "questions": ["x"]})).unwrap();
         let t = texts(&s);
         assert_eq!(t.iter().filter(|x| *x == "Riepilogo dei risultati").count(), 1);
-        assert_eq!(t.last().map(String::as_str), Some("a) x: risultato non indicato"));
+        assert_eq!(t.last().map(String::as_str), Some("a) risultato non indicato"));
         assert!(t.contains(&"Esercizio 2 — Secondo".to_string()), "{t:?}");
+        let second = t.iter().position(|x| x == "a) x").unwrap();
+        assert_eq!(t[second + 1..second + 3], ["", "Riepilogo dei risultati"], "{t:?}");
     }
 
     #[test]
@@ -1146,8 +1328,8 @@ mod tests {
         s.sel = crate::Selection::caret(at);
         s.run("equation.answer", &json!({"question": 1})).unwrap();
         let t = texts(&s);
-        assert!(t.contains(&"a) Momento: M = 30.375 kJ".to_string()), "{t:?}");
-        assert!(t.contains(&"b) Taglio: risultato non indicato".to_string()), "{t:?}");
+        assert!(t.contains(&"a) M = 30.375 kJ".to_string()), "{t:?}");
+        assert!(t.contains(&"b) risultato non indicato".to_string()), "{t:?}");
         // The mark survives saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
@@ -1169,6 +1351,55 @@ mod tests {
         assert_eq!(info["questions"], json!(["Prima", "Seconda"]));
         let t = texts(&s);
         assert!(t.contains(&"a) Prima".to_string()) && t.contains(&"b) Seconda".to_string()), "{t:?}");
+    }
+
+    #[test]
+    fn working_between_the_questions_stays_with_its_question() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "T", "questions": ["Prima", "Seconda"]})).unwrap();
+        let write = |s: &mut Session, after: &str, text: &str| {
+            let at = texts(s).iter().position(|t| t == after).unwrap() + 1;
+            s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 0));
+            s.run("text.insert", &json!({"text": text})).unwrap();
+        };
+        // Each question has its own space in the solution.
+        write(&mut s, "a) Prima", "lavoro a");
+        write(&mut s, "b) Seconda", "lavoro b");
+        let solution = |s: &Session| {
+            let t = texts(s);
+            let from = t.iter().position(|t| t == "Risoluzione").unwrap();
+            let to = t.iter().position(|t| t == "Riepilogo dei risultati").unwrap();
+            t[from + 1..to].to_vec()
+        };
+        assert_eq!(solution(&s), ["a) Prima", "lavoro a", "b) Seconda", "lavoro b"]);
+        // A new question comes after the working of the last one, with room to write.
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(texts(&s).iter().position(|t| t == "Seconda").unwrap()), 0));
+        s.run("exercise.addQuestion", &json!({"text": "Terza"})).unwrap();
+        assert_eq!(solution(&s), ["a) Prima", "lavoro a", "b) Seconda", "lavoro b", "c) Terza", ""]);
+        // A question edited in place keeps its working.
+        let q = texts(&s).iter().position(|t| t == "Prima").unwrap();
+        let end = match &*s.doc.body[q] {
+            Block::Para(p) => p.text.len(),
+            Block::Table(_) => 0,
+        };
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(q), end));
+        s.run("text.insert", &json!({"text": " bis"})).unwrap();
+        assert_eq!(solution(&s)[..2], ["a) Prima bis", "lavoro a"]);
+        // A removed question's prompt goes; the working stays, and the next prompts relabel.
+        let q = texts(&s).iter().position(|t| t == "Prima bis").unwrap();
+        let end = match &*s.doc.body[q] {
+            Block::Para(p) => p.text.len(),
+            Block::Table(_) => 0,
+        };
+        let pos = |off| strix_doc::Pos::new(StoryRef::Body, body_path(q), off);
+        s.sel = crate::Selection { anchor: pos(OBJ.len_utf8()), focus: pos(end) };
+        s.run("text.delete", &json!({})).unwrap();
+        assert_eq!(solution(&s), ["lavoro a", "a) Seconda", "lavoro b", "b) Terza", ""]);
+        // An equation worked under a question is its result by default.
+        let at = texts(&s).iter().position(|t| t == "lavoro b").unwrap();
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), "lavoro b".len()));
+        s.run("calc.insert", &json!({"text": "x = 2"})).unwrap();
+        assert_eq!(s.run("equation.answer", &json!({})).unwrap()["answer"], json!(1));
     }
 
     #[test]
@@ -1213,7 +1444,7 @@ mod tests {
         let t = texts(&s);
         assert!(t.contains(&"Si trascuri il peso proprio.".to_string()), "{t:?}");
         assert!(t.contains(&"a.2.1) Verticale".to_string()), "{t:?}");
-        assert!(t.contains(&"c.1) In mezzeria: risultato non indicato".to_string()), "{t:?}");
+        assert!(t.contains(&"c.1) risultato non indicato".to_string()), "{t:?}");
         assert!(!t.iter().any(|x| x.contains("trascuri") && x.contains(')')), "a note is never repeated as a question: {t:?}");
     }
 
@@ -1247,12 +1478,12 @@ mod tests {
         at.off -= OBJ.len_utf8();
         s.sel = crate::Selection::caret(at);
         s.run("equation.answer", &json!({"question": 1})).unwrap();
-        assert!(texts(&s).contains(&"a) Momento: M = 30.375 kJ".to_string()), "{:?}", texts(&s));
+        assert!(texts(&s).contains(&"a) M = 30.375 kJ".to_string()), "{:?}", texts(&s));
         // Variant B: everything follows.
         s.run("exercise.variant", &json!({"exercise": 1, "active": 1})).unwrap();
         let t = texts(&s);
         assert!(t.contains(&"luce: L = 6 m".to_string()), "{t:?}");
-        assert!(t.contains(&"a) Momento: M = 45 kJ".to_string()), "{t:?}");
+        assert!(t.contains(&"a) M = 45 kJ".to_string()), "{t:?}");
         assert!(t.contains(&"Esercizio 1 — Trave (variante B)".to_string()), "{t:?}");
         // The data survive saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();

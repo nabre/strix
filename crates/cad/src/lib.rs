@@ -15,6 +15,7 @@
 //! Hostile input never panics: sizes are clamped, counts capped, non-finite numbers rejected.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod edit;
 mod geom;
 mod input;
 mod model;
@@ -23,15 +24,24 @@ mod render;
 #[cfg(test)]
 mod tests;
 
+pub use edit::{SnapKind, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
-pub use model::{Dash, Drawing, Entity, Kind, Layer, Num, Orient, P, Stroke, Unit};
+pub use model::{Dash, Drawing, Entity, Kind, Layer, Num, Orient, P, Stroke, Unit, fill};
 pub use render::{Anchor, Prim, Rendered};
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in
 /// the document's Unit style. Never part of what is shown.
 pub const UNIT_START: char = '\u{1F}';
 pub const UNIT_END: char = '\u{1E}';
+/// Marks a placeholder whose parameter is not defined (`[L?]`), drawn in red.
+pub const MISSING_START: char = '\u{1D}';
+pub const MISSING_END: char = '\u{1C}';
+
+/// True for the marker characters above (never shown).
+pub fn is_marker(c: char) -> bool {
+    matches!(c, UNIT_START | UNIT_END | MISSING_START | MISSING_END)
+}
 
 /// Most entities in one drawing.
 pub const MAX_ENTITIES: usize = 5000;

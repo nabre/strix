@@ -86,12 +86,22 @@ fn a_dimension_shows_the_size_or_a_parameter() {
     d.add(Entity::new(Kind::Dim { a: P::new(0.0, 0.0), b: P::new(30.0, 40.0), offset: 5.0, orient: Orient::Horizontal, text: Some("<> mm".into()) }))
         .unwrap();
     let r = d.render(Some(&ws));
-    let texts: Vec<String> =
-        r.prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.replace([UNIT_START, UNIT_END], "")) } else { None }).collect();
+    let texts: Vec<String> = r
+        .prims
+        .iter()
+        .filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.chars().filter(|&c| !is_marker(c)).collect::<String>()) } else { None })
+        .collect();
     assert_eq!(texts, ["4500", "L = 4.5 m", "30 mm"]);
     // The unit of a parameter is marked for the Unit style.
     assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = 4.5 {UNIT_START}m{UNIT_END}"));
-    assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), "?");
+    assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), format!("{MISSING_START}[nope?]{MISSING_END}"));
+    // Modes, as the prototype's dimension texts: value, symbol, both.
+    let plain = |t: &str| fill(t, Some(&ws)).chars().filter(|&c| !is_marker(c)).collect::<String>();
+    assert_eq!(plain("{{L}}"), "4.5 m");
+    assert_eq!(plain("{{L:value}}"), "4.5 m");
+    assert_eq!(plain("{{L:symbol}}"), "L");
+    assert_eq!(plain("{{ L : both }}"), "L = 4.5 m");
+    assert_eq!(plain("luce {{L:both}}, {{x}}"), "luce L = 4.5 m, [x?]");
     // Unterminated or nested braces never loop.
     assert_eq!(d.label(Some("{{L"), 1.0, Some(&ws)), "{{L");
 }
@@ -183,4 +193,51 @@ fn a_costly_drawing_shares_the_documents_budget() {
     assert!(errors.iter().any(|(_, e)| e.contains("too many steps")), "{:?}", errors.first());
     assert!(ws.scope().spent() > 0, "the drawing's work counts in the document's budget");
     assert!(started.elapsed() < std::time::Duration::from_secs(20));
+}
+
+#[test]
+fn editing_snaps_picks_and_keeps_expressions() {
+    let ws = sheet(&["L = 4 m"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit": "m", "entities": [
+        {"type": "line", "a": [0, 0], "b": ["L", 0]},
+        {"type": "circle", "c": [2, 2], "r": 0.5}
+    ]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    let snaps = d.snap_points();
+    assert!(snaps.contains(&(Pt::new(4.0, 0.0), SnapKind::End)));
+    assert!(snaps.contains(&(Pt::new(2.0, 0.0), SnapKind::Mid)));
+    assert!(snaps.contains(&(Pt::new(2.0, 2.0), SnapKind::Center)));
+    assert_eq!(d.hit(Pt::new(1.0, 0.05), 0.1), Some(0));
+    assert_eq!(d.hit(Pt::new(2.5, 2.0), 0.1), Some(1));
+    assert_eq!(d.hit(Pt::new(3.0, 3.0), 0.1), None);
+    assert_eq!(d.in_box(Pt::new(-1.0, -1.0), Pt::new(5.0, 0.5), false), [0]);
+    assert_eq!(d.in_box(Pt::new(1.0, 1.0), Pt::new(2.0, 2.0), true), [1]);
+    // A move keeps the link to L.
+    d.translate(&[0], Pt::new(0.5, 0.0));
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert_eq!(b.0.expr.as_deref(), Some("L + 0.5"));
+    let mut back = Drawing::from_json(&d.to_json()).unwrap();
+    back.resolve(&ws);
+    let Kind::Line { b, .. } = &back.entities[0].kind else { panic!() };
+    assert!(approx(b.0.value, 4.5));
+    // Copy, then remove.
+    let copies = d.copy(&[1], Pt::new(1.0, 0.0));
+    assert_eq!(copies, [2]);
+    d.remove(&[0, 2, 99]);
+    assert_eq!(d.entities.len(), 1);
+    // The paper position of a drawing point.
+    let r = back.render(Some(&ws));
+    assert!(r.scale > 0.0 && r.origin.1 > 0.0);
+}
+
+#[test]
+fn texts_take_placeholders_too() {
+    let ws = sheet(&["q = 12 kN/m"]);
+    let d = Drawing::from_json(r#"{"entities": [{"type": "text", "p": [0, 0], "value": "carico {{q:both}}"}]}"#).unwrap();
+    let r = d.render(Some(&ws));
+    let Prim::Text { text, .. } = &r.prims[0] else { panic!() };
+    assert_eq!(text.chars().filter(|&c| !is_marker(c)).collect::<String>(), "carico q = 12 kN/m");
 }

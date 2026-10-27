@@ -35,8 +35,11 @@ it): a length converts to the drawing's unit (`L = 4.5 m` is 4500 in a mm drawin
 number is drawing units, an angle is degrees (`30°`). A failing expression keeps its last value
 and is reported.
 
-Dimension text: `<>` is the measured size, `{{L}}` the value of parameter `L` as calculations
-show it (`L = {{L}}` → `L = 4.5 m`); none shows the size.
+Annotations recall parameters (as the prototype's dimension texts did): in a dimension's text
+and in a free text, `{{L}}` or `{{L:value}}` is the value of parameter `L` as calculations show
+it (`4.5 m`), `{{L:symbol}}` its symbol (`L`), `{{L:both}}` both (`L = 4.5 m`); `<>` is a
+dimension's measured size, and a dimension without text shows it. A parameter not defined where
+the drawing sits shows `[L?]` in red.
 
 This gives "drawings driven by results" without a constraint solver. Driving dimensions and
 geometric constraints (the prototype's Gauss-Newton solver) are a later stage.
@@ -84,14 +87,26 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 2. **Document integration**: `insert.cad`, `cad.get/set/add`, regeneration in reading order with
    the calculations, `.xmath` round trip, units in the Unit style. *Done.* Still to do: rotated
    texts and dashed lines in the drawn items, a picture for Word.
-3. Editor (egui): canvas with zoom/pan, grid, crosshair, command line with direct distance and
-   `<angle`, Ortho (F8), snaps (endpoint, midpoint, centre, intersection, perpendicular,
-   nearest), click-add selection with window/crossing, grips, undo.
+3. **Editor** (`crates/ui-egui/src/cad_editor.rs`). *First cut done*: double-click a drawing, or
+   Math › Drawing › Edit Drawing (`ui.cadEdit`): the page gives way to the drawing's sheet and the
+   **CAD Drawing** tab comes up (Draw: Line, Circle, Polyline, Rectangle, Arc, Point, Text;
+   Dimensions: Aligned, Horizontal, Vertical; Modify: Select, Move, Copy, Delete, Undo, Redo;
+   Precision: Snap, Ortho, Grid, Zoom Fit; Close Drawing). Wheel zooms about the pointer, the
+   middle button or Shift+drag pans; a grid; a crosshair with snap markers (ends, midpoints,
+   centres, grid). The command line takes `x,y`, `@dx,dy`, `@d<a`, `d<a`, a distance towards the
+   pointer, a tool alias (`l pl rec c a t m co`), `c` to close a polyline, a radius; Enter ends,
+   Esc cancels the step then the command, F8 toggles Ortho, Del deletes. Selection: click, Shift
+   to add or remove, a window left to right, a crossing right to left. Every finished operation
+   is one `cad.set` (an undo step); the editor reads the drawing back after Undo or a
+   recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`). Still to do: grips,
+   intersection/perpendicular snaps, offset, trim, extend, fillet, layers and stroke controls.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
    properties; hatch (by selection and by point); angular dimensions, rows and chains.
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-10-27: placeholders with a mode (value, symbol, both) in dimensions and texts; missing data in red.
+- 2026-10-27: stage 3 first cut: the drawing editor.
 - 2026-10-27: stage 2: drawings in the document, redrawn with the calculations.
 - 2026-10-27: new: design and stage 1.

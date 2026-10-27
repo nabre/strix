@@ -24,6 +24,7 @@ strix-fonts = { workspace = true }
 strix-layout = { workspace = true }
 strix-render = { workspace = true }
 strix-engine = { workspace = true }
+strix-cad = { workspace = true }
 strix-zotero = { workspace = true }
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 serde = { workspace = true }

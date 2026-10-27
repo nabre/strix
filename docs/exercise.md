@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-27 · **Change:** new
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-27 · **Change:** working under each question
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -18,8 +18,8 @@ deleted; the automatic parts can't be edited):
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
 | Data | `strix:exercise.data` | read-only | the initial data in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Properties pane, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
-| Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), the questions repeated, then free content |
-| Repeated questions | `strix:exercise.prompt` | read-only | `a) …`, `b) …`: rebuilt automatically from the questions |
+| Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
+| Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
 | Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
 
 Only paragraphs in the Exercise Question style are questions: the repeated questions and the
@@ -50,12 +50,22 @@ defined inside stay inside, and the document's parameters are not seen inside. T
 can both define `L` without interfering, and nothing from an exercise leaks into the text
 around it. One step budget still covers the whole document.
 
+## Working under each question
+
+Each question is repeated in the solution as its own read-only line, followed by room to work
+it out (text, calculations, tables, drawings). When the questions change the working stays with
+its question: an edited question is rewritten in place, a new one comes in after the working of
+the one before it with an empty paragraph to write in, a removed one's line goes and its working
+joins the question above. (Documents from before keep their working; their repeated questions
+are split into one line each.)
+
 ## Results
 
 An equation in the solution is marked as the **result** of a question (Math › Exercise ›
-Result Of, `equation.answer {"question": n}`, saved as `strix:answer="n"` on `m:oMath`). The
+Result Of, `equation.answer {"question": n}`; without `question`, the question it is worked
+under), saved as `strix:answer="n"` on `m:oMath`). The
 summary lists, for every exercise, its title and each question with the value of its result
-equations as calculations show it (`a) Momento: M = 30.375 kJ`), or "risultato non indicato".
+equations as calculations show it (`a) M = 30.375 kJ`: only the letter and the result, the question is in the exercise), or "risultato non indicato".
 
 The repeated questions and the summary are rebuilt after every command that changes the
 questions, titles, marks or results (with the automatic recalculation, `docs/calc.md`), and on
@@ -85,6 +95,7 @@ to the end.
 
 ## Revision history
 
+- 2026-10-27: one repeated question per line with its working under it; Result Of defaults to that question.
 - 2026-10-27: Exercise Properties pane: initial data and variants; data part.
 - 2026-10-27: nested questions (a), a.1), a.1.1)) and notes between the questions.
 - 2026-10-27: new.

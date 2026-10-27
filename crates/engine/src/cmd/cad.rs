@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_cad::{Anchor, Drawing, Entity, Prim, Rendered, UNIT_END, UNIT_START};
+use strix_cad::{Anchor, Drawing, Entity, MISSING_END, MISSING_START, Prim, Rendered, UNIT_END, UNIT_START};
 use strix_doc::InlineObject;
 use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
 use strix_doc::para::Float;
@@ -67,6 +67,19 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     super::sel_result(s)
 }
 
+/// The selected CAD drawing for the editor: where it is, the drawing with its coordinates'
+/// values worked out where it sits, and how it renders (with its paper origin and scale).
+pub fn edited(s: &Session) -> Option<(strix_doc::Pos, Drawing, Rendered, Vec<String>)> {
+    let (pos, obj) = super::objects::selected(s)?;
+    let InlineObject::Graphic { graphic, .. } = obj else { return None };
+    if graphic.kind != GraphicKind::Cad {
+        return None;
+    }
+    let source = graphic.cad.clone()?;
+    let (d, r, names) = super::calc::resolved_cad(s, &source)?;
+    Some((pos, d, r, names))
+}
+
 /// The selected CAD drawing: where it is and its source.
 fn selected_drawing(s: &Session) -> Option<(strix_doc::Pos, Drawing)> {
     let (pos, obj) = super::objects::selected(s)?;
@@ -121,6 +134,14 @@ fn add(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"id": id}))
 }
 
+/// What a piece of a drawing's text is.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Piece {
+    Plain,
+    Unit,
+    Missing,
+}
+
 /// The graphic items of a rendered drawing (points from its top-left corner) and its size.
 pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicItem>) {
     let pt = |v: f64| (v as f32) * PT_PER_MM;
@@ -156,12 +177,14 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
             // Texts are set horizontally for now (a rotated dimension's text reads level).
             Prim::Text { at, text, height, anchor, color, .. } => {
                 let size = (pt(*height) * CAP_TO_EM).clamp(2.0, 400.0);
-                // Plain and unit pieces: a unit is set in the Unit style's colour.
-                let mut pieces: Vec<(bool, String)> = vec![(false, String::new())];
+                // Plain, unit and missing pieces: a unit is set in the Unit style's colour, a
+                // placeholder whose parameter is not defined in red.
+                let mut pieces: Vec<(Piece, String)> = vec![(Piece::Plain, String::new())];
                 for c in text.chars() {
                     match c {
-                        UNIT_START => pieces.push((true, String::new())),
-                        UNIT_END => pieces.push((false, String::new())),
+                        UNIT_START => pieces.push((Piece::Unit, String::new())),
+                        MISSING_START => pieces.push((Piece::Missing, String::new())),
+                        UNIT_END | MISSING_END => pieces.push((Piece::Plain, String::new())),
                         c => {
                             if let Some((_, t)) = pieces.last_mut() {
                                 t.push(c);
@@ -194,7 +217,11 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                     let n = pieces.len();
                     for (k, (unit, piece)) in pieces.into_iter().enumerate() {
                         let pw = char_w * piece.chars().count() as f32;
-                        let c = if unit { unit_color } else { rgb(*color) };
+                        let c = match unit {
+                            Piece::Unit => unit_color,
+                            Piece::Missing => Rgb(0xC0, 0x1C, 0x1C),
+                            Piece::Plain => rgb(*color),
+                        };
                         let align = if k + 1 < n { TextAlign::Right } else { TextAlign::Left };
                         items.push(GraphicItem::Text { rect: [cursor, y0, pw, h0], text: piece, size, color: c, bold: false, align, font: None });
                         cursor += pw;

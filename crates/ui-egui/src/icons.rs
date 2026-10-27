@@ -1216,6 +1216,102 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.text(11.0, 7.0, 8.0, ".00", c, false);
             pen.text(8.0, 15.0, 8.0, ".0", a, false);
         }
+        // CAD editor tools (docs/cad.md).
+        "cadLine" => {
+            pen.line_c(&[(3.0, 16.0), (17.0, 4.0)], c);
+            pen.fcircle(3.0, 16.0, 1.6, a);
+            pen.fcircle(17.0, 4.0, 1.6, a);
+        }
+        "cadPolyline" => {
+            pen.line_c(&[(3.0, 15.0), (7.0, 5.0), (13.0, 13.0), (17.0, 4.0)], c);
+            pen.fcircle(7.0, 5.0, 1.3, a);
+            pen.fcircle(13.0, 13.0, 1.3, a);
+        }
+        "cadRect" => {
+            pen.rect(3.5, 5.0, 16.5, 15.0, c);
+            pen.fcircle(3.5, 15.0, 1.4, a);
+            pen.fcircle(16.5, 5.0, 1.4, a);
+        }
+        "cadCircle" => {
+            pen.circle(10.0, 10.0, 6.5, c);
+            pen.fcircle(10.0, 10.0, 1.3, a);
+            pen.line_c(&[(10.0, 10.0), (16.5, 10.0)], a);
+        }
+        "cadArc" => {
+            pen.line_c(&[(3.5, 14.0), (5.0, 8.0), (10.0, 5.0), (15.0, 8.0), (16.5, 14.0)], c);
+            pen.fcircle(10.0, 14.0, 1.2, a);
+        }
+        "cadPoint" => {
+            pen.fcircle(10.0, 10.0, 2.2, a);
+            pen.line_c(&[(4.0, 10.0), (7.0, 10.0)], c);
+            pen.line_c(&[(13.0, 10.0), (16.0, 10.0)], c);
+        }
+        "cadText" => pen.text(10.0, 10.0, 13.0, "A", c, true),
+        "cadDim" | "cadDimH" | "cadDimV" => {
+            pen.line_c(&[(3.0, 13.0), (17.0, 13.0)], c);
+            pen.line_c(&[(3.0, 9.0), (3.0, 16.0)], c);
+            pen.line_c(&[(17.0, 9.0), (17.0, 16.0)], c);
+            pen.text(
+                10.0,
+                7.0,
+                8.0,
+                if name == "cadDimV" {
+                    "V"
+                } else if name == "cadDimH" {
+                    "H"
+                } else {
+                    "↔"
+                },
+                a,
+                false,
+            );
+        }
+        "cadSelect" => pen.fill(&[(6.0, 3.0), (6.0, 16.0), (9.0, 13.0), (11.5, 18.0), (13.5, 17.0), (11.0, 12.0), (15.0, 12.0)], a),
+        "cadMove" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 17.0)], c);
+            pen.line_c(&[(3.0, 10.0), (17.0, 10.0)], c);
+            pen.fill(&[(10.0, 2.0), (8.0, 5.0), (12.0, 5.0)], a);
+            pen.fill(&[(10.0, 18.0), (8.0, 15.0), (12.0, 15.0)], a);
+            pen.fill(&[(2.0, 10.0), (5.0, 8.0), (5.0, 12.0)], a);
+            pen.fill(&[(18.0, 10.0), (15.0, 8.0), (15.0, 12.0)], a);
+        }
+        "cadCopy" => {
+            pen.rect(3.0, 3.0, 12.0, 12.0, c);
+            pen.rect(8.0, 8.0, 17.0, 17.0, a);
+        }
+        "cadDelete" => {
+            pen.line_c(&[(5.0, 5.0), (15.0, 15.0)], a);
+            pen.line_c(&[(15.0, 5.0), (5.0, 15.0)], a);
+        }
+        "cadSnap" => {
+            pen.rect(6.0, 6.0, 14.0, 14.0, a);
+            pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], c);
+            pen.line_c(&[(10.0, 2.0), (10.0, 18.0)], c);
+        }
+        "cadOrtho" => {
+            pen.line_c(&[(4.0, 4.0), (4.0, 16.0), (16.0, 16.0)], a);
+            pen.line_c(&[(4.0, 12.0), (8.0, 12.0), (8.0, 16.0)], c);
+        }
+        "cadGrid" => {
+            pen.lines(3.0, 17.0, &[5.0, 10.0, 15.0]);
+            pen.line_c(&[(5.0, 3.0), (5.0, 17.0)], c);
+            pen.line_c(&[(10.0, 3.0), (10.0, 17.0)], c);
+            pen.line_c(&[(15.0, 3.0), (15.0, 17.0)], c);
+        }
+        "cadFit" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            pen.rect(7.0, 7.0, 13.0, 13.0, a);
+        }
+        "cadClose" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            pen.line_c(&[(7.0, 7.0), (13.0, 13.0)], a);
+            pen.line_c(&[(13.0, 7.0), (7.0, 13.0)], a);
+        }
+        "cadEdit" => {
+            pen.rect(3.0, 7.0, 13.0, 17.0, c);
+            pen.line_c(&[(9.0, 13.0), (17.0, 5.0)], a);
+            pen.fill(&[(16.0, 3.5), (18.5, 6.0), (17.0, 7.5), (14.5, 5.0)], a);
+        }
         // A CAD drawing: a part with a dimension line and its ticks.
         "cad" => {
             pen.rect(4.0, 8.0, 16.0, 17.0, c);

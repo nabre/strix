@@ -280,6 +280,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     {
         app.ui.tab = prev;
     }
+    // The CAD editor brings up the CAD Drawing tab; closing it goes back.
+    if let Some(ed) = app.cad.as_mut()
+        && ed.prev_tab.is_none()
+    {
+        ed.prev_tab = Some(app.ui.tab.clone());
+        app.ui.tab = "CAD Drawing".into();
+    }
     // Outline view brings up the Outlining tab; closing it goes back.
     if app.session.view.mode == strix_layout::ViewMode::Outline {
         if app.outline_prev_tab.is_none() {
@@ -297,6 +304,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     let user_tabs = app.session.ribbon.tabs().into_owned();
     let mut tabs: Vec<(String, bool)> = vec![("File".to_string(), false)];
     tabs.extend(user_tabs.iter().filter(|e| !e.hidden).map(|e| (e.name.clone(), e.custom)));
+    // The CAD editor brings up its own tab.
+    if app.cad.is_some() && !tabs.iter().any(|(n, _)| n == "CAD Drawing") {
+        tabs.push(("CAD Drawing".to_string(), false));
+    }
     for ct in contextual_tabs(&app.session) {
         if ct == "Outlining" {
             tabs.insert(1.min(tabs.len()), (ct.to_string(), false));
@@ -549,6 +560,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Table Design" => table_design(app, ui),
                         "Table Layout" => table_layout(app, ui),
                         "Equation" if app.session.math.is_some() => crate::equation_tab::show(app, ui),
+                        "CAD Drawing" if app.cad.is_some() => crate::cad_editor::ribbon(app, ui),
                         "Picture Format" => picture_format(app, ui),
                         "Shape Format" => shape_format(app, ui),
                         "SmartArt Design" => smart_art_design(app, ui),
@@ -2655,6 +2667,19 @@ Drawing",
             json!({}),
             false,
         );
+        let editable = strix_engine::cmd::cad::edited(&app.session).is_some();
+        ui.add_enabled_ui(editable, |ui| {
+            big(
+                ui,
+                app,
+                "cadEdit",
+                "Edit
+Drawing",
+                "ui.cadEdit",
+                json!({}),
+                false,
+            );
+        });
     });
 }
 

@@ -2588,6 +2588,15 @@ fn mouse(app: &mut WordApp, ui: &Ui, resp: &egui::Response, rects: &[Rect], layo
     let Some((page, x, y)) = page_at(rects, layout, scale, p) else { return };
     let mods = ui.input(|i| i.modifiers);
     let story = app.session.sel.focus.story;
+    // A double-click on a CAD drawing (its first click selected it) opens the drawing editor.
+    if resp.double_clicked()
+        && strix_engine::cmd::objects::selected(&app.session).is_some_and(
+            |(_, o)| matches!(o, strix_doc::InlineObject::Graphic { graphic, .. } if graphic.kind == strix_doc::graphic::GraphicKind::Cad),
+        )
+    {
+        let _ = app.run("ui.cadEdit", json!({}));
+        return;
+    }
     // Inside an equation, clicks place the caret in it (and double-clicks don't select words);
     // so do clicks on the grip and options strip of its frame.
     let on_frame = app.canvas.eq_options.is_some_and(|f| f.strip.contains(p) || f.grip.contains(p) || f.calc.contains(p));

@@ -26,6 +26,7 @@ pub mod a11y_pane;
 pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
+pub mod cad_editor;
 pub mod canvas;
 pub mod caret_glide;
 pub mod chrome;
@@ -686,6 +687,8 @@ pub struct WordApp {
     last_autosave: f64,
     /// The tab shown before the Equation tab came up (restored when editing ends).
     pub(crate) equation_prev_tab: Option<String>,
+    /// The CAD drawing open in the editor (docs/cad.md), in place of the page.
+    pub(crate) cad: Option<cad_editor::CadEditor>,
     /// SmartArt Text Pane: the item last focused (Promote, Demote and Add Shape act on it) and
     /// the item being typed in (its keystrokes join one undo step).
     pub smart_art_item: Option<usize>,
@@ -866,6 +869,7 @@ impl WordApp {
             system_animations: None,
             applied_animations: None,
             frame_ms: 0.0,
+            cad: None,
             quit_requested: false,
             autosave: true,
             zotero: zotero::ZoteroLink::default(),
@@ -1817,6 +1821,9 @@ impl WordApp {
 
     /// Commands that live in the UI layer.
     fn ui_command(&mut self, id: &str, p: &Value) -> Option<Result<Value, String>> {
+        if id.starts_with("ui.cad") {
+            return Some(cad_editor::command(self, id, p));
+        }
         let s = |k: &str| p.get(k).and_then(Value::as_str);
         Some(Ok(match id {
             "ui.checkForUpdates" | "help.checkForUpdates" => {
@@ -2935,7 +2942,12 @@ impl WordApp {
             }
             let fill = if screen == chrome::Screen::Focus { chrome::FOCUS_CANVAS } else { t.canvas };
             egui::CentralPanel::default().frame(egui::Frame::NONE.fill(fill)).show(ui, |ui| {
-                canvas::show(self, ui);
+                // An open CAD drawing takes the page's place.
+                if self.cad.is_some() {
+                    cad_editor::show(self, ui);
+                } else {
+                    canvas::show(self, ui);
+                }
             });
             if self.focus_ribbon && !moved(self) {
                 chrome::focus_ribbon(self, ctx);

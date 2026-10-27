@@ -261,8 +261,9 @@ enum Outcome {
     /// to style.
     Equation(Option<RegionResult>, Vec<Vec<String>>),
     Table(TableResult),
-    /// A drawing as rendered, and the expressions that failed.
-    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>),
+    /// A drawing as rendered, the expressions that failed, and the drawing resolved (its
+    /// coordinates' values filled in, for the editor).
+    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>, Option<(strix_cad::Drawing, Vec<String>)>),
 }
 
 /// The document's worksheets after evaluating it: the main one, and one per exercise (each
@@ -316,9 +317,12 @@ fn run_sheet(
                 Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
                     Ok(mut d) => {
                         let errors = d.resolve(ws);
-                        Outcome::Cad(Some(d.render(Some(ws))), errors)
+                        let rendered = d.render(Some(ws));
+                        // The parameters it can show, for the editor's Annotation box.
+                        let names = ws.scope().iter().map(|(n, _)| n.to_string()).collect();
+                        Outcome::Cad(Some(rendered), errors, Some((d, names)))
                     }
-                    Err(e) => Outcome::Cad(None, vec![(String::new(), e)]),
+                    Err(e) => Outcome::Cad(None, vec![(String::new(), e)], None),
                 },
             };
             spent = ws.scope().spent();
@@ -373,7 +377,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                     cell_updates.push((*top, t.updates.clone()));
                 }
             }
-            (Item::Cad { .. }, Outcome::Cad(drawn, failed)) => {
+            (Item::Cad { .. }, Outcome::Cad(drawn, failed, _)) => {
                 for (expr, why) in failed {
                     errors.push(json!({"drawing": i, "text": expr, "error": why}));
                 }
@@ -493,6 +497,18 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
 
 fn caret_in_calc_table(s: &Session) -> bool {
     s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
+}
+
+/// The drawing whose source is `source` (the same `Arc`), resolved where it sits in the document,
+/// and rendered: for the drawing editor.
+pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)> {
+    let found = items(&s.doc.body);
+    let opts = options_now(s);
+    let (_, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s), &super::exercise::seeds(s));
+    found.iter().zip(outcomes).find_map(|(item, outcome)| match (item, outcome) {
+        (Item::Cad { source: src, .. }, Outcome::Cad(Some(r), _, Some((d, names)))) if Arc::ptr_eq(src, source) => Some((d, r, names)),
+        _ => None,
+    })
 }
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.

@@ -447,26 +447,38 @@ impl Drawing {
     pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
         let size = strix_calc::format_number(measured, &opts);
-        let text = text.unwrap_or("<>");
-        let mut out = text.replace("<>", &size);
-        let mut guard = 0;
-        while let (Some(i), true) = (out.find("{{"), guard < 32) {
-            guard += 1;
-            let Some(j) = out.get(i..).and_then(|rest| rest.find("}}")).map(|j| i + j) else { break };
-            let name = out.get(i + 2..j).unwrap_or_default().trim().to_string();
-            // The unit is marked, so the drawing sets it in the Unit style.
-            let shown = ws.and_then(|w| w.shown_parts(&name)).map_or_else(
-                || "?".to_string(),
-                |(number, unit)| match unit.as_str() {
-                    "" => number,
-                    "°" => format!("{number}{}°{}", crate::UNIT_START, crate::UNIT_END),
-                    _ => format!("{number} {}{unit}{}", crate::UNIT_START, crate::UNIT_END),
-                },
-            );
-            out.replace_range(i..j + 2, &shown);
-        }
-        out
+        fill(&text.unwrap_or("<>").replace("<>", &size), ws)
     }
+}
+
+/// `text` with every `{{name}}` placeholder filled from the worksheet (docs/cad.md):
+/// `{{L}}` or `{{L:value}}` is the value with its unit (`4.5 m`), `{{L:symbol}}` the symbol (`L`),
+/// `{{L:both}}` both (`L = 4.5 m`). A unit is marked for the Unit style; a parameter that is not
+/// defined there shows as `[L?]`, marked as missing.
+pub fn fill(text: &str, ws: Option<&Worksheet>) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    for _ in 0..64 {
+        let Some(i) = rest.find("{{") else { break };
+        let Some(j) = rest.get(i..).and_then(|r| r.find("}}")).map(|j| i + j) else { break };
+        out.push_str(rest.get(..i).unwrap_or_default());
+        let inner = rest.get(i + 2..j).unwrap_or_default().trim();
+        let (name, mode) = inner.split_once(':').map_or((inner, "value"), |(n, m)| (n.trim(), m.trim()));
+        let value = ws.and_then(|w| w.shown_parts(name)).map(|(number, unit)| match unit.as_str() {
+            "" => number,
+            "°" => format!("{number}{}°{}", crate::UNIT_START, crate::UNIT_END),
+            _ => format!("{number} {}{unit}{}", crate::UNIT_START, crate::UNIT_END),
+        });
+        match (value, mode) {
+            (None, _) => out.push_str(&format!("{}[{name}?]{}", crate::MISSING_START, crate::MISSING_END)),
+            (Some(_), "symbol") => out.push_str(name),
+            (Some(v), "both") => out.push_str(&format!("{name} = {v}")),
+            (Some(v), _) => out.push_str(&v),
+        }
+        rest = rest.get(j + 2..).unwrap_or_default();
+    }
+    out.push_str(rest);
+    out
 }
 
 #[derive(Clone, Copy)]

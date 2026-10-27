@@ -156,6 +156,9 @@ impl WordApp {
         let WordApp {
             // App-wide.
             session: _,
+            // The CAD editor works on the active window's document; switching windows keeps it
+            // pointing there, and it closes when its drawing is gone.
+            cad: _,
             services: _,
             printing: _,
             print_feedback_seen: _,
