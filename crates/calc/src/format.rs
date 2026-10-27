@@ -140,11 +140,23 @@ pub(crate) fn render(expr: &Expr) -> String {
 /// [`render`], with names `sub` gives text for written as that text (`L` → `(4.5 m)`): the
 /// substitution line of a solution. The text must already carry the parentheses it needs.
 pub(crate) fn render_with(expr: &Expr, sub: &dyn Fn(&str) -> Option<String>) -> String {
-    let render = |e: &Expr| render_with(e, sub);
-    let wrap = |e: &Expr, parens: bool| if parens { format!("({})", render_with(e, sub)) } else { render_with(e, sub) };
+    render_nodes(expr, &|e: &Expr| match e {
+        Expr::Name(name) => sub(name),
+        _ => None,
+    })
+}
+
+/// [`render`], with any node `sub` gives text for written as that text (a parameter by its
+/// value, a written quantity converted to another unit: `30 cm` → `0.3 m`).
+pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -> String {
+    if let Some(text) = sub(expr) {
+        return text;
+    }
+    let render = |e: &Expr| render_nodes(e, sub);
+    let wrap = |e: &Expr, parens: bool| if parens { format!("({})", render_nodes(e, sub)) } else { render_nodes(e, sub) };
     match expr {
         Expr::Num(v) => format!("{v}"),
-        Expr::Name(name) => sub(name).unwrap_or_else(|| name.clone()),
+        Expr::Name(name) => name.clone(),
         Expr::Unit(name) => name.clone(),
         Expr::Neg(inner) => format!("-{}", wrap(inner, is_sum(inner))),
         Expr::Call(func, args) => {
@@ -172,6 +184,8 @@ pub(crate) fn render_with(expr: &Expr, sub: &dyn Fn(&str) -> Option<String>) -> 
         Expr::Bin(op, left, right) => match op {
             BinOp::Add => format!("{} + {}", render(left), render(right)),
             BinOp::Sub => format!("{} - {}", render(left), wrap(right, is_sum(right))),
+            // A written quantity reads as written: `30 cm`, `12 kN/m`.
+            BinOp::Mul if is_quantity(expr) => format!("{} {}", render(left), render(right)),
             BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right))),
             BinOp::Div => {
                 format!("{}/{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_product(right)))
@@ -201,6 +215,21 @@ fn integer(expr: &Expr) -> Option<i64> {
         _ => return None,
     };
     if v.fract() == 0.0 && v.abs() <= 1e6 { Some(sign * v as i64) } else { None }
+}
+
+/// Units alone, multiplied, divided and raised to powers (`kN`, `m/s²`).
+pub(crate) fn is_units(expr: &Expr) -> bool {
+    match expr {
+        Expr::Unit(_) => true,
+        Expr::Bin(BinOp::Mul | BinOp::Div, l, r) => is_units(l) && is_units(r),
+        Expr::Bin(BinOp::Pow, base, exp) => is_units(base) && integer(exp).is_some(),
+        _ => false,
+    }
+}
+
+/// A quantity as written: a number and its units (`30 cm`, `9.81 m/s²`).
+pub(crate) fn is_quantity(expr: &Expr) -> bool {
+    matches!(expr, Expr::Bin(BinOp::Mul, n, u) if matches!(**n, Expr::Num(_)) && is_units(u))
 }
 
 fn is_sum(expr: &Expr) -> bool {

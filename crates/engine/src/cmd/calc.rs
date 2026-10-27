@@ -1076,6 +1076,33 @@ mod tests {
         assert_eq!(vars["variables"][2]["region"], 2);
     }
 
+    /// `5 m·30 cm =`: worked in one unit, the result under it; read back it is worked again
+    /// (not checked), and changed data is worked anew.
+    #[test]
+    fn mixed_units_are_worked_in_one_unit_in_the_document() {
+        let mut s = session();
+        add(&mut s, "5 m·30 cm =");
+        let full = |s: &Session| -> Vec<String> {
+            items(&s.doc.body)
+                .into_iter()
+                .filter_map(|i| if let Item::Equation { full, .. } = i { Some(full.replace(char::is_whitespace, "")) } else { None })
+                .collect()
+        };
+        let first = full(&s);
+        assert_eq!(first.len(), 1);
+        assert!(first[0].contains("5m·0.3m") && first[0].contains("1.5m²"), "{first:?}");
+        assert_eq!(texts(&s), ["5m·30cm=5m·0.3m"]);
+        // Recalculating changes nothing.
+        s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(full(&s), first);
+        // New data: worked anew.
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0]), 0));
+        s.run("equation.set", &json!({"linear": "5 m·40 cm = 5 m·0.3 m"})).unwrap();
+        s.run("equation.exit", &json!({})).ok();
+        let changed = full(&s);
+        assert!(changed[0].contains("5m·0.4m") && changed[0].contains("2m²"), "{changed:?}");
+    }
+
     /// Inserts a table filled with `cells` (straight into the model: typing isn't under test).
     fn with_table(s: &mut Session, cells: &[&[&str]]) {
         let cols = cells.first().map_or(1, |r| r.len());

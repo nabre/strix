@@ -874,3 +874,29 @@ fn a_unit_after_a_number_is_always_the_unit() {
     assert_eq!(ws.units_in("x = 4.5 m"), ["m"]);
     assert_eq!(ws.units_in("F = m·a"), Vec::<String>::new());
 }
+
+/// Quantities of one kind written in different units are worked in one: the first one's.
+#[test]
+fn mixed_units_are_worked_in_one() {
+    let opts = Options { steps: true, ..Options::default() };
+    let run_steps = |st: &[&str]| evaluate(st, &opts).pop().unwrap();
+    // `5 m·30 cm =`: the working, then the result under it.
+    let r = run_steps(&["5 m·30 cm ="]);
+    assert_eq!(r.display.as_deref(), Some("5 m·30 cm = 5 m·0.3 m"));
+    assert_eq!(r.steps, Some(vec!["= 1.5 m²".to_string()]));
+    assert_eq!(r.kind, RegionKind::Evaluation);
+    // Read back (as a document stores it), it is worked again, not checked.
+    let again = run_steps(&["5 m·30 cm = 5 m·0.3 m"]);
+    assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (RegionKind::Evaluation, r.display.clone(), r.steps.clone()));
+    // Changing the data: worked anew.
+    let changed = run_steps(&["5 m·40 cm = 5 m·0.3 m"]);
+    assert_eq!(changed.display.as_deref(), Some("5 m·40 cm = 5 m·0.4 m"), "{changed:?}");
+    // One unit already, a unit asked for, or no steps: as before.
+    assert_eq!(run_steps(&["5 m·3 m ="]).steps, None);
+    assert_eq!(run_steps(&["5 m·30 cm = cm^2"]).display.as_deref(), Some("5 m·30 cm = 15000 cm²"));
+    assert_eq!(last(&["5 m·30 cm ="]), "5 m·30 cm = 1.5 m²");
+    // In a formula's substitution, parameters of one kind in one unit.
+    assert_eq!(steps(&["x = 0.5 mm", "y = 3 m", "z = x + y"]).unwrap(), ["z = (5·10^-4 m) + (3 m)", "z = 3.001 m"]);
+    // `a` is shown in mm: every length is worked in mm.
+    assert_eq!(steps(&["a = 20 cm", "b = 2 m", "s = 5 mm", "A = a·b + s·b"]).unwrap()[0], "A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)");
+}

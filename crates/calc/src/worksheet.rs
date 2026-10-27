@@ -1,7 +1,7 @@
 //! Statements and worksheet evaluation.
 
 use crate::eval::{Names, Scope, Value, eval, eval_scalar};
-use crate::format::{format_number, render};
+use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{Expr, Func, parse};
 use crate::quantity::{Dim, Quantity, finite};
@@ -581,17 +581,99 @@ impl Worksheet {
             return None;
         }
         let mut lines = Vec::new();
+        // Values of one kind in one unit (`(0.3 m)·(5 m)`, not `(30 cm)·(5 m)`).
+        let exprs: Vec<&Expr> = form.map_or_else(|| vec![lhs, rhs], |f| vec![f]);
+        let common = self.common_units(&exprs, Some(x));
+        let show = |e: &Expr| Self::with_common_units(e, &common, &sub);
         match form {
             Some(f) => {
                 if !alone {
                     lines.push(format!("{x} = {}", render(f)));
                 }
-                lines.push(format!("{x} = {}", crate::format::render_with(f, &sub)));
+                lines.push(format!("{x} = {}", show(f)));
             }
-            None => lines.push(format!("{} = {}", crate::format::render_with(lhs, &sub), crate::format::render_with(rhs, &sub))),
+            None => lines.push(format!("{} = {}", show(lhs), show(rhs))),
         }
         lines.push(result);
         Some(lines)
+    }
+
+    /// The pieces of `expr` that carry a unit, in reading order: the parameters (but `skip`)
+    /// with their value and the unit they are shown in, and the quantities written in it
+    /// (`30 cm`) with theirs.
+    fn unit_atoms<'e>(&self, expr: &'e Expr, skip: Option<&str>, out: &mut Vec<(&'e Expr, Value, String)>, depth: usize) {
+        if depth > 64 {
+            return;
+        }
+        match expr {
+            Expr::Name(n) if Some(n.as_str()) != skip => {
+                if let (Some(v), Some((_, unit))) = (self.scope.get(n), self.shown_parts(n)) {
+                    out.push((expr, v.clone(), unit));
+                }
+            }
+            Expr::Bin(_, _, u) if is_quantity(expr) => {
+                if let Ok(v) = eval(expr, &self.scope, Names::Worksheet) {
+                    out.push((expr, v, render(u)));
+                }
+            }
+            Expr::Bin(_, l, r) => {
+                self.unit_atoms(l, skip, out, depth + 1);
+                self.unit_atoms(r, skip, out, depth + 1);
+            }
+            Expr::Neg(e) => self.unit_atoms(e, skip, out, depth + 1),
+            Expr::Call(_, args) | Expr::Vector(args) => args.iter().for_each(|a| self.unit_atoms(a, skip, out, depth + 1)),
+            _ => {}
+        }
+    }
+
+    /// Quantities of one kind written in different units are shown in one (that of the first),
+    /// so the working reads plainly: `5 m·30 cm` is worked as `5 m·0.3 m`. The text for each
+    /// piece that changes (a parameter in parentheses as in a substitution); empty when the
+    /// units already agree.
+    fn common_units<'e>(&self, exprs: &[&'e Expr], skip: Option<&str>) -> Vec<(&'e Expr, String)> {
+        let mut atoms = Vec::new();
+        for e in exprs {
+            self.unit_atoms(e, skip, &mut atoms, 0);
+        }
+        let mut out = Vec::new();
+        for (i, (_, first, target)) in atoms.iter().enumerate() {
+            let dim = first.dim();
+            // Each kind once, from its first piece; a kind written in one unit stays as it is.
+            if dim.is_dimensionless() || atoms.iter().take(i).any(|(_, v, _)| v.dim() == dim) {
+                continue;
+            }
+            let group: Vec<&(&Expr, Value, String)> = atoms.iter().filter(|(_, v, _)| v.dim() == dim).collect();
+            if group.iter().all(|(_, _, u)| u == target) {
+                continue;
+            }
+            let Some(q) = self.unit_quantity(target) else { continue };
+            for (node, v, unit) in group {
+                if unit == target {
+                    continue;
+                }
+                let Ok(number) = in_unit_text(v, q, target, &self.opts) else { continue };
+                let text = with_unit(&number, target);
+                out.push((*node, if matches!(node, Expr::Name(_)) { format!("({text})") } else { text }));
+            }
+        }
+        out
+    }
+
+    /// The quantity a unit text (`cm`, `kN/m`) stands for.
+    fn unit_quantity(&self, text: &str) -> Option<Quantity> {
+        let tokens = lex(text, self.opts.decimal_comma).ok()?;
+        let e = parse(&tokens, text.chars().count()).ok()?;
+        eval_scalar(&e, &self.scope, Names::UnitsOnly).ok()
+    }
+
+    /// `expr` written with the pieces `common_units` changed.
+    fn with_common_units(expr: &Expr, changed: &[(&Expr, String)], names: &dyn Fn(&str) -> Option<String>) -> String {
+        render_nodes(expr, &|e: &Expr| {
+            changed.iter().find(|(n, _)| std::ptr::eq(*n, e)).map(|(_, t)| t.clone()).or_else(|| match e {
+                Expr::Name(n) => names(n),
+                _ => None,
+            })
+        })
     }
 
     /// The value of `x` that makes `lhs = rhs` true.
@@ -620,16 +702,40 @@ impl Worksheet {
     fn evaluation(&mut self, text: &str, tokens: &[Token], eq: usize, len: usize) -> RegionResult {
         let left = tokens.get(..eq).unwrap_or_default();
         let rhs = tokens.get(eq.saturating_add(1)..).unwrap_or_default();
-        if left.is_empty() || !units_only(rhs) {
-            return RegionResult::not_calc();
-        }
-        self.remember_unit(rhs, len);
         let Some(eq_token) = tokens.get(eq) else {
             return RegionResult::not_calc();
         };
         let left_text = text.get(..eq_token.byte).unwrap_or(text).trim();
+        // The working with quantities of one kind in one unit: `5 m·30 cm` is `5 m·0.3 m`.
+        let developed = self.developed(left, eq_token.pos);
+        // Our own working after `=` (read back from a document, perhaps from older data) asks
+        // for nothing more: it has two quantities or more, where a stale result has one number.
+        let numbers = rhs.iter().filter(|t| matches!(t.tok, Tok::Num(_))).count();
+        let ours = developed.is_some() && numbers >= 2;
+        let rhs = if ours { &[][..] } else { rhs };
+        if left.is_empty() || !units_only(rhs) {
+            return RegionResult::not_calc();
+        }
+        self.remember_unit(rhs, len);
         let (value, display, error) = self.show(left_text, left, eq_token.pos, rhs, len);
+        // With steps and nothing asked after `=`: the working, then the result under it.
+        if self.opts.steps
+            && rhs.is_empty()
+            && error.is_none()
+            && let Some(d) = developed
+            && let Some(result) = display.get(left_text.len()..).map(str::trim).filter(|r| r.starts_with('='))
+        {
+            let display = Some(format!("{left_text} = {d}"));
+            return RegionResult { kind: RegionKind::Evaluation, name: None, value, display, error, steps: Some(vec![result.to_string()]) };
+        }
         RegionResult { kind: RegionKind::Evaluation, name: None, value, display: Some(display), error, steps: None }
+    }
+
+    /// `expr` (tokens) with its quantities of one kind in one unit, when that changes anything.
+    fn developed(&self, expr: &[Token], end: usize) -> Option<String> {
+        let parsed = parse(expr, end).ok()?;
+        let common = self.common_units(&[&parsed], None);
+        (!common.is_empty()).then(|| Self::with_common_units(&parsed, &common, &|_| None))
     }
 
     fn definition(&mut self, text: &str, tokens: &[Token], def: usize, eq: Option<usize>, len: usize) -> RegionResult {

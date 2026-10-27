@@ -179,6 +179,15 @@ aligned at `=`: the formula isolated for the unknown, the values substituted, th
 steps are results, rebuilt with every recalculation: only the statement (the first row) is
 edited. A click or an arrow key into the steps puts the caret at the end of the statement.
 
+
+**One unit per kind of quantity.** Quantities of one kind written in different units are worked
+in one, that of the first: `5 m·30 cm =` shows `5 m·30 cm = 5 m·0.3 m` with `= 1.5 m²` under it
+(with Show Steps on; off, the result as before), and a formula's substitution writes its values
+of one kind in one unit (`A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)`). Read back, the working
+after `=` is recognised as Strix's own (the left side has units to bring together and the right
+side two quantities or more, where a stale result has one number), so the statement is worked
+again from its data, never checked against the old working. A unit asked for after `=`
+(`= cm^2`) is kept as asked, without a working.
 ## Commands (engine, `cmd/calc.rs`)
 
 | Id | Does |
@@ -224,6 +233,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: quantities of one kind worked in one unit, with the working shown (`5 m·30 cm = 5 m·0.3 m = 1.5 m²`).
 - 2026-10-27: quick keys `^ _ /` in formulas; New Calculation on Alt+Shift+C.
 - 2026-10-27: the solution steps are not edited; only the statement takes the caret.
 - 2026-10-27: a unit after a number is always the unit; solution steps (formula, substitution, result) under formulas and solved equations.
