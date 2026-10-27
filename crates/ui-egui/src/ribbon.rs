@@ -2488,6 +2488,67 @@ Calculation",
             );
         });
     });
+    group(ui, "Exercise", None, app, |ui, app| {
+        big(
+            ui,
+            app,
+            "exercise",
+            "New
+Exercise",
+            "exercise.insert",
+            json!({}),
+            false,
+        );
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "addQuestion",
+                Some("Add Question"),
+                "Add a question at the end of the exercise at the cursor",
+                "exercise.addQuestion",
+                json!({}),
+                false,
+            );
+            let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
+            let questions: Vec<String> =
+                info["questions"].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default();
+            let current = info["answer"].as_u64().unwrap_or(0);
+            menu_button(
+                ui,
+                app,
+                "resultOf",
+                Some("Result Of"),
+                "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
+                false,
+                "equation.answer",
+                |ui, app| {
+                    for (k, q) in questions.iter().enumerate() {
+                        let n = k as u64 + 1;
+                        let letter = char::from(b'a' + (k % 26) as u8);
+                        let label = format!("{letter}) {}", q.chars().take(48).collect::<String>());
+                        let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
+                        if resp.clicked() {
+                            let _ = app.run("equation.answer", json!({"question": n}));
+                            ui.close();
+                        }
+                    }
+                    ui.separator();
+                    mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
+                },
+            );
+            small(
+                ui,
+                app,
+                "equation",
+                Some("Update Summary"),
+                "Rebuild the repeated questions and the results summary",
+                "exercise.update",
+                json!({}),
+                false,
+            );
+        });
+    });
     group(ui, "Tables", None, app, |ui, app| {
         big(
             ui,

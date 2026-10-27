@@ -134,6 +134,16 @@ impl Scope {
         Some(self.entries.remove(index).1)
     }
 
+    /// The work done so far by evaluations against this scope (see [`MAX_SHEET_STEPS`]).
+    pub fn spent(&self) -> usize {
+        self.spent.get()
+    }
+
+    /// Sets the work done so far: several worksheets of one document share one budget.
+    pub fn set_spent(&self, steps: usize) {
+        self.spent.set(steps);
+    }
+
     /// The parameters in definition order.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
         self.entries.iter().map(|(n, v)| (n.as_str(), v))

@@ -119,6 +119,14 @@ impl Worksheet {
         eval(&expr, &self.scope, Names::Worksheet)
     }
 
+    /// The value of parameter `name` as results show it, with its unit: `30.375 kN·m`, `30°`.
+    pub fn shown(&self, name: &str) -> Option<String> {
+        let v = self.scope.get(name)?;
+        let hint = self.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        let (number, unit) = self.auto_hinted(v, hint);
+        Some(with_unit(&number, &unit))
+    }
+
     /// Sets (or, with `None`, clears) the dimensionless unit parameter `name` is shown in.
     pub(crate) fn set_hint(&mut self, name: &str, hint: Option<String>) {
         self.hints.retain(|(n, _)| n != name);

@@ -2460,3 +2460,20 @@ CAD
 	CAD Drawing	Disegno CAD
 	Insert a CAD drawing whose sizes can follow the calculations	Inserisci un disegno CAD le cui misure possono seguire i calcoli
 	Calculate	Calcola
+	Exercise	Esercizio
+	New
+Exercise	Nuovo
+esercizio
+	New Exercise	Nuovo esercizio
+	Add Question	Aggiungi domanda
+	Add a question at the end of the exercise at the cursor	Aggiungi una domanda alla fine dell'esercizio al cursore
+	Result Of	Risultato di
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Indica l'equazione al cursore come risultato di una domanda: il suo valore va nel riepilogo dei risultati
+	Not a Result	Non è un risultato
+	Update Summary	Aggiorna riepilogo
+	Rebuild the repeated questions and the results summary	Ricostruisci le domande richiamate e il riepilogo dei risultati
+	Exercise Title	Titolo esercizio
+	Exercise Question	Domanda esercizio
+	Exercise Heading	Intestazione esercizio
+	Exercise Prompt	Richiamo domanda
+	Exercise Result	Risultato esercizio

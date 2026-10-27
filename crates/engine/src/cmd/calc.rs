@@ -111,8 +111,9 @@ fn equation_text(linear: &str, math: &Math) -> String {
 /// What the worksheet reads, in reading order.
 #[derive(Debug, Clone, PartialEq)]
 enum Item {
-    /// An equation in top-level block `top`: its text if it is a calc region, `None` otherwise.
-    Equation { top: usize, text: Option<String> },
+    /// An equation in top-level block `top`: its text if it is a calc region, `None` otherwise,
+    /// and the question it answers (`Math::answer`, 0 for none).
+    Equation { top: usize, text: Option<String>, answer: u32 },
     /// A calculated table (top-level block `top`): its cells' text, row by row.
     Table { top: usize, cells: Vec<Vec<String>> },
 }
@@ -151,7 +152,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                         return;
                     }
                     if let InlineObject::Equation { linear, math, .. } = o {
-                        out.push(Item::Equation { top, text: math.calc.then(|| equation_text(linear, math)) });
+                        out.push(Item::Equation { top, text: math.calc.then(|| equation_text(linear, math)), answer: math.answer });
                     }
                 }
             }
@@ -180,7 +181,7 @@ fn regions(blocks: &[Arc<Block>]) -> Vec<(usize, Option<String>)> {
     items(blocks)
         .into_iter()
         .filter_map(|i| match i {
-            Item::Equation { top, text } => Some((top, text)),
+            Item::Equation { top, text, .. } => Some((top, text)),
             Item::Table { .. } => None,
         })
         .collect()
@@ -192,25 +193,46 @@ enum Outcome {
     Table(TableResult),
 }
 
-/// Evaluates the items in order with one worksheet.
-fn run_sheet(found: &[Item], opts: &Options) -> (Worksheet, Vec<Outcome>) {
-    let mut ws = Worksheet::new(*opts);
+/// The document's worksheets after evaluating it: the main one, and one per exercise (each
+/// exercise is a sandbox: what it defines stays in it, and it sees nothing from outside).
+struct Sheets {
+    main: Worksheet,
+    exercises: std::collections::BTreeMap<usize, Worksheet>,
+}
+
+/// Evaluates the items in order, each in its zone's worksheet (`zones`: the exercise of each
+/// top-level block, `None` outside exercises). One step budget covers them all.
+fn run_sheet(found: &[Item], opts: &Options, zones: &[Option<usize>]) -> (Sheets, Vec<Outcome>) {
+    let mut sheets = Sheets { main: Worksheet::new(*opts), exercises: Default::default() };
+    let mut spent = 0usize;
     let outcomes = found
         .iter()
-        .map(|item| match item {
-            Item::Equation { text: Some(text), .. } => Outcome::Equation(Some(ws.eval_statement(text))),
-            Item::Equation { text: None, .. } => Outcome::Equation(None),
-            Item::Table { cells, .. } => Outcome::Table(ws.eval_table(cells)),
+        .map(|item| {
+            let top = match item {
+                Item::Equation { top, .. } | Item::Table { top, .. } => *top,
+            };
+            let ws = match zones.get(top).copied().flatten() {
+                Some(e) => sheets.exercises.entry(e).or_insert_with(|| Worksheet::new(*opts)),
+                None => &mut sheets.main,
+            };
+            ws.scope().set_spent(spent);
+            let outcome = match item {
+                Item::Equation { text: Some(text), .. } => Outcome::Equation(Some(ws.eval_statement(text))),
+                Item::Equation { text: None, .. } => Outcome::Equation(None),
+                Item::Table { cells, .. } => Outcome::Table(ws.eval_table(cells)),
+            };
+            spent = ws.scope().spent();
+            outcome
         })
         .collect();
-    (ws, outcomes)
+    (sheets, outcomes)
 }
 
 /// Evaluates every region and calculated table and writes changed results back. Returns the
 /// report JSON.
 pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let found = items(&s.doc.body);
-    let (_, outcomes) = run_sheet(&found, opts);
+    let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s));
     let mut updates: Vec<Option<String>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut errors = Vec::new();
@@ -248,7 +270,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let equations: Vec<(usize, Option<String>)> = found
         .iter()
         .filter_map(|i| match i {
-            Item::Equation { top, text } => Some((*top, text.clone())),
+            Item::Equation { top, text, .. } => Some((*top, text.clone())),
             Item::Table { .. } => None,
         })
         .collect();
@@ -267,7 +289,7 @@ fn fingerprint(found: &[Item]) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for item in found {
         match item {
-            Item::Equation { text, .. } => text.hash(&mut h),
+            Item::Equation { text, answer, .. } => (text, answer).hash(&mut h),
             Item::Table { cells, .. } => cells.hash(&mut h),
         }
     }
@@ -283,20 +305,58 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
         return;
     }
     let found = items(&s.doc.body);
-    let calculated = found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. }));
-    if !calculated {
-        s.calc_seen = None;
-        return;
-    }
-    let key = fingerprint(&found);
+    let key = fingerprint(&found) ^ super::exercise::signature(s);
     if s.calc_seen == Some(key) {
         return;
     }
-    let report = recalculate_now(s);
-    if report["changed"].as_u64().unwrap_or(0) > 0 {
-        s.touch();
+    if found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. })) {
+        let report = recalculate_now(s);
+        if report["changed"].as_u64().unwrap_or(0) > 0 {
+            s.touch();
+        }
     }
-    s.calc_seen = Some(fingerprint(&items(&s.doc.body)));
+    // Exercises show the results: their automatic parts follow.
+    super::exercise::update(s);
+    s.calc_seen = Some(fingerprint(&items(&s.doc.body)) ^ super::exercise::signature(s));
+}
+
+/// The number format of the preferences.
+pub(crate) fn options_now(s: &Session) -> Options {
+    options(s, &json!({}))
+}
+
+/// The result equations (`Math::answer`) with their top-level block, question and shown value
+/// (`M = 30.375 kN·m`), evaluated as the document stands.
+pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> {
+    let found = items(&s.doc.body);
+    if !found.iter().any(|i| matches!(i, Item::Equation { answer, .. } if *answer > 0)) {
+        return Vec::new();
+    }
+    let (sheets, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s));
+    found
+        .iter()
+        .zip(&outcomes)
+        .filter_map(|(item, outcome)| {
+            let Item::Equation { top, answer, text } = item else { return None };
+            if *answer == 0 {
+                return None;
+            }
+            let shown = match outcome {
+                Outcome::Equation(Some(r)) => match (&r.name, &r.value, &r.error) {
+                    (_, _, Some(e)) => format!("⚠ {e}"),
+                    (Some(name), Some(_), None) => {
+                        let ws =
+                            super::exercise::zones(s).get(*top).copied().flatten().and_then(|e| sheets.exercises.get(&e)).unwrap_or(&sheets.main);
+                        format!("{name} = {}", ws.shown(name).unwrap_or_default())
+                    }
+                    _ => r.display.clone().or_else(|| text.clone()).unwrap_or_default(),
+                },
+                // An ordinary equation: its text as written.
+                _ => text.clone().unwrap_or_default(),
+            };
+            Some((*top, *answer, shown))
+        })
+        .collect()
 }
 
 fn caret_in_calc_table(s: &Session) -> bool {
@@ -333,7 +393,7 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
                         return;
                     }
                     if let Some(Some(text)) = updates.get(index) {
-                        *math = Math { nodes: parse_linear(text), jc: math.jc, calc: true, ..Math::default() };
+                        *math = Math { nodes: parse_linear(text), jc: math.jc, calc: true, answer: math.answer, ..Math::default() };
                         *linear = to_linear(&math.nodes);
                         touched = true;
                     }
@@ -427,7 +487,8 @@ fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
 fn variables(s: &mut Session, v: &Value) -> CmdResult {
     let opts = options(s, v);
     let found = items(&s.doc.body);
-    let (ws, outcomes) = run_sheet(&found, &opts);
+    let (sheets, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s));
+    let ws = &sheets.main;
     let mut defined_at: Vec<(String, usize)> = Vec::new();
     for (i, outcome) in outcomes.iter().enumerate() {
         let names: Vec<String> = match outcome {

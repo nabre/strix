@@ -25,6 +25,11 @@ Last updated 2026-10-27 (evening). Branch `main`.
   (last unit written per kind); unit-case hints; Math tab (keytip C); `*` types `·` in equations.
 - `strix-cad` stage 1 (docs/cad.md): drawing model, coordinates as expressions of calc
   parameters, `<>`/`{{L}}` dimension labels, rendering to paper-mm primitives, AutoCAD point entry.
+- Exercises (docs/exercise.md): Math › Exercise; locked structure (title, statement, questions,
+  solution with the questions repeated, one results summary at the end); each exercise is a
+  calculation sandbox; equations marked as a question's result (`strix:answer`).
+- Automatic recalculation after edits; every calculated-table cell is data or a statement;
+  dimensionless units kept (`% ‰ ppm ° rad gon sr`). Discord link removed everywhere.
 - `old_strix/` (the owner's earlier prototype) is local only and git-ignored: nothing may depend
   on it; it can be deleted at any time. Its calc and CAD behaviour is recorded in docs/calc.md and
   docs/cad.md.

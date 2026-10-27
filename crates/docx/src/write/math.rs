@@ -44,8 +44,14 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
             w.close("m:oMathParaPr");
         }
     }
-    // A calculated equation is written from its nodes: the source XML can't carry the flag.
-    if !math.calc && !math.omml.is_empty() && math.omml.starts_with("<m:oMath") && crate::xml::parse(wrap_ns(&math.omml).as_bytes()).is_ok() {
+    // A calculated equation or an answer is written from its nodes: the source XML can't carry
+    // the flags.
+    if !math.calc
+        && math.answer == 0
+        && !math.omml.is_empty()
+        && math.omml.starts_with("<m:oMath")
+        && crate::xml::parse(wrap_ns(&math.omml).as_bytes()).is_ok()
+    {
         w.raw(&math.omml);
     } else {
         let parsed;
@@ -55,7 +61,15 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
         } else {
             &math.nodes
         };
-        w.open("m:oMath", if math.calc { &[("strix:calc", "1")] } else { &[] });
+        let answer = math.answer.to_string();
+        let mut attrs: Vec<(&str, &str)> = Vec::new();
+        if math.calc {
+            attrs.push(("strix:calc", "1"));
+        }
+        if math.answer > 0 {
+            attrs.push(("strix:answer", &answer));
+        }
+        w.open("m:oMath", &attrs);
         arg_inner(w, nodes, 0);
         w.close("m:oMath");
     }

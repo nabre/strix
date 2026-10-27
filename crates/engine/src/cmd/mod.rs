@@ -14,6 +14,7 @@ pub mod design;
 pub mod draw;
 pub mod edit;
 pub mod equation;
+pub mod exercise;
 pub mod fields;
 pub mod file;
 pub mod find_pattern;
@@ -78,6 +79,7 @@ pub fn registry() -> Registry {
     v.extend(insert::specs());
     v.extend(equation::specs());
     v.extend(calc::specs());
+    v.extend(exercise::specs());
     v.extend(page::specs());
     v.extend(table::specs());
     v.extend(table_style::specs());

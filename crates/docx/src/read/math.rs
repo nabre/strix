@@ -12,7 +12,8 @@ use crate::xml::El;
 /// An `m:oMath` element as an equation (structure plus its source XML).
 pub fn read_omath(e: &El, jc: MathJc) -> Math {
     let calc = e.attr("strix:calc") == Some("1");
-    Math { nodes: merge_runs(arg(e, 0)), omml: e.to_xml(), jc, linear: false, calc }
+    let answer = e.attr("strix:answer").and_then(|a| a.parse::<u32>().ok()).filter(|&a| a <= 1000).unwrap_or(0);
+    Math { nodes: merge_runs(arg(e, 0)), omml: e.to_xml(), jc, linear: false, calc, answer }
 }
 
 /// A colour every math run shares, taken off the runs: it is the equation's own colour, as

@@ -35,6 +35,10 @@ pub struct Math {
     /// equations and its result written back. Saved as `strix:calc="1"` on `m:oMath`.
     #[serde(default, skip_serializing_if = "is_default")]
     pub calc: bool,
+    /// The question (1-based, within its exercise) this equation answers: its value goes into
+    /// the results summary (docs/exercise.md); 0 for none. Saved as `strix:answer` on `m:oMath`.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub answer: u32,
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {

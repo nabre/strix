@@ -1169,6 +1169,22 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line(&[(7.75, 3.0), (7.75, 13.5)]);
             pen.text(15.0, 15.5, 10.0, "Σ", a, true);
         }
+        // An exercise: a sheet with a title bar, lettered questions and a check mark.
+        "exercise" => {
+            pen.rect(4.0, 2.5, 16.0, 17.5, c);
+            pen.frect(4.0, 2.5, 16.0, 5.5, a);
+            pen.lines(6.0, 14.0, &[8.5, 11.0]);
+            pen.line_c(&[(6.5, 14.5), (8.0, 16.0), (11.5, 12.5)], a);
+        }
+        "addQuestion" => {
+            pen.text(8.0, 10.0, 12.0, "?", c, true);
+            pen.line_c(&[(14.0, 12.0), (14.0, 18.0)], a);
+            pen.line_c(&[(11.0, 15.0), (17.0, 15.0)], a);
+        }
+        "resultOf" => {
+            pen.text(9.0, 9.0, 10.0, "x=", c, false);
+            pen.line_c(&[(12.0, 15.0), (14.0, 17.0), (18.0, 12.0)], a);
+        }
         // A new calculation: an equals sign beside x.
         "calculation" => pen.text(10.0, 10.0, 12.0, "x=", a, false),
         "numberFormat" => pen.text(10.0, 10.0, 9.0, "0.00", a, false),
