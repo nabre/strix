@@ -346,7 +346,20 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
     let top = s.sel.focus.path.0.first().map_or(0, |&t| t as usize);
-    let at = top.saturating_add(1).min(s.doc.body.len());
+    let mut at = top.saturating_add(1).min(s.doc.body.len());
+    // An empty paragraph at the caret gives way to the exercise (no blank line before the
+    // title); a section break it carried moves to the exercise's last paragraph.
+    if let Some(Block::Para(p)) = s.doc.body.get(top).map(|b| &**b)
+        && p.text.is_empty()
+        && p.objects.is_empty()
+    {
+        let section = p.section.clone();
+        if let (Some(sec), Some(last)) = (section, blocks.last_mut()) {
+            last.section = Some(sec);
+        }
+        s.doc.body.remove(top);
+        at = top;
+    }
     for (i, b) in blocks.into_iter().enumerate() {
         s.doc.body.insert(at + i, para_block(b));
     }
@@ -1309,6 +1322,20 @@ mod tests {
         assert!(t.contains(&"Esercizio 2 — Secondo".to_string()), "{t:?}");
         let second = t.iter().position(|x| x == "a) x").unwrap();
         assert_eq!(t[second + 1..second + 3], ["", "Riepilogo dei risultati"], "{t:?}");
+    }
+
+    #[test]
+    fn an_empty_paragraph_at_the_caret_gives_way_to_the_exercise() {
+        let mut s = session();
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
+        let t = texts(&s);
+        assert_eq!(t.first().map(String::as_str), Some("Primo"), "no blank line before the title: {t:?}");
+        assert_eq!(scan(&s).exercises.len(), 1);
+        // A paragraph with text stays where it is.
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
+        assert_eq!(texts(&s)[..2], ["Intro", "Primo"]);
     }
 
     #[test]
