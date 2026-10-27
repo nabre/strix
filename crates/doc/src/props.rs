@@ -1191,6 +1191,10 @@ pub struct TableProps {
     /// `strix:calcNames` on `w:tblPr`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub calc_names: Option<CellNames>,
+    /// A calculated table whose cells are shown as equations (names in italics, subscripts,
+    /// units in the Unit style). Saved as `strix:calcMath="1"` on `w:tblPr`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub calc_math: bool,
 }
 
 /// How a data table names its cells (see [`TableProps::calc_names`]).

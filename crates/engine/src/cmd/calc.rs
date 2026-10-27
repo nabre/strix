@@ -56,16 +56,20 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("table.calcNames", "Data Table", "Table Layout › Data", cell_names)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value": "columnRow" | "rowColumn" | "none"} → {"names", "recalculated"}: the table at the caret is a data table (made calculated): every value is a parameter named by its column and its row's label (the first column), joined by a subscript: `F_A` (columnRow) or `A_F` (rowColumn)"#),
+        CommandSpec::new("table.mathCells", "Cells as Equations", "Table Layout › Data", math_cells)
+            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .params(r#"{"value"?: bool (default: toggle)} → {"math", "recalculated"}: the table at the caret (made calculated) shows every cell as an equation: names in italics, subscripts, units in the Unit style; off, the cells are text again"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
             let table = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp));
             let calc = table.is_some_and(|t| t.props.calc);
             let names = table.and_then(|t| t.props.calc_names).map_or("none", |n| n.name());
-            Ok(json!({"calc": calc, "names": names}))
+            let math = table.is_some_and(|t| t.props.calc_math);
+            Ok(json!({"calc": calc, "names": names, "math": math}))
         })
         .pure()
-        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none"}: whether the table at the caret is calculated, and how a data table names its cells"#),
+        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations"#),
         CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
             .pure()
             .params(r#"{"digits"?: n} → {"variables": [{"name", "value" (number in the unit shown, or an array), "text", "unit", "si" (SI magnitude, or an array), "region" (index of the defining item)}]}"#),
@@ -176,7 +180,7 @@ enum Item {
     Equation { top: usize, text: Option<String>, answer: u32, full: String },
     /// A calculated table (top-level block `top`): its cells' text, row by row, and how its
     /// cells are named when it is a data table.
-    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames> },
+    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames>, math: bool },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
 }
@@ -184,8 +188,20 @@ enum Item {
 /// A cell's text as the calc engine reads it: its first paragraph.
 fn cell_text(blocks: &[Arc<Block>]) -> String {
     match blocks.first().map(|b| &**b) {
+        // A cell shown as an equation: its linear text.
+        Some(Block::Para(p)) if let Some(text) = cell_equation(p) => text,
         Some(Block::Para(p)) => p.plain_text().trim().to_string(),
         _ => String::new(),
+    }
+}
+
+/// The linear text of a paragraph that is one equation and nothing else.
+fn cell_equation(p: &Paragraph) -> Option<String> {
+    match p.objects.as_slice() {
+        [InlineObject::Equation { linear, math, .. }] if p.text.trim() == strix_doc::para::OBJ.to_string() => {
+            Some(if math.nodes.is_empty() { linear.clone() } else { to_linear(&math.nodes) }.trim().to_string())
+        }
+        _ => None,
     }
 }
 
@@ -230,7 +246,9 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     }
                 }
             }
-            Block::Table(t) if depth == 0 && t.props.calc => out.push(Item::Table { top, cells: table_cells(t), names: t.props.calc_names }),
+            Block::Table(t) if depth == 0 && t.props.calc => {
+                out.push(Item::Table { top, cells: table_cells(t), names: t.props.calc_names, math: t.props.calc_math })
+            }
             Block::Table(t) => {
                 for row in &t.rows {
                     for cell in &row.cells {
@@ -266,7 +284,9 @@ enum Outcome {
     /// The result and the units of each row the equation shows (the statement, then its steps),
     /// to style.
     Equation(Option<RegionResult>, Vec<Vec<String>>),
-    Table(TableResult),
+    /// The table's result and, for a table shown as equations, every cell's final text with
+    /// the units in it (to style).
+    Table(TableResult, Option<Vec<Vec<(String, Vec<String>)>>>),
     /// A drawing as rendered, the expressions that failed, and the drawing resolved (its
     /// coordinates' values filled in, for the editor).
     /// The rendering for the page, the failed expressions, and for the editor the drawing, the
@@ -320,13 +340,37 @@ fn run_sheet(
                     Outcome::Equation(Some(r), units)
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
-                Item::Table { cells, names, .. } => Outcome::Table(ws.eval_table_named(
-                    cells,
-                    names.map(|n| match n {
-                        strix_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
-                        strix_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
-                    }),
-                )),
+                Item::Table { cells, names, math, .. } => {
+                    let result = ws.eval_table_named(
+                        cells,
+                        names.map(|n| match n {
+                            strix_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
+                            strix_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
+                        }),
+                    );
+                    // Shown as equations: every cell's final text, and the units in it to style.
+                    let shown = math.then(|| {
+                        let mut grid = cells.clone();
+                        for (r, c, text) in &result.updates {
+                            if let Some(cell) = grid.get_mut(*r).and_then(|row| row.get_mut(*c)) {
+                                cell.clone_from(text);
+                            }
+                        }
+                        grid.into_iter()
+                            .map(|row| {
+                                row.into_iter()
+                                    .map(|t| {
+                                        // Units only where a quantity or a column's unit is.
+                                        let quantity = t.chars().any(|c| c.is_ascii_digit() || c == '[' || c == '(');
+                                        let units = if quantity { ws.units_in(&t) } else { Vec::new() };
+                                        (t, units)
+                                    })
+                                    .collect()
+                            })
+                            .collect()
+                    });
+                    Outcome::Table(result, shown)
+                }
                 // A drawing reads the parameters defined before it.
                 Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
                     Ok(mut d) => {
@@ -360,6 +404,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let mut stepped: Vec<bool> = Vec::new();
     let mut cads: Vec<Option<Redrawn>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
+    let mut math_cells: Vec<(usize, Vec<Vec<(String, Vec<String>)>>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
@@ -385,13 +430,15 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 stepped.push(false);
                 units.push(Vec::new());
             }
-            (Item::Table { top, cells, .. }, Outcome::Table(t)) => {
+            (Item::Table { top, cells, .. }, Outcome::Table(t, shown)) => {
                 tables += 1;
                 for (row, col, e) in &t.errors {
                     let text = cells.get(*row).and_then(|r| r.get(*col)).cloned().unwrap_or_default();
                     errors.push(json!({"table": i, "row": row, "col": col, "text": text, "error": e.to_string()}));
                 }
-                if !t.updates.is_empty() {
+                if let Some(grid) = shown {
+                    math_cells.push((*top, grid.clone()));
+                } else if !t.updates.is_empty() {
                     cell_updates.push((*top, t.updates.clone()));
                 }
             }
@@ -420,6 +467,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let color = unit_color(s);
     let restyled = write_back(s, &equations, &updates, &stepped, &units, color);
     changed += restyled + redraw(s, &cads);
+    let unit = unit_color(s);
+    for (top, grid) in &math_cells {
+        changed += write_math_cells(s, *top, grid, unit);
+    }
     for (top, list) in &cell_updates {
         write_cells(s, *top, list);
     }
@@ -433,9 +484,10 @@ fn fingerprint(found: &[Item]) -> u64 {
     for item in found {
         match item {
             Item::Equation { text, answer, full, .. } => (text, answer, full).hash(&mut h),
-            Item::Table { cells, names, .. } => {
+            Item::Table { cells, names, math, .. } => {
                 cells.hash(&mut h);
                 names.map(|n| n.name()).hash(&mut h);
+                math.hash(&mut h);
             }
             Item::Cad { source, .. } => source.hash(&mut h),
         }
@@ -806,6 +858,91 @@ fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, de
 /// Writes computed cells of the calculated table in top-level block `top`: the cell's first
 /// paragraph gets the new text in its first run's formatting (a paragraph holding objects is left
 /// alone).
+/// A table shown as equations: each cell with text is one equation (its units in the Unit
+/// style), an empty cell an empty paragraph; only the cells that change are touched. Returns how
+/// many changed.
+fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String>)>], color: Rgb) -> usize {
+    let Some(block) = s.doc.body.get_mut(top) else { return 0 };
+    let Block::Table(t) = Arc::make_mut(block) else { return 0 };
+    let mut changed = 0;
+    for (row, texts) in t.rows.iter_mut().zip(grid) {
+        for (cell, (text, units)) in row.cells.iter_mut().zip(texts) {
+            let Some(first) = cell.blocks.first_mut() else { continue };
+            let Block::Para(p) = &**first else { continue };
+            let props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+            let mut nodes = parse_linear(text);
+            style_units(&mut nodes, units, color, 0);
+            // A label (`Support`, `Beam 2`) stays words: no italics, no units.
+            let label = is_label(text);
+            let same = match p.objects.as_slice() {
+                [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes,
+                [] => (text.is_empty() || label) && p.text.trim() == text.as_str(),
+                _ => false,
+            };
+            if same {
+                continue;
+            }
+            let mut new = Paragraph::with_text(if label { text.as_str() } else { "" }, props.clone());
+            if !text.is_empty() && !label {
+                let math = Math { nodes, ..Math::default() };
+                let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: false };
+                if new.insert_object(0, obj, &props).is_err() {
+                    continue;
+                }
+            }
+            new.props = p.props.clone();
+            new.mark = p.mark.clone();
+            *Arc::make_mut(first) = Block::Para(new);
+            changed += 1;
+        }
+    }
+    changed
+}
+
+/// A cell that names rather than computes: a word or words (`Support`, `Beam 2`), with no digit
+/// where a quantity would be, no `=`, brackets or subscripts. Single letters (`A`) are symbols.
+fn is_label(text: &str) -> bool {
+    let t = text.trim();
+    t.chars().filter(|c| c.is_alphabetic()).count() >= 2
+        && t.split_whitespace().all(|w| w.chars().count() >= 2 || w.chars().all(|c| c.is_ascii_digit()))
+        && !t.chars().any(|c| matches!(c, '=' | '[' | ']' | '(' | ')' | '_' | '^' | '/' | '*' | '·' | '+' | '-'))
+        && !t.split_whitespace().next().is_some_and(|w| w.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ','))
+}
+
+/// A table shown as equations turned back to text: each cell equation becomes its linear text.
+fn unmath_cells(t: &mut Table) {
+    for row in &mut t.rows {
+        for cell in &mut row.cells {
+            let Some(first) = cell.blocks.first_mut() else { continue };
+            let Block::Para(p) = &**first else { continue };
+            let Some(text) = cell_equation(p) else { continue };
+            let props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+            // As typed: the thin space an equation sets before a unit is a plain space in text.
+            let mut new = Paragraph::with_text(&text.replace('\u{2009}', " "), props);
+            new.props = p.props.clone();
+            new.mark = p.mark.clone();
+            *Arc::make_mut(first) = Block::Para(new);
+        }
+    }
+}
+
+fn math_cells(s: &mut Session, v: &Value) -> CmdResult {
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let story = s.sel.focus.story;
+    let t = s.doc.table_mut(story, &tp)?;
+    let on = p::bool(v, "value").unwrap_or(!t.props.calc_math);
+    t.props.calc_math = on;
+    if on {
+        // Shown as equations, the table is calculated.
+        t.props.calc = true;
+    } else {
+        unmath_cells(t);
+    }
+    super::table::touch_cells(s, &tp)?;
+    let report = recalculate(s, &options(s, v));
+    Ok(json!({"math": on, "recalculated": report}))
+}
+
 fn write_cells(s: &mut Session, top: usize, list: &[(usize, usize, String)]) {
     let Some(block) = s.doc.body.get_mut(top) else { return };
     let Block::Table(t) = Arc::make_mut(block) else { return };
@@ -907,7 +1044,7 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
     for (i, outcome) in outcomes.iter().enumerate() {
         let names: Vec<String> = match outcome {
             Outcome::Equation(Some(r), _) if r.error.is_none() => r.name.iter().cloned().collect(),
-            Outcome::Table(t) => t.columns.clone(),
+            Outcome::Table(t, _) => t.columns.clone(),
             Outcome::Equation(..) | Outcome::Cad(..) => Vec::new(),
         };
         for name in names {
@@ -1157,7 +1294,7 @@ mod tests {
         with_table(&mut s, &[&["", "F [kN]", "a [m]"], &["A", "10", "2"], &["B", "12", "0.5"]]);
         let r = s.run("table.calcNames", &json!({"value": "columnRow"})).unwrap();
         assert_eq!(r["names"], "columnRow");
-        assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap(), json!({"calc": true, "names": "columnRow"}));
+        assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap(), json!({"calc": true, "names": "columnRow", "math": false}));
         s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![s.doc.body.len() as u32 - 1]), 0));
         add(&mut s, "F_B·a_A =");
         assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=24kN·m"), "12 kN × 2 m: a moment");
@@ -1172,6 +1309,46 @@ mod tests {
         let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.calc_names) } else { None });
         assert_eq!(t, Some(Some(strix_doc::props::CellNames::RowColumn)));
         assert!(s.run("table.calcNames", &json!({"value": "diagonal"})).is_err());
+    }
+
+    /// Cells as equations: every cell with text becomes one equation (its units styled), a
+    /// formula column is written into them, a recalculation leaves them alone, and turning the
+    /// option off gives the text back; the option is saved.
+    #[test]
+    fn table_cells_shown_as_equations() {
+        let mut s = session();
+        with_table(&mut s, &[&["", "F_k [kN]", "M [kN·m] = F_k·2 m"], &["A", "10", ""], &["B", "12 kN", ""]]);
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        let r = s.run("table.mathCells", &json!({"value": true})).unwrap();
+        assert_eq!(r["math"], true);
+        let table =
+            |s: &Session| -> Table { s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap() };
+        let t = table(&s);
+        let equations = t
+            .rows
+            .iter()
+            .flat_map(|r| &r.cells)
+            .filter(|c| matches!(c.blocks.first().map(|b| &**b), Some(Block::Para(p)) if cell_equation(p).is_some()))
+            .count();
+        assert_eq!(equations, 8, "every cell with text (the corner is empty)");
+        assert!(is_label("Support") && is_label("Beam 2") && !is_label("A") && !is_label("12 kN") && !is_label("F_k [kN]") && !is_label("q·L"));
+        assert_eq!(table_texts(&s)[2][2], "24", "the formula column, in an equation");
+        // Units in the Unit style: `kN` of `12 kN`.
+        let unit = unit_color(&mut s);
+        let styled = |p: &Paragraph| matches!(p.objects.as_slice(), [InlineObject::Equation { math, .. }] if format!("{:?}", math.nodes).contains(&format!("{unit:?}")));
+        assert!(matches!(t.rows[2].cells[1].blocks.first().map(|b| &**b), Some(Block::Para(p)) if styled(p)));
+        // Stable.
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "{again}");
+        // Saved and read back.
+        let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
+        let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
+        assert!(back.body.iter().any(|b| matches!(&**b, Block::Table(t) if t.props.calc_math)));
+        // Off: text again.
+        s.run("table.mathCells", &json!({"value": false})).unwrap();
+        let t = table(&s);
+        assert!(t.rows.iter().flat_map(|r| &r.cells).all(|c| matches!(c.blocks.first().map(|b| &**b), Some(Block::Para(p)) if p.objects.is_empty())));
+        assert_eq!(table_texts(&s)[2][1], "12 kN");
     }
 
     fn table_texts(s: &Session) -> Vec<Vec<String>> {

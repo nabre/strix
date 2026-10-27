@@ -120,6 +120,15 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
   column with empty cells is not defined.
 - Errors stay in their cell (`⚠`) and are listed by `calc.recalculate` with row and column.
 
+### Cells as equations
+
+Table Layout › Cells as Equations (also in Math › Tables; `table.mathCells`) shows every cell of
+a calculated table as an equation: names in italics with true subscripts (`F_k`), units in the
+Unit style, the values the table works out written into them. A label (`Support`, `Beam 2`:
+words with no digit, `=`, brackets or subscripts) stays plain text; single letters (`A`) are
+symbols; units are styled only where a quantity or a column's unit is (`12 kN`, `F [kN]`). Turned
+off, the cells are text again. Saved as `strix:calcMath` on `w:tblPr`.
+
 ### Data tables
 
 A calculated table can name its cells instead of (as well as) its columns: Table Layout › Data
@@ -258,6 +267,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-28: calculated tables can show their cells as equations.
 - 2026-10-27: composed units for moments and loads (`kN·m`, `kN/m²`), force first.
 - 2026-10-27: data tables: cells named by column and row with a subscript (`F_A` or `A_F`).
 - 2026-10-27: quantities of one kind worked in one unit, with the working shown (`5 m·30 cm = 5 m·0.3 m = 1.5 m²`).

@@ -469,6 +469,9 @@ pub fn tblpr(w: &mut W, t: &TableProps, change: Option<&ChangeAttrs>) {
         if let Some(n) = t.calc_names {
             attrs.push(("strix:calcNames", n.name()));
         }
+        if t.calc_math {
+            attrs.push(("strix:calcMath", "1"));
+        }
     }
     w.open("w:tblPr", &attrs);
     tblpr_inner(w, t);

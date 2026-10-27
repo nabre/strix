@@ -2634,7 +2634,7 @@ Table",
                 json!({}),
                 on,
             );
-            data_table_menu(ui, app);
+            calc_table_tools(ui, app);
         });
     });
     group(ui, "Results", None, app, |ui, app| {
@@ -3509,18 +3509,26 @@ Table",
             "table.calc",
             on,
         );
-        data_table_menu(ui, app);
+        calc_table_tools(ui, app);
     });
 }
 
-/// Data Table: the table's values as parameters named by column and row, `F_A` or `A_F`.
-fn data_table_menu(ui: &mut Ui, app: &mut WordApp) {
-    let names = app
-        .session
-        .run("calc.tableInfo", &json!({}))
-        .ok()
-        .and_then(|v| v.get("names").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_default();
+/// A calculated table's options: Cells as Equations, and Data Table (its values as parameters
+/// named by column and row, `F_A` or `A_F`).
+fn calc_table_tools(ui: &mut Ui, app: &mut WordApp) {
+    let info = app.session.run("calc.tableInfo", &json!({})).ok();
+    let names = info.as_ref().and_then(|v| v.get("names").and_then(Value::as_str).map(str::to_string)).unwrap_or_default();
+    let math = info.as_ref().and_then(|v| v.get("math").and_then(Value::as_bool)).unwrap_or(false);
+    small(
+        ui,
+        app,
+        "equation",
+        Some("Cells as Equations"),
+        "Show every cell as an equation: names in italics, subscripts, units in the Unit style",
+        "table.mathCells",
+        json!({}),
+        math,
+    );
     menu_button(
         ui,
         app,
