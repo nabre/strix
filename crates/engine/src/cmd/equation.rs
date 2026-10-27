@@ -347,6 +347,8 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
     }
     let latex = s.math_latex;
     let quick = s.prefs.math_quick_keys;
+    // A calculation's units take their style as they are typed.
+    let calc_style = edited_math(s).is_some_and(|m| m.calc).then(|| (super::calc::options_now(s), super::calc::unit_color(s)));
     let style = TypeStyle { nor: s.math_normal_text };
     let mut pos = m.pos.clone();
     let mut transformed = false;
@@ -396,6 +398,12 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
                 }
             }
             pos = me::insert_text(&mut math.nodes, &pos, &c.to_string(), style);
+        }
+        if let Some((opts, color)) = &calc_style
+            && !math.linear
+            && let Some(arg) = me::arg_at_mut(&mut math.nodes, &pos.path)
+        {
+            pos.off = super::calc::style_units_typing(arg, pos.off, opts, *color);
         }
     })?;
     if let Some(m) = s.math.as_mut() {
@@ -1002,6 +1010,35 @@ mod tests {
         assert!(copied.contains('a') && copied.contains('b') && copied.contains('/'), "{copied}");
         s.run("equation.delete", &json!({})).unwrap();
         assert_eq!(linear(&s), "y=");
+    }
+
+    /// In a calculation, units take the Unit style as they are typed (not only when the equation
+    /// is left), and the caret keeps its place past the thin space set before a unit.
+    #[test]
+    fn units_are_styled_while_a_calculation_is_typed() {
+        let mut s = session();
+        s.run("calc.new", &json!({})).unwrap();
+        for c in "L = 4.5 m + 20 cm".chars() {
+            s.run("equation.type", &json!({"text": c.to_string()})).unwrap();
+        }
+        let unit = super::super::calc::unit_color(&mut s);
+        let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
+        let coloured: Vec<String> = nodes
+            .iter()
+            .filter_map(|n| match n {
+                MNode::Run(r) if r.color == Some(unit) => Some(r.text.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(coloured, ["m", "cm"], "{nodes:#?}");
+        // Typing went on at the end: nothing was put in the wrong place.
+        assert_eq!(linear(&s).replace('\u{2009}', " ").replace(' ', ""), "L=4.5m+20cm");
+        // Not a calculation: left alone.
+        let mut s = word_session();
+        s.run("insert.equation", &json!({"calc": false})).unwrap();
+        s.run("equation.type", &json!({"text": "x = 2 m"})).unwrap();
+        let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
+        assert!(nodes.iter().all(|n| !matches!(n, MNode::Run(r) if r.color.is_some())), "{nodes:#?}");
     }
 
     /// Alt+Shift+C (⌃⌥C on a Mac): a new calculation region at the caret, being edited.

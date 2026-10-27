@@ -855,6 +855,49 @@ fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, de
     *root = out;
 }
 
+/// While a calculation is typed: the units in the argument the caret is in (`a`, units `off`
+/// into it) get the Unit style at once, as the recalculation would give them. Only that
+/// argument, not the structures in it, so the caret's path stays valid; the caret moves past a
+/// thin space set between a number and its unit. Returns the caret's new offset.
+pub(crate) fn style_units_typing(a: &mut strix_doc::math::Arg, off: usize, opts: &Options, color: Rgb) -> usize {
+    use strix_doc::math::MNode;
+    let flat = |a: &strix_doc::math::Arg| -> Vec<char> {
+        a.iter()
+            .flat_map(|n| match n {
+                MNode::Run(r) => r.text.chars().collect::<Vec<_>>(),
+                _ => vec!['\u{FFFC}'],
+            })
+            .collect()
+    };
+    // While typing, the parameters aren't known yet: a unit is one that follows a number (`4.5 m`),
+    // never a name being defined (`L =`, which is also litres).
+    let text = to_linear(a);
+    let after_number = |u: &str| {
+        text.match_indices(u).any(|(i, _)| {
+            let head = text.get(..i).unwrap_or_default().trim_end_matches([' ', '\u{2009}']);
+            head.ends_with(|c: char| c.is_ascii_digit()) && !text.get(i + u.len()..).unwrap_or_default().starts_with(char::is_alphanumeric)
+        })
+    };
+    let units: Vec<String> = Worksheet::new(*opts).units_in(&text).into_iter().filter(|u| after_number(u)).collect();
+    let before = flat(a);
+    // At the depth limit: this argument's runs only.
+    style_units(a, &units, color, MAX_DEPTH);
+    let after = flat(a);
+    // Walk the old text to the caret through the new one, past the thin spaces added.
+    let (mut i, mut j) = (0usize, 0usize);
+    while i < off.min(before.len()) {
+        match (before.get(i), after.get(j)) {
+            (Some(x), Some(y)) if x == y => {
+                i += 1;
+                j += 1;
+            }
+            (_, Some('\u{2009}')) => j += 1,
+            _ => return off.min(after.len()),
+        }
+    }
+    j
+}
+
 /// Writes computed cells of the calculated table in top-level block `top`: the cell's first
 /// paragraph gets the new text in its first run's formatting (a paragraph holding objects is left
 /// alone).
