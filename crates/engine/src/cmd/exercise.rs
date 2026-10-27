@@ -86,7 +86,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("equation.answer", "Result Of", "Math › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
-            .params(r#"{"question": n (1-based; 0 = none)} → the equation at the caret is the result of that question of its exercise"#),
+            .params(r#"{"question"?: n (1-based; 0 = none; default: the question it is worked under), "toggle"?: bool (a result is taken off)} → the equation at the caret is the result of that question of its exercise"#),
         CommandSpec::new("exercise.info", "Exercise Info", "Math › Exercise", info)
             .pure()
             .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
@@ -910,10 +910,16 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
 
 fn answer(s: &mut Session, v: &Value) -> CmdResult {
     let at = super::equation::equation_at_caret(s).ok_or_else(|| CmdError::Disabled("no equation at the caret".into()))?;
-    // Without a number, the question the equation is worked under (the prompt above it).
+    let current = match s.doc.para_at(&at).and_then(|p| p.object_at(at.off)) {
+        Some(InlineObject::Equation { math, .. }) => math.answer,
+        _ => 0,
+    };
+    // Without a number, the question the equation is worked under (the prompt above it); the
+    // Result button (`toggle`) takes a result off again.
     let question = match p::u64(v, "question") {
         Some(q) => q,
-        None => question_above(s, &at).ok_or_else(|| CmdError::Params("question: the 1-based question number (0 = none)".into()))?,
+        None if p::bool(v, "toggle") == Some(true) && current != 0 => 0,
+        None => question_above(s, &at).ok_or_else(|| CmdError::Params("the equation isn't worked under a question of an exercise".into()))?,
     };
     let question = u32::try_from(question.min(MAX_QUESTIONS as u64)).unwrap_or(0);
     let para = s.doc.para_mut(at.story, &at.path).map_err(|e| CmdError::Failed(e.to_string()))?;
@@ -1427,6 +1433,9 @@ mod tests {
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), "lavoro b".len()));
         s.run("calc.insert", &json!({"text": "x = 2"})).unwrap();
         assert_eq!(s.run("equation.answer", &json!({})).unwrap()["answer"], json!(1));
+        // The Result button: off, then on again (the question it is worked under).
+        assert_eq!(s.run("equation.answer", &json!({"toggle": true})).unwrap()["answer"], json!(0));
+        assert_eq!(s.run("equation.answer", &json!({"toggle": true})).unwrap()["answer"], json!(1));
     }
 
     #[test]

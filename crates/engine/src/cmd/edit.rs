@@ -169,12 +169,7 @@ pub fn specs() -> Vec<CommandSpec> {
 
 fn copy(s: &mut Session, _: &Value) -> CmdResult {
     // A selection inside the equation being edited: its linear text (`b^2`, `(a+b)/2`).
-    if let Some(m) = &s.math
-        && let Some(anchor) = &m.anchor
-        && let Some(strix_doc::InlineObject::Equation { math, .. }) = s.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off))
-        && let Some((path, lo, hi)) = strix_doc::math_edit::selection_range(&math.nodes, anchor, &m.pos)
-    {
-        let text = strix_doc::math::to_linear(&strix_doc::math_edit::selected_nodes(&math.nodes, &path, lo, hi));
+    if let Some(text) = super::equation::selected_linear(s) {
         s.clipboard_text = text.clone();
         s.clipboard = None;
         s.clipboard_html = String::new();

@@ -413,7 +413,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             if by("color") {
                 edit.color = Some(None);
             } else if let Some(c) = p.get("color").and_then(serde_json::Value::as_str) {
-                edit.color = Some(Some(parse_hex(c).ok_or("color: #rrggbb or byLayer")?));
+                edit.color = Some(Some(crate::cad_panel::parse_hex(c).ok_or("color: #rrggbb or byLayer")?));
             }
             if by("width") {
                 edit.width = Some(None);
@@ -535,15 +535,6 @@ pub(crate) fn set_snap(s: &mut Snaps, k: SnapKind, on: bool) {
         SnapKind::Tangent => s.tangent = on,
         SnapKind::Nearest => s.nearest = on,
     }
-}
-
-fn parse_hex(c: &str) -> Option<[u8; 3]> {
-    let h = c.trim().strip_prefix('#')?;
-    if h.len() != 6 || !h.is_ascii() {
-        return None;
-    }
-    let byte = |i: usize| h.get(i..i + 2).and_then(|x| u8::from_str_radix(x, 16).ok());
-    Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
 fn parse_dash(d: &str) -> Option<Dash> {

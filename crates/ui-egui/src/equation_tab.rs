@@ -459,6 +459,30 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     }
                 },
             );
+            // The equation is the result of the question it is worked under (in an exercise's
+            // solution), or not: one click each way.
+            let is_result = strix_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.answer != 0);
+            small(
+                ui,
+                app,
+                "resultOf",
+                Some("Exercise Result"),
+                "This equation is the result of the question it is worked under (shown in the results summary)",
+                "equation.answer",
+                json!({"toggle": true}),
+                is_result,
+            );
+            let quick = app.session.prefs.math_quick_keys;
+            small(
+                ui,
+                app,
+                "superscript",
+                Some("Quick Keys"),
+                "^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)",
+                "equation.quickKeys",
+                json!({}),
+                quick,
+            );
             if ui.button(tl!("Close Equation")).on_hover_text(tl!("Leave the equation (Esc)")).clicked() {
                 let _ = app.run("equation.exit", json!({}));
                 app.canvas.want_focus = true;

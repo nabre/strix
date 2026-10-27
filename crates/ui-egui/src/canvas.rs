@@ -1656,13 +1656,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // top left, an options strip at its right) and draw the caret inside it.
         let mut math_caret = false;
         app.canvas.eq_options = None;
-        let in_calc = app.session.math.as_ref().is_some_and(|m| {
-            app.session
-                .doc
-                .para_at(&m.at)
-                .and_then(|p| p.object_at(m.at.off))
-                .is_some_and(|o| matches!(o, strix_doc::InlineObject::Equation { math, .. } if math.calc))
-        });
+        let in_calc = strix_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.calc);
         if std::mem::replace(&mut app.canvas.in_calc_equation, in_calc) && app.session.math.is_none() {
             let _ = app.run("calc.recalculate", json!({}));
         }
@@ -1685,9 +1679,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 painter.rect_filled(arg.expand(1.0), 0.0, Color32::from_black_alpha(26));
             }
             // The selection (Shift with the arrows): from its start to the caret, in its box.
-            if let Some(anchor) = &m.anchor
-                && let Some(strix_doc::InlineObject::Equation { math, .. }) = app.session.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off))
-                && let Some((path, lo, hi)) = strix_doc::math_edit::selection_range(&math.nodes, anchor, &m.pos)
+            if let Some((path, lo, hi)) = strix_engine::cmd::equation::math_selection(&app.session)
                 && let (Some(a), Some(b)) = (ml.slot(&path, lo), ml.slot(&path, hi))
             {
                 let (up, down) = ml.arg_extent(&path).map_or((ml.ascent, ml.descent), |(_, _, up, down)| (up, down));
@@ -1715,19 +1707,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 );
             }
             // The Calculate button: filled while the equation is a calculation region.
-            let calc_on = app
-                .session
-                .doc
-                .para_at(&m.at)
-                .and_then(|p| p.object_at(m.at.off))
-                .is_some_and(|o| matches!(o, strix_doc::InlineObject::Equation { math, .. } if math.calc));
-            if calc_on {
+            if in_calc {
                 painter.rect_filled(frame.calc, 2.0, t.accent);
             } else {
                 painter.rect_filled(frame.calc, 2.0, Color32::WHITE);
                 painter.rect_stroke(frame.calc, 2.0, Stroke::new(1.0, t.equation_box), egui::StrokeKind::Inside);
             }
-            let ink = if calc_on { t.on_accent } else { t.equation_box };
+            let ink = if in_calc { t.on_accent } else { t.equation_box };
             painter.text(frame.calc.center(), egui::Align2::CENTER_CENTER, "=", regular(12.0), ink);
             app.canvas.eq_options = Some(frame);
             if let Some(slot) = ml.slot(&m.pos.path, m.pos.off) {

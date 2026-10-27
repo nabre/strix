@@ -100,6 +100,28 @@ fn near_equation_or_all(_: &Session) -> Option<&'static str> {
 }
 
 /// The equation the caret is at: on its U+FFFC or just after it (or the one being edited).
+/// The equation being edited.
+pub fn edited_math(s: &Session) -> Option<&strix_doc::math::Math> {
+    let m = s.math.as_ref()?;
+    match s.doc.para_at(&m.at)?.object_at(m.at.off)? {
+        InlineObject::Equation { math, .. } => Some(math),
+        _ => None,
+    }
+}
+
+/// The selection inside the equation being edited (Shift with the arrows): the box it is in and
+/// the units it covers there.
+pub fn math_selection(s: &Session) -> Option<(Vec<(usize, usize)>, usize, usize)> {
+    let m = s.math.as_ref()?;
+    me::selection_range(&edited_math(s)?.nodes, m.anchor.as_ref()?, &m.pos)
+}
+
+/// The selected part of the equation being edited, as linear text (for Copy).
+pub(crate) fn selected_linear(s: &Session) -> Option<String> {
+    let (path, lo, hi) = math_selection(s)?;
+    Some(to_linear(&me::selected_nodes(&edited_math(s)?.nodes, &path, lo, hi)))
+}
+
 pub(crate) fn equation_at_caret(s: &Session) -> Option<Pos> {
     if let Some(m) = &s.math {
         return Some(m.at.clone());

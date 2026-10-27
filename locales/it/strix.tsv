@@ -2694,3 +2694,7 @@ preview	Title	Esempio
 	Grey 35%	Grigio 35%
 	Grey 20%	Grigio 20%
 	Grey 10%	Grigio 10%
+	Exercise Result	Risultato esercizio
+	This equation is the result of the question it is worked under (shown in the results summary)	Questa equazione è il risultato della domanda sotto cui è svolta (compare nel riepilogo dei risultati)
+	Quick Keys	Tasti rapidi
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / creano subito apice, pedice o frazione (disattivati: si trasformano con lo Spazio, come in Word)

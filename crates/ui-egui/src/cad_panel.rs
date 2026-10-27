@@ -110,8 +110,8 @@ fn text_field(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, typing: &mut b
     (r.lost_focus() && !esc && buf != shown).then_some(buf)
 }
 
-/// A colour combo: ByLayer (when offered), the palette, and a typed `#rrggbb`. `Some(None)` is
-/// ByLayer.
+/// A colour combo: ByLayer (when offered), the pens, and any colour typed as `r, g, b` or
+/// `#rrggbb`. `Some(None)` is ByLayer.
 fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: bool, typing: &mut bool) -> Option<Option<[u8; 3]>> {
     let mut out = None;
     let text = match shown {
@@ -144,7 +144,7 @@ fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: 
                     });
                 }
                 ui.separator();
-                // Any colour by its RGB values (applied with Enter: one undo step).
+                // Any colour by its RGB values or `#rrggbb` (applied with Enter: one undo step).
                 let rgb = match shown {
                     Some(Some(c)) => format!("{}, {}, {}", c[0], c[1], c[2]),
                     _ => String::new(),
@@ -159,20 +159,12 @@ fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: 
                 });
             },
         );
-        let typed = match shown {
-            Some(Some(c)) => hex(c),
-            _ => String::new(),
-        };
-        if let Some(t) = text_field(ui, ui.scope_id().with((id, "hex")), &typed, 64.0, typing)
-            && let Some(c) = parse_hex(&t)
-        {
-            out = Some(Some(c));
-        }
     });
     out
 }
 
-fn parse_hex(c: &str) -> Option<[u8; 3]> {
+/// `#rrggbb` (the `#` may be left out).
+pub(crate) fn parse_hex(c: &str) -> Option<[u8; 3]> {
     let h = c.trim().trim_start_matches('#');
     if h.len() != 6 || !h.is_ascii() {
         return None;
