@@ -48,6 +48,12 @@ Last updated 2026-10-27 (evening). Branch `main`.
 - Solution steps under formulas and solved equations (`calc.steps`); a unit after a number is
   always the unit; Exercise Properties pane (data, variants); nested questions and notes.
 
+- CAD editor: AutoCAD selection (click adds, Shift removes, window, lasso, fence, polygons,
+  previous, undo, Shift+Space cycling), right-click menu, Properties pane (families, stepping,
+  geometry with expressions, stroke, layers), draw order, current layer (docs/cad.md).
+- Exercise: an empty paragraph at the caret gives way to the exercise.
+- README rewritten around the WYSIWYG math; static project site in `site/` (Atollo palette).
+
 ## Next
 - Push: GitHub was unreachable from this machine (all GitHub hosts time out, other sites work);
   `git push origin main` once it answers.
