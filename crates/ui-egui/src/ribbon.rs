@@ -134,6 +134,9 @@ pub fn contextual_tabs(s: &strix_engine::Session) -> Vec<&'static str> {
     if has_chart_selected(s) {
         tabs.push("Chart Design");
     }
+    if strix_engine::cmd::cad::is_selected(s) {
+        tabs.push("CAD Picture Format");
+    }
     // Editing an equation.
     if s.math.is_some() {
         tabs.push("Equation");
@@ -312,7 +315,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
         }
     }
-    for ct in contextual_tabs(&app.session) {
+    // While the drawing is open in its editor, its picture's tab gives way to the editor's.
+    for ct in contextual_tabs(&app.session).into_iter().filter(|t| !(app.cad.is_some() && *t == "CAD Picture Format")) {
         if ct == "Outlining" {
             tabs.insert(1.min(tabs.len()), (ct.to_string(), false));
         } else if !tabs.iter().any(|(n, _)| n == ct) {
@@ -573,6 +577,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Equation" if app.session.math.is_some() => crate::equation_tab::show(app, ui),
                         name if app.cad.is_some() && crate::cad_editor::TABS.contains(&name) => crate::cad_editor::ribbon(app, ui),
                         "Picture Format" => picture_format(app, ui),
+                        "CAD Picture Format" => cad_picture_format(app, ui),
                         "Shape Format" => shape_format(app, ui),
                         "SmartArt Design" => smart_art_design(app, ui),
                         "Outlining" => outlining(app, ui),
@@ -2926,14 +2931,7 @@ fn shape_format(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     shape_text_group(app, ui);
-    group(ui, "Arrange", None, app, |ui, app| {
-        big(ui, app, "position", "Position", "arrange.position", json!({}), false);
-        wrap_menu(ui, app);
-        stack(ui, |ui| {
-            rotate_menu(ui, app, Some("Rotate"));
-            align_menu(ui, app, Some("Align"));
-        });
-    });
+    arrange_group(ui, app, false);
     group(ui, "Size", None, app, |ui, app| {
         let (w0, h0) = strix_engine::cmd::objects::selected(&app.session).and_then(|(_, o)| o.frame().map(|(w, h, _)| (w, h))).unwrap_or((0.0, 0.0));
         stack(ui, |ui| {
@@ -3030,6 +3028,78 @@ fn shape_effects_menu(ui: &mut Ui, app: &mut WordApp, theme: &[strix_doc::Rgb], 
 
 /// Draws the Picture Format tab's Adjust, Picture Styles, Accessibility (Alt Text), Arrange and
 /// Size groups.
+/// Arrange for a selected object: Position, Wrap Text, Rotate, Align (and Group).
+fn arrange_group(ui: &mut Ui, app: &mut WordApp, grouping: bool) {
+    group(ui, "Arrange", None, app, |ui, app| {
+        big(ui, app, "position", "Position", "arrange.position", json!({}), false);
+        wrap_menu(ui, app);
+        stack(ui, |ui| {
+            rotate_menu(ui, app, Some("Rotate"));
+            align_menu(ui, app, Some("Align"));
+            if grouping {
+                group_menu(ui, app, Some("Group"));
+            }
+        });
+    });
+}
+
+/// The selected CAD drawing's picture: edit it, its scale (fixed, or the largest standard one
+/// that fits a space, by default the page's), its padding, and what any picture has (alt text,
+/// arrange).
+fn cad_picture_format(app: &mut WordApp, ui: &mut Ui) {
+    let Some((_, d)) = strix_engine::cmd::cad::selected_drawing(&app.session) else { return };
+    group(ui, "Drawing", None, app, |ui, app| {
+        big(ui, app, "cadSelect", "Edit\nDrawing", "ui.cadEdit", json!({}), false);
+    });
+    group(ui, "Scale", None, app, |ui, app| {
+        let fitting = d.fit.is_some();
+        crate::widgets::big_checked(ui, app, "cadFit", "Fit to\nPage", "cad.scale", json!({"fit": !fitting}), fitting);
+        stack(ui, |ui| {
+            crate::widgets::row(ui, |ui| {
+                ui.label(egui::RichText::new(tl!("Scale")).small());
+                let shown = if fitting { format!("{} ({})", strix_cad::scale_text(d.scale), tl!("fitted")) } else { strix_cad::scale_text(d.scale) };
+                egui::ComboBox::from_id_salt("cad_picture_scale").selected_text(shown).width(110.0).show_ui(ui, |ui| {
+                    for n in strix_cad::standard_scales() {
+                        if ui.selectable_label(!fitting && d.scale == n, strix_cad::scale_text(n)).clicked() {
+                            let _ = app.run("cad.scale", json!({"scale": n}));
+                        }
+                    }
+                });
+            });
+            // The space it fits in, mm (0: that side free); applied once set.
+            let fit = d.fit.unwrap_or_default();
+            for (label, key, now) in [("Width", "width", fit.width), ("Height", "height", fit.height)] {
+                crate::widgets::row(ui, |ui| {
+                    ui.label(egui::RichText::new(tl!(label)).small());
+                    let mut v = now;
+                    let r = ui.add_enabled(fitting, egui::DragValue::new(&mut v).range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm"));
+                    if (r.drag_stopped() || r.lost_focus()) && v != now {
+                        let mut space = json!({"width": fit.width, "height": fit.height});
+                        space[key] = json!(v);
+                        let _ = app.run("cad.scale", json!({"fit": space}));
+                    }
+                });
+            }
+        });
+    });
+    group(ui, "Picture", None, app, |ui, app| {
+        stack(ui, |ui| {
+            crate::widgets::row(ui, |ui| {
+                ui.label(egui::RichText::new(tl!("Padding")).small());
+                let now = d.padding.top;
+                let mut v = now;
+                let r = ui.add(egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"));
+                if (r.drag_stopped() || r.lost_focus()) && v != now {
+                    let _ = app.run("cad.padding", json!({"value": v}));
+                }
+            });
+            ui.label(egui::RichText::new(format!("{} {}", tl!("Unit:"), d.unit.symbol())).small().weak());
+        });
+    });
+    alt_text_group(ui, app);
+    arrange_group(ui, app, false);
+}
+
 fn picture_format(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Adjust", None, app, |ui, app| {
         menu_button(ui, app, "picture", Some("Corrections"), "Brightness, contrast and sharpness", true, "picture.corrections", |ui, app| {
@@ -3103,15 +3173,7 @@ fn picture_format(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     alt_text_group(ui, app);
-    group(ui, "Arrange", None, app, |ui, app| {
-        big(ui, app, "position", "Position", "arrange.position", json!({}), false);
-        wrap_menu(ui, app);
-        stack(ui, |ui| {
-            rotate_menu(ui, app, Some("Rotate"));
-            align_menu(ui, app, Some("Align"));
-            group_menu(ui, app, Some("Group"));
-        });
-    });
+    arrange_group(ui, app, true);
     // The launcher opens the Size dialog: scale, Lock aspect ratio, the original size (#2573).
     group(ui, "Size", Some("picture.size"), app, |ui, app| {
         let (media, off, w0, h0, crop0, alt0) = match strix_engine::cmd::objects::selected(&app.session) {

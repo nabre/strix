@@ -288,6 +288,59 @@ impl Drawing {
     }
 }
 
+/// The standard scale denominators (ISO 5455's 1, 2, 5 series with 2.5, as drawings use): from
+/// 10:1 to 1:1 000 000, ascending.
+pub fn standard_scales() -> Vec<f64> {
+    (-1..=6).flat_map(|e| [1.0, 2.0, 2.5, 5.0].map(|m| m * 10f64.powi(e))).filter(|n| *n <= 1e6).collect()
+}
+
+/// A scale as drawings write it: `1:50`, or `2:1` for an enlargement.
+pub fn scale_text(n: f64) -> String {
+    let num = |v: f64| {
+        let s = format!("{:.3}", v);
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    };
+    if n >= 1.0 || n <= 0.0 || !n.is_finite() { format!("1:{}", num(n)) } else { format!("{}:1", num(1.0 / n)) }
+}
+
+impl Drawing {
+    /// The standard scale at which the drawing, annotations and padding included, fits its
+    /// `fit` space as large as it can: the smallest denominator that fits (the largest when none
+    /// does). Annotations are paper sizes and do not shrink with the scale, so each candidate is
+    /// rendered; a larger denominator never makes the drawing larger, so a binary search over
+    /// the series takes a handful of renderings.
+    pub fn fitted_scale(&self, ws: Option<&Worksheet>) -> Option<f64> {
+        let fit = self.fit?;
+        let scales = standard_scales();
+        let fits = |n: f64| {
+            let mut d = self.clone();
+            d.scale = n;
+            let (w, h) = d.render(ws).size;
+            (fit.width <= 0.0 || w <= fit.width + 1e-9) && (fit.height <= 0.0 || h <= fit.height + 1e-9)
+        };
+        let (mut lo, mut hi) = (0usize, scales.len().saturating_sub(1));
+        if !fits(*scales.get(hi)?) {
+            return scales.get(hi).copied();
+        }
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            if fits(*scales.get(mid)?) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        scales.get(lo).copied()
+    }
+
+    /// Sets the scale from `fit` (nothing changes without it).
+    pub fn apply_fit(&mut self, ws: Option<&Worksheet>) {
+        if let Some(n) = self.fitted_scale(ws) {
+            self.scale = n;
+        }
+    }
+}
+
 /// Flips the y-up primitives to paper (y down) and moves them inside the padding.
 fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);

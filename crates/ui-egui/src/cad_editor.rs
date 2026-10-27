@@ -402,20 +402,9 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         }
         "ui.cadPadding" => {
             // The picture's padding, paper mm: one number, or [top, right, bottom, left].
-            let pad = match p.get("value") {
-                Some(serde_json::Value::Number(n)) => n.as_f64().map(strix_cad::Padding::all),
-                Some(serde_json::Value::Array(a)) if a.len() == 4 => {
-                    let v: Vec<f64> = a.iter().filter_map(serde_json::Value::as_f64).collect();
-                    match v.as_slice() {
-                        [top, right, bottom, left] => Some(strix_cad::Padding { top: *top, right: *right, bottom: *bottom, left: *left }),
-                        _ => None,
-                    }
-                }
-                _ => None,
-            }
-            .ok_or("value: the padding in mm, or [top, right, bottom, left]")?;
+            let pad = strix_engine::cmd::cad::padding_param(p)?;
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
-            d.padding = pad.sanitized();
+            d.padding = pad;
             commit(app, &d);
         }
         "ui.cadDimStyle" => {

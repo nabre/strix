@@ -319,6 +319,8 @@ fn run_sheet(
                 Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
                     Ok(mut d) => {
                         let errors = d.resolve(ws);
+                        // Fitted to its space: the scale follows the sizes just worked out.
+                        d.apply_fit(Some(ws));
                         let rendered = d.render(Some(ws));
                         // The editor's sheet shows the layers not printed too.
                         let screen = d.has_unprinted().then(|| d.render_layers(Some(ws), true));
@@ -381,14 +383,15 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                     cell_updates.push((*top, t.updates.clone()));
                 }
             }
-            (Item::Cad { .. }, Outcome::Cad(drawn, failed, _)) => {
+            (Item::Cad { .. }, Outcome::Cad(drawn, failed, resolved)) => {
                 for (expr, why) in failed {
                     errors.push(json!({"drawing": i, "text": expr, "error": why}));
                 }
                 let unit = unit_color(s);
+                let fitted = resolved.as_ref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 cads.push(drawn.as_ref().map(|r| {
                     let (w, h, items) = super::cad::items_of(r, unit);
-                    (w, h, items, r.clone(), unit)
+                    (w, h, items, r.clone(), unit, fitted.clone())
                 }));
             }
             (Item::Table { .. } | Item::Cad { .. }, _) => {}
@@ -522,7 +525,8 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<(strix_cad:
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.
 /// A redrawn drawing: its size, items, the rendering they came from and the Unit colour.
-type Redrawn = (f32, f32, Vec<strix_doc::graphic::GraphicItem>, strix_cad::Rendered, Rgb);
+/// With a fitted scale, the source with the scale it was drawn at (so it shows and saves it).
+type Redrawn = (f32, f32, Vec<strix_doc::graphic::GraphicItem>, strix_cad::Rendered, Rgb, Option<String>);
 
 fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
     if cads.is_empty() {
@@ -540,7 +544,14 @@ fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
                 }
                 // The JSON is the drawing; its SVG picture is made again only when what it shows
                 // changed (or it has none yet, as read from a file).
-                if let Some(Some((dw, dh, items, rendered, unit))) = cads.get(index)
+                // A fitted drawing keeps the scale it is drawn at in its source.
+                if let Some(Some((.., Some(source)))) = cads.get(index)
+                    && graphic.cad.as_deref() != Some(source.as_str())
+                {
+                    Arc::make_mut(graphic).cad = Some(source.as_str().into());
+                    touched = true;
+                }
+                if let Some(Some((dw, dh, items, rendered, unit, _))) = cads.get(index)
                     && (graphic.items != *items || *w != *dw || *h != *dh || graphic.svg.is_none())
                 {
                     let g = Arc::make_mut(graphic);

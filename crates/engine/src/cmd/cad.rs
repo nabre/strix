@@ -21,7 +21,7 @@ const MAX_ITEMS: usize = 20_000;
 const CAP_TO_EM: f32 = 1.0 / 0.7;
 
 pub fn specs() -> Vec<CommandSpec> {
-    let selected = |s: &Session| if selected_drawing(s).is_some() { None } else { Some("select a CAD drawing first") };
+    let selected = |s: &Session| if is_selected(s) { None } else { Some("select a CAD drawing first") };
     vec![
         CommandSpec::new("insert.cad", "CAD Drawing", "Insert › Illustrations", insert).params(
             r#"{"drawing"?: object|string (a strix-cad drawing: {"unit", "scale", "layers", "entities": [{"type": "line", "a": [0,0], "b": ["L",0]} …]}; default: a starter drawing)} → inserts a CAD drawing in line at the caret; coordinates may be expressions of the calculations' parameters"#,
@@ -31,6 +31,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("cad.add", "Add to CAD Drawing", "Insert › Illustrations", add)
             .when(selected)
             .params(r#"{"entity": object ({"type": "line|circle|arc|polyline|point|text|dim", …})} → adds an entity to the selected drawing; returns its id"#),
+        CommandSpec::new("cad.padding", "Drawing Padding", "CAD Picture Format › Picture", padding)
+            .when(selected)
+            .params(r#"{"value": mm | [top, right, bottom, left]} → the space around the selected drawing in its picture (0–100 mm)"#),
+        CommandSpec::new("cad.scale", "Drawing Scale", "CAD Picture Format › Scale", scale).when(selected).params(
+            r#"{"scale"?: n (a fixed 1:n; ends fitting), "fit"?: true (the page's text width and two thirds of its height) | false | {"width"?: mm, "height"?: mm}} → {"scale": n, "fit": {"width", "height"}|null}: the selected drawing's scale, fixed or the largest standard one that fits the space"#,
+        ),
     ]
 }
 
@@ -83,16 +89,23 @@ pub fn edited(s: &Session) -> Option<(strix_doc::Pos, Drawing, Rendered, Vec<Str
     Some((pos, d, r, names))
 }
 
-/// The selected CAD drawing: where it is and its source.
-fn selected_drawing(s: &Session) -> Option<(strix_doc::Pos, Drawing)> {
+/// The selected object, when it is a CAD drawing: where it is and its source.
+fn selected_source(s: &Session) -> Option<(strix_doc::Pos, Arc<str>)> {
     let (pos, obj) = super::objects::selected(s)?;
     match obj {
-        InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Cad => {
-            let d = Drawing::from_json(graphic.cad.as_deref().unwrap_or_default()).unwrap_or_default();
-            Some((pos, d))
-        }
+        InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Cad => Some((pos, graphic.cad.clone().unwrap_or_else(|| "".into()))),
         _ => None,
     }
+}
+
+/// Whether the selected object is a CAD drawing.
+pub fn is_selected(s: &Session) -> bool {
+    selected_source(s).is_some()
+}
+
+/// The selected CAD drawing: where it is and its source, read.
+pub fn selected_drawing(s: &Session) -> Option<(strix_doc::Pos, Drawing)> {
+    selected_source(s).map(|(pos, src)| (pos, Drawing::from_json(&src).unwrap_or_default()))
 }
 
 fn get(s: &mut Session, _: &Value) -> CmdResult {
@@ -121,6 +134,53 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
     let d = drawing_param(v, "drawing")?.ok_or_else(|| CmdError::Params("drawing: a strix-cad drawing".into()))?;
     store(s, &pos, &d)?;
     super::sel_result(s)
+}
+
+/// The space a drawing fits by default: the narrowest text width of the document and two
+/// thirds of its text height, mm.
+fn page_space(s: &Session) -> strix_cad::Fit {
+    let mm = |pt: f32| f64::from(pt / PT_PER_MM);
+    let height = s.doc.sections().iter().map(|(_, sp)| sp.text_height()).fold(f32::INFINITY, f32::min).clamp(36.0, 4000.0);
+    strix_cad::Fit { width: mm(crate::io::text_width(&s.doc)), height: mm(height) * 2.0 / 3.0 }
+}
+
+/// A padding parameter: one size for all sides, or `[top, right, bottom, left]`, mm.
+pub fn padding_param(v: &Value) -> Result<strix_cad::Padding, String> {
+    match v.get("value") {
+        Some(p @ (Value::Number(_) | Value::Array(_))) => serde_json::from_value(p.clone()).map_err(|e| e.to_string()),
+        _ => Err("value: the padding in mm, or [top, right, bottom, left]".into()),
+    }
+}
+
+fn padding(s: &mut Session, v: &Value) -> CmdResult {
+    let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    d.padding = padding_param(v).map_err(CmdError::Params)?;
+    store(s, &pos, &d)?;
+    Ok(serde_json::to_value(d.padding).unwrap_or(Value::Null))
+}
+
+fn scale(s: &mut Session, v: &Value) -> CmdResult {
+    let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    match v.get("fit") {
+        None | Some(Value::Null) => {}
+        Some(Value::Bool(true)) => d.fit = Some(page_space(s)),
+        Some(Value::Bool(false)) => d.fit = None,
+        Some(o @ Value::Object(_)) => {
+            let num = |k: &str| o.get(k).map(|x| x.as_f64().ok_or_else(|| CmdError::Params(format!("fit.{k}: mm")))).transpose();
+            d.fit = Some(strix_cad::Fit { width: num("width")?.unwrap_or(0.0), height: num("height")?.unwrap_or(0.0) });
+        }
+        Some(_) => return Err(CmdError::Params("fit: true, false or {\"width\", \"height\"} in mm".into())),
+    }
+    if let Some(n) = v.get("scale") {
+        let n = n.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("scale: the n of 1:n, more than 0".into()))?;
+        d.scale = n;
+        d.fit = None;
+    }
+    d.sanitize();
+    store(s, &pos, &d)?;
+    // The scale the drawing is drawn at now (fitted where it sits, with the calculations).
+    let shown = edited(s).map_or(d.scale, |(_, fitted, ..)| fitted.scale);
+    Ok(json!({"scale": shown, "fit": d.fit.map(|f| json!({"width": f.width, "height": f.height}))}))
 }
 
 fn add(s: &mut Session, v: &Value) -> CmdResult {
@@ -301,6 +361,49 @@ mod tests {
         let (_, _, g) = drawing(&back).expect("read back");
         assert!(g.cad.as_deref().is_some_and(|c| c.contains("\"L\"")));
         assert_eq!(texts(&g), ["L = 6 m"], "drawn again on open");
+    }
+
+    /// Drawing Scale: a fixed 1:n, or the largest standard scale that fits the space (by
+    /// default the page's text width), which follows a parameter that grows the drawing.
+    #[test]
+    fn the_scale_is_fixed_or_fits_the_page() {
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "scale": 1, "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        let r = s.run("cad.scale", &json!({"fit": true})).unwrap();
+        // A4 with 2.5 cm margins: 160 mm of text; 4.5 m fits at 1:50 (90 mm), not at 1:25.
+        assert_eq!(r["scale"], json!(50.0), "{r}");
+        let (w, ..) = drawing(&s).unwrap();
+        assert!(w / PT_PER_MM <= 160.0 + 1e-3);
+        // L = 9 m: the next scale that fits.
+        let sel = s.sel.clone();
+        s.sel = Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.run("equation.set", &json!({"linear": "L = 9 m"})).unwrap();
+        s.run("equation.exit", &json!({})).ok();
+        s.sel = sel;
+        let (w, ..) = drawing(&s).unwrap();
+        assert!((90.0..100.0).contains(&(w / PT_PER_MM)), "1:100: {w}");
+        // A fixed scale ends the fitting; nonsense is refused.
+        let r = s.run("cad.scale", &json!({"scale": 20})).unwrap();
+        assert_eq!((r["scale"].clone(), r["fit"].clone()), (json!(20.0), Value::Null));
+        assert!(s.run("cad.scale", &json!({"scale": -1})).is_err());
+        assert!(s.run("cad.scale", &json!({"fit": "page"})).is_err());
+        let r = s.run("cad.scale", &json!({"fit": {"width": 50}})).unwrap();
+        // 9 m in 50 mm: 1:200 is 45 mm plus the 2 mm padding each side; 1:100 would be 90.
+        assert_eq!(r["scale"], json!(200.0), "{r}");
+        // The fitted scale is kept in the source; the drawing can be wrapped like a picture,
+        // and stays so once saved.
+        assert_eq!(s.run("cad.get", &json!({})).unwrap()["drawing"]["scale"], json!(200.0));
+        s.run("arrange.wrap", &json!({"wrap": "square"})).unwrap();
+        let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
+        let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
+        let wrapped = back.body.iter().any(|b| {
+            matches!(&**b, strix_doc::Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { float, graphic, .. }
+                if graphic.kind == GraphicKind::Cad && float.wrap == strix_doc::para::Wrap::Square)))
+        });
+        assert!(wrapped, "the wrap survives saving");
     }
 
     #[test]

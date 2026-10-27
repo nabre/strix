@@ -409,6 +409,26 @@ pub struct Drawing {
     /// How dimensions and new texts look.
     #[serde(skip_serializing_if = "DimStyle::is_default")]
     pub dim_style: DimStyle,
+    /// The space the drawing fits in: when set, the scale is the standard one that fits,
+    /// worked out whenever the drawing is drawn (so it follows the calculations).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fit: Option<Fit>,
+}
+
+/// A space on paper, mm; 0 leaves that side free.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Fit {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Fit {
+    /// Finite sizes from 0 to 5 m, to a hundredth of a millimetre.
+    pub fn sanitized(self) -> Fit {
+        let c = |v: f64| if v.is_finite() { (v.clamp(0.0, 5000.0) * 100.0).round() / 100.0 } else { 0.0 };
+        Fit { width: c(self.width), height: c(self.height) }
+    }
 }
 
 impl Default for Drawing {
@@ -420,6 +440,7 @@ impl Default for Drawing {
             entities: Vec::new(),
             padding: Padding::default(),
             dim_style: DimStyle::default(),
+            fit: None,
         }
     }
 }
@@ -505,6 +526,7 @@ impl Drawing {
         self.scale = if self.scale.is_finite() { self.scale.clamp(1e-3, 1e6) } else { 1.0 };
         self.padding = self.padding.sanitized();
         self.dim_style = self.dim_style.sanitized();
+        self.fit = self.fit.map(Fit::sanitized).filter(|f| f.width > 0.0 || f.height > 0.0);
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());

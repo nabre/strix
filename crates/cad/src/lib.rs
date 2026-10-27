@@ -31,9 +31,9 @@ mod tests;
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
-pub use model::{Align, Dash, DimStyle, Drawing, Entity, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Stroke, Unit, fill};
+pub use model::{Align, Dash, DimStyle, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Stroke, Unit, fill};
 pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, num_text};
-pub use render::{Anchor, Prim, Rendered};
+pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
 pub use svg::MISSING_COLOR;
 

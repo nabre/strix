@@ -125,7 +125,16 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   picture. Files from the first version (the JSON inline in `a:graphicData`) still open.
 - **Padding**: the picture's space around the drawing, paper mm (`"padding": 2` or
   `[top, right, bottom, left]`, 0–100), set in the editor (Picture › Padding, `ui.cadPadding`).
-- **Commands**: `insert.cad`, `cad.get` (source and failing expressions of the selected
+- **CAD Picture Format** (the contextual tab of a selected drawing): Edit Drawing; **Scale**, a
+  fixed standard one (`1:50`, `2:1`…) or **Fit to Page** — the largest standard scale (1, 2,
+  2.5, 5 × 10ⁿ) at which the drawing, its dimensions and padding included, fits a space (by
+  default the page's text width and two thirds of its height; width and height can be set, 0
+  leaves a side free). The fit is kept in the drawing (`fit`) and worked out at every
+  recalculation, so a drawing that grows with `L` takes the next scale; the scale it is drawn at
+  is written back to its source. Padding (`cad.padding`), alt text and Arrange (position, wrap,
+  rotate, align — written back with its frame on save); its size is its scale's.
+- **Commands**: `cad.scale` (`{"scale": n}` or `{"fit": true | false | {"width", "height"}}`),
+  `cad.padding`, `insert.cad`, `cad.get` (source and failing expressions of the selected
   drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
 
 ## Stages

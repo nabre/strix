@@ -104,7 +104,7 @@ pub fn selected(app: &WordApp) -> Option<(Pos, &InlineObject)> {
 
 /// Whether the selected object is a CAD drawing.
 pub(crate) fn selected_cad(app: &WordApp) -> bool {
-    matches!(selected(app), Some((_, InlineObject::Graphic { graphic, .. })) if graphic.kind == strix_doc::graphic::GraphicKind::Cad)
+    selected(app).is_some() && strix_engine::cmd::cad::is_selected(&app.session)
 }
 
 /// Whether objects of `story` can be selected and dragged on the canvas: the body and

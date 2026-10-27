@@ -247,7 +247,7 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                 ui.label(d.unit.symbol());
                 ui.end_row();
                 ui.label(tl!("Scale"));
-                ui.label(format!("1:{}", strix_cad::num_text(&strix_cad::Num::new(d.scale))));
+                ui.label(strix_cad::scale_text(d.scale));
                 ui.end_row();
                 ui.label(tl!("Objects"));
                 ui.label(d.entities.len().to_string());
