@@ -28,6 +28,11 @@ pub use input::{InputError, parse_point};
 pub use model::{Dash, Drawing, Entity, Kind, Layer, Num, Orient, P, Stroke, Unit};
 pub use render::{Anchor, Prim, Rendered};
 
+/// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in
+/// the document's Unit style. Never part of what is shown.
+pub const UNIT_START: char = '\u{1F}';
+pub const UNIT_END: char = '\u{1E}';
+
 /// Most entities in one drawing.
 pub const MAX_ENTITIES: usize = 5000;
 /// Most layers in one drawing.

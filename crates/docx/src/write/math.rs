@@ -48,6 +48,7 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
     // the flags.
     if !math.calc
         && math.answer == 0
+        && !math.stepped
         && !math.omml.is_empty()
         && math.omml.starts_with("<m:oMath")
         && crate::xml::parse(wrap_ns(&math.omml).as_bytes()).is_ok()
@@ -68,6 +69,9 @@ pub fn write_equation(w: &mut W, linear: &str, display: bool, math: &Math, color
         }
         if math.answer > 0 {
             attrs.push(("strix:answer", &answer));
+        }
+        if math.stepped {
+            attrs.push(("strix:steps", "1"));
         }
         w.open("m:oMath", &attrs);
         arg_inner(w, nodes, 0);

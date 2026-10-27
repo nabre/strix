@@ -36,6 +36,7 @@ use crate::package::{ContentTypes, EMBEDDED_PARTS, EmbeddedManifest, MAX_VBA_REL
 use crate::units::{flag, int, on_off, tw, u32_of};
 use crate::xml::El;
 pub(crate) use props::PropCtx;
+pub(crate) use story::CAD_URI;
 use story::StoryCtx;
 
 /// Most fonts read from a font table, and the longest name (hostile files).

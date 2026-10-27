@@ -864,7 +864,10 @@ impl Session {
     /// Start an editing session at the document beginning with empty history and
     /// default view, preferences and a yellow highlighter independent of document undo.
     pub fn new(doc: Document) -> Self {
-        Self::with_registry(doc, Arc::new(crate::cmd::registry()))
+        let mut s = Self::with_registry(doc, Arc::new(crate::cmd::registry()));
+        // Calculations, exercises and CAD drawings are brought up to date as the file opens.
+        crate::cmd::calc::auto_recalculate(&mut s);
+        s
     }
 
     /// Initialise session defaults while sharing the immutable command registry with previews.

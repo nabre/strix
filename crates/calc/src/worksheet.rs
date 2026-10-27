@@ -178,6 +178,14 @@ impl Worksheet {
         out
     }
 
+    /// The value of parameter `name` as results show it, number and unit apart:
+    /// `("30.375", "kN·m")`.
+    pub fn shown_parts(&self, name: &str) -> Option<(String, String)> {
+        let v = self.scope.get(name)?;
+        let hint = self.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        Some(self.auto_hinted(v, hint))
+    }
+
     /// The value of parameter `name` as results show it, with its unit: `30.375 kN·m`, `30°`.
     pub fn shown(&self, name: &str) -> Option<String> {
         let v = self.scope.get(name)?;
@@ -239,6 +247,12 @@ impl Worksheet {
             Expr::Nary(n) if n.op == '∑' => self.hint(&n.body),
             Expr::Nary(_) => None,
         }
+    }
+
+    /// Defines `name` as `value` directly (no statement), for callers that set up a worksheet of
+    /// their own, such as a CAD drawing reading lengths in its unit.
+    pub fn define(&mut self, name: &str, value: Value) {
+        self.scope.set(name, value);
     }
 
     /// The working unit for `dim`: the last unit written for it.

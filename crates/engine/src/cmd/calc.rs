@@ -122,7 +122,9 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
 /// The linear text of an equation, as the calc engine reads it.
 fn equation_text(linear: &str, math: &Math) -> String {
     // An equation showing its solution steps is rows aligned at `&`: the statement is the first.
-    if let [strix_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
+    // Only arrays Strix made are read so: an array the user wrote is the statement as a whole.
+    if math.stepped
+        && let [strix_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
         && let Some(first) = rows.first()
     {
         return to_linear(first).replace('&', "");
@@ -169,6 +171,8 @@ enum Item {
     Equation { top: usize, text: Option<String>, answer: u32, full: String },
     /// A calculated table (top-level block `top`): its cells' text, row by row.
     Table { top: usize, cells: Vec<Vec<String>> },
+    /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
+    Cad { top: usize, source: Arc<str> },
 }
 
 /// A cell's text as the calc engine reads it: its first paragraph.
@@ -203,6 +207,12 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                 for o in &p.objects {
                     if out.len() >= MAX_REGIONS {
                         return;
+                    }
+                    if let InlineObject::Graphic { graphic, .. } = o
+                        && graphic.kind == strix_doc::graphic::GraphicKind::Cad
+                    {
+                        out.push(Item::Cad { top, source: graphic.cad.clone().unwrap_or_else(|| Arc::from("")) });
+                        continue;
                     }
                     if let InlineObject::Equation { linear, math, .. } = o {
                         out.push(Item::Equation {
@@ -240,7 +250,7 @@ fn regions(blocks: &[Arc<Block>]) -> Vec<(usize, Option<String>)> {
         .into_iter()
         .filter_map(|i| match i {
             Item::Equation { top, text, .. } => Some((top, text)),
-            Item::Table { .. } => None,
+            Item::Table { .. } | Item::Cad { .. } => None,
         })
         .collect()
 }
@@ -251,6 +261,8 @@ enum Outcome {
     /// to style.
     Equation(Option<RegionResult>, Vec<Vec<String>>),
     Table(TableResult),
+    /// A drawing as rendered, and the expressions that failed.
+    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>),
 }
 
 /// The document's worksheets after evaluating it: the main one, and one per exercise (each
@@ -284,7 +296,7 @@ fn run_sheet(
         .iter()
         .map(|item| {
             let top = match item {
-                Item::Equation { top, .. } | Item::Table { top, .. } => *top,
+                Item::Equation { top, .. } | Item::Table { top, .. } | Item::Cad { top, .. } => *top,
             };
             let ws = match zones.get(top).copied().flatten() {
                 Some(e) => sheets.exercises.entry(e).or_insert_with(|| Worksheet::new(*opts)),
@@ -300,6 +312,14 @@ fn run_sheet(
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
                 Item::Table { cells, .. } => Outcome::Table(ws.eval_table(cells)),
+                // A drawing reads the parameters defined before it.
+                Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
+                    Ok(mut d) => {
+                        let errors = d.resolve(ws);
+                        Outcome::Cad(Some(d.render(Some(ws))), errors)
+                    }
+                    Err(e) => Outcome::Cad(None, vec![(String::new(), e)]),
+                },
             };
             spent = ws.scope().spent();
             outcome
@@ -315,6 +335,8 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     let mut updates: Vec<Option<String>> = Vec::new();
     let mut units: Vec<Vec<Vec<String>>> = Vec::new();
+    let mut stepped: Vec<bool> = Vec::new();
+    let mut cads: Vec<Option<(f32, f32, Vec<strix_doc::graphic::GraphicItem>)>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
@@ -334,9 +356,11 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 // The linear format of a built-up equation drops spaces: only a real change rewrites it.
                 let squash = |t: &str| t.replace(char::is_whitespace, "");
                 updates.push((squash(&desired) != squash(full)).then_some(desired));
+                stepped.push(r.steps.as_ref().is_some_and(|l| !l.is_empty()));
             }
             (Item::Equation { .. }, _) => {
                 updates.push(None);
+                stepped.push(false);
                 units.push(Vec::new());
             }
             (Item::Table { top, cells }, Outcome::Table(t)) => {
@@ -349,7 +373,14 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                     cell_updates.push((*top, t.updates.clone()));
                 }
             }
-            (Item::Table { .. }, Outcome::Equation(..)) => {}
+            (Item::Cad { .. }, Outcome::Cad(drawn, failed)) => {
+                for (expr, why) in failed {
+                    errors.push(json!({"drawing": i, "text": expr, "error": why}));
+                }
+                let unit = unit_color(s);
+                cads.push(drawn.as_ref().map(|r| super::cad::items_of(r, unit)));
+            }
+            (Item::Table { .. } | Item::Cad { .. }, _) => {}
         }
     }
     let mut changed = updates.iter().filter(|u| u.is_some()).count() + cell_updates.iter().map(|(_, u)| u.len()).sum::<usize>();
@@ -357,12 +388,12 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
         .iter()
         .filter_map(|i| match i {
             Item::Equation { top, text, .. } => Some((*top, text.clone())),
-            Item::Table { .. } => None,
+            Item::Table { .. } | Item::Cad { .. } => None,
         })
         .collect();
     let color = unit_color(s);
-    let restyled = write_back(s, &equations, &updates, &units, color);
-    changed += restyled;
+    let restyled = write_back(s, &equations, &updates, &stepped, &units, color);
+    changed += restyled + redraw(s, &cads);
     for (top, list) in &cell_updates {
         write_cells(s, *top, list);
     }
@@ -377,6 +408,7 @@ fn fingerprint(found: &[Item]) -> u64 {
         match item {
             Item::Equation { text, answer, full, .. } => (text, answer, full).hash(&mut h),
             Item::Table { cells, .. } => cells.hash(&mut h),
+            Item::Cad { source, .. } => source.hash(&mut h),
         }
     }
     h.finish()
@@ -463,6 +495,46 @@ fn caret_in_calc_table(s: &Session) -> bool {
     s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
 }
 
+/// Redraws the CAD drawings (in reading order) whose items changed; returns how many.
+fn redraw(s: &mut Session, cads: &[Option<(f32, f32, Vec<strix_doc::graphic::GraphicItem>)>]) -> usize {
+    if cads.is_empty() {
+        return 0;
+    }
+    let mut index = 0usize;
+    let mut changed = 0usize;
+    for block in s.doc.body.iter_mut() {
+        let mut each = |p: &mut Paragraph| {
+            let mut touched = false;
+            for o in &mut p.objects {
+                let InlineObject::Graphic { w, h, graphic, .. } = o else { continue };
+                if graphic.kind != strix_doc::graphic::GraphicKind::Cad {
+                    continue;
+                }
+                if let Some(Some((dw, dh, items))) = cads.get(index)
+                    && (graphic.items != *items || *w != *dw || *h != *dh)
+                {
+                    let g = Arc::make_mut(graphic);
+                    g.items = items.clone();
+                    (g.w, g.h) = (*dw, *dh);
+                    (*w, *h) = (*dw, *dh);
+                    touched = true;
+                    changed += 1;
+                }
+                index += 1;
+            }
+            if touched {
+                p.touch();
+            }
+        };
+        // Calculated tables are read whole and hold no drawings of their own here.
+        if matches!(&**block, Block::Table(t) if t.props.calc) {
+            continue;
+        }
+        super::paste::each_para(Arc::make_mut(block), 0, &mut each);
+    }
+    changed
+}
+
 /// Recalculates with the preferred number format (F9, Update Fields, leaving an equation).
 pub(crate) fn recalculate_now(s: &mut Session) -> Value {
     let opts = options(s, &json!({}));
@@ -471,7 +543,14 @@ pub(crate) fn recalculate_now(s: &mut Session) -> Value {
 
 /// Replaces the text of the regions with an update and styles their units, touching only the
 /// blocks that change. Returns how many regions changed only in style.
-fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Option<String>], units: &[Vec<Vec<String>>], color: Rgb) -> usize {
+fn write_back(
+    s: &mut Session,
+    found: &[(usize, Option<String>)],
+    updates: &[Option<String>],
+    stepped: &[bool],
+    units: &[Vec<Vec<String>>],
+    color: Rgb,
+) -> usize {
     let mut index = 0usize;
     let mut restyled = 0usize;
     let mut tops: Vec<usize> = found.iter().filter(|(_, t)| t.is_some()).map(|(t, _)| *t).collect();
@@ -495,6 +574,7 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
                         return;
                     }
                     let found_units = units.get(index).map(Vec::as_slice).unwrap_or_default();
+                    let steps_written = stepped.get(index).copied().unwrap_or(false);
                     if let Some(Some(text)) = updates.get(index) {
                         let mut nodes = parse_linear(text);
                         style_rows(&mut nodes, found_units, color);
@@ -502,7 +582,7 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
                         if text.starts_with('█') {
                             *display = true;
                         }
-                        *math = Math { nodes, jc: math.jc, calc: true, answer: math.answer, ..Math::default() };
+                        *math = Math { nodes, jc: math.jc, calc: true, answer: math.answer, stepped: steps_written, ..Math::default() };
                         *linear = to_linear(&math.nodes);
                         touched = true;
                     } else if math.calc {
@@ -752,7 +832,7 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
         let names: Vec<String> = match outcome {
             Outcome::Equation(Some(r), _) if r.error.is_none() => r.name.iter().cloned().collect(),
             Outcome::Table(t) => t.columns.clone(),
-            Outcome::Equation(..) => Vec::new(),
+            Outcome::Equation(..) | Outcome::Cad(..) => Vec::new(),
         };
         for name in names {
             defined_at.retain(|(n, _)| *n != name);
@@ -1075,6 +1155,25 @@ mod tests {
         assert!(colors.contains(&Rgb(200, 0, 0)), "{colors:?}");
         // Styling twice changes nothing.
         assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
+    }
+
+    #[test]
+    fn a_users_equation_array_is_never_cut_to_its_first_row() {
+        let mut s = session();
+        s.run("insert.equation", &json!({"linear": "█(x=1@y=2)", "edit": false, "calc": true})).unwrap();
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let back = Session::new(crate::io::open_bytes("a.xmath", &crate::io::save_bytes("a.xmath", &s.doc).unwrap()).unwrap());
+        for doc in [&s.doc, &back.doc] {
+            let full: Vec<String> = items(&doc.body).into_iter().filter_map(|i| if let Item::Equation { full, .. } = i { Some(full) } else { None }).collect();
+            assert!(full[0].contains('@'), "both rows stay: {full:?}");
+        }
+        // Strix's own steps are marked: read back, the statement is the first row only.
+        let mut s = session();
+        for t in ["F = 10 N", "m = 4 kg", "F = m·a"] {
+            add(&mut s, t);
+        }
+        let back = Session::new(crate::io::open_bytes("b.xmath", &crate::io::save_bytes("b.xmath", &s.doc).unwrap()).unwrap());
+        assert_eq!(texts(&back)[2], "F=m·a");
     }
 
     #[test]

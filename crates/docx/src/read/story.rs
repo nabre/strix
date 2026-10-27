@@ -24,6 +24,10 @@ const INK_URI: &str = "http://schemas.microsoft.com/office/word/2010/wordprocess
 const INK_REL: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
 /// The `a:graphicData` URI of an Office 2016 chart (`cx:chart`).
 const CHARTEX_URI: &str = "http://schemas.microsoft.com/office/drawing/2014/chartex";
+/// The `a:graphicData` URI of a Strix CAD drawing (`strix:cad`, its JSON source).
+pub(crate) const CAD_URI: &str = "urn:io.github.nabre.strix:cad";
+/// Largest CAD source read, in bytes.
+const MAX_CAD: usize = 8 << 20;
 
 /// Deepest table nesting we build (deeper tables become plain paragraphs).
 const MAX_TABLE_DEPTH: usize = 24;
@@ -1119,6 +1123,12 @@ impl Reader<'_> {
             let graphic = Arc::new(Graphic { kind: GraphicKind::Ink, items, w, h, source: Some(source), ..Default::default() });
             return Some(InlineObject::Graphic { w, h, alt, float, graphic });
         }
+        if uri == CAD_URI {
+            // The drawing is rebuilt from its source by the engine; nothing to draw until then.
+            let source = gd.child("strix:cad").map(|e| e.text()).filter(|t| t.len() <= MAX_CAD)?;
+            let graphic = Arc::new(Graphic { kind: GraphicKind::Cad, w, h, cad: Some(source.into()), ..Default::default() });
+            return Some(InlineObject::Graphic { w, h, alt, float, graphic });
+        }
         let graphic_kind = if uri.ends_with("/chart") {
             Some(GraphicKind::Chart)
         } else if uri.ends_with("/diagram") {
@@ -1130,7 +1140,7 @@ impl Reader<'_> {
             // Kept so saving writes the chart or diagram back: the frame around it is written
             // from the object's (possibly moved or resized) size and position.
             let extra: Vec<String> = match kind {
-                GraphicKind::Chart | GraphicKind::Ink => Vec::new(),
+                GraphicKind::Chart | GraphicKind::Ink | GraphicKind::Cad => Vec::new(),
                 GraphicKind::Diagram => self.diagram_drawing_rel(gd, rels).into_iter().collect(),
             };
             let source = c.child("a:graphic").and_then(|g| self.keep_embedded(g, rels, &extra));
@@ -1277,9 +1287,9 @@ impl Reader<'_> {
         let part = match kind {
             GraphicKind::Chart => gd.child("c:chart").and_then(|c| c.attr("r:id")).and_then(|id| super::part_of(rels, id, rt::CHART)),
             GraphicKind::Diagram => self.diagram_part(gd, rels),
-            GraphicKind::Ink => None,
+            GraphicKind::Ink | GraphicKind::Cad => None,
         };
-        let Some(path) = part else { return Arc::new(Graphic { kind, items: Vec::new(), w, h, source, chart: None, smart_art: None }) };
+        let Some(path) = part else { return Arc::new(Graphic { kind, items: Vec::new(), w, h, source, chart: None, smart_art: None, cad: None }) };
         let key = (kind, path, w.to_bits(), h.to_bits());
         if let Some(g) = self.graphics.get(&key) {
             return g.clone();
@@ -1297,7 +1307,7 @@ impl Reader<'_> {
             _ => None,
         };
         let source = if chart.is_some() || smart_art.is_some() { None } else { source };
-        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art });
+        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art, cad: None });
         self.graphics.insert(key, g.clone());
         g
     }
@@ -1310,7 +1320,7 @@ impl Reader<'_> {
                 None => Vec::new(),
             },
             GraphicKind::Diagram => self.diagram_drawing(path, w, h),
-            GraphicKind::Ink => Vec::new(),
+            GraphicKind::Ink | GraphicKind::Cad => Vec::new(),
         }
     }
 

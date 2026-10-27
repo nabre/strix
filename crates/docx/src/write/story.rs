@@ -602,7 +602,20 @@ impl Writer<'_> {
                         None
                     }
                     (None, None, Some(src)) => self.embedded_tree(src, rels, ink.then_some((*gw, *gh, float, alt.as_str()))),
-                    (None, None, None) => None,
+                    (None, None, None) => match graphic.cad.as_deref() {
+                        // A CAD drawing: its source in a Strix `a:graphicData` (an extension
+                        // Word passes over).
+                        Some(source) if graphic.kind == strix_doc::graphic::GraphicKind::Cad => {
+                            let escaped = source.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+                            let xml = format!(
+                                r#"<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="{}"><strix:cad xmlns:strix="{}">{escaped}</strix:cad></a:graphicData></a:graphic>"#,
+                                crate::read::CAD_URI,
+                                crate::xml::STRIX_NS
+                            );
+                            crate::xml::parse(xml.as_bytes()).ok()
+                        }
+                        _ => None,
+                    },
                 };
                 let Some(mut root) = root else { return };
                 let direct_ink = ink && root.name == "w:contentPart";
@@ -635,6 +648,7 @@ impl Writer<'_> {
                         strix_doc::graphic::GraphicKind::Chart => format!("Chart {docpr}"),
                         strix_doc::graphic::GraphicKind::Diagram => format!("Diagram {docpr}"),
                         strix_doc::graphic::GraphicKind::Ink => format!("Ink {docpr}"),
+                        strix_doc::graphic::GraphicKind::Cad => format!("CAD Drawing {docpr}"),
                     };
                     let z = self.z;
                     self.graphic_frame(w, float, (*gw, *gh), &docpr, &name, alt, native.unwrap_or(&root));

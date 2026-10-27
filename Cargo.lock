@@ -5254,6 +5254,7 @@ dependencies = [
  "regex-automata",
  "serde",
  "serde_json",
+ "strix-cad",
  "strix-calc",
  "strix-doc",
  "strix-docbin",

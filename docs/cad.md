@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stage 1 (model, parametric coordinates, rendering, point entry) in `strix-cad`; document integration and editor next · **Last updated:** 2026-10-27 · **Change:** new
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); editor next · **Last updated:** 2026-10-27 · **Change:** stage 2
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -54,19 +54,36 @@ AutoCAD-style: `x,y`; `@dx,dy` relative; `@d<a` polar from the last point; `d<a`
 origin; a lone number is a **direct distance** towards the pointer. `10<30<5` and other junk are
 errors.
 
-## In the document (next)
+## In the document
 
-Insert › Illustrations › **CAD Drawing** and Math › Drawing insert a drawing. It is stored as a
-Word **drawing canvas** whose shapes are generated from the model (so Word and every export show
-the drawing) with the CAD source kept beside it in the `.xmath` package. Recalculation re-resolves
-the drawing in reading order and regenerates its shapes.
+Insert › Illustrations › **CAD Drawing** and Math › Drawing › CAD Drawing (`insert.cad`) insert a
+drawing in line at the caret (a starter rectangle with its two sizes, or the `drawing` given).
+It is a graphic (`GraphicKind::Cad`) holding the drawing's source; its items (paths and texts in
+points) are drawn from it, so the page, PDF and image exports show it like a chart.
+
+- **Reading order**: a drawing is evaluated with the calculations, in the worksheet as it stands
+  where the drawing sits (inside an exercise, that exercise's sandbox). Changing `L` above it
+  redraws it with the automatic recalculation; so does opening the file.
+- **Coordinates in the drawing unit**: length parameters count in the drawing's unit, so
+  expressions read like a CAD's (`L - 0.15`, `L/2 + 0.3` in a metre drawing); a value written with
+  a length unit converts (`300 mm`); a force or a vector is an error, reported by
+  `calc.recalculate` and `cad.get`.
+- **Units in the Unit style**: a parameter shown in a dimension (`L = {{L}}`) has its unit in the
+  Unit character style's colour, like the calculations' units.
+- **Texts are level**: a steep dimension's text is set level beside its line, on the outer side
+  (rotated text is a later stage).
+- **Saving**: in `.xmath` the drawing is an `a:graphicData` with the Strix URI
+  `urn:io.github.nabre.strix:cad` holding `<strix:cad>` (its JSON): an extension Word passes over.
+- **Commands**: `insert.cad`, `cad.get` (source and failing expressions of the selected
+  drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
 
 ## Stages
 
 1. **Model, parametric coordinates, labels from parameters, rendering, point entry.** *Done
    (crate).*
-2. Document integration: `insert.cad`, `cad.*` commands (add entity, set, delete, layers),
-   regeneration on recalculation, `.xmath` round trip, PDF.
+2. **Document integration**: `insert.cad`, `cad.get/set/add`, regeneration in reading order with
+   the calculations, `.xmath` round trip, units in the Unit style. *Done.* Still to do: rotated
+   texts and dashed lines in the drawn items, a picture for Word.
 3. Editor (egui): canvas with zoom/pan, grid, crosshair, command line with direct distance and
    `<angle`, Ortho (F8), snaps (endpoint, midpoint, centre, intersection, perpendicular,
    nearest), click-add selection with window/crossing, grips, undo.
@@ -76,4 +93,5 @@ the drawing in reading order and regenerates its shapes.
 
 ## Revision history
 
+- 2026-10-27: stage 2: drawings in the document, redrawn with the calculations.
 - 2026-10-27: new: design and stage 1.

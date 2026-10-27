@@ -39,6 +39,11 @@ pub struct Math {
     /// the results summary (docs/exercise.md); 0 for none. Saved as `strix:answer` on `m:oMath`.
     #[serde(default, skip_serializing_if = "is_default")]
     pub answer: u32,
+    /// Strix added solution steps under this calculation: it is an equation array whose first
+    /// row is the statement (docs/calc.md). Saved as `strix:steps="1"` on `m:oMath`. An array the
+    /// user wrote is never read this way.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub stepped: bool,
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {

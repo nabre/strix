@@ -13,7 +13,8 @@ use crate::xml::El;
 pub fn read_omath(e: &El, jc: MathJc) -> Math {
     let calc = e.attr("strix:calc") == Some("1");
     let answer = e.attr("strix:answer").and_then(|a| a.parse::<u32>().ok()).filter(|&a| a <= 1000).unwrap_or(0);
-    Math { nodes: merge_runs(arg(e, 0)), omml: e.to_xml(), jc, linear: false, calc, answer }
+    let stepped = e.attr("strix:steps") == Some("1");
+    Math { nodes: merge_runs(arg(e, 0)), omml: e.to_xml(), jc, linear: false, calc, answer, stepped }
 }
 
 /// A colour every math run shares, taken off the runs: it is the equation's own colour, as

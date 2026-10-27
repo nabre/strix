@@ -395,16 +395,29 @@ impl Drawing {
     }
 
     /// Evaluates every expression with the worksheet's parameters (those defined before the
-    /// drawing). A length converts to the drawing's unit (`L = 4.5 m` is 4500 in a mm drawing); a
-    /// plain number is taken as drawing units; an angle is in degrees (`30°`, or a plain number of
-    /// radians from a calculation). Returns the expressions that failed, with why; those keep their
+    /// drawing). Length parameters count in the drawing's unit (`L = 4.5 m` is 4500 in a mm
+    /// drawing, so `L/2 + 10` is fine); a result with a length unit converts too (`300 mm`); a
+    /// plain number is drawing units; an angle is in degrees (`30°`, or a plain number of radians
+    /// from a calculation). Returns the expressions that failed, with why; those keep their
     /// last value.
     pub fn resolve(&mut self, ws: &Worksheet) -> Vec<(String, String)> {
         let unit_m = self.unit.mm() / 1000.0;
         let mut errors = Vec::new();
+        // Coordinates are numbers in the drawing's unit, as in any CAD: a length parameter counts
+        // in that unit (`L - 0.15` in a metre drawing), an angle in degrees stays as it is.
+        let mut local = Worksheet::new(*ws.options());
+        let length = strix_calc::Dim::new([1, 0, 0, 0, 0, 0, 0]);
+        for (name, v) in ws.scope().iter() {
+            match v {
+                Value::Scalar(q) if q.dim == length => local.define(name, Value::Scalar(Quantity::number(q.value / unit_m))),
+                Value::Scalar(q) if q.dim.is_dimensionless() => local.define(name, v.clone()),
+                // Other kinds (a force, a vector) keep their unit: using them is an error below.
+                other => local.define(name, other.clone()),
+            }
+        }
         for (num, kind) in self.nums_mut() {
             let Some(expr) = num.expr.clone() else { continue };
-            let value = ws.eval_expr(&expr).map_err(|e| e.to_string()).and_then(|v| match v {
+            let value = local.eval_expr(&expr).map_err(|e| e.to_string()).and_then(|v| match v {
                 Value::Scalar(q) => convert(q, kind, unit_m),
                 Value::Vector(_) => Err("a coordinate is one value, not a vector".to_string()),
             });
@@ -428,7 +441,15 @@ impl Drawing {
             guard += 1;
             let Some(j) = out.get(i..).and_then(|rest| rest.find("}}")).map(|j| i + j) else { break };
             let name = out.get(i + 2..j).unwrap_or_default().trim().to_string();
-            let shown = ws.and_then(|w| w.scope().get(&name)).map_or_else(|| "?".to_string(), |v| strix_calc::format_value(v, &opts));
+            // The unit is marked, so the drawing sets it in the Unit style.
+            let shown = ws.and_then(|w| w.shown_parts(&name)).map_or_else(
+                || "?".to_string(),
+                |(number, unit)| match unit.as_str() {
+                    "" => number,
+                    "°" => format!("{number}{}°{}", crate::UNIT_START, crate::UNIT_END),
+                    _ => format!("{number} {}{unit}{}", crate::UNIT_START, crate::UNIT_END),
+                },
+            );
             out.replace_range(i..j + 2, &shown);
         }
         out

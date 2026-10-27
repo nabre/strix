@@ -86,8 +86,11 @@ fn a_dimension_shows_the_size_or_a_parameter() {
     d.add(Entity::new(Kind::Dim { a: P::new(0.0, 0.0), b: P::new(30.0, 40.0), offset: 5.0, orient: Orient::Horizontal, text: Some("<> mm".into()) }))
         .unwrap();
     let r = d.render(Some(&ws));
-    let texts: Vec<&str> = r.prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.as_str()) } else { None }).collect();
+    let texts: Vec<String> =
+        r.prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.replace([UNIT_START, UNIT_END], "")) } else { None }).collect();
     assert_eq!(texts, ["4500", "L = 4.5 m", "30 mm"]);
+    // The unit of a parameter is marked for the Unit style.
+    assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = 4.5 {UNIT_START}m{UNIT_END}"));
     assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), "?");
     // Unterminated or nested braces never loop.
     assert_eq!(d.label(Some("{{L"), 1.0, Some(&ws)), "{{L");
@@ -147,4 +150,23 @@ fn hostile_drawings_are_made_safe() {
     for junk in ["", "{", r#"{"entities": 5}"#, r#"{"entities": [{"type": "nope"}]}"#] {
         assert!(Drawing::from_json(junk).is_err(), "{junk}");
     }
+}
+
+#[test]
+fn length_parameters_count_in_the_drawing_unit() {
+    let ws = sheet(&["L = 4.5 m", "α = 30°", "F = 2 kN"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit": "m", "entities": [
+            {"type": "line", "a": ["L - 0.15", 0], "b": ["L/2 + 0.3", "300 mm"]},
+            {"type": "arc", "c": [0, 0], "r": 1, "start": 0, "end": "α"},
+            {"type": "point", "p": ["F", 0]}
+        ]}"#,
+    )
+    .unwrap();
+    let errors = d.resolve(&ws);
+    let Kind::Line { a, b } = &d.entities[0].kind else { panic!() };
+    assert!(approx(a.0.value, 4.35) && approx(b.0.value, 2.55) && approx(b.1.value, 0.3), "{a:?} {b:?}");
+    let Kind::Arc { end, .. } = &d.entities[1].kind else { panic!() };
+    assert!(approx(end.value, 30.0));
+    assert_eq!(errors.len(), 1, "a force is no coordinate: {errors:?}");
 }

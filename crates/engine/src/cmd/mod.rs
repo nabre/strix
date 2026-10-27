@@ -2,6 +2,7 @@
 //! Command implementations, one module per area. Each module exposes `specs()`.
 
 pub mod accessibility;
+pub mod cad;
 pub mod calc;
 pub mod canvas;
 pub mod caret;
@@ -79,6 +80,7 @@ pub fn registry() -> Registry {
     v.extend(insert::specs());
     v.extend(equation::specs());
     v.extend(calc::specs());
+    v.extend(cad::specs());
     v.extend(exercise::specs());
     v.extend(page::specs());
     v.extend(table::specs());

@@ -36,6 +36,9 @@ pub struct Graphic {
     /// writes the chart part from it, and the items are drawn from it. See [`crate::chart`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chart: Option<std::sync::Arc<crate::chart::ChartSpec>>,
+    /// A CAD drawing's source (the `strix-cad` JSON); the items are rendered from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cad: Option<std::sync::Arc<str>>,
 }
 
 /// What an object read from a file needs to be written back as it was: its own markup in the
@@ -72,6 +75,9 @@ pub enum GraphicKind {
     Diagram,
     /// Word's native InkML, kept opaque; displayed as its fallback picture when available.
     Ink,
+    /// A Strix CAD drawing (docs/cad.md): [`Graphic::cad`] holds its source, the items are drawn
+    /// from it by the engine.
+    Cad,
 }
 
 impl GraphicKind {
@@ -81,6 +87,7 @@ impl GraphicKind {
             GraphicKind::Chart => "chart",
             GraphicKind::Diagram => "diagram",
             GraphicKind::Ink => "ink",
+            GraphicKind::Cad => "drawing",
         }
     }
 }

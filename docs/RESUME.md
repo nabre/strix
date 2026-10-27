@@ -43,10 +43,16 @@ Last updated 2026-10-27 (evening). Branch `main`.
   The inherited workflows (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud, release signing)
   still need adapting to Strix.
 
+- CAD stage 2: drawings in the document (`GraphicKind::Cad`, `insert.cad`, `cad.get/set/add`),
+  redrawn with the calculations in reading order, `.xmath` round trip; units in the Unit style.
+- Solution steps under formulas and solved equations (`calc.steps`); a unit after a number is
+  always the unit; Exercise Properties pane (data, variants); nested questions and notes.
+
 ## Next
-- CAD stage 2: `insert.cad` (Insert › Illustrations › CAD Drawing, Math › Drawing) as a drawing
-  canvas generated from the model, `cad.*` commands, regeneration on recalculation, `.xmath`
-  round trip; then the egui editor (stage 3).
+- Push: GitHub was unreachable from this machine (all GitHub hosts time out, other sites work);
+  `git push origin main` once it answers.
+- CAD stage 3: the egui editor (canvas, command line, snaps, selection, grips); rotated texts and
+  dashes in the drawn items; a picture so Word shows the drawing.
 - Calc: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, systems of equations
   across regions, solution steps, plots; number format per document (now a preference).
 - Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").

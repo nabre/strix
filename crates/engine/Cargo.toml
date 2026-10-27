@@ -19,6 +19,7 @@ test-support = []
 strix-geom = { workspace = true, features = ["image"] }
 strix-doc = { workspace = true }
 strix-calc = { workspace = true }
+strix-cad = { workspace = true }
 strix-fonts = { workspace = true }
 strix-layout = { workspace = true }
 strix-render = { workspace = true }

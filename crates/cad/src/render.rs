@@ -12,6 +12,9 @@ pub enum Anchor {
     BaselineLeft,
     /// The bottom centre (dimension text, just above its line).
     BottomCenter,
+    /// The middle of its left or right side (a steep dimension's text, set level beside it).
+    MiddleLeft,
+    MiddleRight,
 }
 
 /// A primitive in paper mm, y down, origin at the top-left of [`Rendered::size`].
@@ -169,9 +172,17 @@ impl Drawing {
             angle -= 180.0f64.copysign(angle);
             up = up.scale(-1.0);
         }
-        let at = mid.plus(up.scale(DIM_GAP));
         let label = self.label(text.as_deref(), measured, ws);
-        out.push(Prim::Text { at: (at.x, at.y), text: label, height: DIM_TEXT, angle, anchor: Anchor::BottomCenter, color });
+        if angle.abs() > 45.0 {
+            // A steep dimension's text reads level, beside the line on its outer side.
+            let out_dir = normal.scale(side);
+            let at = mid.plus(out_dir.scale(DIM_GAP + EXT_OVER));
+            let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
+            out.push(Prim::Text { at: (at.x, at.y), text: label, height: DIM_TEXT, angle: 0.0, anchor, color });
+        } else {
+            let at = mid.plus(up.scale(DIM_GAP));
+            out.push(Prim::Text { at: (at.x, at.y), text: label, height: DIM_TEXT, angle, anchor: Anchor::BottomCenter, color });
+        }
     }
 }
 
@@ -195,10 +206,15 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
             }
             // A text's extent is estimated: 0.6 em per character along its angle, one em up.
             Prim::Text { at, text, height, angle, anchor, .. } => {
-                let w = 0.6 * height * text.chars().count() as f64;
+                let w = 0.8 * height * text.chars().filter(|&c| c != crate::UNIT_START && c != crate::UNIT_END).count() as f64;
                 let (c, s) = (angle.to_radians().cos(), angle.to_radians().sin());
-                let x_start = if *anchor == Anchor::BottomCenter { -w / 2.0 } else { 0.0 };
-                for (dx, dy) in [(x_start, 0.0), (x_start + w, 0.0), (x_start, *height), (x_start + w, *height)] {
+                let (x_start, y_start) = match anchor {
+                    Anchor::BottomCenter => (-w / 2.0, 0.0),
+                    Anchor::BaselineLeft => (0.0, 0.0),
+                    Anchor::MiddleLeft => (0.0, -height / 2.0),
+                    Anchor::MiddleRight => (-w, -height / 2.0),
+                };
+                for (dx, dy) in [(x_start, y_start), (x_start + w, y_start), (x_start, y_start + height), (x_start + w, y_start + height)] {
                     grow(at.0 + dx * c - dy * s, at.1 + dx * s + dy * c);
                 }
             }
@@ -212,7 +228,8 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
     for p in &mut prims {
         match p {
             Prim::Path { pts, .. } => pts.iter_mut().for_each(|q| *q = map(*q)),
-            Prim::Dot { at, .. } | Prim::Text { at, .. } => *at = map(*at),
+            Prim::Dot { at, .. } => *at = map(*at),
+            Prim::Text { at, .. } => *at = map(*at),
         }
     }
     let size = ((x1 - x0 + 2.0 * MARGIN).clamp(10.0, 5000.0), (y1 - y0 + 2.0 * MARGIN).clamp(10.0, 5000.0));
