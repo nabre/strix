@@ -263,7 +263,9 @@ enum Outcome {
     Table(TableResult),
     /// A drawing as rendered, the expressions that failed, and the drawing resolved (its
     /// coordinates' values filled in, for the editor).
-    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>, Option<(strix_cad::Drawing, Vec<String>)>),
+    /// The rendering for the page, the failed expressions, and for the editor the drawing, the
+    /// parameters it can show and its sheet's rendering when that differs (layers not printed).
+    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>, Option<(strix_cad::Drawing, Vec<String>, Option<strix_cad::Rendered>)>),
 }
 
 /// The document's worksheets after evaluating it: the main one, and one per exercise (each
@@ -318,9 +320,11 @@ fn run_sheet(
                     Ok(mut d) => {
                         let errors = d.resolve(ws);
                         let rendered = d.render(Some(ws));
+                        // The editor's sheet shows the layers not printed too.
+                        let screen = d.has_unprinted().then(|| d.render_layers(Some(ws), true));
                         // The parameters it can show, for the editor's Annotation box.
                         let names = ws.scope().iter().map(|(n, _)| n.to_string()).collect();
-                        Outcome::Cad(Some(rendered), errors, Some((d, names)))
+                        Outcome::Cad(Some(rendered), errors, Some((d, names, screen)))
                     }
                     Err(e) => Outcome::Cad(None, vec![(String::new(), e)], None),
                 },
@@ -509,7 +513,9 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<(strix_cad:
     let opts = options_now(s);
     let (_, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     found.iter().zip(outcomes).find_map(|(item, outcome)| match (item, outcome) {
-        (Item::Cad { source: src, .. }, Outcome::Cad(Some(r), _, Some((d, names)))) if Arc::ptr_eq(src, source) => Some((d, r, names)),
+        (Item::Cad { source: src, .. }, Outcome::Cad(Some(r), _, Some((d, names, screen)))) if Arc::ptr_eq(src, source) => {
+            Some((d, screen.unwrap_or(r), names))
+        }
         _ => None,
     })
 }

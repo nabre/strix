@@ -1833,6 +1833,10 @@ impl WordApp {
             }
             "ui.tab" => {
                 let tab = s("tab").unwrap_or("Home").to_string();
+                // In the drawing editor only its own tabs (and File) are open.
+                if self.cad.is_some() && tab != "File" && !cad_editor::TABS.contains(&tab.as_str()) {
+                    return Some(Err(format!("{tab}: close the CAD drawing first")));
+                }
                 if tab == "File" {
                     self.ui.backstage = true;
                 } else {

@@ -163,9 +163,9 @@ fn seg_dist(p: Pt, a: Pt, b: Pt) -> f64 {
 }
 
 impl Drawing {
-    /// Can entity `i` be picked (its layer is shown)?
+    /// Can entity `i` be picked (its layer is shown and not locked)?
     pub fn selectable(&self, i: usize) -> bool {
-        self.entities.get(i).is_some_and(|e| self.layers.iter().find(|l| l.name == e.layer).is_none_or(|l| l.visible))
+        self.entities.get(i).is_some_and(|e| self.layers.iter().find(|l| l.name == e.layer).is_none_or(|l| l.visible && !l.locked))
     }
 
     /// The entities within `tol` of `p`, nearest first; at the same distance the one drawn on

@@ -2666,3 +2666,31 @@ preview	Title	Esempio
 	removed	rimossi
 	selected	selezionati
 	Window polygon:	Finestra poligonale:
+	CAD Annotate	Annotazioni CAD
+	CAD View	Vista CAD
+	CAD Output	Output CAD
+	Layer\nManager	Gestione\nlivelli
+	Layer Manager	Gestione livelli
+	Make object's layer current	Rendi corrente il livello dell'oggetto
+	The layer of the selected objects becomes the current layer	Il livello degli oggetti selezionati diventa il livello corrente
+	A new layer, made current	Un nuovo livello, reso corrente
+	Current	Corrente
+	Shown (hidden layers are neither drawn nor picked)	Visibile (i livelli nascosti non vengono disegnati né selezionati)
+	Locked: shown and snapped to, but its objects can't be picked	Bloccato: visibile e agganciabile, ma i suoi oggetti non si possono selezionare
+	Printed: off, the layer shows only in the editor	Stampato: se disattivato, il livello compare solo nell'editor
+	Red	Rosso
+	Orange	Arancione
+	Amber	Ambra
+	Yellow	Giallo
+	Lime	Lime
+	Green	Verde
+	Cyan	Ciano
+	Sky blue	Azzurro
+	Blue	Blu
+	Indigo	Indaco
+	Grey 80%	Grigio 80%
+	Grey 65%	Grigio 65%
+	Grey 50%	Grigio 50%
+	Grey 35%	Grigio 35%
+	Grey 20%	Grigio 20%
+	Grey 10%	Grigio 10%

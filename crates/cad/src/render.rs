@@ -67,14 +67,25 @@ const EXT_OVER: f64 = 1.5;
 const DIM_TEXT: f64 = 2.5;
 
 impl Drawing {
-    /// The drawing as primitives in paper mm. Dimension labels read parameters from `ws`.
+    /// The drawing as primitives in paper mm, as printed (the page, the PDF): layers that are
+    /// hidden or not printed are left out. Dimension labels read parameters from `ws`.
     pub fn render(&self, ws: Option<&Worksheet>) -> Rendered {
+        self.render_layers(ws, false)
+    }
+
+    /// Whether some shown layer is not printed: the editor's sheet then differs from the page.
+    pub fn has_unprinted(&self) -> bool {
+        self.layers.iter().any(|l| l.visible && !l.print)
+    }
+
+    /// As [`Drawing::render`]; with `screen`, the layers not printed are drawn too (the editor).
+    pub fn render_layers(&self, ws: Option<&Worksheet>, screen: bool) -> Rendered {
         // Drawing units to paper mm, y up (flipped and shifted once the bounds are known).
         let k = self.unit.mm() / self.scale.max(1e-9);
         let mut prims = Vec::new();
         for e in &self.entities {
             let layer = self.layer(&e.layer);
-            if !layer.visible {
+            if !layer.visible || !(layer.print || screen) {
                 continue;
             }
             let color = e.stroke.color.unwrap_or(layer.color);

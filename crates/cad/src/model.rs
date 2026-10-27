@@ -140,11 +140,25 @@ pub struct Layer {
     pub width: f64,
     pub dash: Dash,
     pub visible: bool,
+    /// Shown and snapped to, but its objects can't be picked or changed.
+    #[serde(skip_serializing_if = "is_false")]
+    pub locked: bool,
+    /// Drawn on the page and in the PDF; when off, only in the editor (construction lines).
+    #[serde(skip_serializing_if = "is_true")]
+    pub print: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+fn is_true(b: &bool) -> bool {
+    *b
 }
 
 impl Default for Layer {
     fn default() -> Self {
-        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true }
+        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true }
     }
 }
 

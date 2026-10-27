@@ -146,6 +146,8 @@ pub struct CadEditor {
     pub focus: Focus,
     /// The Properties pane is shown.
     pub panel: bool,
+    /// The Layer Manager is shown (docked under the sheet).
+    pub layers_panel: bool,
     /// The layer new objects go on.
     pub current_layer: String,
     /// The polyline vertex the Properties pane shows.
@@ -199,6 +201,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         last_tool: None,
         focus: Focus::default(),
         panel: true,
+        layers_panel: false,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -302,6 +305,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "grid" => ed.grid = !ed.grid,
                     "frame" => ed.frame = !ed.frame,
                     "props" => ed.panel = !ed.panel,
+                    "layers" => ed.layers_panel = !ed.layers_panel,
                     "snap.end" => s.end = !s.end,
                     "snap.mid" => s.mid = !s.mid,
                     "snap.center" => s.center = !s.center,
@@ -313,7 +317,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "snap.nearest" => s.nearest = !s.nearest,
                     _ => {
                         return Err(
-                            "what: snap, ortho, grid, frame, props or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
+                            "what: snap, ortho, grid, frame, props, layers or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
                                 .into(),
                         );
                     }
@@ -1182,7 +1186,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let bottom = 58.0;
         let full = ui.available_rect_before_wrap();
         let panel_w = if ed.panel { 300.0_f32.min(full.width() * 0.4) } else { 0.0 };
-        let sheet = Rect::from_min_max(full.min, pos2(full.max.x - panel_w, (full.max.y - bottom).max(full.min.y + 40.0)));
+        // The Layer Manager takes a band under the sheet, above the command line.
+        let layers_h = if ed.layers_panel { 220.0_f32.min(full.height() * 0.35) } else { 0.0 };
+        let sheet = Rect::from_min_max(full.min, pos2(full.max.x - panel_w, (full.max.y - bottom - layers_h).max(full.min.y + 40.0)));
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
         painter.rect_filled(rect, 0.0, Color32::WHITE);
@@ -1622,6 +1628,18 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 finished = Some(d);
             }
         }
+        // The Layer Manager.
+        if ed.layers_panel {
+            let r = Rect::from_min_max(pos2(full.min.x, sheet.max.y), pos2(sheet.max.x, sheet.max.y + layers_h));
+            ui.painter().rect_filled(r, 0.0, t.panel);
+            ui.painter().line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, t.border));
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.shrink2(vec2(8.0, 6.0))));
+            if let Some(d) = crate::cad_panel::layer_manager(ed, &mut child) {
+                finished = Some(d);
+            }
+            // The status and command lines go under it.
+            ui.add_space(layers_h);
+        }
 
         // Keys: not while a menu is open or a field of the pane has the keyboard. Esc cancels,
         // Enter or Space ends (or repeats), F8 Ortho, Delete removes the selection, Ctrl+A
@@ -1912,18 +1930,40 @@ fn add_text(ed: &mut CadEditor, text: &str) -> Option<Drawing> {
     with(ed, Entity::new(Kind::Text { p: pt(p), value: text.to_string(), height: 3.5, angle: 0.0 }))
 }
 
-/// The CAD Drawing contextual tab.
+/// The drawing editor's tabs, in order: drawing and modifying (with the layers), annotations,
+/// snaps and view, the picture in the document. While the editor is open the document's tabs are
+/// disabled.
+pub const TABS: [&str; 4] = ["CAD Drawing", "CAD Annotate", "CAD View", "CAD Output"];
+
+/// The drawing editor's tab shown (`app.ui.tab`, one of [`TABS`]).
 pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
-    use crate::widgets::{big, big_checked, group, small};
-    let Some((tool, snap, ortho, grid, has_sel)) = app.cad.as_ref().map(|e| (e.tool, e.snap, e.ortho, e.grid, !e.selection.is_empty())) else {
-        return;
-    };
-    let stack = |ui: &mut Ui, add: &mut dyn FnMut(&mut Ui)| {
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing = vec2(1.0, 0.0);
-            add(ui);
-        });
-    };
+    match app.ui.tab.as_str() {
+        "CAD Annotate" => annotate_tab(app, ui),
+        "CAD View" => view_tab(app, ui),
+        "CAD Output" => output_tab(app, ui),
+        _ => home_tab(app, ui),
+    }
+    crate::widgets::group(ui, "Close", None, app, |ui, app| {
+        crate::widgets::big(ui, app, "cadClose", "Close\nDrawing", "ui.cadClose", json!({}), false);
+    });
+}
+
+/// Buttons stacked three high in a group.
+fn stack(ui: &mut Ui, add: &mut dyn FnMut(&mut Ui)) {
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing = vec2(1.0, 0.0);
+        add(ui);
+    });
+}
+
+fn tool_of(app: &WordApp) -> Tool {
+    app.cad.as_ref().map_or(Tool::Select, |e| e.tool)
+}
+
+/// Draw, Modify, Layers.
+fn home_tab(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::{big_checked, group, small};
+    let tool = tool_of(app);
     let t = |name: &str| json!({"tool": name});
     group(ui, "Draw", None, app, |ui, app| {
         big_checked(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
@@ -1947,28 +1987,11 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "cadText", Some("Text"), "Text: a position, then type it", "ui.cadTool", t("text"), tool == Tool::Text);
         });
     });
-    group(ui, "Dimensions", None, app, |ui, app| {
-        big_checked(ui, app, "cadDim", "Aligned", "ui.cadTool", t("dimAligned"), tool == Tool::Dim(Orient::Aligned));
-        stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
-                "cadDimH",
-                Some("Horizontal"),
-                "Horizontal dimension",
-                "ui.cadTool",
-                t("dimHorizontal"),
-                tool == Tool::Dim(Orient::Horizontal),
-            );
-            small(ui, app, "cadDimV", Some("Vertical"), "Vertical dimension", "ui.cadTool", t("dimVertical"), tool == Tool::Dim(Orient::Vertical));
-        });
-    });
     group(ui, "Modify", None, app, |ui, app| {
         big_checked(ui, app, "cadSelect", "Select", "ui.cadTool", t("select"), tool == Tool::Select);
         stack(ui, &mut |ui| {
             small(ui, app, "cadMove", Some("Move"), "Move the selection: base point, second point", "ui.cadTool", t("move"), tool == Tool::Move);
             small(ui, app, "cadCopy", Some("Copy"), "Copy the selection: base point, second point", "ui.cadTool", t("copy"), tool == Tool::Copy);
-            let _ = has_sel;
             small(ui, app, "cadDelete", Some("Delete"), "Delete the selection (Del)", "ui.cadDelete", json!({}), false);
         });
         stack(ui, &mut |ui| {
@@ -2000,12 +2023,19 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
-    let (panel, layers, current) = app
+    layers_group(app, ui);
+}
+
+/// Layers: the Layer Manager, Properties, the current layer.
+fn layers_group(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::{big_checked, group};
+    let (panel, manager, layers, current) = app
         .cad
         .as_ref()
-        .map(|e| (e.panel, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone()))
+        .map(|e| (e.panel, e.layers_panel, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone()))
         .unwrap_or_default();
     group(ui, "Layers", None, app, |ui, app| {
+        big_checked(ui, app, "cadLayers", "Layer\nManager", "ui.cadToggle", json!({"what": "layers"}), manager);
         big_checked(ui, app, "properties", "Properties", "ui.cadToggle", json!({"what": "props"}), panel);
         ui.vertical(|ui| {
             ui.label(tl!("Current layer"));
@@ -2022,6 +2052,39 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
             }
         });
     });
+}
+
+/// Dimensions and texts.
+fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::{big_checked, group, small};
+    let tool = tool_of(app);
+    let t = |name: &str| json!({"tool": name});
+    group(ui, "Dimensions", None, app, |ui, app| {
+        big_checked(ui, app, "cadDim", "Aligned", "ui.cadTool", t("dimAligned"), tool == Tool::Dim(Orient::Aligned));
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadDimH",
+                Some("Horizontal"),
+                "Horizontal dimension",
+                "ui.cadTool",
+                t("dimHorizontal"),
+                tool == Tool::Dim(Orient::Horizontal),
+            );
+            small(ui, app, "cadDimV", Some("Vertical"), "Vertical dimension", "ui.cadTool", t("dimVertical"), tool == Tool::Dim(Orient::Vertical));
+        });
+    });
+    group(ui, "Text", None, app, |ui, app| {
+        big_checked(ui, app, "cadText", "Text", "ui.cadTool", t("text"), tool == Tool::Text);
+    });
+    layers_group(app, ui);
+}
+
+/// Precision, object snaps, zoom and the panes.
+fn view_tab(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::{big, group, small};
+    let Some((snap, ortho, grid, snaps)) = app.cad.as_ref().map(|e| (e.snap, e.ortho, e.grid, e.snaps)) else { return };
     group(ui, "Precision", None, app, |ui, app| {
         stack(ui, &mut |ui| {
             small(ui, app, "cadSnap", Some("Snap"), "Snap to ends, midpoints, centres and the grid", "ui.cadToggle", json!({"what": "snap"}), snap);
@@ -2030,7 +2093,6 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
         });
         big(ui, app, "cadFit", "Zoom\nFit", "ui.cadFit", json!({}), false);
     });
-    let (snaps, frame, padding) = app.cad.as_ref().map(|e| (e.snaps, e.frame, e.drawing.padding)).unwrap_or_default();
     group(ui, "Object Snaps", None, app, |ui, app| {
         let toggle = |what: &str| json!({"what": format!("snap.{what}")});
         stack(ui, &mut |ui| {
@@ -2085,6 +2147,13 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
+    layers_group(app, ui);
+}
+
+/// The picture in the document: its frame and padding.
+fn output_tab(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::{big_checked, group};
+    let Some((frame, padding)) = app.cad.as_ref().map(|e| (e.frame, e.drawing.padding)) else { return };
     group(ui, "Picture", None, app, |ui, app| {
         big_checked(ui, app, "cadFrame", "Frame", "ui.cadToggle", json!({"what": "frame"}), frame);
         ui.vertical(|ui| {
@@ -2095,9 +2164,6 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
                 let _ = app.run("ui.cadPadding", json!({"value": v}));
             }
         });
-    });
-    group(ui, "Close", None, app, |ui, app| {
-        big(ui, app, "cadClose", "Close\nDrawing", "ui.cadClose", json!({}), false);
     });
 }
 
@@ -2358,6 +2424,25 @@ mod tests {
         app.run("edit.undo", json!({})).unwrap();
         reload(&mut app);
         assert_eq!(app.cad.as_ref().unwrap().drawing.padding.left, 4.0);
+    }
+
+    /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the
+    /// document's tabs again. The Layer Manager toggles.
+    #[test]
+    fn the_editor_has_its_own_tabs_and_disables_the_others() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        for tab in TABS {
+            app.run("ui.tab", json!({"tab": tab})).unwrap();
+            assert_eq!(app.ui.tab, tab);
+        }
+        assert!(app.run("ui.tab", json!({"tab": "Home"})).is_err(), "the document's tabs are off");
+        assert_eq!(app.ui.tab, "CAD Output");
+        app.run("ui.cadToggle", json!({"what": "layers"})).unwrap();
+        assert!(app.cad.as_ref().unwrap().layers_panel);
+        app.run("ui.cadClose", json!({})).unwrap();
+        app.run("ui.tab", json!({"tab": "Home"})).unwrap();
+        assert_eq!(app.ui.tab, "Home");
     }
 
     #[test]

@@ -304,9 +304,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     let user_tabs = app.session.ribbon.tabs().into_owned();
     let mut tabs: Vec<(String, bool)> = vec![("File".to_string(), false)];
     tabs.extend(user_tabs.iter().filter(|e| !e.hidden).map(|e| (e.name.clone(), e.custom)));
-    // The CAD editor brings up its own tab.
-    if app.cad.is_some() && !tabs.iter().any(|(n, _)| n == "CAD Drawing") {
-        tabs.push(("CAD Drawing".to_string(), false));
+    // The CAD editor brings up its own tabs (the others are shown disabled meanwhile).
+    if app.cad.is_some() {
+        for name in crate::cad_editor::TABS {
+            if !tabs.iter().any(|(n, _)| n == name) {
+                tabs.push((name.to_string(), false));
+            }
+        }
     }
     for ct in contextual_tabs(&app.session) {
         if ct == "Outlining" {
@@ -421,7 +425,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                             let shown = if custom { tab } else { tl!(tab) };
                             let w = plan.widths.get(i).copied().unwrap_or(0.0) - 2.0;
                             let cut = specs.get(i).is_some_and(|sp| sp.text_w + plan.pad > w + 0.5);
-                            let (r, resp) = ui.allocate_exact_size(vec2(w, 30.0), Sense::click());
+                            // In the drawing editor the document's tabs are disabled.
+                            let off = app.cad.is_some() && tab != "File" && !crate::cad_editor::TABS.contains(&tab);
+                            let (r, resp) = ui.allocate_exact_size(vec2(w, 30.0), if off { Sense::hover() } else { Sense::click() });
+                            if off {
+                                resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, false, false, shown));
+                                ui.painter().text(r.center(), Align2::CENTER_CENTER, shown, medium(12.5), t.text.gamma_multiply(0.35));
+                                continue;
+                            }
                             if app.ui.keytips == crate::keytips::Phase::Tabs {
                                 crate::keytips::record_tab(r, tab, &app.ui.keytip_prefix, &mut app.keytip_rects);
                             } else if app.ui.keytips == crate::keytips::Phase::Legacy {
@@ -560,7 +571,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Table Design" => table_design(app, ui),
                         "Table Layout" => table_layout(app, ui),
                         "Equation" if app.session.math.is_some() => crate::equation_tab::show(app, ui),
-                        "CAD Drawing" if app.cad.is_some() => crate::cad_editor::ribbon(app, ui),
+                        name if app.cad.is_some() && crate::cad_editor::TABS.contains(&name) => crate::cad_editor::ribbon(app, ui),
                         "Picture Format" => picture_format(app, ui),
                         "Shape Format" => shape_format(app, ui),
                         "SmartArt Design" => smart_art_design(app, ui),

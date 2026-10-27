@@ -585,6 +585,30 @@ fn hits_are_nearest_first_and_skip_hidden_layers() {
 }
 
 #[test]
+fn locked_layers_are_not_picked_and_unprinted_ones_show_only_on_screen() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (10.0, 0.0))).unwrap();
+    d.add(line((0.0, 5.0), (10.0, 5.0))).unwrap();
+    d.set_layer(&[1], "Construction").unwrap();
+    // Defaults are not written: an old drawing keeps its bytes.
+    assert!(!d.to_json().contains("locked") && !d.to_json().contains("print"));
+    fn layer(d: &mut Drawing) -> &mut crate::Layer {
+        d.layers.iter_mut().find(|l| l.name == "Construction").unwrap()
+    }
+    layer(&mut d).locked = true;
+    assert!(!d.selectable(1) && d.selectable(0));
+    assert_eq!(d.hits(Pt::new(5.0, 5.0), 1.0), Vec::<usize>::new());
+    layer(&mut d).locked = false;
+    layer(&mut d).print = false;
+    assert!(d.has_unprinted());
+    let paths = |r: &crate::Rendered| r.prims.iter().filter(|p| matches!(p, Prim::Path { .. })).count();
+    assert_eq!(paths(&d.render(None)), 1, "the page leaves it out");
+    assert_eq!(paths(&d.render_layers(None, true)), 2, "the editor shows it");
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert!(back.layers.iter().any(|l| l.name == "Construction" && !l.print && !l.locked));
+}
+
+#[test]
 fn lasso_polygons_and_fences() {
     let mut d = Drawing::default();
     d.add(line((1.0, 1.0), (4.0, 1.0))).unwrap(); // inside

@@ -14,7 +14,9 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   counter-clockwise), a **scale** `1:N` (one unit is `unit_mm / N` paper mm), **layers** and
   **entities** (at most 5000, drawn in order).
 - **Layers**: name, colour, stroke width (paper mm), dash (solid, dashed, dotted, dash-dotted),
-  visible. Layer `0` always exists. An entity's own stroke overrides its layer's ("ByLayer").
+  visible, locked (shown and snapped to, not picked), printed (off: only in the editor, never on
+  the page or in the PDF). Layer `0` always exists. An entity's own stroke overrides its layer's
+  ("ByLayer").
 - **Entities** have a stable `id` (`e1`, `e2`…; edits and dimensions refer to ids, never
   indices) and a layer: `line {a, b}`, `circle {c, r}`, `arc {c, r, start, end}`,
   `polyline {pts, bulges, closed}` (DXF bulges), `point {p}`, `text {p, value, height, angle}`,
@@ -177,9 +179,16 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    and angle and a circle's diameter recompute it (a diameter expression `D` gives `r = (D)/2`);
    a polyline shows one vertex at a time and Closed; a text its value, height and rotation; a
    dimension its text, distance and orientation (`ui.cadProps {"field", "value"}`, `strix_cad`'s
-   `Drawing::fields`/`set_field`). **Layers**: the current layer (new objects go on it,
-   `ui.cadCurrentLayer`, also in the ribbon), shown, colour, lineweight, linetype, rename (objects
-   follow), delete (objects go to layer 0), new.
+   `Drawing::fields`/`set_field`).
+   **Layer Manager** (docked under the sheet; Layers › Layer Manager, `ui.cadToggle {"what":
+   "layers"}`): one row per layer, `0` first then by name: current (new objects go on it,
+   `ui.cadCurrentLayer`, also in the ribbon), on, locked, printed, colour, lineweight, linetype,
+   object count, rename (objects follow), delete (objects go to layer 0); New Layer, Make Object's
+   Layer Current. Colours: 23 pens (fifteen colours and a grey scale from black to white), any
+   RGB (`r, g, b`) or `#rrggbb`.
+   **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
+   (Dimensions, Text), CAD View (Precision, Object Snaps), CAD Output (Picture) — each with Close
+   Drawing; the document's tabs are disabled until the drawing is closed.
    **Draw order** (`ui.cadOrder`, Modify › Bring to Front / Send to Back): the order of the objects
    in the JSON is the order they are drawn in; the selection follows the objects.
    Still to do: offset, trim, extend, fillet, mirror, stretch, match properties, angular

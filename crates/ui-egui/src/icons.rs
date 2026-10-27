@@ -1266,7 +1266,20 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
                 false,
             );
         }
-        "cadSelect" => pen.fill(&[(6.0, 3.0), (6.0, 16.0), (9.0, 13.0), (11.5, 18.0), (13.5, 17.0), (11.0, 12.0), (15.0, 12.0)], a),
+        // Layers: three sheets stacked, the top one in the accent.
+        "cadLayers" => {
+            pen.line_c(&[(2.0, 13.0), (10.0, 17.0), (18.0, 13.0)], c);
+            pen.line_c(&[(2.0, 10.0), (10.0, 14.0), (18.0, 10.0)], c);
+            pen.fill(&[(10.0, 3.0), (18.0, 7.0), (10.0, 11.0), (2.0, 7.0)], a);
+        }
+        // The drawing editor's pointer: the crosshair with the pickbox, not an arrow.
+        "cadSelect" => {
+            pen.line_c(&[(2.0, 10.0), (7.0, 10.0)], c);
+            pen.line_c(&[(13.0, 10.0), (18.0, 10.0)], c);
+            pen.line_c(&[(10.0, 2.0), (10.0, 7.0)], c);
+            pen.line_c(&[(10.0, 13.0), (10.0, 18.0)], c);
+            pen.rect(7.0, 7.0, 13.0, 13.0, a);
+        }
         "cadMove" => {
             pen.line_c(&[(10.0, 3.0), (10.0, 17.0)], c);
             pen.line_c(&[(3.0, 10.0), (17.0, 10.0)], c);
