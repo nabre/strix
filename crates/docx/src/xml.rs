@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! A small, bounded XML tree on top of `quick-xml`, plus a string-building XML writer.
 //!
 //! Element and attribute names are rewritten to *canonical prefixes* by namespace URI (`w:p`,

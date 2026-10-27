@@ -60,9 +60,26 @@ never on the drawn outlines:
   direction to the point, so a tangent is square to its radius to 1e-9°.
 - **Angles** with `atan2(|u × v|, u · v)`, exact to rounding at every angle (`acos` of the dot
   product loses half the digits near 0° and 180°).
-- **Tolerance** for "same point", "tangent" and "parallel": 1e-9 of the size of the geometry
-  (at least 1e-9 units). Within it a line touching a circle meets it once; parallel lines are
-  those within a sine of 1e-12.
+- **Tolerance** for "same point", "tangent" and "parallel": 1e-9 of the size of the *feature*
+  (a segment's length, a radius), at least 1e-9 units, never below the rounding noise of the
+  coordinates (64 ulps of the largest). It does not grow with the distance from the origin: a
+  2 mm circle 5 km away is as exact as one at it. Within it a line touching a circle meets it
+  once; parallel lines are those within a sine of 1e-12.
+- **Constructions**: Tan Tan Tan in closed form (the problem of Apollonius: for each choice of
+  side the conditions are two linear equations and one quadratic; every real circle is found,
+  including those around the given circles, and the one touching nearest the picks wins). Tan
+  Tan Radius and Extend meet with the curves' own tolerance (offsets are true lines, not long
+  segments). Tangent lines must touch the arcs, not only their circles. A circle through
+  nearly aligned points that would lie beyond the drawing's limits is refused.
+- **Near-straight bulges**: a polyline arc whose sagitta is within its chord's tolerance is the
+  chord (its centre would be far off, and its tolerance with it); a tessellated arc ends exactly
+  on its vertex. A closed polyline of two vertices (DXF's circle) has both its segments.
+- **Selection** works on the exact curves: a click's distance, and windows and lassos (a
+  crossing takes what passes through it with no vertex inside; a window holds a circle only if
+  no edge cuts it). Orientation signs use Shewchuk's adaptive predicates (`robust`), and a point
+  on a window's or lasso's border is inside for both.
+- **Drawing**: curves are tessellated to a chord tolerance of 0.01 mm on paper
+  (`φ = 4·asin(√(tol/2r))` per segment, at most 4096), not a fixed count.
 - **Limit of approximation**: coordinates are saved to **1e-9 drawing units** (nine decimals: a
   nanometre in a millimetre drawing; above 10⁶ units `f64` keeps 15–16 significant digits). An
   angle measured from saved points of a side `L` long is right to about `2·10⁻⁹/L` rad (1.2e-9°

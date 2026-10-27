@@ -2,7 +2,7 @@
 
 use strix_calc::Worksheet;
 
-use crate::geom::{Pt, arc_points, bulge_points};
+use crate::geom::{Pt, arc_points_tol, bulge_points_tol};
 use crate::model::{Align, Drawing, Entity, Kind, Mark, Orient};
 
 /// Where a text sits on its point.
@@ -64,6 +64,9 @@ pub struct Rendered {
     pub scale: f64,
 }
 
+/// The largest gap between a drawn chord and its curve, paper mm.
+const CHORD_MM: f64 = 0.01;
+
 impl Drawing {
     /// The drawing as primitives in paper mm, as printed (the page, the PDF): layers that are
     /// hidden or not printed are left out. Dimension labels read parameters from `ws`.
@@ -80,6 +83,8 @@ impl Drawing {
     pub fn render_layers(&self, ws: Option<&Worksheet>, screen: bool) -> Rendered {
         // Drawing units to paper mm, y up (flipped and shifted once the bounds are known).
         let k = self.unit.mm() / self.scale.max(1e-9);
+        // Curves are drawn with chords at most this far off them: 0.01 mm on paper.
+        let chord = Some(CHORD_MM / k);
         let mut prims = Vec::new();
         for e in &self.entities {
             let layer = self.layer(&e.layer);
@@ -99,17 +104,17 @@ impl Drawing {
             };
             match &e.kind {
                 Kind::Line { a, b } => prims.push(path(vec![a.pt(), b.pt()], false)),
-                Kind::Circle { c, r } => prims.push(path(arc_points(c.pt(), r.value.abs(), 0.0, 360.0), true)),
-                Kind::Arc { c, r, start, end } => prims.push(path(arc_points(c.pt(), r.value.abs(), start.value, end.value), false)),
+                Kind::Circle { c, r } => prims.push(path(arc_points_tol(c.pt(), r.value.abs(), 0.0, 360.0, chord), true)),
+                Kind::Arc { c, r, start, end } => prims.push(path(arc_points_tol(c.pt(), r.value.abs(), start.value, end.value, chord), false)),
                 Kind::Polyline { pts, bulges, closed } => {
                     let vs: Vec<Pt> = pts.iter().map(|p| p.pt()).collect();
                     let Some(&first) = vs.first() else { continue };
                     let mut out = vec![first];
                     let n = vs.len();
-                    let segments = if *closed { n } else { n.saturating_sub(1) };
+                    let segments = crate::kernel::segments(n, *closed);
                     for i in 0..segments {
                         let (Some(&a), Some(&b)) = (vs.get(i), vs.get((i + 1) % n)) else { continue };
-                        out.extend(bulge_points(a, b, bulges.get(i).copied().unwrap_or(0.0)));
+                        out.extend(bulge_points_tol(a, b, bulges.get(i).copied().unwrap_or(0.0), chord));
                     }
                     if *closed {
                         out.pop();
@@ -254,7 +259,7 @@ impl Drawing {
         }
         let line =
             |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
-        out.push(line(crate::geom::arc_points(c, r, start.to_degrees(), (start + sweep).to_degrees())));
+        out.push(line(arc_points_tol(c, r, start.to_degrees(), (start + sweep).to_degrees(), Some(CHORD_MM))));
         // Extension lines along each ray, from past its end to just past the arc.
         for (u, end) in [(ua, a), (ub, b)] {
             let reach = end.minus(c).len();

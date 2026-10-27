@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Editing inside an equation: caret positions, typing, inserting structures, deleting,
 //! moving the caret, and Word-style build-up (typing `a/b` then a space makes a fraction) and
 //! Math AutoCorrect (`\alpha` then a space makes α).

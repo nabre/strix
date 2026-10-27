@@ -269,9 +269,10 @@ Progress log: [ROADMAP.md](ROADMAP.md).
 
 Strix is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 Copyright (c) 2026 nabre and the Strix contributors. Strix is a fork of
-[WordCraft](https://github.com/storytold/wordcraft), Copyright (c) 2026 ArtCraft Team and the
-WordCraft contributors; Strix is not affiliated with or endorsed by them. Required notices,
-including the original WordCraft notice, are in [NOTICE](NOTICE).
+[WordCraft](https://github.com/storytold/wordcraft) and is not affiliated with or endorsed by its
+authors. The original notice is kept as it was:
+
+Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images, dictionaries and translations keep their own open licenses; each
 one is listed with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md). The

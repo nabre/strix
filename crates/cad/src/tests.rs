@@ -288,7 +288,7 @@ fn svg_is_the_drawing_as_seen() {
 
 // ---- the geometry kernel: exact constructions and their limit of approximation ----
 
-use crate::kernel::{self, Curve, angle_at, angle_between, canon, deg, intersect, intersect_extended, line_line, tolerance};
+use crate::kernel::{self, Curve, angle_at, angle_between, canon, deg, intersect, intersect_extended, line_line};
 
 fn seg(ax: f64, ay: f64, bx: f64, by: f64) -> Curve {
     Curve::Seg { a: Pt::new(ax, ay), b: Pt::new(bx, by) }
@@ -409,13 +409,13 @@ fn intersections_lie_on_both_curves() {
         let (r1, r2) = (1.0 + rng.next().abs() * 40.0, 1.0 + rng.next().abs() * 40.0);
         let (a, b) = (Curve::Circle { c: c1, r: r1 }, Curve::Circle { c: c2, r: r2 });
         for q in intersect(&a, &b) {
-            let tol = tolerance(a.size().max(b.size()));
+            let tol = a.tol().max(b.tol());
             assert!((q.minus(c1).len() - r1).abs() <= tol && (q.minus(c2).len() - r2).abs() <= tol, "{q:?}");
         }
         let s = seg(c2.x - 80.0, c2.y + rng.next() * 30.0, c2.x + 80.0, c2.y + rng.next() * 30.0);
         for q in intersect(&s, &a) {
-            assert!((q.minus(c1).len() - r1).abs() <= tolerance(s.size().max(a.size())));
-            assert!(s.distance(q) <= tolerance(s.size()));
+            assert!((q.minus(c1).len() - r1).abs() <= s.tol().max(a.tol()));
+            assert!(s.distance(q) <= s.tol());
         }
     }
 }
@@ -866,4 +866,148 @@ fn dimension_style_marks_texts_below_and_angles() {
     d.entities[0].kind = Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, text: None, mark: None };
     d.sanitize();
     let _ = d.render(None);
+}
+
+/// Review cases: Tan, Tan, Tan in closed form chooses the circle the picks mean, including
+/// incircles far from the origin and circles enclosing the given ones.
+#[test]
+fn tan_tan_tan_follows_the_picks_exactly() {
+    use crate::kernel::{Curve, circle_ttt};
+    for o in [0.0, 1e6, 1e8] {
+        let x = Curve::Seg { a: Pt::new(o, o), b: Pt::new(o + 4.0, o) };
+        let y = Curve::Seg { a: Pt::new(o, o), b: Pt::new(o, o + 3.0) };
+        let hyp = Curve::Seg { a: Pt::new(o + 4.0, o), b: Pt::new(o, o + 3.0) };
+        let picks = [(&x, Pt::new(o + 3.0, o)), (&y, Pt::new(o, o + 1.0)), (&hyp, Pt::new(o + 2.0, o + 1.5))];
+        let (c, r) = circle_ttt(picks).unwrap();
+        let tol = 1e-15 * o.max(1.0) * 64.0;
+        assert!((c.x - o - 1.0).abs() <= tol.max(1e-12) && (c.y - o - 1.0).abs() <= tol.max(1e-12) && (r - 1.0).abs() <= 1e-12, "{o}: {c:?} {r}");
+    }
+    // Three unit circles: picked on their outer sides, the circle around them; on their inner
+    // sides, the one between them.
+    let centres = [Pt::new(0.0, 0.0), Pt::new(4.0, 0.0), Pt::new(2.0, 2.0 * 3f64.sqrt())];
+    let g = Pt::new(2.0, 2.0 / 3f64.sqrt());
+    let circles = centres.map(|c| Curve::Circle { c, r: 1.0 });
+    let pick = |k: usize, outer: bool| {
+        let u = centres[k].minus(g).unit();
+        centres[k].plus(u.scale(if outer { 1.0 } else { -1.0 }))
+    };
+    let around = circle_ttt([(&circles[0], pick(0, true)), (&circles[1], pick(1, true)), (&circles[2], pick(2, true))]).unwrap();
+    let between = circle_ttt([(&circles[0], pick(0, false)), (&circles[1], pick(1, false)), (&circles[2], pick(2, false))]).unwrap();
+    let r0 = 4.0 / 3f64.sqrt();
+    assert!((around.1 - (r0 + 1.0)).abs() < 1e-12 && around.0.minus(g).len() < 1e-12, "{around:?}");
+    assert!((between.1 - (r0 - 1.0)).abs() < 1e-12 && between.0.minus(g).len() < 1e-12, "{between:?}");
+}
+
+/// Review cases: the tolerance follows the feature, not the distance from the origin.
+#[test]
+fn far_from_the_origin_small_features_stay_exact() {
+    use crate::kernel::{Curve, intersect};
+    let (x0, y0) = (5e5, 5e6);
+    // Two r = 10 circles 3 apart meet twice, as they do at the origin.
+    let a = Curve::Circle { c: Pt::new(x0, y0), r: 10.0 };
+    let b = Curve::Circle { c: Pt::new(x0 + 3.0, y0), r: 10.0 };
+    assert_eq!(intersect(&a, &b).len(), 2);
+    // A 2 mm circle and a line 4 mm away do not touch.
+    let small = Curve::Circle { c: Pt::new(x0, y0), r: 2.0 };
+    let line = Curve::Seg { a: Pt::new(x0 - 10.0, y0 + 4.0), b: Pt::new(x0 + 10.0, y0 + 4.0) };
+    assert!(intersect(&small, &line).is_empty());
+    // At the coordinate limit a line missing an r = 10 circle by 0.5 misses it.
+    let far = 1e9 - 100.0;
+    let c = Curve::Circle { c: Pt::new(far, far), r: 10.0 };
+    let l = Curve::Seg { a: Pt::new(far - 20.0, far + 10.5), b: Pt::new(far + 20.0, far + 10.5) };
+    assert!(intersect(&c, &l).is_empty());
+}
+
+/// Review cases: a nearly straight bulge is its chord; the tessellation ends on the vertex.
+#[test]
+fn nearly_straight_bulges_are_straight() {
+    use crate::kernel::{Curve, intersect};
+    let (a, b) = (Pt::new(0.0, 0.0), Pt::new(10.0, 0.0));
+    assert!(matches!(Curve::from_bulge(a, b, 1e-10), Curve::Seg { .. }));
+    let chord = Curve::from_bulge(a, b, 1e-10);
+    assert!(intersect(&chord, &Curve::Seg { a: Pt::new(0.0, 20.0), b: Pt::new(10.0, 20.0) }).is_empty());
+    assert_eq!(intersect(&chord, &Curve::Seg { a: Pt::new(5.0, -1.0), b: Pt::new(5.0, 1.0) }), vec![Pt::new(5.0, 0.0)]);
+    for bulge in [1e-12, 1e-300, 0.5, -3.0, 1e3] {
+        assert_eq!(crate::geom::bulge_points(a, b, bulge).last(), Some(&b), "{bulge}");
+    }
+}
+
+/// Review cases: Tan, Tan, Radius with a radius that cannot touch both has no circle; a
+/// tangent line must touch the arcs, not only their circles; near-collinear points make no
+/// circle beyond the drawing.
+#[test]
+fn constructions_refuse_what_is_not_there() {
+    use crate::kernel::{Curve, circle_3p, circle_ttr, line_tan_tan};
+    let x_axis = Curve::Seg { a: Pt::new(-50.0, 0.0), b: Pt::new(50.0, 0.0) };
+    let circle = Curve::Circle { c: Pt::new(0.0, 10.0), r: 5.0 };
+    assert!(circle_ttr(&x_axis, Pt::new(0.0, 0.0), &circle, Pt::new(0.0, 5.0), 2.499995).is_none());
+    let (c, r) = circle_ttr(&x_axis, Pt::new(0.0, 0.0), &circle, Pt::new(0.0, 5.0), 2.5).unwrap();
+    assert!(c.minus(Pt::new(0.0, 2.5)).len() < 1e-6 && r == 2.5, "{c:?}");
+    // Arcs facing away from each other: no tangent touches both arcs.
+    let left = Curve::Arc { c: Pt::new(0.0, 0.0), r: 1.0, start: 3.0, sweep: 0.5 };
+    let right = Curve::Arc { c: Pt::new(10.0, 0.0), r: 1.0, start: 3.0, sweep: 0.5 };
+    if let Some((t1, t2)) = line_tan_tan(&left, Pt::new(-1.0, 0.0), &right, Pt::new(9.0, 0.0)) {
+        assert!(left.distance(t1) < 1e-9 && right.distance(t2) < 1e-9, "{t1:?} {t2:?}");
+    }
+    assert!(circle_3p(Pt::new(0.0, 0.0), Pt::new(500.0, 1e-9), Pt::new(1000.0, 0.0)).is_none());
+}
+
+/// Review cases: selection works on the exact curves; a crossing window takes what passes
+/// through it; locked and hidden layers stay out; window and lasso agree on their borders.
+#[test]
+fn selection_is_exact() {
+    let mut d = Drawing::default();
+    d.add(line((-10.0, 5.0), (20.0, 5.0))).unwrap(); // through the box, no end inside
+    d.add(Entity::new(Kind::Circle { c: P::new(0.0, 100.0), r: Num::new(10000.0) })).unwrap();
+    assert_eq!(d.in_box(Pt::new(0.0, 0.0), Pt::new(10.0, 10.0), true), [0]);
+    assert!(d.in_box(Pt::new(0.0, 0.0), Pt::new(10.0, 10.0), false).is_empty());
+    // A click right on a big circle is on it (its drawn polygon is 5 units off there).
+    let on = Pt::new(10000.0 * 0.3f64.cos(), 100.0 + 10000.0 * 0.3f64.sin());
+    assert_eq!(d.hits(on, 1e-6), [1]);
+    // A window edge cutting the circle by a hair does not hold it whole.
+    assert!(!d.in_box(Pt::new(-10000.0 + 0.01, -9901.0), Pt::new(10001.0, 10101.0), false).contains(&1));
+    assert!(d.in_box(Pt::new(-10001.0, -9901.0), Pt::new(10001.0, 10101.0), false).contains(&1));
+    // A locked layer is not taken by a window.
+    d.set_layer(&[0], "Locked").unwrap();
+    d.layers.iter_mut().filter(|l| l.name == "Locked").for_each(|l| l.locked = true);
+    assert!(d.in_box(Pt::new(0.0, 0.0), Pt::new(10.0, 10.0), true).is_empty());
+    // A point on the border is inside for both.
+    let sq = [Pt::new(0.0, 0.0), Pt::new(10.0, 0.0), Pt::new(10.0, 10.0), Pt::new(0.0, 10.0)];
+    for p in [Pt::new(10.0, 5.0), Pt::new(0.0, 0.0), Pt::new(5.0, 10.0)] {
+        assert!(point_in_polygon(p, &sq), "{p:?}");
+    }
+    assert!(!point_in_polygon(Pt::new(10.000001, 5.0), &sq));
+}
+
+/// Review cases: a segment grip bends the arc through the point; a two-vertex closed polyline
+/// (DXF's circle) has both its segments everywhere.
+#[test]
+fn arc_grips_pass_through_the_point_and_closed_pairs_close() {
+    use crate::kernel::{Curve, curves};
+    let mut d = Drawing::default();
+    d.add(Entity::new(Kind::Polyline { pts: vec![P::new(-1.0, 0.0), P::new(1.0, 0.0)], bulges: vec![0.3], closed: false })).unwrap();
+    for to in [Pt::new(0.5, -0.8), Pt::new(0.9, -0.3), Pt::new(0.0, 2.0)] {
+        assert!(d.move_grip(0, Grip::Segment(0), to));
+        let c = curves(&d.entities[0]);
+        assert!(c[0].distance(to) < 1e-9, "{to:?}: {:?}", c[0]);
+    }
+    let circle = Entity::new(Kind::Polyline { pts: vec![P::new(-1.0, 0.0), P::new(1.0, 0.0)], bulges: vec![1.0, 1.0], closed: true });
+    let c = curves(&circle);
+    assert_eq!(c.len(), 2);
+    assert!(c.iter().all(|k| matches!(k, Curve::Arc { r, .. } if (r - 1.0).abs() < 1e-12)));
+}
+
+/// Review case: curves are drawn to a chord tolerance, not a fixed count: a big printed circle
+/// stays within 0.01 mm of the true one, a tiny one is not drawn with hundreds of segments.
+#[test]
+fn tessellation_follows_a_chord_tolerance() {
+    use crate::geom::arc_segments;
+    let tau = std::f64::consts::TAU;
+    let n = arc_segments(100.0, tau, Some(0.01));
+    assert!((222..=224).contains(&n), "{n}");
+    let step = tau / n as f64;
+    assert!(100.0 * (1.0 - (step / 2.0).cos()) <= 0.01);
+    assert_eq!(arc_segments(0.5, tau, Some(0.01)), 16);
+    assert_eq!(arc_segments(1e9, tau, Some(1e-12)), 4096, "capped");
+    assert_eq!(arc_segments(f64::NAN, tau, Some(0.01)), 96, "the fixed count without a usable tolerance");
 }

@@ -7,6 +7,7 @@
 use crate::MAX_LAYERS;
 use crate::edit::outline;
 use crate::geom::Pt;
+use crate::kernel::{Curve, curves, intersect};
 use crate::model::{Dash, Drawing, Kind, Layer, Stroke};
 
 /// An object family: what the Properties pane groups the selection by.
@@ -110,9 +111,17 @@ pub struct StrokeEdit {
     pub dash: Option<Option<Dash>>,
 }
 
+/// Which side of the line `o`→`p` the point `q` is on: positive to the left, negative to the
+/// right, zero exactly on it. Shewchuk's adaptive predicate (the `robust` crate): the sign is
+/// exact for any doubles, where the plain cross product misjudges points near the line.
+fn orient(o: Pt, p: Pt, q: Pt) -> f64 {
+    let c = |v: Pt| robust::Coord { x: v.x, y: v.y };
+    robust::orient2d(c(o), c(p), c(q))
+}
+
 /// Do segments `a`–`b` and `c`–`d` meet (touching counts)?
 fn segments_meet(a: Pt, b: Pt, c: Pt, d: Pt) -> bool {
-    let cross = |o: Pt, p: Pt, q: Pt| (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+    let cross = orient;
     let on = |p: Pt, q: Pt, r: Pt| r.x >= p.x.min(q.x) && r.x <= p.x.max(q.x) && r.y >= p.y.min(q.y) && r.y <= p.y.max(q.y);
     let (d1, d2, d3, d4) = (cross(c, d, a), cross(c, d, b), cross(a, b, c), cross(a, b, d));
     if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0)) {
@@ -121,7 +130,8 @@ fn segments_meet(a: Pt, b: Pt, c: Pt, d: Pt) -> bool {
     (d1 == 0.0 && on(c, d, a)) || (d2 == 0.0 && on(c, d, b)) || (d3 == 0.0 && on(a, b, c)) || (d4 == 0.0 && on(a, b, d))
 }
 
-/// Is `p` inside the polygon `poly` (even-odd rule)?
+/// Is `p` inside the polygon `poly` (even-odd rule)? A point on an edge is inside, so a window
+/// and a lasso agree on their borders. The crossing test is the exact orientation sign.
 pub fn point_in_polygon(p: Pt, poly: &[Pt]) -> bool {
     let n = poly.len();
     if n < 3 {
@@ -130,9 +140,17 @@ pub fn point_in_polygon(p: Pt, poly: &[Pt]) -> bool {
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (Some(a), Some(b)) = (poly.get(i), poly.get(j)) else { break };
-        if (a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x {
-            inside = !inside;
+        let (Some(&a), Some(&b)) = (poly.get(i), poly.get(j)) else { break };
+        if segments_meet(p, p, a, b) {
+            return true;
+        }
+        // The edge crosses the horizontal through p, on p's right (the sign of the orientation
+        // of a→b against p, flipped for a downward edge).
+        if (a.y > p.y) != (b.y > p.y) {
+            let side = orient(a, b, p);
+            if (b.y > a.y && side < 0.0) || (b.y < a.y && side > 0.0) {
+                inside = !inside;
+            }
         }
         j = i;
     }
@@ -149,6 +167,22 @@ fn edges(pts: &[Pt], closed: bool) -> Vec<(Pt, Pt)> {
         out.push((last, first));
     }
     out
+}
+
+/// How far `p` is from entity `e`: from its exact curves when it has some, else from its
+/// outline (a point, a text's position, a dimension's lines).
+fn entity_distance(e: &crate::Entity, p: Pt) -> f64 {
+    let exact = curves(e);
+    if !exact.is_empty() {
+        return exact.iter().map(|c| c.distance(p)).fold(f64::INFINITY, f64::min);
+    }
+    outline(e)
+        .iter()
+        .map(|line| match line.as_slice() {
+            [only] => only.minus(p).len(),
+            _ => line.windows(2).map(|w| seg_dist(p, w[0], w[1])).fold(f64::INFINITY, f64::min),
+        })
+        .fold(f64::INFINITY, f64::min)
 }
 
 /// Distance from `p` to segment `a`–`b`.
@@ -177,13 +211,7 @@ impl Drawing {
             .enumerate()
             .filter(|(i, _)| self.selectable(*i))
             .filter_map(|(i, e)| {
-                let d = outline(e)
-                    .iter()
-                    .map(|line| match line.as_slice() {
-                        [only] => only.minus(p).len(),
-                        _ => line.windows(2).map(|w| seg_dist(p, w[0], w[1])).fold(f64::INFINITY, f64::min),
-                    })
-                    .fold(f64::INFINITY, f64::min);
+                let d = entity_distance(e, p);
                 (d <= tol).then_some((i, d))
             })
             .collect();
@@ -191,18 +219,35 @@ impl Drawing {
         found.into_iter().map(|(i, _)| i).collect()
     }
 
+    /// The entities in the box `a`–`b` (the two-click window): the polygon of its corners.
+    pub fn in_box(&self, a: Pt, b: Pt, crossing: bool) -> Vec<usize> {
+        let (x0, x1, y0, y1) = (a.x.min(b.x), a.x.max(b.x), a.y.min(b.y), a.y.max(b.y));
+        self.in_polygon(&[Pt::new(x0, y0), Pt::new(x1, y0), Pt::new(x1, y1), Pt::new(x0, y1)], crossing)
+    }
+
     /// The entities in the polygon `poly` (a lasso or a polygon window): wholly inside, or, with
-    /// `crossing`, inside or touching its edge.
+    /// `crossing`, inside or touching its edge. Lines, circles, arcs and polylines are tested on
+    /// their exact curves (an edge cutting a circle cuts it, however finely it is drawn); points,
+    /// texts and dimensions on their outlines.
     pub fn in_polygon(&self, poly: &[Pt], crossing: bool) -> Vec<usize> {
         if poly.len() < 3 {
             return Vec::new();
         }
         let sides = edges(poly, true);
+        let side_curves: Vec<Curve> = sides.iter().map(|&(a, b)| Curve::Seg { a, b }).collect();
         self.entities
             .iter()
             .enumerate()
             .filter(|(i, _)| self.selectable(*i))
             .filter(|(_, e)| {
+                let exact = curves(e);
+                if !exact.is_empty() {
+                    let cut = exact.iter().any(|c| side_curves.iter().any(|s| !intersect(c, s).is_empty()));
+                    // Not cut: the curve is wholly inside or wholly outside; one point tells.
+                    let first = exact.first().and_then(|c| c.ends().first().copied().or_else(|| c.quadrants().first().copied()));
+                    let inside = first.is_some_and(|p| point_in_polygon(p, poly));
+                    return if crossing { cut || inside } else { inside && !cut };
+                }
                 let lines = outline(e);
                 let pts: Vec<Pt> = lines.iter().flatten().copied().collect();
                 if pts.is_empty() {

@@ -9,6 +9,7 @@ description = "Strix CAD drawings: a 2D drafting model whose sizes can follow th
 workspace = true
 
 [dependencies]
+robust = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 strix-calc = { workspace = true }

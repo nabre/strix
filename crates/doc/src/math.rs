@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Equations: the Office Math object model (OMML, ECMA-376 Part 1 §22.1) as a tree, its linear
 //! format (UnicodeMath, the plain text Word shows for an equation) and a parser for that format.
 //!

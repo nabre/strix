@@ -39,7 +39,7 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
             let Some(&first) = vs.first() else { return Vec::new() };
             let mut out = vec![first];
             let n = vs.len();
-            let segments = if *closed { n } else { n.saturating_sub(1) };
+            let segments = crate::kernel::segments(n, *closed);
             for i in 0..segments {
                 let (Some(&a), Some(&b)) = (vs.get(i), vs.get((i + 1) % n)) else { continue };
                 out.extend(bulge_points(a, b, bulges.get(i).copied().unwrap_or(0.0)));
@@ -236,7 +236,7 @@ impl Drawing {
                     let vs: Vec<Pt> = pts.iter().map(P::pt).collect();
                     out.extend(vs.iter().map(|&p| (p, SnapKind::End)));
                     let n = vs.len();
-                    let segments = if *closed { n } else { n.saturating_sub(1) };
+                    let segments = crate::kernel::segments(n, *closed);
                     for i in 0..segments {
                         if let (Some(&a), Some(&b)) = (vs.get(i), vs.get((i + 1) % n)) {
                             out.push((mid(a, b), SnapKind::Mid));
@@ -267,23 +267,6 @@ impl Drawing {
             }
         }
         best.map(|(i, _)| i)
-    }
-
-    /// The entities in the box `a`–`b`: wholly inside (`crossing` false, a left-to-right window)
-    /// or touching it (`crossing` true, right to left).
-    pub fn in_box(&self, a: Pt, b: Pt, crossing: bool) -> Vec<usize> {
-        let (x0, x1) = (a.x.min(b.x), a.x.max(b.x));
-        let (y0, y1) = (a.y.min(b.y), a.y.max(b.y));
-        let inside = |p: &Pt| p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
-        self.entities
-            .iter()
-            .enumerate()
-            .filter(|(_, e)| {
-                let pts: Vec<Pt> = outline(e).into_iter().flatten().collect();
-                !pts.is_empty() && if crossing { pts.iter().any(inside) } else { pts.iter().all(inside) }
-            })
-            .map(|(i, _)| i)
-            .collect()
     }
 
     /// Moves the entities at `indices` by `d` (drawing units). A coordinate written as an
@@ -440,7 +423,7 @@ impl Drawing {
                 let vs: Vec<Pt> = pts.iter().map(P::pt).collect();
                 let mut out: Vec<(Grip, Pt)> = vs.iter().enumerate().map(|(k, &p)| (Grip::Vertex(k), p)).collect();
                 let n = vs.len();
-                let segments = if *closed && n > 2 { n } else { n.saturating_sub(1) };
+                let segments = crate::kernel::segments(n, *closed);
                 for k in 0..segments {
                     let (Some(&a), Some(&b)) = (vs.get(k), vs.get((k + 1) % n)) else { continue };
                     if let Some(m) = Curve::from_bulge(a, b, bulges.get(k).copied().unwrap_or(0.0)).mid() {
@@ -545,16 +528,13 @@ impl Drawing {
                         }
                     }
                 } else {
-                    // The arc bends through the point: bulge = sagitta / half chord, positive
-                    // when the arc bulges to the right of the chord (counter-clockwise from a).
-                    let chord = b.minus(a);
-                    let len = chord.len();
-                    if len <= tiny {
-                        return false;
-                    }
-                    let left = (chord.x * (to.y - a.y) - chord.y * (to.x - a.x)) / len;
-                    let nb = -2.0 * left / len;
-                    if !nb.is_finite() || nb.abs() <= 1e-12 {
+                    // The arc from a to b through the point: with u = a − p and v = b − p, the
+                    // inscribed angle at p gives bulge = −(|u||v| + u·v) / (u × v) (positive
+                    // counter-clockwise from a, as DXF). A point on the chord's line is no arc.
+                    let (u, v) = (a.minus(to), b.minus(to));
+                    let cr = u.x * v.y - u.y * v.x;
+                    let nb = -(u.len() * v.len() + (u.x * v.x + u.y * v.y)) / cr;
+                    if !nb.is_finite() || !crate::kernel::bulge_bends(a, b, nb) || b.minus(a).len() <= tiny {
                         return false;
                     }
                     if bulges.len() <= s {
