@@ -91,6 +91,9 @@ pub struct Worksheet {
     /// Working units: the last unit written for each dimension (`b = 300 mm` makes lengths show
     /// in mm), as its quantity and text.
     working: Vec<(Dim, Quantity, String)>,
+    /// The dimensionless unit each parameter is shown in (`α = 30°` → `°`, `p = 15 %` → `%`):
+    /// plain numbers carry no unit, so the unit written for them is remembered by name.
+    hints: Vec<(String, String)>,
 }
 
 /// Evaluates `statements` in order with one shared scope (see [`Worksheet::eval_statement`]).
@@ -102,7 +105,7 @@ pub fn evaluate(statements: &[&str], opts: &Options) -> Vec<RegionResult> {
 impl Worksheet {
     /// An empty worksheet.
     pub fn new(opts: Options) -> Self {
-        Worksheet { scope: Scope::new(), opts, working: Vec::new() }
+        Worksheet { scope: Scope::new(), opts, working: Vec::new(), hints: Vec::new() }
     }
 
     /// Evaluates an expression (`"L/2 + 10 mm"`) with the parameters defined so far, without
@@ -114,6 +117,60 @@ impl Worksheet {
         let tokens = lex(text, self.opts.decimal_comma)?;
         let expr = parse(&tokens, text.chars().count())?;
         eval(&expr, &self.scope, Names::Worksheet)
+    }
+
+    /// Sets (or, with `None`, clears) the dimensionless unit parameter `name` is shown in.
+    pub(crate) fn set_hint(&mut self, name: &str, hint: Option<String>) {
+        self.hints.retain(|(n, _)| n != name);
+        if let Some(h) = hint {
+            self.hints.push((name.to_string(), h));
+        }
+    }
+
+    /// The dimensionless unit a plain-number result of `e` is shown in: `°` for `90° - α` with
+    /// `α` in degrees, `%` for `2·p`, `°` for `acos(…)`; `None` when the parts disagree or carry
+    /// none (`sin(α)`, `α/β`).
+    pub(crate) fn hint(&self, e: &Expr) -> Option<String> {
+        use crate::parser::BinOp;
+        let common = |items: &[Expr]| {
+            let mut found: Option<String> = None;
+            for item in items {
+                match (self.hint(item), &found) {
+                    (Some(h), Some(f)) if h != *f => return None,
+                    (Some(h), None) => found = Some(h),
+                    _ => {}
+                }
+            }
+            found
+        };
+        match e {
+            Expr::Num(_) | Expr::Range(..) => None,
+            Expr::Name(n) if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n) => Some(h.clone()),
+            Expr::Name(n) if self.scope.get(n).is_some() => None,
+            Expr::Name(n) if constant(n).is_some() => None,
+            Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
+            Expr::Neg(a) | Expr::Index(a, _) => self.hint(a),
+            Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => match (self.hint(a), self.hint(b)) {
+                (Some(x), Some(y)) if x == y => Some(x),
+                (Some(x), None) | (None, Some(x)) => Some(x),
+                _ => None,
+            },
+            Expr::Bin(BinOp::Mul, a, b) => match (self.hint(a), self.hint(b)) {
+                (Some(x), None) | (None, Some(x)) => Some(x),
+                _ => None,
+            },
+            Expr::Bin(BinOp::Div, a, b) => match (self.hint(a), self.hint(b)) {
+                (Some(x), None) => Some(x),
+                _ => None,
+            },
+            Expr::Bin(BinOp::Pow, ..) => None,
+            Expr::Call(Func::Asin | Func::Acos | Func::Atan, _) => Some("°".to_string()),
+            Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Round | Func::Sum | Func::Mean, args) => common(args.get(..1).unwrap_or_default()),
+            Expr::Call(..) => None,
+            Expr::Vector(items) => common(items),
+            Expr::Nary(n) if n.op == '∑' => self.hint(&n.body),
+            Expr::Nary(_) => None,
+        }
     }
 
     /// The working unit for `dim`: the last unit written for it.
@@ -270,7 +327,7 @@ impl Worksheet {
                 _ => !close,
             };
             // Both sides in the left side's unit, so they read side by side.
-            let (na, unit) = self.auto(&Value::Scalar(a));
+            let (na, unit) = self.auto_hinted(&Value::Scalar(a), self.hint(&l).as_deref());
             let u = lex(&unit, false).ok().and_then(|t| parse(&t, unit.chars().count()).ok());
             let scale = u.and_then(|e| eval_scalar(&e, &self.scope, Names::UnitsOnly).ok()).unwrap_or(Quantity::number(1.0));
             let nb = in_unit_text(&Value::Scalar(b), scale, &unit, &self.opts)?;
@@ -291,14 +348,17 @@ impl Worksheet {
     }
 
     /// Defines `name` as `value` (undefines it on an error).
-    fn assign(&mut self, kind: RegionKind, name: &str, value: Result<Value, CalcError>, display: Option<String>) -> RegionResult {
+    fn assign(&mut self, kind: RegionKind, name: &str, value: Result<Value, CalcError>, hint: Option<String>) -> RegionResult {
+        let display = None;
         match value {
             Ok(v) => {
                 self.scope.set(name, v.clone());
+                self.set_hint(name, hint);
                 RegionResult { kind, name: Some(name.to_string()), value: Some(v), display, error: None }
             }
             Err(err) => {
                 self.scope.remove(name);
+                self.set_hint(name, None);
                 RegionResult { kind, name: Some(name.to_string()), value: None, display, error: Some(err) }
             }
         }
@@ -355,7 +415,7 @@ impl Worksheet {
                     (Err(e), _) | (_, Err(e)) => Err(e.clone()),
                 };
                 let (value, display, shown_err) = if shows {
-                    let (v, d, e) = self.show_value(&shown_left(), b, part(2), len);
+                    let (v, d, e) = self.show_value(&shown_left(), b, part(2), len, self.hint(&rhs));
                     (v, Some(d), e)
                 } else {
                     (b.ok(), None, None)
@@ -366,9 +426,16 @@ impl Worksheet {
                 let alone = matches!(&lhs, Expr::Name(n) if n == x) || matches!(&rhs, Expr::Name(n) if n == x);
                 let value = self.solve_for(&lhs, &rhs, x);
                 let kind = if alone { RegionKind::Definition } else { RegionKind::Solved };
-                let mut result = self.assign(kind, x, value.clone(), None);
+                // The unknown's unit, when it is a plain number: from the side it equals, or from
+                // its isolated form.
+                let other = match (&lhs, &rhs) {
+                    (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x => Some(other.clone()),
+                    _ => isolate(&lhs, &rhs, x),
+                };
+                let x_hint = other.as_ref().and_then(|e| self.hint(e));
+                let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 if shows {
-                    let (_, d, e) = self.show_value(&shown_left(), value, part(2), len);
+                    let (_, d, e) = self.show_value(&shown_left(), value, part(2), len, x_hint);
                     result.kind = if alone { RegionKind::DefineAndShow } else { RegionKind::Solved };
                     result.display = Some(d);
                     result.error = result.error.or(e);
@@ -379,7 +446,7 @@ impl Worksheet {
                         [Token { tok: Tok::Ident(n), .. }, Token { tok: Tok::Equals, .. }, rest @ ..] if n == x => rest,
                         _ => &[],
                     };
-                    let (_, d, e) = self.show_value(&format!("{} ⇒ {x}", text.trim()), value, unit, len);
+                    let (_, d, e) = self.show_value(&format!("{} ⇒ {x}", text.trim()), value, unit, len, x_hint);
                     result.display = Some(d);
                     result.error = result.error.or(e);
                 }
@@ -469,7 +536,11 @@ impl Worksheet {
             },
         };
         match &value {
-            Some(v) => self.scope.set(&name, v.clone()),
+            Some(v) => {
+                self.scope.set(&name, v.clone());
+                let hint = parse(body, body_end_pos).ok().and_then(|e| self.hint(&e));
+                self.set_hint(&name, hint);
+            }
             None => {
                 self.scope.remove(&name);
             }
@@ -481,12 +552,21 @@ impl Worksheet {
     /// the unit requested in `rhs`. Returns the value (even if only the display failed), the
     /// display text and the error.
     fn show(&self, left_text: &str, expr: &[Token], expr_end: usize, rhs: &[Token], len: usize) -> (Option<Value>, String, Option<CalcError>) {
-        let value = parse(expr, expr_end).and_then(|e| eval(&e, &self.scope, Names::Worksheet));
-        self.show_value(left_text, value, rhs, len)
+        let parsed = parse(expr, expr_end);
+        let hint = parsed.as_ref().ok().and_then(|e| self.hint(e));
+        let value = parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet));
+        self.show_value(left_text, value, rhs, len, hint)
     }
 
     /// `<left> = <value>` in the unit requested in `rhs`, like [`Self::show`].
-    fn show_value(&self, left_text: &str, value: Result<Value, CalcError>, rhs: &[Token], len: usize) -> (Option<Value>, String, Option<CalcError>) {
+    fn show_value(
+        &self,
+        left_text: &str,
+        value: Result<Value, CalcError>,
+        rhs: &[Token],
+        len: usize,
+        hint: Option<String>,
+    ) -> (Option<Value>, String, Option<CalcError>) {
         let request = requested_unit(rhs, len);
         let unit_text = match &request {
             Ok(Some(e)) => render(e),
@@ -494,12 +574,25 @@ impl Worksheet {
         };
         let shown = value.clone().and_then(|v| {
             let request = request?;
-            self.in_unit(&v, request.as_ref(), &unit_text)
+            self.in_unit(&v, request.as_ref(), &unit_text, hint.as_deref())
         });
         match shown {
             Ok((number, unit)) => (value.ok(), format!("{left_text} = {}", with_unit(&number, &unit)), None),
             Err(err) => (value.ok(), format!("{left_text} = {}", with_unit("⚠", &unit_text)), Some(err)),
         }
+    }
+
+    /// Like [`Self::auto`], but a plain number with a dimensionless unit `hint` (`°`, `%`) is
+    /// shown in it.
+    pub(crate) fn auto_hinted(&self, v: &Value, hint: Option<&str>) -> (String, String) {
+        if v.dim().is_dimensionless()
+            && let Some(h) = hint
+            && let Some(u) = unit(h)
+            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+        {
+            return (number, h.to_string());
+        }
+        self.auto(v)
     }
 
     /// `v`'s numbers and unit when none is asked for: the working unit of its dimension, else
@@ -514,9 +607,9 @@ impl Worksheet {
     }
 
     /// `v` as formatted numbers and unit text, in the requested unit or the automatic one.
-    fn in_unit(&self, v: &Value, request: Option<&Expr>, unit_text: &str) -> Result<(String, String), CalcError> {
+    fn in_unit(&self, v: &Value, request: Option<&Expr>, unit_text: &str, hint: Option<&str>) -> Result<(String, String), CalcError> {
         let Some(request) = request else {
-            return Ok(self.auto(v));
+            return Ok(self.auto_hinted(v, hint));
         };
         let u = eval_scalar(request, &self.scope, Names::UnitsOnly)?;
         let number = in_unit_text(v, u, unit_text, &self.opts)?;
@@ -638,6 +731,7 @@ pub(crate) fn with_unit(number: &str, unit: &str) -> String {
     match unit {
         "" => number.to_string(),
         "°" => format!("{number}°"),
+        "‰" => format!("{number} ‰"),
         _ => format!("{number} {unit}"),
     }
 }

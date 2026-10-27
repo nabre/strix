@@ -64,5 +64,9 @@ pub const MAX_NODES: usize = 512;
 /// Most elements in one vector, range or table column, and most terms in one `∑`/`∏`.
 pub const MAX_VALUES: usize = 10_000;
 
-/// Most units of work in one statement (nodes evaluated plus vector elements touched).
+/// Most units of work in one statement, one table or one numeric solve (nodes evaluated plus
+/// vector elements touched).
 pub const MAX_STEPS: usize = 1_000_000;
+
+/// Most units of work in one worksheet (a whole document's recalculation).
+pub const MAX_SHEET_STEPS: usize = 20_000_000;

@@ -261,6 +261,48 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
 }
 
+/// A hash of what the calculations read: every item's text, in order.
+fn fingerprint(found: &[Item]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for item in found {
+        match item {
+            Item::Equation { text, .. } => text.hash(&mut h),
+            Item::Table { cells, .. } => cells.hash(&mut h),
+        }
+    }
+    h.finish()
+}
+
+/// After a top-level command: when a calc region or a calculated table changed since the last
+/// calculation, recalculate. While an equation is being edited, or the caret is in a cell of a
+/// calculated table, it waits until the caret leaves (so typing is never rewritten under the
+/// caret), like a spreadsheet.
+pub(crate) fn auto_recalculate(s: &mut Session) {
+    if s.math.is_some() || caret_in_calc_table(s) {
+        return;
+    }
+    let found = items(&s.doc.body);
+    let calculated = found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. }));
+    if !calculated {
+        s.calc_seen = None;
+        return;
+    }
+    let key = fingerprint(&found);
+    if s.calc_seen == Some(key) {
+        return;
+    }
+    let report = recalculate_now(s);
+    if report["changed"].as_u64().unwrap_or(0) > 0 {
+        s.touch();
+    }
+    s.calc_seen = Some(fingerprint(&items(&s.doc.body)));
+}
+
+fn caret_in_calc_table(s: &Session) -> bool {
+    s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
+}
+
 /// Recalculates with the preferred number format (F9, Update Fields, leaving an equation).
 pub(crate) fn recalculate_now(s: &mut Session) -> Value {
     let opts = options(s, &json!({}));
@@ -590,6 +632,38 @@ mod tests {
         assert!(doc.body.iter().any(|b| matches!(&**b, Block::Table(t) if t.props.calc)));
         // Turned off, the cells keep their last values and are no longer read.
         assert_eq!(s.run("table.calc", &json!({"value": false})).unwrap()["recalculated"]["tables"], 0);
+    }
+
+    #[test]
+    fn editing_a_calculation_recalculates_by_itself() {
+        let mut s = session();
+        add(&mut s, "a = 2 m");
+        add(&mut s, "a*3 =");
+        assert_eq!(texts(&s)[1], "a*3=6m");
+        // Change the definition and leave the equation: no Recalculate needed.
+        s.sel = crate::Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.run("equation.set", &json!({"linear": "a = 5 m"})).unwrap();
+        s.run("equation.exit", &json!({})).ok();
+        assert_eq!(texts(&s), ["a=5m", "a*3=15m"]);
+    }
+
+    #[test]
+    fn a_calculated_table_recalculates_when_the_caret_leaves_the_cell() {
+        let mut s = session();
+        with_table(&mut s, &[&["L [m]", "A [m²] = L^2"], &["2", ""]]);
+        s.run("table.calc", &json!({})).unwrap();
+        assert_eq!(table_texts(&s)[1][1], "4");
+        // Type a new value into L's cell: nothing is rewritten while the caret is in the table.
+        let Some((tp, _, _)) = s.sel.focus.path.cell() else { panic!("in the table") };
+        let mut cell = tp.clone();
+        cell.0.extend([1, 0, 0]);
+        s.sel = crate::Selection::caret(strix_doc::Pos { story: s.sel.focus.story, path: cell, off: 1 });
+        s.run("text.insert", &json!({"text": "0"})).unwrap();
+        assert_eq!(table_texts(&s)[1][0], "20");
+        assert_eq!(table_texts(&s)[1][1], "4", "not while typing in the table");
+        // Leave the table: it recalculates.
+        s.run("caret.docEnd", &json!({})).unwrap();
+        assert_eq!(table_texts(&s)[1][1], "400");
     }
 
     #[test]

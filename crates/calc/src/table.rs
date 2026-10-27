@@ -9,6 +9,12 @@
 //! `mean =`, `min =` or `max =` (with the stale result after `=`). A total is written back with
 //! the column's sum, mean, minimum or maximum over the data rows.
 //!
+//! Any cell holding `=` (or a comparison) is a statement of its own, read like a calculation
+//! region with the row's values as parameters: `q·L²/8 =` becomes `q·L²/8 = 30.375 kN·m`,
+//! `= q·L²/8` reads as `q·L²/8 =`, `x = 5 m` defines `x`, `F = m·a` solves. Its value is the
+//! column's value in that row (for totals and formulas to its right); in a formula column it
+//! replaces the column formula for that cell.
+//!
 //! In a data row, an input column's cell is an expression (usually a number, in the column's
 //! unit; a cell with its own unit of the same kind is converted). A formula column's cell is
 //! overwritten with the formula's value for that row; the formula sees the row's values by
@@ -23,6 +29,11 @@ use crate::quantity::Quantity;
 use crate::solve::free_names;
 use crate::worksheet::{Worksheet, in_unit_text};
 use crate::{CalcError, MAX_INPUT_CHARS, MAX_VALUES};
+
+/// Most columns of a calculated table that are read.
+const MAX_TABLE_COLS: usize = 64;
+/// Most cells (columns × rows) of a calculated table that are evaluated.
+const MAX_TABLE_CELLS: usize = 100_000;
 
 /// The outcome of evaluating a calculated table.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -88,6 +99,8 @@ impl Worksheet {
         let Some((header, body)) = rows.split_first() else {
             return out;
         };
+        // The grid evaluated is bounded, not just the cells read: columns × rows ≤ MAX_TABLE_CELLS.
+        let header = header.get(..MAX_TABLE_COLS.min(header.len())).unwrap_or_default();
         let columns: Vec<Column> = header
             .iter()
             .enumerate()
@@ -115,7 +128,8 @@ impl Worksheet {
         for (q, text) in written {
             self.remember(q, text);
         }
-        let body = body.get(..MAX_VALUES.min(body.len())).unwrap_or_default();
+        let max_rows = MAX_VALUES.min(MAX_TABLE_CELLS / columns.len().max(1));
+        let body = body.get(..max_rows.min(body.len())).unwrap_or_default();
         let cell = |r: usize, c: usize| body.get(r).and_then(|row| row.get(c)).map_or("", |s| s.trim());
 
         // Input columns first: a bare name whose cells are not all values is a label column.
@@ -131,7 +145,7 @@ impl Worksheet {
             let mut errors = Vec::new();
             for r in (0..body.len()).filter(|&r| data_row.get(r) == Some(&true)) {
                 let text = cell(r, c);
-                if text.is_empty() {
+                if text.is_empty() || is_statement(text) {
                     continue;
                 }
                 match self.input_cell(text, unit.as_ref()) {
@@ -155,52 +169,102 @@ impl Worksheet {
         out.errors.extend(input_errors);
         let is_input = |c: usize| matches!(columns.get(c), Some(Column::Input { .. })) && label.get(c) == Some(&false);
         // A row is skipped when all its input cells are empty.
-        let active: Vec<bool> =
-            (0..body.len()).map(|r| data_row.get(r) == Some(&true) && (0..columns.len()).any(|c| is_input(c) && !cell(r, c).is_empty())).collect();
+        let active: Vec<bool> = (0..body.len())
+            .map(|r| data_row.get(r) == Some(&true) && (0..columns.len()).any(|c| is_input(c) && !cell(r, c).is_empty() && !is_statement(cell(r, c))))
+            .collect();
 
-        // Formula columns, left to right, row by row.
-        for (c, col) in columns.iter().enumerate() {
-            let Column::Formula { unit, expr, .. } = col else { continue };
-            let mut used = Vec::new();
-            free_names(expr, &mut used);
-            for r in 0..body.len() {
-                if data_row.get(r) != Some(&true) {
+        // Columns in a dimensionless unit (`p [%]`) show formulas of them in it.
+        let hinted: Vec<(String, Option<String>)> = columns
+            .iter()
+            .filter_map(|c| match c {
+                Column::Input { name, unit } => Some((name.clone(), unit.as_ref().filter(|u| u.q.dim.is_dimensionless()).map(|u| u.text.clone()))),
+                _ => None,
+            })
+            .collect();
+        for (name, hint) in hinted {
+            self.set_hint(&name, hint);
+        }
+
+        // Row by row, left to right: a cell with `=` is a statement of its own (data, formula or
+        // equation, worked out like a region), else a formula column computes the cell. One step
+        // budget covers the table's formulas.
+        let formulas: Vec<Option<(Option<String>, Vec<String>)>> = columns
+            .iter()
+            .map(|col| match col {
+                Column::Formula { expr, .. } => {
+                    let mut used = Vec::new();
+                    free_names(expr, &mut used);
+                    Some((self.hint(expr), used))
+                }
+                _ => None,
+            })
+            .collect();
+        let mut steps = 0usize;
+        for r in 0..body.len() {
+            if data_row.get(r) != Some(&true) {
+                continue;
+            }
+            for (c, col) in columns.iter().enumerate() {
+                let text = cell(r, c);
+                let named = col.name().filter(|_| label.get(c) == Some(&false)).map(str::to_string);
+                if is_statement(text) {
+                    let row = row_values(&columns, &label, &values, r);
+                    let result = self.statement_cell(text, &row);
+                    if let Some(e) = result.error {
+                        out.errors.push((r + 1, c, e));
+                    }
+                    if let Some(d) = result.display.filter(|d| d.as_str() != text) {
+                        out.updates.push((r + 1, c, d));
+                    }
+                    // A result, or the column's own name defined, is the column's value here;
+                    // `x = 5 m` only defines `x`.
+                    let own = result.name.is_none() || result.name == named;
+                    if named.is_some()
+                        && own
+                        && let Some(q) = result.value.as_ref().and_then(Value::scalar)
+                        && let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r))
+                    {
+                        *slot = Some(q);
+                    }
                     continue;
                 }
+                let (Column::Formula { unit, expr, .. }, Some(Some((hint, used)))) = (col, formulas.get(c)) else { continue };
                 if active.get(r) != Some(&true) {
-                    if !cell(r, c).is_empty() {
+                    if !text.is_empty() {
                         out.updates.push((r + 1, c, String::new()));
                     }
                     continue;
                 }
-                let mut locals = Vec::new();
-                let mut missing = None;
-                for (k, other) in columns.iter().enumerate() {
-                    let Some(name) = other.name().filter(|_| label.get(k) == Some(&false)) else { continue };
-                    match values.get(k).and_then(|v| v.get(r)).copied().flatten() {
-                        Some(q) => locals.push((name.to_string(), Value::Scalar(q))),
-                        None if used.iter().any(|u| u == name) && missing.is_none() => missing = Some(name.to_string()),
-                        None => {}
-                    }
-                }
+                let locals = row_values(&columns, &label, &values, r);
+                let missing = used.iter().find(|u| {
+                    columns
+                        .iter()
+                        .enumerate()
+                        .any(|(k, other)| other.name() == Some(u.as_str()) && label.get(k) == Some(&false) && !locals.iter().any(|(n, _)| n == *u))
+                });
                 let result = match missing {
-                    Some(name) => Err(CalcError::MissingValue(name)),
-                    None => Ctx::new(&self.scope, Names::Worksheet, locals).eval(expr).and_then(|v| v.expect_scalar()),
+                    Some(name) => Err(CalcError::MissingValue(name.clone())),
+                    None => {
+                        let mut ctx = Ctx::new(&self.scope, Names::Worksheet, locals).with_steps(steps);
+                        let value = ctx.eval(expr).and_then(|v| v.expect_scalar());
+                        steps = ctx.steps();
+                        value
+                    }
                 };
-                let text = match result.and_then(|q| Ok((q, self.cell_text(q, unit.as_ref())?))) {
-                    Ok((q, text)) => {
+                let shown = match result.and_then(|q| Ok((q, self.cell_text(q, unit.as_ref(), hint.as_deref())?))) {
+                    Ok((q, shown)) => {
                         if let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r)) {
                             *slot = Some(q);
                         }
-                        text
+                        shown
                     }
                     Err(err) => {
                         out.errors.push((r + 1, c, err));
                         "⚠".to_string()
                     }
                 };
-                if text != cell(r, c) {
-                    out.updates.push((r + 1, c, text));
+                if shown != text {
+                    out.updates.push((r + 1, c, shown));
                 }
             }
         }
@@ -220,7 +284,7 @@ impl Worksheet {
                     Some(Column::Input { unit, .. } | Column::Formula { unit, .. }) => unit.as_ref(),
                     _ => None,
                 };
-                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text(q, unit));
+                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text(q, unit, None));
                 let new = match shown {
                     Ok(value) => format!("{key} = {value}"),
                     Err(err) => {
@@ -242,6 +306,14 @@ impl Worksheet {
             match column.map(|items| Vector::from_quantities(&items)) {
                 Some(Ok(v)) if !v.is_empty() => {
                     self.scope.set(name, Value::Vector(v));
+                    let hint = match col {
+                        Column::Input { unit: Some(u), .. } | Column::Formula { unit: Some(u), .. } if u.q.dim.is_dimensionless() => {
+                            Some(u.text.clone())
+                        }
+                        Column::Formula { unit: None, expr, .. } => self.hint(expr),
+                        _ => None,
+                    };
+                    self.set_hint(name, hint);
                     out.columns.push(name.to_string());
                 }
                 _ => {
@@ -250,6 +322,31 @@ impl Worksheet {
             }
         }
         out
+    }
+
+    /// A statement in a cell, evaluated like a region with the row's values as parameters:
+    /// `q·L²/8 =` shows its value, `x = 5 m` defines `x` for the rest of the document. A cell
+    /// starting with `=` (`= q·L²/8`) reads as `q·L²/8 =`.
+    fn statement_cell(&mut self, text: &str, row: &[(String, Value)]) -> crate::RegionResult {
+        let statement = match text.strip_prefix('=') {
+            Some(rest) => format!("{} =", rest.trim()),
+            None => text.to_string(),
+        };
+        // The row's values stand in for parameters of the same names while the cell is read.
+        let saved: Vec<(String, Option<Value>)> = row.iter().map(|(n, _)| (n.clone(), self.scope.get(n).cloned())).collect();
+        for (n, v) in row {
+            self.scope.set(n, v.clone());
+        }
+        let result = self.eval_statement(&statement);
+        for (n, old) in saved {
+            match old {
+                Some(v) => self.scope.set(&n, v),
+                None => {
+                    self.scope.remove(&n);
+                }
+            }
+        }
+        result
     }
 
     /// Parses a header cell.
@@ -302,19 +399,23 @@ impl Worksheet {
         let tokens = lex(text, self.opts.decimal_comma)?;
         let expr = parse(&tokens, text.chars().count())?;
         let q = eval_scalar(&expr, &self.scope, Names::Worksheet)?;
+        // A cell that writes its own unit (`15 %` in a `[%]` column) is not scaled again.
+        let own_unit = tokens.iter().any(|t| {
+            matches!(&t.tok, crate::lexer::Tok::Ident(n) if self.scope.get(n).is_none() && crate::units::constant(n).is_none() && crate::units::unit(n).is_some())
+        });
         match unit {
-            Some(u) if q.dim.is_dimensionless() => q.try_mul(u.q),
+            Some(u) if q.dim.is_dimensionless() && !own_unit => q.try_mul(u.q),
             Some(u) if q.dim != u.q.dim => Err(CalcError::WrongUnit { result: crate::units::dim_name(q.dim), requested: u.text.clone() }),
             _ => Ok(q),
         }
     }
 
     /// A computed cell: the number in the column's unit, or the number and its automatic unit.
-    fn cell_text(&self, q: Quantity, unit: Option<&Unit>) -> Result<String, CalcError> {
+    fn cell_text(&self, q: Quantity, unit: Option<&Unit>, hint: Option<&str>) -> Result<String, CalcError> {
         match unit {
             Some(u) => in_unit_text(&Value::Scalar(q), u.q, &u.text, &self.opts),
             None => {
-                let (number, unit) = self.auto(&Value::Scalar(q));
+                let (number, unit) = self.auto_hinted(&Value::Scalar(q), hint);
                 Ok(crate::worksheet::with_unit(&number, &unit))
             }
         }
@@ -344,4 +445,20 @@ fn aggregate(kind: Total, values: &[Quantity]) -> Result<Quantity, CalcError> {
         acc = acc.try_div(Quantity::number(values.len() as f64))?;
     }
     Ok(acc)
+}
+
+/// True for a cell that holds a statement (`q·L²/8 =`, `= q·L²/8`, `x = 5 m`, `σ ≤ f_yd`) rather
+/// than a value. Totals (`Σ =`) are recognised before this.
+fn is_statement(text: &str) -> bool {
+    text.contains(['=', '≔', '≤', '≥', '≠', '<', '>'])
+}
+
+/// The row's known values, by column name.
+fn row_values(columns: &[Column], label: &[bool], values: &[Vec<Option<Quantity>>], r: usize) -> Vec<(String, Value)> {
+    columns
+        .iter()
+        .enumerate()
+        .filter(|(k, _)| label.get(*k) == Some(&false))
+        .filter_map(|(k, col)| Some((col.name()?.to_string(), Value::Scalar(values.get(k)?.get(r).copied().flatten()?))))
+        .collect()
 }

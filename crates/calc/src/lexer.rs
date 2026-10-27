@@ -128,7 +128,7 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                 out.push(Token { tok: Tok::Ident(name), pos, byte });
                 continue;
             }
-            '°' | '%' => Tok::Ident(c.to_string()),
+            '°' | '%' | '‰' => Tok::Ident(c.to_string()),
             '+' => Tok::Plus,
             '-' | '\u{2212}' | '\u{2013}' => Tok::Minus,
             '*' | '·' | '×' | '\u{22C5}' | '\u{2219}' => Tok::Star,

@@ -72,14 +72,16 @@ fn automatic_units_prefer_coherent_si() {
 fn unit_conversions() {
     assert_eq!(last(&["1 km + 3 m ="]), "1 km + 3 m = 1003 m");
     assert_eq!(last(&["1 h = s"]), "1 h = 3600 s");
-    assert_eq!(last(&["100 % ="]), "100 % = 1");
+    assert_eq!(last(&["100 % ="]), "100 % = 100 %");
+    assert_eq!(last(&["100 % = 1"]), "100 % = 100 %");
     assert_eq!(last(&["2 kN/(4 m^2) ="]), "2 kN/(4 m^2) = 500 Pa");
     assert_eq!(last(&["1 kWh = J"]), "1 kWh = 3600000 J");
     assert_eq!(last(&["1 bar = kPa"]), "1 bar = 100 kPa");
     assert_eq!(last(&["1 t = kg"]), "1 t = 1000 kg");
     assert_eq!(last(&["90 min = h"]), "90 min = 1.5 h");
     assert_eq!(last(&["2 L = cm³"]), "2 L = 2000 cm³");
-    assert_eq!(last(&["180° ="]), "180° = 3.142");
+    assert_eq!(last(&["180° ="]), "180° = 180°");
+    assert_eq!(last(&["180° = rad"]), "180° = 3.142 rad");
     assert_eq!(last(&["π rad = °"]), "π rad = 180°");
     assert_eq!(last(&["0.25 = %"]), "0.25 = 25 %");
     assert_eq!(last(&["1 µm = nm"]), "1 µm = 1000 nm");
@@ -666,9 +668,9 @@ fn table_errors_stay_in_their_cells() {
     let rows = table(&[&["a [m]", "b [s]", "c = a + b", "d [kg] = a*2"], &["1", "2", "", ""], &["", "3", "", ""], &["Σ =", "", "", ""]]);
     let r = ws.eval_table(&rows);
     let at: Vec<(usize, usize)> = r.errors.iter().map(|(r, c, _)| (*r, *c)).collect();
-    assert_eq!(at, vec![(1, 2), (2, 2), (1, 3), (2, 3)]);
+    assert_eq!(at, vec![(1, 2), (1, 3), (2, 2), (2, 3)]);
     assert!(matches!(r.errors[0].2, CalcError::DimensionMismatch { .. }));
-    assert!(matches!(r.errors[1].2, CalcError::MissingValue(ref n) if n == "a"));
+    assert!(matches!(r.errors[2].2, CalcError::MissingValue(ref n) if n == "a"));
     assert!(r.updates.contains(&(1, 2, "⚠".to_string())));
     assert!(r.updates.contains(&(3, 0, "Σ = 1".to_string())));
     // `a` has an empty cell: it is not defined as a column; `b` is.
@@ -761,4 +763,67 @@ fn unit_typos_get_a_hint() {
     assert_eq!(last_error(&["3 KN ="]).to_string(), "unknown name KN (did you mean kN?)");
     assert_eq!(last_error(&["3 m + 2 MM ="]).to_string(), "unknown name MM (did you mean mm?)");
     assert_eq!(last_error(&["3 m + 2 qq ="]).to_string(), "unknown name qq");
+}
+
+#[test]
+fn dimensionless_units_are_kept() {
+    assert_eq!(last(&["α = 30°", "α ="]), "α = 30°");
+    assert_eq!(last(&["α = 30°", "β = 90° - α", "β ="]), "β = 60°");
+    assert_eq!(last(&["α = 30°", "2 α ="]), "2 α = 60°");
+    assert_eq!(last(&["α = 30°", "sin(α) ="]), "sin(α) = 0.5");
+    assert_eq!(last(&["α = 30°", "α = rad"]), "α = 0.524 rad");
+    assert_eq!(last(&["x = acos(0.5) ="]), "x = acos(0.5) = 60°");
+    assert_eq!(last(&["p = 15 %", "p ="]), "p = 15 %");
+    assert_eq!(last(&["p = 15 %", "2 p ="]), "2 p = 30 %");
+    assert_eq!(last(&["p = 15 %", "1 + p ="]), "1 + p = 115 %");
+    assert_eq!(last(&["F = 10 kN", "p = 15 %", "F·(1 + p) ="]), "F·(1 + p) = 11.5 kN");
+    assert_eq!(last(&["w = 2 ‰", "w ="]), "w = 2 ‰");
+    assert_eq!(last(&["c = 450 ppm", "c ="]), "c = 450 ppm");
+    assert_eq!(last(&["a = 100 gon", "a = °"]), "a = 90°");
+    // Solved unknowns keep the unit of what they equal.
+    assert_eq!(last(&["α = 30°", "β + α = 90°"]), "β + α = 90° ⇒ β = 60°");
+    // Ratios of the same unit are plain numbers.
+    assert_eq!(last(&["α = 30°", "β = 60°", "α/β ="]), "α/β = 0.5");
+    // Comparisons read in the left side's unit.
+    assert_eq!(last(&["α = 30°", "α ≤ 45°"]), "α ≤ 45° ⇒ 30° ≤ 45° ✓");
+    assert_eq!(last(&["x = 0.5", "x = %"]), "x = 50 %");
+}
+
+#[test]
+fn dimensionless_table_columns() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[&["p [%]", "α [°]", "k = p*2"], &["15", "30", ""], &["20 %", "0.5 rad", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert!(r.updates.contains(&(1, 2, "30 %".to_string())), "{:?}", r.updates);
+    assert!(r.updates.contains(&(2, 2, "40 %".to_string())), "{:?}", r.updates);
+    assert_eq!(ws.eval_statement("α =").display.as_deref(), Some("α = [30; 28.648]°"));
+    assert_eq!(ws.eval_statement("p =").display.as_deref(), Some("p = [15; 20] %"));
+}
+
+#[test]
+fn every_cell_can_be_data_a_formula_or_an_equation() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[
+        &["Beam", "L [m]", "q [kN/m]", "M [kN·m]", "V [kN] = q*L/2"],
+        &["B1", "4.5", "12", "q*L^2/8 =", ""],
+        &["B2", "6", "10", "= q*L^2/8", "= q*L/2 + 1 kN"],
+        &["B3", "2", "5", "20", ""],
+        &["B4", "", "", "x = 3 m", ""],
+        &["", "", "", "Σ =", "Σ ="],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let at = |row: usize, col: usize| r.updates.iter().find(|(a, b, _)| (*a, *b) == (row, col)).map(|(_, _, t)| t.as_str());
+    assert_eq!(at(1, 3), Some("q*L^2/8 = 30.375 kN·m"));
+    assert_eq!(at(2, 3), Some("q*L^2/8 = 45 kN·m"), "a leading = reads as an evaluation");
+    assert_eq!(at(3, 3), None, "data stays as typed");
+    assert_eq!(at(1, 4), Some("27"));
+    // A statement in a formula column replaces the formula for that cell; `V` is the row's value.
+    assert_eq!(at(2, 4), Some("q*L/2 + 1 kN = 31 kN"));
+    assert_eq!(at(5, 3), Some("Σ = 95.375"));
+    assert_eq!(at(5, 4), Some("Σ = 63"));
+    // A definition in a cell defines a parameter for later regions; the row's names don't leak.
+    assert_eq!(ws.eval_statement("x =").display.as_deref(), Some("x = 3 m"));
+    assert_eq!(ws.eval_statement("M =").display.as_deref(), Some("M = [30.375; 45; 20] kN·m"));
 }

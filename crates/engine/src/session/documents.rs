@@ -279,6 +279,9 @@ impl Session {
             others: _,
             order: _,
             untitled_count: _,
+            // Derived from the active document: the next command after a switch reads it again.
+            calc_seen: _,
+            run_depth: _,
             #[cfg(not(target_arch = "wasm32"))]
                 recovery: _,
         } = self;

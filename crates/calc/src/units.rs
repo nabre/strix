@@ -71,6 +71,10 @@ const UNITS: &[UnitDef] = &[
     u("deg", std::f64::consts::PI / 180.0, NONE, false),
     u("°", std::f64::consts::PI / 180.0, NONE, false),
     u("%", 0.01, NONE, false),
+    u("‰", 0.001, NONE, false),
+    u("ppm", 1e-6, NONE, false),
+    u("gon", std::f64::consts::PI / 200.0, NONE, false),
+    u("sr", 1.0, NONE, false),
 ];
 
 /// SI prefixes accepted on prefixable units. `µ` (micro sign), `μ` (Greek mu) and `u` all mean

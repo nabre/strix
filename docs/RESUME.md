@@ -45,5 +45,4 @@ Last updated 2026-10-27 (evening). Branch `main`.
 - Calc: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, systems of equations
   across regions, solution steps, plots; number format per document (now a preference).
 - Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").
-- Discord icon in `crates/ui-egui/src/icons.rs` ("discord") → a generic community icon.
 - Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.

@@ -3,7 +3,7 @@
 use crate::parser::{BinOp, Expr, Func, Nary};
 use crate::quantity::{Dim, Quantity, finite};
 use crate::units::{constant, dim_name, unit};
-use crate::{CalcError, MAX_STEPS, MAX_VALUES};
+use crate::{CalcError, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
 
 /// A list of magnitudes (coherent SI units) sharing one dimension: a range, a vector literal or
 /// a table column. At most [`MAX_VALUES`] long; every value is finite.
@@ -103,6 +103,9 @@ impl From<Quantity> for Value {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scope {
     entries: Vec<(String, Value)>,
+    /// Work done by every evaluation against this scope (one worksheet), capped by
+    /// [`MAX_SHEET_STEPS`]: however many regions and cells a document has, recalculating it ends.
+    spent: std::cell::Cell<usize>,
 }
 
 impl Scope {
@@ -183,8 +186,22 @@ impl<'a> Ctx<'a> {
 
     /// Counts `n` units of work.
     fn charge(&mut self, n: usize) -> Result<(), CalcError> {
-        self.steps = self.steps.saturating_add(n.max(1));
-        if self.steps > MAX_STEPS { Err(CalcError::TooMuchWork) } else { Ok(()) }
+        let n = n.max(1);
+        self.steps = self.steps.saturating_add(n);
+        let spent = self.scope.spent.get().saturating_add(n);
+        self.scope.spent.set(spent);
+        if self.steps > MAX_STEPS || spent > MAX_SHEET_STEPS { Err(CalcError::TooMuchWork) } else { Ok(()) }
+    }
+
+    /// Starts the step count at `steps`, so several evaluations share one [`MAX_STEPS`] budget.
+    pub(crate) fn with_steps(mut self, steps: usize) -> Self {
+        self.steps = steps;
+        self
+    }
+
+    /// The steps counted so far.
+    pub(crate) fn steps(&self) -> usize {
+        self.steps
     }
 
     pub(crate) fn eval(&mut self, expr: &Expr) -> Result<Value, CalcError> {

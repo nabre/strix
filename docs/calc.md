@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks); Variables pane, systems and solution steps next · **Last updated:** 2026-10-27 · **Change:** one `=` for everything; solving; Σ; tables; number format
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks); Variables pane, systems and solution steps next · **Last updated:** 2026-10-27 · **Change:** automatic recalculation; cell statements; dimensionless units
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -22,8 +22,13 @@ Nothing else about the table changes: style, borders and text stay the user's.
 
 Regions and calculated tables are evaluated in reading order (body top to bottom, a paragraph
 left to right, tables cell by cell; a calculated table as a whole), like a worksheet. Only
-calculated items see each other. Leaving a calculated equation recalculates the document, as do
-F9 and Update Fields.
+calculated items see each other.
+
+**Recalculation is automatic**: after every command that changes what the calculations read (a
+region's text, a calculated table's cells), the document is recalculated, from the engine, so
+the CLI and MCP get it too. While an equation is being edited, or the caret is in a calculated
+table, it waits until the caret leaves, like a spreadsheet: what is being typed is never
+rewritten under the caret. F9 and Update Fields recalculate on demand.
 
 Strix saves only `.xmath`/`.xmathm` (plus static PDF, PNG, LaTeX, HTML and Markdown exports): a
 `.docx` or any other editable format would lose the regions, so they are import-only.
@@ -74,7 +79,9 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   number, or two of the same length), functions element by element; `sum mean len min max` take
   any mix of values and vectors; `∑▒F` sums a vector. A vector holds values of one kind.
 - Shown as `[1; 2; 3] kN`; a long vector shows its first 8 values, `…` and the last.
-- Limits: 10 000 values per vector, range or sum; 1 000 000 steps per statement (nested sums).
+- Limits: 10 000 values per vector, range or sum; 1 000 000 steps per statement, per table and
+per numeric solve; 20 000 000 steps per document; a calculated table evaluates at most 64
+columns and 100 000 cells.
 
 ## Calculated tables
 
@@ -88,7 +95,14 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
 | B2 | 6000 mm | 10 | *60.75* |
 | Total | | | *Σ = 101.756* |
 
-- Input cells are expressions, usually numbers in the column's unit; a cell with its own unit of
+- **Every cell works out what it is.** A cell holding `=` (or a comparison) is a statement of
+  its own, read like a region with the row's values as parameters: `q·L²/8 =` becomes
+  `q·L²/8 = 30.375 kN·m`; `= q·L²/8` (spreadsheet style) reads as `q·L²/8 =`; `x = 5 m` defines
+  `x` for the rest of the document; `F = m·a` solves. Its value is the column's value in that row
+  (for totals and for formulas to its right) when it is a result or defines the column's own
+  name. In a formula column such a cell replaces the column formula. Cells are read row by row,
+  left to right.
+- Data cells are expressions, usually numbers in the column's unit; a cell with its own unit of
   the same kind is converted (`6000 mm` in a metre column). A bare-name column whose cells are
   not all values (`B1`) is a label column.
 - Formula cells are overwritten with the formula's value for the row, in the column's unit (or
@@ -107,8 +121,14 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
 dimension vector over the 7 SI base dimensions. Units: SI base and derived (`m s kg A K mol cd N
 Pa J W C V Ω Hz`), prefixes (`n µ m c d k M G`) on the units that take them, common engineering
 units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles, `bar`, `kWh`), and
-dimensionless `%`. Temperature is absolute (`K`); affine `°C` is a later stage. A unit typed in
+dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`. Temperature is absolute (`K`); affine `°C` is a later stage. A unit typed in
 the wrong case gets a hint: "unknown name KN (did you mean kN?)".
+
+**Dimensionless units are kept.** A plain number carries no unit, so Strix remembers the one
+written: `α = 30°` shows `α = 30°`, `p = 15 %` shows `15 %`. Results inherit it from their parts
+(`90° − α` → `60°`, `2·p` → `30 %`, `1 + p` → `115 %`, `acos(0.5)` → `60°`); `sin(α)` and a ratio
+`α/β` are plain numbers. A table column `[%]` reads `15` as 15 % and `15 %` as itself. Asking for
+a unit converts as usual (`α = rad`).
 
 **Display unit**, in order: the unit asked for after `=`; the **working unit** of the result's
 kind, which is the last unit written for it (in a definition, a requested display unit or a
@@ -171,6 +191,9 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: automatic recalculation after edits (waiting while the caret is in the item);
+  every table cell is data or a statement; dimensionless units (`% ‰ ppm ° rad gon sr`) kept
+  through results; step budgets per document, table and solve.
 - 2026-10-27: one `=` for definitions, results, solving and checks; Σ/∏, ranges and vectors;
   calculated tables; number format (digits, auto/decimals/significant, zeros, half-away
   rounding); working units; comparisons with ✓/✗; unit hints; Math tab; `*` types `·`.

@@ -637,6 +637,12 @@ pub struct Session {
     order: Vec<u64>,
     /// Untitled documents made so far, for the next one's name (`Document3`).
     untitled_count: u32,
+    /// What the calculations last read (a hash of every calc region's and calculated table's
+    /// text), so an edit that changes them recalculates once the caret leaves (docs/calc.md).
+    pub(crate) calc_seen: Option<u64>,
+    /// How deep the running command is nested (top level: 1), so only top-level commands
+    /// recalculate.
+    run_depth: usize,
 }
 
 /// The number of edit locations Go Back cycles through (Word: four).
@@ -986,6 +992,8 @@ impl Session {
             others: Vec::new(),
             order: vec![document_id],
             untitled_count: 1,
+            calc_seen: None,
+            run_depth: 0,
         }
     }
 
@@ -1780,6 +1788,9 @@ impl Session {
             // Go Back's places, like the caret history: not part of the document.
             edit_marks: _,
             go_back_step: _,
+            // What the calculations last read: derived from the document.
+            calc_seen: _,
+            run_depth: _,
         } = self;
         let head = if history.len() + SNAPSHOT_HEAD > MAX_UNDO { history.iter().take(SNAPSHOT_HEAD).cloned().collect() } else { Vec::new() };
         EditSnapshot {
@@ -1998,6 +2009,17 @@ impl Session {
     /// control channel). Mutating commands are undoable; a failed command leaves the document as
     /// it was; a panic inside a command becomes an error.
     pub fn run(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {
+        self.run_depth = self.run_depth.saturating_add(1);
+        let result = self.run_command(id, params);
+        self.run_depth = self.run_depth.saturating_sub(1);
+        // A top-level command that changed what the calculations read recalculates them.
+        if self.run_depth == 0 && result.is_ok() {
+            crate::cmd::calc::auto_recalculate(self);
+        }
+        result
+    }
+
+    fn run_command(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {
         // The document the command starts in, and the first id a document it opens can have.
         let home = self.document_id;
         let mark = document_id_mark();

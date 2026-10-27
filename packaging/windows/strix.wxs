@@ -49,7 +49,7 @@
     <Property Id="ARPPRODUCTICON" Value="StrixIcon.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/nabre/strix" />
     <Property Id="ARPURLUPDATEINFO" Value="https://github.com/nabre/strix" />
-    <Property Id="ARPHELPLINK" Value="https://discord.gg/artcraft" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/nabre/strix/issues" />
 
     <!-- Installer UI (#198): WixUI_Minimal is welcome + license, progress, then a finish page so
          people can see the install worked. Its dialogs and bitmaps are WiX's own

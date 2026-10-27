@@ -140,9 +140,14 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope) -> Result<
     let mut known = Vec::new();
     free_names(lhs, &mut known);
     free_names(rhs, &mut known);
+    // One budget for the whole search: the grid, the bisections and the secant steps.
+    let spent = std::cell::Cell::new(0usize);
     let ctx_eval = |e: &Expr, at: Option<Quantity>| -> Result<Value, CalcError> {
         let locals = at.map(|q| vec![(x.to_string(), Value::Scalar(q))]).unwrap_or_default();
-        Ctx::new(scope, Names::Worksheet, locals).eval(e)
+        let mut ctx = Ctx::new(scope, Names::Worksheet, locals).with_steps(spent.get());
+        let result = ctx.eval(e);
+        spent.set(ctx.steps());
+        result
     };
     for name in known.iter().filter(|n| *n != x) {
         if let Ok(v) = ctx_eval(&Expr::Name(name.clone()), None) {
@@ -191,6 +196,9 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope) -> Result<
             return Ok(Quantity::new(v, dim));
         }
         last_err = CalcError::NoSolution(x.to_string());
+    }
+    if spent.get() > crate::MAX_STEPS {
+        return Err(CalcError::TooMuchWork);
     }
     Err(last_err)
 }
