@@ -1879,11 +1879,7 @@ fn pt(p: Pt) -> P {
 
 /// The next input is a size (a circle's radius or diameter): a number typed is that distance.
 fn takes_size(ed: &CadEditor) -> bool {
-    match (ed.tool, ed.points.len()) {
-        (Tool::Circle(CircleMode::Radius | CircleMode::Diameter), 1) => true,
-        (Tool::Circle(CircleMode::TanTanRadius), 2) => true,
-        _ => false,
-    }
+    matches!((ed.tool, ed.points.len()), (Tool::Circle(CircleMode::Radius | CircleMode::Diameter), 1) | (Tool::Circle(CircleMode::TanTanRadius), 2))
 }
 
 /// The curve picked by a click at `p` for a tangent (the nearest one shown).
