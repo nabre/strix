@@ -618,7 +618,8 @@ impl Drawing {
                     *width = c(*width, 0.1, 100.0, strip_width());
                     *angle = c(*angle, 5.0, 175.0, strip_angle());
                     *spacing = c(*spacing, 0.2, 50.0, strip_spacing());
-                    along.truncate(64);
+                    // Cut at a character boundary: an id from a file may be any text.
+                    along.truncate(along.char_indices().nth(64).map_or(along.len(), |(i, _)| i));
                 }
                 Kind::Angle { r, text, .. } => {
                     *r = if r.is_finite() { r.abs().min(MAX_COORD) } else { 0.0 };

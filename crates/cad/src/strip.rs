@@ -10,6 +10,9 @@ use crate::model::{Drawing, Entity, Kind, Pattern, Side};
 
 /// Most hatch lines one strip draws.
 const MAX_HATCH_LINES: usize = 20_000;
+/// Most intersection tests one strip's hatch makes (lines times the band's sides): a band too
+/// finely hatched for it is hatched more coarsely.
+const MAX_HATCH_WORK: usize = 4_000_000;
 /// A mitre is at most this many widths long; a sharper corner is cut back to it.
 const MITRE_LIMIT: f64 = 4.0;
 
@@ -126,10 +129,18 @@ impl Drawing {
         let sides: Vec<(Pt, Pt)> =
             (0..shape.polygon.len()).filter_map(|i| Some((*shape.polygon.get(i)?, *shape.polygon.get((i + 1) % shape.polygon.len())?))).collect();
         let mut out = Vec::new();
+        // The work is bounded before it starts: the step is widened so that the lines, and the
+        // intersection tests each of them makes, stay within their budgets.
+        let total: f64 = (0..segments).filter_map(|i| Some(shape.path.get((i + 1) % n)?.minus(*shape.path.get(i)?).len())).sum();
+        let allowed = (MAX_HATCH_LINES / angles.len().max(1)).min(MAX_HATCH_WORK / sides.len().max(1)).max(1);
         for &deg in angles {
             let (sin, cos) = deg.to_radians().sin_cos();
             // Along the path, lines `spacing` apart square to them are spacing / sin θ apart.
-            let step = (spacing / k) / sin.abs().max(0.05);
+            let step = ((spacing / k) / sin.abs().max(0.05)).max(total / allowed as f64);
+            if !(step.is_finite() && step > 0.0) {
+                continue;
+            }
+            let mut tries = 0usize;
             let reach = (width / k) / sin.abs().max(0.05) * 2.0;
             let mut phase = step / 2.0;
             for i in 0..segments {
@@ -138,7 +149,8 @@ impl Drawing {
                 let u = b.minus(a).unit();
                 let dir = u.scale(cos).plus(u.left().scale(towards * sin));
                 let mut t = phase;
-                while t < len && out.len() < MAX_HATCH_LINES {
+                while t < len && out.len() < MAX_HATCH_LINES && tries <= allowed + segments {
+                    tries += 1;
                     let p = a.plus(u.scale(t));
                     // The line runs across the band to the first side it meets beyond its start.
                     let far = p.plus(dir.scale(reach));
@@ -151,7 +163,12 @@ impl Drawing {
                     if let Some((_, q)) = hit {
                         out.push((p, q));
                     }
-                    t += step;
+                    // Far out, a small step may round away: then the segment is done.
+                    let next = t + step;
+                    if next <= t {
+                        break;
+                    }
+                    t = next;
                 }
                 phase = t - len;
             }

@@ -1084,3 +1084,31 @@ fn strips_follow_their_path() {
     let _ = h.render(None);
     h.sanitize();
 }
+
+/// Review: a strip id cut inside a multi-byte character, and a hatch far too fine for its path,
+/// neither panic nor run away.
+#[test]
+fn hostile_strips_stay_bounded() {
+    // 70 two-byte characters: byte 64 falls inside the 33rd.
+    let id: String = "é".repeat(70);
+    let d = Drawing::from_json(&format!(r#"{{"entities":[{{"type":"strip","along":"{id}"}}]}}"#)).unwrap();
+    assert!(matches!(&d.entities[0].kind, Kind::Strip { along, .. } if along.chars().count() == 64));
+    // A kilometre-long path in millimetres at 1:0.001 (a 1000 km band on paper), hatched 0.2 mm
+    // apart: coarser, and quickly.
+    let mut d = Drawing::from_json(
+        r#"{"unit":"mm","scale":0.001,"entities":[{"id":"g","type":"line","a":[0,0],"b":[1000000,0]},{"type":"strip","along":"g","spacing":0,"pattern":"cross"}]}"#,
+    )
+    .unwrap();
+    d.sanitize();
+    let strip = d.entities[1].clone();
+    let start = std::time::Instant::now();
+    let lines = d.strip_lines(&strip);
+    assert!(lines.len() <= 20_000, "{}", lines.len());
+    assert!(start.elapsed().as_secs() < 5);
+    // Coordinates near the limit with a tiny step: the loop still ends.
+    let far = Drawing::from_json(
+        r#"{"unit":"mm","scale":1,"entities":[{"id":"g","type":"line","a":[999999000,0],"b":[1000000000,0]},{"type":"strip","along":"g","spacing":0.2}]}"#,
+    )
+    .unwrap();
+    let _ = far.strip_lines(&far.entities[1].clone());
+}
