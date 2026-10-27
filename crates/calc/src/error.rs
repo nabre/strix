@@ -83,6 +83,60 @@ pub enum CalcError {
     FunctionNeedsArguments(String),
     /// A malformed definition (the left side of `:=` is not a single name, …).
     BadDefinition(String),
+    /// A vector or range longer than [`MAX_VALUES`](crate::MAX_VALUES), or a sum with more
+    /// terms.
+    TooManyValues {
+        /// The limit.
+        limit: usize,
+    },
+    /// More work than [`MAX_STEPS`](crate::MAX_STEPS) (nested sums over long ranges).
+    TooMuchWork,
+    /// Values of different dimensions in one vector or table column.
+    MixedVector {
+        /// Unit of the first element.
+        first: String,
+        /// Unit of the element that differs.
+        other: String,
+    },
+    /// A vector where a single value is needed.
+    NotAScalar {
+        /// Number of elements of the vector.
+        len: usize,
+    },
+    /// Two vectors of different lengths combined element by element.
+    LengthMismatch {
+        /// Length of the left operand.
+        left: usize,
+        /// Length of the right operand.
+        right: usize,
+    },
+    /// An index outside `1..=len`.
+    IndexOutOfRange {
+        /// The index asked for (1-based).
+        index: i64,
+        /// Number of elements.
+        len: usize,
+    },
+    /// An index or limit that is not a whole number.
+    NotWhole {
+        /// What it was: "an index", "a limit of ∑".
+        what: String,
+    },
+    /// A table cell that is empty where a formula needs its value.
+    MissingValue(String),
+    /// No value of the unknown satisfies the equation (or none was found).
+    NoSolution(String),
+    /// An equation with more than one unknown: it cannot be solved, so it is left as written.
+    Underdetermined(Vec<String>),
+    /// A check (`σ ≤ f_yd`) that does not hold; the text is the comparison with the values.
+    CheckFailed(String),
+    /// An equation whose sides are both known but differ.
+    NotEqual {
+        /// The left side, formatted.
+        left: String,
+        /// The right side, formatted.
+        right: String,
+    },
 }
 
 impl CalcError {
@@ -98,8 +152,8 @@ impl fmt::Display for CalcError {
             CalcError::Syntax { pos, message } => write!(f, "syntax error at char {pos}: {message}"),
             CalcError::TooLong { limit } => write!(f, "the statement is too long (more than {limit} characters)"),
             CalcError::TooComplex => f.write_str("the expression is too complex (nested too deeply or too many terms)"),
-            CalcError::UnknownName(name) => write!(f, "unknown name {name}"),
-            CalcError::UnknownUnit(name) => write!(f, "{name} is not a unit"),
+            CalcError::UnknownName(name) => write!(f, "unknown name {name}{}", hint(name)),
+            CalcError::UnknownUnit(name) => write!(f, "{name} is not a unit{}", hint(name)),
             CalcError::DimensionMismatch { op, left, right } => write!(f, "cannot {op} {left} and {right}"),
             CalcError::WrongUnit { result, requested } => write!(f, "result is in {result}, not {requested}"),
             CalcError::DivisionByZero => f.write_str("division by zero"),
@@ -115,8 +169,25 @@ impl fmt::Display for CalcError {
             CalcError::Arity { function, expected } => write!(f, "{function} takes {expected}"),
             CalcError::FunctionNeedsArguments(name) => write!(f, "{name} needs its argument in parentheses, like {name}(x)"),
             CalcError::BadDefinition(message) => f.write_str(message),
+            CalcError::TooManyValues { limit } => write!(f, "too many values (more than {limit})"),
+            CalcError::TooMuchWork => f.write_str("the calculation takes too many steps"),
+            CalcError::MixedVector { first, other } => write!(f, "a vector holds values of one kind, not both {first} and {other}"),
+            CalcError::NotAScalar { len } => write!(f, "expected a single value, not a vector of {len}"),
+            CalcError::LengthMismatch { left, right } => write!(f, "cannot combine vectors of {left} and {right} values"),
+            CalcError::IndexOutOfRange { index, len } => write!(f, "index {index} is outside 1..{len}"),
+            CalcError::NotWhole { what } => write!(f, "{what} must be a whole number"),
+            CalcError::MissingValue(name) => write!(f, "{name} has no value in this row"),
+            CalcError::NoSolution(name) => write!(f, "no value of {name} solves the equation"),
+            CalcError::Underdetermined(names) => write!(f, "more than one unknown ({}): give values to all but one", names.join(", ")),
+            CalcError::CheckFailed(text) => write!(f, "the check fails: {text}"),
+            CalcError::NotEqual { left, right } => write!(f, "the two sides differ: {left} ≠ {right}"),
         }
     }
 }
 
 impl std::error::Error for CalcError {}
+
+/// " (did you mean kN?)" when `name` is a unit spelled with the wrong case.
+fn hint(name: &str) -> String {
+    crate::units::suggest(name).map(|u| format!(" (did you mean {u}?)")).unwrap_or_default()
+}

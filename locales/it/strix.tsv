@@ -2430,8 +2430,39 @@ preview	Title	Esempio
 	Calculate New Equations	Calcola nuove equazioni
 	Calculation Region	Regione di calcolo
 	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	File › Nuovo elenca qui i modelli .xmathm, .dotx e .dotm in Personali; Salva come modello Strix parte da qui.
-	Make this equation a live calculation: define with := and show results with =	Rendi questa equazione un calcolo dinamico: definisci con := e mostra i risultati con =
 	New equations are live calculations	Le nuove equazioni sono calcoli dinamici
 	Recalculate	Ricalcola
 	Recalculate every calculation in the document (F9)	Ricalcola tutti i calcoli del documento (F9)
 	Regions	Regioni
+	Math	Matematica
+	Calculations	Calcoli
+	New
+Calculation	Nuovo
+calcolo
+	New Calculation	Nuovo calcolo
+	Make the equation at the cursor a live calculation, or an ordinary one	Rendi l'equazione al cursore un calcolo dinamico, o un'equazione normale
+	Tables	Tabelle
+	Calculated
+Table	Tabella
+calcolata
+	Calculated Table	Tabella calcolata
+	Calculate This Table	Calcola questa tabella
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	La tabella al cursore è calcolata: dai un nome alle colonne nella prima riga (L [m], M [kN·m] = q·L²/8) e sommale con Σ =
+	More Digits	Più cifre
+	Fewer Digits	Meno cifre
+	Show one more digit in results	Mostra una cifra in più nei risultati
+	Show one digit less in results	Mostra una cifra in meno nei risultati
+	Number Format	Formato numeri
+	How results are rounded	Come vengono arrotondati i risultati
+	Automatic (Decimals, Significant Below 1)	Automatico (decimali, significative sotto 1)
+	Decimal Places	Cifre decimali
+	Significant Digits	Cifre significative
+	Show Trailing Zeros	Mostra zeri finali
+	Make this equation a live calculation: write it with = and the unknown is solved for	Rendi questa equazione un calcolo dinamico: scrivila con = e l'incognita viene ricavata
+	Drawing	Disegno
+	CAD
+Drawing	Disegno
+CAD
+	CAD Drawing	Disegno CAD
+	Insert a CAD drawing whose sizes can follow the calculations	Inserisci un disegno CAD le cui misure possono seguire i calcoli
+	Calculate	Calcola

@@ -1,6 +1,6 @@
 # Resume notes
 
-Last updated 2026-10-27. Branch `main`.
+Last updated 2026-10-27 (evening). Branch `main`.
 
 ## Done
 - WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
@@ -17,6 +17,18 @@ Last updated 2026-10-27. Branch `main`.
 - README and ROADMAP reoriented: Strix is a tool for solving math/engineering problems, with a
   built-in CAD planned.
 
+- Calculations with one `=` (docs/calc.md): unknown detected and solved (symbolic isolation,
+  else numeric with the smallest non-negative root), checks `a = b` and comparisons `≤ ≥ < > ≠`
+  with ✓/✗; Σ/∏, ranges, vectors; calculated tables (`TableProps::calc`, `strix:calc` on
+  `w:tblPr`, Table Layout › Data › Calculated Table); number format (`calc.options`: digits 3,
+  auto/decimals/significant, zeros, half-away rounding, scientific ≥1e7 / <1e-3); working units
+  (last unit written per kind); unit-case hints; Math tab (keytip C); `*` types `·` in equations.
+- `strix-cad` stage 1 (docs/cad.md): drawing model, coordinates as expressions of calc
+  parameters, `<>`/`{{L}}` dimension labels, rendering to paper-mm primitives, AutoCAD point entry.
+- `old_strix/` (the owner's earlier prototype) is local only and git-ignored: nothing may depend
+  on it; it can be deleted at any time. Its calc and CAD behaviour is recorded in docs/calc.md and
+  docs/cad.md.
+
 ## Known
 - Windows-only test failures inherited from upstream: `strix-proof`
   `hunspell::tests::reads_are_bounded_and_regular_files_only`, `strix-layout`
@@ -27,9 +39,11 @@ Last updated 2026-10-27. Branch `main`.
   still need adapting to Strix.
 
 ## Next
-- Calc stage 2+: Variables pane, unit picker, `°C`/`°F`, user functions, ranges/Σ, tabular
-  calculation, solve, plots.
-- Built-in CAD (parametric drawings bound to calculation parameters): design first.
+- CAD stage 2: `insert.cad` (Insert › Illustrations › CAD Drawing, Math › Drawing) as a drawing
+  canvas generated from the model, `cad.*` commands, regeneration on recalculation, `.xmath`
+  round trip; then the egui editor (stage 3).
+- Calc: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, systems of equations
+  across regions, solution steps, plots; number format per document (now a preference).
 - Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").
 - Discord icon in `crates/ui-egui/src/icons.rs` ("discord") → a generic community icon.
 - Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.

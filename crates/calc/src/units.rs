@@ -91,6 +91,20 @@ pub fn unit(name: &str) -> Option<Quantity> {
     })
 }
 
+/// A unit spelled like `name` but for letter case (`KN` → `kN`), when `name` itself is not one.
+/// Lower-case prefixes are tried first, so `MM` suggests `mm`, not `Mm`.
+pub(crate) fn suggest(name: &str) -> Option<String> {
+    if unit(name).is_some() || name.chars().count() > 8 {
+        return None;
+    }
+    let lower = name.to_lowercase();
+    let names = UNITS.iter().map(|d| d.name.to_string());
+    let prefixed = PREFIXES.iter().flat_map(|&(p, _)| UNITS.iter().filter(|d| d.prefixable).map(move |d| format!("{p}{}", d.name)));
+    let mut found: Vec<String> = names.chain(prefixed).filter(|n| n.to_lowercase() == lower && n != name).collect();
+    found.sort_by_key(|n| n.chars().filter(|c| c.is_uppercase()).count());
+    found.into_iter().next()
+}
+
 /// The predefined constant called `name`: `π`/`pi`, `e` and `g` (standard gravity,
 /// 9.80665 m/s²).
 pub fn constant(name: &str) -> Option<Quantity> {

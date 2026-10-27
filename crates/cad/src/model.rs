@@ -1,0 +1,459 @@
+//! The drawing model and its JSON form.
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use strix_calc::{Quantity, Value, Worksheet};
+
+use crate::geom::Pt;
+use crate::{MAX_COORD, MAX_ENTITIES, MAX_JSON_BYTES, MAX_LAYERS, MAX_VERTICES};
+
+/// The real-world unit coordinates are in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Unit {
+    #[default]
+    Mm,
+    Cm,
+    M,
+}
+
+impl Unit {
+    /// Millimetres in one unit.
+    pub fn mm(self) -> f64 {
+        match self {
+            Unit::Mm => 1.0,
+            Unit::Cm => 10.0,
+            Unit::M => 1000.0,
+        }
+    }
+
+    /// The unit's symbol, as calculations write it.
+    pub fn symbol(self) -> &'static str {
+        match self {
+            Unit::Mm => "mm",
+            Unit::Cm => "cm",
+            Unit::M => "m",
+        }
+    }
+}
+
+/// A number in the drawing: a literal, or an expression of calculation parameters with its last
+/// value. Serialized as a JSON number, or as the expression's text.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Num {
+    /// The value in drawing units (degrees for angles).
+    pub value: f64,
+    /// The expression the value comes from (`"L/2"`), if any.
+    pub expr: Option<String>,
+}
+
+impl Num {
+    pub fn new(value: f64) -> Num {
+        Num { value, expr: None }
+    }
+
+    pub fn expr(text: &str) -> Num {
+        Num { value: 0.0, expr: Some(text.to_string()) }
+    }
+}
+
+impl From<f64> for Num {
+    fn from(v: f64) -> Self {
+        Num::new(v)
+    }
+}
+
+impl Serialize for Num {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        match &self.expr {
+            Some(e) => s.serialize_str(e),
+            // Canonical: rounded to 0.001 so the saved bytes follow the content, not the noise.
+            None => s.serialize_f64((self.value * 1000.0).round() / 1000.0),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Num {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            N(f64),
+            S(String),
+        }
+        Ok(match Raw::deserialize(d)? {
+            Raw::N(v) if v.is_finite() => Num::new(v.clamp(-MAX_COORD, MAX_COORD)),
+            Raw::N(_) => Num::new(0.0),
+            Raw::S(s) => match s.trim().parse::<f64>() {
+                Ok(v) if v.is_finite() => Num::new(v.clamp(-MAX_COORD, MAX_COORD)),
+                _ => Num::expr(&s.chars().take(strix_calc::MAX_INPUT_CHARS).collect::<String>()),
+            },
+        })
+    }
+}
+
+/// A point `[x, y]`.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct P(pub Num, pub Num);
+
+impl P {
+    pub fn new(x: f64, y: f64) -> P {
+        P(Num::new(x), Num::new(y))
+    }
+
+    pub fn pt(&self) -> Pt {
+        Pt::new(self.0.value, self.1.value)
+    }
+}
+
+/// A line pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Dash {
+    #[default]
+    Solid,
+    Dashed,
+    Dotted,
+    DashDotted,
+}
+
+impl Dash {
+    /// The pattern in paper mm (on, off, …); empty for solid.
+    pub fn pattern(self) -> &'static [f64] {
+        match self {
+            Dash::Solid => &[],
+            Dash::Dashed => &[4.0, 2.0],
+            Dash::Dotted => &[0.5, 1.5],
+            Dash::DashDotted => &[6.0, 1.5, 0.5, 1.5],
+        }
+    }
+}
+
+/// A layer: entities on it take its stroke unless they set their own.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Layer {
+    pub name: String,
+    /// RGB.
+    pub color: [u8; 3],
+    /// Stroke width in paper mm.
+    pub width: f64,
+    pub dash: Dash,
+    pub visible: bool,
+}
+
+impl Default for Layer {
+    fn default() -> Self {
+        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true }
+    }
+}
+
+/// An entity's own stroke; `None` fields come from its layer ("ByLayer").
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Stroke {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<[u8; 3]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dash: Option<Dash>,
+}
+
+/// Which way a dimension measures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Orient {
+    /// Along the line from `a` to `b`.
+    #[default]
+    Aligned,
+    Horizontal,
+    Vertical,
+}
+
+/// What an entity is.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum Kind {
+    Line {
+        a: P,
+        b: P,
+    },
+    Circle {
+        c: P,
+        r: Num,
+    },
+    /// Counter-clockwise from `start` to `end` degrees.
+    Arc {
+        c: P,
+        r: Num,
+        start: Num,
+        end: Num,
+    },
+    /// Vertices with DXF bulges (one per segment; missing means straight).
+    Polyline {
+        pts: Vec<P>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        bulges: Vec<f64>,
+        #[serde(default)]
+        closed: bool,
+    },
+    Point {
+        p: P,
+    },
+    /// Text at `p` (its baseline's left end), `height` paper mm, `angle` degrees.
+    Text {
+        p: P,
+        value: String,
+        #[serde(default = "text_height")]
+        height: f64,
+        #[serde(default)]
+        angle: f64,
+    },
+    /// A linear dimension between `a` and `b`, its line `offset` paper mm along the left normal
+    /// (negative: the other side). `text`: `<>` is the measured size, `{{L}}` the value of
+    /// parameter `L`; `None` shows the size.
+    Dim {
+        a: P,
+        b: P,
+        #[serde(default = "dim_offset")]
+        offset: f64,
+        #[serde(default)]
+        orient: Orient,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+    },
+}
+
+fn text_height() -> f64 {
+    2.5
+}
+
+fn dim_offset() -> f64 {
+    8.0
+}
+
+/// An entity: a stable id (dimensions and edits refer to it), a layer and its own stroke.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Entity {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default = "layer0", skip_serializing_if = "is_layer0")]
+    pub layer: String,
+    #[serde(default, skip_serializing_if = "is_plain")]
+    pub stroke: Stroke,
+    #[serde(flatten)]
+    pub kind: Kind,
+}
+
+fn layer0() -> String {
+    "0".to_string()
+}
+
+fn is_layer0(s: &str) -> bool {
+    s == "0"
+}
+
+fn is_plain(s: &Stroke) -> bool {
+    *s == Stroke::default()
+}
+
+impl Entity {
+    pub fn new(kind: Kind) -> Entity {
+        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), kind }
+    }
+}
+
+/// A CAD drawing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Drawing {
+    pub unit: Unit,
+    /// The scale's denominator: `1:N`. One drawing unit measures `unit.mm() / scale` paper mm.
+    pub scale: f64,
+    pub layers: Vec<Layer>,
+    pub entities: Vec<Entity>,
+}
+
+impl Default for Drawing {
+    fn default() -> Self {
+        Drawing { unit: Unit::Mm, scale: 1.0, layers: vec![Layer::default()], entities: Vec::new() }
+    }
+}
+
+impl Drawing {
+    /// Reads a drawing from JSON and makes it safe: limits enforced, layer `0` present, ids
+    /// unique and non-empty, sizes finite and clamped.
+    pub fn from_json(text: &str) -> Result<Drawing, String> {
+        if text.len() > MAX_JSON_BYTES {
+            return Err(format!("a drawing is at most {} MB", MAX_JSON_BYTES >> 20));
+        }
+        let mut d: Drawing = serde_json::from_str(text).map_err(|e| format!("not a drawing: {e}"))?;
+        d.sanitize();
+        Ok(d)
+    }
+
+    /// The canonical JSON: the same drawing always gives the same bytes.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    /// Enforces the limits; see [`Drawing::from_json`].
+    pub fn sanitize(&mut self) {
+        self.scale = if self.scale.is_finite() { self.scale.clamp(1e-3, 1e6) } else { 1.0 };
+        self.layers.truncate(MAX_LAYERS);
+        if !self.layers.iter().any(|l| l.name == "0") {
+            self.layers.insert(0, Layer::default());
+        }
+        for l in &mut self.layers {
+            l.width = clamp_paper(l.width, 0.35);
+        }
+        self.entities.truncate(MAX_ENTITIES);
+        let mut seen = std::collections::HashSet::new();
+        let mut next = 1usize;
+        for e in &mut self.entities {
+            if e.id.is_empty() || e.id.len() > 64 || !seen.insert(e.id.clone()) {
+                while !seen.insert(format!("e{next}")) {
+                    next += 1;
+                }
+                e.id = format!("e{next}");
+            }
+            if let Some(w) = e.stroke.width.as_mut() {
+                *w = clamp_paper(*w, 0.35);
+            }
+            match &mut e.kind {
+                Kind::Polyline { pts, bulges, .. } => {
+                    pts.truncate(MAX_VERTICES);
+                    bulges.truncate(pts.len());
+                    bulges.iter_mut().for_each(|b| *b = if b.is_finite() { b.clamp(-1e3, 1e3) } else { 0.0 });
+                }
+                Kind::Text { value, height, angle, .. } => {
+                    value.truncate(value.char_indices().nth(1000).map_or(value.len(), |(i, _)| i));
+                    *height = clamp_paper(*height, 2.5).max(0.5);
+                    *angle = if angle.is_finite() { *angle % 360.0 } else { 0.0 };
+                }
+                Kind::Dim { offset, text, .. } => {
+                    *offset = if offset.is_finite() { offset.clamp(-500.0, 500.0) } else { 8.0 };
+                    if let Some(t) = text {
+                        t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// The layer called `name`, else layer `0`.
+    pub fn layer(&self, name: &str) -> Layer {
+        self.layers.iter().find(|l| l.name == name).or_else(|| self.layers.first()).cloned().unwrap_or_default()
+    }
+
+    /// Adds an entity with a fresh id and returns the id.
+    pub fn add(&mut self, mut e: Entity) -> Result<String, String> {
+        if self.entities.len() >= MAX_ENTITIES {
+            return Err(format!("a drawing holds at most {MAX_ENTITIES} entities"));
+        }
+        let mut n = self.entities.len() + 1;
+        while self.entities.iter().any(|x| x.id == format!("e{n}")) {
+            n += 1;
+        }
+        e.id = format!("e{n}");
+        let id = e.id.clone();
+        self.entities.push(e);
+        self.sanitize();
+        Ok(id)
+    }
+
+    /// Every number of the drawing.
+    fn nums_mut(&mut self) -> Vec<(&mut Num, NumKind)> {
+        let mut out = Vec::new();
+        fn point<'a>(p: &'a mut P, out: &mut Vec<(&'a mut Num, NumKind)>) {
+            let P(x, y) = p;
+            out.push((x, NumKind::Length));
+            out.push((y, NumKind::Length));
+        }
+        for e in &mut self.entities {
+            match &mut e.kind {
+                Kind::Line { a, b } | Kind::Dim { a, b, .. } => {
+                    point(a, &mut out);
+                    point(b, &mut out);
+                }
+                Kind::Circle { c, r } => {
+                    point(c, &mut out);
+                    out.push((r, NumKind::Length));
+                }
+                Kind::Arc { c, r, start, end } => {
+                    point(c, &mut out);
+                    out.push((r, NumKind::Length));
+                    out.push((start, NumKind::Angle));
+                    out.push((end, NumKind::Angle));
+                }
+                Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| point(p, &mut out)),
+                Kind::Point { p } | Kind::Text { p, .. } => point(p, &mut out),
+            }
+        }
+        out
+    }
+
+    /// Evaluates every expression with the worksheet's parameters (those defined before the
+    /// drawing). A length converts to the drawing's unit (`L = 4.5 m` is 4500 in a mm drawing); a
+    /// plain number is taken as drawing units; an angle is in degrees (`30°`, or a plain number of
+    /// radians from a calculation). Returns the expressions that failed, with why; those keep their
+    /// last value.
+    pub fn resolve(&mut self, ws: &Worksheet) -> Vec<(String, String)> {
+        let unit_m = self.unit.mm() / 1000.0;
+        let mut errors = Vec::new();
+        for (num, kind) in self.nums_mut() {
+            let Some(expr) = num.expr.clone() else { continue };
+            let value = ws.eval_expr(&expr).map_err(|e| e.to_string()).and_then(|v| match v {
+                Value::Scalar(q) => convert(q, kind, unit_m),
+                Value::Vector(_) => Err("a coordinate is one value, not a vector".to_string()),
+            });
+            match value {
+                Ok(v) => num.value = v,
+                Err(e) => errors.push((expr, e)),
+            }
+        }
+        errors
+    }
+
+    /// The text of a dimension label: `<>` replaced by `measured` (drawing units, shown with the
+    /// unit), `{{name}}` by the parameter's value as calculations show it.
+    pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+        let opts = ws.map(|w| *w.options()).unwrap_or_default();
+        let size = strix_calc::format_number(measured, &opts);
+        let text = text.unwrap_or("<>");
+        let mut out = text.replace("<>", &size);
+        let mut guard = 0;
+        while let (Some(i), true) = (out.find("{{"), guard < 32) {
+            guard += 1;
+            let Some(j) = out.get(i..).and_then(|rest| rest.find("}}")).map(|j| i + j) else { break };
+            let name = out.get(i + 2..j).unwrap_or_default().trim().to_string();
+            let shown = ws.and_then(|w| w.scope().get(&name)).map_or_else(|| "?".to_string(), |v| strix_calc::format_value(v, &opts));
+            out.replace_range(i..j + 2, &shown);
+        }
+        out
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NumKind {
+    Length,
+    Angle,
+}
+
+fn convert(q: Quantity, kind: NumKind, unit_m: f64) -> Result<f64, String> {
+    let length = strix_calc::Dim::new([1, 0, 0, 0, 0, 0, 0]);
+    let v = match kind {
+        NumKind::Length if q.dim == length => q.value / unit_m,
+        NumKind::Length if q.dim.is_dimensionless() => q.value,
+        NumKind::Angle if q.dim.is_dimensionless() => q.value.to_degrees(),
+        NumKind::Length => return Err(format!("a coordinate is a length, not {}", strix_calc::display_unit(q.dim))),
+        NumKind::Angle => return Err("an angle is a plain number or degrees".to_string()),
+    };
+    if v.is_finite() { Ok(v.clamp(-MAX_COORD, MAX_COORD)) } else { Err("the value is not finite".to_string()) }
+}
+
+/// A paper size in mm, or `fallback` when not finite; clamped to 0–20 mm.
+fn clamp_paper(v: f64, fallback: f64) -> f64 {
+    if v.is_finite() { v.clamp(0.0, 20.0) } else { fallback }
+}

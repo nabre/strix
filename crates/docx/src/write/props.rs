@@ -463,7 +463,7 @@ pub fn look_attrs(l: &TableLook) -> Vec<(&'static str, String)> {
 
 /// `w:tblPr`, with the properties before a tracked change last when `change` gives its attributes.
 pub fn tblpr(w: &mut W, t: &TableProps, change: Option<&ChangeAttrs>) {
-    w.open("w:tblPr", &[]);
+    w.open("w:tblPr", if t.calc { &[("strix:calc", "1")] } else { &[] });
     tblpr_inner(w, t);
     if let (Some(a), Some(ch)) = (change, &t.fmt_change) {
         change_el(w, "w:tblPrChange", "w:tblPr", a, |w| tblpr_inner(w, &ch.old));

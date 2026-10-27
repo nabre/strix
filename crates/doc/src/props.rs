@@ -1181,6 +1181,11 @@ pub struct TableProps {
     /// the right margin.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub bidi_visual: bool,
+    /// A calculated table (`docs/calc.md`, Strix only): named columns with units, column
+    /// formulas and totals evaluated with the document's calculations. Saved as `strix:calc="1"`
+    /// on `w:tblPr`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub calc: bool,
 }
 
 /// Where a floating table sits; the text after it wraps around it.

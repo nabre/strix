@@ -1,86 +1,177 @@
 # Live calculations with units
 
-> **Status:** stage 1 done: engine, commands, Calculate button; Variables pane next · **Last updated:** 2026-10-27 · **Change:** new
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks); Variables pane, systems and solution steps next · **Last updated:** 2026-10-27 · **Change:** one `=` for everything; solving; Σ; tables; number format
 
-Strix documents can hold live engineering calculations, in the spirit of SMath Studio and
-Mathcad: you define parameters with units, Strix remembers them, and later expressions reuse them
-and show their results with units, recomputed whenever the inputs change. This is a Strix
-feature beyond Word parity; the document stays a normal OOXML package (`.xmath`), so Word shows
-the last computed values as ordinary equations.
+Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
+you write parameters with units, Strix remembers them, and later equations reuse them, solve
+for what is unknown and show results with units, recomputed whenever the inputs change. This
+is a Strix feature beyond Word parity; the document stays a normal OOXML package (`.xmath`), so
+Word shows the last computed values as ordinary equations and tables.
 
 ## Model
 
 A **calc region** is an equation (`InlineObject::Equation`) marked as calculated: `Math::calc`,
 saved in the `.xmath` package as `strix:calc="1"` on its `m:oMath` (a Strix namespace listed in
-`mc:Ignorable`). The **Calculate** button beside the equation's frame (`=`, filled when on), or
-`equation.calc`, turns it on and off. New equations are calculated by default; the
-**Calculate New Equations** preference (`calc.newEquations`, Equation › Equation Options) changes
-that. Regions are evaluated in reading order (body top to bottom, a paragraph left to right),
-like a Mathcad worksheet. Only calculated equations see each other; other equations are never
-read or touched. Leaving a calculated equation recalculates the document, as does F9.
+`mc:Ignorable`). The **Calculate** button (Equation tab, Math tab, or `=` beside the equation's
+frame) or `equation.calc` turns it on and off. New equations are calculated by default; the
+**Calculate New Equations** preference (`calc.newEquations`) changes that.
+
+A **calculated table** is an ordinary Word table with `TableProps::calc` on (Table Layout ›
+Data › Calculated Table, Math › Tables, `table.calc`), saved as `strix:calc="1"` on `w:tblPr`.
+Nothing else about the table changes: style, borders and text stay the user's.
+
+Regions and calculated tables are evaluated in reading order (body top to bottom, a paragraph
+left to right, tables cell by cell; a calculated table as a whole), like a worksheet. Only
+calculated items see each other. Leaving a calculated equation recalculates the document, as do
+F9 and Update Fields.
 
 Strix saves only `.xmath`/`.xmathm` (plus static PDF, PNG, LaTeX, HTML and Markdown exports): a
 `.docx` or any other editable format would lose the regions, so they are import-only.
 
-| Statement | Meaning | Shown |
-|---|---|---|
-| `L := 4.5 m` | define `L` | as typed |
-| `q := 12 kN/m` | define with a derived unit | as typed |
-| `M := q*L^2/8` | define from earlier parameters | as typed |
-| `M =` | evaluate, unit chosen automatically (torque has the dimension of energy) | `M = 30.38 kJ` |
-| `M = kN*m` / `M = 30.4 kN*m` | evaluate in a requested unit (the number after `=` is replaced, the unit kept) | `M = 30.38 kN·m` |
-| `σ := M/W =` | define and show | `σ := M/W = 125 MPa` |
+## One `=` for everything
 
-- A name used before its definition, an unknown name, or a dimension mismatch (`2 m + 3 s`) is an
-  error: the region shows `= ⚠` and the message is listed by `calc.variables`/`calc.recalculate`.
-  An error never stops later regions; names depending on a failed definition are undefined.
-- Redefining a name later is allowed (worksheet semantics): later regions see the new value.
-- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A name that is a
-  defined parameter wins over a unit of the same spelling (`m := 3` makes later `m` the number).
+Every statement is written with `=`; Strix works out what it means from what is known so far.
+A name is **known** when an earlier item defined it; constants (`π`, `e`, `g`) and units (`m`,
+`kN`) are known too, except that a name **alone on one side** is unknown whenever it is not a
+parameter (`m = 3 kg` defines `m` although `m` is also the metre).
+
+| Written | Unknowns | Meaning | Shown |
+|---|---|---|---|
+| `L = 4.5 m` | `L` | define | as typed |
+| `M = q·L²/8` | `M` | define from earlier parameters | as typed |
+| `M = q·L²/8 =` | `M` | define and show | `M = q·L²/8 = 30.375 kN·m` |
+| `M =`, `M = kN·m` | none | show, in the unit asked for | `M = 30.375 kN·m` |
+| `F = m·a` | `a` | **solve** for the one unknown and define it | `F = m·a ⇒ a = 2.5 m/s²` |
+| `x² + x = 6` | `x` | solve (numerically: it appears twice) | `x² + x = 6 ⇒ x = 2` |
+| `a + b = c` | none | **check**: both sides must agree | as typed, or an error |
+| `σ ≤ f_yd` | none | check a comparison (`≤ ≥ < > ≠`) | `σ ≤ f_yd ⇒ 5.4 MPa ≤ 355 MPa ✓` |
+| `E = mc²` | `E`, `mc` | more than one unknown: an ordinary equation | as typed (reported) |
+
+- A number (or a vector) after `=` with every name before it known is a result to refresh:
+  `M = 99 kN·m` becomes `M = 30.375 kN·m`. Units alone after `=` ask for a display unit.
+- `:=` still defines (and redefines) explicitly: `x := 2 m`.
+- Solving: the unknown is **isolated** symbolically when it appears once (inverting `+ − · /`,
+  powers, `√`, `exp ln log`, `sin cos tan` and their inverses, principal values); the result is
+  kept only if it satisfies the equation. Otherwise it is found **numerically**: its unit is
+  tried from the equation's known values, every sign change on a logarithmic grid from 10⁻¹² to
+  10¹² (both signs) is refined by bisection (a sign change across a pole is dropped), and secant
+  steps catch roots that touch zero. The **smallest non-negative root** wins, else the negative
+  root closest to zero. No root: "no value of x solves the equation".
+- After `⇒` Strix writes the solved value; on the next calculation that tail is replaced, and
+  its unit, if changed, is kept (`⇒ a = mm/s²`).
+- An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
+  listed by `calc.recalculate`. Names depending on a failed definition are undefined.
+- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
+  parameter wins over a unit of the same spelling.
+
+## Sums, products, ranges and vectors
+
+- `∑_(i=1)^n▒i²`, `∏_(k=1)^5▒k` (Word's linear format; `Σ` works too). The operand spans `·` and
+  `/` but not `+ −`: `∑_(i=1)^3▒F[i]·x[i]` is a sum of products. Limits are whole numbers; an
+  empty range sums to 0 (product 1).
+- A range `i = 1..5` (or `1…5`) is a vector `[1; 2; 3; 4; 5]`; `∑_i▒…` runs over its values.
+- Vectors: `F = [1; 2; 3] kN`, `F[2]` (1-based), arithmetic element by element (a vector with a
+  number, or two of the same length), functions element by element; `sum mean len min max` take
+  any mix of values and vectors; `∑▒F` sums a vector. A vector holds values of one kind.
+- Shown as `[1; 2; 3] kN`; a long vector shows its first 8 values, `…` and the last.
+- Limits: 10 000 values per vector, range or sum; 1 000 000 steps per statement (nested sums).
+
+## Calculated tables
+
+The first row is the header. A header cell is a column name with an optional unit in square
+brackets or parentheses and an optional formula: `L [m]`, `q (kN/m)`, `M [kN·m] = γ·q·L²/8`.
+Any other header (`Beam`, `Load case`, empty) is a label column, never read.
+
+| Beam | L [m] | q [kN/m] | M [kN·m] = γ·q·L²/8 |
+|---|---|---|---|
+| B1 | 4.5 | 12 | *41.006* |
+| B2 | 6000 mm | 10 | *60.75* |
+| Total | | | *Σ = 101.756* |
+
+- Input cells are expressions, usually numbers in the column's unit; a cell with its own unit of
+  the same kind is converted (`6000 mm` in a metre column). A bare-name column whose cells are
+  not all values (`B1`) is a label column.
+- Formula cells are overwritten with the formula's value for the row, in the column's unit (or
+  with the automatic unit when the header gives none). The formula sees the row's values by
+  column name, then the worksheet's parameters. A row whose input cells are all empty is skipped
+  (its formula cells are cleared).
+- A cell `Σ =` (also `sum`, `total`), `mean =`, `min =` or `max =` totals its column over the
+  data rows; its row is not a data row.
+- After the table every complete column is a vector in the worksheet (`sum(M)`, `∑_i▒L[i]`); a
+  column with empty cells is not defined.
+- Errors stay in their cell (`⚠`) and are listed by `calc.recalculate` with row and column.
 
 ## Quantities and units
 
 `strix-calc` (L1, pure Rust, no dependencies) holds a quantity as an `f64` SI magnitude plus a
 dimension vector over the 7 SI base dimensions. Units: SI base and derived (`m s kg A K mol cd N
 Pa J W C V Ω Hz`), prefixes (`n µ m c d k M G`) on the units that take them, common engineering
-units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `kN/m`, `min h`, `L`, `°` for angles, `bar`,
-`kWh`), and dimensionless `%`. Temperature is absolute (`K`); affine `°C` arithmetic is a later
-stage. Display picks the requested unit, else a coherent SI unit from a small preferred table
-(`N`, `Pa`, `J`, `W`, `N/m`, `m/s²` …) with an engineering prefix for force, pressure, energy,
-power and electrical units (`kN`, `MPa`, `kJ`), else base units (`kg·m^-1·s^-2`). Once shown, the
-unit after `=` is kept on later recalculations, as a requested one. On an error the region shows
-`= ⚠` followed by the requested unit, if any.
+units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles, `bar`, `kWh`), and
+dimensionless `%`. Temperature is absolute (`K`); affine `°C` is a later stage. A unit typed in
+the wrong case gets a hint: "unknown name KN (did you mean kN?)".
 
-Precedence, loosest first: `+ -`; explicit `* · × /` (left to right); unary minus; implicit
-multiplication; `^ ² ³` (right to left). So `12 kN/m` is (12·kN)/m and `2 kN/4 m^2` is 500 Pa,
-while `1/2 m` is 1/(2 m). A text after `=` that is not a unit (`E = mc^2`, `y = 2 x`) makes the
-equation an ordinary one, never evaluated. Limits: 4096 characters, nesting depth 64, 512 terms.
+**Display unit**, in order: the unit asked for after `=`; the **working unit** of the result's
+kind, which is the last unit written for it (in a definition, a requested display unit or a
+table header: after `b = 300 mm`, lengths show in mm); else a coherent SI unit from a small
+preferred table (`N`, `Pa`, `J`, `W`, `N/m`, `m/s²` …) with an engineering prefix for force,
+pressure, energy, power and electrical units (`kN`, `MPa`, `kJ`), else base units. Torque has
+the dimension of energy and shows in `J` unless `N·m` is asked for.
 
-Functions: `sqrt abs exp ln log sin cos tan asin acos atan min max round`; `π`/`pi`, `e`, `g`
-(standard gravity) are predefined. Numbers: `1.5`, `1,5` when the document language uses decimal
-commas, `2e-3`. Results show 4 significant digits by default (`calc.options`).
+Precedence, loosest first: comparisons; `+ -`; explicit `* · × /` (left to right); unary minus;
+implicit multiplication; `^ ² ³` (right to left). So `12 kN/m` is (12·kN)/m and `2 kN/4 m^2` is
+500 Pa, while `1/2 m` is 1/(2 m). Typing `*` in an equation writes the multiplication dot `·`.
+Limits: 4096 characters, nesting depth 64, 512 terms.
+
+Functions: `sqrt abs exp ln log sin cos tan asin acos atan min max round sum mean len`; `π`/`pi`,
+`e`, `g` (standard gravity) are predefined. Numbers: `1.5`, `1,5` when the document language uses
+decimal commas, `2e-3`.
+
+## Number format
+
+Set on the Math tab (Results: More/Fewer Digits, Number Format) or with `calc.options`; kept as
+a preference (`calc_digits`, `calc_count`, `calc_zeros`).
+
+- **Digits** (default 3) with **Automatic** count: decimal places for |x| ≥ 1, significant
+  digits below 1 (`30.375`, `0.0035`, `0.123`). **Decimal Places** always counts decimals
+  (`0.0001` with 2 → `0`); **Significant Digits** counts significant digits (`1234.5` with 2 →
+  `1200`).
+- Rounding is half away from zero on the shortest decimal form, capped at 15 significant digits
+  (`2.675` → `2.68` with 2 decimals).
+- Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
+- Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 
 ## Commands (engine, `cmd/calc.rs`)
 
 | Id | Does |
 |---|---|
-| `calc.insert` | insert a calc region (`{"text": "L := 4.5 m"}`), then recalculate |
+| `calc.insert` | insert a calc region (`{"text": "L = 4.5 m"}`), then recalculate |
 | `equation.calc` | the Calculate button: the equation at the caret is a region or not (`{"value"?: bool}`) |
 | `calc.newEquations` | preference: new equations are regions (default on) |
-| `calc.recalculate` | evaluate every region in order, update results; returns errors |
-| `calc.variables` | the parameters defined at the end of the document (or at the caret): name, value, unit, where |
-| `calc.options` | significant digits, auto-recalculate on/off |
+| `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`) |
+| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`) |
+| `calc.tableInfo` | whether the table at the caret is calculated |
+| `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
+| `calc.variables` | the parameters at the end of the document: name, value (or values), unit, where |
+| `calc.options` | number format: digits, count, trailing zeros |
 
-Recalculation is automatic after any edit that changes a calc region (and on open) unless turned
-off. Results are written into the equation's linear text and math nodes, so undo, saving and
-export see them like any edit. The UI adds a **Calculate** ribbon tab (Insert region, Recalculate,
-Variables pane).
+The **Math** tab gathers the tools: Calculations (New Calculation, Calculate, Calculate New
+Equations, Recalculate), Tables (Calculated Table, Calculate This Table), Results (More/Fewer
+Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Stages
 
-1. **Scalar worksheet** (this stage): `strix-calc` parser, units, evaluation, errors; `calc.*`
-   commands; Calculate tab; tests.
-2. Variables pane with values and units at the caret; unit conversion picker; `°C`/`°F`.
-3. User functions `f(x) := …`, ranges `i := 1..10`, vectors and matrices, `Σ`/`Π` over ranges.
-4. Tabular calculation: table columns as vectors, column formulas with units, sums like `SUM`.
-5. Solving: `solve(f(x) = 0, x, guess)`, systems, plots.
+1. **Scalar worksheet**: parser, units, evaluation, errors; commands; tests. *Done.*
+2. **One `=`**: unknown detection, symbolic isolation, numeric roots, checks and comparisons,
+   working units, number format, unit hints. *Done.* Still to do: Variables pane, unit picker,
+   `°C`/`°F`.
+3. **Ranges, vectors, `Σ`/`∏`.** *Done.* Still to do: user functions `f(x) = …`, matrices.
+4. **Calculated tables.** *Done.*
+5. Systems of equations across regions (pending equations solved together), solution steps
+   (substitution, isolation lines), plots.
+
+## Revision history
+
+- 2026-10-27: one `=` for definitions, results, solving and checks; Σ/∏, ranges and vectors;
+  calculated tables; number format (digits, auto/decimals/significant, zeros, half-away
+  rounding); working units; comparisons with ✓/✗; unit hints; Math tab; `*` types `·`.
+- 2026-10-27: new (stage 1).

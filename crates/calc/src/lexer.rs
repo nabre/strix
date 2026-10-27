@@ -29,6 +29,20 @@ pub(crate) enum Tok {
     Sqrt,
     /// `⚠`, the error marker written back by a failed evaluation.
     Warn,
+    /// `[`: a vector literal or an index.
+    LBracket,
+    /// `]`.
+    RBracket,
+    /// `..` or `…`: a range.
+    Range,
+    /// `_` after an n-ary operator: its lower limit.
+    Under,
+    /// `▒`: the operand of an n-ary operator follows (Word's linear format).
+    Operand,
+    /// An n-ary operator: `∑` (sum) or `∏` (product).
+    Nary(char),
+    /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`).
+    Cmp(char),
 }
 
 /// A token with its 0-based character position and byte offset in the statement.
@@ -57,6 +71,12 @@ pub(crate) fn describe(tok: &Tok) -> String {
         Tok::Equals => "=".to_string(),
         Tok::Sqrt => "√".to_string(),
         Tok::Warn => "⚠".to_string(),
+        Tok::LBracket => "[".to_string(),
+        Tok::RBracket => "]".to_string(),
+        Tok::Range => "..".to_string(),
+        Tok::Under => "_".to_string(),
+        Tok::Operand => "▒".to_string(),
+        Tok::Nary(c) | Tok::Cmp(c) => c.to_string(),
     }
 }
 
@@ -82,10 +102,21 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                 i = end;
                 continue;
             }
+            '.' if next == Some('.') => {
+                i += 1;
+                Tok::Range
+            }
+            '…' => Tok::Range,
             '.' if next_is_digit => {
                 let (tok, end) = number(&chars, i, decimal_comma)?;
                 out.push(Token { tok, pos, byte });
                 i = end;
+                continue;
+            }
+            // A Greek capital sigma before limits or an operand is the summation sign.
+            'Σ' if matches!(next, Some('_' | '^' | '▒')) => {
+                out.push(Token { tok: Tok::Nary('∑'), pos, byte });
+                i += 1;
                 continue;
             }
             c if c.is_alphabetic() => {
@@ -106,8 +137,15 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '¹' => Tok::Sup(1),
             '²' => Tok::Sup(2),
             '³' => Tok::Sup(3),
-            '(' => Tok::LParen,
-            ')' => Tok::RParen,
+            // Word's invisible grouping brackets `〖…〗` group like parentheses.
+            '(' | '〖' => Tok::LParen,
+            ')' | '〗' => Tok::RParen,
+            '[' => Tok::LBracket,
+            ']' => Tok::RBracket,
+            '_' => Tok::Under,
+            '▒' => Tok::Operand,
+            '∑' => Tok::Nary('∑'),
+            '∏' => Tok::Nary('∏'),
             ',' if !decimal_comma => Tok::Sep,
             ';' => Tok::Sep,
             ':' if next == Some('=') => {
@@ -115,6 +153,17 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                 Tok::Define
             }
             '≔' => Tok::Define,
+            '<' | '>' | '!' if next == Some('=') => {
+                i += 1;
+                Tok::Cmp(match c {
+                    '<' => '≤',
+                    '>' => '≥',
+                    _ => '≠',
+                })
+            }
+            '<' | '>' | '≤' | '≥' | '≠' => Tok::Cmp(c),
+            '⩽' => Tok::Cmp('≤'),
+            '⩾' => Tok::Cmp('≥'),
             '=' => Tok::Equals,
             '√' => Tok::Sqrt,
             '⚠' => Tok::Warn,

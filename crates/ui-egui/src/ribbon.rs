@@ -10,7 +10,7 @@ use crate::theme::{Tokens, medium, regular, semibold};
 use crate::widgets::{CONTENT_H, LABEL_H, big, big_toggle, group, menu_button, small, split};
 use crate::{WordApp, icons};
 
-pub const TABS: [&str; 13] = strix_engine::ribbon::TABS;
+pub const TABS: [&str; 14] = strix_engine::ribbon::TABS;
 
 /// True when the caret/selection touches a picture (#147).
 pub fn has_picture_selected(s: &strix_engine::Session) -> bool {
@@ -535,6 +535,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     match app.ui.tab.as_str() {
                         "Home" => home(app, ui),
                         "Insert" => insert(app, ui),
+                        "Math" => math(app, ui),
                         "Draw" => draw(app, ui),
                         "Design" => design(app, ui),
                         "Layout" => layout(app, ui),
@@ -2438,6 +2439,116 @@ fn outlining(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// Math: every calculation tool (docs/calc.md) in one place.
+fn math(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Calculations", None, app, |ui, app| {
+        big(
+            ui,
+            app,
+            "calculation",
+            "New
+Calculation",
+            "insert.equation",
+            json!({"calc": true}),
+            false,
+        );
+        stack(ui, |ui| {
+            let info = app.session.run("equation.get", &json!({})).ok();
+            let calc = info.as_ref().and_then(|v| v.get("calc")).and_then(Value::as_bool).unwrap_or(false);
+            small(
+                ui,
+                app,
+                "formula",
+                Some("Calculate"),
+                "Make the equation at the cursor a live calculation, or an ordinary one",
+                "equation.calc",
+                json!({}),
+                calc,
+            );
+            let by_default = app.session.prefs.calc_new_equations;
+            small(
+                ui,
+                app,
+                "check",
+                Some("Calculate New Equations"),
+                "New equations are live calculations",
+                "calc.newEquations",
+                json!({}),
+                by_default,
+            );
+            small(
+                ui,
+                app,
+                "equation",
+                Some("Recalculate"),
+                "Recalculate every calculation in the document (F9)",
+                "calc.recalculate",
+                json!({}),
+                false,
+            );
+        });
+    });
+    group(ui, "Tables", None, app, |ui, app| {
+        big(
+            ui,
+            app,
+            "calcTable",
+            "Calculated
+Table",
+            "calc.insertTable",
+            json!({}),
+            false,
+        );
+        stack(ui, |ui| {
+            let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
+            small(
+                ui,
+                app,
+                "calcTable",
+                Some("Calculate This Table"),
+                "The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =",
+                "table.calc",
+                json!({}),
+                on,
+            );
+        });
+    });
+    group(ui, "Results", None, app, |ui, app| {
+        let digits = u64::from(app.session.prefs.calc_digits);
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "moreDigits",
+                Some("More Digits"),
+                "Show one more digit in results",
+                "calc.options",
+                json!({"digits": (digits + 1).min(15)}),
+                false,
+            );
+            small(
+                ui,
+                app,
+                "fewerDigits",
+                Some("Fewer Digits"),
+                "Show one digit less in results",
+                "calc.options",
+                json!({"digits": digits.saturating_sub(1)}),
+                false,
+            );
+        });
+        menu_button(ui, app, "numberFormat", Some("Number Format"), "How results are rounded", true, "calc.options", |ui, app| {
+            let count = app.session.prefs.calc_count.clone();
+            mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
+            mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
+            mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
+            ui.separator();
+            let zeros = app.session.prefs.calc_zeros;
+            mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
+        });
+    });
+}
+
 fn help(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Help", None, app, |ui, app| {
         big(ui, app, "help", "Help", "ui.dialog", json!({"name": "about"}), false);
@@ -3181,6 +3292,16 @@ fn table_layout(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "toText", Some("Convert to Text"), "Convert to Text", "table.toText", json!({}), false);
             small(ui, app, "formula", Some("Formula"), "Formula", "table.formula", json!({}), false);
         });
+        let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
+        big_toggle(
+            ui,
+            app,
+            "calcTable",
+            "Calculated
+Table",
+            "table.calc",
+            on,
+        );
     });
 }
 

@@ -742,12 +742,22 @@ pub struct Prefs {
     /// New equations are calculation regions (docs/calc.md), evaluated live
     /// (`calc.newEquations`). On by default: Strix is a tool for working out problems.
     pub calc_new_equations: bool,
+    /// Digits shown in calculated results (`calc.options`, default 3).
+    pub calc_digits: u8,
+    /// What `calc_digits` counts: `auto` (decimals from 1 up, significant digits below),
+    /// `decimals` or `significant`.
+    pub calc_count: String,
+    /// Keep trailing zeros in calculated results (`2.500`).
+    pub calc_zeros: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
         Prefs {
             calc_new_equations: true,
+            calc_digits: 3,
+            calc_count: "auto".to_string(),
+            calc_zeros: false,
             count_notes: true,
             markup: Default::default(),
             print_markup: false,

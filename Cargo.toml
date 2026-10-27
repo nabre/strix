@@ -15,6 +15,7 @@ repository = "https://github.com/nabre/strix"
 # internal
 strix-geom = { path = "crates/geom" }
 strix-calc = { path = "crates/calc" }
+strix-cad = { path = "crates/cad" }
 strix-doc = { path = "crates/doc" }
 strix-fonts = { path = "crates/fonts" }
 strix-layout = { path = "crates/layout" }

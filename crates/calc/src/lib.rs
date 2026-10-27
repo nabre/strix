@@ -36,6 +36,8 @@ mod format;
 mod lexer;
 mod parser;
 mod quantity;
+mod solve;
+mod table;
 mod units;
 mod worksheet;
 
@@ -43,11 +45,12 @@ mod worksheet;
 mod tests;
 
 pub use error::CalcError;
-pub use eval::Scope;
+pub use eval::{Scope, Value, Vector};
 pub use format::format_number;
 pub use quantity::{BASE_SYMBOLS, Dim, Quantity};
+pub use table::TableResult;
 pub use units::{auto_unit, constant, display_unit, unit};
-pub use worksheet::{Options, RegionKind, RegionResult, Worksheet, evaluate};
+pub use worksheet::{Count, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value};
 
 /// Longest statement accepted, in characters; longer text is a [`CalcError::TooLong`].
 pub const MAX_INPUT_CHARS: usize = 4096;
@@ -57,3 +60,9 @@ pub const MAX_DEPTH: usize = 64;
 
 /// Most nodes (numbers, names, operators, calls) in one expression.
 pub const MAX_NODES: usize = 512;
+
+/// Most elements in one vector, range or table column, and most terms in one `∑`/`∏`.
+pub const MAX_VALUES: usize = 10_000;
+
+/// Most units of work in one statement (nodes evaluated plus vector elements touched).
+pub const MAX_STEPS: usize = 1_000_000;

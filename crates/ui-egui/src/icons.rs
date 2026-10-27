@@ -1161,6 +1161,35 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.lines(9.0, 17.0, &[14.0, 17.0]);
         }
         "formula" => pen.text(10.0, 10.0, 12.0, "fx", a, false),
+        // A calculated table: a grid whose last column is totalled.
+        "calcTable" => {
+            pen.rect(2.5, 3.0, 13.0, 13.5, c);
+            pen.line(&[(2.5, 6.5), (13.0, 6.5)]);
+            pen.line(&[(2.5, 10.0), (13.0, 10.0)]);
+            pen.line(&[(7.75, 3.0), (7.75, 13.5)]);
+            pen.text(15.0, 15.5, 10.0, "Σ", a, true);
+        }
+        // A new calculation: an equals sign beside x.
+        "calculation" => pen.text(10.0, 10.0, 12.0, "x=", a, false),
+        "numberFormat" => pen.text(10.0, 10.0, 9.0, "0.00", a, false),
+        "moreDigits" => {
+            pen.text(8.0, 7.0, 8.0, ".0", c, false);
+            pen.text(11.0, 15.0, 8.0, ".00", a, false);
+        }
+        "fewerDigits" => {
+            pen.text(11.0, 7.0, 8.0, ".00", c, false);
+            pen.text(8.0, 15.0, 8.0, ".0", a, false);
+        }
+        // A CAD drawing: a part with a dimension line and its ticks.
+        "cad" => {
+            pen.rect(4.0, 8.0, 16.0, 17.0, c);
+            pen.circle(10.0, 12.5, 2.0, c);
+            pen.line(&[(4.0, 4.0), (16.0, 4.0)]);
+            pen.line(&[(4.0, 2.5), (4.0, 6.5)]);
+            pen.line(&[(16.0, 2.5), (16.0, 6.5)]);
+            pen.line(&[(3.0, 5.0), (5.0, 3.0)]);
+            pen.line(&[(15.0, 5.0), (17.0, 3.0)]);
+        }
         "selectTable" => {
             pen.rect(3.0, 3.0, 17.0, 17.0, c);
             pen.fill(&[(8.0, 7.0), (8.0, 15.0), (10.0, 13.0), (11.5, 16.0), (12.5, 15.5), (11.0, 12.5), (13.5, 12.5)], a);

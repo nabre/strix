@@ -1,49 +1,134 @@
 //! Number formatting and unit-expression rendering.
 
-use crate::Options;
 use crate::parser::{BinOp, Expr};
 use crate::units::power_text;
+use crate::{Count, Options};
 
-/// Formats `value` with [`Options::sig_digits`] significant digits (clamped to 1..=15), without
-/// trailing zeros, using `·10^n` scientific notation at or beyond 10⁹ and below 10⁻⁴
-/// (`1.235·10^9`, `2.5·10^-5`), and a decimal comma when [`Options::decimal_comma`] is set.
-/// Non-finite values (which evaluation never produces) format as `⚠`.
+/// Formats `value` the way results are shown (`docs/calc.md`, Number format):
+///
+/// - [`Count::Auto`] (default): [`Options::digits`] decimal places for |x| ≥ 1; below 1, as many
+///   places as keep `digits` significant digits (`0.0035` with 3 → `0.0035`).
+/// - [`Count::Decimals`]: always `digits` decimal places (`0.0001` with 2 → `0`).
+/// - [`Count::Significant`]: `digits` significant digits (`1234.5` with 2 → `1200`).
+///
+/// Rounding is half away from zero on the shortest decimal form of the number, capped at 15
+/// significant digits, so `2.675` rounds to `2.68`. Trailing zeros are dropped unless
+/// [`Options::zeros`]. Scientific notation `1.235·10^9` is used at or beyond 10⁷, and below 10⁻³
+/// except with [`Count::Decimals`]. [`Options::decimal_comma`] writes `,`. Non-finite values
+/// (which evaluation never produces) format as `⚠`.
 pub fn format_number(value: f64, opts: &Options) -> String {
     if !value.is_finite() {
         return "⚠".to_string();
     }
-    if value == 0.0 {
-        return "0".to_string();
-    }
-    let digits = usize::from(opts.sig_digits.clamp(1, 15));
-    // `{:e}` rounds correctly to `digits` significant digits: "-3.038e1".
-    let sci = format!("{:.*e}", digits - 1, value);
-    let Some((mantissa, exponent)) = sci.split_once('e') else {
-        return sci;
+    let digits = i32::from(opts.digits.min(15));
+    let (negative, mut ds, mut exp) = decimal_digits(value);
+    let abs = value.abs();
+    let scientific = |mut ds: Vec<u8>, mut exp: i32| {
+        let places = match opts.count {
+            Count::Auto => digits.max(2),
+            Count::Decimals => digits,
+            Count::Significant => (digits - 1).max(0),
+        };
+        // The mantissa keeps `places` decimals: digits down to 10^(exp - places).
+        let unit = exp - places;
+        round_at(&mut ds, &mut exp, unit);
+        format!("{}·10^{exp}", fixed(&ds, 0, places, opts.zeros))
     };
-    let exponent: i32 = exponent.parse().unwrap_or(0);
-    let negative = mantissa.starts_with('-');
-    let all_digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
-    let significant = all_digits.trim_end_matches('0');
-    if significant.is_empty() {
-        return "0".to_string();
-    }
-    let body = if !(-4..9).contains(&exponent) {
-        let (first, rest) = significant.split_at_checked(1).unwrap_or((significant, ""));
-        let point = if rest.is_empty() { "" } else { "." };
-        format!("{first}{point}{rest}·10^{exponent}")
-    } else if exponent >= 0 {
-        let int_len = usize::try_from(exponent).unwrap_or(0).saturating_add(1);
-        match significant.split_at_checked(int_len) {
-            Some((int, frac)) if !frac.is_empty() => format!("{int}.{frac}"),
-            _ => format!("{significant}{}", "0".repeat(int_len.saturating_sub(significant.len()))),
-        }
+    let body = if abs != 0.0 && (abs >= 1e7 || (abs < 1e-3 && opts.count != Count::Decimals)) {
+        scientific(ds, exp)
     } else {
-        let zeros = usize::try_from(-exponent).unwrap_or(1).saturating_sub(1);
-        format!("0.{}{significant}", "0".repeat(zeros))
+        let places = match opts.count {
+            Count::Decimals => digits,
+            Count::Auto if abs >= 1.0 || abs == 0.0 => digits,
+            Count::Auto | Count::Significant => digits.max(1) - 1 - exp,
+        };
+        let (original, original_exp) = (ds.clone(), exp);
+        round_at(&mut ds, &mut exp, -places);
+        // Rounding up to 10⁷ (9999999.9996) crosses into scientific notation.
+        if exp >= 7 { scientific(original, original_exp) } else { fixed(&ds, exp, places, opts.zeros) }
     };
     let body = if opts.decimal_comma { body.replace('.', ",") } else { body };
-    if negative { format!("-{body}") } else { body }
+    let zero = body.chars().all(|c| matches!(c, '0' | '.' | ','));
+    if negative && !zero { format!("-{body}") } else { body }
+}
+
+/// The shortest decimal digits of |v| and the power of ten of the first one (v = d.ddd × 10^exp),
+/// capped at 15 significant digits; zero is `["0"], 0`.
+fn decimal_digits(v: f64) -> (bool, Vec<u8>, i32) {
+    let text = format!("{:e}", v.abs());
+    let (mantissa, e) = text.split_once('e').unwrap_or((text.as_str(), "0"));
+    let mut exp: i32 = e.parse().unwrap_or(0);
+    let mut ds: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).map(|b| b - b'0').collect();
+    if ds.iter().all(|&d| d == 0) {
+        return (false, vec![0], 0);
+    }
+    if ds.len() > 15 {
+        let unit = exp - 14;
+        round_at(&mut ds, &mut exp, unit);
+    }
+    (v < 0.0, ds, exp)
+}
+
+/// Rounds the digits (first at 10^exp) half away from zero to the power of ten `unit`.
+fn round_at(ds: &mut Vec<u8>, exp: &mut i32, unit: i32) {
+    // Digits kept: those at 10^exp down to 10^unit.
+    let keep = i64::from(*exp) - i64::from(unit) + 1;
+    if keep >= ds.len() as i64 {
+        return;
+    }
+    if keep < 0 {
+        *ds = vec![0];
+        *exp = unit;
+        return;
+    }
+    let keep = keep as usize;
+    let up = ds.get(keep).is_some_and(|&d| d >= 5);
+    ds.truncate(keep);
+    if up {
+        let mut i = keep;
+        loop {
+            if i == 0 {
+                ds.insert(0, 1);
+                *exp += 1;
+                break;
+            }
+            i -= 1;
+            if let Some(d) = ds.get_mut(i) {
+                if *d == 9 {
+                    *d = 0;
+                } else {
+                    *d += 1;
+                    break;
+                }
+            }
+        }
+    }
+    if ds.is_empty() || ds.iter().all(|&d| d == 0) {
+        *ds = vec![0];
+        *exp = 0;
+    }
+}
+
+/// Digits `ds` (the first at 10^exp) as fixed-point text with `places` decimals (negative: the
+/// number ends in zeros); trailing decimal zeros are dropped unless `zeros`.
+fn fixed(ds: &[u8], exp: i32, places: i32, zeros: bool) -> String {
+    let digit = |power: i32| -> char {
+        let index = i64::from(exp) - i64::from(power);
+        usize::try_from(index).ok().and_then(|i| ds.get(i)).map_or('0', |&d| char::from(b'0' + d))
+    };
+    let mut int = String::new();
+    for power in (0..=exp.max(0)).rev() {
+        int.push(digit(power));
+    }
+    let int = match int.trim_start_matches('0') {
+        "" => "0".to_string(),
+        rest => rest.to_string(),
+    };
+    let mut frac: String = (1..=places.max(0)).map(|k| digit(-k)).collect();
+    if !zeros {
+        frac.truncate(frac.trim_end_matches('0').len());
+    }
+    if frac.is_empty() { int } else { format!("{int}.{frac}") }
 }
 
 /// Renders a unit expression in normal form: `·` between factors, `²`/`³` or `^n` for powers,
@@ -56,6 +141,21 @@ pub(crate) fn render(expr: &Expr) -> String {
         Expr::Call(func, args) => {
             let args: Vec<String> = args.iter().map(render).collect();
             format!("{}({})", func.name(), args.join("; "))
+        }
+        Expr::Vector(items) => {
+            let items: Vec<String> = items.iter().map(render).collect();
+            format!("[{}]", items.join("; "))
+        }
+        Expr::Index(base, index) => format!("{}[{}]", wrap(base, !matches!(**base, Expr::Name(_))), render(index)),
+        Expr::Range(from, to) => format!("{}..{}", render(from), render(to)),
+        Expr::Nary(n) => {
+            let lower = match (&n.var, &n.from) {
+                (Some(var), Some(from)) => format!("_({var}={})", render(from)),
+                (Some(var), None) => format!("_{var}"),
+                _ => String::new(),
+            };
+            let upper = n.to.as_ref().map(|t| format!("^({})", render(t))).unwrap_or_default();
+            format!("{}{lower}{upper}▒({})", n.op, render(&n.body))
         }
         Expr::Bin(op, left, right) => match op {
             BinOp::Add => format!("{} + {}", render(left), render(right)),

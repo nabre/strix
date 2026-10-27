@@ -5154,6 +5154,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "strix-cad"
+version = "0.11.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strix-calc",
+]
+
+[[package]]
 name = "strix-calc"
 version = "0.11.0"
 

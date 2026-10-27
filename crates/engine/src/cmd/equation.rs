@@ -315,12 +315,14 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
     let (_, effect) = with_eq(s, &m.at, |math, _| {
         if math.linear {
             // Linear form is plain text: no build-up.
-            let text: String = text.chars().take(crate::MAX_EQUATION_TYPE_CHARS).collect();
+            let text: String = text.chars().take(crate::MAX_EQUATION_TYPE_CHARS).map(|c| if c == '*' { '·' } else { c }).collect();
             pos = me::insert_text(&mut math.nodes, &pos, &text, TypeStyle::default());
             set_literal(&mut math.nodes);
             return;
         }
         for c in text.chars().take(crate::MAX_EQUATION_TYPE_CHARS) {
+            // `*` types the multiplication dot (normal text keeps the asterisk).
+            let c = if c == '*' && !style.nor { '·' } else { c };
             let rel = matches!(strix_doc::math::math_class(c), strix_doc::math::MClass::Rel);
             if !style.nor && (c == ' ' || c == '\t' || rel) {
                 let mut changed = false;
@@ -1090,6 +1092,16 @@ mod tests {
             s.run("insert.equation", &json!({"latex": tex})).unwrap();
             assert_eq!(s.run("equation.get", &json!({})).unwrap()["latex"], want, "{tex}");
         }
+    }
+
+    #[test]
+    fn an_asterisk_types_the_multiplication_dot() {
+        let mut s = Session::new(strix_doc::Document::new());
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        s.run("insert.equation", &json!({})).unwrap();
+        s.run("equation.type", &json!({"text": "F=m*a"})).unwrap();
+        let linear = s.run("equation.get", &json!({})).unwrap()["linear"].as_str().unwrap_or_default().to_string();
+        assert!(linear.contains("m·a") && !linear.contains('*'), "{linear}");
     }
 
     #[test]

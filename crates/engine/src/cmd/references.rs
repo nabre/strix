@@ -77,7 +77,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("references.updateFields", "Update Field", "References", |s, v| {
             update_fields_in(s, v.get("all").and_then(Value::as_bool).unwrap_or(false))?;
             super::fields::show_results(s)?;
-            super::calc::recalculate(s, &strix_calc::Options::default());
+            super::calc::recalculate_now(s);
             sel_result(s)
         })
         .params(r#"{"all"?: bool (the body and every header, footer, note and text box, wherever the caret is; default: the story the caret is in)}"#)

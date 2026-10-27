@@ -3,6 +3,7 @@
 //! Grammar, loosest first:
 //!
 //! ```text
+//! full     = expr (".." expr)?                   a range, in a definition, brackets or arguments
 //! expr     = term (("+" | "-") term)*
 //! term     = unary (("*" | "/") unary)*          explicit, left to right
 //! unary    = ("-" | "+") unary | implicit
@@ -10,8 +11,11 @@
 //!                                                start with a number
 //! power    = postfix ("^" exponent)?             right to left
 //! exponent = ("-" | "+") exponent | power
-//! postfix  = primary ("¹" | "²" | "³")*
-//! primary  = number | name | function "(" args ")" | "(" expr ")" | "√" postfix
+//! postfix  = primary ("¹" | "²" | "³" | "[" full "]")*
+//! primary  = number | name | function "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
+//!          | "√" postfix | nary
+//! nary     = ("∑" | "∏") ("_" lower)? ("^" postfix)? "▒"? term      the operand spans · and /
+//! lower    = "(" name "=" full ")" | name
 //! ```
 //!
 //! Implicit multiplication binds tighter than `/` so `12 kN/m` is `(12·kN)/m` (see the crate
@@ -37,6 +41,9 @@ pub(crate) enum Func {
     Min,
     Max,
     Round,
+    Sum,
+    Mean,
+    Len,
 }
 
 impl Func {
@@ -56,6 +63,9 @@ impl Func {
             "min" => Func::Min,
             "max" => Func::Max,
             "round" => Func::Round,
+            "sum" => Func::Sum,
+            "mean" => Func::Mean,
+            "len" => Func::Len,
             _ => return None,
         })
     }
@@ -76,6 +86,9 @@ impl Func {
             Func::Min => "min",
             Func::Max => "max",
             Func::Round => "round",
+            Func::Sum => "sum",
+            Func::Mean => "mean",
+            Func::Len => "len",
         }
     }
 }
@@ -98,13 +111,37 @@ pub(crate) enum Expr {
     Neg(Box<Expr>),
     Bin(BinOp, Box<Expr>, Box<Expr>),
     Call(Func, Vec<Expr>),
+    /// `[a; b; c]`.
+    Vector(Vec<Expr>),
+    /// `v[i]`, 1-based.
+    Index(Box<Expr>, Box<Expr>),
+    /// `a..b`: whole steps from `a` towards `b`.
+    Range(Box<Expr>, Box<Expr>),
+    /// `∑`/`∏` over `var` from `from` to `to`, over the values of `var` (no limits), or over the
+    /// elements of the operand (no variable).
+    Nary(Nary),
+}
+
+/// An n-ary sum or product.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Nary {
+    /// `∑` or `∏`.
+    pub op: char,
+    /// The bound variable.
+    pub var: Option<String>,
+    /// The lower limit, `i = from`.
+    pub from: Option<Box<Expr>>,
+    /// The upper limit.
+    pub to: Option<Box<Expr>>,
+    /// The operand.
+    pub body: Box<Expr>,
 }
 
 /// Parses all of `tokens` as one expression. `end_pos` is the 0-based character position just
 /// after the tokens, for "expected a value" at the end.
 pub(crate) fn parse(tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
     let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos };
-    let expr = parser.expr()?;
+    let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
         return Err(CalcError::syntax(token.pos, format!("unexpected {}", describe(&token.tok))));
     }
@@ -154,6 +191,25 @@ impl Parser<'_> {
         result
     }
 
+    fn expect(&mut self, tok: Tok, what: &str) -> R<()> {
+        if self.peek() == Some(&tok) {
+            self.bump();
+            Ok(())
+        } else {
+            Err(CalcError::syntax(self.pos(), format!("missing {what}")))
+        }
+    }
+
+    fn full(&mut self) -> R<Expr> {
+        let from = self.expr()?;
+        if !matches!(self.peek(), Some(Tok::Range)) {
+            return Ok(from);
+        }
+        self.bump();
+        let to = self.expr()?;
+        self.node(Expr::Range(Box::new(from), Box::new(to)))
+    }
+
     fn expr(&mut self) -> R<Expr> {
         let mut left = self.term()?;
         loop {
@@ -199,7 +255,7 @@ impl Parser<'_> {
 
     fn implicit(&mut self) -> R<Expr> {
         let mut left = self.power()?;
-        while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt)) {
+        while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt | Tok::Nary(_))) {
             let right = self.power()?;
             left = self.bin(BinOp::Mul, left, right)?;
         }
@@ -233,12 +289,22 @@ impl Parser<'_> {
 
     fn postfix(&mut self) -> R<Expr> {
         let mut expr = self.primary()?;
-        while let Some(&Tok::Sup(n)) = self.peek() {
-            self.bump();
-            let exponent = self.node(Expr::Num(f64::from(n)))?;
-            expr = self.bin(BinOp::Pow, expr, exponent)?;
+        loop {
+            match self.peek() {
+                Some(&Tok::Sup(n)) => {
+                    self.bump();
+                    let exponent = self.node(Expr::Num(f64::from(n)))?;
+                    expr = self.bin(BinOp::Pow, expr, exponent)?;
+                }
+                Some(Tok::LBracket) => {
+                    self.bump();
+                    let index = self.nested(Self::full)?;
+                    self.expect(Tok::RBracket, "]")?;
+                    expr = self.node(Expr::Index(Box::new(expr), Box::new(index)))?;
+                }
+                _ => return Ok(expr),
+            }
         }
-        Ok(expr)
     }
 
     fn primary(&mut self) -> R<Expr> {
@@ -265,12 +331,18 @@ impl Parser<'_> {
             }
             Tok::LParen => {
                 self.bump();
-                let inner = self.nested(Self::expr)?;
-                if !matches!(self.peek(), Some(Tok::RParen)) {
-                    return Err(CalcError::syntax(self.pos(), "missing )"));
-                }
-                self.bump();
+                let inner = self.nested(Self::full)?;
+                self.expect(Tok::RParen, ")")?;
                 Ok(inner)
+            }
+            Tok::LBracket => {
+                self.bump();
+                let items = self.nested(Self::items)?;
+                self.node(Expr::Vector(items))
+            }
+            &Tok::Nary(op) => {
+                self.bump();
+                self.nested(|p| p.nary(op))
             }
             Tok::Sqrt => {
                 self.bump();
@@ -281,6 +353,58 @@ impl Parser<'_> {
         }
     }
 
+    /// Vector elements after `[` up to and including `]`.
+    fn items(&mut self) -> R<Vec<Expr>> {
+        let mut items = Vec::new();
+        loop {
+            items.push(self.full()?);
+            match self.peek() {
+                Some(Tok::Sep) => self.bump(),
+                Some(Tok::RBracket) => {
+                    self.bump();
+                    return Ok(items);
+                }
+                _ => return Err(CalcError::syntax(self.pos(), "expected ; or ]")),
+            }
+        }
+    }
+
+    /// An n-ary operator after its sign: limits, an optional `▒` and the operand.
+    fn nary(&mut self, op: char) -> R<Expr> {
+        let (mut var, mut from) = (None, None);
+        if matches!(self.peek(), Some(Tok::Under)) {
+            self.bump();
+            let pos = self.pos();
+            let toks = self.toks;
+            match (toks.get(self.i).map(|t| &t.tok), toks.get(self.i + 1).map(|t| &t.tok)) {
+                (Some(Tok::LParen), Some(Tok::Ident(name))) if matches!(toks.get(self.i + 2).map(|t| &t.tok), Some(Tok::Equals)) => {
+                    var = Some(name.clone());
+                    self.i += 3;
+                    from = Some(Box::new(self.full()?));
+                    self.expect(Tok::RParen, ")")?;
+                }
+                (Some(Tok::Ident(name)), _) => {
+                    var = Some(name.clone());
+                    self.bump();
+                }
+                _ => return Err(CalcError::syntax(pos, "the lower limit is a variable, like i or (i=1)")),
+            }
+        }
+        let mut to = None;
+        if matches!(self.peek(), Some(Tok::Caret)) {
+            self.bump();
+            to = Some(Box::new(self.postfix()?));
+        }
+        if to.is_some() != from.is_some() {
+            return Err(CalcError::syntax(self.pos(), "give both limits, like (i=1)^n, or a range variable alone"));
+        }
+        if matches!(self.peek(), Some(Tok::Operand)) {
+            self.bump();
+        }
+        let body = Box::new(self.term()?);
+        self.node(Expr::Nary(Nary { op, var, from, to, body }))
+    }
+
     /// Arguments after `(` up to and including `)`.
     fn args(&mut self) -> R<Vec<Expr>> {
         let mut args = Vec::new();
@@ -289,7 +413,7 @@ impl Parser<'_> {
             return Ok(args);
         }
         loop {
-            args.push(self.expr()?);
+            args.push(self.full()?);
             match self.peek() {
                 Some(Tok::Sep) => self.bump(),
                 Some(Tok::RParen) => {

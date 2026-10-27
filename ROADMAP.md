@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-10-27: Calculations written with one `=`: Strix finds the one unknown, isolates it (or solves numerically, smallest non-negative root) and assigns it; checks and comparisons (`σ ≤ f_yd ✓`); Σ/∏, ranges and vectors; calculated tables (the ordinary table with Table Layout › Data › Calculated Table: column units, column formulas, `Σ =` totals, columns as vectors); number format (digits, auto/decimals/significant, trailing zeros, half-away rounding); working units; the Math tab; `*` types `·`; `strix-cad` stage 1 (drawing model with coordinates bound to calculation parameters, dimensions, rendering, AutoCAD point entry; docs/cad.md).
 - 2026-10-27: Strix (fork of WordCraft): calculated equations with units (`strix-calc`, `calc.*`, the Calculate button on the equation frame, Calculate New Equations preference, recalculation on leaving a region and on F9); native `.xmath`/`.xmathm`, every other editable format import-only, static exports PDF/PNG/LaTeX/HTML/Markdown; interface catalogs vendored in `locales/` with Italian completed; Atollo palette and new icon.
 - 2026-10-22: View › Window › New Window opens a second window on the document (desktop). The windows are titled `Name:1` and `Name:2` and each keeps its own caret, scroll position, zoom and view; edits and Undo are the document's and show in both. Closing one of them asks nothing; the last one asks about unsaved changes, and quitting asks once per document.
 - 2026-10-22: One native window per open document on the desktop. File › New and Open (from the ribbon, File, shortcuts, the file manager, the command line or the control channel) open the document in a window of its own, focused and placed a step below and right of the last one; opening a file replaces a blank document nobody has used in its own window, and a file that is already open brings its window to the front. Each window keeps its own ribbon tab, File page, dialogs, panes, scroll position and composition. View › Window › Switch Windows lists the windows and brings the chosen one forward. File › Close and a window's close button close that window, asking about unsaved changes first; the last window stays open with no document. Quitting asks about each document with unsaved changes in its own window, and Cancel keeps everything open. The control channel's input and screenshots go to the window focused last. The web app keeps one window.
@@ -650,6 +651,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-27 | minor | Progress log: one-`=` calculations with solving, Σ, calculated tables, number format, Math tab, CAD stage 1 |
 | 2026-10-22 | trivial | Progress log: one native window per open document |
 | 2026-10-22 | trivial | Progress log: every open document keeps its own recovery copy |
 | 2026-10-22 | trivial | Progress log: several open documents in the desktop window |

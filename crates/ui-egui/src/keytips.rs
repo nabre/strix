@@ -74,10 +74,12 @@ impl Target {
 
 /// Word's tab letters, as Word for Windows shows them after Alt (File F, Design G, References S,
 /// Review R, View W, Help Y). File opens the Backstage.
-const TAB_LETTERS: [(&str, &str); 11] = [
+const TAB_LETTERS: [(&str, &str); 12] = [
     ("File", "F"),
     ("Home", "H"),
     ("Insert", "N"),
+    // Strix's own tab: C for calculations (M is Mailings; A opens the legacy Table menu).
+    ("Math", "C"),
     ("Draw", "D"),
     ("Design", "G"),
     ("Layout", "P"),

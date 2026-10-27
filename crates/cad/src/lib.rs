@@ -1,0 +1,40 @@
+//! Strix CAD drawings (see `docs/cad.md`).
+//!
+//! A [`Drawing`] is a 2D drafting model in real-world units (millimetres, centimetres or metres,
+//! y up, angles in degrees counter-clockwise) drawn at a scale `1:N` on paper. It holds layers and
+//! entities: lines, circles, arcs, polylines, points, texts and dimensions. Every coordinate,
+//! radius and angle is a [`Num`]: a number, or an expression of the document's calculation
+//! parameters (`"L"`, `"b/2 + 10 mm"`), so a drawing follows the results of the calculations
+//! before it ([`Drawing::resolve`]). Dimension labels show the measured size (`<>`) or a
+//! parameter (`{{L}}`).
+//!
+//! [`Drawing::render`] turns the drawing into [`Prim`]itives in paper millimetres (y down), the
+//! one geometry that the page, the PDF and the editor all draw. Stroke widths, text heights,
+//! dimension offsets and ticks are paper sizes and do not scale.
+//!
+//! Hostile input never panics: sizes are clamped, counts capped, non-finite numbers rejected.
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+
+mod geom;
+mod input;
+mod model;
+mod render;
+
+#[cfg(test)]
+mod tests;
+
+pub use geom::{Pt, bulge_points};
+pub use input::{InputError, parse_point};
+pub use model::{Dash, Drawing, Entity, Kind, Layer, Num, Orient, P, Stroke, Unit};
+pub use render::{Anchor, Prim, Rendered};
+
+/// Most entities in one drawing.
+pub const MAX_ENTITIES: usize = 5000;
+/// Most layers in one drawing.
+pub const MAX_LAYERS: usize = 64;
+/// Most vertices in one polyline.
+pub const MAX_VERTICES: usize = 10_000;
+/// Largest coordinate magnitude, in drawing units.
+pub const MAX_COORD: f64 = 1e9;
+/// Largest serialized drawing accepted by [`Drawing::from_json`], in bytes.
+pub const MAX_JSON_BYTES: usize = 8 << 20;

@@ -413,7 +413,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 app,
                 "formula",
                 Some("Calculate"),
-                "Make this equation a live calculation: define with := and show results with =",
+                "Make this equation a live calculation: write it with = and the unknown is solved for",
                 "equation.calc",
                 json!({}),
                 calc,

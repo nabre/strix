@@ -35,17 +35,17 @@ fn beam_example_from_the_design() {
         assert_eq!(r.error, None);
     }
     assert_eq!(results[0].name.as_deref(), Some("L"));
-    assert!(approx(results[2].value.unwrap().value, 30375.0));
+    assert!(approx(results[2].value.clone().unwrap().scalar().unwrap().value, 30375.0));
     assert_eq!(results[3].kind, RegionKind::Evaluation);
-    assert_eq!(results[3].display.as_deref(), Some("M = 30.38 kN·m"));
+    assert_eq!(results[3].display.as_deref(), Some("M = 30.375 kN·m"));
 }
 
 #[test]
 fn requested_unit_variants() {
-    assert_eq!(beam("M = 30.4 kN*m"), "M = 30.38 kN·m");
-    assert_eq!(beam("M = kN·m"), "M = 30.38 kN·m");
-    assert_eq!(beam("M = kN m"), "M = 30.38 kN·m");
-    assert_eq!(beam("M = 99 kN*m"), "M = 30.38 kN·m");
+    assert_eq!(beam("M = 30.4 kN*m"), "M = 30.375 kN·m");
+    assert_eq!(beam("M = kN·m"), "M = 30.375 kN·m");
+    assert_eq!(beam("M = kN m"), "M = 30.375 kN·m");
+    assert_eq!(beam("M = 99 kN*m"), "M = 30.375 kN·m");
     assert_eq!(beam("q = kN/m"), "q = 12 kN/m");
     assert_eq!(beam("L = mm"), "L = 4500 mm");
     assert_eq!(beam("L^2 = m^2"), "L^2 = 20.25 m²");
@@ -58,7 +58,7 @@ fn automatic_units_prefer_coherent_si() {
     assert_eq!(last(&["1e15 W ="]), "1e15 W = 1000000 GW");
     // Torque has the dimension of energy: J unless N·m is asked for. Named units get an
     // engineering prefix (kN, MPa, kJ); lengths and base units stay unprefixed.
-    assert_eq!(beam("M ="), "M = 30.38 kJ");
+    assert_eq!(beam("M ="), "M = 30.375 kJ");
     assert_eq!(beam("q ="), "q = 12 kN/m");
     assert_eq!(beam("L*q ="), "L*q = 54 kN");
     assert_eq!(last(&["1/2 m ="]), "1/2 m = 0.5 m^-1");
@@ -216,7 +216,7 @@ fn redefinition_semantics() {
     sheet.eval_statement("x := 1");
     sheet.eval_statement("y := 2");
     sheet.eval_statement("x := 3");
-    let names: Vec<_> = sheet.scope().iter().map(|(n, q)| (n.to_string(), q.value)).collect();
+    let names: Vec<_> = sheet.scope().iter().map(|(n, v)| (n.to_string(), v.scalar().unwrap().value)).collect();
     assert_eq!(names, vec![("x".to_string(), 3.0), ("y".to_string(), 2.0)]);
 }
 
@@ -251,7 +251,7 @@ fn greek_names_and_subscripts() {
 
 #[test]
 fn implicit_multiplication_precedence() {
-    let q = |s: &str| run(&[s]).pop().unwrap().value.unwrap();
+    let q = |s: &str| run(&[s]).pop().unwrap().value.unwrap().scalar().unwrap();
     // Implicit multiplication binds tighter than `/`.
     assert!(approx(q("12 kN/m =").value, 12000.0));
     assert!(approx(q("2 kN/4 m^2 =").value, 500.0));
@@ -279,27 +279,46 @@ fn not_calc_statements_are_left_alone() {
         let r = run(&[text]).pop().unwrap();
         assert_eq!(r.kind, RegionKind::NotCalc, "{text}");
         assert_eq!(r.display, None, "{text}");
-        assert_eq!(r.error, None, "{text}");
+        // An equation with several unknowns is left as written, and the report says why.
+        assert!(matches!(r.error, None | Some(CalcError::Underdetermined(_) | CalcError::Syntax { .. })), "{text}: {:?}", r.error);
     }
+    assert_eq!(run(&["E = mc^2"]).pop().unwrap().error, Some(CalcError::Underdetermined(vec!["E".into(), "mc".into()])));
 }
 
 #[test]
 fn number_formatting() {
     let o = Options::default();
-    assert_eq!(format_number(30.375, &o), "30.38");
-    assert_eq!(format_number(1003.0, &o), "1003");
-    assert_eq!(format_number(123456.0, &o), "123500");
-    assert_eq!(format_number(0.5, &o), "0.5");
-    assert_eq!(format_number(0.000123456, &o), "0.0001235");
-    assert_eq!(format_number(0.0000123456, &o), "1.235·10^-5");
-    assert_eq!(format_number(1.23e9, &o), "1.23·10^9");
-    assert_eq!(format_number(999999999.0, &o), "1·10^9");
-    assert_eq!(format_number(-2.5, &o), "-2.5");
-    assert_eq!(format_number(-0.0, &o), "0");
-    assert_eq!(format_number(9.99996, &o), "10");
-    assert_eq!(format_number(f64::NAN, &o), "⚠");
-    assert_eq!(format_number(2.0 / 3.0, &Options { sig_digits: 0, ..o }), "0.7");
-    assert_eq!(format_number(2.0 / 3.0, &Options { sig_digits: 200, ..o }), "0.666666666666667");
+    let f = |v: f64| format_number(v, &o);
+    // Auto: 3 decimals from 1 up, 3 significant digits below 1.
+    assert_eq!(f(30.375), "30.375");
+    assert_eq!(f(30.3754), "30.375");
+    assert_eq!(f(1003.0), "1003");
+    assert_eq!(f(123456.0), "123456");
+    assert_eq!(f(0.5), "0.5");
+    assert_eq!(f(0.0035), "0.0035");
+    assert_eq!(f(0.123456), "0.123");
+    // Half away from zero on the shortest form: 2.675 is 2.68, not 2.67.
+    assert_eq!(format_number(2.675, &Options { digits: 2, ..o }), "2.68");
+    assert_eq!(format_number(-2.675, &Options { digits: 2, ..o }), "-2.68");
+    assert_eq!(f(0.0000123456), "1.235·10^-5");
+    assert_eq!(f(0.000123456), "1.235·10^-4");
+    assert_eq!(f(1.23e9), "1.23·10^9");
+    assert_eq!(f(12345678.0), "1.235·10^7");
+    assert_eq!(f(9999999.9), "9999999.9");
+    assert_eq!(f(9999999.9996), "1·10^7");
+    assert_eq!(f(-2.5), "-2.5");
+    assert_eq!(f(-0.0), "0");
+    assert_eq!(f(-0.0001), "-1·10^-4");
+    assert_eq!(f(9.99996), "10");
+    assert_eq!(f(f64::NAN), "⚠");
+    // Trailing zeros, decimals, significant digits.
+    assert_eq!(format_number(2.5, &Options { zeros: true, ..o }), "2.500");
+    assert_eq!(format_number(1234.5, &Options { digits: 2, count: Count::Significant, ..o }), "1200");
+    assert_eq!(format_number(9.99, &Options { digits: 1, count: Count::Decimals, zeros: true, ..o }), "10.0");
+    assert_eq!(format_number(0.0001, &Options { digits: 2, count: Count::Decimals, ..o }), "0");
+    assert_eq!(format_number(2.0 / 3.0, &Options { digits: 0, ..o }), "0.7");
+    assert_eq!(format_number(2.0 / 3.0, &Options { digits: 0, count: Count::Decimals, ..o }), "1");
+    assert_eq!(format_number(2.0 / 3.0, &Options { digits: 200, ..o }), "0.666666666666667");
     assert_eq!(format_number(1.5, &Options { decimal_comma: true, ..o }), "1,5");
 }
 
@@ -456,7 +475,12 @@ fn hostile_input_never_panics() {
     ];
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     for round in 0..4000 {
-        let opts = Options { sig_digits: (round % 17) as u8, decimal_comma: round % 3 == 0 };
+        let opts = Options {
+            digits: (round % 17) as u8,
+            decimal_comma: round % 3 == 0,
+            zeros: round % 2 == 0,
+            count: [Count::Auto, Count::Decimals, Count::Significant][round % 3],
+        };
         let mut statements = Vec::new();
         for _ in 0..4 {
             let n = rng.below(24);
@@ -509,6 +533,232 @@ fn hostile_input_never_panics() {
     ];
     for s in &hostile {
         let _ = run(&[s.as_str()]);
-        let _ = evaluate(&[s.as_str()], &Options { sig_digits: 255, decimal_comma: true });
+        let _ = evaluate(&[s.as_str()], &Options { digits: 255, decimal_comma: true, ..Options::default() });
     }
+}
+
+#[test]
+fn every_statement_can_use_a_plain_equals_sign() {
+    let r = run(&["L = 4.5 m", "q = 12 kN/m", "M = q*L^2/8", "M = kN*m", "W = 243 cm^3", "σ = M/W = MPa"]);
+    for d in &r[..3] {
+        assert_eq!(d.kind, RegionKind::Definition, "{d:?}");
+        assert_eq!(d.display, None);
+        assert_eq!(d.error, None);
+    }
+    assert_eq!(r[2].name.as_deref(), Some("M"));
+    assert_eq!(r[3].display.as_deref(), Some("M = 30.375 kN·m"));
+    assert_eq!(r[5].kind, RegionKind::DefineAndShow);
+    assert_eq!(r[5].display.as_deref(), Some("σ = M/W = 125 MPa"));
+    // `:=` still defines (and redefines).
+    assert_eq!(last(&["x := 2 m", "x := 3 m", "x ="]), "x = 3 m");
+    // A known name followed by a number is shown, not redefined: the number is refreshed.
+    assert_eq!(last(&["L = 4.5 m", "L = 9 m"]), "L = 4.5 m");
+}
+
+#[test]
+fn the_one_unknown_is_isolated_and_assigned() {
+    let r = run(&["F = 10 N", "m = 4 kg", "F = m*a", "a = m/s^2"]);
+    assert_eq!(r[2].kind, RegionKind::Solved);
+    assert_eq!(r[2].name.as_deref(), Some("a"));
+    assert_eq!(r[2].display.as_deref(), Some("F = m*a ⇒ a = 2.5 m/s²"));
+    assert_eq!(r[3].display.as_deref(), Some("a = 2.5 m/s²"));
+    // The unit after `⇒` is kept on the next calculation, the number refreshed.
+    assert_eq!(last(&["F = 10 N", "m = 4 kg", "F = m*a ⇒ a = 7 mm/s^2"]), "F = m*a ⇒ a = 2500 mm/s²");
+    // The unknown may sit on either side, under powers, roots and functions.
+    assert_eq!(last(&["V = 8 m^3", "V = d^3"]), "V = d^3 ⇒ d = 2 m");
+    assert_eq!(last(&["A = 50 cm^2", "A = π*r^2/4 ⇒ r = cm"]), "A = π*r^2/4 ⇒ r = 7.979 cm");
+    assert_eq!(last(&["y = 2", "exp(k) = y"]), "exp(k) = y ⇒ k = 0.693");
+    assert_eq!(last(&["12 kN = q*3 m"]), "12 kN = q*3 m ⇒ q = 4 kN/m");
+    assert_eq!(last(&["h = 2 m", "v = sqrt(2*g*h) = m/s"]), "v = sqrt(2*g*h) = 6.263 m/s");
+    // Several occurrences: solved numerically, with the unit found from the equation.
+    assert_eq!(last(&["x^2 + x = 6"]), "x^2 + x = 6 ⇒ x = 2");
+    assert_eq!(last(&["A = 6 m^2", "x^2 + x*1 m = A"]), "x^2 + x*1 m = A ⇒ x = 2 m");
+    assert!(matches!(last_error(&["x^2 + 1 = 0"]), CalcError::NoSolution(_)));
+    // A name that is also a unit is unknown when it stands alone: `m = 3 kg` defines m.
+    assert_eq!(last(&["m = 3 kg", "m ="]), "m = 3 kg");
+}
+
+#[test]
+fn equations_without_unknowns_are_checked() {
+    let r = run(&["a = 2", "b = 3", "c = 5", "a + b = c", "a*b = c", "a + b = 6"]);
+    assert_eq!(r[3].kind, RegionKind::Check);
+    assert_eq!(r[3].error, None);
+    assert_eq!(r[4].error.as_ref().map(ToString::to_string).as_deref(), Some("the two sides differ: 6 ≠ 5"));
+    // A plain number after `=` with every name known is a result to refresh.
+    assert_eq!(r[5].kind, RegionKind::Evaluation);
+    assert_eq!(r[5].display.as_deref(), Some("a + b = 5"));
+}
+
+#[test]
+fn sums_and_products_over_ranges() {
+    assert_eq!(last(&["n = 4", "∑_(i=1)^n▒i^2 ="]), "∑_(i=1)^n▒i^2 = 30");
+    assert_eq!(last(&["∏_(k=1)^5▒k ="]), "∏_(k=1)^5▒k = 120");
+    assert_eq!(last(&["Σ_(i=1)^3▒(2 i m) ="]), "Σ_(i=1)^3▒(2 i m) = 12 m");
+    assert_eq!(last(&["i = 1..5", "∑_i▒i ="]), "∑_i▒i = 15");
+    assert_eq!(last(&["i = 1..5", "i ="]), "i = [1; 2; 3; 4; 5]");
+    assert_eq!(last(&["∑_(i=3)^2▒i ="]), "∑_(i=3)^2▒i = 0");
+    assert_eq!(last(&["F = [1; 2; 3] kN", "x = [1; 2; 3] m", "∑_(i=1)^3▒F[i]*x[i] = kN*m"]), "∑_(i=1)^3▒F[i]*x[i] = 14 kN·m");
+    assert_eq!(last(&["F = [1; 2; 3] kN", "∑▒F ="]), "∑▒F = 6 kN");
+    assert!(matches!(last_error(&["∑_(i=1)^1e9▒i ="]), CalcError::TooManyValues { .. }));
+    assert!(matches!(last_error(&["∑_(i=1)^9999▒∑_(j=1)^9999▒1 ="]), CalcError::TooMuchWork));
+    assert!(matches!(last_error(&["∑_(i=1)^2.5▒i ="]), CalcError::NotWhole { .. }));
+    assert!(matches!(last_error(&["∑_(i=1)^(2 m)▒i ="]), CalcError::NeedsDimensionless { .. }));
+}
+
+#[test]
+fn vectors_compute_element_by_element() {
+    let f = |s: &str| last(&["F = [1; 2; 3] kN", s]);
+    assert_eq!(f("F ="), "F = [1; 2; 3] kN");
+    assert_eq!(f("F = N"), "F = [1000; 2000; 3000] N");
+    assert_eq!(f("F = [9; 9] kN"), "F = [1; 2; 3] kN");
+    assert_eq!(f("2 F ="), "2 F = [2; 4; 6] kN");
+    assert_eq!(f("F[2] ="), "F[2] = 2 kN");
+    assert_eq!(f("sum(F) = kN"), "sum(F) = 6 kN");
+    assert_eq!(f("mean(F) ="), "mean(F) = 2 kN");
+    assert_eq!(f("len(F) ="), "len(F) = 3");
+    assert_eq!(f("max(F) ="), "max(F) = 3 kN");
+    assert_eq!(last(&["v = 1..20", "v ="]), "v = [1; 2; 3; 4; 5; 6; 7; 8; …; 20]");
+    assert_eq!(last(&["v = 1..20", "v = [1; 2; …; 20]"]), "v = [1; 2; 3; 4; 5; 6; 7; 8; …; 20]");
+    assert_eq!(f("F[4] ="), "F[4] = ⚠");
+    assert!(matches!(last_error(&["F = [1; 2; 3] kN", "F[4] ="]), CalcError::IndexOutOfRange { index: 4, len: 3 }));
+    assert!(matches!(last_error(&["[1; 2] + [1; 2; 3] ="]), CalcError::LengthMismatch { left: 2, right: 3 }));
+    assert!(matches!(last_error(&["[1 m; 2 s] ="]), CalcError::MixedVector { .. }));
+    assert!(matches!(last_error(&["1..1e9 ="]), CalcError::TooManyValues { .. }));
+}
+
+fn table(rows: &[&[&str]]) -> Vec<Vec<String>> {
+    rows.iter().map(|r| r.iter().map(|c| c.to_string()).collect()).collect()
+}
+
+#[test]
+fn a_calculated_table_fills_formula_columns_and_totals() {
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("γ = 1.35");
+    let rows = table(&[
+        &["Beam", "L [m]", "q [kN/m]", "M [kN·m] = γ*q*L^2/8"],
+        &["B1", "4.5", "12", ""],
+        &["B2", "6000 mm", "10", "999"],
+        &["", "", "", "stale"],
+        &["Total", "", "", "Σ ="],
+        &["", "max =", "", "mean = 1"],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(
+        r.updates,
+        vec![
+            (1, 3, "41.006".to_string()),
+            (2, 3, "60.75".to_string()),
+            (3, 3, String::new()),
+            (4, 3, "Σ = 101.756".to_string()),
+            (5, 1, "max = 6".to_string()),
+            (5, 3, "mean = 50.878".to_string()),
+        ]
+    );
+    assert_eq!(r.columns, vec!["L", "q", "M"]);
+    assert_eq!(ws.eval_statement("sum(M) = kN*m").display.as_deref(), Some("sum(M) = 101.756 kN·m"));
+    assert_eq!(ws.eval_statement("L =").display.as_deref(), Some("L = [4.5; 6] m"));
+}
+
+#[test]
+fn table_errors_stay_in_their_cells() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[&["a [m]", "b [s]", "c = a + b", "d [kg] = a*2"], &["1", "2", "", ""], &["", "3", "", ""], &["Σ =", "", "", ""]]);
+    let r = ws.eval_table(&rows);
+    let at: Vec<(usize, usize)> = r.errors.iter().map(|(r, c, _)| (*r, *c)).collect();
+    assert_eq!(at, vec![(1, 2), (2, 2), (1, 3), (2, 3)]);
+    assert!(matches!(r.errors[0].2, CalcError::DimensionMismatch { .. }));
+    assert!(matches!(r.errors[1].2, CalcError::MissingValue(ref n) if n == "a"));
+    assert!(r.updates.contains(&(1, 2, "⚠".to_string())));
+    assert!(r.updates.contains(&(3, 0, "Σ = 1".to_string())));
+    // `a` has an empty cell: it is not defined as a column; `b` is.
+    assert_eq!(r.columns, vec!["b"]);
+    // A table with no column names is not a calculation.
+    assert_eq!(ws.eval_table(&table(&[&["Name", "Notes here"], &["x", "y"]])).updates, vec![]);
+}
+
+#[test]
+fn hostile_sums_vectors_and_tables_never_panic() {
+    for text in [
+        "∑",
+        "∑_",
+        "∑_(",
+        "∑_(i=",
+        "∑_(i=1)^",
+        "∑▒",
+        "Σ_^▒",
+        "[",
+        "]",
+        "[;]",
+        "[1;",
+        "a[",
+        "a[]",
+        "1..",
+        "..",
+        "…",
+        "⇒",
+        "x ⇒",
+        "⇒ = =",
+        "x = ⇒ x =",
+        "∏_(i=1)^n▒",
+        "∑_(i=1)^3▒∑_i▒i",
+        "i = 1..3",
+        "[[1]] =",
+        "x^x = 2",
+        "sin(x) = 2",
+        "0*x = 1",
+        "1/x = 0",
+        "x = x + 1",
+        "x = [1; 2] + x",
+        "〖〗",
+        "_ = _",
+    ] {
+        let _ = run(&[text, "i = 1..3", text, &format!("{text} =")]);
+    }
+    let mut ws = Worksheet::new(Options::default());
+    for rows in [
+        table(&[]),
+        table(&[&[]]),
+        table(&[&["a [", "b []", "c [m] :=", "= x", "d [m] = ⚠"]]),
+        table(&[&["a", "b = a"], &["Σ =", "Σ ="], &["1", "2"]]),
+        table(&[&["x [m] = x"], &["1"]]),
+    ] {
+        let _ = ws.eval_table(&rows);
+    }
+}
+
+#[test]
+fn checks_compare_both_sides_in_one_unit() {
+    let r = run(&["σ = 5.4 MPa", "f_yd = 355 N/mm^2", "σ ≤ f_yd", "σ > f_yd", "σ <= 5.4 MPa", "σ ≠ σ", "σ ≤ 3 m", "σ ≤ x"]);
+    assert_eq!(r[2].display.as_deref(), Some("σ ≤ f_yd ⇒ 5.4 N/mm² ≤ 355 N/mm² ✓"));
+    assert_eq!(r[2].error, None);
+    assert_eq!(r[3].display.as_deref(), Some("σ > f_yd ⇒ 5.4 N/mm² > 355 N/mm² ✗"));
+    assert!(matches!(r[3].error, Some(CalcError::CheckFailed(_))));
+    // Nearly equal counts as equal; `<=` is `≤`.
+    assert_eq!(r[4].error, None);
+    assert!(matches!(r[5].error, Some(CalcError::CheckFailed(_))));
+    assert!(matches!(r[6].error, Some(CalcError::DimensionMismatch { .. })));
+    // An unknown name: not a check, left as written.
+    assert_eq!(r[7].kind, RegionKind::NotCalc);
+    // The stale tail after `⇒` is replaced.
+    assert_eq!(last(&["a = 2", "a < 3 ⇒ 9 < 3 ✗"]), "a < 3 ⇒ 2 < 3 ✓");
+}
+
+#[test]
+fn the_last_unit_written_is_the_working_unit() {
+    assert_eq!(last(&["b = 300 mm", "h = 2*b", "h ="]), "h = 600 mm");
+    // The last one written wins.
+    assert_eq!(last(&["b = 300 mm", "h = 0.5 m", "b ="]), "b = 0.3 m");
+    assert_eq!(last(&["b = 300 mm", "A = b*b", "A ="]), "A = 0.09 m²");
+    assert_eq!(last(&["F = 2 kN", "G = 500 N", "F + G ="]), "F + G = 2500 N");
+    assert_eq!(last(&["L = 4.5 m", "L = mm", "L ="]), "L = 4500 mm");
+    // A unit asked for once keeps that kind of result in it.
+    assert_eq!(last(&["x = 2 m", "x = cm", "y = 2*x", "y ="]), "y = 400 cm");
+}
+
+#[test]
+fn unit_typos_get_a_hint() {
+    assert_eq!(last_error(&["3 KN ="]).to_string(), "unknown name KN (did you mean kN?)");
+    assert_eq!(last_error(&["3 m + 2 MM ="]).to_string(), "unknown name MM (did you mean mm?)");
+    assert_eq!(last_error(&["3 m + 2 qq ="]).to_string(), "unknown name qq");
 }
