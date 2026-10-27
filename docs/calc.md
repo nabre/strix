@@ -124,6 +124,13 @@ units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles, `
 dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`. Temperature is absolute (`K`); affine `°C` is a later stage. A unit typed in
 the wrong case gets a hint: "unknown name KN (did you mean kN?)".
 
+**Units are set apart.** In calculated equations every unit (`m`, `kN·m`, `°`, `%`, with its
+power: `s²`) is upright (ISO 80000) and coloured with the **Unit** character style (`MathUnit`,
+"Unità di misura", teal by default: change its colour in the Styles pane and the next
+recalculation follows), after a thin space from its number (`300 mm`). Only names that are units
+there count: a parameter `m` is not coloured as the metre. Generated exercise data use the same
+style.
+
 **Dimensionless units are kept.** A plain number carries no unit, so Strix remembers the one
 written: `α = 30°` shows `α = 30°`, `p = 15 %` shows `15 %`. Results inherit it from their parts
 (`90° − α` → `60°`, `2·p` → `30 %`, `1 + p` → `115 %`, `acos(0.5)` → `60°`); `sin(α)` and a ratio
@@ -191,6 +198,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: units styled (Unit character style, upright, thin space).
 - 2026-10-27: automatic recalculation after edits (waiting while the caret is in the item);
   every table cell is data or a statement; dimensionless units (`% ‰ ppm ° rad gon sr`) kept
   through results; step budgets per document, table and solve.

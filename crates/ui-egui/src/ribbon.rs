@@ -2563,6 +2563,8 @@ Calculation",
                 json!({}),
                 false,
             );
+            let pane = app.session.view.exercise_pane;
+            small(ui, app, "exerciseProperties", Some("Properties"), "Show the exercise's data and variants", "view.exercisePane", json!({}), pane);
         });
     });
     group(ui, "Tables", None, app, |ui, app| {

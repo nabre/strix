@@ -120,6 +120,9 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .params(r#"{"value"?: bool}"#)
         .pure(),
+        CommandSpec::new("view.exercisePane", "Exercise Properties", "Math › Exercise", |s, v| toggle(s, v, |x| &mut x.exercise_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.altTextPane", "Alt Text Pane", "Review › Accessibility", |s, v| toggle(s, v, |x| &mut x.alt_text_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),

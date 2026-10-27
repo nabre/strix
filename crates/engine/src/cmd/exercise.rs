@@ -10,6 +10,10 @@
 //! - the **solution** (`strix:exercise.solution`): a heading, the questions repeated
 //!   automatically (`strix:exercise.prompt`, read-only), then free content; an equation in it is
 //!   marked as the result of a question (`Math::answer`, `equation.answer`);
+//! - the **data** (`strix:exercise.data`, read-only): the exercise's initial data with their
+//!   values in the active variant, generated from the data kept on the exercise control (Exercise
+//!   Properties pane, `exercise.setData`); they are the first parameters of the exercise's
+//!   sandbox;
 //! - one **results summary** (`strix:results`, read-only) at the end of the document, listing
 //!   every exercise's questions with the value of their result equations.
 //!
@@ -18,6 +22,7 @@
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use strix_doc::control::{ContentControl, ControlKind, ControlLock};
 use strix_doc::numbering::ListKind;
@@ -34,6 +39,14 @@ pub const TAG_QUESTIONS: &str = "strix:exercise.questions";
 pub const TAG_SOLUTION: &str = "strix:exercise.solution";
 pub const TAG_PROMPT: &str = "strix:exercise.prompt";
 pub const TAG_RESULTS: &str = "strix:results";
+pub const TAG_DATA: &str = "strix:exercise.data";
+/// The element on the exercise control's properties holding its data and variants (JSON).
+const DATA_EL: &str = "strix:exerciseData";
+/// Most data items and variants of one exercise; longest data text, in characters.
+const MAX_DATA: usize = 100;
+const MAX_VARIANTS: usize = 26;
+const MAX_DATA_TEXT: usize = 200;
+const STYLE_DATA: &str = "ExerciseData";
 
 /// Most questions in one exercise; most exercises summarised.
 const MAX_QUESTIONS: usize = 100;
@@ -76,6 +89,13 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.info", "Exercise Info", "Math › Exercise", info)
             .pure()
             .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
+        CommandSpec::new("exercise.data", "Exercise Data", "Math › Exercise", data_info)
+            .pure()
+            .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n}, "errors": [string|null per item]}"#),
+        CommandSpec::new("exercise.setData", "Set Exercise Data", "Math › Exercise", set_data)
+            .params(r#"{"exercise"?: n, "data": {"items": [...], "variants": [...], "active": n}} → stores the exercise's data and variants, then recalculates"#),
+        CommandSpec::new("exercise.variant", "Variant", "Math › Exercise", set_variant)
+            .params(r#"{"exercise"?: n, "active": n (0-based)} → makes that variant the active one"#),
         CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -97,6 +117,8 @@ struct Words {
     statement: &'static str,
     questions: &'static str,
     prompt: &'static str,
+    data: &'static str,
+    variant: &'static str,
 }
 
 fn words(s: &Session) -> Words {
@@ -113,6 +135,8 @@ fn words(s: &Session) -> Words {
             statement: "Testo",
             questions: "Domande",
             prompt: "Domande (automatiche)",
+            data: "Dati",
+            variant: "variante",
         }
     } else {
         Words {
@@ -126,6 +150,8 @@ fn words(s: &Session) -> Words {
             statement: "Statement",
             questions: "Questions",
             prompt: "Questions (automatic)",
+            data: "Data",
+            variant: "variant",
         }
     }
 }
@@ -164,6 +190,12 @@ fn ensure_styles(s: &mut Session) {
             ParaProps { space_after: Some(2.0), ..Default::default() },
             // Generated text is not proofed (a lone "a)" is no spelling error).
             CharProps { italic: Some(true), no_proof: Some(true), ..Default::default() },
+        ),
+        para_style(
+            STYLE_DATA,
+            "Exercise Data",
+            ParaProps { space_after: Some(1.0), ..Default::default() },
+            CharProps { no_proof: Some(true), ..Default::default() },
         ),
         para_style(
             STYLE_NOTE,
@@ -333,6 +365,7 @@ enum Part {
     Questions,
     Solution,
     Prompt,
+    Data,
     Results,
     Other,
 }
@@ -351,6 +384,13 @@ struct Exercise {
     questions: Vec<Question>,
     /// Questions counted per level so far, for the labels.
     counters: [usize; 3],
+    /// The data and variants, from the exercise control.
+    data: ExerciseData,
+    /// The top-level block holding the exercise control's start.
+    start: usize,
+    /// First and last top-level block of the statement, and of the generated data.
+    text_blocks: Option<(usize, usize)>,
+    data_blocks: Option<(usize, usize)>,
     /// First and last top-level block of the repeated questions.
     prompt: Option<(usize, usize)>,
     /// First and last top-level block of the questions.
@@ -403,7 +443,7 @@ fn scan(s: &Session) -> Layout {
                 match o {
                     InlineObject::ControlStart { control } => {
                         if control.tag == TAG_EXERCISE && out.exercises.len() < MAX_EXERCISES {
-                            out.exercises.push(Exercise::default());
+                            out.exercises.push(Exercise { data: read_data(control), start: i, ..Exercise::default() });
                             current = Some(out.exercises.len() - 1);
                         }
                         stack.push((control.tag.clone(), control.showing_placeholder));
@@ -428,6 +468,8 @@ fn scan(s: &Session) -> Layout {
             Part::Other
         } else if has(TAG_PROMPT) {
             Part::Prompt
+        } else if has(TAG_DATA) {
+            Part::Data
         } else if has(TAG_QUESTIONS) {
             Part::Questions
         } else if has(TAG_TEXT) {
@@ -472,10 +514,233 @@ fn scan(s: &Session) -> Layout {
             }
             (Part::Questions, _) => grow(&mut e.question_blocks),
             (Part::Prompt, _) => grow(&mut e.prompt),
+            (Part::Data, _) => grow(&mut e.data_blocks),
+            (Part::Text, _) => grow(&mut e.text_blocks),
             _ => {}
         }
     }
     out
+}
+
+/// The initial data of an exercise and its variants: each item has one value per variant.
+#[derive(Debug, Clone, Default, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ExerciseData {
+    pub items: Vec<DataItem>,
+    /// Variant names (`A`, `B`…); at least one when there are items.
+    pub variants: Vec<String>,
+    /// The active variant (0-based).
+    pub active: usize,
+}
+
+/// One datum: `L` "span" = 4.5 m.
+#[derive(Debug, Clone, Default, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DataItem {
+    pub symbol: String,
+    pub description: String,
+    pub unit: String,
+    /// The value in each variant, as typed (`4.5`, `2·10^3`).
+    pub values: Vec<String>,
+}
+
+fn clip(s: &str) -> String {
+    s.chars().filter(|c| !c.is_control()).take(MAX_DATA_TEXT).collect::<String>().trim().to_string()
+}
+
+impl ExerciseData {
+    /// Limits enforced: at most [`MAX_DATA`] items and [`MAX_VARIANTS`] variants, one value per
+    /// variant, short texts, a valid active variant.
+    pub fn sanitize(&mut self) {
+        self.items.truncate(MAX_DATA);
+        self.variants.truncate(MAX_VARIANTS);
+        self.variants.iter_mut().for_each(|v| *v = clip(v));
+        if self.variants.is_empty() && !self.items.is_empty() {
+            self.variants.push("A".into());
+        }
+        let n = self.variants.len();
+        for item in &mut self.items {
+            item.symbol = clip(&item.symbol);
+            item.description = clip(&item.description);
+            item.unit = clip(&item.unit);
+            item.values.resize(n, String::new());
+            item.values.iter_mut().for_each(|v| *v = clip(v));
+        }
+        self.active = self.active.min(n.saturating_sub(1));
+    }
+
+    /// The definitions of the active variant: `L = 4.5 m`.
+    pub fn statements(&self) -> Vec<String> {
+        self.items
+            .iter()
+            .filter_map(|i| {
+                let value = i.values.get(self.active)?;
+                (!i.symbol.is_empty() && !value.is_empty()).then(|| format!("{} = {} {}", i.symbol, value, i.unit).trim().to_string())
+            })
+            .collect()
+    }
+
+    /// The lines of the generated data part.
+    fn lines(&self, w: &Words) -> Vec<(&'static str, String)> {
+        let statements: Vec<(String, String)> = self
+            .items
+            .iter()
+            .filter_map(|i| {
+                let value = i.values.get(self.active).filter(|v| !v.is_empty())?;
+                // The unit follows a marker: it is set in the Unit style.
+                let unit = if i.unit.is_empty() { String::new() } else { format!(" {UNIT_MARK}{}", i.unit) };
+                (!i.symbol.is_empty()).then(|| (i.description.clone(), format!("{} = {value}{unit}", i.symbol)))
+            })
+            .collect();
+        if statements.is_empty() {
+            return Vec::new();
+        }
+        let mut head = w.data.to_string();
+        if self.variants.len() > 1
+            && let Some(name) = self.variants.get(self.active)
+        {
+            head.push_str(&format!(" ({} {name})", w.variant));
+        }
+        let mut out = vec![(STYLE_HEADING, head)];
+        for (description, statement) in statements {
+            out.push((STYLE_DATA, if description.is_empty() { statement } else { format!("{description}: {statement}") }));
+        }
+        out
+    }
+}
+
+/// The data kept on an exercise control (empty when none or unreadable).
+fn read_data(ctl: &ContentControl) -> ExerciseData {
+    let open = format!("<{DATA_EL}>");
+    let close = format!("</{DATA_EL}>");
+    let Some(raw) = ctl.extra.iter().find_map(|x| x.strip_prefix(&open)?.strip_suffix(&close)) else { return ExerciseData::default() };
+    let json = raw.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&");
+    let mut data: ExerciseData = serde_json::from_str(&json).unwrap_or_default();
+    data.sanitize();
+    data
+}
+
+/// Stores `data` on an exercise control, as a `strix:` element Word ignores.
+fn write_data(ctl: &mut ContentControl, data: &ExerciseData) {
+    let open = format!("<{DATA_EL}>");
+    ctl.extra.retain(|x| !x.starts_with(&open));
+    if data.items.is_empty() {
+        return;
+    }
+    let json = serde_json::to_string(data).unwrap_or_default();
+    let escaped = json.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    ctl.extra.push(format!("{open}{escaped}</{DATA_EL}>"));
+}
+
+/// Generated paragraphs: the first opens `ctl`, the last closes it.
+/// Marks where a unit starts in a generated line (never in user text: it is a control character).
+const UNIT_MARK: char = '\u{1F}';
+
+fn generated(ctl: ContentControl, lines: &[(&'static str, String)]) -> Vec<Paragraph> {
+    let n = lines.len();
+    let mut first = Some(ctl);
+    lines
+        .iter()
+        .enumerate()
+        .map(|(i, (style, text))| {
+            let (before, unit) = text.split_once(UNIT_MARK).unwrap_or((text.as_str(), ""));
+            let opens: Vec<ContentControl> = first.take().into_iter().collect();
+            let lead = opens.len() * OBJ.len_utf8();
+            let mut p = para(style, &format!("{before}{unit}"), opens, usize::from(i + 1 == n), None);
+            // The unit in the Unit style (docs/calc.md), like the units of calculations.
+            if !unit.is_empty() {
+                let a = lead + before.len();
+                let b = a + unit.len();
+                let props = p.runs.first().map(|r| r.props.clone()).unwrap_or_default();
+                let unit_props = CharProps { style: Some(super::calc::UNIT_STYLE.into()), ..props.clone() };
+                p.runs = vec![Run { len: a, props: props.clone() }, Run { len: b - a, props: unit_props }, Run { len: p.text.len() - b, props }];
+                p.runs.retain(|r| r.len > 0);
+            }
+            p
+        })
+        .collect()
+}
+
+/// The definitions each exercise's sandbox starts with (its data, active variant).
+pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String>> {
+    scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
+}
+
+/// The exercise named by `exercise` (1-based) or holding the caret.
+fn target(s: &Session, v: &Value) -> Result<usize, CmdError> {
+    match p::u64(v, "exercise") {
+        Some(n) if n >= 1 => Ok(n as usize - 1),
+        Some(_) => Err(CmdError::Params("exercise: 1-based".into())),
+        None => exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into())),
+    }
+}
+
+fn data_info(s: &mut Session, v: &Value) -> CmdResult {
+    let ex = target(s, v)?;
+    let layout = scan(s);
+    let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
+    // Each datum is checked as the sandbox reads it.
+    let mut ws = strix_calc::Worksheet::new(super::calc::options_now(s));
+    let errors: Vec<Value> = e
+        .data
+        .items
+        .iter()
+        .map(|i| {
+            let value = i.values.get(e.data.active).cloned().unwrap_or_default();
+            if i.symbol.is_empty() || value.is_empty() {
+                return Value::Null;
+            }
+            let r = ws.eval_statement(&format!("{} = {} {}", i.symbol, value, i.unit));
+            match (r.error, r.name.as_deref() == Some(i.symbol.as_str())) {
+                (Some(e), _) => json!(e.to_string()),
+                (None, false) => json!(format!("{} is not a name", i.symbol)),
+                (None, true) => Value::Null,
+            }
+        })
+        .collect();
+    Ok(json!({"exercise": ex + 1, "data": e.data, "errors": errors}))
+}
+
+/// Changes the data of exercise `ex` with `f`, then rebuilds and recalculates.
+fn with_data(s: &mut Session, ex: usize, f: impl FnOnce(&mut ExerciseData)) -> CmdResult {
+    let layout = scan(s);
+    let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
+    let mut data = e.data.clone();
+    f(&mut data);
+    data.sanitize();
+    let block = s.doc.body.get_mut(e.start).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+    let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("exercise vanished".into())) };
+    let mut found = false;
+    for o in &mut p.objects {
+        if let InlineObject::ControlStart { control } = o
+            && control.tag == TAG_EXERCISE
+        {
+            write_data(control, &data);
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return Err(CmdError::Failed("exercise vanished".into()));
+    }
+    p.touch();
+    s.touch();
+    update(s);
+    s.clamp_selection();
+    Ok(json!({"exercise": ex + 1, "data": data}))
+}
+
+fn set_data(s: &mut Session, v: &Value) -> CmdResult {
+    let ex = target(s, v)?;
+    let new: ExerciseData =
+        v.get("data").cloned().map(serde_json::from_value).transpose().map_err(|e| CmdError::Params(format!("data: {e}")))?.unwrap_or_default();
+    with_data(s, ex, |d| *d = new)
+}
+
+fn set_variant(s: &mut Session, v: &Value) -> CmdResult {
+    let ex = target(s, v)?;
+    let active = p::u64(v, "active").ok_or_else(|| CmdError::Params("active: the 0-based variant".into()))? as usize;
+    with_data(s, ex, |d| d.active = active)
 }
 
 /// A hash of what the automatic parts show besides results: titles and questions.
@@ -484,7 +749,7 @@ pub(crate) fn signature(s: &Session) -> u64 {
     let layout = scan(s);
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for e in &layout.exercises {
-        (&e.title, &e.questions).hash(&mut h);
+        (&e.title, &e.questions, e.data.statements()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
     h.finish()
@@ -703,6 +968,35 @@ pub(crate) fn update(s: &mut Session) -> bool {
         };
         changed |= replace(s, from, to, new);
     }
+    // The data parts (above the repeated questions, so after them in this reverse pass).
+    if layout.exercises.iter().any(|e| !e.data.items.is_empty()) {
+        super::calc::unit_color(s);
+    }
+    for e in layout.exercises.iter().rev() {
+        let lines = e.data.lines(&w);
+        match (e.data_blocks, lines.is_empty()) {
+            (Some((from, to)), true) => {
+                if s.doc.body.get(from..=to).is_some() {
+                    s.doc.body.drain(from..=to);
+                    changed = true;
+                }
+            }
+            (Some((from, to)), false) => {
+                let ctl = opener(s, from, TAG_DATA).unwrap_or_else(|| control(TAG_DATA, w.data, ControlLock::SdtContentLocked));
+                changed |= replace(s, from, to, generated(ctl, &lines));
+            }
+            (None, false) => {
+                let Some((_, end)) = e.text_blocks else { continue };
+                let new = generated(control(TAG_DATA, w.data, ControlLock::SdtContentLocked), &lines);
+                let at = (end + 1).min(s.doc.body.len());
+                for (k, p) in new.into_iter().enumerate() {
+                    s.doc.body.insert(at + k, para_block(p));
+                }
+                changed = true;
+            }
+            (None, true) => {}
+        }
+    }
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
@@ -714,7 +1008,12 @@ pub(crate) fn update(s: &mut Session) -> bool {
     }
     let mut lines = vec![(STYLE_HEADING, w.results.to_string())];
     for (n, e) in layout.exercises.iter().enumerate() {
-        let title = if e.title.is_empty() { String::new() } else { format!(" — {}", e.title) };
+        let mut title = if e.title.is_empty() { String::new() } else { format!(" — {}", e.title) };
+        if e.data.variants.len() > 1
+            && let Some(name) = e.data.variants.get(e.data.active)
+        {
+            title.push_str(&format!(" ({} {name})", w.variant));
+        }
         lines.push((STYLE_RESULT, format!("{} {}{title}", w.exercise, n + 1)));
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
@@ -905,6 +1204,63 @@ mod tests {
         assert!(t.contains(&"a.2.1) Verticale".to_string()), "{t:?}");
         assert!(t.contains(&"c.1) In mezzeria: risultato non indicato".to_string()), "{t:?}");
         assert!(!t.iter().any(|x| x.contains("trascuri") && x.contains(')')), "a note is never repeated as a question: {t:?}");
+    }
+
+    #[test]
+    fn data_and_variants_feed_the_sandbox() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Trave", "questions": ["Momento"]})).unwrap();
+        let data = json!({
+            "items": [
+                {"symbol": "L", "description": "luce", "unit": "m", "values": ["4.5", "6"]},
+                {"symbol": "q", "description": "carico", "unit": "kN/m", "values": ["12", "10"]}
+            ],
+            "variants": ["A", "B"],
+            "active": 0
+        });
+        s.run("exercise.setData", &json!({"data": data})).unwrap();
+        let t = texts(&s);
+        assert!(t.contains(&"Dati (variante A)".to_string()), "{t:?}");
+        assert!(t.contains(&"luce: L = 4.5 m".to_string()), "{t:?}");
+        // The unit is set in the Unit style.
+        let unit_runs = s.doc.body.iter().filter_map(|b| match &**b {
+            Block::Para(p) => Some(p.runs.iter().filter(|r| r.props.style.as_deref() == Some(super::super::calc::UNIT_STYLE)).count()),
+            _ => None,
+        });
+        assert_eq!(unit_runs.sum::<usize>(), 2);
+        // The solution uses the data without defining them.
+        let free = t.iter().position(|x| x == "a) Momento").unwrap() + 1;
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(free), 0));
+        s.run("calc.insert", &json!({"text": "M = q·L^2/8"})).unwrap();
+        let mut at = s.sel.focus.clone();
+        at.off -= OBJ.len_utf8();
+        s.sel = crate::Selection::caret(at);
+        s.run("equation.answer", &json!({"question": 1})).unwrap();
+        assert!(texts(&s).contains(&"a) Momento: M = 30.375 kJ".to_string()), "{:?}", texts(&s));
+        // Variant B: everything follows.
+        s.run("exercise.variant", &json!({"exercise": 1, "active": 1})).unwrap();
+        let t = texts(&s);
+        assert!(t.contains(&"luce: L = 6 m".to_string()), "{t:?}");
+        assert!(t.contains(&"a) Momento: M = 45 kJ".to_string()), "{t:?}");
+        assert!(t.contains(&"Esercizio 1 — Trave (variante B)".to_string()), "{t:?}");
+        // The data survive saving.
+        let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
+        let doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
+        let mut back = Session::new(doc);
+        let info = back.run("exercise.data", &json!({"exercise": 1})).unwrap();
+        assert_eq!(info["data"]["items"][1]["values"], json!(["12", "10"]));
+        assert_eq!(info["data"]["active"], 1);
+        // Bad data are reported per item.
+        s.run(
+            "exercise.setData",
+            &json!({"exercise": 1, "data": {"items": [{"symbol": "x y", "values": ["1"]}, {"symbol": "z", "unit": "m", "values": ["2 $"]}]}}),
+        )
+        .unwrap();
+        let errors = s.run("exercise.data", &json!({"exercise": 1})).unwrap()["errors"].clone();
+        assert!(errors[0].is_string() && errors[1].is_string(), "{errors}");
+        // No data: the data part goes away.
+        s.run("exercise.setData", &json!({"exercise": 1, "data": {}})).unwrap();
+        assert!(!texts(&s).iter().any(|x| x.starts_with("Dati")));
     }
 
     #[test]

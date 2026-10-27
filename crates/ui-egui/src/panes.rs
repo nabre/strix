@@ -32,6 +32,8 @@ pub enum Pane {
     FormatShape,
     RestrictEditing,
     Comments,
+    /// Math › Exercise › Properties: the data and variants of the exercise at the caret.
+    Exercise,
 }
 
 impl Pane {
@@ -47,6 +49,7 @@ impl Pane {
             Self::FormatShape => "Format Shape",
             Self::RestrictEditing => "Restrict Editing",
             Self::Comments => "Comments",
+            Self::Exercise => "Exercise Properties",
         }
     }
 
@@ -62,6 +65,7 @@ impl Pane {
             Self::FormatShape => (Edge::End, 280.0),
             Self::RestrictEditing => (Edge::End, 270.0),
             Self::Comments => (Edge::End, 290.0),
+            Self::Exercise => (Edge::End, 320.0),
         };
         PaneState::docked(edge, width)
     }
@@ -79,10 +83,11 @@ impl Pane {
             Self::FormatShape => "formatShape",
             Self::RestrictEditing => "restrictEditing",
             Self::Comments => "comments",
+            Self::Exercise => "exercise",
         }
     }
 
-    const ALL: [Self; 10] = [
+    const ALL: [Self; 11] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -93,6 +98,7 @@ impl Pane {
         Self::FormatShape,
         Self::RestrictEditing,
         Self::Comments,
+        Self::Exercise,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -111,6 +117,7 @@ impl Pane {
             Self::AltText => Some("view.altTextPane"),
             Self::FormatShape => Some("view.formatShapePane"),
             Self::Comments => Some("view.commentsPane"),
+            Self::Exercise => Some("view.exercisePane"),
             Self::RestrictEditing => None,
         }
     }
@@ -165,6 +172,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::FormatShape, v.format_shape_pane),
         (Pane::RestrictEditing, app.restrict.open),
         (Pane::Comments, v.comments_pane),
+        (Pane::Exercise, v.exercise_pane),
     ]
     .into_iter()
     .filter_map(|(pane, shown)| shown.then_some(pane))
@@ -291,6 +299,7 @@ impl PaneContent<Pane> for Content<'_> {
             }
             Pane::RestrictEditing => crate::dialogs_review::restrict_pane(app, ui),
             Pane::Comments => comments(app, ui),
+            Pane::Exercise => crate::exercise_pane::pane(app, ui),
         }
     }
 

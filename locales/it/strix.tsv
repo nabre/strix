@@ -2474,3 +2474,22 @@ preview	Title	Esempio
 	Add Note	Aggiungi nota
 	Add a note between the questions: free text that is not a question	Aggiungi una nota tra le domande: testo libero che non è una domanda
 	Exercise Note	Nota esercizio
+	Exercise Properties	Proprietà esercizio
+	Properties	Proprietà
+	Show the exercise's data and variants	Mostra i dati e le varianti dell'esercizio
+	Put the cursor in an exercise to see its data and variants.	Metti il cursore in un esercizio per vederne dati e varianti.
+	Variants	Varianti
+	Calculate the exercise with this variant	Calcola l'esercizio con questa variante
+	Add a variant: a copy of the active one's values	Aggiungi una variante: una copia dei valori di quella attiva
+	Remove the active variant	Rimuovi la variante attiva
+	Data	Dati
+	Symbol	Simbolo
+	Description	Descrizione
+	Value	Valore
+	Unit	Unità
+	Remove this datum	Rimuovi questo dato
+	Add Datum	Aggiungi dato
+	Add an initial datum: a symbol with its value in every variant	Aggiungi un dato iniziale: un simbolo con il suo valore in ogni variante
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	I dati sono i primi parametri dei calcoli dell'esercizio: la risoluzione li usa tramite il simbolo. Cambiando variante l'esercizio viene ricalcolato.
+	Exercise Data	Dati esercizio
+	Unit	Unità di misura

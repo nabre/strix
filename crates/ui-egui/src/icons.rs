@@ -1181,6 +1181,15 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(14.0, 12.0), (14.0, 18.0)], a);
             pen.line_c(&[(11.0, 15.0), (17.0, 15.0)], a);
         }
+        // Exercise properties: a sheet with a data grid.
+        "exerciseProperties" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            pen.line(&[(3.0, 7.5), (17.0, 7.5)]);
+            pen.line(&[(8.0, 3.0), (8.0, 17.0)]);
+            pen.lines(10.0, 15.0, &[11.0, 14.0]);
+            pen.fcircle(5.5, 11.0, 0.9, a);
+            pen.fcircle(5.5, 14.0, 0.9, a);
+        }
         "addSubQuestion" => {
             pen.text(6.0, 7.0, 9.0, "?", c, true);
             pen.text(12.0, 14.0, 9.0, "?", a, true);

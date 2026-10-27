@@ -119,6 +119,24 @@ impl Worksheet {
         eval(&expr, &self.scope, Names::Worksheet)
     }
 
+    /// The names in `text` that are units here (not parameters or constants): `["kN", "m"]` for
+    /// `M = 30.4 kN·m`; for the equation editor to style them.
+    pub fn units_in(&self, text: &str) -> Vec<String> {
+        let Ok(tokens) = lex(text.get(..text.len().min(MAX_INPUT_CHARS * 4)).unwrap_or(text), self.opts.decimal_comma) else { return Vec::new() };
+        let mut out: Vec<String> = Vec::new();
+        for t in tokens {
+            if let Tok::Ident(n) = t.tok
+                && self.scope.get(&n).is_none()
+                && constant(&n).is_none()
+                && unit(&n).is_some()
+                && !out.contains(&n)
+            {
+                out.push(n);
+            }
+        }
+        out
+    }
+
     /// The value of parameter `name` as results show it, with its unit: `30.375 kN·m`, `30°`.
     pub fn shown(&self, name: &str) -> Option<String> {
         let v = self.scope.get(name)?;

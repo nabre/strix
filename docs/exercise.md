@@ -16,6 +16,7 @@ deleted; the automatic parts can't be edited):
 | Exercise | `strix:exercise` | can't delete | everything below |
 | Title | (first paragraph) | | style **Exercise Title** (Titolo esercizio) |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
+| Data | `strix:exercise.data` | read-only | the initial data in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Properties pane, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), the questions repeated, then free content |
 | Repeated questions | `strix:exercise.prompt` | read-only | `a) …`, `b) …`: rebuilt automatically from the questions |
@@ -26,6 +27,21 @@ summary use their labels (`a.1) …`), indented by level; notes and other conten
 are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
 
 The generated words follow the document's language (Italian or English).
+
+## Data and variants (Exercise Properties pane)
+
+Math › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret:
+
+- **Data**: rows of symbol, description, value and unit (`L`, luce, 4.5, m). They are the first
+  parameters of the exercise's sandbox, so the solution uses `L` without defining it; each row
+  is checked as the sandbox reads it and its error is shown under it.
+- **Variants**: A, B, C… Each datum has one value per variant; **+** adds a variant (a copy of
+  the active one), **−** removes the active one. Choosing a variant recalculates the exercise:
+  data, results and summary follow, and the data part and the summary name the variant.
+
+Data and variants are kept on the exercise control, in a `strix:exerciseData` element of its
+properties (JSON) that Word ignores; `exercise.data`, `exercise.setData` and `exercise.variant`
+read and change them.
 
 ## A sandbox
 
@@ -56,14 +72,19 @@ to the end.
 | `equation.answer` | the equation at the caret is the result of question `n` (0: none) |
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
+| `exercise.data` | the data and variants of an exercise, with per-item errors |
+| `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
+| `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
+| `view.exercisePane` | show or hide the Exercise Properties pane |
 
 ## Next
 
 - A results table per exercise (question, symbol, value, unit) and a check against expected
-  values; exercise variants; statement data recalled into the solution as values.
+  values; a summary per variant; statement data recalled into the solution as values.
 - Solution steps (substitution, isolation lines) per result.
 
 ## Revision history
 
+- 2026-10-27: Exercise Properties pane: initial data and variants; data part.
 - 2026-10-27: nested questions (a), a.1), a.1.1)) and notes between the questions.
 - 2026-10-27: new.

@@ -11,6 +11,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use strix_calc::{Count, Options, RegionKind, RegionResult, TableResult, Worksheet};
 use strix_doc::math::{Math, parse_linear, to_linear};
+use strix_doc::props::{Rgb, TextColor};
 use strix_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
@@ -189,7 +190,8 @@ fn regions(blocks: &[Arc<Block>]) -> Vec<(usize, Option<String>)> {
 
 /// What evaluating an item gave.
 enum Outcome {
-    Equation(Option<RegionResult>),
+    /// The result and the units in the equation's text (to style).
+    Equation(Option<RegionResult>, Vec<String>),
     Table(TableResult),
 }
 
@@ -202,8 +204,20 @@ struct Sheets {
 
 /// Evaluates the items in order, each in its zone's worksheet (`zones`: the exercise of each
 /// top-level block, `None` outside exercises). One step budget covers them all.
-fn run_sheet(found: &[Item], opts: &Options, zones: &[Option<usize>]) -> (Sheets, Vec<Outcome>) {
+fn run_sheet(
+    found: &[Item],
+    opts: &Options,
+    zones: &[Option<usize>],
+    seeds: &std::collections::BTreeMap<usize, Vec<String>>,
+) -> (Sheets, Vec<Outcome>) {
     let mut sheets = Sheets { main: Worksheet::new(*opts), exercises: Default::default() };
+    // Each exercise's sandbox starts with its data (the active variant's values).
+    for (e, statements) in seeds {
+        let ws = sheets.exercises.entry(*e).or_insert_with(|| Worksheet::new(*opts));
+        for statement in statements {
+            ws.eval_statement(statement);
+        }
+    }
     let mut spent = 0usize;
     let outcomes = found
         .iter()
@@ -217,8 +231,12 @@ fn run_sheet(found: &[Item], opts: &Options, zones: &[Option<usize>]) -> (Sheets
             };
             ws.scope().set_spent(spent);
             let outcome = match item {
-                Item::Equation { text: Some(text), .. } => Outcome::Equation(Some(ws.eval_statement(text))),
-                Item::Equation { text: None, .. } => Outcome::Equation(None),
+                Item::Equation { text: Some(text), .. } => {
+                    let r = ws.eval_statement(text);
+                    let units = ws.units_in(r.display.as_deref().unwrap_or(text));
+                    Outcome::Equation(Some(r), units)
+                }
+                Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
                 Item::Table { cells, .. } => Outcome::Table(ws.eval_table(cells)),
             };
             spent = ws.scope().spent();
@@ -232,14 +250,16 @@ fn run_sheet(found: &[Item], opts: &Options, zones: &[Option<usize>]) -> (Sheets
 /// report JSON.
 pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let found = items(&s.doc.body);
-    let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s));
+    let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     let mut updates: Vec<Option<String>> = Vec::new();
+    let mut units: Vec<Vec<String>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
         match (item, outcome) {
-            (Item::Equation { text: Some(text), .. }, Outcome::Equation(Some(r))) => {
+            (Item::Equation { text: Some(text), .. }, Outcome::Equation(Some(r), found_units)) => {
+                units.push(found_units.clone());
                 if r.kind != RegionKind::NotCalc {
                     calc_regions += 1;
                 }
@@ -252,7 +272,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 };
                 updates.push(r.display.clone().filter(|d| !same(d)));
             }
-            (Item::Equation { .. }, _) => updates.push(None),
+            (Item::Equation { .. }, _) => {
+                updates.push(None);
+                units.push(Vec::new());
+            }
             (Item::Table { top, cells }, Outcome::Table(t)) => {
                 tables += 1;
                 for (row, col, e) in &t.errors {
@@ -263,10 +286,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                     cell_updates.push((*top, t.updates.clone()));
                 }
             }
-            (Item::Table { .. }, Outcome::Equation(_)) => {}
+            (Item::Table { .. }, Outcome::Equation(..)) => {}
         }
     }
-    let changed = updates.iter().filter(|u| u.is_some()).count() + cell_updates.iter().map(|(_, u)| u.len()).sum::<usize>();
+    let mut changed = updates.iter().filter(|u| u.is_some()).count() + cell_updates.iter().map(|(_, u)| u.len()).sum::<usize>();
     let equations: Vec<(usize, Option<String>)> = found
         .iter()
         .filter_map(|i| match i {
@@ -274,9 +297,9 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
             Item::Table { .. } => None,
         })
         .collect();
-    if updates.iter().any(Option::is_some) {
-        write_back(s, &equations, &updates);
-    }
+    let color = unit_color(s);
+    let restyled = write_back(s, &equations, &updates, &units, color);
+    changed += restyled;
     for (top, list) in &cell_updates {
         write_cells(s, *top, list);
     }
@@ -305,7 +328,13 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
         return;
     }
     let found = items(&s.doc.body);
-    let key = fingerprint(&found) ^ super::exercise::signature(s);
+    let unit = s.doc.styles.get(UNIT_STYLE).map(|st| format!("{:?}", st.chr.color)).unwrap_or_default();
+    let key = fingerprint(&found) ^ super::exercise::signature(s) ^ {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        unit.hash(&mut h);
+        h.finish()
+    };
     if s.calc_seen == Some(key) {
         return;
     }
@@ -317,7 +346,15 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
     }
     // Exercises show the results: their automatic parts follow.
     super::exercise::update(s);
-    s.calc_seen = Some(fingerprint(&items(&s.doc.body)) ^ super::exercise::signature(s));
+    let unit = s.doc.styles.get(UNIT_STYLE).map(|st| format!("{:?}", st.chr.color)).unwrap_or_default();
+    s.calc_seen = Some(
+        fingerprint(&items(&s.doc.body)) ^ super::exercise::signature(s) ^ {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            unit.hash(&mut h);
+            h.finish()
+        },
+    );
 }
 
 /// The number format of the preferences.
@@ -333,7 +370,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
         return Vec::new();
     }
     let zones = super::exercise::zones(s);
-    let (sheets, outcomes) = run_sheet(&found, opts, &zones);
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s));
     found
         .iter()
         .zip(&outcomes)
@@ -343,7 +380,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
                 return None;
             }
             let shown = match outcome {
-                Outcome::Equation(Some(r)) => match (&r.name, &r.value, &r.error) {
+                Outcome::Equation(Some(r), _) => match (&r.name, &r.value, &r.error) {
                     (_, _, Some(e)) => format!("⚠ {e}"),
                     (Some(name), Some(_), None) => {
                         let ws = zones.get(*top).copied().flatten().and_then(|e| sheets.exercises.get(&e)).unwrap_or(&sheets.main);
@@ -369,10 +406,12 @@ pub(crate) fn recalculate_now(s: &mut Session) -> Value {
     recalculate(s, &opts)
 }
 
-/// Replaces the text of the regions with an update, touching only the blocks that hold one.
-fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Option<String>]) {
+/// Replaces the text of the regions with an update and styles their units, touching only the
+/// blocks that change. Returns how many regions changed only in style.
+fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Option<String>], units: &[Vec<String>], color: Rgb) -> usize {
     let mut index = 0usize;
-    let mut tops: Vec<usize> = found.iter().zip(updates).filter(|(_, u)| u.is_some()).map(|((t, _), _)| *t).collect();
+    let mut restyled = 0usize;
+    let mut tops: Vec<usize> = found.iter().filter(|(_, t)| t.is_some()).map(|(t, _)| *t).collect();
     tops.dedup();
     for (top, block) in s.doc.body.iter_mut().enumerate() {
         // Regions in blocks without updates only advance the counter.
@@ -392,10 +431,22 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
                     if index >= MAX_REGIONS {
                         return;
                     }
+                    let found_units = units.get(index).map(Vec::as_slice).unwrap_or_default();
                     if let Some(Some(text)) = updates.get(index) {
-                        *math = Math { nodes: parse_linear(text), jc: math.jc, calc: true, answer: math.answer, ..Math::default() };
+                        let mut nodes = parse_linear(text);
+                        style_units(&mut nodes, found_units, color, 0);
+                        *math = Math { nodes, jc: math.jc, calc: true, answer: math.answer, ..Math::default() };
                         *linear = to_linear(&math.nodes);
                         touched = true;
+                    } else if math.calc {
+                        let mut nodes = if math.nodes.is_empty() { parse_linear(linear) } else { math.nodes.clone() };
+                        style_units(&mut nodes, found_units, color, 0);
+                        if nodes != math.nodes {
+                            math.nodes = nodes;
+                            math.omml.clear();
+                            touched = true;
+                            restyled += 1;
+                        }
                     }
                     index = index.saturating_add(1);
                 }
@@ -406,6 +457,110 @@ fn write_back(s: &mut Session, found: &[(usize, Option<String>)], updates: &[Opt
         };
         super::paste::each_para(Arc::make_mut(block), 0, &mut each);
     }
+    restyled
+}
+
+/// The character style the units of calculations are shown in: `MathUnit` ("Unit"), added with
+/// a teal colour the first time; its colour is the units' colour.
+pub(crate) const UNIT_STYLE: &str = "MathUnit";
+const UNIT_COLOR: Rgb = Rgb(0x1B, 0x6F, 0x8A);
+
+pub(crate) fn unit_color(s: &mut Session) -> Rgb {
+    if s.doc.styles.get(UNIT_STYLE).is_none() {
+        s.doc.styles.styles.push(strix_doc::styles::Style {
+            id: UNIT_STYLE.into(),
+            name: "Unit".into(),
+            kind: strix_doc::styles::StyleKind::Character,
+            chr: strix_doc::props::CharProps { color: Some(TextColor::Rgb(UNIT_COLOR)), ..Default::default() },
+            priority: Some(30),
+            quick: true,
+            ..Default::default()
+        });
+    }
+    match s.doc.styles.get(UNIT_STYLE).and_then(|st| st.chr.color) {
+        Some(TextColor::Rgb(c)) => c,
+        _ => UNIT_COLOR,
+    }
+}
+
+/// Characters a unit name is made of (letters, `°`, `%`, `‰`, `µ`, `Ω`).
+fn unit_char(c: char) -> bool {
+    c.is_alphabetic() || matches!(c, '°' | '%' | '‰') || is_superscript(c)
+}
+
+/// A superscript power written after a unit (`s²`, `m⁻¹`): styled with it.
+fn is_superscript(c: char) -> bool {
+    matches!(c, '¹' | '²' | '³' | '⁰' | '⁴'..='⁹' | '⁻')
+}
+
+/// Splits the math runs so each unit is a run of its own, upright in `color`; runs that are no
+/// longer units lose that colour. Other formatting is kept.
+fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
+    use strix_doc::math::{MNode, MRun, MSty};
+    use strix_doc::math_edit::{child_count, child_mut};
+    if depth > MAX_DEPTH {
+        return;
+    }
+    let mut out = Vec::with_capacity(root.len());
+    for mut n in std::mem::take(root) {
+        let MNode::Run(r) = n else {
+            for c in 0..child_count(&n) {
+                if let Some(ch) = child_mut(&mut n, c) {
+                    style_units(ch, units, color, depth + 1);
+                }
+            }
+            out.push(n);
+            continue;
+        };
+        if r.nor {
+            out.push(MNode::Run(r));
+            continue;
+        }
+        // Segments: runs of unit characters, and everything else.
+        let mut segments: Vec<(bool, String)> = Vec::new();
+        for c in r.text.chars() {
+            let word = unit_char(c);
+            match segments.last_mut() {
+                Some((w, t)) if *w == word => t.push(c),
+                _ => segments.push((word, c.to_string())),
+            }
+        }
+        let plain = |text: String| {
+            let mut p = MRun { text, ..r.clone() };
+            if p.color == Some(color) {
+                p.color = None;
+                p.sty = None;
+            }
+            p
+        };
+        let mut pieces: Vec<MRun> = Vec::new();
+        for (word, text) in segments {
+            let piece = if word && units.iter().any(|u| *u == text.trim_end_matches(is_superscript)) {
+                MRun { text, sty: Some(MSty::Plain), color: Some(color), ..r.clone() }
+            } else {
+                plain(text)
+            };
+            // ISO 80000: a thin space between a number and its unit.
+            if piece.color == Some(color)
+                && let Some(last) = pieces.last_mut()
+                && last.text.ends_with(|c: char| c.is_ascii_digit())
+            {
+                last.text.push('\u{2009}');
+            }
+            match pieces.last_mut() {
+                Some(last) if last.sty == piece.sty && last.color == piece.color && last.brk.is_none() && piece.brk.is_none() => {
+                    last.text.push_str(&piece.text)
+                }
+                _ => pieces.push(piece),
+            }
+        }
+        if pieces.is_empty() {
+            out.push(MNode::Run(r));
+        } else {
+            out.extend(pieces.into_iter().map(MNode::Run));
+        }
+    }
+    *root = out;
 }
 
 /// Writes computed cells of the calculated table in top-level block `top`: the cell's first
@@ -487,14 +642,14 @@ fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
 fn variables(s: &mut Session, v: &Value) -> CmdResult {
     let opts = options(s, v);
     let found = items(&s.doc.body);
-    let (sheets, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s));
+    let (sheets, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     let ws = &sheets.main;
     let mut defined_at: Vec<(String, usize)> = Vec::new();
     for (i, outcome) in outcomes.iter().enumerate() {
         let names: Vec<String> = match outcome {
-            Outcome::Equation(Some(r)) if r.error.is_none() => r.name.iter().cloned().collect(),
+            Outcome::Equation(Some(r), _) if r.error.is_none() => r.name.iter().cloned().collect(),
             Outcome::Table(t) => t.columns.clone(),
-            Outcome::Equation(_) => Vec::new(),
+            Outcome::Equation(..) => Vec::new(),
         };
         for name in names {
             defined_at.retain(|(n, _)| *n != name);
@@ -536,7 +691,7 @@ mod tests {
     /// The text of every equation in the body, in order, without spaces (the linear format
     /// of a built-up equation drops them).
     fn texts(s: &Session) -> Vec<String> {
-        regions(&s.doc.body).into_iter().filter_map(|(_, t)| t.map(|t| t.replace(' ', ""))).collect()
+        regions(&s.doc.body).into_iter().filter_map(|(_, t)| t.map(|t| t.replace(char::is_whitespace, ""))).collect()
     }
 
     fn add(s: &mut Session, text: &str) -> Value {
@@ -735,6 +890,56 @@ mod tests {
         s.run("calc.options", &json!({"digits": 2, "count": "decimals", "zeros": true})).unwrap();
         assert_eq!(texts(&s), ["x=2/3=0.67"]);
         assert!(s.run("calc.options", &json!({"count": "nope"})).is_err());
+    }
+
+    /// The runs of the `n`th equation as (text, coloured) pairs.
+    fn runs(s: &Session, n: usize) -> Vec<(String, bool)> {
+        let mut out = Vec::new();
+        let mut k = 0;
+        for b in &s.doc.body {
+            if let Block::Para(p) = &**b {
+                for o in &p.objects {
+                    if let InlineObject::Equation { math, .. } = o {
+                        if k == n {
+                            let mut nodes = math.nodes.clone();
+                            strix_doc::math_edit::each_run_mut(&mut nodes, &mut |r| out.push((r.text.clone(), r.color.is_some())));
+                        }
+                        k += 1;
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn units_take_the_unit_style() {
+        let mut s = session();
+        add(&mut s, "L = 4.5 m");
+        add(&mut s, "M = 2 kN·L =");
+        let coloured = |s: &Session, n| runs(s, n).into_iter().filter(|(_, c)| *c).map(|(t, _)| t).collect::<Vec<_>>();
+        assert_eq!(coloured(&s, 0), ["m"]);
+        assert_eq!(coloured(&s, 1), ["kN", "kJ"], "{:?}", runs(&s, 1));
+        // A parameter spelled like a unit is not a unit.
+        add(&mut s, "m = 3 kg");
+        add(&mut s, "m*2 =");
+        assert_eq!(coloured(&s, 3), ["kg"], "{:?}", runs(&s, 3));
+        // The style's colour is the units' colour.
+        let st = s.doc.styles.get_mut(UNIT_STYLE).unwrap();
+        st.chr.color = Some(TextColor::Rgb(Rgb(200, 0, 0)));
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let mut colors = Vec::new();
+        if let Some(Block::Para(p)) = s.doc.body.first().map(|b| &**b) {
+            for o in &p.objects {
+                if let InlineObject::Equation { math, .. } = o {
+                    let mut nodes = math.nodes.clone();
+                    strix_doc::math_edit::each_run_mut(&mut nodes, &mut |r| colors.extend(r.color));
+                }
+            }
+        }
+        assert!(colors.contains(&Rgb(200, 0, 0)), "{colors:?}");
+        // Styling twice changes nothing.
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
     }
 
     #[test]

@@ -162,6 +162,10 @@ pub struct ViewState {
     /// The Alt Text pane (Picture/Shape Format › Alt Text): the selected object's or table's alt text.
     #[serde(default)]
     pub alt_text_pane: bool,
+    /// The Exercise Properties pane (Math › Exercise › Properties): the data and variants of the
+    /// exercise at the caret (docs/exercise.md).
+    #[serde(default)]
+    pub exercise_pane: bool,
     /// The Format Shape pane (Shape Fill › More Gradients…, a shape's Format Shape…): the
     /// selected shapes' fill.
     #[serde(default)]
@@ -302,6 +306,7 @@ impl Default for ViewState {
             smart_art_pane: false,
             accessibility_pane: false,
             alt_text_pane: false,
+            exercise_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,

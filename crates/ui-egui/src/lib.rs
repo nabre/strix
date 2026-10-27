@@ -52,6 +52,7 @@ pub mod dialogs_table_style;
 pub mod dialogs_templates;
 pub mod documents;
 pub mod equation_tab;
+pub mod exercise_pane;
 /// The built-in file browser, for desktops without a system file dialog (#576).
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_browser;

@@ -132,7 +132,7 @@ fn still_selected(app: &WordApp, pos: &Pos) -> bool {
 
 /// A text box editing `current`; the draft lives in egui memory while it has focus (frame-local
 /// buffers lose keystrokes). Returns the new text when editing ends with a change.
-fn draft_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &str, enabled: bool, multiline: bool) -> Option<String> {
+pub(crate) fn draft_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &str, enabled: bool, multiline: bool) -> Option<String> {
     let key = egui::Id::unique(key);
     let mut text = ui.data(|d| d.get_temp::<String>(key)).unwrap_or_else(|| current.to_string());
     let edit = if multiline { egui::TextEdit::multiline(&mut text).desired_rows(5) } else { egui::TextEdit::singleline(&mut text) };
