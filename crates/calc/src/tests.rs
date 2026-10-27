@@ -900,3 +900,29 @@ fn mixed_units_are_worked_in_one() {
     // `a` is shown in mm: every length is worked in mm.
     assert_eq!(steps(&["a = 20 cm", "b = 2 m", "s = 5 mm", "A = a·b + s·b"]).unwrap()[0], "A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)");
 }
+
+/// A data table: every value is a parameter named by its column and its row's label, joined by
+/// a subscript one way (`F_A`) or the other (`A_F`); formula columns and totals still work.
+#[test]
+fn data_tables_name_their_cells() {
+    let rows: Vec<Vec<String>> =
+        [vec!["Support", "F [kN]", "a [m]", "M [kN·m] = F·a"], vec!["A", "10", "2", ""], vec!["B 2", "12", "0.5", ""], vec!["", "Σ =", "", ""]]
+            .iter()
+            .map(|r| r.iter().map(|c| c.to_string()).collect())
+            .collect();
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table_named(&rows, Some(CellNames::ColumnRow));
+    assert_eq!(r.cells, ["F_A", "a_A", "M_A", "F_B2", "a_B2", "M_B2"]);
+    assert_eq!(ws.eval_statement("F_A =").display.as_deref(), Some("F_A = 10 kN"));
+    assert_eq!(ws.eval_statement("M_B2 =").display.as_deref(), Some("M_B2 = 6 kN·m"));
+    // The columns stay vectors too.
+    assert_eq!(ws.eval_statement("sum(F) =").display.as_deref(), Some("sum(F) = 22 kN"));
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table_named(&rows, Some(CellNames::RowColumn));
+    assert_eq!(r.cells.first().map(String::as_str), Some("A_F"));
+    assert_eq!(ws.eval_statement("B2_M =").display.as_deref(), Some("B2_M = 6 kN·m"));
+    // Without names, a table defines its columns only.
+    let mut ws = Worksheet::new(Options::default());
+    assert!(ws.eval_table(&rows).cells.is_empty());
+    assert!(ws.eval_statement("F_A =").error.is_some());
+}

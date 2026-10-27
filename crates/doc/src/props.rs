@@ -1186,6 +1186,38 @@ pub struct TableProps {
     /// on `w:tblPr`.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub calc: bool,
+    /// A calculated table whose cells are parameters of their own (a data table): named from
+    /// the column and the row's label with a subscript (`F_A`, or `A_F`). Saved as
+    /// `strix:calcNames` on `w:tblPr`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub calc_names: Option<CellNames>,
+}
+
+/// How a data table names its cells (see [`TableProps::calc_names`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CellNames {
+    /// `F_A`: the column, the row's label as its subscript.
+    ColumnRow,
+    /// `A_F`: the row's label, the column as its subscript.
+    RowColumn,
+}
+
+impl CellNames {
+    pub fn name(self) -> &'static str {
+        match self {
+            CellNames::ColumnRow => "columnRow",
+            CellNames::RowColumn => "rowColumn",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<CellNames> {
+        match s {
+            "columnRow" => Some(CellNames::ColumnRow),
+            "rowColumn" => Some(CellNames::RowColumn),
+            _ => None,
+        }
+    }
 }
 
 /// Where a floating table sits; the text after it wraps around it.

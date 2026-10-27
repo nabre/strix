@@ -2634,6 +2634,7 @@ Table",
                 json!({}),
                 on,
             );
+            data_table_menu(ui, app);
         });
     });
     group(ui, "Results", None, app, |ui, app| {
@@ -3508,7 +3509,35 @@ Table",
             "table.calc",
             on,
         );
+        data_table_menu(ui, app);
     });
+}
+
+/// Data Table: the table's values as parameters named by column and row, `F_A` or `A_F`.
+fn data_table_menu(ui: &mut Ui, app: &mut WordApp) {
+    let names = app
+        .session
+        .run("calc.tableInfo", &json!({}))
+        .ok()
+        .and_then(|v| v.get("names").and_then(Value::as_str).map(str::to_string))
+        .unwrap_or_default();
+    menu_button(
+        ui,
+        app,
+        "calcTable",
+        Some("Data Table"),
+        "Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F",
+        false,
+        "table.calcNames",
+        |ui, app| {
+            for (value, label) in [("none", "Not a Data Table"), ("columnRow", "Column, Row Below (F_A)"), ("rowColumn", "Row, Column Below (A_F)")] {
+                if ui.selectable_label(names == value, tl!(label)).clicked() {
+                    let _ = app.run("table.calcNames", json!({"value": value}));
+                    ui.close();
+                }
+            }
+        },
+    );
 }
 
 #[cfg(test)]

@@ -2000,6 +2000,7 @@ impl Reader<'_> {
         if let Some(p) = t.child("w:tblPr") {
             table.props = self.pc.tblpr(p);
             table.props.calc = p.attr("strix:calc") == Some("1");
+            table.props.calc_names = p.attr("strix:calcNames").and_then(strix_doc::props::CellNames::parse);
             if let Some(ch) = p.child("w:tblPrChange") {
                 let old = ch.child("w:tblPr").map(|o| self.pc.tblpr(o)).unwrap_or_default();
                 table.props.fmt_change = PropChange::boxed(self.revision(RevisionKind::Format, ch), old);

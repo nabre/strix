@@ -44,6 +44,23 @@ pub struct TableResult {
     pub errors: Vec<(usize, usize, CalcError)>,
     /// The columns now defined in the worksheet scope, left to right.
     pub columns: Vec<String>,
+    /// With cell names, the parameters each data cell now defines (`F_A`), row by row.
+    pub cells: Vec<String>,
+}
+
+/// How a data table names its cells: the column's name and the row's label joined by a
+/// subscript, one way or the other (docs/calc.md, Data tables).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CellNames {
+    /// `F_A`: the column's name, the row's label under it.
+    ColumnRow,
+    /// `A_F`: the row's label, the column's name under it.
+    RowColumn,
+}
+
+/// A row label or column name as part of a parameter name: its letters and digits.
+fn name_part(text: &str) -> String {
+    text.chars().filter(|c| c.is_alphanumeric()).take(24).collect()
 }
 
 /// A column's unit: the quantity of one unit and its text as written in the header.
@@ -95,6 +112,12 @@ impl Worksheet {
     /// Evaluates a calculated table given as plain cell texts, row by row (row 0 is the
     /// header), and defines its complete columns in the scope. See the module docs.
     pub fn eval_table(&mut self, rows: &[Vec<String>]) -> TableResult {
+        self.eval_table_named(rows, None)
+    }
+
+    /// [`Self::eval_table`]; with `names`, every data cell also defines a parameter named from
+    /// its column and its row's label (the first column's text): `F_A` or `A_F`.
+    pub fn eval_table_named(&mut self, rows: &[Vec<String>], names: Option<CellNames>) -> TableResult {
         let mut out = TableResult::default();
         let Some((header, body)) = rows.split_first() else {
             return out;
@@ -318,6 +341,38 @@ impl Worksheet {
                 }
                 _ => {
                     self.scope.remove(name);
+                }
+            }
+        }
+
+        // A data table: each value is a parameter of its own, named by its column and its row.
+        if let Some(order) = names
+            && label.first() == Some(&true)
+        {
+            for (r, cells) in body.iter().enumerate().filter(|(r, _)| active.get(*r) == Some(&true)) {
+                let row = name_part(cells.first().map(String::as_str).unwrap_or_default());
+                for (c, col) in columns.iter().enumerate().filter(|(c, _)| label.get(*c) == Some(&false)) {
+                    let (Some(column), Some(q)) = (col.name().map(name_part), values.get(c).and_then(|v| v.get(r)).copied().flatten()) else {
+                        continue;
+                    };
+                    let (base, sub) = match order {
+                        CellNames::ColumnRow => (column, row.clone()),
+                        CellNames::RowColumn => (row.clone(), column),
+                    };
+                    // A name starts with a letter (a row labelled `1` names `F_1`, never `1_F`).
+                    if sub.is_empty() || !base.chars().next().is_some_and(char::is_alphabetic) {
+                        continue;
+                    }
+                    let name = format!("{base}_{sub}");
+                    self.scope.set(&name, Value::Scalar(q));
+                    let hint = match col {
+                        Column::Input { unit: Some(u), .. } | Column::Formula { unit: Some(u), .. } if u.q.dim.is_dimensionless() => {
+                            Some(u.text.clone())
+                        }
+                        _ => None,
+                    };
+                    self.set_hint(&name, hint);
+                    out.cells.push(name);
                 }
             }
         }

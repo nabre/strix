@@ -53,14 +53,19 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("table.calc", "Calculated Table", "Table Layout › Data", toggle_table)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"calc": bool, "recalculated"}: the table at the caret is calculated: header cells name its columns (`L [m]`, `M [kN·m] = q·L^2/8`), `Σ =` cells total them"#),
+        CommandSpec::new("table.calcNames", "Data Table", "Table Layout › Data", cell_names)
+            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .params(r#"{"value": "columnRow" | "rowColumn" | "none"} → {"names", "recalculated"}: the table at the caret is a data table (made calculated): every value is a parameter named by its column and its row's label (the first column), joined by a subscript: `F_A` (columnRow) or `A_F` (rowColumn)"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
-            let calc = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc);
-            Ok(json!({"calc": calc}))
+            let table = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp));
+            let calc = table.is_some_and(|t| t.props.calc);
+            let names = table.and_then(|t| t.props.calc_names).map_or("none", |n| n.name());
+            Ok(json!({"calc": calc, "names": names}))
         })
         .pure()
-        .params(r#"→ {"calc": bool}: whether the table at the caret is calculated"#),
+        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none"}: whether the table at the caret is calculated, and how a data table names its cells"#),
         CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
             .pure()
             .params(r#"{"digits"?: n} → {"variables": [{"name", "value" (number in the unit shown, or an array), "text", "unit", "si" (SI magnitude, or an array), "region" (index of the defining item)}]}"#),
@@ -169,8 +174,9 @@ enum Item {
     /// An equation in top-level block `top`: its text if it is a calc region, `None` otherwise,
     /// and the question it answers (`Math::answer`, 0 for none).
     Equation { top: usize, text: Option<String>, answer: u32, full: String },
-    /// A calculated table (top-level block `top`): its cells' text, row by row.
-    Table { top: usize, cells: Vec<Vec<String>> },
+    /// A calculated table (top-level block `top`): its cells' text, row by row, and how its
+    /// cells are named when it is a data table.
+    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames> },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
 }
@@ -224,7 +230,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     }
                 }
             }
-            Block::Table(t) if depth == 0 && t.props.calc => out.push(Item::Table { top, cells: table_cells(t) }),
+            Block::Table(t) if depth == 0 && t.props.calc => out.push(Item::Table { top, cells: table_cells(t), names: t.props.calc_names }),
             Block::Table(t) => {
                 for row in &t.rows {
                     for cell in &row.cells {
@@ -314,7 +320,13 @@ fn run_sheet(
                     Outcome::Equation(Some(r), units)
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
-                Item::Table { cells, .. } => Outcome::Table(ws.eval_table(cells)),
+                Item::Table { cells, names, .. } => Outcome::Table(ws.eval_table_named(
+                    cells,
+                    names.map(|n| match n {
+                        strix_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
+                        strix_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
+                    }),
+                )),
                 // A drawing reads the parameters defined before it.
                 Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
                     Ok(mut d) => {
@@ -373,7 +385,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 stepped.push(false);
                 units.push(Vec::new());
             }
-            (Item::Table { top, cells }, Outcome::Table(t)) => {
+            (Item::Table { top, cells, .. }, Outcome::Table(t)) => {
                 tables += 1;
                 for (row, col, e) in &t.errors {
                     let text = cells.get(*row).and_then(|r| r.get(*col)).cloned().unwrap_or_default();
@@ -421,7 +433,10 @@ fn fingerprint(found: &[Item]) -> u64 {
     for item in found {
         match item {
             Item::Equation { text, answer, full, .. } => (text, answer, full).hash(&mut h),
-            Item::Table { cells, .. } => cells.hash(&mut h),
+            Item::Table { cells, names, .. } => {
+                cells.hash(&mut h);
+                names.map(|n| n.name()).hash(&mut h);
+            }
             Item::Cad { source, .. } => source.hash(&mut h),
         }
     }
@@ -856,6 +871,25 @@ fn toggle_table(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"calc": on, "recalculated": report}))
 }
 
+fn cell_names(s: &mut Session, v: &Value) -> CmdResult {
+    let names = match p::str(v, "value") {
+        Some("none") => None,
+        Some(word) => Some(strix_doc::props::CellNames::parse(word).ok_or_else(|| CmdError::Params("value: columnRow, rowColumn or none".into()))?),
+        None => return Err(CmdError::Params("value: columnRow, rowColumn or none".into())),
+    };
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let story = s.sel.focus.story;
+    let t = s.doc.table_mut(story, &tp)?;
+    t.props.calc_names = names;
+    // A data table is a calculated table.
+    if names.is_some() {
+        t.props.calc = true;
+    }
+    super::table::touch_cells(s, &tp)?;
+    let report = recalculate(s, &options(s, v));
+    Ok(json!({"names": names.map_or("none", |n| n.name()), "recalculated": report}))
+}
+
 /// Inserts a table and turns it into a calculated table.
 fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
     let rows = p::u64(v, "rows").unwrap_or(4).clamp(2, 1000);
@@ -1114,6 +1148,30 @@ mod tests {
                 cell.blocks = vec![strix_doc::para_block(Paragraph::with_text(text, Default::default()))];
             }
         }
+    }
+
+    /// A data table: its values are parameters `F_A` (or `A_F`) for what follows; kept on save.
+    #[test]
+    fn a_data_table_names_its_cells() {
+        let mut s = session();
+        with_table(&mut s, &[&["", "F [kN]", "a [m]"], &["A", "10", "2"], &["B", "12", "0.5"]]);
+        let r = s.run("table.calcNames", &json!({"value": "columnRow"})).unwrap();
+        assert_eq!(r["names"], "columnRow");
+        assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap(), json!({"calc": true, "names": "columnRow"}));
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![s.doc.body.len() as u32 - 1]), 0));
+        add(&mut s, "F_B·a_A =");
+        assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=24kJ"), "12 kN × 2 m");
+        // The other way round, then saved and opened again.
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.calcNames", &json!({"value": "rowColumn"})).unwrap();
+        let vars = s.run("calc.variables", &json!({})).unwrap();
+        let names: Vec<&str> = vars["variables"].as_array().unwrap().iter().filter_map(|v| v["name"].as_str()).collect();
+        assert!(names.contains(&"B_F") && !names.contains(&"F_B"), "{names:?}");
+        let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
+        let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
+        let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.calc_names) } else { None });
+        assert_eq!(t, Some(Some(strix_doc::props::CellNames::RowColumn)));
+        assert!(s.run("table.calcNames", &json!({"value": "diagonal"})).is_err());
     }
 
     fn table_texts(s: &Session) -> Vec<Vec<String>> {

@@ -120,6 +120,25 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
   column with empty cells is not defined.
 - Errors stay in their cell (`⚠`) and are listed by `calc.recalculate` with row and column.
 
+### Data tables
+
+A calculated table can name its cells instead of (as well as) its columns: Table Layout › Data
+Table, or Math › Tables › Data Table (`table.calcNames`). Every value is then a parameter named
+by its column and its row's label — the first column's text, its letters and digits — joined by
+a subscript, one way or the other:
+
+| Support | F [kN] | a [m] |
+|---|---|---|
+| A | 10 | 2 |
+| B | 12 | 0.5 |
+
+- **Column, row below** (`columnRow`): `F_A = 10 kN`, `a_B = 0.5 m`.
+- **Row, column below** (`rowColumn`): `A_F = 10 kN`, `B_a = 0.5 m`.
+
+Formula columns, units and totals work as in any calculated table, and the columns stay vectors
+(`sum(F)`). A name must start with a letter: a row labelled `1` names `F_1`, never `1_F`. Saved as
+`strix:calcNames` on `w:tblPr`.
+
 ## Quantities and units
 
 `strix-calc` (L1, pure Rust, no dependencies) holds a quantity as an `f64` SI magnitude plus a
@@ -233,6 +252,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: data tables: cells named by column and row with a subscript (`F_A` or `A_F`).
 - 2026-10-27: quantities of one kind worked in one unit, with the working shown (`5 m·30 cm = 5 m·0.3 m = 1.5 m²`).
 - 2026-10-27: quick keys `^ _ /` in formulas; New Calculation on Alt+Shift+C.
 - 2026-10-27: the solution steps are not edited; only the statement takes the caret.
