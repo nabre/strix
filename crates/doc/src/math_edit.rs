@@ -769,6 +769,117 @@ pub fn autocorrect(root: &mut Arg, pos: &MathPos) -> Option<MathPos> {
     Some(MathPos { path: pos.path, off: pos.off - name.chars().count() })
 }
 
+/// The quick keys (Mathcad-style): `^` makes a superscript of the operand before the caret, `_` a
+/// subscript, `/` a fraction with it as the numerator, and the caret goes into the new empty box
+/// (Right arrow leaves it). The operand is the name or number just typed (`x`, `12.5`, `Mₑ`), a
+/// bracket typed as text (`(a+b)`), or the structure just before the caret. `^` after a
+/// subscript (or `_` after a superscript) adds the other script. None when there is no operand for
+/// a script (the character is then typed, and builds up on Space as before).
+pub fn quick_structure(root: &mut Arg, pos: &MathPos, key: char) -> Option<MathPos> {
+    if !matches!(key, '^' | '_' | '/') {
+        return None;
+    }
+    let pos = clamp(root, pos);
+    // `M_Ed^`: `^` at the end of a subscript gives the same symbol its superscript (and `_` at the
+    // end of a superscript its subscript), as `M_Ed^2` means.
+    if let Some((&(node, slot), up)) = pos.path.split_last()
+        && key != '/'
+        && arg_at(root, &pos.path).is_some_and(|a| units(a) == pos.off)
+        && let Some(MNode::Script { kind, .. }) = arg_at_mut(root, up).and_then(|a| a.get_mut(node))
+        && matches!((*kind, slot, key), (ScriptKind::Sub, 1, '^') | (ScriptKind::Sup, 2, '_'))
+    {
+        *kind = ScriptKind::SubSup;
+        let mut path = up.to_vec();
+        path.push((node, if key == '^' { 2 } else { 1 }));
+        return Some(MathPos { path, off: 0 });
+    }
+    let a = arg_at_mut(root, &pos.path)?;
+    let at = split_at(a, pos.off).min(a.len());
+    let mut path = pos.path.clone();
+    // `x_i` then `^`: the same script gets its superscript (and the other way round).
+    if let Some(i) = at.checked_sub(1)
+        && let Some(MNode::Script { kind, .. }) = a.get_mut(i)
+        && matches!((*kind, key), (ScriptKind::Sub, '^') | (ScriptKind::Sup, '_'))
+    {
+        *kind = ScriptKind::SubSup;
+        path.push((i, if key == '^' { 2 } else { 1 }));
+        return Some(MathPos { path, off: 0 });
+    }
+    let operand: Arg = match at.checked_sub(1).and_then(|i| a.get_mut(i)) {
+        None => Vec::new(),
+        Some(MNode::Run(r)) if r.nor || r.lit => return None,
+        Some(MNode::Run(r)) => {
+            let chars: Vec<char> = r.text.chars().collect();
+            let n = chars.len();
+            let start = if chars.last() == Some(&')') {
+                // A bracket typed as text: back to its opening one.
+                let mut depth = 0usize;
+                let mut found = None;
+                for (k, c) in chars.iter().enumerate().rev() {
+                    match c {
+                        ')' => depth += 1,
+                        '(' => {
+                            depth = depth.saturating_sub(1);
+                            if depth == 0 {
+                                found = Some(k);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                found?
+            } else {
+                chars.iter().rposition(|c| !(c.is_alphanumeric() || *c == '.' || *c == '′')).map_or(0, |k| k + 1)
+            };
+            let text: String = chars.get(start..n).map(|s| s.iter().collect()).unwrap_or_default();
+            r.text = chars.get(..start).map(|s| s.iter().collect()).unwrap_or_default();
+            if text.is_empty() {
+                Vec::new()
+            } else if text.starts_with('(') {
+                crate::math_linear::parse(&text)
+            } else {
+                vec![MNode::Run(MRun { text, ..r.clone() })]
+            }
+        }
+        Some(_) => at.checked_sub(1).and_then(|i| a.get(i)).cloned().into_iter().collect(),
+    };
+    // A structure before the caret is taken whole; a run keeps what came before the operand.
+    let whole = at.checked_sub(1).is_some_and(|i| !matches!(a.get(i), Some(MNode::Run(_))));
+    if operand.is_empty() && key != '/' {
+        return None;
+    }
+    let (node, slot) = match key {
+        '^' => (MNode::Script { kind: ScriptKind::Sup, base: operand, sub: Vec::new(), sup: Vec::new() }, 2),
+        '_' => (MNode::Script { kind: ScriptKind::Sub, base: operand, sub: Vec::new(), sup: Vec::new() }, 1),
+        _ => {
+            let slot = if operand.is_empty() { 0 } else { 1 };
+            (MNode::Frac { kind: crate::math::FracKind::Bar, num: operand, den: Vec::new() }, slot)
+        }
+    };
+    let index = if whole {
+        let i = at.saturating_sub(1);
+        if let Some(n) = a.get_mut(i) {
+            *n = node;
+        }
+        i
+    } else {
+        a.insert(at, node);
+        at
+    };
+    path.push((index, slot));
+    tidy(root);
+    // Tidying drops an emptied run before the new node: find the node again by its slot.
+    let fixed = MathPos { path: path.clone(), off: 0 };
+    if arg_at(root, &fixed.path).is_some_and(|x| x.is_empty()) {
+        return Some(fixed);
+    }
+    if let Some(last) = path.last_mut() {
+        last.0 = last.0.saturating_sub(1);
+    }
+    Some(MathPos { path, off: 0 })
+}
+
 /// Characters that make typed linear text build up into structures.
 fn builds(s: &str) -> bool {
     s.chars().any(|c| {

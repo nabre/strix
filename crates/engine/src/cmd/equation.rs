@@ -29,6 +29,21 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("insert.equation", "Equation", "Insert › Symbols", insert)
             .key("Alt+=")
             .params(r#"{"linear"?: string, "latex"?: string, "builtin"?: "pythagoras|area|quadratic|binomial|expansion|euler|derivative|taylor|gaussian|fourier|trig1|trig2|normal|bayes", "display"?: bool, "edit"?: bool (default true), "calc"?: bool (a calculation region; default calc.newEquations)}"#),
+        // A new calculation in one keystroke: Alt+Shift+C (C for calculation; Ctrl+Space stays Word's
+        // Reset Character Formatting, Ctrl+Alt+Space its Read Aloud).
+        CommandSpec::new("calc.new", "New Calculation", "Math › Calculations", |s, v| {
+            let mut p = v.as_object().cloned().unwrap_or_default();
+            p.insert("calc".into(), json!(true));
+            insert(s, &Value::Object(p))
+        })
+        .key(super::mac_or("Ctrl+Alt+C", "Alt+Shift+C"))
+        .params(r#"{"display"?: bool}: an empty calculation region at the caret, ready to type"#),
+        CommandSpec::new("equation.quickKeys", "Quick Keys in Formulas", "Equation › Tools", |s, v| {
+            s.prefs.math_quick_keys = p::bool(v, "value").unwrap_or(!s.prefs.math_quick_keys);
+            Ok(json!({"quickKeys": s.prefs.math_quick_keys}))
+        })
+        .pure()
+        .params(r#"{"value"?: bool (default: toggle)}: ^ _ / make the superscript, subscript or fraction at once"#),
         CommandSpec::new("equation.edit", "Edit Equation", "Equation", edit)
             .pure()
             .when(near_equation)
@@ -309,6 +324,7 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
         return result(s);
     }
     let latex = s.math_latex;
+    let quick = s.prefs.math_quick_keys;
     let style = TypeStyle { nor: s.math_normal_text };
     let mut pos = m.pos.clone();
     let mut transformed = false;
@@ -323,6 +339,18 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
         for c in text.chars().take(crate::MAX_EQUATION_TYPE_CHARS) {
             // `*` types the multiplication dot (normal text keeps the asterisk).
             let c = if c == '*' && !style.nor { '·' } else { c };
+            // Quick keys: `^`, `_` and `/` make the superscript, subscript or fraction at once
+            // (LaTeX input keeps its own syntax).
+            if quick && !style.nor && !latex && matches!(c, '^' | '_' | '/') {
+                if let Some(p) = me::autocorrect(&mut math.nodes, &pos) {
+                    pos = p;
+                }
+                if let Some(p) = me::quick_structure(&mut math.nodes, &pos, c) {
+                    pos = p;
+                    transformed = true;
+                    continue;
+                }
+            }
             let rel = matches!(strix_doc::math::math_class(c), strix_doc::math::MClass::Rel);
             if !style.nor && (c == ' ' || c == '\t' || rel) {
                 let mut changed = false;
@@ -845,6 +873,58 @@ mod tests {
         s
     }
 
+    /// A session typing formulas as Word does: `^ _ /` build up on Space (quick keys off).
+    fn word_session() -> Session {
+        let mut s = session();
+        s.prefs.math_quick_keys = false;
+        s
+    }
+
+    /// The quick keys: `^`, `_` and `/` make the box at once and the caret goes into it; Right
+    /// leaves it. `(a+b)/` takes the bracket as the numerator; `^` after a subscript adds the
+    /// superscript to the same script.
+    #[test]
+    fn quick_keys_make_scripts_and_fractions_at_once() {
+        let mut s = session();
+        s.run("insert.equation", &json!({})).unwrap();
+        s.run("equation.type", &json!({"text": "A=b^2"})).unwrap();
+        s.run("equation.move", &json!({"dir": "right"})).unwrap();
+        s.run("equation.type", &json!({"text": "+M_Ed^2"})).unwrap();
+        s.run("equation.move", &json!({"dir": "right"})).unwrap();
+        s.run("equation.type", &json!({"text": "+(a+b)/2"})).unwrap();
+        let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
+        let sup = |n: &MNode| {
+            matches!(n, MNode::Script { kind: strix_doc::math::ScriptKind::Sup, base, sup, .. }
+            if matches!(base.as_slice(), [MNode::Run(r)] if r.text == "b") && matches!(sup.as_slice(), [MNode::Run(r)] if r.text == "2"))
+        };
+        assert!(nodes.iter().any(sup), "{nodes:#?}");
+        let subsup = |n: &MNode| {
+            matches!(n, MNode::Script { kind: strix_doc::math::ScriptKind::SubSup, base, sub, .. }
+            if matches!(base.as_slice(), [MNode::Run(r)] if r.text == "M") && matches!(sub.as_slice(), [MNode::Run(r)] if r.text == "Ed"))
+        };
+        assert!(nodes.iter().any(subsup), "{nodes:#?}");
+        let frac = |n: &MNode| {
+            matches!(n, MNode::Frac { num, den, .. }
+            if matches!(num.as_slice(), [MNode::Delim { .. }]) && matches!(den.as_slice(), [MNode::Run(r)] if r.text == "2"))
+        };
+        assert!(nodes.iter().any(frac), "{nodes:#?}");
+        // `/` with nothing before it: an empty fraction, the caret in the numerator.
+        let mut s = session();
+        s.run("insert.equation", &json!({})).unwrap();
+        s.run("equation.type", &json!({"text": "/1"})).unwrap();
+        let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
+        assert!(matches!(nodes.as_slice(), [MNode::Frac { num, den, .. }] if !num.is_empty() && den.is_empty()), "{nodes:#?}");
+    }
+
+    /// Alt+Shift+C (⌃⌥C on a Mac): a new calculation region at the caret, being edited.
+    #[test]
+    fn a_new_calculation_in_one_keystroke() {
+        let mut s = session();
+        assert_eq!(crate::cmd::registry().by_shortcut(super::super::mac_or("Ctrl+Alt+C", "Alt+Shift+C")).map(|c| c.id), Some("calc.new"));
+        s.run("calc.new", &json!({})).unwrap();
+        assert!(s.math.is_some(), "editing the new calculation");
+    }
+
     fn linear(s: &Session) -> String {
         s.math.as_ref().and_then(|m| s.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off))).map(|o| o.plain_text().to_string()).unwrap_or_default()
     }
@@ -852,6 +932,8 @@ mod tests {
     #[test]
     fn type_an_equation_like_word() {
         let mut s = session();
+        // Word's linear typing: the quick keys off.
+        s.run("equation.quickKeys", &json!({"value": false})).unwrap();
         s.run("insert.equation", &json!({})).unwrap();
         assert!(s.math.is_some(), "editing the new equation");
         // An empty line gives a display equation.
@@ -1108,7 +1190,7 @@ mod tests {
     fn typed_multi_letter_scripts_stay_whole() {
         // #1609, Word for Mac 16.113.4: `V_dd` + Space leaves "dd" entirely in the subscript.
         for typed in ["V_dd", "V_(dd)"] {
-            let mut s = session();
+            let mut s = word_session();
             s.run("insert.equation", &json!({})).unwrap();
             s.run("equation.type", &json!({"text": typed})).unwrap();
             s.run("equation.type", &json!({"text": " "})).unwrap();
@@ -1119,7 +1201,7 @@ mod tests {
                 "{typed}: {nodes:#?}"
             );
         }
-        let mut s = session();
+        let mut s = word_session();
         s.run("insert.equation", &json!({})).unwrap();
         s.run("equation.type", &json!({"text": "x^ab "})).unwrap();
         let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
@@ -1129,14 +1211,14 @@ mod tests {
     #[test]
     fn a_built_script_keeps_the_letter_typed_after_it() {
         // #1609 review: `x_i y ` built x_{iy}: the letter after a script is its own item.
-        let mut s = session();
+        let mut s = word_session();
         s.run("insert.equation", &json!({})).unwrap();
         s.run("equation.type", &json!({"text": "x_i y "})).unwrap();
         let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
         assert_eq!(nodes.len(), 2, "{nodes:#?}");
         assert!(matches!(&nodes[0], MNode::Script { sub, .. } if matches!(sub.as_slice(), [MNode::Run(r)] if r.text == "i")), "{nodes:#?}");
         assert!(matches!(&nodes[1], MNode::Run(r) if r.text.trim() == "y"), "{nodes:#?}");
-        let mut s = session();
+        let mut s = word_session();
         s.run("insert.equation", &json!({})).unwrap();
         s.run("equation.type", &json!({"text": "a_i b_j "})).unwrap();
         let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();

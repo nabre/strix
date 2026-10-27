@@ -776,6 +776,9 @@ pub struct Prefs {
     /// Show the solution steps of formulas and solved equations under them (`calc.steps`):
     /// formula, substitution, result, one under the other.
     pub calc_steps: bool,
+    /// In formulas, `^`, `_` and `/` make the superscript, subscript or fraction at once and the
+    /// caret goes into the new box (`equation.quickKeys`). Off: they build up on Space, as in Word.
+    pub math_quick_keys: bool,
 }
 
 impl Default for Prefs {
@@ -786,6 +789,7 @@ impl Default for Prefs {
             calc_count: "auto".to_string(),
             calc_zeros: false,
             calc_steps: true,
+            math_quick_keys: true,
             count_notes: true,
             markup: Default::default(),
             print_markup: false,

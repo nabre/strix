@@ -192,6 +192,15 @@ edited. A click or an arrow key into the steps puts the caret at the end of the 
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
 | `calc.variables` | the parameters at the end of the document: name, value (or values), unit, where |
 | `calc.options` | number format: digits, count, trailing zeros |
+| `calc.new` | a new empty calculation at the caret, being edited: **Alt+Shift+C** (⌃⌥C on a Mac; Ctrl+Space stays Word's Reset Character Formatting) |
+| `equation.quickKeys` | preference (default on): `^`, `_` and `/` make the superscript, subscript or fraction at once |
+
+**Quick keys** (Mathcad-style, `equation.quickKeys`): typing `^` makes a superscript of the
+operand before the caret, `_` a subscript, `/` a fraction with it as the numerator; the caret
+goes into the new box and Right leaves it. The operand is the name or number just typed, a
+bracket typed as text (`(a+b)/`), or the structure before the caret; `M_Ed^2` gives the same `M`
+both scripts. With nothing before it `/` makes an empty fraction (the caret in the numerator).
+Off, the three characters build up on Space as in Word.
 
 The **Math** tab gathers the tools: Calculations (New Calculation, Calculate, Calculate New
 Equations, Recalculate), Tables (Calculated Table, Calculate This Table), Results (More/Fewer
@@ -210,6 +219,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: quick keys `^ _ /` in formulas; New Calculation on Alt+Shift+C.
 - 2026-10-27: the solution steps are not edited; only the statement takes the caret.
 - 2026-10-27: a unit after a number is always the unit; solution steps (formula, substitution, result) under formulas and solved equations.
 - 2026-10-27: units styled (Unit character style, upright, thin space).

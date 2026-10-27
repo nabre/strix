@@ -7955,6 +7955,8 @@ mod tests {
         use egui::ImeChangeCause;
         for (typed, latex) in [("a/b ", "\\frac{a}{b}"), ("\\alpha ", "\\alpha")] {
             let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+            // Word's build-up on Space (the quick keys would make the fraction at `/`).
+            app.run("equation.quickKeys", json!({"value": false})).unwrap();
             app.run("insert.equation", json!({})).unwrap();
             let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_step_dt(1.0 / 60.0).build_ui_state(
                 |ui, app: &mut WordApp| {
