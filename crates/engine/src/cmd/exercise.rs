@@ -544,8 +544,10 @@ pub struct DataItem {
     pub values: Vec<String>,
 }
 
+/// Data text as stored: no control or object characters (the unit marker and U+FFFC are
+/// reserved), at most [`MAX_DATA_TEXT`] characters.
 fn clip(s: &str) -> String {
-    s.chars().filter(|c| !c.is_control()).take(MAX_DATA_TEXT).collect::<String>().trim().to_string()
+    s.chars().filter(|&c| !c.is_control() && c != OBJ).take(MAX_DATA_TEXT).collect::<String>().trim().to_string()
 }
 
 impl ExerciseData {
@@ -644,13 +646,18 @@ fn generated(ctl: ContentControl, lines: &[(&'static str, String)]) -> Vec<Parag
         .enumerate()
         .map(|(i, (style, text))| {
             let (before, unit) = text.split_once(UNIT_MARK).unwrap_or((text.as_str(), ""));
+            // Cleaned and cut exactly as `para` stores them, so the offsets below are its own.
+            let keep = |c: &char| *c != OBJ && *c != '\n' && *c != UNIT_MARK;
+            let before: String = before.chars().filter(keep).take(MAX_TEXT).collect();
+            let room = MAX_TEXT.saturating_sub(before.chars().count());
+            let unit: String = unit.chars().filter(keep).take(room).collect();
             let opens: Vec<ContentControl> = first.take().into_iter().collect();
             let lead = opens.len() * OBJ.len_utf8();
             let mut p = para(style, &format!("{before}{unit}"), opens, usize::from(i + 1 == n), None);
             // The unit in the Unit style (docs/calc.md), like the units of calculations.
-            if !unit.is_empty() {
-                let a = lead + before.len();
-                let b = a + unit.len();
+            let a = lead.saturating_add(before.len());
+            let b = a.saturating_add(unit.len());
+            if !unit.is_empty() && b <= p.text.len() && p.text.is_char_boundary(a) && p.text.is_char_boundary(b) {
                 let props = p.runs.first().map(|r| r.props.clone()).unwrap_or_default();
                 let unit_props = CharProps { style: Some(super::calc::UNIT_STYLE.into()), ..props.clone() };
                 p.runs = vec![Run { len: a, props: props.clone() }, Run { len: b - a, props: unit_props }, Run { len: p.text.len() - b, props }];
@@ -968,7 +975,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
         };
         changed |= replace(s, from, to, new);
     }
-    // The data parts (above the repeated questions, so after them in this reverse pass).
+    // The data parts. The repeated questions may have changed size: read the structure again, so
+    // every range below is current.
+    let layout = scan(s);
     if layout.exercises.iter().any(|e| !e.data.items.is_empty()) {
         super::calc::unit_color(s);
     }
@@ -976,7 +985,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
         let lines = e.data.lines(&w);
         match (e.data_blocks, lines.is_empty()) {
             (Some((from, to)), true) => {
-                if s.doc.body.get(from..=to).is_some() {
+                // Only blocks that are the generated data part are removed.
+                let all_data = (from..=to).all(|i| layout.parts.get(i).is_some_and(|(_, part)| *part == Part::Data));
+                if all_data && s.doc.body.get(from..=to).is_some() {
                     s.doc.body.drain(from..=to);
                     changed = true;
                 }
@@ -1275,6 +1286,30 @@ mod tests {
         let after = texts(&s);
         assert!(after.contains(&"Intro".to_string()), "{after:?}");
         assert!(after.contains(&"Uno".to_string()), "{after:?}");
+    }
+
+    #[test]
+    fn hostile_data_never_breaks_the_runs_or_other_exercises() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        let end = s.doc.body.len() - 1;
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(end), 0));
+        s.run("exercise.insert", &json!({"title": "Due", "questions": ["r"]})).unwrap();
+        // Object, newline and marker characters, and texts past every limit.
+        let junk = format!("{}\u{1F}\n{}", "\u{FFFC}".repeat(50), "é".repeat(5000));
+        let data = json!({"items": [{"symbol": "x", "description": junk, "unit": junk, "values": [junk]}]});
+        s.run("exercise.setData", &json!({"exercise": 1, "data": data})).unwrap();
+        s.run("exercise.setData", &json!({"exercise": 2, "data": {"items": [{"symbol": "y", "unit": "m", "values": ["2"]}]}})).unwrap();
+        for b in &s.doc.body {
+            if let Block::Para(p) = &**b {
+                assert_eq!(p.runs.iter().map(|r| r.len).sum::<usize>(), p.text.len(), "runs cover the text exactly");
+            }
+        }
+        // Removing the first exercise's data leaves the second one's and the user's text alone.
+        s.run("exercise.addQuestion", &json!({"text": "más"})).ok();
+        s.run("exercise.setData", &json!({"exercise": 1, "data": {}})).unwrap();
+        let t = texts(&s);
+        assert!(t.contains(&"Intro".to_string()) && t.contains(&"Due".to_string()) && t.contains(&"y = 2 m".to_string()), "{t:?}");
     }
 
     #[test]

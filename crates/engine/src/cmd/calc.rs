@@ -212,13 +212,16 @@ fn run_sheet(
 ) -> (Sheets, Vec<Outcome>) {
     let mut sheets = Sheets { main: Worksheet::new(*opts), exercises: Default::default() };
     // Each exercise's sandbox starts with its data (the active variant's values).
+    // The data count against the same step budget as everything else.
+    let mut spent = 0usize;
     for (e, statements) in seeds {
         let ws = sheets.exercises.entry(*e).or_insert_with(|| Worksheet::new(*opts));
         for statement in statements {
+            ws.scope().set_spent(spent);
             ws.eval_statement(statement);
+            spent = ws.scope().spent();
         }
     }
-    let mut spent = 0usize;
     let outcomes = found
         .iter()
         .map(|item| {
