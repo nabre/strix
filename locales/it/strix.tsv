@@ -2469,3 +2469,8 @@ preview	Title	Esempio
 	Exercise Heading	Intestazione esercizio
 	Exercise Prompt	Richiamo domanda
 	Exercise Result	Risultato esercizio
+	Add Sub-question	Aggiungi sottodomanda
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Aggiungi una domanda annidata sotto l'ultima (a.1, a.1.1); Tab e Maiusc+Tab cambiano il livello di una domanda
+	Add Note	Aggiungi nota
+	Add a note between the questions: free text that is not a question	Aggiungi una nota tra le domande: testo libero che non è una domanda
+	Exercise Note	Nota esercizio

@@ -2489,16 +2489,8 @@ Calculation",
         });
     });
     group(ui, "Exercise", None, app, |ui, app| {
-        big(
-            ui,
-            app,
-            "exercise",
-            "New
-Exercise",
-            "exercise.insert",
-            json!({}),
-            false,
-        );
+        big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
+        let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
         stack(ui, |ui| {
             small(
                 ui,
@@ -2510,9 +2502,33 @@ Exercise",
                 json!({}),
                 false,
             );
-            let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
-            let questions: Vec<String> =
-                info["questions"].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default();
+            small(
+                ui,
+                app,
+                "addSubQuestion",
+                Some("Add Sub-question"),
+                "Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level",
+                "exercise.addQuestion",
+                json!({"sub": true}),
+                false,
+            );
+            small(
+                ui,
+                app,
+                "addNote",
+                Some("Add Note"),
+                "Add a note between the questions: free text that is not a question",
+                "exercise.addNote",
+                json!({}),
+                false,
+            );
+        });
+        stack(ui, |ui| {
+            let strings = |key: &str| -> Vec<String> {
+                info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
+            };
+            let (questions, labels) = (strings("questions"), strings("labels"));
+            let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
             let current = info["answer"].as_u64().unwrap_or(0);
             menu_button(
                 ui,
@@ -2525,8 +2541,8 @@ Exercise",
                 |ui, app| {
                     for (k, q) in questions.iter().enumerate() {
                         let n = k as u64 + 1;
-                        let letter = char::from(b'a' + (k % 26) as u8);
-                        let label = format!("{letter}) {}", q.chars().take(48).collect::<String>());
+                        let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
+                        let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
                         let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
                         if resp.clicked() {
                             let _ = app.run("equation.answer", json!({"question": n}));

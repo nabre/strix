@@ -1181,6 +1181,11 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(14.0, 12.0), (14.0, 18.0)], a);
             pen.line_c(&[(11.0, 15.0), (17.0, 15.0)], a);
         }
+        "addSubQuestion" => {
+            pen.text(6.0, 7.0, 9.0, "?", c, true);
+            pen.text(12.0, 14.0, 9.0, "?", a, true);
+            pen.line_c(&[(6.0, 11.0), (6.0, 14.0), (9.0, 14.0)], c);
+        }
         "resultOf" => {
             pen.text(9.0, 9.0, 10.0, "x=", c, false);
             pen.line_c(&[(12.0, 15.0), (14.0, 17.0), (18.0, 12.0)], a);

@@ -3,7 +3,10 @@
 //!
 //! - the **title** (style Exercise Title), in the exercise control `strix:exercise`;
 //! - the **statement** (`strix:exercise.text`): free content, laid out with every tool;
-//! - the **questions** (`strix:exercise.questions`): one paragraph each, lettered a), b)…;
+//! - the **questions** (`strix:exercise.questions`): paragraphs in the Exercise Question style
+//!   are questions, lettered a), b)… and nested up to three levels (a.1), a.1.1)) by their list
+//!   level (Tab, Shift+Tab); any other content there (notes in the Exercise Note style, tables,
+//!   figures) is free, between the questions;
 //! - the **solution** (`strix:exercise.solution`): a heading, the questions repeated
 //!   automatically (`strix:exercise.prompt`, read-only), then free content; an equation in it is
 //!   marked as the result of a question (`Math::answer`, `equation.answer`);
@@ -43,6 +46,11 @@ const STYLE_QUESTION: &str = "ExerciseQuestion";
 const STYLE_HEADING: &str = "ExerciseHeading";
 const STYLE_PROMPT: &str = "ExercisePrompt";
 const STYLE_RESULT: &str = "ExerciseResult";
+const STYLE_NOTE: &str = "ExerciseNote";
+/// Deepest question nesting (a), a.1), a.1.1)), 0-based.
+const MAX_LEVEL: u8 = 2;
+/// Indent per question level in the repeated questions, points.
+const LEVEL_INDENT: f32 = 18.0;
 
 pub fn specs() -> Vec<CommandSpec> {
     let body = |s: &Session| {
@@ -58,13 +66,16 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"title"?: string, "text"?: string, "questions"?: [string]} → inserts an exercise after the paragraph at the caret: title, statement, questions, solution; the results summary goes (or stays) at the end of the document"#),
         CommandSpec::new("exercise.addQuestion", "Add Question", "Math › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
-            .params(r#"{"text"?: string} → adds a question at the end of the exercise at the caret"#),
+            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+        CommandSpec::new("exercise.addNote", "Add Note", "Math › Exercise", add_note)
+            .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
+            .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("equation.answer", "Result Of", "Math › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
             .params(r#"{"question": n (1-based; 0 = none)} → the equation at the caret is the result of that question of its exercise"#),
         CommandSpec::new("exercise.info", "Exercise Info", "Math › Exercise", info)
             .pure()
-            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
+            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
         CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -82,6 +93,10 @@ struct Words {
     text: &'static str,
     question: &'static str,
     no_result: &'static str,
+    /// Titles of the controls, shown on their frames.
+    statement: &'static str,
+    questions: &'static str,
+    prompt: &'static str,
 }
 
 fn words(s: &Session) -> Words {
@@ -95,6 +110,9 @@ fn words(s: &Session) -> Words {
             text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
             question: "Scrivi qui la domanda.",
             no_result: "risultato non indicato",
+            statement: "Testo",
+            questions: "Domande",
+            prompt: "Domande (automatiche)",
         }
     } else {
         Words {
@@ -105,6 +123,9 @@ fn words(s: &Session) -> Words {
             text: "Write the exercise here: data, figures, tables.",
             question: "Write the question here.",
             no_result: "no result marked",
+            statement: "Statement",
+            questions: "Questions",
+            prompt: "Questions (automatic)",
         }
     }
 }
@@ -143,6 +164,12 @@ fn ensure_styles(s: &mut Session) {
             ParaProps { space_after: Some(2.0), ..Default::default() },
             // Generated text is not proofed (a lone "a)" is no spelling error).
             CharProps { italic: Some(true), no_proof: Some(true), ..Default::default() },
+        ),
+        para_style(
+            STYLE_NOTE,
+            "Exercise Note",
+            ParaProps { space_after: Some(3.0), indent_left: Some(18.0), ..Default::default() },
+            CharProps { italic: Some(true), ..Default::default() },
         ),
         para_style(
             STYLE_RESULT,
@@ -207,6 +234,26 @@ fn letter(k: usize) -> String {
     out
 }
 
+/// A new list for an exercise's questions: a), then a.1), then a.1.1).
+fn add_question_list(s: &mut Session) -> Result<u32, CmdError> {
+    use strix_doc::numbering::levels_for;
+    use strix_doc::section::NumFormat;
+    let mut levels = levels_for(ListKind::LowerLetter);
+    // Each level hangs its label wide enough for `a.1.1)`, so the text never jumps to a tab.
+    for (i, text, indent, hanging) in [(0usize, "%1)", 18.0, 18.0), (1, "%1.%2)", 50.0, 28.0), (2, "%1.%2.%3)", 90.0, 36.0)] {
+        if let Some(l) = levels.get_mut(i) {
+            if i > 0 {
+                l.format = NumFormat::Decimal;
+            }
+            l.text = text.into();
+            l.indent = indent;
+            l.hanging = hanging;
+            l.tab = None;
+        }
+    }
+    s.doc.numbering.try_add_levels(Some("Exercise questions".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+}
+
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
     if s.sel.focus.story != StoryRef::Body || s.sel.focus.path.cell().is_some() {
         return Err(CmdError::Disabled("an exercise goes in the body, outside tables".into()));
@@ -215,12 +262,22 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let w = words(s);
     let title = p::str(v, "title").map(str::to_string);
     let text = p::str(v, "text").map(str::to_string);
-    let questions: Vec<String> = v
+    // Questions: strings, or {"text", "level"} for nested ones.
+    let questions: Vec<(String, u8)> = v
         .get("questions")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(Value::as_str).take(MAX_QUESTIONS).map(str::to_string).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|q| match q {
+                    Value::String(t) => Some((t.clone(), 0)),
+                    Value::Object(_) => Some((p::str(q, "text")?.to_string(), p::u64(q, "level").map_or(0, |l| l.min(u64::from(MAX_LEVEL)) as u8))),
+                    _ => None,
+                })
+                .take(MAX_QUESTIONS)
+                .collect()
+        })
         .unwrap_or_default();
-    let list = s.doc.numbering.try_add_list(ListKind::LowerLetter).map_err(|e| CmdError::Failed(e.to_string()))?;
+    let list = add_question_list(s)?;
     let num = Some(NumRef { num: list, level: 0 });
     let placeholder = |mut c: ContentControl, shown: &str| {
         c.placeholder_text = shown.into();
@@ -233,25 +290,26 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         exercise = placeholder(exercise, w.title);
     }
     blocks.push(para(STYLE_TITLE, title.as_deref().unwrap_or(w.title), vec![exercise], 0, None));
-    let mut statement = control(TAG_TEXT, "Statement", ControlLock::SdtLocked);
+    let mut statement = control(TAG_TEXT, w.statement, ControlLock::SdtLocked);
     if text.is_none() {
         statement = placeholder(statement, w.text);
     }
     blocks.push(para("Normal", text.as_deref().unwrap_or(w.text), vec![statement], 1, None));
-    let mut qc = control(TAG_QUESTIONS, "Questions", ControlLock::SdtLocked);
+    let mut qc = control(TAG_QUESTIONS, w.questions, ControlLock::SdtLocked);
     if questions.is_empty() {
         qc = placeholder(qc, w.question);
         blocks.push(para(STYLE_QUESTION, w.question, vec![qc], 1, num));
     } else {
         let n = questions.len();
         let mut opener = Some(qc);
-        for (i, q) in questions.iter().enumerate() {
+        for (i, (q, level)) in questions.iter().enumerate() {
+            let num = Some(NumRef { num: list, level: *level });
             blocks.push(para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num));
         }
     }
-    blocks.push(para(STYLE_HEADING, w.solution, vec![control(TAG_SOLUTION, "Solution", ControlLock::SdtLocked)], 0, None));
+    blocks.push(para(STYLE_HEADING, w.solution, vec![control(TAG_SOLUTION, w.solution, ControlLock::SdtLocked)], 0, None));
     // The questions repeated: filled in by `update`.
-    blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, "Questions (automatic)", ControlLock::SdtContentLocked)], 1, None));
+    blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, w.prompt, ControlLock::SdtContentLocked)], 1, None));
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
     let top = s.sel.focus.path.0.first().map_or(0, |&t| t as usize);
@@ -279,10 +337,20 @@ enum Part {
     Other,
 }
 
+/// A question: its text, level (0 = a), 1 = a.1), 2 = a.1.1)) and label.
+#[derive(Debug, Clone, Default, PartialEq, Hash)]
+struct Question {
+    text: String,
+    level: u8,
+    label: String,
+}
+
 #[derive(Debug, Default)]
 struct Exercise {
     title: String,
-    questions: Vec<String>,
+    questions: Vec<Question>,
+    /// Questions counted per level so far, for the labels.
+    counters: [usize; 3],
     /// First and last top-level block of the repeated questions.
     prompt: Option<(usize, usize)>,
     /// First and last top-level block of the questions.
@@ -297,6 +365,26 @@ struct Layout {
     /// Exercise and part of each top-level block.
     parts: Vec<(Option<usize>, Part)>,
     results: Option<(usize, usize)>,
+}
+
+impl Exercise {
+    /// The label of the next question at `level`: `a)`, `a.1)`, `a.1.1)`.
+    fn next_label(&mut self, level: u8) -> String {
+        let level = usize::from(level.min(MAX_LEVEL));
+        if let Some(c) = self.counters.get_mut(level) {
+            *c += 1;
+        }
+        for deeper in self.counters.iter_mut().skip(level + 1) {
+            *deeper = 0;
+        }
+        let [a, b, c] = self.counters;
+        let first = letter(a.max(1) - 1);
+        match level {
+            0 => format!("{first})"),
+            1 => format!("{first}.{})", b.max(1)),
+            _ => format!("{first}.{}.{})", b.max(1), c.max(1)),
+        }
+    }
 }
 
 fn plain(p: &Paragraph) -> String {
@@ -375,10 +463,14 @@ fn scan(s: &Session) -> Layout {
                 grow(&mut e.question_blocks);
                 if tags.iter().any(|(t, ph)| t == TAG_QUESTIONS && *ph) {
                     e.no_questions = true;
-                } else if e.questions.len() < MAX_QUESTIONS && !plain(p).is_empty() {
-                    e.questions.push(plain(p).chars().take(MAX_TEXT).collect());
+                } else if p.props.style.as_deref() == Some(STYLE_QUESTION) && e.questions.len() < MAX_QUESTIONS && !plain(p).is_empty() {
+                    // Only question paragraphs count; notes and other content sit between them.
+                    let level = p.props.numbering.map_or(0, |n| n.level).min(MAX_LEVEL);
+                    let label = e.next_label(level);
+                    e.questions.push(Question { text: plain(p).chars().take(MAX_TEXT).collect(), level, label });
                 }
             }
+            (Part::Questions, _) => grow(&mut e.question_blocks),
             (Part::Prompt, _) => grow(&mut e.prompt),
             _ => {}
         }
@@ -421,6 +513,13 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Failed(format!("an exercise holds at most {MAX_QUESTIONS} questions")));
     }
     let text = p::str(v, "text").unwrap_or_default().to_string();
+    let last_level = e.questions.last().map_or(0, |q| q.level);
+    let level = match (p::u64(v, "level"), p::bool(v, "sub")) {
+        (Some(l), _) => l.min(u64::from(MAX_LEVEL)) as u8,
+        (None, Some(true)) => (last_level + 1).min(MAX_LEVEL),
+        _ => 0,
+    };
+    let list = e_list(s, last);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
     if e.no_questions {
@@ -438,7 +537,7 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
             })
             .collect();
         let ends = prev.objects.iter().filter(|o| matches!(o, InlineObject::ControlEnd)).count();
-        let numbering = prev.props.numbering;
+        let numbering = list.map(|num| NumRef { num, level });
         *prev = para(STYLE_QUESTION, &text, opens, ends, numbering);
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
     } else {
@@ -454,12 +553,54 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
                 if total == 0 { Vec::new() } else { vec![Run { len: total, props: prev.runs.first().map(|r| r.props.clone()).unwrap_or_default() }] };
         }
         prev.touch();
-        let numbering = prev.props.numbering;
+        let numbering = list.map(|num| NumRef { num, level });
         let new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
         let caret = new.text.len() - OBJ.len_utf8();
         s.doc.body.insert(last + 1, para_block(new));
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     }
+    s.touch();
+    update(s);
+    s.clamp_selection();
+    super::sel_result(s)
+}
+
+/// The question list of the exercise whose questions end at block `last`: the list of its first
+/// numbered question paragraph.
+fn e_list(s: &Session, last: usize) -> Option<u32> {
+    s.doc.body.get(..=last)?.iter().rev().take(MAX_QUESTIONS * 4).find_map(|b| match &**b {
+        Block::Para(p) if p.props.style.as_deref() == Some(STYLE_QUESTION) => p.props.numbering.map(|n| n.num).filter(|&n| n != 0),
+        _ => None,
+    })
+}
+
+/// Adds a note: free text between the questions, not counted as one.
+fn add_note(s: &mut Session, v: &Value) -> CmdResult {
+    let ex = exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into()))?;
+    let layout = scan(s);
+    let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+    let (_, last) = e.question_blocks.ok_or_else(|| CmdError::Failed("the exercise has no questions part".into()))?;
+    if e.no_questions {
+        return Err(CmdError::Failed("write a question first".into()));
+    }
+    let text = p::str(v, "text").unwrap_or_default().to_string();
+    let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
+    let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
+    let Some(end) = prev.objects.iter().rposition(|o| matches!(o, InlineObject::ControlEnd)) else {
+        return Err(CmdError::Failed("the questions part has no end".into()));
+    };
+    prev.objects.remove(end);
+    if let Some(b) = prev.text.rfind(OBJ) {
+        prev.text.replace_range(b..b + OBJ.len_utf8(), "");
+        let total = prev.text.len();
+        prev.runs =
+            if total == 0 { Vec::new() } else { vec![Run { len: total, props: prev.runs.first().map(|r| r.props.clone()).unwrap_or_default() }] };
+    }
+    prev.touch();
+    let new = para(STYLE_NOTE, &text, Vec::new(), 1, None);
+    let caret = new.text.len() - OBJ.len_utf8();
+    s.doc.body.insert(last + 1, para_block(new));
+    s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     s.touch();
     update(s);
     s.clamp_selection();
@@ -496,7 +637,9 @@ fn info(s: &mut Session, _: &Value) -> CmdResult {
     Ok(json!({
         "exercise": ex.map(|i| i + 1),
         "title": e.map(|e| e.title.clone()),
-        "questions": e.map(|e| e.questions.clone()).unwrap_or_default(),
+        "questions": e.map(|e| e.questions.iter().map(|q| q.text.clone()).collect::<Vec<_>>()).unwrap_or_default(),
+        "labels": e.map(|e| e.questions.iter().map(|q| q.label.clone()).collect::<Vec<_>>()).unwrap_or_default(),
+        "levels": e.map(|e| e.questions.iter().map(|q| q.level).collect::<Vec<_>>()).unwrap_or_default(),
         "answer": answer,
         "exercises": layout.exercises.len(),
     }))
@@ -547,7 +690,15 @@ pub(crate) fn update(s: &mut Session) -> bool {
             e.questions
                 .iter()
                 .enumerate()
-                .map(|(k, q)| para(STYLE_PROMPT, &format!("{}) {q}", letter(k)), first.take().into_iter().collect(), usize::from(k + 1 == n), None))
+                .map(|(k, q)| {
+                    let mut p =
+                        para(STYLE_PROMPT, &format!("{} {}", q.label, q.text), first.take().into_iter().collect(), usize::from(k + 1 == n), None);
+                    // Nested questions are indented like their list.
+                    if q.level > 0 {
+                        p.props.indent_left = Some(LEVEL_INDENT * f32::from(q.level));
+                    }
+                    p
+                })
                 .collect()
         };
         changed |= replace(s, from, to, new);
@@ -568,13 +719,13 @@ pub(crate) fn update(s: &mut Session) -> bool {
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
-            lines.push((STYLE_RESULT, format!("{}) {q}: {value}", letter(k))));
+            lines.push((STYLE_RESULT, format!("{} {}: {value}", q.label, q.text)));
         }
     }
     let ctl = layout
         .results
         .and_then(|(from, _)| opener(s, from, TAG_RESULTS))
-        .unwrap_or_else(|| control(TAG_RESULTS, "Results", ControlLock::SdtContentLocked));
+        .unwrap_or_else(|| control(TAG_RESULTS, w.results, ControlLock::SdtContentLocked));
     let n = lines.len();
     let mut first = Some(ctl);
     let new: Vec<Paragraph> = lines
@@ -655,7 +806,8 @@ mod tests {
         // The structure is made of locked controls.
         let layout = scan(&s);
         assert_eq!(layout.exercises.len(), 1);
-        assert_eq!(layout.exercises[0].questions, ["Il momento massimo", "La reazione"]);
+        let questions: Vec<&str> = layout.exercises[0].questions.iter().map(|q| q.text.as_str()).collect();
+        assert_eq!(questions, ["Il momento massimo", "La reazione"]);
         assert_eq!(opener(&s, 1, TAG_EXERCISE).map(|c| c.lock), Some(ControlLock::SdtLocked));
         assert_eq!(opener(&s, 6, TAG_PROMPT).map(|c| c.lock), Some(ControlLock::SdtContentLocked));
         // A second exercise: the summary stays one, at the end.
@@ -731,6 +883,28 @@ mod tests {
         let vars = s.run("calc.variables", &json!({})).unwrap();
         let names: Vec<&str> = vars["variables"].as_array().unwrap().iter().map(|v| v["name"].as_str().unwrap()).collect();
         assert_eq!(names, ["a"]);
+    }
+
+    #[test]
+    fn questions_nest_and_notes_sit_between_them() {
+        let mut s = session();
+        s.run(
+            "exercise.insert",
+            &json!({"title": "T", "questions": ["Reazioni", {"text": "In A", "level": 1}, {"text": "In B", "level": 1}, {"text": "Verticale", "level": 2}, "Momento"]}),
+        )
+        .unwrap();
+        // A note after the questions, then one more question: the note is not a question.
+        s.run("exercise.addNote", &json!({"text": "Si trascuri il peso proprio."})).unwrap();
+        s.run("exercise.addQuestion", &json!({"text": "Taglio"})).unwrap();
+        s.run("exercise.addQuestion", &json!({"text": "In mezzeria", "sub": true})).unwrap();
+        let info = s.run("exercise.info", &json!({})).unwrap();
+        assert_eq!(info["labels"], json!(["a)", "a.1)", "a.2)", "a.2.1)", "b)", "c)", "c.1)"]));
+        assert_eq!(info["questions"][5], "Taglio");
+        let t = texts(&s);
+        assert!(t.contains(&"Si trascuri il peso proprio.".to_string()), "{t:?}");
+        assert!(t.contains(&"a.2.1) Verticale".to_string()), "{t:?}");
+        assert!(t.contains(&"c.1) In mezzeria: risultato non indicato".to_string()), "{t:?}");
+        assert!(!t.iter().any(|x| x.contains("trascuri") && x.contains(')')), "a note is never repeated as a question: {t:?}");
     }
 
     #[test]

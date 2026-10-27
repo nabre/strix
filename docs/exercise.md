@@ -16,10 +16,14 @@ deleted; the automatic parts can't be edited):
 | Exercise | `strix:exercise` | can't delete | everything below |
 | Title | (first paragraph) | | style **Exercise Title** (Titolo esercizio) |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
-| Questions | `strix:exercise.questions` | can't delete | one paragraph per question (style Exercise Question), lettered a), b)… by a list of their own |
+| Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), the questions repeated, then free content |
 | Repeated questions | `strix:exercise.prompt` | read-only | `a) …`, `b) …`: rebuilt automatically from the questions |
 | Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
+
+Only paragraphs in the Exercise Question style are questions: the repeated questions and the
+summary use their labels (`a.1) …`), indented by level; notes and other content between them
+are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
 
 The generated words follow the document's language (Italian or English).
 
@@ -47,9 +51,10 @@ to the end.
 | Id | Does |
 |---|---|
 | `exercise.insert` | insert an exercise after the paragraph at the caret (`{"title"?, "text"?, "questions"?: [..]}`) |
-| `exercise.addQuestion` | add a question to the exercise at the caret (`{"text"?}`) |
+| `exercise.addQuestion` | add a question to the exercise at the caret (`{"text"?, "level"?: 0–2, "sub"?: bool}`) |
+| `exercise.addNote` | add a note (free text, not a question) after the questions (`{"text"?}`) |
 | `equation.answer` | the equation at the caret is the result of question `n` (0: none) |
-| `exercise.info` | the exercise at the caret: number, title, questions, the equation's mark |
+| `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
 
 ## Next
@@ -60,4 +65,5 @@ to the end.
 
 ## Revision history
 
+- 2026-10-27: nested questions (a), a.1), a.1.1)) and notes between the questions.
 - 2026-10-27: new.
