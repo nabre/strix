@@ -694,6 +694,9 @@ pub struct MathEdit {
     pub at: Pos,
     /// The caret inside it.
     pub pos: strix_doc::math_edit::MathPos,
+    /// Where a selection started (Shift with the arrows, Home, End): the selection runs from here
+    /// to `pos`, over whole structures where the two are in different boxes.
+    pub anchor: Option<strix_doc::math_edit::MathPos>,
     /// A stable token for this editing session, unique across documents and re-entry.
     pub session: u64,
 }

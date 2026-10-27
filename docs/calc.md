@@ -202,6 +202,11 @@ bracket typed as text (`(a+b)/`), or the structure before the caret; `M_Ed^2` gi
 both scripts. With nothing before it `/` makes an empty fraction (the caret in the numerator).
 Off, the three characters build up on Space as in Word.
 
+**Selecting in a formula**: Shift with the arrows, Home or End selects from where it started
+(`equation.move {"extend": true}`); a selection reaching into a box takes the whole structure
+(the fraction, the script). Typing, a symbol or a structure replaces it, Backspace and Delete
+remove it, Copy gives its linear text (`(L^2)/8`); a plain move drops it.
+
 The **Math** tab gathers the tools: Calculations (New Calculation, Calculate, Calculate New
 Equations, Recalculate), Tables (Calculated Table, Calculate This Table), Results (More/Fewer
 Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).

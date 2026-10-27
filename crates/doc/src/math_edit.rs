@@ -769,6 +769,54 @@ pub fn autocorrect(root: &mut Arg, pos: &MathPos) -> Option<MathPos> {
     Some(MathPos { path: pos.path, off: pos.off - name.chars().count() })
 }
 
+/// The selection from `anchor` to `focus`: the argument both lie in (their common box) and the
+/// units `lo..hi` it covers there. An end deeper inside a structure takes that whole structure.
+/// None when nothing is selected.
+pub fn selection_range(root: &Arg, anchor: &MathPos, focus: &MathPos) -> Option<(Vec<(usize, usize)>, usize, usize)> {
+    let (anchor, focus) = (clamp(root, anchor), clamp(root, focus));
+    let k = anchor.path.iter().zip(&focus.path).take_while(|(a, b)| a == b).count();
+    let common: Vec<(usize, usize)> = anchor.path.get(..k)?.to_vec();
+    let a = arg_at(root, &common)?;
+    let span = |p: &MathPos| -> Option<(usize, usize)> {
+        match p.path.get(k) {
+            None => Some((p.off, p.off)),
+            Some(&(node, _)) => {
+                let start = node_start(a, node);
+                Some((start, start + node_units(a.get(node)?)))
+            }
+        }
+    };
+    let (sa, sf) = (span(&anchor)?, span(&focus)?);
+    let (lo, hi) = (sa.0.min(sf.0), sa.1.max(sf.1));
+    (lo < hi).then_some((common, lo, hi))
+}
+
+/// The selected part as nodes (for copying it as linear text).
+pub fn selected_nodes(root: &Arg, path: &[(usize, usize)], lo: usize, hi: usize) -> Arg {
+    let mut copy = root.clone();
+    let Some(a) = arg_at_mut(&mut copy, path) else { return Vec::new() };
+    let (start, end) = split_range(a, lo, hi);
+    a.get(start..end).map(<[MNode]>::to_vec).unwrap_or_default()
+}
+
+/// Splits runs at `lo` and at `hi` (units, `lo ≤ hi`): the nodes `start..end` are exactly those
+/// units. Splitting at `lo` first keeps its index right: the split at `hi` falls after it.
+fn split_range(a: &mut Arg, lo: usize, hi: usize) -> (usize, usize) {
+    let start = split_at(a, lo).min(a.len());
+    let end = split_at(a, hi.max(lo)).min(a.len());
+    (start, end.max(start))
+}
+
+/// Deletes units `lo..hi` of the argument at `path`; the caret goes where they were.
+pub fn delete_range(root: &mut Arg, path: &[(usize, usize)], lo: usize, hi: usize) -> MathPos {
+    let out = MathPos { path: path.to_vec(), off: lo };
+    let Some(a) = arg_at_mut(root, path) else { return out };
+    let (start, end) = split_range(a, lo, hi);
+    a.drain(start..end);
+    tidy(root);
+    clamp(root, &out)
+}
+
 /// The quick keys (Mathcad-style): `^` makes a superscript of the operand before the caret, `_` a
 /// subscript, `/` a fraction with it as the numerator, and the caret goes into the new empty box
 /// (Right arrow leaves it). The operand is the name or number just typed (`x`, `12.5`, `Mₑ`), a

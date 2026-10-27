@@ -1684,6 +1684,19 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 );
                 painter.rect_filled(arg.expand(1.0), 0.0, Color32::from_black_alpha(26));
             }
+            // The selection (Shift with the arrows): from its start to the caret, in its box.
+            if let Some(anchor) = &m.anchor
+                && let Some(strix_doc::InlineObject::Equation { math, .. }) = app.session.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off))
+                && let Some((path, lo, hi)) = strix_doc::math_edit::selection_range(&math.nodes, anchor, &m.pos)
+                && let (Some(a), Some(b)) = (ml.slot(&path, lo), ml.slot(&path, hi))
+            {
+                let (up, down) = ml.arg_extent(&path).map_or((ml.ascent, ml.descent), |(_, _, up, down)| (up, down));
+                let r = Rect::from_min_max(
+                    pos2(pr.min.x + (ex + a.x.min(b.x)) * s, pr.min.y + (base - up) * s),
+                    pos2(pr.min.x + (ex + a.x.max(b.x)) * s, pr.min.y + (base + down) * s),
+                );
+                painter.rect_filled(r, 0.0, t.selection);
+            }
             painter.rect_filled(frame.strip, 0.0, t.equation_box.gamma_multiply(0.35));
             let (c, w) = (frame.strip.center(), frame.strip.width() * 0.3);
             painter.add(egui::Shape::convex_polygon(

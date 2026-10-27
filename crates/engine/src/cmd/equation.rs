@@ -260,7 +260,7 @@ fn insert_nodes_as_equation(s: &mut Session, nodes: Arg, v: &Value) -> CmdResult
             return Err(CmdError::Failed("no equation editing session available".into()));
         };
         s.sel = Selection::caret(at.clone());
-        s.math = Some(MathEdit { at, pos: caret, session });
+        s.math = Some(MathEdit { at, pos: caret, anchor: None, session });
     } else {
         s.sel = Selection::caret(end);
     }
@@ -295,7 +295,7 @@ fn edit(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Failed("no equation editing session available".into()));
     };
     s.sel = Selection::caret(at.clone());
-    s.math = Some(MathEdit { pos: me::clamp(&nodes, &pos), at, session });
+    s.math = Some(MathEdit { pos: me::clamp(&nodes, &pos), anchor: None, at, session });
     result(s)
 }
 
@@ -329,6 +329,10 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
     let mut pos = m.pos.clone();
     let mut transformed = false;
     let (_, effect) = with_eq(s, &m.at, |math, _| {
+        // Typing replaces the selection.
+        if let Some(p) = delete_selected(&mut math.nodes, &m) {
+            pos = p;
+        }
         if math.linear {
             // Linear form is plain text: no build-up.
             let text: String = text.chars().take(crate::MAX_EQUATION_TYPE_CHARS).map(|c| if c == '*' { '·' } else { c }).collect();
@@ -374,6 +378,7 @@ fn type_text(s: &mut Session, v: &Value) -> CmdResult {
     })?;
     if let Some(m) = s.math.as_mut() {
         m.pos = pos;
+        m.anchor = None;
     }
     apply_effect(s, effect, transformed);
     result(s)
@@ -397,6 +402,9 @@ fn insert_structure(s: &mut Session, v: &Value) -> CmdResult {
     };
     let mut pos = m.pos.clone();
     let (_, effect) = with_eq(s, &m.at, |math, _| {
+        if let Some(p) = delete_selected(&mut math.nodes, &m) {
+            pos = p;
+        }
         if math.linear {
             pos = me::insert_text(&mut math.nodes, &pos, &to_linear(&nodes), TypeStyle::default());
             set_literal(&mut math.nodes);
@@ -406,6 +414,7 @@ fn insert_structure(s: &mut Session, v: &Value) -> CmdResult {
     })?;
     if let Some(m) = s.math.as_mut() {
         m.pos = pos;
+        m.anchor = None;
     }
     apply_effect(s, effect, false);
     result(s)
@@ -424,6 +433,9 @@ fn insert_symbol(s: &mut Session, v: &Value) -> CmdResult {
     let mut pos = m.pos.clone();
     let style = TypeStyle { nor: s.math_normal_text };
     let (_, effect) = with_eq(s, &m.at, |math, _| {
+        if let Some(p) = delete_selected(&mut math.nodes, &m) {
+            pos = p;
+        }
         pos = me::insert_text(&mut math.nodes, &pos, &c, style);
         if math.linear {
             set_literal(&mut math.nodes);
@@ -431,6 +443,7 @@ fn insert_symbol(s: &mut Session, v: &Value) -> CmdResult {
     })?;
     if let Some(m) = s.math.as_mut() {
         m.pos = pos;
+        m.anchor = None;
     }
     apply_effect(s, effect, false);
     result(s)
@@ -463,7 +476,9 @@ fn move_caret(s: &mut Session, v: &Value) -> CmdResult {
     );
     let mut nodes = nodes_of(s, &m.at).ok_or_else(|| CmdError::Failed("no equation there".into()))?;
     let mut pos = m.pos.clone();
-    if !s.math_normal_text && !shown_linear {
+    let extend = p::bool(v, "extend").unwrap_or(false);
+    // Selecting leaves what was typed as it is: build-up waits for a plain move.
+    if !s.math_normal_text && !shown_linear && !extend {
         let latex = s.math_latex;
         let before = nodes.clone();
         let mut candidate = nodes.clone();
@@ -502,13 +517,24 @@ fn move_caret(s: &mut Session, v: &Value) -> CmdResult {
     match next {
         Some(p) => {
             if let Some(m) = s.math.as_mut() {
+                // Shift extends the selection from where it started; a plain move drops it.
+                m.anchor = if extend { m.anchor.take().or(Some(m.pos.clone())) } else { None };
                 m.pos = p;
             }
             result(s)
         }
+        // Selecting stops at the equation's ends.
+        None if extend => result(s),
         // Past either end: the caret leaves the equation.
         None => exit(s, &json!({"before": dir == "left"})),
     }
+}
+
+/// Deletes the selection in `nodes` (from `m.anchor` to `m.pos`): the caret where it was. None
+/// when nothing is selected.
+fn delete_selected(nodes: &mut strix_doc::math::Arg, m: &MathEdit) -> Option<me::MathPos> {
+    let (path, lo, hi) = me::selection_range(nodes, m.anchor.as_ref()?, &m.pos)?;
+    Some(me::delete_range(nodes, &path, lo, hi))
 }
 /// With the caret in an empty equation, removes the whole equation as a content change;
 /// otherwise deletes backward or forward, updates the caret and records the effect.
@@ -532,10 +558,16 @@ fn delete(s: &mut Session, back: bool) -> CmdResult {
     }
     let mut pos = m.pos.clone();
     let (_, effect) = with_eq(s, &m.at, |math, _| {
-        pos = if back { me::delete_back(&mut math.nodes, &pos) } else { me::delete_forward(&mut math.nodes, &pos) };
+        // A selection is what Backspace and Delete remove.
+        pos = match delete_selected(&mut math.nodes, &m) {
+            Some(p) => p,
+            None if back => me::delete_back(&mut math.nodes, &pos),
+            None => me::delete_forward(&mut math.nodes, &pos),
+        };
     })?;
     if let Some(m) = s.math.as_mut() {
         m.pos = pos;
+        m.anchor = None;
     }
     apply_effect(s, effect, false);
     result(s)
@@ -914,6 +946,40 @@ mod tests {
         s.run("equation.type", &json!({"text": "/1"})).unwrap();
         let nodes = nodes_of(&s, &s.math.as_ref().unwrap().at).unwrap();
         assert!(matches!(nodes.as_slice(), [MNode::Frac { num, den, .. }] if !num.is_empty() && den.is_empty()), "{nodes:#?}");
+    }
+
+    /// Shift with the arrows selects inside the formula; typing replaces the selection, Backspace
+    /// removes it, Copy gives its linear text. Reaching into a structure takes it whole.
+    #[test]
+    fn shift_selects_inside_a_formula() {
+        let mut s = word_session();
+        s.run("insert.equation", &json!({})).unwrap();
+        s.run("equation.type", &json!({"text": "abcd"})).unwrap();
+        for _ in 0..2 {
+            s.run("equation.move", &json!({"dir": "left", "extend": true})).unwrap();
+        }
+        assert_eq!(s.run("edit.copy", &json!({})).unwrap()["text"], "cd");
+        s.run("equation.type", &json!({"text": "x"})).unwrap();
+        assert_eq!(linear(&s), "abx");
+        s.run("equation.move", &json!({"dir": "home", "extend": true})).unwrap();
+        s.run("equation.backspace", &json!({})).unwrap();
+        assert_eq!(linear(&s), "");
+        // A plain move drops the selection.
+        s.run("equation.type", &json!({"text": "pq"})).unwrap();
+        s.run("equation.move", &json!({"dir": "left", "extend": true})).unwrap();
+        s.run("equation.move", &json!({"dir": "left"})).unwrap();
+        assert!(s.math.as_ref().unwrap().anchor.is_none());
+        // From after a fraction back into its denominator: the whole fraction is selected.
+        let mut s = session();
+        s.run("insert.equation", &json!({})).unwrap();
+        s.run("equation.type", &json!({"text": "y=a/b"})).unwrap();
+        s.run("equation.move", &json!({"dir": "right"})).unwrap();
+        s.run("equation.move", &json!({"dir": "left", "extend": true})).unwrap();
+        s.run("equation.move", &json!({"dir": "left", "extend": true})).unwrap();
+        let copied = s.run("edit.copy", &json!({})).unwrap()["text"].as_str().unwrap_or_default().to_string();
+        assert!(copied.contains('a') && copied.contains('b') && copied.contains('/'), "{copied}");
+        s.run("equation.delete", &json!({})).unwrap();
+        assert_eq!(linear(&s), "y=");
     }
 
     /// Alt+Shift+C (⌃⌥C on a Mac): a new calculation region at the caret, being edited.
