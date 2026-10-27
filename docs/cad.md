@@ -189,6 +189,14 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
    (Dimensions, Text), CAD View (Precision, Object Snaps), CAD Output (Picture) — each with Close
    Drawing; the document's tabs are disabled until the drawing is closed.
+   **Circle ways** (Draw › Circle menu; typed `c`, then `2p`, `3p`, `ttr`, `ttt`, or `d` after the
+   centre): centre and radius, centre and diameter, 2 points (a diameter), 3 points, Tan Tan
+   Radius (two objects picked near where the circle should touch them, then the radius typed or
+   given as a point from the second pick), Tan Tan Tan (three objects: Newton's method from the
+   circle through the picks, each tangency on the side the pick shows). **Tangent Line**
+   (`lineTan`): a line touching two circles or arcs, the outer or inner one nearest the picks.
+   The geometry is the kernel's (`circle_2p`, `circle_3p`, `circle_ttr`, `circle_ttt`,
+   `line_tan_tan`), with the next result previewed as the pointer moves.
    **Draw order** (`ui.cadOrder`, Modify › Bring to Front / Send to Back): the order of the objects
    in the JSON is the order they are drawn in; the selection follows the objects.
    Still to do: offset, trim, extend, fillet, mirror, stretch, match properties, angular

@@ -2698,3 +2698,34 @@ preview	Title	Esempio
 	This equation is the result of the question it is worked under (shown in the results summary)	Questa equazione è il risultato della domanda sotto cui è svolta (compare nel riepilogo dei risultati)
 	Quick Keys	Tasti rapidi
 	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / creano subito apice, pedice o frazione (disattivati: si trasformano con lo Spazio, come in Word)
+	Tangent Line	Linea tangente
+	Tangent line	Linea tangente
+	A line touching two circles or arcs: pick each near where it should touch	Una linea tangente a due cerchi o archi: scegli ciascuno vicino a dove deve toccare
+	Circle: centre and radius, or another way	Cerchio: centro e raggio, o un altro modo
+	Centre, Radius	Centro, raggio
+	Centre, Diameter	Centro, diametro
+	2 Points	2 punti
+	3 Points	3 punti
+	Tan, Tan, Radius	Tan, tan, raggio
+	Tan, Tan, Tan	Tan, tan, tan
+	Circle, centre and diameter	Cerchio, centro e diametro
+	Circle, 2 points	Cerchio, 2 punti
+	Circle, 3 points	Cerchio, 3 punti
+	Circle, tan tan radius	Cerchio, tan tan raggio
+	Circle, tan tan tan	Cerchio, tan tan tan
+	Tangent line: pick the first circle or arc	Linea tangente: scegli il primo cerchio o arco
+	Tangent line: pick the second circle or arc	Linea tangente: scegli il secondo cerchio o arco
+	Circle: centre (or 2p, 3p, ttr, ttt)	Cerchio: centro (oppure 2p, 3p, ttr, ttt)
+	Circle: radius (a point or a number; d for the diameter)	Cerchio: raggio (un punto o un numero; d per il diametro)
+	Circle: diameter (a point or a number)	Cerchio: diametro (un punto o un numero)
+	Circle 2 points: first end of the diameter	Cerchio 2 punti: primo estremo del diametro
+	Circle 2 points: second end of the diameter	Cerchio 2 punti: secondo estremo del diametro
+	Circle 3 points: first point	Cerchio 3 punti: primo punto
+	Circle 3 points: second point	Cerchio 3 punti: secondo punto
+	Circle 3 points: third point	Cerchio 3 punti: terzo punto
+	Tan, tan, radius: pick the first object	Tan, tan, raggio: scegli il primo oggetto
+	Tan, tan, radius: pick the second object	Tan, tan, raggio: scegli il secondo oggetto
+	Tan, tan, radius: radius (a number, or a point from the second pick)	Tan, tan, raggio: raggio (un numero, o un punto dalla seconda scelta)
+	Tan, tan, tan: pick the first object	Tan, tan, tan: scegli il primo oggetto
+	Tan, tan, tan: pick the second object	Tan, tan, tan: scegli il secondo oggetto
+	Tan, tan, tan: pick the third object	Tan, tan, tan: scegli il terzo oggetto

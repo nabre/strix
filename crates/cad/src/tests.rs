@@ -756,3 +756,58 @@ fn properties_are_fields_that_take_numbers_or_expressions() {
     assert!(d.set_field(0, 0, "ax", "inf").is_err());
     assert!(d.fields(99, 0).is_empty());
 }
+
+#[test]
+fn circles_by_two_and_three_points() {
+    use crate::kernel::{circle_2p, circle_3p};
+    let (c, r) = circle_2p(Pt::new(0.0, 0.0), Pt::new(10.0, 0.0)).unwrap();
+    assert!(approx(c.x, 5.0) && approx(c.y, 0.0) && approx(r, 5.0));
+    let (c, r) = circle_3p(Pt::new(5.0, 0.0), Pt::new(0.0, 5.0), Pt::new(-5.0, 0.0)).unwrap();
+    assert!(approx(c.x, 0.0) && approx(c.y, 0.0) && approx(r, 5.0));
+    // Far from the origin the centred form keeps the digits.
+    let o = 1e6;
+    let (c, r) = circle_3p(Pt::new(o + 3.0, o), Pt::new(o, o + 3.0), Pt::new(o - 3.0, o)).unwrap();
+    assert!((c.x - o).abs() < 1e-6 && (c.y - o).abs() < 1e-6 && approx(r, 3.0));
+    assert!(circle_3p(Pt::new(0.0, 0.0), Pt::new(1.0, 1.0), Pt::new(2.0, 2.0)).is_none(), "in line");
+    assert!(circle_2p(Pt::new(1.0, 1.0), Pt::new(1.0, 1.0)).is_none());
+}
+
+#[test]
+fn circles_tangent_to_curves() {
+    use crate::kernel::{Curve, circle_ttr, circle_ttt};
+    let x_axis = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(10.0, 0.0) };
+    let y_axis = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(0.0, 10.0) };
+    // Tan, Tan, Radius in the corner the picks show.
+    let (c, r) = circle_ttr(&x_axis, Pt::new(3.0, 0.0), &y_axis, Pt::new(0.0, 3.0), 2.0).unwrap();
+    assert!(approx(c.x, 2.0) && approx(c.y, 2.0) && approx(r, 2.0), "{c:?}");
+    let (c, _) = circle_ttr(&x_axis, Pt::new(-3.0, 0.0), &y_axis, Pt::new(0.0, -3.0), 2.0).unwrap();
+    assert!(approx(c.x, -2.0) && approx(c.y, -2.0), "{c:?}");
+    // A circle and a line: the circle of radius 1 touching both, outside the circle.
+    let circle = Curve::Circle { c: Pt::new(0.0, 4.0), r: 2.0 };
+    let (c, _) = circle_ttr(&x_axis, Pt::new(3.0, 0.0), &circle, Pt::new(2.0, 3.0), 1.5).unwrap();
+    assert!(approx(c.y, 1.5) && approx(c.minus(Pt::new(0.0, 4.0)).len(), 3.5) && c.x > 0.0, "{c:?}");
+    // Tan, Tan, Tan on a 3-4-5 triangle: its incircle (radius 1, centre (1, 1)).
+    let hyp = Curve::Seg { a: Pt::new(4.0, 0.0), b: Pt::new(0.0, 3.0) };
+    let x = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(4.0, 0.0) };
+    let y = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(0.0, 3.0) };
+    let (c, r) = circle_ttt([(&x, Pt::new(1.0, 0.0)), (&y, Pt::new(0.0, 1.0)), (&hyp, Pt::new(2.0, 1.5))]).unwrap();
+    assert!((c.x - 1.0).abs() < 1e-7 && (c.y - 1.0).abs() < 1e-7 && (r - 1.0).abs() < 1e-7, "{c:?} {r}");
+}
+
+#[test]
+fn lines_tangent_to_two_circles() {
+    use crate::kernel::{Curve, line_tan_tan};
+    let a = Curve::Circle { c: Pt::new(0.0, 0.0), r: 1.0 };
+    let b = Curve::Circle { c: Pt::new(10.0, 0.0), r: 1.0 };
+    // Picked on top: the outer tangent y = 1.
+    let (t1, t2) = line_tan_tan(&a, Pt::new(0.0, 1.0), &b, Pt::new(10.0, 1.0)).unwrap();
+    assert!(approx(t1.y, 1.0) && approx(t2.y, 1.0) && approx(t1.x, 0.0) && approx(t2.x, 10.0), "{t1:?} {t2:?}");
+    // Picked top then bottom: an inner tangent, square to both radii.
+    let (t1, t2) = line_tan_tan(&a, Pt::new(0.0, 1.0), &b, Pt::new(10.0, -1.0)).unwrap();
+    assert!(t1.y > 0.0 && t2.y < 0.0);
+    let dir = t2.minus(t1);
+    assert!((t1.x * dir.x + t1.y * dir.y).abs() < 1e-9, "square to the first radius");
+    // A line is not a circle.
+    let l = Curve::Seg { a: Pt::new(0.0, 0.0), b: Pt::new(1.0, 0.0) };
+    assert!(line_tan_tan(&l, Pt::new(0.0, 0.0), &b, Pt::new(10.0, 1.0)).is_none());
+}

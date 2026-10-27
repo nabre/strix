@@ -22,14 +22,33 @@ use strix_doc::InlineObject;
 
 use crate::WordApp;
 
+/// How a circle is given (AutoCAD's Circle options).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CircleMode {
+    /// Centre, then the radius.
+    Radius,
+    /// Centre, then the diameter.
+    Diameter,
+    /// The two ends of a diameter.
+    TwoPoints,
+    /// Three points on it.
+    ThreePoints,
+    /// Touching two objects, with a radius.
+    TanTanRadius,
+    /// Touching three objects.
+    TanTanTan,
+}
+
 /// What a click does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     Select,
     Line,
+    /// A line touching two circles or arcs.
+    LineTan,
     Polyline,
     Rect,
-    Circle,
+    Circle(CircleMode),
     Arc,
     Point,
     Text,
@@ -43,9 +62,15 @@ impl Tool {
         Some(match name {
             "select" => Tool::Select,
             "line" | "l" | "linea" => Tool::Line,
+            "lineTan" | "linetan" | "lt" => Tool::LineTan,
             "polyline" | "pl" | "polilinea" => Tool::Polyline,
             "rect" | "rec" | "rettangolo" => Tool::Rect,
-            "circle" | "c" | "cerchio" => Tool::Circle,
+            "circle" | "c" | "cerchio" => Tool::Circle(CircleMode::Radius),
+            "circleDiameter" | "circlediameter" | "cd" => Tool::Circle(CircleMode::Diameter),
+            "circle2p" | "2p" => Tool::Circle(CircleMode::TwoPoints),
+            "circle3p" | "3p" => Tool::Circle(CircleMode::ThreePoints),
+            "circleTtr" | "ttr" => Tool::Circle(CircleMode::TanTanRadius),
+            "circleTtt" | "ttt" => Tool::Circle(CircleMode::TanTanTan),
             "arc" | "a" | "arco" => Tool::Arc,
             "point" | "po" | "punto" => Tool::Point,
             "text" | "t" | "testo" => Tool::Text,
@@ -68,8 +93,23 @@ impl Tool {
             (Tool::Polyline, _) => "Polyline: next point (Enter to end, c to close)",
             (Tool::Rect, 0) => "Rectangle: first corner",
             (Tool::Rect, _) => "Rectangle: other corner",
-            (Tool::Circle, 0) => "Circle: centre",
-            (Tool::Circle, _) => "Circle: radius (a point or a number)",
+            (Tool::LineTan, 0) => "Tangent line: pick the first circle or arc",
+            (Tool::LineTan, _) => "Tangent line: pick the second circle or arc",
+            (Tool::Circle(CircleMode::Radius), 0) => "Circle: centre (or 2p, 3p, ttr, ttt)",
+            (Tool::Circle(CircleMode::Radius), _) => "Circle: radius (a point or a number; d for the diameter)",
+            (Tool::Circle(CircleMode::Diameter), 0) => "Circle: centre",
+            (Tool::Circle(CircleMode::Diameter), _) => "Circle: diameter (a point or a number)",
+            (Tool::Circle(CircleMode::TwoPoints), 0) => "Circle 2 points: first end of the diameter",
+            (Tool::Circle(CircleMode::TwoPoints), _) => "Circle 2 points: second end of the diameter",
+            (Tool::Circle(CircleMode::ThreePoints), 0) => "Circle 3 points: first point",
+            (Tool::Circle(CircleMode::ThreePoints), 1) => "Circle 3 points: second point",
+            (Tool::Circle(CircleMode::ThreePoints), _) => "Circle 3 points: third point",
+            (Tool::Circle(CircleMode::TanTanRadius), 0) => "Tan, tan, radius: pick the first object",
+            (Tool::Circle(CircleMode::TanTanRadius), 1) => "Tan, tan, radius: pick the second object",
+            (Tool::Circle(CircleMode::TanTanRadius), _) => "Tan, tan, radius: radius (a number, or a point from the second pick)",
+            (Tool::Circle(CircleMode::TanTanTan), 0) => "Tan, tan, tan: pick the first object",
+            (Tool::Circle(CircleMode::TanTanTan), 1) => "Tan, tan, tan: pick the second object",
+            (Tool::Circle(CircleMode::TanTanTan), _) => "Tan, tan, tan: pick the third object",
             (Tool::Arc, 0) => "Arc: centre",
             (Tool::Arc, 1) => "Arc: start point",
             (Tool::Arc, _) => "Arc: end point (counter-clockwise)",
@@ -290,7 +330,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, polyline, rect, circle, arc, point, text, dimAligned, dimHorizontal, dimVertical, move, copy")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, move, copy")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
             }
@@ -900,9 +940,15 @@ fn tool_name(tool: Tool) -> &'static str {
     match tool {
         Tool::Select => "Select",
         Tool::Line => "Line",
+        Tool::LineTan => "Tangent line",
         Tool::Polyline => "Polyline",
         Tool::Rect => "Rectangle",
-        Tool::Circle => "Circle",
+        Tool::Circle(CircleMode::Radius) => "Circle",
+        Tool::Circle(CircleMode::Diameter) => "Circle, centre and diameter",
+        Tool::Circle(CircleMode::TwoPoints) => "Circle, 2 points",
+        Tool::Circle(CircleMode::ThreePoints) => "Circle, 3 points",
+        Tool::Circle(CircleMode::TanTanRadius) => "Circle, tan tan radius",
+        Tool::Circle(CircleMode::TanTanTan) => "Circle, tan tan tan",
         Tool::Arc => "Arc",
         Tool::Point => "Point",
         Tool::Text => "Text",
@@ -1433,8 +1479,23 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         let r = Rect::from_two_pos(a, s);
                         painter.rect_stroke(r, 0.0, band, egui::StrokeKind::Middle);
                     }
-                    Tool::Circle => {
-                        painter.circle_stroke(a, a.distance(s), band);
+                    // The circle or line the next click would make.
+                    Tool::Circle(mode) => {
+                        let mut pts = ed.points.clone();
+                        pts.push(p);
+                        match circle_of(&ed.drawing, mode, &pts) {
+                            Ok(Some((c, r))) => {
+                                painter.circle_stroke(view.to_screen(c), (r * ed.zoom) as f32, band);
+                            }
+                            _ => {
+                                painter.line_segment([a, s], band);
+                            }
+                        }
+                    }
+                    Tool::LineTan => {
+                        if let Ok((t1, t2)) = tangent_line(&ed.drawing, last, p) {
+                            painter.line_segment([view.to_screen(t1), view.to_screen(t2)], band);
+                        }
                     }
                     _ => {
                         painter.line_segment([a, s], band);
@@ -1767,10 +1828,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 finished = add_text(ed, typed);
             } else if ed.tool == Tool::Polyline && typed.eq_ignore_ascii_case("c") {
                 finished = close_polyline(ed);
-            } else if ed.tool == Tool::Circle && ed.points.len() == 1 && typed.parse::<f64>().is_ok() {
-                let r: f64 = typed.parse().unwrap_or(0.0);
-                let c = ed.points.first().copied().unwrap_or_default();
-                finished = feed(ed, c.plus(Pt::new(r.abs(), 0.0)), None);
+            } else if ed.tool == Tool::Circle(CircleMode::Radius) && ed.points.len() == 1 && typed.eq_ignore_ascii_case("d") {
+                // `d` after the centre: the diameter instead of the radius.
+                ed.tool = Tool::Circle(CircleMode::Diameter);
+            } else if let Some(v) = typed.parse::<f64>().ok().filter(|_| takes_size(ed))
+                && let Some(&last) = ed.points.last()
+            {
+                // A radius or diameter typed: the point that far from the last one.
+                finished = feed(ed, last.plus(Pt::new(v.abs(), 0.0)), None);
                 ed.snap_once = None;
             } else {
                 match parse_point(typed, ed.points.last().copied(), cursor) {
@@ -1812,6 +1877,51 @@ fn pt(p: Pt) -> P {
     P(Num::new(p.x), Num::new(p.y))
 }
 
+/// The next input is a size (a circle's radius or diameter): a number typed is that distance.
+fn takes_size(ed: &CadEditor) -> bool {
+    match (ed.tool, ed.points.len()) {
+        (Tool::Circle(CircleMode::Radius | CircleMode::Diameter), 1) => true,
+        (Tool::Circle(CircleMode::TanTanRadius), 2) => true,
+        _ => false,
+    }
+}
+
+/// The curve picked by a click at `p` for a tangent (the nearest one shown).
+fn picked_curve(d: &Drawing, p: Pt) -> Result<kernel::Curve, &'static str> {
+    kernel::curve_near(d, p).map(|(c, _)| c).ok_or("There is nothing to be tangent to")
+}
+
+/// The circle `mode` makes from the points given so far: None while it needs more of them. The
+/// tangent modes read the objects nearest their picks; Tan, Tan, Radius takes the radius from
+/// its third point (its distance from the second pick).
+fn circle_of(d: &Drawing, mode: CircleMode, pts: &[Pt]) -> Result<Option<(Pt, f64)>, &'static str> {
+    let made = match (mode, pts) {
+        (CircleMode::Radius, [c, q, ..]) => Some((*c, q.minus(*c).len())),
+        (CircleMode::Diameter, [c, q, ..]) => Some((*c, q.minus(*c).len() / 2.0)),
+        (CircleMode::TwoPoints, [a, b, ..]) => Some(kernel::circle_2p(*a, *b).ok_or("The two points are the same")?),
+        (CircleMode::ThreePoints, [a, b, c, ..]) => Some(kernel::circle_3p(*a, *b, *c).ok_or("The three points are in line")?),
+        (CircleMode::TanTanRadius, [p1, p2, q, ..]) => {
+            let (c1, c2) = (picked_curve(d, *p1)?, picked_curve(d, *p2)?);
+            Some(kernel::circle_ttr(&c1, *p1, &c2, *p2, q.minus(*p2).len()).ok_or("No circle of that radius touches both")?)
+        }
+        (CircleMode::TanTanTan, [p1, p2, p3, ..]) => {
+            let (c1, c2, c3) = (picked_curve(d, *p1)?, picked_curve(d, *p2)?, picked_curve(d, *p3)?);
+            Some(kernel::circle_ttt([(&c1, *p1), (&c2, *p2), (&c3, *p3)]).ok_or("No circle touches the three objects")?)
+        }
+        _ => None,
+    };
+    match made {
+        Some((_, r)) if !(r > kernel::RESOLUTION && r.is_finite()) => Err("The circle has no size"),
+        other => Ok(other),
+    }
+}
+
+/// The line touching the circles or arcs picked at `p1` and `p2`: its two touching points.
+fn tangent_line(d: &Drawing, p1: Pt, p2: Pt) -> Result<(Pt, Pt), &'static str> {
+    let (c1, c2) = (picked_curve(d, p1)?, picked_curve(d, p2)?);
+    kernel::line_tan_tan(&c1, p1, &c2, p2).ok_or("Pick two circles or arcs apart from each other")
+}
+
 /// Takes point `p` for the current tool; returns the new drawing when an operation completes.
 fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
     ed.message.clear();
@@ -1842,11 +1952,29 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                 }),
             )
         }
-        Tool::Circle if n >= 2 => {
-            let r = pts[1].minus(pts[0]).len();
+        Tool::LineTan if n >= 2 => {
+            let made = tangent_line(&ed.drawing, pts[0], pts[1]);
             done(ed);
-            with(ed, Entity::new(Kind::Circle { c: pt(pts[0]), r: Num::new(r) }))
+            match made {
+                Ok((a, b)) => with(ed, Entity::new(Kind::Line { a: pt(a), b: pt(b) })),
+                Err(e) => {
+                    ed.message = e.into();
+                    None
+                }
+            }
         }
+        Tool::Circle(mode) => match circle_of(&ed.drawing, mode, &pts) {
+            Ok(None) => None,
+            Ok(Some((c, r))) => {
+                done(ed);
+                with(ed, Entity::new(Kind::Circle { c: pt(c), r: Num::new(r) }))
+            }
+            Err(e) => {
+                done(ed);
+                ed.message = e.into();
+                None
+            }
+        },
         Tool::Arc if n >= 3 => {
             let c = pts[0];
             let r = pts[1].minus(c).len();
@@ -1958,7 +2086,32 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
     let t = |name: &str| json!({"tool": name});
     group(ui, "Draw", None, app, |ui, app| {
         big_checked(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
-        big_checked(ui, app, "cadCircle", "Circle", "ui.cadTool", t("circle"), tool == Tool::Circle);
+        // Circle: its ways, as AutoCAD's Circle button lists them.
+        crate::widgets::menu_button(
+            ui,
+            app,
+            "cadCircle",
+            Some("Circle"),
+            "Circle: centre and radius, or another way",
+            true,
+            "ui.cadTool",
+            |ui, app| {
+                for (name, label) in [
+                    ("circle", "Centre, Radius"),
+                    ("circleDiameter", "Centre, Diameter"),
+                    ("circle2p", "2 Points"),
+                    ("circle3p", "3 Points"),
+                    ("circleTtr", "Tan, Tan, Radius"),
+                    ("circleTtt", "Tan, Tan, Tan"),
+                ] {
+                    let on = Tool::parse(name).is_some_and(|x| x == tool);
+                    if ui.selectable_label(on, tl!(label)).clicked() {
+                        let _ = app.run("ui.cadTool", json!({"tool": name}));
+                        ui.close();
+                    }
+                }
+            },
+        );
         stack(ui, &mut |ui| {
             small(
                 ui,
@@ -1974,6 +2127,16 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "cadArc", Some("Arc"), "Arc: centre, start, end (counter-clockwise)", "ui.cadTool", t("arc"), tool == Tool::Arc);
         });
         stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadLine",
+                Some("Tangent Line"),
+                "A line touching two circles or arcs: pick each near where it should touch",
+                "ui.cadTool",
+                t("lineTan"),
+                tool == Tool::LineTan,
+            );
             small(ui, app, "cadPoint", Some("Point"), "Point", "ui.cadTool", t("point"), tool == Tool::Point);
             small(ui, app, "cadText", Some("Text"), "Text: a position, then type it", "ui.cadTool", t("text"), tool == Tool::Text);
         });
@@ -2214,7 +2377,7 @@ mod tests {
         feed(ed, Pt::new(0.0, 0.0), None);
         let d = feed(ed, Pt::new(30.0, 10.0), None).unwrap();
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Polyline { pts, closed: true, .. } if pts.len() == 4));
-        ed.tool = Tool::Circle;
+        ed.tool = Tool::Circle(CircleMode::Radius);
         feed(ed, Pt::new(5.0, 5.0), None);
         let d = feed(ed, Pt::new(8.0, 9.0), None).unwrap();
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Circle { r, .. } if (r.value - 5.0).abs() < 1e-9));
@@ -2415,6 +2578,49 @@ mod tests {
         app.run("edit.undo", json!({})).unwrap();
         reload(&mut app);
         assert_eq!(app.cad.as_ref().unwrap().drawing.padding.left, 4.0);
+    }
+
+    /// The Circle ways and the tangent line, through the same steps as clicks.
+    #[test]
+    fn circle_ways_and_the_tangent_line() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let radius = |d: &Drawing| match &d.entities.last().unwrap().kind {
+            Kind::Circle { c, r } => (c.pt(), r.value),
+            k => panic!("{k:?}"),
+        };
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::parse("3p").unwrap());
+        feed(ed, Pt::new(200.0, 0.0), None);
+        feed(ed, Pt::new(210.0, 10.0), None);
+        let d = feed(ed, Pt::new(220.0, 0.0), None).expect("three points");
+        let (c, r) = radius(&d);
+        assert!((c.x - 210.0).abs() < 1e-9 && c.y.abs() < 1e-9 && (r - 10.0).abs() < 1e-9);
+        ed.drawing = d;
+        // Two circles side by side, then the line over their tops.
+        ed.set_tool(Tool::parse("2p").unwrap());
+        feed(ed, Pt::new(240.0, 0.0), None);
+        ed.drawing = feed(ed, Pt::new(260.0, 0.0), None).expect("two points");
+        ed.set_tool(Tool::LineTan);
+        feed(ed, Pt::new(210.0, 10.0), None);
+        let d = feed(ed, Pt::new(250.0, 10.0), None).expect("tangent line");
+        let Kind::Line { a, b } = &d.entities.last().unwrap().kind else { panic!() };
+        assert!((a.1.value - 10.0).abs() < 1e-9 && (b.1.value - 10.0).abs() < 1e-9, "{a:?} {b:?}");
+        // Tan, tan, radius: a typed radius is the third input.
+        ed.drawing = d;
+        ed.set_tool(Tool::parse("ttr").unwrap());
+        feed(ed, Pt::new(210.0, -10.0), None);
+        feed(ed, Pt::new(250.0, -10.0), None);
+        assert!(takes_size(ed));
+        let d = feed(ed, Pt::new(250.0 + 30.0, -10.0), None).expect("ttr");
+        assert!((radius(&d).1 - 30.0).abs() < 1e-9);
+        // Nothing to touch: a message, no circle.
+        ed.drawing = Drawing::default();
+        ed.set_tool(Tool::parse("ttt").unwrap());
+        for p in [Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)] {
+            feed(ed, p, None);
+        }
+        assert!(feed(ed, Pt::new(0.0, 1.0), None).is_none() && !ed.message.is_empty());
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

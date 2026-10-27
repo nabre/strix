@@ -410,6 +410,208 @@ pub fn tangent_at(c: &Curve, p: Pt) -> Pt {
     }
 }
 
+/// The curve of a shown object nearest `p` (what a click picks for Tan, Tan…), with its
+/// distance.
+pub fn curve_near(d: &crate::Drawing, p: Pt) -> Option<(Curve, f64)> {
+    d.entities.iter().filter(|e| d.layer(&e.layer).visible).flat_map(curves).map(|c| (c, c.distance(p))).min_by(|x, y| x.1.total_cmp(&y.1))
+}
+
+/// The circle through `a` and `b` as a diameter: centre and radius.
+pub fn circle_2p(a: Pt, b: Pt) -> Option<(Pt, f64)> {
+    let r = b.minus(a).len() / 2.0;
+    (r > RESOLUTION).then(|| (a.plus(b).scale(0.5), r))
+}
+
+/// The circle through three points (centred coordinates, so far-off points keep their digits);
+/// None when they are in line.
+pub fn circle_3p(a: Pt, b: Pt, c: Pt) -> Option<(Pt, f64)> {
+    let (u, v) = (b.minus(a), c.minus(a));
+    let den = 2.0 * cross(u, v);
+    if den.abs() <= u.len() * v.len() * PARALLEL_SIN * 2.0 {
+        return None;
+    }
+    let (uu, vv) = (dot(u, u), dot(v, v));
+    let o = Pt::new((v.y * uu - u.y * vv) / den, (u.x * vv - v.x * uu) / den);
+    let centre = a.plus(o);
+    centre.is_finite().then(|| (centre, o.len()))
+}
+
+/// The point of a curve's full line or circle nearest `p` (where a circle centred at `p`
+/// touches it).
+fn foot(c: &Curve, p: Pt) -> Pt {
+    match *c {
+        Curve::Seg { a, b } => {
+            let d = b.minus(a);
+            let l2 = dot(d, d);
+            if l2 == 0.0 { a } else { a.plus(d.scale(dot(p.minus(a), d) / l2)) }
+        }
+        Curve::Circle { c, r } | Curve::Arc { c, r, .. } => {
+            let v = p.minus(c);
+            if v.len() == 0.0 { Pt::new(c.x + r, c.y) } else { c.plus(v.unit().scale(r)) }
+        }
+    }
+}
+
+/// The places a centre can be to stay `r` from curve `c` (its line or circle): the two parallel
+/// lines, or the two concentric circles.
+fn offsets(c: &Curve, r: f64) -> Vec<Curve> {
+    match *c {
+        Curve::Seg { a, b } => {
+            let d = b.minus(a);
+            if d.len() == 0.0 {
+                return Vec::new();
+            }
+            // Long enough to meet anything near the drawing.
+            let far = d.unit().scale(1e3 * (c.size() + r).max(1.0));
+            let n = d.unit().left().scale(r);
+            [n, n.scale(-1.0)].into_iter().map(|s| Curve::Seg { a: a.plus(s).minus(far), b: b.plus(s).plus(far) }).collect()
+        }
+        Curve::Circle { c, r: big } | Curve::Arc { c, r: big, .. } => {
+            let mut out = vec![Curve::Circle { c, r: big + r }];
+            if (big - r).abs() > RESOLUTION {
+                out.push(Curve::Circle { c, r: (big - r).abs() });
+            }
+            out
+        }
+    }
+}
+
+/// A circle of radius `r` touching curves `a` and `b` (AutoCAD's Tan, Tan, Radius): of the
+/// possible ones, the one whose touching points are nearest the picked points `pa` and `pb`.
+pub fn circle_ttr(a: &Curve, pa: Pt, b: &Curve, pb: Pt, r: f64) -> Option<(Pt, f64)> {
+    if r <= RESOLUTION || !r.is_finite() {
+        return None;
+    }
+    let mut best: Option<(f64, Pt)> = None;
+    for oa in offsets(a, r) {
+        for ob in offsets(b, r) {
+            for centre in intersect(&oa, &ob) {
+                let score = foot(a, centre).minus(pa).len() + foot(b, centre).minus(pb).len();
+                if best.is_none_or(|(s, _)| score < s) {
+                    best = Some((score, centre));
+                }
+            }
+        }
+    }
+    best.map(|(_, c)| (c, r))
+}
+
+/// How far a circle (`centre`, `r`) is from touching curve `c` the way `side` says: for a line
+/// the centre's signed distance, for a circle outside (`side` > 0) or inside it.
+fn tangency_gap(c: &Curve, centre: Pt, r: f64, side: f64) -> f64 {
+    match *c {
+        Curve::Seg { a, b } => {
+            let n = b.minus(a).unit().left();
+            dot(centre.minus(a), n) * side - r
+        }
+        Curve::Circle { c, r: big } | Curve::Arc { c, r: big, .. } => {
+            let d = centre.minus(c).len();
+            if side > 0.0 { d - (big + r) } else { (big - d).abs() - r }
+        }
+    }
+}
+
+/// A circle touching three curves (AutoCAD's Tan, Tan, Tan): Newton's method on centre and
+/// radius from the circle through the three picked points, each tangency on the side the picked
+/// point shows. None when it does not settle.
+pub fn circle_ttt(curves: [(&Curve, Pt); 3]) -> Option<(Pt, f64)> {
+    let [p0, p1, p2] = curves.map(|(c, p)| foot(c, p));
+    let (mut centre, mut r) = circle_3p(p0, p1, p2).or_else(|| {
+        let g = p0.plus(p1).plus(p2).scale(1.0 / 3.0);
+        Some((g, g.minus(p0).len().max(1.0)))
+    })?;
+    // Which side of each curve the circle sits on, from the first guess.
+    let sides = curves.map(|(c, _)| match *c {
+        Curve::Seg { a, b } => {
+            if dot(centre.minus(a), b.minus(a).unit().left()) >= 0.0 {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        Curve::Circle { c, r: big } | Curve::Arc { c, r: big, .. } => {
+            if centre.minus(c).len() >= big {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+    });
+    let size = curves.iter().map(|(c, _)| c.size()).fold(1.0, f64::max);
+    let gaps = |c: Pt, r: f64| -> [f64; 3] {
+        let mut g = [0.0; 3];
+        for (k, ((curve, _), side)) in curves.iter().zip(sides).enumerate() {
+            if let Some(slot) = g.get_mut(k) {
+                *slot = tangency_gap(curve, c, r, side);
+            }
+        }
+        g
+    };
+    for _ in 0..100 {
+        let f = gaps(centre, r);
+        if f.iter().all(|v| v.abs() <= tolerance(size)) {
+            return (r > RESOLUTION).then_some((centre, r));
+        }
+        // The Jacobian by central differences, then Cramer's rule.
+        let h = (size * 1e-7).max(1e-9);
+        let col = |dx: f64, dy: f64, dr: f64| {
+            let (fp, fm) = (gaps(Pt::new(centre.x + dx, centre.y + dy), r + dr), gaps(Pt::new(centre.x - dx, centre.y - dy), r - dr));
+            [(fp[0] - fm[0]) / (2.0 * h), (fp[1] - fm[1]) / (2.0 * h), (fp[2] - fm[2]) / (2.0 * h)]
+        };
+        let (jx, jy, jr) = (col(h, 0.0, 0.0), col(0.0, h, 0.0), col(0.0, 0.0, h));
+        let det3 = |a: [f64; 3], b: [f64; 3], c: [f64; 3]| {
+            a[0] * (b[1] * c[2] - b[2] * c[1]) - b[0] * (a[1] * c[2] - a[2] * c[1]) + c[0] * (a[1] * b[2] - a[2] * b[1])
+        };
+        let det = det3(jx, jy, jr);
+        if det.abs() < 1e-300 || !det.is_finite() {
+            return None;
+        }
+        let dx = det3(f, jy, jr) / det;
+        let dy = det3(jx, f, jr) / det;
+        let dr = det3(jx, jy, f) / det;
+        centre = Pt::new(centre.x - dx, centre.y - dy);
+        r = (r - dr).abs();
+        if !centre.is_finite() || !r.is_finite() {
+            return None;
+        }
+    }
+    None
+}
+
+/// A line touching two circles or arcs (outer and inner tangents): of the up to four, the one
+/// whose touching points are nearest the picked points. Its two touching points.
+pub fn line_tan_tan(a: &Curve, pa: Pt, b: &Curve, pb: Pt) -> Option<(Pt, Pt)> {
+    let ((c1, r1), (c2, r2)) = match (*a, *b) {
+        (Curve::Circle { c, r } | Curve::Arc { c, r, .. }, Curve::Circle { c: d, r: s } | Curve::Arc { c: d, r: s, .. }) => ((c, r), (d, s)),
+        _ => return None,
+    };
+    let d = c2.minus(c1);
+    let l = d.len();
+    if l <= tolerance(a.size().max(b.size())) {
+        return None;
+    }
+    let (u, w) = (d.scale(1.0 / l), d.scale(1.0 / l).left());
+    let mut best: Option<(f64, (Pt, Pt))> = None;
+    // A tangent line n·x = k with n·c1 − k = r1 and n·c2 − k = s·r2 (s = 1 outer, −1 inner):
+    // n·d = s·r2 − r1, so n = q·u ± √(1 − q²)·w with q = (s·r2 − r1)/|d|.
+    for s in [1.0, -1.0] {
+        let q = (s * r2 - r1) / l;
+        if q.abs() > 1.0 {
+            continue;
+        }
+        let h = ((1.0 - q) * (1.0 + q)).sqrt();
+        for sign in [1.0, -1.0] {
+            let n = u.scale(q).plus(w.scale(sign * h));
+            let (t1, t2) = (c1.minus(n.scale(r1)), c2.minus(n.scale(s * r2)));
+            let score = t1.minus(pa).len() + t2.minus(pb).len();
+            if best.is_none_or(|(sc, _)| score < sc) {
+                best = Some((score, (t1, t2)));
+            }
+        }
+    }
+    best.map(|(_, t)| t)
+}
+
 /// Radians to degrees.
 pub fn deg(rad: f64) -> f64 {
     rad * 180.0 / PI
