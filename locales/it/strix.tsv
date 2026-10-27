@@ -2579,3 +2579,90 @@ preview	Title	Esempio
 	Snap to the nearest point of an object	Snap al punto più vicino di un oggetto
 	Centre	Centro
 	Angle	Angolo
+	(remove) click removes	(rimuovi) il clic toglie
+	1 object selected	1 oggetto selezionato
+	Add (a click adds)	Aggiungi (il clic aggiunge)
+	Add the objects of the same type on the same layer	Aggiunge gli oggetti dello stesso tipo sullo stesso livello
+	Aligned dimension	Quota allineata
+	All the selection	Tutta la selezione
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	T tutto · I intercetta · FP/IP poligono · R rimuovi · A aggiungi · P precedente · U annulla · Maiusc+Spazio ciclo
+	ByLayer	DaLivello
+	Cancel the step	Annulla il passo
+	Centre X	Centro X
+	Centre Y	Centro Y
+	Close Drawing	Chiudi il disegno
+	Closed	Chiusa
+	Confirm the objects	Conferma gli oggetti
+	Considering	Considera
+	Coordinates take a number or an expression of the calculations (L/2)	Le coordinate accettano un numero o un'espressione dei calcoli (L/2)
+	Crossing polygon	Poligono intersecante
+	Current layer	Livello corrente
+	Current layer: new objects go on it	Livello corrente: i nuovi oggetti vanno su questo
+	Dash-dot	Tratto-punto
+	Delete the layer (its objects go to layer 0)	Elimina il livello (i suoi oggetti vanno sul livello 0)
+	Dimension	Quota
+	Draw order	Ordine di visualizzazione
+	Draw the selection above every other object	Disegna la selezione sopra tutti gli altri oggetti
+	Draw the selection under every other object	Disegna la selezione sotto tutti gli altri oggetti
+	End X	Fine X
+	End Y	Fine Y
+	End angle	Angolo finale
+	Enter confirms	Invio conferma
+	Fence	Intercetta
+	Grey	Grigio
+	Grip	Grip
+	Grip: the new point (click, or type it; Esc puts it back)	Grip: il nuovo punto (clic, o scrivilo; Esc lo rimette a posto)
+	Layer:	Livello:
+	Linetype	Tipo di linea
+	Lineweight	Spessore
+	Move to layer	Sposta sul livello
+	New layer	Nuovo livello
+	Next object	Oggetto successivo
+	Next point	Prossimo punto
+	No previous selection	Nessuna selezione precedente
+	No selection: click objects, or drag a window	Nessuna selezione: fai clic sugli oggetti o trascina una finestra
+	Nothing to undo in the selection	Niente da annullare nella selezione
+	Object snap settings	Impostazioni snap ad oggetto
+	Objects	Oggetti
+	Only these	Solo questi
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Angolo opposto della finestra (verso destra: oggetti interi; verso sinistra: anche quelli toccati)
+	Previous object	Oggetto precedente
+	Previous selection	Selezione precedente
+	Put the grip back	Rimetti a posto il grip
+	Reduce the selection to the objects considered	Riduce la selezione agli oggetti considerati
+	Remove (a click removes)	Rimuovi (il clic toglie)
+	Select Similar	Seleziona simili
+	Select objects	Seleziona oggetti
+	Selection options	Opzioni di selezione
+	Shown	Visibile
+	Snap for the next point	Snap per il prossimo punto
+	Snap for the next point (Shift+right-click)	Snap per il prossimo punto (Maiusc+tasto destro)
+	Start X	Inizio X
+	Start Y	Inizio Y
+	Start angle	Angolo iniziale
+	Teal	Verde petrolio
+	The whole family	Tutta la famiglia
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Scrivi un punto (x,y  @dx,dy  @d<a), una distanza, un comando (l, pl, rec, c, a, t, m, co), un'opzione o premi Invio
+	Undo the last step	Annulla l'ultimo passo
+	Undo the last vertex	Annulla l'ultimo vertice
+	Unknown selection option:	Opzione di selezione sconosciuta:
+	Varies	Diversi
+	Vertex	Vertice
+	Vertex X	Vertice X
+	Vertex Y	Vertice Y
+	Window polygon	Finestra poligonale
+	Zoom Fit	Adatta alla finestra
+	already selected	già scelti
+	click adds, Shift+click removes	il clic aggiunge, Maiusc+clic toglie
+	click on empty space for a window, drag for a lasso	clic sul vuoto per una finestra, trascina per un lazo
+	click the vertices; Enter or right-click closes, Esc cancels	clic sui vertici; Invio o tasto destro chiude, Esc annulla
+	click to pick it	clic per sceglierlo
+	cycle:	ciclo:
+	found	trovati
+	no snap	nessuno snap
+	objects	oggetti
+	objects selected	oggetti selezionati
+	of	di
+	removed	rimossi
+	selected	selezionati
+	Window polygon:	Finestra poligonale:

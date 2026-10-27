@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); editor next · **Last updated:** 2026-10-27 · **Change:** kernel, snaps, grips, SVG
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-27 · **Change:** AutoCAD selection, context menu, Properties pane, layers
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -121,11 +121,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    **CAD Drawing** tab comes up (Draw: Line, Circle, Polyline, Rectangle, Arc, Point, Text;
    Dimensions: Aligned, Horizontal, Vertical; Modify: Select, Move, Copy, Delete, Undo, Redo;
    Precision: Snap, Ortho, Grid, Zoom Fit; Close Drawing). Wheel zooms about the pointer, the
-   middle button or Shift+drag pans; a grid; a crosshair with snap markers (ends, midpoints,
+   middle button or Alt+drag pans; a grid; a crosshair with snap markers (ends, midpoints,
    centres, grid). The command line takes `x,y`, `@dx,dy`, `@d<a`, `d<a`, a distance towards the
    pointer, a tool alias (`l pl rec c a t m co`), `c` to close a polyline, a radius; Enter ends,
-   Esc cancels the step then the command, F8 toggles Ortho, Del deletes. Selection: click, Shift
-   to add or remove, a window left to right, a crossing right to left. Every finished operation
+   Esc cancels the step then the command, F8 toggles Ortho, Del deletes; Enter or Space at the
+   idle prompt repeats the last command. Every finished operation
    is one `cad.set` (an undo step); the editor reads the drawing back after Undo or a
    recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`).
    **Object snaps** (exact, from the kernel; AutoCAD's markers and names): Endpoint, Midpoint,
@@ -141,15 +141,56 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    an arc bends through the point), point and text position, dimension ends and line (distance).
    A dragged coordinate keeps its expression; a degenerate result is refused.
    **Frame** (Picture › Frame): the picture's edge with the area outside it shaded light grey.
-   `ui.cadSelect` (`{"all": true}` or `{"ids": […]}`, Ctrl+A) selects objects.
-   Still to do: offset, trim, extend, fillet, mirror, stretch, layers and stroke controls,
-   angular dimensions, hatches, constraints.
+   **Selection** (AutoCAD's defaults, from the owner's prototype): a click **adds** the object
+   under the pointer, Shift+click removes it (the halo under the pointer turns red); a click on
+   empty space starts a **two-click window** (to the right: whole objects, blue; to the left:
+   touched too, green dashed); a **drag** from empty space is a **lasso**, its first move decides
+   window or crossing; Esc clears the selection last (after a polygon, a window, Remove mode, a
+   grip, the points and the command). Typed options (English and Italian): `all`/`t`, `f`/`i`
+   fence, `wp`/`fp` window polygon, `cp`/`ip` crossing polygon, `r` remove mode, `a` add mode,
+   `p` the previous selection, `u` undo the last selection step (at the idle prompt `u` undoes the
+   last command). A fence or polygon closes with Enter or a right-click. Overlapping objects:
+   Shift+Space steps to the next one under the pointer (shown haloed), and a second click in the
+   same place swaps the one just added for the next one. The command line reports
+   "3 found · 5 selected". Hidden layers are not selectable. Move and Copy take the selection
+   (noun-verb) or, without one, ask for objects first (Enter confirms). The cursor tells the state:
+   idle, crosshair with the pickbox; a point asked for, the crosshair; objects asked for, the
+   pickbox. `ui.cadSelect` takes `{"all": true}`, `{"ids": […]}`, `{"similar": true}`,
+   `{"none": true}` or `{"option": "previous"}`.
+   **Context menu** (right button, AutoCAD-style; items are the editor's own operations): with a
+   grip taken, put it back and a snap for the next point; during a command, Enter (or Confirm the
+   objects), Cancel the step or Exit, the polyline's Close and Undo the last vertex, the
+   selection options or a snap for the next point, Ortho; with objects selected, Delete, Move,
+   Copy, Draw order (to front, to back, forward, backward), Move to layer, Select Similar (same
+   type, same layer), Deselect All, Properties; on the empty sheet, Repeat the last command,
+   Undo, Redo, Select All, the selection options, Zoom Fit, the object snaps, Snap, Ortho, Grid,
+   Properties, Close Drawing. With nothing selected, a right-click on an object selects it first.
+   Shift+right-click while a point is asked for gives the **snap for the next point** menu
+   (`ui.cadSnapOnce`: one snap kind, or none, for that point only).
+   **Properties pane** (beside the sheet; Layers › Properties, `ui.cadToggle {"what": "props"}`):
+   with several objects, **Considering** all of them or one family ("Line (3)"), ‹ › step through
+   them one by one (back to all at the end), the counter goes back to the family, **Only these**
+   reduces the selection to them (the old one becomes Previous); the sheet shows them in orange.
+   General: layer, colour, lineweight, linetype, each ByLayer or the objects' own, "Varies" when
+   they differ (`ui.cadLayer`, `ui.cadStroke`). Geometry of one object: coordinates, radii and
+   angles take a number or an expression of the calculations (`L/2` stays linked); a line's length
+   and angle and a circle's diameter recompute it (a diameter expression `D` gives `r = (D)/2`);
+   a polyline shows one vertex at a time and Closed; a text its value, height and rotation; a
+   dimension its text, distance and orientation (`ui.cadProps {"field", "value"}`, `strix_cad`'s
+   `Drawing::fields`/`set_field`). **Layers**: the current layer (new objects go on it,
+   `ui.cadCurrentLayer`, also in the ribbon), shown, colour, lineweight, linetype, rename (objects
+   follow), delete (objects go to layer 0), new.
+   **Draw order** (`ui.cadOrder`, Modify › Bring to Front / Send to Back): the order of the objects
+   in the JSON is the order they are drawn in; the selection follows the objects.
+   Still to do: offset, trim, extend, fillet, mirror, stretch, match properties, angular
+   dimensions, hatches, constraints, dockable panes.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
    properties; hatch (by selection and by point); angular dimensions, rows and chains.
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-10-27: AutoCAD selection (adds, Shift removes, two-click window, lasso, fence, polygons, previous, undo, cycling); context menu; Properties pane (families, stepping, geometry with expressions, stroke, layers); draw order; current layer.
 - 2026-10-27: geometry kernel (exact intersections, perpendiculars, tangents, angles; limit of approximation); exact object snaps; grips; frame; padding; JSON source with an automatic SVG picture.
 - 2026-10-27: placeholders with a mode (value, symbol, both) in dimensions and texts; missing data in red.
 - 2026-10-27: stage 3 first cut: the drawing editor.

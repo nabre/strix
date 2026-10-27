@@ -14,7 +14,10 @@ use std::sync::Arc;
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, pos2, vec2};
 use serde_json::json;
-use strix_cad::{Anchor, Drawing, Entity, Grip, Kind, Num, Orient, P, Prim, Pt, Rendered, SnapKind, Snaps, kernel, outline, parse_point};
+use strix_cad::{
+    Anchor, Dash, Drawing, Entity, Focus, Grip, Kind, Num, Order, Orient, P, Prim, Pt, Rendered, SelectOption, SnapKind, Snaps, StrokeEdit, kernel,
+    outline, parse_point,
+};
 use strix_doc::InlineObject;
 
 use crate::WordApp;
@@ -88,7 +91,7 @@ pub struct CadEditor {
     pos: strix_doc::Pos,
     /// The source it was read from: a change (undo, recalculation) is read back.
     source: Option<Arc<str>>,
-    drawing: Drawing,
+    pub(crate) drawing: Drawing,
     rendered: Rendered,
     /// The calculation parameters defined where the drawing sits (for annotations).
     pub names: Vec<String>,
@@ -108,14 +111,51 @@ pub struct CadEditor {
     /// The hot grip is being dragged (released, it is placed).
     grip_drag: bool,
     command: String,
-    message: String,
+    pub(crate) message: String,
     /// The drawing point at the centre of the view, and screen points per drawing unit.
     center: Pt,
     zoom: f64,
     fitted: bool,
-    window_from: Option<Pos2>,
     /// The tab shown before the editor opened.
     pub prev_tab: Option<String>,
+    /// The selection of the last command (`P`), and the steps of this one (`U`).
+    pub(crate) previous: Vec<usize>,
+    sel_steps: Vec<Vec<usize>>,
+    /// Clicks remove from the selection (`R`; `A` adds again). Shift does the same per click.
+    pub remove_mode: bool,
+    /// A two-click window: its first corner.
+    win: Option<Pt>,
+    /// A fence or a polygon window in progress, with its vertices.
+    poly: Option<(SelectOption, Vec<Pt>)>,
+    /// A lasso being dragged (screen points).
+    lasso: Vec<Pos2>,
+    /// Overlapping objects under the pointer: which one a click takes (Shift+Space steps).
+    cycle: usize,
+    cycle_at: Option<Pos2>,
+    /// The last click that picked an object: where, which, and whether it added it.
+    last_click: Option<(Pos2, usize, bool)>,
+    /// What the last selection step found ("3 found · 5 selected").
+    found: String,
+    /// Move or Copy started without a selection: clicks select, Enter confirms.
+    pub picking: bool,
+    /// An object snap for the next point only (`Some(None)`: no snap), from Shift+right-click.
+    pub snap_once: Option<Option<SnapKind>>,
+    /// The last drawing command (Enter at the idle prompt repeats it).
+    pub last_tool: Option<Tool>,
+    /// What the Properties pane works on.
+    pub focus: Focus,
+    /// The Properties pane is shown.
+    pub panel: bool,
+    /// The layer new objects go on.
+    pub current_layer: String,
+    /// The polyline vertex the Properties pane shows.
+    pub(crate) vertex: usize,
+    /// Where the context menu was opened (drawing point), and whether it is the point menu
+    /// (Shift+right-click).
+    menu_at: Option<Pt>,
+    menu_point: bool,
+    /// A field of the Properties pane has the keyboard: the editor's keys stay out of it.
+    pub(crate) panel_typing: bool,
 }
 
 /// Opens the selected CAD drawing in the editor.
@@ -143,8 +183,27 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         center: Pt::default(),
         zoom: 1.0,
         fitted: false,
-        window_from: None,
         prev_tab: None,
+        previous: Vec::new(),
+        sel_steps: Vec::new(),
+        remove_mode: false,
+        win: None,
+        poly: None,
+        lasso: Vec::new(),
+        cycle: 0,
+        cycle_at: None,
+        last_click: None,
+        found: String::new(),
+        picking: false,
+        snap_once: None,
+        last_tool: None,
+        focus: Focus::default(),
+        panel: true,
+        current_layer: "0".into(),
+        vertex: 0,
+        menu_at: None,
+        menu_point: false,
+        panel_typing: false,
     });
     Ok(())
 }
@@ -180,7 +239,13 @@ fn reload(app: &mut WordApp) {
         ed.rendered = r;
         ed.names = names;
         ed.source = source;
-        ed.selection.retain(|&i| i < ed.drawing.entities.len());
+        let n = ed.drawing.entities.len();
+        ed.selection.retain(|&i| i < n);
+        ed.previous.retain(|&i| i < n);
+        ed.sel_steps.clear();
+        if !ed.drawing.layers.iter().any(|l| l.name == ed.current_layer) {
+            ed.current_layer = "0".into();
+        }
         if ed.grip.is_some_and(|(i, _, _)| i >= ed.drawing.entities.len()) {
             ed.grip = None;
         }
@@ -224,9 +289,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .and_then(Tool::parse)
                 .ok_or("tool: select, line, polyline, rect, circle, arc, point, text, dimAligned, dimHorizontal, dimVertical, move, copy")?;
             if let Some(ed) = app.cad.as_mut() {
-                ed.tool = tool;
-                ed.points.clear();
-                ed.message.clear();
+                ed.set_tool(tool);
             }
         }
         "ui.cadToggle" => {
@@ -238,6 +301,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "ortho" => ed.ortho = !ed.ortho,
                     "grid" => ed.grid = !ed.grid,
                     "frame" => ed.frame = !ed.frame,
+                    "props" => ed.panel = !ed.panel,
                     "snap.end" => s.end = !s.end,
                     "snap.mid" => s.mid = !s.mid,
                     "snap.center" => s.center = !s.center,
@@ -249,7 +313,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "snap.nearest" => s.nearest = !s.nearest,
                     _ => {
                         return Err(
-                            "what: snap, ortho, grid, frame or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>".into(),
+                            "what: snap, ortho, grid, frame, props or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
+                                .into(),
                         );
                     }
                 }
@@ -259,8 +324,20 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         "ui.cadSelect" => {
             // {"all": true}, or {"ids": ["e1", …]}: the entities by id (Ctrl+A selects all).
             let Some(ed) = app.cad.as_mut() else { return Ok(json!({})) };
-            ed.selection = if p.get("all").and_then(serde_json::Value::as_bool) == Some(true) {
-                (0..ed.drawing.entities.len()).collect()
+            let flag = |k: &str| p.get(k).and_then(serde_json::Value::as_bool) == Some(true);
+            if let Some(word) = p.get("option").and_then(serde_json::Value::as_str) {
+                // A typed selection option: all, previous, undo, remove, add (a fence and the
+                // polygons need the pointer).
+                let opt = SelectOption::parse(word).ok_or("option: all, previous, undo, remove, add")?;
+                ed.run_option(opt);
+                return Ok(json!({"selected": ed.selection.len(), "found": ed.found}));
+            }
+            ed.selection = if flag("all") {
+                (0..ed.drawing.entities.len()).filter(|&i| ed.drawing.selectable(i)).collect()
+            } else if flag("similar") {
+                ed.drawing.similar(&ed.selection)
+            } else if flag("none") {
+                Vec::new()
             } else {
                 let ids: Vec<&str> = p
                     .get("ids")
@@ -295,6 +372,101 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 ed.fitted = false;
             }
         }
+        "ui.cadOrder" => {
+            let order = match p.get("order").and_then(serde_json::Value::as_str) {
+                Some("front") => Order::Front,
+                Some("back") => Order::Back,
+                Some("forward") => Order::Forward,
+                Some("backward") => Order::Backward,
+                _ => return Err("order: front, back, forward or backward".into()),
+            };
+            reorder(app, order);
+        }
+        "ui.cadLayer" => {
+            // Moves the selection to a layer (made if missing).
+            let name = p.get("layer").and_then(serde_json::Value::as_str).ok_or("layer: a layer name")?;
+            let Some((mut d, sel)) = app.cad.as_ref().map(|e| (e.drawing.clone(), e.selection.clone())) else { return Ok(json!({})) };
+            d.set_layer(&sel, name)?;
+            commit(app, &d);
+        }
+        "ui.cadCurrentLayer" => {
+            // The layer new objects go on (made if missing).
+            let name = p.get("layer").and_then(serde_json::Value::as_str).ok_or("layer: a layer name")?.trim().to_string();
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            if !d.layers.iter().any(|l| l.name == name) {
+                d.ensure_layer(&name)?;
+                commit(app, &d);
+            }
+            if let Some(ed) = app.cad.as_mut() {
+                ed.current_layer = name;
+            }
+        }
+        "ui.cadStroke" => {
+            // The selection's stroke: "color" "#rrggbb", "width" mm, "dash" solid, dashed,
+            // dotted or dashDotted; each may be "byLayer".
+            let by = |k: &str| p.get(k).and_then(serde_json::Value::as_str) == Some("byLayer");
+            let mut edit = StrokeEdit::default();
+            if by("color") {
+                edit.color = Some(None);
+            } else if let Some(c) = p.get("color").and_then(serde_json::Value::as_str) {
+                edit.color = Some(Some(parse_hex(c).ok_or("color: #rrggbb or byLayer")?));
+            }
+            if by("width") {
+                edit.width = Some(None);
+            } else if let Some(w) = p.get("width") {
+                edit.width = Some(Some(w.as_f64().ok_or("width: mm or byLayer")?));
+            }
+            if by("dash") {
+                edit.dash = Some(None);
+            } else if let Some(d) = p.get("dash").and_then(serde_json::Value::as_str) {
+                edit.dash = Some(Some(parse_dash(d).ok_or("dash: solid, dashed, dotted, dashDotted or byLayer")?));
+            }
+            let Some((mut d, sel)) = app.cad.as_ref().map(|e| (e.drawing.clone(), e.selection.clone())) else { return Ok(json!({})) };
+            if sel.is_empty() {
+                return Err("select objects first".into());
+            }
+            d.set_stroke(&sel, edit);
+            commit(app, &d);
+        }
+        "ui.cadProps" => {
+            // A property of the selected object: {"field", "value", "vertex"?}; with no field,
+            // the object's fields.
+            let Some(ed) = app.cad.as_ref() else { return Ok(json!({})) };
+            let &[i] = ed.selection.as_slice() else { return Err("select one object".into()) };
+            let vertex = p.get("vertex").and_then(serde_json::Value::as_u64).map_or(ed.vertex, |v| v.min(1 << 20) as usize);
+            let Some(field) = p.get("field").and_then(serde_json::Value::as_str) else {
+                let fields: Vec<serde_json::Value> =
+                    ed.drawing.fields(i, vertex).into_iter().map(|f| json!({"field": f.key, "label": f.label, "value": f.text})).collect();
+                return Ok(json!({"fields": fields}));
+            };
+            let value = match p.get("value") {
+                Some(serde_json::Value::String(v)) => v.clone(),
+                Some(serde_json::Value::Number(n)) => n.to_string(),
+                Some(serde_json::Value::Bool(b)) => b.to_string(),
+                _ => return Err("value: a number, an expression or a text".into()),
+            };
+            let mut d = ed.drawing.clone();
+            d.set_field(i, vertex, field, &value)?;
+            commit(app, &d);
+        }
+        "ui.cadSnapOnce" => {
+            // An object snap for the next point only: end, mid, center, node, quadrant,
+            // intersection, perpendicular, tangent, nearest, or none.
+            let kind = p.get("snap").and_then(serde_json::Value::as_str).unwrap_or_default();
+            let k = match kind {
+                "none" => None,
+                _ => Some(
+                    SNAP_KINDS
+                        .iter()
+                        .find(|(w, _)| *w == kind)
+                        .map(|(_, k)| *k)
+                        .ok_or("snap: end, mid, center, node, quadrant, intersection, perpendicular, tangent, nearest or none")?,
+                ),
+            };
+            if let Some(ed) = app.cad.as_mut() {
+                ed.snap_once = Some(k);
+            }
+        }
         "ui.cadClose" => close(app),
         _ => return Err(format!("unknown command {id}")),
     }
@@ -308,8 +480,289 @@ fn delete_selection(app: &mut WordApp) {
     }
     let mut d = ed.drawing.clone();
     d.remove(&ed.selection);
-    ed.selection.clear();
+    ed.previous = std::mem::take(&mut ed.selection);
+    ed.focus = Focus::default();
     commit(app, &d);
+}
+
+/// Moves the selection in the draw order; the selection follows it.
+fn reorder(app: &mut WordApp, order: Order) {
+    let Some(ed) = app.cad.as_mut() else { return };
+    if ed.selection.is_empty() {
+        return;
+    }
+    let mut d = ed.drawing.clone();
+    ed.selection = d.reorder(&ed.selection, order);
+    ed.focus = Focus::default();
+    commit(app, &d);
+}
+
+/// The object snaps by name (`ui.cadToggle`'s `snap.<name>`, `ui.cadSnapOnce`).
+pub(crate) const SNAP_KINDS: [(&str, SnapKind); 9] = [
+    ("end", SnapKind::End),
+    ("mid", SnapKind::Mid),
+    ("center", SnapKind::Center),
+    ("node", SnapKind::Node),
+    ("quadrant", SnapKind::Quadrant),
+    ("intersection", SnapKind::Intersection),
+    ("perpendicular", SnapKind::Perpendicular),
+    ("tangent", SnapKind::Tangent),
+    ("nearest", SnapKind::Nearest),
+];
+
+/// Only snap `k` on.
+fn only(k: SnapKind) -> Snaps {
+    let mut s = Snaps::default();
+    for (_, kind) in SNAP_KINDS {
+        set_snap(&mut s, kind, kind == k);
+    }
+    s
+}
+
+pub(crate) fn set_snap(s: &mut Snaps, k: SnapKind, on: bool) {
+    match k {
+        SnapKind::End => s.end = on,
+        SnapKind::Mid => s.mid = on,
+        SnapKind::Center => s.center = on,
+        SnapKind::Node => s.node = on,
+        SnapKind::Quadrant => s.quadrant = on,
+        SnapKind::Intersection => s.intersection = on,
+        SnapKind::Perpendicular => s.perpendicular = on,
+        SnapKind::Tangent => s.tangent = on,
+        SnapKind::Nearest => s.nearest = on,
+    }
+}
+
+fn parse_hex(c: &str) -> Option<[u8; 3]> {
+    let h = c.trim().strip_prefix('#')?;
+    if h.len() != 6 || !h.is_ascii() {
+        return None;
+    }
+    let byte = |i: usize| h.get(i..i + 2).and_then(|x| u8::from_str_radix(x, 16).ok());
+    Some([byte(0)?, byte(2)?, byte(4)?])
+}
+
+fn parse_dash(d: &str) -> Option<Dash> {
+    Some(match d {
+        "solid" => Dash::Solid,
+        "dashed" => Dash::Dashed,
+        "dotted" => Dash::Dotted,
+        "dashDotted" => Dash::DashDotted,
+        _ => return None,
+    })
+}
+
+impl CadEditor {
+    /// A click picks objects: the selection prompt is up (no command, or a command asking for
+    /// objects) and no point is being given.
+    fn selecting(&self) -> bool {
+        (self.tool == Tool::Select || self.picking) && self.points.is_empty() && self.grip.is_none()
+    }
+
+    /// Starts `tool`. With objects selected, Move and Copy take them (noun-verb); without, they
+    /// ask for objects first.
+    pub(crate) fn set_tool(&mut self, tool: Tool) {
+        self.tool = tool;
+        self.points.clear();
+        self.message.clear();
+        self.win = None;
+        self.poly = None;
+        self.lasso.clear();
+        self.remove_mode = false;
+        self.grip = None;
+        self.picking = matches!(tool, Tool::Move | Tool::Copy) && self.selection.is_empty();
+        if tool != Tool::Select {
+            self.last_tool = Some(tool);
+            if !self.selection.is_empty() {
+                self.previous = self.selection.clone();
+            }
+        }
+    }
+
+    /// Adds the objects to the selection (or removes them); a click never replaces it.
+    fn pick_into(&mut self, ids: Vec<usize>, remove: bool) {
+        let mut ok: Vec<usize> = ids.into_iter().filter(|&i| self.drawing.selectable(i)).collect();
+        ok.sort_unstable();
+        ok.dedup();
+        let mut next = self.selection.clone();
+        let mut changed = 0;
+        for &i in &ok {
+            match next.iter().position(|&s| s == i) {
+                Some(at) if remove => {
+                    next.remove(at);
+                    changed += 1;
+                }
+                None if !remove => {
+                    next.push(i);
+                    changed += 1;
+                }
+                _ => {}
+            }
+        }
+        let (n, total) = (ok.len(), next.len());
+        self.found = if remove {
+            format!("{n} {} · {changed} {} · {total} {}", tl!("found"), tl!("removed"), tl!("selected"))
+        } else if changed < n {
+            format!("{n} {} · {} {} · {total} {}", tl!("found"), n - changed, tl!("already selected"), tl!("selected"))
+        } else {
+            format!("{n} {} · {total} {}", tl!("found"), tl!("selected"))
+        };
+        if changed > 0 {
+            self.step_to(next);
+        }
+    }
+
+    /// A selection step (`U` undoes it).
+    fn step_to(&mut self, next: Vec<usize>) {
+        if self.sel_steps.len() >= 50 {
+            self.sel_steps.remove(0);
+        }
+        self.sel_steps.push(std::mem::replace(&mut self.selection, next));
+        self.grip = None;
+    }
+
+    /// Replaces the selection (the Properties pane's Only These): the old one becomes Previous.
+    pub(crate) fn replace_selection(&mut self, next: Vec<usize>) {
+        self.previous = std::mem::replace(&mut self.selection, next);
+        self.focus = Focus::default();
+        self.grip = None;
+    }
+
+    pub(crate) fn clear_selection(&mut self) {
+        if !self.selection.is_empty() {
+            self.step_to(Vec::new());
+        }
+        self.found.clear();
+        self.focus = Focus::default();
+    }
+
+    /// A typed selection option.
+    pub(crate) fn run_option(&mut self, opt: SelectOption) {
+        self.message.clear();
+        match opt {
+            SelectOption::All => self.pick_into((0..self.drawing.entities.len()).collect(), false),
+            SelectOption::Fence | SelectOption::WPolygon | SelectOption::CPolygon => {
+                self.win = None;
+                self.poly = Some((opt, Vec::new()));
+            }
+            SelectOption::Remove => self.remove_mode = true,
+            SelectOption::Add => self.remove_mode = false,
+            SelectOption::Previous => {
+                let prev = self.previous.clone();
+                if prev.is_empty() {
+                    self.message = tl!("No previous selection").to_string();
+                } else {
+                    self.pick_into(prev, self.remove_mode);
+                }
+            }
+            SelectOption::Undo => match self.sel_steps.pop() {
+                Some(last) => {
+                    self.selection = last;
+                    self.found = format!("{} {}", self.selection.len(), tl!("selected"));
+                }
+                None => self.message = tl!("Nothing to undo in the selection").to_string(),
+            },
+        }
+    }
+
+    /// Closes the fence or polygon in progress and picks what it takes.
+    fn finish_poly(&mut self, remove: bool) {
+        let Some((mode, pts)) = self.poly.take() else { return };
+        let fence = mode == SelectOption::Fence;
+        if pts.len() < if fence { 2 } else { 3 } {
+            self.message = tl!(if fence { "A fence needs at least two points" } else { "A polygon needs at least three points" }).to_string();
+            return;
+        }
+        let ids = if fence { self.drawing.crossing_fence(&pts) } else { self.drawing.in_polygon(&pts, mode == SelectOption::CPolygon) };
+        self.pick_into(ids, remove);
+    }
+
+    /// A click on objects at `raw` (screen `at`): adds the one under the pointer (the cycle's
+    /// pick among overlapping ones); a second click in the same place swaps the one just added
+    /// for the next one under it. False when nothing is there.
+    fn click_select(&mut self, raw: Pt, at: Pos2, tol: f64, remove: bool) -> bool {
+        let list = self.drawing.hits(raw, tol);
+        let Some(&first) = list.first() else { return false };
+        if let Some((pos, last, true)) = self.last_click
+            && !remove
+            && pos.distance(at) <= 4.0
+            && list.len() > 1
+            && let Some(k) = list.iter().position(|&x| x == last)
+        {
+            let next_k = (k + 1) % list.len();
+            let i = list.get(next_k).copied().unwrap_or(first);
+            let mut next = self.selection.clone();
+            next.retain(|&s| s != last);
+            if !next.contains(&i) {
+                next.push(i);
+            }
+            self.step_to(next);
+            self.found = format!("{} {} {} {} · {} {}", tl!("cycle:"), next_k + 1, tl!("of"), list.len(), self.selection.len(), tl!("selected"));
+            self.last_click = Some((at, i, true));
+            return true;
+        }
+        let i = list.get(self.cycle % list.len()).copied().unwrap_or(first);
+        let added = !remove && !self.selection.contains(&i);
+        self.pick_into(vec![i], remove);
+        self.last_click = Some((at, i, added));
+        true
+    }
+
+    /// Esc: the innermost step first (a polygon, a window, Remove mode, a grip, the points, the
+    /// command), then the selection. Returns a polyline in progress, kept.
+    fn escape(&mut self) -> Option<Drawing> {
+        if self.poly.take().is_some() || self.win.take().is_some() {
+            return None;
+        }
+        if self.remove_mode {
+            self.remove_mode = false;
+        } else if self.grip.is_some() {
+            self.grip = None;
+            self.grip_drag = false;
+        } else if !self.points.is_empty() {
+            let kept = finish(self);
+            self.points.clear();
+            return kept;
+        } else if self.tool != Tool::Select {
+            self.set_tool(Tool::Select);
+        } else {
+            self.clear_selection();
+        }
+        None
+    }
+
+    /// The prompt at the command line.
+    fn prompt(&self) -> String {
+        if let Some((mode, _)) = &self.poly {
+            let what = match mode {
+                SelectOption::Fence => tl!("Fence"),
+                SelectOption::WPolygon => tl!("Window polygon"),
+                _ => tl!("Crossing polygon"),
+            };
+            return format!("{what}: {}", tl!("click the vertices; Enter or right-click closes, Esc cancels"));
+        }
+        if self.win.is_some() {
+            return tl!("Other corner of the window (to the right: whole objects; to the left: touched too)").to_string();
+        }
+        if self.grip.is_some() {
+            return tl!("Grip: the new point (click, or type it; Esc puts it back)").to_string();
+        }
+        if self.picking || (self.tool == Tool::Select && self.points.is_empty()) {
+            let name = match self.tool {
+                Tool::Move => tl!("Move"),
+                Tool::Copy => tl!("Copy"),
+                _ => tl!("Select objects"),
+            };
+            let how = if self.remove_mode { tl!("(remove) click removes") } else { tl!("click adds, Shift+click removes") };
+            let end = if self.picking { format!(" · {}", tl!("Enter confirms")) } else { String::new() };
+            return format!(
+                "{name}: {how}; {}{end} · {}",
+                tl!("click on empty space for a window, drag for a lasso"),
+                tl!("All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle")
+            );
+        }
+        tl!(self.tool.prompt(self.points.len())).to_string()
+    }
 }
 
 /// Screen ↔ drawing coordinates for the view in `rect`.
@@ -425,7 +878,289 @@ fn rgb(c: [u8; 3]) -> Color32 {
     Color32::from_rgb(c[0], c[1], c[2])
 }
 
-/// The editor's sheet, status line and command line, in place of the page.
+/// What a context-menu item does; run once the menu has read the editor's state.
+#[derive(Debug, Clone, PartialEq)]
+enum Act {
+    Enter,
+    Escape,
+    Tool(Tool),
+    Delete,
+    Order(Order),
+    Layer(String),
+    Similar,
+    Deselect,
+    Option(SelectOption),
+    SnapOnce(Option<SnapKind>),
+    Toggle(&'static str),
+    Fit,
+    Undo,
+    Redo,
+    Close,
+    ClosePolyline,
+    UndoVertex,
+}
+
+/// A command's name, for the menu's title and Repeat.
+fn tool_name(tool: Tool) -> &'static str {
+    match tool {
+        Tool::Select => "Select",
+        Tool::Line => "Line",
+        Tool::Polyline => "Polyline",
+        Tool::Rect => "Rectangle",
+        Tool::Circle => "Circle",
+        Tool::Arc => "Arc",
+        Tool::Point => "Point",
+        Tool::Text => "Text",
+        Tool::Dim(Orient::Aligned) => "Aligned dimension",
+        Tool::Dim(Orient::Horizontal) => "Horizontal dimension",
+        Tool::Dim(Orient::Vertical) => "Vertical dimension",
+        Tool::Move => "Move",
+        Tool::Copy => "Copy",
+    }
+}
+
+type Item<'a> = dyn Fn(&mut Ui, &str, &str, bool, Act) + 'a;
+
+/// One snap for the next point, no snap, and the snap settings (AutoCAD's Shift+right-click).
+fn point_items(ed: &CadEditor, ui: &mut Ui, item: &Item) {
+    for (_, k) in SNAP_KINDS {
+        item(ui, snap_name(k), "", ed.snap_once == Some(Some(k)), Act::SnapOnce(Some(k)));
+    }
+    item(ui, "None", "", ed.snap_once == Some(None), Act::SnapOnce(None));
+    ui.separator();
+    ui.menu_button(tl!("Object snap settings"), |ui| {
+        for (word, k) in SNAP_KINDS {
+            let what: &'static str = match word {
+                "end" => "snap.end",
+                "mid" => "snap.mid",
+                "center" => "snap.center",
+                "node" => "snap.node",
+                "quadrant" => "snap.quadrant",
+                "intersection" => "snap.intersection",
+                "perpendicular" => "snap.perpendicular",
+                "tangent" => "snap.tangent",
+                _ => "snap.nearest",
+            };
+            item(ui, snap_name(k), "", ed.snaps.on(k), Act::Toggle(what));
+        }
+    });
+    item(ui, "Ortho", "F8", ed.ortho, Act::Toggle("ortho"));
+}
+
+/// The selection options (typed at the command line, or from here).
+fn selection_items(ed: &CadEditor, ui: &mut Ui, item: &Item) {
+    ui.menu_button(tl!("Selection options"), |ui| {
+        item(ui, "All", "T", false, Act::Option(SelectOption::All));
+        item(ui, "Fence", "F", false, Act::Option(SelectOption::Fence));
+        item(ui, "Window polygon", "WP", false, Act::Option(SelectOption::WPolygon));
+        item(ui, "Crossing polygon", "CP", false, Act::Option(SelectOption::CPolygon));
+        item(ui, "Previous selection", "P", false, Act::Option(SelectOption::Previous));
+        item(ui, "Undo the last step", "U", false, Act::Option(SelectOption::Undo));
+        ui.separator();
+        item(ui, "Remove (a click removes)", "R", ed.remove_mode, Act::Option(SelectOption::Remove));
+        item(ui, "Add (a click adds)", "A", !ed.remove_mode, Act::Option(SelectOption::Add));
+    });
+}
+
+/// The canvas's context menu, AutoCAD-style: a taken grip; a command (Enter, cancel, its
+/// options, the snaps); objects selected (what to do with them); nothing (the drawing).
+fn menu(ed: &CadEditor, ui: &mut Ui) -> Option<Act> {
+    ui.set_min_width(230.0);
+    let act = std::cell::RefCell::new(None);
+    let pick = |ui: &mut Ui, a: Act| {
+        act.replace(Some(a));
+        ui.close();
+    };
+    let item = |ui: &mut Ui, label: &str, keys: &str, checked: bool, a: Act| {
+        if ui.add(egui::Button::new(tl!(label)).shortcut_text(keys).selected(checked)).clicked() {
+            pick(ui, a);
+        }
+    };
+    let title = |ui: &mut Ui, text: String| {
+        ui.label(egui::RichText::new(text).strong().small());
+    };
+    if ed.menu_point {
+        title(ui, tl!("Snap for the next point").to_string());
+        point_items(ed, ui, &item);
+    } else if ed.grip.is_some() {
+        title(ui, tl!("Grip").to_string());
+        item(ui, "Put the grip back", "Esc", false, Act::Escape);
+        ui.separator();
+        ui.menu_button(tl!("Snap for the next point (Shift+right-click)"), |ui| point_items(ed, ui, &item));
+    } else if ed.tool != Tool::Select {
+        let name = tl!(tool_name(ed.tool)).to_string();
+        title(ui, name.clone());
+        let n = ed.points.len();
+        if ed.picking {
+            if !ed.selection.is_empty() {
+                item(ui, "Confirm the objects", "Enter", false, Act::Enter);
+            }
+        } else if n > 0 {
+            item(ui, "Enter", "Enter", false, Act::Enter);
+        }
+        let cancel = if n > 0 { tl!("Cancel the step").to_string() } else { format!("{} {name}", tl!("Exit")) };
+        if ui.add(egui::Button::new(cancel).shortcut_text("Esc")).clicked() {
+            pick(ui, Act::Escape);
+        }
+        if ed.tool == Tool::Polyline && n > 0 {
+            ui.separator();
+            if n >= 3 {
+                item(ui, "Close", "C", false, Act::ClosePolyline);
+            }
+            item(ui, "Undo the last vertex", "", false, Act::UndoVertex);
+        }
+        ui.separator();
+        if ed.picking {
+            selection_items(ed, ui, &item);
+        } else {
+            ui.menu_button(tl!("Snap for the next point (Shift+right-click)"), |ui| point_items(ed, ui, &item));
+            item(ui, "Ortho", "F8", ed.ortho, Act::Toggle("ortho"));
+        }
+    } else if !ed.selection.is_empty() {
+        let n = ed.selection.len();
+        title(ui, if n == 1 { tl!("1 object selected").to_string() } else { format!("{n} {}", tl!("objects selected")) });
+        item(ui, "Delete", "Del", false, Act::Delete);
+        ui.separator();
+        item(ui, "Move", "M", false, Act::Tool(Tool::Move));
+        item(ui, "Copy", "CO", false, Act::Tool(Tool::Copy));
+        ui.separator();
+        ui.menu_button(tl!("Draw order"), |ui| {
+            item(ui, "Bring to Front", "", false, Act::Order(Order::Front));
+            item(ui, "Send to Back", "", false, Act::Order(Order::Back));
+            item(ui, "Bring Forward", "", false, Act::Order(Order::Forward));
+            item(ui, "Send Backward", "", false, Act::Order(Order::Backward));
+        });
+        ui.menu_button(tl!("Move to layer"), |ui| {
+            for l in &ed.drawing.layers {
+                let on = ed.selection.iter().all(|&i| ed.drawing.entities.get(i).is_some_and(|e| e.layer == l.name));
+                if ui.add(egui::Button::new(&l.name).selected(on)).clicked() {
+                    pick(ui, Act::Layer(l.name.clone()));
+                }
+            }
+        });
+        ui.separator();
+        item(ui, "Select Similar", "", false, Act::Similar);
+        item(ui, "Deselect All", "Esc", false, Act::Deselect);
+        item(ui, "Properties", "", ed.panel, Act::Toggle("props"));
+    } else {
+        if let Some(last) = ed.last_tool {
+            let label = format!("{} {}", tl!("Repeat"), tl!(tool_name(last)));
+            if ui.add(egui::Button::new(label).shortcut_text("Enter")).clicked() {
+                pick(ui, Act::Tool(last));
+            }
+        }
+        item(ui, "Undo", "Ctrl+Z", false, Act::Undo);
+        item(ui, "Redo", "Ctrl+Y", false, Act::Redo);
+        ui.separator();
+        item(ui, "Select All", "Ctrl+A", false, Act::Option(SelectOption::All));
+        selection_items(ed, ui, &item);
+        ui.separator();
+        item(ui, "Zoom Fit", "", false, Act::Fit);
+        ui.menu_button(tl!("Object snap settings"), |ui| {
+            for (word, k) in SNAP_KINDS {
+                let what: &'static str = match word {
+                    "end" => "snap.end",
+                    "mid" => "snap.mid",
+                    "center" => "snap.center",
+                    "node" => "snap.node",
+                    "quadrant" => "snap.quadrant",
+                    "intersection" => "snap.intersection",
+                    "perpendicular" => "snap.perpendicular",
+                    "tangent" => "snap.tangent",
+                    _ => "snap.nearest",
+                };
+                item(ui, snap_name(k), "", ed.snaps.on(k), Act::Toggle(what));
+            }
+        });
+        item(ui, "Snap", "", ed.snap, Act::Toggle("snap"));
+        item(ui, "Ortho", "F8", ed.ortho, Act::Toggle("ortho"));
+        item(ui, "Grid", "", ed.grid, Act::Toggle("grid"));
+        item(ui, "Properties", "", ed.panel, Act::Toggle("props"));
+        ui.separator();
+        item(ui, "Close Drawing", "", false, Act::Close);
+    }
+    act.into_inner()
+}
+
+/// Runs a context-menu choice.
+fn apply(app: &mut WordApp, a: Act) {
+    let mut done = None;
+    match a {
+        Act::Delete => delete_selection(app),
+        Act::Order(o) => reorder(app, o),
+        Act::Layer(name) => {
+            let _ = app.run("ui.cadLayer", json!({"layer": name}));
+        }
+        Act::Undo => {
+            let _ = app.run("edit.undo", json!({}));
+        }
+        Act::Redo => {
+            let _ = app.run("edit.redo", json!({}));
+        }
+        Act::Close => close(app),
+        Act::Toggle(what) => {
+            let _ = app.run("ui.cadToggle", json!({"what": what}));
+        }
+        other => {
+            let Some(ed) = app.cad.as_mut() else { return };
+            match other {
+                Act::Enter => done = ed.enter(),
+                Act::Escape => done = ed.escape(),
+                Act::Tool(t) => ed.set_tool(t),
+                Act::Similar => {
+                    let ids = ed.drawing.similar(&ed.selection);
+                    ed.pick_into(ids, false);
+                }
+                Act::Deselect => ed.clear_selection(),
+                Act::Option(o) => ed.run_option(o),
+                Act::SnapOnce(k) => ed.snap_once = Some(k),
+                Act::Fit => ed.fitted = false,
+                Act::ClosePolyline => done = close_polyline(ed),
+                Act::UndoVertex => {
+                    ed.points.pop();
+                }
+                _ => {}
+            }
+        }
+    }
+    if let Some(d) = done {
+        commit(app, &d);
+    }
+}
+
+impl CadEditor {
+    /// Enter with nothing typed (or Space): closes a polygon, confirms the objects, ends the
+    /// command (a polyline in progress is kept), or at the idle prompt repeats the last command.
+    fn enter(&mut self) -> Option<Drawing> {
+        if self.poly.is_some() {
+            self.finish_poly(self.remove_mode);
+            return None;
+        }
+        if self.picking {
+            if self.selection.is_empty() {
+                self.set_tool(Tool::Select);
+            } else {
+                self.picking = false;
+                self.previous = self.selection.clone();
+                self.remove_mode = false;
+            }
+            return None;
+        }
+        if !self.points.is_empty() {
+            let kept = finish(self);
+            self.points.clear();
+            return kept;
+        }
+        match (self.tool, self.last_tool) {
+            (Tool::Select, Some(last)) => self.set_tool(last),
+            (Tool::Select, None) => {}
+            _ => self.set_tool(Tool::Select),
+        }
+        None
+    }
+}
+
+/// The editor's sheet, Properties pane, status line and command line, in place of the page.
 pub fn show(app: &mut WordApp, ui: &mut Ui) {
     // Undo, a recalculation or any other change to the drawing in the document: read it back.
     if let Some(ed) = app.cad.as_ref() {
@@ -440,13 +1175,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     }
     let t = crate::theme::Tokens::get(ui.ctx());
     let mut finished: Option<Drawing> = None;
+    let mut act: Option<Act> = None;
     let mut close_now = false;
-    let mut delete_now = false;
     {
         let Some(ed) = app.cad.as_mut() else { return };
         let bottom = 58.0;
         let full = ui.available_rect_before_wrap();
-        let sheet = Rect::from_min_max(full.min, pos2(full.max.x, (full.max.y - bottom).max(full.min.y + 40.0)));
+        let panel_w = if ed.panel { 300.0_f32.min(full.width() * 0.4) } else { 0.0 };
+        let sheet = Rect::from_min_max(full.min, pos2(full.max.x - panel_w, (full.max.y - bottom).max(full.min.y + 40.0)));
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
         painter.rect_filled(rect, 0.0, Color32::WHITE);
@@ -458,10 +1194,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             ed.zoom = (f64::from(rect.width()) * 0.8 / w.max(1e-9)).min(f64::from(rect.height()) * 0.8 / h.max(1e-9)).clamp(1e-6, 1e9);
             ed.fitted = true;
         }
+        let menu_open = egui::Popup::is_any_open(ui.ctx());
         let input = ui.input(|i| (i.pointer.hover_pos(), i.smooth_scroll_delta.y, i.pointer.middle_down(), i.modifiers, i.pointer.delta()));
         let (hover, scroll, middle, mods, delta) = input;
-        let hovering = hover.filter(|p| rect.contains(*p));
-        // Zoom about the pointer; pan with the middle button or Shift+drag.
+        let hovering = hover.filter(|p| rect.contains(*p)).filter(|_| !menu_open);
+        // Zoom about the pointer; pan with the middle button or Alt+drag.
         if let Some(p) = hovering
             && scroll != 0.0
         {
@@ -470,7 +1207,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let after = View { rect, center: ed.center, zoom: ed.zoom }.to_drawing(p);
             ed.center = ed.center.plus(before.minus(after));
         }
-        if hovering.is_some() && (middle || (mods.shift && resp.dragged())) {
+        let panning = hovering.is_some() && (middle || (mods.alt && resp.dragged()));
+        if panning {
             ed.center = ed.center.minus(Pt::new(f64::from(delta.x) / ed.zoom, -f64::from(delta.y) / ed.zoom));
         }
         let view = View { rect, center: ed.center, zoom: ed.zoom };
@@ -549,22 +1287,30 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
         }
-        // The selection, highlighted.
+        // The selection, highlighted; the objects the Properties pane works on (when not all of
+        // the selection) in orange.
+        let (_, scope) = ed.focus.scope(&ed.drawing, &ed.selection);
+        let partial = scope.len() < ed.selection.len();
+        let orange = Color32::from_rgb(0xEA, 0x58, 0x0C);
         for &i in &ed.selection {
+            let color = if partial && scope.contains(&i) { orange } else { t.accent };
             if let Some(e) = ed.drawing.entities.get(i) {
                 for line in outline(e) {
                     let screen: Vec<Pos2> = line.iter().map(|&p| view.to_screen(p)).collect();
                     if let [only] = screen.as_slice() {
-                        painter.circle_stroke(*only, 5.0, Stroke::new(2.0, t.accent));
+                        painter.circle_stroke(*only, 5.0, Stroke::new(2.0, color));
                     } else {
-                        painter.add(Shape::dashed_line(&screen, Stroke::new(2.5, t.accent), 6.0, 3.0));
+                        if partial && scope.contains(&i) {
+                            painter.add(Shape::line(screen.clone(), Stroke::new(6.0, color.gamma_multiply(0.3))));
+                        }
+                        painter.add(Shape::dashed_line(&screen, Stroke::new(2.5, color), 6.0, 3.0));
                     }
                 }
             }
         }
         // Grips of the selection: idle, under the pointer, or taken (hot).
-        let grips_now = shown_grips(ed, view);
-        for &(i, g, _, at) in &grips_now {
+        let grips = shown_grips(ed, view);
+        for &(i, g, _, at) in &grips {
             let hot = ed.grip.is_some_and(|(hi, hg, _)| hi == i && hg == g);
             let under = hovering.is_some_and(|h| at.distance(h) <= GRIP_HIT);
             let fill = if hot {
@@ -578,23 +1324,55 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             painter.rect_filled(r, 0.0, fill);
             painter.rect_stroke(r, 0.0, Stroke::new(1.0, Color32::WHITE), egui::StrokeKind::Outside);
         }
-        // The pointer: snapped, then held level or plumb by Ortho.
+        let hover_grip = hovering
+            .and_then(|h| grips.iter().filter(|g| g.3.distance(h) <= GRIP_HIT).min_by(|a, b| a.3.distance(h).total_cmp(&b.3.distance(h))).copied());
+        // Overlapping objects: the cycle starts again once the pointer moves away.
+        if let (Some(at), Some(h)) = (ed.cycle_at, hovering)
+            && at.distance(h) > 4.0
+        {
+            ed.cycle = 0;
+            ed.cycle_at = None;
+        }
+        let selecting = ed.selecting();
+        let removing = mods.shift || ed.remove_mode;
+        let tol = 6.0 / ed.zoom;
+        // The object a click would take, haloed (red when the click would remove it).
+        let candidate =
+            hovering.filter(|_| selecting && hover_grip.is_none() && ed.lasso.is_empty() && ed.win.is_none() && ed.poly.is_none()).and_then(|h| {
+                let list = ed.drawing.hits(view.to_drawing(h), tol);
+                list.get(ed.cycle % list.len().max(1)).copied()
+            });
+        if let Some(e) = candidate.and_then(|i| ed.drawing.entities.get(i)) {
+            let halo =
+                if removing { Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 90) } else { Color32::from_rgba_unmultiplied(0x10, 0xB9, 0x81, 90) };
+            for line in outline(e) {
+                let screen: Vec<Pos2> = line.iter().map(|&p| view.to_screen(p)).collect();
+                if let [only] = screen.as_slice() {
+                    painter.circle_filled(*only, 6.0, halo);
+                } else {
+                    painter.add(Shape::line(screen, Stroke::new(7.0, halo)));
+                }
+            }
+        }
+        // The pointer: snapped (only when a point is asked for), then held level or plumb by Ortho.
         let mut snapped: Option<(Pt, SnapKind)> = None;
         let mut cursor: Option<Pt> = None;
         // The point the next one is measured from: a hot grip's place, or the last point.
         let base = ed.grip.map(|g| g.2).or_else(|| ed.points.last().copied());
-        let grips = shown_grips(ed, view);
-        let hover_grip = hovering
-            .and_then(|h| grips.iter().filter(|g| g.3.distance(h) <= GRIP_HIT).min_by(|a, b| a.3.distance(h).total_cmp(&b.3.distance(h))).copied());
         if let Some(h) = hovering {
             let raw = view.to_drawing(h);
-            if ed.snap {
+            let snaps = match ed.snap_once {
+                Some(Some(k)) => Some(only(k)),
+                Some(None) => None,
+                None => ed.snap.then_some(ed.snaps),
+            };
+            if !selecting && let Some(on) = snaps {
                 // Exact snaps from the geometry kernel: ends, midpoints, centres, nodes,
                 // quadrants, intersections, perpendiculars and tangents from the base point.
-                snapped = ed.drawing.snap(raw, 10.0 / ed.zoom, base, &ed.snaps);
+                snapped = ed.drawing.snap(raw, 10.0 / ed.zoom, base, &on);
             }
             let mut p = snapped.map_or(raw, |(p, _)| p);
-            if snapped.is_none() && ed.grid && ed.snap {
+            if !selecting && snapped.is_none() && ed.grid && ed.snap && ed.snap_once.is_none() {
                 let step = grid_step(ed.zoom);
                 let g = Pt::new((raw.x / step).round() * step, (raw.y / step).round() * step);
                 if view.to_screen(g).distance(h) <= 6.0 {
@@ -602,7 +1380,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
             // Ortho holds the point level or plumb from the base, unless an object snap holds it.
-            if ed.ortho
+            if !selecting
+                && ed.ortho
                 && snapped.is_none()
                 && let Some(last) = base
             {
@@ -610,11 +1389,18 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 p = if d.x.abs() >= d.y.abs() { Pt::new(p.x, last.y) } else { Pt::new(last.x, p.y) };
             }
             cursor = Some(p);
-            // Crosshair and snap marker.
+            // The cursor tells the state, as in AutoCAD: idle, the crosshair with the pickbox;
+            // asking for a point, the crosshair; asking for objects, the pickbox.
             let s = view.to_screen(p);
             let hair = Stroke::new(1.0, Color32::from_gray(90));
-            painter.line_segment([pos2(s.x - 14.0, s.y), pos2(s.x + 14.0, s.y)], hair);
-            painter.line_segment([pos2(s.x, s.y - 14.0), pos2(s.x, s.y + 14.0)], hair);
+            if !ed.picking || !selecting {
+                painter.line_segment([pos2(s.x - 14.0, s.y), pos2(s.x + 14.0, s.y)], hair);
+                painter.line_segment([pos2(s.x, s.y - 14.0), pos2(s.x, s.y + 14.0)], hair);
+            }
+            if selecting {
+                let pick = if candidate.is_some() || hover_grip.is_some() { Stroke::new(1.4, t.accent) } else { hair };
+                painter.rect_stroke(Rect::from_center_size(s, vec2(8.0, 8.0)), 0.0, pick, egui::StrokeKind::Middle);
+            }
             if let Some((_, kind)) = snapped {
                 snap_marker(&painter, s, kind);
                 painter.text(
@@ -658,21 +1444,55 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     }
                 }
             }
-            if let Some(from) = ed.window_from {
-                let r = Rect::from_two_pos(from, h);
+            // A window (blue, whole objects) to the right; a crossing (green, dashed) to the left.
+            let window_look = |crossing: bool| {
+                if crossing {
+                    (Color32::from_rgba_unmultiplied(40, 160, 80, 30), Color32::from_rgb(0x16, 0xA3, 0x4A))
+                } else {
+                    (Color32::from_rgba_unmultiplied(40, 90, 200, 30), Color32::from_rgb(0x25, 0x63, 0xEB))
+                }
+            };
+            if let Some(w) = ed.win {
+                let from = view.to_screen(w);
                 let crossing = h.x < from.x;
-                let fill = if crossing { Color32::from_rgba_unmultiplied(40, 160, 80, 30) } else { Color32::from_rgba_unmultiplied(40, 90, 200, 30) };
+                let (fill, edge) = window_look(crossing);
+                let r = Rect::from_two_pos(from, h);
                 painter.rect_filled(r, 0.0, fill);
-                painter.rect_stroke(r, 0.0, Stroke::new(1.0, t.accent), egui::StrokeKind::Middle);
+                let corners = vec![r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+                if crossing {
+                    painter.add(Shape::dashed_line(&corners, Stroke::new(1.0, edge), 5.0, 3.0));
+                } else {
+                    painter.add(Shape::line(corners, Stroke::new(1.0, edge)));
+                }
+            }
+            if let Some(&first) = ed.lasso.first() {
+                let crossing = ed.lasso.iter().find(|q| (q.x - first.x).abs() > 2.0).is_some_and(|q| q.x < first.x);
+                let (_, edge) = window_look(crossing);
+                let mut path = ed.lasso.clone();
+                path.push(h);
+                painter.add(Shape::closed_line(path, Stroke::new(1.0, edge)));
+            }
+            if let Some((mode, pts)) = &ed.poly {
+                let mut path: Vec<Pos2> = pts.iter().map(|&q| view.to_screen(q)).collect();
+                path.push(h);
+                let (_, edge) = window_look(*mode == SelectOption::CPolygon);
+                if *mode == SelectOption::Fence {
+                    painter.add(Shape::dashed_line(&path, Stroke::new(1.2, edge), 5.0, 3.0));
+                } else {
+                    painter.add(Shape::closed_line(path, Stroke::new(1.2, edge)));
+                }
             }
         }
-        if hovering.is_some() {
+        if hovering.is_some() && !panning {
             ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+        } else if panning {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         }
         // Grips: a click takes one (hot), the next point places it; a drag from one places it
         // where it is released. Like AutoCAD and Allplan, the point snaps and follows Ortho.
         let mut grip_done: Option<Drawing> = None;
         if resp.drag_started_by(egui::PointerButton::Primary)
+            && !mods.alt
             && ed.grip.is_none()
             && let Some((i, g, at, _)) = hover_grip
         {
@@ -704,78 +1524,156 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
         }
         if let Some(d) = grip_done {
+            ed.snap_once = None;
             finished = Some(d);
         }
-        // Clicks feed the command; a drag in Select makes a window.
-        if ed.tool == Tool::Select && !mods.shift && ed.grip.is_none() && !ed.grip_drag {
-            if resp.drag_started_by(egui::PointerButton::Primary) && hover_grip.is_none() {
-                ed.window_from = resp.interact_pointer_pos();
-            }
-            if resp.drag_stopped()
-                && let (Some(from), Some(to)) = (ed.window_from.take(), hover)
+        // Selecting: a click adds (Shift removes), a click on empty space starts a two-click
+        // window, a drag from empty space is a lasso, a fence or polygon takes clicked vertices.
+        if selecting && !grip_click && !ed.grip_drag && !mods.alt {
+            if resp.drag_started_by(egui::PointerButton::Primary)
+                && hover_grip.is_none()
+                && ed.poly.is_none()
+                && ed.win.is_none()
+                && let Some(p) = resp.interact_pointer_pos()
             {
-                let ids = ed.drawing.in_box(view.to_drawing(from), view.to_drawing(to), to.x < from.x);
-                if mods.command || mods.ctrl {
-                    ed.selection.extend(ids);
-                } else {
-                    ed.selection = ids;
+                ed.lasso = vec![p];
+            }
+            if !ed.lasso.is_empty()
+                && resp.dragged_by(egui::PointerButton::Primary)
+                && let Some(h) = hover
+                && ed.lasso.last().is_some_and(|l| l.distance(h) > 3.0)
+                && ed.lasso.len() < 4000
+            {
+                ed.lasso.push(h);
+            }
+            if resp.drag_stopped() && !ed.lasso.is_empty() {
+                let path = std::mem::take(&mut ed.lasso);
+                // The first move decides: to the right whole objects, to the left touched too.
+                if let Some(&first) = path.first()
+                    && path.len() >= 3
+                {
+                    let crossing = path.iter().find(|q| (q.x - first.x).abs() > 2.0).is_some_and(|q| q.x < first.x);
+                    let poly: Vec<Pt> = path.iter().map(|&q| view.to_drawing(q)).collect();
+                    let ids = ed.drawing.in_polygon(&poly, crossing);
+                    ed.pick_into(ids, removing);
                 }
             }
-        }
-        if resp.clicked_by(egui::PointerButton::Primary)
+            if resp.clicked_by(egui::PointerButton::Primary)
+                && let Some(h) = hover
+            {
+                let raw = view.to_drawing(h);
+                if let Some((_, pts)) = ed.poly.as_mut() {
+                    if pts.len() < 500 {
+                        pts.push(raw);
+                    }
+                } else if let Some(w) = ed.win.take() {
+                    let ids = ed.drawing.in_box(w, raw, raw.x < w.x);
+                    ed.pick_into(ids, removing);
+                } else if !ed.click_select(raw, h, tol, removing) {
+                    ed.win = Some(raw);
+                    ed.found.clear();
+                }
+            }
+        } else if resp.clicked_by(egui::PointerButton::Primary)
             && !grip_click
             && let Some(p) = cursor
         {
-            if ed.tool == Tool::Select {
-                let tol = 6.0 / ed.zoom;
-                match ed.drawing.hit(view.to_drawing(hover.unwrap_or_default()), tol) {
-                    Some(i) if mods.shift => {
-                        if let Some(at) = ed.selection.iter().position(|&s| s == i) {
-                            ed.selection.remove(at);
-                        } else {
-                            ed.selection.push(i);
-                        }
-                    }
-                    Some(i) => ed.selection = vec![i],
-                    None if !mods.shift => ed.selection.clear(),
-                    None => {}
-                }
+            finished = feed(ed, p, None);
+            ed.snap_once = None;
+        }
+        // The right button: the context menu (with Shift while a point is asked for, the snap
+        // menu); with a polygon in progress, it closes the polygon.
+        let mut closed_poly = false;
+        if resp.secondary_clicked() {
+            if ed.poly.is_some() {
+                ed.finish_poly(removing);
+                closed_poly = true;
             } else {
-                finished = feed(ed, p, None);
+                ed.menu_at = hover.map(|h| view.to_drawing(h));
+                ed.menu_point = mods.shift && !selecting;
+                // With nothing selected, a right-click on an object selects it (AutoCAD).
+                if ed.tool == Tool::Select
+                    && ed.selection.is_empty()
+                    && ed.grip.is_none()
+                    && let Some(h) = hover
+                {
+                    let list = ed.drawing.hits(view.to_drawing(h), tol);
+                    if let Some(&i) = list.get(ed.cycle % list.len().max(1)) {
+                        ed.pick_into(vec![i], false);
+                    }
+                }
             }
         }
-        // Keys: Esc cancels, Enter ends, F8 Ortho, Delete removes the selection.
+        if !closed_poly {
+            resp.context_menu(|ui| {
+                if let Some(a) = menu(ed, ui) {
+                    act = Some(a);
+                }
+            });
+        }
+
+        // The Properties pane.
+        if ed.panel {
+            let r = Rect::from_min_max(pos2(sheet.max.x, full.min.y), pos2(full.max.x, sheet.max.y));
+            ui.painter().rect_filled(r, 0.0, t.panel);
+            ui.painter().line_segment([r.left_top(), r.left_bottom()], Stroke::new(1.0, t.border));
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.shrink2(vec2(8.0, 6.0))));
+            if let Some(d) = crate::cad_panel::show(ed, &mut child) {
+                finished = Some(d);
+            }
+        }
+
+        // Keys: not while a menu is open or a field of the pane has the keyboard. Esc cancels,
+        // Enter or Space ends (or repeats), F8 Ortho, Delete removes the selection, Ctrl+A
+        // selects all, Shift+Space steps through overlapping objects.
+        let keys_free = !menu_open && !ed.panel_typing;
+        let typing_text = ed.tool == Tool::Text && ed.points.len() == 1;
+        let (shift_space, space) = if keys_free && ed.command.trim().is_empty() && !typing_text {
+            ui.input_mut(|i| {
+                let s = i.consume_key(egui::Modifiers::SHIFT, egui::Key::Space);
+                let n = i.consume_key(egui::Modifiers::NONE, egui::Key::Space);
+                if s || n {
+                    i.events.retain(|e| !matches!(e, egui::Event::Text(t) if t.trim().is_empty()));
+                }
+                (s, n)
+            })
+        } else {
+            (false, false)
+        };
         let (esc, enter, f8, del) = ui.input(|i| {
             (i.key_pressed(egui::Key::Escape), i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::F8), i.key_pressed(egui::Key::Delete))
         });
+        let (esc, enter, f8, del) = if keys_free { (esc, enter || space, f8, del) } else { (false, false, false, false) };
+        if shift_space && let Some(h) = hovering {
+            let list = ed.drawing.hits(view.to_drawing(h), tol);
+            if list.len() > 1 {
+                ed.cycle += 1;
+                ed.cycle_at = Some(h);
+                ed.found = format!("{} {} {} {} ({})", tl!("cycle:"), ed.cycle % list.len() + 1, tl!("of"), list.len(), tl!("click to pick it"));
+            }
+        }
         if f8 {
             ed.ortho = !ed.ortho;
         }
-        if ui.input(|i| i.key_pressed(egui::Key::A) && i.modifiers.command) && ed.command.is_empty() {
-            ed.selection = (0..ed.drawing.entities.len()).collect();
+        if keys_free && ui.input(|i| i.key_pressed(egui::Key::A) && i.modifiers.command) && ed.command.is_empty() {
+            ed.pick_into((0..ed.drawing.entities.len()).collect(), false);
         }
-        if esc && ed.grip.is_some() {
-            // Esc puts the taken grip back first.
-            ed.grip = None;
-            ed.grip_drag = false;
-        } else if esc {
-            if !ed.points.is_empty() {
-                // A polyline in progress keeps what was drawn.
-                finished = finish(ed);
-                ed.points.clear();
-            } else if ed.tool != Tool::Select {
-                ed.tool = Tool::Select;
-            } else {
-                ed.selection.clear();
+        if esc {
+            if let Some(kept) = ed.escape() {
+                finished = Some(kept);
             }
             ed.command.clear();
         }
         if del && ed.command.is_empty() {
-            delete_now = true;
+            act = Some(Act::Delete);
         }
 
         // Status and command line.
-        let prompt = if ed.message.is_empty() { tl!(ed.tool.prompt(ed.points.len())).to_string() } else { ed.message.clone() };
+        let mut prompt = if ed.message.is_empty() { ed.prompt() } else { ed.message.clone() };
+        if !ed.found.is_empty() && ed.message.is_empty() {
+            prompt = format!("{}   [{}]", prompt, ed.found);
+        }
+        let hover_prompt = prompt.clone();
         let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", p.x, p.y)).unwrap_or_default();
         // From the base point: distance, angle (exact, from the kernel), Δx, Δy.
         if let (Some(b), Some(p)) = (base, cursor) {
@@ -790,34 +1688,46 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 v.y
             );
         }
+        // The flags at the right; the prompt in the space left, cut short if it must be.
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(prompt).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let flag = |on: bool, name: &str| if on { format!("{} ✓", tl!(name)) } else { tl!(name).to_string() };
+                let once = match ed.snap_once {
+                    Some(Some(k)) => format!("{}: {}   ", tl!("Next point"), tl!(snap_name(k))),
+                    Some(None) => format!("{}: {}   ", tl!("Next point"), tl!("no snap")),
+                    None => String::new(),
+                };
                 ui.label(
                     egui::RichText::new(format!(
-                        "{coords}   {}   {}   {}   {} {}",
+                        "{once}{coords}   {}   {}   {}   {} {}   {} {}",
                         flag(ed.snap, "Snap"),
                         flag(ed.grid, "Grid"),
                         flag(ed.ortho, "Ortho (F8)"),
+                        tl!("Layer:"),
+                        ed.current_layer,
                         tl!("Unit:"),
                         ed.drawing.unit.symbol()
                     ))
                     .weak(),
                 );
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.add(egui::Label::new(egui::RichText::new(prompt).strong()).truncate()).on_hover_text(&hover_prompt);
+                });
             });
         });
         let field = ui.add(
             egui::TextEdit::singleline(&mut ed.command)
-                .hint_text(tl!("Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co) or press Enter"))
+                .id_salt("cad_command_line")
+                .hint_text(tl!("Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter"))
                 .desired_width(f32::INFINITY),
         );
-        if !field.has_focus() && hovering.is_some() {
+        if !field.has_focus() && hovering.is_some() && !ed.panel_typing {
             field.request_focus();
         }
         if enter && finished.is_none() {
             let typed = std::mem::take(&mut ed.command);
             let typed = typed.trim();
+            let option = SelectOption::parse(typed);
             if let Some((i, g, from)) = ed.grip.filter(|_| !typed.is_empty()) {
                 // A typed point places the hot grip; `@dx,dy` is from where it was.
                 match parse_point(typed, Some(from), cursor) {
@@ -825,28 +1735,40 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         let mut d = ed.drawing.clone();
                         ed.grip = None;
                         if d.move_grip(i, g, p) {
+                            ed.snap_once = None;
                             finished = Some(d);
                         }
                     }
                     Err(e) => ed.message = e.to_string(),
                 }
             } else if typed.is_empty() {
-                finished = finish(ed);
-                ed.points.clear();
+                finished = ed.enter();
+            } else if ed.picking || ed.poly.is_some() {
+                // A command asking for objects takes the selection options.
+                match option {
+                    Some(o) => ed.run_option(o),
+                    None => ed.message = format!("{} {typed}", tl!("Unknown selection option:")),
+                }
             } else if let Some(tool) = Tool::parse(&typed.to_lowercase()).filter(|_| ed.points.is_empty() || ed.tool == Tool::Select) {
-                ed.tool = tool;
-                ed.points.clear();
-            } else if ed.tool == Tool::Text && ed.points.len() == 1 {
+                ed.set_tool(tool);
+            } else if let Some(o) = option.filter(|_| ed.tool == Tool::Select && ed.points.is_empty()) {
+                // At the idle prompt U undoes the last command, as in AutoCAD.
+                if o == SelectOption::Undo { act = Some(Act::Undo) } else { ed.run_option(o) }
+            } else if typing_text {
                 finished = add_text(ed, typed);
             } else if ed.tool == Tool::Polyline && typed.eq_ignore_ascii_case("c") {
                 finished = close_polyline(ed);
             } else if ed.tool == Tool::Circle && ed.points.len() == 1 && typed.parse::<f64>().is_ok() {
                 let r: f64 = typed.parse().unwrap_or(0.0);
-                let c = ed.points[0];
+                let c = ed.points.first().copied().unwrap_or_default();
                 finished = feed(ed, c.plus(Pt::new(r.abs(), 0.0)), None);
+                ed.snap_once = None;
             } else {
                 match parse_point(typed, ed.points.last().copied(), cursor) {
-                    Ok(p) => finished = feed(ed, p, None),
+                    Ok(p) => {
+                        finished = feed(ed, p, None);
+                        ed.snap_once = None;
+                    }
                     Err(e) => ed.message = e.to_string(),
                 }
             }
@@ -858,8 +1780,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     if let Some(d) = finished {
         commit(app, &d);
     }
-    if delete_now {
-        delete_selection(app);
+    if let Some(a) = act {
+        apply(app, a);
     }
     if close_now {
         close(app);
@@ -867,8 +1789,12 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The drawing with `e` added.
-fn with(ed: &CadEditor, e: Entity) -> Option<Drawing> {
+fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
     let mut d = ed.drawing.clone();
+    // New objects go on the current layer.
+    if d.layers.iter().any(|l| l.name == ed.current_layer) {
+        e.layer = ed.current_layer.clone();
+    }
     d.add(e).ok()?;
     Some(d)
 }
@@ -940,8 +1866,9 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None }))
         }
         Tool::Move | Tool::Copy if ed.selection.is_empty() => {
+            // No objects yet: the command asks for them first.
             done(ed);
-            ed.message = "Select the objects first (Select tool)".into();
+            ed.picking = true;
             None
         }
         Tool::Move | Tool::Copy if n >= 2 => {
@@ -1047,6 +1974,52 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
         stack(ui, &mut |ui| {
             small(ui, app, "undo", Some("Undo"), "Undo", "edit.undo", json!({}), false);
             small(ui, app, "redo", Some("Redo"), "Redo", "edit.redo", json!({}), false);
+        });
+        stack(ui, &mut |ui| {
+            let order = |o: &str| json!({"order": o});
+            small(
+                ui,
+                app,
+                "bringForward",
+                Some("Bring to Front"),
+                "Draw the selection above every other object",
+                "ui.cadOrder",
+                order("front"),
+                false,
+            );
+            small(ui, app, "sendBackward", Some("Send to Back"), "Draw the selection under every other object", "ui.cadOrder", order("back"), false);
+            small(
+                ui,
+                app,
+                "cadSelect",
+                Some("Select Similar"),
+                "Add the objects of the same type on the same layer",
+                "ui.cadSelect",
+                json!({"similar": true}),
+                false,
+            );
+        });
+    });
+    let (panel, layers, current) = app
+        .cad
+        .as_ref()
+        .map(|e| (e.panel, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone()))
+        .unwrap_or_default();
+    group(ui, "Layers", None, app, |ui, app| {
+        big_checked(ui, app, "properties", "Properties", "ui.cadToggle", json!({"what": "props"}), panel);
+        ui.vertical(|ui| {
+            ui.label(tl!("Current layer"));
+            let mut pick = None;
+            egui::ComboBox::from_id_salt("cad_current_layer").selected_text(&current).width(120.0).show_ui(ui, |ui| {
+                for name in &layers {
+                    if ui.selectable_label(*name == current, name).clicked() {
+                        pick = Some(name.clone());
+                    }
+                }
+            });
+            if let Some(name) = pick {
+                let _ = app.run("ui.cadCurrentLayer", json!({"layer": name}));
+            }
         });
     });
     group(ui, "Precision", None, app, |ui, app| {
@@ -1193,11 +2166,173 @@ mod tests {
         feed(ed, Pt::new(30.0, 0.0), None);
         let d = feed(ed, Pt::new(15.0, 12.0), None).unwrap();
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { offset, .. } if *offset > 0.0));
-        // Move without a selection only asks for one.
-        ed.tool = Tool::Move;
+        // Move without a selection asks for objects first.
         ed.selection.clear();
-        assert!(feed(ed, Pt::new(0.0, 0.0), None).is_none());
-        assert!(!ed.message.is_empty());
+        ed.set_tool(Tool::Move);
+        assert!(ed.picking && ed.selecting());
+    }
+
+    #[test]
+    fn selection_adds_removes_cycles_and_undoes_like_autocad() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        let n = ed.drawing.entities.len();
+        // Two lines on top of each other.
+        let mut d = ed.drawing.clone();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -100.0), b: P::new(-50.0, -100.0) })).unwrap();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -100.0), b: P::new(-50.0, -100.0) })).unwrap();
+        commit(&mut app, &d);
+        let ed = app.cad.as_mut().unwrap();
+        let at = Pt::new(-75.0, -100.0);
+        let screen = pos2(10.0, 10.0);
+        // A click adds the topmost; a second click in the same place swaps it for the one under.
+        assert!(ed.click_select(at, screen, 1.0, false));
+        assert_eq!(ed.selection, [n + 1]);
+        assert!(ed.click_select(at, screen, 1.0, false));
+        assert_eq!(ed.selection, [n]);
+        // Elsewhere, a click adds; Shift (remove) takes it out.
+        ed.last_click = None;
+        assert!(ed.click_select(at, pos2(50.0, 50.0), 1.0, false));
+        assert_eq!(ed.selection.len(), 2);
+        assert!(ed.click_select(at, pos2(90.0, 90.0), 1.0, true));
+        assert_eq!(ed.selection.len(), 1);
+        // Empty space: no pick.
+        assert!(!ed.click_select(Pt::new(1e6, 1e6), screen, 1.0, false));
+        // U undoes the steps; All, Previous, Remove/Add.
+        ed.run_option(SelectOption::Undo);
+        assert_eq!(ed.selection.len(), 2);
+        ed.run_option(SelectOption::All);
+        assert_eq!(ed.selection.len(), n + 2);
+        ed.set_tool(Tool::Move);
+        assert!(!ed.picking, "noun-verb: the selection is taken");
+        assert_eq!(ed.previous.len(), n + 2);
+        ed.set_tool(Tool::Select);
+        ed.clear_selection();
+        ed.run_option(SelectOption::Previous);
+        assert_eq!(ed.selection.len(), n + 2);
+        ed.run_option(SelectOption::Remove);
+        assert!(ed.remove_mode);
+        // A fence across both overlapping lines, then a polygon with too few points.
+        ed.clear_selection();
+        ed.remove_mode = false;
+        ed.run_option(SelectOption::Fence);
+        if let Some((_, pts)) = ed.poly.as_mut() {
+            pts.extend([Pt::new(-75.0, -90.0), Pt::new(-75.0, -110.0)]);
+        }
+        assert!(ed.enter().is_none());
+        assert_eq!(ed.selection, [n, n + 1]);
+        ed.clear_selection();
+        ed.run_option(SelectOption::CPolygon);
+        if let Some((_, pts)) = ed.poly.as_mut() {
+            pts.push(Pt::new(0.0, 0.0));
+        }
+        ed.enter();
+        assert!(!ed.message.is_empty(), "a polygon needs three points");
+        // Esc: the selection last, after commands and modes.
+        ed.run_option(SelectOption::All);
+        ed.set_tool(Tool::Line);
+        assert!(ed.escape().is_none());
+        assert_eq!(ed.tool, Tool::Select);
+        assert!(!ed.selection.is_empty());
+        ed.escape();
+        assert!(ed.selection.is_empty());
+        // Enter at the idle prompt repeats the last command.
+        ed.enter();
+        assert_eq!(ed.tool, Tool::Line);
+    }
+
+    #[test]
+    fn menu_actions_order_layers_strokes_and_properties() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadSelect", json!({"ids": ["e1"]})).unwrap();
+        // Draw order: the selection follows the object.
+        apply(&mut app, Act::Order(Order::Front));
+        let ed = app.cad.as_ref().unwrap();
+        let last = ed.drawing.entities.len() - 1;
+        assert_eq!(ed.drawing.entities[last].id, "e1");
+        assert_eq!(ed.selection, [last]);
+        // Layers: move the selection to a new one; the current layer takes new objects.
+        app.run("ui.cadLayer", json!({"layer": "Axes"})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.entities[last].layer, "Axes");
+        app.run("ui.cadCurrentLayer", json!({"layer": "Hidden lines"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.tool = Tool::Point;
+        let d = feed(ed, Pt::new(1.0, 1.0), None).unwrap();
+        assert_eq!(d.entities.last().unwrap().layer, "Hidden lines");
+        ed.tool = Tool::Select;
+        // Stroke of the selection.
+        app.run("ui.cadStroke", json!({"color": "#ff0000", "width": 0.5, "dash": "dashed"})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        assert_eq!(ed.drawing.effective_stroke(last), Some(([255, 0, 0], 0.5, Dash::Dashed)));
+        app.run("ui.cadStroke", json!({"color": "byLayer"})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.entities[last].stroke.color, None);
+        assert!(app.run("ui.cadStroke", json!({"color": "red"})).is_err());
+        // Properties: read the fields, set one (one undo step).
+        let fields = app.run("ui.cadProps", json!({})).unwrap();
+        assert!(fields["fields"].as_array().is_some_and(|f| !f.is_empty()), "{fields}");
+        let key = fields["fields"][0]["field"].as_str().unwrap().to_string();
+        app.run("ui.cadProps", json!({"field": key, "value": 12.5})).unwrap();
+        let shown = app.run("ui.cadProps", json!({})).unwrap();
+        assert_eq!(shown["fields"][0]["value"], "12.5");
+        assert!(app.run("ui.cadProps", json!({"field": "nope", "value": 1})).is_err());
+        // Select Similar, Deselect, snap for the next point.
+        apply(&mut app, Act::Similar);
+        apply(&mut app, Act::Deselect);
+        assert!(app.cad.as_ref().unwrap().selection.is_empty());
+        assert!(app.run("ui.cadProps", json!({})).is_err(), "one object");
+        app.run("ui.cadSnapOnce", json!({"snap": "mid"})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().snap_once, Some(Some(SnapKind::Mid)));
+        assert!(app.run("ui.cadSnapOnce", json!({"snap": "x"})).is_err());
+        assert!(app.run("ui.cadOrder", json!({"order": "up"})).is_err());
+        app.run("ui.cadToggle", json!({"what": "props"})).unwrap();
+        assert!(!app.cad.as_ref().unwrap().panel);
+        // Delete all.
+        app.run("ui.cadSelect", json!({"all": true})).unwrap();
+        apply(&mut app, Act::Delete);
+        let ed = app.cad.as_ref().unwrap();
+        assert!(ed.drawing.entities.is_empty());
+        assert!(ed.selection.is_empty());
+    }
+
+    #[test]
+    fn hostile_cad_params_never_panic() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let junk = [
+            json!(null),
+            json!({}),
+            json!({"layer": ""}),
+            json!({"layer": "x".repeat(500)}),
+            json!({"field": 1, "value": [1]}),
+            json!({"vertex": u64::MAX, "field": "vx", "value": "1"}),
+            json!({"color": "#zzzzzz", "width": "x", "dash": 3}),
+            json!({"option": "zz"}),
+            json!({"ids": "e1"}),
+            json!({"order": 7}),
+            json!({"snap": null}),
+        ];
+        for id in [
+            "ui.cadLayer",
+            "ui.cadCurrentLayer",
+            "ui.cadStroke",
+            "ui.cadProps",
+            "ui.cadSelect",
+            "ui.cadOrder",
+            "ui.cadSnapOnce",
+            "ui.cadToggle",
+            "ui.cadTool",
+        ] {
+            for p in &junk {
+                let _ = app.run(id, p.clone());
+            }
+            app.run("ui.cadSelect", json!({"all": true})).unwrap();
+            for p in &junk {
+                let _ = app.run(id, p.clone());
+            }
+        }
+        assert!(app.cad.is_some());
     }
 
     #[test]

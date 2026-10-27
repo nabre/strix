@@ -27,6 +27,7 @@ pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
 pub mod cad_editor;
+mod cad_panel;
 pub mod canvas;
 pub mod caret_glide;
 pub mod chrome;

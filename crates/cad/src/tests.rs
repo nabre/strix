@@ -531,3 +531,204 @@ fn grips_change_entities_like_autocad() {
     assert!(!d.move_grip(0, Grip::Center, Pt::new(0.0, 0.0)));
     assert!(!d.move_grip(0, Grip::A, Pt::new(f64::NAN, 0.0)));
 }
+
+fn ids(d: &Drawing) -> Vec<&str> {
+    d.entities.iter().map(|e| e.id.as_str()).collect()
+}
+
+fn five() -> Drawing {
+    let mut d = Drawing::default();
+    for i in 0..5 {
+        let y = f64::from(i) * 10.0;
+        d.add(line((0.0, y), (10.0, y))).unwrap();
+    }
+    d
+}
+
+#[test]
+fn draw_order_moves_the_selection_and_returns_where_it_went() {
+    let mut d = five();
+    assert_eq!(d.reorder(&[1, 3], Order::Front), [3, 4]);
+    assert_eq!(ids(&d), ["e1", "e3", "e5", "e2", "e4"]);
+    let mut d = five();
+    assert_eq!(d.reorder(&[1, 3], Order::Back), [0, 1]);
+    assert_eq!(ids(&d), ["e2", "e4", "e1", "e3", "e5"]);
+    // One place: each passes the first unselected object; a contiguous run moves together.
+    let mut d = five();
+    assert_eq!(d.reorder(&[1, 2], Order::Forward), [2, 3]);
+    assert_eq!(ids(&d), ["e1", "e4", "e2", "e3", "e5"]);
+    let mut d = five();
+    assert_eq!(d.reorder(&[1, 3], Order::Backward), [0, 2]);
+    assert_eq!(ids(&d), ["e2", "e1", "e4", "e3", "e5"]);
+    // Already at the top or bottom: nothing moves.
+    let mut d = five();
+    assert_eq!(d.reorder(&[4], Order::Forward), [4]);
+    assert_eq!(d.reorder(&[0], Order::Backward), [0]);
+    assert_eq!(ids(&d), ["e1", "e2", "e3", "e4", "e5"]);
+    // Junk indices are ignored.
+    assert_eq!(d.reorder(&[99, 2], Order::Front), [4]);
+    assert_eq!(d.entities.len(), 5);
+}
+
+#[test]
+fn hits_are_nearest_first_and_skip_hidden_layers() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (10.0, 0.0))).unwrap();
+    d.add(line((0.0, 1.0), (10.0, 1.0))).unwrap();
+    d.add(line((0.0, 0.0), (10.0, 0.0))).unwrap();
+    // Two lines on top of each other: the one drawn later first.
+    assert_eq!(d.hits(Pt::new(5.0, 0.2), 2.0), [2, 0, 1]);
+    d.set_layer(&[2], "Hidden").unwrap();
+    d.layers.iter_mut().filter(|l| l.name == "Hidden").for_each(|l| l.visible = false);
+    assert_eq!(d.hits(Pt::new(5.0, 0.2), 2.0), [0, 1]);
+    assert!(d.hits(Pt::new(50.0, 50.0), 2.0).is_empty());
+}
+
+#[test]
+fn lasso_polygons_and_fences() {
+    let mut d = Drawing::default();
+    d.add(line((1.0, 1.0), (4.0, 1.0))).unwrap(); // inside
+    d.add(line((4.0, 4.0), (20.0, 4.0))).unwrap(); // crosses the edge
+    d.add(line((30.0, 30.0), (40.0, 30.0))).unwrap(); // outside
+    let tri = [Pt::new(0.0, 0.0), Pt::new(10.0, 0.0), Pt::new(0.0, 10.0)];
+    assert_eq!(d.in_polygon(&tri, false), [0]);
+    assert_eq!(d.in_polygon(&tri, true), [0, 1]);
+    assert!(d.in_polygon(&tri[..2], true).is_empty(), "two points are no polygon");
+    // A concave polygon: a line spanning the notch is not wholly inside.
+    let u = [
+        Pt::new(0.0, 0.0),
+        Pt::new(10.0, 0.0),
+        Pt::new(10.0, 10.0),
+        Pt::new(7.0, 10.0),
+        Pt::new(7.0, 2.0),
+        Pt::new(3.0, 2.0),
+        Pt::new(3.0, 10.0),
+        Pt::new(0.0, 10.0),
+    ];
+    let mut n = Drawing::default();
+    n.add(line((1.0, 5.0), (9.0, 5.0))).unwrap();
+    assert!(n.in_polygon(&u, false).is_empty());
+    assert_eq!(n.in_polygon(&u, true), [0]);
+    // A fence takes what it crosses.
+    assert_eq!(d.crossing_fence(&[Pt::new(2.0, -1.0), Pt::new(2.0, 2.0), Pt::new(35.0, 31.0)]), [0, 1, 2]);
+    assert!(d.crossing_fence(&[Pt::new(-5.0, -5.0)]).is_empty());
+}
+
+#[test]
+fn select_similar_layers_and_strokes() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (1.0, 0.0))).unwrap();
+    d.add(line((0.0, 1.0), (1.0, 1.0))).unwrap();
+    d.add(Entity::new(Kind::Circle { c: P::new(0.0, 0.0), r: Num::new(1.0) })).unwrap();
+    d.add(line((0.0, 2.0), (1.0, 2.0))).unwrap();
+    d.set_layer(&[3], "Axes").unwrap();
+    assert_eq!(d.similar(&[0]), [0, 1], "same family, same layer");
+    assert_eq!(d.similar(&[0, 2]), [0, 1, 2]);
+    assert!(d.set_layer(&[0], "").is_err());
+    // Stroke: own values, then back to ByLayer.
+    d.set_stroke(&[0, 1], StrokeEdit { color: Some(Some([255, 0, 0])), width: Some(Some(1e9)), dash: Some(Some(Dash::Dashed)) });
+    assert_eq!(d.effective_stroke(0), Some(([255, 0, 0], 10.0, Dash::Dashed)));
+    d.set_stroke(&[0], StrokeEdit { color: Some(None), ..StrokeEdit::default() });
+    assert_eq!(d.effective_stroke(0).map(|s| s.0), Some([0, 0, 0]));
+    assert_eq!(d.effective_stroke(99), None);
+    // Layers: a new name, rename (entities follow), remove (entities go to 0).
+    let name = d.new_layer_name();
+    assert_eq!(name, "Layer1");
+    d.ensure_layer(&name).unwrap();
+    assert!(d.rename_layer("0", "x").is_err());
+    assert!(d.rename_layer("Axes", "Layer1").is_err(), "taken");
+    d.rename_layer("Axes", "Centre lines").unwrap();
+    assert_eq!(d.entities[3].layer, "Centre lines");
+    d.remove_layer("Centre lines").unwrap();
+    assert_eq!(d.entities[3].layer, "0");
+    assert!(d.remove_layer("0").is_err());
+    // The round trip keeps it all.
+    assert_eq!(Drawing::from_json(&d.to_json()).unwrap(), d);
+}
+
+#[test]
+fn selection_options_are_typed_in_english_and_italian() {
+    assert_eq!(SelectOption::parse("ALL"), Some(SelectOption::All));
+    assert_eq!(SelectOption::parse("t"), Some(SelectOption::All));
+    assert_eq!(SelectOption::parse("fp"), Some(SelectOption::WPolygon));
+    assert_eq!(SelectOption::parse("cp"), Some(SelectOption::CPolygon));
+    assert_eq!(SelectOption::parse(" r "), Some(SelectOption::Remove));
+    assert_eq!(SelectOption::parse("previous"), Some(SelectOption::Previous));
+    assert_eq!(SelectOption::parse("xyz"), None);
+}
+
+#[test]
+fn the_properties_focus_steps_through_families_and_objects() {
+    let mut d = Drawing::default();
+    d.add(Entity::new(Kind::Circle { c: P::new(0.0, 0.0), r: Num::new(1.0) })).unwrap(); // 0
+    d.add(line((0.0, 0.0), (1.0, 0.0))).unwrap(); // 1
+    d.add(line((0.0, 1.0), (1.0, 1.0))).unwrap(); // 2
+    let sel = [0, 1, 2];
+    let f = families(&d, &sel);
+    assert_eq!(f, [(Family::Line, vec![1, 2]), (Family::Circle, vec![0])]);
+    // All: ‹ › go through every object, lines first, then back to all.
+    let all = Focus::default();
+    assert_eq!(all.scope(&d, &sel).1, [1, 2, 0], "family by family");
+    let a = all.step(&d, &sel, true);
+    assert_eq!((a.object, a.across), (Some(1), true));
+    let b = a.step(&d, &sel, true).step(&d, &sel, true);
+    assert_eq!(b.object, Some(0));
+    assert_eq!(b.step(&d, &sel, true), Focus::default());
+    assert_eq!(all.step(&d, &sel, false).object, Some(0));
+    // A family: all of it, then one by one, then all of it again.
+    let lines = Focus { family: Some(Family::Line), object: None, across: false };
+    assert_eq!(lines.scope(&d, &sel).1, [1, 2]);
+    let one = lines.step(&d, &sel, true);
+    assert_eq!(one.scope(&d, &sel).1, [1]);
+    assert_eq!(one.step(&d, &sel, true).object, Some(2));
+    assert_eq!(one.step(&d, &sel, true).step(&d, &sel, true), lines);
+    // A family of one object is that object.
+    let circle = Focus { family: Some(Family::Circle), object: None, across: false };
+    assert_eq!(circle.scope(&d, &sel).0.object, Some(0));
+    // The selection changes: a family gone is all; an object gone is its family.
+    assert_eq!(circle.scope(&d, &[1, 2]).0, Focus::default());
+    let two = Focus { family: Some(Family::Line), object: Some(2), across: false };
+    assert_eq!(two.scope(&d, &[1, 2]).1, [2]);
+    assert_eq!(two.scope(&d, &[0, 1]).1, [1], "a family of one left");
+    assert_eq!(Focus { family: Some(Family::Line), object: Some(99), across: true }.scope(&d, &sel).0, Focus::default());
+}
+
+#[test]
+fn properties_are_fields_that_take_numbers_or_expressions() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (3.0, 4.0))).unwrap();
+    d.add(Entity::new(Kind::Circle { c: P::new(0.0, 0.0), r: Num::new(2.0) })).unwrap();
+    d.add(Entity::new(Kind::Polyline { pts: vec![P::new(0.0, 0.0), P::new(1.0, 0.0)], bulges: vec![], closed: false })).unwrap();
+    let get = |d: &Drawing, i: usize, k: &str| d.fields(i, 0).into_iter().find(|f| f.key == k).map(|f| f.text);
+    assert_eq!(get(&d, 0, "length").as_deref(), Some("5"));
+    assert_eq!(get(&d, 0, "angle").as_deref(), Some("53.130102"));
+    // A number, an expression (stays linked), a derived size.
+    d.set_field(0, 0, "ax", "1,5").unwrap();
+    assert_eq!(get(&d, 0, "ax").as_deref(), Some("1.5"));
+    d.set_field(0, 0, "bx", "L/2").unwrap();
+    assert_eq!(get(&d, 0, "bx").as_deref(), Some("L/2"));
+    let mut d2 = d.clone();
+    d2.set_field(0, 0, "ax", "0").unwrap();
+    d2.set_field(0, 0, "bx", "3").unwrap();
+    d2.set_field(0, 0, "length", "10").unwrap();
+    assert_eq!(get(&d2, 0, "length").as_deref(), Some("10"));
+    d2.set_field(0, 0, "angle", "90").unwrap();
+    assert_eq!(get(&d2, 0, "bx").as_deref(), Some("0"));
+    assert!(d2.set_field(0, 0, "length", "-1").is_err());
+    assert!(d2.set_field(0, 0, "length", "L").is_err(), "a derived size is a number");
+    // Diameter as an expression halves it; a radius is positive.
+    d.set_field(1, 0, "diameter", "D").unwrap();
+    assert_eq!(get(&d, 1, "r").as_deref(), Some("(D)/2"));
+    assert!(d.set_field(1, 0, "r", "0").is_err());
+    // A polyline closes only with three points; vertices one at a time.
+    assert!(d.set_field(2, 0, "closed", "true").is_err());
+    d.set_field(2, 1, "vy", "7").unwrap();
+    assert_eq!(d.fields(2, 1)[1].text, "7");
+    assert_eq!(d.fields(2, 99)[1].text, "7", "vertex clamped");
+    // Junk never panics.
+    assert!(d.set_field(0, 0, "nope", "1").is_err());
+    assert!(d.set_field(99, 0, "ax", "1").is_err());
+    assert!(d.set_field(0, 0, "ax", "").is_err());
+    assert!(d.set_field(0, 0, "ax", "inf").is_err());
+    assert!(d.fields(99, 0).is_empty());
+}

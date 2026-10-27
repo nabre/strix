@@ -20,7 +20,9 @@ mod geom;
 mod input;
 pub mod kernel;
 mod model;
+mod props;
 mod render;
+mod select;
 mod svg;
 
 #[cfg(test)]
@@ -30,7 +32,9 @@ pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
 pub use model::{Dash, Drawing, Entity, Kind, Layer, MAX_PADDING, Num, Orient, P, Padding, Stroke, Unit, fill};
+pub use props::{Field, FieldKind, num_text};
 pub use render::{Anchor, Prim, Rendered};
+pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
 pub use svg::MISSING_COLOR;
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in
