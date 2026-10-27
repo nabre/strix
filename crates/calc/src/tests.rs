@@ -58,7 +58,8 @@ fn automatic_units_prefer_coherent_si() {
     assert_eq!(last(&["1e15 W ="]), "1e15 W = 1000000 GW");
     // Torque has the dimension of energy: J unless N·m is asked for. Named units get an
     // engineering prefix (kN, MPa, kJ); lengths and base units stay unprefixed.
-    assert_eq!(beam("M ="), "M = 30.375 kJ");
+    // A force times a length reads as written: a moment in kN·m, not kJ.
+    assert_eq!(beam("M ="), "M = 30.375 kN·m");
     assert_eq!(beam("q ="), "q = 12 kN/m");
     assert_eq!(beam("L*q ="), "L*q = 54 kN");
     assert_eq!(last(&["1/2 m ="]), "1/2 m = 0.5 m^-1");
@@ -74,7 +75,8 @@ fn unit_conversions() {
     assert_eq!(last(&["1 h = s"]), "1 h = 3600 s");
     assert_eq!(last(&["100 % ="]), "100 % = 100 %");
     assert_eq!(last(&["100 % = 1"]), "100 % = 100 %");
-    assert_eq!(last(&["2 kN/(4 m^2) ="]), "2 kN/(4 m^2) = 500 Pa");
+    assert_eq!(last(&["2 kN/(4 m^2) ="]), "2 kN/(4 m^2) = 0.5 kN/m²");
+    assert_eq!(last(&["2 kN/(4 m^2) = Pa"]), "2 kN/(4 m^2) = 500 Pa");
     assert_eq!(last(&["1 kWh = J"]), "1 kWh = 3600000 J");
     assert_eq!(last(&["1 bar = kPa"]), "1 bar = 100 kPa");
     assert_eq!(last(&["1 t = kg"]), "1 t = 1000 kg");
@@ -842,7 +844,7 @@ fn solutions_show_formula_substitution_and_result() {
     // Solved for the unknown: formula, substitution, result.
     assert_eq!(steps(&["F = 10 N", "m = 4 kg", "F = m·a"]).unwrap(), ["a = F/m", "a = (10 N)/(4 kg)", "a = 2.5 m/s²"]);
     // A formula already solved: substitution and result.
-    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["M = (12 kN/m)·(4.5 m)²/8", "M = 30.375 kJ"]);
+    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["M = (12 kN/m)·(4.5 m)²/8", "M = 30.375 kN·m"]);
     assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
     // Plain numbers in the substitution need no parentheses; negatives do.
     assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["c = 2·(-3)", "c = -6"]);
@@ -867,7 +869,7 @@ fn a_unit_after_a_number_is_always_the_unit() {
     assert_eq!(last(&["m = 400 kg", "F = 2·m", "F ="]), "F = 800 kg");
     // A chain stops at what is not a unit.
     assert_eq!(last(&["a = 3 m/s^2", "F = 2 kg·a", "F ="]), "F = 6 N");
-    assert_eq!(last(&["2 kN/4 m^2 ="]), "2 kN/4 m^2 = 500 Pa");
+    assert_eq!(last(&["2 kN/4 m^2 ="]), "2 kN/4 m^2 = 0.5 kN/m²");
     // The styling finds the units after numbers even when a parameter shares the name.
     let mut ws = Worksheet::new(Options::default());
     ws.eval_statement("m = 400 kg");
@@ -925,4 +927,20 @@ fn data_tables_name_their_cells() {
     let mut ws = Worksheet::new(Options::default());
     assert!(ws.eval_table(&rows).cells.is_empty());
     assert!(ws.eval_statement("F_A =").error.is_some());
+}
+
+/// A force times a length to a power keeps the units it is written in (a moment in kN·m, loads
+/// in kN/m and kN/m²); other compounds take the derived unit; a working unit wins.
+#[test]
+fn moments_and_loads_keep_their_composed_units() {
+    assert_eq!(last(&["F = 12 kN", "a = 2 m", "F·a ="]), "F·a = 24 kN·m");
+    assert_eq!(last(&["F = 12 kN", "a = 2 m", "M = F·a", "M ="]), "M = 24 kN·m");
+    assert_eq!(last(&["g = 25 kN/m^3", "t = 0.2 m", "g·t ="]), "g·t = 5 kN/m²");
+    assert_eq!(last(&["a = 3 m/s^2", "F = 2 kg·a", "F ="]), "F = 6 N");
+    assert_eq!(last(&["F = 10 N", "m = 4 kg", "F/m ="]), "F/m = 2.5 m/s²");
+    assert_eq!(last(&["1 kWh = J"]), "1 kWh = 3600000 J");
+    // Lengths are shown in one unit (`a` as 0.5 m), so the compound still reads kN·m.
+    assert_eq!(last(&["F = 2 kN", "a = 500 mm", "b = 1 m", "F·a/b·a ="]), "F·a/b·a = 0.5 kN·m");
+    // A working unit for the kind wins.
+    assert_eq!(last(&["E = 2 J", "F = 12 kN", "a = 2 m", "F·a ="]), "F·a = 24000 J");
 }

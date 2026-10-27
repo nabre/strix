@@ -1361,7 +1361,7 @@ mod tests {
         s.sel = crate::Selection::caret(at);
         s.run("equation.answer", &json!({"question": 1})).unwrap();
         let t = texts(&s);
-        assert!(t.contains(&"a) M = 30.375 kJ".to_string()), "{t:?}");
+        assert!(t.contains(&"a) M = 30.375 kN·m".to_string()), "{t:?}");
         assert!(t.contains(&"b) risultato non indicato".to_string()), "{t:?}");
         // The mark survives saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
@@ -1514,12 +1514,12 @@ mod tests {
         at.off -= OBJ.len_utf8();
         s.sel = crate::Selection::caret(at);
         s.run("equation.answer", &json!({"question": 1})).unwrap();
-        assert!(texts(&s).contains(&"a) M = 30.375 kJ".to_string()), "{:?}", texts(&s));
+        assert!(texts(&s).contains(&"a) M = 30.375 kN·m".to_string()), "{:?}", texts(&s));
         // Variant B: everything follows.
         s.run("exercise.variant", &json!({"exercise": 1, "active": 1})).unwrap();
         let t = texts(&s);
         assert!(t.contains(&"luce: L = 6 m".to_string()), "{t:?}");
-        assert!(t.contains(&"a) M = 45 kJ".to_string()), "{t:?}");
+        assert!(t.contains(&"a) M = 45 kN·m".to_string()), "{t:?}");
         assert!(t.contains(&"Esercizio 1 — Trave (variante B)".to_string()), "{t:?}");
         // The data survive saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();

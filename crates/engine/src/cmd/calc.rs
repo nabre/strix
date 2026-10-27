@@ -1160,7 +1160,7 @@ mod tests {
         assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap(), json!({"calc": true, "names": "columnRow"}));
         s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![s.doc.body.len() as u32 - 1]), 0));
         add(&mut s, "F_B·a_A =");
-        assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=24kJ"), "12 kN × 2 m");
+        assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=24kN·m"), "12 kN × 2 m: a moment");
         // The other way round, then saved and opened again.
         s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
         s.run("table.calcNames", &json!({"value": "rowColumn"})).unwrap();
@@ -1281,7 +1281,7 @@ mod tests {
         add(&mut s, "M = L·2 kN =");
         let coloured = |s: &Session, n| runs(s, n).into_iter().filter(|(_, c)| *c).map(|(t, _)| t).collect::<Vec<_>>();
         assert_eq!(coloured(&s, 0), ["m"]);
-        assert_eq!(coloured(&s, 1), ["kN", "kJ"], "{:?}", runs(&s, 1));
+        assert_eq!(coloured(&s, 1), ["kN", "kN", "m"], "{:?}", runs(&s, 1));
         // A unit with a power typed as `^2` is styled whole.
         add(&mut s, "A = 50 cm^2");
         assert_eq!(coloured(&s, 2), ["cm"], "{:?}", runs(&s, 2));

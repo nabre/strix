@@ -205,12 +205,102 @@ impl Worksheet {
     /// The dimensionless unit a plain-number result of `e` is shown in: `°` for `90° - α` with
     /// `α` in degrees, `%` for `2·p`, `°` for `acos(…)`; `None` when the parts disagree or carry
     /// none (`sin(α)`, `α/β`).
+    /// The unit to show a value of `e` in: a dimensionless one it carries (`%`, `°`), else the
+    /// unit composed from its factors when that reads better than a derived one (`kN·m` for
+    /// `F·a` with `F` in kN and `a` in m, not `kJ`).
     pub(crate) fn hint(&self, e: &Expr) -> Option<String> {
+        self.dimensionless_hint(e).or_else(|| self.composed_unit(e))
+    }
+
+    /// The unit `e` is written in, composed from its factors' units with their powers: `kN·m`
+    /// for `q·L²/8` with `q` in kN/m and `L` in m. Only a force times a length to a power; None
+    /// otherwise, or when it can't be told.
+    fn composed_unit(&self, e: &Expr) -> Option<String> {
+        let powers = self.unit_powers(e, false, 0)?;
+        // A force and a length to a power, as structures are worked: `kN·m` (a moment, not
+        // `kJ`), `kN/m`, `kN/m²`, `kN/m³` (loads, weights). Other compounds take the derived
+        // unit (`N`, not `kg·m/s²`; `m/s²`, not `N/kg`).
+        let force = Dim::new([1, 1, -2, 0, 0, 0, 0]);
+        let length = Dim::new([1, 0, 0, 0, 0, 0, 0]);
+        let kind = |u: &str| unit(u).map(|q| q.dim);
+        let (f, l, p) = match powers.as_slice() {
+            [(f, 1), (l, p)] | [(l, p), (f, 1)] if kind(f) == Some(force) && kind(l) == Some(length) && *p != 0 => (f, l, *p),
+            _ => return None,
+        };
+        // The force first, as moments and loads are written.
+        let text = if p > 0 {
+            format!("{f}·{}", crate::units::power_text(l, i64::from(p)))
+        } else {
+            format!("{f}/{}", crate::units::power_text(l, i64::from(-p)))
+        };
+        // It must read back as a unit of the value's kind.
+        self.unit_quantity(&text).map(|_| text)
+    }
+
+    /// The units `e` is written in, with their powers, in order of appearance; None when that
+    /// can't be told (a function of a quantity, sums of different units). With `units`, names
+    /// are units (`e` is a unit's text read back: `kN/m`).
+    fn unit_powers(&self, e: &Expr, units: bool, depth: usize) -> Option<Vec<(String, i32)>> {
+        use crate::parser::BinOp;
+        if depth > 32 {
+            return None;
+        }
+        let merge = |mut a: Vec<(String, i32)>, b: Vec<(String, i32)>, sign: i32| {
+            for (u, p) in b {
+                match a.iter_mut().find(|(v, _)| *v == u) {
+                    Some((_, q)) => *q += sign * p,
+                    None => a.push((u, sign * p)),
+                }
+            }
+            a.retain(|(_, p)| *p != 0);
+            a
+        };
+        let same = |a: &[(String, i32)], b: &[(String, i32)]| a.len() == b.len() && a.iter().all(|x| b.contains(x));
+        match e {
+            Expr::Num(_) => Some(Vec::new()),
+            Expr::Unit(n) => Some(vec![(n.clone(), 1)]),
+            Expr::Name(n) if units => unit(n).map(|_| vec![(n.clone(), 1)]),
+            Expr::Name(n) if self.scope.get(n).is_some() => {
+                let (_, shown) = self.shown_parts(n)?;
+                if shown.is_empty() || unit(&shown).is_some_and(|q| q.dim.is_dimensionless()) {
+                    return Some(Vec::new());
+                }
+                let tokens = lex(&shown, self.opts.decimal_comma).ok()?;
+                self.unit_powers(&parse(&tokens, shown.chars().count()).ok()?, true, depth + 1)
+            }
+            Expr::Name(n) if constant(n).is_some_and(|q| q.dim.is_dimensionless()) => Some(Vec::new()),
+            Expr::Neg(a) => self.unit_powers(a, units, depth + 1),
+            Expr::Bin(BinOp::Mul, a, b) => Some(merge(self.unit_powers(a, units, depth + 1)?, self.unit_powers(b, units, depth + 1)?, 1)),
+            Expr::Bin(BinOp::Div, a, b) => Some(merge(self.unit_powers(a, units, depth + 1)?, self.unit_powers(b, units, depth + 1)?, -1)),
+            Expr::Bin(BinOp::Pow, a, n) => {
+                let k = match **n {
+                    Expr::Num(v) if v.fract() == 0.0 && v.abs() <= 12.0 => v as i32,
+                    _ => return None,
+                };
+                Some(self.unit_powers(a, units, depth + 1)?.into_iter().map(|(u, p)| (u, p * k)).filter(|(_, p)| *p != 0).collect())
+            }
+            Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => {
+                let (x, y) = (self.unit_powers(a, units, depth + 1)?, self.unit_powers(b, units, depth + 1)?);
+                same(&x, &y).then_some(x)
+            }
+            Expr::Call(Func::Sqrt, args) => match args.as_slice() {
+                [a] => {
+                    let x = self.unit_powers(a, units, depth + 1)?;
+                    x.iter().all(|(_, p)| p % 2 == 0).then(|| x.into_iter().map(|(u, p)| (u, p / 2)).collect())
+                }
+                _ => None,
+            },
+            Expr::Call(Func::Abs | Func::Round | Func::Min | Func::Max, args) => self.unit_powers(args.first()?, units, depth + 1),
+            _ => None,
+        }
+    }
+
+    fn dimensionless_hint(&self, e: &Expr) -> Option<String> {
         use crate::parser::BinOp;
         let common = |items: &[Expr]| {
             let mut found: Option<String> = None;
             for item in items {
-                match (self.hint(item), &found) {
+                match (self.dimensionless_hint(item), &found) {
                     (Some(h), Some(f)) if h != *f => return None,
                     (Some(h), None) => found = Some(h),
                     _ => {}
@@ -221,21 +311,26 @@ impl Worksheet {
         match e {
             Expr::Num(_) | Expr::Range(..) => None,
             Expr::Unit(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
-            Expr::Name(n) if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n) => Some(h.clone()),
+            // Only a dimensionless hint carries over (a composed unit is worked out anew).
+            Expr::Name(n)
+                if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n).filter(|(_, h)| unit(h).is_some_and(|q| q.dim.is_dimensionless())) =>
+            {
+                Some(h.clone())
+            }
             Expr::Name(n) if self.scope.get(n).is_some() => None,
             Expr::Name(n) if constant(n).is_some() => None,
             Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
-            Expr::Neg(a) | Expr::Index(a, _) => self.hint(a),
-            Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => match (self.hint(a), self.hint(b)) {
+            Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
+            Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
                 (Some(x), Some(y)) if x == y => Some(x),
                 (Some(x), None) | (None, Some(x)) => Some(x),
                 _ => None,
             },
-            Expr::Bin(BinOp::Mul, a, b) => match (self.hint(a), self.hint(b)) {
+            Expr::Bin(BinOp::Mul, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
                 (Some(x), None) | (None, Some(x)) => Some(x),
                 _ => None,
             },
-            Expr::Bin(BinOp::Div, a, b) => match (self.hint(a), self.hint(b)) {
+            Expr::Bin(BinOp::Div, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
                 (Some(x), None) => Some(x),
                 _ => None,
             },
@@ -244,7 +339,7 @@ impl Worksheet {
             Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Round | Func::Sum | Func::Mean, args) => common(args.get(..1).unwrap_or_default()),
             Expr::Call(..) => None,
             Expr::Vector(items) => common(items),
-            Expr::Nary(n) if n.op == '∑' => self.hint(&n.body),
+            Expr::Nary(n) if n.op == '∑' => self.dimensionless_hint(&n.body),
             Expr::Nary(_) => None,
         }
     }
@@ -833,6 +928,15 @@ impl Worksheet {
         if v.dim().is_dimensionless()
             && let Some(h) = hint
             && let Some(u) = unit(h)
+            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+        {
+            return (number, h.to_string());
+        }
+        // A composed unit (`kN·m`), unless a working unit was written for the kind.
+        if !v.dim().is_dimensionless()
+            && self.working_unit(v.dim()).is_none()
+            && let Some(h) = hint
+            && let Some(u) = self.unit_quantity(h)
             && let Ok(number) = in_unit_text(v, u, h, &self.opts)
         {
             return (number, h.to_string());

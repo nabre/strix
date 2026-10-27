@@ -177,6 +177,12 @@ Functions: `sqrt abs exp ln log sin cos tan asin acos atan min max round sum mea
 `e`, `g` (standard gravity) are predefined. Numbers: `1.5`, `1,5` when the document language uses
 decimal commas, `2e-3`.
 
+**Composed units for structures.** A result that is a force times a length to a power keeps
+the units it is written in, force first: `F·a` with `F` in kN and `a` in m is `24 kN·m` (a moment,
+not `24 kJ`), `q·L²/8` is in kN·m, `γ·t` in kN/m², a line load in kN/m. Other compounds take the
+derived unit (`2 kg·a` is `6 N`, `F/m` is `2.5 m/s²`), a unit asked for after `=` (`= Pa`) or a
+working unit written for the kind wins.
+
 ## Number format
 
 Set on the Math tab (Results: More/Fewer Digits, Number Format) or with `calc.options`; kept as
@@ -252,6 +258,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: composed units for moments and loads (`kN·m`, `kN/m²`), force first.
 - 2026-10-27: data tables: cells named by column and row with a subscript (`F_A` or `A_F`).
 - 2026-10-27: quantities of one kind worked in one unit, with the working shown (`5 m·30 cm = 5 m·0.3 m = 1.5 m²`).
 - 2026-10-27: quick keys `^ _ /` in formulas; New Calculation on Alt+Shift+C.
