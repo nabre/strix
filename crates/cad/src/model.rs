@@ -415,9 +415,22 @@ impl Drawing {
                 other => local.define(name, other.clone()),
             }
         }
+        // The document's step budget covers the drawing too; once it is spent, nothing more is
+        // evaluated (the remaining expressions keep their last values and are reported).
+        let mut spent_out = false;
         for (num, kind) in self.nums_mut() {
             let Some(expr) = num.expr.clone() else { continue };
-            let value = local.eval_expr(&expr).map_err(|e| e.to_string()).and_then(|v| match v {
+            if spent_out {
+                errors.push((expr, strix_calc::CalcError::TooMuchWork.to_string()));
+                continue;
+            }
+            local.scope().set_spent(ws.scope().spent());
+            let result = local.eval_expr(&expr);
+            ws.scope().set_spent(local.scope().spent());
+            if matches!(result, Err(strix_calc::CalcError::TooMuchWork)) {
+                spent_out = true;
+            }
+            let value = result.map_err(|e| e.to_string()).and_then(|v| match v {
                 Value::Scalar(q) => convert(q, kind, unit_m),
                 Value::Vector(_) => Err("a coordinate is one value, not a vector".to_string()),
             });

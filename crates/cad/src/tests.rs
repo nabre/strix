@@ -170,3 +170,17 @@ fn length_parameters_count_in_the_drawing_unit() {
     assert!(approx(end.value, 30.0));
     assert_eq!(errors.len(), 1, "a force is no coordinate: {errors:?}");
 }
+
+#[test]
+fn a_costly_drawing_shares_the_documents_budget() {
+    let ws = sheet(&[]);
+    // Every coordinate is a big sum: the budget runs out and the rest is reported, quickly.
+    let heavy = "∑_(i=1)^9999▒∑_(j=1)^99▒1";
+    let entities: Vec<String> = (0..200).map(|_| format!(r#"{{"type": "point", "p": ["{heavy}", 0]}}"#)).collect();
+    let mut d = Drawing::from_json(&format!(r#"{{"entities": [{}]}}"#, entities.join(","))).unwrap();
+    let started = std::time::Instant::now();
+    let errors = d.resolve(&ws);
+    assert!(errors.iter().any(|(_, e)| e.contains("too many steps")), "{:?}", errors.first());
+    assert!(ws.scope().spent() > 0, "the drawing's work counts in the document's budget");
+    assert!(started.elapsed() < std::time::Duration::from_secs(20));
+}

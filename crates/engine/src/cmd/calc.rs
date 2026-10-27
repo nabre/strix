@@ -1164,7 +1164,8 @@ mod tests {
         s.run("calc.recalculate", &json!({})).unwrap();
         let back = Session::new(crate::io::open_bytes("a.xmath", &crate::io::save_bytes("a.xmath", &s.doc).unwrap()).unwrap());
         for doc in [&s.doc, &back.doc] {
-            let full: Vec<String> = items(&doc.body).into_iter().filter_map(|i| if let Item::Equation { full, .. } = i { Some(full) } else { None }).collect();
+            let full: Vec<String> =
+                items(&doc.body).into_iter().filter_map(|i| if let Item::Equation { full, .. } = i { Some(full) } else { None }).collect();
             assert!(full[0].contains('@'), "both rows stay: {full:?}");
         }
         // Strix's own steps are marked: read back, the statement is the first row only.
