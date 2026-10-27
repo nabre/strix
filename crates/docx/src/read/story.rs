@@ -1129,6 +1129,16 @@ impl Reader<'_> {
             let graphic = Arc::new(Graphic { kind: GraphicKind::Cad, w, h, cad: Some(source.into()), ..Default::default() });
             return Some(InlineObject::Graphic { w, h, alt, float, graphic });
         }
+        // A picture carrying a drawing's source part: the drawing (its SVG is only for others).
+        if let Some(ext) =
+            gd.find("pic:cNvPr").and_then(|p| p.child("a:extLst")).and_then(|l| l.children("a:ext").find(|e| e.attr("uri") == Some(CAD_URI)))
+        {
+            let part = ext.child("strix:cad").and_then(|c| c.attr("r:id")).and_then(|id| super::part_of(rels, id, crate::package::rt::STRIX_CAD))?;
+            let bytes = self.pkg.get_shared(&part).filter(|b| b.len() <= MAX_CAD)?;
+            let source = std::str::from_utf8(bytes).ok()?;
+            let graphic = Arc::new(Graphic { kind: GraphicKind::Cad, w, h, cad: Some(source.into()), ..Default::default() });
+            return Some(InlineObject::Graphic { w, h, alt, float, graphic });
+        }
         let graphic_kind = if uri.ends_with("/chart") {
             Some(GraphicKind::Chart)
         } else if uri.ends_with("/diagram") {
@@ -1289,7 +1299,9 @@ impl Reader<'_> {
             GraphicKind::Diagram => self.diagram_part(gd, rels),
             GraphicKind::Ink | GraphicKind::Cad => None,
         };
-        let Some(path) = part else { return Arc::new(Graphic { kind, items: Vec::new(), w, h, source, chart: None, smart_art: None, cad: None }) };
+        let Some(path) = part else {
+            return Arc::new(Graphic { kind, items: Vec::new(), w, h, source, chart: None, smart_art: None, cad: None, svg: None });
+        };
         let key = (kind, path, w.to_bits(), h.to_bits());
         if let Some(g) = self.graphics.get(&key) {
             return g.clone();
@@ -1307,7 +1319,7 @@ impl Reader<'_> {
             _ => None,
         };
         let source = if chart.is_some() || smart_art.is_some() { None } else { source };
-        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art, cad: None });
+        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art, cad: None, svg: None });
         self.graphics.insert(key, g.clone());
         g
     }

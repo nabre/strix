@@ -673,6 +673,19 @@ fn next_ime_state_revision() -> Option<u64> {
     allocate_ime_state_revision(&IME_STATE_REVISION)
 }
 
+/// In a calculation showing its solution steps, only the statement (the first row) takes the
+/// caret: the steps are results, never edited (docs/calc.md). A caret elsewhere goes to the end
+/// of the statement.
+fn source_only(math: &strix_doc::math::Math, pos: strix_doc::math_edit::MathPos) -> strix_doc::math_edit::MathPos {
+    match math.nodes.as_slice() {
+        [strix_doc::math::MNode::EqArr { rows }] if math.stepped && pos.path.first().is_none_or(|&(n, row)| n != 0 || row != 0) => {
+            let row = rows.first().map(Vec::as_slice).unwrap_or_default();
+            strix_doc::math_edit::MathPos::new(vec![(0, 0)], strix_doc::math_edit::node_start(row, row.len()))
+        }
+        _ => pos,
+    }
+}
+
 /// The equation being edited.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MathEdit {
@@ -1870,7 +1883,7 @@ impl Session {
         // The equation being edited must still be there (undo, edits elsewhere).
         if let Some(m) = &self.math {
             let eq = self.doc.para_at(&m.at).and_then(|p| match p.object_at(m.at.off) {
-                Some(strix_doc::InlineObject::Equation { math, .. }) => Some(strix_doc::math_edit::clamp(&math.nodes, &m.pos)),
+                Some(strix_doc::InlineObject::Equation { math, .. }) => Some(source_only(math, strix_doc::math_edit::clamp(&math.nodes, &m.pos))),
                 _ => None,
             });
             match eq {
@@ -2028,7 +2041,25 @@ impl Session {
         if self.run_depth == 0 && result.is_ok() {
             crate::cmd::calc::auto_recalculate(self);
         }
+        // Whatever put the caret in an equation (a click, an arrow key), a calculation's
+        // solution steps never take it.
+        if self.run_depth == 0 {
+            self.keep_math_in_source();
+        }
         result
+    }
+
+    /// Puts an equation caret that is in a calculation's solution steps at the end of its
+    /// statement ([`source_only`]).
+    fn keep_math_in_source(&mut self) {
+        let Some(m) = &self.math else { return };
+        let pos = match self.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off)) {
+            Some(strix_doc::InlineObject::Equation { math, .. }) if math.stepped => source_only(math, m.pos.clone()),
+            _ => return,
+        };
+        if let Some(m) = self.math.as_mut() {
+            m.pos = pos;
+        }
     }
 
     fn run_command(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {

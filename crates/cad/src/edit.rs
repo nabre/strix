@@ -2,7 +2,8 @@
 //! keep a coordinate's link to the calculations (`L` moved by 0.5 becomes `L + 0.5`).
 
 use crate::geom::{Pt, arc_points, bulge_points};
-use crate::model::{Drawing, Entity, Kind, Num, P};
+use crate::kernel::{Curve, curves, intersect};
+use crate::model::{Drawing, Entity, Kind, Num, Orient, P};
 
 /// What a snap point is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,6 +14,18 @@ pub enum SnapKind {
     Mid,
     /// The centre of a circle or arc.
     Center,
+    /// A point entity.
+    Node,
+    /// A circle's or arc's point at 0°, 90°, 180° or 270°.
+    Quadrant,
+    /// Where two curves cross (or touch).
+    Intersection,
+    /// The foot of the perpendicular from the previous point.
+    Perpendicular,
+    /// Where a line from the previous point touches a circle or arc.
+    Tangent,
+    /// The nearest point on a curve.
+    Nearest,
 }
 
 /// The polylines an entity is drawn with, in drawing units (y up), for picking and highlighting.
@@ -34,6 +47,145 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
             vec![out]
         }
         Kind::Point { p } | Kind::Text { p, .. } => vec![vec![p.pt()]],
+    }
+}
+
+/// Which object snaps are on (the prototype's defaults: all but Quadrant).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Snaps {
+    pub end: bool,
+    pub mid: bool,
+    pub center: bool,
+    pub node: bool,
+    pub quadrant: bool,
+    pub intersection: bool,
+    pub perpendicular: bool,
+    pub tangent: bool,
+    pub nearest: bool,
+}
+
+impl Default for Snaps {
+    fn default() -> Self {
+        Snaps {
+            end: true,
+            mid: true,
+            center: true,
+            node: true,
+            quadrant: false,
+            intersection: true,
+            perpendicular: true,
+            tangent: true,
+            nearest: true,
+        }
+    }
+}
+
+impl Snaps {
+    pub fn on(&self, k: SnapKind) -> bool {
+        match k {
+            SnapKind::End => self.end,
+            SnapKind::Mid => self.mid,
+            SnapKind::Center => self.center,
+            SnapKind::Node => self.node,
+            SnapKind::Quadrant => self.quadrant,
+            SnapKind::Intersection => self.intersection,
+            SnapKind::Perpendicular => self.perpendicular,
+            SnapKind::Tangent => self.tangent,
+            SnapKind::Nearest => self.nearest,
+        }
+    }
+}
+
+impl SnapKind {
+    /// Lower wins at equal distance: a node or an end before an intersection, before a centre…
+    fn priority(self) -> u8 {
+        match self {
+            SnapKind::Node => 0,
+            SnapKind::End => 1,
+            SnapKind::Intersection => 2,
+            SnapKind::Center => 3,
+            SnapKind::Quadrant | SnapKind::Mid => 4,
+            SnapKind::Perpendicular => 5,
+            SnapKind::Tangent => 6,
+            SnapKind::Nearest => 7,
+        }
+    }
+
+    /// All kinds, in priority order.
+    pub const ALL: [SnapKind; 9] = [
+        SnapKind::Node,
+        SnapKind::End,
+        SnapKind::Intersection,
+        SnapKind::Center,
+        SnapKind::Quadrant,
+        SnapKind::Mid,
+        SnapKind::Perpendicular,
+        SnapKind::Tangent,
+        SnapKind::Nearest,
+    ];
+}
+
+/// Curves considered for one snap: the nearest ones only, so the pairwise intersections stay cheap.
+const SNAP_CURVES: usize = 40;
+
+impl Drawing {
+    /// The snap point within `tol` drawing units of pointer `p`, exact (computed on the curves,
+    /// not on their drawn outlines): the nearest, ties to the higher priority. Perpendicular and
+    /// tangent are from `from`, the previous point. Nearest applies only when nothing else does.
+    pub fn snap(&self, p: Pt, tol: f64, from: Option<Pt>, on: &Snaps) -> Option<(Pt, SnapKind)> {
+        if !p.is_finite() || tol.is_nan() || tol <= 0.0 {
+            return None;
+        }
+        let mut near: Vec<(f64, Curve)> = Vec::new();
+        let mut cands: Vec<(Pt, SnapKind)> = Vec::new();
+        for e in &self.entities {
+            if let Kind::Point { p: q } = &e.kind {
+                cands.push((q.pt(), SnapKind::Node));
+            }
+            for c in curves(e) {
+                let d = c.distance(p);
+                // A circle's centre snaps from inside it too.
+                let centre_near = c.center().is_some_and(|k| k.minus(p).len() <= tol);
+                if d <= 2.0 * tol || centre_near {
+                    near.push((d, c));
+                }
+            }
+        }
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        near.truncate(SNAP_CURVES);
+        for (_, c) in &near {
+            cands.extend(c.ends().into_iter().map(|q| (q, SnapKind::End)));
+            cands.extend(c.mid().map(|q| (q, SnapKind::Mid)));
+            cands.extend(c.center().map(|q| (q, SnapKind::Center)));
+            cands.extend(c.quadrants().into_iter().map(|q| (q, SnapKind::Quadrant)));
+            if let Some(f) = from {
+                cands.extend(c.perpendicular_feet(f).into_iter().map(|q| (q, SnapKind::Perpendicular)));
+                cands.extend(c.tangent_points(f).into_iter().map(|q| (q, SnapKind::Tangent)));
+            }
+        }
+        for (i, (_, a)) in near.iter().enumerate() {
+            for (_, b) in near.iter().skip(i + 1) {
+                cands.extend(intersect(a, b).into_iter().map(|q| (q, SnapKind::Intersection)));
+            }
+        }
+        let found: Vec<(f64, Pt, SnapKind)> = cands
+            .into_iter()
+            .filter(|(q, k)| on.on(*k) && q.is_finite())
+            .map(|(q, k)| (q.minus(p).len(), q, k))
+            .filter(|(d, _, _)| *d <= tol)
+            .collect();
+        // The nearest; among those within a hair of it, the higher priority (an end over the
+        // intersection at the same place).
+        let dmin = found.iter().map(|f| f.0).fold(f64::INFINITY, f64::min);
+        let best =
+            found.into_iter().filter(|f| f.0 <= dmin + tol * 1e-6).min_by(|a, b| a.2.priority().cmp(&b.2.priority()).then(a.0.total_cmp(&b.0)));
+        if let Some((_, q, k)) = best {
+            return Some((q, k));
+        }
+        if on.nearest {
+            return near.first().filter(|(d, _)| *d <= tol).map(|(_, c)| (c.nearest(p), SnapKind::Nearest));
+        }
+        None
     }
 }
 
@@ -167,7 +319,8 @@ fn shift(n: &mut Num, d: f64) {
     }
     n.value += d;
     if let Some(e) = &n.expr {
-        let step = format!("{}", (d.abs() * 1000.0).round() / 1000.0);
+        // To the kernel's resolution: a point taken to a snap stays exactly there.
+        let step = format!("{}", crate::kernel::canon(d.abs()));
         let op = if d < 0.0 { "-" } else { "+" };
         let base = if e.contains(['+', '-']) { format!("({e})") } else { e.clone() };
         n.expr = Some(format!("{base} {op} {step}"));
@@ -188,5 +341,203 @@ fn move_kind(k: &mut Kind, d: Pt) {
         Kind::Circle { c, .. } | Kind::Arc { c, .. } => shift_p(c, d),
         Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| shift_p(p, d)),
         Kind::Point { p } | Kind::Text { p, .. } => shift_p(p, d),
+    }
+}
+
+/// A grip: a point of an entity that can be taken to change it (AutoCAD and Allplan grips).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Grip {
+    /// A line's or dimension's first or second point.
+    A,
+    B,
+    /// A line's midpoint: moves the whole line.
+    Mid,
+    /// A circle's or arc's centre: moves it.
+    Center,
+    /// A circle's quadrant (0–3): changes the radius.
+    Quadrant(u8),
+    /// An arc's start or end: changes that angle; its middle changes the radius.
+    ArcStart,
+    ArcEnd,
+    ArcMid,
+    /// A polyline's vertex, or the middle of its segment `i` (a straight segment moves with its
+    /// two vertices; an arc segment bends through the point).
+    Vertex(usize),
+    Segment(usize),
+    /// A point's or text's position.
+    Point,
+    /// A dimension's line: changes its distance from the measured points.
+    DimLine,
+}
+
+/// The paper mm a drawing unit measures.
+fn paper_per_unit(d: &Drawing) -> f64 {
+    let k = d.unit.mm() / d.scale;
+    if k.is_finite() && k > 0.0 { k } else { 1.0 }
+}
+
+/// A dimension's direction for its orientation.
+fn dim_dir(a: Pt, b: Pt, orient: Orient) -> Pt {
+    match orient {
+        Orient::Aligned => b.minus(a).unit(),
+        Orient::Horizontal => Pt::new(if b.x >= a.x { 1.0 } else { -1.0 }, 0.0),
+        Orient::Vertical => Pt::new(0.0, if b.y >= a.y { 1.0 } else { -1.0 }),
+    }
+}
+
+/// The paper offset that puts the line of a dimension from `a` to `b` through `at`: past the
+/// farther measured point along the normal.
+pub fn dim_offset(d: &Drawing, a: Pt, b: Pt, orient: Orient, at: Pt) -> f64 {
+    let n = dim_dir(a, b, orient).left();
+    let level = |q: Pt| q.x * n.x + q.y * n.y;
+    let (na, nb, nl) = (level(a), level(b), level(at));
+    let units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
+    (units * paper_per_unit(d)).clamp(-500.0, 500.0)
+}
+
+impl Drawing {
+    /// The grips of entity `i`, with where they are.
+    pub fn grips(&self, i: usize) -> Vec<(Grip, Pt)> {
+        let Some(e) = self.entities.get(i) else { return Vec::new() };
+        match &e.kind {
+            Kind::Line { a, b } => vec![(Grip::A, a.pt()), (Grip::B, b.pt()), (Grip::Mid, mid(a.pt(), b.pt()))],
+            Kind::Circle { c, r } => {
+                let (c, r) = (c.pt(), r.value.abs());
+                let mut out = vec![(Grip::Center, c)];
+                out.extend((0..4u8).map(|k| (Grip::Quadrant(k), c.polar(r, f64::from(k) * 90.0))));
+                out
+            }
+            Kind::Arc { c, r, start, end } => {
+                let (c, r) = (c.pt(), r.value.abs());
+                let mut sweep = (end.value - start.value).rem_euclid(360.0);
+                if sweep == 0.0 {
+                    sweep = 360.0;
+                }
+                vec![
+                    (Grip::Center, c),
+                    (Grip::ArcStart, c.polar(r, start.value)),
+                    (Grip::ArcEnd, c.polar(r, end.value)),
+                    (Grip::ArcMid, c.polar(r, start.value + sweep / 2.0)),
+                ]
+            }
+            Kind::Polyline { pts, bulges, closed } => {
+                let vs: Vec<Pt> = pts.iter().map(P::pt).collect();
+                let mut out: Vec<(Grip, Pt)> = vs.iter().enumerate().map(|(k, &p)| (Grip::Vertex(k), p)).collect();
+                let n = vs.len();
+                let segments = if *closed && n > 2 { n } else { n.saturating_sub(1) };
+                for k in 0..segments {
+                    let (Some(&a), Some(&b)) = (vs.get(k), vs.get((k + 1) % n)) else { continue };
+                    if let Some(m) = Curve::from_bulge(a, b, bulges.get(k).copied().unwrap_or(0.0)).mid() {
+                        out.push((Grip::Segment(k), m));
+                    }
+                }
+                out
+            }
+            Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Dim { a, b, offset, orient, .. } => {
+                let (pa, pb) = (a.pt(), b.pt());
+                let n = dim_dir(pa, pb, *orient).left();
+                let level = |q: Pt| q.x * n.x + q.y * n.y;
+                let units = offset / paper_per_unit(self);
+                let at = if units >= 0.0 { level(pa).max(level(pb)) + units } else { level(pa).min(level(pb)) + units };
+                let m = mid(pa, pb);
+                vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))]
+            }
+        }
+    }
+
+    /// Entity `i` with grip `g` taken to `to`. A coordinate written as an expression stays one
+    /// (`L` dragged by 0.5 becomes `L + 0.5`); a size the drag sets anew (a radius, an angle,
+    /// a bulge, a dimension's distance) becomes a number. Returns false, changing nothing, when
+    /// the grip is not the entity's or the result would be degenerate (a zero radius, a
+    /// polyline vertex on its neighbour).
+    pub fn move_grip(&mut self, i: usize, g: Grip, to: Pt) -> bool {
+        if !to.is_finite() {
+            return false;
+        }
+        let Some(from) = self.grips(i).into_iter().find(|(k, _)| *k == g).map(|(_, p)| p) else { return false };
+        let d = to.minus(from);
+        let offset_at = match self.entities.get(i).map(|e| &e.kind) {
+            Some(Kind::Dim { a, b, orient, .. }) => dim_offset(self, a.pt(), b.pt(), *orient, to),
+            _ => 0.0,
+        };
+        let Some(e) = self.entities.get_mut(i) else { return false };
+        let tiny = crate::kernel::RESOLUTION;
+        match (&mut e.kind, g) {
+            (Kind::Line { a, .. } | Kind::Dim { a, .. }, Grip::A) => shift_p(a, d),
+            (Kind::Line { b, .. } | Kind::Dim { b, .. }, Grip::B) => shift_p(b, d),
+            (Kind::Line { a, b }, Grip::Mid) => {
+                shift_p(a, d);
+                shift_p(b, d);
+            }
+            (Kind::Circle { c, .. } | Kind::Arc { c, .. }, Grip::Center) => shift_p(c, d),
+            (Kind::Circle { c, r }, Grip::Quadrant(_)) | (Kind::Arc { c, r, .. }, Grip::ArcMid) => {
+                let nr = to.minus(c.pt()).len();
+                if nr <= tiny {
+                    return false;
+                }
+                *r = Num::new(nr);
+            }
+            (Kind::Arc { c, start, .. }, Grip::ArcStart) => *start = Num::new(crate::kernel::deg(crate::kernel::direction(to.minus(c.pt())))),
+            (Kind::Arc { c, end, .. }, Grip::ArcEnd) => *end = Num::new(crate::kernel::deg(crate::kernel::direction(to.minus(c.pt())))),
+            (Kind::Polyline { pts, closed, .. }, Grip::Vertex(v)) => {
+                let n = pts.len();
+                let prev = if v > 0 {
+                    Some(v - 1)
+                } else if *closed {
+                    n.checked_sub(1)
+                } else {
+                    None
+                };
+                let next = if v + 1 < n {
+                    Some(v + 1)
+                } else if *closed {
+                    Some(0)
+                } else {
+                    None
+                };
+                let clash =
+                    [prev, next].into_iter().flatten().filter(|&j| j != v).any(|j| pts.get(j).is_some_and(|q| q.pt().minus(to).len() <= tiny));
+                if clash {
+                    return false;
+                }
+                let Some(p) = pts.get_mut(v) else { return false };
+                shift_p(p, d);
+            }
+            (Kind::Polyline { pts, bulges, .. }, Grip::Segment(s)) => {
+                let n = pts.len().max(1);
+                let (Some(a), Some(b)) = (pts.get(s).map(P::pt), pts.get((s + 1) % n).map(P::pt)) else { return false };
+                if bulges.get(s).copied().unwrap_or(0.0) == 0.0 {
+                    for j in [s, (s + 1) % n] {
+                        if let Some(p) = pts.get_mut(j) {
+                            shift_p(p, d);
+                        }
+                    }
+                } else {
+                    // The arc bends through the point: bulge = sagitta / half chord, positive
+                    // when the arc bulges to the right of the chord (counter-clockwise from a).
+                    let chord = b.minus(a);
+                    let len = chord.len();
+                    if len <= tiny {
+                        return false;
+                    }
+                    let left = (chord.x * (to.y - a.y) - chord.y * (to.x - a.x)) / len;
+                    let nb = -2.0 * left / len;
+                    if !nb.is_finite() || nb.abs() <= 1e-12 {
+                        return false;
+                    }
+                    if bulges.len() <= s {
+                        bulges.resize(s + 1, 0.0);
+                    }
+                    if let Some(slot) = bulges.get_mut(s) {
+                        *slot = nb.clamp(-1e3, 1e3);
+                    }
+                }
+            }
+            (Kind::Point { p } | Kind::Text { p, .. }, Grip::Point) => shift_p(p, d),
+            (Kind::Dim { offset, .. }, Grip::DimLine) => *offset = offset_at,
+            _ => return false,
+        }
+        true
     }
 }

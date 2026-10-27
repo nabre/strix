@@ -241,3 +241,293 @@ fn texts_take_placeholders_too() {
     let Prim::Text { text, .. } = &r.prims[0] else { panic!() };
     assert_eq!(text.chars().filter(|&c| !is_marker(c)).collect::<String>(), "carico q = 12 kN/m");
 }
+
+#[test]
+fn svg_is_the_drawing_as_seen() {
+    let ws = sheet(&["L = 4.5 m"]);
+    let d = Drawing::from_json(
+        r#"{"unit": "m", "scale": 50, "layers": [{"name": "0"}, {"name": "h", "dash": "dashed", "color": [255, 0, 0]}],
+            "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0], "layer": "h"},
+                         {"type": "dim", "a": [0, 0], "b": ["L", 0], "offset": 8, "text": "L = {{L}} & {{x}}"},
+                         {"type": "text", "p": [1, 1], "value": "<a>", "angle": 30}]}"#,
+    )
+    .unwrap();
+    let mut d = d;
+    assert!(d.resolve(&ws).is_empty());
+    let svg = d.render(Some(&ws)).to_svg([0x1B, 0x6F, 0x8A]);
+    assert!(svg.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\""), "{svg}");
+    assert!(svg.contains("stroke-dasharray"), "a dashed layer: {svg}");
+    assert!(svg.contains("stroke=\"#ff0000\""));
+    // Units in the Unit style, missing data in red, text escaped, rotation kept.
+    assert!(svg.contains("<tspan fill=\"#1b6f8a\">m</tspan>"), "{svg}");
+    assert!(svg.contains("<tspan fill=\"#c01c1c\">[x?]</tspan>"), "{svg}");
+    assert!(svg.contains("&amp;") && svg.contains("&lt;a&gt;"));
+    assert!(svg.contains("rotate(-30"), "{svg}");
+    assert!(!svg.chars().any(is_marker));
+    assert!(svg.ends_with("</svg>"));
+}
+
+// ---- the geometry kernel: exact constructions and their limit of approximation ----
+
+use crate::kernel::{self, Curve, angle_at, angle_between, canon, deg, intersect, intersect_extended, line_line, tolerance};
+
+fn seg(ax: f64, ay: f64, bx: f64, by: f64) -> Curve {
+    Curve::Seg { a: Pt::new(ax, ay), b: Pt::new(bx, by) }
+}
+
+/// A deterministic pseudo-random sequence in [-1, 1).
+struct Lcg(u64);
+impl Lcg {
+    fn next(&mut self) -> f64 {
+        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        ((self.0 >> 11) as f64 / (1u64 << 53) as f64) * 2.0 - 1.0
+    }
+}
+
+#[test]
+fn a_constructed_perpendicular_measures_ninety_degrees() {
+    // A slanted segment and a point off it: the foot makes an exact right angle.
+    let s = seg(12.345, -7.5, 1234.5, 987.654);
+    let p = Pt::new(-300.25, 455.125);
+    let feet = s.perpendicular_feet(p);
+    assert_eq!(feet.len(), 1);
+    let f = feet[0];
+    let a = deg(angle_at(f, p, Pt::new(1234.5, 987.654)));
+    assert!((a - 90.0).abs() < 1e-11, "{a}");
+    // Saved (coordinates to 1e-9) and read back, it still measures 90° to 1e-7°.
+    let (fx, fy) = (canon(f.x), canon(f.y));
+    let b = deg(angle_at(Pt::new(fx, fy), p, Pt::new(1234.5, 987.654)));
+    assert!((b - 90.0).abs() < 1e-7, "{b}");
+    // On a circle: both feet lie on the radius through the point.
+    let c = Curve::Circle { c: Pt::new(3.0, 4.0), r: 2.5 };
+    for q in c.perpendicular_feet(Pt::new(30.0, -12.0)) {
+        assert!((q.minus(Pt::new(3.0, 4.0)).len() - 2.5).abs() < 1e-14);
+    }
+}
+
+#[test]
+fn a_tangent_is_square_to_its_radius() {
+    let c = Pt::new(-4.75, 10.125);
+    let circle = Curve::Circle { c, r: 3.3 };
+    let mut rng = Lcg(7);
+    for _ in 0..2000 {
+        let p = Pt::new(rng.next() * 500.0, rng.next() * 500.0);
+        let ts = circle.tangent_points(p);
+        if p.minus(c).len() < 3.3 {
+            assert!(ts.is_empty());
+            continue;
+        }
+        assert_eq!(ts.len(), 2, "{p:?}");
+        for t in ts {
+            assert!((t.minus(c).len() - 3.3).abs() < 1e-12, "on the circle");
+            let a = deg(angle_at(t, c, p));
+            assert!((a - 90.0).abs() < 1e-9, "radius ⟂ tangent: {a}");
+        }
+    }
+    // A point on the circle is its own tangent point.
+    let on = c.plus(Pt::new(3.3, 0.0));
+    assert_eq!(circle.tangent_points(on), vec![on]);
+}
+
+#[test]
+fn angles_are_exact_at_every_size() {
+    // atan2 keeps tiny angles that acos would round to zero.
+    let tiny = angle_between(Pt::new(1.0, 0.0), Pt::new(1.0, 1e-10));
+    assert!((tiny - 1e-10).abs() < 1e-24, "{tiny}");
+    let near_flat = angle_between(Pt::new(1.0, 0.0), Pt::new(-1.0, 1e-10));
+    // Near 180° the limit is π's own spacing in f64 (4.4e-16 rad).
+    assert!((std::f64::consts::PI - near_flat - 1e-10).abs() < 1e-15, "{near_flat}");
+    assert!((deg(angle_between(Pt::new(2.0, 0.0), Pt::new(0.0, 5.0))) - 90.0).abs() < 1e-13);
+    assert!((deg(kernel::angle_ccw(Pt::new(1.0, 0.0), Pt::new(0.0, -1.0))) - 270.0).abs() < 1e-12);
+}
+
+#[test]
+fn lines_cross_exactly_even_at_grazing_angles() {
+    // Two lines through (100, 50) at 1e-7 rad apart.
+    let x = Pt::new(100.0, 50.0);
+    let t = 1e-7_f64;
+    let (p, _, _) = line_line(x.minus(Pt::new(70.0, 0.0)), x.plus(Pt::new(70.0, 0.0)), x.minus(Pt::new(70.0 * t.cos(), 70.0 * t.sin())), x).unwrap();
+    assert!(p.minus(x).len() < 1e-6, "{p:?}");
+    // Parallel and coincident lines do not cross.
+    assert!(line_line(Pt::new(0.0, 0.0), Pt::new(1.0, 1.0), Pt::new(0.0, 1.0), Pt::new(5.0, 6.0)).is_none());
+    assert!(line_line(Pt::new(0.0, 0.0), Pt::new(1.0, 1.0), Pt::new(2.0, 2.0), Pt::new(5.0, 5.0)).is_none());
+    // Segments cross only within both.
+    assert_eq!(intersect(&seg(0.0, 0.0, 10.0, 0.0), &seg(5.0, -1.0, 5.0, 1.0)), vec![Pt::new(5.0, 0.0)]);
+    assert!(intersect(&seg(0.0, 0.0, 10.0, 0.0), &seg(15.0, -1.0, 15.0, 1.0)).is_empty());
+    // Extended (Extend): the line runs on to the other segment.
+    assert_eq!(intersect_extended(&seg(0.0, 0.0, 10.0, 0.0), &seg(15.0, -1.0, 15.0, 1.0)), vec![Pt::new(15.0, 0.0)]);
+}
+
+#[test]
+fn tangency_is_one_point_within_the_tolerance() {
+    let circle = Curve::Circle { c: Pt::new(0.0, 0.0), r: 10.0 };
+    // A line touching the circle, and one a hair (below the tolerance) off it: one point.
+    for y in [10.0, 10.0 + 1e-12, 10.0 - 1e-12] {
+        let pts = intersect(&seg(-50.0, y, 50.0, y), &circle);
+        assert_eq!(pts.len(), 1, "{y}");
+        assert!((pts[0].len() - 10.0).abs() < 1e-12);
+    }
+    // Clearly inside: two points, on the circle to the last digits.
+    let pts = intersect(&seg(-50.0, 9.999, 50.0, 9.999), &circle);
+    assert_eq!(pts.len(), 2);
+    for q in &pts {
+        assert!((q.len() - 10.0).abs() < 1e-13, "{q:?}");
+    }
+    // Circles touching outside and inside.
+    let a = Curve::Circle { c: Pt::new(0.0, 0.0), r: 3.0 };
+    assert_eq!(intersect(&a, &Curve::Circle { c: Pt::new(5.0, 0.0), r: 2.0 }), vec![Pt::new(3.0, 0.0)]);
+    assert_eq!(intersect(&a, &Curve::Circle { c: Pt::new(1.0, 0.0), r: 2.0 }), vec![Pt::new(3.0, 0.0)]);
+    // Concentric: none.
+    assert!(intersect(&a, &Curve::Circle { c: Pt::new(0.0, 0.0), r: 2.0 }).is_empty());
+}
+
+#[test]
+fn intersections_lie_on_both_curves() {
+    let mut rng = Lcg(42);
+    for _ in 0..3000 {
+        let c1 = Pt::new(rng.next() * 1e3, rng.next() * 1e3);
+        let c2 = c1.plus(Pt::new(rng.next() * 50.0, rng.next() * 50.0));
+        let (r1, r2) = (1.0 + rng.next().abs() * 40.0, 1.0 + rng.next().abs() * 40.0);
+        let (a, b) = (Curve::Circle { c: c1, r: r1 }, Curve::Circle { c: c2, r: r2 });
+        for q in intersect(&a, &b) {
+            let tol = tolerance(a.size().max(b.size()));
+            assert!((q.minus(c1).len() - r1).abs() <= tol && (q.minus(c2).len() - r2).abs() <= tol, "{q:?}");
+        }
+        let s = seg(c2.x - 80.0, c2.y + rng.next() * 30.0, c2.x + 80.0, c2.y + rng.next() * 30.0);
+        for q in intersect(&s, &a) {
+            assert!((q.minus(c1).len() - r1).abs() <= tolerance(s.size().max(a.size())));
+            assert!(s.distance(q) <= tolerance(s.size()));
+        }
+    }
+}
+
+#[test]
+fn arcs_keep_their_extent_and_bulges_are_exact() {
+    // A quarter arc from 0° to 90° meets the x axis segment at (r, 0) but not at (−r, 0).
+    let arc = Curve::Arc { c: Pt::new(0.0, 0.0), r: 5.0, start: 0.0, sweep: std::f64::consts::FRAC_PI_2 };
+    assert_eq!(intersect(&arc, &seg(-10.0, 0.0, 10.0, 0.0)), vec![Pt::new(5.0, 0.0)]);
+    // A semicircle bulge (1) from (0, 0) to (10, 0): centre at the midpoint, radius 5.
+    let Curve::Arc { c, r, sweep, .. } = Curve::from_bulge(Pt::new(0.0, 0.0), Pt::new(10.0, 0.0), 1.0) else { panic!() };
+    assert!(c.minus(Pt::new(5.0, 0.0)).len() < 1e-14 && (r - 5.0).abs() < 1e-14);
+    assert!((sweep - std::f64::consts::PI).abs() < 1e-14);
+}
+
+#[test]
+fn coordinates_are_saved_to_a_nanometre() {
+    assert_eq!(canon(0.1 + 0.2), 0.3);
+    assert_eq!(canon(-0.0000000001), 0.0);
+    assert_eq!(canon(1.234_567_891_4), 1.234_567_891);
+    assert_eq!(canon(f64::NAN), 0.0);
+    // A drawing keeps a constructed point's nine decimals through JSON.
+    let mut d = Drawing::default();
+    d.add(Entity::new(Kind::Point { p: P::new(1.0 / 3.0, 2.0 / 3.0) })).unwrap();
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    let Kind::Point { p } = &back.entities[0].kind else { panic!() };
+    assert!((p.0.value - 1.0 / 3.0).abs() <= 5e-10, "{}", p.0.value);
+}
+
+#[test]
+fn snaps_are_exact_and_ranked() {
+    let d = Drawing::from_json(
+        r#"{"entities": [{"type": "line", "a": [0, 0], "b": [100, 0]},
+                         {"type": "line", "a": [30, -40], "b": [70, 40]},
+                         {"type": "circle", "c": [50, 50], "r": 20}]}"#,
+    )
+    .unwrap();
+    let on = Snaps::default();
+    // The two lines cross at (50, 0) exactly.
+    let (q, k) = d.snap(Pt::new(50.3, 0.4), 1.0, None, &on).unwrap();
+    assert_eq!(k, SnapKind::Intersection);
+    assert!(q.minus(Pt::new(50.0, 0.0)).len() < 1e-12);
+    // At an end, the end wins over a nearby nearest point.
+    assert_eq!(d.snap(Pt::new(0.2, 0.1), 1.0, None, &on).map(|s| s.1), Some(SnapKind::End));
+    // Perpendicular from a point to the slanted line: a right angle.
+    let from = Pt::new(0.0, 30.0);
+    let foot = Curve::Seg { a: Pt::new(30.0, -40.0), b: Pt::new(70.0, 40.0) }.perpendicular_feet(from)[0];
+    let (q, k) = d.snap(foot.plus(Pt::new(0.2, 0.0)), 1.0, Some(from), &on).unwrap();
+    assert_eq!(k, SnapKind::Perpendicular);
+    assert!((deg(angle_at(q, from, Pt::new(70.0, 40.0))) - 90.0).abs() < 1e-10);
+    // Tangent from a point to the circle.
+    let from = Pt::new(120.0, 50.0);
+    let t = Curve::Circle { c: Pt::new(50.0, 50.0), r: 20.0 }.tangent_points(from)[0];
+    let (q, k) = d.snap(t.plus(Pt::new(0.1, 0.1)), 1.0, Some(from), &on).unwrap();
+    assert_eq!(k, SnapKind::Tangent);
+    assert!((deg(angle_at(q, Pt::new(50.0, 50.0), from)) - 90.0).abs() < 1e-10);
+    // Quadrant only when asked; the centre from inside the circle.
+    assert_ne!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &on).map(|s| s.1), Some(SnapKind::Quadrant));
+    let quad = Snaps { quadrant: true, ..on };
+    assert_eq!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &quad).map(|s| s.1), Some(SnapKind::Quadrant));
+    assert_eq!(d.snap(Pt::new(50.5, 50.5), 1.0, None, &on).map(|s| s.1), Some(SnapKind::Center));
+    // Nothing close: no snap; junk input: none, never a panic.
+    assert!(d.snap(Pt::new(500.0, 500.0), 1.0, None, &on).is_none());
+    assert!(d.snap(Pt::new(f64::NAN, 0.0), 1.0, None, &on).is_none());
+    assert!(d.snap(Pt::new(0.0, 0.0), -1.0, None, &on).is_none());
+}
+
+#[test]
+fn the_picture_has_its_padding() {
+    let json = |pad: &str| {
+        format!(r#"{{"padding": {pad}, "entities": [{{"type": "line", "a": [0, 0], "b": [40, 0]}}, {{"type": "line", "a": [0, 0], "b": [0, 20]}}]}}"#)
+    };
+    let d = Drawing::from_json(&json("0")).unwrap();
+    let tight = d.render(None).size;
+    let d = Drawing::from_json(&json("[1, 2, 3, 4]")).unwrap();
+    assert_eq!(d.padding, Padding { top: 1.0, right: 2.0, bottom: 3.0, left: 4.0 });
+    let r = d.render(None);
+    assert!((r.size.0 - tight.0 - 6.0).abs() < 1e-9 && (r.size.1 - tight.1 - 4.0).abs() < 1e-9, "{:?} {:?}", r.size, tight);
+    // Saved as written: one number when even, four otherwise; junk is made safe.
+    assert!(d.to_json().contains(r#""padding":[1.0,2.0,3.0,4.0]"#), "{}", d.to_json());
+    assert!(Drawing::default().to_json().contains(r#""padding":2.0"#));
+    for junk in ["-5", "1e300", "\"x\"", "[1, 2]"] {
+        let d = Drawing::from_json(&json(junk)).unwrap();
+        for v in [d.padding.top, d.padding.right, d.padding.bottom, d.padding.left] {
+            assert!((0.0..=MAX_PADDING).contains(&v), "{junk}: {v}");
+        }
+    }
+}
+
+#[test]
+fn grips_change_entities_like_autocad() {
+    let mut d = Drawing::from_json(
+        r#"{"entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]},
+                         {"type": "circle", "c": [50, 50], "r": 10},
+                         {"type": "arc", "c": [0, 0], "r": 5, "start": 0, "end": 90},
+                         {"type": "polyline", "pts": [[0, 0], [10, 0], [10, 10]], "bulges": [0, 0.5]},
+                         {"type": "dim", "a": [0, 0], "b": [10, 0], "offset": 8}]}"#,
+    )
+    .unwrap();
+    assert!(d.resolve(&sheet(&["L = 40"])).is_empty());
+    // A line's end keeps its expression; its middle moves the whole line.
+    assert!(d.move_grip(0, Grip::B, Pt::new(40.5, 0.0)));
+    let Kind::Line { a, b } = &d.entities[0].kind else { panic!() };
+    assert_eq!(b.0.expr.as_deref(), Some("L + 0.5"));
+    assert!(approx(b.0.value, 40.5) && approx(a.0.value, 0.0));
+    assert!(d.move_grip(0, Grip::Mid, Pt::new(20.25, 3.0)));
+    let Kind::Line { a, .. } = &d.entities[0].kind else { panic!() };
+    assert!(approx(a.1.value, 3.0));
+    // A quadrant sets the radius, the centre moves the circle.
+    assert!(d.move_grip(1, Grip::Quadrant(1), Pt::new(50.0, 65.0)));
+    assert!(matches!(&d.entities[1].kind, Kind::Circle { r, .. } if approx(r.value, 15.0)));
+    assert!(!d.move_grip(1, Grip::Quadrant(0), Pt::new(50.0, 50.0)), "a zero radius is refused");
+    // An arc's end sets its angle exactly.
+    assert!(d.move_grip(2, Grip::ArcEnd, Pt::new(-3.0, 3.0)));
+    assert!(matches!(&d.entities[2].kind, Kind::Arc { end, .. } if (end.value - 135.0).abs() < 1e-12));
+    // A polyline's arc segment bends through the grip; its straight one moves its vertices.
+    assert!(d.move_grip(3, Grip::Segment(1), Pt::new(15.0, 5.0)));
+    let Kind::Polyline { pts, bulges, .. } = &d.entities[3].kind else { panic!() };
+    assert!((bulges[1] - 1.0).abs() < 1e-12, "a semicircle through (15, 5): {}", bulges[1]);
+    assert!(approx(pts[1].0.value, 10.0));
+    assert!(d.move_grip(3, Grip::Segment(0), Pt::new(5.0, -2.0)));
+    let Kind::Polyline { pts, .. } = &d.entities[3].kind else { panic!() };
+    assert!(approx(pts[0].1.value, -2.0) && approx(pts[1].1.value, -2.0));
+    assert!(!d.move_grip(3, Grip::Vertex(1), Pt::new(10.0, 10.0)), "a vertex on its neighbour is refused");
+    // A dimension's line grip sets its paper distance.
+    let line = d.grips(4).into_iter().find(|g| g.0 == Grip::DimLine).unwrap().1;
+    assert!(approx(line.y, 8.0), "{line:?}");
+    assert!(d.move_grip(4, Grip::DimLine, Pt::new(5.0, -6.0)));
+    assert!(matches!(&d.entities[4].kind, Kind::Dim { offset, .. } if approx(*offset, -6.0)));
+    // Junk never panics.
+    assert!(!d.move_grip(99, Grip::A, Pt::new(0.0, 0.0)));
+    assert!(!d.move_grip(0, Grip::Center, Pt::new(0.0, 0.0)));
+    assert!(!d.move_grip(0, Grip::A, Pt::new(f64::NAN, 0.0)));
+}

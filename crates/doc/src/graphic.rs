@@ -39,6 +39,10 @@ pub struct Graphic {
     /// A CAD drawing's source (the `strix-cad` JSON); the items are rendered from it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cad: Option<std::sync::Arc<str>>,
+    /// A CAD drawing's picture as SVG (what the items show), saved with the source so other
+    /// programs show the drawing too. Rebuilt with the items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub svg: Option<std::sync::Arc<str>>,
 }
 
 /// What an object read from a file needs to be written back as it was: its own markup in the

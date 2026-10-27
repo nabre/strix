@@ -172,6 +172,13 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 
+## Solution steps
+
+With Show Steps (`calc.steps`) a formula or a solved equation shows, one under the other and
+aligned at `=`: the formula isolated for the unknown, the values substituted, the result. The
+steps are results, rebuilt with every recalculation: only the statement (the first row) is
+edited. A click or an arrow key into the steps puts the caret at the end of the statement.
+
 ## Commands (engine, `cmd/calc.rs`)
 
 | Id | Does |
@@ -203,6 +210,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-27: the solution steps are not edited; only the statement takes the caret.
 - 2026-10-27: a unit after a number is always the unit; solution steps (formula, substitution, result) under formulas and solved equations.
 - 2026-10-27: units styled (Unit character style, upright, thin space).
 - 2026-10-27: automatic recalculation after edits (waiting while the caret is in the item);

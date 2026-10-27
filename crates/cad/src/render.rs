@@ -57,8 +57,6 @@ pub struct Rendered {
     pub scale: f64,
 }
 
-/// Space kept around the drawing, paper mm.
-const MARGIN: f64 = 2.0;
 /// Gap between a dimension's text and its line, and the ticks' half length, paper mm.
 const DIM_GAP: f64 = 1.0;
 const TICK: f64 = 1.25;
@@ -127,7 +125,7 @@ impl Drawing {
                 Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
             }
         }
-        let mut r = place(prims);
+        let mut r = place(prims, self.padding);
         r.scale = k;
         r
     }
@@ -194,8 +192,8 @@ impl Drawing {
     }
 }
 
-/// Flips the y-up primitives to paper (y down) and moves them inside a margin.
-fn place(mut prims: Vec<Prim>) -> Rendered {
+/// Flips the y-up primitives to paper (y down) and moves them inside the padding.
+fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     let mut grow = |x: f64, y: f64| {
         if x.is_finite() && y.is_finite() {
@@ -231,7 +229,7 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
     if !x0.is_finite() {
         return Rendered { prims, size: (10.0, 10.0), origin: (0.0, 10.0), scale: 1.0 };
     }
-    let (ox, oy) = (x0 - MARGIN, y1 + MARGIN);
+    let (ox, oy) = (x0 - pad.left, y1 + pad.top);
     let map = |(x, y): (f64, f64)| (x - ox, oy - y);
     for p in &mut prims {
         match p {
@@ -240,6 +238,6 @@ fn place(mut prims: Vec<Prim>) -> Rendered {
             Prim::Text { at, .. } => *at = map(*at),
         }
     }
-    let size = ((x1 - x0 + 2.0 * MARGIN).clamp(10.0, 5000.0), (y1 - y0 + 2.0 * MARGIN).clamp(10.0, 5000.0));
+    let size = ((x1 - x0 + pad.left + pad.right).clamp(1.0, 5000.0), (y1 - y0 + pad.top + pad.bottom).clamp(1.0, 5000.0));
     Rendered { prims, size, origin: (ox, oy), scale: 1.0 }
 }

@@ -66,8 +66,9 @@ impl Serialize for Num {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match &self.expr {
             Some(e) => s.serialize_str(e),
-            // Canonical: rounded to 0.001 so the saved bytes follow the content, not the noise.
-            None => s.serialize_f64((self.value * 1000.0).round() / 1000.0),
+            // Canonical: to a nanometre of the unit (the kernel's resolution), so the saved
+            // bytes follow the content, not the noise, and constructed points stay exact.
+            None => s.serialize_f64(crate::kernel::canon(self.value)),
         }
     }
 }
@@ -272,11 +273,72 @@ pub struct Drawing {
     pub scale: f64,
     pub layers: Vec<Layer>,
     pub entities: Vec<Entity>,
+    /// The picture's padding around the drawing, paper mm.
+    pub padding: Padding,
 }
 
 impl Default for Drawing {
     fn default() -> Self {
-        Drawing { unit: Unit::Mm, scale: 1.0, layers: vec![Layer::default()], entities: Vec::new() }
+        Drawing { unit: Unit::Mm, scale: 1.0, layers: vec![Layer::default()], entities: Vec::new(), padding: Padding::default() }
+    }
+}
+
+/// Space between the drawing and the edge of its picture, paper mm: one number for all four
+/// sides, or `[top, right, bottom, left]`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Padding {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+}
+
+/// The largest padding, paper mm.
+pub const MAX_PADDING: f64 = 100.0;
+
+impl Default for Padding {
+    fn default() -> Self {
+        Padding::all(2.0)
+    }
+}
+
+impl Padding {
+    pub fn all(v: f64) -> Padding {
+        Padding { top: v, right: v, bottom: v, left: v }
+    }
+
+    /// Finite, between 0 and [`MAX_PADDING`], to a hundredth of a millimetre.
+    pub fn sanitized(self) -> Padding {
+        let c = |v: f64| if v.is_finite() { (v.clamp(0.0, MAX_PADDING) * 100.0).round() / 100.0 } else { 2.0 };
+        Padding { top: c(self.top), right: c(self.right), bottom: c(self.bottom), left: c(self.left) }
+    }
+
+    pub fn is_uniform(&self) -> bool {
+        self.top == self.right && self.right == self.bottom && self.bottom == self.left
+    }
+}
+
+impl Serialize for Padding {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if self.is_uniform() { s.serialize_f64(self.top) } else { [self.top, self.right, self.bottom, self.left].serialize(s) }
+    }
+}
+
+impl<'de> Deserialize<'de> for Padding {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            One(f64),
+            Four([f64; 4]),
+            Other(serde::de::IgnoredAny),
+        }
+        Ok(match Raw::deserialize(d)? {
+            Raw::One(v) => Padding::all(v),
+            Raw::Four([top, right, bottom, left]) => Padding { top, right, bottom, left },
+            Raw::Other(_) => Padding::default(),
+        }
+        .sanitized())
     }
 }
 
@@ -300,6 +362,7 @@ impl Drawing {
     /// Enforces the limits; see [`Drawing::from_json`].
     pub fn sanitize(&mut self) {
         self.scale = if self.scale.is_finite() { self.scale.clamp(1e-3, 1e6) } else { 1.0 };
+        self.padding = self.padding.sanitized();
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());

@@ -18,17 +18,20 @@
 mod edit;
 mod geom;
 mod input;
+pub mod kernel;
 mod model;
 mod render;
+mod svg;
 
 #[cfg(test)]
 mod tests;
 
-pub use edit::{SnapKind, outline};
+pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
-pub use model::{Dash, Drawing, Entity, Kind, Layer, Num, Orient, P, Stroke, Unit, fill};
+pub use model::{Dash, Drawing, Entity, Kind, Layer, MAX_PADDING, Num, Orient, P, Padding, Stroke, Unit, fill};
 pub use render::{Anchor, Prim, Rendered};
+pub use svg::MISSING_COLOR;
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in
 /// the document's Unit style. Never part of what is shown.

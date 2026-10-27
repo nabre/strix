@@ -2555,3 +2555,27 @@ preview	Title	Esempio
 	Ortho (F8)	Orto (F8)
 	Unit:	Unità:
 	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co) or press Enter	Scrivi un punto (x,y  @dx,dy  @d<a), una distanza, un comando (l, pl, rec, c, a, t, m, co) o premi Invio
+	Endpoint	Estremo
+	Midpoint	Punto medio
+	Node	Nodo
+	Quadrant	Quadrante
+	Intersection	Intersezione
+	Perpendicular	Perpendicolare
+	Tangent	Tangente
+	Nearest	Vicino
+	Object Snaps	Snap ad oggetto
+	Frame	Riquadro
+	Padding (mm)	Margine interno (mm)
+	Distance	Distanza
+	That would make the object degenerate	L'oggetto diventerebbe degenere
+	Snap to ends	Snap agli estremi
+	Snap to midpoints	Snap ai punti medi
+	Snap to centres	Snap ai centri
+	Snap to intersections (exact)	Snap alle intersezioni (esatte)
+	Snap to the foot of the perpendicular from the last point	Snap al piede della perpendicolare dall'ultimo punto
+	Snap to tangent points from the last point	Snap ai punti di tangenza dall'ultimo punto
+	Snap to quadrant points	Snap ai quadranti
+	Snap to points	Snap ai punti
+	Snap to the nearest point of an object	Snap al punto più vicino di un oggetto
+	Centre	Centro
+	Angle	Angolo

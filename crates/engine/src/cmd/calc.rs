@@ -340,7 +340,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let mut updates: Vec<Option<String>> = Vec::new();
     let mut units: Vec<Vec<Vec<String>>> = Vec::new();
     let mut stepped: Vec<bool> = Vec::new();
-    let mut cads: Vec<Option<(f32, f32, Vec<strix_doc::graphic::GraphicItem>)>> = Vec::new();
+    let mut cads: Vec<Option<Redrawn>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
@@ -382,7 +382,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                     errors.push(json!({"drawing": i, "text": expr, "error": why}));
                 }
                 let unit = unit_color(s);
-                cads.push(drawn.as_ref().map(|r| super::cad::items_of(r, unit)));
+                cads.push(drawn.as_ref().map(|r| {
+                    let (w, h, items) = super::cad::items_of(r, unit);
+                    (w, h, items, r.clone(), unit)
+                }));
             }
             (Item::Table { .. } | Item::Cad { .. }, _) => {}
         }
@@ -512,7 +515,10 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<(strix_cad:
 }
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.
-fn redraw(s: &mut Session, cads: &[Option<(f32, f32, Vec<strix_doc::graphic::GraphicItem>)>]) -> usize {
+/// A redrawn drawing: its size, items, the rendering they came from and the Unit colour.
+type Redrawn = (f32, f32, Vec<strix_doc::graphic::GraphicItem>, strix_cad::Rendered, Rgb);
+
+fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
     if cads.is_empty() {
         return 0;
     }
@@ -526,11 +532,14 @@ fn redraw(s: &mut Session, cads: &[Option<(f32, f32, Vec<strix_doc::graphic::Gra
                 if graphic.kind != strix_doc::graphic::GraphicKind::Cad {
                     continue;
                 }
-                if let Some(Some((dw, dh, items))) = cads.get(index)
-                    && (graphic.items != *items || *w != *dw || *h != *dh)
+                // The JSON is the drawing; its SVG picture is made again only when what it shows
+                // changed (or it has none yet, as read from a file).
+                if let Some(Some((dw, dh, items, rendered, unit))) = cads.get(index)
+                    && (graphic.items != *items || *w != *dw || *h != *dh || graphic.svg.is_none())
                 {
                     let g = Arc::make_mut(graphic);
                     g.items = items.clone();
+                    g.svg = Some(rendered.to_svg([unit.0, unit.1, unit.2]).into());
                     (g.w, g.h) = (*dw, *dh);
                     (*w, *h) = (*dw, *dh);
                     touched = true;
@@ -1013,6 +1022,35 @@ mod tests {
         assert!(steps.starts_with("█(F&=m·a@a&=F/m@a&="), "{steps}");
         assert!(steps.ends_with("@a&=2.5m/s²)"), "{steps}");
         assert!(*display, "the steps stand on their own lines");
+        // The steps are results: a caret put in them (a click, an arrow key) goes back to the
+        // statement, the only part that is edited.
+        let at = s
+            .doc
+            .body
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| match &**b {
+                // The stepped equation's own object marker (others may share the paragraph).
+                Block::Para(p) => p
+                    .text
+                    .match_indices(strix_doc::para::OBJ)
+                    .map(|(off, _)| off)
+                    .zip(&p.objects)
+                    .find(|(_, o)| matches!(o, InlineObject::Equation { math, .. } if math.stepped))
+                    .map(|(off, _)| strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![i as u32]), off)),
+                _ => None,
+            })
+            .next()
+            .expect("a stepped equation");
+        // As a click in the third row does.
+        let pos = json!({"path": [[0, 2]], "off": 1});
+        s.sel = crate::Selection::caret(at.clone());
+        s.run("equation.edit", &json!({"pos": pos})).unwrap();
+        assert_eq!(s.math.as_ref().map(|m| m.pos.path.clone()), Some(vec![(0, 0)]));
+        // And an arrow key down from the statement.
+        s.run("equation.move", &json!({"dir": "down"})).unwrap();
+        assert_eq!(s.math.as_ref().map(|m| m.pos.path.clone()), Some(vec![(0, 0)]));
+        s.run("equation.exit", &json!({})).unwrap();
         // Turned off, the result goes back on the equation's line.
         s.run("calc.steps", &json!({"value": false})).unwrap();
         assert_eq!(texts(&s)[2], "F=m·a⇒a=2.5m/s²");

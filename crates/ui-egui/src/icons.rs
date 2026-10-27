@@ -1288,6 +1288,54 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], c);
             pen.line_c(&[(10.0, 2.0), (10.0, 18.0)], c);
         }
+        // Object snaps: their markers (an accent symbol on a grey line).
+        "cadSnapEnd" => {
+            pen.line_c(&[(2.0, 15.0), (10.0, 10.0)], c);
+            pen.rect(7.0, 7.0, 13.0, 13.0, a);
+        }
+        "cadSnapMid" => {
+            pen.line_c(&[(2.0, 14.0), (18.0, 14.0)], c);
+            pen.line_c(&[(10.0, 5.0), (15.0, 14.0), (5.0, 14.0), (10.0, 5.0)], a);
+        }
+        "cadSnapCenter" => {
+            pen.circle(10.0, 10.0, 7.0, c);
+            pen.circle(10.0, 10.0, 2.5, a);
+        }
+        "cadSnapInt" => {
+            pen.line_c(&[(3.0, 17.0), (17.0, 3.0)], c);
+            pen.line_c(&[(3.0, 3.0), (17.0, 17.0)], c);
+            pen.line_c(&[(7.0, 7.0), (13.0, 13.0)], a);
+            pen.line_c(&[(13.0, 7.0), (7.0, 13.0)], a);
+        }
+        "cadSnapPerp" => {
+            pen.line_c(&[(3.0, 16.0), (17.0, 16.0)], c);
+            pen.line_c(&[(7.0, 4.0), (7.0, 16.0)], a);
+            pen.line_c(&[(7.0, 12.0), (11.0, 12.0), (11.0, 16.0)], a);
+        }
+        "cadSnapTan" => {
+            pen.circle(10.0, 12.0, 5.0, c);
+            pen.line_c(&[(3.0, 7.0), (17.0, 7.0)], a);
+        }
+        "cadSnapQuad" => {
+            pen.circle(10.0, 10.0, 7.0, c);
+            pen.line_c(&[(17.0, 7.0), (19.0, 10.0), (17.0, 13.0), (15.0, 10.0), (17.0, 7.0)], a);
+        }
+        "cadSnapNode" => {
+            pen.circle(10.0, 10.0, 5.0, a);
+            pen.line_c(&[(7.0, 7.0), (13.0, 13.0)], a);
+            pen.line_c(&[(13.0, 7.0), (7.0, 13.0)], a);
+        }
+        "cadSnapNear" => {
+            pen.line_c(&[(2.0, 16.0), (18.0, 4.0)], c);
+            pen.line_c(&[(6.0, 6.0), (14.0, 6.0), (6.0, 14.0), (14.0, 14.0), (6.0, 6.0)], a);
+        }
+        // The picture's frame: a dashed edge with the outside shaded.
+        "cadFrame" => {
+            pen.rect(2.0, 2.0, 18.0, 18.0, c);
+            pen.rect(6.0, 6.0, 14.0, 14.0, a);
+            pen.line_c(&[(2.0, 4.0), (6.0, 4.0)], c);
+            pen.line_c(&[(14.0, 16.0), (18.0, 16.0)], c);
+        }
         "cadOrtho" => {
             pen.line_c(&[(4.0, 4.0), (4.0, 16.0), (16.0, 16.0)], a);
             pen.line_c(&[(4.0, 12.0), (8.0, 12.0), (8.0, 16.0)], c);

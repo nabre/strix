@@ -606,12 +606,7 @@ impl Writer<'_> {
                         // A CAD drawing: its source in a Strix `a:graphicData` (an extension
                         // Word passes over).
                         Some(source) if graphic.kind == strix_doc::graphic::GraphicKind::Cad => {
-                            let escaped = source.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-                            let xml = format!(
-                                r#"<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="{}"><strix:cad xmlns:strix="{}">{escaped}</strix:cad></a:graphicData></a:graphic>"#,
-                                crate::read::CAD_URI,
-                                crate::xml::STRIX_NS
-                            );
+                            let xml = self.cad_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
                             crate::xml::parse(xml.as_bytes()).ok()
                         }
                         _ => None,

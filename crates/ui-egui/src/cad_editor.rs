@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, pos2, vec2};
 use serde_json::json;
-use strix_cad::{Anchor, Drawing, Entity, Kind, Num, Orient, P, Prim, Pt, Rendered, SnapKind, outline, parse_point};
+use strix_cad::{Anchor, Drawing, Entity, Grip, Kind, Num, Orient, P, Prim, Pt, Rendered, SnapKind, Snaps, kernel, outline, parse_point};
 use strix_doc::InlineObject;
 
 use crate::WordApp;
@@ -96,8 +96,17 @@ pub struct CadEditor {
     points: Vec<Pt>,
     pub selection: Vec<usize>,
     pub snap: bool,
+    /// Which object snaps are on.
+    pub snaps: Snaps,
     pub ortho: bool,
     pub grid: bool,
+    /// Show the picture's frame, the area outside it shaded.
+    pub frame: bool,
+    /// The grip taken (AutoCAD's hot grip): entity, grip, where it was. The next point (a click,
+    /// a typed point, the end of a drag) takes it there.
+    pub grip: Option<(usize, Grip, Pt)>,
+    /// The hot grip is being dragged (released, it is placed).
+    grip_drag: bool,
     command: String,
     message: String,
     /// The drawing point at the centre of the view, and screen points per drawing unit.
@@ -123,8 +132,12 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         points: Vec::new(),
         selection: Vec::new(),
         snap: true,
+        snaps: Snaps::default(),
         ortho: false,
         grid: true,
+        frame: false,
+        grip: None,
+        grip_drag: false,
         command: String::new(),
         message: String::new(),
         center: Pt::default(),
@@ -168,6 +181,9 @@ fn reload(app: &mut WordApp) {
         ed.names = names;
         ed.source = source;
         ed.selection.retain(|&i| i < ed.drawing.entities.len());
+        if ed.grip.is_some_and(|(i, _, _)| i >= ed.drawing.entities.len()) {
+            ed.grip = None;
+        }
     }
 }
 
@@ -216,15 +232,64 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         "ui.cadToggle" => {
             let what = p.get("what").and_then(serde_json::Value::as_str).unwrap_or_default();
             if let Some(ed) = app.cad.as_mut() {
+                let s = &mut ed.snaps;
                 match what {
                     "snap" => ed.snap = !ed.snap,
                     "ortho" => ed.ortho = !ed.ortho,
                     "grid" => ed.grid = !ed.grid,
-                    _ => return Err("what: snap, ortho or grid".into()),
+                    "frame" => ed.frame = !ed.frame,
+                    "snap.end" => s.end = !s.end,
+                    "snap.mid" => s.mid = !s.mid,
+                    "snap.center" => s.center = !s.center,
+                    "snap.node" => s.node = !s.node,
+                    "snap.quadrant" => s.quadrant = !s.quadrant,
+                    "snap.intersection" => s.intersection = !s.intersection,
+                    "snap.perpendicular" => s.perpendicular = !s.perpendicular,
+                    "snap.tangent" => s.tangent = !s.tangent,
+                    "snap.nearest" => s.nearest = !s.nearest,
+                    _ => {
+                        return Err(
+                            "what: snap, ortho, grid, frame or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>".into(),
+                        );
+                    }
                 }
             }
         }
         "ui.cadDelete" => delete_selection(app),
+        "ui.cadSelect" => {
+            // {"all": true}, or {"ids": ["e1", …]}: the entities by id (Ctrl+A selects all).
+            let Some(ed) = app.cad.as_mut() else { return Ok(json!({})) };
+            ed.selection = if p.get("all").and_then(serde_json::Value::as_bool) == Some(true) {
+                (0..ed.drawing.entities.len()).collect()
+            } else {
+                let ids: Vec<&str> = p
+                    .get("ids")
+                    .and_then(serde_json::Value::as_array)
+                    .map(|a| a.iter().filter_map(serde_json::Value::as_str).collect())
+                    .unwrap_or_default();
+                ed.drawing.entities.iter().enumerate().filter(|(_, e)| ids.contains(&e.id.as_str())).map(|(i, _)| i).collect()
+            };
+            ed.grip = None;
+            return Ok(json!({"selected": ed.selection.len()}));
+        }
+        "ui.cadPadding" => {
+            // The picture's padding, paper mm: one number, or [top, right, bottom, left].
+            let pad = match p.get("value") {
+                Some(serde_json::Value::Number(n)) => n.as_f64().map(strix_cad::Padding::all),
+                Some(serde_json::Value::Array(a)) if a.len() == 4 => {
+                    let v: Vec<f64> = a.iter().filter_map(serde_json::Value::as_f64).collect();
+                    match v.as_slice() {
+                        [top, right, bottom, left] => Some(strix_cad::Padding { top: *top, right: *right, bottom: *bottom, left: *left }),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            }
+            .ok_or("value: the padding in mm, or [top, right, bottom, left]")?;
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            d.padding = pad.sanitized();
+            commit(app, &d);
+        }
         "ui.cadFit" => {
             if let Some(ed) = app.cad.as_mut() {
                 ed.fitted = false;
@@ -277,6 +342,83 @@ fn grid_step(zoom: f64) -> f64 {
     let raw = 18.0 / zoom.max(1e-9);
     let p = 10f64.powf(raw.log10().floor());
     [1.0, 2.0, 5.0, 10.0].iter().map(|m| m * p).find(|s| *s >= raw).unwrap_or(10.0 * p)
+}
+
+/// The marker of a snap kind at `s` (AutoCAD's symbols).
+fn snap_marker(painter: &egui::Painter, s: Pos2, kind: SnapKind) {
+    let mark = Stroke::new(1.8, Color32::from_rgb(0xD9, 0x77, 0x06));
+    let h = 6.0;
+    let sq = Rect::from_center_size(s, vec2(2.0 * h, 2.0 * h));
+    match kind {
+        SnapKind::End => {
+            painter.rect_stroke(sq, 0.0, mark, egui::StrokeKind::Middle);
+        }
+        SnapKind::Mid => {
+            painter.add(Shape::closed_line(vec![pos2(s.x, s.y - h), pos2(s.x + h, s.y + h * 0.8), pos2(s.x - h, s.y + h * 0.8)], mark));
+        }
+        SnapKind::Center => {
+            painter.circle_stroke(s, h, mark);
+        }
+        SnapKind::Node => {
+            painter.circle_stroke(s, h, mark);
+            painter.line_segment([pos2(s.x - h * 0.7, s.y - h * 0.7), pos2(s.x + h * 0.7, s.y + h * 0.7)], mark);
+            painter.line_segment([pos2(s.x - h * 0.7, s.y + h * 0.7), pos2(s.x + h * 0.7, s.y - h * 0.7)], mark);
+        }
+        SnapKind::Quadrant => {
+            painter.add(Shape::closed_line(vec![pos2(s.x, s.y - h), pos2(s.x + h, s.y), pos2(s.x, s.y + h), pos2(s.x - h, s.y)], mark));
+        }
+        SnapKind::Intersection => {
+            painter.line_segment([pos2(s.x - h, s.y - h), pos2(s.x + h, s.y + h)], mark);
+            painter.line_segment([pos2(s.x - h, s.y + h), pos2(s.x + h, s.y - h)], mark);
+        }
+        SnapKind::Perpendicular => {
+            painter.line_segment([pos2(s.x - h, s.y + h), pos2(s.x + h, s.y + h)], mark);
+            painter.line_segment([pos2(s.x - h, s.y + h), pos2(s.x - h, s.y - h)], mark);
+            painter.line_segment([pos2(s.x - h, s.y), pos2(s.x, s.y)], mark);
+            painter.line_segment([pos2(s.x, s.y), pos2(s.x, s.y + h)], mark);
+        }
+        SnapKind::Tangent => {
+            painter.circle_stroke(pos2(s.x, s.y + h * 0.3), h * 0.7, mark);
+            painter.line_segment([pos2(s.x - h, s.y - h * 0.4), pos2(s.x + h, s.y - h * 0.4)], mark);
+        }
+        SnapKind::Nearest => {
+            painter
+                .add(Shape::closed_line(vec![pos2(s.x - h, s.y - h), pos2(s.x + h, s.y - h), pos2(s.x - h, s.y + h), pos2(s.x + h, s.y + h)], mark));
+        }
+    }
+}
+
+/// A snap kind's name (the marker's label).
+fn snap_name(kind: SnapKind) -> &'static str {
+    match kind {
+        SnapKind::End => "Endpoint",
+        SnapKind::Mid => "Midpoint",
+        SnapKind::Center => "Centre",
+        SnapKind::Node => "Node",
+        SnapKind::Quadrant => "Quadrant",
+        SnapKind::Intersection => "Intersection",
+        SnapKind::Perpendicular => "Perpendicular",
+        SnapKind::Tangent => "Tangent",
+        SnapKind::Nearest => "Nearest",
+    }
+}
+
+/// Grip squares: half side, and how near the pointer takes one, in screen points.
+const GRIP_HALF: f32 = 4.0;
+const GRIP_HIT: f32 = 7.0;
+/// Grips are shown for at most this many selected objects.
+const MAX_GRIPPED: usize = 50;
+
+/// The grips of the selection, with their screen points.
+fn shown_grips(ed: &CadEditor, view: View) -> Vec<(usize, Grip, Pt, Pos2)> {
+    if ed.tool != Tool::Select || !ed.points.is_empty() || ed.selection.len() > MAX_GRIPPED {
+        return Vec::new();
+    }
+    ed.selection
+        .iter()
+        .flat_map(|&i| ed.drawing.grips(i).into_iter().map(move |(g, p)| (i, g, p)))
+        .map(|(i, g, p)| (i, g, p, view.to_screen(p)))
+        .collect()
 }
 
 fn rgb(c: [u8; 3]) -> Color32 {
@@ -360,6 +502,24 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             painter.line_segment([pos2(o.x, rect.top()), pos2(o.x, rect.bottom())], Stroke::new(0.8, Color32::from_gray(205)));
             painter.line_segment([pos2(rect.left(), o.y), pos2(rect.right(), o.y)], Stroke::new(0.8, Color32::from_gray(205)));
         }
+        // The picture's frame (the drawing's size with its padding); the area outside it shaded.
+        if ed.frame {
+            let a = view.to_screen(paper_to_drawing(&ed.rendered, (0.0, 0.0)));
+            let b = view.to_screen(paper_to_drawing(&ed.rendered, ed.rendered.size));
+            let frame = Rect::from_two_pos(a, b);
+            let shade = Color32::from_rgba_unmultiplied(60, 60, 60, 26);
+            for r in [
+                Rect::from_min_max(rect.min, pos2(rect.max.x, frame.min.y.max(rect.min.y))),
+                Rect::from_min_max(pos2(rect.min.x, frame.max.y.min(rect.max.y)), rect.max),
+                Rect::from_min_max(pos2(rect.min.x, frame.min.y.max(rect.min.y)), pos2(frame.min.x.max(rect.min.x), frame.max.y.min(rect.max.y))),
+                Rect::from_min_max(pos2(frame.max.x.min(rect.max.x), frame.min.y.max(rect.min.y)), pos2(rect.max.x, frame.max.y.min(rect.max.y))),
+            ] {
+                if r.is_positive() {
+                    painter.rect_filled(r, 0.0, shade);
+                }
+            }
+            painter.rect_stroke(frame, 0.0, Stroke::new(1.0, Color32::from_gray(150)), egui::StrokeKind::Middle);
+        }
         // The drawing.
         let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
         for prim in &ed.rendered.prims {
@@ -402,20 +562,36 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
         }
+        // Grips of the selection: idle, under the pointer, or taken (hot).
+        let grips_now = shown_grips(ed, view);
+        for &(i, g, _, at) in &grips_now {
+            let hot = ed.grip.is_some_and(|(hi, hg, _)| hi == i && hg == g);
+            let under = hovering.is_some_and(|h| at.distance(h) <= GRIP_HIT);
+            let fill = if hot {
+                Color32::from_rgb(0xE1, 0x1D, 0x48)
+            } else if under {
+                Color32::from_rgb(0x2D, 0xD4, 0xBF)
+            } else {
+                Color32::from_rgb(0x0F, 0x76, 0x6E)
+            };
+            let r = Rect::from_center_size(at, vec2(2.0 * GRIP_HALF, 2.0 * GRIP_HALF));
+            painter.rect_filled(r, 0.0, fill);
+            painter.rect_stroke(r, 0.0, Stroke::new(1.0, Color32::WHITE), egui::StrokeKind::Outside);
+        }
         // The pointer: snapped, then held level or plumb by Ortho.
         let mut snapped: Option<(Pt, SnapKind)> = None;
         let mut cursor: Option<Pt> = None;
+        // The point the next one is measured from: a hot grip's place, or the last point.
+        let base = ed.grip.map(|g| g.2).or_else(|| ed.points.last().copied());
+        let grips = shown_grips(ed, view);
+        let hover_grip = hovering
+            .and_then(|h| grips.iter().filter(|g| g.3.distance(h) <= GRIP_HIT).min_by(|a, b| a.3.distance(h).total_cmp(&b.3.distance(h))).copied());
         if let Some(h) = hovering {
             let raw = view.to_drawing(h);
             if ed.snap {
-                snapped = ed
-                    .drawing
-                    .snap_points()
-                    .into_iter()
-                    .map(|(p, kind)| (p, kind, view.to_screen(p).distance(h)))
-                    .filter(|(_, _, d)| *d <= 10.0)
-                    .min_by(|a, b| a.2.total_cmp(&b.2))
-                    .map(|(p, kind, _)| (p, kind));
+                // Exact snaps from the geometry kernel: ends, midpoints, centres, nodes,
+                // quadrants, intersections, perpendiculars and tangents from the base point.
+                snapped = ed.drawing.snap(raw, 10.0 / ed.zoom, base, &ed.snaps);
             }
             let mut p = snapped.map_or(raw, |(p, _)| p);
             if snapped.is_none() && ed.grid && ed.snap {
@@ -425,8 +601,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     p = g;
                 }
             }
+            // Ortho holds the point level or plumb from the base, unless an object snap holds it.
             if ed.ortho
-                && let Some(&last) = ed.points.last()
+                && snapped.is_none()
+                && let Some(last) = base
             {
                 let d = p.minus(last);
                 p = if d.x.abs() >= d.y.abs() { Pt::new(p.x, last.y) } else { Pt::new(last.x, p.y) };
@@ -438,16 +616,28 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             painter.line_segment([pos2(s.x - 14.0, s.y), pos2(s.x + 14.0, s.y)], hair);
             painter.line_segment([pos2(s.x, s.y - 14.0), pos2(s.x, s.y + 14.0)], hair);
             if let Some((_, kind)) = snapped {
-                let mark = Stroke::new(1.8, Color32::from_rgb(0xE0, 0x7A, 0x00));
-                match kind {
-                    SnapKind::End => {
-                        painter.rect_stroke(Rect::from_center_size(s, vec2(11.0, 11.0)), 0.0, mark, egui::StrokeKind::Middle);
-                    }
-                    SnapKind::Mid => {
-                        painter.add(Shape::closed_line(vec![pos2(s.x, s.y - 7.0), pos2(s.x + 7.0, s.y + 5.0), pos2(s.x - 7.0, s.y + 5.0)], mark));
-                    }
-                    SnapKind::Center => {
-                        painter.circle_stroke(s, 6.0, mark);
+                snap_marker(&painter, s, kind);
+                painter.text(
+                    pos2(s.x + 10.0, s.y - 10.0),
+                    Align2::LEFT_BOTTOM,
+                    tl!(snap_name(kind)),
+                    FontId::proportional(11.0),
+                    Color32::from_rgb(0xB4, 0x53, 0x09),
+                );
+            }
+            // A hot grip: the band from where it was, and the object as it would become.
+            if let Some((i, g, from)) = ed.grip {
+                let band = Stroke::new(1.2, t.accent);
+                painter.line_segment([view.to_screen(from), s], band);
+                let mut ghost = ed.drawing.clone();
+                if ghost.move_grip(i, g, p)
+                    && let Some(e) = ghost.entities.get(i)
+                {
+                    for line in outline(e) {
+                        let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+                        if screen.len() > 1 {
+                            painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, t.accent), 5.0, 3.0));
+                        }
                     }
                 }
             }
@@ -479,9 +669,46 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         if hovering.is_some() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::None);
         }
+        // Grips: a click takes one (hot), the next point places it; a drag from one places it
+        // where it is released. Like AutoCAD and Allplan, the point snaps and follows Ortho.
+        let mut grip_done: Option<Drawing> = None;
+        if resp.drag_started_by(egui::PointerButton::Primary)
+            && ed.grip.is_none()
+            && let Some((i, g, at, _)) = hover_grip
+        {
+            ed.grip = Some((i, g, at));
+            ed.grip_drag = true;
+        }
+        if ed.grip_drag && resp.drag_stopped() {
+            ed.grip_drag = false;
+            if let (Some((i, g, _)), Some(p)) = (ed.grip.take(), cursor) {
+                let mut d = ed.drawing.clone();
+                if d.move_grip(i, g, p) {
+                    grip_done = Some(d);
+                }
+            }
+        }
+        let grip_click = resp.clicked_by(egui::PointerButton::Primary) && (ed.grip.is_some() || hover_grip.is_some());
+        if grip_click {
+            match (ed.grip.take(), cursor) {
+                (Some((i, g, _)), Some(p)) => {
+                    let mut d = ed.drawing.clone();
+                    if d.move_grip(i, g, p) {
+                        grip_done = Some(d);
+                    } else {
+                        ed.message = tl!("That would make the object degenerate").to_string();
+                    }
+                }
+                (None, _) => ed.grip = hover_grip.map(|(i, g, at, _)| (i, g, at)),
+                _ => {}
+            }
+        }
+        if let Some(d) = grip_done {
+            finished = Some(d);
+        }
         // Clicks feed the command; a drag in Select makes a window.
-        if ed.tool == Tool::Select && !mods.shift {
-            if resp.drag_started_by(egui::PointerButton::Primary) {
+        if ed.tool == Tool::Select && !mods.shift && ed.grip.is_none() && !ed.grip_drag {
+            if resp.drag_started_by(egui::PointerButton::Primary) && hover_grip.is_none() {
                 ed.window_from = resp.interact_pointer_pos();
             }
             if resp.drag_stopped()
@@ -496,6 +723,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
         }
         if resp.clicked_by(egui::PointerButton::Primary)
+            && !grip_click
             && let Some(p) = cursor
         {
             if ed.tool == Tool::Select {
@@ -523,7 +751,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         if f8 {
             ed.ortho = !ed.ortho;
         }
-        if esc {
+        if ui.input(|i| i.key_pressed(egui::Key::A) && i.modifiers.command) && ed.command.is_empty() {
+            ed.selection = (0..ed.drawing.entities.len()).collect();
+        }
+        if esc && ed.grip.is_some() {
+            // Esc puts the taken grip back first.
+            ed.grip = None;
+            ed.grip_drag = false;
+        } else if esc {
             if !ed.points.is_empty() {
                 // A polyline in progress keeps what was drawn.
                 finished = finish(ed);
@@ -541,7 +776,20 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
 
         // Status and command line.
         let prompt = if ed.message.is_empty() { tl!(ed.tool.prompt(ed.points.len())).to_string() } else { ed.message.clone() };
-        let coords = cursor.map(|p| format!("{:.3}, {:.3}", p.x, p.y)).unwrap_or_default();
+        let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", p.x, p.y)).unwrap_or_default();
+        // From the base point: distance, angle (exact, from the kernel), Δx, Δy.
+        if let (Some(b), Some(p)) = (base, cursor) {
+            let v = p.minus(b);
+            coords = format!(
+                "{} {:.4}  {} {:.4}°  Δx {:.4}  Δy {:.4}   {coords}",
+                tl!("Distance"),
+                v.len(),
+                tl!("Angle"),
+                kernel::deg(kernel::direction(v)),
+                v.x,
+                v.y
+            );
+        }
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(prompt).strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -570,7 +818,19 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         if enter && finished.is_none() {
             let typed = std::mem::take(&mut ed.command);
             let typed = typed.trim();
-            if typed.is_empty() {
+            if let Some((i, g, from)) = ed.grip.filter(|_| !typed.is_empty()) {
+                // A typed point places the hot grip; `@dx,dy` is from where it was.
+                match parse_point(typed, Some(from), cursor) {
+                    Ok(p) => {
+                        let mut d = ed.drawing.clone();
+                        ed.grip = None;
+                        if d.move_grip(i, g, p) {
+                            finished = Some(d);
+                        }
+                    }
+                    Err(e) => ed.message = e.to_string(),
+                }
+            } else if typed.is_empty() {
                 finished = finish(ed);
                 ed.points.clear();
             } else if let Some(tool) = Tool::parse(&typed.to_lowercase()).filter(|_| ed.points.is_empty() || ed.tool == Tool::Select) {
@@ -727,7 +987,7 @@ fn add_text(ed: &mut CadEditor, text: &str) -> Option<Drawing> {
 
 /// The CAD Drawing contextual tab.
 pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
-    use crate::widgets::{big, group, small};
+    use crate::widgets::{big, big_checked, group, small};
     let Some((tool, snap, ortho, grid, has_sel)) = app.cad.as_ref().map(|e| (e.tool, e.snap, e.ortho, e.grid, !e.selection.is_empty())) else {
         return;
     };
@@ -739,8 +999,8 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
     };
     let t = |name: &str| json!({"tool": name});
     group(ui, "Draw", None, app, |ui, app| {
-        big(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
-        big(ui, app, "cadCircle", "Circle", "ui.cadTool", t("circle"), tool == Tool::Circle);
+        big_checked(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
+        big_checked(ui, app, "cadCircle", "Circle", "ui.cadTool", t("circle"), tool == Tool::Circle);
         stack(ui, &mut |ui| {
             small(
                 ui,
@@ -761,7 +1021,7 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Dimensions", None, app, |ui, app| {
-        big(ui, app, "cadDim", "Aligned", "ui.cadTool", t("dimAligned"), tool == Tool::Dim(Orient::Aligned));
+        big_checked(ui, app, "cadDim", "Aligned", "ui.cadTool", t("dimAligned"), tool == Tool::Dim(Orient::Aligned));
         stack(ui, &mut |ui| {
             small(
                 ui,
@@ -777,7 +1037,7 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Modify", None, app, |ui, app| {
-        big(ui, app, "cadSelect", "Select", "ui.cadTool", t("select"), tool == Tool::Select);
+        big_checked(ui, app, "cadSelect", "Select", "ui.cadTool", t("select"), tool == Tool::Select);
         stack(ui, &mut |ui| {
             small(ui, app, "cadMove", Some("Move"), "Move the selection: base point, second point", "ui.cadTool", t("move"), tool == Tool::Move);
             small(ui, app, "cadCopy", Some("Copy"), "Copy the selection: base point, second point", "ui.cadTool", t("copy"), tool == Tool::Copy);
@@ -796,6 +1056,72 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "cadGrid", Some("Grid"), "Show the grid", "ui.cadToggle", json!({"what": "grid"}), grid);
         });
         big(ui, app, "cadFit", "Zoom\nFit", "ui.cadFit", json!({}), false);
+    });
+    let (snaps, frame, padding) = app.cad.as_ref().map(|e| (e.snaps, e.frame, e.drawing.padding)).unwrap_or_default();
+    group(ui, "Object Snaps", None, app, |ui, app| {
+        let toggle = |what: &str| json!({"what": format!("snap.{what}")});
+        stack(ui, &mut |ui| {
+            small(ui, app, "cadSnapEnd", Some("Endpoint"), "Snap to ends", "ui.cadToggle", toggle("end"), snaps.end);
+            small(ui, app, "cadSnapMid", Some("Midpoint"), "Snap to midpoints", "ui.cadToggle", toggle("mid"), snaps.mid);
+            small(ui, app, "cadSnapCenter", Some("Centre"), "Snap to centres", "ui.cadToggle", toggle("center"), snaps.center);
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadSnapInt",
+                Some("Intersection"),
+                "Snap to intersections (exact)",
+                "ui.cadToggle",
+                toggle("intersection"),
+                snaps.intersection,
+            );
+            small(
+                ui,
+                app,
+                "cadSnapPerp",
+                Some("Perpendicular"),
+                "Snap to the foot of the perpendicular from the last point",
+                "ui.cadToggle",
+                toggle("perpendicular"),
+                snaps.perpendicular,
+            );
+            small(
+                ui,
+                app,
+                "cadSnapTan",
+                Some("Tangent"),
+                "Snap to tangent points from the last point",
+                "ui.cadToggle",
+                toggle("tangent"),
+                snaps.tangent,
+            );
+        });
+        stack(ui, &mut |ui| {
+            small(ui, app, "cadSnapQuad", Some("Quadrant"), "Snap to quadrant points", "ui.cadToggle", toggle("quadrant"), snaps.quadrant);
+            small(ui, app, "cadSnapNode", Some("Node"), "Snap to points", "ui.cadToggle", toggle("node"), snaps.node);
+            small(
+                ui,
+                app,
+                "cadSnapNear",
+                Some("Nearest"),
+                "Snap to the nearest point of an object",
+                "ui.cadToggle",
+                toggle("nearest"),
+                snaps.nearest,
+            );
+        });
+    });
+    group(ui, "Picture", None, app, |ui, app| {
+        big_checked(ui, app, "cadFrame", "Frame", "ui.cadToggle", json!({"what": "frame"}), frame);
+        ui.vertical(|ui| {
+            ui.label(tl!("Padding (mm)"));
+            let mut v = padding.top;
+            let resp = ui.add(egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2));
+            if (resp.drag_stopped() || resp.lost_focus()) && v != padding.top {
+                let _ = app.run("ui.cadPadding", json!({"value": v}));
+            }
+        });
     });
     group(ui, "Close", None, app, |ui, app| {
         big(ui, app, "cadClose", "Close\nDrawing", "ui.cadClose", json!({}), false);
@@ -872,6 +1198,31 @@ mod tests {
         ed.selection.clear();
         assert!(feed(ed, Pt::new(0.0, 0.0), None).is_none());
         assert!(!ed.message.is_empty());
+    }
+
+    #[test]
+    fn frame_snaps_and_padding_are_editor_commands() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadToggle", json!({"what": "frame"})).unwrap();
+        app.run("ui.cadToggle", json!({"what": "snap.quadrant"})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        assert!(ed.frame && ed.snaps.quadrant);
+        assert!(app.run("ui.cadToggle", json!({"what": "nope"})).is_err());
+        // The padding is the drawing's: stored in the document, one undo step.
+        let before = app.cad.as_ref().unwrap().rendered.size;
+        app.run("ui.cadPadding", json!({"value": 10})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        assert_eq!(ed.drawing.padding, strix_cad::Padding::all(10.0));
+        assert!((ed.rendered.size.0 - before.0 - 16.0).abs() < 1e-6, "{:?} {before:?}", ed.rendered.size);
+        app.run("ui.cadPadding", json!({"value": [1, 2, 3, 4]})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.padding.left, 4.0);
+        assert!(app.run("ui.cadPadding", json!({"value": "x"})).is_err());
+        app.run("ui.cadPadding", json!({"value": 1e9})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.padding.top, strix_cad::MAX_PADDING);
+        app.run("edit.undo", json!({})).unwrap();
+        reload(&mut app);
+        assert_eq!(app.cad.as_ref().unwrap().drawing.padding.left, 4.0);
     }
 
     #[test]

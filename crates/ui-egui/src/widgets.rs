@@ -219,6 +219,11 @@ pub fn big(ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, id: &str, pa
     big_button(ui, app, icon, label, id, params, menu, false)
 }
 
+/// A large ribbon button with params for a mode that stays on (`checked` draws it pressed).
+pub fn big_checked(ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, id: &str, params: Value, checked: bool) -> Response {
+    big_button(ui, app, icon, label, id, params, false, checked)
+}
+
 /// A large ribbon button for a mode that stays on (`checked` draws it pressed), run without params.
 pub fn big_toggle(ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, id: &str, checked: bool) -> Response {
     big_button(ui, app, icon, label, id, Value::Object(Default::default()), false, checked)

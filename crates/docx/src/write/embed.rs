@@ -450,6 +450,72 @@ impl super::Writer<'_> {
         x.s
     }
 
+    /// The `a:graphic` of a CAD drawing: a picture of its SVG (`word/media/cadN.svg`, so other
+    /// programs show it) whose properties carry the drawing's source part
+    /// (`word/strix/cadN.json`), the one Strix edits.
+    pub(super) fn cad_graphic(&mut self, source: &str, svg: Option<&str>, size: (f32, f32), rels: &mut PartRels) -> String {
+        let json = self.embeds.fresh("word/strix/cad", ".json");
+        self.embeds.parts.push((json.clone(), source.as_bytes().to_vec(), "application/json".to_string(), PartRels::default()));
+        let src_id = rels.add(crate::package::rt::STRIX_CAD, &relative(STORY_PART, &json), false);
+        let pic_id = svg.map(|svg| {
+            let file = self.embeds.fresh("word/media/cad", ".svg");
+            self.embeds.parts.push((file.clone(), svg.as_bytes().to_vec(), "image/svg+xml".to_string(), PartRels::default()));
+            rels.add(crate::package::rt::IMAGE, &relative(STORY_PART, &file), false)
+        });
+        let emu = |v: f32| format!("{}", (strix_geom::finite(v).max(0.0) * 12_700.0).round() as i64);
+        let mut w = xml::W::default();
+        w.open("a:graphic", &[("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main")]);
+        w.open("a:graphicData", &[("uri", "http://schemas.openxmlformats.org/drawingml/2006/picture")]);
+        w.open(
+            "pic:pic",
+            &[
+                ("xmlns:pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"),
+                ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+            ],
+        );
+        w.open("pic:nvPicPr", &[]);
+        w.open("pic:cNvPr", &[("id", "0"), ("name", "CAD")]);
+        w.open("a:extLst", &[]);
+        w.open("a:ext", &[("uri", crate::read::CAD_URI)]);
+        w.empty("strix:cad", &[("xmlns:strix", crate::xml::STRIX_NS), ("r:id", &src_id)]);
+        w.close("a:ext");
+        w.close("a:extLst");
+        w.close("pic:cNvPr");
+        w.empty("pic:cNvPicPr", &[]);
+        w.close("pic:nvPicPr");
+        w.open("pic:blipFill", &[]);
+        match &pic_id {
+            Some(id) => {
+                w.open("a:blip", &[("r:embed", id)]);
+                w.open("a:extLst", &[]);
+                // The SVG picture extension (MS-ODRAWXML), as Office writes for an SVG.
+                w.open("a:ext", &[("uri", "{96DAC541-7B7A-43D3-8B79-37D633B846F1}")]);
+                w.empty("asvg:svgBlip", &[("xmlns:asvg", "http://schemas.microsoft.com/office/drawing/2016/SVG/main"), ("r:embed", id)]);
+                w.close("a:ext");
+                w.close("a:extLst");
+                w.close("a:blip");
+            }
+            None => w.empty("a:blip", &[]),
+        }
+        w.open("a:stretch", &[]);
+        w.empty("a:fillRect", &[]);
+        w.close("a:stretch");
+        w.close("pic:blipFill");
+        w.open("pic:spPr", &[]);
+        w.open("a:xfrm", &[]);
+        w.empty("a:off", &[("x", "0"), ("y", "0")]);
+        w.empty("a:ext", &[("cx", &emu(size.0)), ("cy", &emu(size.1))]);
+        w.close("a:xfrm");
+        w.open("a:prstGeom", &[("prst", "rect")]);
+        w.empty("a:avLst", &[]);
+        w.close("a:prstGeom");
+        w.close("pic:spPr");
+        w.close("pic:pic");
+        w.close("a:graphicData");
+        w.close("a:graphic");
+        w.s
+    }
+
     /// The `a:graphic` of a chart written from its model: a new chart part (`word/charts/chartN.xml`)
     /// related from the story part through `rels`.
     pub(super) fn chart_graphic(&mut self, spec: &strix_doc::chart::ChartSpec, rels: &mut PartRels) -> String {

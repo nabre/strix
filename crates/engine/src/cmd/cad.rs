@@ -55,8 +55,11 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         Some(d) => d,
         None => Drawing::from_json(STARTER).map_err(CmdError::Failed)?,
     };
-    let (w, h, items) = items_of(&drawing.render(None), super::calc::unit_color(s));
-    let graphic = Graphic { kind: GraphicKind::Cad, items, w, h, cad: Some(drawing.to_json().into()), ..Default::default() };
+    let rendered = drawing.render(None);
+    let unit = super::calc::unit_color(s);
+    let (w, h, items) = items_of(&rendered, unit);
+    let svg = Some(rendered.to_svg([unit.0, unit.1, unit.2]).into());
+    let graphic = Graphic { kind: GraphicKind::Cad, items, w, h, cad: Some(drawing.to_json().into()), svg, ..Default::default() };
     let obj = InlineObject::Graphic { w, h, alt: String::new(), float: Float::default(), graphic: Arc::new(graphic) };
     let props = s.typing_props();
     let at = super::delete_selection(s)?;

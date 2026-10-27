@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); editor next · **Last updated:** 2026-10-27 · **Change:** stage 2
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); editor next · **Last updated:** 2026-10-27 · **Change:** kernel, snaps, grips, SVG
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -44,6 +44,29 @@ the drawing sits shows `[L?]` in red.
 This gives "drawings driven by results" without a constraint solver. Driving dimensions and
 geometric constraints (the prototype's Gauss-Newton solver) are a later stage.
 
+## Precision: the geometry kernel (`crates/cad/src/kernel.rs`)
+
+Snaps, grips and measures work on the exact curves (segments, circles, arcs, polyline bulges),
+never on the drawn outlines:
+
+- **Intersections** in closed form: line–line by cross products; line–circle from the foot of
+  the perpendicular from the centre and the half chord `√((r − h)(r + h))`; circle–circle along
+  the centre line `a = (d² + r₁² − r₂²)/2d`, across it `√((r₁ − a)(r₁ + a))`. These forms keep
+  every digit where the textbook ones lose half of them (near tangency, near-equal radii).
+- **Perpendiculars**: the foot on a line is the projection; on a circle, the radius through the
+  point. **Tangents** from a point: the tangent points at `±atan2(√((d − r)(d + r)), r)` off the
+  direction to the point, so a tangent is square to its radius to 1e-9°.
+- **Angles** with `atan2(|u × v|, u · v)`, exact to rounding at every angle (`acos` of the dot
+  product loses half the digits near 0° and 180°).
+- **Tolerance** for "same point", "tangent" and "parallel": 1e-9 of the size of the geometry
+  (at least 1e-9 units). Within it a line touching a circle meets it once; parallel lines are
+  those within a sine of 1e-12.
+- **Limit of approximation**: coordinates are saved to **1e-9 drawing units** (nine decimals: a
+  nanometre in a millimetre drawing; above 10⁶ units `f64` keeps 15–16 significant digits). An
+  angle measured from saved points of a side `L` long is right to about `2·10⁻⁹/L` rad (1.2e-9°
+  for a 100-unit side); between exact directions to 1e-15 rad, and near 180° to π's own spacing
+  in `f64` (4.4e-16 rad). Tests pin each bound (`crates/cad/src/tests.rs`).
+
 ## Rendering
 
 `Drawing::render` gives primitives in paper mm (y down) and the paper size: polylines with
@@ -75,8 +98,14 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   Unit character style's colour, like the calculations' units.
 - **Texts are level**: a steep dimension's text is set level beside its line, on the outer side
   (rotated text is a later stage).
-- **Saving**: in `.xmath` the drawing is an `a:graphicData` with the Strix URI
-  `urn:io.github.nabre.strix:cad` holding `<strix:cad>` (its JSON): an extension Word passes over.
+- **JSON and SVG**: the drawing is managed by its JSON; its SVG picture is made automatically
+  from it, only when what it shows changes (or when a file brings none). Saving writes a picture
+  (`pic:pic`) of the SVG (`word/media/cadN.svg`, with Office's SVG picture extension, so other
+  programs show the drawing) whose properties carry the source part (`word/strix/cadN.json`,
+  extension `urn:io.github.nabre.strix:cad`): Strix reads and edits the JSON, others show the
+  picture. Files from the first version (the JSON inline in `a:graphicData`) still open.
+- **Padding**: the picture's space around the drawing, paper mm (`"padding": 2` or
+  `[top, right, bottom, left]`, 0–100), set in the editor (Picture › Padding, `ui.cadPadding`).
 - **Commands**: `insert.cad`, `cad.get` (source and failing expressions of the selected
   drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
 
@@ -98,14 +127,30 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    Esc cancels the step then the command, F8 toggles Ortho, Del deletes. Selection: click, Shift
    to add or remove, a window left to right, a crossing right to left. Every finished operation
    is one `cad.set` (an undo step); the editor reads the drawing back after Undo or a
-   recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`). Still to do: grips,
-   intersection/perpendicular snaps, offset, trim, extend, fillet, layers and stroke controls.
+   recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`).
+   **Object snaps** (exact, from the kernel; AutoCAD's markers and names): Endpoint, Midpoint,
+   Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point, Nearest
+   (only when nothing else); the nearest wins, ties to that order; each toggles in Object Snaps
+   (`ui.cadToggle {"what": "snap.<kind>"}`); Ortho holds a point only when no object snap does.
+   The status line shows distance, angle, Δx and Δy from the last point.
+   **Grips** (AutoCAD and Allplan): the selected objects (up to 50) show square grips; a click
+   takes one (hot, red), the next point places it (a click with snaps and Ortho, or a typed point:
+   `@dx,dy` is from where it was), Esc puts it back; dragging a grip places it where released.
+   Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
+   (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
+   an arc bends through the point), point and text position, dimension ends and line (distance).
+   A dragged coordinate keeps its expression; a degenerate result is refused.
+   **Frame** (Picture › Frame): the picture's edge with the area outside it shaded light grey.
+   `ui.cadSelect` (`{"all": true}` or `{"ids": […]}`, Ctrl+A) selects objects.
+   Still to do: offset, trim, extend, fillet, mirror, stretch, layers and stroke controls,
+   angular dimensions, hatches, constraints.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
    properties; hatch (by selection and by point); angular dimensions, rows and chains.
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-10-27: geometry kernel (exact intersections, perpendiculars, tangents, angles; limit of approximation); exact object snaps; grips; frame; padding; JSON source with an automatic SVG picture.
 - 2026-10-27: placeholders with a mode (value, symbol, both) in dimensions and texts; missing data in red.
 - 2026-10-27: stage 3 first cut: the drawing editor.
 - 2026-10-27: stage 2: drawings in the document, redrawn with the calculations.
