@@ -1,0 +1,29 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-layout"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix layout: shaping, line breaking, tabs, lists, tables, pagination, headers/footers, hit testing"
+
+[lints]
+workspace = true
+
+[dependencies]
+strix-geom = { workspace = true, features = ["image"] }
+strix-doc = { workspace = true }
+strix-fonts = { workspace = true }
+strix-proof = { workspace = true }
+strix-metafile = { workspace = true }
+kurbo = { workspace = true }
+unicode-bidi = { workspace = true }
+unicode-linebreak = { workspace = true }
+unicode-segmentation = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+image = { workspace = true }
+log = { workspace = true }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+# The browser clock (`SystemTime::now()`/`Instant::now()` panic on wasm32-unknown-unknown).
+js-sys = "0.3"

@@ -1,0 +1,18 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-geom"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix geometry and units: points, twips, EMU, inches, centimetres; rectangles; measurement parsing"
+
+[lints]
+workspace = true
+
+[features]
+# Picture decoding within a memory budget (`picture`), for the crates that decode pictures.
+image = ["dep:image"]
+
+[dependencies]
+image = { workspace = true, optional = true }
+serde = { workspace = true }

@@ -1,0 +1,14 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-metafile"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix metafiles: parses Windows WMF and EMF records into a neutral vector model (paths and bitmaps)"
+
+[lints]
+workspace = true
+
+[dependencies]
+kurbo = { workspace = true }
+thiserror = { workspace = true }

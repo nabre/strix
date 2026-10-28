@@ -1,0 +1,26 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-docbin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix reader for the Word 97-2003 binary file format (.doc, [MS-DOC])"
+
+[lints]
+workspace = true
+
+[dependencies]
+strix-doc = { workspace = true }
+strix-geom = { workspace = true }
+cfb = { workspace = true }
+image = { workspace = true }
+miniz_oxide = { workspace = true }
+sha1 = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+strix-doc = { workspace = true, features = ["test-support"] }
+proptest = { workspace = true }
+serde_json = { workspace = true }

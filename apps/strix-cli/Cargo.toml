@@ -1,0 +1,24 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Strix command line: convert, inspect, render, run commands, MCP server"
+
+[[bin]]
+name = "strix-cli"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+strix-doc = { workspace = true }
+strix-engine = { workspace = true }
+strix-render = { workspace = true }
+strix-mcp = { workspace = true }
+strix-zotero = { workspace = true }
+serde_json = { workspace = true }
+sys-locale = "0.3"

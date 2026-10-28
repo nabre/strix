@@ -1,0 +1,18 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
+[package]
+name = "strix-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix MCP server: every command as a tool, headless or bridged to the running app"
+
+[lints]
+workspace = true
+
+[dependencies]
+strix-doc = { workspace = true }
+strix-engine = { workspace = true }
+strix-render = { workspace = true }
+strix-control-key = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
