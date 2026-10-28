@@ -212,8 +212,42 @@ pub struct CadEditor {
     pub(crate) panel_typing: bool,
 }
 
+/// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
+/// drawing opens as the last one was left.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CadSettings {
+    pub snap: bool,
+    pub snaps: Snaps,
+    pub ortho: bool,
+    pub grid: bool,
+    pub frame: bool,
+    pub panel: bool,
+    pub layers_panel: bool,
+}
+
+impl Default for CadSettings {
+    fn default() -> Self {
+        CadSettings { snap: true, snaps: Snaps::default(), ortho: false, grid: true, frame: false, panel: true, layers_panel: false }
+    }
+}
+
+impl CadEditor {
+    fn settings(&self) -> CadSettings {
+        CadSettings {
+            snap: self.snap,
+            snaps: self.snaps,
+            ortho: self.ortho,
+            grid: self.grid,
+            frame: self.frame,
+            panel: self.panel,
+            layers_panel: self.layers_panel,
+        }
+    }
+}
+
 /// Opens the selected CAD drawing in the editor.
 pub fn open(app: &mut WordApp) -> Result<(), String> {
+    let kept = app.cad_settings;
     let (pos, drawing, rendered, names) = strix_engine::cmd::cad::edited(&app.session).ok_or("select a CAD drawing first")?;
     let source = current_source(app, &pos);
     app.cad = Some(CadEditor {
@@ -225,11 +259,11 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         tool: Tool::Select,
         points: Vec::new(),
         selection: Vec::new(),
-        snap: true,
-        snaps: Snaps::default(),
-        ortho: false,
-        grid: true,
-        frame: false,
+        snap: kept.snap,
+        snaps: kept.snaps,
+        ortho: kept.ortho,
+        grid: kept.grid,
+        frame: kept.frame,
         grip: None,
         grip_drag: false,
         command: String::new(),
@@ -252,8 +286,8 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         snap_once: None,
         last_tool: None,
         focus: Focus::default(),
-        panel: true,
-        layers_panel: false,
+        panel: kept.panel,
+        layers_panel: kept.layers_panel,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -320,6 +354,7 @@ fn commit(app: &mut WordApp, drawing: &Drawing) {
 
 pub fn close(app: &mut WordApp) {
     if let Some(ed) = app.cad.take() {
+        app.cad_settings = ed.settings();
         select_drawing(app, &ed.pos);
         if let Some(tab) = ed.prev_tab {
             app.ui.tab = tab;
@@ -1903,7 +1938,12 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
     if d.layers.iter().any(|l| l.name == ed.current_layer) {
         e.layer = ed.current_layer.clone();
     }
+    // Hatches go behind everything else, as they fill around it.
+    let hatch = matches!(e.kind, Kind::Strip { .. });
     d.add(e).ok()?;
+    if hatch {
+        d.reorder(&[d.entities.len().saturating_sub(1)], Order::Back);
+    }
     Some(d)
 }
 
@@ -2142,6 +2182,15 @@ pub fn ribbon(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// The width of a field in a ribbon form (a size, a choice), points.
+pub(crate) const FIELD_W: f32 = 84.0;
+
+/// Labels and fields in two columns, rows three high as ribbon groups are: every label lines up
+/// with the others, every field starts at the same place.
+pub(crate) fn field_grid(ui: &mut Ui, id: &str, add: impl FnOnce(&mut Ui)) {
+    egui::Grid::new(id).num_columns(2).spacing(vec2(6.0, 3.0)).min_row_height(20.0).show(ui, add);
+}
+
 /// Buttons stacked three high in a group.
 fn stack(ui: &mut Ui, add: &mut dyn FnMut(&mut Ui)) {
     ui.vertical(|ui| {
@@ -2317,37 +2366,35 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
     // The drawing's annotation style: one place for how every dimension and new text looks.
     let Some(style) = app.cad.as_ref().map(|e| e.drawing.dim_style) else { return };
     group(ui, "Dimension Style", None, app, |ui, app| {
+        // Labels and fields in columns: each label in its column, each field the same width.
         let size = |ui: &mut Ui, app: &mut WordApp, label: &str, key: &str, now: f64| {
-            ui.horizontal(|ui| {
-                ui.label(tl!(label));
-                let mut v = now;
-                let r = ui.add(egui::DragValue::new(&mut v).range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"));
-                // Applied once the value is set: one undo step.
-                if (r.drag_stopped() || r.lost_focus()) && v != now {
-                    let _ = app.run("ui.cadDimStyle", json!({ key: v }));
-                }
-            });
+            ui.label(tl!(label));
+            let mut v = now;
+            let r = ui.add_sized([FIELD_W, 18.0], egui::DragValue::new(&mut v).range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"));
+            // Applied once the value is set: one undo step.
+            if (r.drag_stopped() || r.lost_focus()) && v != now {
+                let _ = app.run("ui.cadDimStyle", json!({ key: v }));
+            }
+            ui.end_row();
         };
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing = vec2(1.0, 2.0);
+        field_grid(ui, "cad_dim_style_a", |ui| {
             size(ui, app, "Text height", "text", style.text);
             size(ui, app, "Mark size", "markSize", style.mark_size);
-            ui.horizontal(|ui| {
-                ui.label(tl!("End mark"));
-                egui::ComboBox::from_id_salt("cad_dim_mark")
-                    .selected_text(tl!(crate::cad_panel::choice_label(style.mark.name())))
-                    .width(90.0)
-                    .show_ui(ui, |ui| {
-                        for (m, name) in strix_cad::Mark::ALL {
-                            if ui.selectable_label(style.mark == m, tl!(crate::cad_panel::choice_label(name))).clicked() {
-                                let _ = app.run("ui.cadDimStyle", json!({"mark": name}));
-                            }
+            ui.label(tl!("End mark"));
+            egui::ComboBox::from_id_salt("cad_dim_mark")
+                .selected_text(tl!(crate::cad_panel::choice_label(style.mark.name())))
+                .width(FIELD_W + 24.0)
+                .show_ui(ui, |ui| {
+                    for (m, name) in strix_cad::Mark::ALL {
+                        if ui.selectable_label(style.mark == m, tl!(crate::cad_panel::choice_label(name))).clicked() {
+                            let _ = app.run("ui.cadDimStyle", json!({"mark": name}));
                         }
-                    });
-            });
+                    }
+                });
+            ui.end_row();
         });
-        ui.vertical(|ui| {
-            ui.spacing_mut().item_spacing = vec2(1.0, 2.0);
+        ui.add_space(10.0);
+        field_grid(ui, "cad_dim_style_b", |ui| {
             size(ui, app, "Extension gap", "extGap", style.ext_gap);
             size(ui, app, "Extension beyond", "extOver", style.ext_over);
             size(ui, app, "Text gap", "textGap", style.text_gap);
@@ -2437,13 +2484,17 @@ fn output_tab(app: &mut WordApp, ui: &mut Ui) {
     let Some((frame, padding)) = app.cad.as_ref().map(|e| (e.frame, e.drawing.padding)) else { return };
     group(ui, "Picture", None, app, |ui, app| {
         big_checked(ui, app, "cadFrame", "Frame", "ui.cadToggle", json!({"what": "frame"}), frame);
-        ui.vertical(|ui| {
-            ui.label(tl!("Padding (mm)"));
+        field_grid(ui, "cad_output_grid", |ui| {
+            ui.label(tl!("Padding"));
             let mut v = padding.top;
-            let resp = ui.add(egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2));
+            let resp = ui.add_sized(
+                [FIELD_W, 18.0],
+                egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"),
+            );
             if (resp.drag_stopped() || resp.lost_focus()) && v != padding.top {
                 let _ = app.run("ui.cadPadding", json!({"value": v}));
             }
+            ui.end_row();
         });
     });
 }
@@ -2786,9 +2837,24 @@ mod tests {
         // The starter rectangle's bottom edge (y = 0), the strip below it (outside).
         assert!(feed(ed, Pt::new(60.0, 0.5), None).is_none());
         let d = feed(ed, Pt::new(60.0, -10.0), None).expect("a strip");
-        let Some(Kind::Strip { along, side, .. }) = d.entities.last().map(|e| &e.kind) else { panic!() };
+        // Hatches go behind everything else: the strip is drawn first.
+        let Some(Kind::Strip { along, side, .. }) = d.entities.first().map(|e| &e.kind) else { panic!() };
         // The rectangle runs counter-clockwise: below its bottom edge is the edge's right.
         assert_eq!((along.as_str(), *side), ("e1", strix_cad::Side::Right));
+    }
+
+    /// The editor's settings outlive the drawing: the next one opens as the last was left.
+    #[test]
+    fn settings_are_kept_while_the_program_runs() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        for what in ["ortho", "grid", "layers", "props", "snap.quadrant"] {
+            app.run("ui.cadToggle", json!({"what": what})).unwrap();
+        }
+        app.run("ui.cadClose", json!({})).unwrap();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        assert!(ed.ortho && !ed.grid && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

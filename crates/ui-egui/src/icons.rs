@@ -1266,6 +1266,29 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
                 false,
             );
         }
+        // Layer states: shown (an eye) or hidden (crossed out), locked or not, printed or not.
+        "cadEye" | "cadEyeOff" => {
+            pen.line_c(&[(2.0, 10.0), (5.0, 6.5), (10.0, 5.0), (15.0, 6.5), (18.0, 10.0), (15.0, 13.5), (10.0, 15.0), (5.0, 13.5), (2.0, 10.0)], c);
+            pen.fcircle(10.0, 10.0, 2.6, a);
+            if name == "cadEyeOff" {
+                pen.line_c(&[(3.5, 16.5), (16.5, 3.5)], c);
+            }
+        }
+        "cadLock" | "cadUnlock" => {
+            pen.rect(4.5, 9.0, 15.5, 17.0, c);
+            let right = if name == "cadLock" { 13.0 } else { 17.5 };
+            let top = if name == "cadLock" { 9.0 } else { 6.5 };
+            pen.line_c(&[(7.0, 9.0), (7.0, 6.0), (8.5, 3.5), (11.5, 3.5), (13.0, 6.0), (13.0, top)], c);
+            if name == "cadUnlock" {
+                pen.line_c(&[(13.0, 6.0), (right, 6.0)], c);
+            }
+            pen.fcircle(10.0, 12.5, 1.2, a);
+        }
+        "cadNoPrint" => {
+            pen.rect(6.0, 2.5, 14.0, 7.0, c);
+            pen.rect(2.5, 7.0, 17.5, 14.0, c);
+            pen.line_c(&[(3.5, 18.0), (16.5, 2.0)], a);
+        }
         // A hatched strip: a line with short slanted strokes along one side.
         "cadStrip" => {
             pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);

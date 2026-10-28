@@ -66,6 +66,44 @@ fn swatch(ui: &mut Ui, c: [u8; 3]) {
     ui.painter().rect_stroke(r, 2.0, egui::Stroke::new(0.5, Color32::from_gray(140)), egui::StrokeKind::Inside);
 }
 
+/// A sample of a line as it is drawn: its colour, its lineweight (paper mm, shown about three
+/// times as many points) and its linetype's dashes, `w` points long. The same sample shows in
+/// the linetype and lineweight menus and as each layer's preview.
+fn line_sample(ui: &mut Ui, color: [u8; 3], width: f64, dash: Dash, w: f32) -> egui::Response {
+    let (r, resp) = ui.allocate_exact_size(vec2(w, 14.0), egui::Sense::hover());
+    let stroke = egui::Stroke::new((width as f32 * 3.0).clamp(0.6, 6.0), Color32::from_rgb(color[0], color[1], color[2]));
+    let y = r.center().y;
+    let pattern: Vec<f32> = dash.pattern().iter().map(|&v| (v as f32 * 2.5).max(1.0)).collect();
+    if pattern.is_empty() {
+        ui.painter().line_segment([egui::pos2(r.left(), y), egui::pos2(r.right(), y)], stroke);
+    } else {
+        // On and off lengths in turn along the sample.
+        let (mut x, mut k) = (r.left(), 0usize);
+        while x < r.right() {
+            let len = pattern.get(k % pattern.len()).copied().unwrap_or(1.0);
+            if k % 2 == 0 {
+                ui.painter().line_segment([egui::pos2(x, y), egui::pos2((x + len).min(r.right()), y)], stroke);
+            }
+            x += len;
+            k += 1;
+        }
+    }
+    resp
+}
+
+/// An icon that switches a layer state: `on` draws `icon`, off draws `off` dimmed. Returns
+/// whether it was clicked.
+fn state_toggle(ui: &mut Ui, on: bool, icon: &str, off: &str, tip: &str) -> bool {
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let (r, resp) = ui.allocate_exact_size(vec2(22.0, 20.0), egui::Sense::click());
+    if resp.hovered() {
+        ui.painter().rect_filled(r, 4.0, t.hover);
+    }
+    let (name, ink) = if on { (icon, t.icon) } else { (off, t.icon.gamma_multiply(0.45)) };
+    crate::icons::paint(ui.painter(), egui::Rect::from_center_size(r.center(), vec2(16.0, 16.0)), name, ink, if on { t.accent } else { ink });
+    resp.on_hover_text(tl!(tip)).clicked()
+}
+
 /// A pen in the colour menu: a swatch to click, ringed when it is the one shown.
 fn pen_swatch(ui: &mut Ui, c: [u8; 3], on: bool) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(18.0, 18.0), egui::Sense::click());
@@ -124,9 +162,13 @@ fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: 
             swatch(ui, c);
         }
         // Clicks inside keep it open (the RGB field takes typing); a pen or Enter applies.
-        egui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show_ui(
-            ui,
-            |ui| {
+        // Every pen at once: the menu is as tall as its content, never scrolled.
+        egui::ComboBox::from_id_salt(id)
+            .selected_text(text)
+            .width(120.0)
+            .height(f32::INFINITY)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show_ui(ui, |ui| {
                 if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
                     out = Some(None);
                 }
@@ -157,8 +199,7 @@ fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: 
                         out = Some(Some(c));
                     }
                 });
-            },
-        );
+            });
     });
     out
 }
@@ -202,18 +243,26 @@ fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, by_layer: bool
             out = Some(None);
         }
         for w in WIDTHS {
-            if ui.selectable_label(shown == Some(Some(w)), width_text(w)).clicked() {
-                out = Some(Some(w));
-            }
+            ui.horizontal(|ui| {
+                line_sample(ui, [40, 40, 40], w, Dash::Solid, 40.0);
+                if ui.selectable_label(shown == Some(Some(w)), width_text(w)).clicked() {
+                    out = Some(Some(w));
+                }
+            });
         }
     });
     out
 }
 
+/// A linetype's name (English; translated by the caller).
+fn dash_name(d: Dash) -> &'static str {
+    DASHES.iter().find(|(x, _)| *x == d).map_or("", |(_, n)| n)
+}
+
 /// A linetype combo; `Some(None)` is ByLayer.
 fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool) -> Option<Option<Dash>> {
     let mut out = None;
-    let name = |d: Dash| DASHES.iter().find(|(x, _)| *x == d).map_or("", |(_, n)| n);
+    let name = dash_name;
     let text = match shown {
         None => tl!("Varies").to_string(),
         Some(None) => tl!("ByLayer").to_string(),
@@ -224,9 +273,12 @@ fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool
             out = Some(None);
         }
         for (d, n) in DASHES {
-            if ui.selectable_label(shown == Some(Some(d)), tl!(n)).clicked() {
-                out = Some(Some(d));
-            }
+            ui.horizontal(|ui| {
+                line_sample(ui, [40, 40, 40], 0.35, d, 56.0);
+                if ui.selectable_label(shown == Some(Some(d)), tl!(n)).clicked() {
+                    out = Some(Some(d));
+                }
+            });
         }
     });
     out
@@ -488,8 +540,8 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
         (name(a) != "0").cmp(&(name(b) != "0")).then_with(|| name(a).cmp(&name(b)))
     });
     egui::ScrollArea::vertical().id_salt("cad_layer_manager").auto_shrink([false, false]).show(ui, |ui| {
-        egui::Grid::new("cad_layer_grid").num_columns(10).striped(true).spacing(vec2(10.0, 3.0)).show(ui, |ui| {
-            for h in ["Current", "Name", "On", "Lock", "Print", "Colour", "Lineweight", "Linetype", "Objects", ""] {
+        egui::Grid::new("cad_layer_grid").num_columns(11).striped(true).spacing(vec2(10.0, 3.0)).show(ui, |ui| {
+            for h in ["Current", "Name", "Preview", "On", "Lock", "Print", "Colour", "Lineweight", "Linetype", "Objects", ""] {
                 ui.label(RichText::new(tl!(h)).weak().small());
             }
             ui.end_row();
@@ -514,18 +566,21 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                         Err(e) => ed.message = e,
                     }
                 }
-                let mut flag = |ui: &mut Ui, on: bool, tip: &str, set: &mut dyn FnMut(&mut strix_cad::Layer, bool)| {
-                    let mut v = on;
-                    if ui.checkbox(&mut v, "").on_hover_text(tl!(tip)).changed()
+                // How the layer's lines look: colour, lineweight and linetype together.
+                line_sample(ui, l.color, l.width, l.dash, 64.0).on_hover_text(format!("{} · {}", width_text(l.width), tl!(dash_name(l.dash))));
+                let mut flag = |ui: &mut Ui, on: bool, icons: (&str, &str), tip: &str, set: &mut dyn FnMut(&mut strix_cad::Layer, bool)| {
+                    if state_toggle(ui, on, icons.0, icons.1, tip)
                         && let Some(x) = d.layers.get_mut(li)
                     {
-                        set(x, v);
+                        set(x, !on);
                         changed = true;
                     }
                 };
-                flag(ui, l.visible, "Shown (hidden layers are neither drawn nor picked)", &mut |x, v| x.visible = v);
-                flag(ui, l.locked, "Locked: shown and snapped to, but its objects can't be picked", &mut |x, v| x.locked = v);
-                flag(ui, l.print, "Printed: off, the layer shows only in the editor", &mut |x, v| x.print = v);
+                flag(ui, l.visible, ("cadEye", "cadEyeOff"), "Shown (hidden layers are neither drawn nor picked)", &mut |x, v| x.visible = v);
+                flag(ui, l.locked, ("cadLock", "cadUnlock"), "Locked: shown and snapped to, but its objects can't be picked", &mut |x, v| {
+                    x.locked = v
+                });
+                flag(ui, l.print, ("print", "cadNoPrint"), "Printed: off, the layer shows only in the editor", &mut |x, v| x.print = v);
                 if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false, &mut typing)
                     && let Some(x) = d.layers.get_mut(li)
                 {

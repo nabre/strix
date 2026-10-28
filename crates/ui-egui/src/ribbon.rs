@@ -3055,46 +3055,55 @@ fn cad_picture_format(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Scale", None, app, |ui, app| {
         let fitting = d.fit.is_some();
         crate::widgets::big_checked(ui, app, "cadFit", "Fit to\nPage", "cad.scale", json!({"fit": !fitting}), fitting);
-        stack(ui, |ui| {
-            crate::widgets::row(ui, |ui| {
-                ui.label(egui::RichText::new(tl!("Scale")).small());
-                let shown = if fitting { format!("{} ({})", strix_cad::scale_text(d.scale), tl!("fitted")) } else { strix_cad::scale_text(d.scale) };
-                egui::ComboBox::from_id_salt("cad_picture_scale").selected_text(shown).width(110.0).show_ui(ui, |ui| {
-                    for n in strix_cad::standard_scales() {
-                        if ui.selectable_label(!fitting && d.scale == n, strix_cad::scale_text(n)).clicked() {
-                            let _ = app.run("cad.scale", json!({"scale": n}));
-                        }
+        // Scale, and the space it fits, in columns.
+        crate::cad_editor::field_grid(ui, "cad_picture_scale_grid", |ui| {
+            ui.label(tl!("Scale"));
+            let shown = if fitting { format!("{} ({})", strix_cad::scale_text(d.scale), tl!("fitted")) } else { strix_cad::scale_text(d.scale) };
+            egui::ComboBox::from_id_salt("cad_picture_scale").selected_text(shown).width(crate::cad_editor::FIELD_W + 24.0).show_ui(ui, |ui| {
+                for n in strix_cad::standard_scales() {
+                    if ui.selectable_label(!fitting && d.scale == n, strix_cad::scale_text(n)).clicked() {
+                        let _ = app.run("cad.scale", json!({"scale": n}));
                     }
-                });
+                }
             });
+            ui.end_row();
             // The space it fits in, mm (0: that side free); applied once set.
             let fit = d.fit.unwrap_or_default();
             for (label, key, now) in [("Width", "width", fit.width), ("Height", "height", fit.height)] {
-                crate::widgets::row(ui, |ui| {
-                    ui.label(egui::RichText::new(tl!(label)).small());
-                    let mut v = now;
-                    let r = ui.add_enabled(fitting, egui::DragValue::new(&mut v).range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm"));
-                    if (r.drag_stopped() || r.lost_focus()) && v != now {
-                        let mut space = json!({"width": fit.width, "height": fit.height});
-                        space[key] = json!(v);
-                        let _ = app.run("cad.scale", json!({"fit": space}));
-                    }
+                ui.label(tl!(label));
+                let mut v = now;
+                let r = ui.add_enabled_ui(fitting, |ui| {
+                    ui.add_sized(
+                        [crate::cad_editor::FIELD_W + 32.0, 18.0],
+                        egui::DragValue::new(&mut v).range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm"),
+                    )
                 });
+                let r = r.inner;
+                if (r.drag_stopped() || r.lost_focus()) && v != now {
+                    let mut space = json!({"width": fit.width, "height": fit.height});
+                    space[key] = json!(v);
+                    let _ = app.run("cad.scale", json!({"fit": space}));
+                }
+                ui.end_row();
             }
         });
     });
     group(ui, "Picture", None, app, |ui, app| {
-        stack(ui, |ui| {
-            crate::widgets::row(ui, |ui| {
-                ui.label(egui::RichText::new(tl!("Padding")).small());
-                let now = d.padding.top;
-                let mut v = now;
-                let r = ui.add(egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"));
-                if (r.drag_stopped() || r.lost_focus()) && v != now {
-                    let _ = app.run("cad.padding", json!({"value": v}));
-                }
-            });
-            ui.label(egui::RichText::new(format!("{} {}", tl!("Unit:"), d.unit.symbol())).small().weak());
+        crate::cad_editor::field_grid(ui, "cad_picture_grid", |ui| {
+            ui.label(tl!("Padding"));
+            let now = d.padding.top;
+            let mut v = now;
+            let r = ui.add_sized(
+                [crate::cad_editor::FIELD_W, 18.0],
+                egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"),
+            );
+            if (r.drag_stopped() || r.lost_focus()) && v != now {
+                let _ = app.run("cad.padding", json!({"value": v}));
+            }
+            ui.end_row();
+            ui.label(tl!("Unit"));
+            ui.label(d.unit.symbol());
+            ui.end_row();
         });
     });
     alt_text_group(ui, app);

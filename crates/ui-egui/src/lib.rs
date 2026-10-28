@@ -690,6 +690,8 @@ pub struct WordApp {
     pub(crate) equation_prev_tab: Option<String>,
     /// The CAD drawing open in the editor (docs/cad.md), in place of the page.
     pub(crate) cad: Option<cad_editor::CadEditor>,
+    /// The drawing editor's settings, kept while the program runs (snaps, Ortho, grid, panes).
+    pub(crate) cad_settings: cad_editor::CadSettings,
     /// SmartArt Text Pane: the item last focused (Promote, Demote and Add Shape act on it) and
     /// the item being typed in (its keystrokes join one undo step).
     pub smart_art_item: Option<usize>,
@@ -871,6 +873,7 @@ impl WordApp {
             applied_animations: None,
             frame_ms: 0.0,
             cad: None,
+            cad_settings: cad_editor::CadSettings::default(),
             quit_requested: false,
             autosave: true,
             zotero: zotero::ZoteroLink::default(),
