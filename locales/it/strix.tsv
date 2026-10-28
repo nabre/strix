@@ -2773,3 +2773,15 @@ preview	Title	Esempio
 	Steel	Acciaio
 	Along the path	Lungo il percorso
 	Islands	Isole
+	Scale: base point	Scala: punto base
+	Scale: factor (type it, or a point that many units from the base)	Scala: fattore (digitalo, o un punto a quella distanza dalla base)
+	Rotate: base point	Ruota: punto base
+	Rotate: angle in degrees (type it, or a point in that direction)	Ruota: angolo in gradi (digitalo, o un punto in quella direzione)
+	Mirror: first point of the axis	Specchia: primo punto dell'asse
+	Mirror: second point of the axis (a mirrored copy is made)	Specchia: secondo punto dell'asse (si crea una copia specchiata)
+	Offset: pick the object (type a number to change the distance)	Offset: scegli l'oggetto (digita un numero per cambiare la distanza)
+	Offset: click on the side to offset to	Offset: fai clic sul lato verso cui spostare
+	Rotate the selection: base point, then the angle	Ruota la selezione: punto base, poi l'angolo
+	Scale the selection: base point, then the factor	Scala la selezione: punto base, poi il fattore
+	A mirrored copy of the selection: two points of the axis	Una copia specchiata della selezione: due punti dell'asse
+	Offset: the distance (type it), the object, the side	Offset: la distanza (digitala), l'oggetto, il lato

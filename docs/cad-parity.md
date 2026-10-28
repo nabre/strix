@@ -41,8 +41,8 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
 | Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
 | Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial |
-| Copy, move, mirror, stretch, **scale** (owner), rotate | partial (copy, move) |
-| Offset (line, circle, arc, polyline; distance or through point) | todo |
+| Copy, move, mirror, stretch, **scale** (owner), rotate | done but stretch |
+| Offset (line, circle, arc, polyline; distance or through point) | done (distance) |
 | Fillet, trim, extend, join, explode | todo |
 | Match properties; draw order | partial (draw order) |
 | Grips per type; dimension grips | done |

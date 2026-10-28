@@ -1185,3 +1185,61 @@ fn hatches_fill_regions_with_islands() {
     .unwrap();
     assert!(big.hatch_lines(&big.entities[1].clone()).len() <= 40_000);
 }
+
+/// Scale, rotate and mirror: one affine transform; expressions kept (and still evaluating to
+/// the right place), radii scaled, paper sizes untouched, arcs turned the other way by a mirror.
+#[test]
+fn scale_rotate_and_mirror_keep_expressions() {
+    let ws = sheet(&["L = 10 mm"]);
+    let mut d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":["L",0]},{"type":"circle","c":[5,5],"r":"L/5"},
+            {"type":"arc","c":[0,0],"r":1,"start":0,"end":90},{"type":"text","p":[1,1],"value":"T","height":2.5}]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    d.transform(&[0, 1, 2, 3], &Affine::scaling(Pt::new(0.0, 0.0), 2.0));
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert_eq!(b.0.expr.as_deref(), Some("(L)*2"));
+    assert!(matches!(&d.entities[1].kind, Kind::Circle { r, .. } if r.expr.as_deref() == Some("(L/5)*2")));
+    assert!(matches!(&d.entities[3].kind, Kind::Text { height, .. } if *height == 2.5), "paper sizes stay");
+    // Re-resolved, the expression lands where the transform put it.
+    d.resolve(&ws);
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert!((b.pt().x - 20.0).abs() < 1e-9);
+    // Rotate a quarter turn about the origin.
+    d.transform(&[0], &Affine::rotation(Pt::new(0.0, 0.0), 90.0));
+    d.resolve(&ws);
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert!(b.pt().minus(Pt::new(0.0, 20.0)).len() < 1e-9, "{:?}", b.pt());
+    // Mirror in the y axis: the arc from 0° to 90° becomes 90° to 180°.
+    d.transform(&[2], &Affine::mirror(Pt::new(0.0, 0.0), Pt::new(0.0, 1.0)).unwrap());
+    assert!(matches!(&d.entities[2].kind, Kind::Arc { start, end, .. } if (start.value - 90.0).abs() < 1e-9 && (end.value - 180.0).abs() < 1e-9));
+    assert!(Affine::mirror(Pt::new(1.0, 1.0), Pt::new(1.0, 1.0)).is_none());
+}
+
+/// Offset: a line moved square to itself towards the click, a circle concentric, a polyline
+/// with an arc kept concentric (bulge kept) and its corner mitred.
+#[test]
+fn offsets_go_towards_the_click() {
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"circle","c":[0,0],"r":5},
+            {"type":"polyline","pts":[[0,0],[10,0],[10,10]],"bulges":[0,0]},
+            {"type":"polyline","pts":[[-5,0],[5,0]],"bulges":[1]}]}"#,
+    )
+    .unwrap();
+    let line = d.offset_entity(0, 2.0, Pt::new(5.0, -3.0)).unwrap();
+    assert!(matches!(&line.kind, Kind::Line { a, b } if a.pt() == Pt::new(0.0, -2.0) && b.pt() == Pt::new(10.0, -2.0)));
+    assert!(matches!(&d.offset_entity(1, 2.0, Pt::new(20.0, 0.0)).unwrap().kind, Kind::Circle { r, .. } if r.value == 7.0));
+    assert!(matches!(&d.offset_entity(1, 2.0, Pt::new(1.0, 0.0)).unwrap().kind, Kind::Circle { r, .. } if r.value == 3.0));
+    assert!(d.offset_entity(1, 6.0, Pt::new(1.0, 0.0)).is_none(), "no circle of negative radius");
+    // An L offset inwards (towards the inside of the corner): the corner moves diagonally.
+    let l = d.offset_entity(2, 1.0, Pt::new(8.0, 2.0)).unwrap();
+    let Kind::Polyline { pts, .. } = &l.kind else { panic!() };
+    assert!(pts[1].pt().minus(Pt::new(9.0, 1.0)).len() < 1e-9, "{:?}", pts[1].pt());
+    // A half circle (bulge 1) from (-5,0) to (5,0): offset outwards it is concentric, radius 7.
+    let arc = d.offset_entity(3, 2.0, Pt::new(0.0, -10.0)).unwrap();
+    let c = crate::kernel::curves(&arc);
+    assert!(matches!(c[0], crate::kernel::Curve::Arc { r, .. } if (r - 7.0).abs() < 1e-9), "{c:?}");
+    // Not offsettable: a text.
+    assert!(d.offset_entity(9, 1.0, Pt::new(0.0, 0.0)).is_none());
+}

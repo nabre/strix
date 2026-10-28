@@ -21,6 +21,7 @@ mod hatch;
 mod input;
 pub mod kernel;
 mod model;
+mod modify;
 mod props;
 mod render;
 mod select;
@@ -36,6 +37,7 @@ pub use input::{InputError, parse_point};
 pub use model::{
     Align, Dash, DimStyle, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
 };
+pub use modify::Affine;
 pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};

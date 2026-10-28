@@ -224,6 +224,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
    the angle (`<>°`) level just outside the arc's middle. Texts have an **alignment** (left,
    centre, right on their point). Arrowheads are filled paths (`Prim::Path { fill }`).
+   **Scale, Rotate, Mirror, Offset** (CAD Drawing › Modify; `scale sc`, `rotate ro`, `mirror mi`,
+   `offset o`): Scale and Rotate take the selection (or ask for objects), a base point, then a
+   value typed (factor, degrees) or a point (that many units away, in that direction); Mirror makes
+   a mirrored copy about two points. One affine transform (`Affine`, `Drawing::transform`):
+   expressions stay linked (`L` scaled by 2 is `(L)*2`), radii scale, paper sizes (texts,
+   dimension offsets, hatch spacings) do not; a mirror turns arcs, bulges and angles the other
+   way. Offset: the distance typed (kept while the program runs), the object, the side; a line
+   moves square to itself, circles and arcs stay concentric, a polyline's corners are mitred and
+   its arcs stay concentric (bulges kept); it goes on for the next object.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
    aliases `h`, `bh`): a click inside a region fills it: the smallest closed object around the
    click (closed polyline, rectangle, circle) with the closed objects inside it as islands

@@ -61,9 +61,22 @@ pub enum Tool {
     Hatch,
     Move,
     Copy,
+    /// Scale the selection: a base point, then the factor (typed, or a point that far away).
+    Scale,
+    /// Rotate the selection: a base point, then the angle (typed, or a point in that direction).
+    Rotate,
+    /// Mirror the selection (a mirrored copy): two points of the axis.
+    Mirror,
+    /// Offset: the distance (typed; the last one kept), the object, then the side.
+    Offset,
 }
 
 impl Tool {
+    /// The commands that work on the selection (and ask for objects when there is none).
+    fn takes_selection(self) -> bool {
+        matches!(self, Tool::Move | Tool::Copy | Tool::Scale | Tool::Rotate | Tool::Mirror)
+    }
+
     pub fn parse(name: &str) -> Option<Tool> {
         Some(match name {
             "select" => Tool::Select,
@@ -88,6 +101,10 @@ impl Tool {
             "hatch" | "h" | "bh" | "retino" => Tool::Hatch,
             "move" | "m" | "sposta" => Tool::Move,
             "copy" | "co" | "copia" => Tool::Copy,
+            "scale" | "sc" | "scala" => Tool::Scale,
+            "rotate" | "ro" | "ruota" => Tool::Rotate,
+            "mirror" | "mi" | "specchia" => Tool::Mirror,
+            "offset" | "o" | "of" => Tool::Offset,
             _ => return None,
         })
     }
@@ -137,6 +154,14 @@ impl Tool {
             (Tool::Hatch, _) => "Hatch: click inside the region to fill (islands are left out)",
             (Tool::Move | Tool::Copy, 0) => "Base point (select the objects first)",
             (Tool::Move | Tool::Copy, _) => "Second point",
+            (Tool::Scale, 0) => "Scale: base point",
+            (Tool::Scale, _) => "Scale: factor (type it, or a point that many units from the base)",
+            (Tool::Rotate, 0) => "Rotate: base point",
+            (Tool::Rotate, _) => "Rotate: angle in degrees (type it, or a point in that direction)",
+            (Tool::Mirror, 0) => "Mirror: first point of the axis",
+            (Tool::Mirror, _) => "Mirror: second point of the axis (a mirrored copy is made)",
+            (Tool::Offset, 0) => "Offset: pick the object (type a number to change the distance)",
+            (Tool::Offset, _) => "Offset: click on the side to offset to",
         }
     }
 }
@@ -214,6 +239,8 @@ pub struct CadEditor {
     menu_point: bool,
     /// A field of the Properties pane has the keyboard: the editor's keys stay out of it.
     pub(crate) panel_typing: bool,
+    /// The distance Offset uses (drawing units; a number typed changes it).
+    pub offset_dist: f64,
 }
 
 /// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
@@ -227,11 +254,21 @@ pub struct CadSettings {
     pub frame: bool,
     pub panel: bool,
     pub layers_panel: bool,
+    pub offset_dist: f64,
 }
 
 impl Default for CadSettings {
     fn default() -> Self {
-        CadSettings { snap: true, snaps: Snaps::default(), ortho: false, grid: true, frame: false, panel: true, layers_panel: false }
+        CadSettings {
+            snap: true,
+            snaps: Snaps::default(),
+            ortho: false,
+            grid: true,
+            frame: false,
+            panel: true,
+            layers_panel: false,
+            offset_dist: 10.0,
+        }
     }
 }
 
@@ -245,6 +282,7 @@ impl CadEditor {
             frame: self.frame,
             panel: self.panel,
             layers_panel: self.layers_panel,
+            offset_dist: self.offset_dist,
         }
     }
 }
@@ -292,6 +330,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         focus: Focus::default(),
         panel: kept.panel,
         layers_panel: kept.layers_panel,
+        offset_dist: kept.offset_dist,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -381,7 +420,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, move, copy")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
             }
@@ -668,7 +707,7 @@ impl CadEditor {
         self.lasso.clear();
         self.remove_mode = false;
         self.grip = None;
-        self.picking = matches!(tool, Tool::Move | Tool::Copy) && self.selection.is_empty();
+        self.picking = tool.takes_selection() && self.selection.is_empty();
         if tool != Tool::Select {
             self.last_tool = Some(tool);
             if !self.selection.is_empty() {
@@ -1023,6 +1062,10 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Hatch => "Hatch",
         Tool::Move => "Move",
         Tool::Copy => "Copy",
+        Tool::Scale => "Scale",
+        Tool::Rotate => "Rotate",
+        Tool::Mirror => "Mirror",
+        Tool::Offset => "Offset",
     }
 }
 
@@ -1905,6 +1948,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             } else if ed.tool == Tool::Circle(CircleMode::Radius) && ed.points.len() == 1 && typed.eq_ignore_ascii_case("d") {
                 // `d` after the centre: the diameter instead of the radius.
                 ed.tool = Tool::Circle(CircleMode::Diameter);
+            } else if let Some(result) = typed.replace(',', ".").parse::<f64>().ok().and_then(|v| typed_value(ed, v)) {
+                finished = result;
             } else if let Some(v) = typed.parse::<f64>().ok().filter(|_| takes_size(ed))
                 && let Some(&last) = ed.points.last()
             {
@@ -1954,6 +1999,46 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
 
 fn pt(p: Pt) -> P {
     P(Num::new(p.x), Num::new(p.y))
+}
+
+/// The selection transformed by `t` (a copy of it when `copy`): one undo step.
+fn transformed(ed: &mut CadEditor, t: &strix_cad::Affine, copy: bool) -> Option<Drawing> {
+    let mut d = ed.drawing.clone();
+    let targets = if copy { d.copy(&ed.selection, Pt::default()) } else { ed.selection.clone() };
+    d.transform(&targets, t);
+    if copy {
+        ed.selection = targets;
+    }
+    ed.points.clear();
+    Some(d)
+}
+
+/// A number typed where a command takes a value rather than a point: Scale's factor, Rotate's
+/// angle after the base, Offset's distance. The drawing when it completes the command.
+fn typed_value(ed: &mut CadEditor, v: f64) -> Option<Option<Drawing>> {
+    match (ed.tool, ed.points.as_slice()) {
+        (Tool::Scale, [base]) if !ed.selection.is_empty() => {
+            if v == 0.0 || !v.is_finite() {
+                ed.message = "A scale factor is not 0".into();
+                return Some(None);
+            }
+            let t = strix_cad::Affine::scaling(*base, v);
+            Some(transformed(ed, &t, false))
+        }
+        (Tool::Rotate, [base]) if !ed.selection.is_empty() => {
+            let t = strix_cad::Affine::rotation(*base, v);
+            Some(transformed(ed, &t, false))
+        }
+        (Tool::Offset, []) => {
+            if v > 0.0 && v.is_finite() {
+                ed.offset_dist = v;
+            } else {
+                ed.message = "An offset distance is more than 0".into();
+            }
+            Some(None)
+        }
+        _ => None,
+    }
 }
 
 /// The next input is a size (a circle's radius or diameter): a number typed is that distance.
@@ -2136,6 +2221,39 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             }
             with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, text: None, mark: None }))
         }
+        Tool::Offset if n >= 2 => {
+            // The object picked first, offset towards the second click; the command goes on.
+            let made = ed.drawing.nearest_path(pts[0]).and_then(|(i, _)| ed.drawing.offset_entity(i, ed.offset_dist, pts[1]));
+            done(ed);
+            match made {
+                Some(e) => with(ed, e),
+                None => {
+                    ed.message = "Pick a line, circle, arc or polyline, and a side it can be offset to".into();
+                    None
+                }
+            }
+        }
+        Tool::Scale | Tool::Rotate | Tool::Mirror if ed.selection.is_empty() => {
+            done(ed);
+            ed.picking = true;
+            None
+        }
+        Tool::Scale if n >= 2 => {
+            let k = pts[1].minus(pts[0]).len();
+            transformed(ed, &strix_cad::Affine::scaling(pts[0], k), false)
+        }
+        Tool::Rotate if n >= 2 => {
+            let deg = kernel::deg(kernel::direction(pts[1].minus(pts[0])));
+            transformed(ed, &strix_cad::Affine::rotation(pts[0], deg), false)
+        }
+        Tool::Mirror if n >= 2 => match strix_cad::Affine::mirror(pts[0], pts[1]) {
+            Some(t) => transformed(ed, &t, true),
+            None => {
+                done(ed);
+                ed.message = "The axis needs two different points".into();
+                None
+            }
+        },
         Tool::Move | Tool::Copy if ed.selection.is_empty() => {
             // No objects yet: the command asks for them first.
             done(ed);
@@ -2291,6 +2409,50 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
         stack(ui, &mut |ui| {
             small(ui, app, "cadMove", Some("Move"), "Move the selection: base point, second point", "ui.cadTool", t("move"), tool == Tool::Move);
             small(ui, app, "cadCopy", Some("Copy"), "Copy the selection: base point, second point", "ui.cadTool", t("copy"), tool == Tool::Copy);
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadRotate",
+                Some("Rotate"),
+                "Rotate the selection: base point, then the angle",
+                "ui.cadTool",
+                t("rotate"),
+                tool == Tool::Rotate,
+            );
+            small(
+                ui,
+                app,
+                "cadScale",
+                Some("Scale"),
+                "Scale the selection: base point, then the factor",
+                "ui.cadTool",
+                t("scale"),
+                tool == Tool::Scale,
+            );
+            small(
+                ui,
+                app,
+                "cadMirror",
+                Some("Mirror"),
+                "A mirrored copy of the selection: two points of the axis",
+                "ui.cadTool",
+                t("mirror"),
+                tool == Tool::Mirror,
+            );
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadOffset",
+                Some("Offset"),
+                "Offset: the distance (type it), the object, the side",
+                "ui.cadTool",
+                t("offset"),
+                tool == Tool::Offset,
+            );
             small(ui, app, "cadDelete", Some("Delete"), "Delete the selection (Del)", "ui.cadDelete", json!({}), false);
         });
         stack(ui, &mut |ui| {
@@ -2891,6 +3053,50 @@ mod tests {
         // Outside every closed object: a message, nothing made.
         ed.set_tool(Tool::Hatch);
         assert!(feed(ed, Pt::new(-500.0, -500.0), None).is_none() && !ed.message.is_empty());
+    }
+
+    /// Scale, Rotate and Mirror work on the selection (typed values or points); Offset keeps its
+    /// distance and goes on.
+    #[test]
+    fn scale_rotate_mirror_and_offset_in_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        // The starter rectangle alone, scaled by 2 about its corner.
+        ed.selection = vec![0];
+        ed.set_tool(Tool::parse("sc").unwrap());
+        assert!(feed(ed, Pt::new(0.0, 0.0), None).is_none());
+        let d = typed_value(ed, 2.0).unwrap().expect("scaled");
+        assert!(matches!(&d.entities[0].kind, Kind::Polyline { pts, .. } if pts[2].pt() == Pt::new(240.0, 120.0)));
+        ed.drawing = d;
+        // Rotated a quarter turn by a point straight up.
+        ed.selection = vec![0];
+        ed.set_tool(Tool::Rotate);
+        feed(ed, Pt::new(0.0, 0.0), None);
+        let d = feed(ed, Pt::new(0.0, 5.0), None).expect("rotated");
+        assert!(matches!(&d.entities[0].kind, Kind::Polyline { pts, .. } if pts[1].pt().minus(Pt::new(0.0, 240.0)).len() < 1e-9));
+        ed.drawing = d;
+        // Mirrored: a copy.
+        let before = ed.drawing.entities.len();
+        ed.selection = vec![0];
+        ed.set_tool(Tool::Mirror);
+        feed(ed, Pt::new(10.0, 0.0), None);
+        let d = feed(ed, Pt::new(10.0, 10.0), None).expect("mirrored");
+        assert_eq!(d.entities.len(), before + 1);
+        // Mirror with nothing selected asks for objects first.
+        ed.selection.clear();
+        ed.set_tool(Tool::Mirror);
+        assert!(ed.picking);
+        // Offset: the distance typed, then the object and the side; kept for the next drawing.
+        ed.drawing = d;
+        ed.set_tool(Tool::Offset);
+        assert!(typed_value(ed, 5.0).is_some());
+        feed(ed, Pt::new(-120.0, 100.0), None);
+        let d = feed(ed, Pt::new(-200.0, 100.0), None).expect("offset");
+        assert_eq!(d.entities.len(), before + 2);
+        assert_eq!(ed.tool, Tool::Offset, "it goes on");
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!(app.cad_settings.offset_dist, 5.0);
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

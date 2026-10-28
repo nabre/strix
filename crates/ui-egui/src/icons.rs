@@ -1289,6 +1289,30 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.rect(2.5, 7.0, 17.5, 14.0, c);
             pen.line_c(&[(3.5, 18.0), (16.5, 2.0)], a);
         }
+        // Modify: rotate (an arc with its arrowhead), scale (a small and a large square),
+        // mirror (a shape, its axis and its image), offset (a line and its parallel).
+        "cadRotate" => {
+            pen.line_c(
+                &[(15.5, 6.0), (12.5, 4.0), (9.0, 3.8), (5.5, 5.5), (3.5, 9.0), (3.8, 12.5), (6.0, 15.5), (9.5, 17.0), (13.0, 16.2), (15.8, 13.5)],
+                c,
+            );
+            pen.fill(&[(17.5, 3.5), (17.0, 8.5), (12.5, 6.5)], a);
+            pen.fcircle(10.0, 10.5, 1.3, a);
+        }
+        "cadScale" => {
+            pen.rect(3.0, 11.0, 9.0, 17.0, c);
+            pen.rect(3.0, 3.0, 17.0, 17.0, a);
+            pen.line_c(&[(9.0, 11.0), (14.5, 5.5)], c);
+        }
+        "cadMirror" => {
+            pen.line_c(&[(10.0, 2.0), (10.0, 18.0)], a);
+            pen.closed(&[(8.0, 5.0), (8.0, 15.0), (3.0, 15.0)], c);
+            pen.closed(&[(12.0, 5.0), (12.0, 15.0), (17.0, 15.0)], c);
+        }
+        "cadOffset" => {
+            pen.line_c(&[(3.0, 15.0), (8.0, 6.0), (17.0, 6.0)], c);
+            pen.line_c(&[(3.0, 18.0), (9.5, 9.5), (17.0, 9.5)], a);
+        }
         // A hatch: a square region filled with slanted lines.
         "cadHatch" => {
             pen.rect(3.0, 3.0, 17.0, 17.0, c);
