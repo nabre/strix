@@ -3880,7 +3880,14 @@ mod tests {
     fn ribbon_groups_fit_above_their_labels() {
         let app = WordApp::new(Session::new(strix_engine::sample::sample_document()), crate::Services::default());
         // Wide enough that no tab hides groups behind its scroll arrows.
-        let mut h = egui_kittest::Harness::builder().with_size(vec2(2560.0, 900.0)).build_ui_state(
+        let mut builder = egui_kittest::Harness::builder().with_size(vec2(2560.0, 900.0));
+        // Without craft-fonts the Chinese, Japanese and Korean labels are drawn with an installed
+        // CJK font, which a CI runner may not have: boxes stand in for them there (the heights
+        // checked here don't depend on the glyphs). With craft-fonts every glyph must exist.
+        if strix_fonts::ui_cjk_fonts(false).is_empty() {
+            builder = builder.allow_missing_glyphs();
+        }
+        let mut h = builder.build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
                 app.logic(&ctx);
