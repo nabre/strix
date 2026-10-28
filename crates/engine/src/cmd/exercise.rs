@@ -372,9 +372,25 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     blocks.push(para("Normal", "", Vec::new(), 2, None));
     let top = s.sel.focus.path.0.first().map_or(0, |&t| t as usize);
     let mut at = top.saturating_add(1).min(s.doc.body.len());
+    // Never inside another exercise: after it (the caret in one), or before the results
+    // summary (the caret in it).
+    let layout = scan(s);
+    let inside = match layout.parts.get(top) {
+        Some((Some(e), _)) => {
+            let e = *e;
+            at = layout.parts.iter().rposition(|(x, _)| *x == Some(e)).map_or(at, |last| last + 1).min(s.doc.body.len());
+            true
+        }
+        Some((None, Part::Results)) => {
+            at = layout.parts.iter().position(|(_, part)| *part == Part::Results).unwrap_or(top);
+            true
+        }
+        _ => false,
+    };
     // An empty paragraph at the caret gives way to the exercise (no blank line before the
     // title); a section break it carried moves to the exercise's last paragraph.
-    if let Some(Block::Para(p)) = s.doc.body.get(top).map(|b| &**b)
+    if !inside
+        && let Some(Block::Para(p)) = s.doc.body.get(top).map(|b| &**b)
         && p.text.is_empty()
         && p.objects.is_empty()
     {
@@ -1365,8 +1381,19 @@ mod tests {
         if let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
             st.para.numbering = None;
         }
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(0), 0));
+        // The caret still in the first exercise's title: the second goes after the first.
         s.run("exercise.insert", &json!({"title": "Secondo", "questions": ["q"]})).unwrap();
+        let first = scan(&s);
+        assert_eq!(first.exercises.len(), 2);
+        let t = texts(&s);
+        let (one, two) = (t.iter().position(|x| x == "Primo").unwrap(), t.iter().position(|x| x == "Secondo").unwrap());
+        assert!(t[one..two].iter().any(|x| x == "a) q"), "the first is whole before the second: {t:?}");
+        // The caret in the results summary: a new exercise goes before it.
+        let summary = t.iter().position(|x| x == "Riepilogo dei risultati").unwrap();
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(summary + 1), 0));
+        s.run("exercise.insert", &json!({"title": "Terzo", "questions": ["q"]})).unwrap();
+        let t = texts(&s);
+        assert!(t.iter().position(|x| x == "Terzo").unwrap() < t.iter().position(|x| x == "Riepilogo dei risultati").unwrap(), "{t:?}");
         let mut counters = strix_doc::numbering::Counters::default();
         let labels: Vec<String> = s
             .doc
@@ -1380,7 +1407,7 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(labels, ["Esercizio 1.", "Esercizio 2."]);
+        assert_eq!(labels, ["Esercizio 1.", "Esercizio 2.", "Esercizio 3."]);
     }
 
     #[test]
