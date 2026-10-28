@@ -108,6 +108,23 @@ fn total(text: &str) -> Option<(Total, &str)> {
     Some((kind, key))
 }
 
+/// The ordinal number of each row of a calculated table (row 0 is the header): the data rows
+/// with something written in them count 1, 2, 3…; the header, totals rows (`Σ =`) and empty
+/// rows have none. A table's ordinal column (column "0") shows these.
+pub fn ordinals(rows: &[Vec<String>]) -> Vec<Option<usize>> {
+    let mut n = 0usize;
+    rows.iter()
+        .enumerate()
+        .map(|(r, row)| {
+            let data = r > 0 && !row.iter().any(|t| total(t).is_some()) && row.iter().any(|t| !t.trim().is_empty());
+            data.then(|| {
+                n += 1;
+                n
+            })
+        })
+        .collect()
+}
+
 impl Worksheet {
     /// Evaluates a calculated table given as plain cell texts, row by row (row 0 is the
     /// header), and defines its complete columns in the scope. See the module docs.

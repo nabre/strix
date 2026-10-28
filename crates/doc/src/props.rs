@@ -1200,6 +1200,11 @@ pub struct TableProps {
     /// units in the Unit style). Saved as `strix:calcMath="1"` on `w:tblPr`.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub calc_math: bool,
+    /// A calculated table whose first column (column "0") holds the data rows' ordinal numbers
+    /// (1, 2, 3…), written by the calculations and never read by them. Saved as
+    /// `strix:calcIndex="1"` on `w:tblPr`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub calc_index: bool,
 }
 
 /// How a data table names its cells (see [`TableProps::calc_names`]).

@@ -1274,6 +1274,13 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             }
             pen.line_c(&[(7.5, 11.5), (10.5, 8.5)], a);
         }
+        // Total Row: a table whose last row is marked with a sum sign.
+        "calcTotal" => {
+            pen.line_c(&[(2.0, 3.0), (18.0, 3.0), (18.0, 17.0), (2.0, 17.0), (2.0, 3.0)], c);
+            pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
+            pen.line_c(&[(2.0, 12.0), (18.0, 12.0)], c);
+            pen.text(10.0, 14.5, 6.5, "Σ", a, false);
+        }
         // A level mark: the triangle on its tip, half filled, the line and a value over it.
         "cadLevel" => {
             pen.line_c(&[(2.0, 16.0), (10.0, 16.0)], c);

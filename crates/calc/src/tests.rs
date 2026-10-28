@@ -1227,3 +1227,15 @@ fn one_equals_sign_still_solves_checks_and_shows() {
     assert_eq!(last(&["f(x) = 2·x + 1", "f(3) ="]), "f(3) = 7");
     assert_eq!(last(&["F = 10 N", "m = 4 kg", "F = m·a = m/s^2"]), "F = m·a = 2.5 m/s²");
 }
+
+/// A calculated table's ordinal column numbers the data rows with something in them: not the
+/// header, not a totals row, not an empty row.
+#[test]
+fn table_rows_are_numbered_in_order() {
+    let rows: Vec<Vec<String>> = [vec!["L [m]", "M = L^2"], vec!["4", ""], vec!["", ""], vec!["6", ""], vec!["", "Σ ="], vec!["7", ""]]
+        .iter()
+        .map(|r| r.iter().map(|s| s.to_string()).collect())
+        .collect();
+    assert_eq!(crate::ordinals(&rows), vec![None, Some(1), None, Some(2), None, Some(3)]);
+    assert!(crate::ordinals(&[]).is_empty());
+}

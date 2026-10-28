@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** a definition worked out at once (`A = 3 m · 5 m =`)
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** calculated tables: header row, Total Row, ordinal column
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -98,7 +98,11 @@ columns and 100 000 cells.
 
 ## Calculated tables
 
-The first row is the header. A header cell is a column name with an optional unit in square
+The first row is the **header**: the calculations the table does are read from it. Turning a
+table into a calculated one (Calculated Table, `table.calc`, Data Table, Cells as Equations,
+`calc.insertTable`) makes that row its header row (Table Design › Header Row, repeated at the top
+of each page); a table whose first row holds values (a table of numbers) gets an empty header
+row above them, to write the columns' names and formulas in. A header cell is a column name with an optional unit in square
 brackets or parentheses and an optional formula: `L [m]`, `q (kN/m)`, `M [kN·m] = γ·q·L²/8`.
 Any other header (`Beam`, `Load case`, empty) is a label column, never read.
 
@@ -124,6 +128,15 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
   (its formula cells are cleared).
 - A cell `Σ =` (also `sum`, `total`), `mean =`, `min =` or `max =` totals its column over the
   data rows; its row is not a data row.
+- **Total Row** (Table Design › Table Style Options › Total Row, also Table Layout › Data and
+  Math › Tables; `table.look {"totalRow"}`): the last row is the totals row; each empty cell
+  under a value or formula column sums its column (`Σ = 101.756`), a cell written there keeps
+  its own text (`mean =`, `max =`, a label), label columns get nothing. It is not a data row.
+- **Ordinal column** (Table Layout › Data › Ordinal Column, Math › Tables; `table.calcIndex`,
+  saved as `strix:calcIndex="1"` on `w:tblPr`): a first column, column "0", headed `N.`, numbers
+  the data rows with something in them 1, 2, 3… (not the header, a totals row or an empty row;
+  `strix_calc::ordinals`). The calculations never read it: formulas, totals and a data table's
+  row labels (the first column after it) see the table without it. Off, the column goes.
 - After the table every complete column is a vector in the worksheet (`sum(M)`, `∑_i▒L[i]`); a
   column with empty cells is not defined.
 - Errors stay in their cell (`⚠`) and are listed by `calc.recalculate` with row and column.
@@ -333,6 +346,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 - 2026-10-28: temperatures in `°C` and `°F` (`degC`, `degF`): absolute with the offset,
   differences in K; user functions `f(x) = …` with parameters, units, call-time names and a
   recursion cap.
+- 2026-10-28: calculated tables: the header row is marked (a table of numbers gets one), Total Row sums the columns, ordinal column 0.
 - 2026-10-28: calculated tables can show their cells as equations.
 - 2026-10-27: composed units for moments and loads (`kN·m`, `kN/m²`), force first.
 - 2026-10-27: data tables: cells named by column and row with a subscript (`F_A` or `A_F`).

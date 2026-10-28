@@ -59,6 +59,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("table.mathCells", "Cells as Equations", "Table Layout › Data", math_cells)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"math", "recalculated"}: the table at the caret (made calculated) shows every cell as an equation: names in italics, subscripts, units in the Unit style; off, the cells are text again"#),
+        CommandSpec::new("table.calcIndex", "Ordinal Column", "Table Layout › Data", calc_index)
+            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "N.", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
@@ -66,10 +69,12 @@ pub fn specs() -> Vec<CommandSpec> {
             let calc = table.is_some_and(|t| t.props.calc);
             let names = table.and_then(|t| t.props.calc_names).map_or("none", |n| n.name());
             let math = table.is_some_and(|t| t.props.calc_math);
-            Ok(json!({"calc": calc, "names": names, "math": math}))
+            let index = table.is_some_and(|t| t.props.calc_index);
+            let total = table.is_some_and(|t| t.props.look.total_row);
+            Ok(json!({"calc": calc, "names": names, "math": math, "index": index, "total": total}))
         })
         .pure()
-        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations"#),
+        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
             .pure()
             .params(r#"{"digits"?: n} → {"variables": [{"name", "value" (number in the unit shown, or an array), "text", "unit", "si" (SI magnitude, or an array), "region" (index of the defining item)}]}"#),
@@ -180,7 +185,9 @@ enum Item {
     Equation { top: usize, text: Option<String>, answer: u32, full: String },
     /// A calculated table (top-level block `top`): its cells' text, row by row, and how its
     /// cells are named when it is a data table.
-    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames>, math: bool },
+    /// `index`: its first column is the ordinal column, written here and never read. `total`:
+    /// its last row is the totals row (Table Design › Total Row).
+    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames>, math: bool, index: bool, total: bool },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
 }
@@ -246,9 +253,14 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     }
                 }
             }
-            Block::Table(t) if depth == 0 && t.props.calc => {
-                out.push(Item::Table { top, cells: table_cells(t), names: t.props.calc_names, math: t.props.calc_math })
-            }
+            Block::Table(t) if depth == 0 && t.props.calc => out.push(Item::Table {
+                top,
+                cells: table_cells(t),
+                names: t.props.calc_names,
+                math: t.props.calc_math,
+                index: t.props.calc_index,
+                total: t.props.look.total_row,
+            }),
             Block::Table(t) => {
                 for row in &t.rows {
                     for cell in &row.cells {
@@ -340,14 +352,43 @@ fn run_sheet(
                     Outcome::Equation(Some(r), units)
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new()),
-                Item::Table { cells, names, math, .. } => {
-                    let result = ws.eval_table_named(
-                        cells,
+                Item::Table { cells, names, math, index, total, .. } => {
+                    // The ordinal column is not read: the calculations see the table without it.
+                    let mut read: Vec<Vec<String>> =
+                        if *index { cells.iter().map(|row| row.iter().skip(1).cloned().collect()).collect() } else { cells.clone() };
+                    // The total row: each empty cell sums its column (`Σ =`; label columns have
+                    // none). A cell written there keeps its own text (`mean =`, a label).
+                    if *total
+                        && read.len() >= 2
+                        && let Some(last) = read.last_mut()
+                    {
+                        for cell in last.iter_mut().filter(|t| t.trim().is_empty()) {
+                            *cell = "Σ =".to_string();
+                        }
+                    }
+                    let read = &read;
+                    let mut result = ws.eval_table_named(
+                        read,
                         names.map(|n| match n {
                             strix_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
                             strix_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
                         }),
                     );
+                    if *index {
+                        for u in &mut result.updates {
+                            u.1 += 1;
+                        }
+                        for e in &mut result.errors {
+                            e.1 += 1;
+                        }
+                        // Each data row's ordinal number; other rows' are cleared (not the header).
+                        for (r, n) in strix_calc::ordinals(read).into_iter().enumerate().skip(1) {
+                            let want = n.map(|n| n.to_string()).unwrap_or_default();
+                            if cells.get(r).and_then(|row| row.first()).map_or("", |t| t.trim()) != want {
+                                result.updates.push((r, 0, want));
+                            }
+                        }
+                    }
                     // Shown as equations: every cell's final text, and the units in it to style.
                     let shown = math.then(|| {
                         let mut grid = cells.clone();
@@ -484,10 +525,12 @@ fn fingerprint(found: &[Item]) -> u64 {
     for item in found {
         match item {
             Item::Equation { text, answer, full, .. } => (text, answer, full).hash(&mut h),
-            Item::Table { cells, names, math, .. } => {
+            Item::Table { cells, names, math, index, total, .. } => {
                 cells.hash(&mut h);
                 names.map(|n| n.name()).hash(&mut h);
                 math.hash(&mut h);
+                index.hash(&mut h);
+                total.hash(&mut h);
             }
             Item::Cad { source, .. } => source.hash(&mut h),
         }
@@ -1045,7 +1088,12 @@ fn toggle_table(s: &mut Session, v: &Value) -> CmdResult {
     let story = s.sel.focus.story;
     let t = s.doc.table_mut(story, &tp)?;
     let on = p::bool(v, "value").unwrap_or(!t.props.calc);
+    let was = t.props.calc;
     t.props.calc = on;
+    if on && !was {
+        calc_header(s)?;
+    }
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     super::table::touch_cells(s, &tp)?;
     let report = recalculate(s, &options(s, v));
     Ok(json!({"calc": on, "recalculated": report}))
@@ -1062,12 +1110,134 @@ fn cell_names(s: &mut Session, v: &Value) -> CmdResult {
     let t = s.doc.table_mut(story, &tp)?;
     t.props.calc_names = names;
     // A data table is a calculated table.
+    let was = t.props.calc;
     if names.is_some() {
         t.props.calc = true;
+        if !was {
+            calc_header(s)?;
+        }
     }
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     super::table::touch_cells(s, &tp)?;
     let report = recalculate(s, &options(s, v));
     Ok(json!({"names": names.map_or("none", |n| n.name()), "recalculated": report}))
+}
+
+/// Runs table command `id` with the caret in cell (`row`, `col`) of the table at the caret, then
+/// puts the caret back where it was, moved with its cell (`rows`, `cols`: how the command
+/// shifts the rows and columns from 0 on: +1 inserted, −1 deleted).
+fn at_first_cell(s: &mut Session, id: &str, rows: i32, cols: i32) -> Result<(), CmdError> {
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let keep = s.sel.clone();
+    let mut at = tp.0.clone();
+    at.extend([0, 0, 0]);
+    s.sel = crate::Selection::caret(strix_doc::Pos::new(keep.focus.story, strix_doc::Path(at), 0));
+    let done = s.run(id, &json!({}));
+    let depth = tp.0.len();
+    let shift = |mut p: strix_doc::Pos| {
+        if p.path.0.len() > depth + 1 && p.path.0.get(..depth) == Some(&tp.0[..]) {
+            let gone = cols < 0 && p.path.0.get(depth + 1) == Some(&0);
+            for (k, by) in [(depth, rows), (depth + 1, cols)] {
+                if let Some(i) = p.path.0.get_mut(k) {
+                    *i = i.saturating_add_signed(by);
+                }
+            }
+            // In the column that went: the start of the first cell left in its row.
+            if gone {
+                p.path.0.truncate(depth + 2);
+                if let Some(c) = p.path.0.get_mut(depth + 1) {
+                    *c = 0;
+                }
+                p.path.0.push(0);
+                p.off = 0;
+            }
+        }
+        p
+    };
+    s.sel = crate::Selection { anchor: shift(keep.anchor), focus: shift(keep.focus) };
+    done.map(|_| ()).map_err(|e| CmdError::Failed(e.to_string()))
+}
+
+/// The table at the caret just became calculated: its first row is the header the calculations
+/// are read from (Table Design › Header Row, repeated at the top of each page). When that row
+/// holds values (a table of numbers), an empty header row goes above it.
+fn calc_header(s: &mut Session) -> Result<(), CmdError> {
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let story = s.sel.focus.story;
+    let values = s.doc.table(story, &tp).and_then(|t| t.rows.first()).is_some_and(|row| {
+        let texts: Vec<String> = row.cells.iter().map(|c| cell_text(&c.blocks)).collect();
+        let value = |t: &str| t.trim().starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '+' | '.' | '−')) && !t.contains('=');
+        texts.iter().any(|t| !t.trim().is_empty()) && texts.iter().all(|t| t.trim().is_empty() || value(t))
+    });
+    if values {
+        at_first_cell(s, "table.insertRowAbove", 1, 0)?;
+    }
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let t = s.doc.table_mut(story, &tp)?;
+    t.props.look.header_row = true;
+    if let Some(row) = t.rows.first_mut() {
+        row.props.header = true;
+        // Bold, so it reads as the header whatever the table's style.
+        for cell in &mut row.cells {
+            for b in &mut cell.blocks {
+                if let Block::Para(p) = Arc::make_mut(b) {
+                    p.mark.bold = Some(true);
+                    for r in &mut p.runs {
+                        r.props.bold = Some(true);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The ordinal column (column "0") on or off: a first column headed "N." added, or removed.
+fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let story = s.sel.focus.story;
+    let t = s.doc.table(story, &tp).ok_or_else(|| CmdError::Failed("no table".into()))?;
+    let now = t.props.calc && t.props.calc_index;
+    let on = p::bool(v, "value").unwrap_or(!now);
+    if on != now {
+        if !t.props.calc {
+            toggle_table(s, &json!({"value": true}))?;
+        }
+        if on {
+            at_first_cell(s, "table.insertColumnLeft", 0, 1)?;
+            let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+            write_cell_text(s, story, &tp, 0, 0, "N.")?;
+            // Bold like the rest of the header.
+            if let Some(Block::Para(p)) =
+                s.doc.table_mut(story, &tp)?.rows.first_mut().and_then(|r| r.cells.first_mut()).and_then(|c| c.blocks.first_mut()).map(Arc::make_mut)
+            {
+                p.mark.bold = Some(true);
+                p.runs.iter_mut().for_each(|r| r.props.bold = Some(true));
+            }
+        } else {
+            at_first_cell(s, "table.deleteColumn", 0, -1)?;
+        }
+        let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+        s.doc.table_mut(story, &tp)?.props.calc_index = on;
+        super::table::touch_cells(s, &tp)?;
+    }
+    let report = recalculate(s, &options(s, v));
+    Ok(json!({"index": on, "recalculated": report}))
+}
+
+/// Sets the text of cell (`row`, `col`) of the table at `tp`: its first paragraph, its look kept.
+fn write_cell_text(s: &mut Session, story: strix_doc::StoryRef, tp: &strix_doc::Path, row: usize, col: usize, text: &str) -> Result<(), CmdError> {
+    let t = s.doc.table_mut(story, tp)?;
+    let cell = t.rows.get_mut(row).and_then(|r| r.cells.get_mut(col)).ok_or_else(|| CmdError::Failed("no such cell".into()))?;
+    let first = cell.blocks.first_mut().ok_or_else(|| CmdError::Failed("an empty cell".into()))?;
+    if let Block::Para(p) = Arc::make_mut(first) {
+        let props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+        let mut new = Paragraph::with_text(text, props);
+        new.props = p.props.clone();
+        new.mark = p.mark.clone();
+        *p = new;
+    }
+    Ok(())
 }
 
 /// Inserts a table and turns it into a calculated table.
@@ -1362,6 +1532,69 @@ mod tests {
         }
     }
 
+    /// The texts of the first table's cells, row by row.
+    fn grid(s: &Session) -> Vec<Vec<String>> {
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        t.rows.iter().map(|r| r.cells.iter().map(|c| cell_text(&c.blocks)).collect()).collect()
+    }
+
+    /// Turned calculated, a table's first row is its header (Header Row, repeated on each page);
+    /// a table of numbers gets an empty header row above them.
+    #[test]
+    fn a_calculated_table_has_a_header_row() {
+        let mut s = session();
+        with_table(&mut s, &[&["4", "12"], &["6", "10"]]);
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s), vec![vec!["", ""], vec!["4", "12"], vec!["6", "10"]]);
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        assert!(t.props.look.header_row && t.rows[0].props.header && !t.rows[1].props.header);
+        let bold = |r: usize| t.rows[r].cells.iter().all(|c| matches!(&*c.blocks[0], Block::Para(p) if p.mark.bold == Some(true)));
+        assert!(bold(0) && !bold(1), "the header is bold");
+        assert_eq!(s.sel.focus.path.0, vec![0, 2, 1, 0], "the caret moved down with its cell");
+        // A table with a header keeps its rows; turning it off and on again adds nothing.
+        s.run("table.calc", &json!({"value": false})).unwrap();
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s).len(), 3);
+    }
+
+    /// The ordinal column (column "0"): headed "N.", it numbers the data rows 1, 2, 3 (not the
+    /// header, a totals row or an empty row), the calculations never read it, and off it goes.
+    /// The Total Row sums each column in the last row. Both are kept on save.
+    #[test]
+    fn ordinal_column_and_total_row() {
+        let mut s = session();
+        with_table(&mut s, &[&["Beam", "L [m]", "M [m^2] = L^2"], &["B1", "2", ""], &["", "", ""], &["B2", "3", ""], &["", "", ""]]);
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 3, 1, 0]), 0));
+        let r = s.run("table.calcIndex", &json!({})).unwrap();
+        assert_eq!(r["index"], true);
+        let g = grid(&s);
+        let col = |g: &Vec<Vec<String>>, c: usize| g.iter().map(|r| r[c].clone()).collect::<Vec<_>>();
+        assert_eq!(col(&g, 0), vec!["N.", "1", "", "2", ""]);
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        assert!(matches!(&*t.rows[0].cells[0].blocks[0], Block::Para(p) if p.runs.iter().all(|r| r.props.bold == Some(true))));
+        assert_eq!(col(&g, 3), vec!["M [m^2] = L^2", "4", "", "9", ""], "the formula sees L in its own column");
+        assert_eq!(s.sel.focus.path.0, vec![0, 3, 2, 0], "the caret moved right with its cell");
+        // The Total Row: the last row sums each column (the label and ordinal columns have none).
+        s.run("table.look", &json!({"totalRow": true})).unwrap();
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let g = grid(&s);
+        assert_eq!(g[4], vec!["", "", "Σ = 5", "Σ = 13"], "{g:?}");
+        assert_eq!(col(&g, 0), vec!["N.", "1", "", "2", ""], "the total row has no number");
+        let info = s.run("calc.tableInfo", &json!({})).unwrap();
+        assert_eq!((info["index"].as_bool(), info["total"].as_bool()), (Some(true), Some(true)));
+        // Saved and opened again.
+        let bytes = crate::io::save_bytes("d.xmath", &s.doc).unwrap();
+        let back = crate::io::open_bytes("d.xmath", &bytes).unwrap();
+        let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.clone()) } else { None }).unwrap();
+        assert!(t.calc_index && t.look.total_row);
+        // Off: the column goes, the rest stays.
+        s.run("table.calcIndex", &json!({"value": false})).unwrap();
+        let g = grid(&s);
+        assert_eq!(g[0], vec!["Beam", "L [m]", "M [m^2] = L^2"]);
+        assert_eq!(s.sel.focus.path.0, vec![0, 3, 1, 0]);
+    }
+
     /// A data table: its values are parameters `F_A` (or `A_F`) for what follows; kept on save.
     #[test]
     fn a_data_table_names_its_cells() {
@@ -1369,7 +1602,10 @@ mod tests {
         with_table(&mut s, &[&["", "F [kN]", "a [m]"], &["A", "10", "2"], &["B", "12", "0.5"]]);
         let r = s.run("table.calcNames", &json!({"value": "columnRow"})).unwrap();
         assert_eq!(r["names"], "columnRow");
-        assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap(), json!({"calc": true, "names": "columnRow", "math": false}));
+        assert_eq!(
+            s.run("calc.tableInfo", &json!({})).unwrap(),
+            json!({"calc": true, "names": "columnRow", "math": false, "index": false, "total": false})
+        );
         s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![s.doc.body.len() as u32 - 1]), 0));
         add(&mut s, "F_B·a_A =");
         assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=24kN·m"), "12 kN × 2 m: a moment");

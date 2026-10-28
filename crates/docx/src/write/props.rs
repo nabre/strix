@@ -472,6 +472,9 @@ pub fn tblpr(w: &mut W, t: &TableProps, change: Option<&ChangeAttrs>) {
         if t.calc_math {
             attrs.push(("strix:calcMath", "1"));
         }
+        if t.calc_index {
+            attrs.push(("strix:calcIndex", "1"));
+        }
     }
     w.open("w:tblPr", &attrs);
     tblpr_inner(w, t);

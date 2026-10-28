@@ -2928,3 +2928,6 @@ preview	Title	Esempio
 	Scaled distances	Distanze in scala
 	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Le linee di quota e gli archi degli angoli posati con un clic o una maniglia tengono la distanza nel disegno (seguono le sue dimensioni e la scala); se disattivato, sulla carta (uguale in stampa)
 	a radius is more than 0	un raggio è maggiore di 0
+	Ordinal Column	Colonna ordinale
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Una prima colonna, la colonna 0, che numera le righe di dati 1, 2, 3… (i calcoli non la leggono mai)
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	L'ultima riga somma ogni colonna (Σ =); una cella scritta lì mantiene il suo testo (mean =, max =)

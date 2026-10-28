@@ -48,7 +48,7 @@ pub use error::CalcError;
 pub use eval::{Scope, Value, Vector};
 pub use format::format_number;
 pub use quantity::{BASE_SYMBOLS, Dim, Quantity};
-pub use table::{CellNames, TableResult};
+pub use table::{CellNames, TableResult, ordinals};
 pub use units::{auto_unit, constant, display_unit, unit};
 pub use worksheet::{Count, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value};
 

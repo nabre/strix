@@ -2651,6 +2651,7 @@ Table",
             );
             calc_table_tools(ui, app);
         });
+        stack(ui, |ui| calc_table_rows(ui, app));
     });
     group(ui, "Results", None, app, |ui, app| {
         let digits = u64::from(app.session.prefs.calc_digits);
@@ -3513,8 +3514,37 @@ Table",
             "table.calc",
             on,
         );
-        calc_table_tools(ui, app);
+        stack(ui, |ui| calc_table_tools(ui, app));
+        stack(ui, |ui| calc_table_rows(ui, app));
     });
+}
+
+/// A calculated table's ordinal column (column "0", the data rows numbered 1, 2, 3…) and its
+/// total row (the last row sums each column: Table Design › Total Row).
+fn calc_table_rows(ui: &mut Ui, app: &mut WordApp) {
+    let info = app.session.run("calc.tableInfo", &json!({})).ok();
+    let flag = |k: &str| info.as_ref().and_then(|v| v.get(k).and_then(Value::as_bool)).unwrap_or(false);
+    let (index, total) = (flag("index"), flag("total"));
+    small(
+        ui,
+        app,
+        "numbering",
+        Some("Ordinal Column"),
+        "A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)",
+        "table.calcIndex",
+        json!({}),
+        index,
+    );
+    small(
+        ui,
+        app,
+        "calcTotal",
+        Some("Total Row"),
+        "The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)",
+        "table.look",
+        json!({"totalRow": !total}),
+        total,
+    );
 }
 
 /// A calculated table's options: Cells as Equations, and Data Table (its values as parameters
