@@ -59,12 +59,12 @@ pub fn sniff_xml(bytes: &[u8]) -> XmlKind {
         match r.read_resolved_event() {
             Ok((res, Event::Start(e) | Event::Empty(e))) => {
                 let ns = match res {
-                    ResolveResult::Bound(ns) => ns.as_ref().to_string(),
-                    _ => String::new(),
+                    ResolveResult::Bound(ns) => ns.as_ref().to_vec(),
+                    _ => Vec::new(),
                 };
-                return match (e.local_name().as_ref(), ns.as_str()) {
-                    ("package", ns) if ns == PKG_NS => XmlKind::FlatOpc,
-                    ("wordDocument", ns) if ns == W2003_NS => XmlKind::WordMl2003,
+                return match (e.local_name().as_ref(), ns.as_slice()) {
+                    (b"package", ns) if ns == PKG_NS.as_bytes() => XmlKind::FlatOpc,
+                    (b"wordDocument", ns) if ns == W2003_NS.as_bytes() => XmlKind::WordMl2003,
                     _ => XmlKind::Other,
                 };
             }
@@ -135,7 +135,7 @@ pub(crate) fn unpack(bytes: &[u8]) -> Result<Package, DocxError> {
     loop {
         let before = usize::try_from(r.buffer_position()).unwrap_or(usize::MAX);
         let (res, ev) = r.read_resolved_event().map_err(bad)?;
-        let in_pkg = matches!(&res, ResolveResult::Bound(ns) if ns.as_ref() == PKG_NS);
+        let in_pkg = matches!(&res, ResolveResult::Bound(ns) if ns.as_ref() == PKG_NS.as_bytes());
         match ev {
             Event::Start(ref e) | Event::Empty(ref e) => {
                 let empty = matches!(ev, Event::Empty(_));
@@ -154,24 +154,24 @@ pub(crate) fn unpack(bytes: &[u8]) -> Result<Package, DocxError> {
                 if elements > MAX_PART_ELEMENTS {
                     return Err(DocxError::Limit("too many XML elements".into()));
                 }
-                let local = e.local_name().as_ref().to_string();
+                let local = e.local_name().as_ref().to_vec();
                 match depth {
-                    1 if !(in_pkg && local == "package") => {
+                    1 if !(in_pkg && local == b"package") => {
                         return Err(DocxError::NotWord("the root element isn't a Flat OPC pkg:package".into()));
                     }
-                    2 if in_pkg && local == "part" => {
-                        let name = attr(e, "name").unwrap_or_default();
-                        let content_type = attr(e, "contentType").unwrap_or_default();
+                    2 if in_pkg && local == b"part" => {
+                        let name = attr(e, b"name").unwrap_or_default();
+                        let content_type = attr(e, b"contentType").unwrap_or_default();
                         part = Some(Part { name, content_type, data: None });
                     }
                     3 if in_pkg => {
                         if let Some(p) = part.as_mut().filter(|p| p.data.is_none()) {
                             let pos = usize::try_from(r.buffer_position()).unwrap_or(usize::MAX);
-                            p.data = match local.as_str() {
+                            p.data = match local.as_slice() {
                                 // `<pkg:xmlData/>`: an empty part.
-                                "xmlData" if empty => Some(Data::Binary(String::new())),
-                                "xmlData" => Some(Data::Xml(pos)),
-                                "binaryData" => Some(Data::Binary(String::new())),
+                                b"xmlData" if empty => Some(Data::Binary(String::new())),
+                                b"xmlData" => Some(Data::Xml(pos)),
+                                b"binaryData" => Some(Data::Binary(String::new())),
                                 _ => None,
                             };
                         }
@@ -221,11 +221,11 @@ pub(crate) fn unpack(bytes: &[u8]) -> Result<Package, DocxError> {
                     break;
                 }
             }
-            Event::Text(ref t) if depth == 3 => add_base64(&mut part, t.as_ref(), total)?,
-            Event::CData(ref t) if depth == 3 => add_base64(&mut part, t.as_ref(), total)?,
+            Event::Text(ref t) if depth == 3 => add_base64(&mut part, t, total)?,
+            Event::CData(ref t) if depth == 3 => add_base64(&mut part, t, total)?,
             Event::GeneralRef(ref g) if depth == 3 => match g.resolve_char_ref() {
                 // A character reference stands for its character (`&#65;` is an `A`).
-                Ok(Some(c)) => add_base64(&mut part, c.encode_utf8(&mut [0; 4]), total)?,
+                Ok(Some(c)) => add_base64(&mut part, c.encode_utf8(&mut [0; 4]).as_bytes(), total)?,
                 // An entity isn't base64: binary data holding one is broken, not shorter.
                 _ => {
                     if let Some(Part { name, data: Some(Data::Binary(_)), .. }) = &part {
@@ -268,9 +268,9 @@ fn finish_part(p: Part, files: &mut BTreeMap<String, Vec<u8>>, types: &mut Vec<(
 
 /// Text (or CDATA) inside a part's `pkg:binaryData`: its base64 without whitespace, checked
 /// against the size limits before it's copied.
-fn add_base64(part: &mut Option<Part>, text: &str, total: u64) -> Result<(), DocxError> {
+fn add_base64(part: &mut Option<Part>, text: &[u8], total: u64) -> Result<(), DocxError> {
     let Some(Part { data: Some(Data::Binary(b64)), .. }) = part else { return Ok(()) };
-    let s = text;
+    let s = std::str::from_utf8(text).map_err(|e| DocxError::Xml(e.to_string()))?;
     let more = s.bytes().filter(|b| !b.is_ascii_whitespace()).count();
     if b64.len().saturating_add(more) as u64 > max_base64(room(total)) {
         return Err(DocxError::Limit("a binary part is larger than the size limit".into()));
@@ -309,11 +309,11 @@ fn store(
 }
 
 /// An attribute's unescaped value, by local name (any prefix).
-fn attr(e: &BytesStart, local: &str) -> Option<String> {
+fn attr(e: &BytesStart, local: &[u8]) -> Option<String> {
     e.attributes().with_checks(false).flatten().find(|a| a.key.local_name().as_ref() == local).map(|a| {
         match a.normalized_value(quick_xml::XmlVersion::Explicit1_0) {
             Ok(v) => v.into_owned(),
-            Err(_) => a.value.into_owned(),
+            Err(_) => String::from_utf8_lossy(&a.value).into_owned(),
         }
     })
 }
@@ -323,9 +323,9 @@ fn ns_decls(e: &BytesStart) -> Vec<(String, String)> {
     e.attributes()
         .with_checks(false)
         .flatten()
-        .filter(|a| a.key.as_ref() == "xmlns" || a.key.as_ref().starts_with("xmlns:"))
-        .filter(|a| !a.value.contains('"'))
-        .map(|a| (a.key.as_ref().to_string(), a.value.into_owned()))
+        .filter(|a| a.key.as_ref() == b"xmlns" || a.key.as_ref().starts_with(b"xmlns:"))
+        .filter(|a| !a.value.contains(&b'"'))
+        .map(|a| (String::from_utf8_lossy(a.key.as_ref()).into_owned(), String::from_utf8_lossy(&a.value).into_owned()))
         .take(256)
         .collect()
 }
@@ -343,19 +343,19 @@ fn with_scope(frag: &[u8], scope: &[Vec<(String, String)>]) -> Vec<u8> {
     let tag_end = rest.iter().position(|b| *b == b'>').unwrap_or(rest.len());
     let tag = String::from_utf8_lossy(rest.get(1..tag_end).unwrap_or_default());
     let start = BytesStart::from_content(tag.as_ref(), name_end.saturating_sub(1));
-    let declared: HashSet<String> = start
+    let declared: HashSet<Vec<u8>> = start
         .attributes()
         .with_checks(false)
         .flatten()
-        .filter(|a| a.key.as_ref() == "xmlns" || a.key.as_ref().starts_with("xmlns:"))
-        .map(|a| a.key.as_ref().to_string())
+        .filter(|a| a.key.as_ref() == b"xmlns" || a.key.as_ref().starts_with(b"xmlns:"))
+        .map(|a| a.key.as_ref().to_vec())
         .collect();
     let mut out = Vec::with_capacity(rest.len() + 256);
     out.extend_from_slice(rest.get(..name_end).unwrap_or_default());
     // Innermost declarations win: walk from the data element out, skipping prefixes seen.
     let mut seen: Vec<&str> = Vec::new();
     for (k, v) in decls.iter().rev() {
-        if declared.contains(k.as_str()) || seen.contains(&k.as_str()) {
+        if declared.contains(k.as_bytes()) || seen.contains(&k.as_str()) {
             continue;
         }
         seen.push(k);
@@ -469,7 +469,7 @@ fn one_element(s: &str) -> bool {
                 None => return false,
             },
             Ok(Event::Text(t)) if depth == 0 => {
-                if !t.bytes().all(|b| b.is_ascii_whitespace()) {
+                if !t.iter().all(u8::is_ascii_whitespace) {
                     return false;
                 }
             }

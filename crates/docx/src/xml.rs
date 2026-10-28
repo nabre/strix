@@ -88,12 +88,12 @@ const STRICT: &[(&str, &str)] = &[
     ("m", "http://purl.oclc.org/ooxml/officeDocument/math"),
 ];
 
-fn prefix_for(uri: &str, extra: &[(&'static str, &str)]) -> &'static str {
-    if let Some((p, _)) = extra.iter().find(|(_, u)| *u == uri) {
+fn prefix_for(uri: &[u8], extra: &[(&'static str, &str)]) -> &'static str {
+    if let Some((p, _)) = extra.iter().find(|(_, u)| u.as_bytes() == uri) {
         return p;
     }
     for (p, u) in NAMESPACES.iter().chain(OTHER_NAMESPACES).chain(STRICT) {
-        if *u == uri {
+        if u.as_bytes() == uri {
             return p;
         }
     }
@@ -102,18 +102,18 @@ fn prefix_for(uri: &str, extra: &[(&'static str, &str)]) -> &'static str {
 
 /// Compatibility feature namespaces whose elements are not otherwise handled by this tree.
 /// Keep the reader's existing feature set when canonicalizing `mc:Choice/@Requires` aliases.
-fn requirement_prefix(uri: &str) -> &'static str {
+fn requirement_prefix(uri: &[u8]) -> &'static str {
     let prefix = prefix_for(uri, &[]);
     if prefix != "?" {
         return prefix;
     }
     match uri {
-        "http://schemas.microsoft.com/office/drawing/2010/main" => "a14",
-        "http://schemas.microsoft.com/office/word/2015/wordml/symex" => "w16se",
-        "http://schemas.microsoft.com/office/word/2016/wordml/cid" => "w16cid",
-        "http://schemas.microsoft.com/office/word/2018/wordml" => "w16",
-        "http://schemas.microsoft.com/office/word/2018/wordml/cex" => "w16cex",
-        "http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash" => "w16sdtdh",
+        b"http://schemas.microsoft.com/office/drawing/2010/main" => "a14",
+        b"http://schemas.microsoft.com/office/word/2015/wordml/symex" => "w16se",
+        b"http://schemas.microsoft.com/office/word/2016/wordml/cid" => "w16cid",
+        b"http://schemas.microsoft.com/office/word/2018/wordml" => "w16",
+        b"http://schemas.microsoft.com/office/word/2018/wordml/cex" => "w16cex",
+        b"http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash" => "w16sdtdh",
         _ => "?",
     }
 }
@@ -361,7 +361,7 @@ fn parse_with(bytes: &[u8], extra: &[(&'static str, &str)], strict: bool) -> Res
                 if count > MAX_ELEMENTS {
                     return Err(DocxError::Limit("too many XML elements".into()));
                 }
-                let local = e.local_name().as_ref().to_string();
+                let local = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
                 let name = match el_prefix {
                     Some(p) => format!("{p}:{local}"),
                     None => local,
@@ -374,18 +374,18 @@ fn parse_with(bytes: &[u8], extra: &[(&'static str, &str)], strict: bool) -> Res
                     let Ok(a) = a else { continue };
                     let key = a.key;
                     let raw_key = key.as_ref();
-                    if raw_key == "xmlns" || raw_key.starts_with("xmlns:") {
+                    if raw_key == b"xmlns" || raw_key.starts_with(b"xmlns:") {
                         continue;
                     }
                     let (ares, alocal) = r.resolver_mut().resolve_attribute(key);
-                    let alocal = alocal.as_ref().to_string();
+                    let alocal = String::from_utf8_lossy(alocal.as_ref()).into_owned();
                     let aname = match ares {
                         ResolveResult::Bound(ns) => format!("{}:{alocal}", prefix_for(ns.as_ref(), extra)),
                         _ => alocal,
                     };
                     let val = match a.normalized_value(XmlVersion::Explicit1_0) {
                         Ok(v) => v.into_owned(),
-                        Err(_) => a.value.into_owned(),
+                        Err(_) => String::from_utf8_lossy(&a.value).into_owned(),
                     };
                     // Requires contains namespace prefixes, not feature names. Resolve them while
                     // the namespace scope still exists; declarations are omitted from this tree.
@@ -398,7 +398,7 @@ fn parse_with(bytes: &[u8], extra: &[(&'static str, &str)], strict: bool) -> Res
                                 .into_iter()
                                 .map(|prefix| {
                                     let qualified = format!("{prefix}:requirement");
-                                    match r.resolver_mut().resolve_attribute(QName(&qualified)).0 {
+                                    match r.resolver_mut().resolve_attribute(QName(qualified.as_bytes())).0 {
                                         ResolveResult::Bound(ns) => requirement_prefix(ns.as_ref()),
                                         _ => "?",
                                     }
@@ -427,13 +427,13 @@ fn parse_with(bytes: &[u8], extra: &[(&'static str, &str)], strict: bool) -> Res
             }
             Event::Text(t) => {
                 if let Some(top) = stack.last_mut() {
-                    let s = t.into_inner();
+                    let s = t.decode().map_err(|e| DocxError::Xml(e.to_string()))?;
                     push_text(top, &s);
                 }
             }
             Event::CData(t) => {
                 if let Some(top) = stack.last_mut() {
-                    let s = t.into_inner();
+                    let s = String::from_utf8_lossy(&t).into_owned();
                     push_text(top, &s);
                 }
             }
@@ -442,7 +442,7 @@ fn parse_with(bytes: &[u8], extra: &[(&'static str, &str)], strict: bool) -> Res
                     let ch = match g.resolve_char_ref() {
                         Ok(Some(c)) => Some(c.to_string()),
                         Ok(None) => {
-                            let n = g.into_inner();
+                            let n = g.decode().map_err(|e| DocxError::Xml(e.to_string()))?;
                             quick_xml::escape::resolve_predefined_entity(&n).map(str::to_string)
                         }
                         Err(_) => None,

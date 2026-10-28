@@ -79,12 +79,12 @@ pub struct FontFace {
     /// values).
     pub cap_height: f64,
     pub x_height: f64,
-    /// The shaper's view of the face, at the named instance's location for variable fonts.
-    pub shaper: harfrust::Font,
-    /// Variable fonts: the named instance's axis settings (user units; empty = default instance)
-    /// and the normalised location.
+    pub shaper: harfrust::ShaperData,
+    /// Variable fonts: the named instance's axis settings (user units; empty = default instance),
+    /// the normalised location and the shaper's view of it.
     pub coords: Vec<([u8; 4], f32)>,
     location: Location,
+    pub instance: Option<harfrust::ShaperInstance>,
     /// Basic Multilingual Plane coverage bitset, built on first use.
     bmp: std::sync::OnceLock<Box<[u64]>>,
     // Some legacy CJK fonts assemble their contours with TrueType instructions.
@@ -195,8 +195,8 @@ impl FontFace {
     pub fn skrifa(&self) -> Option<skrifa::FontRef<'_>> {
         skrifa::FontRef::from_index(self.data(), self.index).ok()
     }
-    pub fn hb(&self) -> &harfrust::Font {
-        &self.shaper
+    pub fn hb(&self) -> Option<harfrust::FontRef<'_>> {
+        harfrust::FontRef::from_index(self.data(), self.index).ok()
     }
     /// Where in the design space glyphs, metrics and outlines come from.
     pub fn location(&self) -> LocationRef<'_> {
@@ -985,16 +985,10 @@ fn make_face(bytes: FontBytes, index: u32, family: String, style: String, legacy
     let location = if coords.is_empty() { Location::default() } else { f.axes().location(settings.iter().copied()) };
     let m = f.metrics(Size::unscaled(), &location);
     let a = f.attributes();
-    // The shaper's font shares the face's bytes (no copy).
-    let blob: harfrust::font::Blob = match &bytes {
-        FontBytes::Static(b) => (*b).into(),
-        FontBytes::Owned(v) => {
-            let shared: Arc<dyn AsRef<[u8]> + Send + Sync> = v.clone();
-            shared.into()
-        }
-    };
-    let hb = harfrust::Font::new(blob, index)?;
-    let shaper = if coords.is_empty() { hb } else { hb.instance_builder().variations(settings.iter()).build() };
+    let hb = harfrust::FontRef::from_index(data, index).ok()?;
+    let shaper = harfrust::ShaperData::new(&hb);
+    let instance = (!coords.is_empty())
+        .then(|| harfrust::ShaperInstance::from_variations(&hb, settings.iter().map(|(t, v)| harfrust::Variation { tag: *t, value: *v })));
     let axis = |tag: &[u8; 4]| coords.iter().find(|(t, _)| t == tag).map(|(_, v)| *v);
     // Old releases of heavy faces (Arial Black in the core fonts) claim weight 400 where current
     // ones say 900, which Word doesn't embolden: a family named for its weight is that heavy.
@@ -1021,6 +1015,7 @@ fn make_face(bytes: FontBytes, index: u32, family: String, style: String, legacy
         shaper,
         coords,
         location,
+        instance,
         bytes,
         index,
         bmp: std::sync::OnceLock::new(),

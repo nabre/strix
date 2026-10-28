@@ -134,14 +134,15 @@ fn bgra_pixmap(bgra: &[u8], w: u32, h: u32) -> Option<Pixmap> {
         return None;
     }
     let n = (w as usize).checked_mul(h as usize)?.checked_mul(4)?;
-    let data = bgra
+    let data: Vec<vello_cpu::color::PremulRgba8> = bgra
         .get(..n)?
         .as_chunks::<4>()
         .0
         .iter()
         // Premultiplied channels can't exceed alpha; clamp in case the font says otherwise.
-        .map(|p| vello_cpu::color::PremulRgba8 { r: p[2].min(p[3]), g: p[1].min(p[3]), b: p[0].min(p[3]), a: p[3] });
-    Some(crate::pixmap_of(w as u16, h as u16, data))
+        .map(|p| vello_cpu::color::PremulRgba8 { r: p[2].min(p[3]), g: p[1].min(p[3]), b: p[0].min(p[3]), a: p[3] })
+        .collect();
+    Some(Pixmap::from_parts(data, w as u16, h as u16))
 }
 
 /// Draw a colour glyph. `at` maps font units (y down, pen at the origin) to device pixels; `fg` is
