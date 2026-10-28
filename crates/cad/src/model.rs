@@ -34,6 +34,15 @@ impl Unit {
             Unit::M => "m",
         }
     }
+
+    pub fn parse(s: &str) -> Option<Unit> {
+        match s.trim() {
+            "mm" => Some(Unit::Mm),
+            "cm" => Some(Unit::Cm),
+            "m" => Some(Unit::M),
+            _ => None,
+        }
+    }
 }
 
 /// A number in the drawing: a literal, or an expression of calculation parameters with its last
@@ -614,6 +623,11 @@ impl Entity {
 #[serde(default, rename_all = "camelCase")]
 pub struct Drawing {
     pub unit: Unit,
+    /// The unit numbers typed in the editor are read in (the command line's points, distances
+    /// and radii), converted to [`Drawing::unit`]; `None`: the drawing's unit. A value written
+    /// with its unit (`2.5m`) is read in that.
+    #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+    pub input: Option<Unit>,
     /// The scale's denominator: `1:N`. One drawing unit measures `unit.mm() / scale` paper mm.
     pub scale: f64,
     pub layers: Vec<Layer>,
@@ -654,6 +668,7 @@ impl Default for Drawing {
     fn default() -> Self {
         Drawing {
             unit: Unit::Mm,
+            input: None,
             scale: 1.0,
             layers: vec![Layer::default()],
             entities: Vec::new(),

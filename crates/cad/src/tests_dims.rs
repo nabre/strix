@@ -368,3 +368,34 @@ fn the_default_dimension_style() {
     d.sanitize();
     assert_eq!((d.dim_style.line_width, d.dim_style.line_over), (2.0, 0.0));
 }
+
+/// Typed values in the drawing's input unit: a drawing in mm with input in m reads `2.5,1` as
+/// 2500,1000; a value with its own unit wins; angles stay degrees.
+#[test]
+fn typed_values_in_the_input_unit() {
+    let units = Units { drawing: Unit::Mm, input: Unit::M };
+    let p = parse_point_in("2.5,1", None, None, units).unwrap();
+    assert!((p.x - 2500.0).abs() < 1e-9 && (p.y - 1000.0).abs() < 1e-9, "{p:?}");
+    let p = parse_point_in("@300mm<90", Some(Pt::new(0.0, 0.0)), None, units).unwrap();
+    assert!(p.x.abs() < 1e-9 && (p.y - 300.0).abs() < 1e-9, "own unit, angle in degrees: {p:?}");
+    let p = parse_point_in("120cm;2m", None, None, units).unwrap();
+    assert!((p.x - 1200.0).abs() < 1e-9 && (p.y - 2000.0).abs() < 1e-9);
+    // A direct distance towards the pointer.
+    let p = parse_point_in("0.5", Some(Pt::new(0.0, 0.0)), Some(Pt::new(10.0, 0.0)), units).unwrap();
+    assert!((p.x - 500.0).abs() < 1e-9);
+    // In a metre drawing typed in cm.
+    let cm = Units { drawing: Unit::M, input: Unit::Cm };
+    assert_eq!(parse_length("250", cm), Some(2.5));
+    assert_eq!(parse_length("2,5 m", cm), Some(2.5), "a decimal comma in a lone value");
+    assert_eq!(parse_length("ft", cm), None);
+    assert_eq!(parse_length("m", cm), None);
+    assert!(parse_point_in("1,5m,2", None, None, cm).is_err(), "a comma is a separator in a point");
+    // The drawing's input unit: saved only when set; Units::of falls back to the drawing's.
+    let mut d = Drawing::from_json(r#"{"unit":"mm","input":"m"}"#).unwrap();
+    assert_eq!(Units::of(&d), Units { drawing: Unit::Mm, input: Unit::M });
+    assert!(d.to_json().contains(r#""input":"m""#));
+    d.input = None;
+    assert_eq!(Units::of(&d).input, Unit::Mm);
+    assert!(!d.to_json().contains("input"));
+    assert!(Drawing::from_json(r#"{"input":"inch"}"#).is_ok_and(|d| d.input.is_none()), "an unknown unit is the drawing's");
+}

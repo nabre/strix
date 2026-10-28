@@ -16,7 +16,7 @@ use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Shape, Stroke, Ui, pos2, 
 use serde_json::json;
 use strix_cad::{
     Anchor, Dash, Drawing, Entity, Focus, Grip, Kind, Num, Order, Orient, P, Prim, Pt, Rendered, SelectOption, SnapKind, Snaps, StrokeEdit, kernel,
-    parse_point,
+    parse_point_in,
 };
 use strix_doc::InlineObject;
 
@@ -691,6 +691,20 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 _ => return Err("order: front, back, forward or backward".into()),
             };
             reorder(app, order);
+        }
+        "ui.cadInputUnit" => {
+            // The unit typed values are read in: mm, cm, m, or the drawing's own.
+            let word = p.get("unit").and_then(serde_json::Value::as_str).ok_or("unit: mm, cm, m or drawing")?;
+            let unit = match word {
+                "drawing" => None,
+                w => Some(strix_cad::Unit::parse(w).ok_or("unit: mm, cm, m or drawing")?),
+            };
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            if d.input != unit {
+                d.input = unit;
+                commit(app, &d);
+            }
+            return Ok(json!({"input": unit.map_or("drawing", strix_cad::Unit::symbol)}));
         }
         "ui.cadFlip" => {
             // Flips the selected dimensions and level marks.
@@ -2106,7 +2120,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         tl!("Layer:"),
                         ed.current_layer,
                         tl!("Unit:"),
-                        ed.drawing.unit.symbol()
+                        // The unit typed values are read in, when it is not the drawing's.
+                        match ed.drawing.input.filter(|u| *u != ed.drawing.unit) {
+                            Some(u) => format!("{} · {} {}", ed.drawing.unit.symbol(), tl!("input"), u.symbol()),
+                            None => ed.drawing.unit.symbol().to_string(),
+                        }
                     ))
                     .weak(),
                 );
@@ -2130,7 +2148,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let option = SelectOption::parse(typed);
             if let Some((i, g, from)) = ed.grip.filter(|_| !typed.is_empty()) {
                 // A typed point places the hot grip; `@dx,dy` is from where it was.
-                match parse_point(typed, Some(from), cursor) {
+                match parse_point_in(typed, Some(from), cursor, strix_cad::Units::of(&ed.drawing)) {
                     Ok(p) => {
                         let mut d = ed.drawing.clone();
                         ed.grip = None;
@@ -2163,16 +2181,16 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 ed.tool = Tool::Circle(CircleMode::Diameter);
             } else if typed_counts(ed, typed) {
                 // Columns × rows for a rectangular array.
-            } else if let Some(result) = typed.replace(',', ".").parse::<f64>().ok().and_then(|v| typed_value(ed, v)) {
+            } else if let Some(result) = typed_value(ed, typed) {
                 finished = result;
-            } else if let Some(v) = typed.parse::<f64>().ok().filter(|_| takes_size(ed))
+            } else if let Some(v) = strix_cad::parse_length(typed, strix_cad::Units::of(&ed.drawing)).filter(|_| takes_size(ed))
                 && let Some(&last) = ed.points.last()
             {
                 // A radius or diameter typed: the point that far from the last one.
                 finished = feed(ed, last.plus(Pt::new(v.abs(), 0.0)), None);
                 ed.snap_once = None;
             } else {
-                match parse_point(typed, ed.points.last().copied(), cursor) {
+                match parse_point_in(typed, ed.points.last().copied(), cursor, strix_cad::Units::of(&ed.drawing)) {
                     Ok(p) => {
                         finished = feed(ed, p, None);
                         ed.snap_once = None;
@@ -2321,7 +2339,12 @@ fn transformed(ed: &mut CadEditor, t: &strix_cad::Affine, copy: bool) -> Option<
 
 /// A number typed where a command takes a value rather than a point: Scale's factor, Rotate's
 /// angle after the base, Offset's distance. The drawing when it completes the command.
-fn typed_value(ed: &mut CadEditor, v: f64) -> Option<Option<Drawing>> {
+fn typed_value(ed: &mut CadEditor, typed: &str) -> Option<Option<Drawing>> {
+    // A plain number (a factor, an angle, a count), or a length in the input unit (`2.5m`).
+    let number = typed.replace(',', ".").parse::<f64>().ok();
+    let length = strix_cad::parse_length(typed, strix_cad::Units::of(&ed.drawing));
+    let lengths = matches!((ed.tool, ed.points.as_slice()), (Tool::Offset | Tool::Fillet | Tool::Chamfer, []));
+    let v = if lengths { length? } else { number? };
     match (ed.tool, ed.points.as_slice()) {
         (Tool::Scale, [base]) if !ed.selection.is_empty() => {
             if v == 0.0 || !v.is_finite() {
@@ -3413,7 +3436,7 @@ mod tests {
         let ed = app.cad.as_mut().unwrap();
         ed.selection = vec![0];
         assert!(feed(ed, Pt::new(0.0, 0.0), None).is_none());
-        let moved = feed(ed, parse_point("@10,0", Some(Pt::new(0.0, 0.0)), None).unwrap(), None).expect("moved");
+        let moved = feed(ed, strix_cad::parse_point("@10,0", Some(Pt::new(0.0, 0.0)), None).unwrap(), None).expect("moved");
         commit(&mut app, &moved);
         app.run("ui.cadDelete", json!({})).unwrap();
         assert_eq!(entities(&app), 2);
@@ -3471,6 +3494,34 @@ mod tests {
         let (dim, angle) = place(&mut app);
         assert!(matches!(dim, Kind::Dim { offset, offset_units, .. } if offset == 0.0 && (offset_units - 12.0).abs() < 1e-9), "{dim:?}");
         assert!(matches!(angle, Kind::Angle { r, r_paper, .. } if (r - 32f64.sqrt()).abs() < 1e-9 && r_paper == 0.0), "{angle:?}");
+    }
+
+    /// The input unit: lengths typed for Offset, Fillet and Chamfer are read in it (or in their
+    /// own unit), saved with the drawing; a factor or an angle is not a length.
+    #[test]
+    fn typed_lengths_in_the_input_unit() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.unit, strix_cad::Unit::Mm);
+        assert_eq!(app.run("ui.cadInputUnit", json!({"unit": "m"})).unwrap(), json!({"input": "m"}));
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(ed.drawing.input, Some(strix_cad::Unit::M));
+        ed.set_tool(Tool::Offset);
+        assert!(typed_value(ed, "0.5").is_some());
+        assert!((ed.offset_dist - 500.0).abs() < 1e-9, "{}", ed.offset_dist);
+        assert!(typed_value(ed, "25cm").is_some());
+        assert!((ed.offset_dist - 250.0).abs() < 1e-9, "its own unit wins");
+        ed.set_tool(Tool::Fillet);
+        assert!(typed_value(ed, "0,1").is_some());
+        assert!((ed.fillet_radius - 100.0).abs() < 1e-9, "a decimal comma");
+        // A rotation is an angle, not a length.
+        ed.selection = vec![0];
+        ed.set_tool(Tool::Rotate);
+        ed.points = vec![Pt::new(0.0, 0.0)];
+        assert!(typed_value(ed, "90").is_some_and(|d| d.is_some()));
+        assert!(app.run("ui.cadInputUnit", json!({"unit": "inch"})).is_err());
+        app.run("ui.cadInputUnit", json!({"unit": "drawing"})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.input, None);
     }
 
     /// The level tool places a mark per click, each like the last one (datum, side, way up).
@@ -3810,7 +3861,7 @@ mod tests {
         assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, 0.0);
         app.run("edit.undo", json!({})).unwrap();
         reload(&mut app);
-        assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, 2.5);
+        assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, strix_cad::DimStyle::default().mark_size);
     }
 
     /// Hatched strip: a click on the line it follows, a click on its side.
@@ -3870,7 +3921,7 @@ mod tests {
         ed.selection = vec![0];
         ed.set_tool(Tool::parse("sc").unwrap());
         assert!(feed(ed, Pt::new(0.0, 0.0), None).is_none());
-        let d = typed_value(ed, 2.0).unwrap().expect("scaled");
+        let d = typed_value(ed, "2.0").unwrap().expect("scaled");
         assert!(matches!(&d.entities[0].kind, Kind::Polyline { pts, .. } if pts[2].pt() == Pt::new(240.0, 120.0)));
         ed.drawing = d;
         // Rotated a quarter turn by a point straight up.
@@ -3894,7 +3945,7 @@ mod tests {
         // Offset: the distance typed, then the object and the side; kept for the next drawing.
         ed.drawing = d;
         ed.set_tool(Tool::Offset);
-        assert!(typed_value(ed, 5.0).is_some());
+        assert!(typed_value(ed, "5.0").is_some());
         feed(ed, Pt::new(-120.0, 100.0), None);
         let d = feed(ed, Pt::new(-200.0, 100.0), None).expect("offset");
         assert_eq!(d.entities.len(), before + 2);
@@ -3928,14 +3979,14 @@ mod tests {
         ed.drawing = d;
         // Fillet with radius 2 typed: the two lines and an arc.
         ed.set_tool(Tool::parse("f").unwrap());
-        assert!(typed_value(ed, 2.0).is_some());
+        assert!(typed_value(ed, "2.0").is_some());
         assert!(feed(ed, Pt::new(1.0, 0.0), None).is_none());
         let d = feed(ed, Pt::new(5.0, 4.0), None).expect("filleted");
         assert!(d.entities.iter().any(|e| matches!(&e.kind, Kind::Arc { r, .. } if r.value == 2.0)));
         // Chamfer 1 on a fresh corner.
         ed.drawing = Drawing::from_json(cross).unwrap();
         ed.set_tool(Tool::Chamfer);
-        typed_value(ed, 1.0);
+        typed_value(ed, "1.0");
         feed(ed, Pt::new(1.0, 0.0), None);
         let d = feed(ed, Pt::new(5.0, 4.0), None).expect("chamfered");
         assert_eq!(d.entities.len(), 4);
@@ -4000,10 +4051,10 @@ mod tests {
         ed.drawing = d;
         ed.selection = vec![1];
         ed.set_tool(Tool::ArrayPolar);
-        assert!(typed_value(ed, 4.0).is_some());
+        assert!(typed_value(ed, "4.0").is_some());
         let d = feed(ed, Pt::new(0.0, 0.0), None).expect("polar array");
         assert_eq!(d.entities.len(), 8);
-        assert!(typed_value(ed, 1.0).is_some() && ed.array_count == 4, "too few items: kept");
+        assert!(typed_value(ed, "1.0").is_some() && ed.array_count == 4, "too few items: kept");
         app.run("ui.cadClose", json!({})).unwrap();
         assert_eq!((app.cad_settings.array_cols, app.cad_settings.array_count), (2, 4));
     }

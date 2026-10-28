@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** dimension units (drawing, m, cm, mm, SIA 400); parameters set as equations
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** input unit; cleaner default dimension style; dimension units
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -27,6 +27,17 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
 - **Paper sizes do not scale**: stroke widths, text heights, dimension offsets, ticks and gaps
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
+- **Input unit** (`input`: `mm`, `cm` or `m`; Properties with nothing selected › Input unit,
+  `ui.cadInputUnit`): the unit numbers typed in the editor are read in — the command line's
+  points (`x,y`, `@dx,dy`, `@d<a`, direct distances), radii and diameters, and the Offset,
+  Fillet and Chamfer distances — converted to the drawing's unit (`unit`); left out, the
+  drawing's own. A value written with its unit is read in that (`2.5m`, `@300mm<45`,
+  `120cm;2m`; `strix_cad::parse_point_in`, `parse_length`). Angles, factors and counts are not
+  lengths. The status bar shows it (`Unit: mm · input m`).
+- **Dimension style defaults** (ISO 129 / ISO 128 practice): text 2.5 mm, thin lines 0.18 mm
+  (`lineWidth`; a dimension's own stroke width wins), ticks 3 mm drawn heavier (about 0.5 mm),
+  extension lines from 1 mm off the object to 2 mm past the dimension line, and with ticks or
+  dots the dimension line runs 1.5 mm past the extension lines (`lineOver`; not with arrows).
 - **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
   linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
   in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
@@ -366,6 +377,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: input unit (typed values in mm, cm or m, or with their own unit); default dimension style after ISO 129 (thin lines, heavier ticks, line past the extension lines).
 - 2026-10-28: dimension units: the drawing's, m, cm, mm or SIA 400.
 - 2026-10-28: parameters in dimension, angle, level and text annotations set as equations (italic symbol, lowered subscript, upright value).
 - 2026-10-28: dimension distances and angle radii in two parts, scaled and annotative; Scaled distances in the style.

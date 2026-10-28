@@ -304,9 +304,25 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
         if ed.selection.is_empty() {
             ui.label(RichText::new(tl!("No selection: click objects, or drag a window")).weak());
             let d = &ed.drawing;
+            let mut input_unit: Option<&str> = None;
             egui::Grid::new("cad_drawing_info").num_columns(2).spacing(vec2(8.0, 3.0)).show(ui, |ui| {
                 ui.label(tl!("Unit"));
                 ui.label(d.unit.symbol());
+                ui.end_row();
+                // The unit typed values are read in (the command line's points and distances).
+                ui.label(tl!("Input unit"));
+                let now = d.input.filter(|u| *u != d.unit);
+                let shown = now.map_or_else(|| format!("{} ({})", tl!("Drawing unit"), d.unit.symbol()), |u| u.symbol().to_string());
+                egui::ComboBox::from_id_salt("cad_input_unit").selected_text(shown).show_ui(ui, |ui| {
+                    for (u, word) in
+                        [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
+                    {
+                        let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
+                        if ui.selectable_label(now == u, label).clicked() {
+                            input_unit = Some(word);
+                        }
+                    }
+                });
                 ui.end_row();
                 ui.label(tl!("Scale"));
                 ui.label(strix_cad::scale_text(d.scale));
@@ -315,6 +331,11 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                 ui.label(d.entities.len().to_string());
                 ui.end_row();
             });
+            if let Some(word) = input_unit {
+                let mut d = ed.drawing.clone();
+                d.input = strix_cad::Unit::parse(word);
+                out = Some(d);
+            }
         } else {
             out = objects(ed, ui, &mut typing);
         }

@@ -41,7 +41,7 @@ mod tests_rework;
 
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
-pub use input::{InputError, parse_point};
+pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};
 pub use model::{
     Align, Dash, DimStyle, DimUnits, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
 };

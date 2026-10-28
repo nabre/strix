@@ -49,7 +49,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Snaps: end, mid, centre, geometric centre, quadrant, node, intersection, perpendicular, tangent, nearest, grid | partial (geometric centre, grid snap) |
 | Point aids: snap override, temporary track, From, M2P, .X/.Y filters | partial (override) |
 | Command line: `x,y`, `@dx,dy`, `@d<a`, direct distance, `<angle` lock | partial (angle lock) |
-| **Input units** (owner: as in the prototype): typed values with a unit (`2.5 m`, `300 mm`), the drawing's unit shown, unit options | todo |
+| **Input units** (owner: as in the prototype): typed values with a unit (`2.5 m`, `300 mm`), the drawing's unit shown, unit options | done (input unit mm/cm/m, values with their own unit, shown in the status bar) |
 | Ortho F8, grid step, zoom, pan, fit | done |
 | Selection: click/Shift, window/crossing, lasso, T, I, FP, IP, R, A, P, U, Ctrl+A, Shift+Space | done |
 | **Dimension selection** (owner: improve): pick on the drawn dimension line, extension lines and text | todo |
