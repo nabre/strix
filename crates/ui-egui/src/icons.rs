@@ -1266,6 +1266,21 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
                 false,
             );
         }
+        // Continue: two dimensions end to end on one line; Baseline: two stacked from one start.
+        "cadDimCont" => {
+            pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], c);
+            for x in [2.0, 9.0, 18.0] {
+                pen.line_c(&[(x, 6.0), (x, 17.0)], c);
+            }
+            pen.line_c(&[(7.5, 11.5), (10.5, 8.5)], a);
+        }
+        "cadDimBase" => {
+            pen.line_c(&[(3.0, 13.0), (11.0, 13.0)], c);
+            pen.line_c(&[(3.0, 7.0), (17.0, 7.0)], c);
+            pen.line_c(&[(3.0, 4.0), (3.0, 17.0)], a);
+            pen.line_c(&[(11.0, 11.0), (11.0, 17.0)], c);
+            pen.line_c(&[(17.0, 5.0), (17.0, 17.0)], c);
+        }
         // Layer states: shown (an eye) or hidden (crossed out), locked or not, printed or not.
         "cadEye" | "cadEyeOff" => {
             pen.line_c(&[(2.0, 10.0), (5.0, 6.5), (10.0, 5.0), (15.0, 6.5), (18.0, 10.0), (15.0, 13.5), (10.0, 15.0), (5.0, 13.5), (2.0, 10.0)], c);

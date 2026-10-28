@@ -68,6 +68,10 @@ pub struct Rendered {
 /// The largest gap between a drawn chord and its curve, paper mm.
 const CHORD_MM: f64 = 0.01;
 
+/// How close to 90° an angular dimension is drawn as a right angle, radians (a millionth of a
+/// degree: exact and parametric drawings, not "nearly square" ones).
+pub(crate) const RIGHT_ANGLE_TOL: f64 = 1e-6 * std::f64::consts::PI / 180.0;
+
 impl Drawing {
     /// The drawing as primitives in paper mm, as printed (the page, the PDF): layers that are
     /// hidden or not printed are left out. Dimension labels read parameters from `ws`.
@@ -274,13 +278,25 @@ impl Drawing {
         }
         let line =
             |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
-        out.push(line(arc_points_tol(c, r, start.to_degrees(), (start + sweep).to_degrees(), Some(CHORD_MM))));
+        // A right angle with no text of its own: the square of side `r` on the vertex, a dot in
+        // it, instead of the arc and "90°".
+        let right = text.is_none() && (sweep - std::f64::consts::FRAC_PI_2).abs() <= RIGHT_ANGLE_TOL;
+        if right {
+            out.push(line(vec![c.plus(ua.scale(r)), c.plus(ua.plus(ub).scale(r)), c.plus(ub.scale(r))]));
+            let mid = c.plus(ua.plus(ub).scale(r / 2.0));
+            out.push(Prim::Dot { at: (mid.x, mid.y), r: (width * 1.5).max(0.25).min(r / 4.0), color });
+        } else {
+            out.push(line(arc_points_tol(c, r, start.to_degrees(), (start + sweep).to_degrees(), Some(CHORD_MM))));
+        }
         // Extension lines along each ray, from past its end to just past the arc.
         for (u, end) in [(ua, a), (ub, b)] {
             let reach = end.minus(c).len();
             if r > reach + st.ext_gap {
                 out.push(line(vec![c.plus(u.scale(reach + st.ext_gap)), c.plus(u.scale(r + st.ext_over))]));
             }
+        }
+        if right {
+            return;
         }
         // The marks point along the arc, into each end.
         let (pa, pb) = (c.plus(ua.scale(r)), c.plus(ub.scale(r)));

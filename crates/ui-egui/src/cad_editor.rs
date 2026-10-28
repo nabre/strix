@@ -59,6 +59,11 @@ pub enum Tool {
     Dim(Orient),
     /// An angular dimension: the vertex, a point on each ray, where the arc goes.
     DimAngle,
+    /// Continued dimensions: each click measures on from the last dimension's second point, on
+    /// its line (the selected linear dimension, else the newest).
+    DimContinue,
+    /// Baseline dimensions: each click measures from the base's first point, a row further out.
+    DimBaseline,
     /// A hatched strip: the line or polyline it follows, then a point on its side.
     Strip,
     /// A hatch: a click inside the region it fills.
@@ -134,6 +139,8 @@ impl Tool {
             "dimHorizontal" => Tool::Dim(Orient::Horizontal),
             "dimVertical" => Tool::Dim(Orient::Vertical),
             "dimAngular" | "dan" | "quotaAngolare" => Tool::DimAngle,
+            "dimContinue" | "dco" | "dimcontinue" | "quotaContinua" => Tool::DimContinue,
+            "dimBaseline" | "dba" | "dimbaseline" | "quotaBase" => Tool::DimBaseline,
             "strip" | "fascia" => Tool::Strip,
             "hatch" | "h" | "bh" | "retino" => Tool::Hatch,
             "move" | "m" | "sposta" => Tool::Move,
@@ -196,6 +203,8 @@ impl Tool {
             (Tool::DimAngle, 1) => "Angular dimension: a point on the first side",
             (Tool::DimAngle, 2) => "Angular dimension: a point on the second side",
             (Tool::DimAngle, _) => "Angular dimension: where the arc goes",
+            (Tool::DimContinue, _) => "Continue: next point (Enter or Esc to end)",
+            (Tool::DimBaseline, _) => "Baseline: next point (Enter or Esc to end)",
             (Tool::Strip, 0) => "Hatched strip: pick the line or polyline it follows",
             (Tool::Strip, _) => "Hatched strip: click on the side it goes",
             (Tool::Hatch, _) => "Hatch: click inside the region to fill (islands are left out)",
@@ -314,6 +323,8 @@ pub struct CadEditor {
     pub array_cols: usize,
     pub array_rows: usize,
     pub array_count: usize,
+    /// The linear dimension Continue and Baseline go on from.
+    pub(crate) chain_base: Option<usize>,
 }
 
 /// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
@@ -437,6 +448,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         menu_at: None,
         menu_point: false,
         panel_typing: false,
+        chain_base: None,
     });
     Ok(())
 }
@@ -521,7 +533,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, dimContinue, dimBaseline, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
                 if let Some(d) = immediate(ed) {
@@ -849,6 +861,17 @@ impl CadEditor {
         self.remove_mode = false;
         self.grip = None;
         self.picking = tool.takes_selection() && self.selection.is_empty();
+        if matches!(tool, Tool::DimContinue | Tool::DimBaseline) {
+            // From the one linear dimension selected, else the newest.
+            let picked = match self.selection.as_slice() {
+                [i] if matches!(self.drawing.entities.get(*i).map(|e| &e.kind), Some(Kind::Dim { .. })) => Some(*i),
+                _ => None,
+            };
+            self.chain_base = picked.or_else(|| self.drawing.last_linear_dim());
+            if self.chain_base.is_none() {
+                self.message = "Draw a linear dimension first, or select the one to go on from".into();
+            }
+        }
         if tool != Tool::Select {
             self.last_tool = Some(tool);
             if !self.selection.is_empty() {
@@ -1199,6 +1222,8 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Dim(Orient::Horizontal) => "Horizontal dimension",
         Tool::Dim(Orient::Vertical) => "Vertical dimension",
         Tool::DimAngle => "Angular dimension",
+        Tool::DimContinue => "Continue dimension",
+        Tool::DimBaseline => "Baseline dimension",
         Tool::Strip => "Hatched strip",
         Tool::Hatch => "Hatch",
         Tool::Move => "Move",
@@ -2536,6 +2561,23 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             }
             with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, text: None, mark: None }))
         }
+        Tool::DimContinue | Tool::DimBaseline => {
+            done(ed);
+            let Some(base) = ed.chain_base.filter(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. }))) else {
+                ed.message = "Draw a linear dimension first, or select the one to go on from".into();
+                return None;
+            };
+            let made = if ed.tool == Tool::DimContinue { ed.drawing.dim_continue(base, p) } else { ed.drawing.dim_baseline(base, p) };
+            let Some(e) = made else {
+                ed.message = "Pick a point away from where the dimension starts".into();
+                return None;
+            };
+            // The next one goes on from this one.
+            let next = ed.drawing.entities.len();
+            let d = with(ed, e)?;
+            ed.chain_base = Some(next);
+            Some(d)
+        }
         Tool::Offset if n >= 2 => {
             // The object picked first, offset towards the second click; the command goes on.
             let made = ed.drawing.nearest_path(pts[0]).and_then(|(i, _)| ed.drawing.offset_entity(i, ed.offset_dist, pts[1]));
@@ -2996,6 +3038,28 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
                 tool == Tool::DimAngle,
             );
         });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadDimCont",
+                Some("Continue"),
+                "Continue: dimensions in a chain, each from the last one's end, on its line",
+                "ui.cadTool",
+                t("dimContinue"),
+                tool == Tool::DimContinue,
+            );
+            small(
+                ui,
+                app,
+                "cadDimBase",
+                Some("Baseline"),
+                "Baseline: dimensions from the same first point, each a row further out",
+                "ui.cadTool",
+                t("dimBaseline"),
+                tool == Tool::DimBaseline,
+            );
+        });
     });
     // The drawing's annotation style: one place for how every dimension and new text looks.
     let Some(style) = app.cad.as_ref().map(|e| e.drawing.dim_style) else { return };
@@ -3268,6 +3332,54 @@ mod tests {
         ed.selection.clear();
         ed.set_tool(Tool::Move);
         assert!(ed.picking && ed.selecting());
+    }
+
+    /// Continue and Baseline go on from the newest linear dimension (or the one selected), one
+    /// dimension per click, each the base of the next; with none to go on from they say so.
+    #[test]
+    fn continue_and_baseline_dimensions_chain_click_by_click() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let dims = |app: &WordApp| app.cad.as_ref().unwrap().drawing.entities.iter().filter(|e| matches!(e.kind, Kind::Dim { .. })).count();
+        // Without a linear dimension there is nothing to go on from.
+        let mut d = app.cad.as_ref().unwrap().drawing.clone();
+        d.entities.retain(|e| !matches!(e.kind, Kind::Dim { .. }));
+        commit(&mut app, &d);
+        app.run("ui.cadTool", json!({"tool": "dco"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(ed.tool, Tool::DimContinue);
+        assert!(!ed.message.is_empty() && feed(ed, Pt::new(1.0, 1.0), None).is_none());
+        // A horizontal dimension, then two continued ones and a baseline one.
+        ed.set_tool(Tool::Dim(Orient::Horizontal));
+        feed(ed, Pt::new(0.0, 0.0), None);
+        feed(ed, Pt::new(30.0, 0.0), None);
+        let d = feed(ed, Pt::new(15.0, 12.0), None).unwrap();
+        commit(&mut app, &d);
+        app.run("ui.cadTool", json!({"tool": "dimContinue"})).unwrap();
+        for x in [50.0, 80.0] {
+            let ed = app.cad.as_mut().unwrap();
+            let d = feed(ed, Pt::new(x, -4.0), None).expect("a continued dimension");
+            commit(&mut app, &d);
+        }
+        assert_eq!(dims(&app), 3);
+        let ed = app.cad.as_ref().unwrap();
+        let ends: Vec<(f64, f64)> = ed
+            .drawing
+            .entities
+            .iter()
+            .filter_map(|e| if let Kind::Dim { a, b, .. } = &e.kind { Some((a.0.value, b.0.value)) } else { None })
+            .collect();
+        assert_eq!(ends, vec![(0.0, 30.0), (30.0, 50.0), (50.0, 80.0)], "each from the last one's end");
+        // Baseline from the first dimension, selected.
+        let first = ed.drawing.entities.iter().position(|e| matches!(e.kind, Kind::Dim { .. })).unwrap();
+        app.cad.as_mut().unwrap().selection = vec![first];
+        app.run("ui.cadTool", json!({"tool": "quotaBase"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(ed.chain_base, Some(first));
+        let d = feed(ed, Pt::new(80.0, 0.0), None).expect("a baseline dimension");
+        assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { a, b, .. } if a.0.value == 0.0 && b.0.value == 80.0));
+        commit(&mut app, &d);
+        assert_eq!(dims(&app), 4);
     }
 
     #[test]

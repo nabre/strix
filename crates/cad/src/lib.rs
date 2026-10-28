@@ -15,6 +15,7 @@
 //! Hostile input never panics: sizes are clamped, counts capped, non-finite numbers rejected.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod dims;
 mod edit;
 mod geom;
 mod hatch;
@@ -32,6 +33,8 @@ mod trim;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_dims;
 #[cfg(test)]
 mod tests_rework;
 

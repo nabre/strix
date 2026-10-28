@@ -857,9 +857,18 @@ fn dimension_style_marks_texts_below_and_angles() {
     d.sanitize();
     assert_eq!(d.dim_style.text, 50.0);
     assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.text == 50.0);
-    // An angular dimension of a right angle reads 90°.
+    // An angular dimension of a right angle with a text of its own reads 90° (without one it is
+    // the right-angle symbol, tests_dims.rs).
     let mut d = Drawing::default();
-    d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b: P::new(0.0, 10.0), r: 20.0, text: None, mark: None })).unwrap();
+    d.add(Entity::new(Kind::Angle {
+        c: P::new(0.0, 0.0),
+        a: P::new(10.0, 0.0),
+        b: P::new(0.0, 10.0),
+        r: 20.0,
+        text: Some("<>°".into()),
+        mark: None,
+    }))
+    .unwrap();
     let r = d.render(None);
     assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { text, .. } if text == "90°")), "{:?}", r.prims);
     // Hostile radius: nothing drawn, no panic.
