@@ -511,6 +511,11 @@ impl Worksheet {
     /// of its dimension. Plain numbers and angles don't count.
     fn remember_unit(&mut self, tokens: &[Token], len: usize) {
         let Ok(Some(expr)) = requested_unit(tokens, len) else { return };
+        // Only a unit as written (`kN·m`, `m/s²`, `1/s`): in a product of quantities
+        // (`3 m·5 m`) what follows the first number is not a unit.
+        if !written_unit(&expr, 0) {
+            return;
+        }
         let Ok(q) = eval_scalar(&expr, &self.scope, Names::UnitsOnly) else { return };
         if q.dim.is_dimensionless() || q.value == 0.0 || !q.value.is_finite() {
             return;
@@ -593,6 +598,22 @@ impl Worksheet {
             start = e + 1;
         }
         parts.push(start..tokens.len());
+        // `A = 3 m·50 cm = 3 m·0.5 m`: our own working after the last `=` (shown with steps),
+        // read back; it asks for nothing more, like a bare last `=`.
+        let ours = match parts.as_slice() {
+            [p0, p1, p2] => {
+                let slice = |r: &std::ops::Range<usize>| tokens.get(r.clone()).unwrap_or_default();
+                let end = |r: &std::ops::Range<usize>| tokens.get(r.end).map_or(len, |t| t.pos);
+                let numbers = slice(p2).iter().filter(|t| matches!(t.tok, Tok::Num(_))).count();
+                let named = |r: &std::ops::Range<usize>| matches!(slice(r), [Token { tok: Tok::Ident(_), .. }]);
+                numbers >= 2
+                    && ((named(p0) && self.developed(slice(p1), end(p1)).is_some()) || (named(p1) && self.developed(slice(p0), end(p0)).is_some()))
+            }
+            _ => false,
+        };
+        if ours && let Some(last) = parts.last_mut() {
+            *last = tokens.len()..tokens.len();
+        }
         let part = |i: usize| parts.get(i).and_then(|r| tokens.get(r.clone())).unwrap_or_default();
         let last = part(parts.len() - 1);
         let shows = parts.len() >= 2 && units_only(last);
@@ -782,7 +803,24 @@ impl Worksheet {
                     }
                 }
                 if shows {
-                    let (_, d, e) = self.show_value(&shown_left(), value, part(2), len, x_hint);
+                    // `A = 3 m·50 cm =` with steps: the working in one unit per kind, then the
+                    // result under it, as for `3 m·50 cm =`.
+                    let working = if self.opts.steps && alone && part(2).is_empty() && result.error.is_none() {
+                        if matches!(&lhs, Expr::Name(n) if n == x) { self.developed(p1, end_pos(1)) } else { self.developed(p0, end_pos(0)) }
+                    } else {
+                        None
+                    };
+                    let left = shown_left();
+                    let (_, d, e) = self.show_value(&left, value, part(2), len, x_hint);
+                    if let Some(w) = working
+                        && e.is_none()
+                        && let Some(r) = d.get(left.len()..).map(str::trim).filter(|r| r.starts_with('='))
+                    {
+                        result.kind = RegionKind::DefineAndShow;
+                        result.steps = Some(vec![r.to_string()]);
+                        result.display = Some(format!("{left} = {w}"));
+                        return result;
+                    }
                     result.kind = if alone { RegionKind::DefineAndShow } else { RegionKind::Solved };
                     result.display = Some(d);
                     result.error = result.error.or(e);
@@ -1022,11 +1060,28 @@ impl Worksheet {
         if let Some(e) = eq {
             self.remember_unit(tokens.get(e.saturating_add(1)..).unwrap_or_default(), len);
         }
+        let developed = eq_token.and_then(|t| self.developed(body, t.pos));
+        let mut steps = None;
         let (value, display, error) = match (eq_token, left_text) {
             (Some(eq_token), Some(left_text)) => {
                 let rhs = tokens.get(body_end.saturating_add(1)..).unwrap_or_default();
+                // Our own working after `=` (`A := 3 m·50 cm = 3 m·0.5 m`) asks for nothing more.
+                let numbers = rhs.iter().filter(|t| matches!(t.tok, Tok::Num(_))).count();
+                let rhs = if developed.is_some() && numbers >= 2 { &[][..] } else { rhs };
                 let (value, display, error) = self.show(left_text, body, eq_token.pos, rhs, len);
-                (value, Some(display), error)
+                // With steps and nothing asked after `=`: the working, then the result under it.
+                match developed {
+                    Some(d) if self.opts.steps && rhs.is_empty() && error.is_none() => {
+                        match display.get(left_text.len()..).map(str::trim).filter(|r| r.starts_with('=')) {
+                            Some(result) => {
+                                steps = Some(vec![result.to_string()]);
+                                (value, Some(format!("{left_text} = {d}")), error)
+                            }
+                            None => (value, Some(display), error),
+                        }
+                    }
+                    _ => (value, Some(display), error),
+                }
             }
             _ => match self.parse_expr(body, body_end_pos).and_then(|e| eval(&e, &self.scope, Names::Worksheet)) {
                 Ok(v) => (Some(v), None, None),
@@ -1043,7 +1098,7 @@ impl Worksheet {
                 self.scope.remove(&name);
             }
         }
-        RegionResult { kind, name: Some(name), value, display, error, steps: None }
+        RegionResult { kind, name: Some(name), value, display, error, steps }
     }
 
     /// Evaluates `expr` (ending at character `expr_end`) and formats `<left> = <value>` with
@@ -1328,6 +1383,29 @@ fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> 
     }
     let unit = rhs.get(start..).unwrap_or_default();
     if unit.is_empty() { Ok(None) } else { parse(unit, len).map(Some) }
+}
+
+/// True when `expr` is a unit as written after a number or `=`: names multiplied, divided and
+/// raised to whole powers, with a `1` over it allowed (`kN·m`, `m/s²`, `1/s`), but no other
+/// number (`m·5 m` is the tail of a product of quantities, not a unit).
+fn written_unit(expr: &Expr, depth: usize) -> bool {
+    if depth > 64 {
+        return false;
+    }
+    match expr {
+        Expr::Unit(_) | Expr::Name(_) => true,
+        Expr::Bin(BinOp::Div, n, u) if matches!(**n, Expr::Num(v) if v == 1.0) => written_unit(u, depth + 1),
+        Expr::Bin(BinOp::Mul | BinOp::Div, l, r) => written_unit(l, depth + 1) && written_unit(r, depth + 1),
+        Expr::Bin(BinOp::Pow, base, exp) => {
+            let whole = match &**exp {
+                Expr::Num(v) => v.fract() == 0.0,
+                Expr::Neg(inner) => matches!(**inner, Expr::Num(v) if v.fract() == 0.0),
+                _ => false,
+            };
+            whole && written_unit(base, depth + 1)
+        }
+        _ => false,
+    }
 }
 
 /// The number of tokens of a stale vector result `[…]` at the start of `rhs` (0 if none).

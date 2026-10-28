@@ -1317,6 +1317,38 @@ mod tests {
         assert!(changed[0].contains("5m·0.4m") && changed[0].contains("2m²"), "{changed:?}");
     }
 
+    /// `A = 3 m · 5 m =` defines `A` and shows its value at the end; recalculating keeps it.
+    #[test]
+    fn a_definition_is_worked_out_at_once_in_the_document() {
+        let mut s = session();
+        add(&mut s, "A = 3 m · 5 m =");
+        add(&mut s, "B = 2 m * 2 m =");
+        add(&mut s, "A + B =");
+        let t = texts(&s);
+        assert_eq!(t[0], "A=3m·5m=15m²");
+        assert!(t[1].ends_with("2m=4m²"), "{t:?}");
+        assert_eq!(t[2], "A+B=19m²");
+        let r = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(r["changed"], 0, "{r}");
+        assert_eq!(r["errors"].as_array().map_or(0, Vec::len), 0, "{r}");
+        let vars = s.run("calc.variables", &json!({})).unwrap();
+        assert_eq!(vars["variables"][0]["name"], "A");
+        // Hostile forms are left alone or reported, never a panic.
+        for bad in ["A = =", "= 3 m =", "A = 3 m = =", "A = 3 m = 4 m ="] {
+            add(&mut s, bad);
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(texts(&s)[0], "A=3m·5m=15m²");
+        // With steps, mixed units: the working, the result under it; stable on recalculation.
+        let mut s = session();
+        s.run("calc.steps", &json!({"value": true})).unwrap();
+        add(&mut s, "A = 3 m·50 cm =");
+        assert_eq!(texts(&s), ["A=3m·50cm=3m·0.5m"]);
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
+        s.run("calc.steps", &json!({"value": false})).unwrap();
+        assert_eq!(texts(&s), ["A=3m·50cm=1.5m²"]);
+    }
+
     /// Inserts a table filled with `cells` (straight into the model: typing isn't under test).
     fn with_table(s: &mut Session, cells: &[&[&str]]) {
         let cols = cells.first().map_or(1, |r| r.len());
