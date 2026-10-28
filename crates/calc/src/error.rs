@@ -79,6 +79,21 @@ pub enum CalcError {
         /// What it takes, in words ("1 argument").
         expected: &'static str,
     },
+    /// A user function called with the wrong number of arguments.
+    ArgCount {
+        /// Function name.
+        function: String,
+        /// Parameters it has.
+        expected: usize,
+        /// Arguments given.
+        found: usize,
+    },
+    /// User functions calling each other (or themselves) more than
+    /// [`MAX_CALL_DEPTH`](crate::MAX_CALL_DEPTH) deep.
+    TooDeep {
+        /// The limit.
+        limit: usize,
+    },
     /// A function name used without `(…)`.
     FunctionNeedsArguments(String),
     /// A malformed definition (the left side of `:=` is not a single name, …).
@@ -167,6 +182,11 @@ impl fmt::Display for CalcError {
             CalcError::NeedsDimensionless { function, found } => write!(f, "{function} needs a plain number, not {found}"),
             CalcError::Domain { function } => write!(f, "the argument of {function} is outside its domain"),
             CalcError::Arity { function, expected } => write!(f, "{function} takes {expected}"),
+            CalcError::ArgCount { function, expected, found } => {
+                let plural = if *expected == 1 { "argument" } else { "arguments" };
+                write!(f, "{function} takes {expected} {plural}, not {found}")
+            }
+            CalcError::TooDeep { limit } => write!(f, "functions call each other too deeply (more than {limit} levels)"),
             CalcError::FunctionNeedsArguments(name) => write!(f, "{name} needs its argument in parentheses, like {name}(x)"),
             CalcError::BadDefinition(message) => f.write_str(message),
             CalcError::TooManyValues { limit } => write!(f, "too many values (more than {limit})"),

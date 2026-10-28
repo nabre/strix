@@ -68,5 +68,8 @@ pub const MAX_VALUES: usize = 10_000;
 /// vector elements touched).
 pub const MAX_STEPS: usize = 1_000_000;
 
+/// Deepest nesting of user function calls (`f(x) = f(x)` stops here with an error).
+pub const MAX_CALL_DEPTH: usize = 32;
+
 /// Most units of work in one worksheet (a whole document's recalculation).
 pub const MAX_SHEET_STEPS: usize = 20_000_000;

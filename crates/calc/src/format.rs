@@ -166,6 +166,10 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 _ => format!("{}({})", func.name(), args.join("; ")),
             }
         }
+        Expr::Apply(name, args) => {
+            let args: Vec<String> = args.iter().map(render).collect();
+            format!("{name}({})", args.join("; "))
+        }
         Expr::Vector(items) => {
             let items: Vec<String> = items.iter().map(render).collect();
             format!("[{}]", items.join("; "))

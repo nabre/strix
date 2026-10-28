@@ -52,6 +52,12 @@ const UNITS: &[UnitDef] = &[
     u("h", 3600.0, TIME, false),
     u("A", 1.0, CURRENT, true),
     u("K", 1.0, TEMPERATURE, false),
+    // Degrees Celsius and Fahrenheit: as units (alone, or in `J/(kg·°C)`) the size of a degree;
+    // a number written in them is an absolute temperature, converted with [`affine`]'s offset.
+    u("°C", 1.0, TEMPERATURE, false),
+    u("degC", 1.0, TEMPERATURE, false),
+    u("°F", 5.0 / 9.0, TEMPERATURE, false),
+    u("degF", 5.0 / 9.0, TEMPERATURE, false),
     u("mol", 1.0, AMOUNT, true),
     u("cd", 1.0, LUMINOUS, false),
     u("N", 1.0, FORCE, true),
@@ -94,6 +100,20 @@ pub fn unit(name: &str) -> Option<Quantity> {
         Some(Quantity::new(scale * def.factor, def.dim))
     })
 }
+
+/// The temperature scales with an offset: for `°C`/`degC` and `°F`/`degF`, the size of one
+/// degree in kelvin and the kelvin temperature of the scale's zero (`20 °C` is 20·1 + 273.15 K;
+/// `68 °F` is 68·5/9 + 255.372… K = 293.15 K). `None` for every other unit (kelvin has no offset).
+pub(crate) fn affine(name: &str) -> Option<(f64, f64)> {
+    match name {
+        "°C" | "degC" | "\u{2103}" => Some((1.0, 273.15)),
+        "°F" | "degF" | "\u{2109}" => Some((5.0 / 9.0, 273.15 - 32.0 * 5.0 / 9.0)),
+        _ => None,
+    }
+}
+
+/// The dimension of temperature.
+pub(crate) const TEMPERATURE_DIM: Dim = TEMPERATURE;
 
 /// A unit spelled like `name` but for letter case (`KN` → `kN`), when `name` itself is not one.
 /// Lower-case prefixes are tried first, so `MM` suggests `mm`, not `Mm`.

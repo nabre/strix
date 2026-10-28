@@ -12,7 +12,7 @@
 //! power    = postfix ("^" exponent)?             right to left
 //! exponent = ("-" | "+") exponent | power
 //! postfix  = primary ("¹" | "²" | "³" | "[" full "]")*
-//! primary  = number | name | function "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
+//! primary  = number | name | function "(" args ")" | user "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
 //!          | "√" postfix | nary
 //! nary     = ("∑" | "∏") ("_" lower)? ("^" postfix)? "▒"? term      the operand spans · and /
 //! lower    = "(" name "=" full ")" | name
@@ -114,6 +114,8 @@ pub(crate) enum Expr {
     Neg(Box<Expr>),
     Bin(BinOp, Box<Expr>, Box<Expr>),
     Call(Func, Vec<Expr>),
+    /// A call of a user function defined in the worksheet (`f(3)`, `A(2 m, 3 m)`).
+    Apply(String, Vec<Expr>),
     /// `[a; b; c]`.
     Vector(Vec<Expr>),
     /// `v[i]`, 1-based.
@@ -143,7 +145,13 @@ pub(crate) struct Nary {
 /// Parses all of `tokens` as one expression. `end_pos` is the 0-based character position just
 /// after the tokens, for "expected a value" at the end.
 pub(crate) fn parse(tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
-    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos };
+    parse_with(tokens, end_pos, &|_| false)
+}
+
+/// [`parse`], where a name `is_func` accepts followed by `(` is a call of that user function
+/// (`f(3)`), not a product (`a(b + c)`).
+pub(crate) fn parse_with(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
+    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func };
     let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
         return Err(CalcError::syntax(token.pos, format!("unexpected {}", describe(&token.tok))));
@@ -159,6 +167,7 @@ struct Parser<'a> {
     depth: usize,
     nodes: usize,
     end_pos: usize,
+    is_func: &'a dyn Fn(&str) -> bool,
 }
 
 impl Parser<'_> {
@@ -390,6 +399,11 @@ impl Parser<'_> {
                 // A function name is a call only when `(` follows, so `min` alone is minutes.
                 let func = Func::from_name(name).filter(|_| matches!(self.peek(), Some(Tok::LParen)));
                 let Some(func) = func else {
+                    if matches!(self.peek(), Some(Tok::LParen)) && (self.is_func)(name) {
+                        self.bump();
+                        let args = self.nested(Self::args)?;
+                        return self.node(Expr::Apply(name.clone(), args));
+                    }
                     return self.node(Expr::Name(name.clone()));
                 };
                 self.bump();

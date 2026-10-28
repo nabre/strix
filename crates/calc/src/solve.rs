@@ -20,7 +20,7 @@ pub(crate) fn free_names(expr: &Expr, out: &mut Vec<String>) {
                 walk(a, bound, out);
                 walk(b, bound, out);
             }
-            Expr::Call(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(a, bound, out)),
+            Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(a, bound, out)),
             Expr::Nary(n) => {
                 for e in [&n.from, &n.to].into_iter().flatten() {
                     walk(e, bound, out);
@@ -55,7 +55,7 @@ fn count(expr: &Expr, x: &str) -> usize {
                 stack.push(a);
                 stack.push(b);
             }
-            Expr::Call(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
+            Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
             Expr::Nary(nary) => {
                 stack.extend([&nary.from, &nary.to].into_iter().flatten().map(|b| &**b));
                 stack.push(&nary.body);

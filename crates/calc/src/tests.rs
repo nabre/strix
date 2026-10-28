@@ -282,7 +282,7 @@ fn implicit_multiplication_precedence() {
 
 #[test]
 fn not_calc_statements_are_left_alone() {
-    for text in ["E = mc^2", "a + b", "∫ f dx = F", "", "x = y", "= 5", "a = b = c", "y = 2 x", "f(x) = x^2"] {
+    for text in ["E = mc^2", "a + b", "∫ f dx = F", "", "x = y", "= 5", "a = b = c", "y = 2 x"] {
         let r = run(&[text]).pop().unwrap();
         assert_eq!(r.kind, RegionKind::NotCalc, "{text}");
         assert_eq!(r.display, None, "{text}");
@@ -943,4 +943,202 @@ fn moments_and_loads_keep_their_composed_units() {
     assert_eq!(last(&["F = 2 kN", "a = 500 mm", "b = 1 m", "F·a/b·a ="]), "F·a/b·a = 0.5 kN·m");
     // A working unit for the kind wins.
     assert_eq!(last(&["E = 2 J", "F = 12 kN", "a = 2 m", "F·a ="]), "F·a = 24000 J");
+}
+
+// ---- Temperatures in °C and °F ----
+
+fn kelvin(statements: &[&str]) -> f64 {
+    run(statements).pop().and_then(|r| r.value).and_then(|v| v.scalar()).map(|q| q.value).expect("a value")
+}
+
+#[test]
+fn celsius_and_fahrenheit_are_absolute_temperatures() {
+    assert!(approx(kelvin(&["T = 20 °C"]), 293.15));
+    assert!(approx(kelvin(&["T = 20 degC"]), 293.15));
+    assert!(approx(kelvin(&["T = 20 ℃"]), 293.15));
+    assert!(approx(kelvin(&["T = 68 °F"]), 293.15));
+    assert!(approx(kelvin(&["T = 68 degF"]), 293.15));
+    assert!(approx(kelvin(&["T = -40 °F"]), kelvin(&["T = -40 °C"])));
+    assert!(approx(kelvin(&["T = -20 °C"]), 253.15));
+    assert!(approx(kelvin(&["T = 20°C"]), 293.15));
+    // Shown back in the unit written (the working unit), or in the one asked for.
+    assert_eq!(last(&["T = 20 °C", "T ="]), "T = 20 °C");
+    assert_eq!(last(&["T = 68 °F", "T = °C"]), "T = 20 °C");
+    assert_eq!(last(&["T = 20 °C", "T = °F"]), "T = 68 °F");
+    assert_eq!(last(&["T = 20 °C", "T = K"]), "T = 293.15 K");
+    assert_eq!(last(&["T = 300 K", "T = °C"]), "T = 26.85 °C");
+    assert_eq!(last(&["T = 20 degC", "T = degF"]), "T = 68 degF");
+    assert_eq!(last(&["20 °C = K"]), "20 °C = 293.15 K");
+    // A vector of temperatures.
+    assert_eq!(last(&["T = [0; 100] °C", "T ="]), "T = [0; 100] °C");
+    assert_eq!(last(&["T = [0; 100] °C", "T = K"]), "T = [273.15; 373.15] K");
+    // The angle degree is still the angle degree.
+    assert_eq!(last(&["α = 30°", "α ="]), "α = 30°");
+}
+
+#[test]
+fn temperature_differences_are_in_kelvin() {
+    let s = ["T_1 = 20 °C", "T_2 = 80 °C"];
+    let with = |x: &str| {
+        let mut v = s.to_vec();
+        v.push(x);
+        last(&v)
+    };
+    // Absolute − absolute is a difference: kelvin, never with the °C offset.
+    assert_eq!(with("T_2 - T_1 ="), "T_2 - T_1 = 60 K");
+    assert_eq!(with("ΔT = T_2 - T_1 ="), "ΔT = T_2 - T_1 = 60 K");
+    let mut v = s.to_vec();
+    v.extend(["ΔT = T_2 - T_1", "ΔT =", "ΔT = °C", "T_3 = T_1 + ΔT", "T_3 =", "T_1 + 5 K =", "T_2 - 10 K =", "2·ΔT =", "mean(T_1; T_2) ="]);
+    let shown: Vec<String> = run(&v).into_iter().skip(3).filter_map(|r| r.display).collect();
+    assert_eq!(
+        shown,
+        vec!["ΔT = 60 K", "ΔT = 60 °C", "T_3 = 80 °C", "T_1 + 5 K = 25 °C", "T_2 - 10 K = 70 °C", "2·ΔT = 120 K", "mean(T_1; T_2) = 50 °C"]
+    );
+    // A sum of absolute temperatures is a plain kelvin value.
+    assert_eq!(with("T_1 + T_2 ="), "T_1 + T_2 = 646.3 K");
+    // °C inside a compound unit is the size of a degree (no offset).
+    assert_eq!(last(&["c = 4.2 kJ/(kg·°C)", "c = J/(kg·K)"]), "c = 4200 J/(kg·K)");
+    assert_eq!(last(&["r = 3 °C/min", "r = K/h"]), "r = 180 K/h");
+    // Checks compare absolute temperatures in °C.
+    assert_eq!(with("T_1 ≤ 30 °C"), "T_1 ≤ 30 °C ⇒ 20 °C ≤ 30 °C ✓");
+}
+
+#[test]
+fn temperature_columns_in_tables() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[&["T [°C]", "K [K] = T"], &["20", ""], &["68 °F", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates, vec![(1, 1, "293.15".to_string()), (2, 1, "293.15".to_string())]);
+    let rows = table(&[&["K [K]", "T [°F] = K"], &["293.15", ""]]);
+    assert_eq!(ws.eval_table(&rows).updates, vec![(1, 1, "68".to_string())]);
+}
+
+#[test]
+fn hostile_temperatures_never_panic() {
+    for s in [
+        "T = 1e308 °C",
+        "T = -1e308 °F",
+        "T = °C °C",
+        "T = 2 °C^2",
+        "T = 1 m °C",
+        "°C =",
+        "T = [1e308; 1] °C",
+        "x = 1e308 K = °F",
+        "20 °C = °",
+        "°F(3) =",
+    ] {
+        let _ = run(&[s]);
+    }
+    assert!(matches!(last_error(&["T = 1e308 °C", "T + T ="]), CalcError::Overflow));
+}
+
+// ---- User functions ----
+
+#[test]
+fn user_functions_are_defined_and_called() {
+    let r = run(&["f(x) = 2·x + 1", "f(3) ="]);
+    assert_eq!(r[0].kind, RegionKind::Definition);
+    assert_eq!(r[0].name.as_deref(), Some("f"));
+    assert_eq!(r[0].display, None);
+    assert_eq!(r[0].error, None);
+    assert_eq!(r[1].display.as_deref(), Some("f(3) = 7"));
+    assert_eq!(last(&["g(a, b) = a·b", "g(2; 5) ="]), "g(2; 5) = 10");
+    assert_eq!(last(&["g(a; b) := a - b", "g(2, 5) ="]), "g(2, 5) = -3");
+    // Units flow through; parameters spelled like units (`A` ampere, `h` hour) are parameters.
+    assert_eq!(last(&["A(b, h) = b·h", "A(2 m, 3 m) ="]), "A(2 m, 3 m) = 6 m²");
+    assert_eq!(last(&["A(b, h) = b·h", "A(20 cm, 3 m) = cm^2"]), "A(20 cm, 3 m) = 6000 cm²");
+    // In expressions, nested, with vectors, and defining parameters.
+    assert_eq!(last(&["f(x) = x^2", "y = f(3) + 2·f(2)", "y ="]), "y = 17");
+    assert_eq!(last(&["f(x) = x^2", "f(f(2)) ="]), "f(f(2)) = 16");
+    assert_eq!(last(&["f(x) = x^2", "f(3)^2 ="]), "f(3)^2 = 81");
+    assert_eq!(last(&["f(x) = x^2", "f([1; 2; 3]) ="]), "f([1; 2; 3]) = [1; 4; 9]");
+    assert_eq!(last(&["f(x) = 2·x", "∑_(i=1)^3▒f(i) ="]), "∑_(i=1)^3▒f(i) = 12");
+    // A later function calls an earlier one.
+    assert_eq!(last(&["sq(x) = x·x", "M(q, L) = q·sq(L)/8", "M(12 kN/m, 4.5 m) = kN·m"]), "M(12 kN/m, 4.5 m) = 30.375 kN·m");
+    // Redefined, the new body wins from there on.
+    assert_eq!(last(&["f(x) = x + 1", "f(x) = x + 2", "f(0) ="]), "f(0) = 2");
+}
+
+#[test]
+fn function_parameters_shadow_and_free_names_are_read_when_called() {
+    // The parameter x shadows the worksheet's x.
+    assert_eq!(last(&["x = 100", "f(x) = x + 1", "f(1) ="]), "f(1) = 2");
+    assert_eq!(last(&["x = 100", "f(x) = x + 1", "x ="]), "x = 100");
+    // Other names are read from the worksheet when the function is called.
+    assert_eq!(last(&["f(x) = k·x", "k = 3", "f(2) ="]), "f(2) = 6");
+    assert_eq!(last(&["k = 2", "f(x) = k·x", "k := 5", "f(2) ="]), "f(2) = 10");
+    assert!(matches!(last_error(&["f(x) = k·x", "f(2) ="]), CalcError::UnknownName(ref n) if n == "k"));
+    // A ∑ variable of the caller is not seen in the body.
+    assert!(matches!(last_error(&["f(x) = x + i", "∑_(i=1)^3▒f(i) ="]), CalcError::UnknownName(ref n) if n == "i"));
+}
+
+#[test]
+fn a_function_definition_is_not_an_equation() {
+    // `f(x) = …` with x unknown would otherwise be solved for x.
+    let r = run(&["f(x) = 7"]);
+    assert_eq!(r[0].kind, RegionKind::Definition);
+    assert_eq!(r[0].display, None);
+    // Not plain names in brackets: an ordinary statement (a product).
+    assert_eq!(last(&["a = 2", "b = 3", "a(b + 1) ="]), "a(b + 1) = 8");
+    assert_eq!(last(&["a = 2", "a(3) ="]), "a(3) = 6");
+    // Solving with a function: the call on the right.
+    assert_eq!(last(&["f(x) = 2·x + 1", "7 = f(y)"]), "7 = f(y) ⇒ y = 3");
+    // A check of a call.
+    assert_eq!(run(&["f(x) = 2·x + 1", "f(3) = 7"])[1].error, None);
+}
+
+#[test]
+fn hostile_user_functions_return_errors() {
+    // Recursion stops at the depth cap, with an error.
+    assert!(matches!(last_error(&["f(x) = f(x)", "f(1) ="]), CalcError::TooDeep { .. }));
+    assert!(matches!(last_error(&["f(x) = f(x + 1) + 1", "f(1) ="]), CalcError::TooDeep { .. }));
+    assert!(matches!(last_error(&["g(x) = x", "f(x) = g(x)", "g(x) = f(x)", "g(1) ="]), CalcError::TooDeep { .. }));
+    // A deep body at every level of the recursion still stops before the stack does.
+    let deep = format!("f(x) = f(x){}", " + 1".repeat(250));
+    assert!(matches!(last_error(&[&deep, "f(1) ="]), CalcError::TooDeep { .. }));
+    let nested = format!("f(x) = {}f(x){}", "(".repeat(60), ")".repeat(60));
+    assert!(matches!(last_error(&[&nested, "f(1) ="]), CalcError::TooDeep { .. }));
+    // Exponential fan-out stops at the step budget.
+    let fan = |name: &str, inner: &str| format!("{name}(x) = {}", vec![format!("{inner}(x)"); 100].join(" + "));
+    let (f1, f2, f3, f4) = (fan("b", "a"), fan("c", "b"), fan("d", "c"), fan("e", "d"));
+    assert!(matches!(last_error(&["a(x) = x", &f1, &f2, &f3, &f4, "e(1) ="]), CalcError::TooMuchWork));
+    // Wrong arity.
+    assert!(matches!(last_error(&["g(a, b) = a·b", "g(1) ="]), CalcError::ArgCount { expected: 2, found: 1, .. }));
+    assert!(matches!(last_error(&["f(x) = x", "f(1, 2, 3) ="]), CalcError::ArgCount { expected: 1, found: 3, .. }));
+    assert!(matches!(last_error(&["f(x) = x", "f() ="]), CalcError::ArgCount { expected: 1, found: 0, .. }));
+    // Non-finite values.
+    assert!(matches!(last_error(&["f(x) = 1/x", "f(0) ="]), CalcError::DivisionByZero));
+    assert!(matches!(last_error(&["f(x) = x^100", "f(1e10) ="]), CalcError::Overflow));
+    assert!(matches!(last_error(&["f(x) = sqrt(x)", "f(-1) ="]), CalcError::NotReal));
+    // Bad definitions.
+    // A built-in function is never redefined: `sin(x) = x` is an equation in x.
+    assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Definition);
+    assert!(matches!(last_error(&["sin(x) := x"]), CalcError::Syntax { .. }));
+    assert!(matches!(last_error(&["f(x, x) = x"]), CalcError::BadDefinition(_)));
+    assert!(matches!(last_error(&["f(x) = x = 3"]), CalcError::Syntax { .. }));
+    assert!(matches!(last_error(&["f(x) = (x"]), CalcError::Syntax { .. }));
+    // A failed definition undefines the function.
+    assert!(matches!(last_error(&["f(x) = x", "f(x) = (x", "f(1) ="]), CalcError::Syntax { .. } | CalcError::UnknownName(_)));
+    for s in ["f(x) =", "f( = 1", "f(x, = 1", "f(x y) = 1", "f(1) = x", "(x) = 1", "f(x)(y) = 1", "f(x) := f", "f(x) = f", "f(f) = f(f)"] {
+        let _ = run(&[s, "f(1) ="]);
+    }
+    // A function whose name is a unit is still called as a function.
+    assert_eq!(last(&["m(x) = x + 1", "m(1) ="]), "m(1) = 2");
+}
+
+#[test]
+fn deep_recursion_fits_a_small_stack() {
+    // A Windows main thread has 1 MiB of stack: the depth caps stop well within it.
+    let deep = std::thread::Builder::new()
+        .stack_size(1 << 20)
+        .spawn(|| {
+            let left = format!("f(x) = f(x){}", " + 1".repeat(250));
+            let right = format!("f(x) = {}f(x)", "1 + ".repeat(250));
+            [last_error(&[&left, "f(1) ="]), last_error(&[&right, "f(1) ="])]
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert!(deep.iter().all(|e| matches!(e, CalcError::TooDeep { .. })), "{deep:?}");
 }

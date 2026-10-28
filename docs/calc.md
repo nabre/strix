@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks); Variables pane, systems and solution steps next · **Last updated:** 2026-10-27 · **Change:** automatic recalculation; cell statements; dimensionless units
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** temperatures in °C and °F; user functions `f(x) = …`
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -154,8 +154,35 @@ Formula columns, units and totals work as in any calculated table, and the colum
 dimension vector over the 7 SI base dimensions. Units: SI base and derived (`m s kg A K mol cd N
 Pa J W C V Ω Hz`), prefixes (`n µ m c d k M G`) on the units that take them, common engineering
 units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles, `bar`, `kWh`), and
-dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`. Temperature is absolute (`K`); affine `°C` is a later stage. A unit typed in
-the wrong case gets a hint: "unknown name KN (did you mean kN?)".
+dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`, and temperatures in `K`, `°C` and
+`°F` (see Temperatures). A unit typed in the wrong case gets a hint: "unknown name KN (did you
+mean kN?)".
+
+### Temperatures
+
+`°C` and `°F` (also `℃` `℉`, and the ASCII spellings `degC` `degF`) sit beside the kelvin.
+Temperatures are held in kelvin; the rules:
+
+- **A number written in °C or °F is an absolute temperature**, converted with the scale's
+  offset: `20 °C` is 293.15 K, `68 °F` is 293.15 K (= 20 °C), `-40 °F` = `-40 °C`. Also a
+  vector (`[0; 100] °C`) and a number in a `[°C]` table column.
+- **Inside a compound unit, or with no number, a degree is its size only**: `4.2 kJ/(kg·°C)` is
+  4200 J/(kg·K), `3 °C/min` is 0.05 K/s.
+- **Absolute − absolute is a difference**, shown in K: with `T_1 = 20 °C` and `T_2 = 80 °C`,
+  `T_2 - T_1 = 60 K`. A difference times or over a number stays a difference (`2·ΔT = 120 K`).
+- **Absolute ± a difference (or a value in K) stays absolute**: `T_1 + ΔT = 80 °C`,
+  `T_1 + 5 K = 25 °C`. `min max mean abs round` keep the kind of their arguments
+  (`mean(T_1; T_2) = 50 °C`). Anything else (`T_1 + T_2`, a value written in K) is a plain kelvin
+  value.
+- **Display**: an absolute temperature shows in the working unit (the last temperature unit
+  written: `°C` after `T = 20 °C`), else in the unit it was written in; asked for after `=`
+  (`T = °F`) it converts with the offset. Differences and kelvin values never take a °C/°F
+  offset by themselves: they show in K (or a K working unit). A kelvin value asked for in °C is
+  read as absolute (`300 K = °C` gives 26.85 °C); a difference asked for in °C is a difference
+  (`ΔT = °C` gives 60 °C).
+- How a parameter was written is remembered with it, like the dimensionless units, so the kind
+  follows names through later statements. Checks compare in the left side's unit
+  (`T_1 ≤ 30 °C ⇒ 20 °C ≤ 30 °C ✓`); worked steps never convert temperatures to one unit.
 
 **Units are set apart.** In calculated equations every unit (`m`, `kN·m`, `°`, `%`, with its
 power: `s²`) is upright (ISO 80000) and coloured with the **Unit** character style (`MathUnit`,
@@ -185,6 +212,30 @@ Limits: 4096 characters, nesting depth 64, 512 terms.
 Functions: `sqrt abs exp ln log sin cos tan asin acos atan min max round sum mean len`; `π`/`pi`,
 `e`, `g` (standard gravity) are predefined. Numbers: `1.5`, `1,5` when the document language uses
 decimal commas, `2e-3`.
+
+### User functions
+
+- **`f(x) = 2·x + 1` defines a function** (`:=` works too); later `f(3) =` shows `f(3) = 7`.
+  Several parameters: `g(a, b) = a·b` (`;` separates them too). Units flow through:
+  `A(b, h) = b·h`, then `A(2 m, 3 m) = 6 m²`. Calls go anywhere a value goes: `f(3)^2`,
+  `2·f(x) + 1`, `f(f(2))`, `∑_(i=1)^3▒f(i)`, element by element on vectors (`f([1; 2; 3])`).
+- **What is a definition**: a name, then brackets holding plain names only (distinct), then `=`
+  and a body. It is never an equation to solve, even with the parameters unknown. Anything else
+  is an ordinary statement: `a(b + 1) =` and `a(3) =` are products, `sin(α) = 0.5` (a built-in
+  function) is an equation, `f(3) = 7` a check. To solve an equation in a function, put the
+  call on the right: `7 = f(y) ⇒ y = 3`.
+- **Names in the body**: the parameters shadow the worksheet's parameters (and units: in
+  `A(b, h) = b·h`, `h` is the parameter, not the hour; after a number a unit stays a unit).
+  Every other name is read from the worksheet **when the function is called**, so
+  `f(x) = k·x`, `k = 3`, `f(2) =` gives 6, and redefining `k` later changes later calls. A `∑`
+  variable or a table column of the caller is not seen inside the body.
+- After `f(x) = …` a name `f` followed by `(` is a call (even when `f` is also a unit, like `m`);
+  `f` alone is still a parameter or unit. A later definition of `f` replaces it from there on;
+  one that fails to parse undefines it. The built-in functions cannot be redefined.
+- Limits: calls nest at most 32 deep (`MAX_CALL_DEPTH`; `f(x) = f(x)` stops with "functions call
+  each other too deeply"), evaluation as a whole nests at most 640 deep, so recursion ends with
+  an error, never a stack overflow; the step budgets bound the work of calls fanning out. A call
+  with the wrong number of arguments is an error ("g takes 2 arguments, not 1").
 
 **Composed units for structures.** A result that is a force times a length to a power keeps
 the units it is written in, force first: `F·a` with `F` in kN and `a` in m is `24 kN·m` (a moment,
@@ -258,15 +309,18 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 1. **Scalar worksheet**: parser, units, evaluation, errors; commands; tests. *Done.*
 2. **One `=`**: unknown detection, symbolic isolation, numeric roots, checks and comparisons,
-   working units, number format, unit hints. *Done.* Still to do: Variables pane, unit picker,
-   `°C`/`°F`.
-3. **Ranges, vectors, `Σ`/`∏`.** *Done.* Still to do: user functions `f(x) = …`, matrices.
+   working units, number format, unit hints, `°C`/`°F`. *Done.* Still to do: Variables pane,
+   unit picker.
+3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`.** *Done.* Still to do: matrices.
 4. **Calculated tables.** *Done.*
 5. Systems of equations across regions (pending equations solved together), solution steps
    (substitution, isolation lines), plots.
 
 ## Revision history
 
+- 2026-10-28: temperatures in `°C` and `°F` (`degC`, `degF`): absolute with the offset,
+  differences in K; user functions `f(x) = …` with parameters, units, call-time names and a
+  recursion cap.
 - 2026-10-28: calculated tables can show their cells as equations.
 - 2026-10-27: composed units for moments and loads (`kN·m`, `kN/m²`), force first.
 - 2026-10-27: data tables: cells named by column and row with a subscript (`F_A` or `A_F`).
