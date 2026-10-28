@@ -18,7 +18,9 @@ this file has the Strix specifics.
 | FreeBSD | x86_64 `.tar.gz` | checksums |
 | Web | `strix-web-<version>.zip` (static site: `index.html`, wasm, glue) | none |
 
-3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review and publish it.
+3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review it, then
+   publish it on GitHub or with Actions › **Publish release** (`publish-release.yml`, by hand:
+   it makes the draft the published, latest release).
 
 `.github/workflows/release.yml` is Strix's own pipeline: it reuses the suite's composite actions
 (`storytold/craft-common-actions/actions/*`) but not its reusable release workflow, which requires
