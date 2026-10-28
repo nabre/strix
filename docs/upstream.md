@@ -20,7 +20,9 @@ main                              … ─┴── Strix work ──────
   rename in [`xtask/src/upstream.rs`](../xtask/src/upstream.rs) (`RENAMES`): `WordCraft` →
   `Strix`, `wordcraft_*` → `strix_*`, `apps/wordcraft*` → `apps/strix*`,
   `ai.storyteller.wordcraft` → `io.github.nabre.strix`, `storytold/wordcraft` → `nabre/strix`.
-  The commit's `Upstream-Commit:` trailer names the upstream commit.
+  The commit's `Upstream-Commit:` trailer names the upstream commit. The renamed Rust files are
+  then formatted with the workspace's `rustfmt.toml` (shorter names let lines upstream wrapped
+  fit on one, as in `main`); without `rustfmt` on the PATH the sync warns and skips it.
 - Licence rules are built in: `LICENSE-*` and `NOTICE` stay byte-for-byte, lines with a
   copyright or attribution notice are never renamed, every renamed file gets the "Modified by the
   Strix contributors" line (Apache-2.0 §4(b), (c)), and the ArtCraft brand files in `docs/brand/`

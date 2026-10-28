@@ -165,11 +165,34 @@ fn commit_snapshot(wt: &Path, sha: &str) -> Result<(), String> {
     git(wt, &["read-tree", "-u", "--reset", sha])?;
     let n = rebrand_tree(wt)?;
     git(wt, &["add", "--all"])?;
+    // Shorter names let rustfmt join lines upstream had to wrap; formatting the renamed files as
+    // `main` is formatted keeps those lines out of the merge.
+    let renamed = git(wt, &["diff", "--cached", "--name-only", "--diff-filter=AMR", sha, "--", "*.rs"])?;
+    format_rust(wt, &renamed.lines().collect::<Vec<_>>());
+    git(wt, &["add", "--all"])?;
     let subject = git(wt, &["log", "-1", "--format=%s", sha])?;
     let msg = format!("Upstream WordCraft {} rebranded\n\n{subject}\n\n{TRAILER} {sha}\n", short(sha));
     git(wt, &["commit", "--quiet", "--allow-empty", "--no-verify", "-m", &msg])?;
     eprintln!("rebranded {n} file(s)");
     Ok(())
+}
+
+/// Runs rustfmt (the workspace's `rustfmt.toml`) on `files`, relative to `dir`. Without rustfmt
+/// it warns and leaves them as they are: the merge then shows the formatting too.
+fn format_rust(dir: &Path, files: &[&str]) {
+    let config = dir.join("rustfmt.toml");
+    for chunk in files.chunks(100) {
+        let mut cmd = Command::new("rustfmt");
+        cmd.current_dir(dir).args(["--edition", "2024"]).arg("--config-path").arg(&config).args(chunk);
+        match cmd.output() {
+            Ok(o) if o.status.success() => {}
+            Ok(o) => eprintln!("warning: rustfmt: {}", String::from_utf8_lossy(&o.stderr).trim()),
+            Err(e) => {
+                eprintln!("warning: rustfmt not run ({e}); renamed files keep upstream's line breaks");
+                return;
+            }
+        }
+    }
 }
 
 /// Rewrites every file under `dir` (except `.git`) in place; returns how many changed.
