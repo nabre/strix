@@ -22,6 +22,7 @@ pub mod find_pattern;
 pub mod fmt_revisions;
 pub mod font;
 pub mod format;
+pub mod graph;
 pub mod index;
 pub mod ink_shape;
 pub mod insert;
@@ -82,6 +83,7 @@ pub fn registry() -> Registry {
     v.extend(calc::specs());
     v.extend(cad::specs());
     v.extend(exercise::specs());
+    v.extend(graph::specs());
     v.extend(page::specs());
     v.extend(table::specs());
     v.extend(table_style::specs());

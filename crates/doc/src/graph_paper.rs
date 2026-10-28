@@ -118,16 +118,18 @@ impl GridPlacement {
     }
     /// The placement a name gives, with the page count and height (points) the named ones take.
     pub fn parse(s: &str, pages: u32, height: f32) -> Option<GridPlacement> {
-        Some(match s {
-            "background" => GridPlacement::Background,
-            "pageEnd" | "fill" => GridPlacement::PageEnd,
-            "untilOdd" => GridPlacement::UntilOdd,
-            "untilEven" => GridPlacement::UntilEven,
-            "pages" => GridPlacement::Pages { pages },
-            "height" => GridPlacement::Height { height },
-            _ => return None,
-        }
-        .sanitized())
+        Some(
+            match s {
+                "background" => GridPlacement::Background,
+                "pageEnd" | "fill" => GridPlacement::PageEnd,
+                "untilOdd" => GridPlacement::UntilOdd,
+                "untilEven" => GridPlacement::UntilEven,
+                "pages" => GridPlacement::Pages { pages },
+                "height" => GridPlacement::Height { height },
+                _ => return None,
+            }
+            .sanitized(),
+        )
     }
     pub fn sanitized(self) -> GridPlacement {
         match self {
@@ -203,6 +205,66 @@ impl GraphPaper {
         };
         (along(w), along(h))
     }
+
+    /// The grid as one attribute value (`strix:graph` in `.xmath`, docs/graph-paper.md):
+    /// `place=pages:3;spacing=14.173;line=solid:9FC5E8:0.4;every=5;major=solid:6A9ED0:0.9`,
+    /// sizes in points. [`GraphPaper::from_attr`] reads it back.
+    pub fn to_attr(&self) -> String {
+        let g = self.sanitized();
+        let num = |v: f32| {
+            let t = format!("{:.3}", v);
+            let t = t.trim_end_matches('0').trim_end_matches('.');
+            if t.is_empty() || t == "-" { "0".to_string() } else { t.to_string() }
+        };
+        let line = |l: &GridLine| format!("{}:{}:{}", l.style.name(), l.color.hex(), num(l.width));
+        let place = match g.placement {
+            GridPlacement::Pages { pages } => format!("pages:{pages}"),
+            GridPlacement::Height { height } => format!("height:{}", num(height)),
+            p => p.name().to_string(),
+        };
+        let mut out = format!("place={place};spacing={};line={}", num(g.spacing), line(&g.line));
+        if g.major_every > 0 {
+            out.push_str(&format!(";every={};major={}", g.major_every, line(&g.major)));
+        }
+        out
+    }
+
+    /// Reads [`GraphPaper::to_attr`]'s value: unknown keys and values that don't read are left
+    /// at the defaults; `None` only when the placement isn't one this knows. Bounded: a value
+    /// longer than 1 KiB is refused.
+    pub fn from_attr(s: &str) -> Option<GraphPaper> {
+        if s.len() > 1024 {
+            return None;
+        }
+        let mut g = GraphPaper::default();
+        let mut placed = false;
+        let line = |v: &str, base: GridLine| -> GridLine {
+            let mut it = v.split(':');
+            let style = it.next().and_then(GridLineStyle::parse).unwrap_or(base.style);
+            let color = it.next().and_then(Rgb::parse).unwrap_or(base.color);
+            let width = it.next().and_then(|w| w.trim().parse::<f32>().ok()).unwrap_or(base.width);
+            GridLine { style, color, width }
+        };
+        for part in s.split(';') {
+            let Some((k, v)) = part.split_once('=') else { continue };
+            let v = v.trim();
+            match k.trim() {
+                "place" => {
+                    let (name, arg) = v.split_once(':').unwrap_or((v, ""));
+                    let n = arg.trim().parse::<f32>().ok();
+                    let pages = n.filter(|n| *n >= 0.0).map_or(1, |n| n.min(MAX_PAGES as f32) as u32);
+                    g.placement = GridPlacement::parse(name.trim(), pages, n.unwrap_or(f32::NAN))?;
+                    placed = true;
+                }
+                "spacing" => g.spacing = v.parse().unwrap_or(g.spacing),
+                "line" => g.line = line(v, g.line),
+                "every" => g.major_every = v.parse::<u32>().unwrap_or(0),
+                "major" => g.major = line(v, g.major),
+                _ => {}
+            }
+        }
+        placed.then(|| g.sanitized())
+    }
 }
 
 #[cfg(test)]
@@ -239,5 +301,54 @@ mod tests {
         let (v, _) = GraphPaper { spacing: 0.0, ..g }.lines(f32::MAX, 1.0);
         assert_eq!(v.len(), MAX_LINES);
         assert!(g.lines(f32::NAN, -1.0).0.is_empty());
+    }
+
+    #[test]
+    fn attribute_round_trips() {
+        let cases = [
+            GraphPaper::default(),
+            GraphPaper { placement: GridPlacement::Background, ..GraphPaper::default() },
+            GraphPaper { placement: GridPlacement::UntilOdd, major_every: 5, ..GraphPaper::default() },
+            GraphPaper { placement: GridPlacement::UntilEven, ..GraphPaper::default() },
+            GraphPaper { placement: GridPlacement::Pages { pages: 3 }, spacing: 4.0 * PT_PER_MM, ..GraphPaper::default() },
+            GraphPaper {
+                placement: GridPlacement::Height { height: 80.0 },
+                line: GridLine { style: GridLineStyle::Dotted, color: Rgb(1, 2, 3), width: 0.25 },
+                major_every: 10,
+                major: GridLine { style: GridLineStyle::Dashed, color: Rgb(200, 0, 0), width: 1.5 },
+                ..GraphPaper::default()
+            },
+        ];
+        for g in cases {
+            let back = GraphPaper::from_attr(&g.to_attr()).unwrap();
+            assert_eq!(back.placement, g.placement, "{}", g.to_attr());
+            assert!((back.spacing - g.spacing).abs() < 0.001);
+            assert_eq!(back.line.style, g.line.style);
+            assert_eq!(back.line.color, g.line.color);
+            assert_eq!(back.major_every, g.major_every);
+            if g.major_every > 0 {
+                assert_eq!(back.major.color, g.major.color);
+                assert!((back.major.width - g.major.width).abs() < 0.001);
+            }
+        }
+    }
+
+    #[test]
+    fn hostile_attributes_read_safely() {
+        for s in [
+            "",
+            "place=nowhere",
+            "spacing=5",
+            &"x".repeat(5000),
+            "place=pages:-4",
+            "place=pages:1e40",
+            "place=height:NaN;spacing=inf;line=:::;every=-1",
+        ] {
+            if let Some(g) = GraphPaper::from_attr(s) {
+                assert_eq!(g, g.sanitized());
+            }
+        }
+        assert_eq!(GraphPaper::from_attr("place=pages:1e40").unwrap().placement, GridPlacement::Pages { pages: MAX_PAGES });
+        assert!(GraphPaper::from_attr("spacing=5").is_none());
     }
 }

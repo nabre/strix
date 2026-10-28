@@ -123,6 +123,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("view.exercisePane", "Exercise Properties", "Math › Exercise", |s, v| toggle(s, v, |x| &mut x.exercise_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),
+        CommandSpec::new("view.graphPaperPane", "Graph Paper Pane", "Insert › Pages", |s, v| toggle(s, v, |x| &mut x.graph_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.altTextPane", "Alt Text Pane", "Review › Accessibility", |s, v| toggle(s, v, |x| &mut x.alt_text_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),

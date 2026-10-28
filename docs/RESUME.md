@@ -83,14 +83,12 @@ machine: read **In progress** and **Next** first.
     getrandom 0.4…) with the code adapted; macOS DMG background redrawn for Strix.
 
 ## In progress (stopped, unfinished, on their own branches)
-- **Graph paper** (owner request), branch `wip/graph-paper` (`a16fbe5`, does not build yet):
-  a new object "foglio a quadretti": grid line type (solid/dashed/dotted, colour, weight) and
-  spacing ("interasse"; maybe a heavier line every N squares); placements: *background* (behind
-  the page content), *fill to the end of the page*, *until the next odd/even page*, *for N
-  pages*, *for a given height*. Model started in `crates/doc/src/graph_paper.rs` and
-  doc/layout files. To do: layout for each placement, render, commands `graph.insert`/`graph.set`
-  (+ params docs, hostile params), Insert-tab button and a properties UI, `.xmath` round trip,
-  `docs/graph-paper.md`, tests, screenshots in light and dark theme.
+- **Graph paper** (owner request), branch `wip/graph-paper`: finished, waiting to be merged into
+  `main` (docs/graph-paper.md): "foglio a quadretti" with spacing ("interasse"), line style /
+  colour / weight, a heavier line every N squares; placements background, to the end of the
+  page, until the next odd/even page, for N pages, for a height; `graph.insert` / `graph.set` /
+  `graph.get` / `graph.remove`, `view.graphPaperPane`; Insert › Pages › Graph Paper menu and the
+  Graph Paper pane (with a preview); `strix:graph` on `w:pPr` / `w:sectPr` in `.xmath`.
 - **`A = 3 m · 5 m =`** (owner request), branch `wip/calc-define-and-evaluate` (`d19c358`):
   a definition worked out at once: defines `A` and shows `= 15 m²`. Changes started in
   `crates/calc/src/worksheet.rs`, `crates/calc/src/tests.rs`, `crates/engine/src/cmd/calc.rs`.

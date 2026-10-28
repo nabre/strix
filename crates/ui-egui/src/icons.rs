@@ -1505,6 +1505,28 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(9.0, 13.0), (17.0, 5.0)], a);
             pen.fill(&[(16.0, 3.5), (18.5, 6.0), (17.0, 7.5), (14.5, 5.0)], a);
         }
+        // Graph paper: a sheet ruled in squares, every third line heavier.
+        "graphPaper" => {
+            let faint = a.linear_multiply(0.55);
+            for k in 1..6 {
+                let at = 3.0 + 2.5 * k as f32;
+                let col = if k == 3 { a } else { faint };
+                pen.line_c(&[(at, 3.5), (at, 18.0)], col);
+                pen.line_c(&[(4.0, at + 0.5), (16.0, at + 0.5)], col);
+            }
+            pen.rect(4.0, 3.0, 16.0, 18.5, c);
+        }
+        // Graph paper properties: a corner of the grid with a slider beside it.
+        "graphPaperProperties" => {
+            let faint = a.linear_multiply(0.55);
+            for at in [6.0, 9.0, 12.0] {
+                pen.line_c(&[(at, 3.0), (at, 14.0)], faint);
+                pen.line_c(&[(3.0, at), (14.0, at)], faint);
+            }
+            pen.rect(3.0, 3.0, 14.0, 14.0, c);
+            pen.line(&[(3.0, 17.5), (17.0, 17.5)]);
+            pen.frect(11.0, 15.5, 13.0, 19.5, a);
+        }
         // A CAD drawing: a part with a dimension line and its ticks.
         "cad" => {
             pen.rect(4.0, 8.0, 16.0, 17.0, c);

@@ -444,6 +444,13 @@ impl Reader<'_> {
             let (mut props, mark) = self.pc.ppr(ppr);
             super::props::resolve_level_only(&self.doc.styles, &mut props, "Normal");
             para.props = props;
+            // Graph paper in the text flow (docs/graph-paper.md); a background one belongs to
+            // the section.
+            para.props.graph = ppr
+                .attr("strix:graph")
+                .and_then(strix_doc::graph_paper::GraphPaper::from_attr)
+                .filter(|g| g.placement != strix_doc::graph_paper::GridPlacement::Background)
+                .map(std::sync::Arc::new);
             para.mark = mark;
             // A tracked paragraph mark (ECMA-376 §17.13.5.16 / §17.13.5.15): `w:ins` / `w:del`
             // in the mark's `w:rPr`.
@@ -515,6 +522,11 @@ impl Reader<'_> {
 
     pub fn read_section(&mut self, s: &El, rels: &Rels) -> strix_doc::SectionProps {
         let (mut sp, refs) = sectpr(s);
+        // The section's background graph paper (docs/graph-paper.md).
+        sp.graph_paper = s
+            .attr("strix:graph")
+            .and_then(strix_doc::graph_paper::GraphPaper::from_attr)
+            .map(|g| std::sync::Arc::new(strix_doc::graph_paper::GraphPaper { placement: strix_doc::graph_paper::GridPlacement::Background, ..g }));
         // §17.13.5.32: the section's properties before a tracked change (no header references).
         if let Some(ch) = s.child("w:sectPrChange") {
             let old = ch.child("w:sectPr").map(|o| sectpr(o).0).unwrap_or_default();

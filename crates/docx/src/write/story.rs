@@ -207,7 +207,12 @@ impl Writer<'_> {
             .collect();
         let has_mark = super::props::has_rpr(&p.mark) || !mark_revs.is_empty() || p.mark.fmt_change.is_some();
         if !pp.is_empty() || has_mark || section.is_some() {
-            w.open("w:pPr", &[]);
+            // Graph paper in the text flow (docs/graph-paper.md), in a top-level paragraph only.
+            let graph = pp.graph.as_ref().filter(|_| top).map(|g| g.to_attr());
+            match &graph {
+                Some(g) => w.open("w:pPr", &[("strix:graph", g.as_str())]),
+                None => w.open("w:pPr", &[]),
+            }
             let num_change = pp.num_change.as_ref().map(|c| {
                 let mut a = self.change_attrs(c.rev);
                 a.push(("w:original", c.original.clone()));
@@ -1380,7 +1385,11 @@ impl Writer<'_> {
     }
 
     pub fn sectpr(&mut self, w: &mut W, s: &SectionProps, rels: &mut PartRels) {
-        w.open("w:sectPr", &[]);
+        // The section's background graph paper (docs/graph-paper.md).
+        match s.graph_paper.as_ref().map(|g| g.to_attr()) {
+            Some(g) => w.open("w:sectPr", &[("strix:graph", g.as_str())]),
+            None => w.open("w:sectPr", &[]),
+        }
         let headers = self.watermark_headers(s);
         for (set, footer) in [(&headers, false), (&s.footers, true)] {
             for (kind, id) in [("default", set.default), ("first", set.first), ("even", set.even)] {

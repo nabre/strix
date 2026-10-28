@@ -29,6 +29,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use strix_doc::graph_paper::{self, GraphPaper, GridPlacement};
 use strix_doc::numbering::{Counters, Level};
 use strix_doc::para::{Anchor, Float, FloatAlign, InlineObject, Wrap, WrapText};
 use strix_doc::props::{Border, CharProps, HeightRule, Rgb, TableFloat, TextDirection};
@@ -1976,11 +1977,11 @@ impl NoteBox {
     }
 }
 
-/// A section's background graph paper (docs/graph-paper.md) over its pages' margin box.
-fn background_grid(s: &SectionProps) -> Option<Placed> {
+/// A section's background graph paper (docs/graph-paper.md) over its pages' body (the margin
+/// box, below a header taller than the top margin).
+fn background_grid(s: &SectionProps, body: Rect) -> Option<Placed> {
     let g = s.graph_paper.as_ref()?;
-    let rect = Rect::new(s.margin_left + s.gutter, s.margin_top, s.text_width(), s.text_height());
-    Some(Placed::Grid { rect, grid: Arc::clone(g) })
+    Some(Placed::Grid { rect: body, grid: Arc::clone(g) })
 }
 
 /// Page borders, measured from the page edge (Word's default), so they surround the header,
@@ -2194,7 +2195,7 @@ impl PageBuilder<'_> {
         let body = Rect::new(s.margin_left + s.gutter, body_top, s.text_width(), (bottom - body_top).max(36.0));
         let mut decor = Vec::new();
         if !self.web {
-            decor.extend(background_grid(s));
+            decor.extend(background_grid(s, body));
             decor.extend(page_border_rules(s));
             // Lines between columns.
             if s.columns.separator && s.columns.count > 1 {
@@ -3775,16 +3776,19 @@ fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: u
     let path = Path::top(block);
     let is_own = |it: &Placed| matches!(it, Placed::Lines { story: StoryRef::Body, path: q, .. } if *q == path);
     // The page and item where its text starts (it may have moved on), and its first line's top.
-    let first = pb.pages.iter().enumerate().skip(start_page).find_map(|(pi, pg)| {
-        pg.items.iter().position(is_own).map(|ii| (pi, ii, pg.items.get(ii).map_or(y0, |it| v_span(it).0)))
-    });
+    let first = pb
+        .pages
+        .iter()
+        .enumerate()
+        .skip(start_page)
+        .find_map(|(pi, pg)| pg.items.iter().position(is_own).map(|ii| (pi, ii, pg.items.get(ii).map_or(y0, |it| v_span(it).0))));
     let last_page = pb.pages.len().saturating_sub(1);
     let (first_page, top) = match first {
         Some((pi, _, y)) => (pi, y),
         None => (last_page, y0.min(pb.y)),
     };
     let item = Arc::new(g);
-    let mut put = |pb: &mut PageBuilder, pi: usize, rect: Rect| {
+    let put = |pb: &mut PageBuilder, pi: usize, rect: Rect| {
         if rect.h <= 0.01 || rect.w <= 0.01 {
             return;
         }
@@ -3809,6 +3813,15 @@ fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: u
     put(pb, last_page, Rect::new(x, top, w, bottom - top));
     pb.content_bottom = pb.content_bottom.max(bottom);
     pb.y = pb.y.max(bottom);
+    if !matches!(g.placement, GridPlacement::Height { .. }) {
+        // The page's columns after this one are grid down their whole height too.
+        let left = pb.sect.margin_left + pb.sect.gutter;
+        let rest: Vec<Rect> =
+            pb.cols.iter().skip(pb.col.saturating_add(1)).map(|(cx, cw)| Rect::new(left + cx, pb.top, *cw, pb.bottom - pb.top)).collect();
+        if let Some(pg) = pb.pages.get_mut(last_page) {
+            pg.items.extend(rest.into_iter().filter(|r| r.h > 0.01 && r.w > 0.01).map(|rect| Placed::Grid { rect, grid: Arc::clone(&item) }));
+        }
+    }
     // Whole pages after it.
     let more = match g.placement {
         GridPlacement::Pages { pages } => pages.saturating_sub(1),
@@ -3817,7 +3830,8 @@ fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: u
     };
     let odd = g.placement == GridPlacement::UntilOdd;
     for _ in 0..more {
-        if matches!(g.placement, GridPlacement::UntilOdd | GridPlacement::UntilEven) && (pb.number.saturating_add(1) % 2 == 1) == odd {
+        let next = pb.restart_at.unwrap_or_else(|| pb.number.saturating_add(1));
+        if matches!(g.placement, GridPlacement::UntilOdd | GridPlacement::UntilEven) && (next % 2 == 1) == odd {
             break;
         }
         pb.new_page(block, body_top);
@@ -3835,6 +3849,7 @@ fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: u
         // What follows starts on the next page: no column of this one is left.
         pb.col = pb.cols.len().saturating_sub(1);
         pb.y = pb.bottom;
+        pb.max_y = pb.max_y.max(pb.bottom);
     }
 }
 
@@ -5104,6 +5119,8 @@ mod tests_bidi;
 mod tests_budget;
 #[cfg(test)]
 mod tests_complex;
+#[cfg(test)]
+mod tests_graph_paper;
 #[cfg(test)]
 mod tests_grid;
 #[cfg(test)]
