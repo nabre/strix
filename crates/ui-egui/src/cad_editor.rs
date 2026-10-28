@@ -64,6 +64,8 @@ pub enum Tool {
     DimContinue,
     /// Baseline dimensions: each click measures from the base's first point, a row further out.
     DimBaseline,
+    /// A level (elevation) mark: a click on the level.
+    Level,
     /// A hatched strip: the line or polyline it follows, then a point on its side.
     Strip,
     /// A hatch: a click inside the region it fills.
@@ -141,6 +143,7 @@ impl Tool {
             "dimAngular" | "dan" | "quotaAngolare" => Tool::DimAngle,
             "dimContinue" | "dco" | "dimcontinue" | "quotaContinua" => Tool::DimContinue,
             "dimBaseline" | "dba" | "dimbaseline" | "quotaBase" => Tool::DimBaseline,
+            "level" | "liv" | "quotaLivello" => Tool::Level,
             "strip" | "fascia" => Tool::Strip,
             "hatch" | "h" | "bh" | "retino" => Tool::Hatch,
             "move" | "m" | "sposta" => Tool::Move,
@@ -205,6 +208,7 @@ impl Tool {
             (Tool::DimAngle, _) => "Angular dimension: where the arc goes",
             (Tool::DimContinue, _) => "Continue: next point (Enter or Esc to end)",
             (Tool::DimBaseline, _) => "Baseline: next point (Enter or Esc to end)",
+            (Tool::Level, _) => "Level mark: the point on the level (Enter or Esc to end)",
             (Tool::Strip, 0) => "Hatched strip: pick the line or polyline it follows",
             (Tool::Strip, _) => "Hatched strip: click on the side it goes",
             (Tool::Hatch, _) => "Hatch: click inside the region to fill (islands are left out)",
@@ -533,7 +537,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, dimContinue, dimBaseline, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, dimContinue, dimBaseline, level, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
                 if let Some(d) = immediate(ed) {
@@ -1224,6 +1228,7 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::DimAngle => "Angular dimension",
         Tool::DimContinue => "Continue dimension",
         Tool::DimBaseline => "Baseline dimension",
+        Tool::Level => "Level mark",
         Tool::Strip => "Hatched strip",
         Tool::Hatch => "Hatch",
         Tool::Move => "Move",
@@ -2578,6 +2583,16 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             ed.chain_base = Some(next);
             Some(d)
         }
+        Tool::Level => {
+            done(ed);
+            // Like the last level mark: the same datum, side and way up.
+            let like = ed.drawing.entities.iter().rev().find_map(|e| match &e.kind {
+                Kind::Level { datum, flip, left, .. } => Some((datum.clone(), *flip, *left)),
+                _ => None,
+            });
+            let (datum, flip, left) = like.unwrap_or_default();
+            with(ed, Entity::new(Kind::Level { p: pt(p), datum, text: None, flip, left }))
+        }
         Tool::Offset if n >= 2 => {
             // The object picked first, offset towards the second click; the command goes on.
             let made = ed.drawing.nearest_path(pts[0]).and_then(|(i, _)| ed.drawing.offset_entity(i, ed.offset_dist, pts[1]));
@@ -3059,6 +3074,16 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
                 t("dimBaseline"),
                 tool == Tool::DimBaseline,
             );
+            small(
+                ui,
+                app,
+                "cadLevel",
+                Some("Level"),
+                "Level mark: the elevation of a point above the datum (±0.00), in metres",
+                "ui.cadTool",
+                t("level"),
+                tool == Tool::Level,
+            );
         });
     });
     // The drawing's annotation style: one place for how every dimension and new text looks.
@@ -3332,6 +3357,27 @@ mod tests {
         ed.selection.clear();
         ed.set_tool(Tool::Move);
         assert!(ed.picking && ed.selecting());
+    }
+
+    /// The level tool places a mark per click, each like the last one (datum, side, way up).
+    #[test]
+    fn level_marks_click_by_click() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadTool", json!({"tool": "quotaLivello"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(ed.tool, Tool::Level);
+        let d = feed(ed, Pt::new(0.0, 3000.0), None).expect("a level mark");
+        commit(&mut app, &d);
+        let mut d = app.cad.as_ref().unwrap().drawing.clone();
+        let i = d.entities.len() - 1;
+        d.set_field(i, 0, "datum", "500").unwrap();
+        d.set_field(i, 0, "flip", "true").unwrap();
+        commit(&mut app, &d);
+        let ed = app.cad.as_mut().unwrap();
+        let d = feed(ed, Pt::new(10.0, 0.0), None).expect("a second level mark");
+        assert!(matches!(&d.entities.last().unwrap().kind, Kind::Level { datum, flip: true, left: false, .. } if datum.value == 500.0));
+        assert_eq!(ed.tool, Tool::Level, "the command goes on");
     }
 
     /// Continue and Baseline go on from the newest linear dimension (or the one selected), one

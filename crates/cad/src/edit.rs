@@ -46,7 +46,7 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
             }
             vec![out]
         }
-        Kind::Point { p } | Kind::Text { p, .. } => vec![vec![p.pt()]],
+        Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. } => vec![vec![p.pt()]],
         // A strip is laid out from its path ([`Drawing::shape`]).
         Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
         // The arc and the two rays out to it.
@@ -246,7 +246,7 @@ impl Drawing {
                     }
                 }
                 Kind::Point { p } => out.push((p.pt(), SnapKind::End)),
-                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Strip { .. } | Kind::Hatch { .. } => {}
+                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } | Kind::Strip { .. } | Kind::Hatch { .. } => {}
             }
         }
         out.retain(|(p, _)| p.is_finite());
@@ -400,7 +400,7 @@ fn move_kind(k: &mut Kind, d: Pt) {
         }
         Kind::Circle { c, .. } | Kind::Arc { c, .. } => shift_p(c, d),
         Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| shift_p(p, d)),
-        Kind::Point { p } | Kind::Text { p, .. } => shift_p(p, d),
+        Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. } => shift_p(p, d),
         Kind::Angle { c, a, b, .. } => {
             shift_p(c, d);
             shift_p(a, d);
@@ -500,7 +500,7 @@ impl Drawing {
                 }
                 out
             }
-            Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. } => vec![(Grip::Point, p.pt())],
             Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
             Kind::Dim { a, b, offset, orient, .. } => {
                 let (pa, pb) = (a.pt(), b.pt());
@@ -614,7 +614,7 @@ impl Drawing {
                     }
                 }
             }
-            (Kind::Point { p } | Kind::Text { p, .. }, Grip::Point) => shift_p(p, d),
+            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) => shift_p(p, d),
             (Kind::Dim { offset, .. }, Grip::DimLine) => *offset = offset_at,
             _ => return false,
         }

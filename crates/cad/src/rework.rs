@@ -240,7 +240,7 @@ impl Drawing {
                     step(b);
                 }
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(&mut step),
-                Kind::Circle { c, .. } | Kind::Point { p: c } | Kind::Text { p: c, .. } => step(c),
+                Kind::Circle { c, .. } | Kind::Point { p: c } | Kind::Text { p: c, .. } | Kind::Level { p: c, .. } => step(c),
                 Kind::Arc { c, .. } => {
                     if arc_inside && inside(c) {
                         step(c);

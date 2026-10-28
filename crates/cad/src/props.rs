@@ -183,6 +183,14 @@ impl Drawing {
                 out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
                 out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
             }
+            Kind::Level { p, datum, text, flip, left } => {
+                out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
+                point(&mut out, p, ("x", "X"), ("y", "Y"));
+                out.push(f("datum", "Datum (±0.00) Y", FieldKind::Length, num_text(datum)));
+                out.push(f("elevation", "Elevation", FieldKind::Derived, self.level_label(None, p.1.value - datum.value, None)));
+                out.push(f("flip", "Under the level", FieldKind::Bool, flip.to_string()));
+                out.push(f("left", "Text on the left", FieldKind::Bool, left.to_string()));
+            }
         }
         out
     }
@@ -252,8 +260,11 @@ impl Drawing {
                 }
                 *closed = on;
             }
-            (Kind::Point { p } | Kind::Text { p, .. }, "x") => p.0 = parse_num(text)?,
-            (Kind::Point { p } | Kind::Text { p, .. }, "y") => p.1 = parse_num(text)?,
+            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, "x") => p.0 = parse_num(text)?,
+            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, "y") => p.1 = parse_num(text)?,
+            (Kind::Level { datum, .. }, "datum") => *datum = parse_num(text)?,
+            (Kind::Level { flip, .. }, "flip") => *flip = matches!(text.trim(), "true" | "1" | "yes"),
+            (Kind::Level { left, .. }, "left") => *left = matches!(text.trim(), "true" | "1" | "yes"),
             (Kind::Text { value, .. }, "value") => {
                 if text.trim().is_empty() {
                     return Err("a text cannot be empty".into());
@@ -263,7 +274,7 @@ impl Drawing {
             (Kind::Text { height, .. }, "height") => *height = parse_f64(text)?.clamp(0.5, 50.0),
             (Kind::Text { angle, .. }, "rotation") => *angle = parse_f64(text)? % 360.0,
             (Kind::Text { align, .. }, "align") => *align = Align::parse(text).ok_or("alignment: left, center or right")?,
-            (Kind::Dim { text: t, .. } | Kind::Angle { text: t, .. }, "text") => *t = dim_text(text),
+            (Kind::Dim { text: t, .. } | Kind::Angle { text: t, .. } | Kind::Level { text: t, .. }, "text") => *t = dim_text(text),
             (Kind::Dim { below, .. }, "below") => *below = dim_text(text),
             (Kind::Strip { width, .. }, "width") => *width = parse_f64(text)?,
             (Kind::Strip { spacing, .. } | Kind::Hatch { spacing, .. }, "spacing") => *spacing = parse_f64(text)?,

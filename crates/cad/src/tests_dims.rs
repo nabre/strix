@@ -105,3 +105,47 @@ fn continued_and_baseline_dimensions() {
     assert!(d.dim_continue(2, Pt::new(1.0, 1.0)).is_none() && d.dim_continue(99, Pt::new(1.0, 1.0)).is_none());
     assert!(d.dim_continue(0, Pt::new(4.0, 0.0)).is_none());
 }
+
+/// A level mark shows its point's height above the datum in metres, signed, two decimals, in
+/// the document's number style; a text of its own and parameters work as in dimensions.
+#[test]
+fn level_marks_show_the_elevation() {
+    let label = |unit: &str, y: f64, datum: &str| {
+        let d = Drawing::from_json(&format!(r#"{{"unit":"{unit}","entities":[{{"type":"level","p":[0,{y}],"datum":{datum}}}]}}"#)).unwrap();
+        let r = d.render(None);
+        r.prims.iter().find_map(|p| if let Prim::Text { text, .. } = p { Some(text.clone()) } else { None }).unwrap()
+    };
+    assert_eq!(label("mm", 3000.0, "0"), "+3.00");
+    assert_eq!(label("m", -1.5, "0"), "\u{2212}1.50");
+    assert_eq!(label("cm", 120.0, "120"), "±0.00");
+    assert_eq!(label("mm", 0.001, "0"), "±0.00", "less than half a centimetre reads zero");
+    assert_eq!(label("m", 2.755, "0.5"), "+2.26");
+    // A decimal comma, a text of its own with the value and a parameter.
+    let mut ws = strix_calc::Worksheet::new(strix_calc::Options { decimal_comma: true, ..strix_calc::Options::default() });
+    ws.eval_statement("h = 3 m");
+    let mut d = Drawing::from_json(r#"{"unit":"m","entities":[{"type":"level","p":[0,"h"],"text":"<> (h = {{h}})"}]}"#).unwrap();
+    d.resolve(&ws);
+    let texts: Vec<String> =
+        d.render(Some(&ws)).prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect();
+    assert_eq!(texts.len(), 1);
+    assert!(texts[0].starts_with("+3,00 (h = 3"), "{texts:?}");
+    // Round trip, defaults left out; moving it changes the elevation, the datum stays.
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"level","p":[0,0],"flip":true}]}"#).unwrap();
+    let json = d.to_json();
+    assert!(json.contains(r#""flip":true"#) && !json.contains("datum") && !json.contains("left"), "{json}");
+    assert_eq!(Drawing::from_json(&json).unwrap(), d);
+    d.translate(&[0], Pt::new(5.0, 2500.0));
+    assert_eq!(d.fields(0, 0).iter().find(|f| f.key == "elevation").unwrap().text, "+2.50");
+    d.set_field(0, 0, "datum", "1000").unwrap();
+    assert_eq!(d.fields(0, 0).iter().find(|f| f.key == "elevation").unwrap().text, "+1.50");
+    d.set_field(0, 0, "left", "true").unwrap();
+    assert!(matches!(d.entities[0].kind, Kind::Level { left: true, flip: true, .. }));
+    // Flipped, the triangle hangs under the level; on the left, the text ends at the mark.
+    let r = d.render(None);
+    assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { anchor: Anchor::BaselineRight, .. })));
+    // Hostile input: nothing drawn, no panic.
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"level","p":[1e300,"nonsense"],"datum":"x"}]}"#).unwrap();
+    d.resolve(&strix_calc::Worksheet::new(strix_calc::Options::default()));
+    let _ = d.render(None);
+    let _ = d.fields(0, 0);
+}

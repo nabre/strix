@@ -54,6 +54,11 @@ impl Num {
     pub fn expr(text: &str) -> Num {
         Num { value: 0.0, expr: Some(text.to_string()) }
     }
+
+    /// A plain zero (no expression): left out of the JSON where zero is the default.
+    pub fn is_zero(&self) -> bool {
+        self.value == 0.0 && self.expr.is_none()
+    }
 }
 
 impl From<f64> for Num {
@@ -387,6 +392,22 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
     },
+    /// A level (elevation) mark at `p`: a triangle with its tip on the level, a line along it and
+    /// the elevation over it: `p`'s height above `datum` (drawing units; the ±0.00 level) in
+    /// metres, signed, `±0.00` at the datum. `text` as a dimension's (`<>` is the elevation).
+    /// `flip`: the mark under the level, tip up (a ceiling, a soffit). `left`: the line and the
+    /// text go left of the tip.
+    Level {
+        p: P,
+        #[serde(default, skip_serializing_if = "Num::is_zero")]
+        datum: Num,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        flip: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        left: bool,
+    },
 }
 
 /// Which side of its line a strip lies on, looking along the line.
@@ -690,6 +711,7 @@ impl Drawing {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }
                 }
+                Kind::Level { text: Some(t), .. } => t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i)),
                 _ => {}
             }
         }
@@ -748,6 +770,10 @@ impl Drawing {
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| point(p, &mut out)),
                 Kind::Strip { .. } | Kind::Hatch { .. } => {}
                 Kind::Point { p } | Kind::Text { p, .. } => point(p, &mut out),
+                Kind::Level { p, datum, .. } => {
+                    point(p, &mut out);
+                    out.push((datum, NumKind::Length));
+                }
             }
         }
         out
@@ -803,6 +829,25 @@ impl Drawing {
 
     /// The text of a dimension label: `<>` replaced by `measured` (drawing units, shown with the
     /// unit), `{{name}}` by the parameter's value as calculations show it.
+    /// A level mark's label: `text` (else `<>`) with `<>` the elevation `height` (drawing units)
+    /// in metres, two decimals and signed (`+3.00`, `−1.50`, `±0.00`), in the document's number
+    /// style (a decimal comma when it uses one).
+    pub fn level_label(&self, text: Option<&str>, height: f64, ws: Option<&Worksheet>) -> String {
+        let doc = ws.map(|w| *w.options()).unwrap_or_default();
+        let opts = strix_calc::Options { digits: 2, count: strix_calc::Count::Decimals, zeros: true, ..doc };
+        let m = height * self.unit.mm() / 1000.0;
+        let digits = strix_calc::format_number(m.abs(), &opts);
+        let zero = strix_calc::format_number(0.0, &opts);
+        let value = if digits == zero || !m.is_finite() {
+            format!("±{zero}")
+        } else if m > 0.0 {
+            format!("+{digits}")
+        } else {
+            format!("\u{2212}{digits}")
+        };
+        fill(&text.unwrap_or("<>").replace("<>", &value), ws)
+    }
+
     pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
         let size = strix_calc::format_number(measured, &opts);

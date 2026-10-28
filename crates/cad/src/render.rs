@@ -148,6 +148,7 @@ impl Drawing {
                 }
                 Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
                 Kind::Angle { .. } => self.angular(e, k, color, width.min(0.25), ws, &mut prims),
+                Kind::Level { .. } => self.level(e, k, color, width.min(0.25), ws, &mut prims),
                 // A hatch or a hatched strip: its lines, thin as hatches are; a solid fill's lines
                 // close enough, and wide enough, to cover it (with its islands, on any output).
                 Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
@@ -324,6 +325,40 @@ impl Drawing {
             return;
         }
         out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
+    }
+}
+
+impl Drawing {
+    /// A level mark (paper mm, y up): a short line on the level through the tip, the triangle
+    /// standing on its tip (hanging from it when flipped), a line along the triangle's top
+    /// running out to the text side, and the elevation on that line (under it when flipped).
+    fn level(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
+        let Kind::Level { p, datum, text, flip, left } = &e.kind else { return };
+        let st = self.dim_style;
+        let tip = p.pt().scale(k);
+        if !tip.is_finite() {
+            return;
+        }
+        let label = self.level_label(text.as_deref(), p.1.value - datum.value, ws);
+        // The triangle: as tall as a text and a half, equilateral.
+        let h = (st.text * 1.2).max(1.0);
+        let half = h / 3f64.sqrt();
+        let up = if *flip { -1.0 } else { 1.0 };
+        let out_x = if *left { -1.0 } else { 1.0 };
+        let top = tip.y + up * h;
+        let path = |pts: Vec<(f64, f64)>, closed: bool, fill: bool| Prim::Path { pts, closed, color, width, dash: Vec::new(), fill };
+        out.push(path(vec![(tip.x - h, tip.y), (tip.x + h, tip.y)], false, false));
+        out.push(path(vec![(tip.x, tip.y), (tip.x - half, top), (tip.x + half, top)], true, false));
+        // The half of the triangle on the text side filled, as level marks are drawn.
+        out.push(path(vec![(tip.x, tip.y), (tip.x + out_x * half, top), (tip.x, top)], true, true));
+        // The line under the text: past the triangle by the text's length (an estimate: about
+        // 0.6 of the height per character).
+        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * st.text * 0.6;
+        out.push(path(vec![(tip.x - out_x * half, top), (tip.x + out_x * reach, top)], false, false));
+        let at_x = tip.x + out_x * (half + st.text_gap);
+        let at_y = if *flip { top - st.text_gap - st.text } else { top + st.text_gap };
+        let anchor = if *left { Anchor::BaselineRight } else { Anchor::BaselineLeft };
+        out.push(Prim::Text { at: (at_x, at_y), text: label, height: st.text, angle: 0.0, anchor, color });
     }
 }
 

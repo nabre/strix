@@ -34,7 +34,7 @@ impl Family {
             Kind::Circle { .. } => Family::Circle,
             Kind::Arc { .. } => Family::Arc,
             Kind::Point { .. } => Family::Point,
-            Kind::Dim { .. } | Kind::Angle { .. } => Family::Dim,
+            Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } => Family::Dim,
             Kind::Text { .. } => Family::Text,
             Kind::Strip { .. } | Kind::Hatch { .. } => Family::Hatch,
         }

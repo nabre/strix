@@ -127,7 +127,8 @@ impl Drawing {
                         bulges.iter_mut().for_each(|b| *b = -*b);
                     }
                 }
-                Kind::Point { p } => map_p(p, t),
+                // A level mark stays upright: its point moves, its elevation follows.
+                Kind::Point { p } | Kind::Level { p, .. } => map_p(p, t),
                 Kind::Text { p, angle, .. } => {
                     map_p(p, t);
                     if !t.mirror {

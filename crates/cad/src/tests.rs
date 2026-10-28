@@ -1437,9 +1437,10 @@ fn aligned_dimension_texts_follow_steep_lines_readably() {
     // A vertical one reads bottom to top.
     let (angle, _) = text_of(r#"{"dimStyle":{"aligned":true},"entities":[{"type":"dim","a":[0,50],"b":[0,0],"offset":8,"orient":"vertical"}]}"#);
     assert!(approx(angle, 90.0), "{angle}");
-    // An angle's label runs along its arc: a right angle from the x axis has its middle at 45°,
-    // its tangent there at 135°, turned readable to −45°.
-    let (angle, _) = text_of(r#"{"dimStyle":{"aligned":true},"entities":[{"type":"angle","c":[0,0],"a":[10,0],"b":[0,10],"r":8}]}"#);
+    // An angle's label runs along its arc: a right angle (with its value written: without, it is
+    // the right-angle symbol) from the x axis has its middle at 45°, its tangent there at 135°,
+    // turned readable to −45°.
+    let (angle, _) = text_of(r#"{"dimStyle":{"aligned":true},"entities":[{"type":"angle","c":[0,0],"a":[10,0],"b":[0,10],"r":8,"text":"<>°"}]}"#);
     assert!(approx(angle, -45.0), "{angle}");
 }
 

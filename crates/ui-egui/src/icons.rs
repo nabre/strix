@@ -1274,6 +1274,14 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             }
             pen.line_c(&[(7.5, 11.5), (10.5, 8.5)], a);
         }
+        // A level mark: the triangle on its tip, half filled, the line and a value over it.
+        "cadLevel" => {
+            pen.line_c(&[(2.0, 16.0), (10.0, 16.0)], c);
+            pen.line_c(&[(6.0, 16.0), (3.0, 11.0), (9.0, 11.0), (6.0, 16.0)], c);
+            pen.line_c(&[(6.0, 16.0), (8.0, 12.0), (6.0, 12.0)], a);
+            pen.line_c(&[(3.0, 11.0), (18.0, 11.0)], c);
+            pen.text(13.0, 7.0, 7.0, "±", a, false);
+        }
         "cadDimBase" => {
             pen.line_c(&[(3.0, 13.0), (11.0, 13.0)], c);
             pen.line_c(&[(3.0, 7.0), (17.0, 7.0)], c);
