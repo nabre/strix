@@ -1866,11 +1866,11 @@ pub fn seg_path(segs: &[PathSeg]) -> BezPath {
 }
 
 /// One line of a `GraphicItem::Text` in `r`, shaped in its font (the document's body font when
-/// unset) and aligned horizontally, centred vertically, at its size times `k`. `None` when there is
-/// nothing to draw, or the item's rectangle or size isn't a finite number (a degenerate scale:
-/// `r` itself is always finite, as [`Rect::new`] makes it).
+/// unset) and aligned horizontally, centred vertically, at its size times `k`, turned by its
+/// angle. `None` when there is nothing to draw, or the item's rectangle or size isn't a finite
+/// number (a degenerate scale: `r` itself is always finite, as [`Rect::new`] makes it).
 fn text_glyphs(doc: &Document, r: Rect, it: &GraphicItem, alpha: f32, k: f32) -> Option<Draw> {
-    let GraphicItem::Text { rect, text, size, color, bold, align, font } = it else { return None };
+    let GraphicItem::Text { rect, text, size, color, bold, align, font, angle } = it else { return None };
     let size = *size * k;
     if !rect.iter().chain([&size]).all(|v| v.is_finite()) {
         return None;
@@ -1910,6 +1910,14 @@ fn text_glyphs(doc: &Document, r: Rect, it: &GraphicItem, alpha: f32, k: f32) ->
         ranges: Vec::new(),
         text_bg: None,
         x_scale: 1.0,
+    })
+    // A turned text (counter-clockwise; the page's y points down) turns about its rectangle's centre.
+    .map(|g| {
+        if angle.is_finite() && *angle != 0.0 {
+            Draw::Rotated { cx: r.x + r.w / 2.0, cy: r.y + r.h / 2.0, spin: Spin::new(-*angle, false, false), items: vec![g] }
+        } else {
+            g
+        }
     })
 }
 

@@ -215,13 +215,22 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
             break;
         }
         match prim {
-            Prim::Path { pts, closed, color, width, fill, .. } => {
+            Prim::Path { pts, closed, color, width, fill, dash } => {
                 let mut segs: Vec<PathSeg> = Vec::with_capacity(pts.len() + 1);
-                for (k, &(x, y)) in pts.iter().enumerate() {
-                    segs.push(if k == 0 { PathSeg::Move(pt(x), pt(y)) } else { PathSeg::Line(pt(x), pt(y)) });
-                }
-                if *closed {
-                    segs.push(PathSeg::Close);
+                if dash.is_empty() || *fill {
+                    for (k, &(x, y)) in pts.iter().enumerate() {
+                        segs.push(if k == 0 { PathSeg::Move(pt(x), pt(y)) } else { PathSeg::Line(pt(x), pt(y)) });
+                    }
+                    if *closed {
+                        segs.push(PathSeg::Close);
+                    }
+                } else {
+                    // A dashed line: its dashes, each a move and its lines (the page strokes them).
+                    for piece in prim.pieces() {
+                        for (k, &(x, y)) in piece.iter().enumerate() {
+                            segs.push(if k == 0 { PathSeg::Move(pt(x), pt(y)) } else { PathSeg::Line(pt(x), pt(y)) });
+                        }
+                    }
                 }
                 items.push(GraphicItem::Path {
                     segs,
@@ -242,8 +251,21 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                 segs.push(PathSeg::Close);
                 items.push(GraphicItem::Path { segs, fill: Some(rgb(*color)), stroke: None, stroke_width: 0.0 });
             }
-            // Texts are set horizontally for now (a rotated dimension's text reads level).
-            Prim::Text { at, text, height, anchor, color, .. } => {
+            // A text is laid out level from its anchor, then turned about it by its angle: each
+            // piece's rectangle turns about its own centre, its centre about the anchor.
+            Prim::Text { at, text, height, angle, anchor, color } => {
+                let angle = if angle.is_finite() { *angle as f32 } else { 0.0 };
+                let (sin, cos) = angle.to_radians().sin_cos();
+                let (ax, ay) = (pt(at.0), pt(at.1));
+                // Counter-clockwise on paper, whose y points down.
+                let turn = |rect: [f32; 4]| {
+                    if angle == 0.0 {
+                        return rect;
+                    }
+                    let (dx, dy) = (rect[0] + rect[2] / 2.0 - ax, rect[1] + rect[3] / 2.0 - ay);
+                    let (cx, cy) = (ax + dx * cos + dy * sin, ay - dx * sin + dy * cos);
+                    [cx - rect[2] / 2.0, cy - rect[3] / 2.0, rect[2], rect[3]]
+                };
                 let size = (pt(*height) * CAP_TO_EM).clamp(2.0, 400.0);
                 // Plain, unit and missing pieces: a unit is set in the Unit style's colour, a
                 // placeholder whose parameter is not defined in red.
@@ -275,7 +297,16 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                     Anchor::BaselineRight => ([x - w, y - size * 0.9, w, size * 1.1], TextAlign::Right),
                 };
                 if pieces.len() <= 1 {
-                    items.push(GraphicItem::Text { rect, text: visible, size, color: rgb(*color), bold: false, align, font: None });
+                    items.push(GraphicItem::Text {
+                        rect: turn(rect),
+                        text: visible,
+                        size,
+                        color: rgb(*color),
+                        bold: false,
+                        align,
+                        font: None,
+                        angle,
+                    });
                 } else {
                     // Pieces one after the other, from where the whole text starts.
                     let [x0, y0, _, h0] = rect;
@@ -294,7 +325,16 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                             Piece::Plain => rgb(*color),
                         };
                         let align = if k + 1 < n { TextAlign::Right } else { TextAlign::Left };
-                        items.push(GraphicItem::Text { rect: [cursor, y0, pw, h0], text: piece, size, color: c, bold: false, align, font: None });
+                        items.push(GraphicItem::Text {
+                            rect: turn([cursor, y0, pw, h0]),
+                            text: piece,
+                            size,
+                            color: c,
+                            bold: false,
+                            align,
+                            font: None,
+                            angle,
+                        });
                         cursor += pw;
                     }
                 }
@@ -429,5 +469,42 @@ mod tests {
         }
         let _ = s.run("cad.get", &json!({}));
         let _ = s.run("cad.add", &json!({"entity": null}));
+    }
+
+    /// On the page a dashed line is drawn as its dashes and a turned text at its angle, its
+    /// rectangle's centre turned about the text's anchor.
+    #[test]
+    fn page_items_draw_dashes_and_turned_texts() {
+        let d = Drawing::from_json(
+            r#"{"layers":[{"name":"0","dash":"dashed"}],"entities":[{"type":"line","a":[0,0],"b":[20,0]},
+                {"type":"text","p":[0,10],"value":"AB","height":5,"angle":90}]}"#,
+        )
+        .unwrap();
+        let rendered = d.render(None);
+        let (_, _, items) = items_of(&rendered, Rgb(0, 0, 0));
+        let segs = items.iter().find_map(|i| if let GraphicItem::Path { segs, .. } = i { Some(segs) } else { None }).unwrap();
+        // 20 mm dashed 4 on / 2 off: four dashes, each a move.
+        assert_eq!(segs.iter().filter(|s| matches!(s, PathSeg::Move(..))).count(), 4, "{segs:?}");
+        let (rect, angle) =
+            items.iter().find_map(|i| if let GraphicItem::Text { rect, angle, .. } = i { Some((*rect, *angle)) } else { None }).unwrap();
+        assert_eq!(angle, 90.0);
+        // On its baseline's left end, turned a quarter left: the text runs up from its anchor,
+        // so its centre is above the anchor by about half its length and a little left of it.
+        let at = rendered.prims.iter().find_map(|p| if let Prim::Text { at, .. } = p { Some(*at) } else { None }).unwrap();
+        let (ax, ay) = ((at.0 as f32) * PT_PER_MM, (at.1 as f32) * PT_PER_MM);
+        let (cx, cy) = (rect[0] + rect[2] / 2.0, rect[1] + rect[3] / 2.0);
+        assert!(cx < ax && (cy - (ay - rect[2] / 2.0)).abs() < 1.0, "{rect:?} from {ax},{ay}");
+        // Saved without an angle when level.
+        let level = GraphicItem::Text {
+            rect: [0.0; 4],
+            text: "x".into(),
+            size: 1.0,
+            color: Rgb(0, 0, 0),
+            bold: false,
+            align: TextAlign::Left,
+            font: None,
+            angle: 0.0,
+        };
+        assert!(!serde_json::to_string(&level).unwrap().contains("angle"));
     }
 }

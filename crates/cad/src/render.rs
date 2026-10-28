@@ -18,6 +18,7 @@ pub enum Anchor {
     /// The top centre (a dimension's text below its line).
     TopCenter,
     /// The middle of its left or right side (a steep dimension's text, set level beside it).
+    /// Every anchor is in the text's own frame: a turned text turns about it.
     MiddleLeft,
     MiddleRight,
 }
@@ -240,15 +241,12 @@ impl Drawing {
         self.mark(mark, fb, dir.scale(-1.0), color, width, out);
         // Texts above and below the line's middle, kept readable (never upside down).
         let mid = fa.plus(fb).scale(0.5);
-        let mut angle = dir.y.atan2(dir.x).to_degrees();
-        let mut up = normal;
-        if angle > 90.0 || angle <= -90.0 {
-            angle -= 180.0f64.copysign(angle);
-            up = up.scale(-1.0);
-        }
+        let (angle, flipped) = readable(dir.y.atan2(dir.x).to_degrees());
+        let up = if flipped { normal.scale(-1.0) } else { normal };
         let label = self.label(text.as_deref(), measured, ws);
-        if angle.abs() > 45.0 {
-            // A steep dimension's text reads level, beside the line on its outer side.
+        if angle.abs() > 45.0 && !st.aligned {
+            // A steep dimension's text reads level, beside the line on its outer side (unless
+            // the style aligns texts with their lines: then it turns with the line, as below).
             let out_dir = normal.scale(side);
             let at = mid.plus(out_dir.scale(st.text_gap + st.ext_over));
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
@@ -301,8 +299,113 @@ impl Drawing {
         };
         // The label: degrees, `<>` as for a linear dimension.
         let label = self.label(text.as_deref().or(Some("<>°")), crate::kernel::deg(sweep), ws);
+        if st.aligned {
+            // Along the arc (its tangent at the middle), readable: turned half a turn when it
+            // would read upside down, then hanging outward from its point instead of standing.
+            let (angle, flipped) = readable((start + sweep / 2.0).to_degrees() - 90.0);
+            let anchor = if flipped { Anchor::TopCenter } else { Anchor::BottomCenter };
+            out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle, anchor, color });
+            return;
+        }
         out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
     }
+}
+
+/// A text direction `deg` (degrees counter-clockwise) turned to read as drafting reads it, never
+/// upside down: within (−90°, 90°], half a turn round when it pointed left or down (a vertical
+/// text reads from the right, bottom to top). With whether it was turned.
+pub fn readable(deg: f64) -> (f64, bool) {
+    if !deg.is_finite() {
+        return (0.0, false);
+    }
+    let mut a = deg.rem_euclid(360.0);
+    if a > 180.0 {
+        a -= 360.0;
+    }
+    // Now in (−180°, 180°].
+    if a > 90.0 + 1e-9 || a <= -90.0 + 1e-9 {
+        let turned = if a > 0.0 { a - 180.0 } else { a + 180.0 };
+        (turned, true)
+    } else {
+        (a, false)
+    }
+}
+
+/// Most dashes one path is cut into (a longer pattern run is drawn solid past it).
+pub const MAX_DASHES: usize = 20_000;
+
+impl Prim {
+    /// A path's drawn pieces, its dash pattern applied (paper mm, from its first point; a
+    /// closed path's closing side included): the runs where the pen is down, each a polyline.
+    /// A solid path is one piece, a dot or a text none. For outputs that cannot dash a stroke
+    /// themselves (the page); the SVG writes the pattern as `stroke-dasharray`.
+    pub fn pieces(&self) -> Vec<Vec<(f64, f64)>> {
+        let Prim::Path { pts, closed, dash, .. } = self else { return Vec::new() };
+        let mut pts = pts.clone();
+        if *closed && let Some(&first) = pts.first() {
+            pts.push(first);
+        }
+        dash_runs(&pts, dash)
+    }
+}
+
+/// `pts` cut by the on/off `pattern` (paper mm) into the runs where the pen is down. An empty or
+/// degenerate pattern (no finite positive total) draws the polyline whole; an odd count of
+/// lengths repeats twice over, as SVG's `stroke-dasharray` does.
+pub fn dash_runs(pts: &[(f64, f64)], pattern: &[f64]) -> Vec<Vec<(f64, f64)>> {
+    let finite = |p: &(f64, f64)| p.0.is_finite() && p.1.is_finite();
+    let pts: Vec<(f64, f64)> = pts.iter().copied().filter(finite).collect();
+    if pts.len() < 2 {
+        return Vec::new();
+    }
+    let pattern: Vec<f64> = pattern.iter().map(|v| if v.is_finite() { v.max(0.0) } else { 0.0 }).collect();
+    let total: f64 = pattern.iter().sum();
+    let pattern: Vec<f64> = if pattern.len() % 2 == 1 { pattern.iter().chain(pattern.iter()).copied().collect() } else { pattern };
+    if pattern.is_empty() || total <= 1e-6 {
+        return vec![pts];
+    }
+    let mut out: Vec<Vec<(f64, f64)>> = Vec::new();
+    // Where the pattern is: which entry and how much of it is left.
+    let (mut k, mut left) = (0usize, pattern.first().copied().unwrap_or(0.0));
+    let mut run: Vec<(f64, f64)> = vec![pts.first().copied().unwrap_or((0.0, 0.0))];
+    let mut cuts = 0usize;
+    for w in pts.windows(2) {
+        let (Some(&a), Some(&b)) = (w.first(), w.get(1)) else { continue };
+        let len = ((b.0 - a.0).powi(2) + (b.1 - a.1).powi(2)).sqrt();
+        let mut t = 0.0;
+        while len - t > left && cuts < MAX_DASHES {
+            t += left;
+            let f = t / len;
+            let p = (a.0 + (b.0 - a.0) * f, a.1 + (b.1 - a.1) * f);
+            if k % 2 == 0 {
+                // The pen lifts: the run ends here.
+                run.push(p);
+                out.push(std::mem::take(&mut run));
+                cuts += 1;
+            } else {
+                run = vec![p];
+            }
+            k = (k + 1) % pattern.len();
+            left = pattern.get(k).copied().unwrap_or(0.0);
+        }
+        if cuts >= MAX_DASHES && left.is_finite() {
+            // Past the cap the rest is drawn solid, from where the pattern stopped.
+            if k % 2 == 1 {
+                let f = if len > 0.0 { (t / len).min(1.0) } else { 0.0 };
+                run = vec![(a.0 + (b.0 - a.0) * f, a.1 + (b.1 - a.1) * f)];
+                k = 0;
+            }
+            left = f64::INFINITY;
+        }
+        left -= len - t;
+        if k % 2 == 0 {
+            run.push(b);
+        }
+    }
+    if k % 2 == 0 && run.len() >= 2 {
+        out.push(run);
+    }
+    out
 }
 
 /// A linear dimension laid out ([`Drawing::dim_frame`]), paper mm.

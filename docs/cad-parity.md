@@ -1,7 +1,7 @@
 # CAD parity with the owner's prototype
 
-> **Status:** plan · **Last updated:** 2026-10-28 · **Change:** new: every CAD feature of the
-> prototype (`old_strix`, Python/Typst/TypeScript), with the owner's requests, ordered
+> **Status:** plan · **Last updated:** 2026-10-28 · **Change:** dash types 5 of 5, drawn on every
+> output; rotated and aligned dimension texts
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -16,15 +16,15 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Unit mm / cm / m, scale 1:N, y up, degrees | same | done |
 | Fit: max width/height on paper, standard scale series | `fit`, Fit to Page | done |
 | Layers: colour, width, dash, visible, locked, printable; layer 0 | same, Layer Manager | done |
-| Dash types incl. dash-double-dotted | 4 of 5 | partial |
+| Dash types incl. dash-double-dotted | 5 of 5, in paper mm, drawn on the page, PDF and SVG | done |
 | Per-entity stroke, ByLayer | same | done |
 | Entity names (`name`, used by calculations: `area(name)`, `length()`) | — | todo |
 | Line, circle, arc, point, polyline with bulges | same | done |
 | **Point style** (owner): how points show — dot, cross, x, circle, square and combinations; size on paper (annotative) or in drawing units | dot only | todo |
-| Text: multiline, align, base point (9), reach, offset | single line, align | partial |
+| Text: multiline, align, base point (9), reach, offset, rotation | single line, align, rotation | partial |
 | Hatch: loops with islands, solid / lines / cross, angle, spacing (even-odd) | hatch by boundary ids; lines, cross, steel, dashed, solid | done |
 | Level (elevation mark): value, auto, datum, flip, side | — | todo |
-| Linear dimension: marks per end, text above/below, `{{row}}`, associative ends, driving value, chains/levels | marks, below, `{{L}}` | partial |
+| Linear dimension: marks per end, text above/below, `{{row}}`, associative ends, driving value, chains/levels | marks, below, `{{L}}`, text aligned with the line (style option, readable) | partial |
 | Angular dimension: right-angle symbol, vertex mark | basic | partial |
 | Dimension extension: to point or fixed length (`dim_ext`) | gap/overshoot | partial |
 | Constraints (geometric, dimensional) and solver; driving dimensions | — | todo |
@@ -87,4 +87,5 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: dash-double-dotted, dashes drawn on the page; rotated texts; aligned dimension texts.
 - 2026-10-28: new: the prototype's CAD features and the owner's requests, ordered.
