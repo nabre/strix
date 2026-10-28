@@ -14,7 +14,7 @@ read-only and checks the app inside it, and a `ditto` copy of it, with `--strict
 
 | File | What |
 |---|---|
-| `background.svg` | Source of the background: the app icon (`assets/app-icon/strix.svg`, linked, not copied) cropped as a cover on the Strix colour field (`#3b5bdb`), Ink and Paper. Its text (Inter, JetBrains Mono) is outlined, so rendering it needs no fonts. No paper grain: noise doesn't compress, and this keeps `background.tiff` small. |
+| `background.svg` | Source of the background: the app icon (`assets/app-icon/strix.svg`, linked, not copied) cropped as a cover on Atollo's Deep Forest (`#0f3d2e`), a light mint Paper (`#f2f6f3`) and Reef Emerald (`#047857`) accents: the rule's diamond, the dot of the i and the arrow from the app to `Applications`. The "Strix" wordmark is drawn with stroked lines (no font); the two smaller lines (Inter, JetBrains Mono) are outlined, so rendering it needs no fonts. No paper grain: noise doesn't compress, and this keeps `background.tiff` small. |
 | `background.tiff` | The background at 1x (660 × 400 px, 72 dpi) and 2x (1320 × 800 px, 144 dpi) in one HiDPI TIFF (16-colour palette, Deflate, sRGB). Goes to `.background/background.tiff`. |
 | `dmg-layout.DS_Store` | Finder's view settings for the volume: window size, icon size 128, Strix.app at (326, 205), `Applications` at (574, 205), and the background. Goes to `.DS_Store` in the image; named so it isn't mistaken for (or ignored like) a Finder-generated `.DS_Store`. |
 | `generate.py` | Writes `background.tiff` and `dmg-layout.DS_Store` from the SVG and the layout above. |
