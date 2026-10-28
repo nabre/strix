@@ -120,10 +120,33 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     one), Total Row sums the columns, ordinal column 0 (`table.calcIndex`), rows by index (`i`,
     `n`, `x[i+1]` cyclic: Gauss's area and centroid).
 
+  - Upstream tracking (docs/upstream.md): `cargo xtask upstream status|sync`, branch
+    `vendor/wordcraft` (rebranded upstream snapshots; push it with `main`), fork point recorded
+    in `main` (true fork commit `d859c673`, NOTICE corrected). Stale catalog source texts fixed
+    (`STRIX_DICTIONARIES`, `github.com/nabre/strix`).
+  - SignPath Foundation readiness (docs/code-signing.md): code signing policy (attribution, roles,
+    privacy, system changes, uninstall) linked from README and site; publisher was upstream's
+    "Learning Machines LLC" in the exe, MSI, deb and metainfo, now "The Strix contributors";
+    `strix-cli.exe` gets VERSIONINFO; Release workflow signs through SignPath when
+    `SIGNPATH_API_TOKEN` is set (`.signpath/artifact-configuration.xml`).
+
 ## In progress (stopped, unfinished, on their own branches)
 - None.
 
 ## Next
+- SignPath Foundation (owner): apply at signpath.org with github.com/nabre/strix; turn on MFA on
+  GitHub and SignPath; create project `strix`, signing policy `release-signing`, artifact
+  configuration `windows` (copy `.signpath/artifact-configuration.xml`, check it in SignPath's
+  editor: paths inside the MSI and the metadata restrictions are untested); set secret
+  `SIGNPATH_API_TOKEN` and variable `SIGNPATH_ORGANIZATION_ID` on the `release` environment;
+  remove the WINDOWS_CERTIFICATE / AZURE_* secrets so binaries are signed once. Open risks: egui's
+  `default_fonts` embed Ubuntu-Light (Ubuntu Font Licence, not OSI-approved; enabled in
+  `crates/ui-egui/Cargo.toml` and by craft-ui); the repository is not a GitHub fork of WordCraft
+  (SignPath's rule on signing modified upstream builds).
+- Merge upstream WordCraft (186 commits, `9724f15c`, already on `vendor/wordcraft`):
+  `git merge vendor/wordcraft` on a branch, 51 files / 62 hunks to resolve (mostly upstream's
+  strict-Clippy refactor of tests vs Strix edits; `docx/src/{read,write}/mod.rs` and three
+  `ui-egui/src/dialogs_*.rs` were split upstream). See docs/upstream.md.
 - SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
 - CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
   linear-auto dimensions, extension modes, associative ends, marks per end; input units (`2.5 m` typed); entity names and measures for the

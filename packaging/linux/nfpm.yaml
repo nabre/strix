@@ -14,7 +14,7 @@ release: 1
 section: graphics
 priority: optional
 maintainer: ${STRIX_MAINTAINER}
-vendor: Learning Machines LLC
+vendor: The Strix contributors
 homepage: https://github.com/nabre/strix
 license: MIT OR Apache-2.0
 description: |-

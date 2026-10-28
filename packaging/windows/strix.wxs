@@ -32,13 +32,13 @@
   <?endif ?>
   <Package
       Name="Strix"
-      Manufacturer="Learning Machines LLC"
+      Manufacturer="The Strix contributors"
       Version="$(var.Version)"
       UpgradeCode="075497F9-E861-45D0-9C7F-A74F8C34E6BA"
       Scope="$(var.Scope)"
       Compressed="yes"
       Language="1033">
-    <SummaryInformation Description="Strix word processor" Manufacturer="Learning Machines LLC" />
+    <SummaryInformation Description="Strix word processor" Manufacturer="The Strix contributors" />
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
          (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"

@@ -8,8 +8,8 @@
   <project_license>MIT OR Apache-2.0</project_license>
   <name>Strix</name>
   <summary>Write and design documents; open and save Word files</summary>
-  <developer id="ai.storyteller">
-    <name>Learning Machines LLC</name>
+  <developer id="io.github.nabre">
+    <name>The Strix contributors</name>
   </developer>
   <description>
     <p>

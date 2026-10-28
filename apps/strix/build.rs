@@ -17,7 +17,7 @@ fn main() {
     res.set_icon("../../assets/app-icon/strix.ico")
         .set("ProductName", "Strix")
         .set("FileDescription", "Strix word processor")
-        .set("CompanyName", "Learning Machines LLC")
+        .set("CompanyName", "The Strix contributors")
         .set("LegalCopyright", "Copyright (c) the Strix contributors and the WordCraft authors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "strix.exe")
         .set("InternalName", "strix");

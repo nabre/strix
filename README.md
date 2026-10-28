@@ -207,6 +207,13 @@ Native desktop builds for **Windows**, **macOS**, **Linux** and **BSD** (FreeBSD
 **web** build that runs the same app in the browser through WebAssembly. One Rust code base, one
 egui front end.
 
+## Download
+
+Installers and portable builds for every platform are on the
+[Releases page](https://github.com/nabre/strix/releases). How the Windows builds are signed, who
+approves a release, what Strix sends over the network (nothing unless you ask) and how to
+uninstall: [Code signing policy](docs/code-signing.md).
+
 ## Build and run
 
 Requirements: a Rust toolchain (1.95 or later); for the web build,

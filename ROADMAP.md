@@ -146,6 +146,8 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-10-28: Code signing policy (docs/code-signing.md) for SignPath Foundation: signing roles, privacy statement, system changes and uninstall steps, linked from the README and the site; the Windows release signs through SignPath once its token is set; the programs and packages name The Strix contributors as publisher instead of upstream's company, and `strix-cli.exe` carries version information.
+- 2026-10-28: Upstream tracking (docs/upstream.md): WordCraft reaches Strix through the `vendor/wordcraft` branch, upstream snapshots with the fork's rename applied by `cargo xtask upstream sync` (licence notices kept verbatim, modification notices added, ArtCraft brand files left out); `main` records the true fork point, upstream `d859c673` (NOTICE corrected), so upstream merges are ordinary three-way merges: the 186 upstream commits since the fork conflict in 51 files instead of every renamed identifier. Translations of the dictionary-folder message and the About box's source-code link work again (catalog source texts still said `WORDCRAFT_DICTIONARIES` and `storytold/strix`).
 - 2026-10-28: CAD dimensions (docs/cad.md): the right-angle symbol (a 90° angle without its own text is a square with a dot), Continue and Baseline dimensions (chains on one line, rows from one first point), level marks (elevation above a datum in metres, signed, flip and side), Flip for dimensions and level marks.
 - 2026-10-28: Graph paper (*foglio a quadretti*, Insert › Pages › Graph Paper, docs/graph-paper.md): a square grid behind the text with its spacing, line style, colour and weight and a heavier line every N squares; as the background of a section's pages, or a block in the text to the end of the page, until the next odd or even page, for N pages or for a height; the Graph Paper pane with a preview; `graph.insert` / `graph.set` / `graph.get` / `graph.remove`; kept in `.xmath`, drawn on screen, in PNG and PDF.
 - 2026-10-27: Calculations written with one `=`: Strix finds the one unknown, isolates it (or solves numerically, smallest non-negative root) and assigns it; checks and comparisons (`σ ≤ f_yd ✓`); Σ/∏, ranges and vectors; calculated tables (the ordinary table with Table Layout › Data › Calculated Table: column units, column formulas, `Σ =` totals, columns as vectors); number format (digits, auto/decimals/significant, trailing zeros, half-away rounding); working units; the Math tab; `*` types `·`; `strix-cad` stage 1 (drawing model with coordinates bound to calculation parameters, dimensions, rendering, AutoCAD point entry; docs/cad.md).
@@ -653,6 +655,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-28 | trivial | Progress log: upstream tracking through `vendor/wordcraft` |
 | 2026-10-27 | minor | Progress log: one-`=` calculations with solving, Σ, calculated tables, number format, Math tab, CAD stage 1 |
 | 2026-10-22 | trivial | Progress log: one native window per open document |
 | 2026-10-22 | trivial | Progress log: every open document keeps its own recovery copy |

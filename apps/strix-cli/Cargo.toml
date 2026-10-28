@@ -14,6 +14,10 @@ path = "src/main.rs"
 [lints]
 workspace = true
 
+[build-dependencies]
+# VERSIONINFO for strix-cli.exe; build.rs only uses it when the target is Windows.
+winresource = "0.1"
+
 [dependencies]
 strix-doc = { workspace = true }
 strix-engine = { workspace = true }

@@ -1,3 +1,4 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 # Strix's own release pipeline (docs/releasing.md). Every platform builds whether or not the
 # signing secrets are set: the "Signing" job reports what is missing as warnings, never as a
 # failure, and the macOS and Windows packaging scripts then sign ad hoc or not at all. A draft
@@ -70,6 +71,7 @@ jobs:
           AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
           AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
           AZURE_CERT_PROFILE: ${{ secrets.AZURE_CERT_PROFILE }}
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
         run: |
           set -u
           note() { echo "::warning::$1"; echo "- $1" >>"$GITHUB_STEP_SUMMARY"; }
@@ -87,7 +89,9 @@ jobs:
           for name in AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SIGNING_ENDPOINT AZURE_SIGNING_ACCOUNT AZURE_CERT_PROFILE; do
             [ -n "${!name}" ] || azure=0
           done
-          if [ -n "$WINDOWS_CERTIFICATE" ] && [ -n "$WINDOWS_CERTIFICATE_PASSWORD" ]; then
+          if [ -n "$SIGNPATH_API_TOKEN" ]; then
+            echo "- Windows: signed through SignPath Foundation (each release waits for approval in SignPath)" >>"$GITHUB_STEP_SUMMARY"
+          elif [ -n "$WINDOWS_CERTIFICATE" ] && [ -n "$WINDOWS_CERTIFICATE_PASSWORD" ]; then
             echo "- Windows: signed with WINDOWS_CERTIFICATE" >>"$GITHUB_STEP_SUMMARY"
           elif [ "$azure" = 1 ]; then
             echo "- Windows: signed with Azure Trusted Signing" >>"$GITHUB_STEP_SUMMARY"
@@ -163,6 +167,8 @@ jobs:
       STRIX_VERSION: ${{ needs.version.outputs.version }}
       STRIX_BUILD_DATE: ${{ needs.version.outputs.date }}
       STRIX_BUILD_SHA: ${{ github.sha }}
+      # SignPath Foundation signing (docs/code-signing.md): on when the API token is set.
+      SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
@@ -195,6 +201,39 @@ jobs:
           CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
           CRAFT_FONTS_REQUIRED: "1"
         run: ./packaging/windows/package.ps1 -Arch ${{ matrix.arch }}
+      # With SignPath, package.ps1 left everything unsigned (no other signing secret is set then):
+      # SignPath signs the programs inside the installers and the zip, then the installers
+      # (.signpath/artifact-configuration.xml), after an Approver accepts the request.
+      - name: Upload the unsigned packages for SignPath
+        id: unsigned
+        if: env.SIGNPATH == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-windows-${{ matrix.arch }}
+          path: dist/release/*
+          if-no-files-found: error
+      - name: Sign through SignPath
+        if: env.SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: strix
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: windows
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          parameters: |
+            version: ${{ toJSON(env.STRIX_VERSION) }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 86400
+          output-artifact-directory: dist/signed
+      - name: Use the signed packages
+        if: env.SIGNPATH == 'true'
+        shell: pwsh
+        run: |
+          Remove-Item dist/release/* -Force
+          Copy-Item dist/signed/* dist/release/
+          Get-AuthenticodeSignature dist/release/*.msi | Format-Table Status, Path
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-windows-${{ matrix.arch }}
