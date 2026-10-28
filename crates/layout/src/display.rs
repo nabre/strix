@@ -845,6 +845,46 @@ fn rule(x0: f32, y0: f32, x1: f32, y1: f32, b: &Border, alpha: f32) -> Draw {
     }
 }
 
+/// Graph paper over `rect` (docs/graph-paper.md): the ordinary lines, then the major ones over
+/// them, each kind one path; lines on whole squares from the rect's top-left corner, as long as
+/// the grid's whole squares reach. `alpha` (a dimmed body) fades the colours towards the paper.
+pub fn grid_draws(rect: Rect, grid: &strix_doc::graph_paper::GraphPaper, alpha: f32, out: &mut Vec<Draw>) {
+    let g = grid.sanitized();
+    let (vs, hs) = g.lines(rect.w, rect.h);
+    let (Some(right), Some(bottom)) = (vs.last().map(|l| rect.x + l.0), hs.last().map(|l| rect.y + l.0)) else { return };
+    let fade = |c: Rgb| {
+        let a = alpha.clamp(0.0, 1.0);
+        let mix = |v: u8| (255.0 - (255.0 - f32::from(v)) * a).round().clamp(0.0, 255.0) as u8;
+        Rgb(mix(c.0), mix(c.1), mix(c.2))
+    };
+    for major in [false, true] {
+        let line = if major { g.major } else { g.line };
+        let mut segs = Vec::new();
+        for (at, m) in &vs {
+            if *m == major {
+                segs.push(PathSeg::Move(rect.x + at, rect.y));
+                segs.push(PathSeg::Line(rect.x + at, bottom));
+            }
+        }
+        for (at, m) in &hs {
+            if *m == major {
+                segs.push(PathSeg::Move(rect.x, rect.y + at));
+                segs.push(PathSeg::Line(right, rect.y + at));
+            }
+        }
+        if !segs.is_empty() {
+            out.push(Draw::Path {
+                segs,
+                fill: None,
+                stroke: Some(fade(line.color)),
+                stroke_width: line.width,
+                dash: line.style.dashes(line.width),
+                cap: Default::default(),
+            });
+        }
+    }
+}
+
 /// Closed box around one line segment of a character-border group, widened by `space`.
 // Note: border drawn outside text advance, reserve width in line breaking if overlap shows.
 fn char_box(b: &Border, x0: f32, x1: f32, top: f32, bottom: f32, alpha: f32, out: &mut Vec<Draw>) {
@@ -864,6 +904,7 @@ fn item(doc: &Document, it: &Placed, opts: &DisplayOptions, authors: &Authors, a
 fn item_in(doc: &Document, it: &Placed, opts: &DisplayOptions, authors: &Authors, alpha: f32, outer: Spin, out: &mut Vec<Draw>) {
     match it {
         Placed::Fill { rect, color } => out.push(Draw::Fill { rect: *rect, color: *color, alpha, text_bg: false }),
+        Placed::Grid { rect, grid } => grid_draws(*rect, grid, alpha, out),
         Placed::Rule { x0, y0, x1, y1, border } => out.push(rule(*x0, *y0, *x1, *y1, border, alpha)),
         Placed::Image { rect, media, crop, spin, .. } => spun(
             *spin,

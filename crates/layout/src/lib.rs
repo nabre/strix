@@ -247,6 +247,12 @@ pub enum Placed {
         rect: Rect,
         color: Rgb,
     },
+    /// Graph paper over `rect` (docs/graph-paper.md): lines on whole squares from its top-left
+    /// corner, inside it. Behind the text.
+    Grid {
+        rect: Rect,
+        grid: Arc<strix_doc::graph_paper::GraphPaper>,
+    },
     Rule {
         x0: f32,
         y0: f32,
@@ -341,6 +347,7 @@ impl Placed {
                 *y += dy;
             }
             Placed::Fill { rect, .. }
+            | Placed::Grid { rect, .. }
             | Placed::Image { rect, .. }
             | Placed::Shape { rect, .. }
             | Placed::Graphic { rect, .. }
@@ -398,6 +405,7 @@ impl Placed {
                 }
             }
             Placed::Fill { rect, .. }
+            | Placed::Grid { rect, .. }
             | Placed::Image { rect, .. }
             | Placed::Shape { rect, .. }
             | Placed::Graphic { rect, .. }
@@ -1862,6 +1870,7 @@ fn v_span(it: &Placed) -> (f32, f32) {
     match it {
         Placed::Lines { para, l0, l1, y, .. } => (*y, item_bottom(*y, para, *l0, *l1).unwrap_or(*y)),
         Placed::Fill { rect, .. }
+        | Placed::Grid { rect, .. }
         | Placed::Image { rect, .. }
         | Placed::Shape { rect, .. }
         | Placed::Graphic { rect, .. }
@@ -1965,6 +1974,13 @@ impl NoteBox {
         let rest = (self.h - start).max(0.0);
         (NoteBox { id: self.id, items: head, h: cut, cont: self.cont }, NoteBox { id: self.id, items: tail, h: rest, cont: true })
     }
+}
+
+/// A section's background graph paper (docs/graph-paper.md) over its pages' margin box.
+fn background_grid(s: &SectionProps) -> Option<Placed> {
+    let g = s.graph_paper.as_ref()?;
+    let rect = Rect::new(s.margin_left + s.gutter, s.margin_top, s.text_width(), s.text_height());
+    Some(Placed::Grid { rect, grid: Arc::clone(g) })
 }
 
 /// Page borders, measured from the page edge (Word's default), so they surround the header,
@@ -2178,7 +2194,8 @@ impl PageBuilder<'_> {
         let body = Rect::new(s.margin_left + s.gutter, body_top, s.text_width(), (bottom - body_top).max(36.0));
         let mut decor = Vec::new();
         if !self.web {
-            decor = page_border_rules(s);
+            decor.extend(background_grid(s));
+            decor.extend(page_border_rules(s));
             // Lines between columns.
             if s.columns.separator && s.columns.count > 1 {
                 let cols = s.column_boxes();
@@ -2400,6 +2417,7 @@ fn layout_pass(
             web_sect.page_h = if opts.read_height.is_finite() { opts.read_height.clamp(144.0, 20_000.0) } else { 500.0 };
             web_sect.margin_bottom = 18.0;
             web_sect.page_borders = None;
+            web_sect.graph_paper = None;
             web_sect.line_numbers = None;
         }
         web_sect.margin_left = 18.0;
@@ -3728,7 +3746,96 @@ fn place_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, 
         }
         return;
     }
+    match &p.props.graph {
+        Some(g) if !pb.web && g.placement != GridPlacement::Background => place_graph_para(ctx, pb, p, block, body_top, g),
+        _ => place_para_in_flow(ctx, pb, p, block, body_top),
+    }
+}
+
+/// Graph paper in the text flow (docs/graph-paper.md): the paragraph is laid out as usual, its
+/// text over a grid that starts at its first line and is as tall as the placement says: a fixed
+/// height (moved to the next column or page when it doesn't fit), the rest of the column, or the
+/// rest of the page and whole pages after it (a number of them, or until the next odd or even
+/// page). Text after a block that reaches the page's end starts on the next page.
+fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32, grid: &Arc<GraphPaper>) {
+    let g = grid.sanitized();
+    let room = pb.bottom - pb.y;
+    let needs = match g.placement {
+        GridPlacement::Height { height } => height.min(pb.bottom - pb.top),
+        _ => g.spacing,
+    };
+    // Not even the block (or one square of a block that fills the page) fits: start it on the
+    // next column or page.
+    if room + 0.01 < needs && !pb.at_top() {
+        pb.advance(block, body_top);
+    }
+    let start_page = pb.pages.len().saturating_sub(1);
+    let (x, w, y0) = (pb.col_x(), pb.col_w(), pb.y);
     place_para_in_flow(ctx, pb, p, block, body_top);
+    let path = Path::top(block);
+    let is_own = |it: &Placed| matches!(it, Placed::Lines { story: StoryRef::Body, path: q, .. } if *q == path);
+    // The page and item where its text starts (it may have moved on), and its first line's top.
+    let first = pb.pages.iter().enumerate().skip(start_page).find_map(|(pi, pg)| {
+        pg.items.iter().position(is_own).map(|ii| (pi, ii, pg.items.get(ii).map_or(y0, |it| v_span(it).0)))
+    });
+    let last_page = pb.pages.len().saturating_sub(1);
+    let (first_page, top) = match first {
+        Some((pi, _, y)) => (pi, y),
+        None => (last_page, y0.min(pb.y)),
+    };
+    let item = Arc::new(g);
+    let mut put = |pb: &mut PageBuilder, pi: usize, rect: Rect| {
+        if rect.h <= 0.01 || rect.w <= 0.01 {
+            return;
+        }
+        let Some(pg) = pb.pages.get_mut(pi) else { return };
+        // Behind the paragraph's text: right before its first line on the page.
+        let at = pg.items.iter().position(is_own).unwrap_or(pg.items.len());
+        pg.items.insert(at, Placed::Grid { rect, grid: Arc::clone(&item) });
+    };
+    // Pages its text alone runs over: the grid goes down each one to its bottom.
+    for pi in first_page..last_page {
+        let Some(pg) = pb.pages.get(pi) else { continue };
+        let t = if pi == first_page { top } else { pg.body.y };
+        let r = Rect::new(x, t, w, pg.body.bottom() - t);
+        put(pb, pi, r);
+    }
+    let top = if first_page == last_page { top } else { pb.top };
+    let text_bottom = pb.y;
+    let bottom = match g.placement {
+        GridPlacement::Height { height } => (top + height).max(text_bottom).min(pb.bottom),
+        _ => pb.bottom,
+    };
+    put(pb, last_page, Rect::new(x, top, w, bottom - top));
+    pb.content_bottom = pb.content_bottom.max(bottom);
+    pb.y = pb.y.max(bottom);
+    // Whole pages after it.
+    let more = match g.placement {
+        GridPlacement::Pages { pages } => pages.saturating_sub(1),
+        GridPlacement::UntilOdd | GridPlacement::UntilEven => graph_paper::MAX_PAGES,
+        _ => 0,
+    };
+    let odd = g.placement == GridPlacement::UntilOdd;
+    for _ in 0..more {
+        if matches!(g.placement, GridPlacement::UntilOdd | GridPlacement::UntilEven) && (pb.number.saturating_add(1) % 2 == 1) == odd {
+            break;
+        }
+        pb.new_page(block, body_top);
+        let (x, w) = (pb.sect.margin_left + pb.sect.gutter, pb.sect.text_width());
+        let r = Rect::new(x, pb.top, w, pb.bottom - pb.top);
+        if let Some(pg) = pb.pages.last_mut()
+            && r.h > 0.01
+        {
+            pg.items.push(Placed::Grid { rect: r, grid: Arc::clone(&item) });
+        }
+        pb.y = pb.bottom;
+        pb.content_bottom = pb.bottom;
+    }
+    if !matches!(g.placement, GridPlacement::Height { .. }) {
+        // What follows starts on the next page: no column of this one is left.
+        pb.col = pb.cols.len().saturating_sub(1);
+        pb.y = pb.bottom;
+    }
 }
 
 /// How many times one body paragraph is laid out again for the page numbers of the later pages
@@ -4733,6 +4840,7 @@ fn placed_intersects(item: &Placed, rect: &Rect) -> bool {
             })
         }),
         Placed::Fill { rect: bounds, .. }
+        | Placed::Grid { rect: bounds, .. }
         | Placed::Image { rect: bounds, .. }
         | Placed::Shape { rect: bounds, .. }
         | Placed::Graphic { rect: bounds, .. }

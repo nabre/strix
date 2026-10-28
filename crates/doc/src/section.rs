@@ -773,6 +773,10 @@ pub struct SectionProps {
     pub footnote_pr: NoteProps,
     #[serde(skip_serializing_if = "NoteProps::is_empty")]
     pub endnote_pr: NoteProps,
+    /// Graph paper behind the text of every page of the section (docs/graph-paper.md); its
+    /// placement is [`crate::graph_paper::GridPlacement::Background`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graph_paper: Option<std::sync::Arc<crate::graph_paper::GraphPaper>>,
 }
 
 impl Default for SectionProps {
@@ -808,6 +812,7 @@ impl Default for SectionProps {
             doc_grid: None,
             footnote_pr: NoteProps::default(),
             endnote_pr: NoteProps::default(),
+            graph_paper: None,
         }
     }
 }

@@ -995,6 +995,11 @@ pub struct ParaProps {
     /// `w:snapToGrid`: lines snap to the section's document grid. Unset = on.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snap_to_grid: Option<bool>,
+    /// Graph paper in the text flow (docs/graph-paper.md): the paragraph is a grid block as tall
+    /// as its placement says, its text drawn over the grid. Direct formatting only (styles never
+    /// set it), and the paragraph a split leaves after it doesn't keep it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graph: Option<std::sync::Arc<crate::graph_paper::GraphPaper>>,
 }
 
 impl ParaProps {
