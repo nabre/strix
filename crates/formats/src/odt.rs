@@ -1132,9 +1132,8 @@ type Attrs = Vec<(String, String)>;
 fn attrs_of(e: &BytesStart<'_>) -> Attrs {
     let mut v = Vec::new();
     for a in e.attributes().with_checks(false).flatten().take(128) {
-        let k = String::from_utf8_lossy(a.key.as_ref()).into_owned();
-        let val =
-            a.normalized_value(XmlVersion::Explicit1_0).map(|c| c.into_owned()).unwrap_or_else(|_| String::from_utf8_lossy(&a.value).into_owned());
+        let k = a.key.as_ref().to_string();
+        let val = a.normalized_value(XmlVersion::Explicit1_0).map(|c| c.into_owned()).unwrap_or_else(|_| a.value.to_string());
         v.push((k, val));
     }
     v
@@ -1165,17 +1164,17 @@ fn events(xml: &[u8], mut f: impl FnMut(Ev)) {
     loop {
         buf.clear();
         match r.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) => f(Ev::Start(String::from_utf8_lossy(e.name().as_ref()).into_owned(), attrs_of(&e))),
+            Ok(Event::Start(e)) => f(Ev::Start(e.name().as_ref().to_string(), attrs_of(&e))),
             Ok(Event::Empty(e)) => {
-                let n = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                let n = e.name().as_ref().to_string();
                 f(Ev::Start(n.clone(), attrs_of(&e)));
                 f(Ev::End(n));
             }
-            Ok(Event::End(e)) => f(Ev::End(String::from_utf8_lossy(e.name().as_ref()).into_owned())),
-            Ok(Event::Text(t)) => f(Ev::Text(t.decode().map(|c| c.into_owned()).unwrap_or_default())),
-            Ok(Event::CData(t)) => f(Ev::Text(String::from_utf8_lossy(&t).into_owned())),
+            Ok(Event::End(e)) => f(Ev::End(e.name().as_ref().to_string())),
+            Ok(Event::Text(t)) => f(Ev::Text(t.into_inner().into_owned())),
+            Ok(Event::CData(t)) => f(Ev::Text(t.into_inner().into_owned())),
             Ok(Event::GeneralRef(r)) => {
-                let name = String::from_utf8_lossy(&r).into_owned();
+                let name = r.to_string();
                 let s = match name.as_str() {
                     "amp" => "&".to_string(),
                     "lt" => "<".to_string(),
@@ -2841,14 +2840,14 @@ mod tests {
         assert_eq!(pics.get(&mut z, "big.png"), None);
         assert_eq!(pics.room, 1000);
         assert_eq!(pics.get(&mut z, "ok.png").map(|d| d.len()), Some(300));
-        // One inflating to more than it declares stops a byte past the budget and uses it up:
-        // nothing is inflated after it.
+        // One inflating to more than it declares is refused: zip (9+) fails the read at its
+        // declared size, so it costs at most that, and pictures after it still fit.
         let liar = declare_size(zip_of(&[("liar.png", &[0u8; 5000]), ("ok.png", &[5u8; 10])]), "liar.png", 10);
         let mut z = archive(&liar);
         let mut pics = Pictures::new(1000);
         assert_eq!(pics.get(&mut z, "liar.png"), None);
-        assert_eq!(pics.room, 0);
-        assert_eq!(pics.get(&mut z, "ok.png"), None);
+        assert!(pics.room >= 990, "charged {} bytes", 1000 - pics.room);
+        assert_eq!(pics.get(&mut z, "ok.png").map(|d| d.len()), Some(10));
     }
 
     #[test]

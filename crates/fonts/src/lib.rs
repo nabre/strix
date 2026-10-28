@@ -20,7 +20,7 @@ pub use fontdb::{
     base_style, bundled, decode_font_file, is_font_file_name, name_language_matches, sniff, system_font_dirs,
 };
 pub use harfrust::Feature;
-use harfrust::{Direction, ShapeOptions, Tag, UnicodeBuffer};
+use harfrust::{Buffer, Direction, ShapeOptions, ShaperFont, Tag};
 pub use kurbo::BezPath;
 pub use script::{fallback_rank, is_emoji, needs_layout_tables, script_fallbacks};
 use skrifa::MetadataProvider;
@@ -207,43 +207,47 @@ pub fn shape_run(face: &FontFace, text: &str, features: &[Feature], map: impl Fn
 
 fn shape_dir(face: &FontFace, text: &str, features: &[Feature], map: &impl Fn(char) -> char, rtl: bool) -> Vec<ShapedGlyph> {
     let mut out = Vec::with_capacity(text.len());
-    let shaped = face.hb().map(|hb| {
-        let shaper = face.shaper.shaper(&hb).instance(face.instance.as_ref()).build();
-        // One script per shaping call: the shaper picks its script engine (Myanmar, Khmer,
-        // Indic, USE reordering…) from the run's script, so "Hi မြန်မာ" in one face must not be
-        // shaped as Latin. Runs come in text order; right-to-left callers regroup by cluster.
-        for r in script::script_runs(text) {
-            let Some(sub) = text.get(r.clone()) else { continue };
-            let mut buf = UnicodeBuffer::new();
-            for (i, c) in sub.char_indices() {
-                buf.add(map(c), (r.start + i) as u32);
-            }
-            buf.guess_segment_properties();
-            buf.set_direction(if rtl { Direction::RightToLeft } else { Direction::LeftToRight });
-            let gb = shaper.shape(buf, ShapeOptions::new().features(features));
-            for (info, pos) in gb.glyph_infos().iter().zip(gb.glyph_positions()) {
-                out.push(ShapedGlyph {
-                    gid: info.glyph_id,
-                    cluster: info.cluster as usize,
-                    x_advance: pos.x_advance,
-                    x_offset: pos.x_offset,
-                    y_offset: pos.y_offset,
-                });
-            }
+    let shaper = ShaperFont::new(face.hb());
+    // One script per shaping call: the shaper picks its script engine (Myanmar, Khmer,
+    // Indic, USE reordering…) from the run's script, so "Hi မြန်မာ" in one face must not be
+    // shaped as Latin. Runs come in text order; right-to-left callers regroup by cluster.
+    for r in script::script_runs(text) {
+        let Some(sub) = text.get(r.clone()) else { continue };
+        let mut gb = Buffer::new();
+        for (i, c) in sub.char_indices() {
+            gb.push(u32::from(map(c)), (r.start + i) as u32);
         }
-    });
-    if shaped.is_none()
-        && let Some(f) = face.skrifa()
-    {
-        let cmap = f.charmap();
-        let gm = f.glyph_metrics(Size::unscaled(), face.location());
-        for (i, c) in text.char_indices() {
-            let g = cmap.map(map(c)).unwrap_or_default();
-            let adv = gm.advance_width(g).unwrap_or(face.upem as f32 * 0.5);
-            out.push(ShapedGlyph { gid: g.to_u32(), cluster: i, x_advance: adv.round() as i32, x_offset: 0, y_offset: 0 });
+        gb.guess_segment_properties();
+        gb.set_direction(if rtl { Direction::RightToLeft } else { Direction::LeftToRight });
+        if harfrust::shape(&shaper, &mut gb, ShapeOptions::new().features(features)).is_err() {
+            // Only API misuse fails (the direction is set and no plan is passed); should it
+            // ever happen, the run keeps its characters' nominal glyphs.
+            unshaped(face, sub, r.start, map, &mut out);
+            continue;
+        }
+        for (info, pos) in gb.glyph_infos().iter().zip(gb.glyph_positions()) {
+            out.push(ShapedGlyph {
+                gid: info.glyph_id,
+                cluster: info.cluster as usize,
+                x_advance: pos.x_advance,
+                x_offset: pos.x_offset,
+                y_offset: pos.y_offset,
+            });
         }
     }
     out
+}
+
+/// Nominal glyphs and advances for `text` (starting at byte `start`), without shaping.
+fn unshaped(face: &FontFace, text: &str, start: usize, map: &impl Fn(char) -> char, out: &mut Vec<ShapedGlyph>) {
+    let Some(f) = face.skrifa() else { return };
+    let cmap = f.charmap();
+    let gm = f.glyph_metrics(Size::unscaled(), face.location());
+    for (i, c) in text.char_indices() {
+        let g = cmap.map(map(c)).unwrap_or_default();
+        let adv = gm.advance_width(g).unwrap_or(face.upem as f32 * 0.5);
+        out.push(ShapedGlyph { gid: g.to_u32(), cluster: start + i, x_advance: adv.round() as i32, x_offset: 0, y_offset: 0 });
+    }
 }
 
 /// Glyph id of the first of `chars` the face has (0 = .notdef).

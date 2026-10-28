@@ -252,7 +252,7 @@ impl<'a> Package<'a> {
 /// [`MAX_XML_DEPTH`] (and their text) are skipped.
 enum Ev<'e> {
     Start(&'e BytesStart<'e>),
-    End(Vec<u8>),
+    End(String),
     Text(String),
 }
 
@@ -276,24 +276,24 @@ fn walk(xml: &[u8], mut f: impl FnMut(Ev<'_>)) {
             Ok(Event::Empty(e)) => {
                 if depth < MAX_XML_DEPTH {
                     f(Ev::Start(&e));
-                    f(Ev::End(e.local_name().as_ref().to_vec()));
+                    f(Ev::End(e.local_name().as_ref().to_string()));
                 }
             }
             Ok(Event::End(e)) => {
                 if depth <= MAX_XML_DEPTH {
-                    f(Ev::End(e.local_name().as_ref().to_vec()));
+                    f(Ev::End(e.local_name().as_ref().to_string()));
                 }
                 depth = depth.saturating_sub(1);
             }
-            Ok(Event::Text(t)) if depth <= MAX_XML_DEPTH => f(Ev::Text(t.decode().map(|c| c.into_owned()).unwrap_or_default())),
-            Ok(Event::CData(t)) if depth <= MAX_XML_DEPTH => f(Ev::Text(String::from_utf8_lossy(&t).into_owned())),
+            Ok(Event::Text(t)) if depth <= MAX_XML_DEPTH => f(Ev::Text(t.into_inner().into_owned())),
+            Ok(Event::CData(t)) if depth <= MAX_XML_DEPTH => f(Ev::Text(t.into_inner().into_owned())),
             Ok(Event::GeneralRef(g)) if depth <= MAX_XML_DEPTH => {
-                let s = match &g[..] {
-                    b"amp" => "&".to_string(),
-                    b"lt" => "<".to_string(),
-                    b"gt" => ">".to_string(),
-                    b"quot" => "\"".to_string(),
-                    b"apos" => "'".to_string(),
+                let s = match &*g {
+                    "amp" => "&".to_string(),
+                    "lt" => "<".to_string(),
+                    "gt" => ">".to_string(),
+                    "quot" => "\"".to_string(),
+                    "apos" => "'".to_string(),
                     _ => g.resolve_char_ref().ok().flatten().map(|c| c.to_string()).unwrap_or_default(),
                 };
                 f(Ev::Text(s));
@@ -305,10 +305,13 @@ fn walk(xml: &[u8], mut f: impl FnMut(Ev<'_>)) {
 }
 
 /// An attribute's value by local name.
-fn attr(e: &BytesStart<'_>, name: &[u8]) -> Option<String> {
-    e.attributes().with_checks(false).flatten().take(64).find(|a| a.key.local_name().as_ref() == name).map(|a| {
-        a.normalized_value(XmlVersion::Explicit1_0).map(|c| c.into_owned()).unwrap_or_else(|_| String::from_utf8_lossy(&a.value).into_owned())
-    })
+fn attr(e: &BytesStart<'_>, name: &str) -> Option<String> {
+    e.attributes()
+        .with_checks(false)
+        .flatten()
+        .take(64)
+        .find(|a| a.key.local_name().as_ref() == name)
+        .map(|a| a.normalized_value(XmlVersion::Explicit1_0).map(|c| c.into_owned()).unwrap_or_else(|_| a.value.to_string()))
 }
 
 /// `s` + `t`, keeping `s` at most [`MAX_CELL_CHARS`] characters.
@@ -399,14 +402,14 @@ fn relationships(xml: &[u8], dir: &str) -> Vec<Rel> {
     let mut v = Vec::new();
     walk(xml, |ev| {
         if let Ev::Start(e) = ev
-            && e.local_name().as_ref() == b"Relationship"
+            && e.local_name().as_ref() == "Relationship"
             && v.len() < MAX_SHEETS * 2
         {
-            if attr(e, b"TargetMode").is_some_and(|m| m.eq_ignore_ascii_case("External")) {
+            if attr(e, "TargetMode").is_some_and(|m| m.eq_ignore_ascii_case("External")) {
                 return;
             }
-            let target = attr(e, b"Target").unwrap_or_default();
-            v.push(Rel { id: attr(e, b"Id").unwrap_or_default(), kind: attr(e, b"Type").unwrap_or_default(), target: join(dir, &target) });
+            let target = attr(e, "Target").unwrap_or_default();
+            v.push(Rel { id: attr(e, "Id").unwrap_or_default(), kind: attr(e, "Type").unwrap_or_default(), target: join(dir, &target) });
         }
     });
     v
@@ -459,8 +462,8 @@ fn workbook(pkg: &mut Package<'_>) -> Result<Workbook, String> {
     walk(&xml, |ev| {
         if let Ev::Start(e) = ev {
             match e.local_name().as_ref() {
-                b"sheet" if listed.len() < MAX_SHEETS => listed.push((attr(e, b"name").unwrap_or_default(), attr(e, b"id").unwrap_or_default())),
-                b"workbookPr" => date1904 = attr(e, b"date1904").is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
+                "sheet" if listed.len() < MAX_SHEETS => listed.push((attr(e, "name").unwrap_or_default(), attr(e, "id").unwrap_or_default())),
+                "workbookPr" => date1904 = attr(e, "date1904").is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
                 _ => {}
             }
         }
@@ -489,21 +492,21 @@ fn shared_strings(xml: &[u8]) -> Vec<String> {
     let (mut in_t, mut phonetic) = (false, 0usize);
     walk(xml, |ev| match ev {
         Ev::Start(e) => match e.local_name().as_ref() {
-            b"si" => cur = Some(String::new()),
-            b"t" => in_t = true,
-            b"rPh" => phonetic += 1,
+            "si" => cur = Some(String::new()),
+            "t" => in_t = true,
+            "rPh" => phonetic += 1,
             _ => {}
         },
-        Ev::End(n) => match n.as_slice() {
-            b"si" => {
+        Ev::End(n) => match n.as_str() {
+            "si" => {
                 if let Some(s) = cur.take()
                     && out.len() < MAX_SHARED
                 {
                     out.push(s);
                 }
             }
-            b"t" => in_t = false,
-            b"rPh" => phonetic = phonetic.saturating_sub(1),
+            "t" => in_t = false,
+            "rPh" => phonetic = phonetic.saturating_sub(1),
             _ => {}
         },
         Ev::Text(t) => {
@@ -584,16 +587,16 @@ fn cell_formats(xml: &[u8]) -> Vec<Option<DateKind>> {
     let mut in_xfs = false;
     walk(xml, |ev| match ev {
         Ev::Start(e) => match e.local_name().as_ref() {
-            b"numFmt" if custom.len() < MAX_XFS => {
-                if let Some(id) = attr(e, b"numFmtId").and_then(|v| v.trim().parse().ok()) {
-                    custom.insert(id, custom_date(&attr(e, b"formatCode").unwrap_or_default()));
+            "numFmt" if custom.len() < MAX_XFS => {
+                if let Some(id) = attr(e, "numFmtId").and_then(|v| v.trim().parse().ok()) {
+                    custom.insert(id, custom_date(&attr(e, "formatCode").unwrap_or_default()));
                 }
             }
-            b"cellXfs" => in_xfs = true,
-            b"xf" if in_xfs && xfs.len() < MAX_XFS => xfs.push(attr(e, b"numFmtId").and_then(|v| v.trim().parse().ok()).unwrap_or(0)),
+            "cellXfs" => in_xfs = true,
+            "xf" if in_xfs && xfs.len() < MAX_XFS => xfs.push(attr(e, "numFmtId").and_then(|v| v.trim().parse().ok()).unwrap_or(0)),
             _ => {}
         },
-        Ev::End(n) if n.as_slice() == b"cellXfs" => in_xfs = false,
+        Ev::End(n) if n.as_str() == "cellXfs" => in_xfs = false,
         _ => {}
     });
     xfs.into_iter().map(|id| custom.get(&id).copied().unwrap_or_else(|| builtin_date(id))).collect()
@@ -646,24 +649,24 @@ fn xlsx_rows(pkg: &mut Package<'_>, path: &str) -> Result<Vec<Vec<String>>, Stri
     let (mut in_v, mut in_is_t, mut phonetic) = (false, false, 0usize);
     walk(&xml, |ev| match ev {
         Ev::Start(e) => match e.local_name().as_ref() {
-            b"sheetData" => in_data = true,
-            b"row" if in_data => {
-                row_no = attr(e, b"r").and_then(|v| v.trim().parse().ok()).unwrap_or(row_no.saturating_add(1));
+            "sheetData" => in_data = true,
+            "row" if in_data => {
+                row_no = attr(e, "r").and_then(|v| v.trim().parse().ok()).unwrap_or(row_no.saturating_add(1));
                 next_col = 0;
             }
-            b"c" if in_data => {
+            "c" if in_data => {
                 // A reference that isn't one (or is past the last column) drops the cell.
-                let col = match attr(e, b"r") {
+                let col = match attr(e, "r") {
                     Some(r) => ref_col(r.trim()).unwrap_or(usize::MAX),
                     None => next_col,
                 };
                 next_col = col.saturating_add(1);
-                let style = attr(e, b"s").and_then(|v| v.trim().parse().ok()).unwrap_or(0);
-                cell = Some(XCell { col, kind: attr(e, b"t").unwrap_or_default(), style, ..Default::default() });
+                let style = attr(e, "s").and_then(|v| v.trim().parse().ok()).unwrap_or(0);
+                cell = Some(XCell { col, kind: attr(e, "t").unwrap_or_default(), style, ..Default::default() });
             }
-            b"v" => in_v = cell.is_some(),
-            b"t" => in_is_t = cell.is_some(),
-            b"rPh" => phonetic += 1,
+            "v" => in_v = cell.is_some(),
+            "t" => in_is_t = cell.is_some(),
+            "rPh" => phonetic += 1,
             _ => {}
         },
         Ev::Text(t) => {
@@ -675,12 +678,12 @@ fn xlsx_rows(pkg: &mut Package<'_>, path: &str) -> Result<Vec<Vec<String>>, Stri
                 }
             }
         }
-        Ev::End(n) => match n.as_slice() {
-            b"sheetData" => in_data = false,
-            b"v" => in_v = false,
-            b"t" => in_is_t = false,
-            b"rPh" => phonetic = phonetic.saturating_sub(1),
-            b"c" => {
+        Ev::End(n) => match n.as_str() {
+            "sheetData" => in_data = false,
+            "v" => in_v = false,
+            "t" => in_is_t = false,
+            "rPh" => phonetic = phonetic.saturating_sub(1),
+            "c" => {
                 let Some(c) = cell.take() else { return };
                 let text = xlsx_value(&c, &shared, &formats, wb.date1904);
                 if text.is_empty() || c.col >= MAX_COLS {
@@ -885,10 +888,10 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
         Ev::Start(e) => {
             let n = e.local_name();
             let n = n.as_ref();
-            if n == b"table" {
+            if n == "table" {
                 if tables == 0 && names.len() < MAX_SHEETS {
                     collecting = want == Some(names.len());
-                    names.push(attr(e, b"name").unwrap_or_else(|| format!("Sheet{}", names.len() + 1)));
+                    names.push(attr(e, "name").unwrap_or_else(|| format!("Sheet{}", names.len() + 1)));
                 }
                 tables += 1;
                 return;
@@ -897,24 +900,24 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
                 return;
             }
             match n {
-                b"table-row" => {
-                    let repeat = attr(e, b"number-rows-repeated").and_then(|v| v.trim().parse().ok()).unwrap_or(1u64).max(1);
+                "table-row" => {
+                    let repeat = attr(e, "number-rows-repeated").and_then(|v| v.trim().parse().ok()).unwrap_or(1u64).max(1);
                     row = Some((Vec::new(), 0, repeat, Some(0)));
                 }
-                b"table-cell" | b"covered-table-cell" if row.is_some() => {
-                    let repeat = attr(e, b"number-columns-repeated").and_then(|v| v.trim().parse().ok()).unwrap_or(1u64).max(1);
-                    let kind = attr(e, b"value-type").unwrap_or_default();
+                "table-cell" | "covered-table-cell" if row.is_some() => {
+                    let repeat = attr(e, "number-columns-repeated").and_then(|v| v.trim().parse().ok()).unwrap_or(1u64).max(1);
+                    let kind = attr(e, "value-type").unwrap_or_default();
                     let kind_lower = kind.trim().to_ascii_lowercase();
                     let value = match kind_lower.as_str() {
-                        "float" | "percentage" | "currency" => attr(e, b"value"),
-                        "date" => attr(e, b"date-value"),
-                        "time" => attr(e, b"time-value"),
-                        "boolean" => attr(e, b"boolean-value"),
-                        "string" => attr(e, b"string-value"),
+                        "float" | "percentage" | "currency" => attr(e, "value"),
+                        "date" => attr(e, "date-value"),
+                        "time" => attr(e, "time-value"),
+                        "boolean" => attr(e, "boolean-value"),
+                        "string" => attr(e, "string-value"),
                         _ => None,
                     };
                     // A covered cell's own content is hidden by the merge.
-                    let covered = n == b"covered-table-cell";
+                    let covered = n == "covered-table-cell";
                     cell = Some(OCell {
                         repeat,
                         kind: if covered { String::new() } else { kind },
@@ -925,8 +928,8 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
                         skip += 1;
                     }
                 }
-                b"annotation" if cell.is_some() => skip += 1,
-                b"p" | b"h" if cell.is_some() => {
+                "annotation" if cell.is_some() => skip += 1,
+                "p" | "h" if cell.is_some() => {
                     if let Some(c) = cell.as_mut()
                         && skip == 0
                     {
@@ -937,18 +940,18 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
                     }
                     in_p += 1;
                 }
-                b"s" if in_p > 0 && skip == 0 => {
-                    let k = attr(e, b"c").and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(1).clamp(1, 1_000);
+                "s" if in_p > 0 && skip == 0 => {
+                    let k = attr(e, "c").and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(1).clamp(1, 1_000);
                     if let Some(c) = cell.as_mut() {
                         push_capped(&mut c.text, &" ".repeat(k));
                     }
                 }
-                b"tab" if in_p > 0 && skip == 0 => {
+                "tab" if in_p > 0 && skip == 0 => {
                     if let Some(c) = cell.as_mut() {
                         push_capped(&mut c.text, "\t");
                     }
                 }
-                b"line-break" if in_p > 0 && skip == 0 => {
+                "line-break" if in_p > 0 && skip == 0 => {
                     if let Some(c) = cell.as_mut() {
                         push_capped(&mut c.text, "\n");
                     }
@@ -965,8 +968,8 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
             }
         }
         Ev::End(n) => {
-            let n = n.as_slice();
-            if n == b"table" {
+            let n = n.as_str();
+            if n == "table" {
                 tables = tables.saturating_sub(1);
                 if tables == 0 {
                     collecting = false;
@@ -977,10 +980,10 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
                 return;
             }
             match n {
-                b"p" | b"h" => in_p = in_p.saturating_sub(1),
-                b"annotation" => skip = skip.saturating_sub(1),
-                b"table-cell" | b"covered-table-cell" => {
-                    if n == b"covered-table-cell" {
+                "p" | "h" => in_p = in_p.saturating_sub(1),
+                "annotation" => skip = skip.saturating_sub(1),
+                "table-cell" | "covered-table-cell" => {
+                    if n == "covered-table-cell" {
                         skip = skip.saturating_sub(1);
                     }
                     let (Some(c), Some((cells, pending, _, budget))) = (cell.take(), row.as_mut()) else { return };
@@ -1008,7 +1011,7 @@ fn ods_read(xml: &[u8], want: Option<usize>) -> Result<(Vec<String>, Vec<Vec<Str
                     *pending = 0;
                     cells.extend(std::iter::repeat_n(text, times));
                 }
-                b"table-row" => {
+                "table-row" => {
                     if let Some((cells, _, repeat, Some(_))) = row.take() {
                         grid.push(cells, repeat);
                     }

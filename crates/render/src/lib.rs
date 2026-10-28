@@ -258,17 +258,23 @@ fn premul_pixmap(w: u32, h: u32, rgba: &[u8]) -> Option<Pixmap> {
     if rgba.len() != (w as usize * h as usize).saturating_mul(4) {
         return None;
     }
-    let data: Vec<vello_cpu::color::PremulRgba8> = rgba
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|p| {
-            let a = p[3] as u16;
-            let m = |c: u8| ((c as u16 * a + 127) / 255) as u8;
-            vello_cpu::color::PremulRgba8 { r: m(p[0]), g: m(p[1]), b: m(p[2]), a: p[3] }
-        })
-        .collect();
-    Some(Pixmap::from_parts(data, w as u16, h as u16))
+    let data = rgba.as_chunks::<4>().0.iter().map(|p| {
+        let a = p[3] as u16;
+        let m = |c: u8| ((c as u16 * a + 127) / 255) as u8;
+        vello_cpu::color::PremulRgba8 { r: m(p[0]), g: m(p[1]), b: m(p[2]), a: p[3] }
+    });
+    Some(pixmap_of(w as u16, h as u16, data))
+}
+
+/// A `w` × `h` pixmap filled row by row from premultiplied pixels (transparent where they run
+/// short). Unlike vello's `Pixmap::from_parts`, which asserts the buffer's length and capacity,
+/// it can't panic.
+pub(crate) fn pixmap_of(w: u16, h: u16, px: impl IntoIterator<Item = vello_cpu::color::PremulRgba8>) -> Pixmap {
+    let mut pm = Pixmap::new(w, h);
+    for (d, s) in pm.data_mut().iter_mut().zip(px) {
+        *d = s;
+    }
+    pm
 }
 
 /// Pixel size of an encoded image.
@@ -552,7 +558,7 @@ fn shrink(pm: &Pixmap, max_pixels: u64) -> Option<Pixmap> {
             out.push(vello_cpu::color::PremulRgba8 { r, g, b, a });
         }
     }
-    Some(Pixmap::from_parts(out, nw as u16, nh as u16))
+    Some(pixmap_of(nw as u16, nh as u16, out))
 }
 
 /// Options for a page raster.
@@ -1911,7 +1917,7 @@ mod tests {
     fn pictures_too_large_for_the_cache_are_kept_smaller() {
         let px = vello_cpu::color::PremulRgba8 { r: 40, g: 80, b: 120, a: 200 };
         // 6000 × 6000 is 144 MB of RGBA, past the 128 MB cache.
-        let big = Pixmap::from_parts(vec![px; 6000 * 6000], 6000, 6000);
+        let big = pixmap_of(6000, 6000, vec![px; 6000 * 6000]);
         let small = cacheable(big);
         let bytes = small.width() as usize * small.height() as usize * 4;
         assert!(bytes <= CACHE_BYTES / 2, "{} x {}", small.width(), small.height());
@@ -1923,13 +1929,13 @@ mod tests {
         cache.insert("big", &src, Some(Arc::new(small)), bytes);
         assert!(cache.get("big", &src).is_some(), "cached");
         // Pictures the cache holds as they are keep their size.
-        assert_eq!(cacheable(Pixmap::from_parts(vec![px; 100 * 50], 100, 50)).width(), 100);
+        assert_eq!(cacheable(pixmap_of(100, 50, vec![px; 100 * 50])).width(), 100);
     }
 
     #[test]
     fn shrinking_averages_premultiplied_pixels() {
         let p = |v: u8| vello_cpu::color::PremulRgba8 { r: v, g: v, b: v, a: 255 };
-        let pm = Pixmap::from_parts(vec![p(0), p(100), p(200), p(40)], 4, 1);
+        let pm = pixmap_of(4, 1, vec![p(0), p(100), p(200), p(40)]);
         let out = shrink(&pm, 2).unwrap();
         assert_eq!((out.width(), out.height()), (2, 1));
         assert_eq!(out.data().iter().map(|q| q.r).collect::<Vec<_>>(), [50, 120]);
