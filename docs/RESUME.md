@@ -102,7 +102,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     (`manual_is_multiple_of` in `graph_pane.rs`), fixed; the Printing workflow failed in
     `ribbon_groups_fit_above_their_labels` (kittest's missing-glyph panic on CJK labels on a
     runner with no CJK font and no craft-fonts): the test allows tofu when no CJK face is
-    embedded. Both on branch `ccr-fb64c268-julnrj`, still to be merged into `main`.
+    embedded. Both merged into `main` (`8f16ae3`).
   - CI: Linux gate green (`a162494`): non-UTF-8 save tests use `.xmath`, `hit_and_caret_agree`
     fixed (it failed everywhere after the rename), Zotero accept race on Linux (a connection not
     accepted yet is judged by its listener), Spanish grammar timing test takes the best of three.
