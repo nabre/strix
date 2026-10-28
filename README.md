@@ -222,16 +222,17 @@ closer pagination fidelity, a stability sweep and native printing. Details and e
 
 ### Windows
 
-| Build | Installer (all users) | Installer (just me) | Portable |
-|---|---|---|---|
-| x64 (64-bit Intel/AMD) | `strix-<ver>-windows-x64.msi` | `strix-<ver>-windows-user-x64.msi` | `strix-<ver>-windows-x64-portable.zip` |
-| arm64 (Snapdragon and other ARM PCs) | `strix-<ver>-windows-arm64.msi` | `strix-<ver>-windows-user-arm64.msi` | `strix-<ver>-windows-arm64-portable.zip` |
-| x86 (32-bit) | `strix-<ver>-windows-x86.msi` | `strix-<ver>-windows-user-x86.msi` | `strix-<ver>-windows-x86-portable.zip` |
+| Build | Installer | Portable |
+|---|---|---|
+| x64 (64-bit Intel/AMD) | `strix-<ver>-windows-x64.msi` | `strix-<ver>-windows-x64-portable.zip` |
+| arm64 (Snapdragon and other ARM PCs) | `strix-<ver>-windows-arm64.msi` | `strix-<ver>-windows-arm64-portable.zip` |
+| x86 (32-bit) | `strix-<ver>-windows-x86.msi` | `strix-<ver>-windows-x86-portable.zip` |
 
-The all-users installer puts Strix in Program Files and needs administrator rights. The
-just-me installer needs none: it installs into `%LOCALAPPDATA%\Programs\Strix` for your
-account only. Choose one: installing both gives two Strix entries in Settings › Apps and two
-in the Start menu. Installers and executables are code-signed.
+The installer is one dual-scope package. By default it installs for your account only,
+into `%LOCALAPPDATA%\Programs\ArtCraft\Strix`, and needs no administrator rights; choosing
+"Everyone on this computer" on the first page installs into `C:\Program Files\ArtCraft\Strix` (`Program Files (x86)` for the 32-bit build)
+and asks for an administrator. Install only one copy: a copy for another scope is refused, so
+uninstall first to change who Strix is installed for. Installers and executables are code-signed.
 
 **If the app doesn't open on Windows:** the desktop app initializes only DirectX 12 by default.
 Letting wgpu also create an OpenGL instance can crash some graphics drivers (AMD's

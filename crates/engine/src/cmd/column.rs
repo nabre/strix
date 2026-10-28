@@ -13,6 +13,7 @@ use serde_json::{Value, json};
 use strix_doc::edit::Fragment;
 use strix_doc::props::CharProps;
 use strix_doc::{Block, Paragraph, Pos};
+use strix_layout::hit::ColumnSelection;
 
 use super::{parse_pos, pos_json};
 use crate::{CmdError, CmdResult, ColumnBlock, CommandSpec, Selection, Session, p};
@@ -97,7 +98,7 @@ fn make(s: &mut Session, a: Pos, b: Pos, xa: f32, xb: f32) {
     let (xa, xb) = (if xa.is_finite() { xa } else { 0.0 }, if xb.is_finite() { xb } else { 0.0 });
     let (left, right) = (xa.min(xb), xa.max(xb));
     let l = s.layout();
-    let segments = l.column_segments(&s.doc, &a, &b, left, right, s.page_hint, MAX_LINES);
+    let segments = l.column_segments(&s.doc, ColumnSelection { start: &a, end: &b, left, right, page_hint: s.page_hint, max_lines: MAX_LINES });
     s.sel = Selection { anchor: a, focus: b };
     s.column = Some(ColumnBlock { sel: s.sel.clone(), anchor_x: xa, focus_x: xb, segments, cells: None });
     s.pending = None;
