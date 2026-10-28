@@ -228,10 +228,11 @@ fn editing_snaps_picks_and_keeps_expressions() {
     )
     .unwrap();
     d.resolve(&ws);
-    let snaps = d.snap_points();
-    assert!(snaps.contains(&(Pt::new(4.0, 0.0), SnapKind::End)));
-    assert!(snaps.contains(&(Pt::new(2.0, 0.0), SnapKind::Mid)));
-    assert!(snaps.contains(&(Pt::new(2.0, 2.0), SnapKind::Center)));
+    // The line's end follows L; its midpoint and the circle's centre snap too.
+    let snap = |x: f64, y: f64| d.snap(Pt::new(x, y), 0.1, None, &Snaps::default());
+    assert_eq!(snap(3.98, 0.02), Some((Pt::new(4.0, 0.0), SnapKind::End)));
+    assert_eq!(snap(2.03, 0.01), Some((Pt::new(2.0, 0.0), SnapKind::Mid)));
+    assert_eq!(snap(2.02, 2.03), Some((Pt::new(2.0, 2.0), SnapKind::Center)));
     assert_eq!(d.hit(Pt::new(1.0, 0.05), 0.1), Some(0));
     assert_eq!(d.hit(Pt::new(2.5, 2.0), 0.1), Some(1));
     assert_eq!(d.hit(Pt::new(3.0, 3.0), 0.1), None);

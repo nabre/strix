@@ -96,9 +96,8 @@ impl Drawing {
             if !layer.visible || !(layer.print || screen) {
                 continue;
             }
-            let color = e.stroke.color.unwrap_or(layer.color);
-            let width = e.stroke.width.unwrap_or(layer.width);
-            let dash = e.stroke.dash.unwrap_or(layer.dash).pattern().to_vec();
+            let (color, width, dash) = self.stroke_of(e);
+            let dash = dash.pattern().to_vec();
             let path = |pts: Vec<Pt>, closed: bool| Prim::Path {
                 pts: pts.iter().map(|p| (p.x * k, p.y * k)).collect(),
                 closed,

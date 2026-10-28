@@ -451,7 +451,8 @@ pub fn intersect_extended(a: &Curve, b: &Curve) -> Vec<Pt> {
     meet(a, b, tol).into_iter().filter(|p| b.holds(*p, tol)).collect()
 }
 
-/// The angle at `vertex` from `a` to `b`, radians in [0, π].
+/// The angle at `vertex` from `a` to `b`, radians in [0, π] (the tests' check on constructions).
+#[cfg(test)]
 pub fn angle_at(vertex: Pt, a: Pt, b: Pt) -> f64 {
     angle_between(a.minus(vertex), b.minus(vertex))
 }

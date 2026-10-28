@@ -7,7 +7,7 @@
 use crate::MAX_LAYERS;
 use crate::geom::Pt;
 use crate::kernel::{Curve, curves, intersect};
-use crate::model::{Dash, Drawing, Kind, Layer, Stroke};
+use crate::model::{Dash, Drawing, Entity, Kind, Layer, Stroke};
 
 /// An object family: what the Properties pane groups the selection by.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -447,10 +447,14 @@ impl Drawing {
 
     /// The stroke entity `i` is drawn with (its own, else its layer's).
     pub fn effective_stroke(&self, i: usize) -> Option<([u8; 3], f64, Dash)> {
-        let e = self.entities.get(i)?;
+        self.entities.get(i).map(|e| self.stroke_of(e))
+    }
+
+    /// The colour, width and dash `e` is drawn with: its own, else its layer's.
+    pub(crate) fn stroke_of(&self, e: &Entity) -> ([u8; 3], f64, Dash) {
         let l = self.layer(&e.layer);
         let Stroke { color, width, dash } = &e.stroke;
-        Some((color.unwrap_or(l.color), width.unwrap_or(l.width), dash.unwrap_or(l.dash)))
+        (color.unwrap_or(l.color), width.unwrap_or(l.width), dash.unwrap_or(l.dash))
     }
 }
 

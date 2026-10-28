@@ -218,41 +218,6 @@ fn mid(a: Pt, b: Pt) -> Pt {
 }
 
 impl Drawing {
-    /// The points a click can snap to, in drawing units.
-    pub fn snap_points(&self) -> Vec<(Pt, SnapKind)> {
-        let mut out = Vec::new();
-        for e in &self.entities {
-            match &e.kind {
-                Kind::Line { a, b } => {
-                    out.push((a.pt(), SnapKind::End));
-                    out.push((b.pt(), SnapKind::End));
-                    out.push((mid(a.pt(), b.pt()), SnapKind::Mid));
-                }
-                Kind::Circle { c, .. } => out.push((c.pt(), SnapKind::Center)),
-                Kind::Arc { c, r, start, end } => {
-                    out.push((c.pt(), SnapKind::Center));
-                    out.push((c.pt().polar(r.value.abs(), start.value), SnapKind::End));
-                    out.push((c.pt().polar(r.value.abs(), end.value), SnapKind::End));
-                }
-                Kind::Polyline { pts, closed, .. } => {
-                    let vs: Vec<Pt> = pts.iter().map(P::pt).collect();
-                    out.extend(vs.iter().map(|&p| (p, SnapKind::End)));
-                    let n = vs.len();
-                    let segments = crate::kernel::segments(n, *closed);
-                    for i in 0..segments {
-                        if let (Some(&a), Some(&b)) = (vs.get(i), vs.get((i + 1) % n)) {
-                            out.push((mid(a, b), SnapKind::Mid));
-                        }
-                    }
-                }
-                Kind::Point { p } => out.push((p.pt(), SnapKind::End)),
-                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } | Kind::Strip { .. } | Kind::Hatch { .. } => {}
-            }
-        }
-        out.retain(|(p, _)| p.is_finite());
-        out
-    }
-
     /// The topmost entity within `tol` drawing units of `p` (entities drawn later are on top).
     pub fn hit(&self, p: Pt, tol: f64) -> Option<usize> {
         let mut best: Option<(usize, f64)> = None;

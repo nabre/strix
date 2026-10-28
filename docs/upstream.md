@@ -90,4 +90,7 @@ groups moved into their own `crates/ui-egui/src/ribbon/strix.rs` in that merge.
 - **Brand text only through the rename.** Don't hand-edit `WordCraft` → `Strix` in upstream
   files; extend `RENAMES` instead, so the vendor branch does the same and the edit never
   conflicts.
+- **Dead code**: `cargo xtask unused` reports unused dependencies and the public items in
+  Strix's own files that nothing, or only tests, uses; remove those. Unused code in upstream
+  files stays: deleting it is a change upstream doesn't have.
 - **Merge often.** Small, frequent merges are cheap; months of drift are not.

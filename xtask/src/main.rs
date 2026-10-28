@@ -9,6 +9,7 @@ mod ico;
 mod layers;
 mod parity;
 mod stats;
+mod unused;
 mod upstream;
 mod version;
 mod visual_diff;
@@ -36,6 +37,9 @@ commands:
   visual-diff <ref.pdf> <test.pdf> <outdir> [--private] [--dpi N]
                   compare two PDFs of a document page by page (SSIM, line breaks, offsets);
                   needs poppler (pdftoppm, pdftotext)
+  unused [--strict]
+                  dependencies a crate never names, and public items in Strix's own files that
+                  nothing (or only tests) uses; a report (--strict fails on hits)
   upstream [status | sync [REV] | rebrand DIR]
                   track WordCraft: rebrand an upstream commit onto the vendor/wordcraft branch,
                   then `git merge vendor/wordcraft` (docs/upstream.md)
@@ -60,6 +64,7 @@ fn main() -> ExitCode {
         Some("visual-diff") => visual_diff::run(&rest),
         Some("version") => version::run(&root(), &rest),
         Some("upstream") => upstream::run(&root(), &rest),
+        Some("unused") => unused::run(&root(), &rest),
         Some("-h" | "--help" | "help") | None => {
             print!("{USAGE}");
             Ok(())

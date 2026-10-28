@@ -34,6 +34,7 @@ Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch 
 - New Strix code goes in new files/crates; upstream files only get the lines that register or call it.
 - Never reformat, reorder, rename or split upstream code you aren't otherwise changing.
 - Never hand-edit brand names in upstream files: extend `RENAMES` in `xtask/src/upstream.rs`.
+- Dead code: `cargo xtask unused` lists dependencies nothing names and public items in Strix's own files nothing (or only tests) uses. Remove those; dead code in upstream files stays (report it upstream instead).
 
 ## Architecture (see `plan/architecture.md`)
 | Layer | Crate | Job |
