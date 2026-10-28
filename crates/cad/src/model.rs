@@ -219,6 +219,49 @@ impl Mark {
     }
 }
 
+/// How linear dimensions show their size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DimUnits {
+    /// In the drawing's unit.
+    #[default]
+    Drawing,
+    /// All in metres, centimetres or millimetres.
+    M,
+    Cm,
+    Mm,
+    /// As SIA 400 (Swiss drawing practice): metres with two decimals from 1 m up, centimetres
+    /// below.
+    Sia,
+}
+
+impl DimUnits {
+    pub const ALL: [(DimUnits, &'static str, &'static str); 5] = [
+        (DimUnits::Drawing, "drawing", "Drawing unit"),
+        (DimUnits::M, "m", "Metres"),
+        (DimUnits::Cm, "cm", "Centimetres"),
+        (DimUnits::Mm, "mm", "Millimetres"),
+        (DimUnits::Sia, "sia", "SIA 400: m from 1 m, cm below"),
+    ];
+
+    pub fn name(self) -> &'static str {
+        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("drawing", |(_, n, _)| n)
+    }
+
+    /// Its label (English; the UI translates it).
+    pub fn label(self) -> &'static str {
+        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("Drawing unit", |(.., l)| l)
+    }
+
+    pub fn parse(s: &str) -> Option<DimUnits> {
+        DimUnits::ALL.iter().find(|(_, n, _)| *n == s.trim()).map(|(u, ..)| *u)
+    }
+
+    fn is_drawing(&self) -> bool {
+        *self == DimUnits::Drawing
+    }
+}
+
 /// Where a text sits on its point, along its line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -249,6 +292,7 @@ pub struct DimStyle {
     /// Dimension text height (and new texts'), mm.
     pub text: f64,
     /// The dimension lines' end mark, unless a dimension sets its own.
+    #[serde(deserialize_with = "lenient")]
     pub mark: Mark,
     /// The mark's length, mm.
     pub mark_size: f64,
@@ -268,11 +312,25 @@ pub struct DimStyle {
     /// default: annotative, the same in print). The other part is kept. Written only when on.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub scaled: bool,
+    /// How linear dimensions show their size (the drawing's unit, m, cm, mm or SIA 400).
+    /// Written only when not the drawing's unit.
+    #[serde(deserialize_with = "lenient", skip_serializing_if = "DimUnits::is_drawing")]
+    pub units: DimUnits,
 }
 
 impl Default for DimStyle {
     fn default() -> Self {
-        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0, aligned: false, scaled: false }
+        DimStyle {
+            text: 2.5,
+            mark: Mark::Tick,
+            mark_size: 2.5,
+            ext_gap: 1.0,
+            ext_over: 1.5,
+            text_gap: 1.0,
+            aligned: false,
+            scaled: false,
+            units: DimUnits::Drawing,
+        }
     }
 }
 
@@ -290,6 +348,7 @@ impl DimStyle {
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
             aligned: self.aligned,
             scaled: self.scaled,
+            units: self.units,
         }
     }
 
@@ -358,7 +417,7 @@ pub enum Kind {
         text: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         below: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
     },
     /// A hatched strip along the line or polyline with id `along` (it follows it), `width` paper
@@ -400,7 +459,7 @@ pub enum Kind {
         r_paper: f64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         text: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
     },
     /// A level (elevation) mark at `p`: a triangle with its tip on the level, a line along it and
@@ -493,6 +552,13 @@ fn text_height() -> f64 {
 
 fn dim_offset() -> f64 {
     8.0
+}
+
+/// Reads a choice leniently: a word this version doesn't know (a newer file, a typo) is the
+/// default, not a drawing that cannot be opened.
+fn lenient<'de, D: serde::Deserializer<'de>, T: serde::de::DeserializeOwned + Default>(d: D) -> Result<T, D::Error> {
+    let v = serde_json::Value::deserialize(d)?;
+    Ok(T::deserialize(v).unwrap_or_default())
 }
 
 fn is_zero_f64(v: &f64) -> bool {
@@ -863,6 +929,26 @@ impl Drawing {
             format!("\u{2212}{digits}")
         };
         fill(&text.unwrap_or("<>").replace("<>", &value), ws)
+    }
+
+    /// A linear dimension's label: `text` (else `<>`) with `<>` the size `measured` (drawing
+    /// units) in the style's units ([`DimUnits`]), in the document's number style.
+    pub fn dim_label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+        let opts = ws.map(|w| *w.options()).unwrap_or_default();
+        let mm = measured * self.unit.mm();
+        let size = match self.dim_style.units {
+            DimUnits::Drawing => strix_calc::format_number(measured, &opts),
+            DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
+            DimUnits::Cm => strix_calc::format_number(mm / 10.0, &opts),
+            DimUnits::Mm => strix_calc::format_number(mm, &opts),
+            // Metres to the centimetre from 1 m up (rounded to the centimetre first, so 99.996 cm
+            // reads 1.00), centimetres below.
+            DimUnits::Sia if (mm.abs() / 10.0).round() >= 100.0 => {
+                strix_calc::format_number(mm / 1000.0, &strix_calc::Options { digits: 2, count: strix_calc::Count::Decimals, zeros: true, ..opts })
+            }
+            DimUnits::Sia => strix_calc::format_number(mm / 10.0, &opts),
+        };
+        fill(&text.unwrap_or("<>").replace("<>", &size), ws)
     }
 
     pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {

@@ -631,6 +631,9 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             if let Some(m) = p.get("mark") {
                 st.mark = m.as_str().and_then(strix_cad::Mark::parse).ok_or("mark: tick, arrow, dot or none")?;
             }
+            if let Some(u) = p.get("units") {
+                st.units = u.as_str().and_then(strix_cad::DimUnits::parse).ok_or("units: drawing, m, cm, mm or sia")?;
+            }
             if let Some(v) = p.get("aligned") {
                 st.aligned = v.as_bool().ok_or("aligned: true or false")?;
             }
@@ -3176,6 +3179,17 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
             size(ui, app, "Extension gap", "extGap", style.ext_gap);
             size(ui, app, "Extension beyond", "extOver", style.ext_over);
             size(ui, app, "Text gap", "textGap", style.text_gap);
+        });
+        ui.add_space(10.0);
+        ui.vertical(|ui| {
+            ui.label(tl!("Dimension units"));
+            egui::ComboBox::from_id_salt("cad_dim_units").selected_text(tl!(style.units.label())).width(FIELD_W + 60.0).show_ui(ui, |ui| {
+                for (u, name, label) in strix_cad::DimUnits::ALL {
+                    if ui.selectable_label(style.units == u, tl!(label)).clicked() {
+                        let _ = app.run("ui.cadDimStyle", json!({"units": name}));
+                    }
+                }
+            });
         });
         ui.add_space(10.0);
         let mut aligned = style.aligned;

@@ -43,7 +43,7 @@ pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, parse_point};
 pub use model::{
-    Align, Dash, DimStyle, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
+    Align, Dash, DimStyle, DimUnits, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
 };
 pub use modify::Affine;
 pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};

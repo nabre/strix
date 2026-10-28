@@ -298,3 +298,37 @@ fn parameters_in_texts_are_set_as_equations() {
         "{svg}"
     );
 }
+
+/// Linear dimensions show their size in the drawing's unit, all in m, cm or mm, or as SIA 400:
+/// metres with two decimals from 1 m up, centimetres below. A text of its own keeps `<>`.
+#[test]
+fn dimension_units() {
+    let shown = |units: &str, unit: &str, len: f64| {
+        let json = format!(
+            r#"{{"unit":"{unit}","dimStyle":{{"units":"{units}"}},"entities":[{{"type":"dim","a":[0,0],"b":[{len},0],"offset":5,"text":"L = <>"}}]}}"#
+        );
+        let d = Drawing::from_json(&json).unwrap();
+        d.render(None).prims.iter().find_map(|p| if let Prim::Text { text, .. } = p { Some(text.clone()) } else { None }).unwrap()
+    };
+    assert_eq!(shown("drawing", "mm", 2450.0), "L = 2450");
+    assert_eq!(shown("m", "mm", 2450.0), "L = 2.45");
+    assert_eq!(shown("cm", "mm", 2450.0), "L = 245");
+    assert_eq!(shown("mm", "m", 2.45), "L = 2450");
+    assert_eq!(shown("sia", "mm", 2450.0), "L = 2.45");
+    assert_eq!(shown("sia", "mm", 3000.0), "L = 3.00", "two decimals");
+    assert_eq!(shown("sia", "mm", 300.0), "L = 30");
+    assert_eq!(shown("sia", "m", 0.305), "L = 30.5");
+    assert_eq!(shown("sia", "mm", 999.96), "L = 1.00", "a hair under 1 m reads in metres");
+    // Written only when not the drawing's unit; an unknown word falls back.
+    let d = Drawing::default();
+    assert!(!d.to_json().contains("units"));
+    let d = Drawing::from_json(r#"{"dimStyle":{"units":"sia"}}"#).unwrap();
+    assert_eq!(d.dim_style.units, DimUnits::Sia);
+    assert!(d.to_json().contains(r#""units":"sia""#));
+    assert_eq!(DimUnits::parse("cm"), Some(DimUnits::Cm));
+    assert_eq!(DimUnits::parse("feet"), None);
+    let odd = Drawing::from_json(r#"{"dimStyle":{"units":"feet","mark":"star"},"entities":[{"type":"line","a":[0,0],"b":[1,0]}]}"#);
+    assert!(odd.is_ok_and(|d| d.dim_style.units == DimUnits::Drawing && d.entities.len() == 1), "an unknown word is not a broken drawing");
+    let odd = Drawing::from_json(r#"{"entities":[{"type":"dim","a":[0,0],"b":[1,0],"mark":"star"}]}"#).unwrap();
+    assert!(matches!(odd.entities[0].kind, Kind::Dim { mark: None, .. }));
+}

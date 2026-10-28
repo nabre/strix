@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** parameters in dimension and level texts set as equations; two-part distances
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** dimension units (drawing, m, cm, mm, SIA 400); parameters set as equations
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -27,6 +27,13 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
 - **Paper sizes do not scale**: stroke widths, text heights, dimension offsets, ticks and gaps
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
+- **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
+  linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
+  in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
+  two decimals from 1 m up (`2.45`, `3.00`), centimetres below (`30`, `30.5`), rounded to the
+  centimetre before choosing (99.996 cm reads `1.00`). Numbers follow the document's number
+  style (decimal comma). Angles and level marks keep their own units. A word the program does not
+  know in a drawing's style or end mark reads as the default instead of failing the drawing.
 - **Two-part distances**: a linear dimension's line is `offset` paper mm (annotative: the same
   in print at any scale) plus `offsetUnits` drawing units (scaled: it follows Scale and the
   drawing's scale) from its points; an angle's arc is `r` drawing units (scaled) plus `rPaper`
@@ -359,6 +366,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: dimension units: the drawing's, m, cm, mm or SIA 400.
 - 2026-10-28: parameters in dimension, angle, level and text annotations set as equations (italic symbol, lowered subscript, upright value).
 - 2026-10-28: dimension distances and angle radii in two parts, scaled and annotative; Scaled distances in the style.
 - 2026-10-28: right-angle symbol; Continue and Baseline dimensions; level marks; Flip.

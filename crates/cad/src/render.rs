@@ -250,7 +250,7 @@ impl Drawing {
         let mid = fa.plus(fb).scale(0.5);
         let (angle, flipped) = readable(dir.y.atan2(dir.x).to_degrees());
         let up = if flipped { normal.scale(-1.0) } else { normal };
-        let label = self.label(text.as_deref(), measured, ws);
+        let label = self.dim_label(text.as_deref(), measured, ws);
         if angle.abs() > 45.0 && !st.aligned {
             // A steep dimension's text reads level, beside the line on its outer side (unless
             // the style aligns texts with their lines: then it turns with the line, as below).
@@ -261,7 +261,7 @@ impl Drawing {
         } else {
             self.dim_text(mid, up, angle, label, false, color, out);
             if let Some(b) = below.as_deref().filter(|b| !b.trim().is_empty()) {
-                self.dim_text(mid, up, angle, self.label(Some(b), measured, ws), true, color, out);
+                self.dim_text(mid, up, angle, self.dim_label(Some(b), measured, ws), true, color, out);
             }
         }
     }
