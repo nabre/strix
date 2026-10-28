@@ -1334,6 +1334,48 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(3.0, 10.0), (3.5, 12.6), (5.0, 14.9), (7.4, 16.5), (10.0, 17.0)], a);
             pen.line_c(&[(10.0, 17.0), (17.0, 17.0)], c);
         }
+        // Stretch (a shape with one side pulled out, the window dashed), explode (pieces flying
+        // apart), join (two pieces meeting at a dot), match (a brush over a line), arrays (a grid
+        // of squares; dots round a centre).
+        "cadStretch" => {
+            pen.line_c(&[(3.0, 6.0), (3.0, 15.0), (8.0, 15.0)], c);
+            pen.line_c(&[(3.0, 6.0), (8.0, 6.0)], c);
+            pen.line_c(&[(8.0, 6.0), (16.0, 6.0), (16.0, 15.0), (8.0, 15.0)], a);
+            pen.line_c(&[(12.0, 3.0), (13.5, 3.0)], c);
+            pen.line_c(&[(15.5, 3.0), (17.5, 3.0), (17.5, 5.0)], c);
+            pen.line_c(&[(17.5, 16.0), (17.5, 18.0), (15.5, 18.0)], c);
+            pen.line_c(&[(13.5, 18.0), (12.0, 18.0)], c);
+        }
+        "cadExplode" => {
+            pen.line_c(&[(3.0, 8.0), (8.0, 3.0)], c);
+            pen.line_c(&[(12.0, 3.0), (17.0, 8.0)], c);
+            pen.line_c(&[(17.0, 12.0), (12.0, 17.0)], c);
+            pen.line_c(&[(8.0, 17.0), (3.0, 12.0)], c);
+            pen.fcircle(10.0, 10.0, 1.6, a);
+        }
+        "cadJoin" => {
+            pen.line_c(&[(2.5, 15.0), (10.0, 10.0)], c);
+            pen.line_c(&[(10.0, 10.0), (17.5, 5.0)], c);
+            pen.fcircle(10.0, 10.0, 2.0, a);
+        }
+        "cadMatch" => {
+            pen.line_c(&[(2.5, 17.0), (17.5, 17.0)], a);
+            pen.fill(&[(9.0, 9.0), (14.0, 9.0), (14.0, 13.5), (9.0, 13.5)], a);
+            pen.line_c(&[(11.5, 9.0), (11.5, 3.0)], c);
+            pen.rect(9.0, 9.0, 14.0, 13.5, c);
+        }
+        "cadArrayRect" => {
+            for (x, y) in [(3.0, 3.0), (11.0, 3.0), (3.0, 11.0), (11.0, 11.0)] {
+                pen.rect(x, y, x + 6.0, y + 6.0, if x == 3.0 && y == 3.0 { a } else { c });
+            }
+        }
+        "cadArrayPolar" => {
+            pen.circle(10.0, 10.0, 6.5, c);
+            for k in 0..6 {
+                let t = k as f32 * std::f32::consts::TAU / 6.0;
+                pen.fcircle(10.0 + 6.5 * t.cos(), 10.0 + 6.5 * t.sin(), 1.7, if k == 0 { a } else { c });
+            }
+        }
         "cadChamfer" => {
             pen.line_c(&[(3.0, 4.0), (3.0, 11.0)], c);
             pen.line_c(&[(3.0, 11.0), (9.0, 17.0)], a);

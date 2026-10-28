@@ -2821,3 +2821,41 @@ preview	Title	Esempio
 	Pick each line on the part to keep	Scegli ogni linea sulla parte da tenere
 	The lines are in line	Le linee sono allineate
 	That would leave a line with no length	Resterebbe una linea di lunghezza nulla
+	Explode	Esplodi
+	Join	Unisci
+	Match Properties	Corrispondenza proprietà
+	Match	Corrispondenza
+	Stretch	Stira
+	Rectangular Array	Serie rettangolare
+	Polar Array	Serie polare
+	Array	Serie
+	Polar	Polare
+	Select the objects, then Enter	Seleziona gli oggetti, poi Invio
+	Match Properties: pick the source object	Corrispondenza proprietà: scegli l'oggetto di origine
+	Match Properties: pick the objects that take its look (Enter to end)	Corrispondenza proprietà: scegli gli oggetti che ne prendono l'aspetto (Invio per finire)
+	Stretch: first corner of the crossing window	Stira: primo angolo della finestra interseca
+	Stretch: other corner (the points inside it move)	Stira: altro angolo (i punti al suo interno si spostano)
+	Stretch: base point	Stira: punto base
+	Stretch: second point	Stira: secondo punto
+	Rectangular array: base point (type columns x rows, e.g. 4x3, to change the counts)	Serie rettangolare: punto base (digita colonne x righe, per esempio 4x3, per cambiare i numeri)
+	Rectangular array: a point one column and one row away (the spacing)	Serie rettangolare: un punto a una colonna e una riga di distanza (la spaziatura)
+	Polar array: centre (type a number to change how many items)	Serie polare: centro (digita un numero per cambiare quanti elementi)
+	Items:	Elementi:
+	A polar array has	Una serie polare ha
+	An array has	Una serie ha
+	Columns × rows:	Colonne × righe:
+	Nothing to explode: select polylines or rectangles	Niente da esplodere: seleziona polilinee o rettangoli
+	Pick an object	Scegli un oggetto
+	Nothing to stretch: the window takes no points	Niente da stirare: la finestra non prende nessun punto
+	Stretch: a crossing window, then a base point and a second point	Stira: una finestra interseca, poi un punto base e un secondo punto
+	Explode polylines into lines and arcs	Esplodi le polilinee in linee e archi
+	Join objects that meet end to end into a polyline	Unisci in una polilinea gli oggetti che si toccano agli estremi
+	Match Properties: the source, then the objects that take its look	Corrispondenza proprietà: l'origine, poi gli oggetti che ne prendono l'aspetto
+	Rectangular array of the selection (type columns x rows)	Serie rettangolare della selezione (digita colonne x righe)
+	Polar array of the selection round a centre (type how many items)	Serie polare della selezione attorno a un centro (digita quanti elementi)
+	Select two or more lines, arcs or open polylines to join	Seleziona due o più linee, archi o polilinee aperte da unire
+	Nothing to join: the objects must meet end to end	Niente da unire: gli oggetti devono toccarsi agli estremi
+	Nothing to join	Niente da unire
+	Select the objects first	Seleziona prima gli oggetti
+	The spacing is not a number	La spaziatura non è un numero
+	The angle to fill is up to 360°	L'angolo da riempire è al massimo 360°

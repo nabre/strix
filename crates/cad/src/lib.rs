@@ -24,6 +24,7 @@ mod model;
 mod modify;
 mod props;
 mod render;
+mod rework;
 mod select;
 mod strip;
 mod svg;
@@ -31,6 +32,8 @@ mod trim;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_rework;
 
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
@@ -41,6 +44,7 @@ pub use model::{
 pub use modify::Affine;
 pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
+pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
 pub use strip::StripShape;
 pub use svg::MISSING_COLOR;

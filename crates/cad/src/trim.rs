@@ -169,7 +169,7 @@ impl Drawing {
     }
 
     /// An id no entity has.
-    fn fresh_id(&self) -> String {
+    pub(crate) fn fresh_id(&self) -> String {
         let mut n = self.entities.len() + 1;
         while self.entities.iter().any(|x| x.id == format!("e{n}")) {
             n += 1;

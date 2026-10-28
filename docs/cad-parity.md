@@ -1,6 +1,6 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** trim, extend, fillet, chamfer
+> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** explode, join, match properties, stretch, arrays
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -40,10 +40,10 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
 | Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
 | Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial |
-| Copy, move, mirror, stretch, **scale** (owner), rotate | done but stretch |
+| Copy, move, mirror, stretch, **scale** (owner), rotate; rectangular and polar arrays | done |
 | Offset (line, circle, arc, polyline; distance or through point) | done (distance) |
-| Fillet, chamfer, trim, extend, join, explode | partial (trim, extend; fillet and chamfer of lines) |
-| Match properties; draw order | partial (draw order) |
+| Fillet, chamfer, trim, extend, join, explode | done (fillet and chamfer of lines) |
+| Match properties; draw order | done |
 | Grips per type; dimension grips | done |
 | Snaps: end, mid, centre, geometric centre, quadrant, node, intersection, perpendicular, tangent, nearest, grid | partial (geometric centre, grid snap) |
 | Point aids: snap override, temporary track, From, M2P, .X/.Y filters | partial (override) |
@@ -86,5 +86,6 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: explode, join, match properties, stretch, arrays.
 - 2026-10-28: trim, extend, fillet and chamfer.
 - 2026-10-28: new: the prototype's CAD features and the owner's requests, ordered.

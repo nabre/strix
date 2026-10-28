@@ -387,7 +387,7 @@ fn shift(n: &mut Num, d: f64) {
     }
 }
 
-fn shift_p(p: &mut P, d: Pt) {
+pub(crate) fn shift_p(p: &mut P, d: Pt) {
     shift(&mut p.0, d.x);
     shift(&mut p.1, d.y);
 }

@@ -71,6 +71,11 @@ fn swatch(ui: &mut Ui, c: [u8; 3]) {
 /// the linetype and lineweight menus and as each layer's preview.
 fn line_sample(ui: &mut Ui, color: [u8; 3], width: f64, dash: Dash, w: f32) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(w, 14.0), egui::Sense::hover());
+    // On the drawing's sheet: the line looks as it will on paper, in either theme.
+    let edge = crate::theme::Tokens::get(ui.ctx()).border;
+    ui.painter().rect_filled(r, 2.0, crate::cad_editor::SHEET);
+    ui.painter().rect_stroke(r, 2.0, egui::Stroke::new(0.5, edge), egui::StrokeKind::Inside);
+    let r = r.shrink2(vec2(3.0, 0.0));
     let stroke = egui::Stroke::new((width as f32 * 3.0).clamp(0.6, 6.0), Color32::from_rgb(color[0], color[1], color[2]));
     let y = r.center().y;
     let pattern: Vec<f32> = dash.pattern().iter().map(|&v| (v as f32 * 2.5).max(1.0)).collect();
@@ -111,7 +116,8 @@ fn pen_swatch(ui: &mut Ui, c: [u8; 3], on: bool) -> egui::Response {
     let edge = if on {
         egui::Stroke::new(2.0, ui.visuals().selection.stroke.color)
     } else if resp.hovered() {
-        egui::Stroke::new(1.5, Color32::from_gray(90))
+        // The theme's text colour: it stands out on the pane in either theme.
+        egui::Stroke::new(1.5, crate::theme::Tokens::get(ui.ctx()).text)
     } else {
         egui::Stroke::new(0.5, Color32::from_gray(140))
     };

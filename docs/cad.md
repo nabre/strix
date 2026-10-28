@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Trim, Extend, Fillet, Chamfer
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Explode, Join, Match Properties, Stretch, arrays
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -249,6 +249,24 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    from the corner (equal on both); the parts picked are kept, each line trimmed or extended to
    the arc or bevel, which takes the first line's layer and stroke; the size is kept while the
    program runs. Ends an edit leaves keep their expressions; the ends it makes are numbers.
+   **Explode, Join, Match Properties, Stretch, arrays** (CAD Drawing › Modify; `explode x`,
+   `join j`, `matchProp ma`, `stretch s`, `arrayRect ar`, `arrayPolar arp`; `Drawing::explode`,
+   `join`, `match_properties`, `stretch`, `array_rect`, `array_polar`): Explode and Join act on the
+   selection at once (noun-verb, or the objects picked then Enter). Explode turns polylines and
+   rectangles into their lines and arcs in place (a strip along one or a hatch bounded by it
+   goes, having lost its shape). Join chains lines, arcs and open polylines meeting end to end, in
+   any order and direction, into one polyline in place of the first (closed when the ends meet;
+   arcs become bulges); objects off the chain stay. Match Properties takes a source object, then
+   gives each object picked its layer, stroke and shared look (a text's height; a hatch's or
+   strip's pattern, angle, spacing; a dimension's end mark) until Enter. Stretch takes a
+   crossing window, a base point and a second point: points of lines, polylines and dimensions
+   inside the window move (as Move moves them: `L` becomes `L + 5`), circles, points and texts
+   move with their centre or point, an arc moves when it is inside whole. The rectangular array
+   copies the selection in columns × rows (typed `4x3`, kept) a base point and a spacing point
+   apart; the polar array copies it round a centre, the number of items typed (kept), each turned
+   as it goes; at most `MAX_ARRAY` (1000) items and the drawing's entity limit.
+   **Line samples** in the panes and menus (linetype, lineweight, a layer's preview) are drawn on
+   the sheet's white, as on paper, so a black line reads in the dark theme too.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
    aliases `h`, `bh`): a click inside a region fills it: the smallest closed object around the
    click (closed polyline, rectangle, circle) with the closed objects inside it as islands
@@ -274,13 +292,14 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    `line_tan_tan`), with the next result previewed as the pointer moves.
    **Draw order** (`ui.cadOrder`, Modify › Bring to Front / Send to Back): the order of the objects
    in the JSON is the order they are drawn in; the selection follows the objects.
-   Still to do: stretch, join, explode, match properties, array, constraints.
+   Still to do: constraints, joining arcs and polylines in fillets.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
    properties; hatch (by selection and by point); angular dimensions, rows and chains.
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-10-28: Explode, Join, Match Properties, Stretch, rectangular and polar arrays; line samples on the sheet's white.
 - 2026-10-28: Trim and Extend (quick mode), Fillet and Chamfer of two lines.
 - 2026-10-27: AutoCAD selection (adds, Shift removes, two-click window, lasso, fence, polygons, previous, undo, cycling); context menu; Properties pane (families, stepping, geometry with expressions, stroke, layers); draw order; current layer.
 - 2026-10-27: geometry kernel (exact intersections, perpendiculars, tangents, angles; limit of approximation); exact object snaps; grips; frame; padding; JSON source with an automatic SVG picture.

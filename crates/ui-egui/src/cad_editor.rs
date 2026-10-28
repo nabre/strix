@@ -39,6 +39,10 @@ pub enum CircleMode {
     TanTanTan,
 }
 
+/// The sheet the drawing is drawn on: paper white in both themes, like the page. Line samples
+/// in the panes are drawn on it too, so a dark line reads in the dark theme.
+pub(crate) const SHEET: Color32 = Color32::WHITE;
+
 /// What a click does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
@@ -77,17 +81,37 @@ pub enum Tool {
     Fillet,
     /// Chamfer: the distance (typed; the last one kept), then the two lines.
     Chamfer,
+    /// Explode the selected polylines into lines and arcs.
+    Explode,
+    /// Join the selected lines, arcs and polylines that meet end to end.
+    Join,
+    /// Match Properties: the source object, then the objects that take its look.
+    MatchProp,
+    /// Stretch: a crossing window, then a base point and a second point.
+    Stretch,
+    /// A rectangular array of the selection: columns × rows (typed), a base point, the spacing.
+    ArrayRect,
+    /// A polar array of the selection: how many items (typed), then the centre.
+    ArrayPolar,
 }
 
 impl Tool {
     /// The commands that work on the selection (and ask for objects when there is none).
     fn takes_selection(self) -> bool {
-        matches!(self, Tool::Move | Tool::Copy | Tool::Scale | Tool::Rotate | Tool::Mirror)
+        matches!(
+            self,
+            Tool::Move | Tool::Copy | Tool::Scale | Tool::Rotate | Tool::Mirror | Tool::Explode | Tool::Join | Tool::ArrayRect | Tool::ArrayPolar
+        )
+    }
+
+    /// The commands that act on the selection at once, without points.
+    fn immediate(self) -> bool {
+        matches!(self, Tool::Explode | Tool::Join)
     }
 
     /// The next click picks an object rather than a point: no snaps move it.
     fn picks_object(self) -> bool {
-        matches!(self, Tool::Trim | Tool::Extend | Tool::Fillet | Tool::Chamfer)
+        matches!(self, Tool::Trim | Tool::Extend | Tool::Fillet | Tool::Chamfer | Tool::MatchProp)
     }
 
     pub fn parse(name: &str) -> Option<Tool> {
@@ -122,6 +146,12 @@ impl Tool {
             "extend" | "ex" | "estendi" => Tool::Extend,
             "fillet" | "f" | "raccorda" => Tool::Fillet,
             "chamfer" | "cha" | "cima" => Tool::Chamfer,
+            "explode" | "x" | "esplodi" => Tool::Explode,
+            "join" | "j" | "unisci" => Tool::Join,
+            "matchProp" | "matchprop" | "ma" => Tool::MatchProp,
+            "stretch" | "s" | "stira" => Tool::Stretch,
+            "arrayRect" | "arrayrect" | "ar" | "serie" => Tool::ArrayRect,
+            "arrayPolar" | "arraypolar" | "arp" | "seriePolare" => Tool::ArrayPolar,
             _ => return None,
         })
     }
@@ -185,6 +215,16 @@ impl Tool {
             (Tool::Fillet, _) => "Fillet: pick the second line",
             (Tool::Chamfer, 0) => "Chamfer: pick the first line (type a number to change the distance)",
             (Tool::Chamfer, _) => "Chamfer: pick the second line",
+            (Tool::Explode | Tool::Join, _) => "Select the objects, then Enter",
+            (Tool::MatchProp, 0) => "Match Properties: pick the source object",
+            (Tool::MatchProp, _) => "Match Properties: pick the objects that take its look (Enter to end)",
+            (Tool::Stretch, 0) => "Stretch: first corner of the crossing window",
+            (Tool::Stretch, 1) => "Stretch: other corner (the points inside it move)",
+            (Tool::Stretch, 2) => "Stretch: base point",
+            (Tool::Stretch, _) => "Stretch: second point",
+            (Tool::ArrayRect, 0) => "Rectangular array: base point (type columns x rows, e.g. 4x3, to change the counts)",
+            (Tool::ArrayRect, _) => "Rectangular array: a point one column and one row away (the spacing)",
+            (Tool::ArrayPolar, _) => "Polar array: centre (type a number to change how many items)",
         }
     }
 }
@@ -270,6 +310,10 @@ pub struct CadEditor {
     /// Fillet's radius and Chamfer's distance (drawing units; a number typed changes them).
     pub fillet_radius: f64,
     pub chamfer_dist: f64,
+    /// The arrays' counts: columns and rows, items round.
+    pub array_cols: usize,
+    pub array_rows: usize,
+    pub array_count: usize,
 }
 
 /// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
@@ -288,6 +332,9 @@ pub struct CadSettings {
     pub offset_dist: f64,
     pub fillet_radius: f64,
     pub chamfer_dist: f64,
+    pub array_cols: usize,
+    pub array_rows: usize,
+    pub array_count: usize,
 }
 
 impl Default for CadSettings {
@@ -305,6 +352,9 @@ impl Default for CadSettings {
             offset_dist: 10.0,
             fillet_radius: 0.0,
             chamfer_dist: 0.0,
+            array_cols: 3,
+            array_rows: 2,
+            array_count: 6,
         }
     }
 }
@@ -324,6 +374,9 @@ impl CadEditor {
             offset_dist: self.offset_dist,
             fillet_radius: self.fillet_radius,
             chamfer_dist: self.chamfer_dist,
+            array_cols: self.array_cols,
+            array_rows: self.array_rows,
+            array_count: self.array_count,
         }
     }
 }
@@ -376,6 +429,9 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         offset_dist: kept.offset_dist,
         fillet_radius: kept.fillet_radius,
         chamfer_dist: kept.chamfer_dist,
+        array_cols: kept.array_cols,
+        array_rows: kept.array_rows,
+        array_count: kept.array_count,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -465,9 +521,12 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
+                if let Some(d) = immediate(ed) {
+                    commit(app, &d);
+                }
             }
         }
         "ui.cadToggle" => {
@@ -1117,6 +1176,12 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Extend => "Extend",
         Tool::Fillet => "Fillet",
         Tool::Chamfer => "Chamfer",
+        Tool::Explode => "Explode",
+        Tool::Join => "Join",
+        Tool::MatchProp => "Match Properties",
+        Tool::Stretch => "Stretch",
+        Tool::ArrayRect => "Rectangular Array",
+        Tool::ArrayPolar => "Polar Array",
     }
 }
 
@@ -1388,7 +1453,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let sheet = Rect::from_min_max(full.min, pos2(full.max.x - panel_w, (full.max.y - bottom - layers_h).max(full.min.y + 40.0)));
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
-        painter.rect_filled(rect, 0.0, Color32::WHITE);
+        painter.rect_filled(rect, 0.0, SHEET);
         // Fit the drawing on first show (and on Zoom Fit).
         if !ed.fitted {
             let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
@@ -1645,7 +1710,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 let band = Stroke::new(1.2, t.accent);
                 let a = view.to_screen(last);
                 match ed.tool {
-                    Tool::Rect => {
+                    Tool::Rect | Tool::Stretch if ed.points.len() == 1 => {
                         let r = Rect::from_two_pos(a, s);
                         painter.rect_stroke(r, 0.0, band, egui::StrokeKind::Middle);
                     }
@@ -1995,6 +2060,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             } else if ed.tool == Tool::Circle(CircleMode::Radius) && ed.points.len() == 1 && typed.eq_ignore_ascii_case("d") {
                 // `d` after the centre: the diameter instead of the radius.
                 ed.tool = Tool::Circle(CircleMode::Diameter);
+            } else if typed_counts(ed, typed) {
+                // Columns × rows for a rectangular array.
             } else if let Some(result) = typed.replace(',', ".").parse::<f64>().ok().and_then(|v| typed_value(ed, v)) {
                 finished = result;
             } else if let Some(v) = typed.parse::<f64>().ok().filter(|_| takes_size(ed))
@@ -2015,6 +2082,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         }
         if ui.input(|i| i.key_pressed(egui::Key::Q) && i.modifiers.command) {
             close_now = true;
+        }
+        if finished.is_none() {
+            finished = immediate(ed);
         }
     }
     if let Some(d) = finished {
@@ -2152,6 +2222,15 @@ fn typed_value(ed: &mut CadEditor, v: f64) -> Option<Option<Drawing>> {
             }
             Some(None)
         }
+        (Tool::ArrayPolar, []) if !ed.picking => {
+            if v.fract() == 0.0 && (2.0..=strix_cad::MAX_ARRAY as f64).contains(&v) {
+                ed.array_count = v as usize;
+                ed.message = format!("{} {}", tl!("Items:"), ed.array_count);
+            } else {
+                ed.message = format!("{} 2–{}", tl!("A polar array has"), strix_cad::MAX_ARRAY);
+            }
+            Some(None)
+        }
         (Tool::Fillet | Tool::Chamfer, []) => {
             if v >= 0.0 && v.is_finite() {
                 *(if ed.tool == Tool::Fillet { &mut ed.fillet_radius } else { &mut ed.chamfer_dist }) = v;
@@ -2162,6 +2241,51 @@ fn typed_value(ed: &mut CadEditor, v: f64) -> Option<Option<Drawing>> {
         }
         _ => None,
     }
+}
+
+/// Explode and Join act on the selection as soon as there is one (noun-verb, or after Enter
+/// confirms the objects); then the editor is idle again.
+fn immediate(ed: &mut CadEditor) -> Option<Drawing> {
+    if !ed.tool.immediate() || ed.picking || ed.selection.is_empty() {
+        return None;
+    }
+    let tool = ed.tool;
+    let selection = ed.selection.clone();
+    ed.set_tool(Tool::Select);
+    let mut d = ed.drawing.clone();
+    if tool == Tool::Explode {
+        let made = d.explode(&selection);
+        if made.is_empty() {
+            ed.message = "Nothing to explode: select polylines or rectangles".into();
+            return None;
+        }
+        ed.selection = made;
+    } else {
+        match d.join(&selection) {
+            Ok(i) => ed.selection = vec![i],
+            Err(e) => {
+                ed.message = e;
+                return None;
+            }
+        }
+    }
+    Some(d)
+}
+
+/// `4x3` (or `4×3`, `4*3`) typed for a rectangular array: its columns and rows.
+fn typed_counts(ed: &mut CadEditor, typed: &str) -> bool {
+    if ed.tool != Tool::ArrayRect || !ed.points.is_empty() || ed.picking {
+        return false;
+    }
+    let Some((c, r)) = typed.split_once(['x', 'X', '×', '*']) else { return false };
+    let (Ok(c), Ok(r)) = (c.trim().parse::<usize>(), r.trim().parse::<usize>()) else { return false };
+    if c == 0 || r == 0 || c.saturating_mul(r) > strix_cad::MAX_ARRAY {
+        ed.message = format!("{} 1–{}", tl!("An array has"), strix_cad::MAX_ARRAY);
+    } else {
+        (ed.array_cols, ed.array_rows) = (c, r);
+        ed.message = format!("{} {c} × {r}", tl!("Columns × rows:"));
+    }
+    true
 }
 
 /// The drawing with `edit` done to a copy of it, or None with the reason it cannot be.
@@ -2404,10 +2528,50 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             let (r, dist, fillet) = (ed.fillet_radius, ed.chamfer_dist, ed.tool == Tool::Fillet);
             edited(ed, |d| if fillet { d.fillet(i, pts[0], j, pts[1], r) } else { d.chamfer(i, pts[0], j, pts[1], dist, dist) })
         }
-        Tool::Scale | Tool::Rotate | Tool::Mirror if ed.selection.is_empty() => {
+        Tool::MatchProp => {
+            let tol = 8.0 / ed.zoom.max(1e-9);
+            let Some(i) = ed.drawing.hit(p, tol).filter(|&i| ed.drawing.selectable(i)) else {
+                ed.points.pop();
+                ed.message = "Pick an object".into();
+                return None;
+            };
+            if n == 1 {
+                return None;
+            }
+            // The source stays: the next pick takes its look too.
+            ed.points = vec![pts[0]];
+            let Some(src) = ed.drawing.hit(pts[0], tol) else {
+                done(ed);
+                return None;
+            };
+            let mut d = ed.drawing.clone();
+            d.match_properties(src, &[i]);
+            Some(d)
+        }
+        Tool::Stretch if n >= 4 => {
+            done(ed);
+            let mut d = ed.drawing.clone();
+            if d.stretch(pts[0], pts[1], pts[3].minus(pts[2])) == 0 {
+                ed.message = "Nothing to stretch: the window takes no points".into();
+                return None;
+            }
+            Some(d)
+        }
+        Tool::Scale | Tool::Rotate | Tool::Mirror | Tool::ArrayRect | Tool::ArrayPolar if ed.selection.is_empty() => {
             done(ed);
             ed.picking = true;
             None
+        }
+        Tool::ArrayRect if n >= 2 => {
+            done(ed);
+            let d = pts[1].minus(pts[0]);
+            let (cols, rows, sel) = (ed.array_cols, ed.array_rows, ed.selection.clone());
+            edited(ed, |dr| dr.array_rect(&sel, cols, rows, d.x, d.y).map(|_| ()))
+        }
+        Tool::ArrayPolar => {
+            done(ed);
+            let (count, sel) = (ed.array_count, ed.selection.clone());
+            edited(ed, |dr| dr.array_polar(&sel, p, count, 360.0).map(|_| ()))
         }
         Tool::Scale if n >= 2 => {
             let k = pts[1].minus(pts[0]).len();
@@ -2649,6 +2813,52 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 tool == Tool::Chamfer,
             );
             small(ui, app, "cadDelete", Some("Delete"), "Delete the selection (Del)", "ui.cadDelete", json!({}), false);
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadStretch",
+                Some("Stretch"),
+                "Stretch: a crossing window, then a base point and a second point",
+                "ui.cadTool",
+                t("stretch"),
+                tool == Tool::Stretch,
+            );
+            small(ui, app, "cadExplode", Some("Explode"), "Explode polylines into lines and arcs", "ui.cadTool", t("explode"), tool == Tool::Explode);
+            small(ui, app, "cadJoin", Some("Join"), "Join objects that meet end to end into a polyline", "ui.cadTool", t("join"), tool == Tool::Join);
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadMatch",
+                Some("Match"),
+                "Match Properties: the source, then the objects that take its look",
+                "ui.cadTool",
+                t("matchProp"),
+                tool == Tool::MatchProp,
+            );
+            small(
+                ui,
+                app,
+                "cadArrayRect",
+                Some("Array"),
+                "Rectangular array of the selection (type columns x rows)",
+                "ui.cadTool",
+                t("arrayRect"),
+                tool == Tool::ArrayRect,
+            );
+            small(
+                ui,
+                app,
+                "cadArrayPolar",
+                Some("Polar"),
+                "Polar array of the selection round a centre (type how many items)",
+                "ui.cadTool",
+                t("arrayPolar"),
+                tool == Tool::ArrayPolar,
+            );
         });
         stack(ui, &mut |ui| {
             small(ui, app, "undo", Some("Undo"), "Undo", "edit.undo", json!({}), false);
@@ -3338,6 +3548,67 @@ mod tests {
         assert!(feed(ed, Pt::new(1.0, 1.0), None).is_none() && !ed.message.is_empty());
         app.run("ui.cadClose", json!({})).unwrap();
         assert_eq!((app.cad_settings.fillet_radius, app.cad_settings.chamfer_dist), (2.0, 1.0));
+    }
+
+    /// Explode and Join act on the selection at once; Match Properties goes on from its
+    /// source; Stretch takes a window and two points; the arrays take typed counts.
+    #[test]
+    fn explode_join_match_stretch_and_arrays_in_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        let rect = r#"{"layers":[{"name":"0"},{"name":"A"}],"entities":[
+            {"type":"polyline","pts":[[0,0],[10,0],[10,5],[0,5]],"closed":true},
+            {"type":"line","layer":"A","a":[20,0],"b":[30,0]}]}"#;
+        ed.drawing = Drawing::from_json(rect).unwrap();
+        ed.zoom = 10.0;
+        // Explode, noun-verb: four lines selected.
+        ed.selection = vec![0];
+        ed.set_tool(Tool::parse("x").unwrap());
+        let d = immediate(ed).expect("exploded");
+        assert_eq!((d.entities.len(), ed.selection.len(), ed.tool), (5, 4, Tool::Select));
+        ed.drawing = d;
+        // Join, verb-noun: pick, Enter, joined back into one closed polyline.
+        ed.selection.clear();
+        ed.set_tool(Tool::Join);
+        assert!(ed.picking && immediate(ed).is_none());
+        ed.selection = vec![0, 1, 2, 3];
+        ed.enter();
+        let d = immediate(ed).expect("joined");
+        assert!(matches!(&d.entities[0].kind, Kind::Polyline { closed: true, .. }));
+        ed.drawing = d;
+        // Match Properties: the line on layer A gives the rectangle its layer.
+        ed.set_tool(Tool::parse("ma").unwrap());
+        assert!(feed(ed, Pt::new(25.0, 0.0), None).is_none());
+        let d = feed(ed, Pt::new(5.0, 0.0), None).expect("matched");
+        assert_eq!(d.entities[0].layer, "A");
+        assert_eq!(ed.points.len(), 1, "it goes on from the source");
+        ed.drawing = d;
+        // Stretch the rectangle's right side by 5.
+        ed.set_tool(Tool::parse("s").unwrap());
+        for q in [(8.0, -1.0), (12.0, 6.0), (0.0, 0.0)] {
+            assert!(feed(ed, Pt::new(q.0, q.1), None).is_none());
+        }
+        let d = feed(ed, Pt::new(5.0, 0.0), None).expect("stretched");
+        assert!(matches!(&d.entities[0].kind, Kind::Polyline { pts, .. } if pts[1].pt() == Pt::new(15.0, 0.0)));
+        ed.drawing = d;
+        // A 2×2 rectangular array of the line, then a polar one of 4.
+        ed.selection = vec![1];
+        ed.set_tool(Tool::parse("ar").unwrap());
+        assert!(typed_counts(ed, "2x2"));
+        assert_eq!((ed.array_cols, ed.array_rows), (2, 2));
+        feed(ed, Pt::new(0.0, 0.0), None);
+        let d = feed(ed, Pt::new(0.0, 10.0), None).expect("rectangular array");
+        assert_eq!(d.entities.len(), 5);
+        ed.drawing = d;
+        ed.selection = vec![1];
+        ed.set_tool(Tool::ArrayPolar);
+        assert!(typed_value(ed, 4.0).is_some());
+        let d = feed(ed, Pt::new(0.0, 0.0), None).expect("polar array");
+        assert_eq!(d.entities.len(), 8);
+        assert!(typed_value(ed, 1.0).is_some() && ed.array_count == 4, "too few items: kept");
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!((app.cad_settings.array_cols, app.cad_settings.array_count), (2, 4));
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the
