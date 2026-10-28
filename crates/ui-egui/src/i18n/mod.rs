@@ -7,7 +7,7 @@
 //!
 //! The catalogs live in this repository's `locales/` (`locales/<locale>/common.tsv`, shared with
 //! the other craft apps, and `strix.tsv`), vendored from
-//! [storytold/craft-i18n](https://github.com/storytold/craft-i18n) at the SHA in `craft-i18n.rev`
+//! [storytold/craft-i18n](https://github.com/storytold/craft-i18n) at the SHA in `locales/craft-i18n.rev`
 //! and maintained here since. `build.rs` embeds them (`CRAFT_I18N_DIR` points at another folder
 //! with the same layout). Lookup, fallback (`pt-br` → `pt` → English, app rows over shared
 //! ones), plurals, language names and locale matching are the `craft-i18n` crate's (craft-libs).

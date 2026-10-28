@@ -508,25 +508,30 @@ pub struct Drawing {
     /// How dimensions and new texts look.
     #[serde(skip_serializing_if = "DimStyle::is_default")]
     pub dim_style: DimStyle,
-    /// The space the drawing fits in: when set, the scale is the standard one that fits,
-    /// worked out whenever the drawing is drawn (so it follows the calculations).
+    /// The drawing's maximum size: when set, the scale is the standard one that fits, worked
+    /// out whenever the drawing is drawn (so it follows the calculations), or one picked by hand
+    /// among those that fit.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fit: Option<Fit>,
 }
 
-/// A space on paper, mm; 0 leaves that side free.
+/// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
+/// chosen in it: fitted (the largest standard scale that fits, the default) or `fixed` (picked
+/// by hand among those that fit; the size stays a limit).
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Fit {
     pub width: f64,
     pub height: f64,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub fixed: bool,
 }
 
 impl Fit {
     /// Finite sizes from 0 to 5 m, to a hundredth of a millimetre.
     pub fn sanitized(self) -> Fit {
         let c = |v: f64| if v.is_finite() { (v.clamp(0.0, 5000.0) * 100.0).round() / 100.0 } else { 0.0 };
-        Fit { width: c(self.width), height: c(self.height) }
+        Fit { width: c(self.width), height: c(self.height), fixed: self.fixed }
     }
 }
 

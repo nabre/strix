@@ -66,7 +66,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Feature | Status |
 |---|---|
 | Rendered in the document (page, PDF, SVG picture) | done |
-| **CAD Output tab** (owner): padding, graphic scale, maximum drawing size from the page | partial (padding) |
+| **CAD Output tab** (owner): padding, graphic scale, maximum drawing size from the page | done (scales that fit, Fitted to Frame) |
 | Non-printing layers left out of the page and PDF | done |
 | Empty drawing placeholder | todo |
 | Scale and final size from the picture's context menu | partial (Picture Format) |
@@ -87,6 +87,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: maximum size, scales that fit, Fitted to Frame.
 - 2026-10-28: explode, join, match properties, stretch, arrays.
 - 2026-10-28: trim, extend, fillet and chamfer.
 - 2026-10-28: dash-double-dotted, dashes drawn on the page; rotated texts; aligned dimension texts.

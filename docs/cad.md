@@ -150,6 +150,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   recalculation, so a drawing that grows with `L` takes the next scale; the scale it is drawn at
   is written back to its source. Padding (`cad.padding`), alt text and Arrange (position, wrap,
   rotate, align — written back with its frame on save); its size is its scale's.
+- **Maximum size and the scales that fit** (Picture Format › Scale and CAD Output › Scale, the
+  same fields; `cad.scale` / `ui.cadScale` `{"max": true | false | {"width", "height"}, "auto":
+  true, "scale": n}`): a maximum size on paper (from the page's text area, or typed; 0 leaves a
+  side free) limits the drawing. The Scale list then offers **Fitted to Frame** (the largest
+  standard scale that fits, following the calculations) and only the standard scales at which
+  the drawing fits; a scale picked among them is kept (`fit.fixed`) while it still fits, one that
+  does not is refused. A smaller maximum size the picked scale no longer meets goes back to the
+  fitted one. Without a maximum size every standard scale is offered. Old drawings with a `fit`
+  read as fitted.
 - **Commands**: `cad.scale` (`{"scale": n}` or `{"fit": true | false | {"width", "height"}}`),
   `cad.padding`, `insert.cad`, `cad.get` (source and failing expressions of the selected
   drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
@@ -316,6 +325,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: maximum size; the Scale list offers Fitted to Frame and the scales that fit (Picture Format, CAD Output).
 - 2026-10-28: Explode, Join, Match Properties, Stretch, rectangular and polar arrays; line samples on the sheet's white.
 - 2026-10-28: Trim and Extend (quick mode), Fillet and Chamfer of two lines.
 - 2026-10-28: texts drawn at their angle on the page; dimension texts aligned with their line (`dimStyle.aligned`, readable); dash-double-dotted; dashes cut into the page's items.

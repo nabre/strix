@@ -1020,7 +1020,7 @@ fn the_scale_fits_the_space() {
     let ws = sheet(&["L = 4.5 m"]);
     let mut d =
         Drawing::from_json(r#"{"unit":"mm","entities":[{"type":"line","a":[0,0],"b":["L",0]},{"type":"dim","a":[0,0],"b":["L",0]}]}"#).unwrap();
-    d.fit = Some(Fit { width: 160.0, height: 0.0 });
+    d.fit = Some(Fit { width: 160.0, height: 0.0, fixed: false });
     d.resolve(&ws);
     d.apply_fit(Some(&ws));
     // 4500 mm in 160 mm with the padding: 1:25 would be 180 mm wide, 1:50 is 90 mm.
@@ -1032,9 +1032,9 @@ fn the_scale_fits_the_space() {
     assert_eq!(d.scale, 100.0, "twice as long: the next scale that fits");
     // Kept in the source; a hostile size is clamped; no space, no fit.
     let back = Drawing::from_json(&d.to_json()).unwrap();
-    assert_eq!(back.fit, Some(Fit { width: 160.0, height: 0.0 }));
+    assert_eq!(back.fit, Some(Fit { width: 160.0, height: 0.0, fixed: false }));
     let hostile = Drawing::from_json(r#"{"fit":{"width":-5,"height":1e300}}"#).unwrap();
-    assert_eq!(hostile.fit, Some(Fit { width: 0.0, height: 5000.0 }));
+    assert_eq!(hostile.fit, Some(Fit { width: 0.0, height: 5000.0, fixed: false }));
     assert!(Drawing::from_json(r#"{"fit":{"width":0,"height":0}}"#).unwrap().fit.is_none());
 }
 

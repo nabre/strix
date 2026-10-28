@@ -35,7 +35,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(selected)
             .params(r#"{"value": mm | [top, right, bottom, left]} → the space around the selected drawing in its picture (0–100 mm)"#),
         CommandSpec::new("cad.scale", "Drawing Scale", "CAD Picture Format › Scale", scale).when(selected).params(
-            r#"{"scale"?: n (a fixed 1:n; ends fitting), "fit"?: true (the page's text width and two thirds of its height) | false | {"width"?: mm, "height"?: mm}} → {"scale": n, "fit": {"width", "height"}|null}: the selected drawing's scale, fixed or the largest standard one that fits the space"#,
+            r#"{"fit"?: true (the page's text width and two thirds of its height) | false | {"width"?: mm, "height"?: mm} (a maximum size, the scale fitted to it), "max"?: true | false | {"width"?, "height"?} (the maximum size alone; how the scale is chosen stays), "auto"?: true (the scale fitted to the maximum size again), "scale"?: n (a fixed 1:n; with a maximum size, one at which the drawing fits)} → {"scale": n, "fit": {"width", "height", "fixed"}|null, "scales": [n…] (the standard scales that fit)}"#,
         ),
     ]
 }
@@ -138,10 +138,10 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
 
 /// The space a drawing fits by default: the narrowest text width of the document and two
 /// thirds of its text height, mm.
-fn page_space(s: &Session) -> strix_cad::Fit {
+pub fn page_space(s: &Session) -> strix_cad::Fit {
     let mm = |pt: f32| f64::from(pt / PT_PER_MM);
     let height = s.doc.sections().iter().map(|(_, sp)| sp.text_height()).fold(f32::INFINITY, f32::min).clamp(36.0, 4000.0);
-    strix_cad::Fit { width: mm(crate::io::text_width(&s.doc)), height: mm(height) * 2.0 / 3.0 }
+    strix_cad::Fit { width: mm(crate::io::text_width(&s.doc)), height: mm(height) * 2.0 / 3.0, fixed: false }
 }
 
 /// A padding parameter: one size for all sides, or `[top, right, bottom, left]`, mm.
@@ -161,26 +161,61 @@ fn padding(s: &mut Session, v: &Value) -> CmdResult {
 
 fn scale(s: &mut Session, v: &Value) -> CmdResult {
     let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    // The drawing with its sizes worked out by the calculations: what fits is judged on it.
+    let resolved = edited(s).map_or_else(|| d.clone(), |(_, r, ..)| r);
+    let probe = |fit: Option<strix_cad::Fit>| {
+        let mut r = resolved.clone();
+        r.fit = fit;
+        r
+    };
+    let space = |o: &Value| -> Result<strix_cad::Fit, CmdError> {
+        let num = |k: &str| o.get(k).map(|x| x.as_f64().ok_or_else(|| CmdError::Params(format!("{k}: mm")))).transpose();
+        Ok(strix_cad::Fit { width: num("width")?.unwrap_or(0.0), height: num("height")?.unwrap_or(0.0), fixed: false })
+    };
     match v.get("fit") {
         None | Some(Value::Null) => {}
         Some(Value::Bool(true)) => d.fit = Some(page_space(s)),
         Some(Value::Bool(false)) => d.fit = None,
-        Some(o @ Value::Object(_)) => {
-            let num = |k: &str| o.get(k).map(|x| x.as_f64().ok_or_else(|| CmdError::Params(format!("fit.{k}: mm")))).transpose();
-            d.fit = Some(strix_cad::Fit { width: num("width")?.unwrap_or(0.0), height: num("height")?.unwrap_or(0.0) });
-        }
+        Some(o @ Value::Object(_)) => d.fit = Some(space(o)?),
         Some(_) => return Err(CmdError::Params("fit: true, false or {\"width\", \"height\"} in mm".into())),
+    }
+    // The maximum size alone: how the scale is chosen stays (a scale picked by hand that no
+    // longer fits gives way to the fitted one).
+    match v.get("max") {
+        None => {}
+        Some(Value::Null | Value::Bool(false)) => d.fit = None,
+        Some(m) => {
+            let fixed = d.fit.is_some_and(|f| f.fixed);
+            let mut f = match m {
+                Value::Bool(true) => page_space(s),
+                Value::Object(_) => space(m)?,
+                _ => return Err(CmdError::Params("max: true (the page), false or {\"width\", \"height\"} in mm".into())),
+            };
+            f.fixed = fixed && probe(Some(f)).fits_at(d.scale, None);
+            d.fit = Some(f.sanitized());
+        }
+    }
+    if v.get("auto").and_then(Value::as_bool) == Some(true) {
+        let f = d.fit.unwrap_or_else(|| page_space(s));
+        d.fit = Some(strix_cad::Fit { fixed: false, ..f });
     }
     if let Some(n) = v.get("scale") {
         let n = n.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("scale: the n of 1:n, more than 0".into()))?;
+        let mut p = probe(d.fit);
+        p.set_fixed_scale(n, None).map_err(CmdError::Params)?;
+        d.fit = p.fit;
         d.scale = n;
-        d.fit = None;
     }
     d.sanitize();
     store(s, &pos, &d)?;
-    // The scale the drawing is drawn at now (fitted where it sits, with the calculations).
-    let shown = edited(s).map_or(d.scale, |(_, fitted, ..)| fitted.scale);
-    Ok(json!({"scale": shown, "fit": d.fit.map(|f| json!({"width": f.width, "height": f.height}))}))
+    // The scale the drawing is drawn at now (fitted where it sits, with the calculations), and
+    // the standard scales it can be drawn at.
+    let (shown, scales) = edited(s).map_or((d.scale, Vec::new()), |(_, fitted, ..)| (fitted.scale, fitted.fitting_scales(None)));
+    Ok(json!({
+        "scale": shown,
+        "fit": d.fit.map(|f| json!({"width": f.width, "height": f.height, "fixed": f.fixed})),
+        "scales": scales,
+    }))
 }
 
 fn add(s: &mut Session, v: &Value) -> CmdResult {
@@ -425,9 +460,22 @@ mod tests {
         s.sel = sel;
         let (w, ..) = drawing(&s).unwrap();
         assert!((90.0..100.0).contains(&(w / PT_PER_MM)), "1:100: {w}");
-        // A fixed scale ends the fitting; nonsense is refused.
+        // The scales that fit: from 1:100 on. A scale picked among them keeps the maximum size;
+        // one that does not fit is refused; fitted again on request.
+        let r = s.run("cad.scale", &json!({})).unwrap();
+        assert_eq!(r["scales"][0], json!(100.0), "{r}");
+        assert!(s.run("cad.scale", &json!({"scale": 20})).is_err());
+        let r = s.run("cad.scale", &json!({"scale": 200})).unwrap();
+        assert_eq!((r["scale"].clone(), r["fit"]["fixed"].clone()), (json!(200.0), json!(true)));
+        let r = s.run("cad.scale", &json!({"auto": true})).unwrap();
+        assert_eq!((r["scale"].clone(), r["fit"]["fixed"].clone()), (json!(100.0), json!(false)));
+        // A maximum size alone, then none: any scale.
+        let r = s.run("cad.scale", &json!({"max": {"width": 50}})).unwrap();
+        assert_eq!(r["scale"], json!(200.0), "{r}");
+        s.run("cad.scale", &json!({"max": false})).unwrap();
         let r = s.run("cad.scale", &json!({"scale": 20})).unwrap();
         assert_eq!((r["scale"].clone(), r["fit"].clone()), (json!(20.0), Value::Null));
+        assert!(s.run("cad.scale", &json!({"max": "page"})).is_err());
         assert!(s.run("cad.scale", &json!({"scale": -1})).is_err());
         assert!(s.run("cad.scale", &json!({"fit": "page"})).is_err());
         let r = s.run("cad.scale", &json!({"fit": {"width": 50}})).unwrap();

@@ -3,7 +3,7 @@
 use strix_calc::Worksheet;
 
 use crate::geom::{Pt, arc_points_tol, bulge_points_tol};
-use crate::model::{Align, Drawing, Entity, Kind, Mark, Orient};
+use crate::model::{Align, Drawing, Entity, Fit, Kind, Mark, Orient};
 
 /// Where a text sits on its point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -436,27 +436,30 @@ pub fn scale_text(n: f64) -> String {
 }
 
 impl Drawing {
-    /// The standard scale at which the drawing, annotations and padding included, fits its
-    /// `fit` space as large as it can: the smallest denominator that fits (the largest when none
-    /// does). Annotations are paper sizes and do not shrink with the scale, so each candidate is
-    /// rendered; a larger denominator never makes the drawing larger, so a binary search over
-    /// the series takes a handful of renderings.
-    pub fn fitted_scale(&self, ws: Option<&Worksheet>) -> Option<f64> {
-        let fit = self.fit?;
+    /// Whether the drawing, annotations and padding included, fits its maximum size at `1:n`
+    /// (always, without one).
+    pub fn fits_at(&self, n: f64, ws: Option<&Worksheet>) -> bool {
+        let Some(fit) = self.fit else { return true };
+        let mut d = self.clone();
+        d.scale = n;
+        let (w, h) = d.render(ws).size;
+        (fit.width <= 0.0 || w <= fit.width + 1e-9) && (fit.height <= 0.0 || h <= fit.height + 1e-9)
+    }
+
+    /// The smallest standard denominator at which the drawing fits its maximum size (the
+    /// largest when none does). Annotations are paper sizes and do not shrink with the scale, so
+    /// each candidate is rendered; a larger denominator never makes the drawing larger, so a
+    /// binary search over the series takes a handful of renderings.
+    fn smallest_fitting(&self, ws: Option<&Worksheet>) -> Option<f64> {
+        self.fit?;
         let scales = standard_scales();
-        let fits = |n: f64| {
-            let mut d = self.clone();
-            d.scale = n;
-            let (w, h) = d.render(ws).size;
-            (fit.width <= 0.0 || w <= fit.width + 1e-9) && (fit.height <= 0.0 || h <= fit.height + 1e-9)
-        };
         let (mut lo, mut hi) = (0usize, scales.len().saturating_sub(1));
-        if !fits(*scales.get(hi)?) {
+        if !self.fits_at(*scales.get(hi)?, ws) {
             return scales.get(hi).copied();
         }
         while lo < hi {
             let mid = lo + (hi - lo) / 2;
-            if fits(*scales.get(mid)?) {
+            if self.fits_at(*scales.get(mid)?, ws) {
                 hi = mid;
             } else {
                 lo = mid + 1;
@@ -465,11 +468,68 @@ impl Drawing {
         scales.get(lo).copied()
     }
 
-    /// Sets the scale from `fit` (nothing changes without it).
+    /// The standard scale at which the drawing fits its maximum size as large as it can, when
+    /// the scale is fitted (None without a maximum size or with a scale picked by hand).
+    pub fn fitted_scale(&self, ws: Option<&Worksheet>) -> Option<f64> {
+        if self.fit.is_some_and(|f| f.fixed) {
+            return None;
+        }
+        self.smallest_fitting(ws)
+    }
+
+    /// The standard scales the drawing can be drawn at: those at which it fits its maximum size
+    /// (every one without a maximum size), ascending denominators.
+    pub fn fitting_scales(&self, ws: Option<&Worksheet>) -> Vec<f64> {
+        let all = standard_scales();
+        match self.smallest_fitting(ws) {
+            Some(first) => all.into_iter().filter(|n| *n >= first).collect(),
+            None => all,
+        }
+    }
+
+    /// Sets the scale from the maximum size when it is fitted (nothing changes otherwise).
     pub fn apply_fit(&mut self, ws: Option<&Worksheet>) {
         if let Some(n) = self.fitted_scale(ws) {
             self.scale = n;
         }
+    }
+
+    /// Sets the maximum size, mm (None: no limit). A drawing that had none takes the fitted
+    /// scale; one that had keeps how its scale is chosen, unless the scale picked by hand no
+    /// longer fits (then it is fitted).
+    pub fn set_max_size(&mut self, size: Option<(f64, f64)>, ws: Option<&Worksheet>) {
+        let fixed = self.fit.is_some_and(|f| f.fixed);
+        self.fit = size.map(|(width, height)| Fit { width, height, fixed }.sanitized());
+        if fixed
+            && !self.fits_at(self.scale, ws)
+            && let Some(f) = self.fit.as_mut()
+        {
+            f.fixed = false;
+        }
+        self.apply_fit(ws);
+    }
+
+    /// The scale fitted to the maximum size again (an error without one).
+    pub fn fit_scale(&mut self, ws: Option<&Worksheet>) -> Result<(), String> {
+        let Some(f) = self.fit.as_mut() else { return Err("Set a maximum size first".into()) };
+        f.fixed = false;
+        self.apply_fit(ws);
+        Ok(())
+    }
+
+    /// A scale `1:n` picked by hand: with a maximum size, only one at which the drawing fits.
+    pub fn set_fixed_scale(&mut self, n: f64, ws: Option<&Worksheet>) -> Result<(), String> {
+        if !(n.is_finite() && n > 0.0) {
+            return Err("scale: the n of 1:n, more than 0".into());
+        }
+        if let Some(f) = self.fit {
+            if !self.fits_at(n, ws) {
+                return Err(format!("At {} the drawing is larger than its maximum size", scale_text(n)));
+            }
+            self.fit = Some(Fit { fixed: true, ..f });
+        }
+        self.scale = n;
+        Ok(())
     }
 }
 
