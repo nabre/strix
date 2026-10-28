@@ -156,12 +156,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc7bb162ec39d46ab1ca8c77bf72e890535becd1751bb45f64c597edb4c8c6b3"
 
 [[package]]
+name = "alloc-no-stdlib"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2fb6cfd47bf496ff64095c20eaba0c201404ee38714d4142fcfa1dc334fcc7a"
+
+[[package]]
 name = "alloc-stdlib"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e76a019e91224d279006ff972f1e984179a6e9feb050adba6ce8274aef23195"
 dependencies = [
- "alloc-no-stdlib",
+ "alloc-no-stdlib 2.0.4",
+]
+
+[[package]]
+name = "alloc-stdlib"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5c1865780388bfa186411ab5f247819487fc4864c6e9c3106611fa347586e1"
+dependencies = [
+ "alloc-no-stdlib 3.0.0",
 ]
 
 [[package]]
@@ -209,15 +224,6 @@ name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
-
-[[package]]
-name = "arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-dependencies = [
- "derive_arbitrary",
-]
 
 [[package]]
 name = "arboard"
@@ -614,9 +620,9 @@ version = "8.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5cc91aac060a7a1e25823bdccbfb6af1875b88f17c6daac97894eed8207166b3"
 dependencies = [
- "alloc-no-stdlib",
- "alloc-stdlib",
- "brotli-decompressor",
+ "alloc-no-stdlib 2.0.4",
+ "alloc-stdlib 0.2.4",
+ "brotli-decompressor 5.0.3",
 ]
 
 [[package]]
@@ -625,8 +631,18 @@ version = "5.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a32acac15fe1967bc3986b2a6347dffc965602354ea6f450ad07e8bfd253583"
 dependencies = [
- "alloc-no-stdlib",
- "alloc-stdlib",
+ "alloc-no-stdlib 2.0.4",
+ "alloc-stdlib 0.2.4",
+]
+
+[[package]]
+name = "brotli-decompressor"
+version = "6.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34c6783f42c21c952ad7112b354f0ba2f10760e9decea5b1b60523d6e270faaf"
+dependencies = [
+ "alloc-no-stdlib 3.0.0",
+ "alloc-stdlib 0.3.0",
 ]
 
 [[package]]
@@ -1103,7 +1119,7 @@ dependencies = [
  "verifysign",
  "winreg",
  "winsafe",
- "zip 9.1.0",
+ "zip",
 ]
 
 [[package]]
@@ -1249,17 +1265,6 @@ name = "deranged"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e9de72ce2ad1f90dc62fa25f0f430ef85eb4b0d8fa0be4f30373bc40a21d28e"
-
-[[package]]
-name = "derive_arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "dify"
@@ -1567,7 +1572,7 @@ dependencies = [
  "ecolor",
  "emath",
  "epaint_default_fonts",
- "font-types 0.12.6",
+ "font-types 0.12.7",
  "harfrust 0.12.0",
  "log",
  "nohash-hasher",
@@ -1793,9 +1798,9 @@ dependencies = [
 
 [[package]]
 name = "font-types"
-version = "0.12.6"
+version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c92d9081c7ab3bd83ef1eecdfad090f3d966e3ce74106779664114cfe1a6274"
+checksum = "835ae9d781464a79026cde387f9cbc650c9a4909d7cf7e658b127e3c35d2f35d"
 dependencies = [
  "bytemuck",
 ]
@@ -1965,11 +1970,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "r-efi 5.3.0",
  "wasip2",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -4192,7 +4195,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709"
 dependencies = [
  "bytemuck",
- "font-types 0.12.6",
+ "font-types 0.12.7",
  "once_cell",
 ]
 
@@ -4203,7 +4206,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "005c8acf251756c478b0bf402885bfd88a1476020c4c7e6060edc1aa68da38ea"
 dependencies = [
  "bytemuck",
- "font-types 0.12.6",
+ "font-types 0.12.7",
  "once_cell",
 ]
 
@@ -4214,7 +4217,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5a0cf4bb6cbce4c29756270d189a5e400ac05e91192161d83a0bcb6e68492e8"
 dependencies = [
  "bytemuck",
- "font-types 0.12.6",
+ "font-types 0.12.7",
  "once_cell",
 ]
 
@@ -5137,7 +5140,7 @@ dependencies = [
  "eframe",
  "egui",
  "fmv-macos-events",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "log",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
@@ -5229,7 +5232,7 @@ dependencies = [
  "base64 0.23.1",
  "cfb",
  "chrono",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "hmac",
  "image",
  "log",
@@ -5242,7 +5245,7 @@ dependencies = [
  "thiserror 2.0.21",
  "unicode-bidi",
  "zeroize",
- "zip 3.0.0",
+ "zip",
 ]
 
 [[package]]
@@ -5252,7 +5255,7 @@ dependencies = [
  "cfb",
  "chrono",
  "encoding_rs",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "image",
  "js-sys",
  "libc",
@@ -5275,14 +5278,14 @@ dependencies = [
  "strix-render",
  "thiserror 2.0.21",
  "zeroize",
- "zip 3.0.0",
+ "zip",
 ]
 
 [[package]]
 name = "strix-fonts"
 version = "0.12.0"
 dependencies = [
- "brotli-decompressor",
+ "brotli-decompressor 6.2.0",
  "harfrust 0.13.3",
  "kurbo",
  "log",
@@ -5307,7 +5310,7 @@ dependencies = [
  "quick-xml 0.41.0",
  "strix-doc",
  "strix-geom",
- "zip 3.0.0",
+ "zip",
 ]
 
 [[package]]
@@ -5431,7 +5434,7 @@ dependencies = [
  "toml",
  "web-time",
  "zbus",
- "zip 3.0.0",
+ "zip",
 ]
 
 [[package]]
@@ -7027,7 +7030,7 @@ version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "200a7b806377b65f1ff9a985874332f15357c87e5dd7855f35f06dade95b8b3d"
 dependencies = [
- "brotli-decompressor",
+ "brotli-decompressor 5.0.3",
  "bytes",
  "flate2",
 ]
@@ -7374,20 +7377,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.6",
-]
-
-[[package]]
-name = "zip"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12598812502ed0105f607f941c386f43d441e00148fce9dec3ca5ffb0bde9308"
-dependencies = [
- "arbitrary",
- "crc32fast",
- "flate2",
- "indexmap",
- "memchr",
- "zopfli",
 ]
 
 [[package]]

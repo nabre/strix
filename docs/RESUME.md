@@ -147,10 +147,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   `default_fonts` embed Ubuntu-Light (Ubuntu Font Licence, not OSI-approved; enabled in
   `crates/ui-egui/Cargo.toml` and by craft-ui); the repository is not a GitHub fork of WordCraft
   (SignPath's rule on signing modified upstream builds).
-- Dependencies: the upstream merge (2026-10-28, WordCraft `9724f15c`) reverted Dependabot #1
-  (harfrust 0.15, quick-xml 0.42, zip 9, vello_cpu 0.3, hayro 0.8, getrandom 0.4) because
-  upstream's new code targets the older versions; redo the bump on top of the merged code
-  (`git show 4cda28be` is the earlier adaptation), or wait for upstream to bump them.
+- Dependencies (2026-10-28): zip 9, brotli-decompressor 6 and getrandom 0.4 bumped again after
+  the upstream merge; harfrust, skrifa, quick-xml, vello_cpu and hayro stay at upstream's
+  versions (their new APIs would mean rewriting upstream code: fonts, docx/formats XML, render,
+  pdf tests) and Dependabot ignores their minor/major updates. Take them when upstream does.
 - SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
 - CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
   linear-auto dimensions, extension modes, associative ends, marks per end; input units (`2.5 m` typed); entity names and measures for the

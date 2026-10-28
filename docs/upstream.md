@@ -61,7 +61,9 @@ Resolving:
   now lives. Check afterwards that no command id (`CommandSpec::new("…"`), `ui.*` command or
   interface string Strix had is missing.
 - Dependency bumps upstream hasn't made yet collide with upstream's new code: keep shared
-  dependencies at upstream's versions and bump them after the merge.
+  dependencies at upstream's versions and bump them after the merge. A bump whose new API would
+  change upstream code (harfrust, skrifa, quick-xml, vello_cpu, hayro in 2026-10) waits for
+  upstream; `.github/dependabot.yml` ignores those.
 
 If the rename rules ever change, re-create the branch: delete `vendor/wordcraft`, run
 `cargo xtask upstream sync d859c673c1e93bccaa6536fa3653b902ea877cea`, merge it into `main` with

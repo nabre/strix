@@ -1,3 +1,4 @@
+# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 version: 2
 updates:
   # Maintain Rust / Cargo dependencies
@@ -14,6 +15,19 @@ updates:
           - "*"
     commit-message:
       prefix: "chore(deps)"
+    # Major API changes in these follow upstream WordCraft (docs/upstream.md): adapting its code
+    # here would conflict at every upstream merge until upstream moves too.
+    ignore:
+      - dependency-name: "harfrust"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "skrifa"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "quick-xml"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "vello_cpu"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "hayro-*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # Maintain GitHub Actions workflows
   - package-ecosystem: "github-actions"
