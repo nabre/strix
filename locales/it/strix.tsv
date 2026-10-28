@@ -2768,3 +2768,8 @@ preview	Title	Esempio
 	Solid	Pieno
 	Cells as Equations	Celle come equazioni
 	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Mostra ogni cella come equazione: nomi in corsivo, pedici, unità nello stile Unità
+	Hatch: click inside the region to fill (islands are left out)	Retino: fai clic dentro la regione da riempire (le isole restano libere)
+	No closed object around that point: draw a closed polyline, a rectangle or a circle	Nessun oggetto chiuso attorno a quel punto: disegna una polilinea chiusa, un rettangolo o un cerchio
+	Steel	Acciaio
+	Along the path	Lungo il percorso
+	Islands	Isole

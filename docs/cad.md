@@ -224,6 +224,14 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
    the angle (`<>°`) level just outside the arc's middle. Texts have an **alignment** (left,
    centre, right on their point). Arrowheads are filled paths (`Prim::Path { fill }`).
+   **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
+   aliases `h`, `bh`): a click inside a region fills it: the smallest closed object around the
+   click (closed polyline, rectangle, circle) with the closed objects inside it as islands
+   (even-odd). It refers to its boundaries by id, so it follows them; deleting one deletes it; it
+   goes behind everything else. Conventional patterns, this project's own (`hatch.rs`): lines,
+   cross, steel (pairs), dashed, solid (lines close and wide enough to cover, so islands and
+   concave regions fill on every output); `spacing` paper mm (annotative). The hatched strip
+   takes the same patterns (filling its band), or "along the path".
    **Hatched strip** (CAD Annotate › Hatch; `strip {along, width, side, pattern, angle,
    spacing}`): a band along a line, polyline, circle or arc (found by its id, so it follows it
    when it moves or the calculations redraw it), `width` paper mm wide on its left or right,

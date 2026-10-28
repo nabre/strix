@@ -1289,6 +1289,16 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.rect(2.5, 7.0, 17.5, 14.0, c);
             pen.line_c(&[(3.5, 18.0), (16.5, 2.0)], a);
         }
+        // A hatch: a square region filled with slanted lines.
+        "cadHatch" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            for k in [0.0, 4.5, 9.0] {
+                pen.line_c(&[(3.0 + k, 17.0), (17.0, 3.0 + k)], a);
+                if k > 0.0 {
+                    pen.line_c(&[(3.0, 17.0 - k), (17.0 - k, 3.0)], a);
+                }
+            }
+        }
         // A hatched strip: a line with short slanted strokes along one side.
         "cadStrip" => {
             pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);

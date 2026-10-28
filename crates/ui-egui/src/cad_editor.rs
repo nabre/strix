@@ -57,6 +57,8 @@ pub enum Tool {
     DimAngle,
     /// A hatched strip: the line or polyline it follows, then a point on its side.
     Strip,
+    /// A hatch: a click inside the region it fills.
+    Hatch,
     Move,
     Copy,
 }
@@ -83,6 +85,7 @@ impl Tool {
             "dimVertical" => Tool::Dim(Orient::Vertical),
             "dimAngular" | "dan" | "quotaAngolare" => Tool::DimAngle,
             "strip" | "fascia" => Tool::Strip,
+            "hatch" | "h" | "bh" | "retino" => Tool::Hatch,
             "move" | "m" | "sposta" => Tool::Move,
             "copy" | "co" | "copia" => Tool::Copy,
             _ => return None,
@@ -131,6 +134,7 @@ impl Tool {
             (Tool::DimAngle, _) => "Angular dimension: where the arc goes",
             (Tool::Strip, 0) => "Hatched strip: pick the line or polyline it follows",
             (Tool::Strip, _) => "Hatched strip: click on the side it goes",
+            (Tool::Hatch, _) => "Hatch: click inside the region to fill (islands are left out)",
             (Tool::Move | Tool::Copy, 0) => "Base point (select the objects first)",
             (Tool::Move | Tool::Copy, _) => "Second point",
         }
@@ -1016,6 +1020,7 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Dim(Orient::Vertical) => "Vertical dimension",
         Tool::DimAngle => "Angular dimension",
         Tool::Strip => "Hatched strip",
+        Tool::Hatch => "Hatch",
         Tool::Move => "Move",
         Tool::Copy => "Copy",
     }
@@ -1939,7 +1944,7 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
         e.layer = ed.current_layer.clone();
     }
     // Hatches go behind everything else, as they fill around it.
-    let hatch = matches!(e.kind, Kind::Strip { .. });
+    let hatch = matches!(e.kind, Kind::Strip { .. } | Kind::Hatch { .. });
     d.add(e).ok()?;
     if hatch {
         d.reorder(&[d.entities.len().saturating_sub(1)], Order::Back);
@@ -2071,6 +2076,22 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
             done(ed);
             with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None, below: None, mark: None }))
+        }
+        Tool::Hatch => {
+            done(ed);
+            let Some(boundary) = ed.drawing.hatch_boundary_at(pts[0]) else {
+                ed.message = "No closed object around that point: draw a closed polyline, a rectangle or a circle".into();
+                return None;
+            };
+            with(
+                ed,
+                Entity::new(Kind::Hatch {
+                    boundary,
+                    pattern: strix_cad::Pattern::Lines,
+                    angle: 45.0,
+                    spacing: (ed.drawing.dim_style.text * 0.8).max(0.5),
+                }),
+            )
         }
         Tool::Strip if n == 1 => {
             // The path first: something it can follow must be there.
@@ -2401,6 +2422,7 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Hatch", None, app, |ui, app| {
+        big_checked(ui, app, "cadHatch", "Hatch", "ui.cadTool", t("hatch"), tool == Tool::Hatch);
         big_checked(ui, app, "cadStrip", "Hatched\nStrip", "ui.cadTool", t("strip"), tool == Tool::Strip);
     });
     group(ui, "Text", None, app, |ui, app| {
@@ -2855,6 +2877,20 @@ mod tests {
         app.run("ui.cadEdit", json!({})).unwrap();
         let ed = app.cad.as_ref().unwrap();
         assert!(ed.ortho && !ed.grid && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
+    }
+
+    /// Hatch: a click inside the region; it goes behind everything else.
+    #[test]
+    fn a_hatch_fills_the_region_clicked() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::parse("hatch").unwrap());
+        let d = feed(ed, Pt::new(60.0, 30.0), None).expect("a hatch");
+        assert!(matches!(&d.entities[0].kind, Kind::Hatch { boundary, .. } if boundary == &["e1".to_string()]));
+        // Outside every closed object: a message, nothing made.
+        ed.set_tool(Tool::Hatch);
+        assert!(feed(ed, Pt::new(-500.0, -500.0), None).is_none() && !ed.message.is_empty());
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

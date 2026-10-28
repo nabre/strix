@@ -48,7 +48,7 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
         }
         Kind::Point { p } | Kind::Text { p, .. } => vec![vec![p.pt()]],
         // A strip is laid out from its path ([`Drawing::shape`]).
-        Kind::Strip { .. } => Vec::new(),
+        Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
         // The arc and the two rays out to it.
         Kind::Angle { c, a, b, r, .. } => {
             let (c, a, b) = (c.pt(), a.pt(), b.pt());
@@ -246,7 +246,7 @@ impl Drawing {
                     }
                 }
                 Kind::Point { p } => out.push((p.pt(), SnapKind::End)),
-                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Strip { .. } => {}
+                Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Strip { .. } | Kind::Hatch { .. } => {}
             }
         }
         out.retain(|(p, _)| p.is_finite());
@@ -296,11 +296,16 @@ impl Drawing {
                 out.push(self.entities.len() - 1);
             }
         }
+        let renamed = |id: &mut String| {
+            if let Some((_, new)) = ids.iter().find(|(old, _)| old == id) {
+                *id = new.clone();
+            }
+        };
         for &i in &out {
-            if let Some(Kind::Strip { along, .. }) = self.entities.get_mut(i).map(|e| &mut e.kind)
-                && let Some((_, new)) = ids.iter().find(|(old, _)| old == along)
-            {
-                *along = new.clone();
+            match self.entities.get_mut(i).map(|e| &mut e.kind) {
+                Some(Kind::Strip { along, .. }) => renamed(along),
+                Some(Kind::Hatch { boundary, .. }) => boundary.iter_mut().for_each(renamed),
+                _ => {}
             }
         }
         out
@@ -317,8 +322,12 @@ impl Drawing {
                 self.entities.remove(i);
             }
         }
-        // A strip goes with its path.
-        self.entities.retain(|e| !matches!(&e.kind, Kind::Strip { along, .. } if gone.contains(along)));
+        // A strip goes with its path, a hatch with any of its boundaries.
+        self.entities.retain(|e| match &e.kind {
+            Kind::Strip { along, .. } => !gone.contains(along),
+            Kind::Hatch { boundary, .. } => !boundary.iter().any(|b| gone.contains(b)),
+            _ => true,
+        });
     }
 
     /// What entity `e` is drawn with, for picking and highlighting: its outline, or a strip's
@@ -348,6 +357,11 @@ impl Drawing {
         match &e.kind {
             Kind::Strip { .. } => self.strip_shape(e).map(|s| {
                 let mut ring = s.polygon;
+                ring.extend(ring.first().copied());
+                vec![ring]
+            }),
+            // A hatch is picked inside its outer boundary.
+            Kind::Hatch { .. } => self.hatch_loops(e).into_iter().next().map(|mut ring| {
                 ring.extend(ring.first().copied());
                 vec![ring]
             }),
@@ -392,8 +406,8 @@ fn move_kind(k: &mut Kind, d: Pt) {
             shift_p(a, d);
             shift_p(b, d);
         }
-        // A strip follows its path.
-        Kind::Strip { .. } => {}
+        // A strip or a hatch follows its path or boundaries.
+        Kind::Strip { .. } | Kind::Hatch { .. } => {}
     }
 }
 
@@ -487,7 +501,7 @@ impl Drawing {
                 out
             }
             Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
-            Kind::Strip { .. } => Vec::new(),
+            Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
             Kind::Dim { a, b, offset, orient, .. } => {
                 let (pa, pb) = (a.pt(), b.pt());
                 let n = dim_dir(pa, pb, *orient).left();

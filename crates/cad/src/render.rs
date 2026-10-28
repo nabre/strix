@@ -143,31 +143,14 @@ impl Drawing {
                 }
                 Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
                 Kind::Angle { .. } => self.angular(e, k, color, width.min(0.25), ws, &mut prims),
-                // A hatched strip: the band filled, or its hatch lines (thin, as hatches are).
-                Kind::Strip { pattern, .. } => {
+                // A hatch or a hatched strip: its lines, thin as hatches are; a solid fill's lines
+                // close enough, and wide enough, to cover it (with its islands, on any output).
+                Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
                     let paper = |p: Pt| (p.x * k, p.y * k);
-                    if *pattern == crate::model::Pattern::Solid {
-                        if let Some(s) = self.strip_shape(e) {
-                            prims.push(Prim::Path {
-                                pts: s.polygon.into_iter().map(paper).collect(),
-                                closed: true,
-                                color,
-                                width: 0.0,
-                                dash: Vec::new(),
-                                fill: true,
-                            });
-                        }
-                    } else {
-                        for (a, b) in self.strip_lines(e) {
-                            prims.push(Prim::Path {
-                                pts: vec![paper(a), paper(b)],
-                                closed: false,
-                                color,
-                                width: width.min(0.18),
-                                dash: Vec::new(),
-                                fill: false,
-                            });
-                        }
+                    let w = if *pattern == crate::model::Pattern::Solid { crate::hatch::SOLID_SPACING * 1.4 } else { width.min(0.18) };
+                    let lines = if matches!(e.kind, Kind::Strip { .. }) { self.strip_lines(e) } else { self.hatch_lines(e) };
+                    for (a, b) in lines {
+                        prims.push(Prim::Path { pts: vec![paper(a), paper(b)], closed: false, color, width: w, dash: Vec::new(), fill: false });
                     }
                 }
             }

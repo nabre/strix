@@ -1047,7 +1047,7 @@ fn strips_follow_their_path() {
     let mut d = Drawing::from_json(
         r#"{"unit":"m","scale":50,"entities":[
             {"id":"g","type":"polyline","pts":[[0,0],["L",0],["L",1]]},
-            {"type":"strip","along":"g","width":4,"side":"right","angle":90,"spacing":2}]}"#,
+            {"type":"strip","along":"g","width":4,"side":"right","pattern":"along","angle":90,"spacing":2}]}"#,
     )
     .unwrap();
     d.resolve(&ws);
@@ -1069,8 +1069,11 @@ fn strips_follow_their_path() {
     assert!(d.strip_lines(&strip).len() > lines.len());
     // Drawn as thin lines; solid as one filled band.
     assert!(d.render(None).prims.iter().filter(|p| matches!(p, Prim::Path { closed: false, .. })).count() > 25);
+    // Solid: lines close and wide enough to cover the band (islands and concave shapes too).
     d.set_field(1, 0, "pattern", "solid").unwrap();
-    assert_eq!(d.render(None).prims.iter().filter(|p| matches!(p, Prim::Path { fill: true, .. })).count(), 1);
+    let solid: Vec<f64> =
+        d.render(None).prims.iter().filter_map(|p| if let Prim::Path { width, closed: false, .. } = p { Some(*width) } else { None }).collect();
+    assert!(solid.len() > 100 && solid.iter().all(|w| (*w - 0.28).abs() < 1e-9 || *w > 0.2), "{}", solid.len());
     // Copied together, the copy follows the copied path; deleting the path takes the strip.
     let copies = d.copy(&[0, 1], Pt::new(10.0, 0.0));
     let new_path = d.entities[copies[0]].id.clone();
@@ -1103,7 +1106,7 @@ fn hostile_strips_stay_bounded() {
     let strip = d.entities[1].clone();
     let start = std::time::Instant::now();
     let lines = d.strip_lines(&strip);
-    assert!(lines.len() <= 20_000, "{}", lines.len());
+    assert!(lines.len() <= 40_000, "{}", lines.len());
     assert!(start.elapsed().as_secs() < 5);
     // Coordinates near the limit with a tiny step: the loop still ends.
     let far = Drawing::from_json(
@@ -1134,4 +1137,51 @@ fn dimensions_are_picked_where_they_are_drawn() {
     assert!(d.hits(Pt::new(50.0, 0.0), 0.5).is_empty(), "not on the line it measures");
     // A window around the drawn dimension takes it.
     assert_eq!(d.in_box(Pt::new(-5.0, -5.0), Pt::new(105.0, 20.0), false), [0]);
+}
+
+/// A hatch fills the region a click is in, islands left out (even-odd), with a conventional
+/// pattern; it follows its boundaries and goes with them.
+#[test]
+fn hatches_fill_regions_with_islands() {
+    let mut d = Drawing::from_json(
+        r#"{"entities":[
+            {"id":"out","type":"polyline","pts":[[0,0],[100,0],[100,60],[0,60]],"closed":true},
+            {"id":"hole","type":"circle","c":[50,30],"r":10}]}"#,
+    )
+    .unwrap();
+    // A click between the rectangle and the circle: the rectangle with the circle as island.
+    let ids = d.hatch_boundary_at(Pt::new(10.0, 10.0)).unwrap();
+    assert_eq!(ids, ["out", "hole"]);
+    // A click inside the circle: the circle alone.
+    assert_eq!(d.hatch_boundary_at(Pt::new(50.0, 30.0)).unwrap(), ["hole"]);
+    assert!(d.hatch_boundary_at(Pt::new(200.0, 0.0)).is_none());
+    d.add(Entity::new(Kind::Hatch { boundary: ids, pattern: Pattern::Lines, angle: 0.0, spacing: 5.0 })).unwrap();
+    let hatch = d.entities[2].clone();
+    let lines = d.hatch_lines(&hatch);
+    // Horizontal lines 5 mm apart; none crosses the island.
+    assert!(lines.len() >= 11, "{}", lines.len());
+    for (a, b) in &lines {
+        let mid = a.plus(*b).scale(0.5);
+        assert!(mid.minus(Pt::new(50.0, 30.0)).len() > 10.0 - 1e-6, "{a:?} {b:?}");
+        assert!((0.0..=100.0).contains(&a.x) && (0.0..=100.0).contains(&b.x));
+    }
+    // Steel doubles the lines; dashed cuts them; cross adds the other way.
+    for (p, more) in [(Pattern::Steel, true), (Pattern::Cross, true)] {
+        d.entities[2].kind = Kind::Hatch { boundary: vec!["out".into(), "hole".into()], pattern: p, angle: 0.0, spacing: 5.0 };
+        assert_eq!(d.hatch_lines(&d.entities[2].clone()).len() > lines.len(), more, "{p:?}");
+    }
+    d.entities[2].kind = Kind::Hatch { boundary: vec!["out".into(), "hole".into()], pattern: Pattern::Dashed, angle: 0.0, spacing: 5.0 };
+    assert!(d.hatch_lines(&d.entities[2].clone()).iter().all(|(a, b)| b.minus(*a).len() <= 10.0 + 1e-6));
+    // Moving the rectangle moves the hatch; deleting the island deletes it.
+    d.translate(&[0], Pt::new(1000.0, 0.0));
+    assert!(d.hatch_lines(&d.entities[2].clone()).iter().all(|(a, _)| a.x >= 1000.0 - 1e-6 || a.x <= 100.0));
+    d.remove(&[1]);
+    assert!(d.entities.iter().all(|e| !matches!(e.kind, Kind::Hatch { .. })));
+    // Hostile: a pattern far too fine for a huge region stays bounded.
+    let big = Drawing::from_json(
+        r#"{"unit":"m","scale":0.001,"entities":[{"id":"o","type":"polyline","pts":[[0,0],[1000,0],[1000,1000],[0,1000]],"closed":true},
+            {"type":"hatch","boundary":["o"],"pattern":"cross","spacing":0}]}"#,
+    )
+    .unwrap();
+    assert!(big.hatch_lines(&big.entities[1].clone()).len() <= 40_000);
 }

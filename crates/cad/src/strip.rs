@@ -83,7 +83,7 @@ fn offset(pts: &[Pt], dist: f64, closed: bool) -> Vec<Pt> {
 impl Drawing {
     /// The path the entity with id `along` draws, drawing units, and whether it is closed: a
     /// line, a polyline (arcs tessellated), a circle or an arc.
-    fn path_of(&self, along: &str) -> Option<(Vec<Pt>, bool)> {
+    pub(crate) fn path_of(&self, along: &str) -> Option<(Vec<Pt>, bool)> {
         let e = self.entities.iter().find(|e| e.id == along)?;
         let closed = match &e.kind {
             Kind::Line { .. } | Kind::Arc { .. } => false,
@@ -113,17 +113,20 @@ impl Drawing {
         Some(StripShape { path, edge, closed, polygon }).filter(|s| s.polygon.iter().all(|p| p.is_finite()))
     }
 
-    /// The hatch lines of strip `e`, drawing units: from the path across the band at the strip's
-    /// angle to each segment, `spacing` paper mm apart (measured square to the lines), the
-    /// spacing running on from one segment to the next. Cross adds the lines the other way.
+    /// The hatch lines of strip `e`, drawing units: a conventional pattern filling the band, or
+    /// (Along) lines from the path across the band at the strip's angle to each segment,
+    /// `spacing` paper mm apart (measured square to the lines), the spacing running on from one
+    /// segment to the next.
     pub fn strip_lines(&self, e: &Entity) -> Vec<(Pt, Pt)> {
         let (Kind::Strip { pattern, angle, spacing, side, width, .. }, Some(shape)) = (&e.kind, self.strip_shape(e)) else { return Vec::new() };
-        if *pattern == Pattern::Solid {
-            return Vec::new();
-        }
         let k = crate::edit::paper_per_unit(self);
+        // A conventional pattern fills the band like a hatch; Along draws across the path.
+        if *pattern != Pattern::Along {
+            let s = if *pattern == Pattern::Solid { crate::hatch::SOLID_SPACING } else { *spacing };
+            return crate::hatch::fill(std::slice::from_ref(&shape.polygon), *pattern, *angle, s / k);
+        }
         let towards = if *side == Side::Left { 1.0 } else { -1.0 };
-        let angles: &[f64] = if *pattern == Pattern::Cross { &[*angle, 180.0 - *angle] } else { &[*angle] };
+        let angles: &[f64] = &[*angle];
         let n = shape.path.len();
         let segments = if shape.closed { n } else { n.saturating_sub(1) };
         let sides: Vec<(Pt, Pt)> =

@@ -36,7 +36,7 @@ impl Family {
             Kind::Point { .. } => Family::Point,
             Kind::Dim { .. } | Kind::Angle { .. } => Family::Dim,
             Kind::Text { .. } => Family::Text,
-            Kind::Strip { .. } => Family::Hatch,
+            Kind::Strip { .. } | Kind::Hatch { .. } => Family::Hatch,
         }
     }
 

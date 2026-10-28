@@ -354,6 +354,18 @@ pub enum Kind {
         #[serde(default = "strip_spacing")]
         spacing: f64,
     },
+    /// A hatch filling the region bounded by the closed objects with ids `boundary` (the outer
+    /// one and its islands, even-odd), so it follows them: `pattern` at `angle` degrees, its
+    /// lines `spacing` paper mm apart (annotative).
+    Hatch {
+        boundary: Vec<String>,
+        #[serde(default)]
+        pattern: Pattern,
+        #[serde(default = "strip_angle")]
+        angle: f64,
+        #[serde(default = "hatch_spacing")]
+        spacing: f64,
+    },
     /// An angular dimension at `c`, counter-clockwise from the ray to `a` to the ray to `b`, its
     /// arc `r` drawing units from `c`. `text` as a linear dimension's (`<>` is the angle).
     Angle {
@@ -381,12 +393,41 @@ pub enum Side {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Pattern {
-    /// Lines across the strip at its angle to the line (ground, insulation).
+    /// Parallel lines at the angle (the conventional section hatch).
     #[default]
     Lines,
     /// Lines both ways.
     Cross,
+    /// Pairs of close lines (steel, metal).
+    Steel,
+    /// Dashed lines.
+    Dashed,
     Solid,
+    /// A strip's lines across it at the angle to each segment of its path (ground, insulation).
+    Along,
+}
+
+impl Pattern {
+    pub const ALL: [(Pattern, &'static str); 6] = [
+        (Pattern::Lines, "lines"),
+        (Pattern::Cross, "cross"),
+        (Pattern::Steel, "steel"),
+        (Pattern::Dashed, "dashed"),
+        (Pattern::Solid, "solid"),
+        (Pattern::Along, "along"),
+    ];
+
+    pub fn name(self) -> &'static str {
+        Pattern::ALL.iter().find(|(p, _)| *p == self).map_or("lines", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<Pattern> {
+        Pattern::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(p, _)| *p)
+    }
+}
+
+fn hatch_spacing() -> f64 {
+    2.0
 }
 
 fn strip_width() -> f64 {
@@ -621,6 +662,14 @@ impl Drawing {
                     // Cut at a character boundary: an id from a file may be any text.
                     along.truncate(along.char_indices().nth(64).map_or(along.len(), |(i, _)| i));
                 }
+                Kind::Hatch { boundary, angle, spacing, .. } => {
+                    *angle = if angle.is_finite() { angle.rem_euclid(180.0) } else { strip_angle() };
+                    *spacing = if spacing.is_finite() { spacing.clamp(0.2, 50.0) } else { hatch_spacing() };
+                    boundary.truncate(100);
+                    for id in boundary.iter_mut() {
+                        id.truncate(id.char_indices().nth(64).map_or(id.len(), |(i, _)| i));
+                    }
+                }
                 Kind::Angle { r, text, .. } => {
                     *r = if r.is_finite() { r.abs().min(MAX_COORD) } else { 0.0 };
                     if let Some(t) = text {
@@ -683,7 +732,7 @@ impl Drawing {
                     point(b, &mut out);
                 }
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(|p| point(p, &mut out)),
-                Kind::Strip { .. } => {}
+                Kind::Strip { .. } | Kind::Hatch { .. } => {}
                 Kind::Point { p } | Kind::Text { p, .. } => point(p, &mut out),
             }
         }

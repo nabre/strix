@@ -17,6 +17,7 @@
 
 mod edit;
 mod geom;
+mod hatch;
 mod input;
 pub mod kernel;
 mod model;

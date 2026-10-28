@@ -495,7 +495,10 @@ pub(crate) fn choice_label(s: &str) -> &'static str {
         "right" => "Right",
         "lines" => "Lines",
         "cross" => "Cross",
+        "steel" => "Steel",
+        "dashed" => "Dashed",
         "solid" => "Solid",
+        "along" => "Along the path",
         _ => "",
     }
 }

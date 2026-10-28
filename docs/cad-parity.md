@@ -22,7 +22,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Line, circle, arc, point, polyline with bulges | same | done |
 | **Point style** (owner): how points show — dot, cross, x, circle, square and combinations; size on paper (annotative) or in drawing units | dot only | todo |
 | Text: multiline, align, base point (9), reach, offset | single line, align | partial |
-| Hatch: loops with islands, solid / lines / cross, angle, spacing (even-odd) | strip only | todo |
+| Hatch: loops with islands, solid / lines / cross, angle, spacing (even-odd) | hatch by boundary ids; lines, cross, steel, dashed, solid | done |
 | Level (elevation mark): value, auto, datum, flip, side | — | todo |
 | Linear dimension: marks per end, text above/below, `{{row}}`, associative ends, driving value, chains/levels | marks, below, `{{L}}` | partial |
 | Angular dimension: right-angle symbol, vertex mark | basic | partial |
@@ -38,8 +38,8 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Line (incl. tangent to two curves), polyline (`a` arc, `l` line, `c` close, `u` undo vertex), rectangle | partial (polyline arc mode, undo vertex) |
 | Circle: centre-radius, centre-diameter, 2P, 3P, TTR, TTT | done |
 | Arc, point, text | done |
-| Hatch: pick inside a region (islands), or selected closed outlines; sent to back | todo — **owner: "manca il comando retino"** |
-| Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | partial — **owner** |
+| Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
+| Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
 | Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial |
 | Copy, move, mirror, stretch, **scale** (owner), rotate | partial (copy, move) |
 | Offset (line, circle, arc, polyline; distance or through point) | todo |
