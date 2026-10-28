@@ -207,7 +207,7 @@ impl Drawing {
     /// paper): its measured points, the feet of its extension lines on the dimension line, the
     /// measuring direction and the line's normal. The rendering and the picking share it.
     pub(crate) fn dim_frame(&self, e: &Entity, k: f64) -> Option<DimFrame> {
-        let Kind::Dim { a, b, offset, orient, .. } = &e.kind else { return None };
+        let Kind::Dim { a, b, offset, offset_units, orient, .. } = &e.kind else { return None };
         let (a, b) = (a.pt().scale(k), b.pt().scale(k));
         // The measuring direction: along a→b, or the x or y axis.
         let dir = match orient {
@@ -219,11 +219,13 @@ impl Drawing {
             return None;
         }
         let normal = dir.left();
-        // The dimension line passes `offset` beyond the farther point along the normal.
+        // The dimension line passes its distance beyond the farther point along the normal: the
+        // paper part plus the scaled part on paper.
+        let offset = offset + offset_units * k;
         let (na, nb) = (a.x * normal.x + a.y * normal.y, b.x * normal.x + b.y * normal.y);
-        let level = if *offset >= 0.0 { na.max(nb) + offset } else { na.min(nb) + offset };
+        let level = if offset >= 0.0 { na.max(nb) + offset } else { na.min(nb) + offset };
         let foot = |p: Pt| p.plus(normal.scale(level - (p.x * normal.x + p.y * normal.y)));
-        Some(DimFrame { a, b, fa: foot(a), fb: foot(b), dir, normal, side: if *offset >= 0.0 { 1.0 } else { -1.0 } })
+        Some(DimFrame { a, b, fa: foot(a), fb: foot(b), dir, normal, side: if offset >= 0.0 { 1.0 } else { -1.0 } })
     }
 
     fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
@@ -268,11 +270,12 @@ impl Drawing {
     /// from the rays' ends to the arc when it is beyond them, and the angle just outside the
     /// arc's middle. A zero angle draws nothing (not a full circle).
     fn angular(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
-        let Kind::Angle { c, a, b, r, text, mark } = &e.kind else { return };
+        let Kind::Angle { c, a, b, r, r_paper, text, mark } = &e.kind else { return };
         let st = self.dim_style;
         let (c, a, b) = (c.pt().scale(k), a.pt().scale(k), b.pt().scale(k));
         let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
-        let r = r * k;
+        // The scaled part of the radius on paper, plus its paper part.
+        let r = r * k + r_paper;
         let (start, sweep) = (crate::kernel::direction(ua), crate::kernel::angle_ccw(ua, ub));
         if ua.len() == 0.0 || ub.len() == 0.0 || r <= 0.0 || sweep == 0.0 {
             return;

@@ -12,7 +12,16 @@ fn paths(r: &Rendered) -> Vec<&Vec<(f64, f64)>> {
 fn a_right_angle_is_drawn_as_a_square() {
     let angle = |b: P, text: Option<&str>| {
         let mut d = Drawing::default();
-        d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b, r: 5.0, text: text.map(Into::into), mark: None })).unwrap();
+        d.add(Entity::new(Kind::Angle {
+            c: P::new(0.0, 0.0),
+            a: P::new(10.0, 0.0),
+            b,
+            r: 5.0,
+            r_paper: 0.0,
+            text: text.map(Into::into),
+            mark: None,
+        }))
+        .unwrap();
         d.render(None)
     };
     let r = angle(P::new(0.0, 10.0), None);
@@ -55,7 +64,7 @@ fn continued_and_baseline_dimensions() {
         Kind::Dim { b, offset, orient, mark, .. } => {
             let mut b = b;
             b.0.value = 100.0;
-            Kind::Dim { a: P::new(0.0, 0.0), b, offset, orient, text: None, below: None, mark }
+            Kind::Dim { a: P::new(0.0, 0.0), b, offset, offset_units: 0.0, orient, text: None, below: None, mark }
         }
         other => other,
     };
@@ -83,6 +92,7 @@ fn continued_and_baseline_dimensions() {
         a: P::new(0.0, 0.0),
         b: P::new(50.0, 0.0),
         offset: -6.0,
+        offset_units: 0.0,
         orient: Orient::Horizontal,
         text: None,
         below: None,
@@ -172,4 +182,79 @@ fn flipping_dimensions() {
     assert_eq!(d.entities[3], before.entities[3]);
     d.flip_dims(&[0, 1, 2]);
     assert_eq!(d, before);
+}
+
+/// A dimension's distance and an angle's radius have a scaled part (drawing units: it follows
+/// Scale and the drawing's scale) and an annotative part (paper mm: the same in print). Dragging
+/// the line or the arc changes the part it always changed; the other stays.
+#[test]
+fn scaled_and_annotative_parts() {
+    let json = r#"{"unit":"mm","scale":50,"entities":[
+        {"type":"dim","a":[0,0],"b":[1000,0],"offset":4,"offsetUnits":500,"orient":"horizontal"},
+        {"type":"angle","c":[0,0],"a":[1000,0],"b":[0,1000],"r":250,"rPaper":3,"text":"<>°"}]}"#;
+    let mut d = Drawing::from_json(json).unwrap();
+    // At 1:50, 500 mm is 10 mm of paper: the line 14 mm above the points.
+    let line = |d: &Drawing| {
+        let k = d.unit.mm() / d.scale;
+        d.dim_frame(&d.entities[0], k).unwrap().fa.y
+    };
+    assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
+    // At 1:100 the scaled part halves on paper, the paper part stays.
+    d.scale = 100.0;
+    assert!((line(&d) - 9.0).abs() < 1e-9, "{}", line(&d));
+    // The arc: 250 mm at 1:100 is 2.5 mm, plus 3 mm.
+    let arc_reach = |d: &Drawing| {
+        let mut only = d.clone();
+        only.entities.remove(0);
+        let r = only.render(None);
+        let pts: Vec<(f64, f64)> = r.prims.iter().find_map(|p| if let Prim::Path { pts, .. } = p { Some(pts.clone()) } else { None }).unwrap();
+        // The vertex is at paper (0 - origin.0, origin.1 - 0).
+        let c = (-r.origin.0, r.origin.1);
+        pts.iter().map(|p| ((p.0 - c.0).powi(2) + (p.1 - c.1).powi(2)).sqrt()).fold(0.0, f64::max)
+    };
+    assert!((arc_reach(&d) - 5.5).abs() < 0.02, "{}", arc_reach(&d));
+    // Scale ×2: the scaled parts double, the paper parts stay.
+    d.transform(&[0, 1], &Affine::scaling(Pt::new(0.0, 0.0), 2.0));
+    assert!(matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if offset == 4.0 && offset_units == 1000.0));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 500.0 && r_paper == 3.0));
+    // Dragging the dimension line sets its paper part (the style's default); the scaled part
+    // stays. 300 mm at 1:100 is 3 mm.
+    let grip = |d: &Drawing, i: usize| d.grips(i).into_iter().find(|(g, _)| *g == Grip::DimLine).unwrap().1;
+    assert!(d.move_grip(0, Grip::DimLine, grip(&d, 0).plus(Pt::new(0.0, 300.0))));
+    assert!(
+        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 7.0).abs() < 1e-9 && offset_units == 1000.0),
+        "{:?}",
+        d.entities[0].kind
+    );
+    // The arc too: 500 + 300 units out (3 mm), dragged to twice that, its paper part is 3 + 8 mm.
+    assert!(d.move_grip(1, Grip::DimLine, grip(&d, 1).scale(2.0)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 500.0 && (r_paper - 11.0).abs() < 1e-6), "{:?}", d.entities[1].kind);
+    // With the style's scaled placing, the drawing part changes instead.
+    d.dim_style.scaled = true;
+    assert!(d.move_grip(0, Grip::DimLine, grip(&d, 0).plus(Pt::new(0.0, 300.0))));
+    assert!(
+        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 7.0).abs() < 1e-9 && (offset_units - 1300.0).abs() < 1e-6),
+        "{:?}",
+        d.entities[0].kind
+    );
+    assert!(d.move_grip(1, Grip::DimLine, grip(&d, 1).scale(2.0)));
+    assert!(
+        matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 2100.0).abs() < 1e-6 && (r_paper - 11.0).abs() < 1e-6),
+        "{:?}",
+        d.entities[1].kind
+    );
+    assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.scaled);
+    // Properties: both parts; JSON writes the new keys only when set.
+    let keys: Vec<String> = d.fields(0, 0).into_iter().map(|f| f.key).collect();
+    assert!(keys.contains(&"offset".into()) && keys.contains(&"offsetUnits".into()));
+    d.set_field(1, 0, "radiusPaper", "0").unwrap();
+    d.set_field(0, 0, "offsetUnits", "0").unwrap();
+    let out = d.to_json();
+    assert!(!out.contains("offsetUnits") && !out.contains("rPaper"), "{out}");
+    // A paper-only arc (no scaled part) is allowed; a zero radius in all is not.
+    d.set_field(1, 0, "radiusPaper", "6").unwrap();
+    d.set_field(1, 0, "radius", "0").unwrap();
+    assert!(d.set_field(1, 0, "radiusPaper", "0").is_err());
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 0.0 && r_paper == 6.0));
+    assert!((arc_reach(&d) - 6.0).abs() < 0.02);
 }

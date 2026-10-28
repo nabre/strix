@@ -144,12 +144,13 @@ impl Drawing {
                 out.push(f("rotation", "Rotation", FieldKind::Derived, number(*angle)));
                 out.push(f("align", "Alignment", FieldKind::Choice(ALIGNS), align.name().into()));
             }
-            Kind::Dim { a, b, offset, orient, text, below, mark } => {
+            Kind::Dim { a, b, offset, offset_units, orient, text, below, mark } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 out.push(f("below", "Text below", FieldKind::Text, below.clone().unwrap_or_default()));
                 point(&mut out, a, ("ax", "Start X"), ("ay", "Start Y"));
                 point(&mut out, b, ("bx", "End X"), ("by", "End Y"));
-                out.push(f("offset", "Distance", FieldKind::Paper, number(*offset)));
+                out.push(f("offset", "Distance on paper", FieldKind::Paper, number(*offset)));
+                out.push(f("offsetUnits", "Distance in the drawing", FieldKind::Derived, number(*offset_units)));
                 let o = match orient {
                     Orient::Aligned => "aligned",
                     Orient::Horizontal => "horizontal",
@@ -173,12 +174,13 @@ impl Drawing {
                 out.push(f("spacing", "Spacing", FieldKind::Paper, number(*spacing)));
                 out.push(f("islands", "Islands", FieldKind::Derived, boundary.len().saturating_sub(1).to_string()));
             }
-            Kind::Angle { c, a, b, r, text, mark } => {
+            Kind::Angle { c, a, b, r, r_paper, text, mark } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 point(&mut out, c, ("cx", "Vertex X"), ("cy", "Vertex Y"));
                 point(&mut out, a, ("ax", "First ray X"), ("ay", "First ray Y"));
                 point(&mut out, b, ("bx", "Second ray X"), ("by", "Second ray Y"));
-                out.push(f("radius", "Arc radius", FieldKind::Derived, number(*r)));
+                out.push(f("radius", "Arc radius in the drawing", FieldKind::Derived, number(*r)));
+                out.push(f("radiusPaper", "Arc radius on paper", FieldKind::Paper, number(*r_paper)));
                 let (ua, ub) = (a.pt().minus(c.pt()), b.pt().minus(c.pt()));
                 out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
                 out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
@@ -220,9 +222,10 @@ impl Drawing {
             }
             (Kind::Circle { c, .. } | Kind::Arc { c, .. } | Kind::Angle { c, .. }, "cx") => c.0 = parse_num(text)?,
             (Kind::Circle { c, .. } | Kind::Arc { c, .. } | Kind::Angle { c, .. }, "cy") => c.1 = parse_num(text)?,
-            (Kind::Angle { r, .. }, "radius") => {
+            (Kind::Angle { r, r_paper, .. }, "radius") => {
                 let v = parse_f64(text)?;
-                if v <= 0.0 {
+                // Zero is fine when the radius has a paper part.
+                if v < 0.0 || (v == 0.0 && *r_paper <= 0.0) {
                     return Err("a radius is more than 0".into());
                 }
                 *r = v;
@@ -294,6 +297,14 @@ impl Drawing {
             }
             (Kind::Dim { mark, .. } | Kind::Angle { mark, .. }, "mark") => *mark = parse_mark(text)?,
             (Kind::Dim { offset, .. }, "offset") => *offset = parse_f64(text)?.clamp(-500.0, 500.0),
+            (Kind::Dim { offset_units, .. }, "offsetUnits") => *offset_units = parse_f64(text)?,
+            (Kind::Angle { r, r_paper, .. }, "radiusPaper") => {
+                let v = parse_f64(text)?.clamp(0.0, 500.0);
+                if v == 0.0 && *r <= 0.0 {
+                    return Err("a radius is more than 0".into());
+                }
+                *r_paper = v;
+            }
             (Kind::Dim { orient, .. }, "orient") => {
                 *orient = match text.trim() {
                     "aligned" => Orient::Aligned,

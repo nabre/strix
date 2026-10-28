@@ -502,21 +502,22 @@ impl Drawing {
             }
             Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. } => vec![(Grip::Point, p.pt())],
             Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
-            Kind::Dim { a, b, offset, orient, .. } => {
+            Kind::Dim { a, b, offset, offset_units, orient, .. } => {
                 let (pa, pb) = (a.pt(), b.pt());
                 let n = dim_dir(pa, pb, *orient).left();
                 let level = |q: Pt| q.x * n.x + q.y * n.y;
-                let units = offset / paper_per_unit(self);
+                let units = offset / paper_per_unit(self) + offset_units;
                 let at = if units >= 0.0 { level(pa).max(level(pb)) + units } else { level(pa).min(level(pb)) + units };
                 let m = mid(pa, pb);
                 vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))]
             }
             // The vertex, the two rays' points and the arc's middle (its radius).
-            Kind::Angle { c, a, b, r, .. } => {
+            Kind::Angle { c, a, b, r, r_paper, .. } => {
                 let (pc, pa, pb) = (c.pt(), a.pt(), b.pt());
                 let (ua, ub) = (pa.minus(pc).unit(), pb.minus(pc).unit());
                 let half = crate::kernel::direction(ua) + crate::kernel::angle_ccw(ua, ub) / 2.0;
-                vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(*r)))]
+                let reach = r + r_paper / paper_per_unit(self);
+                vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(reach)))]
             }
         }
     }
@@ -532,6 +533,10 @@ impl Drawing {
         }
         let Some(from) = self.grips(i).into_iter().find(|(k, _)| *k == g).map(|(_, p)| p) else { return false };
         let d = to.minus(from);
+        // A dimension's line or an angle's arc dragged changes the part the style places (paper,
+        // or the drawing when `scaled`); the other part stays.
+        let k = paper_per_unit(self);
+        let scaled = self.dim_style.scaled;
         let offset_at = match self.entities.get(i).map(|e| &e.kind) {
             Some(Kind::Dim { a, b, orient, .. }) => dim_offset(self, a.pt(), b.pt(), *orient, to),
             _ => 0.0,
@@ -542,12 +547,21 @@ impl Drawing {
             (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, Grip::A) => shift_p(a, d),
             (Kind::Line { b, .. } | Kind::Dim { b, .. } | Kind::Angle { b, .. }, Grip::B) => shift_p(b, d),
             (Kind::Angle { c, .. }, Grip::Center) => shift_p(c, d),
-            (Kind::Angle { c, r, .. }, Grip::DimLine) => {
-                let nr = to.minus(c.pt()).len();
-                if nr <= tiny {
-                    return false;
+            (Kind::Angle { c, r, r_paper, .. }, Grip::DimLine) => {
+                let reach = to.minus(c.pt()).len();
+                if scaled {
+                    let nr = reach - *r_paper / k;
+                    if nr < 0.0 || (nr <= tiny && *r_paper <= 0.0) {
+                        return false;
+                    }
+                    *r = nr;
+                } else {
+                    let np = (reach - *r) * k;
+                    if np < 0.0 || (np <= tiny && *r <= tiny) {
+                        return false;
+                    }
+                    *r_paper = np.min(500.0);
                 }
-                *r = nr;
             }
             (Kind::Line { a, b }, Grip::Mid) => {
                 shift_p(a, d);
@@ -615,7 +629,13 @@ impl Drawing {
                 }
             }
             (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) => shift_p(p, d),
-            (Kind::Dim { offset, .. }, Grip::DimLine) => *offset = offset_at,
+            (Kind::Dim { offset, offset_units, .. }, Grip::DimLine) => {
+                if scaled {
+                    *offset_units = (offset_at - *offset) / k;
+                } else {
+                    *offset = offset_at - *offset_units * k;
+                }
+            }
             _ => return false,
         }
         true

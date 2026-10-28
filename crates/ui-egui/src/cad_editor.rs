@@ -634,6 +634,9 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             if let Some(v) = p.get("aligned") {
                 st.aligned = v.as_bool().ok_or("aligned: true or false")?;
             }
+            if let Some(v) = p.get("scaled") {
+                st.scaled = v.as_bool().ok_or("scaled: true or false")?;
+            }
             d.dim_style = d.dim_style.sanitized();
             commit(app, &d);
             return Ok(serde_json::to_value(app.cad.as_ref().map(|e| e.drawing.dim_style)).unwrap_or_default());
@@ -2526,7 +2529,9 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
             let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
             done(ed);
-            with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset: offset_units * k, orient, text: None, below: None, mark: None }))
+            // In the drawing (scaled) or on paper (annotative), as the style places it.
+            let (offset, offset_units) = if ed.drawing.dim_style.scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
+            with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }))
         }
         Tool::Hatch => {
             done(ed);
@@ -2585,7 +2590,10 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                 ed.message = "An angle needs two sides and an arc away from the vertex".into();
                 return None;
             }
-            with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, text: None, mark: None }))
+            // The arc in the drawing (scaled) or on paper (annotative), as the style places it.
+            let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
+            let (r, r_paper) = if ed.drawing.dim_style.scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
+            with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None }))
         }
         Tool::DimContinue | Tool::DimBaseline => {
             done(ed);
@@ -3162,6 +3170,16 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
         {
             let _ = app.run("ui.cadDimStyle", json!({"aligned": aligned}));
         }
+        let mut scaled = style.scaled;
+        if ui
+            .checkbox(&mut scaled, tl!("Scaled distances"))
+            .on_hover_text(tl!(
+                "Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)"
+            ))
+            .changed()
+        {
+            let _ = app.run("ui.cadDimStyle", json!({"scaled": scaled}));
+        }
     });
     group(ui, "Hatch", None, app, |ui, app| {
         big_checked(ui, app, "cadHatch", "Hatch", "ui.cadTool", t("hatch"), tool == Tool::Hatch);
@@ -3388,6 +3406,34 @@ mod tests {
         ed.selection.clear();
         ed.set_tool(Tool::Move);
         assert!(ed.picking && ed.selecting());
+    }
+
+    /// A dimension line or an angle's arc placed with a click goes on paper (annotative) by
+    /// default, in the drawing (scaled) with the style's Scaled distances.
+    #[test]
+    fn placed_distances_follow_the_style() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let place = |app: &mut WordApp| {
+            let ed = app.cad.as_mut().unwrap();
+            ed.set_tool(Tool::Dim(Orient::Horizontal));
+            feed(ed, Pt::new(0.0, 0.0), None);
+            feed(ed, Pt::new(30.0, 0.0), None);
+            let dim = feed(ed, Pt::new(15.0, 12.0), None).unwrap().entities.last().unwrap().kind.clone();
+            ed.set_tool(Tool::DimAngle);
+            for p in [Pt::new(0.0, 0.0), Pt::new(10.0, 0.0), Pt::new(0.0, 10.0)] {
+                feed(ed, p, None);
+            }
+            let angle = feed(ed, Pt::new(4.0, 4.0), None).unwrap().entities.last().unwrap().kind.clone();
+            (dim, angle)
+        };
+        let (dim, angle) = place(&mut app);
+        assert!(matches!(dim, Kind::Dim { offset, offset_units, .. } if offset > 0.0 && offset_units == 0.0), "{dim:?}");
+        assert!(matches!(angle, Kind::Angle { r, r_paper, .. } if r == 0.0 && r_paper > 0.0), "{angle:?}");
+        assert_eq!(app.run("ui.cadDimStyle", json!({"scaled": true})).unwrap()["scaled"], json!(true));
+        let (dim, angle) = place(&mut app);
+        assert!(matches!(dim, Kind::Dim { offset, offset_units, .. } if offset == 0.0 && (offset_units - 12.0).abs() < 1e-9), "{dim:?}");
+        assert!(matches!(angle, Kind::Angle { r, r_paper, .. } if (r - 32f64.sqrt()).abs() < 1e-9 && r_paper == 0.0), "{angle:?}");
     }
 
     /// The level tool places a mark per click, each like the last one (datum, side, way up).

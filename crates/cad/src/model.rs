@@ -263,11 +263,16 @@ pub struct DimStyle {
     /// read level (the default). Written only when on.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub aligned: bool,
+    /// Where the editor puts a dimension line or an angle's arc placed with a click or a grip:
+    /// in the drawing (scaled: it follows Scale and the drawing's scale), or on paper (off, the
+    /// default: annotative, the same in print). The other part is kept. Written only when on.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub scaled: bool,
 }
 
 impl Default for DimStyle {
     fn default() -> Self {
-        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0, aligned: false }
+        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0, aligned: false, scaled: false }
     }
 }
 
@@ -284,6 +289,7 @@ impl DimStyle {
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
             aligned: self.aligned,
+            scaled: self.scaled,
         }
     }
 
@@ -334,8 +340,9 @@ pub enum Kind {
         #[serde(default, skip_serializing_if = "is_left")]
         align: Align,
     },
-    /// A linear dimension between `a` and `b`, its line `offset` paper mm along the left normal
-    /// (negative: the other side). `text`: `<>` is the measured size, `{{L}}` the value of
+    /// A linear dimension between `a` and `b`, its line `offset` paper mm (annotative: the same
+    /// in print at any scale) plus `offset_units` drawing units (scaled: it follows the drawing's
+    /// size and scale) along the left normal (a negative sum: the other side). `text`: `<>` is the measured size, `{{L}}` the value of
     /// parameter `L`; `None` shows the size. `below`: a second text under the line. `mark`: its
     /// own end mark, else the drawing's style's.
     Dim {
@@ -343,6 +350,8 @@ pub enum Kind {
         b: P,
         #[serde(default = "dim_offset")]
         offset: f64,
+        #[serde(default, rename = "offsetUnits", skip_serializing_if = "is_zero_f64")]
+        offset_units: f64,
         #[serde(default)]
         orient: Orient,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -381,12 +390,14 @@ pub enum Kind {
         spacing: f64,
     },
     /// An angular dimension at `c`, counter-clockwise from the ray to `a` to the ray to `b`, its
-    /// arc `r` drawing units from `c`. `text` as a linear dimension's (`<>` is the angle).
+    /// arc `r` drawing units (scaled) plus `r_paper` paper mm (annotative) from `c`. `text` as a linear dimension's (`<>` is the angle).
     Angle {
         c: P,
         a: P,
         b: P,
         r: f64,
+        #[serde(default, rename = "rPaper", skip_serializing_if = "is_zero_f64")]
+        r_paper: f64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         text: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -482,6 +493,10 @@ fn text_height() -> f64 {
 
 fn dim_offset() -> f64 {
     8.0
+}
+
+fn is_zero_f64(v: &f64) -> bool {
+    *v == 0.0
 }
 
 /// An entity: a stable id (dimensions and edits refer to it), a layer and its own stroke.
@@ -683,8 +698,9 @@ impl Drawing {
                     *height = clamp_paper(*height, 2.5).max(0.5);
                     *angle = if angle.is_finite() { *angle % 360.0 } else { 0.0 };
                 }
-                Kind::Dim { offset, text, below, .. } => {
+                Kind::Dim { offset, offset_units, text, below, .. } => {
                     *offset = if offset.is_finite() { offset.clamp(-500.0, 500.0) } else { 8.0 };
+                    *offset_units = if offset_units.is_finite() { offset_units.clamp(-MAX_COORD, MAX_COORD) } else { 0.0 };
                     for t in [text, below].into_iter().flatten() {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }
@@ -705,8 +721,9 @@ impl Drawing {
                         id.truncate(id.char_indices().nth(64).map_or(id.len(), |(i, _)| i));
                     }
                 }
-                Kind::Angle { r, text, .. } => {
+                Kind::Angle { r, r_paper, text, .. } => {
                     *r = if r.is_finite() { r.abs().min(MAX_COORD) } else { 0.0 };
+                    *r_paper = if r_paper.is_finite() { r_paper.clamp(0.0, 500.0) } else { 0.0 };
                     if let Some(t) = text {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }

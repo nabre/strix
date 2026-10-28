@@ -55,7 +55,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | **Dimension selection** (owner: improve): pick on the drawn dimension line, extension lines and text | todo |
 | Undo/redo, repeat (F4/Enter), Esc unwinding | done (F4 todo) |
 | Properties: exact fields, SI measures, vertex navigator, all dimension/level/text/hatch fields, multi-select scope | partial |
-| **Annotative vs scaled** (owner): show which sizes are paper (annotative) and which are drawing units (scaled) | todo |
+| **Annotative vs scaled** (owner): show which sizes are paper (annotative) and which are drawing units (scaled) | partial (dimension distances and angle radii have both parts, labelled in Properties; Scaled distances chooses the placed part) |
 | Ω symbols / variables inserter for texts | todo |
 | **Right-click menu** (owner): richer, with icons | todo |
 | Layer panel dockable or floating; ribbon layer group | done (Properties too, close ×) |
@@ -87,6 +87,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: two-part (scaled + annotative) dimension distances and angle radii.
 - 2026-10-28: right-angle symbol, continue and baseline dimensions, level marks, flip.
 - 2026-10-28: maximum size, scales that fit, Fitted to Frame.
 - 2026-10-28: explode, join, match properties, stretch, arrays.

@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** right-angle symbol, Continue and Baseline dimensions, level marks, Flip
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** dimension distances and angle radii in a scaled and an annotative part
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -27,6 +27,13 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
 - **Paper sizes do not scale**: stroke widths, text heights, dimension offsets, ticks and gaps
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
+- **Two-part distances**: a linear dimension's line is `offset` paper mm (annotative: the same
+  in print at any scale) plus `offsetUnits` drawing units (scaled: it follows Scale and the
+  drawing's scale) from its points; an angle's arc is `r` drawing units (scaled) plus `rPaper`
+  paper mm (annotative) from its vertex. Either part may be zero (the JSON leaves a zero
+  `offsetUnits` / `rPaper` out). Scale multiplies the scaled parts only. The style's **Scaled
+  distances** (`dimStyle.scaled`, off by default) says which part a click or a grip places: on
+  paper, or in the drawing; the other part is kept. Properties shows both.
 - **JSON** is canonical (fixed key order, numbers rounded to 0.001), so the same drawing always
   gives the same bytes. Reading is defensive: limits enforced, ids made unique, non-finite
   numbers dropped, sizes clamped.
@@ -346,6 +353,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: dimension distances and angle radii in two parts, scaled and annotative; Scaled distances in the style.
 - 2026-10-28: right-angle symbol; Continue and Baseline dimensions; level marks; Flip.
 - 2026-10-28: maximum size; the Scale list offers Fitted to Frame and the scales that fit (Picture Format, CAD Output).
 - 2026-10-28: Explode, Join, Match Properties, Stretch, rectangular and polar arrays; line samples on the sheet's white.

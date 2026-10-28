@@ -104,9 +104,15 @@ impl Drawing {
         for &i in indices {
             let Some(e) = self.entities.get_mut(i) else { continue };
             match &mut e.kind {
-                Kind::Line { a, b } | Kind::Dim { a, b, .. } => {
+                Kind::Line { a, b } => {
                     map_p(a, t);
                     map_p(b, t);
+                }
+                // The scaled part of its distance follows; the paper part stays.
+                Kind::Dim { a, b, offset_units, .. } => {
+                    map_p(a, t);
+                    map_p(b, t);
+                    *offset_units *= t.scale;
                 }
                 Kind::Circle { c, r } => {
                     map_p(c, t);

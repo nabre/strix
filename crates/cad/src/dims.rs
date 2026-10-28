@@ -46,7 +46,10 @@ impl Drawing {
         for &i in indices {
             let Some(e) = self.entities.get_mut(i) else { continue };
             match &mut e.kind {
-                Kind::Dim { offset, .. } => *offset = -*offset,
+                Kind::Dim { offset, offset_units, .. } => {
+                    *offset = -*offset;
+                    *offset_units = -*offset_units;
+                }
                 Kind::Angle { a, b, .. } => std::mem::swap(a, b),
                 Kind::Level { flip, .. } => *flip = !*flip,
                 _ => continue,
@@ -59,7 +62,7 @@ impl Drawing {
     /// A copy of dimension `base` measuring from `from` to `p`, its line on the base's line moved
     /// `shift` paper mm further out.
     fn chained(&self, base: &Entity, from: crate::model::P, p: Pt, shift: f64) -> Option<Entity> {
-        let Kind::Dim { orient, mark, .. } = &base.kind else { return None };
+        let Kind::Dim { orient, mark, offset_units, .. } = &base.kind else { return None };
         let k = paper_per_unit(self);
         let frame = self.dim_frame(base, k)?;
         let a = from.pt();
@@ -68,10 +71,20 @@ impl Drawing {
         }
         // A point on the new line, in drawing units: the base's line, `shift` further out.
         let at = frame.fa.plus(frame.normal.scale(frame.side * shift)).scale(1.0 / k);
-        let offset = dim_offset(self, a, p, *orient, at);
+        // The scaled part as the base's; the paper part makes up the rest.
+        let offset = dim_offset(self, a, p, *orient, at) - offset_units * k;
         let mut e = base.clone();
         e.id = String::new();
-        e.kind = Kind::Dim { a: from, b: crate::model::P::new(p.x, p.y), offset, orient: *orient, text: None, below: None, mark: *mark };
+        e.kind = Kind::Dim {
+            a: from,
+            b: crate::model::P::new(p.x, p.y),
+            offset,
+            offset_units: *offset_units,
+            orient: *orient,
+            text: None,
+            below: None,
+            mark: *mark,
+        };
         Some(e)
     }
 }

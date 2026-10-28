@@ -78,6 +78,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         a: P::new(0.0, 0.0),
         b: P::new(4500.0, 0.0),
         offset: 8.0,
+        offset_units: 0.0,
         orient: Orient::Aligned,
         text: None,
         below: None,
@@ -88,6 +89,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         a: P::new(0.0, 0.0),
         b: P::new(4500.0, 0.0),
         offset: -8.0,
+        offset_units: 0.0,
         orient: Orient::Aligned,
         text: Some("L = {{L}}".into()),
         below: None,
@@ -98,6 +100,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         a: P::new(0.0, 0.0),
         b: P::new(30.0, 40.0),
         offset: 5.0,
+        offset_units: 0.0,
         orient: Orient::Horizontal,
         text: Some("<> mm".into()),
         below: None,
@@ -840,6 +843,7 @@ fn dimension_style_marks_texts_below_and_angles() {
         a: P::new(0.0, 0.0),
         b: P::new(100.0, 0.0),
         offset: 8.0,
+        offset_units: 0.0,
         orient: Orient::Aligned,
         text: None,
         below: Some("L".into()),
@@ -865,6 +869,7 @@ fn dimension_style_marks_texts_below_and_angles() {
         a: P::new(10.0, 0.0),
         b: P::new(0.0, 10.0),
         r: 20.0,
+        r_paper: 0.0,
         text: Some("<>°".into()),
         mark: None,
     }))
@@ -872,7 +877,8 @@ fn dimension_style_marks_texts_below_and_angles() {
     let r = d.render(None);
     assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { text, .. } if text == "90°")), "{:?}", r.prims);
     // Hostile radius: nothing drawn, no panic.
-    d.entities[0].kind = Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, text: None, mark: None };
+    d.entities[0].kind =
+        Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, r_paper: 0.0, text: None, mark: None };
     d.sanitize();
     let _ = d.render(None);
 }
@@ -1134,6 +1140,7 @@ fn dimensions_are_picked_where_they_are_drawn() {
         a: P::new(0.0, 0.0),
         b: P::new(100.0, 0.0),
         offset: 8.0,
+        offset_units: 0.0,
         orient: Orient::Aligned,
         text: None,
         below: None,
