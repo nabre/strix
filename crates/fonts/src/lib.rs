@@ -250,11 +250,6 @@ fn unshaped(face: &FontFace, text: &str, start: usize, map: &impl Fn(char) -> ch
     }
 }
 
-/// Glyph id of the first of `chars` the face has (0 = .notdef).
-pub fn first_glyph(face: &FontFace, chars: &[char]) -> u32 {
-    chars.iter().map(|c| face.glyph_for(*c)).find(|g| *g != 0).unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

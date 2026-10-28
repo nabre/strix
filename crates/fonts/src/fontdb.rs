@@ -331,10 +331,6 @@ impl FontFace {
     pub fn units_per_em(&self) -> f64 {
         self.upem
     }
-    /// (ascent, descent) in font units, both positive.
-    pub fn vertical_metrics(&self) -> (f64, f64) {
-        (self.ascent, self.descent)
-    }
     /// Every mapped character and its glyph id, sorted by code point (the Glyphs panel).
     pub fn chars(&self) -> Vec<(char, u32)> {
         let Some(f) = self.skrifa() else { return vec![] };

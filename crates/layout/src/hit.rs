@@ -453,12 +453,6 @@ impl DocLayout {
         on(page_hint).or_else(|| (0..self.pages.len()).filter(|i| *i != page_hint).find_map(on))
     }
 
-    /// Which header/footer (if any) is at (x, y) on a page — for double-click editing.
-    pub fn header_footer_at(&self, page: usize, y: f32) -> Option<(StoryRef, bool)> {
-        let (story, header) = self.header_footer_zone(page, y)?;
-        story.map(|s| (s, header))
-    }
-
     /// Whether y on `page` is in its header area (above the body: `Some((_, true))`) or footer
     /// area (below it: `Some((_, false))`), with the story shown there — `None` when the page
     /// has no header/footer yet (double-clicking there creates one, #960).
@@ -827,12 +821,6 @@ impl DocLayout {
             });
         }
         None
-    }
-
-    /// Where the equation at `pos` (its U+FFFC) is drawn: page, x of its left edge and its
-    /// baseline (page coordinates), and its layout.
-    pub fn equation_geom(&self, pos: &Pos, page_hint: usize) -> Option<(usize, f32, f32, std::sync::Arc<crate::math::MathLayout>)> {
-        self.equation_box(pos, page_hint).map(|b| (b.page, b.x, b.base, b.math))
     }
 
     /// The box around the equation at `pos` (its U+FFFC): its own width, and the height of its

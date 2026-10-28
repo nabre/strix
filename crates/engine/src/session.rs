@@ -1438,11 +1438,6 @@ impl Session {
     pub fn join_next_equation_edit(&mut self) {
         self.equation_join_next = true;
     }
-    /// Discard an equation replacement join that received no replacement (for example an empty
-    /// commit), so it cannot join a later composition's typing.
-    pub fn clear_equation_join(&mut self) {
-        self.equation_join_next = false;
-    }
     /// Make the next `text.insert` at the current selection join a successful body
     /// `DeleteSurrounding`'s undo step. Unlike [`Self::join_next_undo`], the promise is scoped to
     /// that exact replacement: any other command consumes and discards it, so an intervening
@@ -1485,10 +1480,6 @@ impl Session {
         if self.undo_label() == Some("Typing") {
             self.typing_open = true;
         }
-    }
-    /// Close an open typing group (caret moved, other command).
-    pub fn close_typing(&mut self) {
-        self.typing_open = false;
     }
     pub fn can_undo(&self) -> bool {
         !self.history.is_empty()
@@ -2446,10 +2437,6 @@ impl Session {
         result
     }
 
-    /// The paragraph path the caret is in.
-    pub fn caret_path(&self) -> &Path {
-        &self.sel.focus.path
-    }
     pub fn story(&self) -> StoryRef {
         self.sel.focus.story
     }

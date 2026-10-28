@@ -84,11 +84,6 @@ impl Call {
         };
         Ok(Call { method, args })
     }
-
-    /// The payload Zotero would send for this call.
-    pub fn to_payload(&self) -> Vec<u8> {
-        serde_json::to_vec(&json!([self.method, self.args])).unwrap_or_default()
-    }
 }
 
 /// The reply payload for a call's result.

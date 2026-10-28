@@ -17,7 +17,6 @@ workspace = true
 [dependencies]
 strix-doc = { workspace = true }
 strix-engine = { workspace = true }
-strix-render = { workspace = true }
 strix-mcp = { workspace = true }
 strix-zotero = { workspace = true }
 serde_json = { workspace = true }

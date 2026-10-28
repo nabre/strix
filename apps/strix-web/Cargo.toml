@@ -20,7 +20,6 @@ strix-ui-egui = { workspace = true }
 egui = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
-strix-doc = { workspace = true }
 strix-fonts = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

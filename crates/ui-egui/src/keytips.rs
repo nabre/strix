@@ -553,22 +553,6 @@ pub fn record_tab(rect: Rect, tab: &str, prefix: &str, out: &mut Vec<(Rect, Stri
     }
 }
 
-/// Record a control badge over the control's real rect. `index` is the control's position in
-/// the tab's drawing order, which is exactly the order `letters_for` assigns letters in.
-pub fn record_control(rect: Rect, letter: String, out: &mut Vec<(Rect, String)>) {
-    out.push((rect, letter));
-}
-
-/// The badge letter for the `index`th control of a tab.
-pub fn letter_for(app: &WordApp, index: usize) -> String {
-    letters_for(app, &app.ui.tab).get(index).cloned().unwrap_or_default()
-}
-
-/// The number of badgeable controls on a tab (so callers can index them in drawing order).
-pub fn control_count(tab: &str) -> usize {
-    controls(tab).len()
-}
-
 /// Handle a key while keytips are showing. Returns true when the key was consumed.
 pub fn handle_key(app: &mut WordApp, key: egui::Key) -> bool {
     if app.ui.keytips != Phase::Off {

@@ -217,13 +217,6 @@ impl Patterns {
         self.exceptions.len()
     }
 
-    /// Make `letters` part of the alphabet even if no pattern mentions them.
-    pub fn add_letters(&mut self, letters: impl IntoIterator<Item = char>) {
-        for c in letters {
-            let _ = self.alpha.intern(c);
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.map.len()
     }

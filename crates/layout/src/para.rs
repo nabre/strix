@@ -241,10 +241,6 @@ impl Line {
         let i = k.checked_sub(self.c0)?;
         if self.vis.is_empty() { self.xs.get(i + 1).copied() } else { self.vis.get(i).map(|v| v.x + v.w) }
     }
-    /// Is cluster `k` right-to-left text?
-    pub fn cl_rtl(&self, k: usize) -> bool {
-        k.checked_sub(self.c0).and_then(|i| self.vis.get(i)).is_some_and(VisCl::is_rtl)
-    }
     /// Caret x after the line's last cluster (its logical end), hyphen included.
     pub fn end_x(&self) -> f32 {
         let h = self.hyphen.map_or(0.0, |h| h.2);

@@ -32,15 +32,6 @@ impl Fragment {
         d.body = self.blocks.iter().cloned().map(Arc::new).collect();
         d
     }
-    /// Whether the fragment holds an equation (in tables too), which a copy also puts on the
-    /// system clipboard as MathML (#816).
-    pub fn has_equation(&self) -> bool {
-        let mut found = false;
-        for b in &self.blocks {
-            each_para(b, 0, &mut |p| found |= p.objects.iter().any(|o| matches!(o, InlineObject::Equation { .. })));
-        }
-        found
-    }
     /// The equation (its linear format and whether it is a display equation) when the fragment
     /// is that one equation and nothing else but white space and empty paragraphs: a copy of it
     /// also goes on the system clipboard in the MathML formats that equation editors read (#1297).

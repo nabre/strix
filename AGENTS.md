@@ -33,11 +33,12 @@ People trust Strix with their writing; a crash loses their work. **This outranks
 | Layer | Crate | Job |
 |---|---|---|
 | L0 | `geom` | units, rects, measurement parsing |
-| L1 | `doc`, `fonts` | document model + edit primitives; font DB, shaping, Word font substitution |
-| L2 | `layout`, `docx`, `formats` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; TXT/MD/HTML/RTF/ODT |
-| L3 | `render`, `pdf`, `proof` | vello_cpu rasteriser; krilla PDF; proofing |
+| L1 | `doc`, `fonts`, `calc`, `cad`, `metafile`, `proof` | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; WMF/EMF; proofing |
+| L2 | `layout`, `docx`, `docbin`, `formats` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT |
+| L3 | `render`, `pdf` | vello_cpu rasteriser; krilla PDF |
 | L4 | `engine` | Session, undo, **command registry**, Word feature catalog, samples, I/O dispatch |
-| L5 | `mcp` | MCP server (headless or bridged to the app) |
+| L5 | `mcp`, `zotero` | MCP server (headless or bridged to the app); Zotero integration |
+| — | `control-key` | standalone: per-window control-port key files |
 | L6 | `ui-egui` | Word-style egui front end (swappable) |
 | apps | `apps/strix`, `apps/strix-cli`, `apps/strix-web` | binaries |
 

@@ -456,22 +456,12 @@ pub fn install_fonts_for(ctx: &egui::Context, prefer_hans: bool) {
     install_fonts_with(ctx, prefer_hans, false);
 }
 
-/// [`install_fonts_for`] with the CJK fallback order for a Korean interface.
-pub fn install_fonts_language(ctx: &egui::Context, prefer_hans: bool, prefer_korean: bool) {
-    install_fonts_language_with(ctx, prefer_hans, prefer_korean, false);
-}
-
 /// [`install_fonts_for`], also adding an installed CJK font after the embedded faces when
 /// `system_cjk` is set and the embedded faces leave CJK characters of the interface text without
 /// a glyph (#241, #486). Reading that font is a large file read, so callers ask for it only when
 /// CJK text is on screen: a CJK interface language, or the language names in Options.
 pub fn install_fonts_with(ctx: &egui::Context, prefer_hans: bool, system_cjk: bool) {
     install_fonts_extra(ctx, prefer_hans, system_cjk, &[]);
-}
-
-/// [`install_fonts_with`] with the CJK font order selected for the interface language.
-pub fn install_fonts_language_with(ctx: &egui::Context, prefer_hans: bool, prefer_korean: bool, system_cjk: bool) {
-    install_fonts_language_extra(ctx, prefer_hans, prefer_korean, system_cjk, &[]);
 }
 
 /// [`install_fonts_with`], also adding document-font `faces` as last-resort fallbacks (#565): the

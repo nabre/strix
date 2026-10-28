@@ -98,11 +98,6 @@ impl Server {
         self.backend.as_mut()
     }
 
-    /// Whether the client has sent `notifications/initialized`.
-    pub fn is_initialized(&self) -> bool {
-        self.initialized
-    }
-
     /// Serve newline-delimited JSON-RPC until `input` closes. Logs go to stderr only (stdout is
     /// the protocol stream).
     pub fn serve(&mut self, mut input: impl BufRead, mut output: impl Write) -> std::io::Result<()> {

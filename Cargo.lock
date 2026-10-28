@@ -5216,7 +5216,6 @@ dependencies = [
  "strix-doc",
  "strix-engine",
  "strix-mcp",
- "strix-render",
  "strix-zotero",
  "sys-locale",
 ]
@@ -5360,7 +5359,6 @@ dependencies = [
  "image",
  "js-sys",
  "kurbo",
- "log",
  "serde",
  "serde_json",
  "strix-doc",
@@ -5480,7 +5478,6 @@ dependencies = [
  "log",
  "rfd",
  "serde_json",
- "strix-doc",
  "strix-engine",
  "strix-fonts",
  "strix-ui-egui",

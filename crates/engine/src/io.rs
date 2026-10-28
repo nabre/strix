@@ -68,12 +68,6 @@ fn ext_of(name: &str) -> String {
     file.rsplit_once('.').map(|(_, ext)| ext.to_ascii_lowercase()).unwrap_or_default()
 }
 
-/// Is `ext` one of the package formats (Strix's .xmath/.xmathm, Word's .docx/.docm/.dotx/.dotm),
-/// which save without loss?
-pub fn is_word_package(ext: &str) -> bool {
-    strix_docx::Flavor::from_ext(ext).is_some()
-}
-
 /// The lower-case extension `ext_or_name` names: a bare extension (`xmath`, `.XMATH`) or a file
 /// name or path (`report.xmath`).
 fn ext_named(ext_or_name: &str) -> String {
