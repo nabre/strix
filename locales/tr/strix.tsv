@@ -1324,7 +1324,7 @@
 	No Soft Edges	Yumuşak Kenar Yok
 	No sources yet.	Henüz kaynak yok.
 	No Spacing	Aralık Yok
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	{language} için yüklü bir yazım sözlüğü yok, bu yüzden denetlenmiyor. Strix, {name} Hunspell sözlüğünü WORDCRAFT_DICTIONARIES klasöründe ve olağan sistem konumlarında arar.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	{language} için yüklü bir yazım sözlüğü yok, bu yüzden denetlenmiyor. Strix, {name} Hunspell sözlüğünü STRIX_DICTIONARIES klasöründe ve olağan sistem konumlarında arar.
 	No templates match your search.	Aramanızla eşleşen şablon yok.
 	No Transform	Dönüşüm Yok
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Henüz sözcük yok. Yanlış yazılmış bir sözcükte «Sözlüğe ekle» onu buraya koyar.
@@ -1930,7 +1930,7 @@
 	Sort by:	Sıralama ölçütü:
 	Sort order:	Sıralama:
 	Sort Recipients	Alıcıları sırala
-	Source code: github.com/storytold/strix	Kaynak kod: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Kaynak kod: github.com/nabre/strix
 	Source Manager	Kaynak Yöneticisi
 	Source type:	Kaynak türü:
 	Sources in this document:	Bu belgedeki kaynaklar:

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Spanish grammar checks with Spanish messages: the generic repeated-word and spacing checks,
 //! and the opening question and exclamation marks Spanish writes before a question or an
 //! exclamation (`¿Vienes?`, `¡Qué bien!`): a closing `?` or `!` whose sentence has no opening mark

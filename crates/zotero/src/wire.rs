@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Framing and messages. Every frame is a 32-bit transaction id and a 32-bit big-endian payload
 //! length, then the payload: UTF-8 JSON, or a string starting `ERR:` for a failed call.
 //! Integration commands (us → Zotero) use transaction id 0 and get no reply; Zotero's calls

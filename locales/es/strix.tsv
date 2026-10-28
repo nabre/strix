@@ -1306,7 +1306,7 @@
 	No Soft Edges	Sin bordes suaves
 	No sources yet.	Aún no hay fuentes.
 	No Spacing	Sin espaciado
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	No hay un diccionario ortográfico instalado para {language}, así que no se revisa. Strix busca el diccionario Hunspell {name} en la carpeta WORDCRAFT_DICTIONARIES y en las ubicaciones habituales del sistema.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	No hay un diccionario ortográfico instalado para {language}, así que no se revisa. Strix busca el diccionario Hunspell {name} en la carpeta STRIX_DICTIONARIES y en las ubicaciones habituales del sistema.
 	No templates match your search.	Ninguna plantilla coincide con la búsqueda.
 	No Transform	Sin transformación
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Aún no hay palabras. Añadir al diccionario sobre una palabra mal escrita la pone aquí.
@@ -1901,7 +1901,7 @@
 	Sort by:	Ordenar por:
 	Sort order:	Orden:
 	Sort Recipients	Ordenar destinatarios
-	Source code: github.com/storytold/strix	Código fuente: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Código fuente: github.com/nabre/strix
 	Source Manager	Administrador de fuentes
 	Source type:	Tipo de fuente:
 	Sources in this document:	Fuentes de este documento:

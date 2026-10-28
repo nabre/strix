@@ -1140,7 +1140,7 @@
 	No Shadow	无阴影
 	No Soft Edges	无柔化边缘
 	No sources yet.	尚无源。
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	未安装{language}的拼写词典，因此不会检查该语言。Strix 会在 WORDCRAFT_DICTIONARIES 文件夹和常见的系统位置查找 Hunspell 词典 {name}。
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	未安装{language}的拼写词典，因此不会检查该语言。Strix 会在 STRIX_DICTIONARIES 文件夹和常见的系统位置查找 Hunspell 词典 {name}。
 	No templates match your search.	没有与搜索匹配的模板。
 	No Transform	无转换
 	No words yet. Add to Dictionary on a misspelled word puts it here.	还没有单词。对拼写错误的单词选择“添加到词典”会将其放在这里。
@@ -1701,7 +1701,7 @@
 	Sort by:	排序依据：
 	Sort order:	排序方式：
 	Sort Recipients	排序收件人
-	Source code: github.com/storytold/strix	源代码：github.com/storytold/strix
+	Source code: github.com/nabre/strix	源代码：github.com/nabre/strix
 	Source Manager	源管理器
 	Source type:	源类型：
 	Sources in this document:	本文档中的源：

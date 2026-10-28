@@ -1498,7 +1498,7 @@
 	No Soft Edges	Brez mehkih robov
 	No sources yet.	Virov še ni.
 	No Spacing	Brez razmika
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Za jezik {language} ni nameščenega slovarja za črkovanje, zato se ne preverja. Strix poišče slovar Hunspell {name} v mapi WORDCRAFT_DICTIONARIES in na običajnih sistemskih mestih.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Za jezik {language} ni nameščenega slovarja za črkovanje, zato se ne preverja. Strix poišče slovar Hunspell {name} v mapi STRIX_DICTIONARIES in na običajnih sistemskih mestih.
 	No templates match your search.	Nobena predloga se ne ujema z iskanjem.
 	No Transform	Brez preoblikovanja
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Besed še ni. Ukaz Dodaj v slovar na napačno črkovani besedi jo doda sem.
@@ -2161,7 +2161,7 @@
 	Sort by:	Razvrsti po:
 	Sort order:	Vrstni red razvrščanja:
 	Sort Recipients	Razvrsti prejemnike
-	Source code: github.com/storytold/strix	Izvorna koda: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Izvorna koda: github.com/nabre/strix
 	Source Manager	Upravitelj virov
 	Source type:	Vrsta vira:
 	Sources in this document:	Viri v tem dokumentu:

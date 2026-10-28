@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Spreadsheets as mail-merge recipient lists (#334): the sheet names of an Excel workbook
 //! (`.xlsx` / `.xlsm`, ECMA-376 Part 1 §18 SpreadsheetML; legacy `.xls` BIFF8 in [`xls`], #778)
 //! or an OpenDocument spreadsheet (`.ods`, OASIS ODF 1.3 §9.1), and one sheet's cells as rows of

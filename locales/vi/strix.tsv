@@ -1399,7 +1399,7 @@ template	Letter	Thư
 	No Soft Edges	Không cạnh mềm
 	No sources yet.	Chưa có nguồn nào.
 	No Spacing	Không giãn cách
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Chưa cài từ điển chính tả cho {language}, nên ngôn ngữ này không được kiểm tra. Strix tìm từ điển Hunspell {name} trong thư mục WORDCRAFT_DICTIONARIES và ở các vị trí thông thường của hệ thống.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Chưa cài từ điển chính tả cho {language}, nên ngôn ngữ này không được kiểm tra. Strix tìm từ điển Hunspell {name} trong thư mục STRIX_DICTIONARIES và ở các vị trí thông thường của hệ thống.
 	No templates match your search.	Không có mẫu nào khớp với tìm kiếm của bạn.
 	No Transform	Không biến đổi
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Chưa có từ nào. “Thêm vào từ điển” trên từ sai chính tả sẽ đưa từ đó vào đây.
@@ -2017,7 +2017,7 @@ template	Letter	Thư
 	Sort by:	Sắp xếp theo:
 	Sort order:	Thứ tự sắp xếp:
 	Sort Recipients	Sắp xếp người nhận
-	Source code: github.com/storytold/strix	Mã nguồn: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Mã nguồn: github.com/nabre/strix
 	Source Manager	Quản lý nguồn
 	Source type:	Loại nguồn:
 	Sources in this document:	Nguồn trong tài liệu này:

@@ -6,12 +6,15 @@ Licensed under the MIT License or the Apache License, Version 2.0, at your optio
 Modifications
 
 Strix is a modified version of WordCraft (https://github.com/storytold/wordcraft), forked at
-upstream commit d7d9702bda1fe626952024dc37fd2624323dad0f on 2026-10-26 (imported in this
+upstream commit d859c673c1e93bccaa6536fa3653b902ea877cea on 2026-10-26 (imported in this
 repository as commit 0857478). The Strix contributors have changed the files since then: renamed
 the product, crates, binaries, identifiers and packaging from WordCraft to Strix, replaced the app
 icon, and continue to develop it. Files changed since the fork carry the line "Modified by the
 Strix contributors (fork of WordCraft)"; files that cannot hold a comment (JSON, images, binary
 data) are covered by this notice. The full list of changes is `git diff --stat 0857478`.
+Later WordCraft changes are merged through the branch vendor/wordcraft, whose commits are
+upstream snapshots with the same mechanical rename applied (docs/upstream.md); the changes Strix
+makes on top of upstream are `git diff vendor/wordcraft main`.
 Strix is not affiliated with or endorsed by the ArtCraft Team or the WordCraft project.
 
 Interface translations (locales/): vendored from storytold/craft-i18n at commit

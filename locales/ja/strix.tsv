@@ -1169,7 +1169,7 @@
 	No Shadow	影なし
 	No Soft Edges	ぼかしなし
 	No sources yet.	資料文献はまだありません。
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	{language}のスペルチェック辞書がインストールされていないため、チェックされません。Strix は Hunspell 辞書 {name} を WORDCRAFT_DICTIONARIES フォルダーと通常のシステムの場所から探します。
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	{language}のスペルチェック辞書がインストールされていないため、チェックされません。Strix は Hunspell 辞書 {name} を STRIX_DICTIONARIES フォルダーと通常のシステムの場所から探します。
 	No templates match your search.	検索に一致するテンプレートはありません。
 	No Transform	変形なし
 	No words yet. Add to Dictionary on a misspelled word puts it here.	まだ単語はありません。スペルミスの単語で [辞書に追加] を選ぶと、ここに追加されます。
@@ -1733,7 +1733,7 @@
 	Sort by:	並べ替え:
 	Sort order:	並べ替え順:
 	Sort Recipients	宛先の並べ替え
-	Source code: github.com/storytold/strix	ソース コード: github.com/storytold/strix
+	Source code: github.com/nabre/strix	ソース コード: github.com/nabre/strix
 	Source Manager	資料文献の管理
 	Source type:	資料文献の種類:
 	Sources in this document:	この文書の資料文献:

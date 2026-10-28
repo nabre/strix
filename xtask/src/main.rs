@@ -9,6 +9,7 @@ mod ico;
 mod layers;
 mod parity;
 mod stats;
+mod upstream;
 mod version;
 mod visual_diff;
 
@@ -35,6 +36,9 @@ commands:
   visual-diff <ref.pdf> <test.pdf> <outdir> [--private] [--dpi N]
                   compare two PDFs of a document page by page (SSIM, line breaks, offsets);
                   needs poppler (pdftoppm, pdftotext)
+  upstream [status | sync [REV] | rebrand DIR]
+                  track WordCraft: rebrand an upstream commit onto the vendor/wordcraft branch,
+                  then `git merge vendor/wordcraft` (docs/upstream.md)
   ico <out.ico> <in.png>...
                   pack square PNGs (<= 256 px) into a Windows .ico (see packaging/icons.sh)
 ";
@@ -55,6 +59,7 @@ fn main() -> ExitCode {
         Some("ico") => ico::run(&rest),
         Some("visual-diff") => visual_diff::run(&rest),
         Some("version") => version::run(&root(), &rest),
+        Some("upstream") => upstream::run(&root(), &rest),
         Some("-h" | "--help" | "help") | None => {
             print!("{USAGE}");
             Ok(())

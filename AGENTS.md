@@ -29,6 +29,12 @@ People trust Strix with their writing; a crash loses their work. **This outranks
 - Never read, disassemble or copy anything inside the Word bundle (file names/listings only). Never commit files produced by Word. Never copy Microsoft wording beyond feature names.
 - File formats come from public specs: ECMA-376 / ISO 29500 (OOXML), the published RTF spec, OASIS ODF 1.3. Never copy GPL/LGPL/AGPL code (LibreOffice, AbiWord, pandoc…).
 
+## Fork of WordCraft: stay mergeable
+Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch (`cargo xtask upstream status|sync`, then `git merge vendor/wordcraft`; [`docs/upstream.md`](docs/upstream.md)).
+- New Strix code goes in new files/crates; upstream files only get the lines that register or call it.
+- Never reformat, reorder, rename or split upstream code you aren't otherwise changing.
+- Never hand-edit brand names in upstream files: extend `RENAMES` in `xtask/src/upstream.rs`.
+
 ## Architecture (see `plan/architecture.md`)
 | Layer | Crate | Job |
 |---|---|---|

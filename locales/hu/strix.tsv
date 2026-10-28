@@ -1355,7 +1355,7 @@
 	No Soft Edges	Nincsenek lágy szélek
 	No sources yet.	Még nincs forrás.
 	No Spacing	Nincs térköz
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	A(z) {language} nyelvhez nincs telepítve helyesírási szótár, ezért nem ellenőrzi. A Strix a(z) {name} Hunspell-szótárat a WORDCRAFT_DICTIONARIES mappában és a szokásos rendszerhelyeken keresi.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	A(z) {language} nyelvhez nincs telepítve helyesírási szótár, ezért nem ellenőrzi. A Strix a(z) {name} Hunspell-szótárat a STRIX_DICTIONARIES mappában és a szokásos rendszerhelyeken keresi.
 	No templates match your search.	Egy sablon sem felel meg a keresésnek.
 	No Transform	Nincs átalakítás
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Még nincs szó. Ha egy hibás szón a Felvétel a szótárba parancsot választod, ide kerül.
@@ -1955,7 +1955,7 @@
 	Sort by:	Rendezés:
 	Sort order:	Rendezés:
 	Sort Recipients	Címzettek rendezése
-	Source code: github.com/storytold/strix	Forráskód: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Forráskód: github.com/nabre/strix
 	Source Manager	Forráskezelő
 	Source type:	Forrás típusa:
 	Sources in this document:	A dokumentum forrásai:

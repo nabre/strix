@@ -1090,7 +1090,7 @@
 	No Shadow	Без сенке
 	No Soft Edges	Без меких ивица
 	No sources yet.	Још нема извора.
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Правописни речник за {language} није инсталиран, па се текст не проверава. Strix тражи Hunspell речник {name} у фасцикли WORDCRAFT_DICTIONARIES и на уобичајеним системским локацијама.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Правописни речник за {language} није инсталиран, па се текст не проверава. Strix тражи Hunspell речник {name} у фасцикли STRIX_DICTIONARIES и на уобичајеним системским локацијама.
 	No templates match your search.	Ниједан шаблон не одговара претрази.
 	No Transform	Без трансформације
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Још нема речи. Додај у речник на погрешно написаној речи ставља је овде.
@@ -1628,7 +1628,7 @@
 	Sort by:	Сортирај по:
 	Sort order:	Редослед сортирања:
 	Sort Recipients	Сортирај примаоце
-	Source code: github.com/storytold/strix	Изворни код: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Изворни код: github.com/nabre/strix
 	Source Manager	Управљач изворима
 	Source type:	Врста извора:
 	Sources in this document:	Извори у овом документу:

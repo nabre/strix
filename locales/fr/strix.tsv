@@ -1374,7 +1374,7 @@ template	Letter	Lettre
 	No Soft Edges	Sans bords adoucis
 	No sources yet.	Aucune source pour le moment.
 	No Spacing	Sans interligne
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Aucun dictionnaire orthographique pour {language} n'est installé, la langue n'est donc pas vérifiée. Strix cherche le dictionnaire Hunspell {name} dans le dossier WORDCRAFT_DICTIONARIES et aux emplacements système habituels.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Aucun dictionnaire orthographique pour {language} n'est installé, la langue n'est donc pas vérifiée. Strix cherche le dictionnaire Hunspell {name} dans le dossier STRIX_DICTIONARIES et aux emplacements système habituels.
 	No templates match your search.	Aucun modèle ne correspond à votre recherche.
 	No Transform	Aucune transformation
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Aucun mot pour l’instant. Utilisez Ajouter au dictionnaire sur un mot mal orthographié pour l’ajouter ici.
@@ -1985,7 +1985,7 @@ template	Letter	Lettre
 	Sort by:	Trier par :
 	Sort order:	Ordre de tri :
 	Sort Recipients	Trier les destinataires
-	Source code: github.com/storytold/strix	Code source : github.com/storytold/strix
+	Source code: github.com/nabre/strix	Code source : github.com/nabre/strix
 	Source Manager	Gestionnaire de sources
 	Source type:	Type de source :
 	Sources in this document:	Sources dans ce document :

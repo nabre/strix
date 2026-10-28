@@ -1599,7 +1599,7 @@ template	Letter	წერილი
 	No Soft Edges	რბილი კიდეების გარეშე
 	No sources yet.	წყაროები ჯერ არ არის.
 	No Spacing	უინტერვალოდ
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	მართლწერის ლექსიკონი ({language}) დაყენებული არ არის, ამიტომ ტექსტი არ მოწმდება. Strix Hunspell-ის ლექსიკონს {name} ეძებს WORDCRAFT_DICTIONARIES საქაღალდეში და სისტემის ჩვეულებრივ მდებარეობებში.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	მართლწერის ლექსიკონი ({language}) დაყენებული არ არის, ამიტომ ტექსტი არ მოწმდება. Strix Hunspell-ის ლექსიკონს {name} ეძებს STRIX_DICTIONARIES საქაღალდეში და სისტემის ჩვეულებრივ მდებარეობებში.
 	No templates match your search.	ძიების შესაბამისი შაბლონი არ მოიძებნა.
 	No Transform	გარდაქმნის გარეშე
 	No words yet. Add to Dictionary on a misspelled word puts it here.	სიტყვები ჯერ არ არის. შეცდომით დაწერილ სიტყვაზე „ლექსიკონში დამატება“ მას აქ დაამატებს.
@@ -2302,7 +2302,7 @@ template	Letter	წერილი
 	Sort by:	სორტირება:
 	Sort order:	სორტირების წესი:
 	Sort Recipients	მიმღებთა სორტირება
-	Source code: github.com/storytold/strix	საწყისი კოდი: github.com/storytold/strix
+	Source code: github.com/nabre/strix	საწყისი კოდი: github.com/nabre/strix
 	Source Manager	წყაროების მართვა
 	Source type:	წყაროს ტიპი:
 	Sources in this document:	ამ დოკუმენტის წყაროები:

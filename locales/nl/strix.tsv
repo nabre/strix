@@ -1379,7 +1379,7 @@
 	No Soft Edges	Geen zachte randen
 	No sources yet.	Nog geen bronnen.
 	No Spacing	Geen spatiëring
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Er is geen spellingwoordenboek voor {language} geïnstalleerd, dus de spelling wordt niet gecontroleerd. Strix zoekt het Hunspell-woordenboek {name} in de map WORDCRAFT_DICTIONARIES en op de gebruikelijke systeemlocaties.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Er is geen spellingwoordenboek voor {language} geïnstalleerd, dus de spelling wordt niet gecontroleerd. Strix zoekt het Hunspell-woordenboek {name} in de map STRIX_DICTIONARIES en op de gebruikelijke systeemlocaties.
 	No templates match your search.	Er zijn geen sjablonen die overeenkomen met je zoekopdracht.
 	No Transform	Geen transformatie
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Nog geen woorden. Met Toevoegen aan woordenboek wordt een foutspeld woord hier geplaatst.
@@ -1994,7 +1994,7 @@
 	Sort by:	Sorteren op:
 	Sort order:	Sorteervolgorde:
 	Sort Recipients	Geadresseerden sorteren
-	Source code: github.com/storytold/strix	Broncode: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Broncode: github.com/nabre/strix
 	Source Manager	Bronnenbeheer
 	Source type:	Brontype:
 	Sources in this document:	Bronnen in dit document:

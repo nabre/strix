@@ -1340,7 +1340,7 @@ template	Letter	Brev
 	No Soft Edges	Inga mjuka kanter
 	No sources yet.	Inga källor än.
 	No Spacing	Inget avstånd
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Ingen stavningsordlista för {language} är installerad, så språket kontrolleras inte. Strix letar efter Hunspell-ordlistan {name} i mappen WORDCRAFT_DICTIONARIES och på systemets vanliga platser.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Ingen stavningsordlista för {language} är installerad, så språket kontrolleras inte. Strix letar efter Hunspell-ordlistan {name} i mappen STRIX_DICTIONARIES och på systemets vanliga platser.
 	No templates match your search.	Inga mallar matchar sökningen.
 	No Transform	Ingen omformning
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Inga ord än. Välj Lägg till i ordlistan på ett felstavat ord, så hamnar det här.
@@ -1936,7 +1936,7 @@ template	Letter	Brev
 	Sort by:	Sortera efter:
 	Sort order:	Sorteringsordning:
 	Sort Recipients	Sortera mottagare
-	Source code: github.com/storytold/strix	Källkod: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Källkod: github.com/nabre/strix
 	Source Manager	Källhanterare
 	Source type:	Källtyp:
 	Sources in this document:	Källor i det här dokumentet:

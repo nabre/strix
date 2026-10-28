@@ -1336,7 +1336,7 @@
 	No Soft Edges	Bez měkkých okrajů
 	No sources yet.	Zatím žádné prameny.
 	No Spacing	Bez mezer
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Pro jazyk {language} není nainstalován žádný pravopisný slovník, proto se nekontroluje. Strix hledá slovník Hunspell {name} ve složce WORDCRAFT_DICTIONARIES a na obvyklých místech v systému.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Pro jazyk {language} není nainstalován žádný pravopisný slovník, proto se nekontroluje. Strix hledá slovník Hunspell {name} ve složce STRIX_DICTIONARIES a na obvyklých místech v systému.
 	No templates match your search.	Hledání neodpovídají žádné šablony.
 	No Transform	Bez transformace
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Zatím žádná slova. Sem se ukládají slova přidaná příkazem Přidat do slovníku u chybně napsaného slova.
@@ -1940,7 +1940,7 @@
 	Sort by:	Seřadit podle:
 	Sort order:	Pořadí řazení:
 	Sort Recipients	Seřadit příjemce
-	Source code: github.com/storytold/strix	Zdrojový kód: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Zdrojový kód: github.com/nabre/strix
 	Source Manager	Správce pramenů
 	Source type:	Typ pramene:
 	Sources in this document:	Prameny v tomto dokumentu:

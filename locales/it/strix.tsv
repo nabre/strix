@@ -1361,7 +1361,7 @@ template	Letter	Lettera
 	No Soft Edges	Nessun bordo sfumato
 	No sources yet.	Ancora nessuna fonte.
 	No Spacing	Nessuna spaziatura
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Non è installato alcun dizionario ortografico per {language}, quindi il testo in questa lingua non viene controllato. Strix cerca il dizionario Hunspell {name} nella cartella WORDCRAFT_DICTIONARIES e nelle posizioni di sistema abituali.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Non è installato alcun dizionario ortografico per {language}, quindi il testo in questa lingua non viene controllato. Strix cerca il dizionario Hunspell {name} nella cartella STRIX_DICTIONARIES e nelle posizioni di sistema abituali.
 	No templates match your search.	Nessun modello corrisponde alla ricerca.
 	No Transform	Nessuna trasformazione
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Ancora nessuna parola. Usa Aggiungi al dizionario su una parola errata per inserirla qui.
@@ -1447,7 +1447,7 @@ template	Letter	Lettera
 	Open a file with Strix's own browser when the system file dialog doesn't appear.	Apri un file con il browser di Strix quando la finestra di dialogo dei file del sistema non compare.
 	OpenDocument Text (*.odt)	Testo OpenDocument (*.odt)
 	Opening print dialog…	Apertura della finestra di stampa…
-	Opens .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	D'ora in poi i file .docx, .doc, .rtf e .odt e i modelli di Word si aprono con Strix.
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	D'ora in poi i documenti di Strix (.xmath, .xmathm), i file .docx, .doc, .rtf e .odt e i modelli di Word si aprono con Strix.
 	Opens Settings › Default apps, where you choose Strix for .docx and the other document types.	Apre Impostazioni › App predefinite, dove scegli Strix per .docx e gli altri tipi di documento.
 	Operator	Operatore
 	Operator Structures	Strutture di operatori
@@ -1966,7 +1966,7 @@ template	Letter	Lettera
 	Sort by:	Ordina per:
 	Sort order:	Ordinamento:
 	Sort Recipients	Ordina destinatari
-	Source code: github.com/storytold/strix	Codice sorgente: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Codice sorgente: github.com/nabre/strix
 	Source Manager	Gestione fonti
 	Source type:	Tipo di fonte:
 	Sources in this document:	Fonti in questo documento:

@@ -1598,7 +1598,7 @@ template	Letter	Scrisoare
 	No Soft Edges	Fără margini estompate
 	No sources yet.	Nicio sursă încă.
 	No Spacing	Fără spațiere
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Nu este instalat niciun dicționar ortografic pentru {language}, așa că nu se verifică. Strix caută dicționarul Hunspell {name} în folderul WORDCRAFT_DICTIONARIES și în locurile uzuale ale sistemului.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Nu este instalat niciun dicționar ortografic pentru {language}, așa că nu se verifică. Strix caută dicționarul Hunspell {name} în folderul STRIX_DICTIONARIES și în locurile uzuale ale sistemului.
 	No templates match your search.	Niciun șablon nu se potrivește căutării.
 	No Transform	Fără transformare
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Niciun cuvânt încă. „Adăugați în dicționar” pe un cuvânt scris greșit îl pune aici.
@@ -2300,7 +2300,7 @@ template	Letter	Scrisoare
 	Sort by:	Sortează după:
 	Sort order:	Ordinea de sortare:
 	Sort Recipients	Sortare destinatari
-	Source code: github.com/storytold/strix	Cod sursă: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Cod sursă: github.com/nabre/strix
 	Source Manager	Manager de surse
 	Source type:	Tipul sursei:
 	Sources in this document:	Surse din acest document:

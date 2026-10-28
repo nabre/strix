@@ -1335,7 +1335,7 @@
 	No Soft Edges	Без сглаживания
 	No sources yet.	Источников пока нет.
 	No Spacing	Без интервала
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Орфографический словарь для языка «{language}» не установлен, поэтому текст не проверяется. Strix ищет словарь Hunspell {name} в папке WORDCRAFT_DICTIONARIES и в обычных системных расположениях.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Орфографический словарь для языка «{language}» не установлен, поэтому текст не проверяется. Strix ищет словарь Hunspell {name} в папке STRIX_DICTIONARIES и в обычных системных расположениях.
 	No templates match your search.	Нет шаблонов, подходящих под запрос.
 	No Transform	Без трансформации
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Слов пока нет. Команда «Добавить в словарь» для слова с ошибкой помещает его сюда.
@@ -1940,7 +1940,7 @@
 	Sort by:	Сортировать по:
 	Sort order:	Порядок сортировки:
 	Sort Recipients	Сортировка получателей
-	Source code: github.com/storytold/strix	Исходный код: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Исходный код: github.com/nabre/strix
 	Source Manager	Диспетчер источников
 	Source type:	Тип источника:
 	Sources in this document:	Источники в этом документе:

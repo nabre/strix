@@ -1383,7 +1383,7 @@
 	No Soft Edges	Ingen bløde kanter
 	No sources yet.	Ingen kilder endnu.
 	No Spacing	Uden afstand
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Der er ikke installeret nogen staveordbog til {language}, så den bliver ikke kontrolleret. Strix leder efter Hunspell-ordbogen {name} i mappen WORDCRAFT_DICTIONARIES og på de sædvanlige systemplaceringer.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Der er ikke installeret nogen staveordbog til {language}, så den bliver ikke kontrolleret. Strix leder efter Hunspell-ordbogen {name} i mappen STRIX_DICTIONARIES og på de sædvanlige systemplaceringer.
 	No templates match your search.	Ingen skabeloner matcher din søgning.
 	No Transform	Ingen transformation
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Ingen ord endnu. Tilføj til ordbog på et ord med fejl, så lægges det her ind.
@@ -2000,7 +2000,7 @@
 	Sort by:	Sortér efter:
 	Sort order:	Sorteringsrækkefølge:
 	Sort Recipients	Sortér modtagere
-	Source code: github.com/storytold/strix	Kildekode: github.com/storytold/strix
+	Source code: github.com/nabre/strix	Kildekode: github.com/nabre/strix
 	Source Manager	Kildehåndtering
 	Source type:	Kildetype:
 	Sources in this document:	Kilder i dette dokument:
