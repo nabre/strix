@@ -623,6 +623,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 ("extGap", &mut st.ext_gap),
                 ("extOver", &mut st.ext_over),
                 ("textGap", &mut st.text_gap),
+                ("lineWidth", &mut st.line_width),
+                ("lineOver", &mut st.line_over),
             ] {
                 if let Some(v) = p.get(key) {
                     *slot = v.as_f64().ok_or(format!("{key}: a size in mm"))?;
@@ -3179,6 +3181,11 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
             size(ui, app, "Extension gap", "extGap", style.ext_gap);
             size(ui, app, "Extension beyond", "extOver", style.ext_over);
             size(ui, app, "Text gap", "textGap", style.text_gap);
+        });
+        ui.add_space(10.0);
+        field_grid(ui, "cad_dim_style_c", |ui| {
+            size(ui, app, "Line width", "lineWidth", style.line_width);
+            size(ui, app, "Line beyond", "lineOver", style.line_over);
         });
         ui.add_space(10.0);
         ui.vertical(|ui| {

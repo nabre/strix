@@ -302,6 +302,12 @@ pub struct DimStyle {
     pub ext_over: f64,
     /// Between a dimension's text and its line, mm.
     pub text_gap: f64,
+    /// Dimension, extension and leader lines' width, mm: thin, lighter than the drawing's
+    /// lines (a dimension's own stroke width wins). Ticks are drawn heavier.
+    pub line_width: f64,
+    /// How far a dimension line runs past its extension lines, mm, with ticks and dots (as
+    /// architectural drawings do; never with arrows).
+    pub line_over: f64,
     /// Texts aligned with their dimension line at any slope (turned to stay readable: never
     /// upside down) and an angle's along its arc; off, a steep dimension's text and an angle's
     /// read level (the default). Written only when on.
@@ -320,13 +326,17 @@ pub struct DimStyle {
 
 impl Default for DimStyle {
     fn default() -> Self {
+        // ISO 129 / ISO 128 practice: 2.5 mm text, thin 0.18 mm lines, 3 mm ticks drawn
+        // heavier, extension lines from 1 mm off the object to 2 mm past the dimension line.
         DimStyle {
             text: 2.5,
             mark: Mark::Tick,
-            mark_size: 2.5,
+            mark_size: 3.0,
             ext_gap: 1.0,
-            ext_over: 1.5,
+            ext_over: 2.0,
             text_gap: 1.0,
+            line_width: 0.18,
+            line_over: 1.5,
             aligned: false,
             scaled: false,
             units: DimUnits::Drawing,
@@ -335,7 +345,8 @@ impl Default for DimStyle {
 }
 
 impl DimStyle {
-    /// Every size finite and within reason (text 0.5–50 mm, the others 0–20 mm).
+    /// Every size finite and within reason (text 0.5–50 mm, line width 0.05–2 mm, the others
+    /// 0–20 mm).
     pub fn sanitized(self) -> DimStyle {
         let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
         let d = DimStyle::default();
@@ -346,6 +357,8 @@ impl DimStyle {
             ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
+            line_width: c(self.line_width, 0.05, 2.0, d.line_width),
+            line_over: c(self.line_over, 0.0, 20.0, d.line_over),
             aligned: self.aligned,
             scaled: self.scaled,
             units: self.units,

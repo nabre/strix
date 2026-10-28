@@ -146,9 +146,10 @@ impl Drawing {
                         color,
                     });
                 }
-                Kind::Dim { .. } => self.dimension(e, k, color, width.min(0.25), ws, &mut prims),
-                Kind::Angle { .. } => self.angular(e, k, color, width.min(0.25), ws, &mut prims),
-                Kind::Level { .. } => self.level(e, k, color, width.min(0.25), ws, &mut prims),
+                // Annotations are thin, the style's line width, unless they set their own.
+                Kind::Dim { .. } => self.dimension(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
+                Kind::Angle { .. } => self.angular(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
+                Kind::Level { .. } => self.level(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
                 // A hatch or a hatched strip: its lines, thin as hatches are; a solid fill's lines
                 // close enough, and wide enough, to cover it (with its islands, on any output).
                 Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
@@ -172,14 +173,14 @@ impl Drawing {
         let normal = dir.left();
         match mark {
             Mark::None => {}
-            // Architectural tick: a 45° stroke across the end.
+            // Architectural tick: a 45° stroke across the end, heavier than the line.
             Mark::Tick => {
                 let t = dir.plus(normal).unit().scale(size / 2.0);
                 out.push(Prim::Path {
                     pts: vec![(at.x - t.x, at.y - t.y), (at.x + t.x, at.y + t.y)],
                     closed: false,
                     color,
-                    width: width * 2.0,
+                    width: (width * 2.8).clamp(0.35, 1.0).max(width),
                     dash: Vec::new(),
                     fill: false,
                 });
@@ -241,9 +242,11 @@ impl Drawing {
                 out.push(line(vec![start, f.plus(normal.scale(st.ext_over * side))]));
             }
         }
-        out.push(line(vec![fa, fb]));
-        // The end marks, each pointing at its end.
+        // The end marks, each pointing at its end. With ticks and dots the line runs on past
+        // the extension lines.
         let mark = mark.unwrap_or(st.mark);
+        let over = if matches!(mark, Mark::Tick | Mark::Dot) { st.line_over } else { 0.0 };
+        out.push(line(vec![fa.minus(dir.scale(over)), fb.plus(dir.scale(over))]));
         self.mark(mark, fa, dir, color, width, out);
         self.mark(mark, fb, dir.scale(-1.0), color, width, out);
         // Texts above and below the line's middle, kept readable (never upside down).

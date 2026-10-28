@@ -332,3 +332,39 @@ fn dimension_units() {
     let odd = Drawing::from_json(r#"{"entities":[{"type":"dim","a":[0,0],"b":[1,0],"mark":"star"}]}"#).unwrap();
     assert!(matches!(odd.entities[0].kind, Kind::Dim { mark: None, .. }));
 }
+
+/// The default dimension style: thin 0.18 mm lines, heavier 3 mm ticks, the dimension line
+/// running 1.5 mm past the extension lines (not with arrows), extension lines 2 mm past it.
+#[test]
+fn the_default_dimension_style() {
+    let draw = |mark: &str| {
+        let d = Drawing::from_json(&format!(
+            r#"{{"entities":[{{"type":"dim","a":[0,0],"b":[100,0],"offset":10,"orient":"horizontal","mark":"{mark}"}}]}}"#
+        ))
+        .unwrap();
+        d.render(None)
+            .prims
+            .into_iter()
+            .filter_map(|p| if let Prim::Path { pts, width, fill: false, .. } = p { Some((pts, width)) } else { None })
+            .collect::<Vec<_>>()
+    };
+    let paths = draw("tick");
+    // Extension lines 1 mm off the points to 2 mm past the line (10 mm up): 11 mm long.
+    let ext: Vec<_> = paths.iter().filter(|(p, _)| p.len() == 2 && (p[0].0 - p[1].0).abs() < 1e-9).collect();
+    assert_eq!(ext.len(), 2);
+    assert!(ext.iter().all(|(p, w)| ((p[0].1 - p[1].1).abs() - 11.0).abs() < 1e-9 && (*w - 0.18).abs() < 1e-9), "{ext:?}");
+    // The dimension line: 100 + 2 × 1.5 mm, thin.
+    let line = paths.iter().find(|(p, _)| p.len() == 2 && (p[0].1 - p[1].1).abs() < 1e-9).unwrap();
+    assert!(((line.0[1].0 - line.0[0].0).abs() - 103.0).abs() < 1e-9 && (line.1 - 0.18).abs() < 1e-9, "{line:?}");
+    // Ticks: 3 mm across, heavier.
+    let ticks: Vec<_> = paths.iter().filter(|(p, _)| p.len() == 2 && (p[0].0 - p[1].0).abs() > 1e-9 && (p[0].1 - p[1].1).abs() > 1e-9).collect();
+    assert_eq!(ticks.len(), 2);
+    assert!(ticks.iter().all(|(p, w)| (((p[0].0 - p[1].0).powi(2) + (p[0].1 - p[1].1).powi(2)).sqrt() - 3.0).abs() < 1e-9 && *w > 0.45), "{ticks:?}");
+    // With arrows the line ends at the extension lines.
+    let line = draw("arrow").into_iter().find(|(p, _)| p.len() == 2 && (p[0].1 - p[1].1).abs() < 1e-9).unwrap();
+    assert!(((line.0[1].0 - line.0[0].0).abs() - 100.0).abs() < 1e-9);
+    // A dimension's own stroke width wins; hostile style sizes are clamped.
+    let mut d = Drawing::from_json(r#"{"dimStyle":{"lineWidth":1e9,"lineOver":-4},"entities":[]}"#).unwrap();
+    d.sanitize();
+    assert_eq!((d.dim_style.line_width, d.dim_style.line_over), (2.0, 0.0));
+}
