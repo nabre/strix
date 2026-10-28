@@ -438,7 +438,7 @@ impl Worksheet {
             None => Ok(Column::Input { name, unit }),
             Some(Tok::Define | Tok::Equals) => {
                 let body = tokens.get(i + 1..).unwrap_or_default();
-                let expr = parse(body, text.chars().count())?;
+                let expr = self.parse_expr(body, text.chars().count())?;
                 Ok(Column::Formula { name, unit, expr })
             }
             Some(_) if unit.is_none() => Ok(Column::Label),
@@ -452,13 +452,21 @@ impl Worksheet {
             return Err(CalcError::TooLong { limit: MAX_INPUT_CHARS });
         }
         let tokens = lex(text, self.opts.decimal_comma)?;
-        let expr = parse(&tokens, text.chars().count())?;
+        let expr = self.parse_expr(&tokens, text.chars().count())?;
         let q = eval_scalar(&expr, &self.scope, Names::Worksheet)?;
         // A cell that writes its own unit (`15 %` in a `[%]` column) is not scaled again.
         let own_unit = tokens.iter().any(|t| {
             matches!(&t.tok, crate::lexer::Tok::Ident(n) if self.scope.get(n).is_none() && crate::units::constant(n).is_none() && crate::units::unit(n).is_some())
         });
         match unit {
+            // A number in a °C or °F column is an absolute temperature.
+            Some(u)
+                if q.dim.is_dimensionless()
+                    && !own_unit
+                    && let Some((scale, offset)) = crate::units::affine(&u.text) =>
+            {
+                Ok(Quantity::new(crate::quantity::finite(q.value * scale + offset)?, u.q.dim))
+            }
             Some(u) if q.dim.is_dimensionless() && !own_unit => q.try_mul(u.q),
             Some(u) if q.dim != u.q.dim => Err(CalcError::WrongUnit { result: crate::units::dim_name(q.dim), requested: u.text.clone() }),
             _ => Ok(q),

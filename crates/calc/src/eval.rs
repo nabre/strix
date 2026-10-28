@@ -2,8 +2,22 @@
 
 use crate::parser::{BinOp, Expr, Func, Nary};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::units::{constant, dim_name, unit};
-use crate::{CalcError, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
+use crate::units::{affine, constant, dim_name, unit};
+use crate::{CalcError, MAX_CALL_DEPTH, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
+
+/// Deepest nesting of evaluations, counting into function bodies: one expression nests at most
+/// [`MAX_NODES`](crate::MAX_NODES) deep, so this only stops functions calling each other with
+/// deep bodies, before the stack runs out.
+const MAX_EVAL_DEPTH: usize = 640;
+
+/// A user function `f(x, y) = body`: its parameters shadow the worksheet's names in the body;
+/// every other name is read from the worksheet when the function is called.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Function {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: Expr,
+}
 
 /// A list of magnitudes (coherent SI units) sharing one dimension: a range, a vector literal or
 /// a table column. At most [`MAX_VALUES`] long; every value is finite.
@@ -103,6 +117,8 @@ impl From<Quantity> for Value {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scope {
     entries: Vec<(String, Value)>,
+    /// User functions, in definition order.
+    funcs: Vec<Function>,
     /// Work done by every evaluation against this scope (one worksheet), capped by
     /// [`MAX_SHEET_STEPS`]: however many regions and cells a document has, recalculating it ends.
     spent: std::cell::Cell<usize>,
@@ -132,6 +148,29 @@ impl Scope {
     pub fn remove(&mut self, name: &str) -> Option<Value> {
         let index = self.entries.iter().position(|(n, _)| n == name)?;
         Some(self.entries.remove(index).1)
+    }
+
+    /// Defines or redefines a user function.
+    pub(crate) fn set_function(&mut self, f: Function) {
+        match self.funcs.iter_mut().find(|g| g.name == f.name) {
+            Some(g) => *g = f,
+            None => self.funcs.push(f),
+        }
+    }
+
+    /// Undefines the user function `name`.
+    pub(crate) fn remove_function(&mut self, name: &str) {
+        self.funcs.retain(|f| f.name != name);
+    }
+
+    /// The user function called `name`, if defined.
+    pub(crate) fn function(&self, name: &str) -> Option<&Function> {
+        self.funcs.iter().find(|f| f.name == name)
+    }
+
+    /// The user functions in definition order: name and parameters.
+    pub fn functions(&self) -> impl Iterator<Item = (&str, &[String])> {
+        self.funcs.iter().map(|f| (f.name.as_str(), f.params.as_slice()))
     }
 
     /// The work done so far by evaluations against this scope (see [`MAX_SHEET_STEPS`]).
@@ -187,11 +226,15 @@ pub(crate) struct Ctx<'a> {
     names: Names,
     locals: Vec<(String, Value)>,
     steps: usize,
+    /// Evaluations under way, nested (bounded by [`MAX_EVAL_DEPTH`]).
+    depth: usize,
+    /// User function calls under way, nested (bounded by [`MAX_CALL_DEPTH`]).
+    calls: usize,
 }
 
 impl<'a> Ctx<'a> {
     pub(crate) fn new(scope: &'a Scope, names: Names, locals: Vec<(String, Value)>) -> Self {
-        Ctx { scope, names, locals, steps: 0 }
+        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0 }
     }
 
     /// Counts `n` units of work.
@@ -215,18 +258,35 @@ impl<'a> Ctx<'a> {
     }
 
     pub(crate) fn eval(&mut self, expr: &Expr) -> Result<Value, CalcError> {
+        if self.depth >= MAX_EVAL_DEPTH {
+            return Err(CalcError::TooDeep { limit: MAX_CALL_DEPTH });
+        }
+        self.depth += 1;
+        let result = self.eval_node(expr);
+        self.depth -= 1;
+        result
+    }
+
+    fn eval_node(&mut self, expr: &Expr) -> Result<Value, CalcError> {
         self.charge(1)?;
         match expr {
             Expr::Num(v) => Ok(Quantity::number(finite(*v)?).into()),
             Expr::Name(name) => self.resolve(name),
             Expr::Unit(name) => unit(name).map(Value::Scalar).ok_or_else(|| CalcError::UnknownUnit(name.clone())),
-            Expr::Neg(inner) => Ok(match self.eval(inner)? {
-                Value::Scalar(q) => Value::Scalar(q.negate()),
-                Value::Vector(mut v) => {
-                    v.values.iter_mut().for_each(|x| *x = -*x);
-                    Value::Vector(v)
-                }
-            }),
+            // `-20 °C` is twenty degrees below zero, not minus 293.15 K.
+            Expr::Neg(inner)
+                if let Expr::Bin(BinOp::Mul, number, u) = &**inner
+                    && let Some(scale) = self.affine_unit(u) =>
+            {
+                let v = self.eval(number)?;
+                self.absolute(negate(v), scale, u)
+            }
+            Expr::Neg(inner) => Ok(negate(self.eval(inner)?)),
+            // A number written in °C or °F is an absolute temperature: `20 °C` is 293.15 K.
+            Expr::Bin(BinOp::Mul, number, u) if let Some(scale) = self.affine_unit(u) => {
+                let v = self.eval(number)?;
+                self.absolute(v, scale, u)
+            }
             Expr::Bin(op, left, right) => {
                 let a = self.eval(left)?;
                 let b = self.eval(right)?;
@@ -235,6 +295,10 @@ impl<'a> Ctx<'a> {
             Expr::Call(func, args) => {
                 let values = args.iter().map(|a| self.eval(a)).collect::<Result<Vec<_>, _>>()?;
                 self.call(*func, &values)
+            }
+            Expr::Apply(name, args) => {
+                let values = args.iter().map(|a| self.eval(a)).collect::<Result<Vec<_>, _>>()?;
+                self.apply(name, values)
             }
             Expr::Vector(items) => {
                 let mut all = Vec::new();
@@ -305,6 +369,56 @@ impl<'a> Ctx<'a> {
             }
             Names::UnitsOnly => unit(name).map(Value::Scalar).ok_or_else(|| CalcError::UnknownUnit(name.to_string())),
         }
+    }
+
+    /// The scale of `u` when it is `°C` or `°F` written as a unit (not a parameter of that name).
+    fn affine_unit(&self, u: &Expr) -> Option<(f64, f64)> {
+        match u {
+            Expr::Unit(n) => affine(n),
+            Expr::Name(n) if self.locals.iter().all(|(m, _)| m != n) && self.scope.get(n).is_none() => affine(n),
+            _ => None,
+        }
+    }
+
+    /// The absolute temperature `v` °C (or °F) in kelvin; a value with a unit is multiplied by
+    /// the degree as by any unit.
+    fn absolute(&mut self, v: Value, (scale, offset): (f64, f64), u: &Expr) -> Result<Value, CalcError> {
+        if !v.dim().is_dimensionless() {
+            let u = self.eval(u)?;
+            return self.binary(BinOp::Mul, v, u);
+        }
+        let dim = crate::units::TEMPERATURE_DIM;
+        let kelvin = |x: f64| finite(x * scale + offset);
+        Ok(match v {
+            Value::Scalar(q) => Value::Scalar(Quantity::new(kelvin(q.value)?, dim)),
+            Value::Vector(v) => {
+                self.charge(v.len())?;
+                Value::Vector(Vector { values: v.values.iter().map(|&x| kelvin(x)).collect::<Result<_, _>>()?, dim })
+            }
+        })
+    }
+
+    /// A call of the user function `name`: its body with the parameters bound to `args`, and no
+    /// other locals (a `∑` variable or a table column of the caller is not seen inside).
+    fn apply(&mut self, name: &str, args: Vec<Value>) -> Result<Value, CalcError> {
+        if self.names == Names::UnitsOnly {
+            return Err(CalcError::UnknownUnit(name.to_string()));
+        }
+        let scope = self.scope;
+        let f = scope.function(name).ok_or_else(|| CalcError::UnknownName(name.to_string()))?;
+        if f.params.len() != args.len() {
+            return Err(CalcError::ArgCount { function: name.to_string(), expected: f.params.len(), found: args.len() });
+        }
+        if self.calls >= MAX_CALL_DEPTH {
+            return Err(CalcError::TooDeep { limit: MAX_CALL_DEPTH });
+        }
+        let locals = f.params.iter().cloned().zip(args).collect();
+        let outer = std::mem::replace(&mut self.locals, locals);
+        self.calls += 1;
+        let result = self.eval(&f.body);
+        self.calls -= 1;
+        self.locals = outer;
+        result
     }
 
     /// `a op b`, element by element when either side is a vector (vectors must be as long).
@@ -440,6 +554,17 @@ impl<'a> Ctx<'a> {
                 let items = v.iter().map(f).collect::<Result<Vec<_>, _>>()?;
                 Ok(Value::Vector(Vector::from_quantities(&items)?))
             }
+        }
+    }
+}
+
+/// The opposite value.
+fn negate(v: Value) -> Value {
+    match v {
+        Value::Scalar(q) => Value::Scalar(q.negate()),
+        Value::Vector(mut v) => {
+            v.values.iter_mut().for_each(|x| *x = -*x);
+            Value::Vector(v)
         }
     }
 }

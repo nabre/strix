@@ -128,6 +128,13 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                 out.push(Token { tok: Tok::Ident(name), pos, byte });
                 continue;
             }
+            // `°C` and `°F` are one unit (also `℃`, `℉`); `°` alone is the degree of angle.
+            '°' if matches!(next, Some('C' | 'F')) && !ch(i.saturating_add(2)).is_some_and(|c| c.is_alphanumeric() || c == '_') => {
+                i += 1;
+                Tok::Ident(if next == Some('C') { "°C" } else { "°F" }.to_string())
+            }
+            '\u{2103}' => Tok::Ident("°C".to_string()),
+            '\u{2109}' => Tok::Ident("°F".to_string()),
             '°' | '%' | '‰' => Tok::Ident(c.to_string()),
             '+' => Tok::Plus,
             '-' | '\u{2212}' | '\u{2013}' => Tok::Minus,

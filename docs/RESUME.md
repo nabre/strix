@@ -59,7 +59,8 @@ Last updated 2026-10-27 (evening). Branch `main`.
   `git push origin main` once it answers.
 - CAD stage 3: the egui editor (canvas, command line, snaps, selection, grips); rotated texts and
   dashes in the drawn items; a picture so Word shows the drawing.
-- Calc: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, systems of equations
-  across regions, solution steps, plots; number format per document (now a preference).
+- Calc: Variables pane, unit picker, systems of equations across regions, solution steps, plots;
+  number format per document (now a preference). (`°C`/`°F` and user functions `f(x) = …` are
+  done, 2026-10-28.)
 - Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").
 - Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.
