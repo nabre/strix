@@ -53,6 +53,13 @@ Resolving:
 - New upstream user-visible strings land in the catalogs through craft-i18n; Strix's own strings
   stay in `locales/*/strix.tsv`.
 - Branding that is not a plain rename (README, site, store text, About box) stays Strix's.
+- When upstream splits a file Strix changed (it moved inline test modules and big files into
+  submodules in 2026-10), git can't follow the moved code: take upstream's version of the file
+  and re-apply Strix's own change to it (`git diff <vendor base> main -- FILE`) where the code
+  now lives. Check afterwards that no command id (`CommandSpec::new("…"`), `ui.*` command or
+  interface string Strix had is missing.
+- Dependency bumps upstream hasn't made yet collide with upstream's new code: keep shared
+  dependencies at upstream's versions and bump them after the merge.
 
 If the rename rules ever change, re-create the branch: delete `vendor/wordcraft`, run
 `cargo xtask upstream sync d859c673c1e93bccaa6536fa3653b902ea877cea`, merge it into `main` with
@@ -62,7 +69,9 @@ If the rename rules ever change, re-create the branch: delete `vendor/wordcraft`
 
 Every line Strix changes in an upstream file is a potential conflict at the next merge. Measured
 2026-10-28: Strix adds 111 files of its own and changes 195 upstream files; merging upstream's
-186 commits since the fork conflicts in 51 files (62 hunks).
+186 commits since the fork (WordCraft `9724f15c`, merged that day) conflicted in 49 files, most
+of them because upstream had moved the code Strix edited into new submodules. Strix's ribbon
+groups moved into their own `crates/ui-egui/src/ribbon/strix.rs` in that merge.
 
 - **New code goes in new files.** Strix features live in their own crates (`calc`, `cad`) and
   modules (`cmd/calc.rs`, `cmd/exercise.rs`, `cad_editor.rs`, `graph_pane.rs`); an upstream file

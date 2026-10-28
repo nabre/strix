@@ -148,7 +148,10 @@ fn errors() {
     assert_eq!(results[0].error, Some(CalcError::UnknownName("b".into())));
     assert_eq!(results[0].display.as_deref(), Some("b = ⚠"));
     assert_eq!(results[1].error, None);
+}
 
+#[test]
+fn errors_wrong_unit_and_arithmetic() {
     // Wrong requested unit: the unit is kept next to the warning.
     let r = run(&["L := 4.5 m", "L = N"]).pop().unwrap();
     assert_eq!(r.error.as_ref().unwrap().to_string(), "result is in m, not N");
@@ -166,6 +169,10 @@ fn errors() {
     assert!(matches!(last_error(&["sin(1, 2) ="]), CalcError::Arity { .. }));
     assert!(matches!(last_error(&["max() ="]), CalcError::Arity { .. }));
     assert_eq!(last_error(&["max(1 m, 2 s) ="]).to_string(), "cannot compare m and s");
+}
+
+#[test]
+fn errors_syntax_and_definitions() {
     assert_eq!(last_error(&["sin x ="]), CalcError::FunctionNeedsArguments("sin".into()));
     assert_eq!(last_error(&["2 3 ="]), CalcError::Syntax { pos: 3, message: "unexpected number".into() });
     assert!(matches!(last_error(&["(2 ="]), CalcError::Syntax { .. }));
@@ -1103,6 +1110,11 @@ fn hostile_user_functions_return_errors() {
     let fan = |name: &str, inner: &str| format!("{name}(x) = {}", vec![format!("{inner}(x)"); 100].join(" + "));
     let (f1, f2, f3, f4) = (fan("b", "a"), fan("c", "b"), fan("d", "c"), fan("e", "d"));
     assert!(matches!(last_error(&["a(x) = x", &f1, &f2, &f3, &f4, "e(1) ="]), CalcError::TooMuchWork));
+}
+
+/// User functions: wrong arity, non-finite values and bad definitions are errors.
+#[test]
+fn hostile_user_functions_arity_and_values() {
     // Wrong arity.
     assert!(matches!(last_error(&["g(a, b) = a·b", "g(1) ="]), CalcError::ArgCount { expected: 2, found: 1, .. }));
     assert!(matches!(last_error(&["f(x) = x", "f(1, 2, 3) ="]), CalcError::ArgCount { expected: 1, found: 3, .. }));
@@ -1111,6 +1123,10 @@ fn hostile_user_functions_return_errors() {
     assert!(matches!(last_error(&["f(x) = 1/x", "f(0) ="]), CalcError::DivisionByZero));
     assert!(matches!(last_error(&["f(x) = x^100", "f(1e10) ="]), CalcError::Overflow));
     assert!(matches!(last_error(&["f(x) = sqrt(x)", "f(-1) ="]), CalcError::NotReal));
+}
+
+#[test]
+fn hostile_user_function_definitions() {
     // Bad definitions.
     // A built-in function is never redefined: `sin(x) = x` is an equation in x.
     assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Definition);

@@ -196,7 +196,7 @@ impl Drawing {
     }
 
     /// A dimension's text above (`up`) or below its line at `mid`, along `angle`.
-    fn dim_text(&self, mid: Pt, up: Pt, angle: f64, label: String, below: bool, color: [u8; 3], out: &mut Vec<Prim>) {
+    fn dim_text(&self, (mid, up): (Pt, Pt), angle: f64, label: String, below: bool, color: [u8; 3], out: &mut Vec<Prim>) {
         let st = self.dim_style;
         let (at, anchor) =
             if below { (mid.minus(up.scale(st.text_gap)), Anchor::TopCenter) } else { (mid.plus(up.scale(st.text_gap)), Anchor::BottomCenter) };
@@ -262,9 +262,9 @@ impl Drawing {
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
             out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
         } else {
-            self.dim_text(mid, up, angle, label, false, color, out);
+            self.dim_text((mid, up), angle, label, false, color, out);
             if let Some(b) = below.as_deref().filter(|b| !b.trim().is_empty()) {
-                self.dim_text(mid, up, angle, self.dim_label(Some(b), measured, ws), true, color, out);
+                self.dim_text((mid, up), angle, self.dim_label(Some(b), measured, ws), true, color, out);
             }
         }
     }

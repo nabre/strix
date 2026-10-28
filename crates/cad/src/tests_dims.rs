@@ -188,34 +188,45 @@ fn flipping_dimensions() {
     assert_eq!(d, before);
 }
 
+/// A dimension and an angle, each with a part in drawing units and one on paper.
+const SCALED_AND_PAPER: &str = r#"{"unit":"mm","scale":50,"entities":[
+        {"type":"dim","a":[0,0],"b":[1000,0],"offset":4,"offsetUnits":500,"orient":"horizontal"},
+        {"type":"angle","c":[0,0],"a":[1000,0],"b":[0,1000],"r":250,"rPaper":3,"text":"<>°"}]}"#;
+
+/// The first dimension's line height above its points, in paper mm.
+fn line(d: &Drawing) -> f64 {
+    let k = d.unit.mm() / d.scale;
+    d.dim_frame(&d.entities[0], k).unwrap().fa.y
+}
+
+/// How far the second entity's arc reaches from its vertex, in paper mm.
+fn arc_reach(d: &Drawing) -> f64 {
+    let mut only = d.clone();
+    only.entities.remove(0);
+    let r = only.render(None);
+    let pts: Vec<(f64, f64)> = r.prims.iter().find_map(|p| if let Prim::Path { pts, .. } = p { Some(pts.clone()) } else { None }).unwrap();
+    // The vertex is at paper (0 - origin.0, origin.1 - 0).
+    let c = (-r.origin.0, r.origin.1);
+    pts.iter().map(|p| ((p.0 - c.0).powi(2) + (p.1 - c.1).powi(2)).sqrt()).fold(0.0, f64::max)
+}
+
+/// Where entity `i`'s dimension-line grip is.
+fn grip(d: &Drawing, i: usize) -> Pt {
+    d.grips(i).into_iter().find(|(g, _)| *g == Grip::DimLine).unwrap().1
+}
+
 /// A dimension's distance and an angle's radius have a scaled part (drawing units: it follows
 /// Scale and the drawing's scale) and an annotative part (paper mm: the same in print). Dragging
 /// the line or the arc changes the part it always changed; the other stays.
 #[test]
 fn scaled_and_annotative_parts() {
-    let json = r#"{"unit":"mm","scale":50,"entities":[
-        {"type":"dim","a":[0,0],"b":[1000,0],"offset":4,"offsetUnits":500,"orient":"horizontal"},
-        {"type":"angle","c":[0,0],"a":[1000,0],"b":[0,1000],"r":250,"rPaper":3,"text":"<>°"}]}"#;
-    let mut d = Drawing::from_json(json).unwrap();
+    let mut d = Drawing::from_json(SCALED_AND_PAPER).unwrap();
     // At 1:50, 500 mm is 10 mm of paper: the line 14 mm above the points.
-    let line = |d: &Drawing| {
-        let k = d.unit.mm() / d.scale;
-        d.dim_frame(&d.entities[0], k).unwrap().fa.y
-    };
     assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
     // At 1:100 the scaled part halves on paper, the paper part stays.
     d.scale = 100.0;
     assert!((line(&d) - 9.0).abs() < 1e-9, "{}", line(&d));
     // The arc: 250 mm at 1:100 is 2.5 mm, plus 3 mm.
-    let arc_reach = |d: &Drawing| {
-        let mut only = d.clone();
-        only.entities.remove(0);
-        let r = only.render(None);
-        let pts: Vec<(f64, f64)> = r.prims.iter().find_map(|p| if let Prim::Path { pts, .. } = p { Some(pts.clone()) } else { None }).unwrap();
-        // The vertex is at paper (0 - origin.0, origin.1 - 0).
-        let c = (-r.origin.0, r.origin.1);
-        pts.iter().map(|p| ((p.0 - c.0).powi(2) + (p.1 - c.1).powi(2)).sqrt()).fold(0.0, f64::max)
-    };
     assert!((arc_reach(&d) - 5.5).abs() < 0.02, "{}", arc_reach(&d));
     // Scale ×2: the scaled parts double, the paper parts stay.
     d.transform(&[0, 1], &Affine::scaling(Pt::new(0.0, 0.0), 2.0));
@@ -223,7 +234,6 @@ fn scaled_and_annotative_parts() {
     assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 500.0 && r_paper == 3.0));
     // Dragging the dimension line sets its paper part (the style's default); the scaled part
     // stays. 300 mm at 1:100 is 3 mm.
-    let grip = |d: &Drawing, i: usize| d.grips(i).into_iter().find(|(g, _)| *g == Grip::DimLine).unwrap().1;
     assert!(d.move_grip(0, Grip::DimLine, grip(&d, 0).plus(Pt::new(0.0, 300.0))));
     assert!(
         matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 7.0).abs() < 1e-9 && offset_units == 1000.0),
@@ -248,6 +258,13 @@ fn scaled_and_annotative_parts() {
         d.entities[1].kind
     );
     assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.scaled);
+}
+
+/// The Properties of a dimension and an angle with both parts: JSON writes the new keys only
+/// when set, and an arc may be paper-only but not zero in all.
+#[test]
+fn scaled_and_annotative_properties() {
+    let mut d = Drawing::from_json(SCALED_AND_PAPER).unwrap();
     // Properties: both parts; JSON writes the new keys only when set.
     let keys: Vec<String> = d.fields(0, 0).into_iter().map(|f| f.key).collect();
     assert!(keys.contains(&"offset".into()) && keys.contains(&"offsetUnits".into()));

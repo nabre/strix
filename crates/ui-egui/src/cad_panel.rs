@@ -175,7 +175,7 @@ fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: 
         }
         // Clicks inside keep it open (the RGB field takes typing); a pen or Enter applies.
         // Every pen at once: the menu is as tall as its content, never scrolled.
-        egui::ComboBox::from_id_salt(id)
+        craft_ui::ComboBox::from_id_salt(id)
             .selected_text(text)
             .width(120.0)
             .height(f32::INFINITY)
@@ -250,7 +250,7 @@ fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, by_layer: bool
         Some(None) => tl!("ByLayer").to_string(),
         Some(Some(w)) => width_text(w),
     };
-    egui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
         if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
             out = Some(None);
         }
@@ -280,7 +280,7 @@ fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool
         Some(None) => tl!("ByLayer").to_string(),
         Some(Some(d)) => tl!(name(d)).to_string(),
     };
-    egui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
         if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
             out = Some(None);
         }
@@ -313,7 +313,7 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                 ui.label(tl!("Input unit"));
                 let now = d.input.filter(|u| *u != d.unit);
                 let shown = now.map_or_else(|| format!("{} ({})", tl!("Drawing unit"), d.unit.symbol()), |u| u.symbol().to_string());
-                egui::ComboBox::from_id_salt("cad_input_unit").selected_text(shown).show_ui(ui, |ui| {
+                craft_ui::ComboBox::from_id_salt("cad_input_unit").selected_text(shown).show_ui(ui, |ui| {
                     for (u, word) in
                         [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
                     {
@@ -360,7 +360,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         };
         ui.horizontal(|ui| {
             ui.label(tl!("Considering"));
-            egui::ComboBox::from_id_salt("cad_focus").selected_text(shown).width(150.0).show_ui(ui, |ui| {
+            craft_ui::ComboBox::from_id_salt("cad_focus").selected_text(shown).width(150.0).show_ui(ui, |ui| {
                 if ui.selectable_label(whole, &all_label).clicked() {
                     ed.focus = Focus::default();
                 }
@@ -415,7 +415,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             Some(Some(l)) => l.clone(),
             _ => tl!("Varies").to_string(),
         };
-        egui::ComboBox::from_id_salt("cad_obj_layer").selected_text(text).width(150.0).show_ui(ui, |ui| {
+        craft_ui::ComboBox::from_id_salt("cad_obj_layer").selected_text(text).width(150.0).show_ui(ui, |ui| {
             for l in &ed.drawing.layers {
                 ui.horizontal(|ui| {
                     swatch(ui, l.color);
@@ -475,7 +475,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     }
                     FieldKind::Choice(words) => {
                         let mut pick = None;
-                        egui::ComboBox::from_id_salt(("cad_choice", &id, &f.key)).selected_text(tl!(choice_label(&f.text))).show_ui(ui, |ui| {
+                        craft_ui::ComboBox::from_id_salt(("cad_choice", &id, &f.key)).selected_text(tl!(choice_label(&f.text))).show_ui(ui, |ui| {
                             for &w in words {
                                 if ui.selectable_label(f.text == w, tl!(choice_label(w))).clicked() {
                                     pick = Some(w.to_string());

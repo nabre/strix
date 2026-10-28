@@ -130,6 +130,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     `strix-cli.exe` gets VERSIONINFO; Release workflow signs through SignPath when
     `SIGNPATH_API_TOKEN` is set (`.signpath/artifact-configuration.xml`).
 
+  - Upstream merge: WordCraft `9724f15c` merged (4800 tests green); Strix ribbon code in
+    `crates/ui-egui/src/ribbon/strix.rs`, equation-page drawing in `canvas/strix.rs`; CAD editor
+    `show`/`feed` split; dependency bump reverted (see Next).
+
 ## In progress (stopped, unfinished, on their own branches)
 - None.
 
@@ -143,10 +147,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   `default_fonts` embed Ubuntu-Light (Ubuntu Font Licence, not OSI-approved; enabled in
   `crates/ui-egui/Cargo.toml` and by craft-ui); the repository is not a GitHub fork of WordCraft
   (SignPath's rule on signing modified upstream builds).
-- Merge upstream WordCraft (186 commits, `9724f15c`, already on `vendor/wordcraft`):
-  `git merge vendor/wordcraft` on a branch, 51 files / 62 hunks to resolve (mostly upstream's
-  strict-Clippy refactor of tests vs Strix edits; `docx/src/{read,write}/mod.rs` and three
-  `ui-egui/src/dialogs_*.rs` were split upstream). See docs/upstream.md.
+- Dependencies: the upstream merge (2026-10-28, WordCraft `9724f15c`) reverted Dependabot #1
+  (harfrust 0.15, quick-xml 0.42, zip 9, vello_cpu 0.3, hayro 0.8, getrandom 0.4) because
+  upstream's new code targets the older versions; redo the bump on top of the merged code
+  (`git show 4cda28be` is the earlier adaptation), or wait for upstream to bump them.
 - SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
 - CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
   linear-auto dimensions, extension modes, associative ends, marks per end; input units (`2.5 m` typed); entity names and measures for the

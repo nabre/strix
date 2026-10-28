@@ -70,7 +70,7 @@ fn color_combo(ui: &mut Ui, key: &str, current: [u8; 3]) -> Option<[u8; 3]> {
         let (r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), egui::Sense::hover());
         ui.painter().rect_filled(r, 2.0, color32(current));
         ui.painter().rect_stroke(r, 2.0, Stroke::new(0.5, Color32::from_gray(140)), egui::StrokeKind::Inside);
-        egui::ComboBox::from_id_salt(("graph_color", key)).selected_text(name).width(130.0).show_ui(ui, |ui| {
+        craft_ui::ComboBox::from_id_salt(("graph_color", key)).selected_text(name).width(130.0).show_ui(ui, |ui| {
             for &(c, n) in &COLORS {
                 ui.horizontal(|ui| {
                     let (r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), egui::Sense::hover());
@@ -98,7 +98,7 @@ fn color_combo(ui: &mut Ui, key: &str, current: [u8; 3]) -> Option<[u8; 3]> {
 fn style_combo(ui: &mut Ui, key: &str, current: &str) -> Option<&'static str> {
     let mut out = None;
     let label = STYLES.iter().find(|(k, _)| *k == current).map_or("Continuous", |(_, l)| l);
-    egui::ComboBox::from_id_salt(("graph_style", key)).selected_text(tl!(label)).width(130.0).show_ui(ui, |ui| {
+    craft_ui::ComboBox::from_id_salt(("graph_style", key)).selected_text(tl!(label)).width(130.0).show_ui(ui, |ui| {
         for (k, l) in STYLES {
             if ui.selectable_label(k == current, tl!(l)).clicked() {
                 out = Some(k);
@@ -183,7 +183,7 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
             ui.label(tl!("Placement"));
             let current = g["placement"].as_str().unwrap_or("pageEnd");
             let label = PLACEMENTS.iter().find(|(k, _)| *k == current).map_or("", |(_, l)| l);
-            egui::ComboBox::from_id_salt("graph_placement").selected_text(tl!(label)).width(170.0).show_ui(ui, |ui| {
+            craft_ui::ComboBox::from_id_salt("graph_placement").selected_text(tl!(label)).width(170.0).show_ui(ui, |ui| {
                 for (k, l) in PLACEMENTS {
                     if ui.selectable_label(k == current, tl!(l)).clicked() && k != current {
                         change = Some(json!({"placement": k}));

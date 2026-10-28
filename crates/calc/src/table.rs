@@ -125,6 +125,20 @@ pub fn ordinals(rows: &[Vec<String>]) -> Vec<Option<usize>> {
         .collect()
 }
 
+/// Values read so far, by column then row (`None`: empty, or not a value).
+type Values = Vec<Vec<Option<Quantity>>>;
+
+/// What the table's last passes share once the cells are read.
+#[derive(Clone, Copy)]
+struct Grid<'a> {
+    columns: &'a [Column],
+    /// Whether each column is a label column (never a value).
+    label: &'a [bool],
+    values: &'a Values,
+    /// Whether each row is a data row with at least one input.
+    active: &'a [bool],
+}
+
 impl Worksheet {
     /// Evaluates a calculated table given as plain cell texts, row by row (row 0 is the
     /// header), and defines its complete columns in the scope. See the module docs.
@@ -173,39 +187,8 @@ impl Worksheet {
         let cell = |r: usize, c: usize| body.get(r).and_then(|row| row.get(c)).map_or("", |s| s.trim());
 
         // Input columns first: a bare name whose cells are not all values is a label column.
-        let mut values: Vec<Vec<Option<Quantity>>> = vec![vec![None; body.len()]; columns.len()];
-        let mut label = vec![false; columns.len()];
         let data_row: Vec<bool> = body.iter().map(|row| !row.iter().any(|t| total(t).is_some())).collect();
-        let mut input_errors = Vec::new();
-        for (c, col) in columns.iter().enumerate() {
-            let Column::Input { unit, .. } = col else {
-                label[c] = matches!(col, Column::Label);
-                continue;
-            };
-            let mut errors = Vec::new();
-            for r in (0..body.len()).filter(|&r| data_row.get(r) == Some(&true)) {
-                let text = cell(r, c);
-                if text.is_empty() || is_statement(text) {
-                    continue;
-                }
-                match self.input_cell(text, unit.as_ref()) {
-                    Ok(q) => {
-                        if let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r)) {
-                            *slot = Some(q);
-                        }
-                    }
-                    Err(err) => errors.push((r + 1, c, err)),
-                }
-            }
-            if unit.is_none() && !errors.is_empty() {
-                label[c] = true;
-                if let Some(v) = values.get_mut(c) {
-                    v.iter_mut().for_each(|x| *x = None);
-                }
-            } else {
-                input_errors.extend(errors);
-            }
-        }
+        let (mut values, label, input_errors) = self.read_inputs(&columns, body, &data_row);
         out.errors.extend(input_errors);
         let is_input = |c: usize| matches!(columns.get(c), Some(Column::Input { .. })) && label.get(c) == Some(&false);
         // A row is skipped when all its input cells are empty.
@@ -338,62 +321,22 @@ impl Worksheet {
             }
         }
 
-        // Totals.
-        for (r, row) in body.iter().enumerate() {
-            for (c, text) in row.iter().enumerate() {
-                let Some((kind, key)) = total(text) else { continue };
-                let col = columns.get(c);
-                let column_values: Vec<Quantity> = match col {
-                    Some(Column::Input { .. } | Column::Formula { .. }) if label.get(c) == Some(&false) => {
-                        values.get(c).map(|v| v.iter().flatten().copied().collect()).unwrap_or_default()
-                    }
-                    _ => continue,
-                };
-                let unit = match col {
-                    Some(Column::Input { unit, .. } | Column::Formula { unit, .. }) => unit.as_ref(),
-                    _ => None,
-                };
-                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text(q, unit, None));
-                let new = match shown {
-                    Ok(value) => format!("{key} = {value}"),
-                    Err(err) => {
-                        out.errors.push((r + 1, c, err));
-                        format!("{key} = ⚠")
-                    }
-                };
-                if new != text.trim() {
-                    out.updates.push((r + 1, c, new));
-                }
-            }
-        }
-
+        let grid = Grid { columns: &columns, label: &label, values: &values, active: &active };
+        self.fill_totals(body, &grid, &mut out);
         // Complete columns become vectors in the scope.
-        for (c, col) in columns.iter().enumerate() {
-            let Some(name) = col.name().filter(|_| label.get(c) == Some(&false)) else { continue };
-            let column: Option<Vec<Quantity>> =
-                (0..body.len()).filter(|&r| active.get(r) == Some(&true)).map(|r| values.get(c).and_then(|v| v.get(r)).copied().flatten()).collect();
-            match column.map(|items| Vector::from_quantities(&items)) {
-                Some(Ok(v)) if !v.is_empty() => {
-                    self.scope.set(name, Value::Vector(v));
-                    let hint = match col {
-                        Column::Input { unit: Some(u), .. } | Column::Formula { unit: Some(u), .. } if u.q.dim.is_dimensionless() => {
-                            Some(u.text.clone())
-                        }
-                        Column::Formula { unit: None, expr, .. } => self.hint(expr),
-                        _ => None,
-                    };
-                    self.set_hint(name, hint);
-                    out.columns.push(name.to_string());
-                }
-                _ => {
-                    self.scope.remove(name);
-                }
-            }
-        }
-
+        self.define_columns(&grid, &mut out);
         // A data table: each value is a parameter of its own, named by its column and its row.
         if let Some(order) = names
             && label.first() == Some(&true)
+        {
+            self.define_cells(order, body, &grid, &mut out);
+        }
+        out
+    }
+
+    /// A data table's cells as parameters named by column and row (`F_A`, or `A_F`).
+    fn define_cells(&mut self, order: CellNames, body: &[Vec<String>], grid: &Grid<'_>, out: &mut TableResult) {
+        let Grid { columns, label, values, active } = *grid;
         {
             for (r, cells) in body.iter().enumerate().filter(|(r, _)| active.get(*r) == Some(&true)) {
                 let row = name_part(cells.first().map(String::as_str).unwrap_or_default());
@@ -422,7 +365,111 @@ impl Worksheet {
                 }
             }
         }
-        out
+    }
+
+    /// Reads the input columns' cells as values. A bare name whose cells are not all values is
+    /// a label column; returns the values by column, which columns are labels, and the errors.
+    fn read_inputs(&self, columns: &[Column], body: &[Vec<String>], data_row: &[bool]) -> (Values, Vec<bool>, Vec<(usize, usize, CalcError)>) {
+        let cell = |r: usize, c: usize| body.get(r).and_then(|row| row.get(c)).map_or("", |s| s.trim());
+        let mut values: Values = vec![vec![None; body.len()]; columns.len()];
+        let mut label = vec![false; columns.len()];
+        let mut input_errors = Vec::new();
+        for (c, col) in columns.iter().enumerate() {
+            let Column::Input { unit, .. } = col else {
+                if let Some(l) = label.get_mut(c) {
+                    *l = matches!(col, Column::Label);
+                }
+                continue;
+            };
+            let mut errors = Vec::new();
+            for r in (0..body.len()).filter(|&r| data_row.get(r) == Some(&true)) {
+                let text = cell(r, c);
+                if text.is_empty() || is_statement(text) {
+                    continue;
+                }
+                match self.input_cell(text, unit.as_ref()) {
+                    Ok(q) => {
+                        if let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r)) {
+                            *slot = Some(q);
+                        }
+                    }
+                    Err(err) => errors.push((r + 1, c, err)),
+                }
+            }
+            if unit.is_none() && !errors.is_empty() {
+                if let Some(l) = label.get_mut(c) {
+                    *l = true;
+                }
+                if let Some(v) = values.get_mut(c) {
+                    v.iter_mut().for_each(|x| *x = None);
+                }
+            } else {
+                input_errors.extend(errors);
+            }
+        }
+        (values, label, input_errors)
+    }
+
+    /// Total cells (`Σ =`, `mean =`...): their column's values aggregated.
+    fn fill_totals(&self, body: &[Vec<String>], grid: &Grid<'_>, out: &mut TableResult) {
+        let Grid { columns, label, values, .. } = *grid;
+        for (r, row) in body.iter().enumerate() {
+            for (c, text) in row.iter().enumerate() {
+                let Some((kind, key)) = total(text) else { continue };
+                let col = columns.get(c);
+                let column_values: Vec<Quantity> = match col {
+                    Some(Column::Input { .. } | Column::Formula { .. }) if label.get(c) == Some(&false) => {
+                        values.get(c).map(|v| v.iter().flatten().copied().collect()).unwrap_or_default()
+                    }
+                    _ => continue,
+                };
+                let unit = match col {
+                    Some(Column::Input { unit, .. } | Column::Formula { unit, .. }) => unit.as_ref(),
+                    _ => None,
+                };
+                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text(q, unit, None));
+                let new = match shown {
+                    Ok(value) => format!("{key} = {value}"),
+                    Err(err) => {
+                        out.errors.push((r + 1, c, err));
+                        format!("{key} = ⚠")
+                    }
+                };
+                if new != text.trim() {
+                    out.updates.push((r + 1, c, new));
+                }
+            }
+        }
+    }
+
+    /// Complete columns (a value in every active row) become vectors in the scope; the others
+    /// leave it.
+    fn define_columns(&mut self, grid: &Grid<'_>, out: &mut TableResult) {
+        let Grid { columns, label, values, active } = *grid;
+        for (c, col) in columns.iter().enumerate() {
+            let Some(name) = col.name().filter(|_| label.get(c) == Some(&false)) else { continue };
+            let column: Option<Vec<Quantity>> = (0..active.len())
+                .filter(|&r| active.get(r) == Some(&true))
+                .map(|r| values.get(c).and_then(|v| v.get(r)).copied().flatten())
+                .collect();
+            match column.map(|items| Vector::from_quantities(&items)) {
+                Some(Ok(v)) if !v.is_empty() => {
+                    self.scope.set(name, Value::Vector(v));
+                    let hint = match col {
+                        Column::Input { unit: Some(u), .. } | Column::Formula { unit: Some(u), .. } if u.q.dim.is_dimensionless() => {
+                            Some(u.text.clone())
+                        }
+                        Column::Formula { unit: None, expr, .. } => self.hint(expr),
+                        _ => None,
+                    };
+                    self.set_hint(name, hint);
+                    out.columns.push(name.to_string());
+                }
+                _ => {
+                    self.scope.remove(name);
+                }
+            }
+        }
     }
 
     /// A statement in a cell, evaluated like a region with the row's values as parameters:

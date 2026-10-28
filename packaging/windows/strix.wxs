@@ -1,48 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
-<!--
-  Strix MSI (WiX Toolset v5: `dotnet tool install -g wix`, plus its UI and Util extensions:
-  `wix extension add -g WixToolset.UI.wixext/5.0.2` and the same for WixToolset.Util.wixext).
-  Built by package.ps1:
-
-    wix build strix.wxs -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
-      -d Version=1.2.3 -d BinDir=... -d IconPath=... -d LicenseRtf=... [-d Scope=perUserOrMachine] -o out.msi
-
-  Per-machine install into Program Files with a Start Menu shortcut. The installer shows the
-  standard WiX dialogs: welcome + license, progress, and a finish page.
-
-  Built a second time with -d Scope=perUserOrMachine for people without administrator rights
-  (#39): a dual-purpose package that WiX gives ALLUSERS=2 and MSIINSTALLPERUSER=1, so it installs
-  for the current user with no UAC prompt. Windows then redirects Program Files to
-  %LOCALAPPDATA%\Programs, the Start Menu to the user's own, and HKMU to HKCU, so the same
-  components work in both packages. Both share the UpgradeCode: each upgrades its own earlier
-  versions (Windows Installer only matches products installed in the same context).
-
-  UpgradeCode and the component GUIDs below belong to Strix alone. Never copy them from (or
-  into) a sibling Craft app: Windows Installer treats every package sharing an UpgradeCode as one
-  product, so a shared code makes one app's installer refuse to install ("a newer version is
-  already installed") or silently uninstall the other. packaging-lint.yml checks this.
--->
-<?ifndef Scope?>
-<?define Scope = perMachine?>
-<?endif?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <?ifndef HasCraftFontLicences ?>
   <?define HasCraftFontLicences=0 ?>
-  <?endif ?>
-  <Package
-      Name="Strix"
-      Manufacturer="The Strix contributors"
-      Version="$(var.Version)"
-      UpgradeCode="075497F9-E861-45D0-9C7F-A74F8C34E6BA"
-      Scope="$(var.Scope)"
-      Compressed="yes"
-      Language="1033">
+  <?endif?>
+  <Package Name="Strix" Manufacturer="The Strix contributors" Version="$(var.Version)" UpgradeCode="075497F9-E861-45D0-9C7F-A74F8C34E6BA" Scope="perUserOrMachine" Compressed="yes" Language="1033">
     <SummaryInformation Description="Strix word processor" Manufacturer="The Strix contributors" />
+    <?include $(sys.SOURCEFILEDIR)install-policy.wxi?>
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
          (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
-    <MajorUpgrade AllowSameVersionUpgrades="yes"
-        DowngradeErrorMessage="A newer version of Strix is already installed." />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Strix is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <Icon Id="StrixIcon.ico" SourceFile="$(var.IconPath)" />
@@ -60,16 +27,16 @@
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Strix" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     <Property Id="WixShellExecTarget" Value="[#StrixExe]" />
-    <CustomAction Id="LaunchStrix" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec"
-        Impersonate="yes" Return="ignore" />
+    <CustomAction Id="LaunchStrix" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
     <UI>
       <ui:WixUI Id="WixUI_Minimal" />
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchStrix"
-          Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchStrix" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
     </UI>
 
     <StandardDirectory Id="ProgramFiles6432Folder">
-      <Directory Id="INSTALLFOLDER" Name="Strix" />
+      <Directory Id="CraftSuiteFolder" Name="ArtCraft">
+        <Directory Id="INSTALLFOLDER" Name="Strix" />
+      </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
 
@@ -77,7 +44,7 @@
       <ComponentGroupRef Id="AppNotices" />
       <?if $(var.HasCraftFontLicences) = 1 ?>
       <ComponentGroupRef Id="CraftFontLicences" />
-      <?endif ?>
+      <?endif?>
       <ComponentGroupRef Id="StrixFiles" />
     </Feature>
   </Package>
@@ -90,16 +57,15 @@
     <ComponentGroup Id="CraftFontLicences" Directory="INSTALLFOLDER">
       <Files Include="$(var.DocsDir)\**" />
     </ComponentGroup>
-    <?endif ?>
+    <?endif?>
     <ComponentGroup Id="StrixFiles" Directory="INSTALLFOLDER">
       <Component Id="StrixApp" Guid="855DCEC6-9285-444F-9382-9654B83B34F6">
         <File Id="StrixExe" Source="$(var.BinDir)\strix.exe" KeyPath="yes">
-          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Strix"
-              Description="Strix word processor" WorkingDirectory="INSTALLFOLDER" Advertise="yes"
-              Icon="StrixIcon.ico" IconIndex="0" />
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Strix" Description="Strix word processor" WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="StrixIcon.ico" IconIndex="0" />
         </File>
 
         <RegistryValue Root="HKMU" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\strix.exe" Value="[#StrixExe]" Type="string" />
+      <RegistryValue Root="HKMU" Key="Software\Strix" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
       </Component>
 
       <!-- File associations (#295). Each document type gets a Strix ProgId (name, icon, open
