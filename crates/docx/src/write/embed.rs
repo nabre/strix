@@ -772,14 +772,14 @@ fn scrub_private(bytes: &[u8], names: bool, dates: bool) -> Option<Vec<u8>> {
     use quick_xml::reader::NsReader;
     use quick_xml::writer::Writer;
 
-    const WML: &[u8] = b"http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-    const WML_STRICT: &[u8] = b"http://purl.oclc.org/ooxml/wordprocessingml/main";
-    const W15: &[u8] = b"http://schemas.microsoft.com/office/word/2012/wordml";
+    const WML: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    const WML_STRICT: &str = "http://purl.oclc.org/ooxml/wordprocessingml/main";
+    const W15: &str = "http://schemas.microsoft.com/office/word/2012/wordml";
     // UTF-16 (or other wide encodings) would pass through unread.
     if bytes.contains(&0) || bytes.starts_with(&[0xFF, 0xFE]) || bytes.starts_with(&[0xFE, 0xFF]) {
         return None;
     }
-    let ns_is = |r: &ResolveResult, ns: &[u8]| matches!(r, ResolveResult::Bound(n) if n.as_ref() == ns);
+    let ns_is = |r: &ResolveResult, ns: &str| matches!(r, ResolveResult::Bound(n) if n.as_ref() == ns);
     let wml = |r: &ResolveResult| ns_is(r, WML) || ns_is(r, WML_STRICT);
     let mut r = NsReader::from_reader(bytes);
     r.config_mut().check_end_names = false;
@@ -792,9 +792,9 @@ fn scrub_private(bytes: &[u8], names: bool, dates: bool) -> Option<Vec<u8>> {
         let (in_wml, in_w15) = (wml(&res), ns_is(&res, W15));
         let ev = match ev {
             Event::Eof => break,
-            Event::Start(ref e) | Event::Empty(ref e) if names && in_w15 && e.local_name().as_ref() == b"presenceInfo" => {
+            Event::Start(ref e) | Event::Empty(ref e) if names && in_w15 && e.local_name().as_ref() == "presenceInfo" => {
                 if matches!(ev, Event::Start(_)) {
-                    let end = e.name().as_ref().to_vec();
+                    let end = e.name().as_ref().to_string();
                     r.read_to_end_into(QName(&end), &mut skip).ok()?;
                     skip.clear();
                 }
@@ -808,11 +808,11 @@ fn scrub_private(bytes: &[u8], names: bool, dates: bool) -> Option<Vec<u8>> {
                     let (ares, local) = r.resolver_mut().resolve_attribute(a.key);
                     // An unprefixed attribute of a WordprocessingML element is read as its own.
                     let wml_attr = wml(&ares) || (matches!(ares, ResolveResult::Unbound) && in_wml);
-                    let value: Option<&[u8]> = match local.as_ref() {
-                        b"author" if names && (wml_attr || ns_is(&ares, W15)) => Some(super::ANONYMOUS_AUTHOR.as_bytes()),
-                        b"initials" if names && wml_attr => Some(super::ANONYMOUS_INITIALS.as_bytes()),
-                        b"date" if dates && wml_attr => None,
-                        b"dateUtc" if dates => None,
+                    let value: Option<&str> = match local.as_ref() {
+                        "author" if names && (wml_attr || ns_is(&ares, W15)) => Some(super::ANONYMOUS_AUTHOR),
+                        "initials" if names && wml_attr => Some(super::ANONYMOUS_INITIALS),
+                        "date" if dates && wml_attr => None,
+                        "dateUtc" if dates => None,
                         _ => {
                             el.push_attribute(a);
                             continue;

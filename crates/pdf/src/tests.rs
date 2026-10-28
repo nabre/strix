@@ -123,32 +123,33 @@ fn sample() -> Document {
 
 /// Text of every page through hayro's interpreter (glyph → Unicode via ToUnicode / ActualText).
 fn extract_text(bytes: &[u8]) -> Vec<String> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::{Glyph, GlyphRun};
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     struct Ex(String);
     impl Device<'_> for Ex {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, _: &kurbo::BezPath, _: kurbo::Affine, _: &Paint<'_>, _: &PathDrawMode) {}
+        fn draw_path(&mut self, _: &kurbo::BezPath, _: DrawProps<'_>, _: &DrawMode) {}
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, g: &Glyph<'_>, _: kurbo::Affine, _: kurbo::Affine, _: &Paint<'_>, mode: &GlyphDrawMode) {
-            // Synthetic bold fills and then strokes each glyph: one character, two draws.
-            if matches!(mode, GlyphDrawMode::Stroke(_)) {
-                return;
-            }
-            match g.as_unicode() {
-                Some(hayro_cmap::BfString::Char(c)) => self.0.push(c),
-                Some(hayro_cmap::BfString::String(s)) => self.0.push_str(&s),
-                None => self.0.push('\u{FFFD}'),
+        fn draw_glyph_run(&mut self, run: &GlyphRun<'_, '_>, _: DrawProps<'_>, mode: &DrawMode) {
+            for pg in run.glyphs() {
+                let g: &Glyph<'_> = pg;
+                // Synthetic bold fills and then strokes each glyph: one character, two draws.
+                if matches!(mode, DrawMode::Stroke(_)) {
+                    continue;
+                }
+                match g.as_unicode() {
+                    Some(hayro_cmap::BfString::Char(c)) => self.0.push(c),
+                    Some(hayro_cmap::BfString::String(s)) => self.0.push_str(&s),
+                    None => self.0.push('\u{FFFD}'),
+                }
             }
         }
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -593,26 +594,24 @@ fn unsubsettable_font(family: &str, gid: u16) -> Vec<u8> {
 
 /// Glyphs drawn as text and paths drawn, over every page.
 fn count_glyphs_and_paths(bytes: &[u8]) -> (usize, usize) {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::GlyphRun;
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     struct Count(usize, usize);
     impl Device<'_> for Count {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, _: &kurbo::BezPath, _: kurbo::Affine, _: &Paint<'_>, _: &PathDrawMode) {
+        fn draw_path(&mut self, _: &kurbo::BezPath, _: DrawProps<'_>, _: &DrawMode) {
             self.1 += 1;
         }
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, _: &Glyph<'_>, _: kurbo::Affine, _: kurbo::Affine, _: &Paint<'_>, _: &GlyphDrawMode) {
-            self.0 += 1;
+        fn draw_glyph_run(&mut self, run: &GlyphRun<'_, '_>, _: DrawProps<'_>, _: &DrawMode) {
+            self.0 += run.glyphs().len();
         }
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -627,26 +626,25 @@ fn count_glyphs_and_paths(bytes: &[u8]) -> (usize, usize) {
 
 /// The filled paths drawn, over every page, in page space.
 fn filled_paths(bytes: &[u8]) -> Vec<kurbo::BezPath> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::GlyphRun;
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     struct Fills(Vec<kurbo::BezPath>);
     impl Device<'_> for Fills {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, path: &kurbo::BezPath, transform: kurbo::Affine, _: &Paint<'_>, mode: &PathDrawMode) {
-            if matches!(mode, PathDrawMode::Fill(_)) {
+        fn draw_path(&mut self, path: &kurbo::BezPath, props: DrawProps<'_>, mode: &DrawMode) {
+            let transform = props.transform;
+            if matches!(mode, DrawMode::Fill(_)) {
                 self.0.push(transform * path.clone());
             }
         }
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, _: &Glyph<'_>, _: kurbo::Affine, _: kurbo::Affine, _: &Paint<'_>, _: &GlyphDrawMode) {}
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_glyph_run(&mut self, _: &GlyphRun<'_, '_>, _: DrawProps<'_>, _: &DrawMode) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -661,19 +659,18 @@ fn filled_paths(bytes: &[u8]) -> Vec<kurbo::BezPath> {
 
 /// The straight stroked segments drawn, over every page, in page space: `((x0, y0), (x1, y1), width)`.
 fn stroked_segments(bytes: &[u8]) -> Vec<(kurbo::Point, kurbo::Point, f64)> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::GlyphRun;
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     struct Strokes(Vec<(kurbo::Point, kurbo::Point, f64)>);
     impl Device<'_> for Strokes {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, path: &kurbo::BezPath, transform: kurbo::Affine, _: &Paint<'_>, mode: &PathDrawMode) {
+        fn draw_path(&mut self, path: &kurbo::BezPath, props: DrawProps<'_>, mode: &DrawMode) {
+            let transform = props.transform;
             use kurbo::PathEl;
-            let PathDrawMode::Stroke(props) = mode else { return };
+            let DrawMode::Stroke(props) = mode else { return };
             if let [PathEl::MoveTo(a), PathEl::LineTo(b)] = path.elements() {
                 let width = f64::from(props.line_width) * transform.determinant().abs().sqrt();
                 self.0.push((transform * *a, transform * *b, width));
@@ -681,9 +678,9 @@ fn stroked_segments(bytes: &[u8]) -> Vec<(kurbo::Point, kurbo::Point, f64)> {
         }
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, _: &Glyph<'_>, _: kurbo::Affine, _: kurbo::Affine, _: &Paint<'_>, _: &GlyphDrawMode) {}
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_glyph_run(&mut self, _: &GlyphRun<'_, '_>, _: DrawProps<'_>, _: &DrawMode) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -998,9 +995,9 @@ fn metafile_pictures_are_drawn_as_vector_paths() {
 /// size, bitmap or metafile: the source spans 1/0.03 frames, not at most 20 (the old 5% floor).
 #[test]
 fn a_crop_keeping_a_sliver_draws_the_source_that_much_wider() {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::GlyphRun;
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
@@ -1008,20 +1005,20 @@ fn a_crop_keeping_a_sliver_draws_the_source_that_much_wider() {
     #[derive(Default)]
     struct Widest(f64, f64);
     impl Device<'_> for Widest {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, path: &kurbo::BezPath, transform: kurbo::Affine, _: &Paint<'_>, mode: &PathDrawMode) {
-            if matches!(mode, PathDrawMode::Fill(_)) {
+        fn draw_path(&mut self, path: &kurbo::BezPath, props: DrawProps<'_>, mode: &DrawMode) {
+            let transform = props.transform;
+            if matches!(mode, DrawMode::Fill(_)) {
                 self.1 = self.1.max(kurbo::Shape::bounding_box(&(transform * path.clone())).width());
             }
         }
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, _: &Glyph<'_>, _: kurbo::Affine, _: kurbo::Affine, _: &Paint<'_>, _: &GlyphDrawMode) {}
-        fn draw_image(&mut self, _: Image<'_, '_>, transform: kurbo::Affine) {
+        fn draw_glyph_run(&mut self, _: &GlyphRun<'_, '_>, _: DrawProps<'_>, _: &DrawMode) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, props: ImageDrawProps<'_>) {
+            let transform = props.transform;
             self.0 = self.0.max(transform.as_coeffs()[0].abs());
         }
-        fn pop_clip_path(&mut self) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let widest = |bytes: Vec<u8>, ext: &str, crop: [f32; 4]| {
@@ -1657,9 +1654,9 @@ fn pdf_text_string(b: &[u8]) -> String {
 /// has `None` text.
 type StreamGlyph = (Option<String>, f64, Option<(f64, f64)>);
 fn stream_glyphs(bytes: &[u8]) -> Vec<StreamGlyph> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::{Glyph, GlyphRun};
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
@@ -1673,9 +1670,7 @@ fn stream_glyphs(bytes: &[u8]) -> Vec<StreamGlyph> {
         open: Vec<Option<String>>,
     }
     impl Device<'_> for Units {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, _: &kurbo::BezPath, _: kurbo::Affine, _: &Paint<'_>, _: &PathDrawMode) {}
+        fn draw_path(&mut self, _: &kurbo::BezPath, _: DrawProps<'_>, _: &DrawMode) {}
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
         fn begin_marked_content(&mut self, _: &[u8], _: Option<i32>) {
@@ -1685,31 +1680,36 @@ fn stream_glyphs(bytes: &[u8]) -> Vec<StreamGlyph> {
         fn end_marked_content(&mut self) {
             self.open.pop();
         }
-        fn draw_glyph(&mut self, g: &Glyph<'_>, t: kurbo::Affine, gt: kurbo::Affine, _: &Paint<'_>, mode: &GlyphDrawMode) {
-            if matches!(mode, GlyphDrawMode::Stroke(_)) {
-                return;
+        fn draw_glyph_run(&mut self, run: &GlyphRun<'_, '_>, props: DrawProps<'_>, mode: &DrawMode) {
+            for pg in run.glyphs() {
+                let g: &Glyph<'_> = pg;
+                let t = props.transform;
+                let gt = pg.transform();
+                if matches!(mode, DrawMode::Stroke(_)) {
+                    continue;
+                }
+                let text = if let Some(actual) = self.open.iter_mut().find_map(Option::as_mut) {
+                    Some(std::mem::take(actual)).filter(|s| !s.is_empty())
+                } else {
+                    match g.as_unicode() {
+                        Some(hayro_cmap::BfString::Char(c)) => Some(c.to_string()),
+                        Some(hayro_cmap::BfString::String(s)) => Some(s),
+                        None => None,
+                    }
+                };
+                let edges = match g {
+                    Glyph::Outline(o) if !o.outline().elements().is_empty() => {
+                        use kurbo::Shape;
+                        let b = (t * gt * o.outline()).bounding_box();
+                        Some((b.x0, b.x1))
+                    }
+                    _ => None,
+                };
+                self.glyphs.push((text, (t * gt * kurbo::Point::ZERO).y, edges));
             }
-            let text = if let Some(actual) = self.open.iter_mut().find_map(Option::as_mut) {
-                Some(std::mem::take(actual)).filter(|s| !s.is_empty())
-            } else {
-                match g.as_unicode() {
-                    Some(hayro_cmap::BfString::Char(c)) => Some(c.to_string()),
-                    Some(hayro_cmap::BfString::String(s)) => Some(s),
-                    None => None,
-                }
-            };
-            let edges = match g {
-                Glyph::Outline(o) if !o.outline().elements().is_empty() => {
-                    use kurbo::Shape;
-                    let b = (t * gt * o.outline()).bounding_box();
-                    Some((b.x0, b.x1))
-                }
-                _ => None,
-            };
-            self.glyphs.push((text, (t * gt * kurbo::Point::ZERO).y, edges));
         }
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -1805,35 +1805,38 @@ fn right_to_left_text_extracts_in_logical_order() {
 /// Every glyph's outline on the page, as a rounded bounding box in page space (sorted): what the
 /// page looks like, whatever order the glyphs were written in.
 fn glyph_boxes(bytes: &[u8]) -> Vec<[i64; 4]> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::{Glyph, GlyphRun};
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     use kurbo::Shape;
     struct Boxes(Vec<[i64; 4]>);
     impl Device<'_> for Boxes {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, _: &kurbo::BezPath, _: kurbo::Affine, _: &Paint<'_>, _: &PathDrawMode) {}
+        fn draw_path(&mut self, _: &kurbo::BezPath, _: DrawProps<'_>, _: &DrawMode) {}
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, g: &Glyph<'_>, t: kurbo::Affine, gt: kurbo::Affine, _: &Paint<'_>, mode: &GlyphDrawMode) {
-            if matches!(mode, GlyphDrawMode::Stroke(_)) {
-                return;
-            }
-            // Spaces have no outline: nothing to see.
-            if let Glyph::Outline(o) = g
-                && !o.outline().elements().is_empty()
-            {
-                let b = (t * gt * o.outline()).bounding_box();
-                let r = |v: f64| (v * 10.0).round() as i64;
-                self.0.push([r(b.x0), r(b.y0), r(b.x1), r(b.y1)]);
+        fn draw_glyph_run(&mut self, run: &GlyphRun<'_, '_>, props: DrawProps<'_>, mode: &DrawMode) {
+            for pg in run.glyphs() {
+                let g: &Glyph<'_> = pg;
+                let t = props.transform;
+                let gt = pg.transform();
+                if matches!(mode, DrawMode::Stroke(_)) {
+                    continue;
+                }
+                // Spaces have no outline: nothing to see.
+                if let Glyph::Outline(o) = g
+                    && !o.outline().elements().is_empty()
+                {
+                    let b = (t * gt * o.outline()).bounding_box();
+                    let r = |v: f64| (v * 10.0).round() as i64;
+                    self.0.push([r(b.x0), r(b.y0), r(b.x1), r(b.y1)]);
+                }
             }
         }
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
@@ -2316,25 +2319,27 @@ fn a_watermark_fills_its_box() {
 
 /// Each glyph drawn as text: its origin and its horizontal and vertical scale, in page space.
 fn glyph_frames(bytes: &[u8]) -> Vec<(f64, f64, f64)> {
-    use hayro_interpret::font::Glyph;
+    use hayro_interpret::font::GlyphRun;
     use hayro_interpret::{
-        BlendMode, ClipPath, Context, Device, GlyphDrawMode, Image, InterpreterCache, InterpreterSettings, Paint, PathDrawMode, SoftMask,
+        BlendMode, ClipPath, Context, Device, DrawMode, DrawProps, Image, ImageDrawProps, InterpreterCache, InterpreterSettings, SoftMask,
         interpret_page,
     };
     use hayro_syntax::Pdf;
     struct Frames(Vec<(f64, f64, f64)>);
     impl Device<'_> for Frames {
-        fn set_soft_mask(&mut self, _: Option<SoftMask<'_>>) {}
-        fn set_blend_mode(&mut self, _: BlendMode) {}
-        fn draw_path(&mut self, _: &kurbo::BezPath, _: kurbo::Affine, _: &Paint<'_>, _: &PathDrawMode) {}
+        fn draw_path(&mut self, _: &kurbo::BezPath, _: DrawProps<'_>, _: &DrawMode) {}
         fn push_clip_path(&mut self, _: &ClipPath) {}
         fn push_transparency_group(&mut self, _: f32, _: Option<SoftMask<'_>>, _: BlendMode) {}
-        fn draw_glyph(&mut self, _: &Glyph<'_>, transform: kurbo::Affine, glyph: kurbo::Affine, _: &Paint<'_>, _: &GlyphDrawMode) {
-            let [a, b, c, d, e, _] = (transform * glyph).as_coeffs();
-            self.0.push((e, a.hypot(b), c.hypot(d)));
+        fn draw_glyph_run(&mut self, run: &GlyphRun<'_, '_>, props: DrawProps<'_>, _: &DrawMode) {
+            for pg in run.glyphs() {
+                let transform = props.transform;
+                let glyph = pg.transform();
+                let [a, b, c, d, e, _] = (transform * glyph).as_coeffs();
+                self.0.push((e, a.hypot(b), c.hypot(d)));
+            }
         }
-        fn draw_image(&mut self, _: Image<'_, '_>, _: kurbo::Affine) {}
-        fn pop_clip_path(&mut self) {}
+        fn draw_image(&mut self, _: Image<'_, '_>, _: ImageDrawProps<'_>) {}
+        fn pop_clip(&mut self) {}
         fn pop_transparency_group(&mut self) {}
     }
     let pdf = Pdf::new(bytes.to_vec()).expect("parse");
