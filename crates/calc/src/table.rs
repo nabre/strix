@@ -228,17 +228,25 @@ impl Worksheet {
         // Row by row, left to right: a cell with `=` is a statement of its own (data, formula or
         // equation, worked out like a region), else a formula column computes the cell. One step
         // budget covers the table's formulas.
+        let col_names: Vec<&str> = columns.iter().zip(&label).filter(|(_, l)| !**l).filter_map(|(c, _)| c.name()).collect();
         let formulas: Vec<Option<(Option<String>, Vec<String>)>> = columns
             .iter()
             .map(|col| match col {
                 Column::Formula { expr, .. } => {
+                    // Names read in the row; a column only indexed by row (`x[i+1]`) is not.
                     let mut used = Vec::new();
                     free_names(expr, &mut used);
+                    let bare = bare_names(expr, &col_names);
+                    used.retain(|u| bare.contains(u) || !col_names.contains(&u.as_str()));
                     Some((self.hint(expr), used))
                 }
                 _ => None,
             })
             .collect();
+        // Whether each formula indexes a column by row, and the data rows in order: `i` is a
+        // row's place among them (1, 2, 3…), `n` how many there are.
+        let indexed: Vec<bool> = columns.iter().map(|col| matches!(col, Column::Formula { expr, .. } if indexes(expr, &col_names))).collect();
+        let order: Vec<usize> = (0..body.len()).filter(|&r| active.get(r) == Some(&true)).collect();
         let mut steps = 0usize;
         for r in 0..body.len() {
             if data_row.get(r) != Some(&true) {
@@ -275,7 +283,13 @@ impl Worksheet {
                     }
                     continue;
                 }
-                let locals = row_values(&columns, &label, &values, r);
+                let mut locals = row_values(&columns, &label, &values, r);
+                // The row's number and the count, unless a column has that name.
+                for (name, v) in [("i", order.iter().position(|&x| x == r).map_or(0, |p| p + 1)), ("n", order.len())] {
+                    if used.iter().any(|u| u == name) && !col_names.contains(&name) {
+                        locals.push((name.to_string(), Value::Scalar(Quantity::number(v as f64))));
+                    }
+                }
                 let missing = used.iter().find(|u| {
                     columns
                         .iter()
@@ -285,7 +299,22 @@ impl Worksheet {
                 let result = match missing {
                     Some(name) => Err(CalcError::MissingValue(name.clone())),
                     None => {
-                        let mut ctx = Ctx::new(&self.scope, Names::Worksheet, locals).with_steps(steps);
+                        // Indexing by row reads the columns over the data rows (counted as work).
+                        let by_row = if indexed.get(c) == Some(&true) {
+                            steps = steps.saturating_add(order.len() * col_names.len());
+                            columns
+                                .iter()
+                                .enumerate()
+                                .filter(|(k, _)| label.get(*k) == Some(&false))
+                                .filter_map(|(k, col)| {
+                                    let v = values.get(k)?;
+                                    Some((col.name()?.to_string(), order.iter().map(|&row| v.get(row).copied().flatten()).collect()))
+                                })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        };
+                        let mut ctx = Ctx::new(&self.scope, Names::Worksheet, locals).with_steps(steps).with_columns(by_row);
                         let value = ctx.eval(expr).and_then(|v| v.expect_scalar());
                         steps = ctx.steps();
                         value
@@ -534,6 +563,51 @@ fn is_statement(text: &str) -> bool {
 }
 
 /// The row's known values, by column name.
+/// Whether `expr` indexes one of the table's `columns` by row (`x[i+1]`).
+fn indexes(expr: &Expr, columns: &[&str]) -> bool {
+    let mut found = false;
+    walk_names(expr, columns, &mut |_, indexed| found |= indexed);
+    found
+}
+
+/// The names `expr` reads other than as a column indexed by row.
+fn bare_names(expr: &Expr, columns: &[&str]) -> Vec<String> {
+    let mut out = Vec::new();
+    walk_names(expr, columns, &mut |name, indexed| {
+        if !indexed && !out.iter().any(|n| n == name) {
+            out.push(name.to_string());
+        }
+    });
+    out
+}
+
+/// Calls `f` with every name `expr` reads and whether it is a column indexed by row.
+fn walk_names(expr: &Expr, columns: &[&str], f: &mut dyn FnMut(&str, bool)) {
+    match expr {
+        Expr::Num(_) | Expr::Unit(_) => {}
+        Expr::Name(n) => f(n, false),
+        Expr::Index(base, index) => {
+            match &**base {
+                Expr::Name(n) if columns.contains(&n.as_str()) => f(n, true),
+                other => walk_names(other, columns, f),
+            }
+            walk_names(index, columns, f);
+        }
+        Expr::Neg(e) => walk_names(e, columns, f),
+        Expr::Bin(_, a, b) | Expr::Range(a, b) => {
+            walk_names(a, columns, f);
+            walk_names(b, columns, f);
+        }
+        Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk_names(a, columns, f)),
+        Expr::Nary(n) => {
+            for e in [&n.from, &n.to].into_iter().flatten() {
+                walk_names(e, columns, f);
+            }
+            walk_names(&n.body, columns, f);
+        }
+    }
+}
+
 fn row_values(columns: &[Column], label: &[bool], values: &[Vec<Option<Quantity>>], r: usize) -> Vec<(String, Value)> {
     columns
         .iter()

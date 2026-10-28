@@ -1239,3 +1239,49 @@ fn table_rows_are_numbered_in_order() {
     assert_eq!(crate::ordinals(&rows), vec![None, Some(1), None, Some(2), None, Some(3)]);
     assert!(crate::ordinals(&[]).is_empty());
 }
+
+/// Gauss's method (the shoelace formula) in a calculated table: `x[i+1]` is the next row's `x`,
+/// wrapping round to the first, so the polygon closes; `i` is the row's number, `n` the rows'.
+#[test]
+fn table_rows_are_reached_by_index() {
+    let rows: Vec<Vec<String>> = [
+        vec![
+            "x [m]",
+            "y [m]",
+            "a [m^2] = (x·y[i+1] - x[i+1]·y)/2",
+            "s [m^3] = (x + x[i+1])·(x·y[i+1] - x[i+1]·y)/6",
+            "t [m^3] = (y + y[i+1])·(x·y[i+1] - x[i+1]·y)/6",
+            "k = i/n",
+        ],
+        vec!["0", "0", "", "", "", ""],
+        vec!["4", "0", "", "", "", ""],
+        vec!["4", "3", "", "", "", ""],
+        vec!["0", "3", "", "", "", ""],
+        vec!["", "", "Σ =", "Σ =", "Σ =", ""],
+    ]
+    .iter()
+    .map(|r| r.iter().map(|s| s.to_string()).collect())
+    .collect();
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table(&rows);
+    assert!(r.errors.is_empty(), "{:?}", r.errors);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|(rr, c, _)| *rr == row && *c == col).map(|(_, _, t)| t.clone()).unwrap_or_default();
+    assert_eq!(cell(5, 2), "Σ = 12", "area 4 × 3");
+    assert_eq!((cell(1, 5), cell(4, 5)), ("0.25".to_string(), "1".to_string()), "i/n");
+    // The centroid from the columns: x̄ = Σs / Σa, ȳ = Σt / Σa.
+    assert_eq!(ws.eval_statement("x_G = sum(s)/sum(a) =").display.unwrap_or_default().replace(' ', ""), "x_G=sum(s)/sum(a)=2m");
+    assert_eq!(ws.eval_statement("y_G = sum(t)/sum(a) =").display.unwrap_or_default().replace(' ', ""), "y_G=sum(t)/sum(a)=1.5m");
+    // Cyclic both ways: x[i-1] in the first row is the last row's; a column may read its own
+    // earlier rows, and a row not worked out yet says so.
+    let rows: Vec<Vec<String>> = [vec!["x", "p = x[i-1]", "c = c[i-1] + x"], vec!["1", "", ""], vec!["2", "", ""], vec!["5", "", ""]]
+        .iter()
+        .map(|r| r.iter().map(|s| s.to_string()).collect())
+        .collect();
+    let r = Worksheet::new(Options::default()).eval_table(&rows);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|(rr, c, _)| *rr == row && *c == col).map(|(_, _, t)| t.clone()).unwrap_or_default();
+    assert_eq!((cell(1, 1), cell(2, 1), cell(3, 1)), ("5".to_string(), "1".to_string(), "2".to_string()));
+    assert!(r.errors.iter().any(|(row, c, _)| *row == 1 && *c == 2), "c[0] is the last row's, not worked out yet: {:?}", r.errors);
+    // An index that is not a whole number is an error, not a panic.
+    let rows: Vec<Vec<String>> = [vec!["x", "q = x[i + 0.5]"], vec!["1", ""]].iter().map(|r| r.iter().map(|s| s.to_string()).collect()).collect();
+    assert!(!Worksheet::new(Options::default()).eval_table(&rows).errors.is_empty());
+}

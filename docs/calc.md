@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** calculated tables: header row, Total Row, ordinal column
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** calculated tables: rows by index (Gauss's method), header row, Total Row, ordinal column
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -128,6 +128,23 @@ Any other header (`Beam`, `Load case`, empty) is a label column, never read.
   (its formula cells are cleared).
 - A cell `Σ =` (also `sum`, `total`), `mean =`, `min =` or `max =` totals its column over the
   data rows; its row is not a data row.
+- **Rows by index.** In a column formula `i` is the row's number among the data rows (1, 2,
+  3…) and `n` how many there are (unless a column has that name), and `x[k]` is column `x` in
+  data row `k`: `x[i+1]` the next row, `x[i-1]` the one before. Indices wrap round — after the
+  last row comes the first, before the first the last — so a polygon closes, as Gauss's method
+  wants. Area and centroid of a polygon from its vertices:
+
+  | x [m] | y [m] | a [m^2] = (x·y[i+1] − x[i+1]·y)/2 | s [m^3] = (x + x[i+1])·(x·y[i+1] − x[i+1]·y)/6 |
+  |---|---|---|---|
+  | 0 | 0 | | |
+  | 4 | 0 | | |
+  | 4 | 3 | | |
+  | 0 | 3 | | |
+  | | | Σ = 12 | Σ = 24 |
+
+  then `x_G = sum(s)/sum(a) =` gives 2 m. A column may read its own earlier rows (`c = c[i-1] +
+  x`); a row not worked out yet is an error in that cell. A column only read by index does not
+  hold a row back when its own cell is empty.
 - **Total Row** (Table Design › Table Style Options › Total Row, also Table Layout › Data and
   Math › Tables; `table.look {"totalRow"}`): the last row is the totals row; each empty cell
   under a value or formula column sums its column (`Σ = 101.756`), a cell written there keeps
@@ -346,6 +363,7 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 - 2026-10-28: temperatures in `°C` and `°F` (`degC`, `degF`): absolute with the offset,
   differences in K; user functions `f(x) = …` with parameters, units, call-time names and a
   recursion cap.
+- 2026-10-28: calculated tables: rows by index (`i`, `n`, `x[i+1]`, cyclic) for Gauss's area and centroid.
 - 2026-10-28: calculated tables: the header row is marked (a table of numbers gets one), Total Row sums the columns, ordinal column 0.
 - 2026-10-28: calculated tables can show their cells as equations.
 - 2026-10-27: composed units for moments and loads (`kN·m`, `kN/m²`), force first.

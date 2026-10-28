@@ -230,11 +230,20 @@ pub(crate) struct Ctx<'a> {
     depth: usize,
     /// User function calls under way, nested (bounded by [`MAX_CALL_DEPTH`]).
     calls: usize,
+    /// In a calculated table's row: its columns' values over the data rows, so `x[k]` reaches
+    /// column `x` in data row `k` (cyclic: row `n + 1` is row 1, row 0 is row `n`).
+    columns: Vec<(String, Vec<Option<Quantity>>)>,
 }
 
 impl<'a> Ctx<'a> {
     pub(crate) fn new(scope: &'a Scope, names: Names, locals: Vec<(String, Value)>) -> Self {
-        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0 }
+        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0, columns: Vec::new() }
+    }
+
+    /// In a calculated table's row: the table's columns, which `x[k]` indexes by row.
+    pub(crate) fn with_columns(mut self, columns: Vec<(String, Vec<Option<Quantity>>)>) -> Self {
+        self.columns = columns;
+        self
     }
 
     /// Counts `n` units of work.
@@ -311,6 +320,20 @@ impl<'a> Ctx<'a> {
                     }
                 }
                 Ok(Value::Vector(Vector::from_quantities(&all)?))
+            }
+            // A table column indexed by row (`x[i+1]`): cyclic over the data rows.
+            Expr::Index(base, index)
+                if let Expr::Name(name) = &**base
+                    && self.columns.iter().any(|(n, _)| n == name) =>
+            {
+                let k = whole(self.eval(index)?.expect_scalar()?, "a row")?;
+                let column = self.columns.iter().find(|(n, _)| n == name).map(|(_, c)| c.as_slice()).unwrap_or_default();
+                let len = i64::try_from(column.len()).unwrap_or(i64::MAX);
+                if len == 0 {
+                    return Err(CalcError::MissingValue(name.clone()));
+                }
+                let row = usize::try_from((k - 1).rem_euclid(len)).unwrap_or(0);
+                column.get(row).copied().flatten().map(Value::Scalar).ok_or_else(|| CalcError::MissingValue(format!("{name}[{k}]")))
             }
             Expr::Index(base, index) => {
                 let base = self.eval(base)?;
