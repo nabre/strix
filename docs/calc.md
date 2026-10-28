@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** temperatures in °C and °F; user functions `f(x) = …`
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** a definition worked out at once (`A = 3 m · 5 m =`)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -45,6 +45,7 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 | `L = 4.5 m` | `L` | define | as typed |
 | `M = q·L²/8` | `M` | define from earlier parameters | as typed |
 | `M = q·L²/8 =` | `M` | define and show | `M = q·L²/8 = 30.375 kN·m` |
+| `A = 3 m · 5 m =` | `A` | define and show, from data | `A = 3 m · 5 m = 15 m²` |
 | `M =`, `M = kN·m` | none | show, in the unit asked for | `M = 30.375 kN·m` |
 | `F = m·a` | `a` | **solve** for the one unknown and define it | `F = m·a ⇒ a = 2.5 m/s²` |
 | `x² + x = 6` | `x` | solve (numerically: it appears twice) | `x² + x = 6 ⇒ x = 2` |
@@ -55,6 +56,13 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 - A number (or a vector) after `=` with every name before it known is a result to refresh:
   `M = 99 kN·m` becomes `M = 30.375 kN·m`. Units alone after `=` ask for a display unit.
 - `:=` still defines (and redefines) explicitly: `x := 2 m`.
+- **A definition worked out at once**: `A = 3 m · 5 m =` (or `A := …`) defines `A` and writes
+  its value after the last `=`; read back, a stale result is refreshed and a unit asked for is
+  kept (`A = 3 m·5 m = cm²` → `150000 cm²`). Only one bare `=` (or a unit, or a stale result)
+  may follow: `A = 3 m = 4 m =` and `A = 3 m = =` are errors left as typed; `A = =` and
+  `= 3 m =` are not calculations. A product of quantities is never a working unit: only a unit
+  as written (`kN·m`, `m/s²`, `1/min`) after `=` or a number sets one, not the `m·5 m` of
+  `3 m·5 m`.
 - Solving: the unknown is **isolated** symbolically when it appears once (inverting `+ − · /`,
   powers, `√`, `exp ln log`, `sin cos tan` and their inverses, principal values); the result is
   kept only if it satisfies the equation. Otherwise it is found **numerically**: its unit is
@@ -272,7 +280,9 @@ of one kind in one unit (`A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)`). Read ba
 after `=` is recognised as Strix's own (the left side has units to bring together and the right
 side two quantities or more, where a stale result has one number), so the statement is worked
 again from its data, never checked against the old working. A unit asked for after `=`
-(`= cm^2`) is kept as asked, without a working.
+(`= cm^2`) is kept as asked, without a working. A definition worked out at once does the same:
+`A = 3 m·50 cm =` shows `A = 3 m·50 cm = 3 m·0.5 m` with `= 1.5 m²` under it.
+
 ## Commands (engine, `cmd/calc.rs`)
 
 | Id | Does |
@@ -318,6 +328,8 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-10-28: a definition worked out at once (`A = 3 m · 5 m =` defines `A` and shows
+  `15 m²`), with its working under Show Steps; a product of quantities is no working unit.
 - 2026-10-28: temperatures in `°C` and `°F` (`degC`, `degF`): absolute with the offset,
   differences in K; user functions `f(x) = …` with parameters, units, call-time names and a
   recursion cap.
