@@ -11,7 +11,7 @@
 //! A missing or malformed file gives empty tables (or no names) and a warning.
 //!
 //! - The interface catalogs in this repository's `locales/` (vendored from storytold/craft-i18n at
-//!   the SHA in `craft-i18n.rev`, then maintained here): `craft_i18n.rs` holds `CRAFT_I18N`, one
+//!   the SHA in `locales/craft-i18n.rev`, then maintained here): `craft_i18n.rs` holds `CRAFT_I18N`, one
 //!   (locale, shared catalog, Strix catalog) entry per locale that has a `strix.tsv`.
 //!   `CRAFT_I18N_DIR` points at another folder with the same `locales/` layout instead. A missing
 //!   folder gives an empty table (a warning) and an English-only interface; with

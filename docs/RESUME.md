@@ -1,6 +1,7 @@
 # Resume notes
 
-Last updated 2026-10-27 (evening). Branch `main`.
+Last updated 2026-10-28. Branch `main` (pushed). Work was stopped mid-session to move to another
+machine: read **In progress** and **Next** first.
 
 ## Done
 - WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
@@ -38,10 +39,20 @@ Last updated 2026-10-27 (evening). Branch `main`.
 - Windows-only test failures inherited from upstream: `strix-proof`
   `hunspell::tests::reads_are_bounded_and_regular_files_only`, `strix-layout`
   `tests::hit_and_caret_agree`; `strix-engine` `tests::ime_body_epoch_marks_body_replacements_not_edits`
-  is flaky under the parallel run (passes alone).
-- GitHub Actions don't start: the account's billing/spending limit blocks them (private repo).
-  The inherited workflows (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud, release signing)
-  still need adapting to Strix.
+  is flaky under the parallel run (passes alone). Skip them with `--skip` when running the tests.
+- The repository is public since 2026-10-28, so GitHub Actions run. The shared gate
+  (`storytold/craft-common-actions` `gate.yml`) failed at clippy because a `craft-i18n.rev` at
+  the repository root made it check out upstream craft-i18n (no `strix.tsv`) with
+  `CRAFT_I18N_REQUIRED=1`; the pin moved to `locales/craft-i18n.rev` (provenance only; the
+  catalogs are the vendored `locales/`). Check the next CI run. The other inherited workflows
+  (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud — needs `SONAR_TOKEN`, release signing —
+  Apple secrets, only on the `release` branch) still need adapting or disabling.
+- On Windows a running Strix (`target\debug\strix.exe`) blocks `cargo test --workspace`
+  rebuilding the app binary ("Accesso negato"): close it, or test the `strix` package with
+  another `CARGO_TARGET_DIR`.
+- Parallel agents: one worktree and one `CARGO_TARGET_DIR` each; appends to
+  `locales/it/strix.tsv`, `crates/cad/src/tests.rs` and the docs' revision histories conflict on
+  merge (keep both sides).
 
 - CAD stage 2: drawings in the document (`GraphicKind::Cad`, `insert.cad`, `cad.get/set/add`),
   redrawn with the calculations in reading order, `.xmath` round trip; units in the Unit style.
@@ -54,13 +65,45 @@ Last updated 2026-10-27 (evening). Branch `main`.
 - Exercise: an empty paragraph at the caret gives way to the exercise.
 - README rewritten around the WYSIWYG math; static project site in `site/` (Atollo palette).
 
+- 2026-10-28 (this session):
+  - CAD modify commands (docs/cad.md, docs/cad-parity.md): Trim, Extend (quick mode), Fillet,
+    Chamfer (`crates/cad/src/trim.rs`); Explode, Join, Match Properties, Stretch, rectangular
+    and polar arrays (`crates/cad/src/rework.rs`, tests in `tests_rework.rs`); editor tools with
+    aliases, icons, Italian strings.
+  - CAD output: rotated texts, dimension texts aligned with their line (`dimStyle.aligned`),
+    dash-double-dotted, dashes drawn on the page and the editor canvas.
+  - CAD scale: maximum size on paper (`Fit.fixed`), the Scale list offers *Fitted to Frame* and
+    only the standard scales that fit (Picture Format and CAD Output share `scale_fields`;
+    `cad.scale` / `ui.cadScale` with `max`, `auto`, `scale`).
+  - Line samples in the CAD panes drawn on the sheet's white (dark theme contrast).
+  - Calculations: `°C`/`°F` absolute temperatures and differences; user functions `f(x) = …`.
+  - Exercises: titles numbered automatically (*Esercizio 1.* …, a list in the Exercise Title
+    style); a new exercise never goes inside another.
+  - Dependabot #1 merged (harfrust 0.15, quick-xml 0.42, zip 9, vello_cpu 0.3, hayro 0.8,
+    getrandom 0.4…) with the code adapted; macOS DMG background redrawn for Strix.
+
+## In progress (stopped, unfinished, on their own branches)
+- **Graph paper** (owner request), branch `wip/graph-paper` (`a16fbe5`, does not build yet):
+  a new object "foglio a quadretti": grid line type (solid/dashed/dotted, colour, weight) and
+  spacing ("interasse"; maybe a heavier line every N squares); placements: *background* (behind
+  the page content), *fill to the end of the page*, *until the next odd/even page*, *for N
+  pages*, *for a given height*. Model started in `crates/doc/src/graph_paper.rs` and
+  doc/layout files. To do: layout for each placement, render, commands `graph.insert`/`graph.set`
+  (+ params docs, hostile params), Insert-tab button and a properties UI, `.xmath` round trip,
+  `docs/graph-paper.md`, tests, screenshots in light and dark theme.
+- **`A = 3 m · 5 m =`** (owner request), branch `wip/calc-define-and-evaluate` (`d19c358`):
+  a definition worked out at once: defines `A` and shows `= 15 m²`. Changes started in
+  `crates/calc/src/worksheet.rs`, `crates/calc/src/tests.rs`, `crates/engine/src/cmd/calc.rs`.
+  Must not break one-`=` solving, checks, `x =`, `f(x) = …`, tables; hostile `A = =`,
+  `= 3 m =`, `A = 3 m = =` never panic. Update docs/calc.md.
+- Resume either: `git switch wip/…`, finish, `cargo xtask ci`, merge into `main`.
+
 ## Next
-- Push: GitHub was unreachable from this machine (all GitHub hosts time out, other sites work);
-  `git push origin main` once it answers.
-- CAD stage 3: the egui editor (canvas, command line, snaps, selection, grips); rotated texts and
-  dashes in the drawn items; a picture so Word shows the drawing.
-- Calc: Variables pane, unit picker, systems of equations across regions, solution steps, plots;
-  number format per document (now a preference). (`°C`/`°F` and user functions `f(x) = …` are
-  done, 2026-10-28.)
-- Redraw the macOS DMG background (`packaging/macos/dmg/background.svg` still says "WordCraft").
+- Check the GitHub CI after the `locales/craft-i18n.rev` move; adapt or disable the inherited
+  workflows (SonarCloud token, Printing, Nix, FreeBSD, Windows ARM64).
+- CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
+  dimension chains and levels; input units (`2.5 m` typed); entity names and measures for the
+  calculations; point styles (docs/cad-parity.md, Order of work).
+- Calc: Variables pane, unit picker, systems of equations across regions, plots; number format
+  per document (now a preference).
 - Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.
