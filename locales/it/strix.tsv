@@ -2862,3 +2862,11 @@ preview	Title	Esempio
 	Dash-dot-dot	Tratto-punto-punto
 	Aligned texts	Testi allineati
 	Dimension texts along their line (never upside down), not level	Testi di quota lungo la loro linea (mai capovolti), non orizzontali
+	fitted to frame	adattata al riquadro
+	Fitted to Frame	Adattata al riquadro
+	Maximum size	Dimensioni massime
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Limita le dimensioni del disegno sulla carta (dall'area di testo della pagina): le scale proposte sono quelle a cui ci sta
+	Set a maximum size first	Imposta prima le dimensioni massime
+	Width	Larghezza
+	Height	Altezza
+	Scale	Scala

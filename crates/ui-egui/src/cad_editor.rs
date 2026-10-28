@@ -622,6 +622,37 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             commit(app, &d);
             return Ok(serde_json::to_value(app.cad.as_ref().map(|e| e.drawing.dim_style)).unwrap_or_default());
         }
+        "ui.cadScale" => {
+            // The drawing's scale and maximum size, as `cad.scale` sets them in the document:
+            // {"max"?: true (the page) | false | {"width"?, "height"?} mm, "auto"?: true,
+            // "scale"?: n}.
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            let page = || {
+                let f = strix_engine::cmd::cad::page_space(&app.session);
+                (f.width, f.height)
+            };
+            match p.get("max") {
+                None => {}
+                Some(serde_json::Value::Null | serde_json::Value::Bool(false)) => d.set_max_size(None, None),
+                Some(serde_json::Value::Bool(true)) => d.set_max_size(Some(page()), None),
+                Some(m @ serde_json::Value::Object(_)) => {
+                    let num = |k: &str| m.get(k).and_then(serde_json::Value::as_f64).unwrap_or(0.0);
+                    d.set_max_size(Some((num("width"), num("height"))), None);
+                }
+                Some(_) => return Err("max: true, false or {\"width\", \"height\"} in mm".into()),
+            }
+            if p.get("auto").and_then(serde_json::Value::as_bool) == Some(true) {
+                if d.fit.is_none() {
+                    d.set_max_size(Some(page()), None);
+                }
+                d.fit_scale(None)?;
+            }
+            if let Some(n) = p.get("scale") {
+                d.set_fixed_scale(n.as_f64().unwrap_or(f64::NAN), None)?;
+            }
+            commit(app, &d);
+            return Ok(json!({"scale": d.scale, "fit": d.fit}));
+        }
         "ui.cadFit" => {
             if let Some(ed) = app.cad.as_mut() {
                 ed.fitted = false;
@@ -3092,9 +3123,65 @@ fn view_tab(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The picture in the document: its frame and padding.
+/// The scale and maximum size of drawing `d` in a ribbon group: the scale list offers Fitted to
+/// Frame (with a maximum size) and the standard scales at which `drawn` (the drawing with its
+/// sizes worked out) fits; the maximum size, on or off, its width and height. `command` applies a
+/// change (`cad.scale` in the document, `ui.cadScale` in the editor; the same params).
+pub(crate) fn scale_fields(ui: &mut Ui, app: &mut WordApp, id: &str, d: &Drawing, drawn: &Drawing, command: &str) {
+    let fitted = d.fit.is_some_and(|f| !f.fixed);
+    field_grid(ui, &format!("{id}_scale_grid"), |ui| {
+        ui.label(tl!("Scale"));
+        let shown = if fitted { format!("{} ({})", strix_cad::scale_text(d.scale), tl!("fitted to frame")) } else { strix_cad::scale_text(d.scale) };
+        egui::ComboBox::from_id_salt(format!("{id}_scale")).selected_text(shown).width(FIELD_W + 24.0).show_ui(ui, |ui| {
+            if d.fit.is_some() && ui.selectable_label(fitted, tl!("Fitted to Frame")).clicked() {
+                let _ = app.run(command, json!({"auto": true}));
+            }
+            // Only the scales at which the drawing fits its maximum size (all without one).
+            let mut probe = drawn.clone();
+            probe.fit = d.fit;
+            for n in probe.fitting_scales(None) {
+                if ui.selectable_label(!fitted && d.scale == n, strix_cad::scale_text(n)).clicked() {
+                    let _ = app.run(command, json!({"scale": n}));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Maximum size"));
+        let mut on = d.fit.is_some();
+        if ui
+            .checkbox(&mut on, "")
+            .on_hover_text(tl!("Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits"))
+            .changed()
+        {
+            let _ = app.run(command, json!({"max": on}));
+        }
+        ui.end_row();
+        // The maximum size, mm (0: that side free); applied once set.
+        let fit = d.fit.unwrap_or_default();
+        for (label, key, now) in [("Width", "width", fit.width), ("Height", "height", fit.height)] {
+            ui.label(tl!(label));
+            let mut v = now;
+            let r = ui
+                .add_enabled_ui(d.fit.is_some(), |ui| {
+                    ui.add_sized([FIELD_W + 32.0, 18.0], egui::DragValue::new(&mut v).range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm"))
+                })
+                .inner;
+            if (r.drag_stopped() || r.lost_focus()) && v != now {
+                let mut space = json!({"width": fit.width, "height": fit.height});
+                space[key] = json!(v);
+                let _ = app.run(command, json!({"max": space}));
+            }
+            ui.end_row();
+        }
+    });
+}
+
 fn output_tab(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::{big_checked, group};
     let Some((frame, padding)) = app.cad.as_ref().map(|e| (e.frame, e.drawing.padding)) else { return };
+    if let Some(d) = app.cad.as_ref().map(|e| e.drawing.clone()) {
+        group(ui, "Scale", None, app, |ui, app| scale_fields(ui, app, "cad_output", &d, &d, "ui.cadScale"));
+    }
     group(ui, "Picture", None, app, |ui, app| {
         big_checked(ui, app, "cadFrame", "Frame", "ui.cadToggle", json!({"what": "frame"}), frame);
         field_grid(ui, "cad_output_grid", |ui| {
@@ -3637,6 +3724,30 @@ mod tests {
         assert!(typed_value(ed, 1.0).is_some() && ed.array_count == 4, "too few items: kept");
         app.run("ui.cadClose", json!({})).unwrap();
         assert_eq!((app.cad_settings.array_cols, app.cad_settings.array_count), (2, 4));
+    }
+
+    /// CAD Output › Scale: a maximum size from the page, the scale fitted to it, a scale picked
+    /// among those that fit, one that does not refused, no limit again.
+    #[test]
+    fn the_editor_sets_the_maximum_size_and_scale() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let r = app.run("ui.cadScale", json!({"max": {"width": 60}})).unwrap();
+        // The 120 mm starter rectangle with its dimensions in 60 mm: the first scale that fits.
+        let d = app.cad.as_ref().unwrap().drawing.clone();
+        let offered = d.fitting_scales(None);
+        let first = offered[0];
+        assert_eq!(r["scale"], json!(first), "{r}");
+        assert!(first > 2.0 && !offered.contains(&1.0));
+        app.run("ui.cadScale", json!({"scale": offered[1]})).unwrap();
+        assert!(app.cad.as_ref().unwrap().drawing.fit.unwrap().fixed);
+        assert!(app.run("ui.cadScale", json!({"scale": 1})).is_err());
+        app.run("ui.cadScale", json!({"auto": true})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.scale, first);
+        app.run("ui.cadScale", json!({"max": false})).unwrap();
+        assert!(app.cad.as_ref().unwrap().drawing.fit.is_none());
+        app.run("ui.cadScale", json!({"scale": 1})).unwrap();
+        assert!(app.run("ui.cadScale", json!({"max": "x"})).is_err());
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

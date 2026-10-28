@@ -119,3 +119,33 @@ fn arrays_copy_in_rows_and_round() {
     let all: Vec<usize> = (0..100).collect();
     assert!(big.array_rect(&all, 10, 10, 1.0, 1.0).is_err(), "over the entity limit");
 }
+
+/// A maximum size: the scales offered are those that fit; the scale is fitted, or picked by
+/// hand among them (kept as long as it fits); old fitted drawings read as fitted.
+#[test]
+fn a_maximum_size_offers_the_scales_that_fit() {
+    let mut d = Drawing::from_json(r#"{"unit":"m","entities":[{"type":"line","a":[0,0],"b":[9,0]}],"padding":0}"#).unwrap();
+    assert_eq!(d.fitting_scales(None), standard_scales(), "no limit: every scale");
+    d.set_max_size(Some((100.0, 0.0)), None);
+    assert_eq!(d.scale, 100.0, "9 m in 100 mm: 1:100");
+    let offered = d.fitting_scales(None);
+    assert_eq!(offered.first(), Some(&100.0));
+    assert!(offered.iter().all(|n| *n >= 100.0));
+    assert!(d.set_fixed_scale(50.0, None).is_err(), "1:50 is 180 mm");
+    d.set_fixed_scale(200.0, None).unwrap();
+    assert!(d.fit.unwrap().fixed);
+    d.apply_fit(None);
+    assert_eq!(d.scale, 200.0, "picked by hand: the fitting leaves it");
+    // A smaller limit the hand-picked scale still meets: kept; one it does not: fitted.
+    d.set_max_size(Some((60.0, 0.0)), None);
+    assert_eq!((d.scale, d.fit.unwrap().fixed), (200.0, true));
+    d.set_max_size(Some((30.0, 0.0)), None);
+    assert_eq!((d.scale, d.fit.unwrap().fixed), (500.0, false));
+    d.fit_scale(None).unwrap();
+    d.set_max_size(None, None);
+    assert!(d.fit.is_none() && d.fit_scale(None).is_err());
+    assert!(d.set_fixed_scale(f64::NAN, None).is_err());
+    let old = Drawing::from_json(r#"{"fit":{"width":50}}"#).unwrap();
+    assert!(!old.fit.unwrap().fixed);
+    assert!(!old.to_json().contains("fixed"));
+}
