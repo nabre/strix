@@ -1,7 +1,6 @@
 # Resume notes
 
-Last updated 2026-10-28. Branch `main` (pushed). Work was stopped mid-session to move to another
-machine: read **In progress** and **Next** first.
+Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next** first.
 
 ## Done
 - WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
@@ -36,10 +35,14 @@ machine: read **In progress** and **Next** first.
   docs/cad.md.
 
 ## Known
-- Windows-only test failures inherited from upstream: `strix-proof`
-  `hunspell::tests::reads_are_bounded_and_regular_files_only`, `strix-layout`
-  `tests::hit_and_caret_agree`; `strix-engine` `tests::ime_body_epoch_marks_body_replacements_not_edits`
-  is flaky under the parallel run (passes alone). Skip them with `--skip` when running the tests.
+- Windows-only test failure inherited from upstream: `strix-proof`
+  `hunspell::tests::reads_are_bounded_and_regular_files_only`; `strix-engine`
+  `tests::ime_body_epoch_marks_body_replacements_not_edits` is flaky under the parallel run
+  (passes alone). Timing tests (`a_megabyte_long_word_lays_out_quickly`, docx
+  `content_control_save_cost`) can fail on a loaded machine. Skip them with `--skip`.
+- GitHub billing: some jobs (Nix, SonarCloud, Windows ARM64) were not started because "recent
+  account payments have failed"; Nix checks nothing (no `flake.nix`); release needs signing
+  secrets; shared workflows track `craft-common-actions@main` (consider pinning).
 - The repository is public since 2026-10-28, so GitHub Actions run. The shared gate
   (`storytold/craft-common-actions` `gate.yml`) failed at clippy because a `craft-i18n.rev` at
   the repository root made it check out upstream craft-i18n (no `strix.tsv`) with
@@ -81,6 +84,11 @@ machine: read **In progress** and **Next** first.
     style); a new exercise never goes inside another.
   - Dependabot #1 merged (harfrust 0.15, quick-xml 0.42, zip 9, vello_cpu 0.3, hayro 0.8,
     getrandom 0.4…) with the code adapted; macOS DMG background redrawn for Strix.
+  - Calculations: a definition worked out at once, `A = 3 m · 5 m =` → `15 m²` (docs/calc.md);
+    a product of quantities is no working unit.
+  - CI: Linux gate green (`a162494`): non-UTF-8 save tests use `.xmath`, `hit_and_caret_agree`
+    fixed (it failed everywhere after the rename), Zotero accept race on Linux (a connection not
+    accepted yet is judged by its listener), Spanish grammar timing test takes the best of three.
 
 ## In progress (stopped, unfinished, on their own branches)
 - **Graph paper** (owner request), branch `wip/graph-paper` (`a16fbe5`, does not build yet):
@@ -91,11 +99,6 @@ machine: read **In progress** and **Next** first.
   doc/layout files. To do: layout for each placement, render, commands `graph.insert`/`graph.set`
   (+ params docs, hostile params), Insert-tab button and a properties UI, `.xmath` round trip,
   `docs/graph-paper.md`, tests, screenshots in light and dark theme.
-- **`A = 3 m · 5 m =`** (owner request), branch `wip/calc-define-and-evaluate` (`d19c358`):
-  a definition worked out at once: defines `A` and shows `= 15 m²`. Changes started in
-  `crates/calc/src/worksheet.rs`, `crates/calc/src/tests.rs`, `crates/engine/src/cmd/calc.rs`.
-  Must not break one-`=` solving, checks, `x =`, `f(x) = …`, tables; hostile `A = =`,
-  `= 3 m =`, `A = 3 m = =` never panic. Update docs/calc.md.
 - Resume either: `git switch wip/…`, finish, `cargo xtask ci`, merge into `main`.
 
 ## Next
