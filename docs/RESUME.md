@@ -40,16 +40,16 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   `tests::ime_body_epoch_marks_body_replacements_not_edits` is flaky under the parallel run
   (passes alone). Timing tests (`a_megabyte_long_word_lays_out_quickly`, docx
   `content_control_save_cost`) can fail on a loaded machine. Skip them with `--skip`.
-- GitHub billing: some jobs (Nix, SonarCloud, Windows ARM64) were not started because "recent
-  account payments have failed"; Nix checks nothing (no `flake.nix`); release needs signing
-  secrets; shared workflows track `craft-common-actions@main` (consider pinning).
-- The repository is public since 2026-10-28, so GitHub Actions run. The shared gate
-  (`storytold/craft-common-actions` `gate.yml`) failed at clippy because a `craft-i18n.rev` at
-  the repository root made it check out upstream craft-i18n (no `strix.tsv`) with
-  `CRAFT_I18N_REQUIRED=1`; the pin moved to `locales/craft-i18n.rev` (provenance only; the
-  catalogs are the vendored `locales/`). Check the next CI run. The other inherited workflows
-  (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud — needs `SONAR_TOKEN`, release signing —
-  Apple secrets, only on the `release` branch) still need adapting or disabling.
+- GitHub workflows (2026-10-28): CI gate (`gate.yml`, Rust 1.99, craft-fonts) and Printing
+  (Linux/Windows/macOS UI tests) run on every push to `main`; Windows ARM64 and FreeBSD run
+  nightly (FreeBSD's last failure was the non-UTF-8 save test fixed in `a162494`); Packaging
+  lint on packaging changes; Release only on the `release` branch and needs the signing
+  secrets (Apple, Windows/Azure). Nix was removed (no `flake.nix`: it evaluated nothing).
+  SonarCloud skips every step without a `SONAR_TOKEN` secret (green but empty); to turn it on
+  the owner needs a SonarCloud organization and project and must set `sonar.organization`
+  (still upstream's `storytold`) and `sonar.projectKey` (`nabre_strix`) in
+  `sonar-project.properties`. Shared workflows track `craft-common-actions@main` (consider
+  pinning).
 - Without craft-fonts (`CRAFT_FONTS_DIR`), `strix-layout`
   `tests_complex::myanmar_prevowel_is_drawn_before_its_consonant` and
   `tests_pages::a_page_ends_when_a_multiple_spaced_lines_text_no_longer_fits` depend on the
@@ -111,8 +111,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
 - None.
 
 ## Next
-- Check the GitHub CI after the `locales/craft-i18n.rev` move; adapt or disable the inherited
-  workflows (SonarCloud token, Printing, Nix, FreeBSD, Windows ARM64).
+- SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
 - CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
   dimension chains and levels; input units (`2.5 m` typed); entity names and measures for the
   calculations; point styles (docs/cad-parity.md, Order of work).
