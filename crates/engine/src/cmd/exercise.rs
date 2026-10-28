@@ -216,6 +216,31 @@ fn ensure_styles(s: &mut Session) {
             s.doc.styles.styles.push(st);
         }
     }
+    // The title numbers itself (Esercizio 1., Esercizio 2. …): one list in the style, so every
+    // exercise of the document counts on, also in documents made before it was numbered.
+    if s.doc.styles.get(STYLE_TITLE).is_some_and(|st| st.para.numbering.is_none())
+        && let Ok(num) = add_title_list(s)
+        && let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE)
+    {
+        st.para.numbering = Some(NumRef { num, level: 0 });
+    }
+}
+
+/// The list exercise titles are numbered with: `Esercizio 1.` (the word in the document's
+/// language), a space, then the title.
+fn add_title_list(s: &mut Session) -> Result<u32, CmdError> {
+    use strix_doc::numbering::{LevelSuffix, levels_for};
+    let word = words(s).exercise;
+    let mut levels = levels_for(ListKind::Numbered);
+    levels.truncate(1);
+    if let Some(l) = levels.first_mut() {
+        l.text = format!("{word} %1.");
+        l.indent = 0.0;
+        l.hanging = 0.0;
+        l.tab = None;
+        l.suffix = LevelSuffix::Space;
+    }
+    s.doc.numbering.try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn control(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
@@ -1328,6 +1353,34 @@ mod tests {
         assert!(t.contains(&"Esercizio 2 — Secondo".to_string()), "{t:?}");
         let second = t.iter().position(|x| x == "a) x").unwrap();
         assert_eq!(t[second + 1..second + 3], ["", "Riepilogo dei risultati"], "{t:?}");
+    }
+
+    /// Exercise titles number themselves through their style: Esercizio 1., Esercizio 2.; a
+    /// document whose title style has no numbering gets it with the next exercise.
+    #[test]
+    fn exercise_titles_are_numbered() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
+        // Numbering taken away (a document from before): the next insert puts it back.
+        if let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
+            st.para.numbering = None;
+        }
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(0), 0));
+        s.run("exercise.insert", &json!({"title": "Secondo", "questions": ["q"]})).unwrap();
+        let mut counters = strix_doc::numbering::Counters::default();
+        let labels: Vec<String> = s
+            .doc
+            .body
+            .iter()
+            .filter_map(|b| match &**b {
+                Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE) => {
+                    let n = s.doc.styles.resolve_para(&p.props).numbering?;
+                    counters.next_label(&s.doc.numbering, n.num, n.level).map(|(l, _)| l)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(labels, ["Esercizio 1.", "Esercizio 2."]);
     }
 
     #[test]

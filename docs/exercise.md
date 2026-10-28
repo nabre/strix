@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-27 · **Change:** working under each question
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-28 · **Change:** titles numbered automatically
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -14,7 +14,7 @@ deleted; the automatic parts can't be edited):
 | Part | Control tag | Lock | Content |
 |---|---|---|---|
 | Exercise | `strix:exercise` | can't delete | everything below |
-| Title | (first paragraph) | | style **Exercise Title** (Titolo esercizio) |
+| Title | (first paragraph) | | style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise) |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
 | Data | `strix:exercise.data` | read-only | the initial data in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Properties pane, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
@@ -95,6 +95,7 @@ to the end.
 
 ## Revision history
 
+- 2026-10-28: exercise titles numbered automatically through their style.
 - 2026-10-27: one repeated question per line with its working under it; Result Of defaults to that question.
 - 2026-10-27: Exercise Properties pane: initial data and variants; data part.
 - 2026-10-27: nested questions (a), a.1), a.1.1)) and notes between the questions.
