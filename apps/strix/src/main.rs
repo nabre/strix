@@ -536,8 +536,9 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("wc-app-non-utf8-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join(std::ffi::OsString::from_vec(b"caf\xe9.txt".to_vec()));
-        std::fs::write(&path, "Bonjour").unwrap();
+        // A Strix document: only those save in place (every other format is import-only).
+        let path = dir.join(std::ffi::OsString::from_vec(b"caf\xe9.xmath".to_vec()));
+        strix_engine::io::save_path(&path, &strix_doc::Document::from_text("Bonjour")).unwrap();
 
         let mut app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
         open_non_unicode(&mut app, &path);
@@ -547,7 +548,8 @@ mod tests {
         app.run("caret.docEnd", serde_json::json!({})).unwrap();
         app.run("text.insert", serde_json::json!({"text": " encore"})).unwrap();
         app.run("file.save", serde_json::json!({})).unwrap();
-        assert!(std::fs::read_to_string(&path).unwrap().contains("Bonjour encore"));
+        let saved = strix_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Bonjour encore"));
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "a second file was written");
 
         // A file that can't be read is a warning, as one that fails to open by name is.

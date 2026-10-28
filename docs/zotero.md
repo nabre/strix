@@ -74,7 +74,9 @@ isn't another user's. On Windows and macOS (and the BSDs) the loopback rule is t
 - Linux only: it checks, in the kernel's socket table (`/proc/net/tcp`, `/proc/net/tcp6`), that the
   program listening on the port runs as the same user as Strix, before sending anything. If
   another account on a shared machine took the port while Zotero wasn't running, Strix
-  refuses with an error and the document isn't touched. When the table doesn't show the
+  refuses with an error and the document isn't touched. A connection Zotero hasn't accepted yet
+  is listed as root's (uid 0, no owner) until it does, so Strix judges it by the socket
+  listening on the port, whose owner is the one that accepts it. When the table doesn't show the
   listener (WSL2 mirrored networking with Zotero running on Windows, a local proxy), its owner
   is unknown and only the loopback rule applies, as below. That holds only when the tables were
   read in full: a read error, or an open error other than "not found", **refuses**. Sandboxes

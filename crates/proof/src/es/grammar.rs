@@ -345,9 +345,15 @@ mod tests {
             // As many as fit in about 99 KB: 9,000 of the first, as in the review.
             let text = format!("{}{ending}", unit.repeat(99_000 / unit.len()));
             assert!(text.len() < 100_000, "{}", text.len());
-            let started = std::time::Instant::now();
-            let issues = check(&text, ProofLang::Es);
-            let took = started.elapsed();
+            // The quickest of three checks, so one busy spell on a loaded machine (a parallel test
+            // run) isn't taken for the quadratic lookup, which is slow every time.
+            let mut took = std::time::Duration::MAX;
+            let mut issues = Vec::new();
+            for _ in 0..3 {
+                let started = std::time::Instant::now();
+                issues = check(&text, ProofLang::Es);
+                took = took.min(started.elapsed());
+            }
             assert!(took < std::time::Duration::from_millis(75), "{unit:?} took {took:?}");
             let missing: Vec<&Issue> = issues.iter().filter(|i| i.message.starts_with("Falta")).collect();
             assert_eq!(missing.len(), 1, "{unit:?}: {missing:?}");
