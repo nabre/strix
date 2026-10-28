@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Explode, Join, Match Properties, Stretch, arrays
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Explode, Join, Match Properties, Stretch, arrays; rotated and aligned texts, dashes drawn
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -13,7 +13,9 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
 - A `Drawing` has a **unit** (`mm`, `cm`, `m`; real-world sizes, y up, angles in degrees
   counter-clockwise), a **scale** `1:N` (one unit is `unit_mm / N` paper mm), **layers** and
   **entities** (at most 5000, drawn in order).
-- **Layers**: name, colour, stroke width (paper mm), dash (solid, dashed, dotted, dash-dotted),
+- **Layers**: name, colour, stroke width (paper mm), dash (solid, dashed, dotted, dash-dotted,
+  dash-double-dotted — a long dash and two dots; patterns in paper mm, so they read the same at any
+  scale),
   visible, locked (shown and snapped to, not picked), printed (off: only in the editor, never on
   the page or in the PDF). Layer `0` always exists. An entity's own stroke overrides its layer's
   ("ByLayer").
@@ -89,9 +91,21 @@ never on the drawn outlines:
 ## Rendering
 
 `Drawing::render` gives primitives in paper mm (y down) and the paper size: polylines with
-colour, width and dash; dots; texts with height, angle and anchor. Circles and arcs are
-tessellated; dimensions draw extension lines, the dimension line, 45° ticks and the label above
-the line, kept readable. The page, the PDF and the editor all draw these primitives.
+colour, width and dash; dots; texts with height, angle and anchor (the anchor is in the text's
+own frame: a turned text turns about it). Circles and arcs are tessellated; dimensions draw
+extension lines, the dimension line, 45° ticks and the label above the line, kept readable. The
+page, the PDF and the editor all draw these primitives.
+
+- **Texts at their angle**: a text entity's `angle` and a dimension's slope reach the primitive;
+  the SVG writes `rotate(−angle)` (y down), the page turns each text item about its rectangle's
+  centre (`GraphicItem::Text::angle`, drawn as a `Draw::Rotated`), so the PDF and the raster
+  agree. `render::readable` turns a direction to read as drafting reads it: within (−90°, 90°],
+  half a turn round when it pointed left or down, so a vertical text reads bottom to top.
+- **Dashes on every output**: the SVG writes the pattern as `stroke-dasharray`; the page, which
+  strokes solid paths, gets each dashed line, arc, circle and polyline cut into its dashes
+  (`Prim::pieces`, `render::dash_runs`: from the first point, carried round corners and a closed
+  shape's closing side; at most 20 000 dashes a path, the rest solid; a degenerate pattern draws
+  solid). Hatches and dimensions stay solid.
 
 ## Point entry (`parse_point`)
 
@@ -115,8 +129,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   `calc.recalculate` and `cad.get`.
 - **Units in the Unit style**: a parameter shown in a dimension (`L = {{L}}`) has its unit in the
   Unit character style's colour, like the calculations' units.
-- **Texts are level**: a steep dimension's text is set level beside its line, on the outer side
-  (rotated text is a later stage).
+- **Dimension texts**: by default a dimension's text runs along its line up to 45° and a steeper
+  one's is set level beside the line, on the outer side; an angle's reads level outside its arc
+  (drawings look as they did). The style's **aligned texts** (`dimStyle.aligned`, written only
+  when on) turn every dimension's text with its line, never upside down, and an angle's along
+  its arc.
 - **JSON and SVG**: the drawing is managed by its JSON; its SVG picture is made automatically
   from it, only when what it shows changes (or when a file brings none). Saving writes a picture
   (`pic:pic`) of the SVG (`word/media/cadN.svg`, with Office's SVG picture extension, so other
@@ -142,8 +159,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 1. **Model, parametric coordinates, labels from parameters, rendering, point entry.** *Done
    (crate).*
 2. **Document integration**: `insert.cad`, `cad.get/set/add`, regeneration in reading order with
-   the calculations, `.xmath` round trip, units in the Unit style. *Done.* Still to do: rotated
-   texts and dashed lines in the drawn items, a picture for Word.
+   the calculations, `.xmath` round trip, units in the Unit style. *Done.* Rotated texts and dashed
+   lines in the drawn items done (2026-10-28). Still to do: a picture for Word.
 3. **Editor** (`crates/ui-egui/src/cad_editor.rs`). *First cut done*: double-click a drawing, or
    Math › Drawing › Edit Drawing (`ui.cadEdit`): the page gives way to the drawing's sheet and the
    **CAD Drawing** tab comes up (Draw: Line, Circle, Polyline, Rectangle, Arc, Point, Text;
@@ -301,6 +318,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 - 2026-10-28: Explode, Join, Match Properties, Stretch, rectangular and polar arrays; line samples on the sheet's white.
 - 2026-10-28: Trim and Extend (quick mode), Fillet and Chamfer of two lines.
+- 2026-10-28: texts drawn at their angle on the page; dimension texts aligned with their line (`dimStyle.aligned`, readable); dash-double-dotted; dashes cut into the page's items.
 - 2026-10-27: AutoCAD selection (adds, Shift removes, two-click window, lasso, fence, polygons, previous, undo, cycling); context menu; Properties pane (families, stepping, geometry with expressions, stroke, layers); draw order; current layer.
 - 2026-10-27: geometry kernel (exact intersections, perpendiculars, tangents, angles; limit of approximation); exact object snaps; grips; frame; padding; JSON source with an automatic SVG picture.
 - 2026-10-27: placeholders with a mode (value, symbol, both) in dimensions and texts; missing data in red.

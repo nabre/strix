@@ -115,6 +115,8 @@ pub enum Dash {
     Dashed,
     Dotted,
     DashDotted,
+    /// A long dash and two dots (ISO 128's dash-double-dotted: phantom and centroid lines).
+    DashDoubleDotted,
 }
 
 impl Dash {
@@ -125,6 +127,7 @@ impl Dash {
             Dash::Dashed => &[4.0, 2.0],
             Dash::Dotted => &[0.5, 1.5],
             Dash::DashDotted => &[6.0, 1.5, 0.5, 1.5],
+            Dash::DashDoubleDotted => &[6.0, 1.5, 0.5, 1.5, 0.5, 1.5],
         }
     }
 }
@@ -250,11 +253,16 @@ pub struct DimStyle {
     pub ext_over: f64,
     /// Between a dimension's text and its line, mm.
     pub text_gap: f64,
+    /// Texts aligned with their dimension line at any slope (turned to stay readable: never
+    /// upside down) and an angle's along its arc; off, a steep dimension's text and an angle's
+    /// read level (the default). Written only when on.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub aligned: bool,
 }
 
 impl Default for DimStyle {
     fn default() -> Self {
-        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0 }
+        DimStyle { text: 2.5, mark: Mark::Tick, mark_size: 2.5, ext_gap: 1.0, ext_over: 1.5, text_gap: 1.0, aligned: false }
     }
 }
 
@@ -270,6 +278,7 @@ impl DimStyle {
             ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
+            aligned: self.aligned,
         }
     }
 

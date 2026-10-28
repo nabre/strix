@@ -1364,3 +1364,140 @@ fn fillet_and_chamfer_join_two_lines() {
     let mut circ = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"circle","c":[0,0],"r":1}]}"#).unwrap();
     assert!(circ.chamfer(0, Pt::new(1.0, 0.0), 1, Pt::new(1.0, 0.0), 1.0, 1.0).is_err());
 }
+
+/// A text entity's angle reaches its primitive and the SVG (counter-clockwise on paper is a
+/// negative SVG rotation), and its estimated extent turns with it.
+#[test]
+fn rotated_texts_are_drawn_at_their_angle() {
+    let d = Drawing::from_json(r#"{"entities":[{"type":"text","p":[0,0],"value":"ABCDEFGH","height":5,"angle":90}]}"#).unwrap();
+    let r = d.render(None);
+    let Some(Prim::Text { angle, .. }) = r.prims.first() else { panic!("{:?}", r.prims) };
+    assert!(approx(*angle, 90.0));
+    // Standing up, the text is taller than it is wide.
+    assert!(r.size.1 > r.size.0 + 10.0, "{:?}", r.size);
+    let svg = r.to_svg([0, 0, 0]);
+    assert!(svg.contains("transform=\"rotate(-90 "), "{svg}");
+}
+
+/// Readable directions: never upside down, a vertical text reads bottom to top.
+#[test]
+fn readable_text_directions_never_read_upside_down() {
+    use crate::render::readable;
+    for (deg, want, turned) in [
+        (0.0, 0.0, false),
+        (30.0, 30.0, false),
+        (90.0, 90.0, false),
+        (-90.0, 90.0, true),
+        (180.0, 0.0, true),
+        (-180.0, 0.0, true),
+        (135.0, -45.0, true),
+        (-135.0, 45.0, true),
+        (270.0, 90.0, true),
+        (450.0, 90.0, false),
+    ] {
+        let (a, t) = readable(deg);
+        assert!(approx(a, want) && t == turned, "{deg}: {a} {t}");
+    }
+    assert_eq!(readable(f64::NAN), (0.0, false));
+    assert_eq!(readable(f64::INFINITY), (0.0, false));
+}
+
+/// With the style's aligned texts, a steep dimension's text turns with its line, whichever way
+/// the line was drawn, and stays readable; by default it reads level, as before.
+#[test]
+fn aligned_dimension_texts_follow_steep_lines_readably() {
+    let text_of = |json: &str| {
+        let d = Drawing::from_json(json).unwrap();
+        d.render(None).prims.into_iter().find_map(|p| if let Prim::Text { angle, anchor, .. } = p { Some((angle, anchor)) } else { None }).unwrap()
+    };
+    // Default: level beside the line.
+    let (angle, anchor) = text_of(r#"{"entities":[{"type":"dim","a":[0,0],"b":[0,50],"offset":8}]}"#);
+    assert!(approx(angle, 0.0) && matches!(anchor, Anchor::MiddleLeft | Anchor::MiddleRight), "{angle} {anchor:?}");
+    for (a, b) in [((0, 0), (0, 50)), ((0, 50), (0, 0)), ((0, 0), (20, 50)), ((20, 50), (0, 0)), ((0, 0), (-20, 50)), ((0, 0), (-50, -20))] {
+        let json = format!(
+            r#"{{"dimStyle":{{"aligned":true}},"entities":[{{"type":"dim","a":[{},{}],"b":[{},{}],"offset":8,"orient":"aligned"}}]}}"#,
+            a.0, a.1, b.0, b.1
+        );
+        let (angle, anchor) = text_of(&json);
+        assert!(angle > -90.0 + 1e-9 && angle <= 90.0 + 1e-9, "{a:?}→{b:?}: {angle}");
+        let line = f64::from(b.1 - a.1).atan2(f64::from(b.0 - a.0)).to_degrees();
+        let off = (angle - line).rem_euclid(180.0);
+        assert!(off < 1e-6 || off > 180.0 - 1e-6, "{a:?}→{b:?}: {angle} along {line}");
+        assert!(matches!(anchor, Anchor::BottomCenter | Anchor::TopCenter), "{anchor:?}");
+    }
+    // A vertical one reads bottom to top.
+    let (angle, _) = text_of(r#"{"dimStyle":{"aligned":true},"entities":[{"type":"dim","a":[0,50],"b":[0,0],"offset":8,"orient":"vertical"}]}"#);
+    assert!(approx(angle, 90.0), "{angle}");
+    // An angle's label runs along its arc: a right angle from the x axis has its middle at 45°,
+    // its tangent there at 135°, turned readable to −45°.
+    let (angle, _) = text_of(r#"{"dimStyle":{"aligned":true},"entities":[{"type":"angle","c":[0,0],"a":[10,0],"b":[0,10],"r":8}]}"#);
+    assert!(approx(angle, -45.0), "{angle}");
+}
+
+/// The aligned option is written only when on: old drawings read the same and write the same.
+#[test]
+fn aligned_dimension_texts_keep_json_back_compatible() {
+    let old = r#"{"dimStyle":{"text":3.5},"entities":[{"type":"line","a":[0,0],"b":[10,0]}]}"#;
+    let d = Drawing::from_json(old).unwrap();
+    assert!(!d.dim_style.aligned);
+    let json = d.to_json();
+    assert!(!json.contains("aligned"), "{json}");
+    let mut d2 = d.clone();
+    d2.dim_style.aligned = true;
+    let json2 = d2.to_json();
+    assert!(json2.contains(r#""aligned":true"#), "{json2}");
+    assert!(Drawing::from_json(&json2).unwrap().dim_style.aligned);
+    assert_eq!(Drawing::from_json(&json2).unwrap().to_json(), json2);
+    // The new dash type round-trips by its name.
+    let dd = Drawing::from_json(r#"{"layers":[{"name":"0","dash":"dashDoubleDotted"}]}"#).unwrap();
+    assert_eq!(dd.layers[0].dash, Dash::DashDoubleDotted);
+    assert!(dd.to_json().contains(r#""dash":"dashDoubleDotted""#), "{}", dd.to_json());
+}
+
+/// Dash-double-dotted is a long dash and two dots; every dashed type has an even pattern.
+#[test]
+fn dash_double_dotted_is_a_long_dash_and_two_dots() {
+    assert_eq!(Dash::DashDoubleDotted.pattern(), &[6.0, 1.5, 0.5, 1.5, 0.5, 1.5]);
+    for d in [Dash::Dashed, Dash::Dotted, Dash::DashDotted, Dash::DashDoubleDotted] {
+        assert!(!d.pattern().is_empty() && d.pattern().len() % 2 == 0, "{d:?}");
+    }
+}
+
+/// A dashed path's pieces: the pattern in paper mm from its first point, across corners and a
+/// closed path's closing side; solid is one piece; hostile patterns never hang or panic.
+#[test]
+fn dash_patterns_cut_paths_into_their_dashes() {
+    use crate::render::{MAX_DASHES, dash_runs};
+    let len = |run: &Vec<(f64, f64)>| run.windows(2).map(|w| ((w[1].0 - w[0].0).powi(2) + (w[1].1 - w[0].1).powi(2)).sqrt()).sum::<f64>();
+    // 20 mm dashed 4 on / 2 off: dashes at 0–4, 6–10, 12–16, 18–20.
+    let runs = dash_runs(&[(0.0, 0.0), (20.0, 0.0)], &[4.0, 2.0]);
+    assert_eq!(runs.len(), 4, "{runs:?}");
+    assert!(approx(runs[1][0].0, 6.0) && approx(runs[1][1].0, 10.0), "{runs:?}");
+    assert!(approx(len(&runs[3]), 2.0));
+    // Round a corner: a dash keeps the corner point.
+    let runs = dash_runs(&[(0.0, 0.0), (3.0, 0.0), (3.0, 3.0)], &[4.0, 2.0]);
+    assert_eq!(runs[0], vec![(0.0, 0.0), (3.0, 0.0), (3.0, 1.0)]);
+    // Solid: the whole path.
+    assert_eq!(dash_runs(&[(0.0, 0.0), (5.0, 0.0)], &[]).len(), 1);
+    // Through a drawing: a dashed layer's line becomes its pattern's dashes, a closed square's
+    // dashes run on along its closing side.
+    let d = Drawing::from_json(
+        r#"{"layers":[{"name":"0","dash":"dashDoubleDotted"}],"entities":[{"type":"line","a":[0,0],"b":[30,0]},
+            {"type":"polyline","pts":[[0,10],[10,10],[10,20],[0,20]],"closed":true}]}"#,
+    )
+    .unwrap();
+    let r = d.render(None);
+    let pieces = r.prims[0].pieces();
+    // 30 mm of an 11.5 mm pattern: dash, dot, dot, dash, dot, dot, dash.
+    assert_eq!(pieces.len(), 7, "{pieces:?}");
+    assert!(approx(len(&pieces[0]), 6.0) && approx(len(&pieces[1]), 0.5) && approx(len(&pieces[2]), 0.5));
+    let total: f64 = r.prims[1].pieces().iter().map(len).sum();
+    // 40 mm round: three 11.5 mm patterns (7 mm on in each) and 5.5 mm of a dash.
+    assert!(approx(total, 3.0 * 7.0 + 5.5), "{total}");
+    // Hostile: tiny, NaN, negative, huge.
+    assert_eq!(dash_runs(&[(0.0, 0.0), (1e9, 0.0)], &[1e-3, 1e-3]).len(), MAX_DASHES + 1);
+    assert_eq!(dash_runs(&[(0.0, 0.0), (10.0, 0.0)], &[f64::NAN, -1.0]).len(), 1);
+    assert!(dash_runs(&[(f64::NAN, 0.0), (10.0, 0.0)], &[1.0, 1.0]).is_empty());
+    assert_eq!(dash_runs(&[(0.0, 0.0), (10.0, 0.0)], &[1.0]).len(), 5, "an odd pattern repeats twice over");
+    assert!(Prim::Dot { at: (0.0, 0.0), r: 1.0, color: [0, 0, 0] }.pieces().is_empty());
+}

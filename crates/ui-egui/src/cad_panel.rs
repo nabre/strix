@@ -21,7 +21,13 @@ use crate::cad_editor::CadEditor;
 
 /// Lineweights offered, paper mm (ISO 128 series).
 const WIDTHS: [f64; 9] = [0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1.0, 1.4, 2.0];
-const DASHES: [(Dash, &str); 4] = [(Dash::Solid, "Continuous"), (Dash::Dashed, "Dashed"), (Dash::Dotted, "Dotted"), (Dash::DashDotted, "Dash-dot")];
+const DASHES: [(Dash, &str); 5] = [
+    (Dash::Solid, "Continuous"),
+    (Dash::Dashed, "Dashed"),
+    (Dash::Dotted, "Dotted"),
+    (Dash::DashDotted, "Dash-dot"),
+    (Dash::DashDoubleDotted, "Dash-dot-dot"),
+];
 /// The pens offered (our own picks): fifteen colours, then a grey scale from black to white;
 /// any other colour is set by its RGB values or typed `#rrggbb`.
 const COLORS: [([u8; 3], &str); 23] = [

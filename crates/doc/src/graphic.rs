@@ -116,7 +116,8 @@ pub enum GraphicItem {
         #[serde(default)]
         stroke_width: f32,
     },
-    /// One line of text in `rect`, aligned horizontally by `align`, centred vertically.
+    /// One line of text in `rect`, aligned horizontally by `align`, centred vertically; turned
+    /// `angle` degrees counter-clockwise about `rect`'s centre (a CAD drawing's rotated text).
     Text {
         rect: [f32; 4],
         text: String,
@@ -128,9 +129,16 @@ pub enum GraphicItem {
         align: TextAlign,
         #[serde(default)]
         font: Option<String>,
+        #[serde(default, skip_serializing_if = "is_level")]
+        angle: f32,
     },
     /// A picture (`Document::media` key) stretched into `rect`.
     Image { rect: [f32; 4], media: String },
+}
+
+/// A text's angle that leaves it level (not written).
+fn is_level(angle: &f32) -> bool {
+    *angle == 0.0
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -6126,6 +6126,7 @@ fn graphic_items_draw_inside_the_object() {
             bold: false,
             align: TextAlign::Center,
             font: None,
+            angle: 0.0,
         },
     ];
     let mut d = Document::from_text("Chart");
@@ -6155,6 +6156,7 @@ fn graphic_text_in_a_degenerate_rectangle_is_not_drawn() {
         bold: false,
         align: TextAlign::Center,
         font: None,
+        angle: 0.0,
     };
     let items = vec![text([f32::NAN, 0.0, 10.0, 10.0], 10.0), text([0.0, 0.0, f32::INFINITY, 10.0], 10.0), text([0.0, 0.0, 10.0, 10.0], f32::NAN)];
     let graphic = Graphic { kind: GraphicKind::Diagram, items, ..Default::default() };
@@ -11599,4 +11601,32 @@ fn a_row_leaves_room_for_the_border_below_it() {
             assert!(end + border <= bottom + 0.02, "border {border}, {fill} filler lines: the last row ends at {end}, the margin at {bottom}");
         }
     }
+}
+
+/// A graphic's turned text (a CAD drawing's rotated text) is drawn turned about its rectangle's
+/// centre: counter-clockwise on the page, a negative spin; a level one is drawn as it is.
+#[test]
+fn graphic_text_with_an_angle_is_drawn_turned() {
+    use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, TextAlign};
+    use strix_doc::props::Rgb;
+    let text = |angle: f32| GraphicItem::Text {
+        rect: [0.0, 0.0, 40.0, 10.0],
+        text: "Q1".into(),
+        size: 10.0,
+        color: Rgb::BLACK,
+        bold: false,
+        align: TextAlign::Center,
+        font: None,
+        angle,
+    };
+    let graphic = Graphic { kind: GraphicKind::Cad, items: vec![text(90.0), text(0.0)], ..Default::default() };
+    let mut d = Document::from_text("Drawing");
+    let obj = InlineObject::Graphic { w: 100.0, h: 100.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) };
+    d.insert_object(&Pos::body(0, 0), obj, &Default::default()).unwrap();
+    let l = lay(&d);
+    let draws = flat(display::page_display(&d, &l.pages[0], &Default::default()));
+    let turned: Vec<_> =
+        draws.iter().filter_map(|x| if let display::Draw::Rotated { spin, items, .. } = x { Some((spin.deg, items.len())) } else { None }).collect();
+    assert_eq!(turned, [(270.0, 1)], "{draws:?}");
+    assert!(draws.iter().any(|x| matches!(x, display::Draw::Glyphs { text, .. } if text == "Q1")), "the level one");
 }
