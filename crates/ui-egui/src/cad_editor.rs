@@ -598,7 +598,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         }
         "ui.cadDimStyle" => {
             // The drawing's annotation style: {"text"?, "markSize"?, "extGap"?, "extOver"?,
-            // "textGap"? (mm), "mark"? (tick, arrow, dot, none)}.
+            // "textGap"? (mm), "mark"? (tick, arrow, dot, none), "aligned"? (texts along their line)}.
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
             let st = &mut d.dim_style;
             for (key, slot) in [
@@ -614,6 +614,9 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             }
             if let Some(m) = p.get("mark") {
                 st.mark = m.as_str().and_then(strix_cad::Mark::parse).ok_or("mark: tick, arrow, dot or none")?;
+            }
+            if let Some(v) = p.get("aligned") {
+                st.aligned = v.as_bool().ok_or("aligned: true or false")?;
             }
             d.dim_style = d.dim_style.sanitized();
             commit(app, &d);
@@ -791,6 +794,7 @@ fn parse_dash(d: &str) -> Option<Dash> {
         "dashed" => Dash::Dashed,
         "dotted" => Dash::Dotted,
         "dashDotted" => Dash::DashDotted,
+        "dashDoubleDotted" => Dash::DashDoubleDotted,
         _ => return None,
     })
 }
@@ -1530,16 +1534,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
         for prim in &ed.rendered.prims {
             match prim {
-                Prim::Path { pts, closed, color, width, fill, .. } => {
-                    let screen: Vec<Pos2> = pts.iter().map(|&q| view.to_screen(paper_to_drawing(&ed.rendered, q))).collect();
+                Prim::Path { pts, color, width, fill, .. } => {
+                    let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(&ed.rendered, *q));
                     let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
-                    painter.add(if *fill {
-                        Shape::convex_polygon(screen, rgb(*color), stroke)
-                    } else if *closed {
-                        Shape::closed_line(screen, stroke)
+                    if *fill {
+                        painter.add(Shape::convex_polygon(pts.iter().map(to_screen).collect(), rgb(*color), stroke));
                     } else {
-                        Shape::line(screen, stroke)
-                    });
+                        // Its linetype's dashes, as on the page (a solid path is one piece).
+                        for piece in prim.pieces() {
+                            painter.add(Shape::line(piece.iter().map(to_screen).collect(), stroke));
+                        }
+                    }
                 }
                 Prim::Dot { at, r, color } => {
                     painter.circle_filled(
@@ -1548,7 +1553,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         rgb(*color),
                     );
                 }
-                Prim::Text { at, text, height, anchor, color, .. } => {
+                Prim::Text { at, text, height, anchor, color, angle } => {
                     let shown: String = text.chars().filter(|&c| !strix_cad::is_marker(c)).collect();
                     let size = ((*height / 0.7) * ed.zoom / k).clamp(6.0, 200.0) as f32;
                     let align = match anchor {
@@ -1559,7 +1564,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         Anchor::MiddleLeft => Align2::LEFT_CENTER,
                         Anchor::MiddleRight => Align2::RIGHT_CENTER,
                     };
-                    painter.text(view.to_screen(paper_to_drawing(&ed.rendered, *at)), align, shown, FontId::proportional(size), rgb(*color));
+                    let pos = view.to_screen(paper_to_drawing(&ed.rendered, *at));
+                    if *angle == 0.0 || !angle.is_finite() {
+                        painter.text(pos, align, shown, FontId::proportional(size), rgb(*color));
+                    } else {
+                        // Turned about its anchor: counter-clockwise on paper is clockwise on the
+                        // screen (y down).
+                        let galley = painter.layout_no_wrap(shown, FontId::proportional(size), rgb(*color));
+                        let anchor_in = vec2(galley.size().x * align.x().to_factor(), galley.size().y * align.y().to_factor());
+                        let rot = egui::emath::Rot2::from_angle(-(angle.to_radians() as f32));
+                        painter.add(egui::epaint::TextShape::new(pos - rot * anchor_in, galley, rgb(*color)).with_angle(rot.angle()));
+                    }
                 }
             }
         }
@@ -2987,6 +3002,15 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
             size(ui, app, "Extension beyond", "extOver", style.ext_over);
             size(ui, app, "Text gap", "textGap", style.text_gap);
         });
+        ui.add_space(10.0);
+        let mut aligned = style.aligned;
+        if ui
+            .checkbox(&mut aligned, tl!("Aligned texts"))
+            .on_hover_text(tl!("Dimension texts along their line (never upside down), not level"))
+            .changed()
+        {
+            let _ = app.run("ui.cadDimStyle", json!({"aligned": aligned}));
+        }
     });
     group(ui, "Hatch", None, app, |ui, app| {
         big_checked(ui, app, "cadHatch", "Hatch", "ui.cadTool", t("hatch"), tool == Tool::Hatch);
@@ -3406,6 +3430,10 @@ mod tests {
         let Kind::Angle { a, b, .. } = &d.entities.last().unwrap().kind else { panic!() };
         assert_eq!((a.pt(), b.pt()), (Pt::new(0.0, 10.0), Pt::new(10.0, 0.0)));
         app.run("ui.cadDimStyle", json!({"text": 3.5, "mark": "arrow"})).unwrap();
+        app.run("ui.cadDimStyle", json!({"aligned": true})).unwrap();
+        assert!(app.cad.as_ref().unwrap().drawing.dim_style.aligned);
+        assert!(app.run("ui.cadDimStyle", json!({"aligned": 3})).is_err());
+        assert_eq!(parse_dash("dashDoubleDotted"), Some(Dash::DashDoubleDotted));
         let st = app.cad.as_ref().unwrap().drawing.dim_style;
         assert_eq!((st.text, st.mark), (3.5, strix_cad::Mark::Arrow));
         assert!(app.run("ui.cadDimStyle", json!({"mark": "star"})).is_err());
