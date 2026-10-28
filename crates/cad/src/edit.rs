@@ -324,6 +324,27 @@ impl Drawing {
     /// What entity `e` is drawn with, for picking and highlighting: its outline, or a strip's
     /// band (drawing units).
     pub fn shape(&self, e: &Entity) -> Vec<Vec<Pt>> {
+        // A dimension is picked where it is drawn: its dimension line, its extension lines and
+        // the band its text sits in, not the line it measures.
+        if let Some(f) = self.dim_frame(e, paper_per_unit(self)) {
+            let k = paper_per_unit(self);
+            let st = self.dim_style;
+            let units = |p: Pt| p.scale(1.0 / k);
+            let text_band = {
+                let mid = f.fa.plus(f.fb).scale(0.5);
+                let half = f.fb.minus(f.fa).len() / 2.0;
+                let up = f.normal.scale(f.side);
+                let (lo, hi) = (mid.plus(up.scale(st.text_gap)), mid.plus(up.scale(st.text_gap + st.text)));
+                let along = f.dir.scale(half.max(st.text));
+                vec![lo.minus(along), lo.plus(along), hi.plus(along), hi.minus(along), lo.minus(along)]
+            };
+            return vec![
+                vec![units(f.fa), units(f.fb)],
+                vec![units(f.a), units(f.fa)],
+                vec![units(f.b), units(f.fb)],
+                text_band.into_iter().map(units).collect(),
+            ];
+        }
         match &e.kind {
             Kind::Strip { .. } => self.strip_shape(e).map(|s| {
                 let mut ring = s.polygon;

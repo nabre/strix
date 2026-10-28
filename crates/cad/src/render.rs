@@ -214,9 +214,11 @@ impl Drawing {
     }
 
     /// A linear dimension: extension lines, the dimension line with its end marks, and its texts.
-    fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
-        let Kind::Dim { a, b, offset, orient, text, below, mark } = &e.kind else { return };
-        let st = self.dim_style;
+    /// Where a linear dimension is drawn, in paper mm (y up, before the drawing is placed on its
+    /// paper): its measured points, the feet of its extension lines on the dimension line, the
+    /// measuring direction and the line's normal. The rendering and the picking share it.
+    pub(crate) fn dim_frame(&self, e: &Entity, k: f64) -> Option<DimFrame> {
+        let Kind::Dim { a, b, offset, orient, .. } = &e.kind else { return None };
         let (a, b) = (a.pt().scale(k), b.pt().scale(k));
         // The measuring direction: along a→b, or the x or y axis.
         let dir = match orient {
@@ -225,18 +227,23 @@ impl Drawing {
             Orient::Vertical => Pt::new(0.0, if b.y >= a.y { 1.0 } else { -1.0 }),
         };
         if dir.len() == 0.0 {
-            return;
+            return None;
         }
         let normal = dir.left();
         // The dimension line passes `offset` beyond the farther point along the normal.
         let (na, nb) = (a.x * normal.x + a.y * normal.y, b.x * normal.x + b.y * normal.y);
         let level = if *offset >= 0.0 { na.max(nb) + offset } else { na.min(nb) + offset };
         let foot = |p: Pt| p.plus(normal.scale(level - (p.x * normal.x + p.y * normal.y)));
-        let (fa, fb) = (foot(a), foot(b));
+        Some(DimFrame { a, b, fa: foot(a), fb: foot(b), dir, normal, side: if *offset >= 0.0 { 1.0 } else { -1.0 } })
+    }
+
+    fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
+        let Kind::Dim { text, below, mark, .. } = &e.kind else { return };
+        let st = self.dim_style;
+        let Some(DimFrame { a, b, fa, fb, dir, normal, side }) = self.dim_frame(e, k) else { return };
         let measured = fb.minus(fa).len() / k;
         let line =
             |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
-        let side = if *offset >= 0.0 { 1.0 } else { -1.0 };
         for (p, f) in [(a, fa), (b, fb)] {
             let start = p.plus(normal.scale(st.ext_gap * side));
             if f.minus(p).len() > st.ext_gap {
@@ -313,6 +320,18 @@ impl Drawing {
         let label = self.label(text.as_deref().or(Some("<>°")), crate::kernel::deg(sweep), ws);
         out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
     }
+}
+
+/// A linear dimension laid out ([`Drawing::dim_frame`]), paper mm.
+pub(crate) struct DimFrame {
+    pub a: Pt,
+    pub b: Pt,
+    pub fa: Pt,
+    pub fb: Pt,
+    pub dir: Pt,
+    pub normal: Pt,
+    /// 1 when the line is on the normal's side, −1 on the other.
+    pub side: f64,
 }
 
 /// The standard scale denominators (ISO 5455's 1, 2, 5 series with 2.5, as drawings use): from

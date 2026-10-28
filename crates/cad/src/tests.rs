@@ -1112,3 +1112,26 @@ fn hostile_strips_stay_bounded() {
     .unwrap();
     let _ = far.strip_lines(&far.entities[1].clone());
 }
+
+/// A dimension is picked where it is drawn (its dimension line, extension lines, text), not on
+/// the line it measures.
+#[test]
+fn dimensions_are_picked_where_they_are_drawn() {
+    let mut d = Drawing::default();
+    d.add(Entity::new(Kind::Dim {
+        a: P::new(0.0, 0.0),
+        b: P::new(100.0, 0.0),
+        offset: 8.0,
+        orient: Orient::Aligned,
+        text: None,
+        below: None,
+        mark: None,
+    }))
+    .unwrap();
+    assert_eq!(d.hits(Pt::new(50.0, 8.0), 0.5), [0], "on the dimension line");
+    assert_eq!(d.hits(Pt::new(50.0, 10.5), 0.1), [0], "on its text");
+    assert_eq!(d.hits(Pt::new(0.0, 4.0), 0.5), [0], "on an extension line");
+    assert!(d.hits(Pt::new(50.0, 0.0), 0.5).is_empty(), "not on the line it measures");
+    // A window around the drawn dimension takes it.
+    assert_eq!(d.in_box(Pt::new(-5.0, -5.0), Pt::new(105.0, 20.0), false), [0]);
+}

@@ -179,16 +179,12 @@ fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
     if !exact.is_empty() {
         return exact.iter().map(|c| c.distance(p)).fold(f64::INFINITY, f64::min);
     }
-    // A strip is picked inside its band.
-    if let Some(s) = d.strip_shape(e)
-        && point_in_polygon(p, &s.polygon)
-    {
-        return 0.0;
-    }
     d.shape(e)
         .iter()
         .map(|line| match line.as_slice() {
             [only] => only.minus(p).len(),
+            // A closed ring (a strip's band, a dimension's text) is picked inside too.
+            ring if ring.len() > 3 && ring.first() == ring.last() && point_in_polygon(p, ring) => 0.0,
             _ => line.windows(2).map(|w| seg_dist(p, w[0], w[1])).fold(f64::INFINITY, f64::min),
         })
         .fold(f64::INFINITY, f64::min)
