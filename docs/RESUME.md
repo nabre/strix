@@ -50,6 +50,12 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   catalogs are the vendored `locales/`). Check the next CI run. The other inherited workflows
   (Printing, Nix, FreeBSD, Windows ARM64, SonarCloud — needs `SONAR_TOKEN`, release signing —
   Apple secrets, only on the `release` branch) still need adapting or disabling.
+- Without craft-fonts (`CRAFT_FONTS_DIR`), `strix-layout`
+  `tests_complex::myanmar_prevowel_is_drawn_before_its_consonant` and
+  `tests_pages::a_page_ends_when_a_multiple_spaced_lines_text_no_longer_fits` depend on the
+  installed fonts and can fail (an Ubuntu container with Unifont/WenQuanYi); the GitHub gate
+  builds with craft-fonts. The wgpu tests (`objects::tests::a_dragged_shape…`,
+  `rotation_drag…`) and `ui_shot` need a Vulkan adapter: `apt-get install mesa-vulkan-drivers`.
 - On Windows a running Strix (`target\debug\strix.exe`) blocks `cargo test --workspace`
   rebuilding the app binary ("Accesso negato"): close it, or test the `strix` package with
   another `CARGO_TARGET_DIR`.
@@ -90,8 +96,13 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     colour / weight, a heavier line every N squares; placements background, to the end of the
     page, until the next odd/even page, for N pages, for a height; `graph.insert` / `graph.set` /
     `graph.get` / `graph.remove`, `view.graphPaperPane`; Insert › Pages › Graph Paper and the
-    Graph Paper pane (with a preview); `strix:graph` on `w:pPr` / `w:sectPr` in `.xmath`. Merged
-    without the final `cargo xtask ci` and screenshots (owner's call): run them.
+    Graph Paper pane (with a preview); `strix:graph` on `w:pPr` / `w:sectPr` in `.xmath`. Final
+    check done after the merge: `cargo xtask ci` on Rust 1.99 and a `ui_shot` screenshot.
+  - CI after the graph-paper merge: the gate failed at clippy 1.99
+    (`manual_is_multiple_of` in `graph_pane.rs`), fixed; the Printing workflow failed in
+    `ribbon_groups_fit_above_their_labels` (kittest's missing-glyph panic on CJK labels on a
+    runner with no CJK font and no craft-fonts): the test allows tofu when no CJK face is
+    embedded. Both on branch `ccr-fb64c268-julnrj`, still to be merged into `main`.
   - CI: Linux gate green (`a162494`): non-UTF-8 save tests use `.xmath`, `hit_and_caret_agree`
     fixed (it failed everywhere after the rename), Zotero accept race on Linux (a connection not
     accepted yet is judged by its listener), Spanish grammar timing test takes the best of three.

@@ -148,7 +148,7 @@ fn preview(ui: &mut Ui, g: &Value) {
             if at > r.width().max(r.height()) || k > 400 {
                 break;
             }
-            let is_major = every > 0 && k % every == 0;
+            let is_major = every > 0 && k.is_multiple_of(every);
             if is_major == pass_major {
                 let l = if is_major { &major } else { &minor };
                 if at <= r.width() {
