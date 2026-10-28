@@ -113,6 +113,7 @@ fn bounds(it: &Placed) -> Option<Rect> {
         }
         Placed::Lines { .. } => it.turned_bounds(),
         Placed::Fill { rect, .. }
+        | Placed::Grid { rect, .. }
         | Placed::Image { rect, .. }
         | Placed::Shape { rect, .. }
         | Placed::Graphic { rect, .. }

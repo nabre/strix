@@ -86,20 +86,18 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     getrandom 0.4…) with the code adapted; macOS DMG background redrawn for Strix.
   - Calculations: a definition worked out at once, `A = 3 m · 5 m =` → `15 m²` (docs/calc.md);
     a product of quantities is no working unit.
+  - Graph paper, "foglio a quadretti" (docs/graph-paper.md): spacing ("interasse"), line style /
+    colour / weight, a heavier line every N squares; placements background, to the end of the
+    page, until the next odd/even page, for N pages, for a height; `graph.insert` / `graph.set` /
+    `graph.get` / `graph.remove`, `view.graphPaperPane`; Insert › Pages › Graph Paper and the
+    Graph Paper pane (with a preview); `strix:graph` on `w:pPr` / `w:sectPr` in `.xmath`. Merged
+    without the final `cargo xtask ci` and screenshots (owner's call): run them.
   - CI: Linux gate green (`a162494`): non-UTF-8 save tests use `.xmath`, `hit_and_caret_agree`
     fixed (it failed everywhere after the rename), Zotero accept race on Linux (a connection not
     accepted yet is judged by its listener), Spanish grammar timing test takes the best of three.
 
 ## In progress (stopped, unfinished, on their own branches)
-- **Graph paper** (owner request), branch `wip/graph-paper` (`a16fbe5`, does not build yet):
-  a new object "foglio a quadretti": grid line type (solid/dashed/dotted, colour, weight) and
-  spacing ("interasse"; maybe a heavier line every N squares); placements: *background* (behind
-  the page content), *fill to the end of the page*, *until the next odd/even page*, *for N
-  pages*, *for a given height*. Model started in `crates/doc/src/graph_paper.rs` and
-  doc/layout files. To do: layout for each placement, render, commands `graph.insert`/`graph.set`
-  (+ params docs, hostile params), Insert-tab button and a properties UI, `.xmath` round trip,
-  `docs/graph-paper.md`, tests, screenshots in light and dark theme.
-- Resume either: `git switch wip/…`, finish, `cargo xtask ci`, merge into `main`.
+- None.
 
 ## Next
 - Check the GitHub CI after the `locales/craft-i18n.rev` move; adapt or disable the inherited

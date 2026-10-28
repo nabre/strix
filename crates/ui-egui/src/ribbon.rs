@@ -803,6 +803,20 @@ fn paint_underline(p: &egui::Painter, r: Rect, style: &str, color: egui::Color32
     }
 }
 
+/// Insert › Pages › Graph Paper (docs/graph-paper.md): the placements, then the pane.
+fn graph_paper_menu(ui: &mut Ui, app: &mut WordApp) {
+    mi_icon(ui, app, "graphPaper", "To the End of the Page", "graph.insert", json!({"placement": "pageEnd"}));
+    mi(ui, app, "Page Background", "graph.insert", json!({"placement": "background"}));
+    mi(ui, app, "Until the Next Odd Page", "graph.insert", json!({"placement": "untilOdd"}));
+    mi(ui, app, "Until the Next Even Page", "graph.insert", json!({"placement": "untilEven"}));
+    mi(ui, app, "For Two Pages", "graph.insert", json!({"placement": "pages", "pages": 2}));
+    mi(ui, app, "For a Height of 5 cm", "graph.insert", json!({"placement": "height", "height": 50}));
+    ui.separator();
+    let pane = app.session.view.graph_pane;
+    mi_check(ui, app, "Graph Paper Properties", pane, "view.graphPaperPane", json!({}));
+    mi(ui, app, "Remove Graph Paper", "graph.remove", json!({}));
+}
+
 pub(crate) fn mi(ui: &mut Ui, app: &mut WordApp, label: &str, id: &str, params: Value) {
     mi_text(ui, app, tl!(label), id, params);
 }
@@ -1399,6 +1413,7 @@ fn insert(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "blankPage", Some("Blank Page"), "Blank Page", "insert.blankPage", json!({}), false);
             small(ui, app, "pageBreak", Some("Page Break"), "Page Break", "insert.pageBreak", json!({}), false);
         });
+        menu_button(ui, app, "graphPaper", Some("Graph\nPaper"), "Graph Paper", true, "graph.insert", graph_paper_menu);
     });
     group(ui, "Tables", None, app, |ui, app| {
         menu_button(ui, app, "table", Some("Table"), "Add a Table", true, "insert.table", |ui, app| {

@@ -177,6 +177,7 @@ fn extent(items: &[Placed]) -> f32 {
             }
             Placed::Rule { y0, y1, .. } => y0.max(*y1),
             Placed::Fill { rect, .. }
+            | Placed::Grid { rect, .. }
             | Placed::Image { rect, .. }
             | Placed::Shape { rect, .. }
             | Placed::Graphic { rect, .. }

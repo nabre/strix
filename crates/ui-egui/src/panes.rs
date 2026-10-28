@@ -34,6 +34,8 @@ pub enum Pane {
     Comments,
     /// Math › Exercise › Properties: the data and variants of the exercise at the caret.
     Exercise,
+    /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
+    GraphPaper,
 }
 
 impl Pane {
@@ -50,6 +52,7 @@ impl Pane {
             Self::RestrictEditing => "Restrict Editing",
             Self::Comments => "Comments",
             Self::Exercise => "Exercise Properties",
+            Self::GraphPaper => "Graph Paper",
         }
     }
 
@@ -66,6 +69,7 @@ impl Pane {
             Self::RestrictEditing => (Edge::End, 270.0),
             Self::Comments => (Edge::End, 290.0),
             Self::Exercise => (Edge::End, 320.0),
+            Self::GraphPaper => (Edge::End, 300.0),
         };
         PaneState::docked(edge, width)
     }
@@ -84,10 +88,11 @@ impl Pane {
             Self::RestrictEditing => "restrictEditing",
             Self::Comments => "comments",
             Self::Exercise => "exercise",
+            Self::GraphPaper => "graphPaper",
         }
     }
 
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 12] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -99,6 +104,7 @@ impl Pane {
         Self::RestrictEditing,
         Self::Comments,
         Self::Exercise,
+        Self::GraphPaper,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -118,6 +124,7 @@ impl Pane {
             Self::FormatShape => Some("view.formatShapePane"),
             Self::Comments => Some("view.commentsPane"),
             Self::Exercise => Some("view.exercisePane"),
+            Self::GraphPaper => Some("view.graphPaperPane"),
             Self::RestrictEditing => None,
         }
     }
@@ -173,6 +180,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::RestrictEditing, app.restrict.open),
         (Pane::Comments, v.comments_pane),
         (Pane::Exercise, v.exercise_pane),
+        (Pane::GraphPaper, v.graph_pane),
     ]
     .into_iter()
     .filter_map(|(pane, shown)| shown.then_some(pane))
@@ -300,6 +308,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::RestrictEditing => crate::dialogs_review::restrict_pane(app, ui),
             Pane::Comments => comments(app, ui),
             Pane::Exercise => crate::exercise_pane::pane(app, ui),
+            Pane::GraphPaper => crate::graph_pane::pane(app, ui),
         }
     }
 

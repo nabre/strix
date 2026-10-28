@@ -148,6 +148,16 @@ picture, so other programs still show it. Details: [docs/cad.md](docs/cad.md).
 properties, angular dimensions, hatches, rotated texts, and driving dimensions
 with geometric constraints.
 
+## Graph paper
+
+**Insert › Graph Paper** rules the page in squares, as in an exercise book, for working a
+problem by hand or sketching: the side of a square, the line style, colour and weight, and a
+heavier line every N squares. The grid can be the **background** of every page of a section,
+or a block in the text that runs **to the end of the page**, **until the next odd or even
+page**, **for a number of pages** or **for a given height**; the text can be written over it.
+It is drawn from those numbers, so it stays sharp at any zoom and in PDF. Details:
+[docs/graph-paper.md](docs/graph-paper.md).
+
 ## A full document editor underneath
 
 Strix grew out of a word processor that aims at Microsoft Word parity (it is a fork of WordCraft,

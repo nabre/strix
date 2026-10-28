@@ -1009,6 +1009,11 @@ pub fn split_row(row: &RowLayout, cut: f32) -> Option<(RowLayout, RowLayout)> {
                     a.extend(above.map(|rect| Placed::Fill { rect, color: *color }));
                     b.extend(below.map(|rect| Placed::Fill { rect, color: *color }));
                 }
+                Placed::Grid { rect, grid } => {
+                    let (above, below) = split_rect(*rect, cut, geo_shift(rect.bottom(), shift));
+                    a.extend(above.map(|rect| Placed::Grid { rect, grid: grid.clone() }));
+                    b.extend(below.map(|rect| Placed::Grid { rect, grid: grid.clone() }));
+                }
                 Placed::Cell { rect, covered, table, row: r, cell, story, clip } => {
                     let (above, below) = split_rect(*rect, cut, geo_shift(rect.bottom(), shift));
                     let cell_at =

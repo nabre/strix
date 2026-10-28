@@ -27,6 +27,7 @@ pub mod eq;
 pub mod fields;
 pub mod fill;
 pub mod freeform;
+pub mod graph_paper;
 pub mod graphic;
 pub mod ime_text;
 pub mod legacy_form;
