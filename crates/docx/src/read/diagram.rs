@@ -470,6 +470,7 @@ fn text(sp: &El, xf: Xf, b: [f64; 4], theme: &[Rgb], filled: bool, fit: f32, out
             size: l.size,
             color: l.color,
             bold: l.bold,
+            italic: false,
             align: l.align,
             font: l.font,
             angle: 0.0,

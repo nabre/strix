@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_cad::{Anchor, Drawing, Entity, MISSING_END, MISSING_START, Prim, Rendered, UNIT_END, UNIT_START};
+use strix_cad::{Anchor, Drawing, Entity, Prim, Rendered};
 use strix_doc::InlineObject;
 use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
 use strix_doc::para::Float;
@@ -63,7 +63,7 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     };
     let rendered = drawing.render(None);
     let unit = super::calc::unit_color(s);
-    let (w, h, items) = items_of(&rendered, unit);
+    let (w, h, items) = items_of(&rendered, unit, &s.doc.settings.minor_font);
     let svg = Some(rendered.to_svg([unit.0, unit.1, unit.2]).into());
     let graphic = Graphic { kind: GraphicKind::Cad, items, w, h, cad: Some(drawing.to_json().into()), svg, ..Default::default() };
     let obj = InlineObject::Graphic { w, h, alt: String::new(), float: Float::default(), graphic: Arc::new(graphic) };
@@ -232,16 +232,24 @@ fn add(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"id": id}))
 }
 
-/// What a piece of a drawing's text is.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Piece {
-    Plain,
-    Unit,
-    Missing,
-}
+/// The font parameters are set in, as the equations are (resolved to an open math font).
+const MATH_FONT: &str = "Cambria Math";
+/// A subscript's size, as a share of the text's.
+const SUB_SCALE: f32 = 0.7;
 
 /// The graphic items of a rendered drawing (points from its top-left corner) and its size.
-pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicItem>) {
+/// How wide `text` is at `size` points in `family` (italic or not), shaped as the page draws it.
+fn measure(family: &str, italic: bool, text: &str, size: f32) -> f32 {
+    let resolved = strix_fonts::word::resolve(family, false, italic);
+    let face = resolved.face.get();
+    let k = size / face.upem.max(1.0) as f32;
+    strix_fonts::shape(face, text, &[], |c| c).iter().map(|g| g.x_advance as f32 * k).sum()
+}
+
+/// The graphic items of a rendered drawing (points from its top-left corner) and its size. A
+/// text in pieces (units, parameters) is measured in its fonts, `body_font` where it has none
+/// (the document's, as the page draws it).
+pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, f32, Vec<GraphicItem>) {
     let pt = |v: f64| (v as f32) * PT_PER_MM;
     let rgb = |c: [u8; 3]| Rgb(c[0], c[1], c[2]);
     let mut items = Vec::new();
@@ -302,25 +310,15 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                     [cx - rect[2] / 2.0, cy - rect[3] / 2.0, rect[2], rect[3]]
                 };
                 let size = (pt(*height) * CAP_TO_EM).clamp(2.0, 400.0);
-                // Plain, unit and missing pieces: a unit is set in the Unit style's colour, a
-                // placeholder whose parameter is not defined in red.
-                let mut pieces: Vec<(Piece, String)> = vec![(Piece::Plain, String::new())];
-                for c in text.chars() {
-                    match c {
-                        UNIT_START => pieces.push((Piece::Unit, String::new())),
-                        MISSING_START => pieces.push((Piece::Missing, String::new())),
-                        UNIT_END | MISSING_END => pieces.push((Piece::Plain, String::new())),
-                        c => {
-                            if let Some((_, t)) = pieces.last_mut() {
-                                t.push(c);
-                            }
-                        }
-                    }
-                }
-                pieces.retain(|(_, t)| !t.is_empty());
-                let visible: String = pieces.iter().map(|(_, t)| t.as_str()).collect();
-                let char_w = 0.6 * size;
-                let w = char_w * visible.chars().count() as f32;
+                // Plain, unit and missing pieces (a unit in the Unit style's colour, a placeholder
+                // whose parameter is not defined in red), and parameters set as the equations
+                // set them: the math font, the symbol in math italics, its subscript smaller and
+                // lowered.
+                let pieces = strix_cad::spans(text);
+                let piece_size = |p: &strix_cad::Span| if p.sub { size * SUB_SCALE } else { size };
+                let piece_w = |p: &strix_cad::Span| measure(if p.math { MATH_FONT } else { body_font }, p.symbol, &p.text, piece_size(p));
+                let widths: Vec<f32> = pieces.iter().map(piece_w).collect();
+                let w: f32 = widths.iter().sum();
                 let (x, y) = (pt(at.0), pt(at.1));
                 let (rect, align) = match anchor {
                     Anchor::MiddleRight => ([x - w, y - size * 0.55, w, size * 1.1], TextAlign::Right),
@@ -331,43 +329,44 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb) -> (f32, f32, Vec<GraphicI
                     Anchor::BaselineCenter => ([x - w / 2.0, y - size * 0.9, w, size * 1.1], TextAlign::Center),
                     Anchor::BaselineRight => ([x - w, y - size * 0.9, w, size * 1.1], TextAlign::Right),
                 };
-                if pieces.len() <= 1 {
+                let plain = |p: &strix_cad::Span| p.kind == strix_cad::SpanKind::Plain && !p.math && !p.sub;
+                if pieces.len() <= 1 && pieces.iter().all(plain) {
                     items.push(GraphicItem::Text {
                         rect: turn(rect),
-                        text: visible,
+                        text: pieces.into_iter().map(|p| p.text).collect(),
                         size,
                         color: rgb(*color),
                         bold: false,
+                        italic: false,
                         align,
                         font: None,
                         angle,
                     });
                 } else {
-                    // Pieces one after the other, from where the whole text starts.
+                    // Pieces one after the other, from where the whole text starts, each as wide as
+                    // its glyphs.
                     let [x0, y0, _, h0] = rect;
-                    let mut cursor = match align {
-                        TextAlign::Left => x0,
-                        TextAlign::Center | TextAlign::Right => x0 + (rect[2] - w) * if align == TextAlign::Center { 0.5 } else { 1.0 },
-                    };
-                    // Widths are estimates: each piece but the last ends flush on its boundary and
-                    // the last starts on it, so neighbours touch whatever the glyphs' real widths.
-                    let n = pieces.len();
-                    for (k, (unit, piece)) in pieces.into_iter().enumerate() {
-                        let pw = char_w * piece.chars().count() as f32;
-                        let c = match unit {
-                            Piece::Unit => unit_color,
-                            Piece::Missing => Rgb(0xC0, 0x1C, 0x1C),
-                            Piece::Plain => rgb(*color),
+                    let mut cursor = x0;
+                    for (piece, pw) in pieces.into_iter().zip(widths) {
+                        let ps = piece_size(&piece);
+                        let c = match piece.kind {
+                            strix_cad::SpanKind::Unit => unit_color,
+                            strix_cad::SpanKind::Missing => Rgb(0xC0, 0x1C, 0x1C),
+                            strix_cad::SpanKind::Plain => rgb(*color),
                         };
-                        let align = if k + 1 < n { TextAlign::Right } else { TextAlign::Left };
+                        let align = TextAlign::Left;
+                        // A subscript sits lower: its box's bottom a quarter of the size below.
+                        let top = if piece.sub { y0 + h0 - ps * 1.1 + size * 0.25 } else { y0 };
+                        let height = if piece.sub { ps * 1.1 } else { h0 };
                         items.push(GraphicItem::Text {
-                            rect: turn([cursor, y0, pw, h0]),
-                            text: piece,
-                            size,
+                            rect: turn([cursor, top, pw, height]),
+                            text: piece.text,
+                            size: ps,
                             color: c,
                             bold: false,
+                            italic: piece.symbol,
                             align,
-                            font: None,
+                            font: piece.math.then(|| MATH_FONT.to_string()),
                             angle,
                         });
                         cursor += pw;
@@ -404,6 +403,30 @@ mod tests {
     /// The drawing's text, its pieces joined (a unit is a piece of its own).
     fn texts(g: &Graphic) -> Vec<String> {
         vec![g.items.iter().filter_map(|i| if let GraphicItem::Text { text, .. } = i { Some(text.as_str()) } else { None }).collect::<String>()]
+    }
+
+    /// A parameter in a drawing's text is set as the equations set it: the math font, the
+    /// symbol in italics, its subscript smaller and lower; the rest stays plain.
+    #[test]
+    fn parameters_are_set_as_equations_on_the_page() {
+        let d = Drawing::from_json(r#"{"unit":"m","entities":[{"type":"text","p":[0,0],"value":"Load {{F_k:both}}","height":2.5}]}"#).unwrap();
+        let mut ws = strix_calc::Worksheet::new(strix_calc::Options::default());
+        ws.eval_statement("F_k = 12 kN");
+        let (_, _, items) = items_of(&d.render(Some(&ws)), Rgb(0, 0x70, 0xC0), "Calibri");
+        let texts: Vec<(&str, f32, Option<&str>, f32)> = items
+            .iter()
+            .filter_map(|i| match i {
+                GraphicItem::Text { text, size, font, rect, .. } => Some((text.as_str(), *size, font.as_deref(), rect[1] + rect[3])),
+                _ => None,
+            })
+            .collect();
+        let names: Vec<&str> = texts.iter().map(|t| t.0).collect();
+        assert_eq!(names, ["Load ", "F", "k", " = 12 ", "kN"]);
+        let italic: Vec<bool> = items.iter().filter_map(|i| if let GraphicItem::Text { italic, .. } = i { Some(*italic) } else { None }).collect();
+        assert_eq!(italic, [false, true, true, false, false], "the symbol in italics");
+        assert_eq!(texts[0].2, None, "plain text in the drawing's font");
+        assert!(texts[1..].iter().all(|t| t.2 == Some(MATH_FONT)), "{texts:?}");
+        assert!(texts[2].1 < texts[1].1 && texts[2].3 > texts[1].3, "the subscript smaller and lower: {texts:?}");
     }
 
     #[test]
@@ -529,7 +552,7 @@ mod tests {
         )
         .unwrap();
         let rendered = d.render(None);
-        let (_, _, items) = items_of(&rendered, Rgb(0, 0, 0));
+        let (_, _, items) = items_of(&rendered, Rgb(0, 0, 0), "Calibri");
         let segs = items.iter().find_map(|i| if let GraphicItem::Path { segs, .. } = i { Some(segs) } else { None }).unwrap();
         // 20 mm dashed 4 on / 2 off: four dashes, each a move.
         assert_eq!(segs.iter().filter(|s| matches!(s, PathSeg::Move(..))).count(), 4, "{segs:?}");
@@ -549,6 +572,7 @@ mod tests {
             size: 1.0,
             color: Rgb(0, 0, 0),
             bold: false,
+            italic: false,
             align: TextAlign::Left,
             font: None,
             angle: 0.0,

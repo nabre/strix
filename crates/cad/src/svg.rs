@@ -4,7 +4,6 @@
 use std::fmt::Write as _;
 
 use crate::render::{Anchor, Prim, Rendered};
-use crate::{MISSING_END, MISSING_START, UNIT_END, UNIT_START};
 
 /// The colour of a parameter that is not defined (`[L?]`).
 pub const MISSING_COLOR: [u8; 3] = [0xC0, 0x1C, 0x1C];
@@ -106,36 +105,32 @@ impl Rendered {
     }
 }
 
-/// A text's pieces: plain, unit (the Unit style's colour) and missing (red) spans.
+/// A text's pieces: plain, unit (the Unit style's colour) and missing (red) spans; a parameter's
+/// symbol in italics, its subscript smaller and lowered (as the equations set them).
 fn spans(text: &str, unit_color: [u8; 3]) -> String {
     let mut out = String::new();
-    let mut piece = String::new();
-    let mut current: Option<[u8; 3]> = None;
-    let flush = |out: &mut String, piece: &mut String, c: Option<[u8; 3]>| {
-        if piece.is_empty() {
-            return;
+    for p in crate::spans(text) {
+        let mut attrs = String::new();
+        match p.kind {
+            crate::SpanKind::Unit => {
+                let _ = write!(attrs, r#" fill="{}""#, hex(unit_color));
+            }
+            crate::SpanKind::Missing => {
+                let _ = write!(attrs, r#" fill="{}""#, hex(MISSING_COLOR));
+            }
+            crate::SpanKind::Plain => {}
         }
-        match c {
-            Some(c) => {
-                let _ = write!(out, r#"<tspan fill="{}">{}</tspan>"#, hex(c), escape(piece));
-            }
-            None => out.push_str(&escape(piece)),
+        if p.symbol {
+            attrs.push_str(r#" font-style="italic""#);
         }
-        piece.clear();
-    };
-    for ch in text.chars() {
-        match ch {
-            UNIT_START | MISSING_START => {
-                flush(&mut out, &mut piece, current);
-                current = Some(if ch == UNIT_START { unit_color } else { MISSING_COLOR });
-            }
-            UNIT_END | MISSING_END => {
-                flush(&mut out, &mut piece, current);
-                current = None;
-            }
-            c => piece.push(c),
+        if p.sub {
+            attrs.push_str(r#" baseline-shift="sub" font-size="70%""#);
+        }
+        if attrs.is_empty() {
+            out.push_str(&escape(&p.text));
+        } else {
+            let _ = write!(out, "<tspan{attrs}>{}</tspan>", escape(&p.text));
         }
     }
-    flush(&mut out, &mut piece, current);
     out
 }

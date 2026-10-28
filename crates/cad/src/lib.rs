@@ -27,6 +27,7 @@ mod props;
 mod render;
 mod rework;
 mod select;
+mod spans;
 mod strip;
 mod svg;
 mod trim;
@@ -49,6 +50,7 @@ pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_t
 pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
+pub use spans::{Span, SpanKind, spans};
 pub use strip::StripShape;
 pub use svg::MISSING_COLOR;
 
@@ -60,9 +62,16 @@ pub const UNIT_END: char = '\u{1E}';
 pub const MISSING_START: char = '\u{1D}';
 pub const MISSING_END: char = '\u{1C}';
 
+/// Marks a parameter set as an equation (`{{L}}` filled), and within it the parameter's symbol
+/// (`F_k`: italic, its subscript lowered); see [`spans`].
+pub const MATH_START: char = '\u{18}';
+pub const MATH_END: char = '\u{17}';
+pub const SYM_START: char = '\u{1A}';
+pub const SYM_END: char = '\u{19}';
+
 /// True for the marker characters above (never shown).
 pub fn is_marker(c: char) -> bool {
-    matches!(c, UNIT_START | UNIT_END | MISSING_START | MISSING_END)
+    matches!(c, UNIT_START | UNIT_END | MISSING_START | MISSING_END | MATH_START | MATH_END | SYM_START | SYM_END)
 }
 
 /// Most entities in one drawing.

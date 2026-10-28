@@ -125,6 +125,9 @@ pub enum GraphicItem {
         color: Rgb,
         #[serde(default)]
         bold: bool,
+        /// Italic (a drawing's parameter symbols, set as the equations set them).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        italic: bool,
         #[serde(default)]
         align: TextAlign,
         #[serde(default)]

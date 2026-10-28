@@ -926,6 +926,7 @@ fn inline_chart_is_a_figure_with_its_text_inside_it() {
         size: 10.0,
         color: Rgb::BLACK,
         bold: false,
+        italic: false,
         align: TextAlign::Center,
         font: None,
         angle: 0.0,

@@ -1055,7 +1055,7 @@ fn widest(items: &[String], size: f32) -> f32 {
 }
 
 fn text(out: &mut Vec<GraphicItem>, rect: Rect, s: &str, size: f32, align: TextAlign, bold: bool) {
-    out.push(GraphicItem::Text { rect: rect.arr(), text: s.to_string(), size, color: TEXT, bold, align, font: None, angle: 0.0 });
+    out.push(GraphicItem::Text { rect: rect.arr(), text: s.to_string(), size, color: TEXT, bold, italic: false, align, font: None, angle: 0.0 });
 }
 
 /// Text centred on `cx` with its top at `y`.
@@ -1785,7 +1785,17 @@ fn draw_data_labels(out: &mut Vec<GraphicItem>, labels: &[DataLabel], fs: f32, b
             (Rect { x: l.x - w / 2.0, y: l.y - lh, w, h: lh }, TextAlign::Center)
         };
         let color = if l.inside { Rgb::WHITE } else { TEXT };
-        out.push(GraphicItem::Text { rect: rect.arr(), text: l.text.clone(), size: fs, color, bold: false, align, font: None, angle: 0.0 });
+        out.push(GraphicItem::Text {
+            rect: rect.arr(),
+            text: l.text.clone(),
+            size: fs,
+            color,
+            bold: false,
+            italic: false,
+            align,
+            font: None,
+            angle: 0.0,
+        });
     }
 }
 

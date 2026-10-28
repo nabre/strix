@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** dimension distances and angle radii in a scaled and an annotative part
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** parameters in dimension and level texts set as equations; two-part distances
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -51,7 +51,13 @@ Annotations recall parameters (as the prototype's dimension texts did): in a dim
 and in a free text, `{{L}}` or `{{L:value}}` is the value of parameter `L` as calculations show
 it (`4.5 m`), `{{L:symbol}}` its symbol (`L`), `{{L:both}}` both (`L = 4.5 m`); `<>` is a
 dimension's measured size, and a dimension without text shows it. A parameter not defined where
-the drawing sits shows `[L?]` in red.
+the drawing sits shows `[L?]` in red. A parameter is **set as the equations set it** (in
+dimensions, angles, level marks and texts; on the page, in the PDF, the SVG picture and the
+editor): its symbol in italics with its subscript smaller and lowered (`F_k` as 𝐹ₖ), the value
+upright with its unit in the Unit style, in the equations' font; the text around it keeps the
+drawing's font. `strix_cad::spans` splits a text into these pieces (markers `MATH_START/END`,
+`SYM_START/END`), and the page measures each piece in its font, so they sit side by side as
+in an equation.
 
 This gives "drawings driven by results" without a constraint solver. Driving dimensions and
 geometric constraints (the prototype's Gauss-Newton solver) are a later stage.
@@ -353,6 +359,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: parameters in dimension, angle, level and text annotations set as equations (italic symbol, lowered subscript, upright value).
 - 2026-10-28: dimension distances and angle radii in two parts, scaled and annotative; Scaled distances in the style.
 - 2026-10-28: right-angle symbol; Continue and Baseline dimensions; level marks; Flip.
 - 2026-10-28: maximum size; the Scale list offers Fitted to Frame and the scales that fit (Picture Format, CAD Output).

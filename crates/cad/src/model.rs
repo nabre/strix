@@ -890,11 +890,13 @@ pub fn fill(text: &str, ws: Option<&Worksheet>) -> String {
             "°" => format!("{number}{}°{}", crate::UNIT_START, crate::UNIT_END),
             _ => format!("{number} {}{unit}{}", crate::UNIT_START, crate::UNIT_END),
         });
+        // A parameter is set as an equation: its symbol in italics, its value upright.
+        let (m0, m1, s0, s1) = (crate::MATH_START, crate::MATH_END, crate::SYM_START, crate::SYM_END);
         match (value, mode) {
             (None, _) => out.push_str(&format!("{}[{name}?]{}", crate::MISSING_START, crate::MISSING_END)),
-            (Some(_), "symbol") => out.push_str(name),
-            (Some(v), "both") => out.push_str(&format!("{name} = {v}")),
-            (Some(v), _) => out.push_str(&v),
+            (Some(_), "symbol") => out.push_str(&format!("{m0}{s0}{name}{s1}{m1}")),
+            (Some(v), "both") => out.push_str(&format!("{m0}{s0}{name}{s1} = {v}{m1}")),
+            (Some(v), _) => out.push_str(&format!("{m0}{v}{m1}")),
         }
         rest = rest.get(j + 2..).unwrap_or_default();
     }

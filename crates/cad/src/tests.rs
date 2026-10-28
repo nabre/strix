@@ -115,7 +115,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         .collect();
     assert_eq!(texts, ["4500", "L = 4.5 m", "30 mm"]);
     // The unit of a parameter is marked for the Unit style.
-    assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = 4.5 {UNIT_START}m{UNIT_END}"));
+    assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = {MATH_START}4.5 {UNIT_START}m{UNIT_END}{MATH_END}"));
     assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), format!("{MISSING_START}[nope?]{MISSING_END}"));
     // Modes, as the prototype's dimension texts: value, symbol, both.
     let plain = |t: &str| fill(t, Some(&ws)).chars().filter(|&c| !is_marker(c)).collect::<String>();

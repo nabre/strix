@@ -135,8 +135,12 @@ fn level_marks_show_the_elevation() {
     ws.eval_statement("h = 3 m");
     let mut d = Drawing::from_json(r#"{"unit":"m","entities":[{"type":"level","p":[0,"h"],"text":"<> (h = {{h}})"}]}"#).unwrap();
     d.resolve(&ws);
-    let texts: Vec<String> =
-        d.render(Some(&ws)).prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect();
+    let texts: Vec<String> = d
+        .render(Some(&ws))
+        .prims
+        .iter()
+        .filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.chars().filter(|&c| !is_marker(c)).collect()) } else { None })
+        .collect();
     assert_eq!(texts.len(), 1);
     assert!(texts[0].starts_with("+3,00 (h = 3"), "{texts:?}");
     // Round trip, defaults left out; moving it changes the elevation, the datum stays.
@@ -257,4 +261,40 @@ fn scaled_and_annotative_parts() {
     assert!(d.set_field(1, 0, "radiusPaper", "0").is_err());
     assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 0.0 && r_paper == 6.0));
     assert!((arc_reach(&d) - 6.0).abs() < 0.02);
+}
+
+/// A parameter in a dimension's text is set as an equation: the value upright with its unit in
+/// the Unit style, the symbol in italics with its subscript lowered; plain text stays plain.
+#[test]
+fn parameters_in_texts_are_set_as_equations() {
+    let mut ws = strix_calc::Worksheet::new(strix_calc::Options::default());
+    ws.eval_statement("F_k = 12 kN");
+    let d = Drawing::default();
+    let text = d.label(Some("Load {{F_k:both}}"), 0.0, Some(&ws));
+    let s = spans(&text);
+    let got: Vec<_> = s.iter().map(|s| (s.text.as_str(), s.kind, s.math, s.symbol, s.sub)).collect();
+    assert_eq!(
+        got,
+        vec![
+            ("Load ", SpanKind::Plain, false, false, false),
+            ("F", SpanKind::Plain, true, true, false),
+            ("k", SpanKind::Plain, true, true, true),
+            (" = 12 ", SpanKind::Plain, true, false, false),
+            ("kN", SpanKind::Unit, true, false, false),
+        ]
+    );
+    // A missing parameter stays plain and red; braces of a subscript go.
+    let s = spans(&d.label(Some("{{nope}} {{F_k:symbol}}"), 0.0, Some(&ws)));
+    assert_eq!(s[0].kind, SpanKind::Missing);
+    assert!(!s[0].math);
+    let s = spans(&format!("{MATH_START}{SYM_START}σ_{{adm}}{SYM_END}{MATH_END}"));
+    assert_eq!(s.iter().map(|s| (s.text.as_str(), s.sub)).collect::<Vec<_>>(), vec![("σ", false), ("adm", true)]);
+    // The SVG picture: the symbol in italics, the subscript lowered.
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"text","p":[0,0],"value":"{{F_k:symbol}}"}]}"#).unwrap();
+    d.resolve(&ws);
+    let svg = d.render(Some(&ws)).to_svg([0, 0, 0]);
+    assert!(
+        svg.contains(r#"<tspan font-style="italic">F</tspan><tspan font-style="italic" baseline-shift="sub" font-size="70%">k</tspan>"#),
+        "{svg}"
+    );
 }

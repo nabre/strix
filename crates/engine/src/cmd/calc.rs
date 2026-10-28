@@ -489,8 +489,9 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 }
                 let unit = unit_color(s);
                 let fitted = resolved.as_ref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
+                let body_font = s.doc.settings.minor_font.clone();
                 cads.push(drawn.as_ref().map(|r| {
-                    let (w, h, items) = super::cad::items_of(r, unit);
+                    let (w, h, items) = super::cad::items_of(r, unit, &body_font);
                     (w, h, items, r.clone(), unit, fitted.clone())
                 }));
             }

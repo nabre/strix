@@ -1911,14 +1911,14 @@ pub fn seg_path(segs: &[PathSeg]) -> BezPath {
 /// angle. `None` when there is nothing to draw, or the item's rectangle or size isn't a finite
 /// number (a degenerate scale: `r` itself is always finite, as [`Rect::new`] makes it).
 fn text_glyphs(doc: &Document, r: Rect, it: &GraphicItem, alpha: f32, k: f32) -> Option<Draw> {
-    let GraphicItem::Text { rect, text, size, color, bold, align, font, angle } = it else { return None };
+    let GraphicItem::Text { rect, text, size, color, bold, italic, align, font, angle } = it else { return None };
     let size = *size * k;
     if !rect.iter().chain([&size]).all(|v| v.is_finite()) {
         return None;
     }
     let family = font.as_deref().filter(|f| !f.is_empty()).unwrap_or(&doc.settings.minor_font);
     let size = size.clamp(1.0, 400.0);
-    let resolved = strix_fonts::word::resolve(family, *bold, false);
+    let resolved = strix_fonts::word::resolve(family, *bold, *italic);
     let face = resolved.face.get();
     let shaped = strix_fonts::shape(face, text, &[], |c| c);
     if shaped.is_empty() {
@@ -1945,7 +1945,7 @@ fn text_glyphs(doc: &Document, r: Rect, it: &GraphicItem, alpha: f32, k: f32) ->
         color: *color,
         alpha,
         synth_bold: resolved.synth_bold,
-        synth_italic: false,
+        synth_italic: resolved.synth_italic,
         text: text.clone(),
         link: None,
         ranges: Vec::new(),

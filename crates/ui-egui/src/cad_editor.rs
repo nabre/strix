@@ -1639,7 +1639,6 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     );
                 }
                 Prim::Text { at, text, height, anchor, color, angle } => {
-                    let shown: String = text.chars().filter(|&c| !strix_cad::is_marker(c)).collect();
                     let size = ((*height / 0.7) * ed.zoom / k).clamp(6.0, 200.0) as f32;
                     let align = match anchor {
                         Anchor::BottomCenter | Anchor::BaselineCenter => Align2::CENTER_BOTTOM,
@@ -1650,16 +1649,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         Anchor::MiddleRight => Align2::RIGHT_CENTER,
                     };
                     let pos = view.to_screen(paper_to_drawing(&ed.rendered, *at));
-                    if *angle == 0.0 || !angle.is_finite() {
-                        painter.text(pos, align, shown, FontId::proportional(size), rgb(*color));
-                    } else {
-                        // Turned about its anchor: counter-clockwise on paper is clockwise on the
-                        // screen (y down).
-                        let galley = painter.layout_no_wrap(shown, FontId::proportional(size), rgb(*color));
-                        let anchor_in = vec2(galley.size().x * align.x().to_factor(), galley.size().y * align.y().to_factor());
-                        let rot = egui::emath::Rot2::from_angle(-(angle.to_radians() as f32));
-                        painter.add(egui::epaint::TextShape::new(pos - rot * anchor_in, galley, rgb(*color)).with_angle(rot.angle()));
-                    }
+                    let galley = painter.layout_job(text_job(text, size, rgb(*color)));
+                    // Turned about its anchor: counter-clockwise on paper is clockwise on the
+                    // screen (y down).
+                    let turn = if angle.is_finite() { -(angle.to_radians() as f32) } else { 0.0 };
+                    let anchor_in = vec2(galley.size().x * align.x().to_factor(), galley.size().y * align.y().to_factor());
+                    let rot = egui::emath::Rot2::from_angle(turn);
+                    painter.add(egui::epaint::TextShape::new(pos - rot * anchor_in, galley, rgb(*color)).with_angle(rot.angle()));
                 }
             }
         }
@@ -2216,6 +2212,26 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
 
 fn pt(p: Pt) -> P {
     P(Num::new(p.x), Num::new(p.y))
+}
+
+/// A drawing text laid out for the canvas: a parameter's symbol in italics, its subscript
+/// smaller and lowered, a missing parameter in red (`strix_cad::spans`).
+fn text_job(text: &str, size: f32, color: Color32) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    for p in strix_cad::spans(text) {
+        let sub = p.sub;
+        let font = FontId::proportional(if sub { size * 0.7 } else { size });
+        let format = egui::TextFormat {
+            font_id: font,
+            color: if p.kind == strix_cad::SpanKind::Missing { Color32::from_rgb(0xC0, 0x1C, 0x1C) } else { color },
+            italics: p.symbol,
+            // A subscript's line, shorter than the text's, sits at the bottom: the subscript drops.
+            line_height: sub.then_some(size * 0.6),
+            ..Default::default()
+        };
+        job.append(&p.text, 0.0, format);
+    }
+    job
 }
 
 /// The editor's two panes.
