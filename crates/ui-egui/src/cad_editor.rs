@@ -69,12 +69,25 @@ pub enum Tool {
     Mirror,
     /// Offset: the distance (typed; the last one kept), the object, then the side.
     Offset,
+    /// Trim: each pick takes away the piece between the nearest crossings (quick mode).
+    Trim,
+    /// Extend: each pick runs the nearer end to the next object.
+    Extend,
+    /// Fillet: the radius (typed; the last one kept), then the two lines.
+    Fillet,
+    /// Chamfer: the distance (typed; the last one kept), then the two lines.
+    Chamfer,
 }
 
 impl Tool {
     /// The commands that work on the selection (and ask for objects when there is none).
     fn takes_selection(self) -> bool {
         matches!(self, Tool::Move | Tool::Copy | Tool::Scale | Tool::Rotate | Tool::Mirror)
+    }
+
+    /// The next click picks an object rather than a point: no snaps move it.
+    fn picks_object(self) -> bool {
+        matches!(self, Tool::Trim | Tool::Extend | Tool::Fillet | Tool::Chamfer)
     }
 
     pub fn parse(name: &str) -> Option<Tool> {
@@ -105,6 +118,10 @@ impl Tool {
             "rotate" | "ro" | "ruota" => Tool::Rotate,
             "mirror" | "mi" | "specchia" => Tool::Mirror,
             "offset" | "o" | "of" => Tool::Offset,
+            "trim" | "tr" | "taglia" => Tool::Trim,
+            "extend" | "ex" | "estendi" => Tool::Extend,
+            "fillet" | "f" | "raccorda" => Tool::Fillet,
+            "chamfer" | "cha" | "cima" => Tool::Chamfer,
             _ => return None,
         })
     }
@@ -162,6 +179,12 @@ impl Tool {
             (Tool::Mirror, _) => "Mirror: second point of the axis (a mirrored copy is made)",
             (Tool::Offset, 0) => "Offset: pick the object (type a number to change the distance)",
             (Tool::Offset, _) => "Offset: click on the side to offset to",
+            (Tool::Trim, _) => "Trim: pick the piece to take away (the other objects cut it)",
+            (Tool::Extend, _) => "Extend: pick near the end to extend (to the next object)",
+            (Tool::Fillet, 0) => "Fillet: pick the first line (type a number to change the radius)",
+            (Tool::Fillet, _) => "Fillet: pick the second line",
+            (Tool::Chamfer, 0) => "Chamfer: pick the first line (type a number to change the distance)",
+            (Tool::Chamfer, _) => "Chamfer: pick the second line",
         }
     }
 }
@@ -244,6 +267,9 @@ pub struct CadEditor {
     pub(crate) panel_typing: bool,
     /// The distance Offset uses (drawing units; a number typed changes it).
     pub offset_dist: f64,
+    /// Fillet's radius and Chamfer's distance (drawing units; a number typed changes them).
+    pub fillet_radius: f64,
+    pub chamfer_dist: f64,
 }
 
 /// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
@@ -260,6 +286,8 @@ pub struct CadSettings {
     pub panel_float: bool,
     pub layers_float: bool,
     pub offset_dist: f64,
+    pub fillet_radius: f64,
+    pub chamfer_dist: f64,
 }
 
 impl Default for CadSettings {
@@ -275,6 +303,8 @@ impl Default for CadSettings {
             panel_float: false,
             layers_float: false,
             offset_dist: 10.0,
+            fillet_radius: 0.0,
+            chamfer_dist: 0.0,
         }
     }
 }
@@ -292,6 +322,8 @@ impl CadEditor {
             panel_float: self.panel_float,
             layers_float: self.layers_float,
             offset_dist: self.offset_dist,
+            fillet_radius: self.fillet_radius,
+            chamfer_dist: self.chamfer_dist,
         }
     }
 }
@@ -342,6 +374,8 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         panel_float: kept.panel_float,
         layers_float: kept.layers_float,
         offset_dist: kept.offset_dist,
+        fillet_radius: kept.fillet_radius,
+        chamfer_dist: kept.chamfer_dist,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -431,7 +465,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, strip, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
             }
@@ -1079,6 +1113,10 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Rotate => "Rotate",
         Tool::Mirror => "Mirror",
         Tool::Offset => "Offset",
+        Tool::Trim => "Trim",
+        Tool::Extend => "Extend",
+        Tool::Fillet => "Fillet",
+        Tool::Chamfer => "Chamfer",
     }
 }
 
@@ -1507,6 +1545,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             ed.cycle_at = None;
         }
         let selecting = ed.selecting();
+        // An object pick (Trim, Extend, Fillet…): the pointer as it is, like a selection.
+        let free = selecting || ed.tool.picks_object();
         let removing = mods.shift || ed.remove_mode;
         let tol = 6.0 / ed.zoom;
         // The object a click would take, haloed (red when the click would remove it).
@@ -1539,13 +1579,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 Some(None) => None,
                 None => ed.snap.then_some(ed.snaps),
             };
-            if !selecting && let Some(on) = snaps {
+            if !free && let Some(on) = snaps {
                 // Exact snaps from the geometry kernel: ends, midpoints, centres, nodes,
                 // quadrants, intersections, perpendiculars and tangents from the base point.
                 snapped = ed.drawing.snap(raw, 10.0 / ed.zoom, base, &on);
             }
             let mut p = snapped.map_or(raw, |(p, _)| p);
-            if !selecting && snapped.is_none() && ed.grid && ed.snap && ed.snap_once.is_none() {
+            if !free && snapped.is_none() && ed.grid && ed.snap && ed.snap_once.is_none() {
                 let step = grid_step(ed.zoom);
                 let g = Pt::new((raw.x / step).round() * step, (raw.y / step).round() * step);
                 if view.to_screen(g).distance(h) <= 6.0 {
@@ -1553,7 +1593,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
             // Ortho holds the point level or plumb from the base, unless an object snap holds it.
-            if !selecting
+            if !free
                 && ed.ortho
                 && snapped.is_none()
                 && let Some(last) = base
@@ -1863,7 +1903,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         }
 
         // Status and command line.
-        let mut prompt = if ed.message.is_empty() { ed.prompt() } else { ed.message.clone() };
+        let mut prompt = if ed.message.is_empty() { ed.prompt() } else { tl!(&ed.message).to_string() };
         if !ed.found.is_empty() && ed.message.is_empty() {
             prompt = format!("{}   [{}]", prompt, ed.found);
         }
@@ -2112,8 +2152,38 @@ fn typed_value(ed: &mut CadEditor, v: f64) -> Option<Option<Drawing>> {
             }
             Some(None)
         }
+        (Tool::Fillet | Tool::Chamfer, []) => {
+            if v >= 0.0 && v.is_finite() {
+                *(if ed.tool == Tool::Fillet { &mut ed.fillet_radius } else { &mut ed.chamfer_dist }) = v;
+            } else {
+                ed.message = "A fillet radius or chamfer distance is 0 or more".into();
+            }
+            Some(None)
+        }
         _ => None,
     }
+}
+
+/// The drawing with `edit` done to a copy of it, or None with the reason it cannot be.
+fn edited(ed: &mut CadEditor, edit: impl FnOnce(&mut Drawing) -> Result<(), String>) -> Option<Drawing> {
+    let mut d = ed.drawing.clone();
+    match edit(&mut d) {
+        Ok(()) => {
+            // The indices change: what was selected may be gone.
+            ed.selection.clear();
+            Some(d)
+        }
+        Err(e) => {
+            ed.message = e;
+            None
+        }
+    }
+}
+
+/// The line, circle, arc or polyline picked at `p` (within the pickbox), if any.
+fn picked_path(ed: &CadEditor, p: Pt) -> Option<usize> {
+    let tol = 8.0 / ed.zoom.max(1e-9);
+    ed.drawing.nearest_path(p).filter(|&(_, d)| d <= tol).map(|(i, _)| i)
 }
 
 /// The next input is a size (a circle's radius or diameter): a number typed is that distance.
@@ -2307,6 +2377,32 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                     None
                 }
             }
+        }
+        Tool::Trim | Tool::Extend => {
+            // Each pick edits one object; the command goes on.
+            done(ed);
+            let Some(i) = picked_path(ed, p) else {
+                ed.message = "Pick a line, circle, arc or polyline".into();
+                return None;
+            };
+            let trim = ed.tool == Tool::Trim;
+            edited(ed, |d| if trim { d.trim(i, p) } else { d.extend(i, p) })
+        }
+        Tool::Fillet | Tool::Chamfer if n == 1 => {
+            if picked_path(ed, p).is_none() {
+                done(ed);
+                ed.message = "Pick a line".into();
+            }
+            None
+        }
+        Tool::Fillet | Tool::Chamfer if n >= 2 => {
+            done(ed);
+            let (Some(i), Some(j)) = (picked_path(ed, pts[0]), picked_path(ed, pts[1])) else {
+                ed.message = "Pick a line".into();
+                return None;
+            };
+            let (r, dist, fillet) = (ed.fillet_radius, ed.chamfer_dist, ed.tool == Tool::Fillet);
+            edited(ed, |d| if fillet { d.fillet(i, pts[0], j, pts[1], r) } else { d.chamfer(i, pts[0], j, pts[1], dist, dist) })
         }
         Tool::Scale | Tool::Rotate | Tool::Mirror if ed.selection.is_empty() => {
             done(ed);
@@ -2527,6 +2623,30 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 "ui.cadTool",
                 t("offset"),
                 tool == Tool::Offset,
+            );
+            small(ui, app, "cadTrim", Some("Trim"), "Trim: pick the pieces to take away", "ui.cadTool", t("trim"), tool == Tool::Trim);
+            small(ui, app, "cadExtend", Some("Extend"), "Extend: pick near the ends to extend", "ui.cadTool", t("extend"), tool == Tool::Extend);
+        });
+        stack(ui, &mut |ui| {
+            small(
+                ui,
+                app,
+                "cadFillet",
+                Some("Fillet"),
+                "Fillet two lines with an arc (type the radius; 0 makes the corner)",
+                "ui.cadTool",
+                t("fillet"),
+                tool == Tool::Fillet,
+            );
+            small(
+                ui,
+                app,
+                "cadChamfer",
+                Some("Chamfer"),
+                "Chamfer two lines (type the distance; 0 makes the corner)",
+                "ui.cadTool",
+                t("chamfer"),
+                tool == Tool::Chamfer,
             );
             small(ui, app, "cadDelete", Some("Delete"), "Delete the selection (Del)", "ui.cadDelete", json!({}), false);
         });
@@ -3174,6 +3294,50 @@ mod tests {
         assert_eq!(ed.tool, Tool::Offset, "it goes on");
         app.run("ui.cadClose", json!({})).unwrap();
         assert_eq!(app.cad_settings.offset_dist, 5.0);
+    }
+
+    /// Trim and Extend edit the object picked and go on; Fillet and Chamfer take a typed size
+    /// and two lines, kept for the next drawing; a pick on nothing says so.
+    #[test]
+    fn trim_extend_fillet_and_chamfer_in_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        let cross = r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[5,-5],"b":[5,5]},
+            {"type":"line","a":[20,-5],"b":[20,5]}]}"#;
+        ed.drawing = Drawing::from_json(cross).unwrap();
+        ed.zoom = 10.0;
+        assert!(!Tool::Select.picks_object());
+        ed.set_tool(Tool::parse("tr").unwrap());
+        assert!(ed.tool.picks_object());
+        let d = feed(ed, Pt::new(8.0, 0.1), None).expect("trimmed");
+        assert!(matches!(&d.entities[0].kind, Kind::Line { b, .. } if b.pt() == Pt::new(5.0, 0.0)));
+        assert_eq!(ed.tool, Tool::Trim, "it goes on");
+        ed.drawing = d;
+        assert!(feed(ed, Pt::new(50.0, 50.0), None).is_none() && !ed.message.is_empty(), "nothing there");
+        ed.set_tool(Tool::parse("ex").unwrap());
+        let d = feed(ed, Pt::new(4.5, 0.0), None).expect("extended");
+        assert!(matches!(&d.entities[0].kind, Kind::Line { b, .. } if b.pt() == Pt::new(20.0, 0.0)));
+        ed.drawing = d;
+        // Fillet with radius 2 typed: the two lines and an arc.
+        ed.set_tool(Tool::parse("f").unwrap());
+        assert!(typed_value(ed, 2.0).is_some());
+        assert!(feed(ed, Pt::new(1.0, 0.0), None).is_none());
+        let d = feed(ed, Pt::new(5.0, 4.0), None).expect("filleted");
+        assert!(d.entities.iter().any(|e| matches!(&e.kind, Kind::Arc { r, .. } if r.value == 2.0)));
+        // Chamfer 1 on a fresh corner.
+        ed.drawing = Drawing::from_json(cross).unwrap();
+        ed.set_tool(Tool::Chamfer);
+        typed_value(ed, 1.0);
+        feed(ed, Pt::new(1.0, 0.0), None);
+        let d = feed(ed, Pt::new(5.0, 4.0), None).expect("chamfered");
+        assert_eq!(d.entities.len(), 4);
+        // Parallel lines: a message, nothing changed.
+        ed.drawing = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[0,1],"b":[10,1]}]}"#).unwrap();
+        feed(ed, Pt::new(1.0, 0.0), None);
+        assert!(feed(ed, Pt::new(1.0, 1.0), None).is_none() && !ed.message.is_empty());
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!((app.cad_settings.fillet_radius, app.cad_settings.chamfer_dist), (2.0, 1.0));
     }
 
     /// While a drawing is open only its own tabs (and File) can be chosen; closing it opens the

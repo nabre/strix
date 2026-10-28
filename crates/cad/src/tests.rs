@@ -1243,3 +1243,124 @@ fn offsets_go_towards_the_click() {
     // Not offsettable: a text.
     assert!(d.offset_entity(9, 1.0, Pt::new(0.0, 0.0)).is_none());
 }
+
+fn kind(d: &Drawing, i: usize) -> &Kind {
+    &d.entities[i].kind
+}
+
+/// Trim (quick mode): the piece picked goes, between the nearest crossings; a piece out of the
+/// middle leaves two objects; nothing crossing deletes it; the far ends keep their expressions.
+#[test]
+fn trim_takes_away_the_piece_picked() {
+    let mut d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":["L",0]},{"type":"line","a":[3,-1],"b":[3,1]},
+            {"type":"line","a":[6,-1],"b":[6,1]}]}"#,
+    )
+    .unwrap();
+    d.resolve(&sheet(&["L = 10 mm"]));
+    // The middle piece: two lines left, the second with a new id after the first.
+    d.trim(0, Pt::new(4.5, 0.0)).unwrap();
+    assert_eq!(d.entities.len(), 4);
+    assert!(matches!(kind(&d, 0), Kind::Line { a, b } if a.pt() == Pt::new(0.0, 0.0) && b.pt() == Pt::new(3.0, 0.0)));
+    assert!(matches!(kind(&d, 1), Kind::Line { a, b } if a.pt() == Pt::new(6.0, 0.0) && b.0.expr.as_deref() == Some("L")));
+    assert_eq!(d.entities[0].id, "e1");
+    assert!(d.entities.iter().filter(|e| e.id == d.entities[1].id).count() == 1);
+    // Nothing crosses (6,0)–(L,0) but at its end: picked, it goes.
+    d.trim(1, Pt::new(9.0, 0.0)).unwrap();
+    assert_eq!(d.entities.len(), 3);
+    // A cutting line with nothing crossing it goes.
+    d.trim(2, Pt::new(6.0, 0.5)).unwrap();
+    assert_eq!(d.entities.len(), 2);
+    // A circle cut by a line: the picked side goes, an arc stays.
+    let mut c = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[-10,0],"b":[10,0]}]}"#).unwrap();
+    c.trim(0, Pt::new(0.0, -5.0)).unwrap();
+    assert!(matches!(kind(&c, 0), Kind::Arc { start, end, .. } if approx(start.value, 0.0) && approx(end.value, 180.0)), "{:?}", kind(&c, 0));
+    // One crossing is not enough for a closed object.
+    let mut t = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[0,0],"b":[10,0]}]}"#).unwrap();
+    assert!(t.trim(0, Pt::new(0.0, 5.0)).is_err());
+    // A closed square cut through by a line: it opens, the picked side gone.
+    let mut sq = Drawing::from_json(
+        r#"{"entities":[{"type":"polyline","pts":[[0,0],[10,0],[10,10],[0,10]],"closed":true},{"type":"line","a":[5,-1],"b":[5,11]}]}"#,
+    )
+    .unwrap();
+    sq.trim(0, Pt::new(10.0, 5.0)).unwrap();
+    let Kind::Polyline { pts, closed, .. } = kind(&sq, 0) else { panic!() };
+    assert!(!closed);
+    let got: Vec<Pt> = pts.iter().map(P::pt).collect();
+    assert_eq!(got, vec![Pt::new(5.0, 10.0), Pt::new(0.0, 10.0), Pt::new(0.0, 0.0), Pt::new(5.0, 0.0)]);
+    // A polyline half circle (clockwise over the top) cut at its top: each half a quarter.
+    let mut arc =
+        Drawing::from_json(r#"{"entities":[{"type":"polyline","pts":[[-5,0],[5,0]],"bulges":[-1]},{"type":"line","a":[0,-10],"b":[0,10]}]}"#)
+            .unwrap();
+    arc.trim(0, Pt::new(4.0, 3.0)).unwrap();
+    let Kind::Polyline { pts, bulges, .. } = kind(&arc, 0) else { panic!() };
+    assert!(pts[1].pt().minus(Pt::new(0.0, 5.0)).len() < 1e-9, "{:?}", pts[1].pt());
+    assert!(approx(bulges[0], -(std::f64::consts::FRAC_PI_8).tan()), "{bulges:?}");
+    // No object there: an error, never a panic.
+    assert!(d.trim(99, Pt::new(0.0, 0.0)).is_err());
+}
+
+/// Extend: the end nearer the pick runs to the first object ahead; an arc goes round its circle;
+/// a polyline's end segment grows.
+#[test]
+fn extend_runs_to_the_next_object() {
+    let mut d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":[2,0]},{"type":"line","a":[5,-1],"b":[5,1]},
+            {"type":"line","a":[8,-1],"b":[8,1]},{"type":"line","a":[-4,-1],"b":[-4,1]}]}"#,
+    )
+    .unwrap();
+    d.extend(0, Pt::new(1.8, 0.0)).unwrap();
+    assert!(matches!(kind(&d, 0), Kind::Line { b, .. } if b.pt() == Pt::new(5.0, 0.0)), "the nearest boundary first");
+    d.extend(0, Pt::new(4.0, 0.0)).unwrap();
+    assert!(matches!(kind(&d, 0), Kind::Line { b, .. } if b.pt() == Pt::new(8.0, 0.0)));
+    d.extend(0, Pt::new(0.5, 0.0)).unwrap();
+    assert!(matches!(kind(&d, 0), Kind::Line { a, .. } if a.pt() == Pt::new(-4.0, 0.0)));
+    assert!(d.extend(0, Pt::new(7.9, 0.0)).is_err(), "nothing ahead");
+    // An arc from 0° to 90° of radius 5, a line along y = -3: its start runs back round to it.
+    let mut a =
+        Drawing::from_json(r#"{"entities":[{"type":"arc","c":[0,0],"r":5,"start":0,"end":90},{"type":"line","a":[-10,-3],"b":[10,-3]}]}"#).unwrap();
+    a.extend(0, Pt::new(4.9, 0.5)).unwrap();
+    let want = (-3.0f64).atan2(4.0).to_degrees().rem_euclid(360.0);
+    assert!(matches!(kind(&a, 0), Kind::Arc { start, .. } if approx(start.value.rem_euclid(360.0), want)), "{:?}", kind(&a, 0));
+    // A polyline's last straight segment.
+    let mut p = Drawing::from_json(r#"{"entities":[{"type":"polyline","pts":[[0,0],[0,2],[2,2]]},{"type":"line","a":[6,0],"b":[6,5]}]}"#).unwrap();
+    p.extend(0, Pt::new(2.0, 2.0)).unwrap();
+    assert!(matches!(kind(&p, 0), Kind::Polyline { pts, .. } if pts[2].pt() == Pt::new(6.0, 2.0)));
+    // A circle has no ends.
+    let mut c = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":1}]}"#).unwrap();
+    assert!(c.extend(0, Pt::new(1.0, 0.0)).is_err());
+}
+
+/// Fillet and Chamfer: two lines trimmed (or extended) to an arc touching both or to a bevel;
+/// radius 0 makes the corner.
+#[test]
+fn fillet_and_chamfer_join_two_lines() {
+    let src = r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[12,2],"b":[12,10]}]}"#;
+    let mut d = Drawing::from_json(src).unwrap();
+    d.fillet(0, Pt::new(3.0, 0.0), 1, Pt::new(12.0, 8.0), 2.0).unwrap();
+    assert!(matches!(kind(&d, 0), Kind::Line { a, b } if a.pt() == Pt::new(0.0, 0.0) && b.pt() == Pt::new(10.0, 0.0)));
+    assert!(matches!(kind(&d, 1), Kind::Line { a, b } if a.pt() == Pt::new(12.0, 2.0) && b.pt() == Pt::new(12.0, 10.0)));
+    let Kind::Arc { c, r, start, end } = kind(&d, 2) else { panic!("{:?}", kind(&d, 2)) };
+    assert!(c.pt() == Pt::new(10.0, 2.0) && r.value == 2.0);
+    assert!(approx(start.value.rem_euclid(360.0), 270.0) && approx(end.value, 0.0), "{start:?} {end:?}");
+    // Radius 0: the corner.
+    let mut z = Drawing::from_json(src).unwrap();
+    z.fillet(0, Pt::new(3.0, 0.0), 1, Pt::new(12.0, 8.0), 0.0).unwrap();
+    assert_eq!(z.entities.len(), 2);
+    assert!(matches!(kind(&z, 0), Kind::Line { b, .. } if b.pt() == Pt::new(12.0, 0.0)));
+    assert!(matches!(kind(&z, 1), Kind::Line { a, .. } if a.pt() == Pt::new(12.0, 0.0)));
+    // Chamfer 1 and 2 from the corner.
+    let mut c = Drawing::from_json(src).unwrap();
+    c.chamfer(0, Pt::new(3.0, 0.0), 1, Pt::new(12.0, 8.0), 1.0, 2.0).unwrap();
+    assert!(matches!(kind(&c, 2), Kind::Line { a, b } if a.pt() == Pt::new(11.0, 0.0) && b.pt() == Pt::new(12.0, 2.0)));
+    // Errors, never panics: the same line, a radius too large, not a number, parallel, not lines.
+    let mut e = Drawing::from_json(src).unwrap();
+    assert!(e.fillet(0, Pt::new(1.0, 0.0), 0, Pt::new(2.0, 0.0), 1.0).is_err());
+    assert!(e.fillet(0, Pt::new(1.0, 0.0), 1, Pt::new(12.0, 8.0), 100.0).is_err());
+    assert!(e.fillet(0, Pt::new(1.0, 0.0), 1, Pt::new(12.0, 8.0), f64::NAN).is_err());
+    assert_eq!(e.to_json(), Drawing::from_json(src).unwrap().to_json(), "a failed fillet changes nothing");
+    let mut par = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[0,1],"b":[10,1]}]}"#).unwrap();
+    assert!(par.fillet(0, Pt::new(1.0, 0.0), 1, Pt::new(1.0, 1.0), 1.0).is_err());
+    let mut circ = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"circle","c":[0,0],"r":1}]}"#).unwrap();
+    assert!(circ.chamfer(0, Pt::new(1.0, 0.0), 1, Pt::new(1.0, 0.0), 1.0, 1.0).is_err());
+}

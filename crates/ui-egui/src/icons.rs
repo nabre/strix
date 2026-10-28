@@ -1313,6 +1313,32 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(3.0, 15.0), (8.0, 6.0), (17.0, 6.0)], c);
             pen.line_c(&[(3.0, 18.0), (9.5, 9.5), (17.0, 9.5)], a);
         }
+        // Trim (a cutting edge, the line kept up to it, the piece cut away dashed), extend (a
+        // line running on to a boundary), fillet (a corner rounded), chamfer (a corner cut).
+        "cadTrim" => {
+            pen.line_c(&[(11.0, 2.5), (11.0, 17.5)], c);
+            pen.line_c(&[(2.5, 10.0), (11.0, 10.0)], c);
+            pen.line_c(&[(13.0, 10.0), (14.5, 10.0)], a);
+            pen.line_c(&[(16.0, 10.0), (17.5, 10.0)], a);
+            pen.line_c(&[(13.5, 6.5), (17.0, 13.5)], a);
+            pen.line_c(&[(13.5, 13.5), (17.0, 6.5)], a);
+        }
+        "cadExtend" => {
+            pen.line_c(&[(16.5, 2.5), (16.5, 17.5)], c);
+            pen.line_c(&[(2.5, 10.0), (8.0, 10.0)], c);
+            pen.line_c(&[(8.0, 10.0), (15.0, 10.0)], a);
+            pen.fill(&[(16.0, 10.0), (12.5, 8.0), (12.5, 12.0)], a);
+        }
+        "cadFillet" => {
+            pen.line_c(&[(3.0, 4.0), (3.0, 10.0)], c);
+            pen.line_c(&[(3.0, 10.0), (3.5, 12.6), (5.0, 14.9), (7.4, 16.5), (10.0, 17.0)], a);
+            pen.line_c(&[(10.0, 17.0), (17.0, 17.0)], c);
+        }
+        "cadChamfer" => {
+            pen.line_c(&[(3.0, 4.0), (3.0, 11.0)], c);
+            pen.line_c(&[(3.0, 11.0), (9.0, 17.0)], a);
+            pen.line_c(&[(9.0, 17.0), (17.0, 17.0)], c);
+        }
         // A hatch: a square region filled with slanted lines.
         "cadHatch" => {
             pen.rect(3.0, 3.0, 17.0, 17.0, c);

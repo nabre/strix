@@ -2787,3 +2787,37 @@ preview	Title	Esempio
 	Offset: the distance (type it), the object, the side	Offset: la distanza (digitala), l'oggetto, il lato
 	Dock	Aggancia
 	Detach: a window of its own	Stacca: in una finestra propria
+	Trim	Taglia
+	Extend	Estendi
+	Fillet	Raccorda
+	Chamfer	Cima
+	Trim: pick the piece to take away (the other objects cut it)	Taglia: scegli il pezzo da togliere (gli altri oggetti lo tagliano)
+	Extend: pick near the end to extend (to the next object)	Estendi: fai clic vicino all'estremo da estendere (fino al prossimo oggetto)
+	Fillet: pick the first line (type a number to change the radius)	Raccorda: scegli la prima linea (digita un numero per cambiare il raggio)
+	Fillet: pick the second line	Raccorda: scegli la seconda linea
+	Chamfer: pick the first line (type a number to change the distance)	Cima: scegli la prima linea (digita un numero per cambiare la distanza)
+	Chamfer: pick the second line	Cima: scegli la seconda linea
+	Trim: pick the pieces to take away	Taglia: scegli i pezzi da togliere
+	Extend: pick near the ends to extend	Estendi: fai clic vicino agli estremi da estendere
+	Fillet two lines with an arc (type the radius; 0 makes the corner)	Raccorda due linee con un arco (digita il raggio; 0 fa lo spigolo)
+	Chamfer two lines (type the distance; 0 makes the corner)	Cima due linee (digita la distanza; 0 fa lo spigolo)
+	A fillet radius or chamfer distance is 0 or more	Il raggio di raccordo o la distanza di cimatura è 0 o più
+	Pick a line, circle, arc or polyline	Scegli una linea, un cerchio, un arco o una polilinea
+	Pick a line	Scegli una linea
+	There is no object there	Lì non c'è nessun oggetto
+	Trim works on lines, circles, arcs and polylines	Taglia funziona su linee, cerchi, archi e polilinee
+	A closed object is trimmed between two crossings	Un oggetto chiuso si taglia tra due intersezioni
+	Extend works on lines, arcs and open polylines	Estendi funziona su linee, archi e polilinee aperte
+	A closed object has no end to extend	Un oggetto chiuso non ha estremi da estendere
+	Nothing to extend to: no object lies ahead of that end	Niente a cui estendere: nessun oggetto davanti a quell'estremo
+	The extension runs out of the drawing	L'estensione esce dal disegno
+	A fillet radius is 0 or more	Il raggio di raccordo è 0 o più
+	The radius is too large for these lines	Il raggio è troppo grande per queste linee
+	Chamfer distances are 0 or more	Le distanze di cimatura sono 0 o più
+	The distances are too large for these lines	Le distanze sono troppo grandi per queste linee
+	Pick two different lines	Scegli due linee diverse
+	Fillet and Chamfer join two lines	Raccorda e Cima uniscono due linee
+	The lines are parallel	Le linee sono parallele
+	Pick each line on the part to keep	Scegli ogni linea sulla parte da tenere
+	The lines are in line	Le linee sono allineate
+	That would leave a line with no length	Resterebbe una linea di lunghezza nulla

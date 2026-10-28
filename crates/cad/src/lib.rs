@@ -27,6 +27,7 @@ mod render;
 mod select;
 mod strip;
 mod svg;
+mod trim;
 
 #[cfg(test)]
 mod tests;

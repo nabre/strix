@@ -1,7 +1,6 @@
 # CAD parity with the owner's prototype
 
-> **Status:** plan · **Last updated:** 2026-10-28 · **Change:** new: every CAD feature of the
-> prototype (`old_strix`, Python/Typst/TypeScript), with the owner's requests, ordered
+> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** trim, extend, fillet, chamfer
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -43,7 +42,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial |
 | Copy, move, mirror, stretch, **scale** (owner), rotate | done but stretch |
 | Offset (line, circle, arc, polyline; distance or through point) | done (distance) |
-| Fillet, trim, extend, join, explode | todo |
+| Fillet, chamfer, trim, extend, join, explode | partial (trim, extend; fillet and chamfer of lines) |
 | Match properties; draw order | partial (draw order) |
 | Grips per type; dimension grips | done |
 | Snaps: end, mid, centre, geometric centre, quadrant, node, intersection, perpendicular, tangent, nearest, grid | partial (geometric centre, grid snap) |
@@ -87,4 +86,5 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: trim, extend, fillet and chamfer.
 - 2026-10-28: new: the prototype's CAD features and the owner's requests, ordered.

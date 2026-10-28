@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-27 · **Change:** AutoCAD selection, context menu, Properties pane, layers
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Trim, Extend, Fillet, Chamfer
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -236,6 +236,19 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    way. Offset: the distance typed (kept while the program runs), the object, the side; a line
    moves square to itself, circles and arcs stay concentric, a polyline's corners are mitred and
    its arcs stay concentric (bulges kept); it goes on for the next object.
+   **Trim, Extend, Fillet, Chamfer** (CAD Drawing › Modify; `trim tr`, `extend ex`, `fillet f`,
+   `chamfer cha`; `Drawing::trim`, `extend`, `fillet`, `chamfer`): AutoCAD's quick mode, every
+   other object shown is a cutting or boundary edge, and the picks are taken as they are (no
+   snaps). Trim takes away the piece picked between the nearest crossings on either side: a piece
+   out of the middle leaves two objects (the second with a new id, after the first), a circle
+   becomes an arc (it needs two crossings), a closed polyline an open one, arcs of polylines keep
+   their bulges in proportion; an object nothing crosses goes. Extend runs the end nearer the pick
+   to the first object ahead: a line along itself, an arc round its circle, a polyline's end
+   segment (straight or arc). Both go on for the next pick. Fillet joins two lines with an arc of
+   the radius typed (0, the default, makes the corner), Chamfer with a bevel the distance typed
+   from the corner (equal on both); the parts picked are kept, each line trimmed or extended to
+   the arc or bevel, which takes the first line's layer and stroke; the size is kept while the
+   program runs. Ends an edit leaves keep their expressions; the ends it makes are numbers.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
    aliases `h`, `bh`): a click inside a region fills it: the smallest closed object around the
    click (closed polyline, rectangle, circle) with the closed objects inside it as islands
@@ -261,14 +274,14 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    `line_tan_tan`), with the next result previewed as the pointer moves.
    **Draw order** (`ui.cadOrder`, Modify › Bring to Front / Send to Back): the order of the objects
    in the JSON is the order they are drawn in; the selection follows the objects.
-   Still to do: offset, trim, extend, fillet, mirror, stretch, match properties, angular
-   dimensions, hatches, constraints, dockable panes.
+   Still to do: stretch, join, explode, match properties, array, constraints.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
    properties; hatch (by selection and by point); angular dimensions, rows and chains.
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-10-28: Trim and Extend (quick mode), Fillet and Chamfer of two lines.
 - 2026-10-27: AutoCAD selection (adds, Shift removes, two-click window, lasso, fence, polygons, previous, undo, cycling); context menu; Properties pane (families, stepping, geometry with expressions, stroke, layers); draw order; current layer.
 - 2026-10-27: geometry kernel (exact intersections, perpendiculars, tangents, angles; limit of approximation); exact object snaps; grips; frame; padding; JSON source with an automatic SVG picture.
 - 2026-10-27: placeholders with a mode (value, symbol, both) in dimensions and texts; missing data in red.
