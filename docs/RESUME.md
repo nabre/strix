@@ -111,6 +111,15 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     Baseline, level marks (`Kind::Level`), Flip (`ui.cadFlip`); `crates/cad/src/dims.rs`, tests
     in `tests_dims.rs`.
 
+  - CAD dimensions, second round: distances and angle radii in a scaled and an annotative part
+    (`offsetUnits`, `rPaper`, style Scaled distances); dimension units (`dimStyle.units`:
+    drawing, m, cm, mm, SIA 400); parameters in annotations set as equations
+    (`strix_cad::spans`, `GraphicItem::Text::italic`); unknown words in a style read as the
+    default.
+  - Calculated tables (docs/calc.md): header row marked (bold, repeated; a table of numbers gets
+    one), Total Row sums the columns, ordinal column 0 (`table.calcIndex`), rows by index (`i`,
+    `n`, `x[i+1]` cyclic: Gauss's area and centroid).
+
 ## In progress (stopped, unfinished, on their own branches)
 - None.
 
