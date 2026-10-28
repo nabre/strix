@@ -1142,3 +1142,88 @@ fn deep_recursion_fits_a_small_stack() {
         .unwrap();
     assert!(deep.iter().all(|e| matches!(e, CalcError::TooDeep { .. })), "{deep:?}");
 }
+
+/// `A = 3 m · 5 m =`: a definition worked out at once. `A` is defined and the last `=` shows
+/// its value; a product of quantities is no working unit (it used to make the result read
+/// `A = 3 m · 5 m = 3 m·5 m`, in the "unit" `m·5 m`).
+#[test]
+fn a_definition_worked_out_at_once() {
+    let r = run(&["A = 3 m · 5 m ="]).pop().unwrap();
+    assert_eq!(r.kind, RegionKind::DefineAndShow);
+    assert_eq!(r.name.as_deref(), Some("A"));
+    assert_eq!(r.display.as_deref(), Some("A = 3 m · 5 m = 15 m²"));
+    assert_eq!(r.error, None);
+    // `*` (the editor types `·`), `:=`, and the value is a parameter for what follows.
+    assert_eq!(last(&["A = 3 m * 5 m ="]), "A = 3 m * 5 m = 15 m²");
+    assert_eq!(last(&["A := 3 m·5 m ="]), "A := 3 m·5 m = 15 m²");
+    assert_eq!(last(&["A = 3 m·5 m =", "A ="]), "A = 15 m²");
+    assert_eq!(last(&["A = 3 m·5 m =", "V = A·2 m ="]), "V = A·2 m = 30 m³");
+    // Read back with its result, refreshed; a stale number is replaced; a unit asked for is kept.
+    assert_eq!(last(&["A = 3 m·5 m = 15 m²"]), "A = 3 m·5 m = 15 m²");
+    assert_eq!(last(&["A = 3 m·5 m = 99 m²"]), "A = 3 m·5 m = 15 m²");
+    assert_eq!(last(&["A = 3 m·5 m = cm²"]), "A = 3 m·5 m = 150000 cm²");
+    assert_eq!(last(&["A = 3 m·5 m = 150000 cm²"]), "A = 3 m·5 m = 150000 cm²");
+    assert_eq!(last(&["A := 3 m·5 m = 99 m²"]), "A := 3 m·5 m = 15 m²");
+    // The working unit stays the one written: a plain definition of a product doesn't set one.
+    assert_eq!(last(&["A = 3 m·5 m", "A ="]), "A = 15 m²");
+    assert_eq!(last(&["A = 3 m·5 m", "B = 2 m·2 m", "B ="]), "B = 4 m²");
+    assert_eq!(last(&["x = 300 cm·1 m", "x ="]), "x = 3 m²");
+    assert_eq!(last(&["a = 2 cm^2", "A = 3 m·5 m ="]), "A = 3 m·5 m = 150000 cm²");
+    // A unit asked for with a `1` over it still becomes the working unit.
+    assert_eq!(last(&["n_1 = 2 Hz", "n_2 = 3 Hz", "n_1 = 1/min", "n_2 ="]), "n_2 = 180 1/min");
+    // With parameters, and in the number format.
+    assert_eq!(last(&["b = 2 m", "A = b·5 m =", "A ="]), "A = 10 m²");
+    assert_eq!(last(&["L := 4.5 m", "q := 12 kN/m", "M = q·L^2/8 ="]), "M = q·L^2/8 = 30.375 kN·m");
+    let opts = Options { digits: 1, ..Options::default() };
+    assert_eq!(evaluate(&["A = 1.25 m·1 m ="], &opts).pop().unwrap().display.as_deref(), Some("A = 1.25 m·1 m = 1.3 m²"));
+    // Only a last bare `=` (or a unit, or a stale result) after the definition: a middle value
+    // makes three sides, an error.
+    for bad in ["A = 3 m = 4 m =", "A = 3 m = =", "A = 3 m · 5 m = = "] {
+        let r = run(&[bad]).pop().unwrap();
+        assert!(matches!(r.error, Some(CalcError::Syntax { .. })), "{bad}: {r:?}");
+        assert_eq!(r.display, None, "{bad} is left as typed");
+    }
+    for alone in ["A = =", "= 3 m =", "= =", "=", "A = = 3 m"] {
+        let r = run(&[alone]).pop().unwrap();
+        assert_eq!(r.display, None, "{alone}: {r:?}");
+    }
+}
+
+/// With Show Steps, `A = 3 m·50 cm =` shows the working in one unit and the result under it,
+/// like `3 m·50 cm =`; read back, the working is worked again.
+#[test]
+fn a_definition_worked_out_at_once_with_steps() {
+    let opts = Options { steps: true, ..Options::default() };
+    let one = |st: &[&str]| evaluate(st, &opts).pop().unwrap();
+    let r = one(&["A = 3 m·50 cm ="]);
+    assert_eq!(r.kind, RegionKind::DefineAndShow);
+    assert_eq!(r.display.as_deref(), Some("A = 3 m·50 cm = 3 m·0.5 m"));
+    assert_eq!(r.steps, Some(vec!["= 1.5 m²".to_string()]));
+    let again = one(&["A = 3 m·50 cm = 3 m·0.5 m"]);
+    assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (r.kind, r.display.clone(), r.steps.clone()));
+    assert_eq!(one(&["A = 3 m·50 cm = 3 m·0.5 m", "A ="]).display.as_deref(), Some("A = 1.5 m²"));
+    // New data, worked anew; steps off, the result after `=` again.
+    assert_eq!(one(&["A = 3 m·40 cm = 3 m·0.5 m"]).display.as_deref(), Some("A = 3 m·40 cm = 3 m·0.4 m"));
+    assert_eq!(last(&["A = 3 m·50 cm = 3 m·0.5 m"]), "A = 3 m·50 cm = 1.5 m²");
+    // `:=` the same.
+    let d = one(&["A := 3 m·50 cm ="]);
+    assert_eq!((d.display.as_deref(), d.steps.clone()), (Some("A := 3 m·50 cm = 3 m·0.5 m"), Some(vec!["= 1.5 m²".to_string()])));
+    assert_eq!(one(&["A := 3 m·50 cm = 3 m·0.5 m"]).display.as_deref(), Some("A := 3 m·50 cm = 3 m·0.5 m"));
+    // One unit already: the result after `=`, no steps.
+    let plain = one(&["A = 3 m·5 m ="]);
+    assert_eq!((plain.display.as_deref(), plain.steps), (Some("A = 3 m·5 m = 15 m²"), None));
+    // A unit asked for: kept, no working.
+    assert_eq!(one(&["A = 3 m·50 cm = cm^2"]).display.as_deref(), Some("A = 3 m·50 cm = 15000 cm²"));
+}
+
+/// The other uses of `=` are unchanged by the definition worked out at once.
+#[test]
+fn one_equals_sign_still_solves_checks_and_shows() {
+    assert_eq!(last(&["x + 2 = 5"]), "x + 2 = 5 ⇒ x = 3");
+    assert_eq!(run(&["a = 2", "b = 2", "a = b"]).pop().unwrap().kind, RegionKind::Check);
+    assert!(run(&["a = 2", "b = 3", "a = b"]).pop().unwrap().error.is_some());
+    assert_eq!(last(&["a = 2 m", "a ="]), "a = 2 m");
+    assert_eq!(last(&["A = 3 m·5 m", "A = cm^2"]), "A = 150000 cm²");
+    assert_eq!(last(&["f(x) = 2·x + 1", "f(3) ="]), "f(3) = 7");
+    assert_eq!(last(&["F = 10 N", "m = 4 kg", "F = m·a = m/s^2"]), "F = m·a = 2.5 m/s²");
+}
