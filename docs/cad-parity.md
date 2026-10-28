@@ -58,7 +58,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | **Annotative vs scaled** (owner): show which sizes are paper (annotative) and which are drawing units (scaled) | todo |
 | Ω symbols / variables inserter for texts | todo |
 | **Right-click menu** (owner): richer, with icons | todo |
-| Layer panel dockable or floating; ribbon layer group | partial (docked) |
+| Layer panel dockable or floating; ribbon layer group | done (Properties too, close ×) |
 | Dynamic tab: constraint tools, auto-constrain, show, panel, relations toggle | todo |
 
 ## 3. Output

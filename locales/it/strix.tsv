@@ -2785,3 +2785,5 @@ preview	Title	Esempio
 	Scale the selection: base point, then the factor	Scala la selezione: punto base, poi il fattore
 	A mirrored copy of the selection: two points of the axis	Una copia specchiata della selezione: due punti dell'asse
 	Offset: the distance (type it), the object, the side	Offset: la distanza (digitala), l'oggetto, il lato
+	Dock	Aggancia
+	Detach: a window of its own	Stacca: in una finestra propria

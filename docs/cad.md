@@ -212,6 +212,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    object count, rename (objects follow), delete (objects go to layer 0); New Layer, Make Object's
    Layer Current. Colours: 23 pens (fifteen colours and a grey scale from black to white), any
    RGB (`r, g, b`) or `#rrggbb`.
+   **Panes**: Properties and the Layer Manager each have a header with Detach (a window of its
+   own, moved by its background, resizable; `ui.cadToggle {"what": "props.float"}` /
+   `"layers.float"`), Dock and Close (×); docked or detached, they stay so for the next drawing.
    **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
    (Dimensions, Text), CAD View (Precision, Object Snaps), CAD Output (Picture) — each with Close
    Drawing; the document's tabs are disabled until the drawing is closed.

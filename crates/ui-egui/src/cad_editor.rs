@@ -229,6 +229,9 @@ pub struct CadEditor {
     pub panel: bool,
     /// The Layer Manager is shown (docked under the sheet).
     pub layers_panel: bool,
+    /// The Properties pane, the Layer Manager float in their own windows (detached).
+    pub panel_float: bool,
+    pub layers_float: bool,
     /// The layer new objects go on.
     pub current_layer: String,
     /// The polyline vertex the Properties pane shows.
@@ -254,6 +257,8 @@ pub struct CadSettings {
     pub frame: bool,
     pub panel: bool,
     pub layers_panel: bool,
+    pub panel_float: bool,
+    pub layers_float: bool,
     pub offset_dist: f64,
 }
 
@@ -267,6 +272,8 @@ impl Default for CadSettings {
             frame: false,
             panel: true,
             layers_panel: false,
+            panel_float: false,
+            layers_float: false,
             offset_dist: 10.0,
         }
     }
@@ -282,6 +289,8 @@ impl CadEditor {
             frame: self.frame,
             panel: self.panel,
             layers_panel: self.layers_panel,
+            panel_float: self.panel_float,
+            layers_float: self.layers_float,
             offset_dist: self.offset_dist,
         }
     }
@@ -330,6 +339,8 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         focus: Focus::default(),
         panel: kept.panel,
         layers_panel: kept.layers_panel,
+        panel_float: kept.panel_float,
+        layers_float: kept.layers_float,
         offset_dist: kept.offset_dist,
         current_layer: "0".into(),
         vertex: 0,
@@ -436,6 +447,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "frame" => ed.frame = !ed.frame,
                     "props" => ed.panel = !ed.panel,
                     "layers" => ed.layers_panel = !ed.layers_panel,
+                    "props.float" => ed.panel_float = !ed.panel_float,
+                    "layers.float" => ed.layers_float = !ed.layers_float,
                     "snap.end" => s.end = !s.end,
                     "snap.mid" => s.mid = !s.mid,
                     "snap.center" => s.center = !s.center,
@@ -1331,9 +1344,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let Some(ed) = app.cad.as_mut() else { return };
         let bottom = 58.0;
         let full = ui.available_rect_before_wrap();
-        let panel_w = if ed.panel { 300.0_f32.min(full.width() * 0.4) } else { 0.0 };
-        // The Layer Manager takes a band under the sheet, above the command line.
-        let layers_h = if ed.layers_panel { 220.0_f32.min(full.height() * 0.35) } else { 0.0 };
+        let panel_w = if ed.panel && !ed.panel_float { 300.0_f32.min(full.width() * 0.4) } else { 0.0 };
+        // The Layer Manager takes a band under the sheet, above the command line (docked).
+        let layers_h = if ed.layers_panel && !ed.layers_float { 220.0_f32.min(full.height() * 0.35) } else { 0.0 };
         let sheet = Rect::from_min_max(full.min, pos2(full.max.x - panel_w, (full.max.y - bottom - layers_h).max(full.min.y + 40.0)));
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
@@ -1787,23 +1800,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             });
         }
 
-        // The Properties pane.
+        // The Properties pane and the Layer Manager: docked beside and under the sheet, or
+        // floating in their own windows; each closes with its X and detaches or docks again.
         if ed.panel {
-            let r = Rect::from_min_max(pos2(sheet.max.x, full.min.y), pos2(full.max.x, sheet.max.y));
-            ui.painter().rect_filled(r, 0.0, t.panel);
-            ui.painter().line_segment([r.left_top(), r.left_bottom()], Stroke::new(1.0, t.border));
-            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.shrink2(vec2(8.0, 6.0))));
-            if let Some(d) = crate::cad_panel::show(ed, &mut child) {
+            let docked = Rect::from_min_max(pos2(sheet.max.x, full.min.y), pos2(full.max.x, sheet.max.y));
+            if let Some(d) = pane(ed, ui, &t, Pane::Properties, docked, vec2(300.0, 460.0)) {
                 finished = Some(d);
             }
         }
-        // The Layer Manager.
         if ed.layers_panel {
-            let r = Rect::from_min_max(pos2(full.min.x, sheet.max.y), pos2(sheet.max.x, sheet.max.y + layers_h));
-            ui.painter().rect_filled(r, 0.0, t.panel);
-            ui.painter().line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, t.border));
-            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.shrink2(vec2(8.0, 6.0))));
-            if let Some(d) = crate::cad_panel::layer_manager(ed, &mut child) {
+            let docked = Rect::from_min_max(pos2(full.min.x, sheet.max.y), pos2(sheet.max.x, sheet.max.y + layers_h));
+            if let Some(d) = pane(ed, ui, &t, Pane::Layers, docked, vec2(720.0, 240.0)) {
                 finished = Some(d);
             }
             // The status and command lines go under it.
@@ -1999,6 +2006,74 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
 
 fn pt(p: Pt) -> P {
     P(Num::new(p.x), Num::new(p.y))
+}
+
+/// The editor's two panes.
+#[derive(Clone, Copy, PartialEq)]
+enum Pane {
+    Properties,
+    Layers,
+}
+
+impl Pane {
+    fn title(self) -> &'static str {
+        match self {
+            Pane::Properties => "Properties",
+            Pane::Layers => "Layer Manager",
+        }
+    }
+
+    /// Shown, floating.
+    fn state(self, ed: &mut CadEditor) -> (&mut bool, &mut bool) {
+        match self {
+            Pane::Properties => (&mut ed.panel, &mut ed.panel_float),
+            Pane::Layers => (&mut ed.layers_panel, &mut ed.layers_float),
+        }
+    }
+}
+
+/// Pane `which`, in `docked` or (detached) in a window of about `size`, under a header with its
+/// title, Detach/Dock and Close. The drawing to store when something changed.
+fn pane(ed: &mut CadEditor, ui: &mut egui::Ui, t: &crate::theme::Tokens, which: Pane, docked: Rect, size: egui::Vec2) -> Option<Drawing> {
+    let body = |ed: &mut CadEditor, ui: &mut egui::Ui| -> Option<Drawing> {
+        let floating = *which.state(ed).1;
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(tl!(which.title())).strong().size(14.0));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if crate::widgets::icon_button(ui, "close", tl!("Close")).clicked() {
+                    *which.state(ed).0 = false;
+                }
+                let (icon, tip) = if floating { ("pin", tl!("Dock")) } else { ("launcher", tl!("Detach: a window of its own")) };
+                if crate::widgets::icon_button(ui, icon, tip).clicked() {
+                    *which.state(ed).1 = !floating;
+                }
+            });
+        });
+        match which {
+            Pane::Properties => crate::cad_panel::show(ed, ui),
+            Pane::Layers => crate::cad_panel::layer_manager(ed, ui),
+        }
+    };
+    if !*which.state(ed).1 {
+        ui.painter().rect_filled(docked, 0.0, t.panel);
+        let edge = if which == Pane::Properties { [docked.left_top(), docked.left_bottom()] } else { [docked.left_top(), docked.right_top()] };
+        ui.painter().line_segment(edge, Stroke::new(1.0, t.border));
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(docked.shrink2(vec2(8.0, 6.0))));
+        return body(ed, &mut child);
+    }
+    // Detached: a window that opens over the sheet's corner, moved by its background.
+    let start =
+        if which == Pane::Properties { docked.right_top() - vec2(size.x + 12.0, -12.0) } else { docked.left_top() + vec2(12.0, -size.y - 12.0) };
+    egui::Window::new(which.title())
+        .id(egui::Id::unique(if which == Pane::Properties { "cad_pane_properties" } else { "cad_pane_layers" }))
+        .title_bar(false)
+        .resizable(true)
+        .default_size(size)
+        .default_pos(start)
+        .constrain(true)
+        .show(ui.ctx(), |ui| body(ed, ui))
+        .and_then(|r| r.inner)
+        .flatten()
 }
 
 /// The selection transformed by `t` (a copy of it when `copy`): one undo step.
@@ -3032,13 +3107,15 @@ mod tests {
     fn settings_are_kept_while_the_program_runs() {
         let mut app = app_with_drawing();
         app.run("ui.cadEdit", json!({})).unwrap();
-        for what in ["ortho", "grid", "layers", "props", "snap.quadrant"] {
+        for what in ["ortho", "grid", "layers", "props", "snap.quadrant", "layers.float"] {
             app.run("ui.cadToggle", json!({"what": what})).unwrap();
         }
         app.run("ui.cadClose", json!({})).unwrap();
         app.run("ui.cadEdit", json!({})).unwrap();
         let ed = app.cad.as_ref().unwrap();
         assert!(ed.ortho && !ed.grid && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
+        // A detached pane opens detached again.
+        assert!(ed.layers_float && !ed.panel_float);
     }
 
     /// Hatch: a click inside the region; it goes behind everything else.

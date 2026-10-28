@@ -289,8 +289,6 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
     let mut out = None;
     let mut typing = false;
     egui::ScrollArea::vertical().id_salt("cad_properties").auto_shrink([false, false]).show(ui, |ui| {
-        ui.label(RichText::new(tl!("Properties")).strong().size(14.0));
-        ui.add_space(2.0);
         if ed.selection.is_empty() {
             ui.label(RichText::new(tl!("No selection: click objects, or drag a window")).weak());
             let d = &ed.drawing;
@@ -512,8 +510,6 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
     let mut changed = false;
     let mut typing = false;
     ui.horizontal(|ui| {
-        ui.label(RichText::new(tl!("Layer Manager")).strong());
-        ui.add_space(12.0);
         if ui.button(tl!("New layer")).on_hover_text(tl!("A new layer, made current")).clicked() {
             let name = d.new_layer_name();
             match d.ensure_layer(&name) {
