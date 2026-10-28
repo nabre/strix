@@ -107,13 +107,17 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     fixed (it failed everywhere after the rename), Zotero accept race on Linux (a connection not
     accepted yet is judged by its listener), Spanish grammar timing test takes the best of three.
 
+  - CAD dimensions (docs/cad.md, docs/cad-parity.md): right-angle symbol, Continue and
+    Baseline, level marks (`Kind::Level`), Flip (`ui.cadFlip`); `crates/cad/src/dims.rs`, tests
+    in `tests_dims.rs`.
+
 ## In progress (stopped, unfinished, on their own branches)
 - None.
 
 ## Next
 - SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
 - CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
-  dimension chains and levels; input units (`2.5 m` typed); entity names and measures for the
+  linear-auto dimensions, extension modes, associative ends, marks per end; input units (`2.5 m` typed); entity names and measures for the
   calculations; point styles (docs/cad-parity.md, Order of work).
 - Calc: Variables pane, unit picker, systems of equations across regions, plots; number format
   per document (now a preference).

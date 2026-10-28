@@ -30,7 +30,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("cad.set", "Set CAD Drawing", "Insert › Illustrations", set).when(selected).params(r#"{"drawing": object|string} → replaces the selected drawing's source and redraws it"#),
         CommandSpec::new("cad.add", "Add to CAD Drawing", "Insert › Illustrations", add)
             .when(selected)
-            .params(r#"{"entity": object ({"type": "line|circle|arc|polyline|point|text|dim", …})} → adds an entity to the selected drawing; returns its id"#),
+            .params(r#"{"entity": object ({"type": "line|circle|arc|polyline|point|text|dim|angle|level", …})} → adds an entity to the selected drawing; returns its id"#),
         CommandSpec::new("cad.padding", "Drawing Padding", "CAD Picture Format › Picture", padding)
             .when(selected)
             .params(r#"{"value": mm | [top, right, bottom, left]} → the space around the selected drawing in its picture (0–100 mm)"#),

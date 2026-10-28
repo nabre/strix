@@ -2900,3 +2900,24 @@ preview	Title	Esempio
 	squares (0: none)	quadretti (0: nessuna)
 	Behind the text of every page of this section.	Dietro il testo di ogni pagina di questa sezione.
 	A block in the text: write on it, or press Enter at its end to go on below it.	Un blocco nel testo: scrivici sopra, oppure premi Invio alla sua fine per continuare sotto.
+	Continue	Continua
+	Baseline	Linea di base
+	Level	Livello
+	Flip	Ribalta
+	Continue dimension	Quota continua
+	Baseline dimension	Quota dalla linea di base
+	Level mark	Quota di livello
+	Continue: next point (Enter or Esc to end)	Continua: punto successivo (Invio o Esc per finire)
+	Baseline: next point (Enter or Esc to end)	Linea di base: punto successivo (Invio o Esc per finire)
+	Level mark: the point on the level (Enter or Esc to end)	Quota di livello: il punto sul livello (Invio o Esc per finire)
+	Continue: dimensions in a chain, each from the last one's end, on its line	Continua: quote in catena, ciascuna dalla fine della precedente, sulla sua linea
+	Baseline: dimensions from the same first point, each a row further out	Linea di base: quote dallo stesso primo punto, ciascuna una riga più in fuori
+	Level mark: the elevation of a point above the datum (±0.00), in metres	Quota di livello: l'altezza di un punto sul riferimento (±0.00), in metri
+	Flip the selected dimensions: the line to the other side, the other side of an angle, a level mark under its level	Ribalta le quote selezionate: la linea dall'altra parte, l'altro lato di un angolo, una quota di livello sotto il livello
+	Draw a linear dimension first, or select the one to go on from	Disegna prima una quota lineare, o seleziona quella da cui proseguire
+	Pick a point away from where the dimension starts	Scegli un punto lontano dall'inizio della quota
+	select the dimensions or level marks to flip	seleziona le quote o le quote di livello da ribaltare
+	Datum (±0.00) Y	Riferimento (±0.00) Y
+	Elevation	Quota
+	Under the level	Sotto il livello
+	Text on the left	Testo a sinistra

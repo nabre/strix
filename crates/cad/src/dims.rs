@@ -37,6 +37,25 @@ impl Drawing {
         self.chained(e, from, p, self.dim_row())
     }
 
+    /// Flips the dimensions among `indices` (the rest are left alone): a linear dimension's line
+    /// goes to the other side of its points, an angular dimension measures the other side of its
+    /// arc (the angle's complement to a full turn), a level mark hangs under its level or stands
+    /// on it again. Returns how many were flipped.
+    pub fn flip_dims(&mut self, indices: &[usize]) -> usize {
+        let mut n = 0;
+        for &i in indices {
+            let Some(e) = self.entities.get_mut(i) else { continue };
+            match &mut e.kind {
+                Kind::Dim { offset, .. } => *offset = -*offset,
+                Kind::Angle { a, b, .. } => std::mem::swap(a, b),
+                Kind::Level { flip, .. } => *flip = !*flip,
+                _ => continue,
+            }
+            n += 1;
+        }
+        n
+    }
+
     /// A copy of dimension `base` measuring from `from` to `p`, its line on the base's line moved
     /// `shift` paper mm further out.
     fn chained(&self, base: &Entity, from: crate::model::P, p: Pt, shift: f64) -> Option<Entity> {

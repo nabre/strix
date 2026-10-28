@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** Explode, Join, Match Properties, Stretch, arrays; rotated and aligned texts, dashes drawn
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** right-angle symbol, Continue and Baseline dimensions, level marks, Flip
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -22,7 +22,8 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
 - **Entities** have a stable `id` (`e1`, `e2`…; edits and dimensions refer to ids, never
   indices) and a layer: `line {a, b}`, `circle {c, r}`, `arc {c, r, start, end}`,
   `polyline {pts, bulges, closed}` (DXF bulges), `point {p}`, `text {p, value, height, angle}`,
-  `dim {a, b, offset, orient, text}` (aligned, horizontal or vertical).
+  `dim {a, b, offset, orient, text}` (aligned, horizontal or vertical), `angle {c, a, b, r}`,
+  `level {p, datum, text, flip, left}` (an elevation mark).
 - **Paper sizes do not scale**: stroke widths, text heights, dimension offsets, ticks and gaps
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
@@ -251,7 +252,27 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    and `{{L}}` like the text above). **Angular dimension** (`angle {c, a, b, r}`; tool
    `dimAngular`: the vertex, a point on each side, where the arc goes — the side it is placed in
    is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
-   the angle (`<>°`) level just outside the arc's middle. Texts have an **alignment** (left,
+   the angle (`<>°`) level just outside the arc's middle. A **right angle** (90° to a millionth
+   of a degree: exact and parametric drawings) without a text of its own is drawn as the
+   right-angle symbol instead: a square of side `r` on the vertex with a dot in it, no arc, no
+   marks, no "90°"; a text of its own (`<>°`) keeps the arc. **Continue** and **Baseline**
+   (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_continue`,
+   `dim_baseline`): from the one linear dimension selected, else the newest, each click adds a
+   dimension of the same orientation and look — Continue from the last one's second point, its
+   line on the last one's line (a chain); Baseline from the base's first point, each a row
+   (`Drawing::dim_row`: 1.5 texts and a gap, paper mm) further out, away from the points. The
+   first point keeps its expression (a chain from `L` starts at `L`). **Level marks**
+   (`level {p, datum, text, flip, left}`; tool `level liv quotaLivello`, one click per mark, each
+   like the last one: datum, side, way up): a triangle standing on the level, half filled on the
+   text side, a short line through its tip and a line along its top under the elevation —
+   `p`'s height above `datum` (the ±0.00 level, drawing units, an expression too) in metres, two
+   decimals, signed (`+3.00`, `−1.50`, `±0.00`), with the document's decimal comma when it uses
+   one; `text` takes `<>` and `{{L}}` as a dimension's. `flip` hangs it under the level (a
+   ceiling, a soffit), `left` puts the text on the left. Moving, scaling or stretching moves its
+   point, so the elevation follows; the datum stays. **Flip** (`ui.cadFlip`, Dimensions › Flip
+   and the right-click menu; `Drawing::flip_dims`): a linear dimension's line to the other side
+   of its points, an angle's other side (360° − the angle), a level mark under or over its
+   level; one undo step. Texts have an **alignment** (left,
    centre, right on their point). Arrowheads are filled paths (`Prim::Path { fill }`).
    **Scale, Rotate, Mirror, Offset** (CAD Drawing › Modify; `scale sc`, `rotate ro`, `mirror mi`,
    `offset o`): Scale and Rotate take the selection (or ask for objects), a base point, then a
@@ -325,6 +346,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-28: right-angle symbol; Continue and Baseline dimensions; level marks; Flip.
 - 2026-10-28: maximum size; the Scale list offers Fitted to Frame and the scales that fit (Picture Format, CAD Output).
 - 2026-10-28: Explode, Join, Match Properties, Stretch, rectangular and polar arrays; line samples on the sheet's white.
 - 2026-10-28: Trim and Extend (quick mode), Fillet and Chamfer of two lines.

@@ -684,6 +684,16 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             };
             reorder(app, order);
         }
+        "ui.cadFlip" => {
+            // Flips the selected dimensions and level marks.
+            let Some((mut d, sel)) = app.cad.as_ref().map(|e| (e.drawing.clone(), e.selection.clone())) else { return Ok(json!({})) };
+            let n = d.flip_dims(&sel);
+            if n == 0 {
+                return Err("select the dimensions or level marks to flip".into());
+            }
+            commit(app, &d);
+            return Ok(json!({"flipped": n}));
+        }
         "ui.cadLayer" => {
             // Moves the selection to a layer (made if missing).
             let name = p.get("layer").and_then(serde_json::Value::as_str).ok_or("layer: a layer name")?;
@@ -1192,6 +1202,7 @@ enum Act {
     Delete,
     Order(Order),
     Layer(String),
+    Flip,
     Similar,
     Deselect,
     Option(SelectOption),
@@ -1354,6 +1365,13 @@ fn menu(ed: &CadEditor, ui: &mut Ui) -> Option<Act> {
         ui.separator();
         item(ui, "Move", "M", false, Act::Tool(Tool::Move));
         item(ui, "Copy", "CO", false, Act::Tool(Tool::Copy));
+        let annotations = ed
+            .selection
+            .iter()
+            .any(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. })));
+        if annotations {
+            item(ui, "Flip", "", false, Act::Flip);
+        }
         ui.separator();
         ui.menu_button(tl!("Draw order"), |ui| {
             item(ui, "Bring to Front", "", false, Act::Order(Order::Front));
@@ -1421,6 +1439,9 @@ fn apply(app: &mut WordApp, a: Act) {
         Act::Order(o) => reorder(app, o),
         Act::Layer(name) => {
             let _ = app.run("ui.cadLayer", json!({"layer": name}));
+        }
+        Act::Flip => {
+            let _ = app.run("ui.cadFlip", json!({}));
         }
         Act::Undo => {
             let _ = app.run("edit.undo", json!({}));
@@ -3085,6 +3106,16 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
                 tool == Tool::Level,
             );
         });
+        small(
+            ui,
+            app,
+            "cadFlip",
+            Some("Flip"),
+            "Flip the selected dimensions: the line to the other side, the other side of an angle, a level mark under its level",
+            "ui.cadFlip",
+            json!({}),
+            false,
+        );
     });
     // The drawing's annotation style: one place for how every dimension and new text looks.
     let Some(style) = app.cad.as_ref().map(|e| e.drawing.dim_style) else { return };
@@ -3378,6 +3409,16 @@ mod tests {
         let d = feed(ed, Pt::new(10.0, 0.0), None).expect("a second level mark");
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Level { datum, flip: true, left: false, .. } if datum.value == 500.0));
         assert_eq!(ed.tool, Tool::Level, "the command goes on");
+        // Flip works on the selected annotations, one undo step; nothing to flip is an error.
+        let d = feed(ed, Pt::new(20.0, 0.0), None).unwrap();
+        commit(&mut app, &d);
+        let ed = app.cad.as_mut().unwrap();
+        let last = ed.drawing.entities.len() - 1;
+        ed.selection = vec![last];
+        assert_eq!(app.run("ui.cadFlip", json!({})).unwrap(), json!({"flipped": 1}));
+        assert!(matches!(app.cad.as_ref().unwrap().drawing.entities[last].kind, Kind::Level { flip: false, .. }));
+        app.cad.as_mut().unwrap().selection.clear();
+        assert!(app.run("ui.cadFlip", json!({})).is_err());
     }
 
     /// Continue and Baseline go on from the newest linear dimension (or the one selected), one

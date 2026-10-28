@@ -1,7 +1,7 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** explode, join, match properties,
-> stretch, arrays; dash types 5 of 5, drawn on every output; rotated and aligned dimension texts
+> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** right-angle symbol, continue
+> and baseline dimensions, level marks, flip
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -23,9 +23,9 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | **Point style** (owner): how points show — dot, cross, x, circle, square and combinations; size on paper (annotative) or in drawing units | dot only | todo |
 | Text: multiline, align, base point (9), reach, offset, rotation | single line, align, rotation | partial |
 | Hatch: loops with islands, solid / lines / cross, angle, spacing (even-odd) | hatch by boundary ids; lines, cross, steel, dashed, solid | done |
-| Level (elevation mark): value, auto, datum, flip, side | — | todo |
-| Linear dimension: marks per end, text above/below, `{{row}}`, associative ends, driving value, chains/levels | marks, below, `{{L}}`, text aligned with the line (style option, readable) | partial |
-| Angular dimension: right-angle symbol, vertex mark | basic | partial |
+| Level (elevation mark): value, auto, datum, flip, side | value (`<>`, `{{L}}`), auto from the datum in metres, datum, flip, side | done |
+| Linear dimension: marks per end, text above/below, `{{row}}`, associative ends, driving value, chains/levels | marks, below, `{{L}}`, text aligned with the line (style option, readable), chains (Continue) and rows (Baseline) | partial (marks per end, associative ends, driving value) |
+| Angular dimension: right-angle symbol, vertex mark | right-angle symbol (square and dot) | partial (vertex mark) |
 | Dimension extension: to point or fixed length (`dim_ext`) | gap/overshoot | partial |
 | Constraints (geometric, dimensional) and solver; driving dimensions | — | todo |
 | Xrefs (other drawings, fade, layer rules) | — | todo |
@@ -40,7 +40,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Arc, point, text | done |
 | Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
 | Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
-| Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial |
+| Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial (continue, baseline, level, flip done; linear-auto, unlink, extension mode to do) |
 | Copy, move, mirror, stretch, **scale** (owner), rotate; rectangular and polar arrays | done |
 | Offset (line, circle, arc, polyline; distance or through point) | done (distance) |
 | Fillet, chamfer, trim, extend, join, explode | done (fillet and chamfer of lines) |
@@ -78,8 +78,8 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
    annotative/scaled marking, right-click menu with icons.
 2. Modify commands: mirror, rotate, stretch, offset, trim, extend, fillet, join, explode, match
    properties (ported from CADCraft where it applies).
-3. Dimensions: linear-auto, continue/chain, levels, flip, extension modes, associative ends,
-   right-angle symbol; level marks.
+3. Dimensions: linear-auto, extension modes, associative ends, marks per end, vertex mark
+   (continue/chain, baseline rows, flip, right-angle symbol and level marks done).
 4. Text: multiline, base points; symbols inserter.
 5. Snaps and point aids: geometric centre, grid snap, tracking, From, M2P, filters, angle lock.
 6. Entity names and measures for the calculations.
@@ -87,6 +87,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-28: right-angle symbol, continue and baseline dimensions, level marks, flip.
 - 2026-10-28: maximum size, scales that fit, Fitted to Frame.
 - 2026-10-28: explode, join, match properties, stretch, arrays.
 - 2026-10-28: trim, extend, fillet and chamfer.

@@ -149,3 +149,27 @@ fn level_marks_show_the_elevation() {
     let _ = d.render(None);
     let _ = d.fields(0, 0);
 }
+
+/// Flip: a linear dimension's line to the other side of its points, the other side of an
+/// angle's arc, a level mark under its level; anything else is left alone. Twice is no change.
+#[test]
+fn flipping_dimensions() {
+    let mut d = Drawing::from_json(
+        r#"{"entities":[{"type":"dim","a":[0,0],"b":[50,0],"offset":8,"orient":"horizontal"},
+            {"type":"angle","c":[0,0],"a":[10,0],"b":[0,10],"r":5,"text":"<>°"},
+            {"type":"level","p":[0,0]},{"type":"line","a":[0,0],"b":[1,1]}]}"#,
+    )
+    .unwrap();
+    let before = d.clone();
+    let y = |d: &Drawing| d.dim_frame(&d.entities[0], 1.0).unwrap().fa.y;
+    assert!((y(&d) - 8.0).abs() < 1e-9);
+    assert_eq!(d.flip_dims(&[0, 1, 2, 3, 99]), 3);
+    assert!((y(&d) + 8.0).abs() < 1e-9, "below the points");
+    let texts: Vec<String> =
+        d.render(None).prims.iter().filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect();
+    assert!(texts.contains(&"270°".to_string()), "{texts:?}");
+    assert!(matches!(d.entities[2].kind, Kind::Level { flip: true, .. }));
+    assert_eq!(d.entities[3], before.entities[3]);
+    d.flip_dims(&[0, 1, 2]);
+    assert_eq!(d, before);
+}

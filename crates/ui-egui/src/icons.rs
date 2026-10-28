@@ -1282,6 +1282,16 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(3.0, 11.0), (18.0, 11.0)], c);
             pen.text(13.0, 7.0, 7.0, "±", a, false);
         }
+        // Flip: a dimension above a line, an arrow round to its place below.
+        "cadFlip" => {
+            pen.line_c(&[(3.0, 10.0), (13.0, 10.0)], c);
+            pen.line_c(&[(3.0, 5.0), (13.0, 5.0)], c);
+            pen.line_c(&[(3.0, 3.0), (3.0, 7.0)], c);
+            pen.line_c(&[(13.0, 3.0), (13.0, 7.0)], c);
+            pen.line_c(&[(16.0, 5.0), (17.5, 8.0), (17.5, 12.0), (16.0, 15.0)], a);
+            pen.line_c(&[(14.0, 13.5), (16.0, 15.0), (17.5, 13.0)], a);
+            pen.line_c(&[(3.0, 15.0), (13.0, 15.0)], a);
+        }
         "cadDimBase" => {
             pen.line_c(&[(3.0, 13.0), (11.0, 13.0)], c);
             pen.line_c(&[(3.0, 7.0), (17.0, 7.0)], c);
