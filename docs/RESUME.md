@@ -133,6 +133,8 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   - Upstream merge: WordCraft `9724f15c` merged (4800 tests green); Strix ribbon code in
     `crates/ui-egui/src/ribbon/strix.rs`, equation-page drawing in `canvas/strix.rs`; CAD editor
     `show`/`feed` split; dependency bump reverted (see Next).
+  - Release 0.13.0 (2026-10-29): version bumped on `main`, `main` merged into `release`; the
+    Release workflow drafts `Strix v0.13.0`, publish it after review (Actions › Publish release).
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
