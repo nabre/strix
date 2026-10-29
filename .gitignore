@@ -11,3 +11,6 @@ plan/
 
 # The owner's earlier prototype, kept locally for reference only: nothing may depend on it.
 old_strix/
+
+# The project site, built by `cargo xtask site`.
+/_site/

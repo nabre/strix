@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Strix social card (og:image and the repository's social preview), 1280x640. Original work by
+     the Strix contributors, MIT OR Apache-2.0. Render it from the repository root with any
+     Chromium-based browser in headless mode, e.g.
+       msedge --headless=new --hide-scrollbars --window-size=1280,640 \
+         --screenshot=docs/brand/social.png file:///<repo>/docs/brand/social.html
+     then add nothing else: the PNG is the file the site and GitHub use. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Strix social card</title>
+<style>
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(700px circle at 92% 8%, rgb(16 185 129 / 0.28), transparent 70%),
+      radial-gradient(600px circle at 0% 100%, rgb(91 182 209 / 0.16), transparent 70%),
+      linear-gradient(160deg, #0f3d2e, #05140f);
+    color: #cccccc; font-family: "Geist", "Segoe UI", system-ui, sans-serif;
+    display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: 40px; padding: 0 72px; box-sizing: border-box;
+  }
+  .brand { display: flex; align-items: center; gap: 22px; margin-bottom: 40px; }
+  .brand img.sym { width: 96px; height: 96px; border-radius: 22px; }
+  .brand img.word { height: 52px; }
+  h1 { font-size: 66px; line-height: 1.02; letter-spacing: -0.045em; color: #f2f2f2; margin: 0 0 22px; font-weight: 700; }
+  h1 em { font-style: normal; background: linear-gradient(100deg, #10b981, #fbbf24 65%, #f97316); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { font-size: 25px; line-height: 1.4; margin: 0 0 26px; color: #d1f0e0; }
+  .meta { font: 500 15px "Geist Mono", Consolas, monospace; color: #6ee7b7; letter-spacing: 0.04em; }
+  .paper { background: #161616; border: 1px solid #2b2b2b; border-radius: 10px; padding: 34px 36px; box-shadow: 0 30px 76px rgb(0 0 0 / 0.55); }
+  .eq { font: 31px/1.5 "STIX Two Math", "Cambria Math", "Latin Modern Roman", serif; color: #e6e6e6; padding: 4px 12px; margin: 0 -12px 6px; border-radius: 4px; white-space: nowrap; }
+  .eq.live { box-shadow: inset 3px 0 0 #10b981; background: rgb(16 185 129 / 0.08); }
+  var { font-style: italic; }
+  .u { color: #5bb6d1; margin-left: 0.15em; }
+  .r { color: #10b981; font-weight: 600; }
+  .ok { color: #73c991; font-family: "Segoe UI", sans-serif; font-weight: 700; }
+  .then { color: #9d9d9d; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="brand">
+      <img class="sym" src="../../assets/app-icon/strix.svg" alt="">
+      <img class="word" src="wordmark-dark.svg" alt="Strix">
+    </div>
+    <h1>Type the equation.<br><em>It calculates.</em></h1>
+    <p>WYSIWYG math for engineers: units, solving, checks and drawings, live in the page.</p>
+    <div class="meta">OPEN SOURCE · RUST · WINDOWS · MACOS · LINUX · BSD · WEB</div>
+  </div>
+  <div class="paper">
+    <div class="eq"><var>L</var> = 4.5<span class="u">m</span></div>
+    <div class="eq"><var>q</var> = 12<span class="u">kN/m</span></div>
+    <div class="eq live"><var>M</var> = <var>q</var>·<var>L</var>²/8 = <span class="r">30.375</span><span class="u">kN·m</span></div>
+    <div class="eq"><var>W</var> = 1000<span class="u">cm³</span></div>
+    <div class="eq live"><var>σ</var> = <var>M</var>/<var>W</var> = <span class="r">30.375</span><span class="u">MPa</span></div>
+    <div class="eq live"><var>σ</var> ≤ <var>f</var><sub>yd</sub> <span class="then">⇒</span> 30.375 ≤ 355<span class="u">MPa</span> <span class="ok">✓</span></div>
+  </div>
+</body>
+</html>

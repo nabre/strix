@@ -1,0 +1,362 @@
+<!doctype html>
+<!-- Strix project site, landing page model. Built by `cargo xtask site` (xtask/src/site.rs) into
+     _site/, one page per language: the partials come from site/partials/, the keys from
+     site/strings/LANG.json and from the build. Plain HTML and CSS, no scripts; every
+     illustration is drawn for this page. Original work by the Strix contributors,
+     MIT OR Apache-2.0. Marketing rules: docs/brand/MARKETING.md. -->
+<html lang="{{lang}}">
+<head>
+{{> head}}
+</head>
+<body>
+{{> header}}
+
+<main id="top">
+
+<!-- Hero -->
+<section class="hero">
+  <div class="wrap hero-copy">
+    <div class="kicker">{{heroKicker}}</div>
+    <h1>{{heroTitle1}} <em>{{heroTitle2}}</em></h1>
+    <p class="lead">{{heroLead}}</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download">{{ctaDownload}}</a>
+      <a class="btn btn-ghost" href="{{base}}app/?sample">{{ctaTryWeb}}</a>
+      <a class="btn btn-ghost" href="https://github.com/nabre/strix">{{ctaGitHub}}</a>
+    </div>
+    <p class="note">{{heroNote}}</p>
+  </div>
+  <div class="wrap">
+    <figure class="shot hero-shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-calc-dark.png">
+        <img src="{{root}}assets/shots/{{lang}}/shot-calc-light.png" alt="{{shotCalcAlt}}" width="1440" height="900">
+      </picture>
+    </figure>
+  </div>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>{{stat1Title}}</b><span>{{stat1Text}}</span></div>
+      <div class="stat"><b>{{stat2Title}}</b><span>{{stat2Text}}</span></div>
+      <div class="stat"><b>{{stat3Title}}</b><span>{{stat3Text}}</span></div>
+      <div class="stat"><b>{{stat4Title}}</b><span>{{stat4Text}}</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section id="how" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{howEyebrow}}</div>
+    <h2>{{howTitle}}</h2>
+    <div class="aspects">
+      <article class="aspect"><span class="aspect-n">01</span><h3>{{a1Title}}</h3><p>{{a1Text}}</p></article>
+      <article class="aspect"><span class="aspect-n">02</span><h3>{{a2Title}}</h3><p>{{a2Text}}</p></article>
+      <article class="aspect"><span class="aspect-n">03</span><h3>{{a3Title}}</h3><p>{{a3Text}}</p></article>
+      <article class="aspect"><span class="aspect-n">04</span><h3>{{a4Title}}</h3><p>{{a4Text}}</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- WYSIWYG math -->
+<section id="math">
+  <div class="wrap show">
+    <div>
+      <div class="eyebrow">{{mathEyebrow}}</div>
+      <h2>{{mathTitle}}</h2>
+      <p class="intro">{{mathIntro}}</p>
+      <ul class="points">
+        <li>{{math1}}</li>
+        <li>{{math2}}</li>
+        <li>{{math3}}</li>
+        <li>{{math4}}</li>
+        <li>{{math5}}</li>
+      </ul>
+    </div>
+    <figure class="paper" aria-label="{{mathFigureLabel}}">
+      <ul class="eqs">
+        <li class="eq"><var>m</var> = 400<span class="u">kg</span></li>
+        <li class="eq"><var>F</var> = 1<span class="u">kN</span></li>
+        <li class="eq live"><var>F</var> = <var>m</var>·<var>a</var> <span class="then">⇒</span> <var>a</var> = <span class="r">2.5</span><span class="u">m/s²</span><span class="tag">{{tagSolve}}</span></li>
+        <li class="eq live"><var>x</var>² + <var>x</var> = 6 <span class="then">⇒</span> <var>x</var> = <span class="r">2</span><span class="tag">{{tagNumeric}}</span></li>
+        <li class="eq"><var>α</var> = 30<span class="u">°</span></li>
+        <li class="eq live"><var>β</var> = 90<span class="u">°</span> − <var>α</var> = <span class="r">60</span><span class="u">°</span><span class="tag">{{tagKeptUnit}}</span></li>
+        <li class="eq live"><var>n</var> = <span class="bigop"><small>4</small><span class="m">∑</span><small><var>i</var>=1</small></span> <var>i</var>² = <span class="r">30</span><span class="tag">Σ</span></li>
+        <li class="eq err"><var>s</var> = 2<span class="u">m</span> + 3<span class="u">s</span> <span class="warn">⚠ {{tagDimension}}</span></li>
+      </ul>
+      <p class="small muted cap">{{tableCaption}}</p>
+      <div class="tscroll">
+        <table class="ctable">
+          <thead><tr><th>{{tableBeam}}</th><th><span class="m"><var>L</var></span> [<span class="u">m</span>]</th><th><span class="m"><var>q</var></span> [<span class="u">kN/m</span>]</th><th><span class="m"><var>M</var></span> [<span class="u">kN·m</span>] = <span class="m"><var>γ</var>·<var>q</var>·<var>L</var>²/8</span></th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td>4.5</td><td>12</td><td class="calc">41.006</td></tr>
+            <tr><td>B2</td><td>6000 <span class="u">mm</span></td><td>10</td><td class="calc">60.75</td></tr>
+          </tbody>
+          <tfoot><tr><td>{{tableTotal}}</td><td></td><td></td><td class="calc">Σ = 101.756</td></tr></tfoot>
+        </table>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{featEyebrow}}</div>
+    <h2>{{featTitle}}</h2>
+    <p class="intro muted">{{featIntro}}</p>
+    <div class="bento">
+      <article class="tile wide"><span class="tile-n">01 · {{f1Kicker}}</span><h3>{{f1Title}}</h3><p>{{f1Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">02 · {{f2Kicker}}</span><h3>{{f2Title}}</h3><p>{{f2Text}}</p></article>
+      <article class="tile"><span class="tile-n">03 · {{f3Kicker}}</span><h3>{{f3Title}}</h3><p>{{f3Text}}</p></article>
+      <article class="tile"><span class="tile-n">04 · {{f4Kicker}}</span><h3>{{f4Title}}</h3><p>{{f4Text}}</p></article>
+      <article class="tile"><span class="tile-n">05 · {{f5Kicker}}</span><h3>{{f5Title}}</h3><p>{{f5Text}}</p></article>
+      <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
+      <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
+      <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">09 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
+      <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- Exercises -->
+<section id="exercises">
+  <div class="wrap show flip">
+    <div>
+      <div class="eyebrow">{{exEyebrow}}</div>
+      <h2>{{exTitle}}</h2>
+      <p class="intro">{{exIntro}}</p>
+      <ul class="points">
+        <li>{{ex1}}</li>
+        <li>{{ex2}}</li>
+        <li>{{ex3}}</li>
+        <li>{{ex4}}</li>
+        <li>{{ex5}}</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-exercise-dark.png">
+        <img src="{{root}}assets/shots/{{lang}}/shot-exercise-light.png" alt="{{shotExerciseAlt}}" width="1100" height="960" loading="lazy">
+      </picture>
+    </figure>
+  </div>
+</section>
+
+<!-- CAD -->
+<section id="cad" class="band">
+  <div class="wrap show">
+    <div>
+      <div class="eyebrow">{{cadEyebrow}}</div>
+      <h2>{{cadTitle}}</h2>
+      <p class="intro">{{cadIntro}}</p>
+      <ul class="points">
+        <li>{{cad1}}</li>
+        <li>{{cad2}}</li>
+        <li>{{cad3}}</li>
+        <li>{{cad4}}</li>
+        <li>{{cad5}}</li>
+      </ul>
+    </div>
+    <figure class="paper cad" aria-label="{{cadFigureLabel}}">
+      <svg viewBox="0 0 560 270" role="img" aria-label="{{cadFigureLabel}}">
+        <g class="ld" stroke-width="1.6" fill="none">
+          <path d="M70 70H490"/>
+          <path d="M70 70V112M112 70V112M154 70V112M196 70V112M238 70V112M280 70V112M322 70V112M364 70V112M406 70V112M448 70V112M490 70V112"/>
+        </g>
+        <g class="ldt">
+          <path d="M70 120l-5-10h10zM112 120l-5-10h10zM154 120l-5-10h10zM196 120l-5-10h10zM238 120l-5-10h10zM280 120l-5-10h10zM322 120l-5-10h10zM364 120l-5-10h10zM406 120l-5-10h10zM448 120l-5-10h10zM490 120l-5-10h10z"/>
+          <text x="280" y="58" text-anchor="middle" class="svg-math" font-size="17"><tspan font-style="italic">q</tspan> = 12 <tspan class="dmu">kN/m</tspan></text>
+        </g>
+        <rect class="ln" x="70" y="122" width="420" height="16" fill="none" stroke-width="2"/>
+        <g class="ln" stroke-width="1.8" fill="none">
+          <path d="M70 138l-16 26h32z"/>
+          <path d="M46 164h48"/>
+          <path stroke-width="1" d="M50 164l-8 9M60 164l-8 9M70 164l-8 9M80 164l-8 9M90 164l-8 9"/>
+          <path d="M490 138l-16 26h32z"/>
+          <circle cx="480" cy="170" r="5"/><circle cx="500" cy="170" r="5"/>
+          <path d="M466 176h48"/>
+        </g>
+        <g class="dm" stroke-width="1.2" fill="none">
+          <path d="M70 182V232M490 182V232"/>
+          <path d="M70 222H490"/>
+          <path d="M64 228l12-12M484 228l12-12" stroke-width="1.8"/>
+        </g>
+        <text class="dmt svg-math" x="280" y="214" text-anchor="middle" font-size="18"><tspan font-style="italic">L</tspan> = 4.5 <tspan class="dmu">m</tspan></text>
+        <g class="grip" stroke-width="1.5">
+          <rect x="65" y="125" width="10" height="10"/><rect x="275" y="125" width="10" height="10"/><rect x="485" y="125" width="10" height="10"/>
+        </g>
+        <g class="snap" stroke-width="1.6"><rect x="482" y="114" width="16" height="16"/></g>
+        <text x="70" y="258" font-size="10.5" class="dmt svg-mono">b = ["L", 0]</text>
+      </svg>
+      <figcaption class="small muted">{{cadCaption}}</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- Agents -->
+<section id="agents">
+  <div class="wrap">
+    <div class="eyebrow">{{agEyebrow}}</div>
+    <h2>{{agTitle}}</h2>
+    <p class="intro">{{agIntro}}</p>
+    <div class="agent-grid">
+      <div>
+        <h3>{{agMcpTitle}}</h3>
+<pre><span class="c"># {{agMcpComment1}}</span>
+claude mcp add strix -- strix-cli mcp
+<span class="c"># {{agMcpComment2}}</span>
+strix --control 7981 &amp;
+claude mcp add strix-app -- strix-cli mcp --connect 127.0.0.1:7981</pre>
+        <ul class="chips" aria-label="{{agMcpToolsLabel}}">
+          <li>list_commands</li><li>execute</li><li>batch</li><li>type_text</li><li>select_text</li><li>inspect_document</li><li>render_page</li><li>save_document</li><li>screenshot</li>
+        </ul>
+      </div>
+      <div>
+        <h3>{{agCliTitle}}</h3>
+<pre>strix-cli convert problem.xmath problem.pdf
+strix-cli run --template sample \
+  --cmd 'calc.insert={"text":"L = 4.5 m"}' \
+  --save beam.xmath
+strix-cli commands</pre>
+        <ul class="chips" aria-label="{{agCalcLabel}}">
+          <li>calc.insert</li><li>calc.recalculate</li><li>calc.variables</li><li>calc.steps</li><li>table.calc</li><li>exercise.insert</li><li>equation.answer</li><li>insert.cad</li><li>cad.set</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small muted">{{agNote}}</p>
+  </div>
+</section>
+
+<!-- Download -->
+<section id="download" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{dlEyebrow}}</div>
+    <h2>{{dlTitle}}</h2>
+    <p class="intro">{{dlIntro}}</p>
+    <div class="downloads">
+      <article class="dl">
+        <h3>Windows</h3>
+        <p class="small muted">{{dlWindowsNote}}</p>
+        <ul>
+          <li><a href="{{dl}}windows-x64.msi">{{dlInstaller}} · x64</a></li>
+          <li><a href="{{dl}}windows-arm64.msi">{{dlInstaller}} · ARM64</a></li>
+          <li><a href="{{dl}}windows-x86.msi">{{dlInstaller}} · x86</a></li>
+          <li><a href="{{dl}}windows-x64-portable.zip">{{dlPortable}} · x64</a></li>
+          <li><a href="{{dl}}windows-arm64-portable.zip">{{dlPortable}} · ARM64</a></li>
+        </ul>
+      </article>
+      <article class="dl">
+        <h3>macOS</h3>
+        <p class="small muted">{{dlMacNote}}</p>
+        <ul>
+          <li><a href="{{dl}}macos-universal.dmg">DMG · Apple silicon + Intel</a></li>
+        </ul>
+      </article>
+      <article class="dl">
+        <h3>Linux</h3>
+        <p class="small muted">{{dlLinuxNote}}</p>
+        <ul>
+          <li><a href="{{dl}}linux-x86_64.AppImage">AppImage · x86_64</a> · <a href="{{dl}}linux-aarch64.AppImage">aarch64</a></li>
+          <li><a href="{{dl}}linux-x86_64.deb">deb · x86_64</a> · <a href="{{dl}}linux-aarch64.deb">aarch64</a> · <a href="{{dl}}linux-riscv64.deb">riscv64</a></li>
+          <li><a href="{{dl}}linux-x86_64.rpm">rpm · x86_64</a> · <a href="{{dl}}linux-aarch64.rpm">aarch64</a> · <a href="{{dl}}linux-riscv64.rpm">riscv64</a></li>
+          <li><a href="{{dl}}linux-x86_64.flatpak">Flatpak · x86_64</a> · <a href="{{dl}}linux-aarch64.flatpak">aarch64</a></li>
+          <li><a href="{{dl}}linux-x86_64.pkg.tar.zst">Arch · x86_64</a> · <a href="{{dl}}linux-aarch64.pkg.tar.zst">aarch64</a></li>
+        </ul>
+      </article>
+      <article class="dl">
+        <h3>FreeBSD</h3>
+        <p class="small muted">{{dlBsdNote}}</p>
+        <ul>
+          <li><a href="{{dl}}freebsd-x86_64.tar.gz">tar.gz · x86_64</a></li>
+        </ul>
+      </article>
+      <article class="dl web">
+        <h3>{{dlWebTitle}}</h3>
+        <p class="small muted">{{dlWebNote}}</p>
+        <ul>
+          <li><a href="{{base}}app/?sample">{{ctaTryWeb}}</a></li>
+          <li><a href="https://github.com/nabre/strix/releases/download/v{{version}}/strix-web-{{version}}.zip">{{dlWebZip}}</a></li>
+        </ul>
+      </article>
+    </div>
+    <p class="small muted">{{dlAllFiles}} <a href="https://github.com/nabre/strix/releases/tag/v{{version}}">Strix v{{version}}</a> · <a href="https://github.com/nabre/strix/releases/download/v{{version}}/SHA256SUMS.txt">SHA256SUMS.txt</a> · <a href="https://github.com/nabre/strix/blob/main/docs/code-signing.md">{{dlSigning}}</a></p>
+  </div>
+</section>
+
+<!-- Trust -->
+<section id="trust">
+  <div class="wrap">
+    <div class="eyebrow">{{trustEyebrow}}</div>
+    <h2>{{trustTitle}}</h2>
+    <div class="aspects">
+      <article class="aspect"><h3>{{t1Title}}</h3><p>{{t1Text}}</p></article>
+      <article class="aspect"><h3>{{t2Title}}</h3><p>{{t2Text}}</p></article>
+      <article class="aspect"><h3>{{t3Title}}</h3><p>{{t3Text}}</p></article>
+      <article class="aspect"><h3>{{t4Title}}</h3><p>{{t4Text}}</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- Build from source -->
+<section id="start" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{startEyebrow}}</div>
+    <h2>{{startTitle}}</h2>
+    <p class="intro">{{startIntro}}</p>
+    <ol class="steps">
+      <li>
+        <p><b>{{startClone}}</b></p>
+<pre>git clone https://github.com/nabre/strix
+cd strix</pre>
+      </li>
+      <li>
+        <p><b>{{startDesktop}}</b></p>
+<pre>cargo run --release -p strix -- --sample
+cargo run --release -p strix -- problem.xmath</pre>
+      </li>
+      <li>
+        <p><b>{{startWeb}}</b></p>
+<pre>cd apps/strix-web
+trunk serve
+<span class="c"># http://127.0.0.1:8771/?sample</span></pre>
+      </li>
+    </ol>
+    <p class="small muted">{{startThen}} <a href="https://github.com/nabre/strix/blob/main/docs/calc.md">calc.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/exercise.md">exercise.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/cad.md">cad.md</a></p>
+  </div>
+</section>
+
+<!-- Licence -->
+<section id="license">
+  <div class="wrap license">
+    <div>
+      <div class="eyebrow">{{licEyebrow}}</div>
+      <h2>{{licTitle}}</h2>
+      <p>{{licText}} <a href="https://github.com/nabre/strix/blob/main/LICENSE-MIT">MIT</a> · <a href="https://github.com/nabre/strix/blob/main/LICENSE-APACHE">Apache-2.0</a></p>
+      <p>{{licFork}} <a href="https://github.com/storytold/wordcraft">WordCraft</a> · <a href="https://github.com/nabre/strix/blob/main/NOTICE">NOTICE</a></p>
+    </div>
+    <div>
+      <h3>{{licThirdTitle}}</h3>
+      <p class="muted">{{licThirdText}} <a href="https://github.com/nabre/strix/blob/main/ATTRIBUTION.md">ATTRIBUTION.md</a> · <a href="https://nabre.github.io/atollo/">Atollo</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- Closing call to action -->
+<section class="closing">
+  <div class="wrap">
+    <h2>{{closeTitle}}</h2>
+    <p class="lead">{{closeText}}</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download">{{ctaDownload}}</a>
+      <a class="btn btn-ghost" href="{{base}}app/?sample">{{ctaTryWeb}}</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+{{> footer}}
+</body>
+</html>

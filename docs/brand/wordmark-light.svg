@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 252 84" role="img" aria-label="Strix">
+  <!-- Strix wordmark for light backgrounds: the letters drawn as strokes, no font. The I leans
+       like the quill of the app icon. Original work by the Strix contributors, MIT OR Apache-2.0. -->
+  <g fill="none" stroke="#0F3D2E" stroke-width="11" stroke-linejoin="round">
+    <path d="M47 21 C42 14 35 12 27 12 C15 12 7 18 7 27 C7 36 15 39 27 42 C39 45 47 48 47 57 C47 66 39 72 27 72 C17 72 9 68 4 61"/>
+    <path d="M60 17.5 H106 M83 17.5 V72"/>
+    <path d="M124 72 V17.5 H143 C156 17.5 163 24 163 33 C163 42 156 48.5 143 48.5 H124 M143 48.5 L165 72"/>
+    <path d="M204 17.5 L248 72 M248 17.5 L204 72"/>
+  </g>
+  <path d="M190 12 L176 76" fill="none" stroke="#C2410C" stroke-width="11" stroke-linecap="round"/>
+</svg>

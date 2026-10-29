@@ -26,6 +26,19 @@
 </p>
 
 <p align="center">
+  <a href="https://nabre.github.io/strix/"><b>Website</b></a> ·
+  <a href="https://github.com/nabre/strix/releases/latest"><b>Download</b></a> ·
+  <a href="https://nabre.github.io/strix/app/?sample"><b>Try it in the browser</b></a> ·
+  <a href="https://github.com/nabre/strix/issues"><b>Issues</b></a>
+</p>
+
+<p align="center">English · <a href="docs/README.it.md">Italiano</a> · <a href="docs/README.fr.md">Français</a> · <a href="docs/README.de.md">Deutsch</a></p>
+
+<p align="center">
+  <img src="docs/brand/social.png" alt="Strix: type the equation, it calculates. A beam calculation with units, a solved result and a stress check." width="100%">
+</p>
+
+<p align="center">
   <a href="#wysiwyg-math">WYSIWYG math</a> ·
   <a href="#exercises">Exercises</a> ·
   <a href="#cad-drawings-driven-by-the-calculations">CAD drawings</a> ·
@@ -38,7 +51,8 @@
 </p>
 
 > **Status: alpha.** The document editor Strix is built on is mature; the calculation engine,
-> exercises and CAD are new and moving fast. There is no Strix release yet: build from source.
+> exercises and CAD are new and moving fast. Keep a copy of important documents, and
+> [tell us what breaks](https://github.com/nabre/strix/issues).
 
 ## WYSIWYG math
 
@@ -210,7 +224,11 @@ egui front end.
 ## Download
 
 Installers and portable builds for every platform are on the
-[Releases page](https://github.com/nabre/strix/releases). How the Windows builds are signed, who
+[Releases page](https://github.com/nabre/strix/releases) and the
+[website](https://nabre.github.io/strix/#download): Windows (MSI and portable ZIP; x64, x86,
+ARM64), macOS (universal DMG), Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64 and aarch64, plus
+riscv64 deb/rpm/tar.gz), FreeBSD, and the web build as a static site you can host. The web build
+also runs on the website: [try it in the browser](https://nabre.github.io/strix/app/?sample). How the Windows builds are signed, who
 approves a release, what Strix sends over the network (nothing unless you ask) and how to
 uninstall: [Code signing policy](docs/code-signing.md).
 
@@ -295,4 +313,7 @@ Bundled fonts, icons, images, dictionaries and translations keep their own open 
 one is listed with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md). The
 interface translations come from the craft-i18n project and its translators
 ([locales/ATTRIBUTION-craft-i18n.md](locales/ATTRIBUTION-craft-i18n.md)). Colours follow the
-[Atollo](https://github.com/nabre/atollo) palette. The project site is in [`site/`](site/).
+[Atollo](https://github.com/nabre/atollo) palette. The project site
+([nabre.github.io/strix](https://nabre.github.io/strix/)) is built from [`site/`](site/) by
+`cargo xtask site`; positioning, copy and brand rules are in
+[`docs/brand/MARKETING.md`](docs/brand/MARKETING.md).

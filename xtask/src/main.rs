@@ -8,6 +8,7 @@ mod assets;
 mod ico;
 mod layers;
 mod parity;
+mod site;
 mod stats;
 mod unused;
 mod upstream;
@@ -34,6 +35,8 @@ commands:
                   show where test corpora live; --download fetches PngSuite into corpus/pngsuite
   stats [--exact] count tests and lines per crate (--exact: ask the test harness via `-- --list`)
   parity          recompute the Word feature-parity summary in docs/parity-checklist.md
+  site [--check]  build the project site into _site/ (site/, docs/brand/MARKETING.md); --check
+                  also checks the pages, the sitemap and every relative link
   visual-diff <ref.pdf> <test.pdf> <outdir> [--private] [--dpi N]
                   compare two PDFs of a document page by page (SSIM, line breaks, offsets);
                   needs poppler (pdftoppm, pdftotext)
@@ -60,6 +63,7 @@ fn main() -> ExitCode {
         Some("corpus") => cmd_corpus(rest.contains(&"--download")),
         Some("stats") => stats::run(&root(), rest.contains(&"--exact")),
         Some("parity") => parity::run(&root()),
+        Some("site") => site::run(&root(), &rest),
         Some("ico") => ico::run(&rest),
         Some("visual-diff") => visual_diff::run(&rest),
         Some("version") => version::run(&root(), &rest),
