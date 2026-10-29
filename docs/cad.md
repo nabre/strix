@@ -57,8 +57,10 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   hover.
 - **The parts on screen** (editor only: never printed, exported or in the SVG picture): for the
   selected dimensions (up to 50), the one being placed and the one a grip is dragging, the editor
-  draws a dashed **blue reference** at the scaled distance — a line parallel to the dimension
-  line between its extension lines, or an arc (a square for a right angle) at the scaled radius
+  draws a **blue reference** at the scaled distance, in dash and two dots (ISO 128's phantom
+  line, the CAD linetype Dash-dot-dot: the boundary between the two parts) — a line parallel to
+  the dimension line between its extension lines, or an arc (a square for a right angle) at the
+  scaled radius
   — and two stretches along the normal (an angle's bisector) in the dimension's middle: **blue**
   from the farther measured point's level (the vertex) to the reference, the scaled part, and
   **magenta** from the reference on to the dimension line or arc, the annotative part, each

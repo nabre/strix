@@ -3,12 +3,13 @@
 //! annotative one (paper mm: the same in print) from its measured points, an angle's arc a
 //! scaled plus an annotative radius from its vertex. For the selected dimensions, the one being
 //! placed and the one a grip is dragging, the editor draws the reference line or arc at the
-//! scaled distance (dashed), the scaled stretch up to it and the annotative stretch on to the
+//! scaled distance (dash and two dots, ISO 128's phantom line: the boundary between the two
+//! parts), the scaled stretch up to it and the annotative stretch on to the
 //! dimension line or arc, each with its size, in two colours the Properties pane uses for the
 //! same two numbers. On screen only: never printed, exported or in the picture.
 
-use egui::{Align2, Color32, FontId, Pos2, Shape, Stroke, Vec2, vec2};
-use strix_cad::{DimParts, Kind, Num, Pt};
+use egui::{Align2, Color32, FontId, Pos2, Stroke, Vec2, vec2};
+use strix_cad::{Dash, DimParts, Kind, Num, Pt};
 
 /// The scaled part (drawing units: it follows the drawing's size and scale): blue.
 pub(crate) const SCALED: Color32 = Color32::from_rgb(0x25, 0x63, 0xEB);
@@ -18,6 +19,50 @@ pub(crate) const ANNOTATIVE: Color32 = Color32::from_rgb(0xC0, 0x26, 0xD3);
 /// How far a label sits from its stretch, and a linear reference runs past its ends, px.
 const LABEL_GAP: f32 = 7.0;
 const REFERENCE_OVER: f32 = 10.0;
+/// Screen points per paper mm of a linetype's pattern, as the linetype samples show it.
+const PATTERN_PX_PER_MM: f32 = 2.5;
+
+/// The pieces drawn of the path through `points` with a linetype's on/off `pattern` (screen
+/// points), carried on across the path's corners so an arc's chords read as one line.
+fn pattern_segments(points: &[Pos2], pattern: &[f32]) -> Vec<[Pos2; 2]> {
+    let mut out = Vec::new();
+    let pairs = points.windows(2).filter_map(|w| match w {
+        [a, b] => Some((*a, *b)),
+        _ => None,
+    });
+    // A pattern with no length (or none) is a solid line.
+    let Some(&first) = pattern.first().filter(|_| pattern.iter().all(|v| v.is_finite() && *v > 0.0)) else {
+        out.extend(pairs.map(|(a, b)| [a, b]));
+        return out;
+    };
+    // Where in the pattern the path is: which length, and how much of it is left.
+    let (mut k, mut left) = (0usize, first);
+    for (a, b) in pairs {
+        let len = a.distance(b);
+        let mut t = 0.0;
+        while t < len {
+            let step = left.min(len - t);
+            if k % 2 == 0 {
+                out.push([a.lerp(b, t / len), a.lerp(b, (t + step) / len)]);
+            }
+            t += step;
+            left -= step;
+            if left <= 1e-4 {
+                k = (k + 1) % pattern.len();
+                left = pattern.get(k).copied().unwrap_or(first);
+            }
+        }
+    }
+    out
+}
+
+/// Draws the path through `points` as a dash and two dots (the reference at the scaled distance).
+fn phantom(painter: &egui::Painter, points: &[Pos2], stroke: Stroke) {
+    let pattern: Vec<f32> = Dash::DashDoubleDotted.pattern().iter().map(|&v| (v as f32 * PATTERN_PX_PER_MM).max(1.5)).collect();
+    for [a, b] in pattern_segments(points, &pattern) {
+        painter.line_segment([a, b], stroke);
+    }
+}
 
 /// The colour and the explanation (English) of a dimension's or angle's Properties field that is
 /// one of the two parts.
@@ -76,8 +121,8 @@ fn anchor(side: Vec2) -> Align2 {
 
 /// Draws a dimension's parts (drawing points through `to_screen`); `unit` is the drawing's.
 pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, parts: &DimParts, unit: &str) {
-    // The reference at the scaled distance, dashed: a line a little past the extension lines,
-    // an arc or a square, or a ring on the vertex when there is no scaled part.
+    // The reference at the scaled distance, a dash and two dots: a line a little past the
+    // extension lines, an arc or a square, or a ring on the vertex when there is no scaled part.
     let reference: Vec<Pos2> = parts.reference.iter().map(|&p| to_screen(p)).collect();
     let thin = Stroke::new(1.5, SCALED);
     match reference.as_slice() {
@@ -87,11 +132,9 @@ pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, par
         }
         [a, b] => {
             let d = (*b - *a).normalized();
-            painter.add(Shape::dashed_line(&[*a - d * REFERENCE_OVER, *b + d * REFERENCE_OVER], thin, 6.0, 4.0));
+            phantom(painter, &[*a - d * REFERENCE_OVER, *b + d * REFERENCE_OVER], thin);
         }
-        many => {
-            painter.add(Shape::dashed_line(many, thin, 6.0, 4.0));
-        }
+        many => phantom(painter, many, thin),
     }
     // The two stretches along the normal (an angle's bisector), each with a bar at its ends; a
     // zero one is a dot where it would be.
@@ -171,5 +214,27 @@ mod tests {
         };
         let (s, a) = labels(&parts, "cm");
         assert!(s.contains("50 cm") && a.contains("4 mm"), "{s} / {a}");
+    }
+
+    /// The reference is a dash and two dots: a long dash, a gap, a dot, a gap, a dot, a gap, and
+    /// again; the pattern runs on across corners, and a pattern with no length is solid.
+    #[test]
+    fn the_reference_is_a_dash_and_two_dots() {
+        let pattern = [6.0, 2.0, 1.0, 2.0, 1.0, 2.0];
+        let line = pattern_segments(&[pos2(0.0, 0.0), pos2(28.0, 0.0)], &pattern);
+        let xs: Vec<(f32, f32)> = line.iter().map(|[a, b]| (a.x, b.x)).collect();
+        assert_eq!(xs, vec![(0.0, 6.0), (8.0, 9.0), (11.0, 12.0), (14.0, 20.0), (22.0, 23.0), (25.0, 26.0)]);
+        // A corner in the middle of the long dash: the dash goes on round it.
+        let bent = pattern_segments(&[pos2(0.0, 0.0), pos2(4.0, 0.0), pos2(4.0, 10.0)], &pattern);
+        assert_eq!(bent.first().copied(), Some([pos2(0.0, 0.0), pos2(4.0, 0.0)]));
+        assert_eq!(bent.get(1).copied(), Some([pos2(4.0, 0.0), pos2(4.0, 2.0)]));
+        assert_eq!(bent.get(2).copied(), Some([pos2(4.0, 4.0), pos2(4.0, 5.0)]));
+        // No pattern, or one with a zero length: solid.
+        let solid = vec![[pos2(0.0, 0.0), pos2(5.0, 0.0)]];
+        assert_eq!(pattern_segments(&[pos2(0.0, 0.0), pos2(5.0, 0.0)], &[]), solid);
+        assert_eq!(pattern_segments(&[pos2(0.0, 0.0), pos2(5.0, 0.0)], &[3.0, 0.0]), solid);
+        assert!(pattern_segments(&[pos2(1.0, 1.0)], &pattern).is_empty());
+        // The overlay's reference uses the CAD linetype of that name.
+        assert_eq!(Dash::DashDoubleDotted.pattern().len(), 6);
     }
 }
