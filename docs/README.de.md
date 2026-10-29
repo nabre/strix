@@ -99,10 +99,19 @@ Deutsch eingeschlossen).
 | | Formate |
 |---|---|
 | **Speichert** | `.xmath` (Dokument) und `.xmathm` (Vorlage): ein OOXML-Paket, das Berechnungen, Übungen und Zeichnungen lebendig hält |
+| **Speichert zurück** (Dokumente ohne Strix-Objekte) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.odt`, `.rtf`, `.txt`, Word XML |
 | **Exportiert** (statische Kopien) | PDF, PNG, LaTeX, HTML, Markdown |
-| **Öffnet** (Import) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt` |
+| **Öffnet** | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt` |
 
-Eine `.xmath`-Datei bleibt ein Standardpaket: Andere Programme zeigen die zuletzt berechneten Werte.
+Strix öffnet eine `.docx` (oder `.odt`, `.rtf`…) und speichert sie im selben Format zurück, solange
+das Dokument keine **Strix-Objekte** enthält: Berechnungen, berechnete Tabellen, Übungen,
+CAD-Zeichnungen oder Karopapier. Diese Formate verlören die lebendigen Berechnungen und die Quelle
+der Zeichnungen; ein Dokument mit solchen Objekten speichert deshalb nur als `.xmath`: Speichern
+schlägt eine `.xmath` gleichen Namens vor und nennt, was verloren ginge („3 Berechnungen,
+1 CAD-Zeichnung“), Speichern unter lässt die verlustbehafteten Formate weg, und `file.save`,
+`strix-cli convert` und MCP `save_document` lehnen mit derselben Erklärung ab. Exporte (PDF, PNG,
+LaTeX, HTML, Markdown) sind Kopien und gehen immer. Eine `.xmath`-Datei bleibt ein Standardpaket:
+Andere Programme zeigen die zuletzt berechneten Werte.
 
 ## Für Agenten: Befehle, CLI, MCP
 
@@ -121,7 +130,8 @@ Siehe [mcp.md](mcp.md) und das [Steuerprotokoll](control-protocol.md).
 ## Download
 
 Installer und portable Versionen gibt es auf der [Release-Seite](https://github.com/nabre/strix/releases)
-und auf der [Website](https://nabre.github.io/strix/de/#download): Windows (MSI und portables ZIP;
+und auf der [Website](https://nabre.github.io/strix/de/#download): Windows (MSI, portables ZIP und portable EXE, die ihre Einstellungen in einem Ordner
+`StrixData` daneben speichert;
 x64, x86, ARM64), macOS (Universal-DMG), Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64 und
 aarch64, dazu riscv64), FreeBSD und der Web-Build. Die Windows-Builds sind noch nicht signiert.
 Datenschutz: Strix sendet nichts von sich aus (keine Telemetrie, kein Konto, keine Updateprüfung);

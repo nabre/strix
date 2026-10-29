@@ -99,10 +99,19 @@ L'interfaccia segue la lingua del sistema (27 lingue, italiano compreso).
 | | Formati |
 |---|---|
 | **Salva** | `.xmath` (documento) e `.xmathm` (modello): un pacchetto OOXML che mantiene vivi calcoli, esercizi e disegni |
+| **Risalva** (documenti senza oggetti Strix) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.odt`, `.rtf`, `.txt`, Word XML |
 | **Esporta** (copie statiche) | PDF, PNG, LaTeX, HTML, Markdown |
-| **Apre** (importa) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt` |
+| **Apre** | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt` |
 
-Un file `.xmath` resta un pacchetto standard: altri programmi mostrano gli ultimi valori calcolati.
+Strix apre un `.docx` (o `.odt`, `.rtf`…) e lo risalva nello stesso formato, finché il documento
+non contiene **oggetti Strix**: calcoli, tabelle calcolate, esercizi, disegni CAD o fogli a
+quadretti. Quei formati ne perderebbero gli automatismi di calcolo e il sorgente dei disegni,
+quindi un documento che ne contiene si salva solo in `.xmath`: Salva propone un `.xmath` con lo
+stesso nome e dice cosa andrebbe perso («3 calcoli, 1 disegno CAD»), Salva con nome esclude i
+formati che li perderebbero, e `file.save`, `strix-cli convert` e MCP `save_document` rifiutano con
+la stessa spiegazione. Le esportazioni (PDF, PNG, LaTeX, HTML, Markdown) sono copie e funzionano
+sempre. Un file `.xmath` resta un pacchetto standard: altri programmi mostrano gli ultimi valori
+calcolati.
 
 ## Per gli agenti: comandi, CLI, MCP
 
@@ -121,7 +130,8 @@ Vedi [mcp.md](mcp.md) e il [protocollo di controllo](control-protocol.md).
 ## Scarica
 
 Installatori e versioni portabili sono nella [pagina delle release](https://github.com/nabre/strix/releases)
-e sul [sito](https://nabre.github.io/strix/it/#download): Windows (MSI e ZIP portabile; x64, x86,
+e sul [sito](https://nabre.github.io/strix/it/#download): Windows (MSI, ZIP portabile ed exe portabile, che tiene le impostazioni in una cartella
+`StrixData` accanto a sé; x64, x86,
 ARM64), macOS (DMG universale), Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64 e aarch64, più
 riscv64), FreeBSD e la build web. Le build Windows non sono ancora firmate. Privacy: Strix non
 invia nulla da solo (niente telemetria, niente account, niente controllo degli aggiornamenti);

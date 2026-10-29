@@ -42,7 +42,7 @@
 | **Nome** | **Strix** (sempre con la S maiuscola; mai "STRIX" nel testo corrente, solo nel wordmark) |
 | **Binari** | `strix` (app desktop), `strix-cli` (riga di comando e server MCP), `strix-web` (browser) |
 | **Categoria** | **WYSIWYG math document editor for engineering** |
-| **Formato nativo** | `.xmath` (documento), `.xmathm` (modello) |
+| **Formato nativo** | `.xmath` (documento), `.xmathm` (modello); DOCX, ODT, RTF si risalvano nel loro formato solo se il documento non ha oggetti Strix |
 | **Piattaforme** | Windows (x64, x86, ARM64), macOS (universal), Linux (x86_64, aarch64, riscv64), FreeBSD, web (WebAssembly) |
 | **Linguaggio** | Rust puro, nessun `unsafe`, nessun panic nel codice di produzione |
 | **Licenza** | MIT OR Apache-2.0 |
@@ -161,7 +161,7 @@ Sono la sezione «Come funziona» del sito (`site/strings/*.json`, chiavi `a1…
 | **La pagina è il foglio di calcolo** | Scrivi il problema come su carta; le equazioni calcolano dove sono. | Lettura in ordine di lettura, ricalcolo dopo ogni modifica (quando il cursore lascia l'equazione), su F9 e all'apertura. |
 | **Un `=` capisce cosa intendi** | Definisce, mostra, risolve o verifica a seconda di ciò che è già noto. | `L = 4.5 m`, `M = q·L²/8 =`, `F = m·a ⇒ a = 2.5 m/s²`, `σ ≤ f_yd ✓`. |
 | **Le unità sono controllate a ogni passo** | Quantità, non numeri: un errore di dimensione non passa mai in silenzio. | SI e tecniche con prefissi, adimensionali conservate, unità di lavoro, suggerimenti. |
-| **Tutto resta vivo, il file resta standard** | Risultati, tabelle, esercizi e disegni si aggiornano; il `.xmath` è un pacchetto OOXML che altri programmi aprono con gli ultimi valori calcolati. | Esporta copie statiche in PDF, PNG, LaTeX, HTML, Markdown; apre DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX, TXT. |
+| **Tutto resta vivo, il file resta standard** | Risultati, tabelle, esercizi e disegni si aggiornano; il `.xmath` è un pacchetto OOXML che altri programmi aprono con gli ultimi valori calcolati. | Esporta copie statiche in PDF, PNG, LaTeX, HTML, Markdown; apre DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX, TXT e risalva DOCX, ODT, RTF, TXT finché il documento non ha oggetti Strix (calcoli, tabelle calcolate, esercizi, CAD, quadretti): con questi, `.xmath` è obbligatorio, così nulla di vivo va perso. |
 
 ---
 
@@ -297,7 +297,8 @@ gh repo edit nabre/strix \
 > equations are live: they carry units, solve for the unknown, check limits and update as soon as
 > an input changes. Exercises keep a locked structure with variants and a results summary; CAD
 > drawings take their coordinates from the calculations. It saves `.xmath` files that other
-> programs open with the last computed values, exports PDF, PNG, LaTeX, HTML and Markdown, and
+> programs open with the last computed values (and DOCX, ODT or RTF back, for documents without
+> Strix objects), exports PDF, PNG, LaTeX, HTML and Markdown, and
 > every action is a command that a script or an AI agent can run over the CLI or MCP. Native on
 > Windows, macOS, Linux and FreeBSD, and in the browser. MIT or Apache-2.0.
 
@@ -307,7 +308,8 @@ gh repo edit nabre/strix \
 > equazioni sono vive: portano le unità, ricavano l'incognita, verificano i limiti e si aggiornano
 > appena cambia un dato. Gli esercizi hanno una struttura bloccata con varianti e riepilogo dei
 > risultati; i disegni CAD prendono le coordinate dai calcoli. Salva file `.xmath` che altri
-> programmi aprono con gli ultimi valori calcolati, esporta PDF, PNG, LaTeX, HTML e Markdown, e
+> programmi aprono con gli ultimi valori calcolati (e DOCX, ODT o RTF nel loro formato, per i
+> documenti senza oggetti Strix), esporta PDF, PNG, LaTeX, HTML e Markdown, e
 > ogni azione è un comando che uno script o un agente AI può eseguire da CLI o MCP. Nativo su
 > Windows, macOS, Linux e FreeBSD, e nel browser. MIT o Apache-2.0.
 
@@ -389,7 +391,7 @@ correzione. Gratis, open source, senza account.
 **Highlights**
 - <una riga per novità, con l'esempio numerico quando c'è>
 
-**Downloads**: Windows (MSI, portable ZIP; x64, x86, ARM64) · macOS (universal DMG) ·
+**Downloads**: Windows (MSI, portable ZIP, portable exe; x64, x86, ARM64) · macOS (universal DMG) ·
 Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64, aarch64; riscv64 deb/rpm/tar) · FreeBSD ·
 Web (static ZIP). Checksums in `SHA256SUMS.txt`.
 
