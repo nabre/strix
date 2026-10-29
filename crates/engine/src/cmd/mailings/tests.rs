@@ -39,10 +39,14 @@ fn finishing_a_merge_to_a_file_is_not_an_edit() {
     s.run("text.insert", &json!({"text": "!"})).unwrap();
     s.run("mailings.recipients", &json!({"rows": [{"Name": "Ada"}]})).unwrap();
     let (depth, dirty, text) = (s.undo_depth(), s.dirty, s.doc.plain_text(StoryRef::Body));
-    // Word formats are import-only: a merge to a .docx is refused and writes nothing.
+    // Word 97-2003 is import-only: a merge to a .doc is refused and writes nothing. A document
+    // without Strix objects merges to .docx as the reference word processor does.
+    let old = dir.join("merged.doc");
+    assert!(s.run("mailings.finish", &json!({"path": old.to_string_lossy()})).is_err());
+    assert!(!old.exists(), "no .doc written");
     let word = dir.join("merged.docx");
-    assert!(s.run("mailings.finish", &json!({"path": word.to_string_lossy()})).is_err());
-    assert!(!word.exists(), "no .docx written");
+    s.run("mailings.finish", &json!({"path": word.to_string_lossy()})).unwrap();
+    assert!(word.exists(), "the .docx copy was written");
     s.run("mailings.finish", &json!({"path": out.to_string_lossy()})).unwrap();
     assert!(out.exists(), "the merged copy was written");
     assert_eq!(s.doc.plain_text(StoryRef::Body), text, "the open document is unchanged");

@@ -2758,9 +2758,10 @@ fn window_close_save_writes_the_file_and_quits() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// #2376, with Strix's own format: a text file opened and edited is an import, so Save (Ctrl+S
-/// or Save in the close prompt) asks where through Save As, proposing `note.xmath`, and never
-/// writes over the text file. Once saved as a Strix document, the window closes.
+/// #2376: a text file opened and edited saves back to itself while it has no Strix objects, and
+/// the window then closes. With a calculation, Save (Ctrl+S or Save in the close prompt) asks
+/// where through Save As, proposing `note.xmath`, and never writes the text file over. Once saved
+/// as a Strix document, the window closes.
 #[test]
 fn a_text_file_saved_as_a_strix_document_closes() {
     let dir = scratch("close-txt");
@@ -2779,13 +2780,23 @@ fn a_text_file_saved_as_a_strix_document_closes() {
         }
     };
 
-    // Ctrl+S asks where, proposing a .xmath beside it, then the window closes without asking.
+    // Ctrl+S writes the text file in place, without asking.
     let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
     a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
     a.run("text.insert", json!({"text": "Hello"})).unwrap();
     a.run("file.save", json!({})).unwrap();
+    assert!(asked.borrow().is_empty(), "no Save As");
+    assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"));
+    assert!(a.close_requested(), "a saved document closes");
+
+    // With a calculation, Ctrl+S asks where, proposing a .xmath beside it, then the window
+    // closes without asking.
+    a.quit_requested = false;
+    a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
+    let text = std::fs::read(&path).unwrap();
+    a.run("file.save", json!({})).unwrap();
     assert_eq!(asked.borrow().as_slice(), ["note.xmath"]);
-    assert_eq!(std::fs::read(&path).unwrap(), b"", "the text file is untouched");
+    assert_eq!(std::fs::read(&path).unwrap(), text, "the text file is untouched");
     assert_eq!(a.session.path.as_deref(), Some(native.as_path()));
     assert!(a.close_requested(), "a saved document closes");
     assert_eq!(prompt(&a), None);
@@ -4061,25 +4072,36 @@ fn a_save_that_drops_content_does_not_continue() {
 }
 
 /// Web: a download in a format that doesn't keep everything marked the document saved, so
-/// the prompt and the leave-page guard let it go. Import-only formats aren't downloaded at
-/// all; only a Strix document or template saves it.
+/// the prompt and the leave-page guard let it go. Word's and the other editable formats save a
+/// document without Strix objects; with any (a calculation), they aren't downloaded at all, nor
+/// is an import-only format; a Strix document or template always saves it.
 #[test]
 fn web_downloads_that_drop_content_leave_the_document_unsaved() {
-    for name in ["novel.png", "novel.pdf", "novel.md", "novel.html"] {
+    for name in ["novel.png", "novel.pdf", "novel.md", "novel.html", "novel.txt"] {
         let mut a = typed();
         a.services.download = Some(Box::new(|_, _| Ok(())));
         a.execute("file.saveAs", json!({"path": name})).unwrap();
         assert!(a.session.dirty, "{name}");
     }
-    for name in ["novel.docx", "novel.docm", "novel.DOTX", "novel.dotm", "novel.odt", "novel.rtf", "novel.txt"] {
+    for name in ["novel.docx", "novel.docm", "novel.DOTX", "novel.dotm", "novel.odt", "novel.rtf"] {
         let mut a = typed();
+        a.services.download = Some(Box::new(|_, _| Ok(())));
+        a.execute("file.saveAs", json!({"path": name})).unwrap();
+        assert!(!a.session.dirty, "{name}");
+    }
+    for (name, calc) in [("novel.docx", true), ("novel.odt", true), ("novel.txt", true), ("novel.doc", false)] {
+        let mut a = typed();
+        if calc {
+            a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
+        }
         let downloaded = std::rc::Rc::new(std::cell::Cell::new(false));
         let seen = downloaded.clone();
         a.services.download = Some(Box::new(move |_, _| {
             seen.set(true);
             Ok(())
         }));
-        assert!(a.execute("file.saveAs", json!({"path": name})).is_err(), "{name} is import-only");
+        let e = a.execute("file.saveAs", json!({"path": name})).unwrap_err();
+        assert!(e.contains(if calc { "1 calculation" } else { "only opens it" }), "{name}: {e}");
         assert!(!downloaded.get(), "{name}: nothing downloaded");
         assert!(a.session.dirty, "{name}");
     }
@@ -4135,18 +4157,29 @@ fn host_saves_go_back_to_the_opened_file() {
     assert!(got.iter().all(|(_, _, len)| *len > 0));
 }
 
-/// A file opened from any other format (OpenDocument, Markdown, Word, Word 97–2003) is an
-/// import: Save hands it back as a Strix document of the same name, never over the opened file
-/// (#2445). The host page never had that name, so it's a new file: Save As.
+/// A file opened from an editable format Strix saves (OpenDocument, Word) goes back under its
+/// own name while it has no Strix objects. One opened from a format Strix only reads (Markdown,
+/// Word 97–2003), or with Strix objects, is an import: Save hands it back as a Strix document of
+/// the same name, never over the opened file (#2445). The host page never had that name, so it's
+/// a new file: Save As.
 #[test]
 fn host_save_of_an_imported_file_writes_a_strix_document() {
-    for (opened, saved) in
-        [("report.odt", "report.xmath"), ("notes.md", "notes.xmath"), ("letter.docx", "letter.xmath"), ("memo.dotx", "memo.xmathm")]
-    {
+    for (opened, calc, saved, save_as) in [
+        ("report.odt", false, "report.odt", false),
+        ("letter.docx", false, "letter.docx", false),
+        ("memo.dotx", false, "memo.dotx", false),
+        ("notes.md", false, "notes.xmath", true),
+        ("report.odt", true, "report.xmath", true),
+        ("letter.docx", true, "letter.xmath", true),
+        ("memo.dotx", true, "memo.xmathm", true),
+    ] {
         let (mut a, got) = host_app(false);
         host_open(&mut a, opened);
+        if calc {
+            a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
+        }
         a.execute("file.save", json!({})).unwrap();
-        assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some((saved, true)), "{opened}");
+        assert_eq!(got.borrow().first().map(|(n, s, _)| (n.as_str(), *s)), Some((saved, save_as)), "{opened}");
         assert!(!a.session.dirty, "{opened}");
         assert_eq!(a.session.path.as_deref(), Some(std::path::Path::new(saved)), "{opened}");
     }
@@ -4205,18 +4238,17 @@ fn a_host_save_that_fails_leaves_the_document_unsaved() {
 }
 
 /// Strix documents and templates, once saved in this session, are covered by AutoSave; Word's
-/// formats (even the ones that keep everything, #172) are import-only: saving to one is
-/// refused, so AutoSave stays blocked on a document never saved.
+/// formats save a document without Strix objects (#172) but AutoSave keeps only Strix's own.
 #[test]
 fn autosave_covers_strix_documents_and_templates() {
     for ext in ["docx", "docm", "dotx", "dotm"] {
         let dir = scratch(&format!("autosave-export-{ext}"));
         let path = dir.join(format!("novel.{ext}"));
         let mut a = typed();
-        assert!(a.run("file.save", json!({"path": path.to_string_lossy()})).is_err(), "{ext}");
-        assert!(!path.exists(), "{ext}: nothing written");
+        a.run("file.save", json!({"path": path.to_string_lossy()})).unwrap();
+        assert!(path.exists(), "{ext}: written");
         assert!(!a.autosaves(), "{ext}");
-        assert!(a.session.dirty && a.session.path.is_none(), "{ext}");
+        assert!(!a.session.dirty && a.session.path.as_deref() == Some(path.as_path()), "{ext}");
         let _ = std::fs::remove_dir_all(&dir);
     }
     for ext in ["xmath", "xmathm"] {
@@ -4840,9 +4872,9 @@ fn autosave_failures_are_reported_once() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Web Save of a Strix file downloads it under its own name; of any other file, as a Strix
-/// document (`.xmath`, `.xmathm` for a Word template) of the same name. Word formats, the
-/// macro-enabled ones included, are import-only: Save As to one is refused.
+/// Web Save of a Strix file downloads it under its own name, and so does a Word, OpenDocument or
+/// text file without Strix objects; with any (a calculation), as a Strix document (`.xmath`,
+/// `.xmathm` for a Word template) of the same name, and Save As to a Word format is refused.
 #[test]
 fn web_save_keeps_the_opened_strix_format() {
     let mut doc = strix_doc::Document::new();
@@ -4864,11 +4896,12 @@ fn web_save_keeps_the_opened_strix_format() {
     for (opened, expect) in [
         ("s.xmath", "s.xmath"),
         ("t.XMATHM", "t.XMATHM"),
-        ("m.docm", "m.xmath"),
-        ("t.DOTM", "t.xmathm"),
-        ("t.dotx", "t.xmathm"),
-        ("notes.odt", "notes.xmath"),
-        ("readme.txt", "readme.xmath"),
+        ("m.docm", "m.docm"),
+        ("t.DOTM", "t.DOTM"),
+        ("t.dotx", "t.dotx"),
+        ("notes.odt", "notes.odt"),
+        ("readme.txt", "readme.txt"),
+        ("old.doc", "old.xmath"),
     ] {
         a.session.path = Some(opened.into());
         a.run("file.save", json!({})).unwrap();
@@ -4876,7 +4909,16 @@ fn web_save_keeps_the_opened_strix_format() {
         assert_eq!(name, expect);
         assert!(strix_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
     }
-    // Word formats are import-only: Save As .docm or .docx is refused and downloads nothing.
+    // With a calculation, Word formats would lose it: Save gives a Strix document, and Save As
+    // .docm or .docx is refused and downloads nothing.
+    a.session.path = None;
+    a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
+    for (opened, expect) in [("m.docm", "m.xmath"), ("t.DOTM", "t.xmathm"), ("t.dotx", "t.xmathm"), ("notes.odt", "notes.xmath")] {
+        a.session.path = Some(opened.into());
+        a.run("file.save", json!({})).unwrap();
+        let (name, _) = got.borrow_mut().pop().unwrap();
+        assert_eq!(name, expect, "{opened}");
+    }
     a.session.path = Some("m.docm".into());
     for name in ["m.docm", "m.docx"] {
         assert!(a.run("file.saveAs", json!({"path": name})).is_err(), "{name}");

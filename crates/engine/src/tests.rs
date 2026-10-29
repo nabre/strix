@@ -16,6 +16,7 @@ mod fonts;
 mod ime_noop;
 mod native;
 mod revision_checks;
+mod strix_objects;
 mod typing;
 mod wordart;
 
@@ -4716,10 +4717,10 @@ fn mailings_results_are_new_untitled_documents() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// #2376 under the native-only rule: an opened note is imported. A plain Save refuses it and
-/// proposes a `.xmath`; saving a `.txt` over itself by its path is refused too (plain text is
-/// import-only), and a Markdown copy over itself is an export that leaves the document unsaved.
-/// Saving as `.xmath` makes that the document's file.
+/// #2376: an opened plain-text note without Strix objects saves back to itself, as in the
+/// reference word processor; an opened Markdown file is an import (Markdown is a static export):
+/// a plain Save refuses it and proposes a `.xmath`, and a Markdown copy over itself leaves the
+/// document unsaved. Saving as `.xmath` makes that the document's file.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn an_imported_note_saves_only_as_a_strix_document() {
@@ -4733,24 +4734,27 @@ fn an_imported_note_saves_only_as_a_strix_document() {
         run(&mut s, "file.open", json!({"path": path.to_string_lossy()}));
         run(&mut s, "text.insert", json!({"text": "Hello"}));
         assert!(s.dirty);
-        let e = s.run("file.save", &json!({})).unwrap_err().to_string();
-        assert!(e.contains("file.saveAs") && e.contains("note.xmath"), "{name}: {e}");
-        assert!(s.dirty, "{name}: nothing saved");
-        assert_eq!(std::fs::read(&path).unwrap(), b"", "{name}: untouched");
-
-        // Saving the same file by name: plain text is refused, Markdown is a static copy.
-        let r = s.run("file.save", &json!({"path": path.to_string_lossy()}));
+        let r = s.run("file.save", &json!({}));
         if name.ends_with(".txt") {
-            assert!(r.unwrap_err().to_string().contains("only opens it"), "{name}");
-            assert_eq!(std::fs::read(&path).unwrap(), b"", "{name}: untouched");
-        } else {
             r.unwrap();
-            assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"), "{name}: exported");
+            assert!(!s.dirty, "{name}: saved in place");
+            assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"), "{name}: written");
+            run(&mut s, "text.insert", json!({"text": "!"}));
+        } else {
+            let e = r.unwrap_err().to_string();
+            assert!(e.contains("file.saveAs") && e.contains("note.xmath"), "{name}: {e}");
+            assert!(s.dirty, "{name}: nothing saved");
+            assert_eq!(std::fs::read(&path).unwrap(), b"", "{name}: untouched");
         }
-        assert!(s.dirty, "{name}: still unsaved");
+
+        // Saving the same file by name: plain text is saved, Markdown is a static copy.
+        s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
+        assert!(std::fs::read_to_string(&path).unwrap().contains("Hello"), "{name}: written");
+        assert_eq!(s.dirty, name.ends_with(".md"), "{name}: a Markdown copy leaves it unsaved");
         assert_eq!(s.path.as_deref(), Some(path.as_path()));
 
         // Save As a Strix document makes that the document's file.
+        run(&mut s, "text.insert", json!({"text": "?"}));
         let native = dir.join("note.xmath");
         run(&mut s, "file.saveAs", json!({"path": native.to_string_lossy()}));
         assert!(!s.dirty, "{name}: saved");
@@ -6570,20 +6574,17 @@ fn word_xml_saves_and_opens_through_io() {
     assert!(err.contains("not a Word XML document"), "{err}");
 }
 
-/// #1081 under the native-only rule: Word XML (2003 or Flat OPC) is import-only. The save
-/// commands refuse an `.xml` path in every `format` and write nothing; a Word 2003 XML file
-/// still opens.
+/// #1081: Word XML (2003 or Flat OPC) saves through the save commands, the `format` picking the
+/// kind; a `format` that isn't one of them, or given for anything but an `.xml` file, is refused
+/// and writes nothing. A document with Strix objects is never written as Word XML.
 #[test]
-fn word_xml_is_import_only_through_the_save_commands() {
+fn word_xml_saves_through_the_save_commands() {
     let mut s = s();
     run(&mut s, "text.insert", json!({"text": "Kept for old readers"}));
     let dir = std::env::temp_dir().join(format!("strix-2003-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("old.xml").to_string_lossy().to_string();
     for args in [
-        json!({"path": path, "format": "wordml2003"}),
-        json!({"path": path, "format": "flatopc"}),
-        json!({"path": path}),
         json!({"path": dir.join("a.docx").to_string_lossy(), "format": "wordml2003"}),
         json!({"path": path, "format": "bogus"}),
         json!({"path": path, "format": 7}),
@@ -6595,11 +6596,18 @@ fn word_xml_is_import_only_through_the_save_commands() {
     assert!(!std::path::Path::new(&path).exists(), "no .xml written");
     assert!(!dir.join("a.docx").exists(), "no .docx written");
     assert!(s.dirty && s.path.is_none());
-    // Opening a Word 2003 XML Document still works (written here by the low-level writer).
-    let opts = crate::io::ExportOptions { word2003: true, ..Default::default() };
-    crate::io::save_path_with(std::path::Path::new(&path), &s.doc, None, &opts).unwrap();
+    run(&mut s, "file.saveAs", json!({"path": path, "format": "wordml2003"}));
     assert_eq!(strix_docx::sniff_xml(&std::fs::read(&path).unwrap()), strix_docx::XmlKind::WordMl2003);
     assert!(crate::io::open_path(std::path::Path::new(&path)).unwrap().plain_text(strix_doc::StoryRef::Body).contains("Kept for old readers"));
+    // Saving over a Word 2003 XML file keeps that format; `flatopc` asks for the other one.
+    run(&mut s, "file.save", json!({}));
+    assert_eq!(strix_docx::sniff_xml(&std::fs::read(&path).unwrap()), strix_docx::XmlKind::WordMl2003);
+    run(&mut s, "file.saveAs", json!({"path": path, "format": "flatopc"}));
+    assert_ne!(strix_docx::sniff_xml(&std::fs::read(&path).unwrap()), strix_docx::XmlKind::WordMl2003);
+    // With a calculation the document stays out of Word XML.
+    run(&mut s, "calc.insert", json!({"text": "x = 2"}));
+    let e = s.run("file.save", &json!({})).unwrap_err().to_string();
+    assert!(e.contains("1 calculation") && e.contains("old.xmath"), "{e}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

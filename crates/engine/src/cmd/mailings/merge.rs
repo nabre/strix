@@ -345,6 +345,7 @@ pub(super) fn finish(s: &mut Session, v: &Value) -> CmdResult {
     out.ensure_nonempty();
     if let Some(path) = p::str(v, "path") {
         crate::io::check_writable(path).map_err(CmdError::Params)?;
+        crate::strix_objects::check_save(path, &out).map_err(CmdError::Failed)?;
         crate::io::save_path(std::path::Path::new(path), &out).map_err(CmdError::Failed)?;
         return Ok(json!({"records": count, "path": path}));
     }

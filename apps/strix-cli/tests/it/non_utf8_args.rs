@@ -43,9 +43,9 @@ fn the_file_a_command_opens_may_have_any_name() {
     ok(&cli(&["run".into(), "--file".into(), file.clone(), "--save".into(), saved.clone().into()]));
     assert!(std::fs::read_to_string(&saved).unwrap().contains("Bonjour"));
 
-    // Saving without a path writes back to the file under its real name, not a lossy one. Only a
-    // Strix document saves in place (a .txt is import-only), so the file is `caf\xe9.xmath`: made
-    // under a Unicode name, then renamed, since a name the CLI writes must be valid Unicode.
+    // Saving without a path writes back to the file under its real name, not a lossy one: a
+    // Strix document `caf\xe9.xmath` made under a Unicode name, then renamed, since a name the CLI
+    // writes must be valid Unicode, and the .txt itself (it has no Strix objects).
     let native = dir.join("native.xmath");
     ok(&cli(&["convert".into(), file.clone(), native.clone().into()]));
     let doc = dir.join(OsString::from_vec(b"caf\xe9.xmath".to_vec()));
@@ -60,9 +60,8 @@ fn the_file_a_command_opens_may_have_any_name() {
     ok(&edit(&doc.clone().into_os_string()));
     let text = ok(&cli(&["text".into(), doc.into_os_string()]));
     assert!(text.contains("Bonjour") && text.contains("encore"), "{text}");
-    // The .txt itself is refused, and left as it was.
-    assert!(!edit(&file).status.success());
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), "Bonjour\n");
+    ok(&edit(&file));
+    assert!(std::fs::read_to_string(&file).unwrap().contains("Bonjour encore"));
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 4, "a second file was written");
     let _ = std::fs::remove_dir_all(dir);
 }

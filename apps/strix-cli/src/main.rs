@@ -550,6 +550,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                     return Err(format!("{out}: is a folder, not a file").into());
                 }
                 strix_engine::io::check_writable(out).map_err(|e| format!("{out}: {e}"))?;
+                strix_engine::strix_objects::check_save(out, &s.doc).map_err(|e| format!("{out}: {e}"))?;
                 if !out.to_ascii_lowercase().ends_with(".png") {
                     strix_engine::io::save_bytes(out, &s.doc)?;
                 }

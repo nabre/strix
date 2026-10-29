@@ -152,15 +152,16 @@ impl FileBrowser {
             FileDialogRequest::Open { purpose } | FileDialogRequest::OpenMany { purpose } => {
                 (String::new(), open_filters(purpose).iter().map(|(l, e)| ((*l).to_string(), e.iter().map(|x| (*x).to_string()).collect())).collect())
             }
-            FileDialogRequest::Save { name, .. } => {
+            FileDialogRequest::Save { name, native_only, .. } => {
                 // The suggested name's own format first (Strix Document for a save, the export's
-                // format for an export), then every other format Strix saves.
+                // format for an export), then every other format Strix saves (only Strix's own
+                // and the exports for a document with Strix objects).
                 let ext = Path::new(name).extension().and_then(std::ffi::OsStr::to_str).filter(|e| !e.is_empty());
                 let mut f: Vec<(String, Vec<String>)> = match ext {
                     Some(e) if !strix_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => {
                         vec![(format!("*.{e}"), vec![e.to_string()])]
                     }
-                    _ => crate::file_dialogs::save_filters(name),
+                    _ => crate::file_dialogs::save_filters_for(name, native_only.is_some()),
                 };
                 f.push(("All files".into(), vec!["*".into()]));
                 (name.clone(), f)
@@ -292,7 +293,11 @@ impl WordApp {
             "picture" => (FileDialogRequest::Open { purpose: "picture".into() }, AfterPick::Picture),
             "recipients" => (FileDialogRequest::Open { purpose: "recipients".into() }, AfterPick::Recipients),
             "save" => (
-                FileDialogRequest::Save { name: self.default_save_name(), dir: None },
+                FileDialogRequest::Save {
+                    name: self.default_save_name(),
+                    dir: None,
+                    native_only: crate::strix_save::native_only_reason(&self.session.doc),
+                },
                 AfterPick::SaveAs { after: crate::file_dialogs::AfterSave::Nothing, document: self.session.document_id() },
             ),
             _ => (FileDialogRequest::Open { purpose: "document".into() }, AfterPick::OpenDocument { document: self.session.document_id() }),
@@ -344,6 +349,11 @@ fn body(ui: &mut Ui, b: &mut FileBrowser, t: &Tokens) -> Option<Option<PathBuf>>
             ))
             .color(t.text_dim),
         );
+        ui.add_space(6.0);
+    }
+    // Why a document with Strix objects is offered only Strix's own formats and the exports.
+    if let FileDialogRequest::Save { native_only: Some(reason), .. } = &b.req {
+        ui.label(egui::RichText::new(reason.as_str()).color(t.text_dim));
         ui.add_space(6.0);
     }
     let mut location_done = false;
@@ -542,7 +552,7 @@ mod tests {
         let dir = scratch("save");
         std::fs::create_dir(dir.join("drafts")).unwrap();
         std::fs::write(dir.join("drafts").join("old.docx"), b"x").unwrap();
-        let req = FileDialogRequest::Save { name: "Document1.docx".into(), dir: None };
+        let req = FileDialogRequest::Save { name: "Document1.docx".into(), dir: None, native_only: None };
         let mut b = FileBrowser::new(req, AfterPick::OpenDocument { document: 0 }, dir.clone(), false);
         b.name = "drafts".into();
         assert_eq!(b.accept(), Step::Stay);

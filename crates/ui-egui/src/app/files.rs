@@ -252,11 +252,12 @@ impl WordApp {
         Ok(json!({"closed": true}))
     }
 
-    /// The document was opened from a format other than Strix's own (.xmath, .xmathm): a plain
-    /// Save doesn't write it in place, so an interactive Save asks where (Save As, a `.xmath`
-    /// name proposed).
+    /// A plain Save doesn't write the document's file in place: it was opened from a format Strix
+    /// only reads (.doc, .md…), or from an editable one (.docx, .odt…) and has Strix objects that
+    /// format would lose (`strix_engine::strix_objects`). An interactive Save asks where (Save
+    /// As, a `.xmath` name proposed).
     pub(super) fn imported_path(&self) -> bool {
-        self.session.path.as_ref().is_some_and(|p| !strix_engine::io::is_native(&p.to_string_lossy()))
+        self.session.path.as_ref().is_some_and(|p| !strix_engine::strix_objects::saves_in_place(p, &self.session.doc))
     }
 
     /// The name a browser Save or Export without a name uses. An export is named after the
@@ -279,13 +280,15 @@ impl WordApp {
         self.default_save_name()
     }
 
-    /// The name Save suggests: a Strix file keeps its own extension; anything else (a new
-    /// document, one opened from another format) becomes a Strix document, `.xmath` (`.xmathm`
-    /// for a Word template).
+    /// The name Save suggests: a Strix file keeps its own extension, and so does a document
+    /// opened from another editable format Strix saves (.docx, .odt…) while it has no Strix
+    /// objects; anything else (a new document, one opened from a format Strix only reads, one
+    /// with Strix objects) becomes a Strix document, `.xmath` (`.xmathm` for a Word template).
     pub(crate) fn default_save_name(&self) -> String {
         let ext = self.session.path.as_ref().and_then(|p| p.extension()).map(|e| e.to_string_lossy().to_string());
         let native = match ext {
             Some(e) if strix_engine::io::is_native(&e) => e,
+            Some(e) if strix_engine::io::is_foreign_save(&e) && !strix_engine::strix_objects::has_strix_objects(&self.session.doc) => e,
             Some(e) => strix_engine::io::native_path(std::path::Path::new(&format!("x.{e}")))
                 .extension()
                 .map_or_else(|| strix_engine::io::NATIVE_DOC_EXT.to_string(), |e| e.to_string_lossy().into_owned()),

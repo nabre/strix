@@ -602,6 +602,7 @@ fn save_as_page(app: &mut WordApp, ui: &mut Ui) {
         ui.label(egui::RichText::new(&error).color(ui.visuals().error_fg_color));
         ui.add_space(6.0);
     }
+    crate::strix_save::save_as_note(&app.session.doc, ui);
     if ui.button(egui::RichText::new(tl!("Browse…")).font(medium(14.0))).clicked() {
         app.save_as_dialog();
     }

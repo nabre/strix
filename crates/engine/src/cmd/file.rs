@@ -94,9 +94,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .pure(),
         CommandSpec::new("file.save", "Save", "File", save)
             .key("Mod+S / Shift+F12 / Alt+Shift+F2")
-            .params(r#"{"path"?: string (without it, saves in place only a Strix document, .xmath or .xmathm: a new document asks where, and one opened from another format is an error, so use file.saveAs with a .xmath path; with it, the extension picks the format: .xmath (also when there is none), .xmathm, or an export such as .docx, .pdf, .odt), "password"?: string (encrypt this and later saves with it, as file.encrypt does), "markup"?: bool (Print Markup for a PDF, PNG, HTML, Markdown or text copy: comments shown; default file.printMarkup), "format"?: "wordml2003" (an .xml file as a Word 2003 XML Document) | "flatopc" (as a Word XML Document, the default; saving over a Word 2003 XML file keeps that format)}"#)
+            .params(r#"{"path"?: string (without it, saves in place a Strix document (.xmath, .xmathm) or one opened from .docx, .docm, .dotx, .dotm, .odt, .rtf, .txt or .xml that has no Strix objects (calculations, calculated tables, exercises, CAD drawings, graph paper): a new document asks where, and any other is an error, so use file.saveAs with a .xmath path; with it, the extension picks the format: .xmath (also when there is none), .xmathm, another editable format (.docx, .odt, .rtf, .txt, .xml; refused while the document has Strix objects), or a static export (.pdf, .png, .tex, .html, .md)), "password"?: string (encrypt this and later saves with it, as file.encrypt does), "markup"?: bool (Print Markup for a PDF, PNG, HTML, Markdown or text copy: comments shown; default file.printMarkup), "format"?: "wordml2003" (an .xml file as a Word 2003 XML Document) | "flatopc" (as a Word XML Document, the default; saving over a Word 2003 XML file keeps that format)}"#)
             .pure(),
-        CommandSpec::new("file.saveAs", "Save As", "File", save_as).key(super::mac_or("F12 / Mod+Shift+S", "F12 / Alt+F2")).params(r#"{"path": string (.xmath, the default when it has no extension, or .xmathm saves the Strix document; any other format Strix saves, such as .docx, .pdf, .odt, .rtf, .md, .html, .txt, exports it), "password"?: string, "markup"?: bool, "format"?: string (as file.save)}"#).pure(),
+        CommandSpec::new("file.saveAs", "Save As", "File", save_as).key(super::mac_or("F12 / Mod+Shift+S", "F12 / Alt+F2")).params(r#"{"path": string (.xmath, the default when it has no extension, or .xmathm saves the Strix document; .docx, .docm, .dotx, .dotm, .odt, .rtf, .txt or .xml saves it in that format only while it has no Strix objects; .pdf, .png, .tex, .html or .md exports a static copy), "password"?: string, "markup"?: bool, "format"?: string (as file.save)}"#).pure(),
         // Pure: the password must not land in Repeat or a recorded macro, and it isn't an edit
         // to undo; it marks the document as changed itself.
         CommandSpec::new("file.encrypt", "Encrypt with Password", "File › Info › Protect Document", encrypt)
@@ -348,11 +348,14 @@ fn with_native_default(path: &str) -> std::path::PathBuf {
     path
 }
 
-/// Save: in place only for Strix's own files (`.xmath`, `.xmathm`). With a `path` it writes there
-/// in the format the extension names (none: `.xmath`); a non-native format is an export, and only
-/// a format that keeps everything becomes the document's file. Without one, a new document asks
-/// where (Save As), and a document opened from another format is refused with what to do
-/// instead: the user interface turns that into Save As with a `.xmath` name proposed.
+/// Save: in place for Strix's own files (`.xmath`, `.xmathm`), and for a document opened from
+/// another editable format Strix writes (`.docx`, `.odt`, `.rtf`…) as long as it has no Strix
+/// objects (`strix_objects`). With a `path` it writes there in the format the extension names
+/// (none: `.xmath`); an editable format becomes the document's file, a static export (PDF, PNG,
+/// LaTeX, HTML, Markdown) is a copy. A document with Strix objects is never written to a format
+/// that would lose them: the error names them and proposes `.xmath`. Without a path, a new
+/// document asks where (Save As), and one opened from a format Strix only reads is refused with
+/// what to do instead: the user interface turns both refusals into Save As with a `.xmath` name.
 fn save(s: &mut Session, v: &Value) -> CmdResult {
     let explicit = p::str(v, "path");
     let path = match explicit.map(with_native_default).or_else(|| s.path.clone()) {
@@ -362,7 +365,7 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
             return Ok(json!({"saved": false}));
         }
     };
-    if explicit.is_none() && !crate::io::is_native(&path.to_string_lossy()) {
+    if explicit.is_none() && !crate::io::is_native(&path.to_string_lossy()) && !crate::io::is_foreign_save(&path.to_string_lossy()) {
         let name = path.file_name().map_or_else(|| path.to_string_lossy().into_owned(), |n| n.to_string_lossy().into_owned());
         let proposed = crate::io::native_path(&path);
         return Err(CmdError::Failed(format!(
@@ -378,7 +381,9 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
             return Err(CmdError::Params("`password` must be a non-empty string (file.encrypt removes a password)".into()));
         };
         if !crate::io::can_encrypt(&path.to_string_lossy()) {
-            return Err(CmdError::Params("only Strix documents (.xmath, .xmathm) can be saved with a password".into()));
+            return Err(CmdError::Params(
+                "only Strix and Word documents (.xmath, .xmathm, .docx, .docm, .dotx, .dotm) can be saved with a password".into(),
+            ));
         }
         strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
         s.clear_recovery_before_password()?;
@@ -386,6 +391,7 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     }
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
     crate::io::check_writable(&ext).map_err(CmdError::Params)?;
+    crate::strix_objects::check_save(&path.to_string_lossy(), &s.doc).map_err(CmdError::Failed)?;
     let mut opts = export_options(s, v);
     match v.get("format").filter(|f| !f.is_null()) {
         None => {
@@ -414,9 +420,10 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     // A save in a format that doesn't keep everything (plain text, Markdown, a page image) is a
     // copy, except over the document's own file: a note.txt saved over itself by its path is
     // saved (#2376). A plain Save without a path only ever writes a Strix file (see above).
-    // A static export (PDF, PNG, LaTeX, HTML, Markdown) is a copy: only a Strix file becomes the
-    // document's own file.
-    if crate::io::is_native(&ext) {
+    // A static export (PDF, PNG, LaTeX, HTML, Markdown) is a copy: a Strix file or another
+    // editable format becomes the document's own file (plain text only over itself).
+    let own_file = s.path.as_deref() == Some(path.as_path());
+    if crate::io::is_native(&ext) || (crate::io::is_foreign_save(&ext) && (ext != "txt" || own_file)) {
         s.path = Some(path.clone());
         s.dirty = false;
         s.relayout();

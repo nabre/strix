@@ -97,12 +97,13 @@ pub use dialogs::dialogs_ribbon;
 pub use dialogs::dialogs_smart_art;
 pub use dialogs::dialogs_table_style;
 pub use dialogs::dialogs_templates;
-pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters, save_exts, save_filters, save_format_name};
+pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters, save_exts, save_filters, save_filters_for, save_format_name};
 
 mod app;
 mod clock;
 mod services;
 mod state;
+mod strix_save;
 
 use app::control_click_as_secondary;
 pub(crate) use app::{discards_document, works_without_document};

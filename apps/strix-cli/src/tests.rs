@@ -436,11 +436,20 @@ fn script_with_a_bad_output_writes_no_output() {
     let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","nope/b.xmath"]}"#);
     assert!(run(&args(&["run", "--script", &script])).is_err());
     assert!(!dir.join("a.xmath").exists());
-    // Word formats are import-only: a .docx output is refused before anything is written.
-    let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.docx"]}"#);
+    // Word 97-2003 is import-only: a .doc output is refused before anything is written.
+    let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.doc"]}"#);
     let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
     assert!(e.contains("only opens it"), "{e}");
+    assert!(!dir.join("a.xmath").exists() && !dir.join("b.doc").exists());
+    // A document with Strix objects never goes to .docx: refused before anything is written.
+    let script = write_script(&dir, r#"{"commands":[{"command":"calc.insert","params":{"text":"x = 2"}}],"save":["a.xmath","b.docx"]}"#);
+    let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
+    assert!(e.contains("b.docx") && e.contains("1 calculation") && e.contains(".xmath"), "{e}");
     assert!(!dir.join("a.xmath").exists() && !dir.join("b.docx").exists());
+    // Without them, .docx is written as the reference word processor writes it.
+    let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.docx"]}"#);
+    run(&args(&["run", "--script", &script])).unwrap();
+    assert!(dir.join("a.xmath").exists() && dir.join("b.docx").exists());
 }
 
 #[test]

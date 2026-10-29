@@ -94,13 +94,14 @@ fn picker(dialog: rfd::AsyncFileDialog, req: &FileDialogRequest) -> Picking {
     match req.clone() {
         FileDialogRequest::Open { purpose } => Box::pin(async move { open_filters(dialog, &purpose).pick_file().await.into_iter().collect() }),
         FileDialogRequest::OpenMany { purpose } => Box::pin(async move { open_filters(dialog, &purpose).pick_files().await.unwrap_or_default() }),
-        FileDialogRequest::Save { name, dir } => {
+        FileDialogRequest::Save { name, dir, native_only } => {
             let mut dialog = dialog.set_file_name(name.clone());
             // Save as Word Template starts in the user templates folder (#2852).
             if let Some(dir) = dir.filter(|d| std::path::Path::new(d).is_dir()) {
                 dialog = dialog.set_directory(dir);
             }
-            for (label, exts) in save_filters(&name) {
+            // A document with Strix objects is offered only Strix's own formats and the exports.
+            for (label, exts) in save_filters(&name, native_only.is_some()) {
                 dialog = dialog.add_filter(label, &exts);
             }
             Box::pin(async move { dialog.save_file().await.into_iter().collect() })
@@ -212,12 +213,13 @@ fn save_exts(name: &str) -> Vec<String> {
 
 /// The "Save as type" list (#1399): one named entry per format, the suggested one first (see
 /// [`strix_ui_egui::save_exts`] for why the order matters): `Strix Document (*.xmath)`,
-/// `Strix Template (*.xmathm)`, then the export formats.
+/// `Strix Template (*.xmathm)`, the other editable formats (left out with `native_only`, for a
+/// document with Strix objects), then the export formats.
 ///
 /// rfd doesn't report which entry the user picked, so if they choose "PDF" but leave "name.xmath"
 /// in the name box, the extension in the name wins, as the format is chosen by extension.
-fn save_filters(name: &str) -> Vec<(String, Vec<String>)> {
-    strix_ui_egui::save_filters(name)
+fn save_filters(name: &str, native_only: bool) -> Vec<(String, Vec<String>)> {
+    strix_ui_egui::save_filters_for(name, native_only)
 }
 
 #[cfg(test)]
@@ -247,7 +249,7 @@ mod tests {
     /// every savable extension exactly once.
     #[test]
     fn save_dialog_lists_one_named_type_per_format() {
-        let filters = save_filters("report.html");
+        let filters = save_filters("report.html", false);
         assert_eq!(filters.len(), strix_engine::io::SAVE_EXTS.len());
         assert_eq!(filters[0].1, vec!["html".to_string()]);
         assert!(filters[0].0.contains("Web Page"), "{}", filters[0].0);
@@ -261,22 +263,29 @@ mod tests {
         labels.dedup();
         assert_eq!(labels.len(), filters.len(), "labels are distinct");
         // Unknown and import-only names fall back to Strix's own format first, its template second.
-        assert_eq!(save_filters("no extension")[0].1, vec!["xmath".to_string()]);
-        assert_eq!(save_filters("report.odt")[0].1, vec!["xmath".to_string()]);
-        assert!(!all.iter().any(|e| ["docx", "odt", "rtf", "txt", "json", "xml"].contains(&e.as_str())), "import-only formats are never offered");
-        let native = save_filters("Document1.xmath");
+        assert_eq!(save_filters("no extension", false)[0].1, vec!["xmath".to_string()]);
+        assert_eq!(save_filters("report.doc", false)[0].1, vec!["xmath".to_string()]);
+        assert_eq!(save_filters("report.odt", false)[0].1, vec!["odt".to_string()]);
+        assert!(!all.iter().any(|e| ["doc", "dot", "json"].contains(&e.as_str())), "import-only formats are never offered");
+        // A document with Strix objects is offered only Strix's own formats and the exports.
+        let native_only = save_filters("report.docx", true);
+        assert_eq!(native_only[0].1, vec!["xmath".to_string()]);
+        assert!(native_only.iter().flat_map(|(_, e)| e).all(|e| !strix_engine::io::is_foreign_save(e)), "{native_only:?}");
+        assert_eq!(native_only.len(), strix_engine::io::SAVE_EXTS.len() - strix_engine::io::FOREIGN_SAVE_EXTS.len());
+        let native = save_filters("Document1.xmath", false);
         assert_eq!(native[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
         assert_eq!(native[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));
     }
 
     /// #689: the Save dialog's default extension is the suggested name's own format when Strix
     /// saves it, so a file name the user types without one isn't left bare; an import-only format
-    /// (.docx, .odt) suggests Strix's own, .xmath.
+    /// (.doc) suggests Strix's own, .xmath.
     #[test]
     fn save_dialog_defaults_to_the_suggested_format() {
         assert_eq!(save_exts("novel.xmath")[0], "xmath");
-        assert_eq!(save_exts("novel.docx")[0], "xmath");
-        assert_eq!(save_exts("report.odt")[0], "xmath");
+        assert_eq!(save_exts("novel.docx")[0], "docx");
+        assert_eq!(save_exts("report.odt")[0], "odt");
+        assert_eq!(save_exts("old.doc")[0], "xmath");
         assert_eq!(save_exts("plan.xmathm")[0], "xmathm");
         assert_eq!(save_exts("notes.md")[0], "md");
         assert_eq!(save_exts("annual report.pdf")[0], "pdf");

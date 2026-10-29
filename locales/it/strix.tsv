@@ -2955,3 +2955,15 @@ preview	Title	Esempio
 	Input unit	Unità di immissione
 	input	immissione
 	unit: mm, cm, m or drawing	unità: mm, cm, m o drawing
+	1 calculation	1 calcolo
+	{n} calculations	{n} calcoli
+	1 calculated table	1 tabella calcolata
+	{n} calculated tables	{n} tabelle calcolate
+	1 exercise	1 esercizio
+	{n} exercises	{n} esercizi
+	1 results summary	1 riepilogo dei risultati
+	{n} results summaries	{n} riepiloghi dei risultati
+	1 CAD drawing	1 disegno CAD
+	{n} CAD drawings	{n} disegni CAD
+	graph paper	foglio a quadretti
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Word e gli altri formati modificabili li perderebbero, quindi si salva solo come documento Strix (.xmath). Le esportazioni in PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.

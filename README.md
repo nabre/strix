@@ -187,13 +187,20 @@ Interface language picks one by hand). Measured parity: [ROADMAP.md](ROADMAP.md)
 | | Formats |
 |---|---|
 | **Saves** | `.xmath` (Strix document) and `.xmathm` (Strix template): an OOXML package that keeps calculations, exercises and drawings live |
+| **Saves back** (documents without Strix objects) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.odt`, `.rtf`, `.txt`, Word XML |
 | **Exports** (static copies) | PDF, PNG, LaTeX (`.tex`), HTML, Markdown |
-| **Opens** (import) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt`, Word XML |
+| **Opens** | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt`, Word XML |
 
-Imported documents become Strix documents: Save asks for a `.xmath` name. Strix never writes back
-to `.docx` or the other editable formats, because they would lose the live calculations. A
-`.xmath` file stays a standard package, so other programs show the last computed values as
-ordinary equations, tables and pictures.
+Like Word, Strix opens a `.docx` (or `.odt`, `.rtf`…) and saves it back in the same format. That
+holds as long as the document has no **Strix objects**: calculations, calculated tables,
+exercises, CAD drawings or graph paper. Those formats would keep at most their last look and lose
+the live calculations and the drawings' source, so a document with any saves only as `.xmath`:
+Save proposes a `.xmath` of the same name and says what would be lost ("3 calculations, 1 CAD
+drawing"), Save As leaves out the formats that would lose them, and `file.save`, `strix-cli
+convert` and MCP `save_document` refuse with the same explanation instead of writing a lossy
+file. Exports to PDF, PNG, LaTeX, HTML and Markdown are copies and always work. A new document is
+a `.xmath`. A `.xmath` file stays a standard package, so other programs show the last computed
+values as ordinary equations, tables and pictures.
 
 ## For agents: commands, CLI, MCP
 

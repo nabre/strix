@@ -1,6 +1,6 @@
 //! Strix's own file formats: `.xmath` (document) and `.xmathm` (template). They hold the same
-//! OOXML package as `.docx`/`.dotx`; only they are saved in place by a plain Save, every other
-//! format is imported (Open) and exported (Save As).
+//! OOXML package as `.docx`/`.dotx`. Other editable formats save only while the document has no
+//! Strix objects (`tests/strix_objects.rs`); the rest are imported (Open) or exported (Save As).
 
 use serde_json::json;
 use strix_doc::StoryRef;
@@ -55,7 +55,11 @@ fn native_names_and_constants() {
     assert_eq!(io::native_path(p("/d/kept.xmathm")), p("/d/kept.xmathm"));
     assert_eq!(strix_docx::Flavor::from_ext("xmath"), Some(strix_docx::Flavor::Document));
     assert_eq!(strix_docx::Flavor::from_ext("XMATHM"), Some(strix_docx::Flavor::Template));
-    assert!(io::can_encrypt("a.xmath") && io::can_encrypt("b.xmathm"));
+    assert!(io::can_encrypt("a.xmath") && io::can_encrypt("b.xmathm") && io::can_encrypt("c.docx") && !io::can_encrypt("d.odt"));
+    // Strix's own formats first, then the other editable formats, then the static exports.
+    assert_eq!(&io::SAVE_EXTS[2..10], io::FOREIGN_SAVE_EXTS);
+    assert_eq!(&io::SAVE_EXTS[10..], io::EXPORT_EXTS);
+    assert!(io::is_foreign_save("a.DOCX") && io::is_foreign_save("rtf") && !io::is_foreign_save("a.doc") && !io::is_foreign_save("a.xmath"));
 }
 
 /// `.xmath` and `.xmathm` are the OOXML package `.docx` and `.dotx` hold: they round-trip, and
@@ -97,9 +101,9 @@ fn xmath_is_sniffed_like_a_word_package() {
     }
 }
 
-/// Save writes in place only a Strix file. A document opened from another format (here a
-/// `.docx`) isn't overwritten by a plain Save: the engine refuses with what to do instead
-/// (programmatic calls never open dialogs), and Save As to a `.xmath` makes that its file.
+/// A document opened from a `.docx` that has Strix objects (here a calculation) isn't
+/// overwritten by a plain Save: the engine refuses with what to do instead (programmatic calls
+/// never open dialogs), and Save As to a `.xmath` makes that its file.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn save_on_an_imported_docx_asks_for_save_as() {
@@ -110,6 +114,7 @@ fn save_on_an_imported_docx_asks_for_save_as() {
     let mut s = session("");
     s.run("file.open", &json!({"path": docx.to_string_lossy()})).unwrap();
     s.run("text.insert", &json!({"text": "Edited "})).unwrap();
+    s.run("calc.insert", &json!({"text": "x = 2"})).unwrap();
     let e = s.run("file.save", &json!({})).unwrap_err();
     assert!(matches!(e, CmdError::Failed(_)), "{e:?}");
     let msg = e.to_string();
@@ -171,8 +176,11 @@ fn exports_leave_the_strix_document_its_file() {
         assert_eq!(s.path.as_deref(), Some(native.as_path()), "{copy} is a copy");
         assert!(s.dirty, "{copy} leaves the document unsaved");
     }
+    // A plain-text copy under another name is a copy too.
+    s.run("file.saveAs", &json!({"path": dir.join("book.txt").to_string_lossy()})).unwrap();
+    assert_eq!(s.path.as_deref(), Some(native.as_path()), "book.txt is a copy");
     // Import-only formats are never written.
-    for refused in ["book.txt", "book.docx", "book.odt"] {
+    for refused in ["book.doc", "book.dot", "book.json"] {
         let e = s.run("file.saveAs", &json!({"path": dir.join(refused).to_string_lossy()})).unwrap_err().to_string();
         assert!(e.contains("only opens it"), "{refused}: {e}");
         assert!(!dir.join(refused).exists(), "{refused} written");

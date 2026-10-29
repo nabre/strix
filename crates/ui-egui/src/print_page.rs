@@ -353,6 +353,8 @@ pub(crate) const EXPORT_WORD_2003: &str = "wordml2003";
 
 /// The "save a copy" formats (File › Export, and below the settings on the Print page).
 pub fn export_formats(app: &mut WordApp, ui: &mut Ui) {
+    // A document with Strix objects can't go to the editable formats that would lose them.
+    let native_only = crate::strix_save::native_only_reason(&app.session.doc);
     for (label, ext) in [
         ("PDF document (*.pdf)", "pdf"),
         ("Word document (*.docx)", "docx"),
@@ -366,7 +368,15 @@ pub fn export_formats(app: &mut WordApp, ui: &mut Ui) {
         ("Plain text (*.txt)", "txt"),
         ("Page image (*.png)", "png"),
     ] {
-        if ui.add(egui::Button::new(egui::RichText::new(tl!(label)).font(medium(13.5))).min_size(vec2(320.0, 34.0))).clicked() {
+        let file_ext = if ext == EXPORT_WORD_2003 { "xml" } else { ext };
+        let blocked = native_only.as_deref().filter(|_| strix_engine::io::is_foreign_save(file_ext));
+        let button = egui::Button::new(egui::RichText::new(tl!(label)).font(medium(13.5))).min_size(vec2(320.0, 34.0));
+        let r = ui.add_enabled(blocked.is_none(), button);
+        let r = match blocked {
+            Some(why) => r.on_disabled_hover_text(why),
+            None => r,
+        };
+        if r.clicked() {
             app.export_dialog(ext);
         }
         ui.add_space(4.0);

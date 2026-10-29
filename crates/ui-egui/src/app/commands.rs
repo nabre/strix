@@ -158,6 +158,7 @@ impl WordApp {
                 if matches!(id, "file.save" | "file.saveAs") { self.session.password.as_ref().map(strix_engine::Password::as_str) } else { None };
             let opts = strix_engine::cmd::file::export_options(&self.session, &params);
             strix_engine::io::check_writable(&name)?;
+            strix_engine::strix_objects::check_save(&name, &self.session.doc)?;
             let bytes = strix_engine::io::save_bytes_with(&name, &self.session.doc, password, &opts)?;
             // A ticket left over from an earlier call isn't this save's.
             let saves = self.services.async_saves.clone();
@@ -303,9 +304,10 @@ impl WordApp {
     /// User commands can ask for a supported Save As target or an opening password (#55).
     /// Scripts and agents use [`WordApp::execute`], which never opens these dialogs.
     pub(crate) fn execute_user(&mut self, id: &str, params: Value) -> Result<Value, String> {
-        // Only Strix's own files (.xmath, .xmathm) are saved in place; a document opened from any
-        // other format is an import (#2445). A user's implicit Save asks where through Save As,
-        // a .xmath name proposed; scripts and explicitly supplied paths get the engine's answer.
+        // Strix's own files (.xmath, .xmathm) are saved in place, and so are .docx, .odt… while
+        // the document has no Strix objects; a document opened from any other format is an
+        // import (#2445). A user's implicit Save asks where through Save As, a .xmath name
+        // proposed; scripts and explicitly supplied paths get the engine's answer.
         if id == "file.save"
             && params.get("path").and_then(Value::as_str).is_none()
             && self.has_document()

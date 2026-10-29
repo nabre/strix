@@ -58,7 +58,7 @@ fn imported_word_save_asks_for_xmath_and_preserves_the_original() {
         assert_eq!(result["pending"], "saveAs");
         // A Word 97-2003 template (.dot) becomes a Strix template.
         let proposed = if ext.eq_ignore_ascii_case("dot") { "contract.xmathm" } else { "contract.xmath" };
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: proposed.into(), dir: None });
+        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: proposed.into(), dir: None, native_only: None });
         answer(&shown, None);
         assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], false);
         assert_eq!(a.session.doc, draft);
@@ -208,7 +208,7 @@ fn imported_word_save_controls_ask_for_xmath() {
     h.get_by_label("Save").click();
     h.run_steps(3);
     assert!(h.state().file_dialog_open(), "the Save button asks for a supported target");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None, native_only: None });
     answer(&shown, None);
     h.run_steps(3);
 
@@ -219,7 +219,7 @@ fn imported_word_save_controls_ask_for_xmath() {
     h.event(egui::Event::Key { key: egui::Key::S, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::COMMAND });
     h.run_steps(3);
     assert!(h.state().file_dialog_open(), "the focused editor's Mod+S asks too");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: None, native_only: None });
     answer(&shown, None);
     h.run_steps(3);
     assert!(h.state().session.dirty);
@@ -227,20 +227,52 @@ fn imported_word_save_controls_ask_for_xmath() {
     assert_eq!(std::fs::read(&original).unwrap(), bytes);
 }
 
-/// Save on a document opened from a .docx (or any format but Strix's own) asks where through
-/// Save As with a `.xmath` of the same name proposed; the .docx is never written over. Once
-/// saved as a Strix document, Save writes it in place without asking.
+/// Save on a document opened from a .docx without Strix objects writes the .docx in place, as
+/// the reference word processor does, and Save As proposes the same .docx with every format.
 #[test]
-fn imported_docx_save_proposes_xmath() {
+fn imported_docx_without_strix_objects_saves_in_place() {
     let dir = scratch("imported-docx");
+    let original = dir.join("report.docx");
+    strix_engine::io::save_path(&original, &strix_doc::Document::from_text("Quarterly report")).unwrap();
+    let (mut a, shown) = async_app();
+    a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
+    typed(&mut a);
+    assert_eq!(a.run("file.save", json!({})).unwrap()["saved"], true);
+    assert!(shown.borrow().is_empty(), "no dialog");
+    assert!(!a.session.dirty);
+    assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
+    assert!(saved_text(&original).contains("Quarterly report"));
+    a.run("file.saveAs", json!({})).unwrap();
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.docx".into(), dir: None, native_only: None });
+    answer(&shown, None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Save on a document opened from a .docx that has Strix objects asks where through Save As
+/// with a `.xmath` of the same name proposed, says why (the objects, listed), and offers only
+/// Strix's own formats and the exports; the .docx is never written over. Once saved as a Strix
+/// document, Save writes it in place without asking.
+#[test]
+fn imported_docx_with_strix_objects_save_proposes_xmath() {
+    let dir = scratch("imported-docx-objects");
     let original = dir.join("report.docx");
     strix_engine::io::save_path(&original, &strix_doc::Document::from_text("Quarterly report")).unwrap();
     let bytes = std::fs::read(&original).unwrap();
     let (mut a, shown) = async_app();
     a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
-    typed(&mut a);
+    a.run("caret.docEnd", json!({})).unwrap();
+    a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
     assert_eq!(a.run("file.save", json!({})).unwrap()["pending"], "saveAs");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.xmath".into(), dir: None });
+    let (name, reason) = match shown.borrow()[0].0.clone() {
+        FileDialogRequest::Save { name, native_only, .. } => (name, native_only.unwrap_or_default()),
+        other => (format!("{other:?}"), String::new()),
+    };
+    assert_eq!(name, "report.xmath");
+    assert!(reason.contains("1 calculation") && reason.contains(".xmath"), "{reason}");
+    assert_eq!(a.status_msg.as_ref().map(|(m, _)| m.as_str()), Some(reason.as_str()), "the status bar says why");
+    // The programmatic path never opens a dialog: it gets the engine's refusal.
+    let error = a.execute("file.save", json!({})).unwrap_err();
+    assert!(error.contains("1 calculation") && error.contains("report.xmath"), "{error}");
     let native = dir.join("report.xmath");
     answer(&shown, Some(&native.to_string_lossy()));
     assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], true);
@@ -252,7 +284,7 @@ fn imported_docx_save_proposes_xmath() {
     assert!(saved_text(&native).contains("Again "));
     // F12 on the Strix document proposes its own name.
     a.run("file.saveAs", json!({})).unwrap();
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.xmath".into(), dir: None });
+    assert!(matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, native_only: Some(_), .. } if name == "report.xmath"));
     answer(&shown, None);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -338,7 +370,10 @@ fn save_as_template_starts_in_the_templates_folder() {
     let r = a.run("ui.saveAsTemplate", json!({})).unwrap();
     assert!(own.is_dir(), "the app's templates folder is made on first use");
     assert_eq!(r["dir"], json!(own.to_string_lossy()));
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmathm".into(), dir: Some(own.to_string_lossy().into_owned()) });
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "Document1.xmathm".into(), dir: Some(own.to_string_lossy().into_owned()), native_only: None }
+    );
     let path = own.join("Memo.xmathm");
     answer(&shown, Some(&path.to_string_lossy()));
     let ctx = egui::Context::default();
@@ -355,7 +390,7 @@ fn save_as_template_starts_in_the_templates_folder() {
     assert_eq!(a.user_templates_dir(), Some(chosen.clone()));
     a.run("ui.saveAsTemplate", json!({})).unwrap();
     assert!(
-        matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, dir: Some(d) } if name == "Memo.xmathm" && *d == chosen.to_string_lossy())
+        matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, dir: Some(d), .. } if name == "Memo.xmathm" && *d == chosen.to_string_lossy())
     );
     answer(&shown, None);
     let _ = std::fs::remove_dir_all(&dir);
@@ -370,7 +405,7 @@ fn save_as_answer_arriving_later_is_saved() {
     typed(&mut a);
     a.save_as_dialog();
     assert!(a.file_dialog_open());
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmath".into(), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmath".into(), dir: None, native_only: None });
     let ctx = egui::Context::default();
     let frame = |a: &mut WordApp| ctx.run_ui(egui::RawInput::default(), |ui| a.logic(ui.ctx())).drop_without_applying_deltas();
     frame(&mut a);
@@ -406,7 +441,7 @@ fn save_as_with_a_new_filename_saves_under_it() {
     let r = a.run("file.saveAs", json!({})).unwrap();
     assert_eq!(r, json!({"saved": false}));
     assert!(a.file_dialog_open(), "F12's saveAs request opens the dialog");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "two.xmath".into(), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "two.xmath".into(), dir: None, native_only: None });
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -485,7 +520,7 @@ fn export_pdf_without_a_path_asks_where_to_save() {
     let (mut a, shown) = async_app();
     let r = a.run("file.exportPdf", json!({})).unwrap();
     assert_eq!(r, json!({"exported": false}));
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: format!("{}.pdf", a.title_stem()), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: format!("{}.pdf", a.title_stem()), dir: None, native_only: None });
     let dir = scratch("export-pdf");
     let picked = dir.join("out.pdf");
     answer(&shown, Some(&picked.to_string_lossy()));

@@ -28,7 +28,10 @@ pub enum FileDialogRequest {
     OpenMany { purpose: String },
     /// Pick a path to save to, given a suggested file name and, if it matters, the folder to
     /// start in (Save as Strix Template starts in the user templates folder, #2852).
-    Save { name: String, dir: Option<String> },
+    /// `native_only` says why only Strix's own formats and the static exports are offered (the
+    /// document has Strix objects, which the other editable formats would lose); `None` offers
+    /// every format Strix saves.
+    Save { name: String, dir: Option<String>, native_only: Option<String> },
 }
 
 /// The host's answer to a [`FileDialogRequest`]: the picked paths (one for everything but
@@ -117,11 +120,18 @@ pub fn save_format_name(ext: &str) -> &'static str {
 }
 
 /// The extensions Save As offers for the suggested file `name`: every format the engine saves
-/// ([`strix_engine::io::SAVE_EXTS`]: Strix Document, Strix Template, then the exports), with the
-/// suggested name's own format first. A dialog makes the first one its default, which it adds to
-/// a name typed without an extension; a name with no format Strix saves suggests `.xmath`.
+/// ([`strix_engine::io::SAVE_EXTS`]: Strix Document, Strix Template, the other editable formats,
+/// then the exports), with the suggested name's own format first. A dialog makes the first one
+/// its default, which it adds to a name typed without an extension; a name with no format Strix
+/// saves suggests `.xmath`.
 pub fn save_exts(name: &str) -> Vec<String> {
-    let saves = strix_engine::io::SAVE_EXTS;
+    save_exts_for(name, false)
+}
+
+/// [`save_exts`]; `native_only` leaves out the editable formats that aren't Strix's own (.docx,
+/// .odt…), for a document with Strix objects they would lose.
+pub fn save_exts_for(name: &str, native_only: bool) -> Vec<String> {
+    let saves: Vec<&str> = strix_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !strix_engine::io::is_foreign_save(e)).collect();
     let suggested = std::path::Path::new(name)
         .extension()
         .and_then(std::ffi::OsStr::to_str)
@@ -137,7 +147,12 @@ pub fn save_exts(name: &str) -> Vec<String> {
 /// The "Save as type" list (#1399): one named entry per format, in [`save_exts`]' order, labelled
 /// in the interface language (`Strix Document (*.xmath)`).
 pub fn save_filters(name: &str) -> Vec<(String, Vec<String>)> {
-    save_exts(name).into_iter().map(|e| (format!("{} (*.{e})", tl!(save_format_name(&e))), vec![e])).collect()
+    save_filters_for(name, false)
+}
+
+/// [`save_filters`], leaving out the formats [`save_exts_for`] does.
+pub fn save_filters_for(name: &str, native_only: bool) -> Vec<(String, Vec<String>)> {
+    save_exts_for(name, native_only).into_iter().map(|e| (format!("{} (*.{e})", tl!(save_format_name(&e))), vec![e])).collect()
 }
 
 /// What to do with the path picked in a dialog.
@@ -475,7 +490,15 @@ impl WordApp {
     /// Ask where to save, save there, then do `after`.
     pub(crate) fn save_as(&mut self, after: AfterSave) -> Asked {
         let name = self.default_save_name();
-        self.ask_file(FileDialogRequest::Save { name, dir: None }, AfterPick::SaveAs { after, document: self.session.document_id() })
+        let native_only = crate::strix_save::native_only_reason(&self.session.doc);
+        // Save on a document opened from .docx (or another editable format) lands here when it
+        // has Strix objects: say why it is asked for a .xmath name.
+        if let Some(reason) = &native_only
+            && self.session.path.as_ref().is_some_and(|p| strix_engine::io::is_foreign_save(&p.to_string_lossy()))
+        {
+            self.status(reason.clone());
+        }
+        self.ask_file(FileDialogRequest::Save { name, dir: None, native_only }, AfterPick::SaveAs { after, document: self.session.document_id() })
     }
 
     /// The user templates folder (#2852): the one File › Options names, else the app's own.
@@ -512,7 +535,8 @@ impl WordApp {
         let dir = dir.filter(|d| d.is_dir()).map(|d| d.to_string_lossy().into_owned());
         let name = format!("{}.{}", self.title_stem(), strix_engine::io::NATIVE_TEMPLATE_EXT);
         let after = AfterPick::SaveAs { after: AfterSave::Nothing, document: self.session.document_id() };
-        let _ = self.ask_file(FileDialogRequest::Save { name, dir: dir.clone() }, after);
+        let native_only = crate::strix_save::native_only_reason(&self.session.doc);
+        let _ = self.ask_file(FileDialogRequest::Save { name, dir: dir.clone(), native_only }, after);
         dir
     }
 
@@ -520,7 +544,7 @@ impl WordApp {
     pub(crate) fn export_dialog(&mut self, ext: &str) {
         let file_ext = if ext == crate::print_page::EXPORT_WORD_2003 { "xml" } else { ext };
         let name = format!("{}.{file_ext}", self.title_stem());
-        let _ = self.ask_file(FileDialogRequest::Save { name, dir: None }, AfterPick::Export { ext: ext.to_string() });
+        let _ = self.ask_file(FileDialogRequest::Save { name, dir: None, native_only: None }, AfterPick::Export { ext: ext.to_string() });
     }
 
     /// File › Print › Save these pages as PDF: ask where, then write the pages the print
@@ -528,7 +552,7 @@ impl WordApp {
     pub(crate) fn print_pdf_dialog(&mut self) {
         let name = format!("{}.pdf", self.title_stem());
         let settings = self.ui.print.params();
-        let _ = self.ask_file(FileDialogRequest::Save { name, dir: None }, AfterPick::PrintPdf { settings });
+        let _ = self.ask_file(FileDialogRequest::Save { name, dir: None, native_only: None }, AfterPick::PrintPdf { settings });
     }
 
     pub(crate) fn open_dialog(&mut self) {
