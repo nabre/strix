@@ -149,4 +149,4 @@ Copyright (c) 2026 nabre und die Strix-Mitwirkenden. Strix ist ein Fork von
 [WordCraft](https://github.com/storytold/wordcraft), weder mit dessen Autoren verbunden noch von
 ihnen unterstützt; die erforderlichen Hinweise stehen in [NOTICE](../NOTICE). Mitgelieferte
 Schriften, Symbole, Wörterbücher und Übersetzungen behalten ihre offenen Lizenzen, aufgeführt in
-[ATTRIBUTION.md](../ATTRIBUTION.md). Die Farben folgen der [Atollo](https://github.com/nabre/atollo)-Palette.
+[ATTRIBUTION.md](../ATTRIBUTION.md).

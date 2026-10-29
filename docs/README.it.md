@@ -148,5 +148,4 @@ Strix è distribuito con doppia licenza [MIT](../LICENSE-MIT) o [Apache-2.0](../
 tua scelta. Copyright (c) 2026 nabre e i contributori di Strix. Strix è un fork di
 [WordCraft](https://github.com/storytold/wordcraft) e non è affiliato né approvato dai suoi autori;
 le note richieste sono in [NOTICE](../NOTICE). Font, icone, dizionari e traduzioni inclusi
-mantengono le loro licenze aperte, elencate in [ATTRIBUTION.md](../ATTRIBUTION.md). I colori
-seguono la tavolozza di [Atollo](https://github.com/nabre/atollo).
+mantengono le loro licenze aperte, elencate in [ATTRIBUTION.md](../ATTRIBUTION.md).

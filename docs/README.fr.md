@@ -152,4 +152,3 @@ au choix. Copyright (c) 2026 nabre et les contributeurs de Strix. Strix est un f
 [WordCraft](https://github.com/storytold/wordcraft) ; il n'est ni affilié à ses auteurs ni approuvé
 par eux, et les mentions requises sont dans [NOTICE](../NOTICE). Polices, icônes, dictionnaires et
 traductions inclus gardent leurs licences ouvertes, listées dans [ATTRIBUTION.md](../ATTRIBUTION.md).
-Les couleurs suivent la palette d'[Atollo](https://github.com/nabre/atollo).

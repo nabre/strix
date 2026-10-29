@@ -312,8 +312,7 @@ Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notice
 Bundled fonts, icons, images, dictionaries and translations keep their own open licenses; each
 one is listed with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md). The
 interface translations come from the craft-i18n project and its translators
-([locales/ATTRIBUTION-craft-i18n.md](locales/ATTRIBUTION-craft-i18n.md)). Colours follow the
-[Atollo](https://github.com/nabre/atollo) palette. The project site
+([locales/ATTRIBUTION-craft-i18n.md](locales/ATTRIBUTION-craft-i18n.md)). The project site
 ([nabre.github.io/strix](https://nabre.github.io/strix/)) is built from [`site/`](site/) by
 `cargo xtask site`; positioning, copy and brand rules are in
 [`docs/brand/MARKETING.md`](docs/brand/MARKETING.md).

@@ -165,7 +165,7 @@
   "licText": "Strix is dual-licensed under the MIT or the Apache-2.0 licence, at your option. Copyright © 2026 nabre and the Strix contributors.",
   "licFork": "Strix is a fork of WordCraft, Copyright © 2026 ArtCraft Team and the WordCraft contributors; Strix is not affiliated with or endorsed by them. The required notices are kept:",
   "licThirdTitle": "Third-party material",
-  "licThirdText": "Bundled fonts, dictionaries and translations keep their own open licences, each one listed with its author and source. Every asset is original or openly licensed. Colours follow the Atollo palette.",
+  "licThirdText": "Bundled fonts, dictionaries and translations keep their own open licences, each one listed with its author and source. Every asset is original or openly licensed.",
 
   "closeTitle": "Change one number. Watch everything follow.",
   "closeText": "Results, checks, tables and drawings, recalculated the moment an input changes.",

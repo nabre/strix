@@ -165,7 +165,7 @@
   "licText": "Strix steht wahlweise unter der MIT- oder der Apache-2.0-Lizenz. Copyright © 2026 nabre und die Strix-Mitwirkenden.",
   "licFork": "Strix ist ein Fork von WordCraft, Copyright © 2026 ArtCraft Team und die WordCraft-Mitwirkenden; Strix ist weder mit ihnen verbunden noch von ihnen unterstützt. Die erforderlichen Hinweise bleiben erhalten:",
   "licThirdTitle": "Material Dritter",
-  "licThirdText": "Mitgelieferte Schriften, Wörterbücher und Übersetzungen behalten ihre offenen Lizenzen, jeweils mit Autor und Quelle aufgeführt. Jede Ressource ist eigen oder offen lizenziert. Die Farben folgen der Atollo-Palette.",
+  "licThirdText": "Mitgelieferte Schriften, Wörterbücher und Übersetzungen behalten ihre offenen Lizenzen, jeweils mit Autor und Quelle aufgeführt. Jede Ressource ist eigen oder offen lizenziert.",
 
   "closeTitle": "Eine Zahl ändern. Alles folgt.",
   "closeText": "Ergebnisse, Nachweise, Tabellen und Zeichnungen, neu berechnet, sobald sich ein Wert ändert.",

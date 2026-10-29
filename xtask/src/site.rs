@@ -113,6 +113,7 @@ pub fn run(root: &Path, args: &[&str]) -> Result<(), String> {
             ("ogLocales", og_locales(locale)),
             ("langLinks", lang_menu(lang, &here, &strings)?),
             ("jsonLd", json_ld(lang, s, &version)?),
+            ("langDetect", lang_script(lang)),
         ];
         for (k, v) in computed {
             values.insert(k.to_string(), v);
@@ -210,7 +211,24 @@ fn og_locales(locale: &str) -> String {
     tags.join("\n")
 }
 
-/// The language menu: a `<details>` that needs no script.
+/// The script of a page's language: every page keeps a language picked in the menu (`?lang=`,
+/// in the browser's storage); the root page, English and `x-default`, also moves to the first
+/// of the browser's languages the site speaks, unless a language was picked. GitHub Pages
+/// can't negotiate the language, so this is the only script of the site, made here.
+fn lang_script(lang: &str) -> String {
+    const KEEP: &str = "var q=new URLSearchParams(location.search).get(\"lang\");if(q)localStorage.setItem(\"strix-lang\",q);";
+    if lang != "en" {
+        return format!("<script>try{{{KEEP}}}catch(e){{}}</script>");
+    }
+    let site: Vec<String> = LANGS.iter().map(|(l, _)| format!("\"{l}\"")).collect();
+    format!(
+        "<script>try{{{KEEP}var s=[{}],l=localStorage.getItem(\"strix-lang\");if(!l){{var n=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||\"\"];for(var i=0;i<n.length&&!l;i++){{var p=String(n[i]).toLowerCase().split(\"-\")[0];if(s.indexOf(p)>=0)l=p}}}}if(l&&l!==\"en\"&&s.indexOf(l)>0)location.replace(new URL(l+\"/\"+location.hash,location.href))}}catch(e){{}}</script>",
+        site.join(",")
+    )
+}
+
+/// The language menu: a `<details>`; each link says which language it picks (`?lang=`), so the
+/// root page doesn't move a reader who chose English.
 fn lang_menu(lang: &str, here: &str, strings: &BTreeMap<&str, BTreeMap<String, String>>) -> Result<String, String> {
     let name = |l: &str| strings.get(l).and_then(|m| m.get("langName")).cloned().ok_or_else(|| format!("{l}: no langName"));
     let root = "../".repeat(here.matches('/').count());
@@ -220,7 +238,8 @@ fn lang_menu(lang: &str, here: &str, strings: &BTreeMap<&str, BTreeMap<String, S
         if *l == lang {
             items.push_str(&format!("<li><span aria-current=\"page\" lang=\"{l}\"><b>{code}</b>{}</span></li>", name(l)?));
         } else {
-            items.push_str(&format!("<li><a href=\"{root}{}\" hreflang=\"{l}\" lang=\"{l}\"><b>{code}</b>{}</a></li>", path_of(l), name(l)?));
+            let to = if path_of(l).is_empty() { "./".to_string() } else { path_of(l) };
+            items.push_str(&format!("<li><a href=\"{root}{to}?lang={l}\" hreflang=\"{l}\" lang=\"{l}\"><b>{code}</b>{}</a></li>", name(l)?));
         }
     }
     let label = strings.get(lang).and_then(|m| m.get("langLabel")).cloned().unwrap_or_default();
@@ -381,6 +400,23 @@ mod tests {
     fn finds_links_and_skips_none() {
         let l = links("<a href=\"x/\">a</a><img src=\"i.png\"><source srcset=\"d.png\"><a href=\"https://e\">");
         assert_eq!(l, vec!["x/", "https://e", "i.png", "d.png"]);
+    }
+
+    /// Only the root page moves the reader; every page keeps a language picked in the menu, and
+    /// the menu's links say which one they pick.
+    #[test]
+    fn the_root_page_follows_the_browser_language() {
+        let root = lang_script("en");
+        assert!(root.contains("location.replace") && root.contains("navigator.languages") && root.contains("\"it\",\"fr\",\"de\""));
+        assert!(root.find("var s=").unwrap() < root.find("if(!l)").unwrap(), "the site's languages are known when a stored one is read");
+        let it = lang_script("it");
+        assert!(it.contains("localStorage.setItem") && !it.contains("location.replace"));
+        let mut strings = BTreeMap::new();
+        for (l, name) in [("en", "English"), ("it", "Italiano"), ("fr", "Français"), ("de", "Deutsch")] {
+            strings.insert(l, BTreeMap::from([("langName".to_string(), name.to_string()), ("langLabel".to_string(), "Language".to_string())]));
+        }
+        let menu = lang_menu("it", "it/", &strings).unwrap();
+        assert!(menu.contains("href=\".././?lang=en\"") && menu.contains("href=\"../fr/?lang=fr\""), "{menu}");
     }
 
     #[test]
