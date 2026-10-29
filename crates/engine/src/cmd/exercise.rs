@@ -35,6 +35,11 @@ use strix_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod delete;
+mod numbering;
+pub use delete::{covered_by_selection, delete_targets};
+pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
+
 pub const TAG_EXERCISE: &str = "strix:exercise";
 /// The title's own control: only the title paragraph, so its placeholder is only the title.
 pub const TAG_TITLE: &str = "strix:exercise.title";
@@ -100,6 +105,11 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"exercise"?: n, "data": {"items": [...], "variants": [...], "active": n}} → stores the exercise's data and variants, then recalculates"#),
         CommandSpec::new("exercise.variant", "Variant", "Math › Exercise", set_variant)
             .params(r#"{"exercise"?: n, "active": n (0-based)} → makes that variant the active one"#),
+        CommandSpec::new("exercise.delete", "Delete Exercise", "Math › Exercise", delete::delete)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
+        CommandSpec::new("exercise.numbering", "Exercise Numbering", "Math › Exercise", numbering::command)
+            .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "default": bool, "example": "Esercizio 1"}"#),
         CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -1292,8 +1302,17 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = title_controls(s);
     placeholders(s);
     let layout = scan(s);
-    if layout.exercises.is_empty() && layout.results.is_none() {
-        return changed;
+    if layout.exercises.is_empty() {
+        // No exercise left: the summary goes with the last one.
+        let Some((from, to)) = layout.results else { return changed };
+        if s.doc.body.get(from..=to).is_none() {
+            return changed;
+        }
+        s.doc.body.drain(from..=to);
+        s.doc.ensure_nonempty();
+        s.touch();
+        s.clamp_selection();
+        return true;
     }
     let w = words(s);
     // The repeated questions, last exercise first so earlier block indices stay valid.
@@ -1343,14 +1362,16 @@ pub(crate) fn update(s: &mut Session) -> bool {
         }
     }
     let mut lines = vec![(STYLE_HEADING, w.results.to_string())];
+    // Each exercise by its label alone (`Esercizio 1`, as the document numbers them).
+    let labels = numbering::current(s);
     for (n, e) in layout.exercises.iter().enumerate() {
-        let mut title = if e.title.is_empty() { String::new() } else { format!(" — {}", e.title) };
+        let mut head = labels.label(n);
         if e.data.variants.len() > 1
             && let Some(name) = e.data.variants.get(e.data.active)
         {
-            title.push_str(&format!(" ({} {name})", w.variant));
+            head.push_str(&format!(" ({} {name})", w.variant));
         }
-        lines.push((STYLE_RESULT, format!("{} {}{title}", w.exercise, n + 1)));
+        lines.push((STYLE_RESULT, head));
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
@@ -1435,7 +1456,7 @@ mod tests {
                 "b) La reazione",
                 "",
                 "Riepilogo dei risultati",
-                "Esercizio 1 — Trave appoggiata",
+                "Esercizio 1",
                 "a) risultato non indicato",
                 "b) risultato non indicato",
             ],
@@ -1453,7 +1474,7 @@ mod tests {
         let t = texts(&s);
         assert_eq!(t.iter().filter(|x| *x == "Riepilogo dei risultati").count(), 1);
         assert_eq!(t.last().map(String::as_str), Some("a) risultato non indicato"));
-        assert!(t.contains(&"Esercizio 2 — Secondo".to_string()), "{t:?}");
+        assert!(t.contains(&"Esercizio 2".to_string()) && !t.iter().any(|x| x.contains(" — ")), "{t:?}");
         let second = t.iter().position(|x| x == "a) x").unwrap();
         assert_eq!(t[second + 1..second + 3], ["", "Riepilogo dei risultati"], "{t:?}");
     }
@@ -1687,7 +1708,7 @@ mod tests {
         let t = texts(&s);
         assert!(t.contains(&"luce: L = 6 m".to_string()), "{t:?}");
         assert!(t.contains(&"a) M = 45 kN·m".to_string()), "{t:?}");
-        assert!(t.contains(&"Esercizio 1 — Trave (variante B)".to_string()), "{t:?}");
+        assert!(t.contains(&"Esercizio 1 (variante B)".to_string()), "{t:?}");
         // The data survive saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
@@ -1725,6 +1746,11 @@ mod tests {
         texts(s).into_iter().find(|t| t.starts_with("Esercizio 1")).unwrap_or_default()
     }
 
+    /// The first exercise's title as the exercise reads it (Exercise Info, the summary's source).
+    fn known_title(s: &Session) -> String {
+        scan(s).exercises.first().map(|e| e.title.clone()).unwrap_or_default()
+    }
+
     /// The title is the user's text: typed over its placeholder (New Exercise without a title,
     /// as the ribbon makes it), selected and replaced, deleted with Backspace and Delete; the
     /// structure stays, and the summary, Exercise Info, undo and saving follow it. A title
@@ -1747,7 +1773,7 @@ mod tests {
                 && layout.exercises[0].solution_blocks.is_some()
         );
         assert_eq!(s.run("exercise.info", &json!({})).unwrap()["title"], json!("Trave"));
-        assert_eq!(summary_title(&s), "Esercizio 1 — Trave");
+        assert_eq!(known_title(&s), "Trave");
         // Typing goes on at the end, Backspace and Delete take letters away.
         s.run("text.insert", &json!({"text": " appoggiata"})).unwrap();
         s.run("text.backspace", &json!({})).unwrap();
@@ -1758,14 +1784,14 @@ mod tests {
         s.run("select.text", &json!({"text": "rave appoggiat"})).unwrap();
         s.run("text.insert", &json!({"text": "Ponte"})).unwrap();
         assert_eq!(title(&s), "Ponte");
-        assert_eq!(summary_title(&s), "Esercizio 1 — Ponte");
+        assert_eq!(known_title(&s), "Ponte");
         // Undo and redo take the title, and the summary, with them.
         s.run("edit.undo", &json!({})).unwrap();
         assert_eq!(title(&s), "rave appoggiat");
-        assert_eq!(summary_title(&s), "Esercizio 1 — rave appoggiat");
+        assert_eq!(known_title(&s), "rave appoggiat");
         s.run("edit.redo", &json!({})).unwrap();
         assert_eq!(title(&s), "Ponte");
-        assert_eq!(summary_title(&s), "Esercizio 1 — Ponte");
+        assert_eq!(known_title(&s), "Ponte");
         // Saved and opened again: the title stays, and stays editable.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
@@ -1778,11 +1804,12 @@ mod tests {
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
         s.run("text.insert", &json!({"text": "Il "})).unwrap();
         assert_eq!(title(&s), "Il Ponte");
-        assert_eq!(summary_title(&s), "Esercizio 1 — Il Ponte");
+        assert_eq!(known_title(&s), "Il Ponte");
         // All of it deleted: the placeholder comes back, the structure stays.
         s.run("select.text", &json!({"text": "Il Ponte"})).unwrap();
         s.run("text.delete", &json!({})).unwrap();
         assert_eq!(title(&s), "Titolo dell'esercizio");
+        assert_eq!(known_title(&s), "");
         assert_eq!(summary_title(&s), "Esercizio 1");
         assert_eq!(scan(&s).exercises.len(), 1);
         s.run("text.insert", &json!({"text": "Di nuovo"})).unwrap();
@@ -1816,7 +1843,7 @@ mod tests {
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
         s.run("text.insert", &json!({"text": "Vecchio"})).unwrap();
         assert_eq!(title(&s), "Vecchio");
-        assert_eq!(summary_title(&s), "Esercizio 1 — Vecchio");
+        assert_eq!(known_title(&s), "Vecchio");
         assert_eq!(scan(&s).exercises.len(), 1);
     }
 

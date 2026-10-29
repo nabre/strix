@@ -209,6 +209,8 @@ pub(crate) fn copy_result(s: &mut Session) -> Value {
 }
 
 fn cut(s: &mut Session, v: &Value) -> CmdResult {
+    // Whole exercises are cut whole, so a paste brings them back (docs/exercise.md).
+    let _ = super::exercise::widen_selection(s);
     let r = copy(s, v)?;
     // A tracked cut of a paragraph or sentence may become a move when pasted.
     if !super::moves::cut_tracked(s)? {

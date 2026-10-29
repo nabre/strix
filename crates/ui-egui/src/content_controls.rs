@@ -22,6 +22,9 @@ pub struct ControlUi {
     checks: Vec<(Rect, Pos)>,
     /// The list/calendar button of the control the caret is in.
     button: Option<(Rect, Pos)>,
+    /// Title tabs shown this frame: (screen rect, the control's start marker, just after its end
+    /// marker). A click on one selects the whole control.
+    tabs: Vec<(Rect, Pos, Pos)>,
     /// The open list or calendar.
     popup: Option<Popup>,
 }
@@ -71,6 +74,7 @@ fn frames(app: &WordApp, layout: &DocLayout, rects: &[Rect], scale: f32, r: &Con
 pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &DocLayout, rects: &[Rect], scale: f32) {
     app.controls.checks.clear();
     app.controls.button = None;
+    app.controls.tabs.clear();
     let story = app.session.sel.focus.story;
     let current = app.session.doc.control_at(&app.session.sel.focus);
     let mut shown: Vec<ControlRange> = if app.session.view.design_mode {
@@ -78,6 +82,10 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
     } else {
         current.clone().into_iter().collect()
     };
+    // The exercise the caret is in shows its frame and tab too (docs/exercise.md).
+    if !app.session.view.design_mode {
+        shown.extend(crate::exercise_pane::enclosing_exercise(app, current.as_ref()));
+    }
     // Check boxes are clickable wherever they are, framed or not.
     let all = if app.session.view.design_mode { shown.clone() } else { app.session.doc.control_ranges(story) };
     for r in all.iter().filter(|r| matches!(r.control.kind, ControlKind::CheckBox { .. })).take(MAX_FRAMED) {
@@ -94,13 +102,20 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             painter.rect_stroke(*f, 1.0, stroke, egui::StrokeKind::Outside);
         }
         // The title tab above the first line (its tag in Design Mode when it has no title).
+        let exercise = r.control.tag == strix_engine::cmd::exercise::TAG_EXERCISE;
         let title = if r.control.title.is_empty() && app.session.view.design_mode { r.control.tag.as_str() } else { r.control.title.as_str() };
+        // An exercise's tab is interface: it names the exercise in the interface's language.
+        let title = if exercise && !app.session.view.design_mode { tl!("Exercise") } else { title };
         if let Some(first) = fr.first()
             && !title.is_empty()
         {
             let font = regular(9.5);
             let w = painter.layout_no_wrap(title.to_string(), font.clone(), t.accent_text).size().x + 10.0;
-            let tab = Rect::from_min_size(pos2(first.min.x, first.min.y - 14.0), vec2(w.min(320.0), 14.0));
+            // An exercise's tab sits at the right, clear of its title's.
+            let x = if exercise { first.max.x - w.min(320.0) } else { first.min.x };
+            let tab = Rect::from_min_size(pos2(x, first.min.y - 14.0), vec2(w.min(320.0), 14.0));
+            let end = Pos { off: r.end.off + strix_doc::para::OBJ.len_utf8(), ..r.end.clone() };
+            app.controls.tabs.push((tab, r.start.clone(), end));
             painter.rect_filled(tab, egui::CornerRadius { nw: 3, ne: 3, sw: 0, se: 0 }, if is_current { t.accent } else { t.checked });
             let ink = if is_current { t.on_accent } else { t.accent_text };
             painter.with_clip_rect(tab).text(pos2(tab.min.x + 5.0, tab.center().y), Align2::LEFT_CENTER, title, font, ink);
@@ -133,6 +148,11 @@ pub fn clicks(app: &mut WordApp, resp: &egui::Response) {
         return;
     }
     let Some(p) = resp.interact_pointer_pos() else { return };
+    // A title tab selects its whole control (an exercise: so Delete removes it).
+    if let Some((_, a, b)) = app.controls.tabs.iter().find(|(r, ..)| r.contains(p)).cloned() {
+        let _ = app.run("select.range", json!({"anchor": a, "focus": b}));
+        return;
+    }
     if let Some((b, at)) = app.controls.button.clone()
         && b.contains(p)
     {

@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-29 · **Change:** the title is edited in place (its own control)
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-29 · **Change:** delete a whole exercise; exercise numbering (prefix, format, start) as a document setting; the summary names each exercise by its label alone
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -14,7 +14,7 @@ deleted; the automatic parts can't be edited):
 | Part | Control tag | Lock | Content |
 |---|---|---|---|
 | Exercise | `strix:exercise` | can't delete | everything below |
-| Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; the summary and Exercise Info follow the title as it is typed. Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
+| Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; Exercise Info follows the title as it is typed (the summary shows only the label; prefix, format and first number: see Numbering). Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
 | Data | `strix:exercise.data` | read-only | the initial data in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Properties pane, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
@@ -27,6 +27,39 @@ summary use their labels (`a.1) …`), indented by level; notes and other conten
 are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
 
 The generated words follow the document's language (Italian or English).
+
+## Numbering
+
+The exercises of a document are numbered by one list, a **document setting** saved with it
+(Math › Exercise › Numbering opens it in the Exercise Properties pane; `exercise.numbering`):
+
+- **Prefix**: *Esercizio* / *Exercise* (the document's language) by default, any text of your
+  own (*Problema*, *Es.*), or none for the number alone; Default puts the word back.
+- **Number format**: 1, 2, 3 · A, B, C · a, b, c · I, II, III · i, ii, iii.
+- **Start at**: the first exercise's number (1 to 32767).
+
+Every title's label (*Problema C.*) and the summary's lines (*Problema C*) follow at once, in one
+undo step; it is the Exercise Title style's list, so it is saved in `.xmath` (and `.docx`) like
+any list.
+
+## Deleting an exercise
+
+The parts can't be deleted one by one, so an exercise goes **whole**:
+
+- **Delete Exercise** (Math › Exercise, or right-click in the exercise; `exercise.delete`)
+  removes the exercise at the cursor, or every exercise a selection covers whole.
+- **Select the whole exercise and press Delete or Backspace** (or Cut, which copies it whole so
+  Paste brings it back): a selection covering all of an exercise's content (from its title's
+  text to the end of its last paragraph, or more: the paragraph before to the one after, Select
+  All) takes the exercise with its control markers. Click the exercise's **Esercizio** tab (at
+  the right above the title, shown with the cursor anywhere in the exercise) to select all of it.
+
+The exercise goes in one undo step; an empty paragraph stays where it was (with Delete
+Exercise), text sharing its first or last paragraph stays, and a deletion starting at the
+title's paragraph leaves the next paragraph as it was (no exercise style left behind). The
+other exercises renumber, the summary drops its lines, and it goes with the last exercise. A
+selection over only part of an exercise is still refused, with a message saying how to delete
+the whole one.
 
 ## Data and variants (Exercise Properties pane)
 
@@ -64,7 +97,7 @@ are split into one line each.)
 An equation in the solution is marked as the **result** of a question (Math › Exercise ›
 Result Of, `equation.answer {"question": n}`; without `question`, the question it is worked
 under), saved as `strix:answer="n"` on `m:oMath`). The
-summary lists, for every exercise, its title and each question with the value of its result
+summary lists, for every exercise, its label alone (*Esercizio 1*, as the exercises are numbered, never the title; the variant when there are several) and each question with the value of its result
 equations as calculations show it (`a) M = 30.375 kJ`: only the letter and the result, the question is in the exercise), or "risultato non indicato".
 
 The repeated questions and the summary are rebuilt after every command that changes the
@@ -82,6 +115,8 @@ to the end.
 | `equation.answer` | the equation at the caret is the result of question `n` (0: none) |
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
+| `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n}`); without params, the current one → `{"prefix", "format", "start", "default", "example"}` |
+| `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
 | `exercise.data` | the data and variants of an exercise, with per-item errors |
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
@@ -94,6 +129,9 @@ to the end.
 - Solution steps (substitution, isolation lines) per result.
 
 ## Revision history
+
+- 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Math › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.
+- 2026-10-29: delete a whole exercise: Delete Exercise (ribbon, context menu, `exercise.delete`), Delete/Backspace/Cut over a selection covering it, a click on its tab selects it; the summary goes with the last exercise. Before, every way was refused by the locked parts.
 
 - 2026-10-29: the title has its own control (`strix:exercise.title`), so it is typed over, replaced and deleted in place; before, a New Exercise without a title could not have its title typed over.
 - 2026-10-28: exercise titles numbered automatically through their style.

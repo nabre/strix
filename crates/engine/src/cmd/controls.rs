@@ -367,15 +367,20 @@ pub fn check_deletions<'a>(s: &mut Session, story: StoryRef, deletions: impl Int
         if a.story != story || b.story != story {
             continue;
         }
+        // A whole exercise goes with its locked parts; a part alone says how to delete it all.
+        let exercises = super::exercise::taken_whole(&controls, a, b);
         for r in &controls {
+            if super::exercise::goes_with(&exercises, r) {
+                continue;
+            }
             let whole = (&a.path, a.off) <= (&r.start.path, r.start.off) && (&r.end.path, r.end.off + w) <= (&b.path, b.off);
             let cs = r.content_start();
             let touches = (&a.path, a.off) < (&r.end.path, r.end.off) && (&b.path, b.off) > (&cs.path, cs.off);
             if whole && !r.control.lock.can_delete() {
-                return Err(locked(s, CANT_DELETE));
+                return Err(locked(s, super::exercise::refusal(&r.control.tag).unwrap_or(CANT_DELETE)));
             }
             if !whole && touches && !r.control.lock.can_edit() {
-                return Err(locked(s, CANT_EDIT));
+                return Err(locked(s, super::exercise::refusal(&r.control.tag).unwrap_or(CANT_EDIT)));
             }
         }
     }

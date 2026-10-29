@@ -2473,6 +2473,17 @@ preview	Title	Esempio
 	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Aggiungi una domanda annidata sotto l'ultima (a.1, a.1.1); Tab e Maiusc+Tab cambiano il livello di una domanda
 	Add Note	Aggiungi nota
 	Add a note between the questions: free text that is not a question	Aggiungi una nota tra le domande: testo libero che non è una domanda
+	Delete Exercise	Elimina esercizio
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Elimina per intero l'esercizio al cursore, o gli esercizi selezionati: testo, domande e risoluzione vengono rimossi e i risultati escono dal riepilogo (Annulla lo ripristina)
+	The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Math › Exercise, or right-click it), or select all of it and press Delete.	Le parti di un esercizio non si possono eliminare una per una. Per eliminare l'intero esercizio usa Elimina esercizio (Matematica › Esercizio, o clic destro sull'esercizio), oppure selezionalo tutto e premi Canc.
+	Exercise Numbering	Numerazione esercizi
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Nomina e numera gli esercizi del documento: prefisso (Esercizio, un tuo testo o nessuno), formato del numero e numero iniziale, nel riquadro Proprietà esercizio
+	For every exercise of the document: the label of each title and of the results summary.	Per tutti gli esercizi del documento: l'etichetta di ogni titolo e del riepilogo dei risultati.
+	Prefix	Prefisso
+	Default	Predefinito
+	Exercise, in the document's language	Esercizio, nella lingua del documento
+	Start at	Inizia da
+	First exercise: {label}	Primo esercizio: {label}
 	Exercise Note	Nota esercizio
 	Exercise Properties	Proprietà esercizio
 	Properties	Proprietà

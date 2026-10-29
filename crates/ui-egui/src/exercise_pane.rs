@@ -4,6 +4,7 @@
 
 use egui::Ui;
 use serde_json::{Value, json};
+use strix_doc::control::ControlRange;
 
 use crate::WordApp;
 use crate::a11y_pane::draft_box;
@@ -11,9 +12,31 @@ use crate::a11y_pane::draft_box;
 /// Most variants offered (A…Z).
 const MAX_VARIANTS: usize = 26;
 
+/// The exercise control around the caret, when the caret is in one of its parts (`current`, the
+/// innermost control there, is not the exercise itself): its frame and tab show too, and a click
+/// on the tab selects the whole exercise.
+pub(crate) fn enclosing_exercise(app: &WordApp, current: Option<&ControlRange>) -> Option<ControlRange> {
+    let focus = &app.session.sel.focus;
+    if focus.story != strix_doc::StoryRef::Body {
+        return None;
+    }
+    app.session
+        .doc
+        .control_ranges(focus.story)
+        .into_iter()
+        .filter(|r| r.control.tag == strix_engine::cmd::exercise::TAG_EXERCISE && r.contains(focus))
+        .find(|r| current.is_none_or(|c| c.start != r.start))
+}
+
 pub fn pane(app: &mut WordApp, ui: &mut Ui) {
     let Ok(info) = app.session.run("exercise.data", &json!({})) else {
         ui.label(egui::RichText::new(tl!("Put the cursor in an exercise to see its data and variants.")).weak());
+        // The numbering is the document's: it shows wherever the cursor is, once there are exercises.
+        let exercises = app.session.run("exercise.info", &json!({})).ok().and_then(|i| i["exercises"].as_u64()).unwrap_or(0);
+        if exercises > 0 {
+            ui.add_space(10.0);
+            numbering(app, ui);
+        }
         return;
     };
     let ex = info["exercise"].as_u64().unwrap_or(0);
@@ -154,5 +177,67 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
                 .small()
                 .weak(),
         );
+        ui.add_space(10.0);
+        ui.separator();
+        numbering(app, ui);
     });
+}
+
+/// The number formats offered for exercises: the format's id and how it counts.
+const FORMATS: [(&str, &str); 5] =
+    [("decimal", "1, 2, 3"), ("upperLetter", "A, B, C"), ("lowerLetter", "a, b, c"), ("upperRoman", "I, II, III"), ("lowerRoman", "i, ii, iii")];
+
+/// Exercise numbering, a document setting (`exercise.numbering`): the prefix, number format and
+/// first number of every exercise's label, in the titles and the results summary.
+fn numbering(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(n) = app.session.run("exercise.numbering", &json!({})) else { return };
+    let prefix = n["prefix"].as_str().unwrap_or_default().to_string();
+    let format = n["format"].as_str().unwrap_or("decimal").to_string();
+    let start = n["start"].as_u64().unwrap_or(1);
+    let set = |app: &mut WordApp, params: Value| {
+        if let Err(e) = app.run("exercise.numbering", params) {
+            app.status(e);
+        }
+    };
+    ui.label(egui::RichText::new(tl!("Numbering")).strong());
+    ui.label(egui::RichText::new(tl!("For every exercise of the document: the label of each title and of the results summary.")).small().weak());
+    ui.add_space(4.0);
+    egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
+        ui.label(tl!("Prefix"));
+        ui.horizontal(|ui| {
+            ui.scope(|ui| {
+                ui.set_width(110.0);
+                if let Some(t) = draft_box(ui, "exercise_numbering_prefix", &prefix, true, false) {
+                    set(app, json!({"prefix": t}));
+                }
+            });
+            let default = n["default"].as_bool().unwrap_or(false);
+            if ui
+                .add_enabled(!default, egui::Button::new(tl!("Default")).small())
+                .on_hover_text(tl!("Exercise, in the document's language"))
+                .clicked()
+            {
+                set(app, json!({"prefix": null}));
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Number format"));
+        let shown = FORMATS.iter().find(|(id, _)| *id == format).map_or("1, 2, 3", |(_, l)| l);
+        craft_ui::ComboBox::from_id_salt("exercise_numbering_format").selected_text(shown).show_ui(ui, |ui| {
+            for (id, label) in FORMATS {
+                if ui.selectable_label(id == format, label).clicked() && id != format {
+                    set(app, json!({"format": id}));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Start at"));
+        let mut value = start;
+        if ui.add(egui::DragValue::new(&mut value).range(1..=32767)).changed() && value != start {
+            set(app, json!({"start": value}));
+        }
+        ui.end_row();
+    });
+    let example = n["example"].as_str().unwrap_or_default();
+    ui.label(egui::RichText::new(crate::i18n::fmt(tl!("First exercise: {label}"), &[("label", example)])).small().weak());
 }

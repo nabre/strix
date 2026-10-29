@@ -202,6 +202,33 @@ Calculation",
                 crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
             );
         });
+        stack(ui, |ui| {
+            // Only with the cursor in an exercise, or whole ones selected.
+            let targets = !strix_engine::cmd::exercise::delete_targets(&app.session).is_empty();
+            ui.add_enabled_ui(targets, |ui| {
+                // Drawn greyed out like a disabled command: the command itself stays on for
+                // scripts naming an exercise.
+                if !targets {
+                    ui.multiply_opacity(0.4);
+                }
+                small(
+                    ui,
+                    app,
+                    "deleteTable",
+                    Some("Delete Exercise"),
+                    "Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)",
+                    crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
+                );
+            });
+            small(
+                ui,
+                app,
+                "numbering",
+                Some("Numbering"),
+                "Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane",
+                crate::widgets::ButtonAction::new("view.exercisePane", json!({"value": true}), false),
+            );
+        });
     });
     group(ui, "Tables", None, app, |ui, app| {
         big(

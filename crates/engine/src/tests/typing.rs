@@ -3408,3 +3408,25 @@ fn delete_at_the_start_of_a_block_control_deletes_its_first_letter() {
     // The control is still there, around what is left.
     assert_eq!(s.doc.control_ranges(StoryRef::Body).len(), 1);
 }
+
+/// An exercise's parts are locked against deletion, so Ctrl+A then Backspace (or Delete) over a
+/// document holding one was refused and nothing went. A selection covering a whole exercise now
+/// takes it whole, its results summary too; part of one is still refused (docs/exercise.md).
+#[test]
+fn backspace_over_a_whole_exercise_deletes_it() {
+    let mut s = typed("Intro");
+    run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
+    run(&mut s, "caret.end", json!({}));
+    run(&mut s, "text.insert", json!({"text": "!"}));
+    // Shift+Down from the title: part of the exercise, refused.
+    run(&mut s, "caret.home", json!({}));
+    run(&mut s, "caret.down", json!({"extend": true}));
+    assert!(s.run("text.backspace", &json!({})).is_err());
+    assert!(s.doc.plain_text(StoryRef::Body).contains("Uno!"));
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "text.backspace", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body).trim(), "");
+    assert!(s.doc.control_ranges(StoryRef::Body).is_empty());
+    run(&mut s, "edit.undo", json!({}));
+    assert!(s.doc.plain_text(StoryRef::Body).contains("Uno!"));
+}

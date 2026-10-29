@@ -124,6 +124,11 @@ pub(super) fn context_menu(app: &mut WordApp, ui: &mut Ui) {
         item(ui, app, tl!("Update Field"), "references.updateToc", json!({}));
         item(ui, app, tl!("Remove Table of Contents"), "references.removeToc", json!({}));
     }
+    // In an exercise, or over whole ones: the way to delete it whole (docs/exercise.md).
+    if !strix_engine::cmd::exercise::delete_targets(&app.session).is_empty() {
+        ui.separator();
+        item(ui, app, "Delete Exercise", "exercise.delete", json!({}));
+    }
     let selected_object = strix_engine::cmd::objects::selected(&app.session).is_some();
     if selected_object || app.session.sel.focus.path.cell().is_some() {
         item(ui, app, "View Alt Text…", "view.altTextPane", json!({"value": true}));

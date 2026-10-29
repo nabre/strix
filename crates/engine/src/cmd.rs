@@ -176,6 +176,9 @@ pub(crate) fn delete_selection_effect(s: &mut Session) -> Result<SelectionDelete
     if a == b {
         return Ok(SelectionDelete { at: a, content_changed: false, state_changed: false });
     }
+    // A selection over whole exercises takes them whole (docs/exercise.md).
+    let tidy = exercise::widen_selection(s);
+    let (a, b) = s.sel.ordered();
     controls::check_delete(s, &a, &b)?;
     let effect = if s.doc.settings.track_changes {
         if !track_delete_would_change(s, &a, &b) {
@@ -187,6 +190,9 @@ pub(crate) fn delete_selection_effect(s: &mut Session) -> Result<SelectionDelete
         }
     } else {
         let at = s.doc.delete_range(&a, &b)?;
+        if let Some(t) = tidy {
+            exercise::tidy(s, &at, t);
+        }
         SelectionDelete { at, content_changed: true, state_changed: true }
     };
     s.sel = crate::Selection::caret(effect.at.clone());
