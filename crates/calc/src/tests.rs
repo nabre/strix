@@ -392,7 +392,10 @@ fn limits() {
     assert_eq!(last_error(&[&powers]), CalcError::TooComplex);
     // Long non-calc text stays untouched without an error.
     let prose = "x".repeat(10_000);
-    assert_eq!(run(&[&prose])[0], RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None });
+    assert_eq!(
+        run(&[&prose])[0],
+        RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None, numeric: false }
+    );
     // A too-long definition undefines its name.
     let long_def = format!("a := {}", "1+".repeat(3000) + "1");
     let results = run(&["a := 1", &long_def, "a ="]);
@@ -495,6 +498,7 @@ fn hostile_input_never_panics() {
             zeros: round % 2 == 0,
             count: [Count::Auto, Count::Decimals, Count::Significant][round % 3],
             steps: round % 2 == 1,
+            layout: if round % 4 < 2 { Layout::Inline } else { Layout::Lines },
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -841,29 +845,122 @@ fn every_cell_can_be_data_a_formula_or_an_equation() {
     assert_eq!(ws.eval_statement("M =").display.as_deref(), Some("M = [30.375; 45; 20] kN·m"));
 }
 
+/// The lines under the last statement, with steps laid out one per line.
 fn steps(statements: &[&str]) -> Option<Vec<String>> {
-    let opts = Options { steps: true, ..Options::default() };
+    let opts = Options { steps: true, layout: Layout::Lines, ..Options::default() };
     evaluate(statements, &opts).pop().and_then(|r| r.steps)
+}
+
+/// The last statement as shown with steps on its line.
+fn inline(statements: &[&str]) -> String {
+    let opts = Options { steps: true, ..Options::default() };
+    evaluate(statements, &opts).pop().and_then(|r| r.display).unwrap_or_default()
 }
 
 #[test]
 fn solutions_show_formula_substitution_and_result() {
-    // Solved for the unknown: formula, substitution, result.
+    // Solved for the unknown: the formula isolated, substitution, result.
     assert_eq!(steps(&["F = 10 N", "m = 4 kg", "F = m·a"]).unwrap(), ["a = F/m", "a = (10 N)/(4 kg)", "a = 2.5 m/s²"]);
-    // A formula already solved: substitution and result.
-    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["M = (12 kN/m)·(4.5 m)²/8", "M = 30.375 kN·m"]);
-    assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
+    // A formula already solved: substitution and result, under the formula.
+    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
+    // Each step of the algebra on a line of its own.
+    assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["π·d² = 4·A", "d² = 4·A/π", "d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
     // Plain numbers in the substitution need no parentheses; negatives do.
-    assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["c = 2·(-3)", "c = -6"]);
-    // Solved numerically: the equation with the values, then the result.
+    assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["= 2·(-3)", "= -6"]);
+    // Solved numerically: the equation with the values, then the result, marked as numerical.
     assert_eq!(steps(&["k = 6", "x^2 + x = k"]).unwrap(), ["x² + x = 6", "x = 2"]);
-    // Data, and statements that ask for a unit, have no steps.
-    assert_eq!(steps(&["L = 4.5 m"]), None);
-    assert_eq!(steps(&["L = 4.5 m", "M = 2 L = mm"]), None);
-    // With steps, a solved equation stays as written.
     let opts = Options { steps: true, ..Options::default() };
-    let r = evaluate(&["F = 10 N", "m = 4 kg", "F = m·a ⇒ a = 1 m/s^2"], &opts).pop().unwrap();
+    assert!(evaluate(&["k = 6", "x^2 + x = k"], &opts).pop().unwrap().numeric);
+    assert!(!evaluate(&["F = 10 N", "m = 4 kg", "F = m·a"], &opts).pop().unwrap().numeric);
+    // Data have no steps; a unit asked for is the result's (and, being a working unit, the substitution's).
+    assert_eq!(steps(&["L = 4.5 m", "M = 2·L = mm"]).unwrap(), ["= 2·(4500 mm)", "= 9000 mm"]);
+    // With steps, a solved equation stays as written; the unit of its stale result is kept.
+    let opts = Options { steps: true, layout: Layout::Lines, ..Options::default() };
+    let r = evaluate(&["F = 10 N", "m = 4 kg", "F = m·a ⇒ a = 1 mm/s^2"], &opts).pop().unwrap();
     assert_eq!(r.display.as_deref(), Some("F = m·a"));
+    assert_eq!(r.steps.unwrap().last().map(String::as_str), Some("a = 2500 mm/s²"));
+}
+
+/// The owner's beam: every formula and check shows its working, inline after `⇒`/`=` or on
+/// lines of its own; read back, what is shown gives the same again.
+#[test]
+fn a_beam_shows_its_working_in_either_layout() {
+    let sheet = ["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8 =", "W = 1000 cm^3", "f_yd = 355 MPa", "σ = M/W =", "σ ≤ f_yd"];
+    for layout in [Layout::Inline, Layout::Lines] {
+        let opts = Options { steps: true, layout, ..Options::default() };
+        let first = evaluate(&sheet, &opts);
+        let shown: Vec<(Option<String>, Option<Vec<String>>)> = first.iter().map(|r| (r.display.clone(), r.steps.clone())).collect();
+        match layout {
+            Layout::Inline => {
+                assert_eq!(shown[2].0.as_deref(), Some("M = q·L^2/8 = (12 kN/m)·(4.5 m)²/8 = 30.375 kN·m"));
+                assert_eq!(shown[5].0.as_deref(), Some("σ = M/W = (30.375 kN·m)/(1000 cm³) = 30.375 MPa"));
+                assert_eq!(shown[6].0.as_deref(), Some("σ ≤ f_yd ⇒ 30.375 MPa ≤ 355 MPa ✓"));
+                assert!(shown.iter().all(|(_, s)| s.is_none()));
+            }
+            Layout::Lines => {
+                assert_eq!(shown[2], (Some("M = q·L^2/8".into()), Some(vec!["= (12 kN/m)·(4.5 m)²/8".into(), "= 30.375 kN·m".into()])));
+                assert_eq!(shown[5], (Some("σ = M/W".into()), Some(vec!["= (30.375 kN·m)/(1000 cm³)".into(), "= 30.375 MPa".into()])));
+                assert_eq!(shown[6], (Some("σ ≤ f_yd".into()), Some(vec!["30.375 MPa ≤ 355 MPa ✓".into()])));
+            }
+        }
+        // Read back as a document keeps it (inline: the line; lines: the statement and the
+        // result under it), it shows the same.
+        let again: Vec<String> = sheet
+            .iter()
+            .zip(&first)
+            .map(|(typed, r)| match (&r.display, &r.steps) {
+                (Some(d), Some(rows)) => match rows.last() {
+                    Some(last) if last.starts_with('=') => format!("{d} {last}"),
+                    Some(last) => format!("{d} ⇒ {last}"),
+                    None => d.clone(),
+                },
+                (Some(d), None) => d.clone(),
+                _ => (*typed).to_string(),
+            })
+            .collect();
+        let refs: Vec<&str> = again.iter().map(String::as_str).collect();
+        let second = evaluate(&refs, &opts);
+        for (a, b) in first.iter().zip(&second) {
+            assert_eq!((&a.display, &a.steps, a.error.is_none()), (&b.display, &b.steps, b.error.is_none()), "{layout:?}");
+        }
+    }
+    // Steps off: the result on the statement's line, or under it.
+    assert_eq!(last(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8 ="]), "M = q·L^2/8 = 30.375 kN·m");
+    let lines = Options { layout: Layout::Lines, ..Options::default() };
+    let r = evaluate(&["F = 10 N", "m = 4 kg", "F = m·a"], &lines).pop().unwrap();
+    assert_eq!((r.display.as_deref(), r.steps), (Some("F = m·a"), Some(vec!["a = 2.5 m/s²".to_string()])));
+    let r = evaluate(&["a = 2 MPa", "b = 3 MPa", "a ≤ b"], &lines).pop().unwrap();
+    assert_eq!((r.display.as_deref(), r.steps), (Some("a ≤ b"), Some(vec!["2 MPa ≤ 3 MPa ✓".to_string()])));
+    // A show statement keeps its result on its line.
+    assert_eq!(evaluate(&["L = 4.5 m", "L·2 ="], &lines).pop().unwrap().display.as_deref(), Some("L·2 = 9 m"));
+}
+
+/// Inline, the algebra goes after `⇒`, the substitution and the result after `=`.
+#[test]
+fn inline_steps_chain_the_algebra() {
+    assert_eq!(inline(&["m = 400 kg", "F = 1 kN", "F = m·a"]), "F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²");
+    assert_eq!(inline(&["A = 50 cm^2", "A = π·d^2/4"]), "A = π·d^2/4 ⇒ π·d² = 4·A ⇒ d² = 4·A/π ⇒ d = √(4·A/π) = √(4·(50 cm²)/π) = 0.0798 m");
+    // Inverse functions: a power of an unknown exponent, a logarithm.
+    assert_eq!(inline(&["1024 = 2^n"]), "1024 = 2^n ⇒ n = ln(1024)/ln(2) = 10");
+    assert_eq!(inline(&["y = 2", "y = ln(x)"]), "y = ln(x) ⇒ x = exp(y) = exp(2) = 7.389");
+    // Numerically: the equation with its values, then the result.
+    assert_eq!(inline(&["k = 6", "x^2 + x = k"]), "x^2 + x = k ⇒ x² + x = 6 ⇒ x = 2");
+    // Read back, the working is not read: the statement is solved again.
+    assert_eq!(inline(&["m = 400 kg", "F = 2 kN", "F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²"]), "F = m·a ⇒ a = F/m = (2 kN)/(400 kg) = 5 m/s²");
+    assert_eq!(
+        inline(&["A = 50 cm^2", "A = π·d^2/4 ⇒ π·d² = 4·A ⇒ d² = 4·A/π ⇒ d = √(4·A/π) = √(4·(50 cm²)/π) = 0.0798 m"]),
+        "A = π·d^2/4 ⇒ π·d² = 4·A ⇒ d² = 4·A/π ⇒ d = √(4·A/π) = √(4·(50 cm²)/π) = 0.0798 m"
+    );
+    // A quantity as a built-up fraction writes it back (`(12 kN)/m`) is still data.
+    assert_eq!(last(&["L = 4.5 m", "q = (12 kN)/m", "q ="]), "q = 12 kN/m");
+    // A user's own chain of `=` is not taken for working.
+    let r = evaluate(&["A = 3 m = 4 m ="], &Options { steps: true, ..Options::default() }).pop().unwrap();
+    assert!(r.error.is_some(), "{r:?}");
+    // Units are found in a check's line too.
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("σ = 30 MPa");
+    assert_eq!(ws.units_in("σ ≤ 355 MPa ⇒ 30 MPa ≤ 355 MPa ✓"), ["MPa"]);
+    assert_eq!(ws.units_in("F = m·a ⇒ a = 2.5 m/s²"), ["m", "s"]);
 }
 
 #[test]
@@ -891,23 +988,30 @@ fn mixed_units_are_worked_in_one() {
     let run_steps = |st: &[&str]| evaluate(st, &opts).pop().unwrap();
     // `5 m·30 cm =`: the working, then the result under it.
     let r = run_steps(&["5 m·30 cm ="]);
-    assert_eq!(r.display.as_deref(), Some("5 m·30 cm = 5 m·0.3 m"));
-    assert_eq!(r.steps, Some(vec!["= 1.5 m²".to_string()]));
+    assert_eq!(r.display.as_deref(), Some("5 m·30 cm = 5 m·0.3 m = 1.5 m²"));
+    assert_eq!(r.steps, None);
     assert_eq!(r.kind, RegionKind::Evaluation);
-    // Read back (as a document stores it), it is worked again, not checked.
-    let again = run_steps(&["5 m·30 cm = 5 m·0.3 m"]);
-    assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (RegionKind::Evaluation, r.display.clone(), r.steps.clone()));
+    // Read back (as a document stores it), it is worked again, not checked: as written now, and
+    // as older documents wrote it.
+    for stored in ["5 m·30 cm = 5 m·0.3 m = 1.5 m²", "5 m·30 cm = 5 m·0.3 m"] {
+        let again = run_steps(&[stored]);
+        assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (RegionKind::Evaluation, r.display.clone(), None), "{stored}");
+    }
     // Changing the data: worked anew.
-    let changed = run_steps(&["5 m·40 cm = 5 m·0.3 m"]);
-    assert_eq!(changed.display.as_deref(), Some("5 m·40 cm = 5 m·0.4 m"), "{changed:?}");
-    // One unit already, a unit asked for, or no steps: as before.
-    assert_eq!(run_steps(&["5 m·3 m ="]).steps, None);
-    assert_eq!(run_steps(&["5 m·30 cm = cm^2"]).display.as_deref(), Some("5 m·30 cm = 15000 cm²"));
+    let changed = run_steps(&["5 m·40 cm = 5 m·0.3 m = 1.5 m²"]);
+    assert_eq!(changed.display.as_deref(), Some("5 m·40 cm = 5 m·0.4 m = 2 m²"), "{changed:?}");
+    // One unit already, or no steps: the result alone. A unit asked for is the result's.
+    assert_eq!(run_steps(&["5 m·3 m ="]).display.as_deref(), Some("5 m·3 m = 15 m²"));
+    assert_eq!(run_steps(&["5 m·30 cm = cm^2"]).display.as_deref(), Some("5 m·30 cm = 5 m·0.3 m = 15000 cm²"));
     assert_eq!(last(&["5 m·30 cm ="]), "5 m·30 cm = 1.5 m²");
+    // On lines: the working, then the result, each under the expression.
+    let lines = Options { steps: true, layout: Layout::Lines, ..Options::default() };
+    let r = evaluate(&["5 m·30 cm ="], &lines).pop().unwrap();
+    assert_eq!((r.display.as_deref(), r.steps), (Some("5 m·30 cm"), Some(vec!["= 5 m·0.3 m".to_string(), "= 1.5 m²".to_string()])));
     // In a formula's substitution, parameters of one kind in one unit.
-    assert_eq!(steps(&["x = 0.5 mm", "y = 3 m", "z = x + y"]).unwrap(), ["z = (5·10^-4 m) + (3 m)", "z = 3.001 m"]);
+    assert_eq!(steps(&["x = 0.5 mm", "y = 3 m", "z = x + y"]).unwrap(), ["= (5·10^-4 m) + (3 m)", "= 3.001 m"]);
     // `a` is shown in mm: every length is worked in mm.
-    assert_eq!(steps(&["a = 20 cm", "b = 2 m", "s = 5 mm", "A = a·b + s·b"]).unwrap()[0], "A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)");
+    assert_eq!(steps(&["a = 20 cm", "b = 2 m", "s = 5 mm", "A = a·b + s·b"]).unwrap()[0], "= (200 mm)·(2000 mm) + (5 mm)·(2000 mm)");
 }
 
 /// A data table: every value is a parameter named by its column and its row's label, joined by
@@ -1213,23 +1317,27 @@ fn a_definition_worked_out_at_once_with_steps() {
     let one = |st: &[&str]| evaluate(st, &opts).pop().unwrap();
     let r = one(&["A = 3 m·50 cm ="]);
     assert_eq!(r.kind, RegionKind::DefineAndShow);
-    assert_eq!(r.display.as_deref(), Some("A = 3 m·50 cm = 3 m·0.5 m"));
-    assert_eq!(r.steps, Some(vec!["= 1.5 m²".to_string()]));
-    let again = one(&["A = 3 m·50 cm = 3 m·0.5 m"]);
-    assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (r.kind, r.display.clone(), r.steps.clone()));
-    assert_eq!(one(&["A = 3 m·50 cm = 3 m·0.5 m", "A ="]).display.as_deref(), Some("A = 1.5 m²"));
+    assert_eq!(r.display.as_deref(), Some("A = 3 m·50 cm = 3 m·0.5 m = 1.5 m²"));
+    assert_eq!(r.steps, None);
+    for stored in ["A = 3 m·50 cm = 3 m·0.5 m = 1.5 m²", "A = 3 m·50 cm = 3 m·0.5 m"] {
+        let again = one(&[stored]);
+        assert_eq!((again.kind, again.display.clone(), again.steps.clone()), (r.kind, r.display.clone(), None), "{stored}");
+    }
+    assert_eq!(one(&["A = 3 m·50 cm = 3 m·0.5 m = 1.5 m²", "A ="]).display.as_deref(), Some("A = 1.5 m²"));
     // New data, worked anew; steps off, the result after `=` again.
-    assert_eq!(one(&["A = 3 m·40 cm = 3 m·0.5 m"]).display.as_deref(), Some("A = 3 m·40 cm = 3 m·0.4 m"));
+    assert_eq!(one(&["A = 3 m·40 cm = 3 m·0.5 m = 1.5 m²"]).display.as_deref(), Some("A = 3 m·40 cm = 3 m·0.4 m = 1.2 m²"));
     assert_eq!(last(&["A = 3 m·50 cm = 3 m·0.5 m"]), "A = 3 m·50 cm = 1.5 m²");
+    assert_eq!(last(&["A = 3 m·50 cm = 3 m·0.5 m = 1.5 m²"]), "A = 3 m·50 cm = 1.5 m²");
     // `:=` the same.
     let d = one(&["A := 3 m·50 cm ="]);
-    assert_eq!((d.display.as_deref(), d.steps.clone()), (Some("A := 3 m·50 cm = 3 m·0.5 m"), Some(vec!["= 1.5 m²".to_string()])));
-    assert_eq!(one(&["A := 3 m·50 cm = 3 m·0.5 m"]).display.as_deref(), Some("A := 3 m·50 cm = 3 m·0.5 m"));
+    assert_eq!((d.display.as_deref(), d.steps.clone()), (Some("A := 3 m·50 cm = 3 m·0.5 m = 1.5 m²"), None));
+    assert_eq!(one(&["A := 3 m·50 cm = 3 m·0.5 m = 1.5 m²"]).display.as_deref(), Some("A := 3 m·50 cm = 3 m·0.5 m = 1.5 m²"));
+    assert_eq!(one(&["A := 3 m·50 cm = 3 m·0.5 m"]).display.as_deref(), Some("A := 3 m·50 cm = 3 m·0.5 m = 1.5 m²"));
     // One unit already: the result after `=`, no steps.
     let plain = one(&["A = 3 m·5 m ="]);
     assert_eq!((plain.display.as_deref(), plain.steps), (Some("A = 3 m·5 m = 15 m²"), None));
-    // A unit asked for: kept, no working.
-    assert_eq!(one(&["A = 3 m·50 cm = cm^2"]).display.as_deref(), Some("A = 3 m·50 cm = 15000 cm²"));
+    // A unit asked for: the result in it, after the working.
+    assert_eq!(one(&["A = 3 m·50 cm = cm^2"]).display.as_deref(), Some("A = 3 m·50 cm = 3 m·0.5 m = 15000 cm²"));
 }
 
 /// The other uses of `=` are unchanged by the definition worked out at once.

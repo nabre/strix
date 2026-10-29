@@ -5,7 +5,7 @@ use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{BinOp, Expr, Func, parse, parse_with};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::solve::{free_names, isolate, numeric};
+use crate::solve::{free_names, isolate, isolate_steps, numeric};
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
@@ -37,6 +37,40 @@ pub struct Options {
     pub decimal_comma: bool,
     /// Work out the solution steps of formulas and solved equations ([`RegionResult::steps`]).
     pub steps: bool,
+    /// How a result and its steps are laid out: after `⇒` on the statement's line, or on lines
+    /// of their own under it.
+    pub layout: Layout,
+}
+
+/// How a statement's result and solution steps are laid out (`docs/calc.md`, Layout).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Layout {
+    /// On the statement's line: `F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²`,
+    /// `M = q·L²/8 = (12 kN/m)·(4.5 m)²/8 = 30.375 kN·m`.
+    #[default]
+    Inline,
+    /// One line each under the statement, aligned at `=` ([`RegionResult::steps`]): `F = m·a`,
+    /// then `a = F/m`, `a = (1 kN)/(400 kg)`, `a = 2.5 m/s²`.
+    Lines,
+}
+
+impl Layout {
+    /// The layout named `inline` or `lines`.
+    pub fn from_name(name: &str) -> Option<Layout> {
+        match name {
+            "inline" => Some(Layout::Inline),
+            "lines" => Some(Layout::Lines),
+            _ => None,
+        }
+    }
+
+    /// The layout's name: `inline` or `lines`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Layout::Inline => "inline",
+            Layout::Lines => "lines",
+        }
+    }
 }
 
 /// What [`Options::digits`] counts.
@@ -53,7 +87,7 @@ pub enum Count {
 
 impl Default for Options {
     fn default() -> Self {
-        Options { digits: 3, count: Count::Auto, zeros: false, decimal_comma: false, steps: false }
+        Options { digits: 3, count: Count::Auto, zeros: false, decimal_comma: false, steps: false, layout: Layout::Inline }
     }
 }
 
@@ -90,16 +124,51 @@ pub struct RegionResult {
     pub display: Option<String>,
     /// Why the statement failed.
     pub error: Option<CalcError>,
-    /// With [`Options::steps`], the solution as lines shown under the statement, one under the
-    /// other: the formula solved for the unknown (`a = F/m`, when it had to be isolated), the
-    /// values substituted (`a = (10 N)/(4 kg)`) and the result (`a = 2.5 m/s²`).
+    /// With [`Layout::Lines`], the lines shown under the statement ([`Self::display`]), one under
+    /// the other: the result (`a = 2.5 m/s²`, `30.4 MPa ≤ 355 MPa ✓`) and, with
+    /// [`Options::steps`], the solution before it: each step isolating the unknown (`a = F/m`),
+    /// the values substituted (`a = (10 N)/(4 kg)`; `= (12 kN/m)·(4.5 m)²/8` under a formula).
+    /// With [`Layout::Inline`] the same is written after the statement in [`Self::display`].
     pub steps: Option<Vec<String>>,
+    /// The unknown was found numerically, and the steps show it (with [`Options::steps`]): the
+    /// result says so.
+    pub numeric: bool,
 }
 
 impl RegionResult {
     pub(crate) fn not_calc() -> Self {
-        RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None }
+        RegionResult { kind: RegionKind::NotCalc, name: None, value: None, display: None, error: None, steps: None, numeric: false }
     }
+}
+
+/// How an unknown was found ([`Worksheet::solve_for`]).
+enum Solution {
+    /// Alone on a side: `x = form`.
+    Direct(Expr),
+    /// Isolated (`x = form`), with the equation after each step on the way.
+    Isolated(Expr, Vec<(Expr, Expr)>),
+    /// Numerically.
+    Numeric,
+}
+
+impl Solution {
+    /// The expression `x` equals, when it was worked out symbolically.
+    fn form(&self) -> Option<&Expr> {
+        match self {
+            Solution::Direct(f) | Solution::Isolated(f, _) => Some(f),
+            Solution::Numeric => None,
+        }
+    }
+}
+
+/// A line of working under a statement (see [`Worksheet::lay_out`]).
+enum Line {
+    /// A new equation: a step isolating the unknown (`a = F/m`), the equation with its values
+    /// (solved numerically), a check's values (`30.4 MPa ≤ 355 MPa ✓`).
+    New(String),
+    /// The right side of the line before, worked further: `(12 kN/m)·(4.5 m)²/8`, the result.
+    /// With a name (`a`) it is written `a = …` on a line of its own; without, `= …`.
+    Same(Option<String>, String),
 }
 
 /// A worksheet: statements evaluated in order against one shared [`Scope`].
@@ -178,6 +247,7 @@ impl Worksheet {
             display: None,
             error: Some(err),
             steps: None,
+            numeric: false,
         };
         if let Some(p) = params.iter().enumerate().find(|(k, p)| params.iter().take(*k).any(|q| q == *p)).map(|(_, p)| p) {
             self.scope.remove_function(&name);
@@ -193,7 +263,15 @@ impl Worksheet {
         match parsed {
             Ok(body) => {
                 self.scope.set_function(Function { name: name.clone(), params, body });
-                Some(RegionResult { kind: RegionKind::Definition, name: Some(name), value: None, display: None, error: None, steps: None })
+                Some(RegionResult {
+                    kind: RegionKind::Definition,
+                    name: Some(name),
+                    value: None,
+                    display: None,
+                    error: None,
+                    steps: None,
+                    numeric: false,
+                })
             }
             Err(err) => {
                 self.scope.remove_function(&name);
@@ -205,50 +283,75 @@ impl Worksheet {
     /// The names in `text` that are units here (not parameters or constants): `["kN", "m"]` for
     /// `M = 30.4 kN·m`; for the equation editor to style them.
     pub fn units_in(&self, text: &str) -> Vec<String> {
-        let Ok(tokens) = lex(text.get(..text.len().min(MAX_INPUT_CHARS * 4)).unwrap_or(text), self.opts.decimal_comma) else { return Vec::new() };
         let mut out: Vec<String> = Vec::new();
-        // Each part between `=`, `:=`, `⇒` and comparisons, parsed as an expression: units after
-        // numbers, and names that can only be units here.
-        let split = |t: &Tok| matches!(t, Tok::Equals | Tok::Define | Tok::Cmp(_));
-        for part in tokens.split(|t| split(&t.tok)) {
-            let Ok(expr) = self.parse_expr(part, text.chars().count()) else {
-                // Not an expression (a stale `[…]` or `⚠`): names that are units, as before.
-                for t in part {
-                    if let Tok::Ident(n) = &t.tok
-                        && self.scope.get(n).is_none()
-                        && constant(n).is_none()
-                        && unit(n).is_some()
-                        && !out.contains(n)
-                    {
+        for u in self.units_by_part(text).into_iter().flatten() {
+            if !out.contains(&u) {
+                out.push(u);
+            }
+        }
+        out
+    }
+
+    /// [`Self::units_in`] part by part: between the `=`, `:=`, `⇒` and comparisons outside
+    /// brackets. `F = m·a ⇒ a = 2.5 m/s²` with a mass `m` gives none, none, none, `m` and `s`:
+    /// the mass in the formula, the metre in the result.
+    pub fn units_by_part(&self, text: &str) -> Vec<Vec<String>> {
+        // Our own marks: `⇒` parts like `=`, a check's `✓`/`✗` goes.
+        let text: String = text.chars().filter(|c| !matches!(c, '✓' | '✗')).map(|c| if c == '⇒' { '=' } else { c }).collect();
+        let text = text.as_str();
+        let Ok(tokens) = lex(text.get(..text.len().min(MAX_INPUT_CHARS * 4)).unwrap_or(text), self.opts.decimal_comma) else { return Vec::new() };
+        let cuts = positions(&tokens, |t| matches!(t, Tok::Equals | Tok::Define | Tok::Cmp(_)));
+        let mut parts: Vec<&[Token]> = Vec::new();
+        let mut start = 0;
+        for &c in &cuts {
+            parts.push(tokens.get(start..c).unwrap_or_default());
+            start = c + 1;
+        }
+        parts.push(tokens.get(start..).unwrap_or_default());
+        parts.into_iter().map(|part| self.units_of_part(part, text.chars().count())).collect()
+    }
+
+    /// The units in `part` of a row (see [`Self::units_by_part`]).
+    fn units_of_part(&self, part: &[Token], len: usize) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        // Parsed as an expression: units after numbers, and names that can only be units here.
+        let Ok(expr) = self.parse_expr(part, len) else {
+            // Not an expression (a stale `[…]` or `⚠`): names that are units, as before.
+            for t in part {
+                if let Tok::Ident(n) = &t.tok
+                    && self.scope.get(n).is_none()
+                    && constant(n).is_none()
+                    && unit(n).is_some()
+                    && !out.contains(n)
+                {
+                    out.push(n.clone());
+                }
+            }
+            return out;
+        };
+        let mut stack = vec![&expr];
+        while let Some(e) = stack.pop() {
+            match e {
+                Expr::Unit(n) => {
+                    if !out.contains(n) {
                         out.push(n.clone());
                     }
                 }
-                continue;
-            };
-            let mut stack = vec![&expr];
-            while let Some(e) = stack.pop() {
-                match e {
-                    Expr::Unit(n) => {
-                        if !out.contains(n) {
-                            out.push(n.clone());
-                        }
+                Expr::Name(n) if self.scope.get(n).is_none() && constant(n).is_none() && unit(n).is_some() => {
+                    if !out.contains(n) {
+                        out.push(n.clone());
                     }
-                    Expr::Name(n) if self.scope.get(n).is_none() && constant(n).is_none() && unit(n).is_some() => {
-                        if !out.contains(n) {
-                            out.push(n.clone());
-                        }
-                    }
-                    Expr::Name(_) | Expr::Num(_) => {}
-                    Expr::Neg(a) => stack.push(a),
-                    Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
-                        stack.push(a);
-                        stack.push(b);
-                    }
-                    Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
-                    Expr::Nary(n) => {
-                        stack.extend([&n.from, &n.to].into_iter().flatten().map(|b| &**b));
-                        stack.push(&n.body);
-                    }
+                }
+                Expr::Name(_) | Expr::Num(_) => {}
+                Expr::Neg(a) => stack.push(a),
+                Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
+                    stack.push(a);
+                    stack.push(b);
+                }
+                Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
+                Expr::Nary(n) => {
+                    stack.extend([&n.from, &n.to].into_iter().flatten().map(|b| &**b));
+                    stack.push(&n.body);
                 }
             }
         }
@@ -547,20 +650,50 @@ impl Worksheet {
     ///   `⚠`, is replaced). The text after `=` must consist of units only; otherwise (`E = mc²`)
     ///   the statement is not a calc statement.
     /// - `name := expr =` defines and shows.
+    ///
+    /// With [`Layout::Lines`] what follows the statement goes in [`RegionResult::steps`], one
+    /// line each; with [`Layout::Inline`] it is written after it in [`RegionResult::display`].
     pub fn eval_statement(&mut self, text: &str) -> RegionResult {
+        let mut result = self.statement(text);
+        // Lines: a result after `⇒` (a solved unknown, a check's values, an error) goes under the
+        // statement.
+        if self.opts.layout == Layout::Lines
+            && result.steps.is_none()
+            && let Some((statement, after)) = result.display.as_deref().and_then(|d| d.split_once(" ⇒ "))
+        {
+            let (statement, after) = (statement.trim().to_string(), after.trim().to_string());
+            result.display = Some(statement);
+            result.steps = Some(vec![after]);
+        }
+        result
+    }
+
+    fn statement(&mut self, text: &str) -> RegionResult {
         if text.chars().count() > MAX_INPUT_CHARS {
             return self.raw_failure(text, CalcError::TooLong { limit: MAX_INPUT_CHARS });
         }
-        // A solved unknown is shown after `⇒`: that tail is our own output, read for its unit.
+        // A solved unknown is shown after `⇒` (with its steps, after more than one): that tail is
+        // our own output, read for its unit (the last one: `⇒ d = √(4·A/π) = … = 0.08 m`).
         let (text, tail) = match text.find('⇒') {
-            Some(b) => (text.get(..b).unwrap_or(text).trim_end(), text.get(b + '⇒'.len_utf8()..)),
+            Some(b) => (text.get(..b).unwrap_or(text).trim_end(), text.rfind('⇒').and_then(|e| text.get(e + '⇒'.len_utf8()..))),
             None => (text, None),
         };
-        let len = text.chars().count();
         let tokens = match lex(text, self.opts.decimal_comma) {
             Ok(tokens) => tokens,
             Err(err) => return self.raw_failure(text, err),
         };
+        // Our own working after the statement (Show Steps on its line) is not read: only the
+        // statement and its result (`M = q·L²/8 = (12 kN/m)·(4.5 m)²/8 = 30.375 kN·m` reads as
+        // `M = q·L²/8 = 30.375 kN·m`).
+        let reduced = self.without_working(text, &tokens);
+        let (text, tokens) = match &reduced {
+            Some(r) => match lex(r, self.opts.decimal_comma) {
+                Ok(tokens) => (r.as_str(), tokens),
+                Err(_) => (text, tokens),
+            },
+            None => (text, tokens),
+        };
+        let len = text.chars().count();
         // `f(x) = 2·x + 1` defines a function; it is never an equation to solve.
         if let Some(result) = self.function_definition(&tokens, len) {
             return result;
@@ -641,6 +774,129 @@ impl Worksheet {
         }
     }
 
+    /// A statement with our own working written after it on its line (Show Steps, inline), with
+    /// that working left out: `M = q·L²/8 = (12 kN/m)·(4.5 m)²/8 = 30.375 kN·m` is
+    /// `M = q·L²/8 = 30.375 kN·m`, `5 m·30 cm = 5 m·0.3 m = 1.5 m²` is `5 m·30 cm = 1.5 m²`.
+    /// The statement is `name = formula =` (or `name := formula =`), else `expression =`; the
+    /// working is what comes between it and the result: values and units only, no parameter.
+    /// `None` when there is no such working.
+    fn without_working(&self, text: &str, tokens: &[Token]) -> Option<String> {
+        if !positions(tokens, |t| matches!(t, Tok::Cmp(_))).is_empty() {
+            return None;
+        }
+        let defines = positions(tokens, |t| matches!(t, Tok::Define));
+        let equals = positions(tokens, |t| matches!(t, Tok::Equals));
+        let first = *equals.first()?;
+        // How many of the `=` are the statement's.
+        let own = match defines.as_slice() {
+            [] if matches!(tokens.get(..first), Some([Token { tok: Tok::Ident(_), .. }])) => 2,
+            [] => 1,
+            [d] if *d < first => 1,
+            _ => return None,
+        };
+        let keep = *equals.get(own - 1)?;
+        if equals.len() <= own {
+            return None;
+        }
+        let mut parts: Vec<&[Token]> = Vec::new();
+        let mut start = keep + 1;
+        for &e in equals.iter().skip(own) {
+            parts.push(tokens.get(start..e)?);
+            start = e + 1;
+        }
+        parts.push(tokens.get(start..)?);
+        let (last, working) = parts.split_last()?;
+        if last.is_empty() || !(units_only(last) || self.is_working(last)) || !working.iter().all(|p| self.is_working(p)) {
+            return None;
+        }
+        let end = tokens.get(keep)?.byte + 1;
+        let from = last.first()?.byte;
+        Some(format!("{} {}", text.get(..end)?, text.get(from..)?))
+    }
+
+    /// True when `part` is a step of our own working: numbers with units, constants and
+    /// functions, and no parameter (`(12 kN/m)·(4.5 m)²/8`, `5 m·0.3 m`).
+    fn is_working(&self, part: &[Token]) -> bool {
+        part.iter().any(|t| matches!(t.tok, Tok::Num(_)))
+            && part.iter().all(|t| match &t.tok {
+                Tok::Ident(n) => self.scope.get(n).is_none() || unit(n).is_some(),
+                Tok::Warn | Tok::Define | Tok::Equals | Tok::Cmp(_) => false,
+                _ => true,
+            })
+    }
+
+    /// Writes the statement and its `lines` of working into `result`, as the layout says: on
+    /// the statement's line (`F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²`) or one line each
+    /// under it (`a = F/m`, `a = (1 kN)/(400 kg)`, `a = 2.5 m/s²`; `= …` under a formula).
+    fn lay_out(&self, result: &mut RegionResult, statement: &str, lines: Vec<Line>) {
+        match self.opts.layout {
+            Layout::Inline => {
+                let mut shown = statement.to_string();
+                for line in lines {
+                    match line {
+                        Line::New(t) => {
+                            shown.push_str(" ⇒ ");
+                            shown.push_str(&t);
+                        }
+                        Line::Same(_, right) => {
+                            shown.push_str(" = ");
+                            shown.push_str(&right);
+                        }
+                    }
+                }
+                result.display = Some(shown);
+                result.steps = None;
+            }
+            Layout::Lines => {
+                result.display = Some(statement.to_string());
+                result.steps = Some(
+                    lines
+                        .into_iter()
+                        .map(|line| match line {
+                            Line::New(t) => t,
+                            Line::Same(Some(name), right) => format!("{name} = {right}"),
+                            Line::Same(None, right) => format!("= {right}"),
+                        })
+                        .collect(),
+                );
+            }
+        }
+    }
+
+    /// `v` as a result is written: in the unit asked for in `unit` (a stale result's, a
+    /// requested one), else in the automatic one (`30.375 kN·m`).
+    fn result_text(&self, v: &Value, unit: &[Token], len: usize, hint: Option<&str>) -> Option<String> {
+        let request = requested_unit(unit, len).ok()?;
+        let unit_text = request.as_ref().map(render).unwrap_or_default();
+        let (number, shown) = self.in_unit(v, request.as_ref(), &unit_text, hint).ok()?;
+        Some(with_unit(&number, &shown))
+    }
+
+    /// `f` with the parameters' values substituted (in parentheses when they carry a unit, a
+    /// sign or a power of ten) and quantities of one kind in one unit; `None` when that changes
+    /// nothing (no parameter, one unit per kind) or `f` is a parameter alone. `skip`: the unknown.
+    fn substituted(&self, f: &Expr, skip: Option<&str>) -> Option<String> {
+        if matches!(f, Expr::Name(_)) {
+            return None;
+        }
+        let sub = |name: &str| self.substitute(name, skip);
+        let common = self.common_units(&[f], skip);
+        let worked = Self::with_common_units(f, &common, &sub);
+        (worked != Self::with_common_units(f, &[], &|_| None)).then_some(worked)
+    }
+
+    /// Parameter `name`'s value as a substitution writes it: in parentheses when it has a unit,
+    /// a sign or a power of ten, so the line reads unambiguously (`(12 kN/m)`, `2`). `None` for
+    /// `skip` (the unknown) and names that are not parameters.
+    fn substitute(&self, name: &str, skip: Option<&str>) -> Option<String> {
+        if Some(name) == skip {
+            return None;
+        }
+        let shown = self.shown(name)?;
+        let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
+        Some(if bare { shown } else { format!("({shown})") })
+    }
+
     /// True when `left = right` (both parsed) has an unknown name.
     fn has_unknown(&self, left: &[Token], right: &[Token], len: usize) -> bool {
         match (self.parse_expr(left, len), self.parse_expr(right, len)) {
@@ -698,12 +954,17 @@ impl Worksheet {
                 display: Some(format!("{text} ⇒ {shown} {}", if holds { '✓' } else { '✗' })),
                 error: (!holds).then_some(CalcError::CheckFailed(shown)),
                 steps: None,
+                numeric: false,
             },
-            Err(err) => {
-                RegionResult {
-                    kind: RegionKind::Check, name: None, value: None, display: Some(format!("{text} ⇒ ⚠")), error: Some(err), steps: None
-                }
-            }
+            Err(err) => RegionResult {
+                kind: RegionKind::Check,
+                name: None,
+                value: None,
+                display: Some(format!("{text} ⇒ ⚠")),
+                error: Some(err),
+                steps: None,
+                numeric: false,
+            },
         }
     }
 
@@ -714,12 +975,12 @@ impl Worksheet {
             Ok(v) => {
                 self.scope.set(name, v.clone());
                 self.set_hint(name, hint);
-                RegionResult { kind, name: Some(name.to_string()), value: Some(v), display, error: None, steps: None }
+                RegionResult { kind, name: Some(name.to_string()), value: Some(v), display, error: None, steps: None, numeric: false }
             }
             Err(err) => {
                 self.scope.remove(name);
                 self.set_hint(name, None);
-                RegionResult { kind, name: Some(name.to_string()), value: None, display, error: Some(err), steps: None }
+                RegionResult { kind, name: Some(name.to_string()), value: None, display, error: Some(err), steps: None, numeric: false }
             }
         }
     }
@@ -780,11 +1041,11 @@ impl Worksheet {
                 } else {
                     (b.ok(), None, None)
                 };
-                RegionResult { kind: RegionKind::Check, name: None, value, display, error: check.err().or(shown_err), steps: None }
+                RegionResult { kind: RegionKind::Check, name: None, value, display, error: check.err().or(shown_err), steps: None, numeric: false }
             }
             [x] => {
                 let alone = matches!(&lhs, Expr::Name(n) if n == x) || matches!(&rhs, Expr::Name(n) if n == x);
-                let value = self.solve_for(&lhs, &rhs, x);
+                let (value, solution) = self.solve_for(&lhs, &rhs, x);
                 let kind = if alone { RegionKind::Definition } else { RegionKind::Solved };
                 // The unknown's unit, when it is a plain number: from the side it equals, or from
                 // its isolated form.
@@ -794,44 +1055,37 @@ impl Worksheet {
                 };
                 let x_hint = other.as_ref().and_then(|e| self.hint(e));
                 let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
-                if self.opts.steps && !shows {
-                    result.steps = self.steps(x, other.as_ref(), &lhs, &rhs, alone, x_hint.as_deref());
-                    // The steps show the result: the statement stays as written.
-                    if result.steps.is_some() {
-                        result.display = (!alone).then(|| text.trim().to_string());
-                        return result;
+                // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
+                let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
+                let stale = match tail_tokens.as_slice() {
+                    [Token { tok: Tok::Ident(n), .. }, Token { tok: Tok::Equals, .. }, ..] if n == x && !alone => {
+                        let last = tail_tokens.iter().rposition(|t| t.tok == Tok::Equals).unwrap_or(1);
+                        tail_tokens.get(last + 1..).unwrap_or_default()
                     }
+                    _ => &[],
+                };
+                // With steps: the solution after the statement, laid out as the layout says.
+                if self.opts.steps
+                    && !(shows && !alone)
+                    && let Ok(v) = &value
+                    && let Some(lines) =
+                        self.solution_lines(x, &solution, (&lhs, &rhs), v, if shows { part(2) } else { stale }, len, x_hint.as_deref())
+                {
+                    result.numeric = matches!(solution, Solution::Numeric);
+                    if shows {
+                        result.kind = RegionKind::DefineAndShow;
+                    }
+                    self.lay_out(&mut result, &shown_left(), lines);
+                    return result;
                 }
                 if shows {
-                    // `A = 3 m·50 cm =` with steps: the working in one unit per kind, then the
-                    // result under it, as for `3 m·50 cm =`.
-                    let working = if self.opts.steps && alone && part(2).is_empty() && result.error.is_none() {
-                        if matches!(&lhs, Expr::Name(n) if n == x) { self.developed(p1, end_pos(1)) } else { self.developed(p0, end_pos(0)) }
-                    } else {
-                        None
-                    };
                     let left = shown_left();
                     let (_, d, e) = self.show_value(&left, value, part(2), len, x_hint);
-                    if let Some(w) = working
-                        && e.is_none()
-                        && let Some(r) = d.get(left.len()..).map(str::trim).filter(|r| r.starts_with('='))
-                    {
-                        result.kind = RegionKind::DefineAndShow;
-                        result.steps = Some(vec![r.to_string()]);
-                        result.display = Some(format!("{left} = {w}"));
-                        return result;
-                    }
                     result.kind = if alone { RegionKind::DefineAndShow } else { RegionKind::Solved };
                     result.display = Some(d);
                     result.error = result.error.or(e);
                 } else if !alone {
-                    // The unit of a stale `⇒ x = 2.5 m/s²` is kept.
-                    let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
-                    let unit = match tail_tokens.as_slice() {
-                        [Token { tok: Tok::Ident(n), .. }, Token { tok: Tok::Equals, .. }, rest @ ..] if n == x => rest,
-                        _ => &[],
-                    };
-                    let (_, d, e) = self.show_value(&format!("{} ⇒ {x}", text.trim()), value, unit, len, x_hint);
+                    let (_, d, e) = self.show_value(&format!("{} ⇒ {x}", text.trim()), value, stale, len, x_hint);
                     result.display = Some(d);
                     result.error = result.error.or(e);
                 }
@@ -841,51 +1095,53 @@ impl Worksheet {
         }
     }
 
-    /// The solution steps for unknown `x` (now defined): with `form` (`x = form`), the formula
-    /// when it had to be isolated, the substitution and the result; without (solved
-    /// numerically), the equation with the values substituted and the result. `None` when there
-    /// is nothing to substitute (`L = 4.5 m`) or no value.
-    fn steps(&self, x: &str, form: Option<&Expr>, lhs: &Expr, rhs: &Expr, alone: bool, hint: Option<&str>) -> Option<Vec<String>> {
-        let v = self.scope.get(x)?;
-        let (number, unit) = self.auto_hinted(v, hint);
-        let result = format!("{x} = {}", with_unit(&number, &unit));
-        // A parameter's value as written in the substitution: in parentheses when it has a unit,
-        // a sign or a power of ten, so the line reads unambiguously.
-        let sub = |name: &str| -> Option<String> {
-            if name == x {
-                return None;
+    /// The solution of unknown `x` (worth `v`), as lines of working after the statement:
+    /// - a formula (`x` alone on a side): its values substituted, then the result
+    ///   (`= (12 kN/m)·(4.5 m)²/8`, `= 30.375 kN·m`);
+    /// - isolated: each step of the algebra (`π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`), the
+    ///   values substituted, the result;
+    /// - solved numerically: the equation with its values, then the result.
+    ///
+    /// The result is in the unit `unit` asks for, else the automatic one. `None` when a formula
+    /// has nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m`): the result alone says it all.
+    #[allow(clippy::too_many_arguments)]
+    fn solution_lines(
+        &self,
+        x: &str,
+        solution: &Solution,
+        (lhs, rhs): (&Expr, &Expr),
+        v: &Value,
+        unit: &[Token],
+        len: usize,
+        hint: Option<&str>,
+    ) -> Option<Vec<Line>> {
+        let result = self.result_text(v, unit, len, hint)?;
+        let name = || Some(x.to_string());
+        match solution {
+            Solution::Direct(f) => {
+                let worked = self.substituted(f, Some(x))?;
+                Some(vec![Line::Same(None, worked), Line::Same(None, result)])
             }
-            let shown = self.shown(name)?;
-            let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
-            Some(if bare { shown } else { format!("({shown})") })
-        };
-        let mut names = Vec::new();
-        match form {
-            Some(f) => free_names(f, &mut names),
-            None => {
-                free_names(lhs, &mut names);
-                free_names(rhs, &mut names);
-            }
-        }
-        if !names.iter().any(|n| n != x && self.scope.get(n).is_some()) {
-            return None;
-        }
-        let mut lines = Vec::new();
-        // Values of one kind in one unit (`(0.3 m)·(5 m)`, not `(30 cm)·(5 m)`).
-        let exprs: Vec<&Expr> = form.map_or_else(|| vec![lhs, rhs], |f| vec![f]);
-        let common = self.common_units(&exprs, Some(x));
-        let show = |e: &Expr| Self::with_common_units(e, &common, &sub);
-        match form {
-            Some(f) => {
-                if !alone {
-                    lines.push(format!("{x} = {}", render(f)));
+            Solution::Isolated(f, rows) => {
+                let mut lines: Vec<Line> = rows.iter().map(|(side, other)| Line::New(format!("{} = {}", render(side), render(other)))).collect();
+                if let Some(worked) = self.substituted(f, Some(x)) {
+                    lines.push(Line::Same(name(), worked));
                 }
-                lines.push(format!("{x} = {}", show(f)));
+                lines.push(Line::Same(name(), result));
+                Some(lines)
             }
-            None => lines.push(format!("{} = {}", show(lhs), show(rhs))),
+            Solution::Numeric => {
+                let common = self.common_units(&[lhs, rhs], Some(x));
+                let sub = |n: &str| self.substitute(n, Some(x));
+                let worked = format!("{} = {}", Self::with_common_units(lhs, &common, &sub), Self::with_common_units(rhs, &common, &sub));
+                let mut lines = Vec::new();
+                if worked != format!("{} = {}", render(lhs), render(rhs)) {
+                    lines.push(Line::New(worked));
+                }
+                lines.push(Line::New(format!("{x} = {result}")));
+                Some(lines)
+            }
         }
-        lines.push(result);
-        Some(lines)
     }
 
     /// The pieces of `expr` that carry a unit, in reading order: the parameters (but `skip`)
@@ -967,14 +1223,14 @@ impl Worksheet {
         })
     }
 
-    /// The value of `x` that makes `lhs = rhs` true.
-    fn solve_for(&self, lhs: &Expr, rhs: &Expr, x: &str) -> Result<Value, CalcError> {
+    /// The value of `x` that makes `lhs = rhs` true, and how it was found.
+    fn solve_for(&self, lhs: &Expr, rhs: &Expr, x: &str) -> (Result<Value, CalcError>, Solution) {
         let direct = match (lhs, rhs) {
-            (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x && !reads(other, x) => Some(other.clone()),
-            _ => isolate(lhs, rhs, x),
+            (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x && !reads(other, x) => Some(Solution::Direct(other.clone())),
+            _ => isolate_steps(lhs, rhs, x).map(|(form, rows)| Solution::Isolated(form, rows)),
         };
-        if let Some(expr) = direct
-            && let Ok(v) = eval(&expr, &self.scope, Names::Worksheet)
+        if let Some(solution) = direct
+            && let Some(Ok(v)) = solution.form().map(|e| eval(e, &self.scope, Names::Worksheet))
         {
             // An inverse function gives one value; keep it only if it satisfies the equation.
             let mut scope = self.scope.clone();
@@ -984,10 +1240,10 @@ impl Worksheet {
                 _ => false,
             };
             if ok {
-                return Ok(v);
+                return (Ok(v), solution);
             }
         }
-        numeric(lhs, rhs, x, &self.scope).map(Value::Scalar)
+        (numeric(lhs, rhs, x, &self.scope).map(Value::Scalar), Solution::Numeric)
     }
 
     fn evaluation(&mut self, text: &str, tokens: &[Token], eq: usize, len: usize) -> RegionResult {
@@ -1009,17 +1265,19 @@ impl Worksheet {
         }
         self.remember_unit(rhs, len);
         let (value, display, error) = self.show(left_text, left, eq_token.pos, rhs, len);
-        // With steps and nothing asked after `=`: the working, then the result under it.
+        let mut result = RegionResult { kind: RegionKind::Evaluation, name: None, value, display: None, error, steps: None, numeric: false };
+        // With steps: the values substituted (in one unit per kind), then the result.
         if self.opts.steps
-            && rhs.is_empty()
-            && error.is_none()
-            && let Some(d) = developed
-            && let Some(result) = display.get(left_text.len()..).map(str::trim).filter(|r| r.starts_with('='))
+            && result.error.is_none()
+            && let Ok(expr) = self.parse_expr(left, eq_token.pos)
+            && let Some(worked) = self.substituted(&expr, None)
+            && let Some(shown) = display.get(left_text.len()..).map(str::trim).and_then(|r| r.strip_prefix('='))
         {
-            let display = Some(format!("{left_text} = {d}"));
-            return RegionResult { kind: RegionKind::Evaluation, name: None, value, display, error, steps: Some(vec![result.to_string()]) };
+            self.lay_out(&mut result, left_text, vec![Line::Same(None, worked), Line::Same(None, shown.trim().to_string())]);
+            return result;
         }
-        RegionResult { kind: RegionKind::Evaluation, name: None, value, display: Some(display), error, steps: None }
+        result.display = Some(display);
+        result
     }
 
     /// `expr` (tokens) with its quantities of one kind in one unit, when that changes anything.
@@ -1040,6 +1298,7 @@ impl Worksheet {
             display: left_text.map(|l| format!("{l} = ⚠")),
             error: Some(err),
             steps: None,
+            numeric: false,
         };
         let name = match tokens.get(..def) {
             Some([Token { tok: Tok::Ident(name), .. }]) if name.chars().next().is_some_and(char::is_alphabetic) => name.clone(),
@@ -1061,7 +1320,7 @@ impl Worksheet {
             self.remember_unit(tokens.get(e.saturating_add(1)..).unwrap_or_default(), len);
         }
         let developed = eq_token.and_then(|t| self.developed(body, t.pos));
-        let mut steps = None;
+        let mut lines = None;
         let (value, display, error) = match (eq_token, left_text) {
             (Some(eq_token), Some(left_text)) => {
                 let rhs = tokens.get(body_end.saturating_add(1)..).unwrap_or_default();
@@ -1069,16 +1328,16 @@ impl Worksheet {
                 let numbers = rhs.iter().filter(|t| matches!(t.tok, Tok::Num(_))).count();
                 let rhs = if developed.is_some() && numbers >= 2 { &[][..] } else { rhs };
                 let (value, display, error) = self.show(left_text, body, eq_token.pos, rhs, len);
-                // With steps and nothing asked after `=`: the working, then the result under it.
-                match developed {
-                    Some(d) if self.opts.steps && rhs.is_empty() && error.is_none() => {
-                        match display.get(left_text.len()..).map(str::trim).filter(|r| r.starts_with('=')) {
-                            Some(result) => {
-                                steps = Some(vec![result.to_string()]);
-                                (value, Some(format!("{left_text} = {d}")), error)
-                            }
-                            None => (value, Some(display), error),
-                        }
+                // With steps: the values substituted (in one unit per kind), then the result.
+                let worked = if self.opts.steps && error.is_none() {
+                    self.parse_expr(body, eq_token.pos).ok().and_then(|e| self.substituted(&e, None))
+                } else {
+                    None
+                };
+                match (worked, display.get(left_text.len()..).map(str::trim).and_then(|r| r.strip_prefix('='))) {
+                    (Some(w), Some(shown)) => {
+                        lines = Some((left_text, vec![Line::Same(None, w), Line::Same(None, shown.trim().to_string())]));
+                        (value, None, error)
                     }
                     _ => (value, Some(display), error),
                 }
@@ -1098,7 +1357,11 @@ impl Worksheet {
                 self.scope.remove(&name);
             }
         }
-        RegionResult { kind, name: Some(name), value, display, error, steps }
+        let mut result = RegionResult { kind, name: Some(name), value, display, error, steps: None, numeric: false };
+        if let Some((statement, lines)) = lines {
+            self.lay_out(&mut result, statement, lines);
+        }
+        result
     }
 
     /// Evaluates `expr` (ending at character `expr_end`) and formats `<left> = <value>` with
@@ -1226,12 +1489,26 @@ impl Worksheet {
                     self.scope.remove(&name);
                 }
                 let kind = if first_eq.is_some() { RegionKind::DefineAndShow } else { RegionKind::Definition };
-                RegionResult { kind, name: valid.then_some(name), value: None, display: first_eq.and_then(warn), error: Some(err), steps: None }
+                RegionResult {
+                    kind,
+                    name: valid.then_some(name),
+                    value: None,
+                    display: first_eq.and_then(warn),
+                    error: Some(err),
+                    steps: None,
+                    numeric: false,
+                }
             }
             None => match first_eq {
-                Some(b) if text.trim_end().ends_with('=') => {
-                    RegionResult { kind: RegionKind::Evaluation, name: None, value: None, display: warn(b), error: Some(err), steps: None }
-                }
+                Some(b) if text.trim_end().ends_with('=') => RegionResult {
+                    kind: RegionKind::Evaluation,
+                    name: None,
+                    value: None,
+                    display: warn(b),
+                    error: Some(err),
+                    steps: None,
+                    numeric: false,
+                },
                 _ => RegionResult::not_calc(),
             },
         }
@@ -1416,8 +1693,11 @@ fn stale_vector(rhs: &[Token]) -> usize {
     rhs.iter().position(|t| t.tok == Tok::RBracket).map_or(0, |i| i + 1)
 }
 
-/// True when the tokens start with a number (optionally signed) or a vector: `4.5 m`, `-3`.
+/// True when the tokens start with a number (optionally signed, or in brackets as a built-up
+/// fraction writes it: `(12 kN)/m`) or a vector: `4.5 m`, `-3`.
 fn starts_with_number(tokens: &[Token]) -> bool {
+    let open = tokens.iter().take_while(|t| t.tok == Tok::LParen).count();
+    let tokens = tokens.get(open..).unwrap_or_default();
     let skip = usize::from(matches!(tokens.first().map(|t| &t.tok), Some(Tok::Minus | Tok::Plus)));
     matches!(tokens.get(skip).map(|t| &t.tok), Some(Tok::Num(_) | Tok::LBracket))
 }

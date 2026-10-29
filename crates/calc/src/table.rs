@@ -485,7 +485,12 @@ impl Worksheet {
         for (n, v) in row {
             self.scope.set(n, v.clone());
         }
+        // A cell shows its result, never solution steps: those are for the page.
+        let opts = self.opts;
+        self.opts.steps = false;
+        self.opts.layout = crate::Layout::Inline;
         let result = self.eval_statement(&statement);
+        self.opts = opts;
         for (n, old) in saved {
             match old {
                 Some(v) => self.scope.set(&n, v),

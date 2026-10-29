@@ -70,6 +70,9 @@ pub struct Prefs {
     /// Show the solution steps of formulas and solved equations under them (`calc.steps`):
     /// formula, substitution, result, one under the other.
     pub calc_steps: bool,
+    /// Where results and steps go (`calc.layout`): `inline`, after `⇒` and `=` on the
+    /// statement's line (the default), or `lines`, one line each under it, aligned at `=`.
+    pub calc_layout: String,
     /// In formulas, `^`, `_` and `/` make the superscript, subscript or fraction at once and the
     /// caret goes into the new box (`equation.quickKeys`). Off: they build up on Space, as in Word.
     pub math_quick_keys: bool,
@@ -83,6 +86,7 @@ impl Default for Prefs {
             calc_count: "auto".to_string(),
             calc_zeros: false,
             calc_steps: true,
+            calc_layout: "inline".to_string(),
             math_quick_keys: true,
             count_notes: true,
             markup: Default::default(),

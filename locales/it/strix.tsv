@@ -2495,6 +2495,10 @@ preview	Title	Esempio
 	Unit	Unità di misura
 	Show\nSteps	Mostra\npassaggi
 	Show Steps	Mostra passaggi
+	Result Layout	Disposizione risultati
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Dove vanno risultati e passaggi: dopo ⇒ sulla riga dell'enunciato, oppure una riga ciascuno sotto di esso, allineati all'=
+	Inline (⇒)	In linea (⇒)
+	Line by Line	Riga per riga
 	Edit\nDrawing	Modifica\ndisegno
 	Edit Drawing	Modifica disegno
 	Line	Linea

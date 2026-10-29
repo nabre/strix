@@ -264,6 +264,22 @@ Table",
                 mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
             },
         );
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "lineSpacing",
+                Some("Result Layout"),
+                "Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =",
+                true,
+                "calc.layout",
+            ),
+            |ui, app| {
+                let lines = app.session.prefs.calc_layout == "lines";
+                mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
+                mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
+            },
+        );
     });
     group(ui, "Drawing", None, app, |ui, app| {
         big(

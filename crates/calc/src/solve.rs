@@ -77,16 +77,24 @@ fn call(f: Func, a: Expr) -> Expr {
 /// every step on the way to it can be inverted (`+ - · / ^ √ exp ln log sin cos tan …`). Roots
 /// and inverse functions give their principal value.
 pub(crate) fn isolate(lhs: &Expr, rhs: &Expr, x: &str) -> Option<Expr> {
+    isolate_steps(lhs, rhs, x).map(|(form, _)| form)
+}
+
+/// Like [`isolate`], with the equation after each step on the way: `(side, other)` for
+/// `side = other`, the side holding `x` on the left (`π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`).
+/// The last step is `x = form`; none when `x` was alone already.
+pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Vec<(Expr, Expr)>)> {
     let (in_left, in_right) = (count(lhs, x), count(rhs, x));
     if in_left + in_right != 1 {
         return None;
     }
     let (mut side, mut other) = if in_left == 1 { (lhs, rhs.clone()) } else { (rhs, lhs.clone()) };
+    let mut steps: Vec<(Expr, Expr)> = Vec::new();
     // Each step peels one node, so the parser's node limit bounds the loop.
     for _ in 0..=crate::MAX_NODES {
         let has = |e: &Expr| count(e, x) > 0;
         match side {
-            Expr::Name(n) if n == x => return Some(other),
+            Expr::Name(n) if n == x => return Some((other, steps)),
             Expr::Neg(e) => {
                 other = Expr::Neg(Box::new(other));
                 side = e;
@@ -131,6 +139,7 @@ pub(crate) fn isolate(lhs: &Expr, rhs: &Expr, x: &str) -> Option<Expr> {
             }
             _ => return None,
         }
+        steps.push((side.clone(), other.clone()));
     }
     None
 }

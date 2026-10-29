@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions); Variables pane, systems and solution steps next · **Last updated:** 2026-10-28 · **Change:** calculated tables: rows by index (Gauss's method), header row, Total Row, ordinal column
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-10-29 · **Change:** Result Layout (inline ⇒ or line by line); steps for every formula, each algebra step, numeric solves marked
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -47,7 +47,7 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 | `M = q·L²/8 =` | `M` | define and show | `M = q·L²/8 = 30.375 kN·m` |
 | `A = 3 m · 5 m =` | `A` | define and show, from data | `A = 3 m · 5 m = 15 m²` |
 | `M =`, `M = kN·m` | none | show, in the unit asked for | `M = 30.375 kN·m` |
-| `F = m·a` | `a` | **solve** for the one unknown and define it | `F = m·a ⇒ a = 2.5 m/s²` |
+| `F = m·a` | `a` | **solve** for the one unknown and define it | `F = m·a ⇒ a = 2.5 m/s²` (or under it: Result Layout) |
 | `x² + x = 6` | `x` | solve (numerically: it appears twice) | `x² + x = 6 ⇒ x = 2` |
 | `a + b = c` | none | **check**: both sides must agree | as typed, or an error |
 | `σ ≤ f_yd` | none | check a comparison (`≤ ≥ < > ≠`) | `σ ≤ f_yd ⇒ 5.4 MPa ≤ 355 MPa ✓` |
@@ -70,8 +70,9 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   10¹² (both signs) is refined by bisection (a sign change across a pole is dropped), and secant
   steps catch roots that touch zero. The **smallest non-negative root** wins, else the negative
   root closest to zero. No root: "no value of x solves the equation".
-- After `⇒` Strix writes the solved value; on the next calculation that tail is replaced, and
-  its unit, if changed, is kept (`⇒ a = mm/s²`).
+- After `⇒` Strix writes the solved value (with Show Steps, the algebra first); on the next
+  calculation that tail is replaced, and the unit of its last value, if changed, is kept
+  (`⇒ a = mm/s²`).
 - An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
   listed by `calc.recalculate`. Names depending on a failed definition are undefined.
 - Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
@@ -295,23 +296,65 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 
-## Solution steps
+## Solution steps and layout
 
-With Show Steps (`calc.steps`) a formula or a solved equation shows, one under the other and
-aligned at `=`: the formula isolated for the unknown, the values substituted, the result. The
-steps are results, rebuilt with every recalculation: only the statement (the first row) is
-edited. A click or an arrow key into the steps puts the caret at the end of the statement.
+**Show Steps** (`calc.steps`, Math › Results, on by default) shows how each result was found:
 
+| Statement | Steps |
+|---|---|
+| a formula: `M = q·L²/8 =`, `M = q·L²/8`, `q·L²/8 =`, `A := …  =` | the values substituted (with their units, one unit per kind), the result |
+| solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
+| solved numerically: `x² + x = k` | the equation with its values (`x² + x = 6`), the result, and the note "(numerical solution)" ("(soluzione numerica)" in an Italian document) |
+| a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
+
+A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a parameter shown alone
+(`M =`) have no steps: the result says it all. A unit asked for after `=` (`= cm^2`) is the
+result's unit, after the working (and, being a working unit, the substitution's).
+
+**Result Layout** (`calc.layout`, Math › Results; a preference like the number format) says where
+the result and the steps go:
+
+- **Inline (⇒)** (`inline`, the default): on the statement's line, the algebra after `⇒`, the
+  substitution and the result after `=`:
+  `F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²`,
+  `M = q·L²/8 = (12 kN/m)·(4.5 m)²/8 = 30.375 kN·m`, `σ ≤ f_yd ⇒ 30.375 MPa ≤ 355 MPa ✓`.
+  Without steps: `F = m·a ⇒ a = 2.5 m/s²`.
+- **Line by Line** (`lines`): one line each under the statement, aligned at `=` (a check at its
+  comparison); the unknown is named on each line of a solved equation, a formula's lines go on
+  with `=`:
+
+  ```
+  F = m·a            M = q·L²/8
+  a = F/m              = (12 kN/m)·(4.5 m)²/8
+  a = (1 kN)/(400 kg)  = 30.375 kN·m
+  a = 2.5 m/s²
+  ```
+
+  Without steps a solved unknown and a check's values still go under the statement; a formula's
+  result (`M = q·L²/8 = 30.375 kN·m`) stays on its line.
+
+The steps are results, rebuilt with every recalculation and when the layout changes. Inline,
+everything after the statement is Strix's (read back, only the statement and its result count:
+a result's unit, if changed, is kept). On lines, only the statement (the first row) is edited: a
+click or an arrow key into the steps puts the caret at the end of the statement; read back, the
+statement goes with its last line (the result, for its unit). Such an equation is marked
+`strix:steps="1"`, as is one carrying the numerical note. With steps, `M = q·L²/8` reads back as
+`M = q·L²/8 =` (it showed its value). Calculated table cells show results only, never steps.
 
 **One unit per kind of quantity.** Quantities of one kind written in different units are worked
-in one, that of the first: `5 m·30 cm =` shows `5 m·30 cm = 5 m·0.3 m` with `= 1.5 m²` under it
-(with Show Steps on; off, the result as before), and a formula's substitution writes its values
-of one kind in one unit (`A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)`). Read back, the working
-after `=` is recognised as Strix's own (the left side has units to bring together and the right
-side two quantities or more, where a stale result has one number), so the statement is worked
-again from its data, never checked against the old working. A unit asked for after `=`
-(`= cm^2`) is kept as asked, without a working. A definition worked out at once does the same:
-`A = 3 m·50 cm =` shows `A = 3 m·50 cm = 3 m·0.5 m` with `= 1.5 m²` under it.
+in one, that of the first: with Show Steps `5 m·30 cm =` shows `5 m·30 cm = 5 m·0.3 m = 1.5 m²`
+(off, the result alone), and a formula's substitution writes its values of one kind in one unit
+(`A = (200 mm)·(2000 mm) + (5 mm)·(2000 mm)`). Read back, the working is recognised as Strix's
+own (between the statement and its result, values with units and no parameter; older documents'
+`5 m·30 cm = 5 m·0.3 m` too), so the statement is worked again from its data, never checked
+against the old working. A definition worked out at once does the same:
+`A = 3 m·50 cm =` shows `A = 3 m·50 cm = 3 m·0.5 m = 1.5 m²`. A chain the user wrote that ends
+without a result (`A = 3 m = 4 m =`) is still an error.
+
+**Units in results are units.** In every part of a line (between `=`, `⇒` and comparisons) the
+units are upright, in the Unit style, after a thin space (`30.375 MPa ≤ 355 MPa ✓`); a parameter
+spelled like a unit stays a parameter in its own part (`m` the mass in `F = m·a`, the metre in
+`2.5 m/s²`).
 
 ## Commands (engine, `cmd/calc.rs`)
 
@@ -325,7 +368,9 @@ again from its data, never checked against the old working. A unit asked for aft
 | `calc.tableInfo` | whether the table at the caret is calculated |
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
 | `calc.variables` | the parameters at the end of the document: name, value (or values), unit, where |
-| `calc.options` | number format: digits, count, trailing zeros |
+| `calc.options` | number format: digits, count, trailing zeros (and `layout`) |
+| `calc.steps` | Show Steps: formulas, solved equations and checks show their working (a preference) |
+| `calc.layout` | Result Layout: `{"value"?: "inline" \| "lines"}` (default: toggle), a preference; recalculates |
 | `calc.new` | a new empty calculation at the caret, being edited: **Alt+Shift+C** (⌃⌥C on a Mac; Ctrl+Space stays Word's Reset Character Formatting) |
 | `equation.quickKeys` | preference (default on): `^`, `_` and `/` make the superscript, subscript or fraction at once |
 
@@ -343,7 +388,7 @@ remove it, Copy gives its linear text (`(L^2)/8`); a plain move drops it.
 
 The **Math** tab gathers the tools: Calculations (New Calculation, Calculate, Calculate New
 Equations, Recalculate), Tables (Calculated Table, Calculate This Table), Results (More/Fewer
-Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
+Digits, Show Steps, Number Format, Result Layout) and Drawing (CAD Drawing, see `docs/cad.md`).
 
 ## Stages
 
@@ -353,10 +398,16 @@ Digits, Number Format) and Drawing (CAD Drawing, see `docs/cad.md`).
    unit picker.
 3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`.** *Done.* Still to do: matrices.
 4. **Calculated tables.** *Done.*
-5. Systems of equations across regions (pending equations solved together), solution steps
-   (substitution, isolation lines), plots.
+5. Solution steps (each isolation step, substitution, result; numeric solves marked) and the
+   result layout (inline or line by line). *Done.* Still to do: systems of equations across
+   regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-10-29: Result Layout (`calc.layout`): results and steps inline after `⇒` or line by line
+  under the statement; steps for every formula (also `M = q·L²/8 =`, `q·L²/8 =`, `A := … =`, which
+  had none), each algebra step of a solved equation, numeric solves marked; check lines' units
+  styled.
 
 - 2026-10-28: a definition worked out at once (`A = 3 m · 5 m =` defines `A` and shows
   `15 m²`), with its working under Show Steps; a product of quantities is no working unit.
