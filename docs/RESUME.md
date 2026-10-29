@@ -135,6 +135,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     `show`/`feed` split; dependency bump reverted (see Next).
   - Release 0.13.0 (2026-10-29): version bumped on `main`, `main` merged into `release`; the
     Release workflow drafts `Strix v0.13.0`, publish it after review (Actions › Publish release).
+  - Release 0.14.0 (2026-10-29): exercise title editable in place, CAD Frame on by default and
+    the scaled/annotative parts of dimensions, project site (`cargo xtask site`, Pages workflow)
+    and marketing kit; version bumped on `main`, `main` merged into `release`; publish the draft
+    `Strix v0.14.0` after review.
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
