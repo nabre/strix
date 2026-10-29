@@ -1,7 +1,8 @@
 //! Exercises (docs/exercise.md): a rigid structure for a worked problem, made of locked block
 //! content controls so it can't be broken by editing:
 //!
-//! - the **title** (style Exercise Title), in the exercise control `strix:exercise`;
+//! - the **title** (style Exercise Title), in the exercise control `strix:exercise`: the user's
+//!   text, in a control of its own (`strix:exercise.title`) whose placeholder is only the title;
 //! - the **statement** (`strix:exercise.text`): free content, laid out with every tool;
 //! - the **questions** (`strix:exercise.questions`): paragraphs in the Exercise Question style
 //!   are questions, lettered a), b)… and nested up to three levels (a.1), a.1.1)) by their list
@@ -35,6 +36,8 @@ use strix_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
 pub const TAG_EXERCISE: &str = "strix:exercise";
+/// The title's own control: only the title paragraph, so its placeholder is only the title.
+pub const TAG_TITLE: &str = "strix:exercise.title";
 pub const TAG_TEXT: &str = "strix:exercise.text";
 pub const TAG_QUESTIONS: &str = "strix:exercise.questions";
 pub const TAG_SOLUTION: &str = "strix:exercise.solution";
@@ -115,6 +118,7 @@ struct Words {
     question: &'static str,
     no_result: &'static str,
     /// Titles of the controls, shown on their frames.
+    title_part: &'static str,
     statement: &'static str,
     questions: &'static str,
     prompt: &'static str,
@@ -133,6 +137,7 @@ fn words(s: &Session) -> Words {
             text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
             question: "Scrivi qui la domanda.",
             no_result: "risultato non indicato",
+            title_part: "Titolo",
             statement: "Testo",
             questions: "Domande",
             prompt: "Domande (automatiche)",
@@ -148,6 +153,7 @@ fn words(s: &Session) -> Words {
             text: "Write the exercise here: data, figures, tables.",
             question: "Write the question here.",
             no_result: "no result marked",
+            title_part: "Title",
             statement: "Statement",
             questions: "Questions",
             prompt: "Questions (automatic)",
@@ -343,11 +349,15 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         c
     };
     let mut blocks = Vec::new();
-    let mut exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
+    // The title is the user's text, in a control of its own that can't be deleted: its
+    // placeholder (only the title, never the whole exercise) is replaced by typing and comes
+    // back when the title is deleted.
+    let exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
+    let mut title_ctl = control(TAG_TITLE, w.title_part, ControlLock::SdtLocked);
     if title.is_none() {
-        exercise = placeholder(exercise, w.title);
+        title_ctl = placeholder(title_ctl, w.title);
     }
-    blocks.push(para(STYLE_TITLE, title.as_deref().unwrap_or(w.title), vec![exercise], 0, None));
+    blocks.push(para(STYLE_TITLE, title.as_deref().unwrap_or(w.title), vec![exercise, title_ctl], 1, None));
     let mut statement = control(TAG_TEXT, w.statement, ControlLock::SdtLocked);
     if text.is_none() {
         statement = placeholder(statement, w.text);
@@ -404,8 +414,8 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     for (i, b) in blocks.into_iter().enumerate() {
         s.doc.body.insert(at + i, para_block(b));
     }
-    // The caret goes to the title, ready to type.
-    s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
+    // The caret goes into the title, ready to type.
+    s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
     s.touch();
     update(s);
     s.clamp_selection();
@@ -557,7 +567,9 @@ fn scan(s: &Session) -> Layout {
         }
         match (part, &**b) {
             (Part::Title, Block::Para(p)) => {
-                let placeholder = tags.iter().any(|(t, ph)| t == TAG_EXERCISE && *ph);
+                // The title control's placeholder (in documents from before it, the exercise
+                // control's) is no title.
+                let placeholder = tags.iter().any(|(t, ph)| (t == TAG_EXERCISE || t == TAG_TITLE) && *ph);
                 if !placeholder {
                     e.title = plain(p);
                 }
@@ -1200,15 +1212,90 @@ fn opener(s: &Session, i: usize, tag: &str) -> Option<ContentControl> {
     }
 }
 
+/// Exercises made before the title had a control of its own showed the title's placeholder on
+/// the exercise control, whose content is the whole exercise: typing over it would have replaced
+/// the exercise, so it was refused and the title couldn't be edited. Their title paragraph gets
+/// its own control, showing the placeholder; the exercise control stops showing one. Returns
+/// whether anything changed.
+fn title_controls(s: &mut Session) -> bool {
+    let w = words(s);
+    let mut changed = false;
+    for block in s.doc.body.iter_mut() {
+        let Block::Para(p) = &**block else { continue };
+        let markers: Vec<(usize, &InlineObject)> =
+            p.objects_with_offsets().filter(|(_, o)| matches!(o, InlineObject::ControlStart { .. } | InlineObject::ControlEnd)).collect();
+        // Only the old shape: the exercise control showing a placeholder is the paragraph's only
+        // control marker (nothing else opens or closes in the title).
+        let [(at, InlineObject::ControlStart { control: ctl })] = markers.as_slice() else { continue };
+        if ctl.tag != TAG_EXERCISE || !ctl.showing_placeholder {
+            continue;
+        }
+        let (at, shown) = (*at, ctl.placeholder_shown().to_string());
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        let props = p.props_of_char(at).clone();
+        let mut title_ctl = control(TAG_TITLE, w.title_part, ControlLock::SdtLocked);
+        title_ctl.placeholder_text = if shown.is_empty() { w.title.to_string() } else { shown };
+        title_ctl.showing_placeholder = true;
+        // The start right after the exercise's, the end closing the paragraph.
+        if p.insert_object(at + OBJ.len_utf8(), InlineObject::ControlStart { control: Box::new(title_ctl) }, &props).is_err() {
+            continue;
+        }
+        let end = p.text.len();
+        if p.insert_object(end, InlineObject::ControlEnd, &props).is_err() {
+            // Never a start without its end: take it out again.
+            let _ = p.delete(at + OBJ.len_utf8(), at + 2 * OBJ.len_utf8());
+            continue;
+        }
+        for o in &mut p.objects {
+            if let InlineObject::ControlStart { control: ctl } = o
+                && ctl.tag == TAG_EXERCISE
+            {
+                ctl.showing_placeholder = false;
+            }
+        }
+        changed = true;
+    }
+    changed
+}
+
+/// A saved document keeps a control's placeholder text only while the control shows it, so after
+/// reopening, an emptied title, statement or questions part would show the generic "Type here.":
+/// the exercise's own words go back on its controls. Nothing shown changes.
+fn placeholders(s: &mut Session) {
+    let w = words(s);
+    let wanted = |tag: &str| match tag {
+        TAG_TITLE => Some(w.title),
+        TAG_TEXT => Some(w.text),
+        TAG_QUESTIONS => Some(w.question),
+        _ => None,
+    };
+    let lacks = |o: &InlineObject| matches!(o, InlineObject::ControlStart { control } if control.placeholder_text.is_empty() && wanted(&control.tag).is_some());
+    for block in s.doc.body.iter_mut() {
+        if !matches!(&**block, Block::Para(p) if p.objects.iter().any(lacks)) {
+            continue;
+        }
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        for o in &mut p.objects {
+            if let InlineObject::ControlStart { control } = o
+                && control.placeholder_text.is_empty()
+                && let Some(text) = wanted(&control.tag)
+            {
+                control.placeholder_text = text.to_string();
+            }
+        }
+    }
+}
+
 /// Rebuilds the automatic parts: the questions repeated in each solution and the results summary
 /// (moved to, or created at, the end of the document). Returns whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
+    let mut changed = title_controls(s);
+    placeholders(s);
     let layout = scan(s);
     if layout.exercises.is_empty() && layout.results.is_none() {
-        return false;
+        return changed;
     }
     let w = words(s);
-    let mut changed = false;
     // The repeated questions, last exercise first so earlier block indices stay valid.
     for e in layout.exercises.iter().rev() {
         changed |= update_prompts(s, e);
@@ -1619,6 +1706,118 @@ mod tests {
         // No data: the data part goes away.
         s.run("exercise.setData", &json!({"exercise": 1, "data": {}})).unwrap();
         assert!(!texts(&s).iter().any(|x| x.starts_with("Dati")));
+    }
+
+    /// The title paragraph's text (without the control markers).
+    fn title(s: &Session) -> String {
+        s.doc
+            .body
+            .iter()
+            .find_map(|b| match &**b {
+                Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE) => Some(plain(p)),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }
+
+    /// The summary line of the first exercise.
+    fn summary_title(s: &Session) -> String {
+        texts(s).into_iter().find(|t| t.starts_with("Esercizio 1")).unwrap_or_default()
+    }
+
+    /// The title is the user's text: typed over its placeholder (New Exercise without a title,
+    /// as the ribbon makes it), selected and replaced, deleted with Backspace and Delete; the
+    /// structure stays, and the summary, Exercise Info, undo and saving follow it. A title
+    /// placeholder on the exercise control (whose content is the whole exercise) made typing try
+    /// to replace the whole exercise, which its locked parts refused.
+    #[test]
+    fn the_title_is_editable_in_place() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({})).unwrap();
+        assert_eq!(title(&s), "Titolo dell'esercizio");
+        assert_eq!(s.run("exercise.info", &json!({})).unwrap()["title"], json!(""));
+        // Typing at the caret (left in the title) replaces the placeholder, only it.
+        s.run("text.insert", &json!({"text": "Trave"})).unwrap();
+        assert_eq!(title(&s), "Trave");
+        let layout = scan(&s);
+        assert_eq!(layout.exercises.len(), 1);
+        assert!(
+            layout.exercises[0].text_blocks.is_some()
+                && layout.exercises[0].question_blocks.is_some()
+                && layout.exercises[0].solution_blocks.is_some()
+        );
+        assert_eq!(s.run("exercise.info", &json!({})).unwrap()["title"], json!("Trave"));
+        assert_eq!(summary_title(&s), "Esercizio 1 — Trave");
+        // Typing goes on at the end, Backspace and Delete take letters away.
+        s.run("text.insert", &json!({"text": " appoggiata"})).unwrap();
+        s.run("text.backspace", &json!({})).unwrap();
+        s.run("caret.home", &json!({})).unwrap();
+        s.run("text.delete", &json!({})).unwrap();
+        assert_eq!(title(&s), "rave appoggiat");
+        // Selected and replaced.
+        s.run("select.text", &json!({"text": "rave appoggiat"})).unwrap();
+        s.run("text.insert", &json!({"text": "Ponte"})).unwrap();
+        assert_eq!(title(&s), "Ponte");
+        assert_eq!(summary_title(&s), "Esercizio 1 — Ponte");
+        // Undo and redo take the title, and the summary, with them.
+        s.run("edit.undo", &json!({})).unwrap();
+        assert_eq!(title(&s), "rave appoggiat");
+        assert_eq!(summary_title(&s), "Esercizio 1 — rave appoggiat");
+        s.run("edit.redo", &json!({})).unwrap();
+        assert_eq!(title(&s), "Ponte");
+        assert_eq!(summary_title(&s), "Esercizio 1 — Ponte");
+        // Saved and opened again: the title stays, and stays editable.
+        let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
+        let mut doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
+        // Italian as it opens (the words come from the preferences, else the document's language).
+        doc.styles.default_chr.lang = Some("it-IT".into());
+        let mut s = Session::new(doc);
+        s.prefs.default_language = Some("it-IT".into());
+        assert_eq!(title(&s), "Ponte");
+        let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
+        s.run("text.insert", &json!({"text": "Il "})).unwrap();
+        assert_eq!(title(&s), "Il Ponte");
+        assert_eq!(summary_title(&s), "Esercizio 1 — Il Ponte");
+        // All of it deleted: the placeholder comes back, the structure stays.
+        s.run("select.text", &json!({"text": "Il Ponte"})).unwrap();
+        s.run("text.delete", &json!({})).unwrap();
+        assert_eq!(title(&s), "Titolo dell'esercizio");
+        assert_eq!(summary_title(&s), "Esercizio 1");
+        assert_eq!(scan(&s).exercises.len(), 1);
+        s.run("text.insert", &json!({"text": "Di nuovo"})).unwrap();
+        assert_eq!(title(&s), "Di nuovo");
+    }
+
+    /// Exercises made before the title had its own control (the placeholder on the exercise
+    /// control) get one as they open, so their title can be typed over.
+    #[test]
+    fn an_old_exercise_gets_its_title_control() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({})).unwrap();
+        // The old shape: the title control taken away, the exercise control showing the placeholder.
+        let mut doc = s.doc.clone();
+        let at = doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
+        let Some(Block::Para(p)) = doc.body.get_mut(at).map(Arc::make_mut) else { panic!("no title") };
+        let end = p.text.len() - OBJ.len_utf8();
+        p.delete(end, p.text.len()).unwrap();
+        p.delete(OBJ.len_utf8(), 2 * OBJ.len_utf8()).unwrap();
+        for o in &mut p.objects {
+            if let InlineObject::ControlStart { control } = o {
+                control.placeholder_text = "Titolo dell'esercizio".into();
+                control.showing_placeholder = true;
+            }
+        }
+        assert_eq!(p.objects.len(), 1);
+        let mut s = Session::new(doc);
+        s.prefs.default_language = Some("it-IT".into());
+        assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
+        assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
+        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
+        s.run("text.insert", &json!({"text": "Vecchio"})).unwrap();
+        assert_eq!(title(&s), "Vecchio");
+        assert_eq!(summary_title(&s), "Esercizio 1 — Vecchio");
+        assert_eq!(scan(&s).exercises.len(), 1);
     }
 
     #[test]

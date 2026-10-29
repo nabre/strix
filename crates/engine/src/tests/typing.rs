@@ -3387,3 +3387,24 @@ fn double_space_adds_a_period_when_asked() {
     typ(&mut t, "Hello  world");
     assert_eq!(text(&t), "Hello  world");
 }
+
+/// Home, then Delete, at the start of a paragraph a block-level content control holds (an
+/// exercise title, a rich text control around a paragraph) deletes its first letter: the caret
+/// is before the control's zero-width start, where Delete used to find only the marker.
+#[test]
+fn delete_at_the_start_of_a_block_control_deletes_its_first_letter() {
+    let mut s = typed("Title");
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "developer.richText", json!({}));
+    let p = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    assert!(p.text.starts_with(strix_doc::para::OBJ), "a block control around the paragraph: {:?}", p.text);
+    s.sel = crate::Selection::caret(Pos::body(0, 0));
+    run(&mut s, "text.delete", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body).trim_matches(strix_doc::para::OBJ), "itle");
+    run(&mut s, "caret.docEnd", json!({}));
+    run(&mut s, "caret.home", json!({}));
+    run(&mut s, "text.delete", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body).trim_matches(strix_doc::para::OBJ), "tle");
+    // The control is still there, around what is left.
+    assert_eq!(s.doc.control_ranges(StoryRef::Body).len(), 1);
+}

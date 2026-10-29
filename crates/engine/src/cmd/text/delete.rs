@@ -142,6 +142,9 @@ fn delete_inner(s: &mut Session, _: &Value) -> CmdResult {
         return sel_result(s);
     }
     let f = s.sel.focus.clone();
+    // A caret before the starts of block-level controls (Home, a click at the line's start)
+    // deletes their first character, as typing goes inside them, not the zero-width markers.
+    let f = Some(s.doc.typing_pos(&f)).filter(|t| t.off > f.off).unwrap_or(f);
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off < para.len() {
         let b = Pos { off: para.next_boundary(f.off), ..f.clone() };
