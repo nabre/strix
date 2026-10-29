@@ -2921,11 +2921,15 @@ preview	Title	Esempio
 	Elevation	Quota
 	Under the level	Sotto il livello
 	Text on the left	Testo a sinistra
-	Distance on paper	Distanza sulla carta
-	Distance in the drawing	Distanza nel disegno
-	Arc radius in the drawing	Raggio dell'arco nel disegno
-	Arc radius on paper	Raggio dell'arco sulla carta
+	Annotative distance	Distanza annotativa
+	Scaled distance	Distanza in scala
+	Scaled radius	Raggio in scala
+	Annotative radius	Raggio annotativo
 	Scaled distances	Distanze in scala
+	scaled {size}	in scala {size}
+	annotative {size}	annotativa {size}
+	On paper, mm: the same in print at any scale (annotative)	Sulla carta, mm: uguale in stampa a ogni scala (annotativa)
+	In the drawing's units: it follows the drawing's size and scale (scaled)	Nelle unità del disegno: segue le sue dimensioni e la scala (in scala)
 	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Le linee di quota e gli archi degli angoli posati con un clic o una maniglia tengono la distanza nel disegno (seguono le sue dimensioni e la scala); se disattivato, sulla carta (uguale in stampa)
 	a radius is more than 0	un raggio è maggiore di 0
 	Ordinal Column	Colonna ordinale

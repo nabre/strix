@@ -21,6 +21,7 @@ use strix_cad::{
 use strix_doc::InlineObject;
 
 use crate::WordApp;
+use crate::cad_dim_parts;
 
 /// How a circle is given (AutoCAD's Circle options).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -359,7 +360,7 @@ impl Default for CadSettings {
             snaps: Snaps::default(),
             ortho: false,
             grid: true,
-            frame: false,
+            frame: true,
             panel: true,
             layers_panel: false,
             panel_float: false,
@@ -1579,6 +1580,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let view = View { rect, center: ed.center, zoom: ed.zoom };
         paint_sheet(ed, &painter, view);
         paint_selection(ed, &painter, view, t.accent);
+        paint_dim_parts(ed, &painter, view, hovering.is_some());
         let grips = shown_grips(ed, view);
         paint_grips(ed, &painter, &grips, hovering);
         let hover_grip = hovering
@@ -2160,6 +2162,27 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
                     painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
                 }
             }
+            // A dimension's distance as it would become, in its scaled and annotative parts.
+            if let Some(parts) = ghost.dim_parts(e) {
+                cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ghost.unit.symbol());
+            }
+        }
+    }
+    // A dimension being placed: as the next click would put it, with its distance's parts.
+    let placing = match (ed.tool, ed.points.as_slice()) {
+        (Tool::Dim(orient), &[a, b]) => Some(placed_dim(ed, orient, a, b, p)),
+        (Tool::DimAngle, &[c, a, b]) => placed_angle(ed, c, a, b, p).ok(),
+        _ => None,
+    };
+    if let Some(e) = placing.map(Entity::new) {
+        for line in ed.drawing.shape(&e) {
+            let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+            if screen.len() > 1 {
+                painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
+            }
+        }
+        if let Some(parts) = ed.drawing.dim_parts(&e) {
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
         }
     }
     // Rubber band from the last point.
@@ -2349,6 +2372,23 @@ fn paint_selection(ed: &CadEditor, painter: &egui::Painter, view: View, accent: 
         }
     }
     // Grips of the selection: idle, under the pointer, or taken (hot).
+}
+
+/// The selected dimensions' distances in their two parts (docs/cad.md): the reference line or
+/// arc at the scaled distance, the scaled and the annotative stretch. Not the one a hot grip is
+/// dragging while the pointer is on the sheet: its preview shows them as they would become.
+fn paint_dim_parts(ed: &CadEditor, painter: &egui::Painter, view: View, previewing: bool) {
+    if ed.selection.len() > MAX_GRIPPED {
+        return;
+    }
+    for &i in &ed.selection {
+        if previewing && ed.grip.is_some_and(|(g, _, _)| g == i) {
+            continue;
+        }
+        if let Some(parts) = ed.drawing.entities.get(i).and_then(|e| ed.drawing.dim_parts(e)) {
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
+        }
+    }
 }
 
 /// Grips of the selection: idle, under the pointer, or taken (hot).
@@ -2647,6 +2687,42 @@ fn tangent_line(d: &Drawing, p1: Pt, p2: Pt) -> Result<(Pt, Pt), &'static str> {
     kernel::line_tan_tan(&c1, p1, &c2, p2).ok_or("Pick two circles or arcs apart from each other")
 }
 
+/// The linear dimension from `a` to `b` with its line through `at` (past the farther point
+/// along the normal): the distance in the drawing (scaled) or on paper (annotative), as the
+/// style places it.
+fn placed_dim(ed: &CadEditor, orient: Orient, a: Pt, b: Pt, at: Pt) -> Kind {
+    let dir = match orient {
+        Orient::Aligned => b.minus(a).unit(),
+        Orient::Horizontal => Pt::new(if b.x >= a.x { 1.0 } else { -1.0 }, 0.0),
+        Orient::Vertical => Pt::new(0.0, if b.y >= a.y { 1.0 } else { -1.0 }),
+    };
+    let normal = dir.left();
+    let level = |q: Pt| q.x * normal.x + q.y * normal.y;
+    let (na, nb, nl) = (level(a), level(b), level(at));
+    // Past the farther point along the normal, in drawing units.
+    let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
+    let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
+    let (offset, offset_units) = if ed.drawing.dim_style.scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
+    Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }
+}
+
+/// The angle at `c` between the rays to `a` and `b`, on the side its arc is placed in (through
+/// `at`): the radius in the drawing (scaled) or on paper (annotative), as the style places it.
+fn placed_angle(ed: &CadEditor, c: Pt, mut a: Pt, mut b: Pt, at: Pt) -> Result<Kind, &'static str> {
+    // The angle measured is the side the arc is placed in.
+    let (ua, ub, ut) = (a.minus(c), b.minus(c), at.minus(c));
+    if kernel::angle_ccw(ua, ut) > kernel::angle_ccw(ua, ub) {
+        std::mem::swap(&mut a, &mut b);
+    }
+    let r = ut.len();
+    if r <= kernel::RESOLUTION || ua.len() <= kernel::RESOLUTION || ub.len() <= kernel::RESOLUTION {
+        return Err("An angle needs two sides and an arc away from the vertex");
+    }
+    let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
+    let (r, r_paper) = if ed.drawing.dim_style.scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
+    Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None })
+}
+
 /// Takes point `p` for the current tool; returns the new drawing when an operation completes.
 fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
     ed.message.clear();
@@ -2712,22 +2788,9 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             with(ed, Entity::new(Kind::Point { p: pt(p) }))
         }
         Tool::Dim(orient) if n >= 3 => {
-            let (a, b, at) = (pts[0], pts[1], pts[2]);
-            let dir = match orient {
-                Orient::Aligned => b.minus(a).unit(),
-                Orient::Horizontal => Pt::new(if b.x >= a.x { 1.0 } else { -1.0 }, 0.0),
-                Orient::Vertical => Pt::new(0.0, if b.y >= a.y { 1.0 } else { -1.0 }),
-            };
-            let normal = dir.left();
-            let level = |q: Pt| q.x * normal.x + q.y * normal.y;
-            let (na, nb, nl) = (level(a), level(b), level(at));
-            // Past the farther point along the normal, in paper mm.
-            let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
-            let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
+            let kind = placed_dim(ed, orient, pts[0], pts[1], pts[2]);
             done(ed);
-            // In the drawing (scaled) or on paper (annotative), as the style places it.
-            let (offset, offset_units) = if ed.drawing.dim_style.scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
-            with(ed, Entity::new(Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }))
+            with(ed, Entity::new(kind))
         }
         Tool::Hatch => {
             done(ed);
@@ -2774,22 +2837,15 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             )
         }
         Tool::DimAngle if n >= 4 => {
-            let (c, mut a, mut b, at) = (pts[0], pts[1], pts[2], pts[3]);
-            // The angle measured is the side the arc is placed in.
-            let (ua, ub, ut) = (a.minus(c), b.minus(c), at.minus(c));
-            if kernel::angle_ccw(ua, ut) > kernel::angle_ccw(ua, ub) {
-                std::mem::swap(&mut a, &mut b);
-            }
-            let r = ut.len();
+            let placed = placed_angle(ed, pts[0], pts[1], pts[2], pts[3]);
             done(ed);
-            if r <= kernel::RESOLUTION || ua.len() <= kernel::RESOLUTION || ub.len() <= kernel::RESOLUTION {
-                ed.message = "An angle needs two sides and an arc away from the vertex".into();
-                return None;
+            match placed {
+                Ok(kind) => with(ed, Entity::new(kind)),
+                Err(e) => {
+                    ed.message = e.into();
+                    None
+                }
             }
-            // The arc in the drawing (scaled) or on paper (annotative), as the style places it.
-            let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-            let (r, r_paper) = if ed.drawing.dim_style.scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
-            with(ed, Entity::new(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None }))
         }
         Tool::DimContinue | Tool::DimBaseline => {
             done(ed);
@@ -4020,10 +4076,12 @@ mod tests {
     fn frame_snaps_and_padding_are_editor_commands() {
         let mut app = app_with_drawing();
         app.run("ui.cadEdit", json!({})).unwrap();
+        // The frame is shown by default; the toggle hides it.
+        assert!(app.cad.as_ref().unwrap().frame, "the frame is on by default");
         app.run("ui.cadToggle", json!({"what": "frame"})).unwrap();
         app.run("ui.cadToggle", json!({"what": "snap.quadrant"})).unwrap();
         let ed = app.cad.as_ref().unwrap();
-        assert!(ed.frame && ed.snaps.quadrant);
+        assert!(!ed.frame && ed.snaps.quadrant);
         assert!(app.run("ui.cadToggle", json!({"what": "nope"})).is_err());
         // The padding is the drawing's: stored in the document, one undo step.
         let before = app.cad.as_ref().unwrap().rendered.size;
@@ -4135,13 +4193,13 @@ mod tests {
     fn settings_are_kept_while_the_program_runs() {
         let mut app = app_with_drawing();
         app.run("ui.cadEdit", json!({})).unwrap();
-        for what in ["ortho", "grid", "layers", "props", "snap.quadrant", "layers.float"] {
+        for what in ["ortho", "grid", "frame", "layers", "props", "snap.quadrant", "layers.float"] {
             app.run("ui.cadToggle", json!({"what": what})).unwrap();
         }
         app.run("ui.cadClose", json!({})).unwrap();
         app.run("ui.cadEdit", json!({})).unwrap();
         let ed = app.cad.as_ref().unwrap();
-        assert!(ed.ortho && !ed.grid && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
+        assert!(ed.ortho && !ed.grid && !ed.frame && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
         // A detached pane opens detached again.
         assert!(ed.layers_float && !ed.panel_float);
     }

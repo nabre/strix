@@ -149,8 +149,8 @@ impl Drawing {
                 out.push(f("below", "Text below", FieldKind::Text, below.clone().unwrap_or_default()));
                 point(&mut out, a, ("ax", "Start X"), ("ay", "Start Y"));
                 point(&mut out, b, ("bx", "End X"), ("by", "End Y"));
-                out.push(f("offset", "Distance on paper", FieldKind::Paper, number(*offset)));
-                out.push(f("offsetUnits", "Distance in the drawing", FieldKind::Derived, number(*offset_units)));
+                out.push(f("offset", "Annotative distance", FieldKind::Paper, number(*offset)));
+                out.push(f("offsetUnits", "Scaled distance", FieldKind::Derived, number(*offset_units)));
                 let o = match orient {
                     Orient::Aligned => "aligned",
                     Orient::Horizontal => "horizontal",
@@ -179,8 +179,8 @@ impl Drawing {
                 point(&mut out, c, ("cx", "Vertex X"), ("cy", "Vertex Y"));
                 point(&mut out, a, ("ax", "First ray X"), ("ay", "First ray Y"));
                 point(&mut out, b, ("bx", "Second ray X"), ("by", "Second ray Y"));
-                out.push(f("radius", "Arc radius in the drawing", FieldKind::Derived, number(*r)));
-                out.push(f("radiusPaper", "Arc radius on paper", FieldKind::Paper, number(*r_paper)));
+                out.push(f("radius", "Scaled radius", FieldKind::Derived, number(*r)));
+                out.push(f("radiusPaper", "Annotative radius", FieldKind::Paper, number(*r_paper)));
                 let (ua, ub) = (a.pt().minus(c.pt()), b.pt().minus(c.pt()));
                 out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
                 out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));

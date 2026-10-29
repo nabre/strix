@@ -416,3 +416,105 @@ fn typed_values_in_the_input_unit() {
     assert!(!d.to_json().contains("input"));
     assert!(Drawing::from_json(r#"{"input":"inch"}"#).is_ok_and(|d| d.input.is_none()), "an unknown unit is the drawing's");
 }
+
+fn near(p: Pt, x: f64, y: f64) -> bool {
+    (p.x - x).abs() < 1e-9 && (p.y - y).abs() < 1e-9
+}
+
+/// A linear dimension's distance in its two parts (drawing 1:10 in mm: a paper mm is 10 units):
+/// the reference line at the scaled distance past the farther measured point, the scaled part
+/// from that point's level to it and the annotative part on to the dimension line, where the
+/// line's grip is. Either part zero still has its reference (all annotative: through the farther
+/// point; all scaled: on the dimension line).
+#[test]
+fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
+    let dim = |b: P, offset: f64, offset_units: f64| {
+        let mut d = Drawing { scale: 10.0, ..Drawing::default() };
+        d.add(Entity::new(Kind::Dim {
+            a: P::new(0.0, 0.0),
+            b,
+            offset,
+            offset_units,
+            orient: Orient::Horizontal,
+            text: None,
+            below: None,
+            mark: None,
+        }))
+        .unwrap();
+        let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
+        let parts = d.dim_parts(&d.entities[0]).unwrap();
+        // The rendered dimension line (paper mm, y down) is where the annotative part ends.
+        let r = d.render(None);
+        let level = (r.origin.1 - parts.annotative[1].y * r.scale, 100.0 * r.scale);
+        let drawn = paths(&r).iter().any(|p| p.len() == 2 && p.iter().all(|q| (q.1 - level.0).abs() < 1e-9) && (p[1].0 - p[0].0).abs() >= level.1);
+        assert!(drawn, "no dimension line at {level:?}: {:?}", r.prims);
+        (parts, grip)
+    };
+    let (p, grip) = dim(P::new(100.0, 20.0), 4.0, 50.0);
+    // The farther point is b (y 20): the reference at 70, the line 40 units (4 mm) further.
+    assert!(near(p.reference[0], 0.0, 70.0) && near(p.reference[1], 100.0, 70.0), "{p:?}");
+    assert!(near(p.scaled[0], 50.0, 20.0) && near(p.scaled[1], 50.0, 70.0), "{p:?}");
+    assert!(near(p.annotative[0], 50.0, 70.0) && near(p.annotative[1], 50.0, 110.0), "{p:?}");
+    assert!(near(grip, p.annotative[1].x, p.annotative[1].y), "the line's grip is on the line: {grip:?}");
+    assert_eq!((p.scaled_size, p.annotative_size), (50.0, 4.0));
+    // The other side: from the nearer level, downwards.
+    let (p, grip) = dim(P::new(100.0, 20.0), -4.0, -50.0);
+    assert!(near(p.scaled[0], 50.0, 0.0) && near(p.reference[0], 0.0, -50.0) && near(p.annotative[1], 50.0, -90.0), "{p:?}");
+    assert!(near(grip, 50.0, -90.0));
+    // All annotative: the reference passes through the farther point, no scaled stretch.
+    let (p, _) = dim(P::new(100.0, 20.0), 4.0, 0.0);
+    assert!(near(p.reference[0], 0.0, 20.0) && p.scaled[0] == p.scaled[1] && near(p.annotative[1], 50.0, 60.0), "{p:?}");
+    // All scaled: the reference is the dimension line, no annotative stretch.
+    let (p, grip) = dim(P::new(100.0, 20.0), 0.0, 50.0);
+    assert!(near(p.reference[1], 100.0, 70.0) && p.annotative[0] == p.annotative[1] && near(grip, 50.0, 70.0), "{p:?}");
+    // An aligned dimension measures along a→b: its parts go along the left normal.
+    let mut d = Drawing { scale: 10.0, ..Drawing::default() };
+    d.add(Entity::new(Kind::Dim {
+        a: P::new(0.0, 0.0),
+        b: P::new(0.0, 100.0),
+        offset: 2.0,
+        offset_units: 30.0,
+        orient: Orient::Aligned,
+        text: None,
+        below: None,
+        mark: None,
+    }))
+    .unwrap();
+    let p = d.dim_parts(&d.entities[0]).unwrap();
+    assert!(near(p.scaled[0], 0.0, 50.0) && near(p.scaled[1], -30.0, 50.0) && near(p.annotative[1], -50.0, 50.0), "{p:?}");
+}
+
+/// An angle's arc radius in its two parts: the reference arc at the scaled radius (every point
+/// that far from the vertex), the parts along the bisector to the arc's grip. A right angle
+/// drawn as a square has a square reference; no scaled radius leaves the vertex as reference.
+/// Not a dimension, or a zero angle: nothing.
+#[test]
+fn an_angle_has_a_scaled_and_an_annotative_radius() {
+    let angle = |b: P, r: f64, r_paper: f64, text: Option<&str>| {
+        let mut d = Drawing { scale: 10.0, ..Drawing::default() };
+        d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b, r, r_paper, text: text.map(Into::into), mark: None })).unwrap();
+        d.add(Entity::new(Kind::Line { a: P::new(0.0, 0.0), b: P::new(1.0, 1.0) })).unwrap();
+        let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
+        (d, grip)
+    };
+    let (d, grip) = angle(P::new(0.0, 10.0), 5.0, 3.0, Some("<>°"));
+    let p = d.dim_parts(&d.entities[0]).unwrap();
+    assert!(p.reference.len() > 2 && p.reference.iter().all(|q| (q.len() - 5.0).abs() < 1e-9), "{p:?}");
+    assert!(near(p.reference[0], 5.0, 0.0) && near(*p.reference.last().unwrap(), 0.0, 5.0));
+    let h = std::f64::consts::FRAC_1_SQRT_2;
+    assert!(near(p.scaled[0], 0.0, 0.0) && near(p.scaled[1], 5.0 * h, 5.0 * h), "{p:?}");
+    assert!(near(p.annotative[1], 35.0 * h, 35.0 * h) && near(grip, p.annotative[1].x, p.annotative[1].y), "{p:?} {grip:?}");
+    assert_eq!((p.scaled_size, p.annotative_size), (5.0, 3.0));
+    // A right angle with no text: the square, the parts along its diagonal.
+    let (d, _) = angle(P::new(0.0, 10.0), 5.0, 3.0, None);
+    let p = d.dim_parts(&d.entities[0]).unwrap();
+    assert!(p.reference.len() == 3 && near(p.reference[1], 5.0, 5.0) && near(p.annotative[1], 35.0, 35.0), "{p:?}");
+    // All annotative: the reference is the vertex.
+    let (d, _) = angle(P::new(-10.0, 10.0), 0.0, 6.0, None);
+    let p = d.dim_parts(&d.entities[0]).unwrap();
+    assert!(p.reference == vec![Pt::new(0.0, 0.0)] && p.scaled[0] == p.scaled[1] && (p.annotative[1].len() - 60.0).abs() < 1e-9, "{p:?}");
+    // Not a dimension, a zero angle: none.
+    assert!(d.dim_parts(&d.entities[1]).is_none());
+    let (d, _) = angle(P::new(20.0, 0.0), 5.0, 3.0, None);
+    assert!(d.dim_parts(&d.entities[0]).is_none());
+}

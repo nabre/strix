@@ -409,7 +409,7 @@ pub(crate) fn paper_per_unit(d: &Drawing) -> f64 {
 }
 
 /// A dimension's direction for its orientation.
-fn dim_dir(a: Pt, b: Pt, orient: Orient) -> Pt {
+pub(crate) fn dim_dir(a: Pt, b: Pt, orient: Orient) -> Pt {
     match orient {
         Orient::Aligned => b.minus(a).unit(),
         Orient::Horizontal => Pt::new(if b.x >= a.x { 1.0 } else { -1.0 }, 0.0),

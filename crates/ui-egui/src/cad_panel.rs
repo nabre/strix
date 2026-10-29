@@ -465,9 +465,24 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             });
         }
         let id = ed.drawing.entities.get(i).map(|e| e.id.clone()).unwrap_or_default();
+        let kind = ed.drawing.entities.get(i).map(|e| e.kind.clone());
         egui::Grid::new("cad_geometry").num_columns(3).spacing(vec2(6.0, 4.0)).show(ui, |ui| {
             for f in ed.drawing.fields(i, ed.vertex) {
-                ui.label(tl!(f.label));
+                // A dimension's scaled and annotative parts: marked in the sheet overlay's colours.
+                match kind.as_ref().and_then(|k| crate::cad_dim_parts::field_part(k, &f.key)) {
+                    Some((c, hint)) => {
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 4.0;
+                            ui.label(RichText::new("■").color(c));
+                            ui.label(tl!(f.label));
+                        })
+                        .response
+                        .on_hover_text(tl!(hint));
+                    }
+                    None => {
+                        ui.label(tl!(f.label));
+                    }
+                }
                 let new = match f.kind {
                     FieldKind::Bool => {
                         let mut on = f.text == "true";

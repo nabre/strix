@@ -1,7 +1,7 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-10-28 · **Change:** right-angle symbol, continue
-> and baseline dimensions, level marks, flip
+> **Status:** in progress · **Last updated:** 2026-10-29 · **Change:** scaled and annotative parts
+> of a dimension's distance shown in the editor; frame on by default
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -55,7 +55,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | **Dimension selection** (owner: improve): pick on the drawn dimension line, extension lines and text | todo |
 | Undo/redo, repeat (F4/Enter), Esc unwinding | done (F4 todo) |
 | Properties: exact fields, SI measures, vertex navigator, all dimension/level/text/hatch fields, multi-select scope | partial |
-| **Annotative vs scaled** (owner): show which sizes are paper (annotative) and which are drawing units (scaled) | partial (dimension distances and angle radii have both parts, labelled in Properties; Scaled distances chooses the placed part) |
+| **Annotative vs scaled** (owner): show which sizes are paper (annotative) and which are drawing units (scaled) | partial (dimension distances and angle radii have both parts; the editor shows them for the selected dimension and while placing or gripping one: a dashed blue reference at the scaled distance, the scaled stretch in blue and the annotative one in magenta, with their sizes; Properties labels and colours them alike; Scaled distances chooses the placed part. Other paper sizes — text heights, strip widths, hatch spacing — are only labelled mm) |
 | Ω symbols / variables inserter for texts | todo |
 | **Right-click menu** (owner): richer, with icons | todo |
 | Layer panel dockable or floating; ribbon layer group | done (Properties too, close ×) |
@@ -87,6 +87,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-29: the editor shows a dimension's scaled and annotative parts; frame on by default.
 - 2026-10-28: two-part (scaled + annotative) dimension distances and angle radii.
 - 2026-10-28: right-angle symbol, continue and baseline dimensions, level marks, flip.
 - 2026-10-28: maximum size, scales that fit, Fitted to Frame.

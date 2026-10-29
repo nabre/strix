@@ -15,6 +15,7 @@
 //! Hostile input never panics: sizes are clamped, counts capped, non-finite numbers rejected.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod dim_parts;
 mod dims;
 mod edit;
 mod geom;
@@ -39,6 +40,7 @@ mod tests_dims;
 #[cfg(test)]
 mod tests_rework;
 
+pub use dim_parts::DimParts;
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};

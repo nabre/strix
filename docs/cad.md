@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-28 · **Change:** input unit; cleaner default dimension style; dimension units
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-29 · **Change:** frame on by default; scaled and annotative parts of a dimension's distance shown in the editor
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -51,7 +51,20 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   paper mm (annotative) from its vertex. Either part may be zero (the JSON leaves a zero
   `offsetUnits` / `rPaper` out). Scale multiplies the scaled parts only. The style's **Scaled
   distances** (`dimStyle.scaled`, off by default) says which part a click or a grip places: on
-  paper, or in the drawing; the other part is kept. Properties shows both.
+  paper, or in the drawing; the other part is kept. Properties shows both, as **Scaled
+  distance** (drawing units) and **Annotative distance** (paper mm) — an angle's **Scaled
+  radius** and **Annotative radius** — each marked with its overlay colour and explained on
+  hover.
+- **The parts on screen** (editor only: never printed, exported or in the SVG picture): for the
+  selected dimensions (up to 50), the one being placed and the one a grip is dragging, the editor
+  draws a dashed **blue reference** at the scaled distance — a line parallel to the dimension
+  line between its extension lines, or an arc (a square for a right angle) at the scaled radius
+  — and two stretches along the normal (an angle's bisector) in the dimension's middle: **blue**
+  from the farther measured point's level (the vertex) to the reference, the scaled part, and
+  **magenta** from the reference on to the dimension line or arc, the annotative part, each
+  labelled with its size (`scaled 300 mm`, `annotative 6 mm`). A zero part is a dot: all
+  annotative, the reference passes through the farther measured point (a ring on the vertex);
+  all scaled, it lies on the dimension line. The geometry is `Drawing::dim_parts`.
 - **JSON** is canonical (fixed key order, numbers rounded to 0.001), so the same drawing always
   gives the same bytes. Reading is defensive: limits enforced, ids made unique, non-finite
   numbers dropped, sizes clamped.
@@ -226,7 +239,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
    an arc bends through the point), point and text position, dimension ends and line (distance).
    A dragged coordinate keeps its expression; a degenerate result is refused.
-   **Frame** (Picture › Frame): the picture's edge with the area outside it shaded light grey.
+   **Frame** (Picture › Frame, on by default; turned off it stays off for the next drawing
+   while the program runs): the picture's edge with the area outside it shaded light grey.
    **Selection** (AutoCAD's defaults, from the owner's prototype): a click **adds** the object
    under the pointer, Shift+click removes it (the halo under the pointer turns red); a click on
    empty space starts a **two-click window** (to the right: whole objects, blue; to the left:
@@ -377,6 +391,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-29: Frame on by default; the editor shows a dimension's scaled and annotative parts (reference line or arc, coloured stretches, sizes) for the selected dimension and while placing or gripping one; Properties labels and colours the two parts alike.
 - 2026-10-28: input unit (typed values in mm, cm or m, or with their own unit); default dimension style after ISO 129 (thin lines, heavier ticks, line past the extension lines).
 - 2026-10-28: dimension units: the drawing's, m, cm, mm or SIA 400.
 - 2026-10-28: parameters in dimension, angle, level and text annotations set as equations (italic symbol, lowered subscript, upright value).
