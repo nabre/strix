@@ -40,6 +40,60 @@ pub enum CircleMode {
     TanTanTan,
 }
 
+impl CircleMode {
+    /// Every way, in the order the Circle button's menu lists them.
+    pub const ALL: [CircleMode; 6] =
+        [CircleMode::Radius, CircleMode::Diameter, CircleMode::TwoPoints, CircleMode::ThreePoints, CircleMode::TanTanRadius, CircleMode::TanTanTan];
+
+    /// Its `ui.cadTool` name ([`Tool::parse`] reads it back).
+    pub fn tool_param(self) -> &'static str {
+        match self {
+            CircleMode::Radius => "circle",
+            CircleMode::Diameter => "circleDiameter",
+            CircleMode::TwoPoints => "circle2p",
+            CircleMode::ThreePoints => "circle3p",
+            CircleMode::TanTanRadius => "circleTtr",
+            CircleMode::TanTanTan => "circleTtt",
+        }
+    }
+
+    /// Its name in the Circle menu.
+    fn label(self) -> &'static str {
+        match self {
+            CircleMode::Radius => "Centre, Radius",
+            CircleMode::Diameter => "Centre, Diameter",
+            CircleMode::TwoPoints => "2 Points",
+            CircleMode::ThreePoints => "3 Points",
+            CircleMode::TanTanRadius => "Tan, Tan, Radius",
+            CircleMode::TanTanTan => "Tan, Tan, Tan",
+        }
+    }
+
+    /// What the Circle button's top part does in this way (its tooltip).
+    fn tip(self) -> &'static str {
+        match self {
+            CircleMode::Radius => "Circle: centre, then the radius",
+            CircleMode::Diameter => "Circle: centre, then the diameter",
+            CircleMode::TwoPoints => "Circle: the two ends of a diameter",
+            CircleMode::ThreePoints => "Circle: three points on it",
+            CircleMode::TanTanRadius => "Circle: touching two objects, with a radius",
+            CircleMode::TanTanTan => "Circle: touching three objects",
+        }
+    }
+
+    /// Its icon (`icons.rs`).
+    fn icon(self) -> &'static str {
+        match self {
+            CircleMode::Radius => "cadCircle",
+            CircleMode::Diameter => "cadCircleD",
+            CircleMode::TwoPoints => "cadCircle2P",
+            CircleMode::ThreePoints => "cadCircle3P",
+            CircleMode::TanTanRadius => "cadCircleTTR",
+            CircleMode::TanTanTan => "cadCircleTTT",
+        }
+    }
+}
+
 /// The sheet the drawing is drawn on: paper white in both themes, like the page. Line samples
 /// in the panes are drawn on it too, so a dark line reads in the dark theme.
 pub(crate) const SHEET: Color32 = Color32::WHITE;
@@ -300,6 +354,8 @@ pub struct CadEditor {
     pub snap_once: Option<Option<SnapKind>>,
     /// The last drawing command (Enter at the idle prompt repeats it).
     pub last_tool: Option<Tool>,
+    /// The way the last circle was started: the Circle button's top part starts it again.
+    pub circle_mode: CircleMode,
     /// What the Properties pane works on.
     pub focus: Focus,
     /// The Properties pane is shown.
@@ -351,6 +407,8 @@ pub struct CadSettings {
     pub array_cols: usize,
     pub array_rows: usize,
     pub array_count: usize,
+    /// The Circle button's way (the last one chosen).
+    pub circle_mode: CircleMode,
 }
 
 impl Default for CadSettings {
@@ -371,6 +429,7 @@ impl Default for CadSettings {
             array_cols: 3,
             array_rows: 2,
             array_count: 6,
+            circle_mode: CircleMode::Radius,
         }
     }
 }
@@ -393,6 +452,7 @@ impl CadEditor {
             array_cols: self.array_cols,
             array_rows: self.array_rows,
             array_count: self.array_count,
+            circle_mode: self.circle_mode,
         }
     }
 }
@@ -437,6 +497,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         picking: false,
         snap_once: None,
         last_tool: None,
+        circle_mode: kept.circle_mode,
         focus: Focus::default(),
         panel: kept.panel,
         layers_panel: kept.layers_panel,
@@ -545,6 +606,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     commit(app, &d);
                 }
             }
+            // The Circle button's way, as its top part would start it.
+            return Ok(json!({"circle": app.cad.as_ref().map_or(app.cad_settings.circle_mode, |e| e.circle_mode).tool_param()}));
         }
         "ui.cadToggle" => {
             let what = p.get("what").and_then(serde_json::Value::as_str).unwrap_or_default();
@@ -908,6 +971,9 @@ impl CadEditor {
             if self.chain_base.is_none() {
                 self.message = "Draw a linear dimension first, or select the one to go on from".into();
             }
+        }
+        if let Tool::Circle(mode) = tool {
+            self.circle_mode = mode;
         }
         if tool != Tool::Select {
             self.last_tool = Some(tool);
@@ -3078,23 +3144,22 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
     let t = |name: &str| json!({"tool": name});
     group(ui, "Draw", None, app, |ui, app| {
         big_checked(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
-        // Circle: its ways, as AutoCAD's Circle button lists them.
-        crate::widgets::menu_button(
+        // Circle: a split button, as a CAD ribbon has it. The top part starts the way chosen
+        // last (its icon and tooltip say which); the bottom part lists every way.
+        let mode = app.cad.as_ref().map_or(app.cad_settings.circle_mode, |e| e.circle_mode);
+        crate::widgets::big_split(
             ui,
             app,
-            crate::widgets::MenuButtonOptions::new("cadCircle", Some("Circle"), "Circle: centre and radius, or another way", true, "ui.cadTool"),
+            crate::widgets::BigSplit {
+                icon: mode.icon(),
+                label: "Circle",
+                tip: mode.tip(),
+                action: crate::widgets::ButtonAction::new("ui.cadTool", t(mode.tool_param()), matches!(tool, Tool::Circle(_))),
+            },
             |ui, app| {
-                for (name, label) in [
-                    ("circle", "Centre, Radius"),
-                    ("circleDiameter", "Centre, Diameter"),
-                    ("circle2p", "2 Points"),
-                    ("circle3p", "3 Points"),
-                    ("circleTtr", "Tan, Tan, Radius"),
-                    ("circleTtt", "Tan, Tan, Tan"),
-                ] {
-                    let on = Tool::parse(name).is_some_and(|x| x == tool);
-                    if ui.selectable_label(on, tl!(label)).clicked() {
-                        let _ = app.run("ui.cadTool", json!({"tool": name}));
+                for m in CircleMode::ALL {
+                    if crate::widgets::icon_menu_item(ui, m.icon(), tl!(m.label()), "", 200.0).clicked() {
+                        let _ = app.run("ui.cadTool", t(m.tool_param()));
                         ui.close();
                     }
                 }
@@ -4140,6 +4205,54 @@ mod tests {
             feed(ed, p, None);
         }
         assert!(feed(ed, Pt::new(0.0, 1.0), None).is_none() && !ed.message.is_empty());
+    }
+
+    /// Every Circle way has a `ui.cadTool` name that reads back as it, its own icon and a menu
+    /// name and tooltip of its own.
+    #[test]
+    fn circle_ways_name_themselves() {
+        let mut seen = std::collections::HashSet::new();
+        for m in CircleMode::ALL {
+            assert_eq!(Tool::parse(m.tool_param()), Some(Tool::Circle(m)), "{m:?}");
+            assert!(seen.insert(m.icon()) && seen.insert(m.label()) && seen.insert(m.tip()), "{m:?}");
+            assert!(m.tip().starts_with("Circle: "));
+        }
+    }
+
+    /// The Circle button's top part starts the way chosen last: picking a way (the menu runs
+    /// `ui.cadTool`, as a command does) makes it the remembered one, typed ways too; other tools
+    /// leave it; closing and opening the editor keeps it.
+    #[test]
+    fn the_circle_button_remembers_the_way_chosen_last() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().circle_mode, CircleMode::Radius, "centre and radius at first");
+        let r = app.run("ui.cadTool", json!({"tool": "circle3p"})).unwrap();
+        assert_eq!(r["circle"], "circle3p");
+        let ed = app.cad.as_ref().unwrap();
+        assert_eq!((ed.tool, ed.circle_mode), (Tool::Circle(CircleMode::ThreePoints), CircleMode::ThreePoints));
+        // Another tool leaves the way as it was.
+        let r = app.run("ui.cadTool", json!({"tool": "line"})).unwrap();
+        assert_eq!(r["circle"], "circle3p");
+        // The top part runs the remembered way's name.
+        let top = app.cad.as_ref().unwrap().circle_mode.tool_param();
+        app.run("ui.cadTool", json!({"tool": top})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().tool, Tool::Circle(CircleMode::ThreePoints));
+        // A way typed on the command line is chosen too.
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::Select);
+        ed.command = "ttr".into();
+        run_typed(ed, None, false);
+        assert_eq!(ed.circle_mode, CircleMode::TanTanRadius);
+        // Kept for the next drawing while the app runs.
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!(app.cad_settings.circle_mode, CircleMode::TanTanRadius);
+        app.run("ui.cadEdit", json!({})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().circle_mode, CircleMode::TanTanRadius);
+        assert_eq!(app.cad.as_ref().unwrap().tool, Tool::Select, "the editor opens on Select");
+        // An unknown way is refused and changes nothing.
+        assert!(app.run("ui.cadTool", json!({"tool": "circle4p"})).is_err());
+        assert_eq!(app.cad.as_ref().unwrap().circle_mode, CircleMode::TanTanRadius);
     }
 
     /// The angular dimension measures the side its arc is placed in; the annotation style is

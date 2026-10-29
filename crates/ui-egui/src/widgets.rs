@@ -7,12 +7,14 @@ use serde_json::Value;
 use crate::theme::{Tokens, regular};
 use crate::{WordApp, icons};
 
+mod big_split;
 mod buttons;
 mod combo;
 mod groups;
 mod icon_buttons;
 mod tooltip;
 
+pub use big_split::{BigSplit, big_split};
 pub use buttons::{
     BIG_ICON_Y, BIG_LABEL_Y, ButtonAction, CONTENT_H, DROPDOWN, LABEL_H, LABEL_LINE_H, LABEL_PITCH, MenuButtonOptions, big, big_checked, big_toggle,
     enabled, label_line, menu_button, menu_enabled, small, split,

@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-10-29: CAD editor (docs/cad.md): Circle is a split button, as on a CAD ribbon. Its top part starts the circle in the way chosen last (centre and radius at first), its icon and tooltip showing which; its bottom part, Circle ▾, lists every way (centre and radius, centre and diameter, 2 points, 3 points, tan tan radius, tan tan tan), each with its own icon drawn in code, and the one picked becomes the top part's, kept while the app runs like the editor's other settings. `ui.cadTool` starts any way by name and reports the remembered one (`circle`).
 - 2026-10-29: v0.14.0 released (exercise title edited in place, CAD Frame on by default and scaled/annotative parts of dimensions, the project site in four languages and the marketing kit).
 - 2026-10-29: Exercises (docs/exercise.md): the title is edited in place. New Exercise without a title (as the ribbon makes it) put the title placeholder on the exercise control, whose content is the whole exercise, so typing over it tried to replace the exercise and was refused ("This content control can't be deleted"); the title now has its own control (`strix:exercise.title`, can't be deleted), typed over, replaced and deleted like any text, with the placeholder back when it is emptied; the results summary and Exercise Info follow it, through undo and `.xmath`. Exercises saved before get the title control as they open, and an emptied title, statement or questions part shows the exercise's own placeholder again after reopening. Delete at the start of a paragraph a block-level content control holds (Home, then Delete in the title) deletes its first letter instead of nothing.
 - 2026-10-29: CAD editor (docs/cad.md): the Frame is on by default, and a dimension's distance shows its two parts while selected, placed or gripped: a dashed blue reference line or arc at the scaled distance (drawing units), the scaled stretch in blue and the annotative one (paper mm) in magenta with their sizes; Properties labels and colours the two numbers alike. On screen only, never printed.
@@ -663,6 +664,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-29 | trivial | Progress log: CAD Circle split button |
 | 2026-10-29 | trivial | Progress log: the exercise title is edited in place |
 | 2026-10-29 | trivial | Progress log: CAD frame on by default; scaled and annotative parts of a dimension shown in the editor |
 | 2026-10-29 | trivial | Progress log: project site in four languages and the marketing kit |

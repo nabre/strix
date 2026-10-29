@@ -1,7 +1,7 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-10-29 · **Change:** scaled and annotative parts
-> of a dimension's distance shown in the editor; frame on by default
+> **Status:** in progress · **Last updated:** 2026-10-29 · **Change:** Circle is a split button
+> (the way chosen last on top, every way in its menu)
 
 The CAD drawing editor (`docs/cad.md`) takes over every feature of the owner's earlier prototype,
 re-designed for Strix: one Rust model and kernel (expression-valued coordinates, exact
@@ -36,7 +36,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Feature | Status |
 |---|---|
 | Line (incl. tangent to two curves), polyline (`a` arc, `l` line, `c` close, `u` undo vertex), rectangle | partial (polyline arc mode, undo vertex) |
-| Circle: centre-radius, centre-diameter, 2P, 3P, TTR, TTT | done |
+| Circle: centre-radius, centre-diameter, 2P, 3P, TTR, TTT; a split button (the way chosen last on top, every way with its icon in the menu) | done |
 | Arc, point, text | done |
 | Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
 | Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
@@ -87,6 +87,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-10-29: Circle split button.
 - 2026-10-29: the editor shows a dimension's scaled and annotative parts; frame on by default.
 - 2026-10-28: two-part (scaled + annotative) dimension distances and angle radii.
 - 2026-10-28: right-angle symbol, continue and baseline dimensions, level marks, flip.

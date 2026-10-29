@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-29 · **Change:** frame on by default; scaled and annotative parts of a dimension's distance shown in the editor
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-29 · **Change:** Circle is a split button (the way chosen last on top, every way in its menu)
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -376,8 +376,13 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    apart square to them, running on from one segment to the next; corners mitred (at most four
    widths). Annotative: the same on paper at any scale. Copied with its path it follows the copy;
    deleting the path deletes it. Tool `strip`: a click on the path, a click on the side.
-   **Circle ways** (Draw › Circle menu; typed `c`, then `2p`, `3p`, `ttr`, `ttt`, or `d` after the
-   centre): centre and radius, centre and diameter, 2 points (a diameter), 3 points, Tan Tan
+   **Circle ways** (Draw › Circle, a split button: its top part starts the way chosen last, its
+   icon and tooltip showing which, centre and radius at first; its bottom part, Circle ▾, lists
+   every way with its own icon, and the one picked becomes the top part's, kept while the app
+   runs like the editor's other settings; `ui.cadTool` `circle`, `circleDiameter`, `circle2p`,
+   `circle3p`, `circleTtr`, `circleTtt`, whose result's `circle` names the remembered way; typed
+   `c`, then `2p`, `3p`, `ttr`, `ttt`, or `d` after the centre): centre and radius, centre and
+   diameter, 2 points (a diameter), 3 points, Tan Tan
    Radius (two objects picked near where the circle should touch them, then the radius typed or
    given as a point from the second pick), Tan Tan Tan (three objects: Newton's method from the
    circle through the picks, each tangency on the side the pick shows). **Tangent Line**
@@ -393,6 +398,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-10-29: Circle is a split button: the top part starts the way chosen last, the menu lists the ways with their icons.
 - 2026-10-29: Frame on by default; the editor shows a dimension's scaled and annotative parts (reference line or arc, coloured stretches, sizes) for the selected dimension and while placing or gripping one; Properties labels and colours the two parts alike.
 - 2026-10-28: input unit (typed values in mm, cm or m, or with their own unit); default dimension style after ISO 129 (thin lines, heavier ticks, line past the extension lines).
 - 2026-10-28: dimension units: the drawing's, m, cm, mm or SIA 400.

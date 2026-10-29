@@ -1275,6 +1275,45 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.fcircle(10.0, 10.0, 1.3, a);
             pen.line_c(&[(10.0, 10.0), (16.5, 10.0)], a);
         }
+        // The Circle ways (the Circle split button's menu): what each is given, in the accent.
+        // Centre and diameter: the whole diameter through the centre, ticked at its ends.
+        "cadCircleD" => {
+            pen.circle(10.0, 10.0, 6.5, c);
+            pen.line_c(&[(3.5, 10.0), (16.5, 10.0)], a);
+            pen.fcircle(10.0, 10.0, 1.3, a);
+            pen.line_c(&[(3.5, 8.0), (3.5, 12.0)], a);
+            pen.line_c(&[(16.5, 8.0), (16.5, 12.0)], a);
+        }
+        // Two points: the ends of a diameter, no centre given.
+        "cadCircle2P" => {
+            pen.circle(10.0, 10.0, 6.5, c);
+            pen.fcircle(5.4, 14.6, 1.8, a);
+            pen.fcircle(14.6, 5.4, 1.8, a);
+        }
+        // Three points on the circle.
+        "cadCircle3P" => {
+            pen.circle(10.0, 10.0, 6.5, c);
+            pen.fcircle(10.0, 3.5, 1.8, a);
+            pen.fcircle(4.4, 13.3, 1.8, a);
+            pen.fcircle(15.6, 13.3, 1.8, a);
+        }
+        // Tangent, tangent, radius: in a corner, touching both sides, with its radius.
+        "cadCircleTTR" => {
+            pen.line_c(&[(3.0, 2.5), (3.0, 17.5)], c);
+            pen.line_c(&[(2.0, 16.5), (18.0, 16.5)], c);
+            pen.circle(9.0, 10.5, 6.0, c);
+            pen.line_c(&[(9.0, 10.5), (13.2, 6.3)], a);
+            pen.fcircle(3.0, 10.5, 1.5, a);
+            pen.fcircle(9.0, 16.5, 1.5, a);
+        }
+        // Tangent, tangent, tangent: inside a triangle, touching its three sides.
+        "cadCircleTTT" => {
+            pen.closed(&[(2.0, 17.0), (18.0, 17.0), (10.0, 3.0)], c);
+            pen.circle(10.0, 12.36, 4.64, c);
+            pen.fcircle(10.0, 17.0, 1.4, a);
+            pen.fcircle(5.97, 10.06, 1.4, a);
+            pen.fcircle(14.03, 10.06, 1.4, a);
+        }
         "cadArc" => {
             pen.line_c(&[(3.5, 14.0), (5.0, 8.0), (10.0, 5.0), (15.0, 8.0), (16.5, 14.0)], c);
             pen.fcircle(10.0, 14.0, 1.2, a);

@@ -2701,7 +2701,12 @@ preview	Title	Esempio
 	Tangent Line	Linea tangente
 	Tangent line	Linea tangente
 	A line touching two circles or arcs: pick each near where it should touch	Una linea tangente a due cerchi o archi: scegli ciascuno vicino a dove deve toccare
-	Circle: centre and radius, or another way	Cerchio: centro e raggio, o un altro modo
+	Circle: centre, then the radius	Cerchio: centro, poi il raggio
+	Circle: centre, then the diameter	Cerchio: centro, poi il diametro
+	Circle: the two ends of a diameter	Cerchio: i due estremi di un diametro
+	Circle: three points on it	Cerchio: tre punti della circonferenza
+	Circle: touching two objects, with a radius	Cerchio: tangente a due oggetti, con un raggio
+	Circle: touching three objects	Cerchio: tangente a tre oggetti
 	Centre, Radius	Centro, raggio
 	Centre, Diameter	Centro, diametro
 	2 Points	2 punti
