@@ -46,6 +46,7 @@ mod cache;
 mod ctx;
 mod floats;
 mod flow;
+mod graph;
 mod headers;
 mod notes;
 mod page;

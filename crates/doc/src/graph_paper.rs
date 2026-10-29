@@ -154,6 +154,14 @@ pub struct GraphPaper {
     pub major_every: u32,
     pub major: GridLine,
     pub placement: GridPlacement,
+    /// With the section in more than one text column, the grid is ruled in each column on its
+    /// own (squares from each column's left edge, the space between columns left clear) instead
+    /// of across the whole text width.
+    pub follow_columns: bool,
+    /// The weight of the frame round the ruled area, points; `None`: the edge lines are ordinary
+    /// grid lines (the frame weighs what the squares do). A frame is drawn in the ordinary
+    /// lines' style and colour.
+    pub frame: Option<f32>,
 }
 
 impl Default for GraphPaper {
@@ -164,6 +172,8 @@ impl Default for GraphPaper {
             major_every: 0,
             major: GridLine { width: 0.9, color: Rgb(0x6A, 0x9E, 0xD0), ..GridLine::default() },
             placement: GridPlacement::PageEnd,
+            follow_columns: false,
+            frame: None,
         }
     }
 }
@@ -179,7 +189,25 @@ impl GraphPaper {
             major_every: self.major_every.min(MAX_MAJOR_EVERY),
             major: self.major.sanitized(),
             placement: self.placement.sanitized(),
+            follow_columns: self.follow_columns,
+            frame: self.frame.filter(|w| w.is_finite()).map(|w| w.clamp(MIN_LINE_W, MAX_LINE_W)),
         }
+    }
+
+    /// The weight the frame is drawn at: its own, else the ordinary lines'.
+    pub fn frame_width(&self) -> f32 {
+        self.frame.unwrap_or(self.line.width)
+    }
+
+    /// How many whole squares a length holds (0 for a non-finite or negative one), at most
+    /// [`MAX_LINES`].
+    pub fn whole_squares(&self, len: f32) -> usize {
+        let g = self.sanitized();
+        if !len.is_finite() || len <= 0.0 {
+            return 0;
+        }
+        // A hair over is still a whole square: lengths are sums of f32 points.
+        ((len + 0.01) / g.spacing).floor().clamp(0.0, MAX_LINES as f32) as usize
     }
 
     /// The grid's lines across an area `w` × `h` points whose top-left corner is the grid's
@@ -207,8 +235,8 @@ impl GraphPaper {
     }
 
     /// The grid as one attribute value (`strix:graph` in `.xmath`, docs/graph-paper.md):
-    /// `place=pages:3;spacing=14.173;line=solid:9FC5E8:0.4;every=5;major=solid:6A9ED0:0.9`,
-    /// sizes in points. [`GraphPaper::from_attr`] reads it back.
+    /// `place=pages:3;spacing=14.173;line=solid:9FC5E8:0.4;every=5;major=solid:6A9ED0:0.9;cols=1;frame=1.5`,
+    /// sizes in points (`every`/`major`, `cols` and `frame` only when set). [`GraphPaper::from_attr`] reads it back.
     pub fn to_attr(&self) -> String {
         let g = self.sanitized();
         let num = |v: f32| {
@@ -225,6 +253,12 @@ impl GraphPaper {
         let mut out = format!("place={place};spacing={};line={}", num(g.spacing), line(&g.line));
         if g.major_every > 0 {
             out.push_str(&format!(";every={};major={}", g.major_every, line(&g.major)));
+        }
+        if g.follow_columns {
+            out.push_str(";cols=1");
+        }
+        if let Some(w) = g.frame {
+            out.push_str(&format!(";frame={}", num(w)));
         }
         out
     }
@@ -260,6 +294,8 @@ impl GraphPaper {
                 "line" => g.line = line(v, g.line),
                 "every" => g.major_every = v.parse::<u32>().unwrap_or(0),
                 "major" => g.major = line(v, g.major),
+                "cols" => g.follow_columns = v == "1",
+                "frame" => g.frame = v.parse::<f32>().ok(),
                 _ => {}
             }
         }
@@ -318,6 +354,7 @@ mod tests {
                 major: GridLine { style: GridLineStyle::Dashed, color: Rgb(200, 0, 0), width: 1.5 },
                 ..GraphPaper::default()
             },
+            GraphPaper { placement: GridPlacement::Background, follow_columns: true, frame: Some(2.25), ..GraphPaper::default() },
         ];
         for g in cases {
             let back = GraphPaper::from_attr(&g.to_attr()).unwrap();
@@ -326,6 +363,8 @@ mod tests {
             assert_eq!(back.line.style, g.line.style);
             assert_eq!(back.line.color, g.line.color);
             assert_eq!(back.major_every, g.major_every);
+            assert_eq!(back.follow_columns, g.follow_columns);
+            assert_eq!(back.frame, g.frame);
             if g.major_every > 0 {
                 assert_eq!(back.major.color, g.major.color);
                 assert!((back.major.width - g.major.width).abs() < 0.001);
@@ -343,6 +382,8 @@ mod tests {
             "place=pages:-4",
             "place=pages:1e40",
             "place=height:NaN;spacing=inf;line=:::;every=-1",
+            "place=background;cols=yes;frame=NaN",
+            "place=background;frame=1e30;cols=1",
         ] {
             if let Some(g) = GraphPaper::from_attr(s) {
                 assert_eq!(g, g.sanitized());
@@ -350,5 +391,48 @@ mod tests {
         }
         assert_eq!(GraphPaper::from_attr("place=pages:1e40").unwrap().placement, GridPlacement::Pages { pages: MAX_PAGES });
         assert!(GraphPaper::from_attr("spacing=5").is_none());
+        let g = GraphPaper::from_attr("place=background;frame=1e30;cols=1").unwrap();
+        assert_eq!((g.frame, g.follow_columns), (Some(MAX_LINE_W), true));
+        let g = GraphPaper::from_attr("place=background;frame=inf;cols=0").unwrap();
+        assert_eq!((g.frame, g.follow_columns), (None, false));
+    }
+
+    #[test]
+    fn enter_at_a_blocks_start_takes_the_grid_down_with_its_text() {
+        let grid = || {
+            let mut p = crate::Paragraph::with_text("on the squares", Default::default());
+            p.props.graph = Some(std::sync::Arc::new(GraphPaper::default()));
+            p
+        };
+        // At its start: the empty part above is ordinary, the text keeps the grid.
+        let mut p = grid();
+        let tail = p.split_off(0).unwrap();
+        assert!(p.props.graph.is_none() && tail.props.graph.is_some());
+        // Anywhere else: the grid stays on the first part.
+        let mut p = grid();
+        let tail = p.split_off(3).unwrap();
+        assert!(p.props.graph.is_some() && tail.props.graph.is_none());
+        let mut p = grid();
+        let end = p.text.len();
+        let tail = p.split_off(end).unwrap();
+        assert!(p.props.graph.is_some() && tail.props.graph.is_none());
+        // An empty block keeps its grid: Enter in it goes on below.
+        let mut p = crate::Paragraph::new();
+        p.props.graph = Some(std::sync::Arc::new(GraphPaper::default()));
+        let tail = p.split_off(0).unwrap();
+        assert!(p.props.graph.is_some() && tail.props.graph.is_none());
+    }
+
+    #[test]
+    fn frame_weighs_the_lines_by_default_and_whole_squares_count() {
+        let g = GraphPaper { spacing: 10.0, ..GraphPaper::default() };
+        assert_eq!(g.frame_width(), g.line.width);
+        assert_eq!(GraphPaper { frame: Some(2.0), ..g }.frame_width(), 2.0);
+        assert_eq!(GraphPaper { frame: Some(-1.0), ..g }.sanitized().frame, Some(MIN_LINE_W));
+        assert_eq!(g.whole_squares(39.999), 4);
+        assert_eq!(g.whole_squares(39.9), 3);
+        assert_eq!(g.whole_squares(f32::NAN), 0);
+        assert_eq!(g.whole_squares(-5.0), 0);
+        assert_eq!(GraphPaper { spacing: 0.0, ..g }.whole_squares(f32::MAX), MAX_LINES);
     }
 }

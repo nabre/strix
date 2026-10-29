@@ -474,8 +474,13 @@ impl Paragraph {
         if tail.text.is_empty() {
             tail.mark = self.props_at(off).unlinked();
         }
-        // A grid block stays one paragraph: the text after it is ordinary text.
-        tail.props.graph = None;
+        // A grid block stays one paragraph: the text after it is ordinary text; split before
+        // all of its content (Enter at its start), the grid goes on with the content.
+        if off == 0 && !(tail.text.is_empty() && tail.objects.is_empty()) {
+            self.props.graph = None;
+        } else {
+            tail.props.graph = None;
+        }
         self.normalize();
         tail.normalize();
         self.touch();

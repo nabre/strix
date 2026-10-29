@@ -2905,6 +2905,10 @@ preview	Title	Esempio
 	squares (0: none)	quadretti (0: nessuna)
 	Behind the text of every page of this section.	Dietro il testo di ogni pagina di questa sezione.
 	A block in the text: write on it, or press Enter at its end to go on below it.	Un blocco nel testo: scrivici sopra, oppure premi Invio alla sua fine per continuare sotto.
+	Follow columns	Segui colonne
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	In una sezione con più colonne, ogni colonna ha i suoi quadretti e lo spazio tra le colonne resta libero
+	Outer frame	Cornice
+	As the grid lines	Come i quadretti
 	Continue	Continua
 	Baseline	Linea di base
 	Level	Livello

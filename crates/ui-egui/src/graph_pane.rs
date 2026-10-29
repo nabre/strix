@@ -140,25 +140,41 @@ fn preview(ui: &mut Ui, g: &Value) {
             t += on + off;
         }
     };
-    // The ordinary lines first, the heavier ones over them, from the top-left corner.
+    // Whole squares only, as on the page, a few pixels in from the preview's edge.
+    let inner = r.shrink(4.0);
+    let (nx, ny) = ((inner.width() / spacing).floor().min(400.0), (inner.height() / spacing).floor().min(400.0));
+    let area = egui::Rect::from_min_size(inner.min, vec2(nx * spacing, ny * spacing));
+    let framed = g["frameCustom"].as_bool().unwrap_or(false);
+    // The ordinary lines first, the heavier ones over them, from the top-left corner; a frame of
+    // its own weight replaces the edge lines.
     for pass_major in [false, true] {
         let mut k = 0u64;
         loop {
             let at = k as f32 * spacing;
-            if at > r.width().max(r.height()) || k > 400 {
+            if at > area.width().max(area.height()) + 0.01 || k > 400 {
                 break;
             }
             let is_major = every > 0 && k.is_multiple_of(every);
             if is_major == pass_major {
                 let l = if is_major { &major } else { &minor };
-                if at <= r.width() {
-                    seg(pos2(r.left() + at, r.top()), pos2(r.left() + at, r.bottom()), l);
+                let x_edge = framed && (k == 0 || (k as f32 - nx).abs() < 0.5);
+                let y_edge = framed && (k == 0 || (k as f32 - ny).abs() < 0.5);
+                if at <= area.width() + 0.01 && !x_edge {
+                    seg(pos2(area.left() + at, area.top()), pos2(area.left() + at, area.bottom()), l);
                 }
-                if at <= r.height() {
-                    seg(pos2(r.left(), r.top() + at), pos2(r.right(), r.top() + at), l);
+                if at <= area.height() + 0.01 && !y_edge {
+                    seg(pos2(area.left(), area.top() + at), pos2(area.right(), area.top() + at), l);
                 }
             }
             k += 1;
+        }
+    }
+    if framed {
+        let fw = (g["frameWidth"].as_f64().unwrap_or(0.4) as f32 * px_mm * 25.4 / 72.0).clamp(0.5, 8.0);
+        let frame = (minor.0.clone(), minor.1, fw);
+        let [a, b, c, d] = [area.left_top(), area.right_top(), area.right_bottom(), area.left_bottom()];
+        for (p, q) in [(a, b), (b, c), (c, d), (d, a)] {
+            seg(p, q, &frame);
         }
     }
     let edge = crate::theme::Tokens::get(ui.ctx()).border;
@@ -210,6 +226,18 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
                 change = Some(json!({"spacing": v}));
             }
             ui.end_row();
+            ui.label(tl!("Columns"));
+            let mut follow = g["followColumns"].as_bool().unwrap_or(false);
+            if ui
+                .checkbox(&mut follow, tl!("Follow columns"))
+                .on_hover_text(tl!(
+                    "In a section with more than one column, each column is ruled on its own and the space between them is left clear"
+                ))
+                .changed()
+            {
+                change = Some(json!({"followColumns": follow}));
+            }
+            ui.end_row();
         });
         ui.add_space(10.0);
         ui.label(RichText::new(tl!("Grid lines")).strong());
@@ -228,6 +256,21 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
             if let Some(v) = num_field(ui, "width", g["width"].as_f64().unwrap_or(0.4), 0.1..=6.0, " pt", 2) {
                 change = Some(json!({"width": v}));
             }
+            ui.end_row();
+        });
+        ui.add_space(10.0);
+        ui.label(RichText::new(tl!("Outer frame")).strong());
+        egui::Grid::new("graph_frame").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+            ui.label(tl!("Weight"));
+            ui.horizontal(|ui| {
+                if let Some(v) = num_field(ui, "frameWidth", g["frameWidth"].as_f64().unwrap_or(0.4), 0.1..=6.0, " pt", 2) {
+                    change = Some(json!({"frameWidth": v}));
+                }
+                let mut same = !g["frameCustom"].as_bool().unwrap_or(false);
+                if ui.checkbox(&mut same, tl!("As the grid lines")).changed() {
+                    change = Some(if same { json!({"frameWidth": null}) } else { json!({"frameWidth": g["width"].as_f64().unwrap_or(0.4)}) });
+                }
+            });
             ui.end_row();
         });
         ui.add_space(10.0);

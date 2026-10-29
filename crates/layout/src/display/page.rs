@@ -352,7 +352,8 @@ fn rule(x0: f32, y0: f32, x1: f32, y1: f32, b: &Border, alpha: f32) -> Draw {
 
 /// Graph paper over `rect` (docs/graph-paper.md): the ordinary lines, then the major ones over
 /// them, each kind one path; lines on whole squares from the rect's top-left corner, as long as
-/// the grid's whole squares reach. `alpha` (a dimmed body) fades the colours towards the paper.
+/// the grid's whole squares reach. A grid with a frame of its own weight draws its edge lines
+/// as that frame, over the rest. `alpha` (a dimmed body) fades the colours towards the paper.
 pub fn grid_draws(rect: Rect, grid: &strix_doc::graph_paper::GraphPaper, alpha: f32, out: &mut Vec<Draw>) {
     let g = grid.sanitized();
     let (vs, hs) = g.lines(rect.w, rect.h);
@@ -362,17 +363,20 @@ pub fn grid_draws(rect: Rect, grid: &strix_doc::graph_paper::GraphPaper, alpha: 
         let mix = |v: u8| (255.0 - (255.0 - f32::from(v)) * a).round().clamp(0.0, 255.0) as u8;
         Rgb(mix(c.0), mix(c.1), mix(c.2))
     };
+    // With a frame, the edge lines are the frame's, drawn last.
+    let framed = g.frame.is_some();
+    let edge = |i: usize, n: usize| framed && (i == 0 || i + 1 == n);
     for major in [false, true] {
         let line = if major { g.major } else { g.line };
         let mut segs = Vec::new();
-        for (at, m) in &vs {
-            if *m == major {
+        for (i, (at, m)) in vs.iter().enumerate() {
+            if *m == major && !edge(i, vs.len()) {
                 segs.push(PathSeg::Move(rect.x + at, rect.y));
                 segs.push(PathSeg::Line(rect.x + at, bottom));
             }
         }
-        for (at, m) in &hs {
-            if *m == major {
+        for (i, (at, m)) in hs.iter().enumerate() {
+            if *m == major && !edge(i, hs.len()) {
                 segs.push(PathSeg::Move(rect.x, rect.y + at));
                 segs.push(PathSeg::Line(right, rect.y + at));
             }
@@ -387,6 +391,24 @@ pub fn grid_draws(rect: Rect, grid: &strix_doc::graph_paper::GraphPaper, alpha: 
                 cap: Default::default(),
             });
         }
+    }
+    if framed && right > rect.x && bottom > rect.y {
+        let w = g.frame_width();
+        let segs = vec![
+            PathSeg::Move(rect.x, rect.y),
+            PathSeg::Line(right, rect.y),
+            PathSeg::Line(right, bottom),
+            PathSeg::Line(rect.x, bottom),
+            PathSeg::Close,
+        ];
+        out.push(Draw::Path {
+            segs,
+            fill: None,
+            stroke: Some(fade(g.line.color)),
+            stroke_width: w,
+            dash: g.line.style.dashes(w),
+            cap: Default::default(),
+        });
     }
 }
 

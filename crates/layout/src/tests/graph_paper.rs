@@ -47,8 +47,8 @@ fn background_covers_the_body_of_every_page_behind_the_text() {
     for pg in &l.pages {
         let first = pg.items.first();
         assert!(
-            matches!(first, Some(Placed::Grid { rect, .. }) if (rect.w - pg.body.w).abs() < 0.5 && (rect.y - pg.body.y).abs() < 0.5),
-            "the grid comes first, over the body"
+            matches!(first, Some(Placed::Grid { rect, .. }) if (rect.w - pg.body.w).abs() < 0.5 && rect.y >= pg.body.y - 0.01 && (rect.bottom() - pg.body.bottom()).abs() < 0.05),
+            "the grid comes first, over the body, sitting on its bottom"
         );
     }
 }
@@ -73,7 +73,9 @@ fn a_number_of_pages_takes_the_rest_of_this_one_and_whole_pages_after() {
     assert!(g.len() >= 4);
     assert!(g[..3].iter().all(|p| p.len() == 1));
     let whole = g[1][0];
-    assert!((whole.y - l.pages[1].body.y).abs() < 0.5 && (whole.bottom() - l.pages[1].body.bottom()).abs() < 1.0);
+    // A whole page: whole squares on the bottom margin, less than a square below its top.
+    let body = l.pages[1].body;
+    assert!(whole.y >= body.y - 0.01 && whole.y - body.y < GraphPaper::default().spacing && (whole.bottom() - body.bottom()).abs() < 0.05);
     assert_eq!(page_of(&l, 2), Some(3));
 }
 
@@ -135,4 +137,144 @@ fn hostile_grids_lay_out() {
         }
     }
     assert!(!out.is_empty());
+}
+
+/// The side of the default square.
+fn side() -> f32 {
+    GraphPaper::default().spacing
+}
+
+/// `h` is a whole number of squares.
+fn whole(h: f32) -> bool {
+    let n = h / side();
+    (n - n.round()).abs() < 0.01 && n.round() >= 1.0
+}
+
+/// The bottom of the body paragraph `block`'s lines on page `page`.
+fn text_bottom(l: &DocLayout, page: usize, block: usize) -> Option<f32> {
+    l.pages.get(page)?.items.iter().find_map(|it| match it {
+        Placed::Lines { path, .. } if *path == Path::top(block) => Some(crate::notes::v_span(it).1),
+        _ => None,
+    })
+}
+
+#[test]
+fn a_grid_to_the_page_end_sits_on_the_bottom_margin_in_whole_squares() {
+    // Whatever the text above it, the grid ends on the body's bottom and is whole squares tall;
+    // the part of a square left over goes between the text above and the first square.
+    for before in [1, 2, 3, 7] {
+        let mut blocks: Vec<Arc<Block>> = (0..before).map(|i| para(&format!("Line {i}"))).collect();
+        blocks.push(grid_para(GridPlacement::PageEnd));
+        let l = lay(&doc_with(blocks));
+        let r = grids(&l)[0][0];
+        let body = l.pages[0].body;
+        assert!((r.bottom() - body.bottom()).abs() < 0.05, "on the bottom: {} vs {}", r.bottom(), body.bottom());
+        assert!(whole(r.h), "{} is whole squares", r.h);
+        let above = text_bottom(&l, 0, before - 1).unwrap();
+        assert!(r.y >= above - 0.5 && r.y - above < side() + 12.0, "just below the text before it: {} / {above}", r.y);
+    }
+}
+
+#[test]
+fn a_grid_follows_the_text_before_it() {
+    // More text above moves the block down and shortens it, still on the bottom margin.
+    let lay_with = |n: usize| {
+        let mut blocks: Vec<Arc<Block>> = (0..n).map(|i| para(&format!("Line {i}"))).collect();
+        blocks.push(grid_para(GridPlacement::PageEnd));
+        let l = lay(&doc_with(blocks));
+        grids(&l)[0][0]
+    };
+    let (a, b) = (lay_with(1), lay_with(12));
+    assert!(b.y > a.y + 5.0 * 12.0, "{} then {}", a.y, b.y);
+    assert!((a.bottom() - b.bottom()).abs() < 0.05);
+}
+
+#[test]
+fn a_fixed_height_rules_whole_squares_and_keeps_its_height() {
+    // 42 mm of 5 mm squares: 8 squares drawn, the text after it 42 mm below the grid's top.
+    let h = 42.0 * PT_PER_MM;
+    let l = lay(&doc_with(vec![para("Before"), grid_para(GridPlacement::Height { height: h }), para("After")]));
+    let r = grids(&l)[0][0];
+    assert!((r.h - 8.0 * side()).abs() < 0.05, "{} vs {}", r.h, 8.0 * side());
+    let after = l.pages[0].items.iter().find_map(|it| match it {
+        Placed::Lines { path, y, .. } if *path == Path::top(2) => Some(*y),
+        _ => None,
+    });
+    assert!(after.is_some_and(|y| y >= r.y + h - 0.5 && y < r.y + h + 20.0), "{after:?} vs {}", r.y + h);
+}
+
+fn two_columns(doc: &mut Document) {
+    doc.last_section.columns.count = 2;
+    doc.last_section.columns.space = 36.0;
+}
+
+#[test]
+fn a_background_follows_the_columns_when_asked() {
+    let mut doc = doc_with(vec![para("Text")]);
+    two_columns(&mut doc);
+    let bg = |follow: bool| GraphPaper { placement: GridPlacement::Background, follow_columns: follow, ..GraphPaper::default() };
+    doc.last_section.graph_paper = Some(Arc::new(bg(false)));
+    let l = lay(&doc);
+    let g = &grids(&l)[0];
+    assert_eq!(g.len(), 1, "across the whole text width");
+    assert!((g[0].w - l.pages[0].body.w).abs() < 0.5);
+    doc.last_section.graph_paper = Some(Arc::new(bg(true)));
+    let l = lay(&doc);
+    let g = &grids(&l)[0];
+    let cols = doc.last_section.column_boxes();
+    assert_eq!(g.len(), 2, "one a column");
+    let left = doc.last_section.margin_left + doc.last_section.gutter;
+    for (r, (cx, cw)) in g.iter().zip(&cols) {
+        assert!((r.x - (left + cx)).abs() < 0.05 && (r.w - cw).abs() < 0.05, "{r:?} on column {cx} {cw}");
+        assert!(whole(r.h) && (r.bottom() - l.pages[0].body.bottom()).abs() < 0.05);
+    }
+    assert!(g[1].x - g[0].right() > 35.0, "the space between the columns is clear");
+}
+
+#[test]
+fn whole_pages_of_a_block_follow_the_columns_when_asked() {
+    for follow in [false, true] {
+        let mut p = Paragraph::new();
+        p.props.graph = Some(Arc::new(GraphPaper { placement: GridPlacement::Pages { pages: 2 }, follow_columns: follow, ..GraphPaper::default() }));
+        let mut doc = doc_with(vec![para("Before"), para_block(p), para("After")]);
+        two_columns(&mut doc);
+        let l = lay(&doc);
+        let g = grids(&l);
+        assert_eq!(g[1].len(), if follow { 2 } else { 1 }, "follow {follow}: {:?}", g[1]);
+        // The block's first page: its column, then the page's other column.
+        assert_eq!(g[0].len(), 2);
+        assert!(g.iter().flatten().all(|r| whole(r.h)));
+    }
+}
+
+#[test]
+fn a_frame_of_its_own_weight_replaces_the_edge_lines() {
+    let rect = Rect::new(10.0, 20.0, 4.0 * side() + 3.0, 3.0 * side());
+    let draws = |g: GraphPaper| {
+        let mut out = Vec::new();
+        display::grid_draws(rect, &g, 1.0, &mut out);
+        out
+    };
+    let lines = |d: &[display::Draw]| -> usize {
+        d.iter()
+            .map(|d| match d {
+                display::Draw::Path { segs, .. } => segs.iter().filter(|s| matches!(s, strix_doc::graphic::PathSeg::Move(..))).count(),
+                _ => 0,
+            })
+            .sum()
+    };
+    // Today's look: 5 + 4 lines, no frame.
+    let plain = draws(GraphPaper::default());
+    assert_eq!(lines(&plain), 9);
+    let framed = draws(GraphPaper { frame: Some(2.5), ..GraphPaper::default() });
+    // 3 + 2 inner lines, and the frame round the whole squares.
+    match framed.last() {
+        Some(display::Draw::Path { segs, stroke_width, .. }) => {
+            assert_eq!(*stroke_width, 2.5);
+            assert!(matches!(segs.last(), Some(strix_doc::graphic::PathSeg::Close)));
+            assert!(segs.iter().any(|s| matches!(s, strix_doc::graphic::PathSeg::Line(x, y) if (*x - (10.0 + 4.0 * side())).abs() < 0.01 && (*y - (20.0 + 3.0 * side())).abs() < 0.01)));
+        }
+        other => panic!("a frame last: {other:?}"),
+    }
+    assert_eq!(lines(&framed), 5 + 1);
 }

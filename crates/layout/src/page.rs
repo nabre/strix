@@ -4,7 +4,7 @@ use super::ctx::{Ctx, with_pin};
 use super::floats::{EarlyFloats, WrapArea};
 use super::notes::{NOTE_SEP, NOTE_SEP_W, NoteBox, NoteSeps, v_span};
 use super::placed::Placed;
-use super::{Arc, Block, Border, FloatAlign, Page, ParaLayout, Rect, SectionProps, StoryRef};
+use super::{Block, Border, FloatAlign, Page, ParaLayout, Rect, SectionProps, StoryRef};
 
 #[derive(Clone)]
 pub(crate) struct PageBuilder<'a> {
@@ -301,7 +301,7 @@ impl PageBuilder<'_> {
         let body = Rect::new(s.margin_left + s.gutter, body_top, s.text_width(), (bottom - body_top).max(36.0));
         let mut decor = Vec::new();
         if !self.web {
-            decor.extend(background_grid(s, body));
+            decor.extend(super::graph::background(s, body));
             decor.extend(page_border_rules(s));
             // Lines between columns.
             if s.columns.separator && s.columns.count > 1 {
@@ -507,11 +507,4 @@ impl PageFrame<'_> {
 /// The page `pb` is filling, for placing floating objects on it (`mirror`: [`Ctx::mirror`]).
 pub(crate) fn page_frame<'a>(pb: &PageBuilder<'a>, mirror: bool) -> PageFrame<'a> {
     PageFrame { sect: pb.sect, origin: (0.0, 0.0), number: pb.number, mirror }
-}
-
-/// A section's background graph paper (docs/graph-paper.md) over its pages' body (the margin
-/// box, below a header taller than the top margin).
-fn background_grid(s: &SectionProps, body: Rect) -> Option<Placed> {
-    let g = s.graph_paper.as_ref()?;
-    Some(Placed::Grid { rect: body, grid: Arc::clone(g) })
 }

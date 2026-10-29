@@ -21,7 +21,7 @@ use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 /// The parameters every graph paper command takes (documented once).
 macro_rules! grid_params {
     () => {
-        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted", "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?"#
+        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted", "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?, "followColumns"?: bool (ruled in each text column of the section, the space between them clear; default false: across the whole text width), "frameWidth"?: pt (0.1–6, the frame round the ruled area) | null (the frame weighs what the grid lines do: the default)"#
     };
 }
 
@@ -37,7 +37,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(present)
             .params(concat!("{", grid_params!(), "} → changes the graph paper at the cursor (its block, else the section's background); a new placement moves it between the background and the text")),
         CommandSpec::new("graph.get", "Graph Paper at Cursor", "Insert › Pages", get).pure().params(
-            r#"→ {"grid": {"target": "paragraph"|"section", "placement", "pages"?, "height"?, "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth"} | null}: the graph paper at the cursor, sizes as the parameters take them"#,
+            r#"→ {"grid": {"target": "paragraph"|"section", "placement", "pages"?, "height"?, "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth", "frameCustom"} | null}: the graph paper at the cursor, sizes as the parameters take them"#,
         ),
         CommandSpec::new("graph.remove", "Remove Graph Paper", "Insert › Pages", remove)
             .when(present)
@@ -130,6 +130,17 @@ pub fn apply(g: GraphPaper, v: &Value) -> Result<GraphPaper, CmdError> {
         major_every,
         major: line(v, g.major, ["majorStyle", "majorColor", "majorWidth"])?,
         placement,
+        follow_columns: match v.get("followColumns") {
+            None | Some(Value::Null) => g.follow_columns,
+            Some(Value::Bool(b)) => *b,
+            Some(_) => return Err(CmdError::Params("`followColumns`: true or false".into())),
+        },
+        // Null takes the frame back to the lines' weight; absent keeps it.
+        frame: match v.get("frameWidth") {
+            None => g.frame,
+            Some(Value::Null) => None,
+            Some(_) => num(v, "frameWidth")?,
+        },
     }
     .sanitized())
 }
@@ -149,6 +160,9 @@ pub fn to_json(target: Target, g: &GraphPaper) -> Value {
         "majorStyle": g.major.style.name(),
         "majorColor": g.major.color.hex(),
         "majorWidth": pt(g.major.width),
+        "followColumns": g.follow_columns,
+        "frameWidth": pt(g.frame_width()),
+        "frameCustom": g.frame.is_some(),
     });
     match g.placement {
         GridPlacement::Pages { pages } => out["pages"] = json!(pages),
@@ -414,6 +428,117 @@ mod tests {
         assert_eq!(out["grid"]["width"], 0.1);
     }
 
+    /// The grid rects of the session's layout, by page, checked against a layout made from
+    /// scratch (as reopening the document would): the grid is never left where an earlier edit
+    /// put it.
+    fn grids(s: &mut Session) -> Vec<(usize, [i32; 4])> {
+        let rects = |l: &strix_layout::DocLayout| -> Vec<(usize, [i32; 4])> {
+            let r = |v: f32| (v * 10.0).round() as i32;
+            l.pages
+                .iter()
+                .enumerate()
+                .flat_map(|(i, pg)| {
+                    pg.items.iter().filter_map(move |it| match it {
+                        strix_layout::Placed::Grid { rect, .. } => Some((i, [r(rect.x), r(rect.y), r(rect.w), r(rect.h)])),
+                        _ => None,
+                    })
+                })
+                .collect()
+        };
+        let live = rects(&s.layout());
+        assert_eq!(live, rects(&s.export_layout()), "the live layout's grid is the one a fresh layout gives");
+        live
+    }
+
+    fn top(g: &[(usize, [i32; 4])]) -> i32 {
+        g.first().map_or(0, |(_, r)| r[1])
+    }
+
+    #[test]
+    fn the_grid_follows_every_edit() {
+        let mut s = session();
+        s.run("graph.insert", &json!({"placement": "pageEnd"})).unwrap();
+        let start = grids(&mut s);
+        assert_eq!(start.len(), 1);
+        // Paragraphs typed above it move it down, still on the bottom margin.
+        s.sel = Selection::caret(Pos::new(StoryRef::Body, body_path(0), 6));
+        for _ in 0..5 {
+            s.run("text.newParagraph", &json!({})).unwrap();
+            s.run("text.insert", &json!({"text": "more"})).unwrap();
+        }
+        let moved = grids(&mut s);
+        assert!(top(&moved) > top(&start) + 50, "{start:?} then {moved:?}");
+        assert_eq!(moved[0].1[1] + moved[0].1[3], start[0].1[1] + start[0].1[3]);
+        // Undo and redo take it back and forth.
+        let mut steps = 0;
+        while grid_para(&s).map(|(i, _)| i) != Some(1) && steps < 20 {
+            s.run("edit.undo", &json!({})).unwrap();
+            steps += 1;
+        }
+        assert_eq!(grids(&mut s), start);
+        for _ in 0..steps {
+            s.run("edit.redo", &json!({})).unwrap();
+        }
+        assert_eq!(grids(&mut s), moved);
+        // Text written on it, then Enter at its start: the grid goes down with the text, which
+        // stays on the squares (on the same page).
+        let (block, _) = grid_para(&s).unwrap();
+        s.sel = Selection::caret(Pos::new(StoryRef::Body, body_path(block), 0));
+        s.run("text.insert", &json!({"text": "on the squares"})).unwrap();
+        let written = grids(&mut s);
+        s.sel = Selection::caret(Pos::new(StoryRef::Body, body_path(block), 0));
+        s.run("text.newParagraph", &json!({})).unwrap();
+        s.run("text.newParagraph", &json!({})).unwrap();
+        let (now, _) = grid_para(&s).unwrap();
+        assert_eq!(now, block + 2, "the grid is on the paragraph with the text");
+        assert_eq!(s.doc.body.get(now).and_then(|b| b.as_para()).map(|p| p.plain_text()), Some("on the squares".to_string()));
+        let pushed = grids(&mut s);
+        assert!(top(&pushed) > top(&written), "{written:?} then {pushed:?}");
+        assert!(pushed.iter().all(|(page, _)| *page == 0));
+        // Backspace at its start joins the empty paragraphs back: the grid stays on the text.
+        s.run("text.backspace", &json!({})).unwrap();
+        s.run("text.backspace", &json!({})).unwrap();
+        assert_eq!(grid_para(&s).map(|(i, _)| i), Some(block));
+        assert_eq!(grids(&mut s), written);
+        // A background follows the edits too.
+        s.run("graph.set", &json!({"placement": "background"})).unwrap();
+        let bg = grids(&mut s);
+        s.run("text.insert", &json!({"text": "x"})).unwrap();
+        assert_eq!(grids(&mut s), bg);
+        s.run("edit.undo", &json!({})).unwrap();
+        s.run("edit.undo", &json!({})).unwrap();
+        assert_eq!(grid_para(&s).map(|(i, _)| i), Some(block));
+        assert_eq!(grids(&mut s), written);
+    }
+
+    #[test]
+    fn follow_columns_and_frame_are_parameters() {
+        let mut s = session();
+        let out = s.run("graph.insert", &json!({"placement": "background"})).unwrap();
+        assert_eq!(out["grid"]["followColumns"], false);
+        assert_eq!(out["grid"]["frameCustom"], false);
+        assert_eq!(out["grid"]["frameWidth"], out["grid"]["width"]);
+        let out = s.run("graph.set", &json!({"followColumns": true, "frameWidth": 2.5})).unwrap();
+        assert_eq!(out["grid"]["followColumns"], true);
+        assert_eq!(out["grid"]["frameWidth"], 2.5);
+        assert_eq!(out["grid"]["frameCustom"], true);
+        // Kept when other things change, clamped, and reset by null.
+        let out = s.run("graph.set", &json!({"spacing": 4, "frameWidth": 99})).unwrap();
+        assert_eq!((out["grid"]["followColumns"].clone(), out["grid"]["frameWidth"].clone()), (json!(true), json!(6.0)));
+        let out = s.run("graph.set", &json!({"frameWidth": null, "width": 0.8})).unwrap();
+        assert_eq!((out["grid"]["frameCustom"].clone(), out["grid"]["frameWidth"].clone()), (json!(false), json!(0.8)));
+        for bad in [json!({"followColumns": "yes"}), json!({"frameWidth": "thick"}), json!({"followColumns": 1})] {
+            assert!(s.run("graph.set", &bad).is_err(), "{bad}");
+        }
+        // Saved and read back.
+        s.run("graph.set", &json!({"frameWidth": 1.75})).unwrap();
+        let bytes = crate::io::save_bytes("g.xmath", &s.doc).unwrap();
+        let back = crate::io::open_bytes("g.xmath", &bytes).unwrap();
+        let g = back.last_section.graph_paper.as_deref().copied().unwrap();
+        assert!(g.follow_columns);
+        assert_eq!(g.frame, Some(1.75));
+    }
+
     #[test]
     fn hostile_params_never_panic_and_lay_out() {
         let junk = [
@@ -422,6 +547,9 @@ mod tests {
             json!({"placement": "untilEven", "spacing": 1e-30, "width": 1e-30, "color": "#zzzzzz"}),
             json!({"placement": "background", "pages": "many", "majorStyle": 7}),
             json!({"placement": "", "style": ""}),
+            json!({"followColumns": null, "frameWidth": -1e308}),
+            json!({"followColumns": [1], "frameWidth": {"a": 1}}),
+            json!({"placement": "background", "followColumns": true, "frameWidth": 1e-30}),
         ];
         for j in &junk {
             for id in ["graph.insert", "graph.set", "graph.remove", "graph.get"] {

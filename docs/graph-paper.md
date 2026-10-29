@@ -1,6 +1,6 @@
 # Graph paper
 
-> **Status:** stage 1 done: model, the six placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip · **Last updated:** 2026-10-28 · **Change:** new
+> **Status:** stage 1 done: model, the six placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-10-29 · **Change:** the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight
 
 **Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper, `graph.insert`) is a square
 grid drawn behind the text, for working a problem by hand, sketching or writing on squares as
@@ -17,11 +17,33 @@ two kinds of line), so it stays sharp at any zoom, in print and in PDF.
 | Line weight | `width` (pt) | 0.1–6 pt | 0.4 pt |
 | A heavier line every N squares | `majorEvery` | 0 (none) – 100 | 0 |
 | Heavier line style, colour, weight | `majorStyle`, `majorColor`, `majorWidth` | as above | solid, `6A9ED0`, 0.9 pt |
+| Follow columns | `followColumns` | `true` / `false` | false |
+| Frame weight | `frameWidth` (pt), `null`: as the grid lines | 0.1–6 pt | as the grid lines |
 
-Lines sit on whole squares from the grid's top-left corner (the left edge of the text column
-and the top of the block or of the body), as far as whole squares reach inside its area: the
-grid never ends in a sliver of a square. The heavier lines are those on squares 0, N, 2N … and
-are drawn over the ordinary ones. A dimmed body (header/footer editing) fades the grid too.
+A grid holds **whole squares** only, never a sliver of one. Across, the squares start at the
+left edge of the text column and go as far as whole squares reach. Down:
+
+- a grid that reaches the bottom of the text area (a background, a block to the end of the page,
+  the whole pages of a longer block) **sits on the bottom margin**: the part of a square left
+  over goes above its first square, as a little more room between the text above and the grid
+  (a block's own text starts at its first square);
+- a block of a fixed height is ruled from its top down to its last whole square; the text after
+  it still starts at the height asked for.
+
+The heavier lines are those on squares 0, N, 2N … from the top-left corner and are drawn over
+the ordinary ones. A dimmed body (header/footer editing) fades the grid too.
+
+**Follow columns.** Off (the default), a background is ruled across the whole text width, as if
+the section had one column, and the whole pages of a block likewise. On, in a section with more
+than one text column, each column is ruled on its own (squares from its left edge, on the bottom
+margin) and the space between the columns is left clear. A block already starts in its own
+column, and the page's columns after it are ruled one by one either way.
+
+**Frame.** The frame is the border of the ruled area, the outermost lines. By default it weighs
+what the ordinary lines do, so the grid looks as it always has (the top and left edges are
+heavier lines when there are heavier lines). Given a weight of its own, the edge lines are drawn
+as one frame of that weight, in the ordinary lines' style and colour, over the rest; each ruled
+area (each page, each column) has its own.
 
 ## Placements
 
@@ -67,8 +89,8 @@ code (`icons.rs`, `graphPaper`, `graphPaperProperties`).
 
 The **Graph Paper pane** (docked on the right) shows a preview of the grid on the paper's white
 (also in the dark theme), the placement with its pages or height, the side of a square, the
-lines (style, colour, weight) and the heavier lines (every N squares, style, colour, weight),
-and *Remove Graph Paper*. Each change is one `graph.set`, one undo step; a number dragged is
+lines (style, colour, weight) Follow columns, the outer frame's weight (with *As the grid lines*), and the heavier lines
+(every N squares, style, colour, weight), and *Remove Graph Paper*. Each change is one `graph.set`, one undo step; a number dragged is
 applied when the drag ends.
 
 ## File format
@@ -77,10 +99,11 @@ In `.xmath` the grid is one attribute in Strix's namespace (ignorable by other r
 `strix:graph` on the block's `w:pPr`, or on the section's `w:sectPr` for a background:
 
 ```xml
-<w:pPr strix:graph="place=pages:3;spacing=14.173;line=solid:9FC5E8:0.4;every=5;major=solid:6A9ED0:0.9">
+<w:pPr strix:graph="place=pages:3;spacing=14.173;line=solid:9FC5E8:0.4;every=5;major=solid:6A9ED0:0.9;cols=1;frame=1.5">
 ```
 
-Sizes are points. Unknown keys are skipped and unreadable values keep their defaults; a value
+Sizes are points; `every`/`major`, `cols=1` (Follow columns) and `frame` (its own weight) are
+written only when set. Unknown keys are skipped and unreadable values keep their defaults; a value
 longer than 1 KiB or with an unknown placement is dropped. Word ignores the attribute, so a
 `.docx` export carries no grid.
 
@@ -89,10 +112,12 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 - Model: `crates/doc/src/graph_paper.rs` (`GraphPaper`, `GridLine`, `GridPlacement`,
   `sanitized`, `lines`, `to_attr` / `from_attr`); `SectionProps::graph_paper`,
   `ParaProps::graph` (a split leaves it on the first part).
-- Layout: `Placed::Grid`; `background_grid` (page decoration, behind everything) and
-  `place_graph_para` in `crates/layout/src/lib.rs`; tests in `tests_graph_paper.rs`.
-- Drawing: `display::grid_draws` (two dashed or solid paths, ordinary then heavier), which the
-  screen, PNG and PDF renderers share.
+- Layout: `Placed::Grid` (the rect ruled: whole squares down); `crates/layout/src/graph.rs`
+  (`background`, the page decoration behind everything; `place_graph_para`; `whole_rows`,
+  `page_areas`); tests in `crates/layout/src/tests/graph_paper.rs`. The grid is laid out again
+  with the rest of the page on every edit (and undo/redo), so a block follows the text before it.
+- Drawing: `display::grid_draws` (two dashed or solid paths, ordinary then heavier, then the
+  frame), which the screen, PNG and PDF renderers share.
 - Commands: `crates/engine/src/cmd/graph.rs`; pane: `crates/ui-egui/src/graph_pane.rs`.
 
 ## Next

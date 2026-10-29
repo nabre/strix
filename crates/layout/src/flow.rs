@@ -3,7 +3,7 @@ use super::boxes::{BoxInput, BoxLayout, Edges, joined, layout_box, push_para};
 use super::cache::has_page_number_fields;
 use super::ctx::Ctx;
 use super::floats::{FloatAnchor, ObjFrame, ObjectPlacement, anchor_floats, body_wraps, continued_exclusions, place_objects};
-use super::notes::{DECOR_STORY, NoteBox, para_notes, v_span};
+use super::notes::{DECOR_STORY, NoteBox, para_notes};
 use super::page::{PageBuilder, PageFrame, item_bottom};
 use super::placed::Placed;
 use super::{
@@ -12,7 +12,7 @@ use super::{
 };
 #[cfg(test)]
 use crate::WRAP_RELAYS;
-use strix_doc::graph_paper::{self, GraphPaper, GridPlacement};
+use strix_doc::graph_paper::GridPlacement;
 
 /// A closing mark before a continuous section takes no room after content. An otherwise empty
 /// section starting a new page retains its paragraph line.
@@ -68,108 +68,8 @@ pub(crate) fn place_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, blo
         return;
     }
     match &p.props.graph {
-        Some(g) if !pb.web && g.placement != GridPlacement::Background => place_graph_para(ctx, pb, p, block, body_top, g),
+        Some(g) if !pb.web && g.placement != GridPlacement::Background => super::graph::place_graph_para(ctx, pb, p, block, body_top, g),
         _ => place_para_in_flow(ctx, pb, p, block, body_top),
-    }
-}
-
-/// Graph paper in the text flow (docs/graph-paper.md): the paragraph is laid out as usual, its
-/// text over a grid that starts at its first line and is as tall as the placement says: a fixed
-/// height (moved to the next column or page when it doesn't fit), the rest of the column, or the
-/// rest of the page and whole pages after it (a number of them, or until the next odd or even
-/// page). Text after a block that reaches the page's end starts on the next page.
-fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32, grid: &Arc<GraphPaper>) {
-    let g = grid.sanitized();
-    let room = pb.bottom - pb.y;
-    let needs = match g.placement {
-        GridPlacement::Height { height } => height.min(pb.bottom - pb.top),
-        _ => g.spacing,
-    };
-    // Not even the block (or one square of a block that fills the page) fits: start it on the
-    // next column or page.
-    if room + 0.01 < needs && !pb.at_top() {
-        pb.advance(block, body_top);
-    }
-    let start_page = pb.pages.len().saturating_sub(1);
-    let (x, w, y0) = (pb.col_x(), pb.col_w(), pb.y);
-    place_para_in_flow(ctx, pb, p, block, body_top);
-    let path = Path::top(block);
-    let is_own = |it: &Placed| matches!(it, Placed::Lines { story: StoryRef::Body, path: q, .. } if *q == path);
-    // The page and item where its text starts (it may have moved on), and its first line's top.
-    let first = pb
-        .pages
-        .iter()
-        .enumerate()
-        .skip(start_page)
-        .find_map(|(pi, pg)| pg.items.iter().position(is_own).map(|ii| (pi, ii, pg.items.get(ii).map_or(y0, |it| v_span(it).0))));
-    let last_page = pb.pages.len().saturating_sub(1);
-    let (first_page, top) = match first {
-        Some((pi, _, y)) => (pi, y),
-        None => (last_page, y0.min(pb.y)),
-    };
-    let item = Arc::new(g);
-    let put = |pb: &mut PageBuilder, pi: usize, rect: Rect| {
-        if rect.h <= 0.01 || rect.w <= 0.01 {
-            return;
-        }
-        let Some(pg) = pb.pages.get_mut(pi) else { return };
-        // Behind the paragraph's text: right before its first line on the page.
-        let at = pg.items.iter().position(is_own).unwrap_or(pg.items.len());
-        pg.items.insert(at, Placed::Grid { rect, grid: Arc::clone(&item) });
-    };
-    // Pages its text alone runs over: the grid goes down each one to its bottom.
-    for pi in first_page..last_page {
-        let Some(pg) = pb.pages.get(pi) else { continue };
-        let t = if pi == first_page { top } else { pg.body.y };
-        let r = Rect::new(x, t, w, pg.body.bottom() - t);
-        put(pb, pi, r);
-    }
-    let top = if first_page == last_page { top } else { pb.top };
-    let text_bottom = pb.y;
-    let bottom = match g.placement {
-        GridPlacement::Height { height } => (top + height).max(text_bottom).min(pb.bottom),
-        _ => pb.bottom,
-    };
-    put(pb, last_page, Rect::new(x, top, w, bottom - top));
-    pb.content_bottom = pb.content_bottom.max(bottom);
-    pb.y = pb.y.max(bottom);
-    if !matches!(g.placement, GridPlacement::Height { .. }) {
-        // The page's columns after this one are grid down their whole height too.
-        let left = pb.sect.margin_left + pb.sect.gutter;
-        let rest: Vec<Rect> =
-            pb.cols.iter().skip(pb.col.saturating_add(1)).map(|(cx, cw)| Rect::new(left + cx, pb.top, *cw, pb.bottom - pb.top)).collect();
-        if let Some(pg) = pb.pages.get_mut(last_page) {
-            pg.items.extend(rest.into_iter().filter(|r| r.h > 0.01 && r.w > 0.01).map(|rect| Placed::Grid { rect, grid: Arc::clone(&item) }));
-        }
-    }
-    // Whole pages after it.
-    let more = match g.placement {
-        GridPlacement::Pages { pages } => pages.saturating_sub(1),
-        GridPlacement::UntilOdd | GridPlacement::UntilEven => graph_paper::MAX_PAGES,
-        _ => 0,
-    };
-    let odd = g.placement == GridPlacement::UntilOdd;
-    for _ in 0..more {
-        let next = pb.restart_at.unwrap_or_else(|| pb.number.saturating_add(1));
-        if matches!(g.placement, GridPlacement::UntilOdd | GridPlacement::UntilEven) && (next % 2 == 1) == odd {
-            break;
-        }
-        pb.new_page(block, body_top);
-        let (x, w) = (pb.sect.margin_left + pb.sect.gutter, pb.sect.text_width());
-        let r = Rect::new(x, pb.top, w, pb.bottom - pb.top);
-        if let Some(pg) = pb.pages.last_mut()
-            && r.h > 0.01
-        {
-            pg.items.push(Placed::Grid { rect: r, grid: Arc::clone(&item) });
-        }
-        pb.y = pb.bottom;
-        pb.content_bottom = pb.bottom;
-    }
-    if !matches!(g.placement, GridPlacement::Height { .. }) {
-        // What follows starts on the next page: no column of this one is left.
-        pb.col = pb.cols.len().saturating_sub(1);
-        pb.y = pb.bottom;
-        pb.max_y = pb.max_y.max(pb.bottom);
     }
 }
 
@@ -814,7 +714,7 @@ fn add_items(pb: &mut PageBuilder, behind: Vec<Placed>, items: Vec<Placed>) {
     }
 }
 
-fn place_para_in_flow(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32) {
+pub(crate) fn place_para_in_flow(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32) {
     let mut f = Flow::new(ctx, pb, p, (block, body_top));
     let spot = |pb: &PageBuilder| (pb.pages.len(), pb.col);
     let placed_at = spot(pb);

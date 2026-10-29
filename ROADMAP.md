@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-10-29: Graph paper (docs/graph-paper.md): the grid follows the text. Enter at the start of a grid block's text left the grid on the empty paragraph above and sent the text past it (onto the next page for a block to the end of the page), so the grid seemed not to move with what was typed; now the grid goes down with its text, and Backspace there joins it back. The grid holds whole squares and sits on the bottom margin when it reaches it, the part of a square left over going above its first square; a block of a fixed height is ruled down to its last whole square, the text after it starting at the height asked for. *Follow columns* rules each text column of a multi-column section on its own, the space between them left clear (off: across the whole width, as before), and the frame round the squares can have its own weight (default: as the grid lines). `graph.insert`/`graph.set` `followColumns`, `frameWidth`; the Graph Paper pane; kept in `.xmath`.
 - 2026-10-29: Windows portable exe and portable mode: every release also ships `strix-<version>-windows-<arch>-portable.exe` (x64, x86, ARM64; the signed app alone), and the portable ZIP carries a `StrixData` folder. With `StrixData` beside the program, or a program name containing `portable` (which makes the folder on the first run), preferences, logs, recovery copies, the custom dictionary, personal templates, added fonts, control-key files and extra dictionaries live there instead of `%APPDATA%\Strix`, and nothing touches the registry or the default apps; a folder that can't be written falls back to `%APPDATA%\Strix` and the log says why (docs/releasing.md).
 - 2026-10-29: CAD editor (docs/cad.md): Circle is a split button, as on a CAD ribbon. Its top part starts the circle in the way chosen last (centre and radius at first), its icon and tooltip showing which; its bottom part, Circle ▾, lists every way (centre and radius, centre and diameter, 2 points, 3 points, tan tan radius, tan tan tan), each with its own icon drawn in code, and the one picked becomes the top part's, kept while the app runs like the editor's other settings. `ui.cadTool` starts any way by name and reports the remembered one (`circle`).
 - 2026-10-29: v0.14.0 released (exercise title edited in place, CAD Frame on by default and scaled/annotative parts of dimensions, the project site in four languages and the marketing kit).
@@ -665,6 +666,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-29 | trivial | Progress log: graph paper follows the text, sits on the bottom margin in whole squares, Follow columns, frame weight |
 | 2026-10-29 | trivial | Progress log: CAD Circle split button |
 | 2026-10-29 | trivial | Progress log: the exercise title is edited in place |
 | 2026-10-29 | trivial | Progress log: CAD frame on by default; scaled and annotative parts of a dimension shown in the editor |

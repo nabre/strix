@@ -633,6 +633,8 @@ impl Document {
             if ib < bl.len() && ia < ib {
                 bl.drain(ia + 1..=ib);
             }
+            // Graph paper: an empty paragraph joined to a grid block's text takes the grid.
+            let tail_graph = tail.props.graph.take();
             tail.props = ParaProps::default();
             // The deleted marks include `a`'s, so a section break there goes too: the joined
             // paragraph ends where `b`'s mark did, and its text takes the following section's
@@ -640,8 +642,12 @@ impl Document {
             let sect = tail.section.take();
             let pa = self.para_mut(a.story, &a.path)?;
             let keep_props = pa.props.clone();
+            let was_empty = pa.text.is_empty() && pa.objects.is_empty();
             pa.append(tail);
             pa.props = keep_props;
+            if was_empty && pa.props.graph.is_none() {
+                pa.props.graph = tail_graph;
+            }
             let before = std::mem::replace(&mut pa.section, sect);
             if a.story == crate::StoryRef::Body && a.path.0.len() == 1 {
                 // Nearest first, as "link to previous" resolved them before the delete.
