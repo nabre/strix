@@ -270,7 +270,8 @@ fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
         printers: Some(print::discover()),
         print_native: Some(print::submit()),
         clipboard_picture: Some(Box::new(clipboard::picture)),
-        make_default_app: default_apps::hook(),
+        // A portable run (`StrixData` beside the program) leaves the system's file associations alone.
+        make_default_app: if strix_control_key::portable_dir().is_some() { None } else { default_apps::hook() },
         // Personal templates live in `Templates` in the settings folder (#2852), made on first save.
         templates_dir: strix_control_key::settings_dir().map(|d| d.join("Templates")),
         animations_enabled: Some(animations::hook(ctx)),
@@ -405,6 +406,11 @@ fn main() -> eframe::Result {
             },
             None => logger.no_file(),
         }
+    }
+    match strix_control_key::portable() {
+        strix_control_key::Portable::On(dir) => log::info!("portable mode: settings in {}", dir.display()),
+        strix_control_key::Portable::Unavailable { reason, .. } => log::warn!("portable mode unavailable, settings in the user profile: {reason}"),
+        strix_control_key::Portable::Off => {}
     }
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

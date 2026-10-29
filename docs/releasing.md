@@ -12,11 +12,25 @@ this file has the Strix specifics.
 | Platform | Artifacts | Signing |
 |---|---|---|
 | macOS | universal `Strix.app` in a `.dmg`, universal CLI zip | Developer ID + notarization (`APPLE_*` secrets) |
-| Windows | x64, x86 and arm64 `.msi` (one dual-scope package: per-user by default, needs no admin rights; "Everyone on this computer" installs per machine) + portable `.zip` | Azure Trusted Signing (`AZURE_*` secrets) |
+| Windows | x64, x86 and arm64 `.msi` (one dual-scope package: per-user by default, needs no admin rights; "Everyone on this computer" installs per machine) + portable `.zip` + single-file portable `.exe` (see below) | Azure Trusted Signing (`AZURE_*` secrets) |
 | Linux | x86_64 and aarch64 `.AppImage` (+ `.zsync` for AppImageUpdate), `.flatpak` bundle, `.deb`, `.rpm`, `.tar.gz`; Flathub manifest | checksums |
 | Linux riscv64 | `.tar.gz` (cross-compiled on `ubuntu-24.04`, glibc >= 2.39; CLI smoke-tested under QEMU) | checksums |
 | FreeBSD | x86_64 `.tar.gz` | checksums |
 | Web | `strix-web-<version>.zip` (static site: `index.html`, wasm, glue) | none |
+
+**Windows portable builds.** `strix-<version>-windows-<arch>-portable.zip` holds `strix.exe`,
+`strix-cli.exe`, the notices and a `StrixData` folder (with a README); `strix-<version>-windows-<arch>-portable.exe`
+is the signed `strix.exe` alone, renamed. Both run in **portable mode**
+(`crates/control-key/src/portable.rs`, through `strix_control_key::settings_dir`): when a
+`StrixData` folder sits beside the running program, or the program's file name contains
+`portable` (then `StrixData` is made on the first run, so a later rename keeps it), every
+per-user file lives in `StrixData` instead of `%APPDATA%\Strix`: preferences (`ui.json`), logs,
+recovery copies, the custom dictionary, personal templates, added fonts, control-key files, and
+extra Hunspell dictionaries (`StrixData\dictionaries`). A portable run writes nothing to the
+registry and hides File › Options › Make Strix the default. When `StrixData` can't be made or
+written (a read-only drive, Program Files), Strix uses `%APPDATA%\Strix` and logs why.
+`STRIX_PROFILE_DIR` still overrides both. The rule is the same on every platform, but only the
+Windows builds ship portable.
 
 3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review it, then
    publish it on GitHub or with Actions › **Publish release** (`publish-release.yml`, by hand:

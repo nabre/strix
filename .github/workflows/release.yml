@@ -202,8 +202,8 @@ jobs:
           CRAFT_FONTS_REQUIRED: "1"
         run: ./packaging/windows/package.ps1 -Arch ${{ matrix.arch }}
       # With SignPath, package.ps1 left everything unsigned (no other signing secret is set then):
-      # SignPath signs the programs inside the installers and the zip, then the installers
-      # (.signpath/artifact-configuration.xml), after an Approver accepts the request.
+      # SignPath signs the programs inside the installers and the zip, then the installers and the
+      # portable exe (.signpath/artifact-configuration.xml), after an Approver accepts the request.
       - name: Upload the unsigned packages for SignPath
         id: unsigned
         if: env.SIGNPATH == 'true'
@@ -233,7 +233,7 @@ jobs:
         run: |
           Remove-Item dist/release/* -Force
           Copy-Item dist/signed/* dist/release/
-          Get-AuthenticodeSignature dist/release/*.msi | Format-Table Status, Path
+          Get-AuthenticodeSignature dist/release/*.msi, dist/release/*.exe | Format-Table Status, Path
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-windows-${{ matrix.arch }}

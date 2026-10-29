@@ -38,7 +38,8 @@ unsaved documents leaves a copy of each, and the next start lists them all.
 
 ## Storage and timing
 
-Copies live in `recovery/` under the app's profile folder. `STRIX_PROFILE_DIR` selects a
+Copies live in `recovery/` under the app's profile folder (`StrixData\recovery` beside the
+program in a portable run, see [releasing](releasing.md)). `STRIX_PROFILE_DIR` selects a
 separate profile for isolated runs, including preferences, logs and control keys.
 `STRIX_NO_PREFS` disables recovery as well as preferences. Headless engine/CLI sessions
 and the browser do not create recovery files implicitly.

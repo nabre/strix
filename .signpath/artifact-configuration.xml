@@ -3,7 +3,8 @@
      The copy SignPath uses lives in the SignPath project (artifact configuration "windows");
      keep the two identical. The artifact is the zip GitHub Actions makes from dist/release/ in
      the Release workflow's Windows job. Every Strix program is signed inside the installers and
-     the portable zip, then the installers themselves; each must be named Strix with the
+     the portable zip, then the installers themselves, and the single-file portable exe (the app
+     itself, renamed); each must be named Strix with the
      release's version (VERSIONINFO from apps/strix/build.rs and apps/strix-cli/build.rs). -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
   <parameters>
@@ -35,5 +36,11 @@
         </pe-file-set>
       </for-each>
     </zip-file-set>
+    <pe-file-set>
+      <include path="strix-*-windows-*-portable.exe" max-matches="unbounded" product-name="Strix" product-version="${version}" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
   </zip-file>
 </artifact-configuration>

@@ -5388,6 +5388,7 @@ dependencies = [
  "log",
  "miniz_oxide 0.9.1",
  "proptest",
+ "strix-control-key",
  "unicode-normalization",
 ]
 

@@ -77,6 +77,10 @@ pub fn search_dirs(lo_exts: Option<&[String]>) -> Vec<PathBuf> {
     if let Some(d) = std::env::var_os("STRIX_DICTIONARIES").filter(|v| !v.is_empty()) {
         dirs.push(PathBuf::from(d));
     }
+    // A portable run's own `dictionaries` folder (`StrixData` beside the program).
+    if let Some(d) = strix_control_key::portable_dir() {
+        dirs.push(d.join("dictionaries"));
+    }
     // LibreOffice keeps each language under `…/share/extensions/<dict-xx>`.
     let lo_dirs =
         |prefix: &str| -> Vec<PathBuf> { lo_exts.map_or_else(Vec::new, |exts| exts.iter().map(|e| PathBuf::from(prefix).join(e)).collect()) };

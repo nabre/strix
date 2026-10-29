@@ -225,7 +225,8 @@ egui front end.
 
 Installers and portable builds for every platform are on the
 [Releases page](https://github.com/nabre/strix/releases) and the
-[website](https://nabre.github.io/strix/#download): Windows (MSI and portable ZIP; x64, x86,
+[website](https://nabre.github.io/strix/#download): Windows (MSI, portable ZIP and
+single-file portable exe that keeps its settings in a `StrixData` folder beside it; x64, x86,
 ARM64), macOS (universal DMG), Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64 and aarch64, plus
 riscv64 deb/rpm/tar.gz), FreeBSD, and the web build as a static site you can host. The web build
 also runs on the website: [try it in the browser](https://nabre.github.io/strix/app/?sample). How the Windows builds are signed, who

@@ -27,4 +27,18 @@ $signs = @($commands | Where-Object {
 })
 if ($signs.Count -ne 1) { throw 'Expected the MSI to be signed exactly once.' }
 if ($checks[0].Extent.StartOffset -ge $signs[0].Extent.StartOffset) { throw 'The MSI must pass the policy check before it is signed.' }
+# Portable mode (crates/control-key/src/portable.rs): the zip carries a StrixData folder, and the
+# single-file portable exe is the app signed above, copied under a name with "portable" in it.
+if ($ast.Extent.Text -notmatch 'Join-Path \$Portable ''StrixData''') { throw 'The portable zip must carry the StrixData folder.' }
+$exeSigns = @($commands | Where-Object {
+  $_.InvocationOperator.ToString() -eq 'Ampersand' -and
+    @($_.CommandElements | Where-Object { $_.Extent.Text -match 'sign.ps1' }).Count -gt 0 -and
+    @($_.CommandElements | Where-Object { $_.Extent.Text -match "'strix.exe'" }).Count -gt 0
+})
+$portableExe = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -eq '$PortableExe' }, $true))
+$portableCopy = @($commands | Where-Object { $_.GetCommandName() -eq 'Copy-Item' -and $_.CommandElements[-1].Extent.Text -eq '$PortableExe' })
+if ($exeSigns.Count -ne 1 -or $portableExe.Count -ne 1 -or $portableCopy.Count -ne 1) { throw 'Expected one signed strix.exe copied once to $PortableExe.' }
+if ($portableExe[0].Right.Extent.Text -notmatch 'windows-\$Arch-portable\.exe') { throw 'The portable exe must be named strix-<version>-windows-<arch>-portable.exe: its name makes it portable.' }
+if ($portableCopy[0].Extent.StartOffset -le $exeSigns[0].Extent.StartOffset) { throw 'The portable exe must be copied after strix.exe is signed.' }
 Write-Output 'PASS the Strix MSI is policy-checked before it is signed.'
+Write-Output 'PASS the portable zip carries StrixData; the portable exe is the signed app.'

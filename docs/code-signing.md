@@ -13,7 +13,8 @@ Only Strix's own Windows programs and installers, built from this repository by 
 Actions [Release workflow](../.github/workflows/release.yml) on the `release` branch:
 
 - `strix.exe` and `strix-cli.exe`, in the MSI installers and in the portable ZIP;
-- the installers `strix-<version>-windows-<arch>.msi` and `strix-<version>-windows-user-<arch>.msi`.
+- the installers `strix-<version>-windows-<arch>.msi` (one dual-scope package per architecture);
+- the single-file portable app `strix-<version>-windows-<arch>-portable.exe` (`strix.exe` renamed).
 
 Every signed file carries the product name **Strix** and the release's version (Windows
 VERSIONINFO, set by `apps/strix/build.rs` and `apps/strix-cli/build.rs`). Third-party open-source
@@ -67,12 +68,14 @@ File › Options, which says what it changes.
 ## Uninstall
 
 - **Windows**: Settings › Apps › Installed apps › Strix › Uninstall (or *Add or remove programs*).
-  The MSI removes the program, shortcut and file associations. The portable ZIP installs nothing:
-  delete its folder.
+  The MSI removes the program, shortcut and file associations. The portable ZIP and the portable
+  exe install nothing and touch neither the registry nor `%APPDATA%`: they keep every setting in
+  the `StrixData` folder beside the program, so deleting the folder (or the exe and its
+  `StrixData`) removes everything.
 - **macOS**: drag Strix from Applications to the Trash.
 - **Linux**: `sudo apt remove strix` (deb), `sudo dnf remove strix` (rpm),
   `flatpak uninstall io.github.nabre.strix`, or delete the AppImage.
-- Preferences, logs and the custom dictionary stay in your user profile (`%APPDATA%\Strix` on
+- Installed copies keep preferences, logs and the custom dictionary in your user profile (`%APPDATA%\Strix` on
   Windows, `~/Library/Application Support/Strix` on macOS, `~/.config/strix` on Linux); delete
   that folder to remove them too.
 

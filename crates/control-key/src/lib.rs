@@ -4,13 +4,20 @@
 
 use std::path::{Path, PathBuf};
 
+mod portable;
+pub use portable::{Portable, portable, portable_dir};
+
 /// The app's settings folder (preferences, logs, key files): macOS
 /// `~/Library/Application Support/Strix`, Windows `%APPDATA%\Strix`, otherwise
 /// `$XDG_CONFIG_HOME/strix` or `~/.config/strix`.
-/// `STRIX_PROFILE_DIR` overrides the entire folder for isolated runs.
+/// `STRIX_PROFILE_DIR` overrides the entire folder for isolated runs; otherwise a portable run
+/// uses `StrixData` next to the program ([`portable`]).
 pub fn settings_dir() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("STRIX_PROFILE_DIR").filter(|p| !p.is_empty()) {
         return Some(PathBuf::from(path));
+    }
+    if let Some(dir) = portable_dir() {
+        return Some(dir.to_path_buf());
     }
     if cfg!(target_os = "macos") {
         std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support/Strix"))
@@ -82,7 +89,7 @@ mod tests {
     fn settings_dir_is_the_apps_folder() {
         if let Some(d) = settings_dir() {
             let name = d.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            assert!(name == "strix" || name == "Strix", "{}", d.display());
+            assert!(name == "strix" || name == "Strix" || name == portable::PORTABLE_DIR, "{}", d.display());
         }
     }
 }

@@ -8,7 +8,10 @@
     strix-<version>-windows-<arch>.msi            installer (WiX v5), one dual-scope package: for the
                                                       current user by default, no admin rights (#39);
                                                       "Everyone on this computer" installs per machine
-    strix-<version>-windows-<arch>-portable.zip   strix.exe + strix-cli.exe
+    strix-<version>-windows-<arch>-portable.zip   strix.exe + strix-cli.exe + a StrixData folder:
+                                                      settings stay in that folder (portable mode)
+    strix-<version>-windows-<arch>-portable.exe   the signed app alone, renamed: its name makes it
+                                                      portable, with StrixData made beside it on first run
 
   The binaries link the C runtime statically (+crt-static), so neither the MSI nor the portable
   zip needs the Visual C++ redistributable. Signing is delegated to sign.ps1 (skipped with a
@@ -180,9 +183,25 @@ if ($env:CRAFT_FONTS_DIR) {
     Copy-Item $ofl.FullName (Join-Path $Portable "OFL-$($ofl.Directory.Name).txt")
   }
 }
+# Portable mode (crates/control-key/src/portable.rs): a StrixData folder beside strix.exe keeps
+# every setting there instead of %APPDATA%\Strix. A file inside keeps the folder in the zip.
+$PortableData = Join-Path $Portable 'StrixData'
+New-Item -ItemType Directory -Force -Path $PortableData | Out-Null
+Set-Content -Encoding ascii -Path (Join-Path $PortableData 'README.txt') -Value @(
+  'Strix keeps its settings, recovery copies, custom dictionary, personal templates and logs in this',
+  'folder while it sits next to strix.exe (portable mode): nothing goes to %APPDATA% or the registry.',
+  'Copy the whole Strix folder to take Strix and your settings along. Without this folder Strix',
+  'keeps its settings in %APPDATA%\Strix, as an installed copy does.'
+)
 $Zip = Join-Path $Dist "strix-$Version-windows-$Arch-portable.zip"
 Remove-Item -Force $Zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $Portable -DestinationPath $Zip
+
+# ---- portable exe ------------------------------------------------------------------------------
+# The signed app itself under a name with "portable" in it: run from anywhere, it makes StrixData
+# beside itself on its first run and keeps every setting there. Renaming keeps the signature valid.
+$PortableExe = Join-Path $Dist "strix-$Version-windows-$Arch-portable.exe"
+Copy-Item -Force (Join-Path $Stage 'strix.exe') $PortableExe
 
 # Smoke-test the CLI when this machine can run it. An ARM64 build made on an x64 runner can't run
 # here; .github/workflows/windows-arm64.yml installs and runs it on ARM64 instead.
@@ -192,4 +211,4 @@ if ($Arch -ne 'arm64' -or $HostArch -eq 'arm64') {
 } else {
   Write-Output "skipping strix-cli --version: an $Arch build doesn't run on this $HostArch machine"
 }
-Get-Item $Msi, $Zip | Format-Table Name, Length
+Get-Item $Msi, $Zip, $PortableExe | Format-Table Name, Length

@@ -23,7 +23,9 @@ window's key. Once the port is bound, the app writes a random key (256 bits, as 
 writes a new key. `STRIX_PROFILE_DIR` overrides the whole profile folder for isolated runs,
 including recovery copies. See [local recovery](recovery.md). `<settings>` is the folder that holds the preferences: on Linux
 `$XDG_CONFIG_HOME/strix` (by default `~/.config/strix`), on macOS
-`~/Library/Application Support/Strix`, on Windows `%APPDATA%\Strix`. `<instance>` is the
+`~/Library/Application Support/Strix`, on Windows `%APPDATA%\Strix`; a portable run uses
+`StrixData` beside the program instead (the `strix-cli.exe` in the portable ZIP finds the same
+folder; see [releasing](releasing.md)). `<instance>` is the
 Flatpak instance id inside Flatpak, and `local-<port>` otherwise. On Unix the file has mode 0600.
 
 ```sh
