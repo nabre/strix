@@ -60,8 +60,9 @@ fn the_file_a_command_opens_may_have_any_name() {
     ok(&edit(&doc.clone().into_os_string()));
     let text = ok(&cli(&["text".into(), doc.into_os_string()]));
     assert!(text.contains("Bonjour") && text.contains("encore"), "{text}");
+    // "Bonjour\n" opens as "Bonjour" and an empty last paragraph, where the caret's end is.
     ok(&edit(&file));
-    assert!(std::fs::read_to_string(&file).unwrap().contains("Bonjour encore"));
+    assert_eq!(std::fs::read_to_string(&file).unwrap().lines().collect::<Vec<_>>(), ["Bonjour", " encore"]);
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 4, "a second file was written");
     let _ = std::fs::remove_dir_all(dir);
 }
