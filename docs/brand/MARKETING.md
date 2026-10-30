@@ -209,10 +209,19 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 3. **Matematica:** `"STIX Two Math", "STIX Two Text", "Latin Modern Roman", "Source Serif 4", serif`.
    Variabili in corsivo, **unità diritte e colorate** (Unit Teal), come nell'app.
 4. **Logo:**
-   * **Simbolo** = l'icona dell'app (`assets/app-icon/strix.svg`): favicon, header, card social.
+   * **Simbolo** = l'icona dell'app (`assets/app-icon/strix.svg`): il gufo con la **piuma** del
+     wordmark (stessa forma: vessillo con due tagli, rachide chiara, pennino): favicon, header,
+     card social.
    * **Wordmark** = `docs/brand/wordmark-light.svg` (Deep Forest, per fondi chiari) e
-     `wordmark-dark.svg` (Crest Mint, per fondi scuri): le cinque lettere STRIX disegnate a tratto,
-     senza font; la I, inclinata come una penna, è in Coral Orange.
+     `wordmark-dark.svg` (Crest Mint, per fondi scuri): le lettere S T R X disegnate a tratto
+     (spessore 12 su 64 di altezza delle maiuscole), senza font; la **I è una piuma** in Coral
+     Orange (gradiente `#C2410C` → `#F97316` su fondo chiaro, `#EA580C` → `#FDBA74` su fondo
+     scuro), inclinata di 16°, col pennino sulla linea di base e la punta che sale sopra le
+     maiuscole. Proporzioni 290 × 88.
+   * **Nell'app** (`crates/ui-egui/src/brand.rs`, immagini in `assets/brand/` scritte da
+     `packaging/icons.sh`): simbolo + wordmark nella finestra Informazioni su Strix, simbolo sopra
+     il wordmark nella finestra senza documento, wordmark Crest Mint in fondo al menu di File.
+     Nella versione web, simbolo e wordmark nella schermata di caricamento.
    * In header si affiancano simbolo e wordmark (il simbolo a sinistra, altezza 1:1 con le
      maiuscole + 20%). Mai deformare, ricolorare con colori fuori tavolozza o mettere il simbolo su
      fondo verde senza il suo bordo.

@@ -5,6 +5,7 @@
 //! invoked through `std::process::Command`.
 
 mod assets;
+mod icns;
 mod ico;
 mod layers;
 mod parity;
@@ -48,6 +49,8 @@ commands:
                   then `git merge vendor/wordcraft` (docs/upstream.md)
   ico <out.ico> <in.png>...
                   pack square PNGs (<= 256 px) into a Windows .ico (see packaging/icons.sh)
+  icns <out.icns> <in.png>...
+                  pack square PNGs (16-1024 px) into a macOS .icns, on any OS
 ";
 
 fn main() -> ExitCode {
@@ -65,6 +68,7 @@ fn main() -> ExitCode {
         Some("parity") => parity::run(&root()),
         Some("site") => site::run(&root(), &rest),
         Some("ico") => ico::run(&rest),
+        Some("icns") => icns::run(&rest),
         Some("visual-diff") => visual_diff::run(&rest),
         Some("version") => version::run(&root(), &rest),
         Some("upstream") => upstream::run(&root(), &rest),

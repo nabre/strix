@@ -6,16 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Strix</title>
   <link data-trunk rel="icon" href="../../assets/app-icon/strix.ico" />
+  <link data-trunk rel="copy-file" href="../../assets/app-icon/strix.svg" />
+  <link data-trunk rel="copy-file" href="../../docs/brand/wordmark-light.svg" />
   <link data-trunk rel="rust" data-bin="strix-web" data-wasm-opt="z" data-weak-refs />
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #e6e6e6; }
     #strix_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     #strix_loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #555; font: 14px system-ui, sans-serif; pointer-events: none; }
+      gap: 18px; color: #555; font: 14px system-ui, sans-serif; pointer-events: none; }
+    #strix_loading .symbol { width: 96px; height: 96px; }
+    #strix_loading .word { height: 32px; }
   </style>
 </head>
 <body>
   <canvas id="strix_canvas"></canvas>
-  <div id="strix_loading">Loading Strix&hellip;</div>
+  <div id="strix_loading">
+    <img class="symbol" src="strix.svg" alt="">
+    <img class="word" src="wordmark-light.svg" alt="Strix">
+    <span>Loading&hellip;</span>
+  </div>
 </body>
 </html>

@@ -1,15 +1,15 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Strix app icon: an owl (genus Strix), half feathers, half circuit, with a quill. Original
+  <!-- Strix app icon: an owl (genus Strix), half feathers, half circuit, with the feather of the wordmark. Original
        artwork by the Strix contributors (MIT OR Apache-2.0); colours from the Atollo palette. -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0F3D2E"/>
       <stop offset="1" stop-color="#05140F"/>
     </linearGradient>
-    <linearGradient id="quill" x1="0" y1="1" x2="1" y2="0">
+    <linearGradient id="quill" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="-88">
       <stop offset="0" stop-color="#EA580C"/>
-      <stop offset="1" stop-color="#FB923C"/>
+      <stop offset="1" stop-color="#FDBA74"/>
     </linearGradient>
     <radialGradient id="iris" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0" stop-color="#6EE7B7"/>
@@ -63,13 +63,9 @@
   <path d="M356 190 C322 172 286 178 262 200" fill="none" stroke="#047857" stroke-width="10" stroke-linecap="round"/>
   <path d="M242 252 L270 252 L256 286 Z" fill="#FBBF24"/>
 
-  <!-- Quill crossing the body, nib bottom left. -->
-  <path d="M206 430 C250 360 330 268 420 170 C428 214 404 270 362 318 C320 366 262 404 206 430 Z" fill="url(#quill)"/>
-  <path d="M206 430 C270 352 340 270 420 170" fill="none" stroke="#FFF7ED" stroke-opacity="0.8" stroke-width="4" stroke-linecap="round"/>
-  <g stroke="#C2410C" stroke-width="3" stroke-linecap="round" opacity="0.7">
-    <path d="M300 334 L340 316"/>
-    <path d="M330 300 L372 278"/>
-    <path d="M360 262 L398 236"/>
+  <!-- The feather of the wordmark's I, crossing the body, nib bottom left. -->
+  <g transform="translate(214 446) rotate(45) scale(3.3)">
+    <path fill="url(#quill)" d="M0 0 L-2.4 -13 C-8.5 -20 -12 -33 -12 -47 C-12 -52 -11.6 -56 -11 -59.5 L-4.6 -53.5 L-10.2 -63.5 C-8 -73 -4.5 -81 0.6 -89 C8 -80 13.6 -67 14 -52 L7 -42 L13.7 -46.5 C13 -32 9 -20 2.4 -13 Z"/>
+    <path d="M0 -4 C0.6 -30 0.9 -58 0.6 -83" fill="none" stroke="#FFF7ED" stroke-opacity="0.9" stroke-width="1.1" stroke-linecap="round"/>
   </g>
-  <path d="M206 430 L184 462 L196 438 Z" fill="#FBBF24" stroke="#FBBF24" stroke-width="4" stroke-linejoin="round"/>
 </svg>

@@ -107,7 +107,7 @@ section { padding: 88px 0; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand:hover { text-decoration: none; }
 .brand-symbol { width: 30px; height: 30px; border-radius: 7px; }
-.brand-word { display: block; width: 72px; height: 24px; }
+.brand-word { display: block; width: 79px; height: 24px; }
 .nav { display: flex; gap: 22px; margin-left: auto; font-size: 0.9rem; }
 .nav a { color: var(--fg); }
 .nav a:hover { color: var(--title); text-decoration: none; }

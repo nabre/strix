@@ -19,6 +19,7 @@ pub mod a11y_pane;
 pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
+pub mod brand;
 mod cad_dim_parts;
 pub mod cad_editor;
 mod cad_panel;

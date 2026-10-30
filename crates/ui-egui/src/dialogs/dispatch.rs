@@ -1084,7 +1084,8 @@ fn about_dialog(ui: &mut Ui, d: &mut Dialog) -> bool {
         1 => crate::credits::contributors_ui(ui),
         2 => crate::credits::models_ui(ui),
         _ => {
-            ui.label(egui::RichText::new(tl!("Strix")).font(semibold(22.0)));
+            crate::brand::lockup(ui, 56.0);
+            ui.add_space(8.0);
             let build = option_env!("STRIX_BUILD_SHA").map(|s| s.get(..8).unwrap_or(s)).unwrap_or(tl!("development build"));
             ui.label(crate::i18n::fmt(tl!("Version {version} ({build})"), &[("version", env!("CARGO_PKG_VERSION")), ("build", build)]));
             ui.label(tl!("A free, open-source word processor written in Rust."));

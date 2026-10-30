@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-# Regenerate every app icon from assets/app-icon/strix.svg.
+# Regenerate every app icon from assets/app-icon/strix.svg, and the wordmark images the app
+# draws (assets/brand/) from docs/brand/wordmark-{light,dark}.svg.
 #
-# Needs: resvg (brew install resvg / cargo install resvg). On macOS, iconutil also writes the
-# .icns. The outputs are committed, so builds and packaging never need these tools.
+# Needs: resvg (brew install resvg / cargo install resvg). Runs on any OS: the .ico and .icns are
+# packed by `cargo xtask ico|icns`. The outputs are committed, so builds and packaging never need
+# these tools.
 #
 #   packaging/icons.sh
 set -euo pipefail
@@ -48,16 +50,19 @@ for s in 16 20 24 32 40 48 64 128 256; do
 done
 (cd "$ROOT" && cargo run -q -p xtask -- ico "$DIR/strix.ico" "${ICO_PNGS[@]}")
 
-# macOS .icns.
-if command -v iconutil >/dev/null; then
-  SET="$TMP/strix.iconset"
-  mkdir -p "$SET"
-  for s in 16 32 128 256 512; do
-    render "$MAC" "$s" "$SET/icon_${s}x${s}.png"
-    render "$MAC" $((s * 2)) "$SET/icon_${s}x${s}@2x.png"
-  done
-  iconutil -c icns -o "$DIR/strix.icns" "$SET"
-else
-  echo "warning: iconutil not found (macOS only); strix.icns not regenerated" >&2
-fi
-echo "icons written to $DIR"
+# macOS .icns: every iconset size, on Apple's grid.
+ICNS_PNGS=()
+for s in 16 32 64 128 256 512 1024; do
+  render "$MAC" "$s" "$TMP/icns-$s.png"
+  ICNS_PNGS+=("$TMP/icns-$s.png")
+done
+(cd "$ROOT" && cargo run -q -p xtask -- icns "$DIR/strix.icns" "${ICNS_PNGS[@]}")
+
+# The wordmark as the app draws it (About, the empty window, the File page): 192 px tall, enough
+# for its largest use at 2x.
+BRAND="$ROOT/assets/brand"
+mkdir -p "$BRAND"
+for v in light dark; do
+  resvg -h 192 "$ROOT/docs/brand/wordmark-$v.svg" "$BRAND/wordmark-$v.png" </dev/null
+done
+echo "icons written to $DIR and $BRAND"

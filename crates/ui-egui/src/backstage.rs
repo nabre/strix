@@ -135,6 +135,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 if resp.clicked() {
                     app.dialog = crate::dialogs::Dialog::open("about", app);
                 }
+                crate::brand::rail(ui);
             });
         });
     egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin::symmetric(40, 30))).show(ui, |ui| {
