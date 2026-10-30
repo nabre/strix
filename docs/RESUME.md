@@ -143,6 +143,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     save back to DOCX/ODT/RTF without Strix objects, Windows portable exe, graph paper fixes and
     options, CAD Circle split button; version bumped on `main`, `main` merged into `release`;
     publish the draft `Strix v0.15.0` after review, then run the Site workflow.
+  - Release 0.15.1 (2026-10-30): brand refresh (STRIX wordmark with a feather I, matching app
+    icon, brand in About / empty window / File menu / web loading screen; `cargo xtask icns`);
+    version bumped on `main`, `main` merged into `release`; publish the draft `Strix v0.15.1`
+    after review, then run the Site workflow.
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
