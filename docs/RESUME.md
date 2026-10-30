@@ -139,6 +139,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     the scaled/annotative parts of dimensions, project site (`cargo xtask site`, Pages workflow)
     and marketing kit; version bumped on `main`, `main` merged into `release`; publish the draft
     `Strix v0.14.0` after review.
+  - Release 0.15.0 (2026-10-30): calculation steps and layout, exercise delete and numbering,
+    save back to DOCX/ODT/RTF without Strix objects, Windows portable exe, graph paper fixes and
+    options, CAD Circle split button; version bumped on `main`, `main` merged into `release`;
+    publish the draft `Strix v0.15.0` after review, then run the Site workflow.
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
