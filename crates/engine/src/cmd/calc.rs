@@ -727,16 +727,46 @@ fn caret_in_calc_table(s: &Session) -> bool {
 
 /// The drawing whose source is `source` (the same `Arc`), resolved where it sits in the document,
 /// and rendered: for the drawing editor.
-pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)> {
-    let found = items(&s.doc.body);
+///
+/// The ribbon asks for it every frame while a drawing is selected, so the answer is kept until
+/// something it reads changes (the calculations before the drawing, the exercises, the number
+/// format): working it out evaluates the document up to the drawing and renders it.
+pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad> {
+    use std::hash::{Hash, Hasher};
+    let mut found = items(&s.doc.body);
+    let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
+    // What comes after the drawing does not change it.
+    found.truncate(at + 1);
     let opts = options_now(s);
-    let (_, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s), &super::exercise::seeds(s));
-    found.iter().zip(outcomes).find_map(|(item, outcome)| match (item, outcome) {
-        (Item::Cad { source: src, .. }, Outcome::Cad(Some(r), _, Some((d, names, screen)))) if Arc::ptr_eq(src, source) => {
-            Some((d, screen.unwrap_or(r), names))
-        }
+    let (zones, seeds) = (super::exercise::zones(s), super::exercise::seeds(s));
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    fingerprint(&found).hash(&mut h);
+    found
+        .iter()
+        .map(|i| match i {
+            Item::Equation { top, .. } | Item::Table { top, .. } | Item::Cad { top, .. } => *top,
+        })
+        .for_each(|t| t.hash(&mut h));
+    (&zones, &seeds, format!("{opts:?}")).hash(&mut h);
+    let key = h.finish();
+    if let Some(hit) = CAD_MEMO.with(|m| m.borrow().as_ref().filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
+        return hit;
+    }
+    let (_, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
+    let resolved = match (found.last(), outcomes.into_iter().last()) {
+        (Some(Item::Cad { .. }), Some(Outcome::Cad(Some(r), _, Some((d, names, screen))))) => Some(std::rc::Rc::new((d, screen.unwrap_or(r), names))),
         _ => None,
-    })
+    };
+    CAD_MEMO.with(|m| *m.borrow_mut() = Some((key, resolved.clone())));
+    resolved
+}
+
+/// A drawing resolved where it sits: the drawing, how it renders, the parameters it can show.
+pub(crate) type ResolvedCad = std::rc::Rc<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)>;
+
+thread_local! {
+    /// The last drawing [`resolved_cad`] worked out, by what it read.
+    static CAD_MEMO: std::cell::RefCell<Option<(u64, Option<ResolvedCad>)>> = const { std::cell::RefCell::new(None) };
 }
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.

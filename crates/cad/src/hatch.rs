@@ -122,6 +122,12 @@ fn dashes(t0: f64, t1: f64, pattern: &[f64], step: f64, emit: &mut dyn FnMut(f64
                 emit(a, b);
             }
         }
+        // Far from the origin a dash can be shorter than the spacing of `f64`s there: the
+        // position would stop moving, so the rest is drawn whole.
+        if t + len <= t {
+            emit(t.max(t0), t1);
+            return;
+        }
         t += len;
         k += 1;
     }
@@ -168,5 +174,22 @@ impl Drawing {
             closed.iter().filter(|(id, pts)| id != outer_id && pts.iter().all(|q| crate::point_in_polygon(*q, outer))).map(|(id, _)| id.clone()),
         );
         Some(ids)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn dashes_far_from_the_origin_end() {
+        // At 1e16 the spacing of `f64`s is 2: a 0.02 dash would never move the position on,
+        // and the loop never ended. The piece is drawn whole instead.
+        let (t0, t1) = (1e16, 1e16 + 2.0);
+        let mut pieces = Vec::new();
+        super::dashes(t0, t1, &[2.0, 1.0], 0.01, &mut |a, b| pieces.push((a, b)));
+        assert_eq!(pieces, vec![(t0, t1)]);
+        // Near the origin the pattern is kept: 2 on, 1 off, in hundredths.
+        let mut near = Vec::new();
+        super::dashes(0.0, 0.09, &[2.0, 1.0], 0.01, &mut |a, b| near.push((a, b)));
+        assert_eq!(near.len(), 3, "{near:?}");
     }
 }

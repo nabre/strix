@@ -14,9 +14,33 @@ fn hex(c: [u8; 3]) -> String {
 
 /// A number for SVG: finite, three decimals at most.
 fn n(v: f64) -> String {
-    let v = if v.is_finite() { (v * 1000.0).round() / 1000.0 } else { 0.0 };
-    let s = format!("{v}");
-    if s == "-0" { "0".into() } else { s }
+    let mut s = String::new();
+    put(&mut s, v);
+    s
+}
+
+/// Writes [`n`]`(v)` at the end of `out`, without a string of its own (a drawing's paths hold
+/// up to millions of numbers).
+fn put(out: &mut String, v: f64) {
+    let m = if v.is_finite() { (v * 1000.0).round() } else { 0.0 };
+    if m.abs() >= 1e15 {
+        // Past fifteen digits, as Rust writes it (no SVG draws this far out).
+        let _ = write!(out, "{}", m / 1000.0);
+        return;
+    }
+    // In thousandths, as integers: the digits `{}` would write for `m / 1000`, several times
+    // faster. `-0` is written `0`.
+    let t = m as i64;
+    if t < 0 {
+        out.push('-');
+    }
+    let (whole, frac) = (t.unsigned_abs() / 1000, t.unsigned_abs() % 1000);
+    let _ = write!(out, "{whole}");
+    if frac > 0 {
+        let digits = format!("{frac:03}");
+        out.push('.');
+        out.push_str(digits.trim_end_matches('0'));
+    }
 }
 
 fn escape(s: &str) -> String {
@@ -47,18 +71,58 @@ impl Rendered {
             w = n(w),
             h = n(h)
         );
-        for prim in &self.prims {
+        // A drawing of millions of points is written with fewer (a few MB at most).
+        let light = self.lightened();
+        let mut prims = light.prims.iter().peekable();
+        while let Some(prim) = prims.next() {
             match prim {
+                // Runs of single strokes in one style (a hatch's lines, mostly) are one path of
+                // as many pieces: the same picture in a fraction of the bytes.
+                Prim::Path { pts, closed: false, color, width, dash, fill: false } if pts.len() == 2 && batches(prim, prims.peek().copied()) => {
+                    let mut d = String::new();
+                    let mut piece = |pts: &[(f64, f64)]| {
+                        if let [a, b] = pts {
+                            for (k, v) in [a.0, a.1, b.0, b.1].into_iter().enumerate() {
+                                d.push_str(["M", " ", "L", " "].get(k).copied().unwrap_or(" "));
+                                put(&mut d, v);
+                            }
+                        }
+                    };
+                    piece(pts);
+                    while let Some(next) = prims.next_if(|q| batches(prim, Some(*q))) {
+                        if let Prim::Path { pts, .. } = next {
+                            piece(pts);
+                        }
+                    }
+                    let _ = write!(
+                        out,
+                        r#"<path d="{d}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round""#,
+                        hex(*color),
+                        n(width.max(0.05))
+                    );
+                    if !dash.is_empty() {
+                        let d: Vec<String> = dash.iter().map(|v| n(*v)).collect();
+                        let _ = write!(out, r#" stroke-dasharray="{}""#, d.join(" "));
+                    }
+                    out.push_str("/>");
+                }
                 Prim::Path { pts, closed, color, width, dash, fill } => {
                     if pts.len() < 2 {
                         continue;
                     }
-                    let points: Vec<String> = pts.iter().map(|&(x, y)| format!("{},{}", n(x), n(y))).collect();
                     let tag = if *closed { "polygon" } else { "polyline" };
+                    let _ = write!(out, r#"<{tag} points=""#);
+                    for (k, &(x, y)) in pts.iter().enumerate() {
+                        if k > 0 {
+                            out.push(' ');
+                        }
+                        put(&mut out, x);
+                        out.push(',');
+                        put(&mut out, y);
+                    }
                     let _ = write!(
                         out,
-                        r#"<{tag} points="{}" fill="{}" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round""#,
-                        points.join(" "),
+                        r#"" fill="{}" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round""#,
                         if *fill { hex(*color) } else { "none".into() },
                         hex(*color),
                         n(width.max(0.05))
@@ -105,6 +169,18 @@ impl Rendered {
     }
 }
 
+/// Whether `next` is a single open stroke drawn exactly as `first` (colour, width, dash), so
+/// the two can be pieces of one SVG path.
+fn batches(first: &Prim, next: Option<&Prim>) -> bool {
+    match (first, next) {
+        (
+            Prim::Path { pts: _, closed: false, color, width, dash, fill: false },
+            Some(Prim::Path { pts: p2, closed: false, color: c2, width: w2, dash: d2, fill: false }),
+        ) => p2.len() == 2 && color == c2 && width == w2 && dash == d2,
+        _ => false,
+    }
+}
+
 /// A text's pieces: plain, unit (the Unit style's colour) and missing (red) spans; a parameter's
 /// symbol in italics, its subscript smaller and lowered (as the equations set them).
 fn spans(text: &str, unit_color: [u8; 3]) -> String {
@@ -133,4 +209,34 @@ fn spans(text: &str, unit_color: [u8; 3]) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn numbers_are_written_as_rust_writes_them() {
+        for v in [
+            0.0,
+            -0.0,
+            -0.0004,
+            0.0005,
+            1.0,
+            -1.5,
+            2.25,
+            1234.567,
+            -0.001,
+            0.12,
+            99999.9999,
+            4.2e9,
+            123456789012.345,
+            3e14,
+            -7e20,
+            f64::NAN,
+            f64::INFINITY,
+        ] {
+            let m = if v.is_finite() { (v * 1000.0_f64).round() / 1000.0 } else { 0.0 };
+            let want = format!("{}", if m == 0.0 { 0.0 } else { m });
+            assert_eq!(super::n(v), want, "{v}");
+        }
+    }
 }

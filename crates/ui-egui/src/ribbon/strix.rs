@@ -319,7 +319,7 @@ Drawing",
             json!({}),
             false,
         );
-        let editable = strix_engine::cmd::cad::edited(&app.session).is_some();
+        let editable = strix_engine::cmd::cad::editable(&app.session);
         ui.add_enabled_ui(editable, |ui| {
             big(
                 ui,
@@ -373,7 +373,7 @@ Page",
             fitting,
         );
         // What fits is judged on the drawing as drawn, its sizes worked out by the calculations.
-        let drawn = strix_engine::cmd::cad::edited(&app.session).map_or_else(|| d.clone(), |(_, r, ..)| r);
+        let drawn = strix_engine::cmd::cad::edited_drawing(&app.session).unwrap_or_else(|| d.clone());
         crate::cad_editor::scale_fields(ui, app, "cad_picture", &d, &drawn, "cad.scale");
     });
     group(ui, "Picture", None, app, |ui, app| {

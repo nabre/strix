@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-10-29 · **Change:** Circle is a split button (the way chosen last on top, every way in its menu)
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** a drawing renders within one budget; saved drawings always reopen and save to the same bytes; copies and arrays added at once; the editor's resolved drawing kept between frames; hatches are one SVG path and one page item; saved outputs thinned past 500 000 points
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -153,6 +153,35 @@ page, the PDF and the editor all draw these primitives.
   (`Prim::pieces`, `render::dash_runs`: from the first point, carried round corners and a closed
   shape's closing side; at most 20 000 dashes a path, the rest solid; a degenerate pattern draws
   solid). Hatches and dimensions stay solid.
+- **One budget a drawing** (`render::MAX_POINTS`, 2 000 000 points; `MAX_HATCH_TOTAL`, 200 000
+  hatch and strip segments): every entity's own limits hold (4096 chords an arc, 40 000 segments
+  a hatch), and the drawing as a whole stays within these too, so a file of thousands of huge
+  arcs or fine hatches draws quickly in bounded memory. Past the budget a curve keeps a few
+  chords (at least 16 points), a polyline's remaining arcs are drawn as their chords (its own
+  vertices are always kept), and hatches are left out; every entity is still drawn.
+- **Light saved outputs** (`render::MAX_OUTPUT_POINTS`, 500 000 points): the SVG picture and the
+  page items saved with the drawing are made from `Rendered::lightened`, which past that thins
+  every path of more than a few points by the same share; texts, dots and single strokes stay.
+  A drawing near the render budget saves a few megabytes, not tens (the editor still draws it
+  whole).
+- **Compact outputs**: in the SVG picture a run of single strokes in one style (a hatch's
+  lines) is one `<path>` of as many pieces; on the page it is one item, so fine hatches, which
+  are drawn first, never use up the page's 20 000 items before the dimensions over them.
+- **Saved drawings reopen**: `to_json` writes the drawing made safe (`sanitize`), so a number an
+  edit left non-finite is never written as `null`; coordinates an edit pushes past ±`MAX_COORD`
+  are clamped as reading them back would. A value too small to write (a datum of 1e-12, written
+  `0`) is left out as a zero is, so a drawing read back saves to the same bytes.
+- **Copies at once**: Copy and the rectangular and polar arrays add all their copies in one
+  go (`Drawing::copies`: fresh ids from one set, the drawing made safe once), so an array filling
+  the drawing's 5000 entities takes milliseconds, not seconds; a hatch or strip copied with its
+  boundary follows the copy.
+- **The editor's drawing is kept**: the ribbon asks for the selected drawing resolved where it
+  sits every frame; `calc::resolved_cad` evaluates the document only up to the drawing and keeps
+  the answer until what it reads changes (the calculations before it, the exercises, the number
+  format).
+- **Random edits** (`tests_fuzz.rs`, `CAD_FUZZ=n` for more): every edit on random drawings with
+  huge, tiny and degenerate numbers; none panics, and each result saves, reopens and saves to the
+  same bytes.
 
 ## Point entry (`parse_point`)
 
@@ -398,6 +427,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-08: past the render budget a polyline keeps its vertices; the SVG picture and page items are thinned past 500 000 points.
+- 2026-11-08: saved drawings save to the same bytes when read back (a datum too small to write); Copy and arrays add their copies at once (an array filling the drawing: 5.7 s → under a millisecond); the editor's resolved drawing is kept between frames and worked out only up to the drawing; SVG numbers written without a string each.
+- 2026-11-07: one render budget a drawing (hostile files no longer take gigabytes); saved drawings always reopen (a dragged dimension could save a `null` distance); hatches are one SVG path and one page item each run.
 - 2026-10-29: Circle is a split button: the top part starts the way chosen last, the menu lists the ways with their icons.
 - 2026-10-29: Frame on by default; the editor shows a dimension's scaled and annotative parts (reference line or arc, coloured stretches, sizes) for the selected dimension and while placing or gripping one; Properties labels and colours the two parts alike.
 - 2026-10-28: input unit (typed values in mm, cm or m, or with their own unit); default dimension style after ISO 129 (thin lines, heavier ticks, line past the extension lines).

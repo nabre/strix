@@ -38,6 +38,8 @@ mod tests;
 #[cfg(test)]
 mod tests_dims;
 #[cfg(test)]
+mod tests_fuzz;
+#[cfg(test)]
 mod tests_rework;
 
 pub use dim_parts::DimParts;
