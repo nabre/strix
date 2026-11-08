@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** dimension texts aligned with their dimension line by default
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** dimension texts aligned with their dimension line by default; a drawing in the "Calculation and exercise" template
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -427,6 +427,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-08: the "Calculation and exercise" template has a beam drawing sized by its exercise's data (docs/exercise.md).
 - 2026-11-08: dimension texts aligned with their line by default, steep ones too (`dimStyle.aligned` on unless a drawing turns it off).
 - 2026-11-08: past the render budget a polyline keeps its vertices; the SVG picture and page items are thinned past 500 000 points.
 - 2026-11-08: saved drawings save to the same bytes when read back (a datum too small to write); Copy and arrays add their copies at once (an array filling the drawing: 5.7 s → under a millisecond); the editor's resolved drawing is kept between frames and worked out only up to the drawing; SVG numbers written without a string each.

@@ -22,6 +22,7 @@ pub mod print;
 pub mod recovery;
 pub mod ribbon;
 pub mod sample;
+pub mod sample_calc;
 mod session;
 pub(crate) mod snapshot;
 pub mod speech;
