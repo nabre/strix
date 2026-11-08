@@ -379,13 +379,9 @@ Page",
     group(ui, "Picture", None, app, |ui, app| {
         crate::cad_editor::field_grid(ui, "cad_picture_grid", |ui| {
             ui.label(tl!("Padding"));
-            let now = d.padding.top;
-            let mut v = now;
-            let r = ui.add_sized(
-                [crate::cad_editor::FIELD_W, 18.0],
-                egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"),
-            );
-            if (r.drag_stopped() || r.lost_focus()) && v != now {
+            if let Some(v) = crate::widgets::value_field(ui, "cad_padding", egui::vec2(crate::cad_editor::FIELD_W, 18.0), d.padding.top, |d| {
+                d.range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm")
+            }) {
                 let _ = app.run("cad.padding", json!({"value": v}));
             }
             ui.end_row();
