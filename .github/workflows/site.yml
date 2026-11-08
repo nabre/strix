@@ -39,13 +39,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Build and check the site
         run: cargo xtask site --check
-      # The browser version of the latest release, as published (packaging/web/package.sh): its
-      # paths are relative, so it works under /strix/app/.
+      # The browser version of the newest published release that has one (packaging/web/package.sh):
+      # its paths are relative, so it works under /strix/app/. Older releases (and ones made by
+      # hand) carry no strix-web zip; with none at all the site still deploys, without app/.
       - name: Add the web app
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'strix-web-*.zip' --dir "$RUNNER_TEMP/web"
+          set -euo pipefail
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=50" --jq '[.[] | select(.draft | not) | select(any(.assets[]; .name | test("^strix-web-.*\\.zip$")))][0].tag_name // empty')
+          if [ -z "$tag" ]; then
+            echo "::warning::no published release has a strix-web zip: the site deploys without app/"
+            exit 0
+          fi
+          echo "Web app from $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'strix-web-*.zip' --dir "$RUNNER_TEMP/web"
           unzip -q "$RUNNER_TEMP"/web/strix-web-*.zip -d "$RUNNER_TEMP/web"
           dir=$(find "$RUNNER_TEMP/web" -mindepth 1 -maxdepth 1 -type d -name 'strix-web-*' | head -n 1)
           test -f "$dir/index.html"
