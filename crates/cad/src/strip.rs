@@ -98,7 +98,8 @@ impl Drawing {
         // follow it at most `MAX_PATH_POINTS` points, evenly kept, its last one always.
         if pts.len() > MAX_PATH_POINTS {
             let last = pts.last().copied();
-            pts = pts.into_iter().step_by(pts.len().div_ceil(MAX_PATH_POINTS)).collect();
+            let step = pts.len().div_ceil(MAX_PATH_POINTS);
+            pts = pts.into_iter().step_by(step).collect();
             if let Some(l) = last.filter(|l| pts.last() != Some(l)) {
                 pts.push(l);
             }
