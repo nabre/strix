@@ -3498,10 +3498,10 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
         // Labels and fields in columns: each label in its column, each field the same width.
         let size = |ui: &mut Ui, app: &mut WordApp, label: &str, key: &str, now: f64| {
             ui.label(tl!(label));
-            let mut v = now;
-            let r = ui.add_sized([FIELD_W, 18.0], egui::DragValue::new(&mut v).range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"));
             // Applied once the value is set: one undo step.
-            if (r.drag_stopped() || r.lost_focus()) && v != now {
+            if let Some(v) =
+                crate::widgets::value_field(ui, key, vec2(FIELD_W, 18.0), now, |d| d.range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"))
+            {
                 let _ = app.run("ui.cadDimStyle", json!({ key: v }));
             }
             ui.end_row();
@@ -3725,17 +3725,21 @@ pub(crate) fn scale_fields(ui: &mut Ui, app: &mut WordApp, id: &str, d: &Drawing
             let _ = app.run(command, json!({"max": on}));
         }
         ui.end_row();
-        // The maximum size, mm (0: that side free); applied once set.
+    });
+    // The maximum size, mm (0: that side free), in a column of its own: the ribbon has room for
+    // three rows; applied once set.
+    field_grid(ui, &format!("{id}_max_grid"), |ui| {
         let fit = d.fit.unwrap_or_default();
         for (label, key, now) in [("Width", "width", fit.width), ("Height", "height", fit.height)] {
             ui.label(tl!(label));
-            let mut v = now;
-            let r = ui
+            let set = ui
                 .add_enabled_ui(d.fit.is_some(), |ui| {
-                    ui.add_sized([FIELD_W + 32.0, 18.0], egui::DragValue::new(&mut v).range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm"))
+                    crate::widgets::value_field(ui, (id, key), vec2(FIELD_W + 32.0, 18.0), now, |d| {
+                        d.range(0.0..=5000.0).speed(1.0).max_decimals(1).suffix(" mm")
+                    })
                 })
                 .inner;
-            if (r.drag_stopped() || r.lost_focus()) && v != now {
+            if let Some(v) = set {
                 let mut space = json!({"width": fit.width, "height": fit.height});
                 space[key] = json!(v);
                 let _ = app.run(command, json!({"max": space}));
@@ -3755,12 +3759,9 @@ fn output_tab(app: &mut WordApp, ui: &mut Ui) {
         big_checked(ui, app, "cadFrame", "Frame", "ui.cadToggle", json!({"what": "frame"}), frame);
         field_grid(ui, "cad_output_grid", |ui| {
             ui.label(tl!("Padding"));
-            let mut v = padding.top;
-            let resp = ui.add_sized(
-                [FIELD_W, 18.0],
-                egui::DragValue::new(&mut v).range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm"),
-            );
-            if (resp.drag_stopped() || resp.lost_focus()) && v != padding.top {
+            if let Some(v) = crate::widgets::value_field(ui, "cad_padding", vec2(FIELD_W, 18.0), padding.top, |d| {
+                d.range(0.0..=strix_cad::MAX_PADDING).speed(0.1).max_decimals(2).suffix(" mm")
+            }) {
                 let _ = app.run("ui.cadPadding", json!({"value": v}));
             }
             ui.end_row();
@@ -4547,15 +4548,35 @@ mod max_size_kittest {
     use super::*;
     use egui_kittest::kittest::Queryable;
 
-    /// The owner: in CAD Output the maximum size's width and height couldn't be changed.
+    type H = egui_kittest::Harness<'static, WordApp>;
+
+    /// Click the field showing `value` (a real pointer click: it starts typing), type `text` over
+    /// it and press Enter.
+    fn type_into(h: &mut H, value: &str, text: &str) {
+        let at = h.query_by_value(value).map(|n| n.rect().center()).unwrap_or_else(|| panic!("no field shows {value}"));
+        h.event(egui::Event::PointerMoved(at));
+        h.step();
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE });
+            h.step();
+        }
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        h.event(egui::Event::Text(text.into()));
+        h.run_steps(2);
+        h.key_press(egui::Key::Enter);
+        h.run_steps(4);
+    }
+
+    /// The owner: in CAD Output the maximum size's fields couldn't be changed. A typed value was
+    /// dropped (the field showed the drawing's value again before it was applied) and the Height
+    /// row fell below the ribbon.
     #[test]
-    fn maximum_size_fields_take_typed_values() {
+    fn cad_output_fields_take_typed_values() {
         let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": ""})).unwrap();
         app.session.run("insert.cad", &json!({})).unwrap();
         app.run("ui.cadEdit", json!({})).unwrap();
-        app.run("ui.cadScale", json!({"max": true})).unwrap();
-        app.ui.tab = "CAD Output".into();
+        app.run("ui.cadScale", json!({"max": {"width": 150, "height": 120}})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_accessibility_check(false).with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
@@ -4564,22 +4585,22 @@ mod max_size_kittest {
             },
             app,
         );
-        h.run_steps(4);
-        let before = h.state().cad.as_ref().and_then(|e| e.drawing.fit).unwrap();
-        eprintln!("before {before:?}");
-        for n in h.query_all_by_role(egui::accesskit::Role::SpinButton) {
-            eprintln!("spin {:?}", n);
-        }
-        h.query_all_by_value(&format!("{:.1} mm", before.width)).next().unwrap().click();
         h.run_steps(2);
-        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
-        h.run_steps(1);
-        h.query_all_by_value(&format!("{:.1} mm", before.width)).next().map(|n| n.type_text("80"));
-        h.run_steps(1);
-        eprintln!("cad after typing {:?}", h.state().cad.as_ref().and_then(|e| e.drawing.fit));
-        h.key_press(egui::Key::Enter);
+        h.state_mut().ui.tab = "CAD Output".into();
         h.run_steps(4);
-        let after = h.state().cad.as_ref().and_then(|e| e.drawing.fit).unwrap();
-        assert_eq!(after.width, 80.0, "{after:?}");
+        // Every field is inside the ribbon: within its content height under the tabs (not under
+        // the group names)
+        let tabs = h.query_by_label("CAD Output").map(|n| n.rect().max.y).unwrap();
+        let bottom = tabs + 4.0 + crate::widgets::CONTENT_H;
+        for v in ["150 mm", "120 mm", "2.0 mm"] {
+            let r = h.query_by_value(v).map(|n| n.rect()).unwrap();
+            assert!(r.max.y <= bottom + 2.0, "{v} at {r:?}, the ribbon's buttons end at {bottom}");
+        }
+        type_into(&mut h, "150 mm", "80");
+        type_into(&mut h, "120 mm", "60");
+        let fit = h.state().cad.as_ref().and_then(|e| e.drawing.fit).unwrap();
+        assert_eq!((fit.width, fit.height), (80.0, 60.0));
+        type_into(&mut h, "2.0 mm", "3");
+        assert_eq!(h.state().cad.as_ref().map(|e| e.drawing.padding.top), Some(3.0));
     }
 }
