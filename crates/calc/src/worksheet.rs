@@ -503,8 +503,8 @@ impl Worksheet {
         let merge = |mut a: Vec<(String, i32)>, b: Vec<(String, i32)>, sign: i32| {
             for (u, p) in b {
                 match a.iter_mut().find(|(v, _)| *v == u) {
-                    Some((_, q)) => *q += sign * p,
-                    None => a.push((u, sign * p)),
+                    Some((_, q)) => *q = q.saturating_add(sign.saturating_mul(p)),
+                    None => a.push((u, sign.saturating_mul(p))),
                 }
             }
             a.retain(|(_, p)| *p != 0);
@@ -532,7 +532,13 @@ impl Worksheet {
                     Expr::Num(v) if v.fract() == 0.0 && v.abs() <= 12.0 => v as i32,
                     _ => return None,
                 };
-                Some(self.unit_powers(a, units, depth + 1)?.into_iter().map(|(u, p)| (u, p * k)).filter(|(_, p)| *p != 0).collect())
+                // Powers past a dimension's (i8) can't be shown: no hint, and evaluating reports it.
+                let powers: Option<Vec<(String, i32)>> = self
+                    .unit_powers(a, units, depth + 1)?
+                    .into_iter()
+                    .map(|(u, p)| p.checked_mul(k).filter(|p| p.abs() <= 127).map(|p| (u, p)))
+                    .collect();
+                Some(powers?.into_iter().filter(|(_, p)| *p != 0).collect())
             }
             Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => {
                 let (x, y) = (self.unit_powers(a, units, depth + 1)?, self.unit_powers(b, units, depth + 1)?);
