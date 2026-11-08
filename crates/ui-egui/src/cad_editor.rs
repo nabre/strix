@@ -4541,3 +4541,45 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod max_size_kittest {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+
+    /// The owner: in CAD Output the maximum size's width and height couldn't be changed.
+    #[test]
+    fn maximum_size_fields_take_typed_values() {
+        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        app.session.run("document.setText", &json!({"text": ""})).unwrap();
+        app.session.run("insert.cad", &json!({})).unwrap();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadScale", json!({"max": true})).unwrap();
+        app.ui.tab = "CAD Output".into();
+        let mut h = egui_kittest::Harness::builder().with_accessibility_check(false).with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(4);
+        let before = h.state().cad.as_ref().and_then(|e| e.drawing.fit).unwrap();
+        eprintln!("before {before:?}");
+        for n in h.query_all_by_role(egui::accesskit::Role::SpinButton) {
+            eprintln!("spin {:?}", n);
+        }
+        h.query_all_by_value(&format!("{:.1} mm", before.width)).next().unwrap().click();
+        h.run_steps(2);
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        h.run_steps(1);
+        h.query_all_by_value(&format!("{:.1} mm", before.width)).next().map(|n| n.type_text("80"));
+        h.run_steps(1);
+        eprintln!("cad after typing {:?}", h.state().cad.as_ref().and_then(|e| e.drawing.fit));
+        h.key_press(egui::Key::Enter);
+        h.run_steps(4);
+        let after = h.state().cad.as_ref().and_then(|e| e.drawing.fit).unwrap();
+        assert_eq!(after.width, 80.0, "{after:?}");
+    }
+}
