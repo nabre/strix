@@ -77,6 +77,8 @@ pub fn search_dirs(lo_exts: Option<&[String]>) -> Vec<PathBuf> {
     if let Some(d) = std::env::var_os("STRIX_DICTIONARIES").filter(|v| !v.is_empty()) {
         dirs.push(PathBuf::from(d));
     }
+    // Dictionaries Strix downloaded (File › Options › Proofing).
+    dirs.extend(crate::downloads::user_dictionaries_dir());
     // A portable run's own `dictionaries` folder (`StrixData` beside the program).
     if let Some(d) = strix_control_key::portable_dir() {
         dirs.push(d.join("dictionaries"));

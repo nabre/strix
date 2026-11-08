@@ -586,6 +586,7 @@ pub fn status_bar(app: &mut WordApp, ui: &mut Ui) {
                     st(ui, label);
                 }
                 // The language at the caret; a click sets the proofing language (Review › Language).
+                crate::dictionary_download::poll(ui.ctx(), app);
                 let lang = crate::ribbon::caret_language(app);
                 let missing = crate::ribbon::caret_missing_dictionary(app);
                 let unreadable = crate::ribbon::caret_unreadable_dictionary(app);
@@ -600,6 +601,9 @@ pub fn status_bar(app: &mut WordApp, ui: &mut Ui) {
                 let resp = st(ui, &shown).on_hover_text(tip);
                 egui::Popup::menu(&resp).show(|ui| {
                     ui.set_min_width(200.0);
+                    if crate::dictionary_download::offer(ui, app) {
+                        ui.separator();
+                    }
                     crate::ribbon::language_menu(ui, app);
                 });
                 if app.session.doc.settings.track_changes {

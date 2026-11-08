@@ -33,6 +33,7 @@ pub mod credits;
 pub mod crop;
 pub mod desktop_theme;
 pub mod dialogs;
+mod dictionary_download;
 pub mod documents;
 pub mod equation_tab;
 pub mod exercise_pane;

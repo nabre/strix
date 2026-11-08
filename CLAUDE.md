@@ -41,7 +41,7 @@ Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch 
 |---|---|---|
 | L0 | `geom` | units, rects, measurement parsing |
 | L1 | `doc`, `fonts`, `calc`, `cad`, `metafile`, `proof` | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; WMF/EMF; proofing |
-| L2 | `layout`, `docx`, `docbin`, `formats` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT |
+| L2 | `layout`, `docx`, `docbin`, `formats`, `dictionaries` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT; spelling dictionaries downloaded on demand |
 | L3 | `render`, `pdf` | vello_cpu rasteriser; krilla PDF |
 | L4 | `engine` | Session, undo, **command registry**, Word feature catalog, samples, I/O dispatch |
 | L5 | `mcp`, `zotero` | MCP server (headless or bridged to the app); Zotero integration |

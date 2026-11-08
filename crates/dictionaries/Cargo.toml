@@ -1,0 +1,17 @@
+[package]
+name = "strix-dictionaries"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Strix spelling dictionaries on demand: which public Hunspell dictionary each proofing language reads, downloaded into the user's dictionaries folder"
+
+[lints]
+workspace = true
+
+[dependencies]
+strix-proof = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# The same ureq build craft-update already uses (no new crates): rustls with ring, the OS's
+# certificate verifier.
+ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "_ring", "gzip", "platform-verifier"] }
