@@ -771,7 +771,11 @@ impl Drawing {
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());
         }
+        // Cut at a character boundary, as ids: a name from a file may be any text, and each
+        // entity's layer is looked up by it.
+        let cut = |t: &mut String| t.truncate(t.char_indices().nth(64).map_or(t.len(), |(i, _)| i));
         for l in &mut self.layers {
+            cut(&mut l.name);
             l.width = clamp_paper(l.width, 0.35);
         }
         self.entities.truncate(MAX_ENTITIES);
@@ -784,6 +788,7 @@ impl Drawing {
                 }
                 e.id = format!("e{next}");
             }
+            cut(&mut e.layer);
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
