@@ -1,5 +1,5 @@
-//! The Strix brand inside the app: the symbol (the app icon) and the wordmark (STRIX, its I a
-//! feather). The images are rendered from `assets/app-icon/strix.svg` and
+//! The Strix brand inside the app: the symbol (the app icon) and the wordmark (STRIX WRITER, the I of
+//! STRIX a feather). The images are rendered from `assets/app-icon/strix.svg` and
 //! `docs/brand/wordmark-{light,dark}.svg` by `packaging/icons.sh`; the rules for using them are in
 //! `docs/brand/MARKETING.md`, section 7.
 
@@ -8,6 +8,9 @@ use egui::{Color32, Rect, Sense, TextureHandle, Ui, pos2, vec2};
 const SYMBOL: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/io.github.nabre.strix.png");
 const WORDMARK_LIGHT: &[u8] = include_bytes!("../../../assets/brand/wordmark-light.png");
 const WORDMARK_DARK: &[u8] = include_bytes!("../../../assets/brand/wordmark-dark.png");
+
+/// The wordmark's width over its height (`docs/brand/wordmark-*.svg`, 530 × 88: STRIX WRITER).
+const WORDMARK_ASPECT: f32 = 530.0 / 88.0;
 
 /// One of the brand's images.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,7 +84,7 @@ pub fn paint(ui: &Ui, mark: Mark, left: f32, y: f32, height: f32) -> Rect {
 pub fn lockup(ui: &mut Ui, height: f32) {
     let on_dark = crate::theme::Tokens::get(ui.ctx()).dark;
     let word_h = height * 0.62;
-    let (r, resp) = ui.allocate_exact_size(vec2(height + 14.0 + word_h * 3.3, height), Sense::hover());
+    let (r, resp) = ui.allocate_exact_size(vec2(height + 14.0 + word_h * WORDMARK_ASPECT, height), Sense::hover());
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "Strix Writer"));
     let sym = paint(ui, Mark::Symbol, r.min.x, r.center().y, height);
     paint(ui, Mark::wordmark(on_dark), sym.max.x.max(r.min.x) + 14.0, r.center().y, word_h);
@@ -98,7 +101,7 @@ pub fn empty_window(ui: &mut Ui) {
     }
     let top = area.center().y - (symbol + 18.0 + word) / 2.0;
     let sym_w = paint(ui, Mark::Symbol, area.center().x - symbol / 2.0, top + symbol / 2.0, symbol).width();
-    let word_w = word * 3.3;
+    let word_w = word * WORDMARK_ASPECT;
     paint(ui, Mark::wordmark(on_dark), area.center().x - word_w / 2.0, top + symbol + 18.0 + word / 2.0, word);
     if sym_w > 0.0 {
         ui.interact(area, ui.scope_id().with("strix.brand.empty"), Sense::hover())
