@@ -39,7 +39,7 @@
 
 | Attributo | Valore ufficiale |
 | :--- | :--- |
-| **Nome** | **Strix** (sempre con la S maiuscola; mai "STRIX" nel testo corrente, solo nel wordmark) |
+| **Nome** | **Strix Writer** (dal 2026-11-08). Nome completo nei titoli, negli installer, negli store, sul sito e alla prima menzione; nel testo corrente basta **Strix**, sempre con la S maiuscola. Mai "STRIX" nel testo corrente: solo nel wordmark, che resta STRIX |
 | **Binari** | `strix` (app desktop), `strix-cli` (riga di comando e server MCP), `strix-web` (browser) |
 | **Categoria** | **WYSIWYG math document editor for engineering** |
 | **Formato nativo** | `.xmath` (documento), `.xmathm` (modello); DOCX, ODT, RTF si risalvano nel loro formato solo se il documento non ha oggetti Strix |
@@ -53,21 +53,21 @@
 ### 2.2 Definizione canonica (base di ogni testo)
 
 * **English:**
-  > **Strix — WYSIWYG math for engineers.**
+  > **Strix Writer — WYSIWYG math for engineers.**
   > An open-source document editor, written in Rust, for working out math and engineering
   > problems. The equations you type in the page are live: they carry units, solve for the
   > unknown, check limits and update as soon as an input changes. Exercises keep a locked
   > structure with a results summary, and CAD drawings follow the calculations. Native on
   > Windows, macOS, Linux and BSD, and in the browser.
 * **Italiano:**
-  > **Strix — Matematica WYSIWYG per l'ingegneria.**
+  > **Strix Writer — Matematica WYSIWYG per l'ingegneria.**
   > Un editor di documenti open source, scritto in Rust, per risolvere problemi di matematica e
   > di ingegneria. Le equazioni che scrivi nella pagina sono vive: portano le unità di misura,
   > ricavano l'incognita, verificano i limiti e si aggiornano appena cambia un dato. Gli esercizi
   > hanno una struttura bloccata con il riepilogo dei risultati, e i disegni CAD seguono i calcoli.
   > Nativo su Windows, macOS, Linux e BSD, e nel browser.
 * **Français :**
-  > **Strix — Les maths WYSIWYG pour l'ingénierie.**
+  > **Strix Writer — Les maths WYSIWYG pour l'ingénierie.**
   > Un éditeur de documents open source, écrit en Rust, pour résoudre des problèmes de
   > mathématiques et d'ingénierie. Les équations que vous tapez dans la page sont vivantes :
   > elles portent leurs unités, trouvent l'inconnue, vérifient les limites et se mettent à jour
@@ -75,7 +75,7 @@
   > des résultats, et les dessins CAO suivent les calculs. Natif sur Windows, macOS, Linux et BSD,
   > et dans le navigateur.
 * **Deutsch:**
-  > **Strix — WYSIWYG-Mathematik für Ingenieure.**
+  > **Strix Writer — WYSIWYG-Mathematik für Ingenieure.**
   > Ein quelloffener Dokumenteditor in Rust, um Mathematik- und Ingenieuraufgaben zu lösen. Die
   > Gleichungen, die du in die Seite schreibst, leben: Sie tragen Einheiten, lösen nach der
   > Unbekannten auf, prüfen Grenzwerte und rechnen neu, sobald sich ein Wert ändert. Übungen
@@ -301,7 +301,7 @@ gh repo edit nabre/strix \
 ### 9.3 Elevator pitch (README, pagina "Informazioni", store)
 
 **EN:**
-> **Strix** is an open-source document editor for math and engineering problems, written in pure
+> **Strix Writer** is an open-source document editor for math and engineering problems, written in pure
 > Rust. You write the problem as you would on paper (text, tables, equations, drawings), and the
 > equations are live: they carry units, solve for the unknown, check limits and update as soon as
 > an input changes. Exercises keep a locked structure with variants and a results summary; CAD
@@ -312,7 +312,7 @@ gh repo edit nabre/strix \
 > Windows, macOS, Linux and FreeBSD, and in the browser. MIT or Apache-2.0.
 
 **IT:**
-> **Strix** è un editor di documenti open source per problemi di matematica e ingegneria, scritto
+> **Strix Writer** è un editor di documenti open source per problemi di matematica e ingegneria, scritto
 > interamente in Rust. Scrivi il problema come su carta (testo, tabelle, equazioni, disegni) e le
 > equazioni sono vive: portano le unità, ricavano l'incognita, verificano i limiti e si aggiornano
 > appena cambia un dato. Gli esercizi hanno una struttura bloccata con varianti e riepilogo dei

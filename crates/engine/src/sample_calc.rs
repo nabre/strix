@@ -75,7 +75,7 @@ fn calcs(s: &mut Session, lines: &[&str], answer: Option<u32>) -> Result<(), Cmd
 pub fn calc_exercise(paper: Document) -> Result<Document, CmdError> {
     let mut d = paper;
     d.core.title = "Calculation and exercise".into();
-    d.core.creator = "Strix".into();
+    d.core.creator = "Strix Writer".into();
     d.body = vec![
         para("Calculation and exercise", Some("Title")),
         para(

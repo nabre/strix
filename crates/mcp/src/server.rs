@@ -19,7 +19,7 @@ const INVALID_PARAMS: i64 = -32602;
 const INTERNAL_ERROR: i64 = -32603;
 const RESOURCE_NOT_FOUND: i64 = -32002;
 
-const INSTRUCTIONS: &str = "Strix is a word processor (a Microsoft Word clone). Every action is a command: find ids and \
+const INSTRUCTIONS: &str = "Strix Writer is a word processor (a Microsoft Word clone). Every action is a command: find ids and \
 parameters with list_commands and run them with execute (or several with batch). Positions are \
 {story:\"body\", path:[block,(row,cell,block)...], off:byteOffset}. Typical flow: new_document → type_text \
 \"Hello\" → execute text.newParagraph → execute para.style {style:\"Heading 1\"} → select_text {text:\"Hello\"} → \
@@ -179,7 +179,7 @@ impl Server {
                 Ok(json!({
                     "protocolVersion": version,
                     "capabilities": {"tools": {}, "resources": {}},
-                    "serverInfo": {"name": "strix", "title": "Strix", "version": env!("CARGO_PKG_VERSION"), "websiteUrl": "https://github.com/nabre/strix"},
+                    "serverInfo": {"name": "strix", "title": "Strix Writer", "version": env!("CARGO_PKG_VERSION"), "websiteUrl": "https://github.com/nabre/strix"},
                     "instructions": format!(
                         "{INSTRUCTIONS} Backend: {}. Community: https://github.com/nabre/strix/discussions · https://github.com/nabre/strix",
                         self.backend.describe()

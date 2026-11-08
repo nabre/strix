@@ -23,6 +23,13 @@ main                              … ─┴── Strix work ──────
   The commit's `Upstream-Commit:` trailer names the upstream commit. The renamed Rust files are
   then formatted with the workspace's `rustfmt.toml` (shorter names let lines upstream wrapped
   fit on one, as in `main`); without `rustfmt` on the PATH the sync warns and skips it.
+- The product's full name is **Strix Writer**: where upstream shows its name as such (window and
+  dialog titles, installers and store entries, the generator recorded in exported files), the
+  path-scoped `PRODUCT_NAME` table in `xtask/src/upstream.rs` turns the renamed `Strix` into
+  `Strix Writer`; running text keeps the short `Strix`. A new upstream title or installer string
+  gets a row there, and the same text in `main`'s file. The first sync after the table landed (2026-11-08) conflicts
+  on three lines `main` had already changed (the LaTeX and MCP website URLs, the ODT meta line):
+  keep `main`'s.
 - Licence rules are built in: `LICENSE-*` and `NOTICE` stay byte-for-byte, lines with a
   copyright or attribution notice are never renamed, every renamed file gets the "Modified by the
   Strix contributors" line (Apache-2.0 §4(b), (c)), and the ArtCraft brand files in `docs/brand/`

@@ -15,8 +15,8 @@ fn main() {
     }
     let mut res = winresource::WindowsResource::new();
     res.set_icon("../../assets/app-icon/strix.ico")
-        .set("ProductName", "Strix")
-        .set("FileDescription", "Strix word processor")
+        .set("ProductName", "Strix Writer")
+        .set("FileDescription", "Strix Writer word processor")
         .set("CompanyName", "The Strix contributors")
         .set("LegalCopyright", "Copyright (c) the Strix contributors and the WordCraft authors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "strix.exe")

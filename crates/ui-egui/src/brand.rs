@@ -82,7 +82,7 @@ pub fn lockup(ui: &mut Ui, height: f32) {
     let on_dark = crate::theme::Tokens::get(ui.ctx()).dark;
     let word_h = height * 0.62;
     let (r, resp) = ui.allocate_exact_size(vec2(height + 14.0 + word_h * 3.3, height), Sense::hover());
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "Strix"));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "Strix Writer"));
     let sym = paint(ui, Mark::Symbol, r.min.x, r.center().y, height);
     paint(ui, Mark::wordmark(on_dark), sym.max.x.max(r.min.x) + 14.0, r.center().y, word_h);
 }
@@ -102,7 +102,7 @@ pub fn empty_window(ui: &mut Ui) {
     paint(ui, Mark::wordmark(on_dark), area.center().x - word_w / 2.0, top + symbol + 18.0 + word / 2.0, word);
     if sym_w > 0.0 {
         ui.interact(area, ui.scope_id().with("strix.brand.empty"), Sense::hover())
-            .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "Strix"));
+            .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, "Strix Writer"));
     }
 }
 

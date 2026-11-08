@@ -48,6 +48,53 @@ const NOTICE_MARKERS: &[&str] = &["Copyright", "copyright", "©", "WordCraft con
 /// The modification notice every changed upstream file carries (§4(b)); same text as `main`.
 const MARK: &str = "Modified by the Strix contributors (fork of WordCraft); see NOTICE.";
 
+/// Where upstream shows its product name as such (window and dialog titles, installers, store
+/// entries, the generator recorded in exported files), Strix shows its full name, "Strix Writer";
+/// in running text the short "Strix" stays. Applied after [`RENAMES`], to the files named:
+/// `(path, rebranded text, Strix's text)`. A pattern may span lines.
+const PRODUCT_NAME: &[(&str, &str, &str)] = &[
+    ("apps/strix/build.rs", "\"ProductName\", \"Strix\"", "\"ProductName\", \"Strix Writer\""),
+    ("apps/strix/build.rs", "\"Strix word processor\"", "\"Strix Writer word processor\""),
+    ("apps/strix/src/main.rs", "strix — the Strix desktop app", "strix — the Strix Writer desktop app"),
+    ("apps/strix/src/main.rs", "log::info!(\"Strix {} (", "log::info!(\"Strix Writer {} ("),
+    ("apps/strix/src/main.rs", ".with_title(\"Strix\")", ".with_title(\"Strix Writer\")"),
+    ("apps/strix-web/index.html", "<title>Strix</title>", "<title>Strix Writer</title>"),
+    ("crates/docx/src/write/settings.rs", "\"Application\", &[], \"Strix\"", "\"Application\", &[], \"Strix Writer\""),
+    ("crates/engine/src/sample.rs", "creator = \"Strix\"", "creator = \"Strix Writer\""),
+    ("crates/formats/src/html/export.rs", "content=\\\"Strix\\\"", "content=\\\"Strix Writer\\\""),
+    ("crates/formats/src/latex/export.rs", "% Written by Strix (", "% Written by Strix Writer ("),
+    ("crates/formats/src/odt/package.rs", "<meta:generator>Strix<", "<meta:generator>Strix Writer<"),
+    ("crates/formats/src/rtf/export.rs", "\\\\generator Strix;", "\\\\generator Strix Writer;"),
+    ("crates/mcp/src/server.rs", "\"title\": \"Strix\"", "\"title\": \"Strix Writer\""),
+    ("crates/mcp/src/server.rs", "\"Strix is a word processor", "\"Strix Writer is a word processor"),
+    ("crates/pdf/src/metadata.rs", "creator: \"Strix\".into(), producer: \"Strix\"", "creator: \"Strix Writer\".into(), producer: \"Strix Writer\""),
+    ("crates/ui-egui/src/chrome.rs", "    \"Strix\".to_string()", "    \"Strix Writer\".to_string()"),
+    ("crates/ui-egui/src/dialogs/chrome.rs", "\"About Strix\"", "\"About Strix Writer\""),
+    ("crates/ui-egui/src/dialogs/chrome.rs", "SaveChanges { .. } => \"Strix\"", "SaveChanges { .. } => \"Strix Writer\""),
+    ("crates/ui-egui/src/updates_ui.rs", "tl!(\"Strix {version} is", "tl!(\"Strix Writer {version} is"),
+    ("crates/ui-egui/src/windows.rs", " - Strix\"", " - Strix Writer\""),
+    ("crates/ui-egui/src/windows.rs", "return \"Strix\".to_string()", "return \"Strix Writer\".to_string()"),
+    ("crates/ui-egui/src/windows.rs", ".with_title(\"Strix\")", ".with_title(\"Strix Writer\")"),
+    ("packaging/linux/io.github.nabre.strix.desktop", "\nName=Strix\n", "\nName=Strix Writer\n"),
+    ("packaging/linux/io.github.nabre.strix.metainfo.xml.in", "<name>Strix</name>", "<name>Strix Writer</name>"),
+    ("packaging/linux/io.github.nabre.strix.metainfo.xml.in", "      Strix is a fast", "      Strix Writer is a fast"),
+    ("packaging/macos/Info.plist.in", "<key>CFBundleDisplayName</key>\n  <string>Strix<", "<key>CFBundleDisplayName</key>\n  <string>Strix Writer<"),
+    ("packaging/macos/Info.plist.in", "<key>CFBundleName</key>\n  <string>Strix<", "<key>CFBundleName</key>\n  <string>Strix Writer<"),
+    ("packaging/windows/strix.wxs", "<Package Name=\"Strix\"", "<Package Name=\"Strix Writer\""),
+    ("packaging/windows/strix.wxs", "Description=\"Strix word processor\"", "Description=\"Strix Writer word processor\""),
+    ("packaging/windows/strix.wxs", "A newer version of Strix is", "A newer version of Strix Writer is"),
+    ("packaging/windows/strix.wxs", "Value=\"Launch Strix\"", "Value=\"Launch Strix Writer\""),
+    ("packaging/windows/strix.wxs", "Feature Id=\"Main\" Title=\"Strix\"", "Feature Id=\"Main\" Title=\"Strix Writer\""),
+    ("packaging/windows/strix.wxs", "Name=\"Strix\" Description=", "Name=\"Strix Writer\" Description="),
+    ("packaging/windows/strix.wxs", "Name=\"ApplicationName\" Value=\"Strix\"", "Name=\"ApplicationName\" Value=\"Strix Writer\""),
+    ("packaging/windows/strix.wxs", "Name=\"FriendlyAppName\" Value=\"Strix\"", "Name=\"FriendlyAppName\" Value=\"Strix Writer\""),
+];
+
+/// `text` (upstream file `path`, already through [`RENAMES`]) with Strix's full product name.
+fn product_name(path: &str, text: String) -> String {
+    PRODUCT_NAME.iter().filter(|(p, ..)| *p == path).fold(text, |t, (_, from, to)| t.replace(from, to))
+}
+
 pub fn rebrand_text(text: &str) -> String {
     text.split_inclusive('\n')
         .map(|line| {
@@ -66,8 +113,9 @@ pub fn rebrand_file(path: &str, text: &str) -> Option<String> {
     if VERBATIM_FILES.contains(&path) {
         return None;
     }
-    let new = rebrand_text(text);
-    let renamed = rebrand_path(path).is_some_and(|p| p != path);
+    let new_path = rebrand_path(path);
+    let new = product_name(new_path.as_deref().unwrap_or(path), rebrand_text(text));
+    let renamed = new_path.is_some_and(|p| p != path);
     if new == text && !renamed {
         return None;
     }
@@ -326,6 +374,29 @@ mod tests {
             Some(format!("<?xml version=\"1.0\"?>\r\n<!-- {MARK} -->\r\n<a>Strix</a>\r\n").as_str())
         );
         assert_eq!(rebrand_file("d.json", "\"wordcraft\"").as_deref(), Some("\"strix\""));
+    }
+
+    #[test]
+    fn titles_and_installers_get_the_full_product_name() {
+        let plist = "<key>CFBundleName</key>\n  <string>WordCraft</string>\n<key>CFBundleExecutable</key>\n  <string>WordCraft</string>\n";
+        let out = rebrand_file("packaging/macos/Info.plist.in", plist).unwrap_or_default();
+        assert!(out.contains("<key>CFBundleName</key>\n  <string>Strix Writer</string>"), "{out}");
+        assert!(out.contains("<key>CFBundleExecutable</key>\n  <string>Strix</string>"), "{out}");
+        // Running text keeps the short name, and other files are untouched by the table.
+        let rs = "let t = \"About WordCraft\"; // WordCraft can't\n";
+        assert!(rebrand_file("crates/ui-egui/src/dialogs/chrome.rs", rs).unwrap_or_default().contains("\"About Strix Writer\"; // Strix can't"));
+        assert!(rebrand_file("crates/other.rs", rs).unwrap_or_default().contains("\"About Strix\";"));
+    }
+
+    /// `main` already shows what the next sync writes: every row's result is in its file.
+    #[test]
+    fn main_has_the_full_product_name_where_the_table_puts_it() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        for (path, from, to) in PRODUCT_NAME {
+            let text = std::fs::read_to_string(root.join(path)).unwrap_or_else(|e| panic!("{path}: {e}"));
+            assert!(text.contains(to), "{path} lacks {to:?}");
+            assert!(!text.contains(from) || to.contains(from), "{path} still has {from:?}");
+        }
     }
 
     #[test]

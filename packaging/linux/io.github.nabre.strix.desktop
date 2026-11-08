@@ -1,7 +1,7 @@
 # Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [Desktop Entry]
 Type=Application
-Name=Strix
+Name=Strix Writer
 GenericName=Word Processor
 Comment=Write and design documents; open and export Word files
 Exec=strix %F

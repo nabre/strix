@@ -294,7 +294,7 @@ fn app_icon() -> Option<egui::IconData> {
 }
 
 const USAGE: &str = "\
-strix — the Strix desktop app
+strix — the Strix Writer desktop app
 
 USAGE:
   strix [--sample] [--control PORT] [FILE…]
@@ -400,7 +400,7 @@ fn main() -> eframe::Result {
     if let Some(logger) = logger {
         match log_dir().filter(|_| prefs_enabled()) {
             Some(dir) => match logger.attach_dir(&dir) {
-                Ok(path) => log::info!("Strix {} ({}), log file {}", env!("CARGO_PKG_VERSION"), build_sha(), path.display()),
+                Ok(path) => log::info!("Strix Writer {} ({}), log file {}", env!("CARGO_PKG_VERSION"), build_sha(), path.display()),
                 // Standard error only by now (`attach_dir` gave up on the file); unlike `eprintln!`, never panics.
                 Err(e) => log::warn!("no log file: {e}"),
             },
@@ -414,7 +414,7 @@ fn main() -> eframe::Result {
     }
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Strix")
+            .with_title("Strix Writer")
             .with_app_id("io.github.nabre.strix")
             .with_inner_size([1440.0, 920.0])
             .with_min_inner_size([760.0, 480.0])

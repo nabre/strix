@@ -111,7 +111,7 @@ pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
             Status::Idle => (false, None),
             Status::Checking => (true, None),
             Status::UpToDate => {
-                (true, Some(tl!("Strix {version} is currently the newest version available.").replace("{version}", env!("CARGO_PKG_VERSION"))))
+                (true, Some(tl!("Strix Writer {version} is currently the newest version available.").replace("{version}", env!("CARGO_PKG_VERSION"))))
             }
             Status::Failed(e) => (true, Some(tl!("Could not check for updates:\n{error}").replace("{error}", e))),
         };
