@@ -2061,3 +2061,10 @@
 	{width} × {height} pixels	{width} × {height} пікс.
 	{words} words	Слів: {words}
 	“{text}” ({row}, {series}) isn't a number.	«{text}» ({row}, {series}) — не число.
+	Auto orientation	Автоматична орієнтація
+	No Scaling	Без масштабування
+	Pages in the range	Сторінки діапазону
+	Scale to paper size	За розміром паперу
+	Calculation and exercise	Розрахунок і задача
+paper	Envelope #10	Конверт № 10
+paper	Envelope DL	Конверт DL

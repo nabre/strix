@@ -1996,3 +1996,10 @@
 	{width} × {height} pixels	{width} × {height} piksela
 	{words} words	{words} reči
 	“{text}” ({row}, {series}) isn't a number.	„{text}” ({row}, {series}) nije broj.
+	Auto orientation	Automatska orijentacija
+	No Scaling	Bez skaliranja
+	Pages in the range	Stranice u opsegu
+	Scale to paper size	Prilagodi veličini papira
+	Calculation and exercise	Proračun i zadatak
+paper	Envelope #10	Koverta br. 10
+paper	Envelope DL	Koverta DL

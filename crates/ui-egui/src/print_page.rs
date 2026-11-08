@@ -84,11 +84,29 @@ const ORIENTATIONS: [(&str, &str); 3] = [("auto", "Auto orientation"), ("portrai
 
 /// A choice list over `(id, label)` pairs; true when the choice changed.
 fn choice(ui: &mut Ui, salt: &str, current: &mut String, items: &[(&str, &str)], label: &egui::Response) -> bool {
+    choice_in(ui, salt, current, items, label, |s| tl!(s))
+}
+
+/// A paper size's name in the current language: its `paper` row, else the name itself (most
+/// are names, and a plain row may mean something else: "Letter" is also the template).
+fn paper_name(name: &str) -> &str {
+    crate::i18n::get("paper", name).unwrap_or(name)
+}
+
+/// [`choice`] with the item labels translated by `tr`.
+fn choice_in<'a>(
+    ui: &mut Ui,
+    salt: &str,
+    current: &mut String,
+    items: &[(&str, &'a str)],
+    label: &egui::Response,
+    tr: impl Fn(&'a str) -> &'a str,
+) -> bool {
     let shown = items.iter().find(|(id, _)| *id == current.as_str()).map_or("", |(_, l)| *l);
     let mut changed = false;
-    let combo = craft_ui::ComboBox::from_id_salt(salt).width(260.0).selected_text(tl!(shown)).show_ui(ui, |ui| {
+    let combo = craft_ui::ComboBox::from_id_salt(salt).width(260.0).selected_text(tr(shown)).show_ui(ui, |ui| {
         for (id, item) in items {
-            if ui.selectable_label(current == id, tl!(item)).clicked() && current != id {
+            if ui.selectable_label(current == id, tr(item)).clicked() && current != id {
                 *current = (*id).to_string();
                 changed = true;
             }
@@ -234,7 +252,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 let paper_label = ui.label(egui::RichText::new(tl!("Scale to paper size")).font(medium(13.0)));
                 let papers: Vec<(&str, &str)> =
                     std::iter::once((NO_SCALING, "No Scaling")).chain(strix_geom::PAPER_SIZES.iter().map(|(n, _, _)| (*n, *n))).collect();
-                choice(ui, "print_paper", &mut app.ui.print.paper, &papers, &paper_label);
+                choice_in(
+                    ui,
+                    "print_paper",
+                    &mut app.ui.print.paper,
+                    &papers,
+                    &paper_label,
+                    |n| if n == "No Scaling" { tl!(n) } else { paper_name(n) },
+                );
 
                 match strix_engine::print::plan(&app.ui.print.params(), total, current) {
                     Ok(plan) => {

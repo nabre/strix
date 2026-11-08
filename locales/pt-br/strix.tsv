@@ -2010,3 +2010,12 @@
 	{width} × {height} pixels	{width} × {height} pixels
 	{words} words	Palavras: {words}
 	“{text}” ({row}, {series}) isn't a number.	“{text}” ({row}, {series}) não é um número.
+	Auto orientation	Orientação automática
+	No Scaling	Sem dimensionamento
+	Pages in the range	Páginas no intervalo
+	Scale to paper size	Ajustar ao tamanho do papel
+	Calculation and exercise	Cálculo e exercício
+paper	Letter	Carta
+paper	Legal	Ofício
+paper	Envelope #10	Envelope nº 10
+paper	Envelope DL	Envelope DL

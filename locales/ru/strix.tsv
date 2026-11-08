@@ -2354,3 +2354,10 @@ preview	Title	Пример
 	{words} words	Слов: {words}
 	“{text}” ({row}, {series}) isn't a number.	«{text}» ({row}, {series}) — не число.
 	✓ None	✓ Нет
+	Auto orientation	Автоматическая ориентация
+	No Scaling	Без масштабирования
+	Pages in the range	Страницы диапазона
+	Scale to paper size	По размеру бумаги
+	Calculation and exercise	Расчёт и задача
+paper	Envelope #10	Конверт № 10
+paper	Envelope DL	Конверт DL

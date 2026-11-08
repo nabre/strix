@@ -2046,3 +2046,10 @@
 	{width} × {height} pixels	{width} × {height} 像素
 	{words} words	{words} 個字
 	“{text}” ({row}, {series}) isn't a number.	「{text}」（{row}，{series}）不是數字。
+	Auto orientation	自動方向
+	No Scaling	不縮放
+	Pages in the range	範圍內的頁面
+	Scale to paper size	縮放至紙張大小
+	Calculation and exercise	計算與練習
+paper	Envelope #10	10 號信封
+paper	Envelope DL	DL 信封
