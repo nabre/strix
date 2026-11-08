@@ -9,3 +9,9 @@ filehash = true
 [serve]
 addresses = ["127.0.0.1"]
 port = 8771
+
+[watch]
+# The whole workspace (the app's code is mostly in ../../crates, plus locales and assets),
+# without the build outputs, which would otherwise rebuild in a loop.
+watch = ["../.."]
+ignore = ["../../target", "../../dist", "../../.git", "../../plan"]
