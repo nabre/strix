@@ -248,7 +248,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.prefs.default_language = Some("it-IT".into());
+        s.doc.styles.default_chr.lang = Some("it-IT".into());
         s
     }
 

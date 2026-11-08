@@ -136,8 +136,16 @@ struct Words {
     variant: &'static str,
 }
 
+/// The language exercise words are written in: the one at the caret, resolved through the styles
+/// and the document default — the language the status bar shows and the dictionary checks with —
+/// else the editing language (a new document's).
+fn words_lang(s: &Session) -> String {
+    let style = s.doc.para_at(&s.sel.focus).and_then(|p| p.props.style.clone());
+    s.doc.styles.resolve_char(style.as_deref(), &s.typing_props()).lang.or_else(|| crate::cmd::default_lang(s)).unwrap_or_default()
+}
+
 fn words(s: &Session) -> Words {
-    let lang = s.prefs.default_language.clone().or_else(|| s.doc.styles.default_chr.lang.clone()).unwrap_or_default();
+    let lang = words_lang(s);
     if lang.to_ascii_lowercase().starts_with("it") {
         Words {
             exercise: "Esercizio",
@@ -1418,7 +1426,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.prefs.default_language = Some("it-IT".into());
+        s.doc.styles.default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -1798,7 +1806,7 @@ mod tests {
         // Italian as it opens (the words come from the preferences, else the document's language).
         doc.styles.default_chr.lang = Some("it-IT".into());
         let mut s = Session::new(doc);
-        s.prefs.default_language = Some("it-IT".into());
+        s.doc.styles.default_chr.lang = Some("it-IT".into());
         assert_eq!(title(&s), "Ponte");
         let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
@@ -1837,7 +1845,7 @@ mod tests {
         }
         assert_eq!(p.objects.len(), 1);
         let mut s = Session::new(doc);
-        s.prefs.default_language = Some("it-IT".into());
+        s.doc.styles.default_chr.lang = Some("it-IT".into());
         assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
         assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
