@@ -2,7 +2,7 @@ name: Site
 
 # The project site on GitHub Pages: https://nabre.github.io/strix/. Built from site/ with the
 # brand files of docs/brand by `cargo xtask site --check` (xtask/src/site.rs), with the web build
-# of the latest release (or of this commit, if no release has one) unpacked into app/. Deployed with
+# of the latest release (built from its tag when the release has none) in app/. Deployed with
 # actions/deploy-pages: no gh-pages branch. The repository's Settings › Pages › Source must be
 # "GitHub Actions".
 on:
@@ -39,42 +39,53 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Build and check the site
         run: cargo xtask site --check
-      # app/ ("Try it in the browser") is the browser version of the newest published release that
-      # has one (packaging/web/package.sh); its paths are relative, so it works under /strix/app/.
-      # Older releases (and ones made by hand) carry no strix-web zip: with none at all, the web
-      # app is built here from this commit, the same way release.yml builds it.
-      - name: Find the web app release
+      # app/ ("Try it in the browser") is the browser version of the latest release
+      # (packaging/web/package.sh); its paths are relative, so it works under /strix/app/. A release
+      # made by release.yml carries it as strix-web-<version>.zip. One made by hand on GitHub has
+      # no assets: then the web app is built here from that release's tag, with the tag's version
+      # (what Help › About shows), the same way release.yml builds it.
+      - name: Find the latest release
         id: web
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=50" --jq '[.[] | select(.draft | not) | select(any(.assets[]; .name | test("^strix-web-.*\\.zip$")))][0].tag_name // empty')
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
           echo "tag=$tag" >>"$GITHUB_OUTPUT"
-          if [ -n "$tag" ]; then
-            echo "Web app from release $tag" | tee -a "$GITHUB_STEP_SUMMARY"
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'strix-web-*.zip' --dir "$RUNNER_TEMP/web"
+          echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+          if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'strix-web-*.zip' --dir "$RUNNER_TEMP/web"; then
+            echo "build=false" >>"$GITHUB_OUTPUT"
+            echo "Web app: strix-web zip of release $tag" | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "::notice::no published release has a strix-web zip: building the web app from ${GITHUB_SHA::7}"
-            echo "Web app built from ${GITHUB_SHA::7} (no release has one)" >>"$GITHUB_STEP_SUMMARY"
+            echo "build=true" >>"$GITHUB_OUTPUT"
+            echo "::notice::release $tag has no strix-web zip: building the web app from its tag"
+            echo "Web app: built from the tag $tag (the release has no strix-web zip)" >>"$GITHUB_STEP_SUMMARY"
           fi
-      - if: steps.web.outputs.tag == ''
+      - if: steps.web.outputs.build == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.web.outputs.tag }}
+          path: web-src
+      - if: steps.web.outputs.build == 'true'
         uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: b076417b5880bd4154bd22f00695b1d28c6bea83 # CRAFT_FONTS_REF in release.yml
-      - if: steps.web.outputs.tag == ''
+      - if: steps.web.outputs.build == 'true'
         run: rustup target add wasm32-unknown-unknown
-      - if: steps.web.outputs.tag == ''
+      - if: steps.web.outputs.build == 'true'
         uses: storytold/craft-common-actions/actions/install-trunk@main
       - name: Build the web app
-        if: steps.web.outputs.tag == ''
+        if: steps.web.outputs.build == 'true'
+        working-directory: web-src
         env:
           CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
           CRAFT_FONTS_REQUIRED: "1"
-          STRIX_BUILD_SHA: ${{ github.sha }}
+          VERSION: ${{ steps.web.outputs.version }}
         run: |
           set -euo pipefail
-          STRIX_BUILD_DATE=$(date -u +%F) DIST="$RUNNER_TEMP/web" packaging/web/package.sh
+          # A tag made by hand may not match its Cargo.toml: the release's version wins.
+          cargo xtask version set "$VERSION"
+          STRIX_VERSION="$VERSION" STRIX_BUILD_SHA="$(git rev-parse HEAD)" DIST="$RUNNER_TEMP/web" packaging/web/package.sh
       - name: Add the web app
         run: |
           set -euo pipefail
