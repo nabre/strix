@@ -126,7 +126,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.prefs.default_language = Some("it-IT".into());
+        s.doc.styles.default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -198,7 +198,7 @@ mod tests {
         // Saved with the document.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut back = Session::new(crate::io::open_bytes("e.xmath", &bytes).unwrap());
-        back.prefs.default_language = Some("it-IT".into());
+        back.doc.styles.default_chr.lang = Some("it-IT".into());
         let n = back.run("exercise.numbering", &json!({})).unwrap();
         assert_eq!((n["prefix"].clone(), n["format"].clone(), n["start"].clone()), (json!(""), json!("lowerRoman"), json!(3)));
         assert_eq!(labels(&back), ["iii.", "iv."]);
@@ -223,6 +223,25 @@ mod tests {
         s.run("exercise.numbering", &json!({"prefix": "Es.", "start": 5})).unwrap();
         s.run("exercise.insert", &json!({"title": "Uno"})).unwrap();
         assert_eq!(labels(&s), ["Es. 5."]);
+    }
+
+    /// The owner: "Default" follows the language the document is checked in, the one the status
+    /// bar shows — not the saved preference for new documents.
+    #[test]
+    fn default_prefix_follows_the_document_language() {
+        let mut s = Session::new(Document::new());
+        s.run("document.setText", &json!({"text": "Intro"})).unwrap();
+        s.doc.styles.default_chr.lang = Some("en-US".into());
+        s.prefs.default_language = Some("it-IT".into());
+        let n = s.run("exercise.numbering", &json!({})).unwrap();
+        assert_eq!((n["prefix"].clone(), n["default"].clone()), (json!("Exercise"), json!(true)));
+        // The language set from the status bar (Review › Language, as the document's default).
+        s.run("review.language", &json!({"lang": "it-IT", "default": true})).unwrap();
+        let n = s.run("exercise.numbering", &json!({})).unwrap();
+        assert_eq!((n["prefix"].clone(), n["default"].clone()), (json!("Esercizio"), json!(true)));
+        s.run("exercise.numbering", &json!({"prefix": null})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Uno"})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio 1."]);
     }
 
     #[test]
