@@ -1419,17 +1419,20 @@ fn readable_text_directions_never_read_upside_down() {
     assert_eq!(readable(f64::INFINITY), (0.0, false));
 }
 
-/// With the style's aligned texts, a steep dimension's text turns with its line, whichever way
-/// the line was drawn, and stays readable; by default it reads level, as before.
+/// A steep dimension's text turns with its line by default (the style's aligned texts), whichever
+/// way the line was drawn, and stays readable; with aligned texts off it reads level.
 #[test]
 fn aligned_dimension_texts_follow_steep_lines_readably() {
     let text_of = |json: &str| {
         let d = Drawing::from_json(json).unwrap();
         d.render(None).prims.into_iter().find_map(|p| if let Prim::Text { angle, anchor, .. } = p { Some((angle, anchor)) } else { None }).unwrap()
     };
-    // Default: level beside the line.
-    let (angle, anchor) = text_of(r#"{"entities":[{"type":"dim","a":[0,0],"b":[0,50],"offset":8}]}"#);
+    // Off: level beside the line.
+    let (angle, anchor) = text_of(r#"{"dimStyle":{"aligned":false},"entities":[{"type":"dim","a":[0,0],"b":[0,50],"offset":8}]}"#);
     assert!(approx(angle, 0.0) && matches!(anchor, Anchor::MiddleLeft | Anchor::MiddleRight), "{angle} {anchor:?}");
+    // Default: along the line, reading bottom to top.
+    let (angle, anchor) = text_of(r#"{"entities":[{"type":"dim","a":[0,0],"b":[0,50],"offset":8}]}"#);
+    assert!(approx(angle, 90.0) && matches!(anchor, Anchor::BottomCenter | Anchor::TopCenter), "{angle} {anchor:?}");
     for (a, b) in [((0, 0), (0, 50)), ((0, 50), (0, 0)), ((0, 0), (20, 50)), ((20, 50), (0, 0)), ((0, 0), (-20, 50)), ((0, 0), (-50, -20))] {
         let json = format!(
             r#"{{"dimStyle":{{"aligned":true}},"entities":[{{"type":"dim","a":[{},{}],"b":[{},{}],"offset":8,"orient":"aligned"}}]}}"#,
@@ -1452,19 +1455,21 @@ fn aligned_dimension_texts_follow_steep_lines_readably() {
     assert!(approx(angle, -45.0), "{angle}");
 }
 
-/// The aligned option is written only when on: old drawings read the same and write the same.
+/// Aligned texts are the default, written only when off; a drawing that turned them on
+/// explicitly still reads on.
 #[test]
 fn aligned_dimension_texts_keep_json_back_compatible() {
     let old = r#"{"dimStyle":{"text":3.5},"entities":[{"type":"line","a":[0,0],"b":[10,0]}]}"#;
     let d = Drawing::from_json(old).unwrap();
-    assert!(!d.dim_style.aligned);
+    assert!(d.dim_style.aligned);
     let json = d.to_json();
     assert!(!json.contains("aligned"), "{json}");
+    assert!(Drawing::from_json(r#"{"dimStyle":{"aligned":true}}"#).unwrap().dim_style.aligned);
     let mut d2 = d.clone();
-    d2.dim_style.aligned = true;
+    d2.dim_style.aligned = false;
     let json2 = d2.to_json();
-    assert!(json2.contains(r#""aligned":true"#), "{json2}");
-    assert!(Drawing::from_json(&json2).unwrap().dim_style.aligned);
+    assert!(json2.contains(r#""aligned":false"#), "{json2}");
+    assert!(!Drawing::from_json(&json2).unwrap().dim_style.aligned);
     assert_eq!(Drawing::from_json(&json2).unwrap().to_json(), json2);
     // The new dash type round-trips by its name.
     let dd = Drawing::from_json(r#"{"layers":[{"name":"0","dash":"dashDoubleDotted"}]}"#).unwrap();
