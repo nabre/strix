@@ -484,6 +484,7 @@ fn language(app: &mut WordApp, ui: &mut Ui) {
             .unwrap_or_else(|| crate::i18n::fmt(tl!("Spelling and grammar are checked in {language}."), &[("language", &lang)]))
     };
     ui.label(RichText::new(text).small().weak());
+    let _ = crate::dictionary_download::offer(ui, app);
 }
 
 /// Draws Accessibility options: the animation setting and Read Aloud speed and skip-citations.

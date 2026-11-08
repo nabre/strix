@@ -25,6 +25,7 @@ strix-formats = { path = "crates/formats" }
 strix-render = { path = "crates/render" }
 strix-pdf = { path = "crates/pdf" }
 strix-proof = { path = "crates/proof" }
+strix-dictionaries = { path = "crates/dictionaries" }
 strix-engine = { path = "crates/engine" }
 strix-mcp = { path = "crates/mcp" }
 strix-zotero = { path = "crates/zotero" }

@@ -12,6 +12,7 @@ pub mod column;
 pub mod connectors;
 pub mod controls;
 pub mod design;
+pub mod dictionaries;
 pub mod draw;
 pub mod edit;
 pub mod equation;
@@ -83,6 +84,7 @@ pub fn registry() -> Registry {
     v.extend(calc::specs());
     v.extend(cad::specs());
     v.extend(exercise::specs());
+    v.extend(dictionaries::specs());
     v.extend(graph::specs());
     v.extend(page::specs());
     v.extend(table::specs());

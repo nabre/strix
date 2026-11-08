@@ -54,6 +54,7 @@ pub mod affix;
 pub mod bg;
 pub mod cs;
 pub mod dict;
+pub mod downloads;
 pub mod en_variants;
 pub mod es;
 pub mod hr;

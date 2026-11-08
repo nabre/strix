@@ -5194,6 +5194,14 @@ name = "strix-control-key"
 version = "0.15.1"
 
 [[package]]
+name = "strix-dictionaries"
+version = "0.15.1"
+dependencies = [
+ "strix-proof",
+ "ureq",
+]
+
+[[package]]
 name = "strix-doc"
 version = "0.15.1"
 dependencies = [
@@ -5266,6 +5274,7 @@ dependencies = [
  "serde_json",
  "strix-cad",
  "strix-calc",
+ "strix-dictionaries",
  "strix-doc",
  "strix-docbin",
  "strix-docx",

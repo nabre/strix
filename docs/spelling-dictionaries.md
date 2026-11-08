@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Installing spelling dictionaries
 
-> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-10-23 · **Change:** minor (ISO 8859-9 Turkish dictionaries are read, #3692; previously minor: Spanish: `es_ES`, `es_MX`, `es_419` and `es_UY` with their fallbacks, #3360, #3553; previously trivial: every Hunspell language shows (no dictionary), not only Polish and Portuguese, and Indonesian is listed, #3150; previously trivial: ISO 8859-1 dictionaries are read, #2824)
+> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-08 · **Change:** minor (Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692; previously minor: Spanish: `es_ES`, `es_MX`, `es_419` and `es_UY` with their fallbacks, #3360, #3553; previously trivial: every Hunspell language shows (no dictionary), not only Polish and Portuguese, and Indonesian is listed, #3150; previously trivial: ISO 8859-1 dictionaries are read, #2824)
 
 English spelling works out of the box. Polish, Russian, Portuguese, Czech, Italian, Croatian,
 Turkish, Indonesian and Spanish spelling use a standard **Hunspell** dictionary (an `.aff` and a `.dic` file) that
@@ -14,7 +14,50 @@ size limit, a parse error), the language isn't checked either, and the status ba
 **(dictionary unreadable)** instead. Its tooltip gives the `.dic` file and the reason, and
 **File › Options › Proofing** lists the same reason next to the file.
 
-Install a dictionary once, restart Strix, and the language is checked as you type.
+The easiest way is to let Strix download it (next section). Installed by hand, a dictionary is
+read after a restart.
+
+## Download from Strix
+
+Click the language on the status bar while it says **(no dictionary)**: the menu starts with
+**Download the `it_IT` spelling dictionary** (the name is the language's). **File › Options ›
+Language** shows the same button under *Proofing language*. Its tooltip names the source and the
+licence. Strix downloads the `.aff` and `.dic` from the
+[LibreOffice dictionaries repository](https://github.com/LibreOffice/dictionaries), at a fixed
+revision, into your own dictionaries folder, and checks spelling with it at once: no restart.
+The status bar says when it is done, or why it failed (offline, a proxy…).
+
+| System | Downloads go to |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Strix\dictionaries` |
+| macOS | `~/Library/Application Support/Strix/dictionaries` |
+| Linux and BSD | `$XDG_DATA_HOME/strix/dictionaries` (usually `~/.local/share/strix/dictionaries`) |
+| Portable | `StrixData/dictionaries` beside the program |
+
+Each download leaves a `<name>.source.txt` beside the files with where it came from and its
+licence. Your computer fetches the files from their publisher: Strix doesn't redistribute them.
+Latin American Spanish reads the Mexican dictionary (`es_MX`), which LibreOffice publishes; the
+web version can't download dictionaries.
+
+From the command line or an agent (it waits for the download):
+
+```sh
+strix-cli run --cmd 'proof.downloadDictionary={"lang":"it-IT"}' --print
+```
+
+| Dictionary | Licence (as its publisher gives it) |
+|---|---|
+| `pl_PL` | GPL-2.0, LGPL-2.1, MPL-1.1, Apache-2.0 or CC-BY-4.0 |
+| `pt_BR` | LGPL-3.0 or MPL |
+| `it_IT` | GPL-3.0 |
+| `hr_HR` | GPL-2.0, LGPL-2.1 or MPL-1.1 |
+| `tr_TR` | MPL-2.0 |
+| `ru_RU` | BSD-style |
+| `cs_CZ` | GPL-2.0 |
+| `id_ID` | LGPL-3.0 |
+| `es_ES`, `es_MX`, `es_UY` | GPL-3.0+, LGPL-3.0+ or MPL-1.1+ |
+
+## Installing by hand
 
 ## Which files each language needs
 
@@ -57,7 +100,8 @@ The first folder holding a matching pair wins:
    way on every system, and it works for an app started from the Start menu, Finder or the Dock.
    The same pane lists the dictionary file each language found.
 2. The folder in the `STRIX_DICTIONARIES` environment variable.
-3. The system's usual places:
+3. The folder Strix downloads dictionaries to (above).
+4. The system's usual places:
 
 | System | Folders |
 |---|---|
@@ -147,3 +191,4 @@ Never commit dictionary files to this repository: they stay on the user's system
 | 2026-10-18 | trivial | ISO 8859-1 (`SET ISO8859-1`) dictionaries are read, so the original VERO `pt_BR` works without converting it to UTF-8 (#2824) |
 | 2026-10-18 | minor | An installed dictionary that can't be read shows **(dictionary unreadable)** in the status bar, with the file and reason in its tooltip and in File › Options › Proofing (#2830) |
 | 2026-10-16 | major | First version: the file names per language, the search order and folders on Windows, macOS and Linux, installing `pt_BR` on each, and how to check it works |
+| 2026-11-08 | minor | Download from Strix: the status bar's language menu and File › Options › Language download a language's missing dictionary from LibreOffice's repository (fixed revision) into the user's dictionaries folder, read at once; `proof.downloadDictionary`; the licences |
