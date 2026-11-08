@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-11-08 · **Change:** the "Calculation and exercise" template, first in File › New
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-11-08 · **Change:** the generated words follow the proofing language (Italian, English, French, German, Spanish); previously: the "Calculation and exercise" template, first in File › New
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -26,7 +26,16 @@ Only paragraphs in the Exercise Question style are questions: the repeated quest
 summary use their labels (`a.1) …`), indented by level; notes and other content between them
 are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
 
-The generated words follow the document's language (Italian or English).
+### Language
+
+The generated words are in the language of the text, the one its spelling dictionary checks
+with: Italian, English, French, German or Spanish (English for the others). A new exercise takes
+the caret's. To change it afterwards, set the language from the status bar or Review › Language
+› Set Proofing Language (on a selection, or as the document's default): every exercise whose
+title is now in another language rewrites the words Strix wrote for it (the frames' titles, the
+placeholders still shown, the *Solution* heading), and the default numbering prefix and the
+results summary follow the first exercise. Only default words change: your title, statement,
+questions, working and a prefix of your own stay as written. One undo step takes it back.
 
 ## Numbering
 
@@ -138,6 +147,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.
 - 2026-11-08: "Calculation and exercise" template, first in the File › New gallery.
 - 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Math › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.
 - 2026-10-29: delete a whole exercise: Delete Exercise (ribbon, context menu, `exercise.delete`), Delete/Backspace/Cut over a selection covering it, a click on its tab selects it; the summary goes with the last exercise. Before, every way was refused by the locked parts.

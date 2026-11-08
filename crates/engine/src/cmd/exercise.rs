@@ -36,9 +36,11 @@ use strix_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
 mod delete;
+mod language;
 mod numbering;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
+pub(crate) use language::follow_language;
 
 pub const TAG_EXERCISE: &str = "strix:exercise";
 /// The title's own control: only the title paragraph, so its placeholder is only the title.
@@ -118,7 +120,8 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-/// Words of the generated parts, in the document's language (Italian or English).
+/// Words of the generated parts, in the document's language (Italian, English, French, German or
+/// Spanish; English for the others).
 struct Words {
     exercise: &'static str,
     solution: &'static str,
@@ -144,42 +147,114 @@ fn words_lang(s: &Session) -> String {
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props()).lang.or_else(|| crate::cmd::default_lang(s)).unwrap_or_default()
 }
 
-fn words(s: &Session) -> Words {
-    let lang = words_lang(s);
-    if lang.to_ascii_lowercase().starts_with("it") {
-        Words {
-            exercise: "Esercizio",
-            solution: "Risoluzione",
-            results: "Riepilogo dei risultati",
-            title: "Titolo dell'esercizio",
-            text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
-            question: "Scrivi qui la domanda.",
-            no_result: "risultato non indicato",
-            title_part: "Titolo",
-            statement: "Testo",
-            questions: "Domande",
-            prompt: "Domande (automatiche)",
-            data: "Dati",
-            variant: "variante",
-        }
-    } else {
-        Words {
-            exercise: "Exercise",
-            solution: "Solution",
-            results: "Results",
-            title: "Exercise title",
-            text: "Write the exercise here: data, figures, tables.",
-            question: "Write the question here.",
-            no_result: "no result marked",
-            title_part: "Title",
-            statement: "Statement",
-            questions: "Questions",
-            prompt: "Questions (automatic)",
-            data: "Data",
-            variant: "variant",
-        }
+/// The words of the language exercises are inserted in: the caret's ([`words_lang`]).
+fn words(s: &Session) -> &'static Words {
+    words_for(&words_lang(s))
+}
+
+/// The words of the document's exercises, for the parts generated for all of them (the results
+/// summary, the data, the numbering's default prefix): the first exercise's language, else the
+/// caret's.
+fn doc_words(s: &Session) -> &'static Words {
+    scan(s).exercises.first().map_or_else(|| words(s), |e| words_for(&language::lang_at(s, e.start)))
+}
+
+/// The exercise words of language tag `lang` (`it-IT`, `fr`…); English for the languages without
+/// their own.
+fn words_for(lang: &str) -> &'static Words {
+    let lang = lang.to_ascii_lowercase();
+    let primary = lang.split(['-', '_']).next().unwrap_or_default();
+    match primary {
+        "it" => &IT,
+        "fr" => &FR,
+        "de" => &DE,
+        "es" => &ES,
+        _ => &EN,
     }
 }
+
+/// Every language's words: a generated text is a default (one to translate) when one of them has it.
+const ALL_WORDS: [&Words; 5] = [&IT, &EN, &FR, &DE, &ES];
+
+const IT: Words = Words {
+    exercise: "Esercizio",
+    solution: "Risoluzione",
+    results: "Riepilogo dei risultati",
+    title: "Titolo dell'esercizio",
+    text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
+    question: "Scrivi qui la domanda.",
+    no_result: "risultato non indicato",
+    title_part: "Titolo",
+    statement: "Testo",
+    questions: "Domande",
+    prompt: "Domande (automatiche)",
+    data: "Dati",
+    variant: "variante",
+};
+
+const EN: Words = Words {
+    exercise: "Exercise",
+    solution: "Solution",
+    results: "Results",
+    title: "Exercise title",
+    text: "Write the exercise here: data, figures, tables.",
+    question: "Write the question here.",
+    no_result: "no result marked",
+    title_part: "Title",
+    statement: "Statement",
+    questions: "Questions",
+    prompt: "Questions (automatic)",
+    data: "Data",
+    variant: "variant",
+};
+
+const FR: Words = Words {
+    exercise: "Exercice",
+    solution: "Solution",
+    results: "Récapitulatif des résultats",
+    title: "Titre de l'exercice",
+    text: "Écrivez ici l'énoncé de l'exercice : données, figures, tableaux.",
+    question: "Écrivez ici la question.",
+    no_result: "résultat non indiqué",
+    title_part: "Titre",
+    statement: "Énoncé",
+    questions: "Questions",
+    prompt: "Questions (automatiques)",
+    data: "Données",
+    variant: "variante",
+};
+
+const DE: Words = Words {
+    exercise: "Aufgabe",
+    solution: "Lösung",
+    results: "Ergebnisübersicht",
+    title: "Titel der Aufgabe",
+    text: "Schreiben Sie hier die Aufgabe: Daten, Abbildungen, Tabellen.",
+    question: "Schreiben Sie hier die Frage.",
+    no_result: "kein Ergebnis angegeben",
+    title_part: "Titel",
+    statement: "Aufgabenstellung",
+    questions: "Fragen",
+    prompt: "Fragen (automatisch)",
+    data: "Daten",
+    variant: "Variante",
+};
+
+const ES: Words = Words {
+    exercise: "Ejercicio",
+    solution: "Solución",
+    results: "Resumen de resultados",
+    title: "Título del ejercicio",
+    text: "Escribe aquí el enunciado del ejercicio: datos, figuras, tablas.",
+    question: "Escribe aquí la pregunta.",
+    no_result: "resultado no indicado",
+    title_part: "Título",
+    statement: "Enunciado",
+    questions: "Preguntas",
+    prompt: "Preguntas (automáticas)",
+    data: "Datos",
+    variant: "variante",
+};
 
 /// Adds the exercise styles the document lacks.
 fn ensure_styles(s: &mut Session) {
@@ -1236,7 +1311,7 @@ fn opener(s: &Session, i: usize, tag: &str) -> Option<ContentControl> {
 /// its own control, showing the placeholder; the exercise control stops showing one. Returns
 /// whether anything changed.
 fn title_controls(s: &mut Session) -> bool {
-    let w = words(s);
+    let w = doc_words(s);
     let mut changed = false;
     for block in s.doc.body.iter_mut() {
         let Block::Para(p) = &**block else { continue };
@@ -1280,7 +1355,7 @@ fn title_controls(s: &mut Session) -> bool {
 /// reopening, an emptied title, statement or questions part would show the generic "Type here.":
 /// the exercise's own words go back on its controls. Nothing shown changes.
 fn placeholders(s: &mut Session) {
-    let w = words(s);
+    let w = doc_words(s);
     let wanted = |tag: &str| match tag {
         TAG_TITLE => Some(w.title),
         TAG_TEXT => Some(w.text),
@@ -1322,7 +1397,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
         s.clamp_selection();
         return true;
     }
-    let w = words(s);
+    let w = doc_words(s);
     // The repeated questions, last exercise first so earlier block indices stay valid.
     for e in layout.exercises.iter().rev() {
         changed |= update_prompts(s, e);
@@ -1334,7 +1409,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
         super::calc::unit_color(s);
     }
     for e in layout.exercises.iter().rev() {
-        let lines = e.data.lines(&w);
+        let lines = e.data.lines(w);
         match (e.data_blocks, lines.is_empty()) {
             (Some((from, to)), true) => {
                 // Only blocks that are the generated data part are removed.
