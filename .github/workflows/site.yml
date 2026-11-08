@@ -16,7 +16,9 @@ on:
       # The version in the download links.
       - 'Cargo.toml'
       - '.github/workflows/site.yml'
-  # A new release: new download links and a new web build in app/.
+  # A new release: new download links and a new web build in app/. A release published by hand on
+  # GitHub raises this event; one published by publish-release.yml (GITHUB_TOKEN) doesn't, so
+  # that workflow starts this one through workflow_dispatch.
   release:
     types: [published]
   workflow_dispatch:

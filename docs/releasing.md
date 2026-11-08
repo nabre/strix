@@ -34,7 +34,12 @@ Windows builds ship portable.
 
 3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review it, then
    publish it on GitHub or with Actions › **Publish release** (`publish-release.yml`, by hand:
-   it makes the draft the published, latest release).
+   it makes the draft the published, latest release). Publishing redeploys the site
+   (`site.yml`), so the download links and the browser version at
+   <https://nabre.github.io/strix/app/> move to the new release: on its own for a release
+   published on GitHub, and through `publish-release.yml`'s **Redeploy the site** step otherwise
+   (a release published with `GITHUB_TOKEN` starts no other workflow). To redeploy by hand:
+   `gh workflow run site.yml --ref main`.
 
 `.github/workflows/release.yml` is Strix's own pipeline: it reuses the suite's composite actions
 (`storytold/craft-common-actions/actions/*`) but not its reusable release workflow, which requires

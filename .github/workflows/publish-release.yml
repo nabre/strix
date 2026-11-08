@@ -1,5 +1,8 @@
 # Publishes the draft GitHub Release that release.yml made (docs/releasing.md): run it by hand
-# (Actions › Publish release › Run workflow) once the draft has been checked.
+# (Actions › Publish release › Run workflow) once the draft has been checked. It then redeploys the
+# site (site.yml), so https://nabre.github.io/strix/app/ serves the new web build: a release
+# published with GITHUB_TOKEN raises no `release` event for other workflows, but a
+# workflow_dispatch it starts does run.
 name: Publish release
 
 on:
@@ -12,6 +15,8 @@ on:
 
 permissions:
   contents: write
+  # gh workflow run site.yml
+  actions: write
 
 jobs:
   publish:
@@ -31,7 +36,14 @@ jobs:
           draft="$(gh release view "$tag" --json isDraft --jq .isDraft)" || { echo "::error::there is no release $tag: run Release first"; exit 1; }
           if [ "$draft" != "true" ]; then
             echo "$tag is already published"
-            exit 0
+          else
+            gh release edit "$tag" --draft=false --latest
+            echo "Published $(gh release view "$tag" --json url --jq .url)" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          gh release edit "$tag" --draft=false --latest
-          echo "Published $(gh release view "$tag" --json url --jq .url)" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The site's download links and its web app (app/) come from the latest release.
+      - name: Redeploy the site
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Started the site deploy (site.yml) for the new release" | tee -a "$GITHUB_STEP_SUMMARY"
