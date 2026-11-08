@@ -17,6 +17,8 @@ use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 const PT_PER_MM: f32 = 72.0 / 25.4;
 /// Most items one drawing makes (each segment of a tessellated arc counts once).
 const MAX_ITEMS: usize = 20_000;
+/// Most pieces in one item made of a run of strokes (see `items_of`).
+const MAX_RUN_SEGS: usize = 20_000;
 /// Font size of a text whose capital letters are `h` mm high (cap height ≈ 0.7 em).
 const CAP_TO_EM: f32 = 1.0 / 0.7;
 
@@ -85,8 +87,30 @@ pub fn edited(s: &Session) -> Option<(strix_doc::Pos, Drawing, Rendered, Vec<Str
         return None;
     }
     let source = graphic.cad.clone()?;
-    let (d, r, names) = super::calc::resolved_cad(s, &source)?;
-    Some((pos, d, r, names))
+    let resolved = super::calc::resolved_cad(s, &source)?;
+    let (d, r, names) = &*resolved;
+    Some((pos, d.clone(), r.clone(), names.clone()))
+}
+
+/// The selected CAD drawing as [`edited`] works it out, without copying it: whether it can be
+/// edited, and its drawing (for the ribbon, which asks every frame).
+fn edited_ref(s: &Session) -> Option<super::calc::ResolvedCad> {
+    let (_, obj) = super::objects::selected(s)?;
+    let InlineObject::Graphic { graphic, .. } = obj else { return None };
+    if graphic.kind != GraphicKind::Cad {
+        return None;
+    }
+    super::calc::resolved_cad(s, graphic.cad.as_ref()?)
+}
+
+/// Whether the selected object is a CAD drawing the editor can open.
+pub fn editable(s: &Session) -> bool {
+    edited_ref(s).is_some()
+}
+
+/// The selected CAD drawing with its sizes worked out where it sits (no rendering copied).
+pub fn edited_drawing(s: &Session) -> Option<Drawing> {
+    edited_ref(s).map(|r| r.0.clone())
 }
 
 /// The selected object, when it is a CAD drawing: where it is and its source.
@@ -237,7 +261,6 @@ const MATH_FONT: &str = "Cambria Math";
 /// A subscript's size, as a share of the text's.
 const SUB_SCALE: f32 = 0.7;
 
-/// The graphic items of a rendered drawing (points from its top-left corner) and its size.
 /// How wide `text` is at `size` points in `family` (italic or not), shaped as the page draws it.
 fn measure(family: &str, italic: bool, text: &str, size: f32) -> f32 {
     let resolved = strix_fonts::word::resolve(family, false, italic);
@@ -250,10 +273,32 @@ fn measure(family: &str, italic: bool, text: &str, size: f32) -> f32 {
 /// text in pieces (units, parameters) is measured in its fonts, `body_font` where it has none
 /// (the document's, as the page draws it).
 pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, f32, Vec<GraphicItem>) {
+    // A drawing of millions of points is saved with fewer (`Rendered::lightened`).
+    let light = r.lightened();
+    let r: &Rendered = &light;
     let pt = |v: f64| (v as f32) * PT_PER_MM;
     let rgb = |c: [u8; 3]| Rgb(c[0], c[1], c[2]);
     let mut items = Vec::new();
+    // The style of the last item when it is a run of single solid strokes (a hatch's lines),
+    // which the next such stroke in that style joins as one more piece: a fine hatch is one
+    // item, not thousands, and leaves room under `MAX_ITEMS` for what is drawn over it.
+    let mut run: Option<([u8; 3], f64)> = None;
     for prim in &r.prims {
+        if let Prim::Path { pts, closed: false, color, width, fill: false, dash } = prim
+            && let [a, b] = pts.as_slice()
+            && dash.is_empty()
+        {
+            if run == Some((*color, *width))
+                && let Some(GraphicItem::Path { segs, .. }) = items.last_mut()
+                && segs.len() < MAX_RUN_SEGS
+            {
+                segs.extend([PathSeg::Move(pt(a.0), pt(a.1)), PathSeg::Line(pt(b.0), pt(b.1))]);
+                continue;
+            }
+            run = Some((*color, *width));
+        } else {
+            run = None;
+        }
         if items.len() >= MAX_ITEMS {
             break;
         }
@@ -461,6 +506,32 @@ mod tests {
         assert_eq!(texts(&g), ["L = 6 m"], "drawn again on open");
     }
 
+    /// The editor's view of the selected drawing is kept between frames, and follows the
+    /// parameters before it when they change.
+    #[test]
+    fn the_edited_drawing_follows_its_parameters() {
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        let on_drawing = s.sel.clone();
+        let end = |s: &Session| match edited_drawing(s).map(|d| d.entities[0].kind.clone()) {
+            Some(strix_cad::Kind::Line { b, .. }) => b.0.value,
+            other => panic!("{other:?}"),
+        };
+        assert!(editable(&s));
+        assert_eq!(end(&s), 4.5);
+        assert_eq!(end(&s), 4.5, "asked again");
+        s.sel = Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        assert!(!editable(&s), "the caret is not on a drawing");
+        s.run("equation.set", &json!({"linear": "L = 6 m"})).unwrap();
+        s.run("equation.exit", &json!({})).ok();
+        s.sel = on_drawing;
+        assert_eq!(end(&s), 6.0);
+        assert_eq!(edited(&s).map(|(_, d, ..)| d.entities.len()), Some(1));
+    }
+
     /// Drawing Scale: a fixed 1:n, or the largest standard scale that fits the space (by
     /// default the page's text width), which follows a parameter that grows the drawing.
     #[test]
@@ -540,6 +611,33 @@ mod tests {
         }
         let _ = s.run("cad.get", &json!({}));
         let _ = s.run("cad.add", &json!({"entity": null}));
+    }
+
+    /// Fine hatches drawn first (they go behind everything) no longer use up the page's item
+    /// budget: their lines are pieces of one item each, and the dimension drawn over them
+    /// still reaches the page and the PDF.
+    #[test]
+    fn hatch_lines_leave_room_for_what_is_drawn_over_them() {
+        let mut entities = Vec::new();
+        for i in 0..30 {
+            let x = i * 300;
+            entities.push(format!(r#"{{"type":"hatch","boundary":["b{i}"],"pattern":"cross","spacing":0.5}}"#));
+            entities.push(format!(r#"{{"id":"b{i}","type":"polyline","closed":true,"pts":[[{x},0],[{},0],[{},250],[{x},250]]}}"#, x + 250, x + 250));
+        }
+        entities.push(r#"{"type":"dim","a":[0,0],"b":[250,0],"text":"last"}"#.to_string());
+        let d = Drawing::from_json(&format!(r#"{{"entities":[{}]}}"#, entities.join(","))).unwrap();
+        let rendered = d.render(None);
+        assert!(rendered.prims.len() > MAX_ITEMS, "{}", rendered.prims.len());
+        let (_, _, items) = items_of(&rendered, Rgb(0, 0, 0), "Calibri");
+        assert!(items.len() < MAX_ITEMS, "{}", items.len());
+        assert!(items.iter().any(|i| matches!(i, GraphicItem::Text { text, .. } if text == "last")), "the dimension is drawn");
+        // Every hatch line is still drawn, as a move and a line.
+        let moves: usize = items
+            .iter()
+            .map(|i| if let GraphicItem::Path { segs, .. } = i { segs.iter().filter(|s| matches!(s, PathSeg::Move(..))).count() } else { 0 })
+            .sum();
+        let strokes = rendered.prims.iter().filter(|p| matches!(p, Prim::Path { pts, .. } if pts.len() == 2)).count();
+        assert!(moves >= strokes, "{moves} of {strokes}");
     }
 
     /// On the page a dashed line is drawn as its dashes and a turned text at its angle, its

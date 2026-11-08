@@ -249,28 +249,48 @@ impl Drawing {
 
     /// Copies the entities at `indices`, moved by `d`; returns the copies' indices.
     pub fn copy(&mut self, indices: &[usize], d: Pt) -> Vec<usize> {
-        let mut out = Vec::new();
-        // Old id to the copy's: a strip copied with its path follows the copied path.
-        let mut ids: Vec<(String, String)> = Vec::new();
-        for &i in indices {
-            let Some(mut e) = self.entities.get(i).cloned() else { continue };
-            let old = e.id.clone();
-            move_kind(&mut e.kind, d);
-            if let Ok(id) = self.add(e) {
-                ids.push((old, id));
-                out.push(self.entities.len() - 1);
+        self.copies(indices, &[d]).concat()
+    }
+
+    /// Copies the entities at `indices` once for each of `offsets`, moved by it: the copies'
+    /// indices, a list for each offset. The copies are added at once (fresh ids, the drawing
+    /// made safe once): an array of a thousand items over thousands of objects stays quick.
+    pub(crate) fn copies(&mut self, indices: &[usize], offsets: &[Pt]) -> Vec<Vec<usize>> {
+        let mut made = Vec::new();
+        // Each copy's original id, and which group it is in.
+        let mut origin: Vec<(String, usize)> = Vec::new();
+        for (g, &d) in offsets.iter().enumerate() {
+            for &i in indices {
+                let Some(mut e) = self.entities.get(i).cloned() else { continue };
+                origin.push((e.id.clone(), g));
+                move_kind(&mut e.kind, d);
+                made.push(e);
             }
         }
-        let renamed = |id: &mut String| {
-            if let Some((_, new)) = ids.iter().find(|(old, _)| old == id) {
-                *id = new.clone();
+        let first = self.entities.len();
+        let ids = self.add_all(made);
+        let mut out = vec![Vec::new(); offsets.len()];
+        // Old id to the copy's, in each group: a strip copied with its path follows the copied
+        // path.
+        let mut renames: Vec<std::collections::HashMap<String, String>> = vec![Default::default(); offsets.len()];
+        for (k, ((old, g), id)) in origin.into_iter().zip(&ids).enumerate() {
+            if let (Some(id), Some(list), Some(map)) = (id, out.get_mut(g), renames.get_mut(g)) {
+                list.push(first + k);
+                map.insert(old, id.clone());
             }
-        };
-        for &i in &out {
-            match self.entities.get_mut(i).map(|e| &mut e.kind) {
-                Some(Kind::Strip { along, .. }) => renamed(along),
-                Some(Kind::Hatch { boundary, .. }) => boundary.iter_mut().for_each(renamed),
-                _ => {}
+        }
+        for (list, map) in out.iter().zip(&renames) {
+            let renamed = |id: &mut String| {
+                if let Some(new) = map.get(id) {
+                    new.clone_into(id);
+                }
+            };
+            for &i in list {
+                match self.entities.get_mut(i).map(|e| &mut e.kind) {
+                    Some(Kind::Strip { along, .. }) => renamed(along),
+                    Some(Kind::Hatch { boundary, .. }) => boundary.iter_mut().for_each(renamed),
+                    _ => {}
+                }
             }
         }
         out
@@ -281,7 +301,7 @@ impl Drawing {
         let mut sorted = indices.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
-        let gone: Vec<String> = sorted.iter().filter_map(|&i| self.entities.get(i)).map(|e| e.id.clone()).collect();
+        let gone: std::collections::HashSet<String> = sorted.iter().filter_map(|&i| self.entities.get(i)).map(|e| e.id.clone()).collect();
         for &i in sorted.iter().rev() {
             if i < self.entities.len() {
                 self.entities.remove(i);
@@ -424,7 +444,9 @@ pub fn dim_offset(d: &Drawing, a: Pt, b: Pt, orient: Orient, at: Pt) -> f64 {
     let level = |q: Pt| q.x * n.x + q.y * n.y;
     let (na, nb, nl) = (level(a), level(b), level(at));
     let units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
-    (units * paper_per_unit(d)).clamp(-500.0, 500.0)
+    let paper = units * paper_per_unit(d);
+    // `clamp` keeps a NaN: from points out of range it would reach the saved drawing.
+    if paper.is_finite() { paper.clamp(-500.0, 500.0) } else { 0.0 }
 }
 
 impl Drawing {
@@ -595,11 +617,13 @@ impl Drawing {
             }
             (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) => shift_p(p, d),
             (Kind::Dim { offset, offset_units, .. }, Grip::DimLine) => {
-                if scaled {
-                    *offset_units = (offset_at - *offset) / k;
-                } else {
-                    *offset = offset_at - *offset_units * k;
+                let (new_units, new_offset) =
+                    if scaled { ((offset_at - *offset) / k, *offset) } else { (*offset_units, offset_at - *offset_units * k) };
+                if !(new_units.is_finite() && new_offset.is_finite()) {
+                    return false;
                 }
+                *offset_units = new_units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
+                *offset = new_offset.clamp(-500.0, 500.0);
             }
             _ => return false,
         }

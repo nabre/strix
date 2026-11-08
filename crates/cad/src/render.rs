@@ -68,6 +68,37 @@ pub struct Rendered {
 /// The largest gap between a drawn chord and its curve, paper mm.
 const CHORD_MM: f64 = 0.01;
 
+/// Most points one drawing draws, all its primitives together: a file with thousands of huge
+/// arcs or fine hatches would otherwise take gigabytes. Past it curves keep a few chords each
+/// (`MIN_THINNED` points) and hatches are left out.
+pub const MAX_POINTS: usize = 2_000_000;
+/// Most hatch and strip segments one drawing draws, all its hatches and strips together.
+pub const MAX_HATCH_TOTAL: usize = 200_000;
+/// The fewest points a curve is thinned to once the drawing's budget is spent.
+const MIN_THINNED: usize = 16;
+
+/// Most points the outputs written into the document carry, all paths together: the SVG
+/// picture saved with the drawing and the page's items. Past it [`Rendered::lightened`] thins
+/// every curve alike, so a drawing near [`MAX_POINTS`] saves a few megabytes, not tens.
+pub const MAX_OUTPUT_POINTS: usize = 500_000;
+
+/// `pts`, every so many dropped so that at most `left` remain (never fewer than `MIN_THINNED`);
+/// the first and last points are kept.
+fn thinned<T: Copy + PartialEq>(pts: &[T], left: usize) -> std::borrow::Cow<'_, [T]> {
+    let keep = left.max(MIN_THINNED);
+    if pts.len() <= keep {
+        return std::borrow::Cow::Borrowed(pts);
+    }
+    let stride = pts.len().div_ceil(keep - 1).max(1);
+    let mut out: Vec<T> = pts.iter().step_by(stride).copied().collect();
+    if let Some(&last) = pts.last()
+        && out.last() != Some(&last)
+    {
+        out.push(last);
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 /// How close to 90° an angular dimension is drawn as a right angle, radians (a millionth of a
 /// degree: exact and parametric drawings, not "nearly square" ones).
 pub(crate) const RIGHT_ANGLE_TOL: f64 = 1e-6 * std::f64::consts::PI / 180.0;
@@ -91,21 +122,31 @@ impl Drawing {
         // Curves are drawn with chords at most this far off them: 0.01 mm on paper.
         let chord = Some(CHORD_MM / k);
         let mut prims = Vec::new();
+        // What the drawing may still draw, all its entities together (see `MAX_POINTS`).
+        let mut points_left = MAX_POINTS;
+        let mut hatch_left = MAX_HATCH_TOTAL;
         for e in &self.entities {
             let layer = self.layer(&e.layer);
             if !layer.visible || !(layer.print || screen) {
                 continue;
             }
+            let drawn = prims.len();
             let (color, width, dash) = self.stroke_of(e);
             let dash = dash.pattern().to_vec();
-            let path = |pts: Vec<Pt>, closed: bool| Prim::Path {
-                pts: pts.iter().map(|p| (p.x * k, p.y * k)).collect(),
+            // A curve's chords, thinned once the budget is spent (`thin`); a polyline's own
+            // vertices are never dropped (at most `MAX_VERTICES`): only its arcs lose chords.
+            let stroke = |pts: Vec<Pt>, closed: bool, thin: bool| Prim::Path {
+                pts: if thin { thinned(&pts, points_left) } else { std::borrow::Cow::Borrowed(&pts[..]) }
+                    .iter()
+                    .map(|p| (p.x * k, p.y * k))
+                    .collect(),
                 closed,
                 color,
                 width,
                 dash: dash.clone(),
                 fill: false,
             };
+            let path = |pts: Vec<Pt>, closed: bool| stroke(pts, closed, true);
             match &e.kind {
                 Kind::Line { a, b } => prims.push(path(vec![a.pt(), b.pt()], false)),
                 Kind::Circle { c, r } => prims.push(path(arc_points_tol(c.pt(), r.value.abs(), 0.0, 360.0, chord), true)),
@@ -118,12 +159,17 @@ impl Drawing {
                     let segments = crate::kernel::segments(n, *closed);
                     for i in 0..segments {
                         let (Some(&a), Some(&b)) = (vs.get(i), vs.get((i + 1) % n)) else { continue };
-                        out.extend(bulge_points_tol(a, b, bulges.get(i).copied().unwrap_or(0.0), chord));
+                        // Past the drawing's budget the rest of the outline is its chords.
+                        if out.len() < points_left {
+                            out.extend(bulge_points_tol(a, b, bulges.get(i).copied().unwrap_or(0.0), chord));
+                        } else {
+                            out.push(b);
+                        }
                     }
                     if *closed {
                         out.pop();
                     }
-                    prims.push(path(out, *closed));
+                    prims.push(stroke(out, *closed, false));
                 }
                 Kind::Point { p } => {
                     let p = p.pt();
@@ -154,12 +200,21 @@ impl Drawing {
                 Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
                     let paper = |p: Pt| (p.x * k, p.y * k);
                     let w = if *pattern == crate::model::Pattern::Solid { crate::hatch::SOLID_SPACING * 1.4 } else { width.min(0.18) };
-                    let lines = if matches!(e.kind, Kind::Strip { .. }) { self.strip_lines(e) } else { self.hatch_lines(e) };
-                    for (a, b) in lines {
+                    // Past the drawing's budget hatches are left out (not even worked out).
+                    let lines = match (hatch_left.min(points_left / 2), &e.kind) {
+                        (0, _) => Vec::new(),
+                        (_, Kind::Strip { .. }) => self.strip_lines(e),
+                        _ => self.hatch_lines(e),
+                    };
+                    let take = hatch_left.min(points_left / 2);
+                    hatch_left = hatch_left.saturating_sub(lines.len());
+                    for (a, b) in lines.into_iter().take(take) {
                         prims.push(Prim::Path { pts: vec![paper(a), paper(b)], closed: false, color, width: w, dash: Vec::new(), fill: false });
                     }
                 }
             }
+            let spent: usize = prims.get(drawn..).unwrap_or_default().iter().map(Prim::point_count).sum();
+            points_left = points_left.saturating_sub(spent);
         }
         let mut r = place(prims, self.padding);
         r.scale = k;
@@ -390,7 +445,40 @@ pub fn readable(deg: f64) -> (f64, bool) {
 /// Most dashes one path is cut into (a longer pattern run is drawn solid past it).
 pub const MAX_DASHES: usize = 20_000;
 
+impl Rendered {
+    /// The rendering as the outputs saved in the document carry it: itself, or past
+    /// [`MAX_OUTPUT_POINTS`] every path of more than a few points thinned by the same share
+    /// (its first and last points kept). Texts, dots and two-point strokes stay.
+    pub fn lightened(&self) -> std::borrow::Cow<'_, Rendered> {
+        let total: usize = self.prims.iter().map(Prim::point_count).sum();
+        if total <= MAX_OUTPUT_POINTS {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let mut light = self.clone();
+        for prim in &mut light.prims {
+            if let Prim::Path { pts, .. } = prim
+                && pts.len() > MIN_THINNED
+            {
+                // This path's share of the output, as its share of the drawing.
+                let keep = pts.len().saturating_mul(MAX_OUTPUT_POINTS) / total.max(1);
+                if let std::borrow::Cow::Owned(fewer) = thinned(pts, keep) {
+                    *pts = fewer;
+                }
+            }
+        }
+        std::borrow::Cow::Owned(light)
+    }
+}
+
 impl Prim {
+    /// How many points it draws (a text or a dot: one).
+    pub(crate) fn point_count(&self) -> usize {
+        match self {
+            Prim::Path { pts, .. } => pts.len(),
+            Prim::Dot { .. } | Prim::Text { .. } => 1,
+        }
+    }
+
     /// A path's drawn pieces, its dash pattern applied (paper mm, from its first point; a
     /// closed path's closing side included): the runs where the pen is down, each a polyline.
     /// A solid path is one piece, a dot or a text none. For outputs that cannot dash a stroke

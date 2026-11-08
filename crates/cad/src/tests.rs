@@ -1519,3 +1519,155 @@ fn dash_patterns_cut_paths_into_their_dashes() {
     assert_eq!(dash_runs(&[(0.0, 0.0), (10.0, 0.0)], &[1.0]).len(), 5, "an odd pattern repeats twice over");
     assert!(Prim::Dot { at: (0.0, 0.0), r: 1.0, color: [0, 0, 0] }.pieces().is_empty());
 }
+
+#[test]
+fn a_hostile_drawing_draws_within_the_budget() {
+    // Ten thousand far-apart vertices with nearly circular bulges would tessellate to some
+    // forty million points, and many fine hatches to millions of segments: the drawing shares
+    // one budget, so it renders quickly, in bounded memory, and still shows every entity.
+    let pts: Vec<String> = (0..MAX_VERTICES).map(|i| format!("[{}, {}]", (i % 2) as f64 * 1e6, i as f64 * 10.0)).collect();
+    let bulges = vec!["900"; MAX_VERTICES].join(",");
+    let mut entities = vec![format!(r#"{{"type": "polyline", "pts": [{}], "bulges": [{bulges}]}}"#, pts.join(","))];
+    for i in 0..60 {
+        let id = format!("b{i}");
+        let x = i as f64 * 2e5;
+        entities.push(format!(
+            r#"{{"id": "{id}", "type": "polyline", "closed": true, "pts": [[{x}, 0], [{}, 0], [{}, 1e5], [{x}, 1e5]]}}"#,
+            x + 1e5,
+            x + 1e5
+        ));
+        entities.push(format!(r#"{{"type": "hatch", "boundary": ["{id}"], "pattern": "cross", "spacing": 0.2}}"#));
+    }
+    entities.push(r#"{"type": "circle", "c": [0, 0], "r": 1e6}"#.to_string());
+    let d = Drawing::from_json(&format!(r#"{{"scale": 1, "entities": [{}]}}"#, entities.join(","))).unwrap();
+    let started = std::time::Instant::now();
+    let r = d.render(None);
+    let points: usize = r
+        .prims
+        .iter()
+        .map(|p| match p {
+            Prim::Path { pts, .. } => pts.len(),
+            _ => 1,
+        })
+        .sum();
+    // Past the budget a polyline keeps its vertices, and the arc being drawn its chords.
+    assert!(points <= crate::render::MAX_POINTS + MAX_VERTICES + 4096 + 16 * 200, "{points} points");
+    let hatch_segments = r.prims.iter().filter(|p| matches!(p, Prim::Path { pts, width, .. } if pts.len() == 2 && *width <= 0.18)).count();
+    assert!(hatch_segments <= crate::render::MAX_HATCH_TOTAL, "{hatch_segments} hatch segments");
+    // The circle drawn after the budget is spent is still there, with a few chords.
+    assert!(matches!(r.prims.last(), Some(Prim::Path { pts, closed: true, .. }) if pts.len() >= 16), "{:?}", r.prims.last().map(|p| p.point_count()));
+    assert!(started.elapsed() < std::time::Duration::from_secs(20), "{:?}", started.elapsed());
+}
+
+#[test]
+fn transformed_coordinates_stay_finite_and_the_drawing_reopens() {
+    // Scaled twice by a huge factor, typed in the editor: the coordinates would overflow to
+    // infinity, which JSON writes as `null`, and the saved drawing would no longer open.
+    let mut d = Drawing::from_json(
+        r#"{"entities": [
+        {"type": "line", "a": [0, 0], "b": [5, 5]},
+        {"type": "circle", "c": [1, 1], "r": 2},
+        {"type": "dim", "a": [0, 0], "b": [5, 0], "offsetUnits": 3},
+        {"type": "angle", "c": [0, 0], "a": [1, 0], "b": [0, 1], "r": 2}
+    ]}"#,
+    )
+    .unwrap();
+    let all: Vec<usize> = (0..d.entities.len()).collect();
+    for _ in 0..2 {
+        d.transform(&all, &Affine::scaling(Pt::new(0.0, 0.0), 1e300));
+    }
+    let _ = d.array_rect(&all, 2, 2, 1e300, 1e300);
+    let back = Drawing::from_json(&d.to_json()).expect("the drawing reopens");
+    assert_eq!(back.entities.len(), d.entities.len());
+    let finite = |v: f64| v.is_finite() && v.abs() <= MAX_COORD;
+    for e in d.entities.iter().chain(&back.entities) {
+        match &e.kind {
+            Kind::Line { a, b } | Kind::Dim { a, b, .. } => assert!([a.0.value, a.1.value, b.0.value, b.1.value].into_iter().all(finite), "{e:?}"),
+            Kind::Circle { c, r } => assert!(finite(c.0.value) && finite(r.value), "{e:?}"),
+            Kind::Angle { r, .. } => assert!(finite(*r), "{e:?}"),
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn a_dimension_dragged_from_points_out_of_range_still_saves() {
+    // Found by fuzzing: a dimension whose points an edit had left infinite, its line dragged,
+    // took a NaN distance; JSON wrote it `null` and the drawing no longer opened.
+    let mut d = Drawing::from_json(r#"{"entities": [{"type": "dim", "a": [0, 0], "b": [10, 0]}]}"#).unwrap();
+    if let Kind::Dim { a, b, .. } = &mut d.entities[0].kind {
+        a.0.value = f64::INFINITY;
+        b.0.value = f64::INFINITY;
+    }
+    let _ = d.move_grip(0, Grip::DimLine, Pt::new(5.0, 5.0));
+    if let Kind::Dim { offset, .. } = &d.entities[0].kind {
+        assert!(offset.is_finite(), "{offset}");
+    }
+    // Whatever an edit leaves, the saved drawing reads back.
+    if let Kind::Dim { offset, offset_units, .. } = &mut d.entities[0].kind {
+        *offset = f64::NAN;
+        *offset_units = f64::INFINITY;
+    }
+    let json = d.to_json();
+    assert!(!json.contains("null"), "{json}");
+    assert!(Drawing::from_json(&json).is_ok(), "{json}");
+}
+
+#[test]
+fn svg_draws_a_hatch_as_one_path() {
+    // A hatch's lines in one style are the pieces of one SVG path, not an element each.
+    let d = Drawing::from_json(
+        r#"{"entities": [
+        {"id": "b", "type": "polyline", "closed": true, "pts": [[0, 0], [100, 0], [100, 60], [0, 60]]},
+        {"type": "hatch", "boundary": ["b"], "pattern": "lines", "angle": 45, "spacing": 2},
+        {"type": "line", "a": [0, 70], "b": [100, 70]}
+    ]}"#,
+    )
+    .unwrap();
+    let r = d.render(None);
+    let lines = r.prims.iter().filter(|p| matches!(p, Prim::Path { pts, .. } if pts.len() == 2)).count();
+    assert!(lines > 50, "{lines}");
+    let svg = r.to_svg([0, 0, 0]);
+    let pieces = svg.matches('M').count();
+    assert_eq!(svg.matches("<path ").count(), 1, "{svg}");
+    // Every hatch line is a piece; the line, drawn heavier, keeps an element of its own.
+    assert_eq!(svg.matches("<polyline").count(), 1, "{svg}");
+    assert_eq!(pieces + 1, lines, "{svg}");
+    assert!(svg.len() < 60 * lines, "{} bytes for {lines} lines", svg.len());
+}
+
+#[test]
+fn past_the_budget_a_polyline_keeps_its_vertices() {
+    // A huge circle spends the drawing's budget first; the polyline drawn after it keeps every
+    // vertex (only arcs lose chords past the budget), where it used to be cut to 16 points.
+    let pts: Vec<String> = (0..500).map(|i| format!("[{}, {}]", i, (i % 7) * 3)).collect();
+    let mut entities: Vec<String> = (0..600).map(|i| format!(r#"{{"type": "circle", "c": [{i}, 0], "r": 1e7}}"#)).collect();
+    entities.push(format!(r#"{{"type": "polyline", "pts": [{}]}}"#, pts.join(",")));
+    let d = Drawing::from_json(&format!(r#"{{"scale": 1, "entities": [{}]}}"#, entities.join(","))).unwrap();
+    let r = d.render(None);
+    let spent: usize = r.prims.iter().map(|p| p.point_count()).sum();
+    assert!(spent <= crate::render::MAX_POINTS + 16 * 600 + 500, "{spent}");
+    assert!(
+        matches!(r.prims.last(), Some(Prim::Path { pts, closed: false, .. }) if pts.len() == 500),
+        "{:?}",
+        r.prims.last().map(|p| p.point_count())
+    );
+}
+
+#[test]
+fn saved_outputs_stay_light() {
+    // Near the render budget the SVG picture saved with the drawing is thinned to
+    // `MAX_OUTPUT_POINTS`: a few megabytes, not tens. A small drawing is written as it is.
+    let entities: Vec<String> = (0..600).map(|i| format!(r#"{{"type": "circle", "c": [{}, 0], "r": 1e5}}"#, i * 10)).collect();
+    let d = Drawing::from_json(&format!(r#"{{"scale": 1, "entities": [{}]}}"#, entities.join(","))).unwrap();
+    let r = d.render(None);
+    let full: usize = r.prims.iter().map(|p| p.point_count()).sum();
+    assert!(full > crate::render::MAX_OUTPUT_POINTS, "{full}");
+    let light = r.lightened();
+    let kept: usize = light.prims.iter().map(|p| p.point_count()).sum();
+    assert!(kept <= crate::render::MAX_OUTPUT_POINTS + 600, "{kept}");
+    assert_eq!(light.prims.len(), r.prims.len(), "every circle still drawn");
+    assert!(r.to_svg([0, 0, 0]).len() < 12 << 20);
+    let small = Drawing::from_json(r#"{"entities": [{"type": "circle", "c": [0, 0], "r": 5}]}"#).unwrap().render(None);
+    assert!(matches!(small.lightened(), std::borrow::Cow::Borrowed(_)));
+}

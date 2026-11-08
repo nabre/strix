@@ -64,9 +64,11 @@ impl Num {
         Num { value: 0.0, expr: Some(text.to_string()) }
     }
 
-    /// A plain zero (no expression): left out of the JSON where zero is the default.
+    /// A plain zero (no expression): left out of the JSON where zero is the default. Zero as it
+    /// is written ([`crate::kernel::canon`]): a value too small to write is written `0`, and
+    /// saving the drawing read back would add it.
     pub fn is_zero(&self) -> bool {
-        self.value == 0.0 && self.expr.is_none()
+        crate::kernel::canon(self.value) == 0.0 && self.expr.is_none()
     }
 }
 
@@ -750,9 +752,13 @@ impl Drawing {
         Ok(d)
     }
 
-    /// The canonical JSON: the same drawing always gives the same bytes.
+    /// The canonical JSON: the same drawing always gives the same bytes, and they always read
+    /// back. It is written made safe first: a number an edit left non-finite would be written
+    /// `null`, and the saved drawing would no longer open.
     pub fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_default()
+        let mut safe = self.clone();
+        safe.sanitize();
+        serde_json::to_string(&safe).unwrap_or_default()
     }
 
     /// Enforces the limits; see [`Drawing::from_json`].
@@ -826,6 +832,12 @@ impl Drawing {
                 _ => {}
             }
         }
+        // Coordinates an edit pushed past the limits (a huge Scale factor, an array spaced
+        // far apart) are kept as they will be saved and read back: within ±MAX_COORD, never
+        // infinite.
+        for (n, _) in self.nums_mut() {
+            n.value = if n.value.is_finite() { n.value.clamp(-MAX_COORD, MAX_COORD) } else { 0.0 };
+        }
     }
 
     /// The layer called `name`, else layer `0`.
@@ -834,19 +846,32 @@ impl Drawing {
     }
 
     /// Adds an entity with a fresh id and returns the id.
-    pub fn add(&mut self, mut e: Entity) -> Result<String, String> {
-        if self.entities.len() >= MAX_ENTITIES {
-            return Err(format!("a drawing holds at most {MAX_ENTITIES} entities"));
+    pub fn add(&mut self, e: Entity) -> Result<String, String> {
+        self.add_all(vec![e]).pop().flatten().ok_or_else(|| format!("a drawing holds at most {MAX_ENTITIES} entities"))
+    }
+
+    /// Adds entities, each with a fresh id as [`Drawing::add`] gives it, and makes the drawing
+    /// safe once: each one's id, `None` for those past the limit (left out). Ids are looked up
+    /// in a set, so adding many is linear, not quadratic.
+    pub(crate) fn add_all(&mut self, es: Vec<Entity>) -> Vec<Option<String>> {
+        let mut taken: std::collections::HashSet<String> = self.entities.iter().map(|e| e.id.clone()).collect();
+        let mut out = Vec::with_capacity(es.len());
+        for mut e in es {
+            if self.entities.len() >= MAX_ENTITIES {
+                out.push(None);
+                continue;
+            }
+            let mut n = self.entities.len() + 1;
+            while taken.contains(&format!("e{n}")) {
+                n += 1;
+            }
+            e.id = format!("e{n}");
+            taken.insert(e.id.clone());
+            out.push(Some(e.id.clone()));
+            self.entities.push(e);
         }
-        let mut n = self.entities.len() + 1;
-        while self.entities.iter().any(|x| x.id == format!("e{n}")) {
-            n += 1;
-        }
-        e.id = format!("e{n}");
-        let id = e.id.clone();
-        self.entities.push(e);
         self.sanitize();
-        Ok(id)
+        out
     }
 
     /// Every number of the drawing.

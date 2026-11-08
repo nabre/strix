@@ -274,16 +274,9 @@ impl Drawing {
             return Err("The spacing is not a number".into());
         }
         self.room_for(indices.len(), items)?;
-        let mut out = Vec::new();
-        for r in 0..rows {
-            for c in 0..cols {
-                if r == 0 && c == 0 {
-                    continue;
-                }
-                out.extend(self.copy(indices, Pt::new(dx * c as f64, dy * r as f64)));
-            }
-        }
-        Ok(out)
+        // Every item but the first, which is the originals.
+        let offsets: Vec<Pt> = (0..rows).flat_map(|r| (0..cols).map(move |c| Pt::new(dx * c as f64, dy * r as f64))).skip(1).collect();
+        Ok(self.copies(indices, &offsets).concat())
     }
 
     /// A polar array of the entities at `indices`: `count` items round `centre` over `fill`
@@ -298,13 +291,11 @@ impl Drawing {
         }
         self.room_for(indices.len(), count)?;
         let step = if (fill.abs() - 360.0).abs() < 1e-9 { fill / count as f64 } else { fill / (count - 1) as f64 };
-        let mut out = Vec::new();
-        for k in 1..count {
-            let copies = self.copy(indices, Pt::default());
-            self.transform(&copies, &Affine::rotation(centre, step * k as f64));
-            out.extend(copies);
+        let groups = self.copies(indices, &vec![Pt::default(); count - 1]);
+        for (k, copies) in groups.iter().enumerate() {
+            self.transform(copies, &Affine::rotation(centre, step * (k + 1) as f64));
         }
-        Ok(out)
+        Ok(groups.concat())
     }
 
     /// Whether `items` copies of `n` entities fit in the drawing.
