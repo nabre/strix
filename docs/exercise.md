@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-10-29 · **Change:** delete a whole exercise; exercise numbering (prefix, format, start) as a document setting; the summary names each exercise by its label alone
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-11-08 · **Change:** the "Calculation and exercise" template, first in File › New
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -128,8 +128,17 @@ to the end.
   values; a summary per variant; statement data recalled into the solution as values.
 - Solution steps (substitution, isolation lines) per result.
 
+## Template
+
+File › New starts with **Calculation and exercise** (`file.new {"template": "calc"}`): live
+formulas (a rectangular section's area and moment of inertia), then a worked exercise (a simply
+supported beam) with data in two variants, a CAD drawing of the beam in its statement sized by the
+span `L`, two questions worked in the solution and the results summary. It is built by running the
+same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
+
 ## Revision history
 
+- 2026-11-08: "Calculation and exercise" template, first in the File › New gallery.
 - 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Math › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.
 - 2026-10-29: delete a whole exercise: Delete Exercise (ribbon, context menu, `exercise.delete`), Delete/Backspace/Cut over a selection covering it, a click on its tab selects it; the summary goes with the last exercise. Before, every way was refused by the locked parts.
 

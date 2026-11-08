@@ -2086,3 +2086,12 @@
 	{width} × {height} pixels	{width} × {height} ピクセル
 	{words} words	{words} 語
 	“{text}” ({row}, {series}) isn't a number.	「{text}」（{row}、{series}）は数値ではありません。
+	Auto orientation	向きを自動調整
+	No Scaling	拡大縮小なし
+	Pages in the range	範囲内のページ
+	Scale to paper size	用紙サイズに合わせる
+	Calculation and exercise	計算と演習
+paper	Letter	レター
+paper	Legal	リーガル
+paper	Envelope #10	封筒 #10
+paper	Envelope DL	封筒 DL

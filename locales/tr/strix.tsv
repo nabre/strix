@@ -2338,3 +2338,10 @@ preview	Title	Örnek
 	{words} words	{words} sözcük
 	“{text}” ({row}, {series}) isn't a number.	“{text}” ({row}, {series}) bir sayı değil.
 	✓ None	✓ Yok
+	Auto orientation	Otomatik yönlendirme
+	No Scaling	Ölçekleme yok
+	Pages in the range	Aralıktaki sayfalar
+	Scale to paper size	Kâğıt boyutuna ölçekle
+	Calculation and exercise	Hesaplama ve alıştırma
+paper	Envelope #10	10 numaralı zarf
+paper	Envelope DL	DL zarf

@@ -1981,3 +1981,10 @@
 	{width} × {height} pixels	{width} × {height} pikslit
 	{words} words	Sõnu: {words}
 	“{text}” ({row}, {series}) isn't a number.	„{text}” ({row}, {series}) ei ole arv.
+	Auto orientation	Automaatne suund
+	No Scaling	Skaleerimiseta
+	Pages in the range	Vahemiku leheküljed
+	Scale to paper size	Sobita paberi suurusega
+	Calculation and exercise	Arvutus ja ülesanne
+paper	Envelope #10	Ümbrik nr 10
+paper	Envelope DL	Ümbrik DL

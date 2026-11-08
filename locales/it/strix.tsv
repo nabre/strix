@@ -2982,3 +2982,12 @@ preview	Title	Esempio
 	{n} CAD drawings	{n} disegni CAD
 	graph paper	foglio a quadretti
 	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Word e gli altri formati modificabili li perderebbero, quindi si salva solo come documento Strix (.xmath). Le esportazioni in PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.
+	Auto orientation	Orientamento automatico
+	No Scaling	Nessun ridimensionamento
+	Pages in the range	Pagine nell'intervallo
+	Scale to paper size	Adatta al formato carta
+	Calculation and exercise	Calcolo ed esercizio
+paper	Letter	Lettera
+paper	Legal	Legale
+paper	Envelope #10	Busta n. 10
+paper	Envelope DL	Busta DL

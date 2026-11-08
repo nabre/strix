@@ -2053,3 +2053,12 @@
 	{width} × {height} pixels	{width} × {height} 像素
 	{words} words	{words} 个字
 	“{text}” ({row}, {series}) isn't a number.	“{text}”（{row}，{series}）不是数字。
+	Auto orientation	自动方向
+	No Scaling	不缩放
+	Pages in the range	范围内的页面
+	Scale to paper size	缩放至纸张大小
+	Calculation and exercise	计算与练习
+paper	Letter	信纸
+paper	Legal	法律文书纸
+paper	Envelope #10	10 号信封
+paper	Envelope DL	DL 信封

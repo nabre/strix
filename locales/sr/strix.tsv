@@ -1961,3 +1961,10 @@
 	{width} × {height} pixels	{width} × {height} пиксела
 	{words} words	{words} речи
 	“{text}” ({row}, {series}) isn't a number.	„{text}” ({row}, {series}) није број.
+	Auto orientation	Аутоматска оријентација
+	No Scaling	Без скалирања
+	Pages in the range	Странице у опсегу
+	Scale to paper size	Прилагоди величини папира
+	Calculation and exercise	Прорачун и задатак
+paper	Envelope #10	Коверта бр. 10
+paper	Envelope DL	Коверта DL

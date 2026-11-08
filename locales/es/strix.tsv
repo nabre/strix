@@ -2307,3 +2307,12 @@ preview	Title	Título
 	{words} words	{words} palabras
 	“{text}” ({row}, {series}) isn't a number.	«{text}» ({row}, {series}) no es un número.
 	✓ None	✓ Ninguno
+	Auto orientation	Orientación automática
+	No Scaling	Sin escalado
+	Pages in the range	Páginas del intervalo
+	Scale to paper size	Ajustar al tamaño del papel
+	Calculation and exercise	Cálculo y ejercicio
+paper	Letter	Carta
+paper	Legal	Oficio
+paper	Envelope #10	Sobre n.º 10
+paper	Envelope DL	Sobre DL

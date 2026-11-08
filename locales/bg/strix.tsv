@@ -2366,3 +2366,10 @@
 	{words} words	Думи: {words}
 	“{text}” ({row}, {series}) isn't a number.	„{text}“ ({row}, {series}) не е число.
 	✓ None	✓ Няма
+	Auto orientation	Автоматична ориентация
+	No Scaling	Без мащабиране
+	Pages in the range	Страници в диапазона
+	Scale to paper size	Мащабиране до размера на хартията
+	Calculation and exercise	Изчисление и задача
+paper	Envelope #10	Плик № 10
+paper	Envelope DL	Плик DL

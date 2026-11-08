@@ -2035,3 +2035,10 @@
 	{width} × {height} pixels	{width} × {height} Pixel
 	{words} words	Wörter: {words}
 	“{text}” ({row}, {series}) isn't a number.	„{text}“ ({row}, {series}) ist keine Zahl.
+	Auto orientation	Automatische Ausrichtung
+	No Scaling	Keine Skalierung
+	Pages in the range	Seiten im Bereich
+	Scale to paper size	An Papierformat anpassen
+	Calculation and exercise	Berechnung und Übung
+paper	Envelope #10	Umschlag #10
+paper	Envelope DL	Umschlag DL
