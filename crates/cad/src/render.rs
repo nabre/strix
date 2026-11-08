@@ -309,8 +309,8 @@ impl Drawing {
         let up = if flipped { normal.scale(-1.0) } else { normal };
         let label = self.dim_label(text.as_deref(), measured, ws);
         if angle.abs() > 45.0 && !st.aligned {
-            // A steep dimension's text reads level, beside the line on its outer side (unless
-            // the style aligns texts with their lines: then it turns with the line, as below).
+            // With the style's aligned texts off, a steep dimension's text reads level, beside the
+            // line on its outer side (by default it turns with the line, as below).
             let out_dir = normal.scale(side);
             let at = mid.plus(out_dir.scale(st.text_gap + st.ext_over));
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };

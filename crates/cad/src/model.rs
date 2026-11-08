@@ -320,9 +320,9 @@ pub struct DimStyle {
     /// architectural drawings do; never with arrows).
     pub line_over: f64,
     /// Texts aligned with their dimension line at any slope (turned to stay readable: never
-    /// upside down) and an angle's along its arc; off, a steep dimension's text and an angle's
-    /// read level (the default). Written only when on.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    /// upside down) and an angle's along its arc (the default, as ISO 129 draws them); off, a
+    /// steep dimension's text and an angle's read level. Written only when off.
+    #[serde(skip_serializing_if = "is_true")]
     pub aligned: bool,
     /// Where the editor puts a dimension line or an angle's arc placed with a click or a grip:
     /// in the drawing (scaled: it follows Scale and the drawing's scale), or on paper (off, the
@@ -348,7 +348,7 @@ impl Default for DimStyle {
             text_gap: 1.0,
             line_width: 0.18,
             line_over: 1.5,
-            aligned: false,
+            aligned: true,
             scaled: false,
             units: DimUnits::Drawing,
         }

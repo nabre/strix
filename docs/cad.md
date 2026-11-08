@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** a drawing renders within one budget; saved drawings always reopen and save to the same bytes; copies and arrays added at once; the editor's resolved drawing kept between frames; hatches are one SVG path and one page item; saved outputs thinned past 500 000 points
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** dimension texts aligned with their dimension line by default
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -205,11 +205,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   `calc.recalculate` and `cad.get`.
 - **Units in the Unit style**: a parameter shown in a dimension (`L = {{L}}`) has its unit in the
   Unit character style's colour, like the calculations' units.
-- **Dimension texts**: by default a dimension's text runs along its line up to 45° and a steeper
-  one's is set level beside the line, on the outer side; an angle's reads level outside its arc
-  (drawings look as they did). The style's **aligned texts** (`dimStyle.aligned`, written only
-  when on) turn every dimension's text with its line, never upside down, and an angle's along
-  its arc.
+- **Dimension texts**: aligned with the dimension line at any slope (ISO 129), turned to read
+  from the bottom or the right, never upside down; an angle's runs along its arc. This is the
+  style's **aligned texts** (`dimStyle.aligned`, on by default, written only when off); off, a
+  dimension's text runs along its line up to 45° and a steeper one's is set level beside the
+  line, on the outer side, and an angle's reads level outside its arc.
 - **JSON and SVG**: the drawing is managed by its JSON; its SVG picture is made automatically
   from it, only when what it shows changes (or when a file brings none). Saving writes a picture
   (`pic:pic`) of the SVG (`word/media/cadN.svg`, with Office's SVG picture extension, so other
@@ -328,7 +328,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    and `{{L}}` like the text above). **Angular dimension** (`angle {c, a, b, r}`; tool
    `dimAngular`: the vertex, a point on each side, where the arc goes — the side it is placed in
    is the angle measured): arc with end marks, extension lines when the arc is beyond the sides,
-   the angle (`<>°`) level just outside the arc's middle. A **right angle** (90° to a millionth
+   the angle (`<>°`) just outside the arc's middle, along the arc. A **right angle** (90° to a millionth
    of a degree: exact and parametric drawings) without a text of its own is drawn as the
    right-angle symbol instead: a square of side `r` on the vertex with a dot in it, no arc, no
    marks, no "90°"; a text of its own (`<>°`) keeps the arc. **Continue** and **Baseline**
@@ -427,6 +427,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-08: dimension texts aligned with their line by default, steep ones too (`dimStyle.aligned` on unless a drawing turns it off).
 - 2026-11-08: past the render budget a polyline keeps its vertices; the SVG picture and page items are thinned past 500 000 points.
 - 2026-11-08: saved drawings save to the same bytes when read back (a datum too small to write); Copy and arrays add their copies at once (an array filling the drawing: 5.7 s → under a millisecond); the editor's resolved drawing is kept between frames and worked out only up to the drawing; SVG numbers written without a string each.
 - 2026-11-07: one render budget a drawing (hostile files no longer take gigabytes); saved drawings always reopen (a dragged dimension could save a `null` distance); hatches are one SVG path and one page item each run.
