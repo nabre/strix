@@ -1531,7 +1531,7 @@ mod tests {
         }
         t.rows[0].cells[0].blocks.insert(0, eq("a = 1+1 ="));
         let mut s = session();
-        s.doc.body = vec![Arc::new(Block::Table(t)), eq("y = 2*3 m =")];
+        s.doc.body = vec![Arc::new(Block::Table(t)), eq("y = a*3 m =")];
         s.run("calc.recalculate", &json!({})).unwrap();
         fn deepest(b: &Block) -> Option<String> {
             match b {
