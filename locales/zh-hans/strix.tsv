@@ -2065,3 +2065,708 @@ paper	Envelope DL	DL 信封
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	关于 Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	（移除）单击即移除
+	*Bold* and _italic_ as real formatting	将 *粗体* 和 _斜体_ 转为真正的格式
+	1 CAD drawing	1 个 CAD 图纸
+	1 calculated table	1 个计算表
+	1 calculation	1 个计算
+	1 exercise	1 道习题
+	1 object selected	已选择 1 个对象
+	1 results summary	1 个结果汇总
+	1×2 Empty Matrix	1×2 空矩阵
+	1×3 Empty Matrix	1×3 空矩阵
+	2×1 Empty Matrix	2×1 空矩阵
+	2×2 Determinant	2×2 行列式
+	2×2 Empty Matrix	2×2 空矩阵
+	2×2 Identity Matrix	2×2 单位矩阵
+	2×2 Identity Matrix (sparse)	2×2 单位矩阵（稀疏）
+	2×2 Matrix in Brackets	方括号 2×2 矩阵
+	2×2 Matrix in Double Bars	双竖线 2×2 矩阵
+	2×2 Matrix in Parentheses	圆括号 2×2 矩阵
+	2×3 Empty Matrix	2×3 空矩阵
+	3×1 Empty Matrix	3×1 空矩阵
+	3×2 Empty Matrix	3×2 空矩阵
+	3×3 Empty Matrix	3×3 空矩阵
+	3×3 Identity Matrix	3×3 单位矩阵
+	3×3 Identity Matrix (sparse)	3×3 单位矩阵（稀疏）
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	第一列（第 0 列）按 1、2、3… 为数据行编号（计算不会读取它）
+	A free, open-source word processor written in Rust.	一款用 Rust 编写的免费开源文字处理软件。
+	A grid from the cursor to the end of the page	从光标到页面末尾的方格
+	A new exercise takes the page breaks of the last one.	新习题沿用上一道习题的分页设置。
+	A new layer, made current	新建图层，并设为当前图层
+	A polar array has	环形阵列设置：
+	A xor B	A xor B
+	ASAP	尽快
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	绝对值分段
+	Accents	重音符号
+	Accept All Changes and Stop Tracking	接受所有修订并停止修订
+	Accept and Move to Next	接受并移到下一处
+	Acute	锐音符
+	Add Datum	添加已知量
+	Add Note	添加注释
+	Add Question	添加题目
+	Add Sub-question	添加小题
+	Add a note between the questions: free text that is not a question	在题目之间添加注释：不是题目的自由文本
+	Add a period with double-space	双空格后自动添加句号
+	Add a question at the end of the exercise at the cursor	在光标所在习题的末尾添加题目
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	在上一题下添加嵌套题目（a.1、a.1.1）；Tab 和 Shift+Tab 可更改题目的级别
+	Add a variant: a copy of the active one's values	添加变体：复制当前变体的值
+	Add an initial datum: a symbol with its value in every variant	添加初始已知量：一个符号及其在每个变体中的值
+	Add to CAD Drawing	添加到 CAD 图纸
+	Advanced Properties…	高级属性…
+	Aligned texts	对齐的文本
+	All - Linear	全部 - 线性
+	All - Professional	全部 - 专业
+	All the selection	全部选区
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	全部 · F 栏选 · WP/CP 多边形 · R 移除 · A 添加 · P 上一个 · U 撤销 · Shift+Space 循环
+	An array has	阵列设置：
+	Angle Brackets	尖括号
+	Angle Brackets with Separator	带分隔符的尖括号
+	Angle Brackets with Two Separators	带两个分隔符的尖括号
+	Apply to all exercises	应用于所有习题
+	As the grid lines	与网格线相同
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	自动保存只保留 Strix 文档（.xmath）；{name} 为其他格式。请另存为 .xmath 以启用自动保存。
+	Automatic (Decimals, Significant Below 1)	自动（小数，小于 1 时用有效数字）
+	Automatic updates are not available yet. New versions are published at {url}	暂不支持自动更新。新版本发布于 {url}
+	Automatically add words to list (First Letter)	自动将单词添加到列表（首字母）
+	Automatically add words to list (INitial CAps)	自动将单词添加到列表（前两个字母大写）
+	Baseline Dots	基线点
+	Basic Math	基础数学
+	Bayes' rule	贝叶斯公式
+	Binomial Coefficient	二项式系数
+	Binomial Coefficient (angle)	二项式系数（尖括号）
+	Binomial Coefficient with Angle Brackets	带尖括号的二项式系数
+	Binomial expansion of (x+a)ⁿ	(x+a)ⁿ 的二项式展开
+	Body text in a short paragraph to show spacing.	用于展示间距的一小段正文。
+	Book Title	书名
+	Bookmarks	书签
+	Boxed Formula	带框公式
+	Boxed Formula (example)	带框公式（示例）
+	Boxed Formulas	带框公式
+	Braces	大括号
+	Braces with Separator	带分隔符的大括号
+	Brackets	方括号
+	Brackets with Separators	带分隔符的方括号
+	Breve	短音符
+	Built-in Heading styles	内置标题样式
+	ByLayer	ByLayer
+	CAD	CAD
+	Drawing	图纸
+	CAD Drawing	CAD 图纸
+	CAD Drawing Source	CAD 图纸源
+	CAD Picture Format	CAD 图片格式
+	CONFIDENTIAL	机密
+	Calculate New Equations	计算新公式
+	Calculate This Table	计算此表
+	Calculate the exercise with this variant	用此变体计算习题
+	Calculated	已计算
+	Table	表
+	Calculated Table	计算表
+	Calculated Table Info	计算表信息
+	Calculation	计算
+	Calculations	计算
+	Cancel the step	取消此步骤
+	Cases (Three Conditions)	分段（三个条件）
+	Cases (Two Conditions)	分段（两个条件）
+	Cases and Stacks	分段与堆叠
+	Category	类别
+	Ceiling	上取整
+	Cells as Equations	单元格作为公式
+	Centered as Group	作为一组居中
+	Change in y over change in x	y 的变化量比 x 的变化量
+	Change to Level 1	更改为级别 1
+	Change to Level 2	更改为级别 2
+	Change to Level 3	更改为级别 3
+	Change to Level 4	更改为级别 4
+	Change to Level 5	更改为级别 5
+	Changed here and in the file: keep one of the two.	此处和文件中都有更改：请保留其中一个。
+	Check	检查
+	Check for	检查
+	Updates…	更新…
+	Checking for updates…	正在检查更新…
+	Circle area from its radius	由半径求圆面积
+	Circled Dot	圆圈点
+	Circled Plus	圆圈加号
+	Circled Times	圆圈乘号
+	Close Document	关闭文档
+	Colon Equal	冒号等号
+	Column, Row Below (F_A)	列、下方行 (F_A)
+	Columns × rows:	列数 × 行数：
+	Common Accent Objects	常用重音符号对象
+	Common Brackets	常用括号
+	Common Fractions	常用分数
+	Common Functions	常用函数
+	Common Large Operators	常用大型运算符
+	Common Operator Structures	常用运算符结构
+	Common Operators	常用运算符
+	Common Radicals	常用根式
+	Common Subscripts and Superscripts	常用下标和上标
+	Considering	考虑中
+	Continue without restoring	不恢复，继续
+	Contour Integral	围道积分
+	Contour Integral with Limits	带上下限的围道积分
+	Contour Integral with Stacked Limits	带堆叠上下限的围道积分
+	Contour Integrals	围道积分
+	Convert between built-up and linear form	在组合形式与线性形式之间转换
+	Coordinates take a number or an expression of the calculations (L/2)	坐标可以是数字，也可以是计算中的表达式（L/2）
+	Coproduct	余积
+	Coproduct with Limits	带上下限的余积
+	Coproduct with Lower Limit	带下限的余积
+	Coproduct with Subscript-Superscript Limits	带上下标式上下限的余积
+	Cosecant Function	余割函数
+	Cosine 2x	cos 2x
+	Cosine Function	余弦函数
+	Cotangent Function	余切函数
+	Could not check for updates:\n{error}	无法检查更新：\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	无法保存 {name}，因此它仍保持打开，没有丢失任何内容：{error}
+	Create Subdocument	创建子文档
+	Create Subdocument…	创建子文档…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	页面上的裁剪适用于未旋转的图片：请先将旋转设为 0°，或使用裁剪框
+	Crossing polygon	相交多边形
+	Cube Root	立方根
+	Current - Linear	当前 - 线性
+	Current - Professional	当前 - 专业
+	Current Document	当前文档
+	Current layer	当前图层
+	Current layer: new objects go on it	当前图层：新对象会放在此图层上
+	DO NOT COPY	请勿复制
+	DRAFT	草稿
+	Data Table	数据表
+	Decimal Places	小数位数
+	Delete Exercise	删除习题
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	整体删除光标所在的习题或所选习题：其题干、题目和解答都会删除，其结果会从结果汇总中移除（可撤销恢复）
+	Delete the layer (its objects go to layer 0)	删除图层（其对象移到图层 0）
+	Delta Equal To	Delta 等于
+	Delta over arrow	箭头上方的 Delta
+	Derivative as a limit	导数的极限定义
+	Detach: a window of its own	分离：独立窗口
+	Diagonal Dots	斜向点
+	Differential	微分
+	Differential theta	微分 θ
+	Differential x	微分 x
+	Differential y	微分 y
+	Differentials	微分
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	通过单击或夹点放置的尺寸线和角度弧线会在图纸中保持其距离（随图纸的大小和比例变化）；关闭后则按纸面距离（打印时相同）
+	Dimension texts along their line (never upside down), not level	尺寸文字沿尺寸线放置（不会倒置），而不是水平放置
+	Dimension units	尺寸单位
+	Discard the recovery copy of {name}?	要放弃 {name} 的恢复副本吗？
+	Discard…	放弃…
+	Dock	停靠
+	Dock Left	停靠到左侧
+	Dock Right	停靠到右侧
+	Double Bar	双竖线
+	Double Dot	双点
+	Double Integral	二重积分
+	Double Integral with Limits	带上下限的二重积分
+	Double Integral with Stacked Limits	带堆叠上下限的二重积分
+	Double Left Arrow with Text Above	上方带文字的双左箭头
+	Double Left Arrow with Text Below	下方带文字的双左箭头
+	Double Left Right Arrow with Text Above	上方带文字的双左右箭头
+	Double Left Right Arrow with Text Below	下方带文字的双左右箭头
+	Double Right Arrow with Text Above	上方带文字的双右箭头
+	Double Right Arrow with Text Below	下方带文字的双右箭头
+	Double Square Brackets	双方括号
+	Double Vertical Bars	双竖线
+	Double summation	二重求和
+	Download Dictionary	下载词典
+	Download the {name} spelling dictionary	下载 {name} 拼写词典
+	Downloading and installing…	正在下载并安装…
+	Downloading the {name} dictionary…	正在下载 {name} 词典…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	从 LibreOffice 的词典（{source}，许可证：{licence}）下载 Hunspell 词典 {name} 到你的词典文件夹，并立即用它检查拼写。
+	Draw order	绘制顺序
+	Drawing Padding	图纸边距
+	Drawing Scale	图纸比例
+	Drawing unit	图纸单位
+	Edit	编辑
+	Emphasis	强调
+	Empty Matrices	空矩阵
+	End mark	结束标记
+	Endnote Reference	尾注引用
+	Endnote Text	尾注文本
+	Enter bookmark name:	输入书签名称：
+	Enter confirms	按 Enter 确认
+	Equal Equal	等号等号
+	Equal by Definition	定义等于
+	Euler's identity	欧拉恒等式
+	Every	每个
+	Every exercise of the document takes this exercise's page breaks	文档中的每道习题都采用此习题的分页设置
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	每个值都是一个参数，以其所在列和所在行的标签（第一列）命名，并带下标：F_A 或 A_F
+	Exercise	习题
+	Exercise Data	习题数据
+	Exercise Info	习题信息
+	Exercise Numbering	习题编号
+	Exercise Properties	习题属性
+	Exercise Result	习题结果
+	Exercise, in the document's language	习题（使用文档的语言）
+	Exponential	指数函数
+	Exponential series	指数级数
+	Fence	围栏
+	Fewer Digits	减少位数
+	File type	文件类型
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	“文件”›“新建”的“个人”下会列出此处的 .xmathm、.dotx 和 .dotm 模板；“另存为 Strix 模板”也从这里开始。
+	Find “{text}” in the document	在文档中查找“{text}”
+	First exercise: {label}	第一道习题：{label}
+	Fitted to Frame	适应框架
+	Float	浮动
+	Floor	下取整
+	Folder path	文件夹路径
+	Follow columns	跟随各列
+	Footnote Reference	脚注引用
+	Footnote Text	脚注文本
+	For Two Pages	用于两页
+	For a Height of 5 cm	用于 5 cm 的高度
+	For every exercise of the document: the label of each title and of the results summary.	适用于文档中的每道习题：每个标题和结果汇总的标签。
+	For which item:	针对哪一项：
+	Go to it	转到
+	Graph	图
+	Paper	纸
+	Graph Paper	方格纸
+	Graph Paper Pane	方格纸窗格
+	Graph Paper Properties	方格纸属性
+	Graph Paper at Cursor	光标处的方格纸
+	Grave	重音符
+	Greek Letters	希腊字母
+	Grid Table 1 Light	网格表 1 浅色
+	Grid Table 4 – Blue	网格表 4 – 蓝色
+	Grid Table 4 – Green	网格表 4 – 绿色
+	Grid Table 4 – Orange	网格表 4 – 橙色
+	Grid Table 4 – Purple	网格表 4 – 紫色
+	Grid lines	网格线
+	Grip	夹点
+	Grip: the new point (click, or type it; Esc puts it back)	夹点：新点（单击或键入；Esc 还原）
+	Grouping Character Above	上方分组字符
+	Grouping Character Below	下方分组字符
+	Hat	抑扬符
+	Heading	标题
+	Heading text	标题文本
+	Heavier lines	加粗线条
+	How results are rounded	结果的舍入方式
+	Hyperbolic Cosecant Function	双曲余割函数
+	Hyperbolic Cosine Function	双曲余弦函数
+	Hyperbolic Cotangent Function	双曲余切函数
+	Hyperbolic Functions	双曲函数
+	Hyperbolic Secant Function	双曲正割函数
+	Hyperbolic Sine Function	双曲正弦函数
+	Hyperbolic Tangent Function	双曲正切函数
+	Hyperlink	超链接
+	Hypotenuse	斜边
+	Identity Matrices	单位矩阵
+	Imported 1 source	已导入 1 个来源
+	Imported {n} sources	已导入 {n} 个来源
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	在多栏的节中，每一栏单独画线，栏间留空
+	Inline (⇒)	行内 (⇒)
+	Input unit	输入单位
+	Insert Graph Paper	插入方格纸
+	Insert Subdocument	插入子文档
+	Insert Subdocument…	插入子文档…
+	Insert reference to:	插入引用到：
+	Integral of e^(−x²)	e^(−x²) 的积分
+	Integral with Limits	带上下限的积分
+	Integral with Stacked Limits	带堆叠上下限的积分
+	Integrals	积分
+	Intense Emphasis	明显强调
+	Intense Quote	明显引用
+	Intense Reference	明显参考
+	Intersection with Limits	带上下限的交集
+	Intersection with Lower Limit	带下限的交集
+	Intersection with Subscript-Superscript Limits	带上下标式上下限的交集
+	Inverse Cosecant Function	反余割函数
+	Inverse Cosine Function	反余弦函数
+	Inverse Cotangent Function	反余切函数
+	Inverse Functions	反函数
+	Inverse Hyperbolic Cosecant Function	反双曲余割函数
+	Inverse Hyperbolic Cosine Function	反双曲余弦函数
+	Inverse Hyperbolic Cotangent Function	反双曲余切函数
+	Inverse Hyperbolic Functions	反双曲函数
+	Inverse Hyperbolic Secant Function	反双曲正割函数
+	Inverse Hyperbolic Sine Function	反双曲正弦函数
+	Inverse Hyperbolic Tangent Function	反双曲正切函数
+	Inverse Secant Function	反正割函数
+	Inverse Sine Function	反正弦函数
+	Inverse Tangent Function	反正切函数
+	Items:	项目：
+	Justification of a display equation	独立公式的对齐方式
+	Keep the file	保留文件
+	Keep the text in this document, without the link; the file stays as it is	保留本文档中的文本，去掉链接；文件保持不变
+	Keep this version	保留此版本
+	Layer:	图层：
+	Left Arrow with Text Above	上方带文字的左箭头
+	Left Arrow with Text Below	下方带文字的左箭头
+	Left Bracket Twice	左括号两次
+	Left Right Arrow Above	上方左右箭头
+	Left Right Arrow with Text Above	上方带文字的左右箭头
+	Left Right Arrow with Text Below	下方带文字的左右箭头
+	Left Subscript-Superscript	左下标-上标
+	Leftwards Arrow Above	上方向左箭头
+	Leftwards Harpoon Above	上方向左鱼叉
+	Letter-Like Symbols	类字母符号
+	Limit	极限
+	Limit Example	极限示例
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	限制图纸在纸面上的大小（取自页面文本区域）：提供的比例均可容纳该图纸
+	Line by Line	逐行
+	Linear Fraction	线性分数
+	Linetype	线型
+	Lineweight	线宽
+	Link a document at the cursor	在光标处链接文档
+	Linked files	已链接的文件
+	List Paragraph	列表段落
+	List Table 3 – Blue	列表表 3 – 蓝色
+	List Table 3 – Green	列表表 3 – 绿色
+	List Table 3 – Orange	列表表 3 – 橙色
+	List Table 3 – Purple	列表表 3 – 紫色
+	Local recovery is unavailable or still loading.	本地恢复不可用，或仍在加载。
+	Logarithm	对数
+	Logarithm with Base	带底数的对数
+	Logical AND	逻辑与
+	Logical AND with Limits	带上下限的逻辑与
+	Logical OR	逻辑或
+	Logical OR with Limits	带上下限的逻辑或
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	将对象所在图层设为当前图层
+	Make the equation at the cursor a live calculation, or an ordinary one	将光标处的公式设为实时计算或普通公式
+	Make this equation a live calculation: write it with = and the unknown is solved for	将此公式设为实时计算：用 = 书写，即可求解未知数
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	将光标处的公式标记为某道题目的结果：其值会进入结果汇总
+	Master Document	主控文档
+	Math	数学
+	Matrices with Brackets	带括号的矩阵
+	Maximum Example	最大值示例
+	Maximum size	最大尺寸
+	Measured By	度量单位
+	Midline Dots	中线点
+	Minus Equal	减号等号
+	More Digits	增加位数
+	Move Pane: {title}	移动窗格：{title}
+	Move to layer	移到图层
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	为文档中的习题命名并编号：前缀（Esercizio、自定义文本或无）、编号格式和起始编号，在“习题属性”窗格中设置
+	Natural Logarithm	自然对数
+	Negated Relations	否定关系
+	New	新建
+	New Calculation	新建计算
+	New Exercise	新建习题
+	New equations are live calculations	新公式为实时计算
+	New layer	新建图层
+	New page before the exercise	在习题前另起一页
+	New page before the results summary	在结果汇总前另起一页
+	New page before the solution	在解答前另起一页
+	Next object	下一个对象
+	Next point	下一个点
+	No Spacing	无间距
+	No items to show.	没有可显示的项目。
+	No new sources in that file	该文件中没有新来源
+	No previous selection	没有上一个选区
+	No recovery copies.	没有恢复副本。
+	No selection: click objects, or drag a window	未选择：单击对象，或拖动窗口
+	Normal probability density	正态概率密度
+	Not a Data Table	不是数据表
+	Nothing of this type in the document.	文档中没有此类型的内容。
+	Nothing to undo in the selection	选区中没有可撤销的操作
+	Number Format	编号格式
+	Number the equation; the number sits at the right margin (or type # then the number)	为公式编号；编号位于右页边距（或键入 # 再输入编号）
+	Object snap settings	对象捕捉设置
+	Objects	对象
+	One half	二分之一
+	Only text properties can be changed.	只能更改文本属性。
+	Only these	仅这些
+	Only when another exercise comes before it	仅当前面还有其他习题时
+	Open Subdocument	打开子文档
+	Open the file in a window of its own	在独立窗口中打开文件
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	今后用 Strix 打开 Strix 文档（.xmath、.xmathm）、.docx、.doc、.rtf 和 .odt 文件以及 Word 模板。
+	Operator Structures	运算符结构
+	Operators	运算符
+	Ordinal Column	序号列
+	Other Large Operators	其他大型运算符
+	Other corner of the window (to the right: whole objects; to the left: touched too)	窗口的另一个角（向右：完整包含的对象；向左：碰到的对象也选中）
+	Outer frame	外框
+	Outward Brackets	外向括号
+	Overbar	上横线
+	Overbars and Underbars	上横线与下横线
+	Overbrace	上括号
+	Overwrite the file with the text shown here	用此处显示的文本覆盖文件
+	Padding	内边距
+	Page color	页面颜色
+	Pane Options	窗格选项
+	Parentheses	圆括号
+	Parentheses with Separator	带分隔符的圆括号
+	Partial Differential	偏微分
+	Pi Over 2	二分之 π
+	Placement	位置
+	Plain Table 1	普通表 1
+	Plus Equal	加号等号
+	Possible spelling mistake	可能的拼写错误
+	Power series of (1+x)ⁿ	(1+x)ⁿ 的幂级数
+	Previous object	上一个对象
+	Product	乘积
+	Product of A	A 的乘积
+	Product with Limits	带上下限的乘积
+	Product with Lower Limit	带下限的乘积
+	Product with Subscript-Superscript Limits	带上下标式上下限的乘积
+	Products and Coproducts	乘积与余积
+	Property names are 1–{max} characters.	属性名称为 1–{max} 个字符。
+	Property values are at most {max} bytes.	属性值最多 {max} 字节。
+	Put the cursor in an exercise to see its data and variants.	将光标置于习题中以查看其数据和变体。
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	将光标置于方格纸中（或带方格纸背景的页面上）以查看其属性。
+	Quadratic Root	二次方根
+	Quick Keys	快捷键
+	Quick Keys in Formulas	公式中的快捷键
+	Quote	引用
+	Radical with Degree	带根指数的根式
+	Radicals	根式
+	Reading Page Color	阅读页面颜色
+	Rebuild the repeated questions and the results summary	重建重复的题目和结果汇总
+	Recalculate	重新计算
+	Recalculate every calculation in the document (F9)	重新计算文档中的所有计算 (F9)
+	Recovery copy	恢复副本
+	Recovery is disabled while this document has a password.	文档设有密码时，恢复功能已停用。
+	Reduce the selection to the objects considered	将选区缩小为所考虑的对象
+	Reference type:	引用类型：
+	Reject All Changes and Stop Tracking	拒绝所有修订并停止修订
+	Reject and Move to Next	拒绝并移到下一处
+	Release notes	发行说明
+	Reload Subdocuments	重新加载子文档
+	Remove Graph Paper	删除方格纸
+	Remove the active variant	删除当前变体
+	Remove this datum	删除此已知量
+	Replace the text shown here with the file's	用文件内容替换此处显示的文本
+	Resize Pane	调整窗格大小
+	Restore opens an unsaved copy. Your original file stays unchanged.	“恢复”会打开一份未保存的副本。你的原始文件保持不变。
+	Result Layout	结果布局
+	Result Of	结果来自
+	Right Arrow with Text Above	上方带文字的右箭头
+	Right Arrow with Text Below	下方带文字的右箭头
+	Right Bracket Twice	右括号两次
+	Rightwards Arrow Above	上方向右箭头
+	Rightwards Harpoon Above	上方向右鱼叉
+	Roots of ax²+bx+c	ax²+bx+c 的根
+	Row, Column Below (A_F)	行、下方列 (A_F)
+	SAMPLE	示例
+	Save Subdocuments	保存子文档
+	Save as Strix Template…	另存为 Strix 模板…
+	Save or close your documents first: updating restarts Strix Writer.	请先保存或关闭文档：更新会重启 Strix Writer。
+	Save the selected paragraphs as a new file, linked in their place	将所选段落保存为新文件，并在原位置链接
+	Save your documents: Strix Writer then closes and restarts in the new version.	请保存文档：Strix Writer 随后会关闭并以新版本重新启动。
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	将 .xmathm 模板保存到你的模板文件夹，它会出现在“文件”›“新建”的“个人”下。
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	保存文档会保存在此处编辑的所有子文档。打开文档时，每个文件按其当前内容显示。
+	Scale Font Sizes	缩放字号
+	Scaled distances	按比例缩放的距离
+	Secant Function	正割函数
+	Select a place in this document:	在本文档中选择位置：
+	Select a property to change.	选择要更改的属性。
+	Select objects	选择对象
+	Selection options	选择选项
+	Separate text with	文本分隔符
+	Set CAD Drawing	设置 CAD 图纸
+	Set Exercise Data	设置习题数据
+	Set left- and first-indent with tabs and backspaces	用制表符和退格键设置左缩进和首行缩进
+	Show	显示
+	Steps	步骤
+	Show Steps	显示步骤
+	Show Trailing Zeros	显示末尾的零
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	将每个单元格显示为公式：名称为斜体，带下标，单位使用“单位”样式
+	Show every file as it is on disk, discarding edits made here	按磁盘上的状态显示每个文件，放弃在此所做的编辑
+	Show one digit less in results	结果少显示一位数字
+	Show one more digit in results	结果多显示一位数字
+	Show the equation in the line of text	在文本行内显示公式
+	Show the equation on a line of its own	在单独一行显示公式
+	Show the exercise's data and variants	显示习题的数据和变体
+	Show the file as it is on disk, discarding edits made here	按磁盘上的状态显示文件，放弃在此所做的编辑
+	Sides of a right triangle	直角三角形的边
+	Significant Digits	有效数字
+	Sine Function	正弦函数
+	Sine and cosine series of f(x)	f(x) 的正弦和余弦级数
+	Sine theta	θ 的正弦
+	Single Brackets	单括号
+	Single Left Angle	单左尖括号
+	Single Left Bar	单左竖线
+	Single Left Brace	单左大括号
+	Single Left Bracket	单左方括号
+	Single Left Parenthesis	单左圆括号
+	Single Right Brace	单右大括号
+	Single Right Bracket	单右方括号
+	Single Right Parenthesis	单右圆括号
+	Skewed Fraction	斜分数
+	Small change	微小变化
+	Snap for the next point	下一个点的捕捉
+	Snap for the next point (Shift+right-click)	下一个点的捕捉（Shift+右键单击）
+	Software Update	软件更新
+	Spanish (Latin America)	西班牙语（拉丁美洲）
+	Spanish (Uruguay)	西班牙语（乌拉圭）
+	Sparse Matrices	稀疏矩阵
+	Square Root	平方根
+	Square Root with Degree	带根指数的平方根
+	Square Union	方形并集
+	Square size	方格大小
+	Stack Object	堆叠对象
+	Stack Object (Three)	堆叠对象（三个）
+	Stacked Fraction	堆叠分数
+	Stacked, no bar	堆叠，无分数线
+	Start at	起始于
+	Strix Writer {version} is available	Strix Writer {version} 可用
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} 是当前可用的最新版本。
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix 是 WordCraft 的分支。Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. 参见 NOTICE。
+	Strong	加重
+	Styles Pane Position	样式窗格位置
+	Subdocuments	子文档
+	Subdocuments Pane	子文档窗格
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	子文档是磁盘上的文件：桌面版可以链接它们，浏览器版不能。
+	Subscript-Superscript	下标-上标
+	Subscripts and Superscripts	下标和上标
+	Subtle Emphasis	不明显强调
+	Subtle Reference	不明显参考
+	Sum of cosines	余弦之和
+	Sum or difference of sines	正弦之和或差
+	Summation	求和
+	Summation from 0 to n	从 0 到 n 求和
+	Summation over binomials	二项式系数求和
+	Summation with Limits	带上下限的求和
+	Summation with Lower Limit	带下限的求和
+	Summation with Subscript Limit	带下标限的求和
+	Summation with Subscript-Superscript Limits	带上下标式上下限的求和
+	Summations	求和
+	Surface Integral	曲面积分
+	Surface Integral with Limits	带上下限的曲面积分
+	Surface Integral with Stacked Limits	带堆叠上下限的曲面积分
+	Switch	切换
+	Windows	窗口
+	Switch Windows	切换窗口
+	TOC Heading	目录标题
+	Table Grid	网格表
+	Table of Figures	图表目录
+	Tangent Function	正切函数
+	Tangent formula	正切公式
+	Text Size	文本大小
+	Text over Colon Equal	冒号等号上方带文字
+	Text over Equal	等号上方带文字
+	Text properties only: Word's number, date and yes-no types aren't offered.	仅限文本属性：不提供数字、日期和是/否类型。
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	该格式无法保留所有内容，因此文档仍保持打开。请另存为 Strix 文档（.xmath）后继续。
+	That would make the object degenerate	这会使对象退化
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	数据是习题计算的第一批参数：解答按符号使用它们。更改变体会重新计算习题。
+	The document has no subdocuments.	文档没有子文档。
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	最后一行对各列求和（Σ =）；写在那里的单元格保留其自身文本（mean =、max =）
+	The layer of the selected objects becomes the current layer	所选对象所在的图层成为当前图层
+	The number must be a divisor of {max}.	该数必须是 {max} 的约数。
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	无法读取 {language} 的拼写词典，因此不会检查。文件：{file}。原因：{reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	光标处的表是计算表：在第一行为各列命名（L [m]、M [kN·m] = q·L²/8），并用 Σ = 求和
+	The update couldn't be installed: {error}	无法安装更新：{error}
+	The whole family	整个系列
+	The {name} dictionary couldn't be downloaded: {reason}	无法下载 {name} 词典：{reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	已安装 {name} 词典：现在会检查 {language} 拼写。
+	This cannot be undone. Your original file stays unchanged.	此操作无法撤销。你的原始文件保持不变。
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	此 Strix Writer 无法替换自身：请下载新版本并安装到此版本之上。
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	本文档含有 Strix 对象（{objects}）。Word 和其他可编辑格式会丢失它们，因此只能保存为 Strix 文档（.xmath）。PDF、PNG、LaTeX、HTML 和 Markdown 导出仍可用，为静态副本。
+	This document has no custom properties.	本文档没有自定义属性。
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	本文档尚未链接其他文档。请插入一个，或选择段落并由它们创建：其文本显示在此，并保存回各自的文件。
+	This equation is the result of the question it is worked under (shown in the results summary)	此公式是其所属题目的结果（显示在结果汇总中）
+	Tilde	波浪号
+	To the End of the Page	到页面末尾
+	Top of the Document	文档顶部
+	Track	修订
+	Changes ✓	记录 ✓
+	Trigonometric Functions	三角函数
+	Triple Dot	三点
+	Triple Integral	三重积分
+	Triple Integral with Limits	带上下限的三重积分
+	Triple Integral with Stacked Limits	带堆叠上下限的三重积分
+	Type a page number, or +2 / -1.	键入页码，或 +2 / -1。
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	键入点（x,y  @dx,dy  @d<a）、距离、命令（l、pl、rec、c、a、t、m、co）、选项，或按 Enter
+	Type equations in LaTeX	用 LaTeX 键入公式
+	Type equations in the linear format (UnicodeMath)	用线性格式（UnicodeMath）键入公式
+	Type normal (non-math) text in the equation	在公式中键入普通（非数学）文本
+	URGENT	紧急
+	Underbar	下横线
+	Underbrace	下括号
+	Union of intersections	交集的并集
+	Union with Limits	带上下限的并集
+	Union with Lower Limit	带下限的并集
+	Union with Plus	带加号的并集
+	Union with Subscript-Superscript Limits	带上下标式上下限的并集
+	Unions and Intersections	并集与交集
+	Unit	单位
+	Unit:	单位：
+	Unknown selection option:	未知的选择选项：
+	Unlink	取消链接
+	Unlink Subdocument	取消子文档链接
+	Until the Next Even Page	到下一个偶数页
+	Until the Next Odd Page	到下一个奇数页
+	Up Diagonal Dots	右上斜向点
+	Update Summary	更新汇总
+	Update and Restart	更新并重启
+	Update check is not supported in the web browser.	Web 浏览器不支持检查更新。
+	Variant	变体
+	Variants	变体
+	Varies	可变
+	Vector A	向量 A
+	Vector AB	向量 AB
+	Vertex	顶点
+	Vertical Bars	竖线
+	Vertical Dots	竖向点
+	View and edit the document's custom properties.	查看和编辑文档的自定义属性。
+	Volume Integral	体积分
+	Volume Integral with Limits	带上下限的体积分
+	Volume Integral with Stacked Limits	带堆叠上下限的体积分
+	Wait for the print job to finish submitting before closing.	请等待打印作业提交完毕后再关闭。
+	What's new	新增功能
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	结果和步骤的位置：在题干行的 ⇒ 之后，或在其下各占一行，按 = 对齐
+	Window polygon	窗口多边形
+	Write the edited subdocuments to their files now (also done by saving the document)	立即将编辑过的子文档写入各自的文件（保存文档时也会写入）
+	Yields	得出
+	You have version {version}.	你的版本是 {version}。
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / 立即生成上标、下标或分数（关闭：按 Space 才生成，如 Word 中那样）
+	already selected	已选中
+	an exercise goes in the body, outside tables	习题放在正文中，不在表格内
+	annotative {size}	注释性 {size}
+	click adds, Shift+click removes	单击添加，Shift+单击移除
+	click on empty space for a window, drag for a lasso	单击空白处为窗口选择，拖动为套索选择
+	click the vertices; Enter or right-click closes, Esc cancels	单击各顶点；Enter 或右键单击闭合，Esc 取消
+	click to pick it	单击以选取
+	conflict	冲突
+	cycle:	循环：
+	edited	已编辑
+	fitted to frame	已适应框架
+	found	已找到
+	graph paper	方格纸
+	in step	同步
+	input	输入
+	installed	已安装
+	no graph paper at the cursor	光标处没有方格纸
+	no snap	不捕捉
+	not available: the cursor isn't in an exercise	不可用：光标不在习题中
+	not found	未找到
+	n×n Identity Matrix	n×n 单位矩阵
+	n×n Matrix	n×n 矩阵
+	objects	对象
+	objects selected	个对象已选择
+	of	/
+	removed	已移除
+	scaled {size}	缩放 {size}
+	select a CAD drawing first	请先选择 CAD 图纸
+	selected	已选择
+	squares (0: none)	方格（0：无）
+	tOGGLE cASE	反转大小写
+	the cursor isn't in an exercise	光标不在习题中
+	the document has no exercise	文档中没有习题
+	x bar	x 上横线
+	{field}, record {n}	{field}，记录 {n}
+	{language} (dictionary unreadable)	{language}（词典无法读取）
+	{language}: {file} (unreadable: {reason})	{language}：{file}（无法读取：{reason}）
+	{name} options	{name} 选项
+	{n} CAD drawings	{n} 个 CAD 图纸
+	{n} calculated tables	{n} 个计算表
+	{n} calculations	{n} 个计算
+	{n} exercises	{n} 道习题
+	{n} results summaries	{n} 个结果汇总
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ 无
+	Check for\nUpdates…	检查\n更新…
+	Edit\nDrawing	编辑\n图纸
+	New\nExercise	新建\n习题
+	Show\nSteps	显示\n步骤
+	Switch\nWindows	切换\n窗口
+	Track\nChanges ✓	修订 ✓
+	Track\nChanges	修订
+	CAD\nDrawing	CAD\n图纸
+	Calculated\nTable	计算\n表格
+	Graph\nPaper	方格纸
+	New\nCalculation	新建\n计算

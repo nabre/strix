@@ -2098,3 +2098,709 @@ paper	Envelope DL	封筒 DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Strix Writer について
+
+# Strix additions 2026-11-09
+	(remove) click removes	(削除) クリックで削除
+	*Bold* and _italic_ as real formatting	*太字* と _斜体_ を実際の書式にする
+	1 CAD drawing	CAD 図面 1 件
+	1 calculated table	計算表 1 件
+	1 calculation	計算 1 件
+	1 exercise	演習 1 件
+	1 object selected	1 個のオブジェクトを選択
+	1 results summary	結果一覧 1 件
+	1×2 Empty Matrix	1×2 の空の行列
+	1×3 Empty Matrix	1×3 の空の行列
+	2×1 Empty Matrix	2×1 の空の行列
+	2×2 Determinant	2×2 の行列式
+	2×2 Empty Matrix	2×2 の空の行列
+	2×2 Identity Matrix	2×2 の単位行列
+	2×2 Identity Matrix (sparse)	2×2 の単位行列 (疎)
+	2×2 Matrix in Brackets	角かっこ付き 2×2 行列
+	2×2 Matrix in Double Bars	二重縦線付き 2×2 行列
+	2×2 Matrix in Parentheses	かっこ付き 2×2 行列
+	2×3 Empty Matrix	2×3 の空の行列
+	3×1 Empty Matrix	3×1 の空の行列
+	3×2 Empty Matrix	3×2 の空の行列
+	3×3 Empty Matrix	3×3 の空の行列
+	3×3 Identity Matrix	3×3 の単位行列
+	3×3 Identity Matrix (sparse)	3×3 の単位行列 (疎)
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	データ行に 1、2、3… と番号を付ける 0 列目 (計算では読み取られません)
+	A free, open-source word processor written in Rust.	Rust で書かれた無料のオープンソース ワード プロセッサ。
+	A grid from the cursor to the end of the page	カーソルからページの末尾までの方眼
+	A new exercise takes the page breaks of the last one.	新しい演習は、直前の演習の改ページ設定を引き継ぎます。
+	A new layer, made current	新しいレイヤー (現在のレイヤーにする)
+	A polar array has	円形配列の設定:
+	A xor B	A xor B
+	ASAP	至急
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	絶対値の場合分け
+	Accents	アクセント
+	Accept All Changes and Stop Tracking	すべての変更を承諾して追跡を終了
+	Accept and Move to Next	承諾して次へ移動
+	Acute	アキュート
+	Add Datum	データの追加
+	Add Note	注記の追加
+	Add Question	設問の追加
+	Add Sub-question	小設問の追加
+	Add a note between the questions: free text that is not a question	設問の間に注記を追加します (設問ではない自由なテキスト)
+	Add a period with double-space	ピリオドの後にスペースを 2 つ入力するとピリオドを追加
+	Add a question at the end of the exercise at the cursor	カーソル位置の演習の末尾に設問を追加
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	直前の設問の下に入れ子の設問を追加します (a.1、a.1.1)。Tab と Shift+Tab で設問のレベルを変更
+	Add a variant: a copy of the active one's values	バリアントの追加: 現在のバリアントの値のコピー
+	Add an initial datum: a symbol with its value in every variant	初期データの追加: 記号と、各バリアントでのその値
+	Add to CAD Drawing	CAD 図面に追加
+	Advanced Properties…	詳細プロパティ…
+	Aligned texts	配置されたテキスト
+	All - Linear	すべて - 線形
+	All - Professional	すべて - プロフェッショナル
+	All the selection	選択範囲すべて
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	All · F 交差 · WP/CP 多角形 · R 除去 · A 追加 · P 前へ · U 元に戻す · Shift+Space 切り替え
+	An array has	配列の設定:
+	Angle Brackets	山かっこ
+	Angle Brackets with Separator	区切り付き山かっこ
+	Angle Brackets with Two Separators	2 つの区切り付き山かっこ
+	Apply to all exercises	すべての演習に適用
+	As the grid lines	方眼の線と同じ
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	自動保存は Strix 文書 (.xmath) のみ対象です。{name} は別の形式です。自動保存を有効にするには .xmath で保存してください。
+	Automatic (Decimals, Significant Below 1)	自動 (小数、1 未満は有効桁数)
+	Automatic updates are not available yet. New versions are published at {url}	自動更新はまだ利用できません。新しいバージョンは {url} で公開されます
+	Automatically add words to list (First Letter)	単語を自動的にリストに追加 (先頭文字)
+	Automatically add words to list (INitial CAps)	単語を自動的にリストに追加 (先頭 2 文字大文字)
+	Baseline Dots	ベースライン ドット
+	Basic Math	基本数学
+	Bayes' rule	ベイズの定理
+	Binomial Coefficient	二項係数
+	Binomial Coefficient (angle)	二項係数 (山かっこ)
+	Binomial Coefficient with Angle Brackets	山かっこ付き二項係数
+	Binomial expansion of (x+a)ⁿ	(x+a)ⁿ の二項展開
+	Body text in a short paragraph to show spacing.	間隔を確認するための短い段落の本文です。
+	Book Title	書名
+	Bookmarks	ブックマーク
+	Boxed Formula	囲み付き数式
+	Boxed Formula (example)	囲み付き数式 (例)
+	Boxed Formulas	囲み付き数式
+	Braces	波かっこ
+	Braces with Separator	区切り付き波かっこ
+	Brackets	角かっこ
+	Brackets with Separators	区切り付き角かっこ
+	Breve	ブレーヴェ
+	Built-in Heading styles	組み込みの見出しスタイル
+	ByLayer	ByLayer
+	CAD	CAD
+	Drawing	図面
+	CAD Drawing	CAD 図面
+	CAD Drawing Source	CAD 図面のソース
+	CAD Picture Format	CAD 図の書式
+	CONFIDENTIAL	社外秘
+	Calculate New Equations	新しい数式を計算
+	Calculate This Table	この表を計算
+	Calculate the exercise with this variant	このバリアントで演習を計算
+	Calculated	計算
+	Table	表
+	Calculated Table	計算表
+	Calculated Table Info	計算表の情報
+	Calculation	計算
+	Calculations	計算
+	Cancel the step	手順をキャンセル
+	Cases (Three Conditions)	場合分け (3 条件)
+	Cases (Two Conditions)	場合分け (2 条件)
+	Cases and Stacks	場合分けと積み重ね
+	Ceiling	天井関数
+	Cells as Equations	数式としてのセル
+	Centered as Group	グループとして中央揃え
+	Change in y over change in x	x の変化量に対する y の変化量
+	Change to Level 1	レベル 1 に変更
+	Change to Level 2	レベル 2 に変更
+	Change to Level 3	レベル 3 に変更
+	Change to Level 4	レベル 4 に変更
+	Change to Level 5	レベル 5 に変更
+	Changed here and in the file: keep one of the two.	ここでもファイルでも変更されています。どちらかを残してください。
+	Check	チェック
+	Check for	更新プログラムの
+	Updates…	確認…
+	Checking for updates…	更新プログラムを確認しています…
+	Circle area from its radius	半径から求める円の面積
+	Circled Dot	丸付きドット
+	Circled Plus	丸付きプラス
+	Circled Times	丸付き乗算記号
+	Close Document	文書を閉じる
+	Colon Equal	コロン イコール
+	Column, Row Below (F_A)	列、下の行 (F_A)
+	Columns × rows:	列数 × 行数:
+	Common Accent Objects	一般的なアクセント オブジェクト
+	Common Brackets	一般的なかっこ
+	Common Fractions	一般的な分数
+	Common Functions	一般的な関数
+	Common Large Operators	一般的な大型演算子
+	Common Operator Structures	一般的な演算子構造
+	Common Operators	一般的な演算子
+	Common Radicals	一般的な根号
+	Common Subscripts and Superscripts	一般的な下付き文字と上付き文字
+	Considering	考慮中
+	Continue without restoring	復元せずに続行
+	Contour Integral	周回積分
+	Contour Integral with Limits	範囲付き周回積分
+	Contour Integral with Stacked Limits	積み重ね範囲付き周回積分
+	Contour Integrals	周回積分
+	Convert between built-up and linear form	組み立て形式と線形形式を相互に変換
+	Coordinates take a number or an expression of the calculations (L/2)	座標には数値または計算の式 (L/2) を指定できます
+	Coproduct	余積
+	Coproduct with Limits	範囲付き余積
+	Coproduct with Lower Limit	下限付き余積
+	Coproduct with Subscript-Superscript Limits	上付き・下付き範囲付き余積
+	Cosecant Function	余割関数
+	Cosine 2x	2x のコサイン
+	Cosine Function	余弦関数
+	Cotangent Function	余接関数
+	Could not check for updates:\n{error}	更新プログラムを確認できませんでした:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	{name} を保存できなかったため、開いたままです。内容は失われていません: {error}
+	Create Subdocument	サブドキュメントの作成
+	Create Subdocument…	サブドキュメントの作成…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	ページ上のトリミングは回転していない画像で使えます。先に回転を 0° にするか、トリミング ボックスを使用してください
+	Crossing polygon	交差する多角形
+	Cube Root	立方根
+	Current - Linear	現在 - 線形
+	Current - Professional	現在 - プロフェッショナル
+	Current Document	現在の文書
+	Current layer	現在のレイヤー
+	Current layer: new objects go on it	現在のレイヤー: 新しいオブジェクトはここに配置されます
+	DO NOT COPY	複製禁止
+	DRAFT	下書き
+	Data Table	データ表
+	Decimal Places	小数点以下の桁数
+	Delete Exercise	演習の削除
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	カーソル位置の演習、または選択した演習を丸ごと削除します。問題文、設問、解答が削除され、結果は結果一覧から除かれます (元に戻すで復元できます)
+	Delete the layer (its objects go to layer 0)	レイヤーを削除 (オブジェクトはレイヤー 0 に移動します)
+	Delta Equal To	デルタ イコール
+	Delta over arrow	矢印の上のデルタ
+	Derivative as a limit	極限としての導関数
+	Detach: a window of its own	切り離し: 独立したウィンドウ
+	Diagonal Dots	斜めドット
+	Differential	微分
+	Differential theta	微分 θ
+	Differential x	微分 x
+	Differential y	微分 y
+	Differentials	微分
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	クリックやグリップで配置した寸法線と角度の円弧は、図面内での距離を保ちます (図面のサイズと尺度に追従)。オフにすると用紙上の距離になります (印刷でも同じ)
+	Dimension texts along their line (never upside down), not level	寸法テキストを線に沿わせる (上下逆にならない)、水平にしない
+	Dimension units	寸法の単位
+	Discard the recovery copy of {name}?	{name} の復元用コピーを破棄しますか?
+	Discard…	破棄…
+	Dock	固定
+	Dock Left	左に固定
+	Dock Right	右に固定
+	Double Bar	二重縦線
+	Double Dot	二重ドット
+	Double Integral	二重積分
+	Double Integral with Limits	範囲付き二重積分
+	Double Integral with Stacked Limits	積み重ね範囲付き二重積分
+	Double Left Arrow with Text Above	上にテキスト付き二重左矢印
+	Double Left Arrow with Text Below	下にテキスト付き二重左矢印
+	Double Left Right Arrow with Text Above	上にテキスト付き二重左右矢印
+	Double Left Right Arrow with Text Below	下にテキスト付き二重左右矢印
+	Double Right Arrow with Text Above	上にテキスト付き二重右矢印
+	Double Right Arrow with Text Below	下にテキスト付き二重右矢印
+	Double Square Brackets	二重角かっこ
+	Double Vertical Bars	二重縦線
+	Double summation	二重総和
+	Download Dictionary	辞書のダウンロード
+	Download the {name} spelling dictionary	{name} のスペル チェック辞書をダウンロード
+	Downloading and installing…	ダウンロードしてインストールしています…
+	Downloading the {name} dictionary…	{name} 辞書をダウンロードしています…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	LibreOffice の辞書 ({source}、ライセンス: {licence}) から Hunspell 辞書 {name} を辞書フォルダーにダウンロードし、すぐにスペル チェックに使用します。
+	Draw order	描画順序
+	Drawing Padding	図面の余白
+	Drawing Scale	図面の尺度
+	Drawing unit	図面の単位
+	Edit	編集
+	Emphasis	強調
+	Empty Matrices	空の行列
+	End mark	終端記号
+	Endnote Reference	文末脚注参照
+	Endnote Text	文末脚注文字列
+	Enter bookmark name:	ブックマーク名を入力してください:
+	Enter confirms	Enter キーで確定
+	Equal Equal	イコール イコール
+	Equal by Definition	定義による等号
+	Euler's identity	オイラーの等式
+	Every	すべて
+	Every exercise of the document takes this exercise's page breaks	文書内のすべての演習がこの演習の改ページ設定を使用
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	各値は、列と行のラベル (最初の列) の名前に添字を付けたパラメーターになります: F_A または A_F
+	Exercise	演習
+	Exercise Data	演習データ
+	Exercise Info	演習の情報
+	Exercise Numbering	演習番号
+	Exercise Properties	演習のプロパティ
+	Exercise Result	演習の結果
+	Exercise, in the document's language	演習 (文書の言語で表示)
+	Exponential	指数関数
+	Exponential series	指数級数
+	Fence	かっこ
+	Fewer Digits	桁数を減らす
+	File type	ファイルの種類
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	[ファイル] › [新規作成] の [個人用] に、ここにある .xmathm、.dotx、.dotm テンプレートが表示されます。[Strix テンプレートとして保存] もここから始まります。
+	Find “{text}” in the document	文書内の “{text}” を検索
+	First exercise: {label}	最初の演習: {label}
+	Fitted to Frame	枠に合わせる
+	Float	フロート
+	Floor	床関数
+	Folder path	フォルダー パス
+	Follow columns	列に従う
+	Footnote Reference	脚注参照
+	Footnote Text	脚注文字列
+	For Two Pages	2 ページ分
+	For a Height of 5 cm	高さ 5 cm 用
+	For every exercise of the document: the label of each title and of the results summary.	文書内のすべての演習に適用: 各タイトルと結果一覧のラベル。
+	For which item:	対象の項目:
+	Geometry	幾何
+	Go to it	移動
+	Graph	方眼
+	Paper	用紙
+	Graph Paper	方眼紙
+	Graph Paper Pane	方眼紙ウィンドウ
+	Graph Paper Properties	方眼紙のプロパティ
+	Graph Paper at Cursor	カーソル位置の方眼紙
+	Grave	グレーブ
+	Greek Letters	ギリシャ文字
+	Grid Table 1 Light	表 (格子) 1 淡色
+	Grid Table 4 – Blue	表 (格子) 4 – 青
+	Grid Table 4 – Green	表 (格子) 4 – 緑
+	Grid Table 4 – Orange	表 (格子) 4 – オレンジ
+	Grid Table 4 – Purple	表 (格子) 4 – 紫
+	Grid lines	グリッド線
+	Grip	グリップ
+	Grip: the new point (click, or type it; Esc puts it back)	グリップ: 新しい点 (クリックまたは入力。Esc で元に戻す)
+	Grouping Character Above	上にグループ化文字
+	Grouping Character Below	下にグループ化文字
+	Hat	ハット
+	Heading	見出し
+	Heading text	見出しテキスト
+	Heavier lines	太い線
+	How results are rounded	結果の丸め方
+	Hyperbolic Cosecant Function	双曲線余割関数
+	Hyperbolic Cosine Function	双曲線余弦関数
+	Hyperbolic Cotangent Function	双曲線余接関数
+	Hyperbolic Functions	双曲線関数
+	Hyperbolic Secant Function	双曲線正割関数
+	Hyperbolic Sine Function	双曲線正弦関数
+	Hyperbolic Tangent Function	双曲線正接関数
+	Hyperlink	ハイパーリンク
+	Hypotenuse	斜辺
+	Identity Matrices	単位行列
+	Imported 1 source	1 件の資料を取り込みました
+	Imported {n} sources	{n} 件の資料を取り込みました
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	複数の段があるセクションでは、各段ごとに罫線が引かれ、段の間は空白のままになります
+	Inline (⇒)	インライン (⇒)
+	Input unit	入力単位
+	Insert Graph Paper	方眼紙の挿入
+	Insert Subdocument	サブドキュメントの挿入
+	Insert Subdocument…	サブドキュメントの挿入…
+	Insert reference to:	参照先を挿入:
+	Integral of e^(−x²)	e^(−x²) の積分
+	Integral with Limits	範囲付き積分
+	Integral with Stacked Limits	積み重ね範囲付き積分
+	Integrals	積分
+	Intense Emphasis	強い強調
+	Intense Quote	引用 (強調)
+	Intense Reference	参照 (強調)
+	Intersection with Limits	範囲付き共通部分
+	Intersection with Lower Limit	下限付き共通部分
+	Intersection with Subscript-Superscript Limits	上付き・下付き範囲付き共通部分
+	Inverse Cosecant Function	逆余割関数
+	Inverse Cosine Function	逆余弦関数
+	Inverse Cotangent Function	逆余接関数
+	Inverse Functions	逆関数
+	Inverse Hyperbolic Cosecant Function	逆双曲線余割関数
+	Inverse Hyperbolic Cosine Function	逆双曲線余弦関数
+	Inverse Hyperbolic Cotangent Function	逆双曲線余接関数
+	Inverse Hyperbolic Functions	逆双曲線関数
+	Inverse Hyperbolic Secant Function	逆双曲線正割関数
+	Inverse Hyperbolic Sine Function	逆双曲線正弦関数
+	Inverse Hyperbolic Tangent Function	逆双曲線正接関数
+	Inverse Secant Function	逆正割関数
+	Inverse Sine Function	逆正弦関数
+	Inverse Tangent Function	逆正接関数
+	Items:	項目:
+	Justification of a display equation	ディスプレイ数式の配置
+	Keep the file	ファイルを保持
+	Keep the text in this document, without the link; the file stays as it is	リンクを外してこの文書にテキストを残します。ファイルはそのまま残ります
+	Keep this version	このバージョンを保持
+	Layer:	レイヤー:
+	Left Arrow with Text Above	上にテキスト付き左矢印
+	Left Arrow with Text Below	下にテキスト付き左矢印
+	Left Bracket Twice	左かっこ 2 重
+	Left Right Arrow Above	上に左右矢印
+	Left Right Arrow with Text Above	上にテキスト付き左右矢印
+	Left Right Arrow with Text Below	下にテキスト付き左右矢印
+	Left Subscript-Superscript	左下付き・上付き文字
+	Leftwards Arrow Above	上に左向き矢印
+	Leftwards Harpoon Above	上に左向きの鉤矢印
+	Letter-Like Symbols	文字様記号
+	Limit	極限
+	Limit Example	極限の例
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	用紙上の図面のサイズを制限します (ページの本文領域を基準)。収まる尺度が候補として表示されます
+	Line by Line	1 行ずつ
+	Linear Fraction	線形分数
+	Linetype	線種
+	Lineweight	線の太さ
+	Link a document at the cursor	カーソル位置に文書をリンク
+	Linked files	リンクされたファイル
+	List Paragraph	リスト段落
+	List Table 3 – Blue	表 (リスト) 3 – 青
+	List Table 3 – Green	表 (リスト) 3 – 緑
+	List Table 3 – Orange	表 (リスト) 3 – オレンジ
+	List Table 3 – Purple	表 (リスト) 3 – 紫
+	Local recovery is unavailable or still loading.	ローカルの復元は利用できないか、読み込み中です。
+	Logarithm	対数
+	Logarithm with Base	底付き対数
+	Logical AND	論理積
+	Logical AND with Limits	範囲付き論理積
+	Logical OR	論理和
+	Logical OR with Limits	範囲付き論理和
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	オブジェクトのレイヤーを現在のレイヤーにする
+	Make the equation at the cursor a live calculation, or an ordinary one	カーソル位置の数式を、ライブ計算または通常の数式にします
+	Make this equation a live calculation: write it with = and the unknown is solved for	この数式をライブ計算にします: = を使って記述すると、未知数が解かれます
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	カーソル位置の数式を設問の結果として指定します: その値が結果一覧に入ります
+	Master Document	マスター文書
+	Math	数式
+	Matrices with Brackets	かっこ付き行列
+	Maximum Example	最大値の例
+	Maximum size	最大サイズ
+	Measured By	測定単位
+	Midline Dots	中央ドット
+	Minus Equal	マイナス イコール
+	More Digits	桁数を増やす
+	Move Pane: {title}	ウィンドウの移動: {title}
+	Move to layer	レイヤーへ移動
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	文書内の演習に名前と番号を付けます: 接頭辞 (Esercizio、任意のテキスト、またはなし)、番号の形式、開始番号を [演習のプロパティ] ウィンドウで指定
+	Natural Logarithm	自然対数
+	Negated Relations	否定関係
+	New	新規
+	New Calculation	新しい計算
+	New Exercise	新しい演習
+	New equations are live calculations	新しい数式をライブ計算にする
+	New layer	新しいレイヤー
+	New page before the exercise	演習の前で改ページ
+	New page before the results summary	結果一覧の前で改ページ
+	New page before the solution	解答の前で改ページ
+	Next object	次のオブジェクト
+	Next point	次の点
+	No Spacing	行間詰め
+	No items to show.	表示する項目がありません。
+	No new sources in that file	そのファイルに新しい資料はありません
+	No previous selection	前の選択範囲はありません
+	No recovery copies.	復元用コピーはありません。
+	No selection: click objects, or drag a window	選択なし: オブジェクトをクリックするか、ウィンドウをドラッグしてください
+	Normal probability density	正規確率密度
+	Not a Data Table	データ表ではありません
+	Nothing of this type in the document.	文書内にこの種類のものはありません。
+	Nothing to undo in the selection	選択範囲内に元に戻す操作はありません
+	Number Format	番号の形式
+	Number the equation; the number sits at the right margin (or type # then the number)	数式に番号を付けます。番号は右余白に配置されます (または # に続けて番号を入力)
+	Object snap settings	オブジェクト スナップの設定
+	Objects	オブジェクト
+	One half	2 分の 1
+	Only text properties can be changed.	テキストのプロパティのみ変更できます。
+	Only these	これらのみ
+	Only when another exercise comes before it	前に別の演習がある場合のみ
+	Open Subdocument	サブドキュメントを開く
+	Open the file in a window of its own	ファイルを独立したウィンドウで開く
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	今後、Strix 文書 (.xmath、.xmathm)、.docx、.doc、.rtf、.odt ファイルと Word テンプレートを Strix で開きます。
+	Operator Structures	演算子構造
+	Operators	演算子
+	Ordinal Column	連番列
+	Other Large Operators	その他の大型演算子
+	Other corner of the window (to the right: whole objects; to the left: touched too)	ウィンドウの反対側の角 (右へ: 完全に含まれるオブジェクト、左へ: 触れたオブジェクトも)
+	Outer frame	外枠
+	Outward Brackets	外向きかっこ
+	Overbar	オーバーバー
+	Overbars and Underbars	オーバーバーとアンダーバー
+	Overbrace	上かっこ
+	Overwrite the file with the text shown here	ここに表示されているテキストでファイルを上書き
+	Padding	余白
+	Page color	ページの色
+	Pane Options	ウィンドウのオプション
+	Parentheses	丸かっこ
+	Parentheses with Separator	区切り付き丸かっこ
+	Partial Differential	偏微分
+	Pi Over 2	2 分のパイ
+	Placement	配置
+	Plain Table 1	表 (シンプル) 1
+	Plus Equal	プラス イコール
+	Possible spelling mistake	スペル ミスの可能性
+	Power series of (1+x)ⁿ	(1+x)ⁿ のべき級数
+	Previous object	前のオブジェクト
+	Product	積
+	Product of A	A の積
+	Product with Limits	範囲付き積
+	Product with Lower Limit	下限付き積
+	Product with Subscript-Superscript Limits	上付き・下付き範囲付き積
+	Products and Coproducts	積と余積
+	Property names are 1–{max} characters.	プロパティ名は 1～{max} 文字です。
+	Property values are at most {max} bytes.	プロパティ値は {max} バイトまでです。
+	Put the cursor in an exercise to see its data and variants.	演習のデータとバリアントを表示するには、演習内にカーソルを置いてください。
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	プロパティを表示するには、方眼紙の中 (または方眼紙の背景があるページ) にカーソルを置いてください。
+	Quadratic Root	2 次方程式の解
+	Quick Keys	クイック キー
+	Quick Keys in Formulas	数式のクイック キー
+	Quote	引用
+	Radical with Degree	指数付き根号
+	Radicals	根号
+	Reading Page Color	閲覧時のページの色
+	Rebuild the repeated questions and the results summary	繰り返しの設問と結果一覧を再構築
+	Recalculate	再計算
+	Recalculate every calculation in the document (F9)	文書内のすべての計算を再計算 (F9)
+	Recovery copy	復元用コピー
+	Recovery is disabled while this document has a password.	この文書にパスワードが設定されている間は、復元は無効です。
+	Reduce the selection to the objects considered	選択範囲を考慮対象のオブジェクトに絞り込む
+	Reference type:	参照の種類:
+	Reject All Changes and Stop Tracking	すべての変更を元に戻して追跡を終了
+	Reject and Move to Next	元に戻して次へ移動
+	Release notes	リリース ノート
+	Reload Subdocuments	サブドキュメントの再読み込み
+	Remove Graph Paper	方眼紙の削除
+	Remove the active variant	現在のバリアントを削除
+	Remove this datum	このデータを削除
+	Replace the text shown here with the file's	ここに表示されているテキストをファイルの内容に置き換え
+	Resize Pane	ウィンドウのサイズ変更
+	Restore opens an unsaved copy. Your original file stays unchanged.	[復元] を選ぶと、未保存のコピーが開きます。元のファイルは変更されません。
+	Result Layout	結果のレイアウト
+	Result Of	結果:
+	Right Arrow with Text Above	上にテキスト付き右矢印
+	Right Arrow with Text Below	下にテキスト付き右矢印
+	Right Bracket Twice	右かっこ 2 重
+	Rightwards Arrow Above	上に右向き矢印
+	Rightwards Harpoon Above	上に右向きの鉤矢印
+	Roots of ax²+bx+c	ax²+bx+c の解
+	Row, Column Below (A_F)	行、下の列 (A_F)
+	SAMPLE	見本
+	Save Subdocuments	サブドキュメントの保存
+	Save as Strix Template…	Strix テンプレートとして保存…
+	Save or close your documents first: updating restarts Strix Writer.	先に文書を保存するか閉じてください。更新すると Strix Writer が再起動します。
+	Save the selected paragraphs as a new file, linked in their place	選択した段落を新しいファイルとして保存し、その場所にリンクします
+	Save your documents: Strix Writer then closes and restarts in the new version.	文書を保存してください。Strix Writer を閉じて、新しいバージョンで再起動します。
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	.xmathm テンプレートをテンプレート フォルダーに保存します。[ファイル] › [新規作成] の [個人用] に表示されます。
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	文書を保存すると、ここで編集したすべてのサブドキュメントが保存されます。文書を開くと、各ファイルの現在の内容が表示されます。
+	Scale Font Sizes	フォント サイズを拡大縮小
+	Scaled distances	尺度を適用した距離
+	Secant Function	正割関数
+	Select a place in this document:	この文書内の場所を選択してください:
+	Select a property to change.	変更するプロパティを選択してください。
+	Select objects	オブジェクトの選択
+	Selection options	選択のオプション
+	Separate text with	テキストの区切り文字:
+	Set CAD Drawing	CAD 図面の設定
+	Set Exercise Data	演習データの設定
+	Set left- and first-indent with tabs and backspaces	タブとバックスペースで左インデントと先頭行インデントを設定
+	Show	表示
+	Steps	手順
+	Show Steps	手順の表示
+	Show Trailing Zeros	末尾のゼロを表示
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	すべてのセルを数式として表示: 名前は斜体、添字、単位は [単位] スタイル
+	Show every file as it is on disk, discarding edits made here	すべてのファイルをディスク上の状態で表示し、ここでの編集を破棄
+	Show one digit less in results	結果の桁数を 1 桁減らして表示
+	Show one more digit in results	結果の桁数を 1 桁増やして表示
+	Show the equation in the line of text	数式を文中に表示
+	Show the equation on a line of its own	数式を独立した行に表示
+	Show the exercise's data and variants	演習のデータとバリアントを表示
+	Show the file as it is on disk, discarding edits made here	ファイルをディスク上の状態で表示し、ここでの編集を破棄
+	Sides of a right triangle	直角三角形の辺
+	Significant Digits	有効桁数
+	Sine Function	正弦関数
+	Sine and cosine series of f(x)	f(x) の正弦・余弦級数
+	Sine theta	θ のサイン
+	Single Brackets	単一かっこ
+	Single Left Angle	左山かっこ 1 つ
+	Single Left Bar	左縦線 1 つ
+	Single Left Brace	左波かっこ 1 つ
+	Single Left Bracket	左角かっこ 1 つ
+	Single Left Parenthesis	左丸かっこ 1 つ
+	Single Right Brace	右波かっこ 1 つ
+	Single Right Bracket	右角かっこ 1 つ
+	Single Right Parenthesis	右丸かっこ 1 つ
+	Skewed Fraction	斜め分数
+	Small change	微小変化
+	Snap for the next point	次の点へのスナップ
+	Snap for the next point (Shift+right-click)	次の点へのスナップ (Shift+右クリック)
+	Software Update	ソフトウェアの更新
+	Spanish (Latin America)	スペイン語 (ラテンアメリカ)
+	Spanish (Uruguay)	スペイン語 (ウルグアイ)
+	Sparse Matrices	疎行列
+	Square Root	平方根
+	Square Root with Degree	指数付き平方根
+	Square Union	角型和集合
+	Square size	マス目のサイズ
+	Stack Object	オブジェクトの積み重ね
+	Stack Object (Three)	オブジェクトの積み重ね (3 段)
+	Stacked Fraction	積み重ね分数
+	Stacked, no bar	積み重ね、線なし
+	Start at	開始番号:
+	Strix Writer {version} is available	Strix Writer {version} を利用できます
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} が現在の最新バージョンです。
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix は WordCraft のフォークです。Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. NOTICE を参照してください。
+	Strong	太字 (強調)
+	Styles Pane Position	スタイル ウィンドウの位置
+	Subdocuments	サブドキュメント
+	Subdocuments Pane	サブドキュメント ウィンドウ
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	サブドキュメントはディスク上のファイルです。デスクトップ版ではリンクできますが、ブラウザー版ではできません。
+	Subscript-Superscript	上付き・下付き文字
+	Subscripts and Superscripts	上付き文字と下付き文字
+	Subtle Emphasis	控えめな強調
+	Subtle Reference	控えめな参照
+	Sum of cosines	余弦の和
+	Sum or difference of sines	正弦の和または差
+	Summation	総和
+	Summation from 0 to n	0 から n までの総和
+	Summation over binomials	二項係数の総和
+	Summation with Limits	範囲付き総和
+	Summation with Lower Limit	下限付き総和
+	Summation with Subscript Limit	下付き範囲付き総和
+	Summation with Subscript-Superscript Limits	上付き・下付き範囲付き総和
+	Summations	総和
+	Surface Integral	面積分
+	Surface Integral with Limits	範囲付き面積分
+	Surface Integral with Stacked Limits	積み重ね範囲付き面積分
+	Switch	切り替え
+	Windows	ウィンドウ
+	Switch Windows	ウィンドウの切り替え
+	TOC Heading	目次の見出し
+	Table Grid	表 (格子)
+	Table of Figures	図表目次
+	Tangent Function	正接関数
+	Tangent formula	正接の公式
+	Text Size	テキスト サイズ
+	Text over Colon Equal	コロン イコールの上にテキスト
+	Text over Equal	イコールの上にテキスト
+	Text properties only: Word's number, date and yes-no types aren't offered.	テキスト プロパティのみ: 数値、日付、はい/いいえの種類は選択できません。
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	その形式にはすべてを保存できないため、文書は開いたままです。続行するには Strix 文書 (.xmath) として保存してください。
+	That would make the object degenerate	それではオブジェクトが退化してしまいます
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	データは演習の計算の最初のパラメーターです。解答ではそれらを記号で使用します。バリアントを変更すると、演習が再計算されます。
+	The document has no subdocuments.	この文書にはサブドキュメントがありません。
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	最終行は各列の合計です (Σ =)。そこに書いたセルは、そのテキストを保持します (mean =、max =)
+	The layer of the selected objects becomes the current layer	選択したオブジェクトのレイヤーが現在のレイヤーになります
+	The number must be a divisor of {max}.	{max} の約数を指定してください。
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	{language} のスペル チェック辞書を読み取れなかったため、チェックされません。ファイル: {file}。理由: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	カーソル位置の表は計算表です: 最初の行に列名を付け (L [m]、M [kN·m] = q·L²/8)、Σ = で合計します
+	The update couldn't be installed: {error}	更新をインストールできませんでした: {error}
+	The whole family	ファミリ全体
+	The {name} dictionary couldn't be downloaded: {reason}	{name} 辞書をダウンロードできませんでした: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	{name} 辞書をインストールしました。{language} のスペル チェックが有効になりました。
+	This cannot be undone. Your original file stays unchanged.	この操作は元に戻せません。元のファイルは変更されません。
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	この Strix Writer は自身を置き換えられません。新しいバージョンをダウンロードして、このバージョンに上書きインストールしてください。
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	この文書には Strix オブジェクト ({objects}) があります。Word などの編集可能な形式では失われるため、Strix 文書 (.xmath) としてのみ保存できます。PDF、PNG、LaTeX、HTML、Markdown へのエクスポートは、静的なコピーとして引き続き利用できます。
+	This document has no custom properties.	この文書にはユーザー設定のプロパティがありません。
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	この文書は他の文書をまだリンクしていません。文書を挿入するか、段落を選択してそこから作成してください。そのテキストはここに表示され、それぞれのファイルに保存されます。
+	This equation is the result of the question it is worked under (shown in the results summary)	この数式は、それが属する設問の結果です (結果一覧に表示されます)
+	Tilde	チルダ
+	To the End of the Page	ページの末尾まで
+	Top of the Document	文書の先頭
+	Track	変更履歴
+	Changes ✓	の記録 ✓
+	Trigonometric Functions	三角関数
+	Triple Dot	三点ドット
+	Triple Integral	三重積分
+	Triple Integral with Limits	範囲付き三重積分
+	Triple Integral with Stacked Limits	積み重ね範囲付き三重積分
+	Type a page number, or +2 / -1.	ページ番号、または +2 / -1 を入力してください。
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	点 (x,y  @dx,dy  @d<a)、距離、コマンド (l, pl, rec, c, a, t, m, co)、オプションを入力するか、Enter キーを押してください
+	Type equations in LaTeX	数式を LaTeX で入力
+	Type equations in the linear format (UnicodeMath)	数式を線形形式 (UnicodeMath) で入力
+	Type normal (non-math) text in the equation	数式内に通常の (数式以外の) テキストを入力
+	URGENT	至急
+	Underbar	アンダーバー
+	Underbrace	下かっこ
+	Union	和集合
+	Union of intersections	共通部分の和集合
+	Union with Limits	範囲付き和集合
+	Union with Lower Limit	下限付き和集合
+	Union with Plus	プラス付き和集合
+	Union with Subscript-Superscript Limits	上付き・下付き範囲付き和集合
+	Unions and Intersections	和集合と共通部分
+	Unit	単位
+	Unit:	単位:
+	Unknown selection option:	不明な選択オプション:
+	Unlink	リンク解除
+	Unlink Subdocument	サブドキュメントのリンク解除
+	Until the Next Even Page	次の偶数ページまで
+	Until the Next Odd Page	次の奇数ページまで
+	Up Diagonal Dots	右上がりの斜めドット
+	Update Summary	サマリーの更新
+	Update and Restart	更新して再起動
+	Update check is not supported in the web browser.	Web ブラウザーでは更新の確認はサポートされていません。
+	Variant	バリアント
+	Variants	バリアント
+	Varies	可変
+	Vector A	ベクトル A
+	Vector AB	ベクトル AB
+	Vertex	頂点
+	Vertical Bars	縦線
+	Vertical Dots	縦ドット
+	View and edit the document's custom properties.	文書のユーザー設定プロパティを表示および編集します。
+	Volume Integral	体積分
+	Volume Integral with Limits	範囲付き体積分
+	Volume Integral with Stacked Limits	積み重ね範囲付き体積分
+	Wait for the print job to finish submitting before closing.	印刷ジョブの送信が完了するまでお待ちください。
+	What's new	新機能
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	ここで、結果と手順を表示する場所: 問題文の行の ⇒ の後、またはその下に 1 行ずつ、= で揃えて
+	Window polygon	ウィンドウ多角形
+	Write the edited subdocuments to their files now (also done by saving the document)	編集したサブドキュメントを今すぐファイルに書き込みます (文書の保存でも書き込まれます)
+	Yields	導かれる
+	You have version {version}.	バージョン {version} をお使いです。
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / で上付き文字、下付き文字、分数をすぐに作成します (オフ: Space で組み立てられます)
+	already selected	選択済み
+	an exercise goes in the body, outside tables	演習は表の外の本文に配置されます
+	annotative {size}	注釈付き {size}
+	click adds, Shift+click removes	クリックで追加、Shift+クリックで除去
+	click on empty space for a window, drag for a lasso	空白部分をクリックするとウィンドウ選択、ドラッグすると投げ縄選択
+	click the vertices; Enter or right-click closes, Esc cancels	頂点をクリックします。Enter または右クリックで閉じ、Esc でキャンセル
+	click to pick it	クリックして選択
+	conflict	競合
+	cycle:	切り替え:
+	edited	編集済み
+	fitted to frame	枠に合わせました
+	found	見つかりました
+	graph paper	方眼紙
+	in step	同期中
+	input	入力
+	installed	インストール済み
+	no graph paper at the cursor	カーソル位置に方眼紙がありません
+	no snap	スナップなし
+	not available: the cursor isn't in an exercise	使用できません: カーソルが演習内にありません
+	not found	見つかりません
+	n×n Identity Matrix	n×n の単位行列
+	n×n Matrix	n×n 行列
+	objects	オブジェクト
+	objects selected	個のオブジェクトを選択
+	of	/
+	removed	削除済み
+	scaled {size}	尺度適用 {size}
+	select a CAD drawing first	先に CAD 図面を選択してください
+	selected	選択済み
+	squares (0: none)	マス目 (0: なし)
+	tOGGLE cASE	大文字小文字の反転
+	the cursor isn't in an exercise	カーソルが演習内にありません
+	the document has no exercise	文書に演習がありません
+	x bar	x バー
+	{field}, record {n}	{field}、レコード {n}
+	{language} (dictionary unreadable)	{language} (辞書を読み取れません)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (読み取れません: {reason})
+	{name} options	{name} のオプション
+	{n} CAD drawings	CAD 図面 {n} 件
+	{n} calculated tables	計算表 {n} 件
+	{n} calculations	計算 {n} 件
+	{n} exercises	演習 {n} 件
+	{n} results summaries	結果一覧 {n} 件
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ なし
+	Check for\nUpdates…	更新を\n確認…
+	Edit\nDrawing	図面を\n編集
+	New\nExercise	新しい\n演習
+	Show\nSteps	手順を\n表示
+	Switch\nWindows	ウィンドウの\n切り替え
+	Track\nChanges ✓	変更履歴の\n記録 ✓
+	Track\nChanges	変更履歴の\n記録
+	CAD\nDrawing	CAD\n図面
+	Calculated\nTable	計算\nテーブル
+	Graph\nPaper	方眼紙
+	New\nCalculation	新しい\n計算

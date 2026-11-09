@@ -2348,3 +2348,373 @@ paper	Envelope DL	DL zarf
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Strix Writer Hakkında
+
+
+
+# Strix additions 2026-11-09
+	(remove) click removes	(kaldır) tıklama kaldırır
+	*Bold* and _italic_ as real formatting	*Kalın* ve _italik_ gerçek biçimlendirme olarak
+	1 CAD drawing	1 CAD çizimi
+	1 calculated table	1 hesaplanan tablo
+	1 calculation	1 hesaplama
+	1 exercise	1 alıştırma
+	1 object selected	1 nesne seçili
+	1 results summary	1 sonuç özeti
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Veri satırlarını 1, 2, 3… diye numaralandıran ilk sütun, yani 0. sütun (hesaplamalar bunu hiç okumaz)
+	A free, open-source word processor written in Rust.	Rust ile yazılmış, ücretsiz ve açık kaynaklı bir kelime işlemci.
+	A grid from the cursor to the end of the page	İmleçten sayfa sonuna kadar bir ızgara
+	A new exercise takes the page breaks of the last one.	Yeni bir alıştırma, sonuncusunun sayfa sonlarını alır.
+	A new layer, made current	Yeni bir katman, geçerli yapılır
+	A polar array has	Kutupsal bir dizilimde şu var:
+	Accept All Changes and Stop Tracking	Tüm Değişiklikleri Kabul Et ve Değişiklik İzlemeyi Durdur
+	Accept and Move to Next	Kabul Et ve Sonrakine Geç
+	Add Datum	Veri Ekle
+	Add Note	Not Ekle
+	Add Question	Soru Ekle
+	Add Sub-question	Alt Soru Ekle
+	Add a note between the questions: free text that is not a question	Sorular arasına not ekle: soru olmayan serbest metin
+	Add a period with double-space	Çift boşlukla nokta ekle
+	Add a question at the end of the exercise at the cursor	İmlecin bulunduğu alıştırmanın sonuna soru ekle
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Sonuncunun altına iç içe bir soru ekle (a.1, a.1.1); Tab ve Shift+Tab sorunun düzeyini değiştirir
+	Add a variant: a copy of the active one's values	Varyant ekle: etkin olanın değerlerinin bir kopyası
+	Add an initial datum: a symbol with its value in every variant	Başlangıç verisi ekle: her varyantta kendi değerini taşıyan bir simge
+	Add to CAD Drawing	CAD Çizimine Ekle
+	Advanced Properties…	Gelişmiş Özellikler…
+	Aligned texts	Hizalı metinler
+	All the selection	Seçimin tamamı
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Tümü · F çit · WP/CP çokgen · R çıkar · A ekle · P önceki · U geri al · Shift+Boşluk döngüsel geçiş
+	An array has	Bir dizilimde şu var:
+	Apply to all exercises	Tüm alıştırmalara uygula
+	As the grid lines	Izgara çizgileri gibi
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Otomatik Kaydetme yalnızca Strix belgelerini (.xmath) saklar; {name} başka bir biçimde. Otomatik Kaydetme'yi açmak için .xmath olarak kaydedin.
+	Automatic (Decimals, Significant Below 1)	Otomatik (ondalık, 1'in altında anlamlı basamak)
+	Automatic updates are not available yet. New versions are published at {url}	Otomatik güncelleme henüz kullanılamıyor. Yeni sürümler {url} adresinde yayımlanır
+	Automatically add words to list (First Letter)	Sözcükleri listeye otomatik ekle (İlk Harf)
+	Automatically add words to list (INitial CAps)	Sözcükleri listeye otomatik ekle (İKi BÜyük Harf)
+	Bookmarks	Yer İşaretleri
+	Built-in Heading styles	Yerleşik Başlık stilleri
+	ByLayer	Katmana Göre
+	CAD	CAD
+	Drawing	Çizim
+	CAD Drawing	CAD Çizimi
+	CAD Drawing Source	CAD Çizim Kaynağı
+	CAD Picture Format	CAD Resim Biçimi
+	Calculate New Equations	Yeni Denklemleri Hesapla
+	Calculate This Table	Bu Tabloyu Hesapla
+	Calculate the exercise with this variant	Alıştırmayı bu varyantla hesapla
+	Calculated	Hesaplanan
+	Calculated Table	Hesaplanan Tablo
+	Calculated Table Info	Hesaplanan Tablo Bilgisi
+	Calculation	Hesaplama
+	Calculations	Hesaplamalar
+	Cancel the step	Adımı iptal et
+	Cells as Equations	Hücreler Denklem Olarak
+	Changed here and in the file: keep one of the two.	Burada ve dosyada değişti: ikisinden birini koruyun.
+	Check for	Güncellemeleri
+	Updates…	Denetle…
+	Checking for updates…	Güncellemeler denetleniyor…
+	Close Document	Belgeyi Kapat
+	Column, Row Below (F_A)	Sütun, Aşağıdaki Satır (F_A)
+	Columns × rows:	Sütun × satır:
+	Considering	Dikkate alınan
+	Continue without restoring	Geri yüklemeden devam et
+	Coordinates take a number or an expression of the calculations (L/2)	Koordinatlar bir sayı ya da hesaplamalardan bir ifade alır (L/2)
+	Could not check for updates:\n{error}	Güncellemeler denetlenemedi:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	{name} kaydedilemedi; belge hâlâ açık ve hiçbir şey kaybolmadı: {error}
+	Create Subdocument	Alt Belge Oluştur
+	Create Subdocument…	Alt Belge Oluştur…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Sayfada kırpma, döndürülmemiş resimlerde çalışır: önce Döndürme'yi 0° yapın ya da kırpma kutularını kullanın
+	Crossing polygon	Kesen çokgen
+	Current Document	Geçerli Belge
+	Current layer	Geçerli katman
+	Current layer: new objects go on it	Geçerli katman: yeni nesneler buraya gider
+	Data Table	Veri Tablosu
+	Decimal Places	Ondalık Basamak
+	Delete Exercise	Alıştırmayı Sil
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	İmlecin bulunduğu alıştırmayı ya da seçili alıştırmaları bütünüyle sil: metni, soruları ve çözümü gider, sonuçları özetten çıkar (Geri Al onları geri getirir)
+	Delete the layer (its objects go to layer 0)	Katmanı sil (nesneleri 0 numaralı katmana geçer)
+	Detach: a window of its own	Ayır: ayrı bir pencerede
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Tıklamayla ya da tutamaçla yerleştirilen ölçü çizgileri ve açı yayları çizimdeki uzaklığını korur (çizimin boyutunu ve ölçeğini izler); kapalıyken kâğıt üzerinde (baskıda da aynı)
+	Dimension texts along their line (never upside down), not level	Ölçü metinleri çizgisi boyunca (hiçbir zaman ters değil), yatay değil
+	Dimension units	Ölçü birimleri
+	Discard the recovery copy of {name}?	{name} için kurtarma kopyası atılsın mı?
+	Discard…	At…
+	Dock	Yerleştir
+	Dock Left	Sola Yerleştir
+	Dock Right	Sağa Yerleştir
+	Download Dictionary	Sözlüğü İndir
+	Download the {name} spelling dictionary	{name} yazım sözlüğünü indir
+	Downloading and installing…	İndiriliyor ve yükleniyor…
+	Downloading the {name} dictionary…	{name} sözlüğü indiriliyor…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Hunspell {name} sözlüğünü LibreOffice sözlüklerinden ({source}), {licence} lisansıyla sözlükler klasörünüze indirir ve yazım denetimini hemen onunla yapar.
+	Draw order	Çizim sırası
+	Drawing Padding	Çizim Dolgusu
+	Drawing Scale	Çizim Ölçeği
+	Drawing unit	Çizim birimi
+	End mark	Bitiş işareti
+	Enter bookmark name:	Yer işareti adını girin:
+	Enter confirms	Enter onaylar
+	Every	Her
+	Every exercise of the document takes this exercise's page breaks	Belgedeki her alıştırma bu alıştırmanın sayfa sonlarını alır
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Her değer, sütunu ve satırının etiketiyle (ilk sütun) adlandırılmış, alt simgeli bir parametredir: F_A ya da A_F
+	Exercise	Alıştırma
+	Exercise Data	Alıştırma Verileri
+	Exercise Info	Alıştırma Bilgisi
+	Exercise Numbering	Alıştırma Numaralandırma
+	Exercise Properties	Alıştırma Özellikleri
+	Exercise Result	Alıştırma Sonucu
+	Exercise, in the document's language	Alıştırma, belgenin dilinde
+	Fence	Çit
+	Fewer Digits	Daha Az Basamak
+	File type	Dosya türü
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Dosya › Yeni, .xmathm, .dotx ve .dotm şablonlarını burada, Kişisel altında listeler; Strix Şablonu Olarak Kaydet buradan başlar.
+	Find “{text}” in the document	Belgede “{text}” ara
+	First exercise: {label}	İlk alıştırma: {label}
+	Fitted to Frame	Çerçeveye Sığdırıldı
+	Float	Yüzen
+	Folder path	Klasör yolu
+	Follow columns	Sütunları izle
+	For Two Pages	İki Sayfa İçin
+	For a Height of 5 cm	5 cm Yükseklik İçin
+	For every exercise of the document: the label of each title and of the results summary.	Belgedeki her alıştırma için: her başlığın ve sonuç özetinin etiketi.
+	Go to it	Ona git
+	Graph	Milimetrik
+	Graph Paper	Milimetrik Kâğıt
+	Graph Paper Pane	Milimetrik Kâğıt Bölmesi
+	Graph Paper Properties	Milimetrik Kâğıt Özellikleri
+	Graph Paper at Cursor	İmleçteki Milimetrik Kâğıt
+	Grid lines	Izgara çizgileri
+	Grip	Tutamaç
+	Grip: the new point (click, or type it; Esc puts it back)	Tutamaç: yeni nokta (tıklayın ya da yazın; Esc geri koyar)
+	Heavier lines	Daha kalın çizgiler
+	How results are rounded	Sonuçların yuvarlanma biçimi
+	Imported 1 source	1 kaynak içe aktarıldı
+	Imported {n} sources	{n} kaynak içe aktarıldı
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Birden çok sütunlu bir bölümde her sütun ayrı çizgilenir ve aralarındaki boşluk temiz bırakılır
+	Inline (⇒)	Satır içi (⇒)
+	Input unit	Giriş birimi
+	Insert Graph Paper	Milimetrik Kâğıt Ekle
+	Insert Subdocument	Alt Belge Ekle
+	Insert Subdocument…	Alt Belge Ekle…
+	Items:	Öğeler:
+	Keep the file	Dosyayı koru
+	Keep the text in this document, without the link; the file stays as it is	Metni bu belgede bağlantısız olarak koru; dosya olduğu gibi kalır
+	Keep this version	Bu sürümü koru
+	Layer:	Katman:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Çizimin kâğıt üzerindeki boyutunu sınırla (sayfanın metin alanından): sunulan ölçekler sığdığı ölçeklerdir
+	Line by Line	Satır Satır
+	Linetype	Çizgi türü
+	Lineweight	Çizgi kalınlığı
+	Link a document at the cursor	İmleçte bir belge bağla
+	Linked files	Bağlı dosyalar
+	Local recovery is unavailable or still loading.	Yerel kurtarma kullanılamıyor ya da hâlâ yükleniyor.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Nesnenin katmanını geçerli yap
+	Make the equation at the cursor a live calculation, or an ordinary one	İmlecin bulunduğu denklemi canlı hesaplama ya da sıradan denklem yap
+	Make this equation a live calculation: write it with = and the unknown is solved for	Bu denklemi canlı hesaplama yap: = ile yazın, bilinmeyen çözülür
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	İmlecin bulunduğu denklemi bir sorunun sonucu olarak işaretle: değeri sonuç özetine gider
+	Master Document	Ana Belge
+	Math	Matematik
+	Maximum size	En büyük boyut
+	More Digits	Daha Fazla Basamak
+	Move Pane: {title}	Bölmeyi Taşı: {title}
+	Move to layer	Katmana taşı
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Belgedeki alıştırmaları adlandır ve numaralandır: önek (Esercizio, kendi metniniz ya da hiçbiri), numara biçimi ve ilk numara, Alıştırma Özellikleri bölmesinde
+	New Calculation	Yeni Hesaplama
+	New Exercise	Yeni Alıştırma
+	New equations are live calculations	Yeni denklemler canlı hesaplamadır
+	New layer	Yeni katman
+	New page before the exercise	Alıştırmadan önce yeni sayfa
+	New page before the results summary	Sonuç özetinden önce yeni sayfa
+	New page before the solution	Çözümden önce yeni sayfa
+	Next object	Sonraki nesne
+	Next point	Sonraki nokta
+	No new sources in that file	Bu dosyada yeni kaynak yok
+	No previous selection	Önceki seçim yok
+	No recovery copies.	Kurtarma kopyası yok.
+	No selection: click objects, or drag a window	Seçim yok: nesnelere tıklayın ya da bir pencere sürükleyin
+	Not a Data Table	Veri Tablosu Değil
+	Nothing of this type in the document.	Belgede bu türden hiçbir şey yok.
+	Nothing to undo in the selection	Seçimde geri alınacak bir şey yok
+	Number Format	Sayı Biçimi
+	Object snap settings	Nesne yakalama ayarları
+	Objects	Nesneler
+	Only text properties can be changed.	Yalnızca metin özellikleri değiştirilebilir.
+	Only these	Yalnızca bunlar
+	Only when another exercise comes before it	Yalnızca öncesinde başka bir alıştırma varsa
+	Open Subdocument	Alt Belgeyi Aç
+	Open the file in a window of its own	Dosyayı ayrı bir pencerede aç
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Bundan sonra Strix belgelerini (.xmath, .xmathm), .docx, .doc, .rtf ve .odt dosyalarını ve Word şablonlarını Strix ile açar.
+	Ordinal Column	Sıra Sütunu
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Pencerenin öbür köşesi (sağa doğru: bütün nesneler; sola doğru: dokunulanlar da)
+	Outer frame	Dış çerçeve
+	Overwrite the file with the text shown here	Dosyanın üzerine burada görünen metni yaz
+	Padding	Dolgu
+	Page color	Sayfa rengi
+	Pane Options	Bölme Seçenekleri
+	Placement	Yerleşim
+	Previous object	Önceki nesne
+	Property names are 1–{max} characters.	Özellik adları 1–{max} karakterdir.
+	Property values are at most {max} bytes.	Özellik değerleri en çok {max} bayttır.
+	Put the cursor in an exercise to see its data and variants.	Verilerini ve varyantlarını görmek için imleci bir alıştırmaya getirin.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Özelliklerini görmek için imleci milimetrik kâğıda (ya da milimetrik kâğıt arka planlı bir sayfaya) getirin.
+	Quick Keys	Hızlı Tuşlar
+	Quick Keys in Formulas	Formüllerde Hızlı Tuşlar
+	Reading Page Color	Okuma Sayfa Rengi
+	Rebuild the repeated questions and the results summary	Yinelenen soruları ve sonuç özetini yeniden oluştur
+	Recalculate	Yeniden Hesapla
+	Recalculate every calculation in the document (F9)	Belgedeki tüm hesaplamaları yeniden hesapla (F9)
+	Recovery copy	Kurtarma kopyası
+	Recovery is disabled while this document has a password.	Bu belgede parola varken kurtarma devre dışıdır.
+	Reduce the selection to the objects considered	Seçimi dikkate alınan nesnelere daralt
+	Reject All Changes and Stop Tracking	Tüm Değişiklikleri Reddet ve Değişiklik İzlemeyi Durdur
+	Reject and Move to Next	Reddet ve Sonrakine Geç
+	Release notes	Sürüm notları
+	Reload Subdocuments	Alt Belgeleri Yeniden Yükle
+	Remove Graph Paper	Milimetrik Kâğıdı Kaldır
+	Remove the active variant	Etkin varyantı kaldır
+	Remove this datum	Bu veriyi kaldır
+	Replace the text shown here with the file's	Burada görünen metni dosyanınkiyle değiştir
+	Resize Pane	Bölmeyi Yeniden Boyutlandır
+	Restore opens an unsaved copy. Your original file stays unchanged.	Geri Yükle, kaydedilmemiş bir kopyayı açar. Özgün dosyanız değişmeden kalır.
+	Result Layout	Sonuç Düzeni
+	Result Of	Sonuç Kaynağı
+	Row, Column Below (A_F)	Satır, Aşağıdaki Sütun (A_F)
+	Save Subdocuments	Alt Belgeleri Kaydet
+	Save as Strix Template…	Strix Şablonu Olarak Kaydet…
+	Save or close your documents first: updating restarts Strix Writer.	Önce belgelerinizi kaydedin ya da kapatın: güncelleme Strix Writer'ı yeniden başlatır.
+	Save the selected paragraphs as a new file, linked in their place	Seçili paragrafları yeni bir dosya olarak kaydet, yerlerine bağlantılı
+	Save your documents: Strix Writer then closes and restarts in the new version.	Belgelerinizi kaydedin: Strix Writer kapanır ve yeni sürümde yeniden başlar.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Şablon klasörünüze bir .xmathm şablonu kaydeder. Dosya › Yeni içinde Kişisel altında görünür.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Belgeyi kaydetmek, burada düzenlenen her alt belgeyi de kaydeder. Açtığınızda her dosya şu anki hâliyle görünür.
+	Scale Font Sizes	Yazı Tipi Boyutlarını Ölçekle
+	Scaled distances	Ölçeklenen uzaklıklar
+	Select a place in this document:	Bu belgede bir yer seçin:
+	Select a property to change.	Değiştirilecek bir özellik seçin.
+	Select objects	Nesne seç
+	Selection options	Seçim seçenekleri
+	Separate text with	Metni şununla ayır
+	Set CAD Drawing	CAD Çizimini Ayarla
+	Set Exercise Data	Alıştırma Verilerini Ayarla
+	Set left- and first-indent with tabs and backspaces	Sol girintiyi ve ilk satır girintisini sekme ve geri silme tuşlarıyla ayarla
+	Steps	Adımlar
+	Show Steps	Adımları Göster
+	Show Trailing Zeros	Sondaki Sıfırları Göster
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Her hücreyi denklem olarak göster: adlar italik, alt simgeler, birimler Birim stilinde
+	Show every file as it is on disk, discarding edits made here	Her dosyayı diskteki hâliyle göster, burada yapılan düzenlemeleri at
+	Show one digit less in results	Sonuçlarda bir basamak az göster
+	Show one more digit in results	Sonuçlarda bir basamak fazla göster
+	Show the exercise's data and variants	Alıştırmanın verilerini ve varyantlarını göster
+	Show the file as it is on disk, discarding edits made here	Dosyayı diskteki hâliyle göster, burada yapılan düzenlemeleri at
+	Significant Digits	Anlamlı Basamak
+	Snap for the next point	Sonraki nokta için yakalama
+	Snap for the next point (Shift+right-click)	Sonraki nokta için yakalama (Shift+sağ tıklama)
+	Software Update	Yazılım Güncelleme
+	Spanish (Latin America)	İspanyolca (Latin Amerika)
+	Spanish (Uruguay)	İspanyolca (Uruguay)
+	Square size	Kare boyutu
+	Start at	Başlangıç
+	Strix Writer {version} is available	Strix Writer {version} kullanılabilir
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version}, şu anda kullanılabilen en yeni sürümdür.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix, WordCraft'ın bir çatalıdır. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Bkz. NOTICE.
+	Styles Pane Position	Stiller Bölmesi Konumu
+	Subdocuments	Alt Belgeler
+	Subdocuments Pane	Alt Belgeler Bölmesi
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Alt belgeler diskteki dosyalardır: masaüstü sürümü bunları bağlar, tarayıcı sürümü bağlayamaz.
+	Switch	Pencere
+	Switch Windows	Pencere Değiştir
+	Text Size	Metin Boyutu
+	Text properties only: Word's number, date and yes-no types aren't offered.	Yalnızca metin özellikleri: sayı, tarih ve evet/hayır türleri sunulmaz.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Bu biçim her şeyi saklamaz, bu yüzden belge hâlâ açık. Devam etmek için Strix belgesi (.xmath) olarak kaydedin.
+	That would make the object degenerate	Bu, nesneyi dejenere yapar
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Veriler, alıştırmanın hesaplamalarının ilk parametreleridir: çözüm bunları simgeyle kullanır. Varyantı değiştirmek alıştırmayı yeniden hesaplar.
+	The document has no subdocuments.	Belgede alt belge yok.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Son satır her sütunu toplar (Σ =); oraya yazılan hücre kendi metnini korur (ortalama =, maks =)
+	The layer of the selected objects becomes the current layer	Seçili nesnelerin katmanı geçerli katman olur
+	The number must be a divisor of {max}.	Sayı, {max} sayısının bir böleni olmalıdır.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	{language} yazım sözlüğü okunamadı, bu yüzden denetlenmiyor. Dosya: {file}. Neden: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	İmlecin bulunduğu tablo hesaplanır: sütunlarını ilk satırda adlandırın (L [m], M [kN·m] = q·L²/8) ve Σ = ile toplayın
+	The update couldn't be installed: {error}	Güncelleme yüklenemedi: {error}
+	The whole family	Tüm aile
+	The {name} dictionary couldn't be downloaded: {reason}	{name} sözlüğü indirilemedi: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	{name} sözlüğü yüklendi: {language} yazımı artık denetleniyor.
+	This cannot be undone. Your original file stays unchanged.	Bu geri alınamaz. Özgün dosyanız değişmeden kalır.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Strix Writer'ın bu kopyası kendini değiştiremez: yeni sürümü indirip bunun üzerine kurun.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Bu belgede Strix nesneleri var ({objects}). Word ve diğer düzenlenebilir biçimler bunları kaybederdi, bu yüzden yalnızca Strix belgesi (.xmath) olarak kaydedilir. PDF, PNG, LaTeX, HTML ve Markdown dışa aktarımları statik kopya olarak kullanılabilir kalır.
+	This document has no custom properties.	Bu belgede özel özellik yok.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Bu belge henüz başka belge bağlamıyor. Bir tane ekleyin ya da paragrafları seçip onlardan bir tane oluşturun: metni burada görünür ve kendi dosyasına geri kaydedilir.
+	This equation is the result of the question it is worked under (shown in the results summary)	Bu denklem, altında çalışıldığı sorunun sonucudur (sonuç özetinde gösterilir)
+	To the End of the Page	Sayfa Sonuna Kadar
+	Top of the Document	Belgenin Başı
+	Type a page number, or +2 / -1.	Bir sayfa numarası yazın ya da +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Bir nokta (x,y  @dx,dy  @d<a), bir uzaklık, bir komut (l, pl, rec, c, a, t, m, co), bir seçenek yazın ya da Enter'a basın
+	Unit	Birim
+	Unit:	Birim:
+	Unknown selection option:	Bilinmeyen seçim seçeneği:
+	Unlink	Bağlantıyı Kaldır
+	Unlink Subdocument	Alt Belge Bağlantısını Kaldır
+	Until the Next Even Page	Sonraki Çift Sayfaya Kadar
+	Until the Next Odd Page	Sonraki Tek Sayfaya Kadar
+	Update Summary	Özeti Güncelle
+	Update and Restart	Güncelle ve Yeniden Başlat
+	Update check is not supported in the web browser.	Güncelleme denetimi web tarayıcısında desteklenmiyor.
+	Variant	Varyant
+	Variants	Varyantlar
+	Varies	Değişir
+	Vertex	Köşe
+	View and edit the document's custom properties.	Belgenin özel özelliklerini görüntüle ve düzenle.
+	Wait for the print job to finish submitting before closing.	Kapatmadan önce yazdırma işinin gönderilmesinin bitmesini bekleyin.
+	What's new	Yenilikler
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Sonuçların ve adımların gideceği yer: ifadenin satırında ⇒ sonrasında ya da altında satır başına bir tane, = hizasında
+	Window polygon	Pencere çokgeni
+	Write the edited subdocuments to their files now (also done by saving the document)	Düzenlenen alt belgeleri şimdi dosyalarına yaz (belgeyi kaydetmek de bunu yapar)
+	You have version {version}.	Sürümünüz {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / üst simgeyi, alt simgeyi ya da kesri hemen oluşturur (kapalıyken Boşluk ile oluşur, Word'deki gibi)
+	already selected	zaten seçili
+	an exercise goes in the body, outside tables	alıştırma gövdede yer alır, tabloların dışında
+	annotative {size}	açıklamalı {size}
+	click adds, Shift+click removes	tıklama ekler, Shift+tıklama çıkarır
+	click on empty space for a window, drag for a lasso	pencere için boş alana tıklayın, kement için sürükleyin
+	click the vertices; Enter or right-click closes, Esc cancels	köşelere tıklayın; Enter ya da sağ tıklama kapatır, Esc iptal eder
+	click to pick it	seçmek için tıklayın
+	conflict	çakışma
+	cycle:	döngü:
+	edited	düzenlendi
+	fitted to frame	çerçeveye sığdırıldı
+	found	bulundu
+	graph paper	milimetrik kâğıt
+	in step	adımda
+	input	giriş
+	installed	yüklendi
+	no graph paper at the cursor	imleçte milimetrik kâğıt yok
+	no snap	yakalama yok
+	not available: the cursor isn't in an exercise	kullanılamıyor: imleç bir alıştırmada değil
+	not found	bulunamadı
+	objects	nesne
+	objects selected	nesne seçili
+	of	/
+	removed	kaldırıldı
+	scaled {size}	ölçeklendi {size}
+	select a CAD drawing first	önce bir CAD çizimi seçin
+	selected	seçili
+	squares (0: none)	kareler (0: yok)
+	the cursor isn't in an exercise	imleç bir alıştırmada değil
+	the document has no exercise	belgede alıştırma yok
+	{field}, record {n}	{field}, kayıt {n}
+	{language} (dictionary unreadable)	{language} (sözlük okunamıyor)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (okunamıyor: {reason})
+	{n} CAD drawings	{n} CAD çizimi
+	{n} calculated tables	{n} hesaplanan tablo
+	{n} calculations	{n} hesaplama
+	{n} exercises	{n} alıştırma
+	{n} results summaries	{n} sonuç özeti
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Güncellemeleri\nDenetle…
+	Edit\nDrawing	Çizimi\nDüzenle
+	New\nExercise	Yeni\nAlıştırma
+	Show\nSteps	Adımları\nGöster
+	Switch\nWindows	Pencere\nDeğiştir
+	CAD\nDrawing	CAD\nÇizimi
+	Calculated\nTable	Hesaplanan\nTablo
+	Graph\nPaper	Milimetrik\nKâğıt
+	New\nCalculation	Yeni\nHesaplama

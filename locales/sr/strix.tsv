@@ -1971,3 +1971,744 @@ paper	Envelope DL	Коверта DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	О Strix Writer-у
+# Strix additions 2026-11-09
+	(remove) click removes	(уклони) клик уклања
+	*Bold* and _italic_ as real formatting	*Подебљано* и _курзив_ као право обликовање
+	1 CAD drawing	1 CAD цртеж
+	1 calculated table	1 израчуната табела
+	1 calculation	1 прорачун
+	1 exercise	1 задатак
+	1 object selected	1 објекат изабран
+	1 results summary	1 резиме резултата
+	1×2 Empty Matrix	Празна матрица 1×2
+	1×3 Empty Matrix	Празна матрица 1×3
+	2×1 Empty Matrix	Празна матрица 2×1
+	2×2 Determinant	Детерминанта 2×2
+	2×2 Empty Matrix	Празна матрица 2×2
+	2×2 Identity Matrix	Јединична матрица 2×2
+	2×2 Identity Matrix (sparse)	Јединична матрица 2×2 (ретка)
+	2×2 Matrix in Brackets	Матрица 2×2 у угластим заградама
+	2×2 Matrix in Double Bars	Матрица 2×2 у двоструким цртама
+	2×2 Matrix in Parentheses	Матрица 2×2 у заградама
+	2×3 Empty Matrix	Празна матрица 2×3
+	3×1 Empty Matrix	Празна матрица 3×1
+	3×2 Empty Matrix	Празна матрица 3×2
+	3×3 Empty Matrix	Празна матрица 3×3
+	3×3 Identity Matrix	Јединична матрица 3×3
+	3×3 Identity Matrix (sparse)	Јединична матрица 3×3 (ретка)
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Прва колона, колона 0, која нумерише редове података 1, 2, 3… (прорачуни је никада не читају)
+	A free, open-source word processor written in Rust.	Бесплатан програм за обраду текста отвореног кода написан у језику Rust.
+	A grid from the cursor to the end of the page	Мрежа од курсора до краја странице
+	A new exercise takes the page breaks of the last one.	Нови задатак преузима преломе страница последњег.
+	A new layer, made current	Нови слој, постављен као текући
+	A polar array has	Поларни низ има
+	A xor B	A xor B
+	ASAP	ЧИМ ПРЕ
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	Случајеви апсолутне вредности
+	Accents	Акценти
+	Accept All Changes and Stop Tracking	Прихвати све измене и престани са праћењем
+	Accept and Move to Next	Прихвати и пређи на следећу
+	Acute	Акут
+	Add Datum	Додај податак
+	Add Note	Додај напомену
+	Add Question	Додај питање
+	Add Sub-question	Додај подпитање
+	Add a note between the questions: free text that is not a question	Додајте напомену између питања: слободан текст који није питање
+	Add a period with double-space	Додај тачку двоструким размаком
+	Add a question at the end of the exercise at the cursor	Додајте питање на крај задатка на положају курсора
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Додајте питање угнежђено испод последњег (a.1, a.1.1); Tab и Shift+Tab мењају ниво питања
+	Add a variant: a copy of the active one's values	Додајте варијанту: копију вредности активне варијанте
+	Add an initial datum: a symbol with its value in every variant	Додајте почетни податак: симбол са својом вредношћу у свакој варијанти
+	Add to CAD Drawing	Додај у CAD цртеж
+	Advanced Properties…	Напредна својства…
+	Aligned texts	Поравнати текстови
+	All - Linear	Све – линеарно
+	All - Professional	Све – професионално
+	All the selection	Цео избор
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Све · F ограда · WP/CP многоугао · R уклони · A додај · P претходно · U поништи · Shift+Space кружно
+	An array has	Низ има
+	Angle Brackets	Угаоне заграде
+	Angle Brackets with Separator	Угаоне заграде са раздвајачем
+	Angle Brackets with Two Separators	Угаоне заграде са два раздвајача
+	Apply to all exercises	Примени на све задатке
+	As the grid lines	Као линије мреже
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Аутоматско чување чува само Strix документе (.xmath); {name} је у другом формату. Сачувајте као .xmath да бисте укључили аутоматско чување.
+	Automatic (Decimals, Significant Below 1)	Аутоматски (децимале, значајне испод 1)
+	Automatic updates are not available yet. New versions are published at {url}	Аутоматска ажурирања још нису доступна. Нове верзије се објављују на {url}
+	Automatically add words to list (First Letter)	Аутоматски додај речи на листу (прво слово)
+	Automatically add words to list (INitial CAps)	Аутоматски додај речи на листу (ДВа велика слова)
+	Baseline Dots	Базна линија тачке
+	Basic Math	Основна математика
+	Bayes' rule	Бајесово правило
+	Binomial Coefficient	Биномни коефицијент
+	Binomial Coefficient (angle)	Биномни коефицијент (угао)
+	Binomial Coefficient with Angle Brackets	Биномни коефицијент са угаоним заградама
+	Binomial expansion of (x+a)ⁿ	Биномни развој (x+a)ⁿ
+	Body text in a short paragraph to show spacing.	Текст у кратком пасусу за приказ размака.
+	Book Title	Наслов књиге
+	Bookmarks	Обележивачи
+	Boxed Formula	Формула у оквиру
+	Boxed Formula (example)	Формула у оквиру (пример)
+	Boxed Formulas	Формуле у оквиру
+	Braces	Витичасте заграде
+	Braces with Separator	Витичасте заграде са раздвајачем
+	Brackets	Угласте заграде
+	Brackets with Separators	Угласте заграде са раздвајачима
+	Breve	Бреве
+	Built-in Heading styles	Уграђени стилови наслова
+	ByLayer	По слоју
+	CAD	CAD
+	Drawing	Цртеж
+	CAD Drawing	CAD цртеж
+	CAD Drawing Source	Извор CAD цртежа
+	CAD Picture Format	Формат CAD слике
+	CONFIDENTIAL	ПОВЕРЉИВО
+	Calculate	Израчунај
+	Calculate New Equations	Израчунај нове формуле
+	Calculate This Table	Израчунај ову табелу
+	Calculate the exercise with this variant	Израчунај задатак са овом варијантом
+	Calculated	Израчуната
+	Table	Табела
+	Calculated Table	Израчуната табела
+	Calculated Table Info	Информације о израчунатој табели
+	Calculation	Прорачун
+	Calculations	Прорачуни
+	Cancel the step	Откажи корак
+	Cases (Three Conditions)	Случајеви (три услова)
+	Cases (Two Conditions)	Случајеви (два услова)
+	Cases and Stacks	Случајеви и стекови
+	Category	Категорија
+	Ceiling	Горњи цео део
+	Cells as Equations	Ћелије као формуле
+	Centered as Group	Центрирано као група
+	Change in y over change in x	Промена y у односу на промену x
+	Change to Level 1	Промени на ниво 1
+	Change to Level 2	Промени на ниво 2
+	Change to Level 3	Промени на ниво 3
+	Change to Level 4	Промени на ниво 4
+	Change to Level 5	Промени на ниво 5
+	Changed here and in the file: keep one of the two.	Промењено овде и у датотеци: задржите једно од та два.
+	Check	Провери
+	Check for	Провери
+	Updates…	ажурирања…
+	Check for Updates	Провери ажурирања
+	Checking for updates…	Провера ажурирања…
+	Circle area from its radius	Површина круга из полупречника
+	Circled Dot	Заокружена тачка
+	Circled Plus	Заокружени плус
+	Circled Times	Заокружено множење
+	Close Document	Затвори документ
+	Colon Equal	Двотачка и једнако
+	Colour	Боја
+	Column, Row Below (F_A)	Колона, ред испод (F_A)
+	Columns × rows:	Колоне × редови:
+	Common Accent Objects	Уобичајени објекти са акцентима
+	Common Brackets	Уобичајене заграде
+	Common Fractions	Уобичајени разломци
+	Common Functions	Уобичајене функције
+	Common Large Operators	Уобичајени велики оператори
+	Common Operator Structures	Уобичајене структуре оператора
+	Common Operators	Уобичајени оператори
+	Common Radicals	Уобичајени корени
+	Common Subscripts and Superscripts	Уобичајени индекси
+	Considering	Узимајући у обзир
+	Continue without restoring	Настави без враћања
+	Contour Integral	Контурни интеграл
+	Contour Integral with Limits	Контурни интеграл са границама
+	Contour Integral with Stacked Limits	Контурни интеграл са сложеним границама
+	Contour Integrals	Контурни интеграли
+	Contributors	Сарадници
+	Convert between built-up and linear form	Претвори између развијеног и линеарног облика
+	Coordinates take a number or an expression of the calculations (L/2)	Координате примају број или израз из прорачуна (L/2)
+	Coproduct	Копроизвод
+	Coproduct with Limits	Копроизвод са границама
+	Coproduct with Lower Limit	Копроизвод са доњом границом
+	Coproduct with Subscript-Superscript Limits	Копроизвод са границама у индексу и експоненту
+	Cosecant Function	Функција косеканс
+	Cosine 2x	Косинус 2x
+	Cosine Function	Функција косинус
+	Cotangent Function	Функција котангенс
+	Could not check for updates:\n{error}	Провера ажурирања није успела:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	{name} није могао да се сачува, па је и даље отворен и ништа није изгубљено: {error}
+	Create Subdocument	Направи поддокумент
+	Create Subdocument…	Направи поддокумент…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Опсецање на страници ради на неротираним сликама: прво поставите ротацију на 0° или користите оквире за опсецање
+	Crossing polygon	Многоугао пресека
+	Cube Root	Кубни корен
+	Current - Linear	Тренутно – линеарно
+	Current - Professional	Тренутно – професионално
+	Current Document	Тренутни документ
+	Current layer	Текући слој
+	Current layer: new objects go on it	Текући слој: нови објекти иду на њега
+	DO NOT COPY	НЕ КОПИРАЈ
+	DRAFT	НАЦРТ
+	Data Table	Табела података
+	Decimal Places	Децимална места
+	Delete Exercise	Обриши задатак
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Обришите задатак на положају курсора, или изабране задатке, у целини: нестају његов текст, питања и решење, а резултати излазе из резимеа (Поништи га враћа)
+	Delete the layer (its objects go to layer 0)	Обришите слој (његови објекти прелазе на слој 0)
+	Delta Equal To	Делта једнако
+	Delta over arrow	Делта изнад стрелице
+	Derivative as a limit	Извод као лимес
+	Detach: a window of its own	Одвој: сопствени прозор
+	Diagonal Dots	Дијагоналне тачке
+	Differential	Диференцијал
+	Differential theta	Диференцијал тета
+	Differential x	Диференцијал x
+	Differential y	Диференцијал y
+	Differentials	Диференцијали
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Котне линије и лукови углова постављени кликом или ручицом задржавају своје растојање у цртежу (прате његову величину и размеру); искључено, на папиру (исто и у штампи)
+	Dimension texts along their line (never upside down), not level	Котни текстови дуж своје линије (никад наопако), не водоравно
+	Dimension units	Јединице котирања
+	Discard	Одбаци
+	Discard the recovery copy of {name}?	Одбацити копију за опоравак датотеке {name}?
+	Discard…	Одбаци…
+	Distance	Растојање
+	Dock	Усидри
+	Dock Left	Усидри лево
+	Dock Right	Усидри десно
+	Dot	Тачка
+	Dots	Тачке
+	Double Bar	Двострука линија
+	Double Dot	Двострука тачка
+	Double Integral	Двоструки интеграл
+	Double Integral with Limits	Двоструки интеграл са границама
+	Double Integral with Stacked Limits	Двоструки интеграл са сложеним границама
+	Double Left Arrow with Text Above	Двострука стрелица улево са текстом изнад
+	Double Left Arrow with Text Below	Двострука стрелица улево са текстом испод
+	Double Left Right Arrow with Text Above	Двострука стрелица лево-десно са текстом изнад
+	Double Left Right Arrow with Text Below	Двострука стрелица лево-десно са текстом испод
+	Double Right Arrow with Text Above	Двострука стрелица удесно са текстом изнад
+	Double Right Arrow with Text Below	Двострука стрелица удесно са текстом испод
+	Double Square Brackets	Двоструке угласте заграде
+	Double Vertical Bars	Двоструке вертикалне црте
+	Double summation	Двострука сума
+	Download	Преузми
+	Download Dictionary	Преузми речник
+	Download the {name} spelling dictionary	Преузми правописни речник {name}
+	Downloading and installing…	Преузимање и инсталирање…
+	Downloading the {name} dictionary…	Преузимање речника {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Преузима Hunspell речник {name} из LibreOffice речника ({source}), лиценца {licence}, у вашу фасциклу речника и одмах проверава правопис помоћу њега.
+	Draw order	Редослед цртања
+	Drawing Padding	Маргина цртежа
+	Drawing Scale	Размера цртежа
+	Drawing unit	Јединица цртежа
+	Edit	Уреди
+	Emphasis	Нагласак
+	Empty Matrices	Празне матрице
+	End mark	Ознака краја
+	Endnote Reference	Референца на крајњу напомену
+	Endnote Text	Текст крајње напомене
+	Enter bookmark name:	Унесите назив обележивача:
+	Enter confirms	Enter потврђује
+	Equal Equal	Једнако једнако
+	Equal by Definition	Једнако по дефиницији
+	Euler's identity	Ојлеров идентитет
+	Every	Сваки
+	Every exercise of the document takes this exercise's page breaks	Сваки задатак у документу преузима преломе страница овог задатка
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Свака вредност је параметар именован по својој колони и ознаци свог реда (прва колона), са индексом: F_A или A_F
+	Exercise	Задатак
+	Exercise Data	Подаци задатка
+	Exercise Info	Информације о задатку
+	Exercise Numbering	Нумерација задатака
+	Exercise Properties	Својства задатка
+	Exercise Result	Резултат задатка
+	Exercise, in the document's language	Задатак, на језику документа
+	Exit	Изађи
+	Exponential	Експоненцијална
+	Exponential series	Експоненцијални ред
+	Fence	Ограда
+	Fewer Digits	Мање цифара
+	File type	Врста датотеке
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Фајл › Ново овде приказује шаблоне .xmathm, .dotx и .dotm под Лични; Сачувај као Strix шаблон почиње овде.
+	Find “{text}” in the document	Пронађи „{text}“ у документу
+	First exercise: {label}	Први задатак: {label}
+	Fitted to Frame	Прилагођено оквиру
+	Float	Плутајуће
+	Floor	Доњи цео део
+	Folder path	Путања фасцикле
+	Follow columns	Прати колоне
+	Footnote Reference	Референца на фусноту
+	Footnote Text	Текст фусноте
+	For Two Pages	За две странице
+	For a Height of 5 cm	За висину од 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	За сваки задатак у документу: ознака сваког наслова и резимеа резултата.
+	For which item:	За коју ставку:
+	Functions	Функције
+	Geometry	Геометрија
+	Go to it	Иди на то
+	Graph	Графикон
+	Paper	Папир
+	Graph Paper	Милиметарски папир
+	Graph Paper Pane	Окно милиметарског папира
+	Graph Paper Properties	Својства милиметарског папира
+	Graph Paper at Cursor	Милиметарски папир на курсору
+	Grave	Гравис
+	Greek Letters	Грчка слова
+	Grid Table 1 Light	Табела са мрежом 1 светла
+	Grid Table 4 – Blue	Табела са мрежом 4 – плава
+	Grid Table 4 – Green	Табела са мрежом 4 – зелена
+	Grid Table 4 – Orange	Табела са мрежом 4 – наранџаста
+	Grid Table 4 – Purple	Табела са мрежом 4 – љубичаста
+	Grid lines	Линије мреже
+	Grip	Ручица
+	Grip: the new point (click, or type it; Esc puts it back)	Ручица: нова тачка (кликните или унесите је; Esc је враћа)
+	Grouping Character Above	Знак за груписање изнад
+	Grouping Character Below	Знак за груписање испод
+	Hat	Капица
+	Heading	Наслов
+	Heading text	Текст наслова
+	Heavier lines	Дебље линије
+	Height	Висина
+	How results are rounded	Како се резултати заокружују
+	Hyperbolic Cosecant Function	Функција хиперболички косеканс
+	Hyperbolic Cosine Function	Функција хиперболички косинус
+	Hyperbolic Cotangent Function	Функција хиперболички котангенс
+	Hyperbolic Functions	Хиперболичке функције
+	Hyperbolic Secant Function	Функција хиперболички секанс
+	Hyperbolic Sine Function	Функција хиперболички синус
+	Hyperbolic Tangent Function	Функција хиперболички тангенс
+	Hyperlink	Хиперлинк
+	Hypotenuse	Хипотенуза
+	Identity Matrices	Јединичне матрице
+	Imported 1 source	Увезен 1 извор
+	Imported {n} sources	Увезено извора: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	У одељку са више колона свака колона се линијара посебно, а размак између њих остаје чист
+	Inline (⇒)	У реду (⇒)
+	Input unit	Улазна јединица
+	Insert Graph Paper	Уметни милиметарски папир
+	Insert Subdocument	Уметни поддокумент
+	Insert Subdocument…	Уметни поддокумент…
+	Insert reference to:	Уметни референцу на:
+	Integral of e^(−x²)	Интеграл од e^(−x²)
+	Integral with Limits	Интеграл са границама
+	Integral with Stacked Limits	Интеграл са сложеним границама
+	Integrals	Интеграли
+	Intense Emphasis	Снажан нагласак
+	Intense Quote	Истакнути цитат
+	Intense Reference	Снажна референца
+	Intersection	Пресек
+	Intersection with Limits	Пресек са границама
+	Intersection with Lower Limit	Пресек са доњом границом
+	Intersection with Subscript-Superscript Limits	Пресек са границама у индексу и експоненту
+	Inverse Cosecant Function	Функција инверзни косеканс
+	Inverse Cosine Function	Функција инверзни косинус
+	Inverse Cotangent Function	Функција инверзни котангенс
+	Inverse Functions	Инверзне функције
+	Inverse Hyperbolic Cosecant Function	Функција инверзни хиперболички косеканс
+	Inverse Hyperbolic Cosine Function	Функција инверзни хиперболички косинус
+	Inverse Hyperbolic Cotangent Function	Функција инверзни хиперболички котангенс
+	Inverse Hyperbolic Functions	Инверзне хиперболичке функције
+	Inverse Hyperbolic Secant Function	Функција инверзни хиперболички секанс
+	Inverse Hyperbolic Sine Function	Функција инверзни хиперболички синус
+	Inverse Hyperbolic Tangent Function	Функција инверзни хиперболички тангенс
+	Inverse Secant Function	Функција инверзни секанс
+	Inverse Sine Function	Функција инверзни синус
+	Inverse Tangent Function	Функција инверзни тангенс
+	Items:	Ставке:
+	Justification of a display equation	Поравнање истакнуте формуле
+	Keep the file	Задржи датотеку
+	Keep the text in this document, without the link; the file stays as it is	Задржи текст у овом документу, без везе; датотека остаје каква јесте
+	Keep this version	Задржи ову верзију
+	Keywords	Кључне речи
+	Later	Касније
+	Layer	Слој
+	Layer:	Слој:
+	Left Arrow with Text Above	Стрелица улево са текстом изнад
+	Left Arrow with Text Below	Стрелица улево са текстом испод
+	Left Bracket Twice	Лева заграда двапут
+	Left Right Arrow Above	Стрелица лево-десно изнад
+	Left Right Arrow with Text Above	Стрелица лево-десно са текстом изнад
+	Left Right Arrow with Text Below	Стрелица лево-десно са текстом испод
+	Left Subscript-Superscript	Леви индекс и експонент
+	Leftwards Arrow Above	Стрелица улево изнад
+	Leftwards Harpoon Above	Харпун улево изнад
+	Letter-Like Symbols	Симболи налик словима
+	Level 1	Ниво 1
+	Level 2	Ниво 2
+	Level 3	Ниво 3
+	Limit	Лимес
+	Limit Example	Пример лимеса
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Ограничите величину цртежа на папиру (према текстуалном подручју странице): нуде се размере при којима се уклапа
+	Line by Line	Ред по ред
+	Linear Fraction	Линеарни разломак
+	Linetype	Тип линије
+	Lineweight	Дебљина линије
+	Link a document at the cursor	Повежите документ на положају курсора
+	Linked files	Повезане датотеке
+	List Paragraph	Пасус листе
+	List Table 3 – Blue	Табела листе 3 – плава
+	List Table 3 – Green	Табела листе 3 – зелена
+	List Table 3 – Orange	Табела листе 3 – наранџаста
+	List Table 3 – Purple	Табела листе 3 – љубичаста
+	Local recovery is unavailable or still loading.	Локални опоравак није доступан или се још учитава.
+	Logarithm	Логаритам
+	Logarithm with Base	Логаритам са основом
+	Logical AND	Логичко И
+	Logical AND with Limits	Логичко И са границама
+	Logical OR	Логичко ИЛИ
+	Logical OR with Limits	Логичко ИЛИ са границама
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Ауторска права (c) 2026 nabre и сарадници Strix-а.
+	Make object's layer current	Постави слој објекта као текући
+	Make the equation at the cursor a live calculation, or an ordinary one	Претворите формулу на положају курсора у прорачун уживо или у обичну
+	Make this equation a live calculation: write it with = and the unknown is solved for	Претворите ову формулу у прорачун уживо: напишите је са = и непозната се решава
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Означите формулу на положају курсора као резултат питања: њена вредност иде у резиме резултата
+	Master Document	Главни документ
+	Math	Математика
+	Matrices with Brackets	Матрице са заградама
+	Maximum	Максимум
+	Maximum Example	Пример максимума
+	Maximum size	Највећа величина
+	Measured By	Мерено по
+	Midline Dots	Тачке на средњој линији
+	Minimum	Минимум
+	Minus Equal	Минус и једнако
+	Models	Модели
+	Modify	Измени
+	More Digits	Више цифара
+	Move	Премести
+	Move Pane: {title}	Премести окно: {title}
+	Move to layer	Премести на слој
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Именујте и нумеришите задатке у документу: префикс (Esercizio, ваш текст или ништа), формат броја и први број, у окну Својства задатка
+	Natural Logarithm	Природни логаритам
+	Negated Relations	Негиране релације
+	New	Ново
+	New Calculation	Нови прорачун
+	New Exercise	Нови задатак
+	New equations are live calculations	Нове формуле су прорачуни уживо
+	New layer	Нови слој
+	New page before the exercise	Нова страница пре задатка
+	New page before the results summary	Нова страница пре резимеа резултата
+	New page before the solution	Нова страница пре решења
+	Next object	Следећи објекат
+	Next point	Следећа тачка
+	No Spacing	Без размака
+	No items to show.	Нема ставки за приказ.
+	No matching commands	Нема одговарајућих команди
+	No new sources in that file	Нема нових извора у тој датотеци
+	No previous selection	Нема претходног избора
+	No recovery copies.	Нема копија за опоравак.
+	No selection: click objects, or drag a window	Нема избора: кликните на објекте или превуците прозор
+	Normal	Нормално
+	Normal probability density	Густина нормалне вероватноће
+	Not a Data Table	Није табела података
+	Nothing of this type in the document.	У документу нема ничега ове врсте.
+	Nothing to undo in the selection	Нема шта да се поништи у избору
+	Number Format	Формат броја
+	Number the equation; the number sits at the right margin (or type # then the number)	Нумеришите формулу; број стоји на десној маргини (или откуцајте # па број)
+	Object snap settings	Подешавања хватања објеката
+	Objects	Објекти
+	One half	Једна половина
+	Only text properties can be changed.	Могу се мењати само својства текста.
+	Only these	Само ови
+	Only when another exercise comes before it	Само када пре њега долази други задатак
+	Open Subdocument	Отвори поддокумент
+	Open the file in a window of its own	Отвори датотеку у сопственом прозору
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Од сада отвара Strix документе (.xmath, .xmathm), .docx, .doc, .rtf и .odt датотеке и Word шаблоне помоћу Strix-а.
+	Operator Structures	Структуре оператора
+	Operators	Оператори
+	Ordinal Column	Колона редног броја
+	Other Large Operators	Остали велики оператори
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Други угао прозора (удесно: цели објекти; улево: и додирнути)
+	Outer frame	Спољашњи оквир
+	Outward Brackets	Заграде окренуте према споља
+	Overbar	Црта изнад
+	Overbars and Underbars	Црте изнад и испод
+	Overbrace	Заграда изнад
+	Overwrite the file with the text shown here	Препиши датотеку текстом приказаним овде
+	Padding	Унутрашњи размак
+	Page color	Боја странице
+	Pane Options	Опције окна
+	Parentheses	Округле заграде
+	Parentheses with Separator	Округле заграде са раздвајачем
+	Partial Differential	Парцијални диференцијал
+	Pi Over 2	Пи подељено са 2
+	Placement	Положај
+	Plain Table 1	Обична табела 1
+	Plus Equal	Плус и једнако
+	Possible spelling mistake	Могућа правописна грешка
+	Power series of (1+x)ⁿ	Степени ред за (1+x)ⁿ
+	Prefix	Префикс
+	Previous object	Претходни објекат
+	Product	Производ
+	Product of A	Производ од A
+	Product with Limits	Производ са границама
+	Product with Lower Limit	Производ са доњом границом
+	Product with Subscript-Superscript Limits	Производ са границама у индексу и експоненту
+	Products and Coproducts	Производи и копроизводи
+	Property names are 1–{max} characters.	Називи својстава имају 1–{max} знакова.
+	Property values are at most {max} bytes.	Вредности својстава имају највише {max} бајтова.
+	Put the cursor in an exercise to see its data and variants.	Поставите курсор у задатак да бисте видели његове податке и варијанте.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставите курсор у милиметарски папир (или на страницу са позадином од милиметарског папира) да бисте видели његова својства.
+	Quadratic Root	Корен квадратне једначине
+	Quick Keys	Брзи тастери
+	Quick Keys in Formulas	Брзи тастери у формулама
+	Quote	Цитат
+	Radical with Degree	Корен са изложиоцем
+	Radicals	Корени
+	Reading Page Color	Боја странице за читање
+	Rebuild the repeated questions and the results summary	Поново изгради поновљена питања и резиме резултата
+	Recalculate	Израчунај поново
+	Recalculate every calculation in the document (F9)	Поново израчунај сваки прорачун у документу (F9)
+	Recovery copy	Копија за опоравак
+	Recovery is disabled while this document has a password.	Опоравак је искључен док документ има лозинку.
+	Reduce the selection to the objects considered	Сузите избор на разматране објекте
+	Reference type:	Врста референце:
+	Reject All Changes and Stop Tracking	Одбиј све измене и престани са праћењем
+	Reject and Move to Next	Одбиј и пређи на следећу
+	Release notes	Напомене о издању
+	Reload	Поново учитај
+	Reload Subdocuments	Поново учитај поддокументе
+	Remove Graph Paper	Уклони милиметарски папир
+	Remove the active variant	Уклони активну варијанту
+	Remove this datum	Уклони овај податак
+	Replace the text shown here with the file's	Замени овде приказани текст текстом из датотеке
+	Resize Pane	Промени величину окна
+	Restore	Врати
+	Restore opens an unsaved copy. Your original file stays unchanged.	Враћање отвара несачувану копију. Ваша оригинална датотека остаје непромењена.
+	Result Layout	Распоред резултата
+	Result Of	Резултат од
+	Right Arrow with Text Above	Стрелица удесно са текстом изнад
+	Right Arrow with Text Below	Стрелица удесно са текстом испод
+	Right Bracket Twice	Десна заграда двапут
+	Rightwards Arrow Above	Стрелица удесно изнад
+	Rightwards Harpoon Above	Харпун удесно изнад
+	Roots of ax²+bx+c	Корени од ax²+bx+c
+	Row, Column Below (A_F)	Ред, колона испод (A_F)
+	SAMPLE	УЗОРАК
+	Save Subdocuments	Сачувај поддокументе
+	Save as Strix Template…	Сачувај као Strix шаблон…
+	Save or close your documents first: updating restarts Strix Writer.	Прво сачувајте или затворите документе: ажурирање поново покреће Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Сачувајте изабране пасусе као нову датотеку, повезану на њихово место
+	Save your documents: Strix Writer then closes and restarts in the new version.	Сачувајте документе: Strix Writer се затим затвара и поново покреће у новој верзији.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Чува .xmathm шаблон у вашој фасцикли шаблона. Појављује се у Фајл › Ново под Лични.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Чување документа чува сваки поддокумент измењен овде. Отварање приказује сваку датотеку каква је сада.
+	Scale Font Sizes	Скалирај величине фонта
+	Scaled distances	Скалирана растојања
+	Scripts	Писма
+	Secant Function	Функција секанс
+	Select a place in this document:	Изаберите место у овом документу:
+	Select a property to change.	Изаберите својство које желите да промените.
+	Select objects	Изабери објекте
+	Selection options	Опције избора
+	Separate text with	Раздвој текст помоћу
+	Set CAD Drawing	Подеси CAD цртеж
+	Set Exercise Data	Подеси податке задатка
+	Set left- and first-indent with tabs and backspaces	Постави леву и прву увлаку помоћу табулатора и backspace-а
+	Show	Прикажи
+	Steps	Кораци
+	Show Steps	Прикажи кораке
+	Show Trailing Zeros	Прикажи завршне нуле
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Прикажи сваку ћелију као формулу: називи курзивом, индекси, јединице у стилу јединица
+	Show every file as it is on disk, discarding edits made here	Прикажи сваку датотеку каква је на диску, одбацујући измене направљене овде
+	Show one digit less in results	Прикажи једну цифру мање у резултатима
+	Show one more digit in results	Прикажи једну цифру више у резултатима
+	Show the equation in the line of text	Прикажи формулу у реду текста
+	Show the equation on a line of its own	Прикажи формулу у сопственом реду
+	Show the exercise's data and variants	Прикажи податке и варијанте задатка
+	Show the file as it is on disk, discarding edits made here	Прикажи датотеку каква је на диску, одбацујући измене направљене овде
+	Sides of a right triangle	Странице правоуглог троугла
+	Significant Digits	Значајне цифре
+	Sine Function	Функција синус
+	Sine and cosine series of f(x)	Редови синуса и косинуса функције f(x)
+	Sine theta	Синус тета
+	Single Brackets	Појединачне заграде
+	Single Left Angle	Једна лева угаона заграда
+	Single Left Bar	Једна лева вертикална црта
+	Single Left Brace	Једна лева витичаста заграда
+	Single Left Bracket	Једна лева угласта заграда
+	Single Left Parenthesis	Једна лева округла заграда
+	Single Right Brace	Једна десна витичаста заграда
+	Single Right Bracket	Једна десна угласта заграда
+	Single Right Parenthesis	Једна десна округла заграда
+	Skewed Fraction	Коси разломак
+	Small change	Мала промена
+	Snap for the next point	Хватање за следећу тачку
+	Snap for the next point (Shift+right-click)	Хватање за следећу тачку (Shift+десни клик)
+	Software Update	Ажурирање софтвера
+	Spanish (Latin America)	Шпански (Латинска Америка)
+	Spanish (Uruguay)	Шпански (Уругвај)
+	Sparse Matrices	Ретке матрице
+	Square Root	Квадратни корен
+	Square Root with Degree	Квадратни корен са изложиоцем
+	Square Union	Квадратна унија
+	Square size	Величина квадрата
+	Stack Object	Објекат за слагање
+	Stack Object (Three)	Објекат за слагање (три)
+	Stacked Fraction	Сложени разломак
+	Stacked, no bar	Сложено, без црте
+	Start at	Почни од
+	Strix Writer {version} is available	Strix Writer {version} је доступан
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} је тренутно најнова доступна верзија.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix је рачвање пројекта WordCraft. Ауторска права (c) 2026 ArtCraft Team и сарадници WordCraft-а. Погледајте NOTICE.
+	Strong	Јако
+	Styles Pane Position	Положај окна стилова
+	Subdocuments	Поддокументи
+	Subdocuments Pane	Окно поддокумената
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Поддокументи су датотеке на диску: верзија за рачунар их повезује, верзија за прегледач не може.
+	Subject	Тема
+	Subscript-Superscript	Индекс-експонент
+	Subscripts and Superscripts	Индекси и експоненти
+	Subtitle	Поднаслов
+	Subtle Emphasis	Суптилан нагласак
+	Subtle Reference	Суптилна референца
+	Sum of cosines	Збир косинуса
+	Sum or difference of sines	Збир или разлика синуса
+	Summation	Сума
+	Summation from 0 to n	Сума од 0 до n
+	Summation over binomials	Сума по биномима
+	Summation with Limits	Сума са границама
+	Summation with Lower Limit	Сума са доњом границом
+	Summation with Subscript Limit	Сума са границом у индексу
+	Summation with Subscript-Superscript Limits	Сума са границама у индексу и експоненту
+	Summations	Суме
+	Surface Integral	Површински интеграл
+	Surface Integral with Limits	Површински интеграл са границама
+	Surface Integral with Stacked Limits	Површински интеграл са сложеним границама
+	Switch	Замени
+	Windows	прозоре
+	Switch Windows	Замени прозоре
+	TOC Heading	Наслов садржаја
+	Table Grid	Мрежа табеле
+	Table of Figures	Списак слика
+	Tangent Function	Функција тангенс
+	Tangent formula	Формула за тангенс
+	Text Size	Величина текста
+	Text over Colon Equal	Текст изнад двотачке и једнако
+	Text over Equal	Текст изнад једнако
+	Text properties only: Word's number, date and yes-no types aren't offered.	Само својства текста: Wordovi типови за број, датум и да/не нису понуђени.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Тај формат не чува све, па је документ и даље отворен. Сачувајте га као Strix документ (.xmath) да бисте наставили.
+	That would make the object degenerate	То би објекат учинило дегенерисаним
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Подаци су први параметри прорачуна задатка: решење их користи по симболу. Промена варијанте поново израчунава задатак.
+	The document has no subdocuments.	Документ нема поддокументе.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Последњи ред сабира сваку колону (Σ =); ћелија написана ту задржава сопствени текст (mean =, max =)
+	The layer of the selected objects becomes the current layer	Слој изабраних објеката постаје текући слој
+	The number must be a divisor of {max}.	Број мора бити делилац броја {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Правописни речник за {language} није могао да се прочита, па се не проверава. Датотека: {file}. Разлог: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Табела на положају курсора је израчуната: именујте њене колоне у првом реду (L [m], M [kN·m] = q·L²/8) и саберите их са Σ =
+	The update couldn't be installed: {error}	Ажурирање није могло да се инсталира: {error}
+	The whole family	Цела породица
+	The {name} dictionary couldn't be downloaded: {reason}	Речник {name} није могао да се преузме: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Речник {name} је инсталиран: правопис на језику {language} се сада проверава.
+	This cannot be undone. Your original file stays unchanged.	Ово се не може поништити. Ваша оригинална датотека остаје непромењена.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Ова копија програма Strix Writer не може сама себе да замени: преузмите нову верзију и инсталирајте је преко ове.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Овај документ садржи Strix објекте ({objects}). Word и остали уредиви формати би их изгубили, па се чува само као Strix документ (.xmath). Извоз у PDF, PNG, LaTeX, HTML и Markdown остаје доступан као статичне копије.
+	This document has no bookmarks.	Овај документ нема обележиваче.
+	This document has no custom properties.	Овај документ нема прилагођена својства.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Овај документ још не повезује друге документе. Уметните један или изаберите пасусе и направите један од њих: његов текст се приказује овде и чува се назад у његову датотеку.
+	This equation is the result of the question it is worked under (shown in the results summary)	Ова формула је резултат питања под којим се решава (приказано у резимеу резултата)
+	Tilde	Тилда
+	To the End of the Page	До краја странице
+	Top of the Document	Врх документа
+	Track	Прати
+	Changes ✓	Измене ✓
+	Trigonometric Functions	Тригонометријске функције
+	Triple Dot	Трострука тачка
+	Triple Integral	Троструки интеграл
+	Triple Integral with Limits	Троструки интеграл са границама
+	Triple Integral with Stacked Limits	Троструки интеграл са сложеним границама
+	Type a page number, or +2 / -1.	Унесите број странице или +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Унесите тачку (x,y  @dx,dy  @d<a), растојање, команду (l, pl, rec, c, a, t, m, co), опцију или притисните Enter
+	Type equations in LaTeX	Куцајте формуле у LaTeX-у
+	Type equations in the linear format (UnicodeMath)	Куцајте формуле у линеарном формату (UnicodeMath)
+	Type normal (non-math) text in the equation	Куцајте обичан (нематематички) текст у формули
+	URGENT	ХИТНО
+	Underbar	Црта испод
+	Underbrace	Заграда испод
+	Union	Унија
+	Union of intersections	Унија пресека
+	Union with Limits	Унија са границама
+	Union with Lower Limit	Унија са доњом границом
+	Union with Plus	Унија са плусом
+	Union with Subscript-Superscript Limits	Унија са границама у индексу и експоненту
+	Unions and Intersections	Уније и пресеци
+	Unit	Јединица
+	Unit:	Јединица:
+	Unknown selection option:	Непозната опција избора:
+	Unlink	Прекини везу
+	Unlink Subdocument	Прекини везу са поддокументом
+	Until the Next Even Page	До следеће парне странице
+	Until the Next Odd Page	До следеће непарне странице
+	Up Diagonal Dots	Дијагоналне тачке навише
+	Update Summary	Резиме ажурирања
+	Update and Restart	Ажурирај и поново покрени
+	Update check is not supported in the web browser.	Провера ажурирања није подржана у веб прегледачу.
+	Value:	Вредност:
+	Variables	Променљиве
+	Variant	Варијанта
+	Variants	Варијанте
+	Varies	Варира
+	Vector A	Вектор A
+	Vector AB	Вектор AB
+	Vertex	Теме
+	Vertical Bars	Вертикалне црте
+	Vertical Dots	Вертикалне тачке
+	View and edit the document's custom properties.	Прегледајте и уредите прилагођена својства документа.
+	Volume Integral	Запремински интеграл
+	Volume Integral with Limits	Запремински интеграл са границама
+	Volume Integral with Stacked Limits	Запремински интеграл са сложеним границама
+	Wait for the print job to finish submitting before closing.	Сачекајте да се завршило слање задатка за штампу пре затварања.
+	What's new	Шта је ново
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Где иду резултати и кораци: после ⇒ у реду исказа, или по један ред испод, поравнато на =
+	Window polygon	Многоугао прозора
+	Write the edited subdocuments to their files now (also done by saving the document)	Упишите измењене поддокументе у њихове датотеке сада (то ради и чување документа)
+	Yields	Даје
+	You have version {version}.	Имате верзију {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / одмах праве експонент, индекс или разломак (искључено: граде се на Space, као у Word-у)
+	already selected	већ изабрано
+	an exercise goes in the body, outside tables	задатак иде у тело документа, ван табела
+	annotative {size}	анотативно {size}
+	click adds, Shift+click removes	клик додаје, Shift+клик уклања
+	click on empty space for a window, drag for a lasso	клик на празан простор за прозор, превлачење за ласо
+	click the vertices; Enter or right-click closes, Esc cancels	кликните на темена; Enter или десни клик затвара, Esc отказује
+	click to pick it	кликните да га изаберете
+	conflict	конфликт
+	cycle:	кружно:
+	edited	измењено
+	fitted to frame	прилагођено оквиру
+	found	пронађено
+	graph paper	милиметарски папир
+	in step	у кораку
+	input	улаз
+	installed	инсталирано
+	no graph paper at the cursor	нема милиметарског папира на курсору
+	no snap	без хватања
+	not available: the cursor isn't in an exercise	недоступно: курсор није у задатку
+	not found	није пронађено
+	n×n Identity Matrix	Јединична матрица n×n
+	n×n Matrix	Матрица n×n
+	objects	објекти
+	objects selected	објекти изабрани
+	of	од
+	removed	уклоњено
+	scaled {size}	скалирано {size}
+	select a CAD drawing first	прво изаберите CAD цртеж
+	selected	изабрано
+	squares (0: none)	квадрати (0: ниједан)
+	tOGGLE cASE	пРЕБАЦИ вЕЛИЧИНУ сЛОВА
+	the cursor isn't in an exercise	курсор није у задатку
+	the document has no exercise	документ нема задатака
+	x bar	x са цртом
+	{field}, record {n}	{field}, запис {n}
+	{language} (dictionary unreadable)	{language} (речник се не може прочитати)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (не може се прочитати: {reason})
+	{name} options	{name} опције
+	{n} CAD drawings	{n} CAD цртежа
+	{n} calculated tables	{n} израчунатих табела
+	{n} calculations	{n} прорачуна
+	{n} exercises	{n} задатака
+	{n} results summaries	{n} резимеа резултата
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ Ништа
+	Check for\nUpdates…	Провери\nажурирања…
+	Edit\nDrawing	Уреди\nцртеж
+	New\nExercise	Нови\nзадатак
+	Show\nSteps	Прикажи\nкораке
+	Switch\nWindows	Промени\nпрозор
+	Track\nChanges ✓	Праћење\nизмена ✓
+	Track\nChanges	Праћење\nизмена
+	CAD\nDrawing	CAD\nцртеж
+	Calculated\nTable	Израчуната\nтабела
+	Graph\nPaper	Милиметарски\nпапир
+	New\nCalculation	Нови\nпрорачун

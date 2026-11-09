@@ -2632,3 +2632,377 @@ paper	Envelope DL	Kuverta DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	O programu Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(odstrani) s klikom odstranite
+	*Bold* and _italic_ as real formatting	*Krepko* in _ležeče_ kot pravo oblikovanje
+	1 CAD drawing	1 risba CAD
+	1 calculated table	1 izračunana tabela
+	1 calculation	1 izračun
+	1 exercise	1 vaja
+	1 object selected	1 izbran predmet
+	1 results summary	povzetek rezultatov
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Prvi stolpec, stolpec 0, ki oštevilči vrstice podatkov 1, 2, 3… (izračuni ga nikoli ne preberejo)
+	A free, open-source word processor written in Rust.	Brezplačen odprtokodni urejevalnik besedil, napisan v jeziku Rust.
+	A grid from the cursor to the end of the page	Mreža od kazalke do konca strani
+	A new exercise takes the page breaks of the last one.	Nova vaja prevzame prelome strani zadnje.
+	A new layer, made current	Nova plast, nastavljena kot trenutna
+	A polar array has	Polarna matrika ima
+	Accept All Changes and Stop Tracking	Sprejmi vse spremembe in ustavi sledenje
+	Accept and Move to Next	Sprejmi in pojdi na naslednjo
+	Add Datum	Dodaj podatek
+	Add Note	Dodaj opombo
+	Add Question	Dodaj vprašanje
+	Add Sub-question	Dodaj podvprašanje
+	Add a note between the questions: free text that is not a question	Dodaj opombo med vprašanji: prosto besedilo, ki ni vprašanje
+	Add a period with double-space	Dodaj piko z dvojnim presledkom
+	Add a question at the end of the exercise at the cursor	Dodaj vprašanje na konec vaje pri kazalki
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Dodaj vprašanje, gnezdeno pod zadnjim (a.1, a.1.1); Tab in Shift+Tab spremenita raven vprašanja
+	Add a variant: a copy of the active one's values	Dodaj različico: kopijo vrednosti aktivne
+	Add an initial datum: a symbol with its value in every variant	Dodaj začetni podatek: simbol z vrednostjo v vsaki različici
+	Add to CAD Drawing	Dodaj v risbo CAD
+	Advanced Properties…	Napredne lastnosti …
+	Aligned texts	Poravnana besedila
+	All the selection	Cel izbor
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Vse · F ograja · WP/CP mnogokotnik · R odstrani · A dodaj · P prejšnje · U razveljavi · Shift+Space preklopi
+	An array has	Matrika ima
+	Apply to all exercises	Uporabi za vse vaje
+	As the grid lines	Kot črte mreže
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Samodejno shranjevanje ohrani samo dokumente Strix (.xmath); {name} je v drugi obliki. Shranite kot .xmath, da vklopite samodejno shranjevanje.
+	Automatic (Decimals, Significant Below 1)	Samodejno (decimalke, pomembne pod 1)
+	Automatic updates are not available yet. New versions are published at {url}	Samodejne posodobitve še niso na voljo. Nove različice so objavljene na {url}
+	Automatically add words to list (First Letter)	Samodejno dodaj besede na seznam (prva črka)
+	Automatically add words to list (INitial CAps)	Samodejno dodaj besede na seznam (DVe VElikI začetnici)
+	Bookmarks	Zaznamki
+	Built-in Heading styles	Vgrajeni slogi naslovov
+	ByLayer	PoPlasti
+	CAD	CAD
+	Drawing	Risba
+	CAD Drawing	Risba CAD
+	CAD Drawing Source	Vir risbe CAD
+	CAD Picture Format	Oblika slike CAD
+	Calculate New Equations	Izračunaj nove enačbe
+	Calculate This Table	Izračunaj to tabelo
+	Calculate the exercise with this variant	Izračunaj vajo s to različico
+	Calculated	Izračunana
+	Table	tabela
+	Calculated Table	Izračunana tabela
+	Calculated Table Info	Podatki o izračunani tabeli
+	Calculation	Izračun
+	Calculations	Izračuni
+	Cancel the step	Prekliči korak
+	Cells as Equations	Celice kot enačbe
+	Changed here and in the file: keep one of the two.	Spremenjeno tukaj in v datoteki: obdržite eno od obeh.
+	Check for	Preveri
+	Updates…	posodobitve …
+	Check for Updates	Preveri posodobitve
+	Checking for updates…	Preverjanje posodobitev …
+	Close Document	Zapri dokument
+	Column, Row Below (F_A)	Stolpec, vrstica spodaj (F_A)
+	Columns × rows:	Stolpcev × vrstic:
+	Considering	Upošteva
+	Continue without restoring	Nadaljuj brez obnovitve
+	Coordinates take a number or an expression of the calculations (L/2)	Koordinate sprejmejo število ali izraz izračunov (L/2)
+	Could not check for updates:\n{error}	Posodobitev ni bilo mogoče preveriti:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Datoteke {name} ni bilo mogoče shraniti, zato je še odprta in nič ni izgubljeno: {error}
+	Create Subdocument	Ustvari poddokument
+	Create Subdocument…	Ustvari poddokument …
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Obrezovanje na strani deluje pri nezasukanih slikah: najprej nastavite vrtenje na 0° ali uporabite okvirje za obrezovanje
+	Crossing polygon	Sekajoči se mnogokotnik
+	Current Document	Trenutni dokument
+	Current layer	Trenutna plast
+	Current layer: new objects go on it	Trenutna plast: novi predmeti gredo nanjo
+	Data Table	Podatkovna tabela
+	Decimal Places	Decimalna mesta
+	Delete Exercise	Izbriši vajo
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Izbriši vajo pri kazalki ali izbrane vaje, v celoti: izginejo besedilo naloge, vprašanja in rešitev, rezultati zapustijo povzetek (Razveljavi jo vrne)
+	Delete the layer (its objects go to layer 0)	Izbriši plast (njeni predmeti gredo na plast 0)
+	Detach: a window of its own	Odpni: lastno okno
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Kotne črte in kotni loki, postavljeni s klikom ali ročico, obdržijo razdaljo v risbi (sledijo njeni velikosti in merilu); izklopljeno, na papirju (enako pri tiskanju)
+	Dimension texts along their line (never upside down), not level	Besedila mer vzdolž svoje črte (nikoli narobe obrnjena), ne vodoravno
+	Dimension units	Enote kotiranja
+	Discard the recovery copy of {name}?	Želite zavreči obnovitveno kopijo dokumenta {name}?
+	Discard…	Zavrzi …
+	Dock	Zasidraj
+	Dock Left	Zasidraj levo
+	Dock Right	Zasidraj desno
+	Download Dictionary	Prenesi slovar
+	Download the {name} spelling dictionary	Prenesi črkovalni slovar {name}
+	Downloading and installing…	Prenašanje in nameščanje …
+	Downloading the {name} dictionary…	Prenašanje slovarja {name} …
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Prenese slovar Hunspell {name} iz slovarjev LibreOffice ({source}), z licenco {licence}, v vašo mapo slovarjev in z njim takoj preverja črkovanje.
+	Draw order	Vrstni red risanja
+	Drawing Padding	Odmik risbe
+	Drawing Scale	Merilo risbe
+	Drawing unit	Enota risbe
+	Edit	Uredi
+	End mark	Končna oznaka
+	Enter confirms	Enter potrdi
+	Every	Vsak
+	Every exercise of the document takes this exercise's page breaks	Vse vaje v dokumentu prevzamejo prelome strani te vaje
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Vsaka vrednost je parameter, poimenovan po svojem stolpcu in oznaki vrstice (prvi stolpec), s podpisanim indeksom: F_A ali A_F
+	Exercise	Vaja
+	Exercise Data	Podatki vaje
+	Exercise Info	Podatki o vaji
+	Exercise Numbering	Oštevilčenje vaj
+	Exercise Properties	Lastnosti vaje
+	Exercise Result	Rezultat vaje
+	Exercise, in the document's language	Vaja, v jeziku dokumenta
+	Exit	Izhod
+	Fence	Ograja
+	Fewer Digits	Manj števk
+	File type	Vrsta datoteke
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Datoteka › Novo prikaže predloge .xmathm, .dotx in .dotm tukaj pod Osebno; Shrani kot predlogo Strix se začne tukaj.
+	First exercise: {label}	Prva vaja: {label}
+	Fitted to Frame	Prilagojeno okvirju
+	Float	Plavajoče
+	Folder path	Pot do mape
+	Follow columns	Sledi stolpcem
+	For Two Pages	Za dve strani
+	For a Height of 5 cm	Za višino 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Za vsako vajo v dokumentu: oznaka vsakega naslova in povzetka rezultatov.
+	Go to it	Pojdi nanj
+	Graph	Graf
+	Graph Paper	Milimetrski papir
+	Graph Paper Pane	Podokno milimetrskega papirja
+	Graph Paper Properties	Lastnosti milimetrskega papirja
+	Graph Paper at Cursor	Milimetrski papir pri kazalki
+	Grid lines	Črte mreže
+	Grip	Ročica
+	Grip: the new point (click, or type it; Esc puts it back)	Ročica: nova točka (kliknite ali jo vtipkajte; Esc jo vrne)
+	Heavier lines	Debelejše črte
+	How results are rounded	Kako se zaokrožajo rezultati
+	Imported 1 source	Uvožen 1 vir
+	Imported {n} sources	Uvoženih virov: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	V oddelku z več kot enim stolpcem je vsak stolpec črtan posebej, prostor med njimi pa ostane prazen
+	Inline (⇒)	V vrstici (⇒)
+	Input unit	Vhodna enota
+	Insert Graph Paper	Vstavi milimetrski papir
+	Insert Subdocument	Vstavi poddokument
+	Insert Subdocument…	Vstavi poddokument …
+	Items:	Elementi:
+	Keep the file	Obdrži datoteko
+	Keep the text in this document, without the link; the file stays as it is	Obdrži besedilo v tem dokumentu, brez povezave; datoteka ostane taka, kot je
+	Keep this version	Obdrži to različico
+	Layer	Plast
+	Layer:	Plast:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Omeji velikost risbe na papirju (glede na besedilno območje strani): ponujena so merila, pri katerih se risba prilega
+	Line by Line	Vrstico za vrstico
+	Linetype	Vrsta črte
+	Lineweight	Debelina črte
+	Link a document at the cursor	Poveži dokument pri kazalki
+	Linked files	Povezane datoteke
+	Local recovery is unavailable or still loading.	Lokalna obnovitev ni na voljo ali se še nalaga.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Nastavi plast predmeta kot trenutno
+	Make the equation at the cursor a live calculation, or an ordinary one	Spremeni enačbo pri kazalki v živ izračun ali navadno enačbo
+	Make this equation a live calculation: write it with = and the unknown is solved for	Spremeni to enačbo v živ izračun: napišite jo z = in neznanka se reši
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Označi enačbo pri kazalki kot rezultat vprašanja: njena vrednost gre v povzetek rezultatov
+	Master Document	Glavni dokument
+	Math	Matematika
+	Maximum size	Največja velikost
+	Modify	Spremeni
+	More Digits	Več števk
+	Move	Premakni
+	Move Pane: {title}	Premakni podokno: {title}
+	Move to layer	Premakni na plast
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Poimenujte in oštevilčite vaje dokumenta: predpona (Esercizio, lastno besedilo ali nič), oblika številk in prva številka, v podoknu Lastnosti vaje
+	New Calculation	Nov izračun
+	New Exercise	Nova vaja
+	New equations are live calculations	Nove enačbe so živi izračuni
+	New layer	Nova plast
+	New page before the exercise	Nova stran pred vajo
+	New page before the results summary	Nova stran pred povzetkom rezultatov
+	New page before the solution	Nova stran pred rešitvijo
+	Next object	Naslednji predmet
+	Next point	Naslednja točka
+	No matching commands	Ni ustreznih ukazov
+	No new sources in that file	V tej datoteki ni novih virov
+	No previous selection	Ni prejšnjega izbora
+	No recovery copies.	Ni obnovitvenih kopij.
+	No selection: click objects, or drag a window	Ni izbora: kliknite predmete ali povlecite okno
+	Not a Data Table	Ni podatkovna tabela
+	Nothing of this type in the document.	V dokumentu ni ničesar te vrste.
+	Nothing to undo in the selection	V izboru ni ničesar za razveljaviti
+	Number Format	Oblika številk
+	Object snap settings	Nastavitve pripenjanja na predmete
+	Objects	Predmeti
+	Only text properties can be changed.	Spremeniti je mogoče samo lastnosti besedila.
+	Only these	Samo ti
+	Only when another exercise comes before it	Samo kadar ji predhaja druga vaja
+	Open Subdocument	Odpri poddokument
+	Open the file in a window of its own	Odpri datoteko v lastnem oknu
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Od zdaj odpira dokumente Strix (.xmath, .xmathm), datoteke .docx, .doc, .rtf in .odt ter predloge Word s programom Strix.
+	Ordinal Column	Zaporedni stolpec
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Drugi kot okna (desno: celotni predmeti; levo: tudi dotaknjeni)
+	Outer frame	Zunanji okvir
+	Overwrite the file with the text shown here	Prepiši datoteko z besedilom, prikazanim tukaj
+	Padding	Odmik
+	Page color	Barva strani
+	Pane Options	Možnosti podokna
+	Placement	Umestitev
+	Previous object	Prejšnji predmet
+	Property names are 1–{max} characters.	Imena lastnosti imajo 1–{max} znakov.
+	Property values are at most {max} bytes.	Vrednosti lastnosti imajo največ {max} bajtov.
+	Put the cursor in an exercise to see its data and variants.	Postavite kazalko v vajo, da vidite njene podatke in različice.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Postavite kazalko v milimetrski papir (ali na stran z ozadjem milimetrskega papirja), da vidite njegove lastnosti.
+	Quick Keys	Hitre tipke
+	Quick Keys in Formulas	Hitre tipke v formulah
+	Reading Page Color	Barva strani za branje
+	Rebuild the repeated questions and the results summary	Znova zgradi ponovljena vprašanja in povzetek rezultatov
+	Recalculate	Preračunaj
+	Recalculate every calculation in the document (F9)	Preračunaj vse izračune v dokumentu (F9)
+	Recovery copy	Obnovitvena kopija
+	Recovery is disabled while this document has a password.	Obnovitev je onemogočena, dokler ima dokument geslo.
+	Reduce the selection to the objects considered	Zoži izbor na obravnavane predmete
+	Reject All Changes and Stop Tracking	Zavrni vse spremembe in ustavi sledenje
+	Reject and Move to Next	Zavrni in pojdi na naslednjo
+	Release notes	Opombe ob izdaji
+	Reload Subdocuments	Znova naloži poddokumente
+	Remove Graph Paper	Odstrani milimetrski papir
+	Remove the active variant	Odstrani aktivno različico
+	Remove this datum	Odstrani ta podatek
+	Replace the text shown here with the file's	Zamenjaj tukaj prikazano besedilo z besedilom datoteke
+	Resize Pane	Spremeni velikost podokna
+	Restore opens an unsaved copy. Your original file stays unchanged.	Obnovitev odpre neshranjeno kopijo. Vaša izvirna datoteka ostane nespremenjena.
+	Result Layout	Postavitev rezultata
+	Result Of	Rezultat od
+	Row, Column Below (A_F)	Vrstica, stolpec spodaj (A_F)
+	Save Subdocuments	Shrani poddokumente
+	Save as Strix Template…	Shrani kot predlogo Strix …
+	Save or close your documents first: updating restarts Strix Writer.	Najprej shranite ali zaprite dokumente: posodobitev znova zažene Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Shrani izbrane odstavke kot novo datoteko, povezano na njihovem mestu
+	Save your documents: Strix Writer then closes and restarts in the new version.	Shranite dokumente: Strix Writer se nato zapre in znova zažene v novi različici.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Shrani predlogo .xmathm v vašo mapo predlog. Prikaže se v Datoteka › Novo pod Osebno.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Shranjevanje dokumenta shrani vsak tukaj urejen poddokument. Odpiranje prikaže vsako datoteko, kakršna je zdaj.
+	Scale Font Sizes	Prilagodi velikosti pisave
+	Scaled distances	Merilne razdalje
+	Select a place in this document:	Izberite mesto v tem dokumentu:
+	Select a property to change.	Izberite lastnost, ki jo želite spremeniti.
+	Select objects	Izberi predmete
+	Selection options	Možnosti izbora
+	Separate text with	Ločuj besedilo z
+	Set CAD Drawing	Nastavi risbo CAD
+	Set Exercise Data	Nastavi podatke vaje
+	Set left- and first-indent with tabs and backspaces	Nastavi levo in prvo zamikanje s tabulatorji in vračalko
+	Steps	korake
+	Show Steps	Pokaži korake
+	Show Trailing Zeros	Pokaži končne ničle
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Pokaži vsako celico kot enačbo: imena ležeče, podpisani indeksi, enote v slogu Enota
+	Show every file as it is on disk, discarding edits made here	Pokaži vsako datoteko, kakršna je na disku, in zavrzi tukaj narejene spremembe
+	Show one digit less in results	Pokaži eno števko manj v rezultatih
+	Show one more digit in results	Pokaži eno števko več v rezultatih
+	Show the exercise's data and variants	Pokaži podatke in različice vaje
+	Show the file as it is on disk, discarding edits made here	Pokaži datoteko, kakršna je na disku, in zavrzi tukaj narejene spremembe
+	Significant Digits	Pomembne števke
+	Snap for the next point	Pripni za naslednjo točko
+	Snap for the next point (Shift+right-click)	Pripni za naslednjo točko (Shift+desni klik)
+	Software Update	Posodobitev programa
+	Spanish (Latin America)	Španščina (Latinska Amerika)
+	Spanish (Uruguay)	Španščina (Urugvaj)
+	Square size	Velikost kvadrata
+	Start at	Začni pri
+	Strix Writer {version} is available	Strix Writer {version} je na voljo
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} je trenutno najnovejša razpoložljiva različica.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix je odcep (fork) projekta WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Styles Pane Position	Položaj podokna slogov
+	Subdocuments	Poddokumenti
+	Subdocuments Pane	Podokno poddokumentov
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Poddokumenti so datoteke na disku: namizna različica jih poveže, brskalniška ne more.
+	Switch	Preklopi
+	Windows	okna
+	Switch Windows	Preklopi okna
+	Text Size	Velikost besedila
+	Text properties only: Word's number, date and yes-no types aren't offered.	Samo lastnosti besedila: Wordove vrste za število, datum in da/ne niso na voljo.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Ta oblika ne ohrani vsega, zato je dokument še odprt. Shranite ga kot dokument Strix (.xmath), da nadaljujete.
+	That would make the object degenerate	S tem bi bil predmet izrojen
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Podatki so prvi parametri izračunov vaje: rešitev jih uporablja po simbolu. Sprememba različice preračuna vajo.
+	The document has no subdocuments.	Dokument nima poddokumentov.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Zadnja vrstica sešteje vsak stolpec (Σ =); celica, napisana tam, obdrži svoje besedilo (mean =, max =)
+	The layer of the selected objects becomes the current layer	Plast izbranih predmetov postane trenutna plast
+	The number must be a divisor of {max}.	Število mora biti delitelj števila {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Črkovalnega slovarja za {language} ni bilo mogoče prebrati, zato se ne preverja. Datoteka: {file}. Razlog: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Tabela pri kazalki je izračunana: poimenujte njene stolpce v prvi vrstici (L [m], M [kN·m] = q·L²/8) in jih seštejte z Σ =
+	The update couldn't be installed: {error}	Posodobitve ni bilo mogoče namestiti: {error}
+	The whole family	Cela družina
+	The {name} dictionary couldn't be downloaded: {reason}	Slovarja {name} ni bilo mogoče prenesti: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Slovar {name} je nameščen: črkovanje v jeziku {language} se zdaj preverja.
+	This cannot be undone. Your original file stays unchanged.	Tega ni mogoče razveljaviti. Vaša izvirna datoteka ostane nespremenjena.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Ta izvod programa Strix Writer se ne more zamenjati sam: prenesite novo različico in jo namestite čez to.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ta dokument ima predmete Strix ({objects}). Word in drugi urejljivi formati bi jih izgubili, zato se shrani samo kot dokument Strix (.xmath). Izvozi v PDF, PNG, LaTeX, HTML in Markdown ostanejo na voljo kot statične kopije.
+	This document has no custom properties.	Ta dokument nima lastnih lastnosti.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Ta dokument še ne povezuje drugih dokumentov. Vstavite enega ali izberite odstavke in ustvarite dokument iz njih: njihovo besedilo se prikaže tukaj in se shrani nazaj v njegovo datoteko.
+	This equation is the result of the question it is worked under (shown in the results summary)	Ta enačba je rezultat vprašanja, pod katerim se rešuje (prikazano v povzetku rezultatov)
+	To the End of the Page	Do konca strani
+	Top of the Document	Vrh dokumenta
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Vtipkajte točko (x,y  @dx,dy  @d<a), razdaljo, ukaz (l, pl, rec, c, a, t, m, co), možnost ali pritisnite Enter
+	Unit	Enota
+	Unit:	Enota:
+	Unknown selection option:	Neznana možnost izbora:
+	Unlink	Odstrani povezavo
+	Unlink Subdocument	Odstrani povezavo poddokumenta
+	Until the Next Even Page	Do naslednje sode strani
+	Until the Next Odd Page	Do naslednje lihe strani
+	Update Summary	Posodobi povzetek
+	Update and Restart	Posodobi in znova zaženi
+	Update check is not supported in the web browser.	Preverjanje posodobitev ni podprto v spletnem brskalniku.
+	Variables	Spremenljivke
+	Variant	Različica
+	Variants	Različice
+	Varies	Se spreminja
+	Vertex	Oglišče
+	View and edit the document's custom properties.	Prikaži in uredi lastnosti dokumenta po meri.
+	What's new	Kaj je novega
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Kam gredo rezultati in koraki: za ⇒ v vrstici naloge ali po ena vrstica pod njo, poravnani pri =
+	Window polygon	Okenski mnogokotnik
+	Write the edited subdocuments to their files now (also done by saving the document)	Zapiši urejene poddokumente v njihove datoteke zdaj (to stori tudi shranjevanje dokumenta)
+	You have version {version}.	Imate različico {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / takoj naredijo nadpisano, podpisano ali ulomek (izklopljeno: sestavijo se ob Space, kot v Wordu)
+	already selected	že izbrano
+	an exercise goes in the body, outside tables	vaja gre v telo besedila, zunaj tabel
+	annotative {size}	anotativno {size}
+	click adds, Shift+click removes	klik doda, Shift+klik odstrani
+	click on empty space for a window, drag for a lasso	kliknite na prazen prostor za okno, povlecite za laso
+	click the vertices; Enter or right-click closes, Esc cancels	kliknite oglišča; Enter ali desni klik zapre, Esc prekliče
+	click to pick it	kliknite, da ga izberete
+	conflict	navzkrižje
+	cycle:	cikel:
+	edited	urejeno
+	fitted to frame	prilagojeno okvirju
+	found	najdeno
+	graph paper	milimetrski papir
+	in step	v koraku
+	input	vhod
+	installed	nameščeno
+	no graph paper at the cursor	pri kazalki ni milimetrskega papirja
+	no snap	brez pripenjanja
+	not available: the cursor isn't in an exercise	ni na voljo: kazalka ni v vaji
+	not found	ni najdeno
+	objects	predmeti
+	objects selected	izbranih predmetov
+	of	od
+	removed	odstranjeno
+	scaled {size}	pomanjšano {size}
+	select a CAD drawing first	najprej izberite risbo CAD
+	selected	izbrano
+	squares (0: none)	kvadrati (0: brez)
+	the cursor isn't in an exercise	kazalka ni v vaji
+	the document has no exercise	dokument nima vaj
+	{field}, record {n}	{field}, zapis {n}
+	{language} (dictionary unreadable)	{language} (slovarja ni mogoče prebrati)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (ni mogoče prebrati: {reason})
+	{n} CAD drawings	Risb CAD: {n}
+	{n} calculated tables	Izračunanih tabel: {n}
+	{n} calculations	Izračunov: {n}
+	{n} exercises	Vaj: {n}
+	{n} results summaries	Povzetkov rezultatov: {n}
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Preveri\nposodobitve…
+	Edit\nDrawing	Uredi\nrisbo
+	New\nExercise	Nova\nvaja
+	Show\nSteps	Pokaži\nkorake
+	Switch\nWindows	Preklopi\nokno
+	CAD\nDrawing	Risba\nCAD
+	Calculated\nTable	Izračunana\ntabela
+	Graph\nPaper	Milimetrski\npapir
+	New\nCalculation	Nov\nizračun

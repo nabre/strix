@@ -2450,3 +2450,459 @@ paper	Envelope DL	Kuvert DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Om Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(fjern) klik fjerner
+	*Bold* and _italic_ as real formatting	*Fed* og _kursiv_ som ægte formatering
+	1 CAD drawing	1 CAD-tegning
+	1 calculated table	1 beregnet tabel
+	1 calculation	1 beregning
+	1 exercise	1 opgave
+	1 object selected	1 objekt markeret
+	1 results summary	1 resultatoversigt
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	En første kolonne, kolonne 0, der nummererer datarækkerne 1, 2, 3… (beregningerne læser den aldrig)
+	A free, open-source word processor written in Rust.	En fri tekstbehandler med åben kildekode skrevet i Rust.
+	A grid from the cursor to the end of the page	Et gitter fra markøren til slutningen af siden
+	A new exercise takes the page breaks of the last one.	En ny opgave overtager sideskiftene fra den sidste.
+	A new layer, made current	Et nyt lag, gjort aktuelt
+	A polar array has	En polær række har
+	Accept All Changes and Stop Tracking	Accepter alle ændringer og stop sporing
+	Accept and Move to Next	Accepter og gå til næste
+	Add Datum	Tilføj data
+	Add Note	Tilføj note
+	Add Question	Tilføj spørgsmål
+	Add Sub-question	Tilføj delspørgsmål
+	Add a note between the questions: free text that is not a question	Tilføj en note mellem spørgsmålene: fri tekst, der ikke er et spørgsmål
+	Add a period with double-space	Tilføj punktum med dobbelt mellemrum
+	Add a question at the end of the exercise at the cursor	Tilføj et spørgsmål i slutningen af opgaven ved markøren
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Tilføj et spørgsmål indlejret under det sidste (a.1, a.1.1); Tab og Shift+Tab ændrer et spørgsmåls niveau
+	Add a variant: a copy of the active one's values	Tilføj en variant: en kopi af den aktives værdier
+	Add an initial datum: a symbol with its value in every variant	Tilføj en startværdi: et symbol med dets værdi i hver variant
+	Add gradient stop	Tilføj overgangspunkt
+	Add to CAD Drawing	Tilføj til CAD-tegning
+	Added 1 font	1 skrifttype tilføjet
+	Added {n} fonts	{n} skrifttyper tilføjet
+	Advanced Properties…	Avancerede egenskaber…
+	Aligned texts	Justerede tekster
+	All Fonts	Alle skrifttyper
+	All the selection	Hele markeringen
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Alle · F hegn · WP/CP polygon · R fjern · A tilføj · P forrige · U fortryd · Shift+Space skift
+	An array has	En række har
+	Any field	Ethvert felt
+	Apply to all exercises	Anvend på alle opgaver
+	Article I.	Artikel I.
+	As the grid lines	Som gitterlinjerne
+	AutoFit to contents	Tilpas til indhold
+	AutoFit to window	Tilpas til vindue
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Automatisk lagring gemmer kun Strix-dokumenter (.xmath); {name} har et andet format. Gem som .xmath for at slå automatisk lagring til.
+	Automatic (Decimals, Significant Below 1)	Automatisk (decimaler, signifikante under 1)
+	Automatic updates are not available yet. New versions are published at {url}	Automatiske opdateringer er endnu ikke tilgængelige. Nye versioner udgives på {url}
+	Automatically add words to list (First Letter)	Føj ord automatisk til listen (første bogstav)
+	Automatically add words to list (INitial CAps)	Føj ord automatisk til listen (TOstore FOrbogstaver)
+	Bookmarks	Bogmærker
+	Built-in Heading styles	Indbyggede overskriftstypografier
+	ByLayer	EfterLag
+	CAD	CAD
+	Drawing	Tegning
+	CAD Drawing	CAD-tegning
+	CAD Drawing Source	CAD-tegningskilde
+	CAD Picture Format	CAD-billedformat
+	Calculate	Beregn
+	Calculate New Equations	Beregn nye formler
+	Calculate This Table	Beregn denne tabel
+	Calculate the exercise with this variant	Beregn opgaven med denne variant
+	Calculated	Beregnet
+	Table	Tabel
+	Calculated Table	Beregnet tabel
+	Calculated Table Info	Info om beregnet tabel
+	Calculation	Beregning
+	Calculations	Beregninger
+	Cancel the step	Annuller trinnet
+	Cells as Equations	Celler som formler
+	Changed here and in the file: keep one of the two.	Ændret her og i filen: behold en af dem.
+	Chapter 1	Kapitel 1
+	Check for	Søg efter
+	Updates…	Opdateringer…
+	Check for Updates	Søg efter opdateringer
+	Checking for updates…	Søger efter opdateringer…
+	Close Document	Luk dokument
+	Colour	Farve
+	Column, Row Below (F_A)	Kolonne, række nedenunder (F_A)
+	Columns × rows:	Kolonner × rækker:
+	Commas	Kommaer
+	Considering	Under hensyntagen til
+	Continue from previous section	Fortsæt fra forrige afsnit
+	Continue without restoring	Fortsæt uden at gendanne
+	Coordinates take a number or an expression of the calculations (L/2)	Koordinater tager et tal eller et udtryk fra beregningerne (L/2)
+	Could not check for updates:\n{error}	Kunne ikke søge efter opdateringer:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Kunne ikke gemme {name}, så det er stadig åbent, og intet er gået tabt: {error}
+	Create Subdocument	Opret underdokument
+	Create Subdocument…	Opret underdokument…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Beskæring på siden virker på billeder uden rotation: sæt først Rotation til 0°, eller brug beskæringsfelterne
+	Crossing polygon	Krydsende polygon
+	Current Document	Aktuelt dokument
+	Current layer	Aktuelt lag
+	Current layer: new objects go on it	Aktuelt lag: nye objekter lægges på det
+	Data Table	Datatabel
+	Decimal Places	Decimaler
+	Delete Exercise	Slet opgave
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Slet opgaven ved markøren, eller de markerede opgaver, helt: dens tekst, spørgsmål og løsning forsvinder, dens resultater forlader oversigten (Fortryd henter den tilbage)
+	Delete the layer (its objects go to layer 0)	Slet laget (dets objekter flyttes til lag 0)
+	Detach: a window of its own	Frigør: et eget vindue
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Målelinjer og vinkelbuer placeret med et klik eller et håndtag bevarer deres afstand i tegningen (de følger dens størrelse og skala); slået fra, på papir (det samme på tryk)
+	Dimension texts along their line (never upside down), not level	Måltekster langs deres linje (aldrig på hovedet), ikke vandret
+	Dimension units	Måleenheder
+	Direction	Retning
+	Discard the recovery copy of {name}?	Kassér gendannelseskopien af {name}?
+	Discard…	Kassér…
+	Distance from text:	Afstand fra tekst:
+	Dock	Fastgør
+	Dock Left	Fastgør til venstre
+	Dock Right	Fastgør til højre
+	Dot-dot-dash	Prik-prik-streg
+	Download Dictionary	Download ordbog
+	Download the {name} spelling dictionary	Download stavekontrolordbogen {name}
+	Downloading and installing…	Downloader og installerer…
+	Downloading the {name} dictionary…	Downloader ordbogen {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Downloader Hunspell-ordbogen {name} fra LibreOffice-ordbøgerne ({source}), med licensen {licence}, til din ordbogsmappe og stavekontrollerer straks med den.
+	Draw order	Tegnerækkefølge
+	Drawing Padding	Tegningsafstand
+	Drawing Scale	Tegningsskala
+	Drawing unit	Tegningsenhed
+	Drop Cap Options…	Indstillinger for store forbogstaver…
+	Dropped	Nedsænket
+	Edit	Rediger
+	Editing endnote	Redigerer slutnote
+	Editing footnote	Redigerer fodnote
+	End mark	Slutmærke
+	English (Australia)	Engelsk (Australien)
+	English (Canada)	Engelsk (Canada)
+	Enter bookmark name:	Angiv bogmærkenavn:
+	Enter confirms	Enter bekræfter
+	Every	Hver
+	Every exercise of the document takes this exercise's page breaks	Alle dokumentets opgaver overtager denne opgaves sideskift
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Hver værdi er en parameter opkaldt efter sin kolonne og sin rækkes etiket (den første kolonne), med et sænket tegn: F_A eller A_F
+	Exercise	Opgave
+	Exercise Data	Opgavedata
+	Exercise Info	Opgaveinfo
+	Exercise Numbering	Opgavenummerering
+	Exercise Properties	Opgaveegenskaber
+	Exercise Result	Opgaveresultat
+	Exercise, in the document's language	Opgave, på dokumentets sprog
+	Fence	Hegn
+	Fewer Digits	Færre cifre
+	File locations	Filplaceringer
+	File type	Filtype
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Filer › Ny viser skabelonerne .xmathm, .dotx og .dotm her under Personlige; Gem som Strix-skabelon starter her.
+	Find in list:	Find på listen:
+	Find “{text}” in the document	Find “{text}” i dokumentet
+	First exercise: {label}	Første opgave: {label}
+	Fitted to Frame	Tilpasset til ramme
+	Float	Flydende
+	Folder path	Mappesti
+	Follow columns	Følg kolonner
+	For Two Pages	For to sider
+	For a Height of 5 cm	For en højde på 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	For hver opgave i dokumentet: etiketten på hver titel og på resultatoversigten.
+	Format Shape	Formatér figur
+	Go to it	Gå til det
+	Gradient fill	Overgangsfyld
+	Gradient stops	Overgangspunkter
+	Graph	Graf
+	Graph Paper	Ternet papir
+	Graph Paper Pane	Rude med ternet papir
+	Graph Paper Properties	Egenskaber for ternet papir
+	Graph Paper at Cursor	Ternet papir ved markøren
+	Grid lines	Gitterlinjer
+	Grip	Håndtag
+	Grip: the new point (click, or type it; Esc puts it back)	Håndtag: det nye punkt (klik, eller skriv det; Esc sætter det tilbage)
+	Heavier lines	Tykkere linjer
+	Hide Quick Access Toolbar	Skjul værktøjslinjen Hurtig adgang
+	How results are rounded	Hvordan resultater afrundes
+	Imported 1 source	1 kilde importeret
+	Imported {n} sources	{n} kilder importeret
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	I et afsnit med mere end én kolonne linjeres hver kolonne for sig, og mellemrummet imellem dem lades frit
+	In margin	I margenen
+	Include label and number	Medtag etiket og nummer
+	Indonesian	Indonesisk
+	Initial column width:	Indledende kolonnebredde:
+	Inline (⇒)	I linjen (⇒)
+	Input unit	Inputenhed
+	Insert Graph Paper	Indsæt ternet papir
+	Insert Subdocument	Indsæt underdokument
+	Insert Subdocument…	Indsæt underdokument…
+	Items:	Elementer:
+	Keep the file	Behold filen
+	Keep the text in this document, without the link; the file stays as it is	Behold teksten i dette dokument uden linket; filen forbliver, som den er
+	Keep this version	Behold denne version
+	Kerning for fonts:	Fonttilpasning for skrifttyper:
+	Later	Senere
+	Layer:	Lag:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Begræns tegningens størrelse på papir (ud fra sidens tekstområde): de tilbudte skalaer er dem, hvor den passer
+	Line by Line	Linje for linje
+	Lines to drop:	Linjer der skal sænkes:
+	Linetype	Linjetype
+	Lineweight	Linjevægt
+	Link a document at the cursor	Link et dokument ved markøren
+	Linked files	Linkede filer
+	Local recovery is unavailable or still loading.	Lokal gendannelse er ikke tilgængelig eller indlæses stadig.
+	Lock aspect ratio	Lås billedformat
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Gør objektets lag aktuelt
+	Make the equation at the cursor a live calculation, or an ordinary one	Gør formlen ved markøren til en levende beregning eller til en almindelig
+	Make this equation a live calculation: write it with = and the unknown is solved for	Gør denne formel til en levende beregning: skriv den med = og det ukendte løses
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Markér formlen ved markøren som resultat af et spørgsmål: dens værdi kommer i resultatoversigten
+	Master Document	Masterdokument
+	Matches: {count}	Match: {count}
+	Math	Matematik
+	Maximum size	Maksimal størrelse
+	Merge cells before split	Flet celler før deling
+	More Digits	Flere cifre
+	More Gradients…	Flere overgange…
+	More Underlines…	Flere understregninger…
+	More tabs	Flere faner
+	Move Pane: {title}	Flyt rude: {title}
+	Move to layer	Flyt til lag
+	Moved from:	Flyttet fra:
+	Moved to:	Flyttet til:
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Navngiv og nummerer dokumentets opgaver: præfiks (Esercizio, din egen tekst eller intet), nummerformat og første nummer, i ruden Opgaveegenskaber
+	New	Ny
+	New Calculation	Ny beregning
+	New Exercise	Ny opgave
+	New equations are live calculations	Nye formler er levende beregninger
+	New layer	Nyt lag
+	New page before the exercise	Ny side før opgaven
+	New page before the results summary	Ny side før resultatoversigten
+	New page before the solution	Ny side før løsningen
+	Next object	Næste objekt
+	Next point	Næste punkt
+	No Gradient	Ingen overgang
+	No fill	Ingen udfyldning
+	No items to show.	Ingen elementer at vise.
+	No matching commands	Ingen matchende kommandoer
+	No new sources in that file	Ingen nye kilder i den fil
+	No previous selection	Ingen tidligere markering
+	No recovery copies.	Ingen gendannelseskopier.
+	No selection: click objects, or drag a window	Ingen markering: klik på objekter, eller træk et vindue
+	Not a Data Table	Ikke en datatabel
+	Not set	Ikke angivet
+	Nothing of this type in the document.	Intet af denne type i dokumentet.
+	Nothing to undo in the selection	Intet at fortryde i markeringen
+	Number Format	Talformat
+	Object snap settings	Indstillinger for objektfangst
+	Objects	Objekter
+	Old menu keys: Alt, {keys}. Keep typing, or press Esc to cancel.	Gamle menutaster: Alt, {keys}. Fortsæt med at skrive, eller tryk på Esc for at annullere.
+	Only text properties can be changed.	Kun tekstegenskaber kan ændres.
+	Only these	Kun disse
+	Only when another exercise comes before it	Kun når en anden opgave står foran
+	Open Subdocument	Åbn underdokument
+	Open the file in a window of its own	Åbn filen i et eget vindue
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Åbner fra nu af Strix-dokumenter (.xmath, .xmathm), .docx-, .doc-, .rtf- og .odt-filer og Word-skabeloner med Strix.
+	Ordinal Column	Ordenstalskolonne
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Andet hjørne af vinduet (mod højre: hele objekter; mod venstre: også berørte)
+	Other:	Andet:
+	Outer frame	Ydre ramme
+	Overwrite the file with the text shown here	Overskriv filen med teksten vist her
+	Padding	Afstand
+	Page Number Format	Format for sidetal
+	Page color	Sidefarve
+	Page numbering	Sidenummerering
+	Pane Options	Indstillinger for rude
+	Personal	Personlige
+	Placement	Placering
+	Points and above	Point og derover
+	Prefix	Præfiks
+	Preset gradients	Foruddefinerede overgange
+	Previous object	Forrige objekt
+	Property names are 1–{max} characters.	Egenskabsnavne er på 1–{max} tegn.
+	Property values are at most {max} bytes.	Egenskabsværdier er højst {max} bytes.
+	Put the cursor in an exercise to see its data and variants.	Sæt markøren i en opgave for at se dens data og varianter.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Sæt markøren i ternet papir (eller på en side med ternet papir som baggrund) for at se dets egenskaber.
+	Quick Keys	Hurtigtaster
+	Quick Keys in Formulas	Hurtigtaster i formler
+	Reading Page Color	Sidefarve ved læsning
+	Rebuild the repeated questions and the results summary	Genopbyg de gentagne spørgsmål og resultatoversigten
+	Recalculate	Genberegn
+	Recalculate every calculation in the document (F9)	Genberegn alle beregninger i dokumentet (F9)
+	Recently Used Fonts	Senest brugte skrifttyper
+	Recovery copy	Gendannelseskopi
+	Recovery is disabled while this document has a password.	Gendannelse er slået fra, mens dette dokument har en adgangskode.
+	Reduce the selection to the objects considered	Begræns markeringen til de berørte objekter
+	Reject All Changes and Stop Tracking	Afvis alle ændringer og stop sporing
+	Reject and Move to Next	Afvis og gå til næste
+	Relative to original picture size	I forhold til billedets oprindelige størrelse
+	Release notes	Udgivelsesnoter
+	Reload	Genindlæs
+	Reload Subdocuments	Genindlæs underdokumenter
+	Remove Graph Paper	Fjern ternet papir
+	Remove gradient stop	Fjern overgangspunkt
+	Remove the active variant	Fjern den aktive variant
+	Remove this datum	Fjern dette datum
+	Replace the text shown here with the file's	Erstat teksten vist her med filens
+	Resize Pane	Tilpas rudens størrelse
+	Restore opens an unsaved copy. Your original file stays unchanged.	Gendan åbner en ugemt kopi. Din originale fil forbliver uændret.
+	Result Layout	Resultatlayout
+	Result Of	Resultat af
+	Rotate with shape	Roter med figuren
+	Row, Column Below (A_F)	Række, kolonne nedenunder (A_F)
+	Save Subdocuments	Gem underdokumenter
+	Save as Strix Template…	Gem som Strix-skabelon…
+	Save or close your documents first: updating restarts Strix Writer.	Gem eller luk dine dokumenter først: opdateringen genstarter Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Gem de markerede afsnit som en ny fil, linket i deres sted
+	Save your documents: Strix Writer then closes and restarts in the new version.	Gem dine dokumenter: Strix Writer lukker derefter og genstarter i den nye version.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Gemmer en .xmathm-skabelon i din skabelonmappe. Den vises i Filer › Ny under Personlige.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Når dokumentet gemmes, gemmes hvert underdokument, der er redigeret her. Når det åbnes, vises hver fil, som den er nu.
+	Scale Font Sizes	Skaler skriftstørrelser
+	Scaled distances	Skalerede afstande
+	Section 1.01	Afsnit 1.01
+	Select a place in this document:	Vælg et sted i dette dokument:
+	Select a property to change.	Vælg en egenskab, der skal ændres.
+	Select a shape, text box or drawing canvas to format its fill.	Markér en figur, en tekstboks eller et tegnelærred for at formatere dets udfyldning.
+	Select objects	Markér objekter
+	Selection options	Markeringsindstillinger
+	Separate text with	Adskil tekst med
+	Set CAD Drawing	Angiv CAD-tegning
+	Set Exercise Data	Angiv opgavedata
+	Set left- and first-indent with tabs and backspaces	Angiv venstre- og førstelinjeindrykning med tabulatorer og tilbagetast
+	Show	Vis
+	Steps	Trin
+	Show Quick Access Toolbar	Vis værktøjslinjen Hurtig adgang
+	Show Steps	Vis trin
+	Show Trailing Zeros	Vis efterstillede nuller
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Vis hver celle som en formel: navne i kursiv, sænkede tegn, enheder i typografien Enhed
+	Show every file as it is on disk, discarding edits made here	Vis hver fil, som den er på disken, og kassér redigeringer foretaget her
+	Show one digit less in results	Vis ét ciffer færre i resultater
+	Show one more digit in results	Vis ét ciffer mere i resultater
+	Show only records that will be merged	Vis kun poster, der flettes
+	Show the exercise's data and variants	Vis opgavens data og varianter
+	Show the file as it is on disk, discarding edits made here	Vis filen, som den er på disken, og kassér redigeringer foretaget her
+	Show the ribbon	Vis båndet
+	Significant Digits	Signifikante cifre
+	Snap for the next point	Fangst til næste punkt
+	Snap for the next point (Shift+right-click)	Fangst til næste punkt (Shift+højreklik)
+	Software Update	Softwareopdatering
+	Solid fill	Ensfarvet udfyldning
+	Spanish (Latin America)	Spansk (Latinamerika)
+	Spanish (Uruguay)	Spansk (Uruguay)
+	Square size	Kvadratstørrelse
+	Start at	Start ved
+	Strix Writer {version} is available	Strix Writer {version} er tilgængelig
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} er i øjeblikket den nyeste tilgængelige version.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix er en fork af WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Se NOTICE.
+	Styles Pane Position	Placering af typografiruden
+	Subdocuments	Underdokumenter
+	Subdocuments Pane	Rude med underdokumenter
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Underdokumenter er filer på disken: skrivebordsversionen linker dem, browserversionen kan ikke.
+	Switch	Skift
+	Windows	Vinduer
+	Switch Windows	Skift vindue
+	Templates you save in your templates folder show up here.	Skabeloner, du gemmer i din skabelonmappe, vises her.
+	Text Size	Tekststørrelse
+	Text properties only: Word's number, date and yes-no types aren't offered.	Kun tekstegenskaber: Words typer for tal, dato og ja/nej tilbydes ikke.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Det format bevarer ikke alt, så dokumentet er stadig åbent. Gem det som et Strix-dokument (.xmath) for at fortsætte.
+	That would make the object degenerate	Det ville gøre objektet degenereret
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Dataene er de første parametre i opgavens beregninger: løsningen bruger dem via symbol. Skifter man variant, genberegnes opgaven.
+	The document has no subdocuments.	Dokumentet har ingen underdokumenter.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Den sidste række summerer hver kolonne (Σ =); en celle skrevet dér beholder sin egen tekst (middel =, maks =)
+	The layer of the selected objects becomes the current layer	Laget for de markerede objekter bliver det aktuelle lag
+	The measurement must be between {min} and {max}.	Målet skal være mellem {min} og {max}.
+	The number must be a divisor of {max}.	Tallet skal være en divisor af {max}.
+	The number must be between 1 and {max}.	Tallet skal være mellem 1 og {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Stavekontrolordbogen for {language} kunne ikke læses, så det kontrolleres ikke. Fil: {file}. Årsag: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Tabellen ved markøren er beregnet: navngiv dens kolonner i første række (L [m], M [kN·m] = q·L²/8) og summer dem med Σ =
+	The update couldn't be installed: {error}	Opdateringen kunne ikke installeres: {error}
+	The whole family	Hele familien
+	The {name} dictionary couldn't be downloaded: {reason}	Ordbogen {name} kunne ikke downloades: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Ordbogen {name} er installeret: stavning på {language} kontrolleres nu.
+	This cannot be undone. Your original file stays unchanged.	Dette kan ikke fortrydes. Din originale fil forbliver uændret.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Denne kopi af Strix Writer kan ikke erstatte sig selv: download den nye version og installér den oven på denne.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Dette dokument har Strix-objekter ({objects}). Word og de andre redigerbare formater ville miste dem, så det gemmes kun som Strix-dokument (.xmath). Eksport til PDF, PNG, LaTeX, HTML og Markdown er stadig tilgængelig som statiske kopier.
+	This document has no bookmarks.	Dette dokument har ingen bogmærker.
+	This document has no custom properties.	Dette dokument har ingen brugerdefinerede egenskaber.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Dette dokument linker endnu ikke til andre dokumenter. Indsæt et, eller markér afsnit og opret et af dem: dets tekst vises her og gemmes tilbage i dets egen fil.
+	This equation is the result of the question it is worked under (shown in the results summary)	Denne formel er resultatet af det spørgsmål, den udregnes under (vist i resultatoversigten)
+	To the End of the Page	Til slutningen af siden
+	Top of the Document	Dokumentets begyndelse
+	Type a page number, or +2 / -1.	Skriv et sidetal, eller +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Skriv et punkt (x,y  @dx,dy  @d<a), en afstand, en kommando (l, pl, rec, c, a, t, m, co), en indstilling, eller tryk på Enter
+	Type a size in any unit, such as 5 cm or 300 px. The other side follows, so the picture keeps its proportions.	Skriv en størrelse i en vilkårlig enhed, f.eks. 5 cm eller 300 px. Den anden side følger med, så billedet bevarer sine proportioner.
+	Unit	Enhed
+	Unit:	Enhed:
+	Unknown selection option:	Ukendt markeringsindstilling:
+	Unlink	Fjern link
+	Unlink Subdocument	Fjern link til underdokument
+	Until the Next Even Page	Til næste lige side
+	Until the Next Odd Page	Til næste ulige side
+	Update Summary	Opdater oversigt
+	Update and Restart	Opdater og genstart
+	Update check is not supported in the web browser.	Søgning efter opdateringer understøttes ikke i webbrowseren.
+	User templates:	Brugerskabeloner:
+	Value:	Værdi:
+	Variant	Variant
+	Variants	Varianter
+	Varies	Varierer
+	Vertex	Hjørne
+	View and edit the document's custom properties.	Vis og rediger dokumentets brugerdefinerede egenskaber.
+	Wait for the print job to finish submitting before closing.	Vent, til udskriftsjobbet er færdigt med at blive sendt, før du lukker.
+	What's new	Nyheder
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Hvor resultater og trin placeres: efter ⇒ på opgavetekstens linje, eller én linje hver under den, justeret ved =
+	Window polygon	Vinduespolygon
+	Write the edited subdocuments to their files now (also done by saving the document)	Skriv de redigerede underdokumenter til deres filer nu (sker også, når dokumentet gemmes)
+	You have version {version}.	Du har version {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / danner straks hævet skrift, sænket skrift eller brøk (slået fra: de opbygges ved mellemrum, som i Word)
+	already selected	allerede markeret
+	an exercise goes in the body, outside tables	en opgave placeres i brødteksten, uden for tabeller
+	annotative {size}	annotativ {size}
+	click adds, Shift+click removes	klik tilføjer, Shift+klik fjerner
+	click on empty space for a window, drag for a lasso	klik på tomt område for et vindue, træk for en lasso
+	click the vertices; Enter or right-click closes, Esc cancels	klik på hjørnerne; Enter eller højreklik lukker, Esc annullerer
+	click to pick it	klik for at vælge det
+	cm	cm
+	conflict	konflikt
+	cycle:	skift:
+	edited	redigeret
+	fitted to frame	tilpasset til ramme
+	found	fundet
+	graph paper	ternet papir
+	in step	i trin
+	input	input
+	installed	installeret
+	mm	mm
+	no graph paper at the cursor	intet ternet papir ved markøren
+	no snap	ingen fangst
+	not available: the cursor isn't in an exercise	ikke tilgængelig: markøren er ikke i en opgave
+	not found	ikke fundet
+	objects	objekter
+	objects selected	objekter markeret
+	of	af
+	pi	pi
+	removed	fjernet
+	scaled {size}	skaleret {size}
+	select a CAD drawing first	markér først en CAD-tegning
+	selected	markeret
+	squares (0: none)	kvadrater (0: ingen)
+	the cursor isn't in an exercise	markøren er ikke i en opgave
+	the document has no exercise	dokumentet har ingen opgave
+	{added}; {count} couldn't be read: {names}	{added}; {count} kunne ikke læses: {names}
+	{added}; {n} skipped (limit {max})	{added}; {n} sprunget over (grænse {max})
+	{field}, record {n}	{field}, post {n}
+	{language} (dictionary unreadable)	{language} (ordbog ulæselig)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (ulæselig: {reason})
+	{names} and {n} more	{names} og {n} flere
+	{name} options	Indstillinger for {name}
+	{n} CAD drawings	{n} CAD-tegninger
+	{n} calculated tables	{n} beregnede tabeller
+	{n} calculations	{n} beregninger
+	{n} exercises	{n} opgaver
+	{n} results summaries	{n} resultatoversigter
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	{width} × {height} pixels	{width} × {height} pixel
+	Check for\nUpdates…	Søg efter\nopdateringer…
+	Edit\nDrawing	Rediger\ntegning
+	New\nExercise	Ny\nopgave
+	Show\nSteps	Vis\ntrin
+	Switch\nWindows	Skift\nvindue
+	CAD\nDrawing	CAD-\ntegning
+	Calculated\nTable	Beregnet\ntabel
+	Graph\nPaper	Millimeter-\npapir
+	New\nCalculation	Ny\nberegning

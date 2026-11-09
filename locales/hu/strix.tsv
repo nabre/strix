@@ -2380,3 +2380,377 @@ paper	Envelope DL	DL boríték
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	A Strix Writer névjegye
+
+# Strix additions 2026-11-09
+	(remove) click removes	(eltávolítás) a kattintás eltávolít
+	*Bold* and _italic_ as real formatting	*Félkövér* és _dőlt_ valódi formázásként
+	1 CAD drawing	1 CAD-rajz
+	1 calculated table	1 számított táblázat
+	1 calculation	1 számítás
+	1 exercise	1 feladat
+	1 object selected	1 kijelölt objektum
+	1 results summary	eredmények összegzése
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Az első oszlop, a 0. oszlop, amely 1, 2, 3… számozza az adatsorokat (a számítások sosem olvassák)
+	A free, open-source word processor written in Rust.	Ingyenes, nyílt forráskódú szövegszerkesztő, Rust nyelven írva.
+	A grid from the cursor to the end of the page	Rács a kurzortól az oldal végéig
+	A new exercise takes the page breaks of the last one.	Az új feladat átveszi az utolsó feladat oldaltöréseit.
+	A new layer, made current	Új réteg, aktuálissá téve
+	A polar array has	A sarkos tömbnek van
+	Accept All Changes and Stop Tracking	Minden módosítás elfogadása és a követés leállítása
+	Accept and Move to Next	Elfogadás és ugrás a következőre
+	Add Datum	Adat hozzáadása
+	Add Note	Megjegyzés hozzáadása
+	Add Question	Kérdés hozzáadása
+	Add Sub-question	Részkérdés hozzáadása
+	Add a note between the questions: free text that is not a question	Megjegyzés hozzáadása a kérdések közé: szabad szöveg, amely nem kérdés
+	Add a period with double-space	Pont hozzáadása dupla szóközzel
+	Add a question at the end of the exercise at the cursor	Kérdés hozzáadása a kurzornál lévő feladat végére
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Kérdés hozzáadása az utolsó alá beágyazva (a.1, a.1.1); a Tab és a Shift+Tab módosítja a kérdés szintjét
+	Add a variant: a copy of the active one's values	Változat hozzáadása: az aktív változat értékeinek másolata
+	Add an initial datum: a symbol with its value in every variant	Kezdeti adat hozzáadása: egy szimbólum az értékével minden változatban
+	Add to CAD Drawing	Hozzáadás CAD-rajzhoz
+	Advanced Properties…	Speciális tulajdonságok…
+	Aligned texts	Igazított szövegek
+	All the selection	A teljes kijelölés
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Mind · F kerítés · WP/CP sokszög · R eltávolítás · A hozzáadás · P előző · U visszavonás · Shift+Space váltás
+	An array has	A tömbnek van
+	Apply to all exercises	Alkalmazás minden feladatra
+	As the grid lines	Mint a rácsvonalak
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Az automatikus mentés csak Strix-dokumentumokat (.xmath) őriz meg; a(z) {name} más formátumú. Mentse .xmath formátumban az automatikus mentés bekapcsolásához.
+	Automatic (Decimals, Significant Below 1)	Automatikus (tizedesjegyek, értékes jegyek 1 alatt)
+	Automatic updates are not available yet. New versions are published at {url}	Az automatikus frissítések még nem érhetők el. Az új verziók itt jelennek meg: {url}
+	Automatically add words to list (First Letter)	Szavak automatikus hozzáadása a listához (első betű)
+	Automatically add words to list (INitial CAps)	Szavak automatikus hozzáadása a listához (KEzdő NAgybetűk)
+	Bookmarks	Könyvjelzők
+	Built-in Heading styles	Beépített címsorstílusok
+	ByLayer	Rétegszerint
+	CAD	CAD
+	Drawing	Rajz
+	CAD Drawing	CAD-rajz
+	CAD Drawing Source	CAD-rajz forrása
+	CAD Picture Format	CAD-kép formátuma
+	Calculate New Equations	Új egyenletek kiszámítása
+	Calculate This Table	A táblázat kiszámítása
+	Calculate the exercise with this variant	A feladat kiszámítása ezzel a változattal
+	Calculated	Számított
+	Table	táblázat
+	Calculated Table	Számított táblázat
+	Calculated Table Info	Számított táblázat adatai
+	Calculation	Számítás
+	Calculations	Számítások
+	Cancel the step	A lépés megszakítása
+	Cells as Equations	Cellák egyenletként
+	Changed here and in the file: keep one of the two.	Itt és a fájlban is módosult: tartsa meg az egyiket.
+	Check for	Frissítések
+	Updates…	keresése…
+	Checking for updates…	Frissítések keresése…
+	Close Document	Dokumentum bezárása
+	Column, Row Below (F_A)	Oszlop, alatta sor (F_A)
+	Columns × rows:	Oszlopok × sorok:
+	Considering	Figyelembe veszi
+	Continue without restoring	Folytatás visszaállítás nélkül
+	Coordinates take a number or an expression of the calculations (L/2)	A koordináták számot vagy a számítások egy kifejezését fogadják (L/2)
+	Could not check for updates:\n{error}	Nem sikerült frissítéseket keresni:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	A(z) {name} mentése nem sikerült, ezért nyitva maradt, és semmi sem veszett el: {error}
+	Create Subdocument	Részdokumentum létrehozása
+	Create Subdocument…	Részdokumentum létrehozása…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Az oldalon végzett vágás el nem forgatott képeken működik: előbb állítsa a forgatást 0°-ra, vagy használja a vágókereteket
+	Crossing polygon	Metsző sokszög
+	Current Document	Aktuális dokumentum
+	Current layer	Aktuális réteg
+	Current layer: new objects go on it	Aktuális réteg: az új objektumok ide kerülnek
+	Data Table	Adattáblázat
+	Decimal Places	Tizedesjegyek
+	Delete Exercise	Feladat törlése
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	A kurzornál lévő feladat vagy a kijelölt feladatok törlése teljes egészében: a feladatkiírás, a kérdések és a megoldás eltűnik, az eredmények kikerülnek az összegzésből (a Visszavonás visszahozza)
+	Delete the layer (its objects go to layer 0)	A réteg törlése (objektumai a 0. rétegre kerülnek)
+	Detach: a window of its own	Leválasztás: önálló ablak
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	A kattintással vagy fogópontal elhelyezett méretvonalak és szögívek megtartják a rajzbeli távolságukat (követik a méretét és a léptéket); kikapcsolva a papíron (nyomtatásban is ugyanaz)
+	Dimension texts along their line (never upside down), not level	Méretszövegek a vonaluk mentén (sosem fejjel lefelé), nem vízszintesen
+	Dimension units	Méretezési egységek
+	Discard the recovery copy of {name}?	Elveti a(z) {name} helyreállítási másolatát?
+	Discard…	Elvetés…
+	Dock	Dokkolás
+	Dock Left	Dokkolás balra
+	Dock Right	Dokkolás jobbra
+	Download Dictionary	Szótár letöltése
+	Download the {name} spelling dictionary	A(z) {name} helyesírási szótár letöltése
+	Downloading and installing…	Letöltés és telepítés…
+	Downloading the {name} dictionary…	A(z) {name} szótár letöltése…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Letölti a(z) {name} Hunspell-szótárat a LibreOffice szótáraiból ({source}), {licence} licenccel, a szótármappába, és azonnal ellenőrzi vele a helyesírást.
+	Draw order	Rajzolási sorrend
+	Drawing Padding	Rajz margója
+	Drawing Scale	Rajz léptéke
+	Drawing unit	Rajz egysége
+	Edit	Szerkesztés
+	End mark	Végjel
+	Enter confirms	Az Enter megerősít
+	Every	Minden
+	Every exercise of the document takes this exercise's page breaks	A dokumentum minden feladata átveszi ennek a feladatnak az oldaltöréseit
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Minden érték egy paraméter, amelyet az oszlopa és a sora címkéje (az első oszlop) nevez meg, alsó indexszel: F_A vagy A_F
+	Exercise	Feladat
+	Exercise Data	Feladatadatok
+	Exercise Info	Feladatinformáció
+	Exercise Numbering	Feladatok számozása
+	Exercise Properties	Feladat tulajdonságai
+	Exercise Result	Feladat eredménye
+	Exercise, in the document's language	Feladat, a dokumentum nyelvén
+	Fence	Kerítés
+	Fewer Digits	Kevesebb számjegy
+	File type	Fájltípus
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	A Fájl › Új itt sorolja fel a .xmathm, .dotx és .dotm sablonokat a Személyes alatt; a Mentés Strix-sablonként innen indul.
+	First exercise: {label}	Első feladat: {label}
+	Fitted to Frame	Keretbe illesztve
+	Float	Lebegő
+	Folder path	Mappa elérési útja
+	Follow columns	Oszlopok követése
+	For Two Pages	Két oldalra
+	For a Height of 5 cm	5 cm magassághoz
+	For every exercise of the document: the label of each title and of the results summary.	A dokumentum minden feladatára: az egyes címek és az eredmények összegzésének címkéje.
+	Go to it	Ugrás rá
+	Graph	Grafikon
+	Paper	papír
+	Graph Paper	Milliméterpapír
+	Graph Paper Pane	Milliméterpapír panel
+	Graph Paper Properties	Milliméterpapír tulajdonságai
+	Graph Paper at Cursor	Milliméterpapír a kurzornál
+	Grid lines	Rácsvonalak
+	Grip	Fogópont
+	Grip: the new point (click, or type it; Esc puts it back)	Fogópont: az új pont (kattintson, vagy írja be; az Esc visszaállítja)
+	Heavier lines	Vastagabb vonalak
+	How results are rounded	Az eredmények kerekítésének módja
+	Imported 1 source	1 forrás importálva
+	Imported {n} sources	{n} forrás importálva
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Egynél több hasábos szakaszban minden hasáb külön kap vonalazást, és a köztük lévő hely szabadon marad
+	Inline (⇒)	Sorban (⇒)
+	Input unit	Bemeneti egység
+	Insert Graph Paper	Milliméterpapír beszúrása
+	Insert Subdocument	Részdokumentum beszúrása
+	Insert Subdocument…	Részdokumentum beszúrása…
+	Items:	Elemek:
+	Keep the file	A fájl megtartása
+	Keep the text in this document, without the link; the file stays as it is	A szöveg megtartása ebben a dokumentumban, hivatkozás nélkül; a fájl változatlan marad
+	Keep this version	Ez a változat megtartása
+	Layer:	Réteg:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	A rajz méretének korlátozása a papíron (az oldal szövegterülete alapján): azok a lépték kínálatban, amelyeknél elfér
+	Line by Line	Soronként
+	Linetype	Vonaltípus
+	Lineweight	Vonalvastagság
+	Link a document at the cursor	Dokumentum összekapcsolása a kurzornál
+	Linked files	Összekapcsolt fájlok
+	Local recovery is unavailable or still loading.	A helyi helyreállítás nem érhető el, vagy még töltődik.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Az objektum rétegének aktuálissá tétele
+	Make the equation at the cursor a live calculation, or an ordinary one	A kurzornál lévő egyenlet élő számítássá vagy közönséges egyenletté alakítása
+	Make this equation a live calculation: write it with = and the unknown is solved for	Az egyenlet élő számítássá alakítása: írja = jellel, és az ismeretlent megoldja
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	A kurzornál lévő egyenlet megjelölése egy kérdés eredményeként: az értéke bekerül az eredmények összegzésébe
+	Master Document	Törzsdokumentum
+	Math	Matematika
+	Maximum size	Legnagyobb méret
+	More Digits	További számjegyek
+	Move Pane: {title}	Panel áthelyezése: {title}
+	Move to layer	Áthelyezés rétegre
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	A dokumentum feladatainak elnevezése és számozása: előtag (Esercizio, saját szöveg vagy semmi), számformátum és első szám, a Feladat tulajdonságai panelen
+	New	Új
+	New Calculation	Új számítás
+	New Exercise	Új feladat
+	New equations are live calculations	Az új egyenletek élő számítások
+	New layer	Új réteg
+	New page before the exercise	Új oldal a feladat előtt
+	New page before the results summary	Új oldal az eredmények összegzése előtt
+	New page before the solution	Új oldal a megoldás előtt
+	Next object	Következő objektum
+	Next point	Következő pont
+	No new sources in that file	Nincs új forrás ebben a fájlban
+	No previous selection	Nincs előző kijelölés
+	No recovery copies.	Nincsenek helyreállítási másolatok.
+	No selection: click objects, or drag a window	Nincs kijelölés: kattintson objektumokra, vagy húzzon ablakot
+	Not a Data Table	Nem adattáblázat
+	Nothing of this type in the document.	Ebből a típusból nincs semmi a dokumentumban.
+	Nothing to undo in the selection	A kijelölésben nincs mit visszavonni
+	Number Format	Számformátum
+	Object snap settings	Objektumillesztés beállításai
+	Objects	Objektumok
+	Only text properties can be changed.	Csak a szöveg tulajdonságai módosíthatók.
+	Only these	Csak ezek
+	Only when another exercise comes before it	Csak ha előtte van másik feladat
+	Open Subdocument	Részdokumentum megnyitása
+	Open the file in a window of its own	A fájl megnyitása önálló ablakban
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Mostantól a Strixszel nyitja meg a Strix-dokumentumokat (.xmath, .xmathm), a .docx, .doc, .rtf és .odt fájlokat és a Word-sablonokat.
+	Ordinal Column	Sorszámoszlop
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Az ablak másik sarka (jobbra: egész objektumok; balra: az érintettek is)
+	Outer frame	Külső keret
+	Overwrite the file with the text shown here	A fájl felülírása az itt látható szöveggel
+	Padding	Margó
+	Page color	Oldalszín
+	Pane Options	Panelbeállítások
+	Placement	Elhelyezés
+	Previous object	Előző objektum
+	Property names are 1–{max} characters.	A tulajdonságnevek 1–{max} karakteresek.
+	Property values are at most {max} bytes.	A tulajdonságértékek legfeljebb {max} bájtosak.
+	Put the cursor in an exercise to see its data and variants.	Helyezze a kurzort egy feladatba az adatai és változatai megtekintéséhez.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Helyezze a kurzort milliméterpapírra (vagy milliméterpapír hátterű oldalra) a tulajdonságai megtekintéséhez.
+	Quick Keys	Gyorsbillentyűk
+	Quick Keys in Formulas	Gyorsbillentyűk képletekben
+	Reading Page Color	Olvasási oldalszín
+	Rebuild the repeated questions and the results summary	Az ismétlődő kérdések és az eredmények összegzésének újraépítése
+	Recalculate	Újraszámítás
+	Recalculate every calculation in the document (F9)	A dokumentum minden számításának újraszámítása (F9)
+	Recovery copy	Helyreállítási másolat
+	Recovery is disabled while this document has a password.	A helyreállítás ki van kapcsolva, amíg a dokumentum jelszóval védett.
+	Reduce the selection to the objects considered	A kijelölés szűkítése a figyelembe vett objektumokra
+	Reject All Changes and Stop Tracking	Minden módosítás elvetése és a követés leállítása
+	Reject and Move to Next	Elvetés és ugrás a következőre
+	Release notes	Kiadási megjegyzések
+	Reload Subdocuments	Részdokumentumok újratöltése
+	Remove Graph Paper	Milliméterpapír eltávolítása
+	Remove the active variant	Az aktív változat eltávolítása
+	Remove this datum	Az adat eltávolítása
+	Replace the text shown here with the file's	Az itt látható szöveg cseréje a fájl szövegére
+	Resize Pane	Panel átméretezése
+	Restore opens an unsaved copy. Your original file stays unchanged.	A visszaállítás egy nem mentett másolatot nyit meg. Az eredeti fájl változatlan marad.
+	Result Layout	Eredmény elrendezése
+	Result Of	Eredmény:
+	Row, Column Below (A_F)	Sor, alatta oszlop (A_F)
+	Save Subdocuments	Részdokumentumok mentése
+	Save as Strix Template…	Mentés Strix-sablonként…
+	Save or close your documents first: updating restarts Strix Writer.	Előbb mentse vagy zárja be a dokumentumokat: a frissítés újraindítja a Strix Writert.
+	Save the selected paragraphs as a new file, linked in their place	A kijelölt bekezdések mentése új fájlként, a helyükön hivatkozva
+	Save your documents: Strix Writer then closes and restarts in the new version.	Mentse a dokumentumokat: a Strix Writer ezután bezárul, és az új verzióban indul újra.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Egy .xmathm sablont ment a sablonmappába. A Fájl › Új alatt jelenik meg a Személyes részben.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	A dokumentum mentése az itt szerkesztett összes részdokumentumot elmenti. Megnyitáskor minden fájl a jelenlegi állapotában látszik.
+	Scale Font Sizes	Betűméretek skálázása
+	Scaled distances	Skálázott távolságok
+	Select a place in this document:	Válasszon egy helyet ebben a dokumentumban:
+	Select a property to change.	Válassza ki a módosítandó tulajdonságot.
+	Select objects	Objektumok kijelölése
+	Selection options	Kijelölési beállítások
+	Separate text with	Szöveg elválasztása ezzel:
+	Set CAD Drawing	CAD-rajz beállítása
+	Set Exercise Data	Feladatadatok beállítása
+	Set left- and first-indent with tabs and backspaces	Bal és első behúzás beállítása tabulátorokkal és visszatörléssel
+	Show	Megjelenítés
+	Steps	lépései
+	Show Steps	Lépések megjelenítése
+	Show Trailing Zeros	Záró nullák megjelenítése
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Minden cella megjelenítése egyenletként: dőlt nevek, alsó indexek, egységek az Egység stílusban
+	Show every file as it is on disk, discarding edits made here	Minden fájl megjelenítése úgy, ahogy a lemezen van, az itt végzett szerkesztések elvetésével
+	Show one digit less in results	Eggyel kevesebb számjegy az eredményekben
+	Show one more digit in results	Eggyel több számjegy az eredményekben
+	Show the exercise's data and variants	A feladat adatainak és változatainak megjelenítése
+	Show the file as it is on disk, discarding edits made here	A fájl megjelenítése úgy, ahogy a lemezen van, az itt végzett szerkesztések elvetésével
+	Significant Digits	Értékes jegyek
+	Snap for the next point	Illesztés a következő ponthoz
+	Snap for the next point (Shift+right-click)	Illesztés a következő ponthoz (Shift+jobb kattintás)
+	Software Update	Programfrissítés
+	Spanish (Latin America)	Spanyol (Latin-Amerika)
+	Spanish (Uruguay)	Spanyol (Uruguay)
+	Square size	Négyzet mérete
+	Start at	Kezdés innen:
+	Strix Writer {version} is available	Elérhető a Strix Writer {version}
+	Strix Writer {version} is currently the newest version available.	A Strix Writer {version} jelenleg a legújabb elérhető verzió.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	A Strix a WordCraft elágazása (fork). Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Styles Pane Position	Stílusok panel helye
+	Subdocuments	Részdokumentumok
+	Subdocuments Pane	Részdokumentumok panel
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	A részdokumentumok lemezen lévő fájlok: az asztali verzió összekapcsolja őket, a böngészős nem tudja.
+	Switch	Váltás
+	Windows	ablakok között
+	Switch Windows	Váltás ablakok között
+	Text Size	Szövegméret
+	Text properties only: Word's number, date and yes-no types aren't offered.	Csak a szöveg tulajdonságai: a Word szám-, dátum- és igen/nem típusai nem érhetők el.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Ez a formátum nem őriz meg mindent, ezért a dokumentum nyitva marad. A folytatáshoz mentse Strix-dokumentumként (.xmath).
+	That would make the object degenerate	Ettől az objektum elfajulna
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Az adatok a feladat számításainak első paraméterei: a megoldás szimbólum szerint használja őket. A változat módosítása újraszámolja a feladatot.
+	The document has no subdocuments.	A dokumentumnak nincsenek részdokumentumai.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Az utolsó sor összegzi az oszlopokat (Σ =); az oda írt cella megtartja a saját szövegét (mean =, max =)
+	The layer of the selected objects becomes the current layer	A kijelölt objektumok rétege lesz az aktuális réteg
+	The number must be a divisor of {max}.	A számnak a(z) {max} osztójának kell lennie.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	A(z) {language} helyesírási szótárát nem sikerült beolvasni, ezért nincs ellenőrzés. Fájl: {file}. Ok: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	A kurzornál lévő táblázat számított: nevezze el az oszlopait az első sorban (L [m], M [kN·m] = q·L²/8), és összegezze őket Σ =-lel
+	The update couldn't be installed: {error}	A frissítést nem sikerült telepíteni: {error}
+	The whole family	A teljes család
+	The {name} dictionary couldn't be downloaded: {reason}	A(z) {name} szótárat nem sikerült letölteni: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	A(z) {name} szótár telepítve van: a(z) {language} helyesírás most már ellenőrzött.
+	This cannot be undone. Your original file stays unchanged.	Ez nem vonható vissza. Az eredeti fájl változatlan marad.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	A Strix Writer ezen példánya nem tudja lecserélni önmagát: töltse le az új verziót, és telepítse a jelenlegi fölé.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ez a dokumentum Strix-objektumokat tartalmaz ({objects}). A Word és a többi szerkeszthető formátum elveszítené őket, ezért csak Strix-dokumentumként (.xmath) menthető. A PDF, PNG, LaTeX, HTML és Markdown exportálás statikus másolatként továbbra is elérhető.
+	This document has no custom properties.	Ennek a dokumentumnak nincsenek egyéni tulajdonságai.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Ez a dokumentum még nem hivatkozik más dokumentumokra. Szúrjon be egyet, vagy jelöljön ki bekezdéseket, és hozzon létre belőlük egyet: a szövegük itt látszik, és a saját fájljukba menti vissza.
+	This equation is the result of the question it is worked under (shown in the results summary)	Ez az egyenlet annak a kérdésnek az eredménye, amely alatt megoldják (az eredmények összegzésében látszik)
+	To the End of the Page	Az oldal végéig
+	Top of the Document	A dokumentum teteje
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Adjon meg egy pontot (x,y  @dx,dy  @d<a), egy távolságot, egy parancsot (l, pl, rec, c, a, t, m, co), egy beállítást, vagy nyomja meg az Entert
+	Unit	Egység
+	Unit:	Egység:
+	Unknown selection option:	Ismeretlen kijelölési beállítás:
+	Unlink	Hivatkozás megszüntetése
+	Unlink Subdocument	Részdokumentum hivatkozásának megszüntetése
+	Until the Next Even Page	A következő páros oldalig
+	Until the Next Odd Page	A következő páratlan oldalig
+	Update Summary	Összegzés frissítése
+	Update and Restart	Frissítés és újraindítás
+	Update check is not supported in the web browser.	A frissítések keresése nem támogatott a webböngészőben.
+	Variant	Változat
+	Variants	Változatok
+	Varies	Változó
+	Vertex	Csúcspont
+	View and edit the document's custom properties.	A dokumentum egyéni tulajdonságainak megtekintése és szerkesztése.
+	What's new	Újdonságok
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Hová kerülnek az eredmények és a lépések: a feladat sorában a ⇒ után, vagy soronként alatta, =-hez igazítva
+	Window polygon	Ablaksokszög
+	Write the edited subdocuments to their files now (also done by saving the document)	A szerkesztett részdokumentumok kiírása a fájljaikba most (a dokumentum mentése is megteszi)
+	You have version {version}.	Önnek a(z) {version} verziója van.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / azonnal felső indexet, alsó indexet vagy törtet hoz létre (kikapcsolva: Space-nél épülnek fel, mint a Wordben)
+	already selected	már kijelölve
+	an exercise goes in the body, outside tables	a feladat a szövegtörzsbe kerül, táblázatokon kívül
+	annotative {size}	annotatív {size}
+	click adds, Shift+click removes	a kattintás hozzáad, a Shift+kattintás eltávolít
+	click on empty space for a window, drag for a lasso	kattintson üres helyre ablakhoz, húzzon lassóhoz
+	click the vertices; Enter or right-click closes, Esc cancels	kattintson a csúcsokra; az Enter vagy a jobb kattintás lezár, az Esc megszakít
+	click to pick it	kattintson a kijelöléséhez
+	conflict	ütközés
+	cycle:	váltás:
+	edited	szerkesztve
+	fitted to frame	keretbe illesztve
+	found	megtalálva
+	graph paper	milliméterpapír
+	in step	a lépésben
+	input	bemenet
+	installed	telepítve
+	no graph paper at the cursor	nincs milliméterpapír a kurzornál
+	no snap	nincs illesztés
+	not available: the cursor isn't in an exercise	nem érhető el: a kurzor nem feladatban van
+	not found	nem található
+	objects	objektumok
+	objects selected	kijelölt objektumok
+	of	/
+	removed	eltávolítva
+	scaled {size}	skálázva {size}
+	select a CAD drawing first	előbb jelöljön ki egy CAD-rajzot
+	selected	kijelölve
+	squares (0: none)	négyzetek (0: nincs)
+	the cursor isn't in an exercise	a kurzor nem feladatban van
+	the document has no exercise	a dokumentumban nincs feladat
+	{field}, record {n}	{field}, {n}. rekord
+	{language} (dictionary unreadable)	{language} (a szótár nem olvasható)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (nem olvasható: {reason})
+	{n} CAD drawings	{n} CAD-rajz
+	{n} calculated tables	{n} számított táblázat
+	{n} calculations	{n} számítás
+	{n} exercises	{n} feladat
+	{n} results summaries	{n} eredményösszegzés
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Enter bookmark name:	Adja meg a könyvjelző nevét:
+	Find “{text}” in the document	„{text}” keresése a dokumentumban
+	Type a page number, or +2 / -1.	Adjon meg egy oldalszámot, vagy +2 / -1.
+	Wait for the print job to finish submitting before closing.	Zárás előtt várja meg, amíg a nyomtatási feladat beküldése befejeződik.
+	Check for\nUpdates…	Frissítések\nkeresése…
+	Edit\nDrawing	Rajz\nszerkesztése
+	New\nExercise	Új\nfeladat
+	Show\nSteps	Lépések\nmegjelenítése
+	Switch\nWindows	Váltás\nablakok között
+	CAD\nDrawing	CAD-\nrajz
+	Calculated\nTable	Számított\ntáblázat
+	Graph\nPaper	Milliméter-\npapír
+	New\nCalculation	Új\nszámítás
