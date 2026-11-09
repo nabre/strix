@@ -1,0 +1,110 @@
+# Brings a WordCraft release (or any upstream commit) into Strix (docs/upstream.md): run it by hand
+# (Actions › Upstream WordCraft › Run workflow). It commits the rebranded upstream snapshot on
+# vendor/wordcraft (`cargo xtask upstream sync`), pushes it, and opens a pull request into main:
+# - the merge applies cleanly: from a branch `upstream/wordcraft-<version>` with the merge done,
+#   and CI started on it;
+# - it conflicts: from vendor/wordcraft itself, listing the files to resolve (on a branch, as
+#   docs/upstream.md says), so nothing half-merged is ever pushed.
+# Pull requests opened with GITHUB_TOKEN start no workflow by themselves, so the CI run is started
+# here; Settings › Actions › General must allow GitHub Actions to create pull requests.
+name: Upstream WordCraft
+
+on:
+  workflow_dispatch:
+    inputs:
+      rev:
+        description: "WordCraft release tag (v0.16.0) or commit; empty: its latest release"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+  # gh workflow run ci.yml
+  actions: write
+
+concurrency:
+  group: upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync and open the merge
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Upstream commit
+        id: rev
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_REV: ${{ inputs.rev }}
+        run: |
+          set -euo pipefail
+          rev="$INPUT_REV"
+          if [ -z "$rev" ]; then
+            rev=$(gh api repos/storytold/wordcraft/releases/latest --jq .tag_name)
+          fi
+          case "$rev" in *[!A-Za-z0-9._-]*) echo "::error::not a tag or commit: $rev"; exit 1 ;; esac
+          sha=$(gh api "repos/storytold/wordcraft/commits/$rev" --jq .sha)
+          label="$rev"
+          case "$rev" in v[0-9]*) ;; *) label="${sha:0:9}" ;; esac
+          echo "sha=$sha" >>"$GITHUB_OUTPUT"
+          echo "label=$label" >>"$GITHUB_OUTPUT"
+          echo "WordCraft $rev = $sha" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Commit the rebranded snapshot on vendor/wordcraft
+        env:
+          SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git branch --track vendor/wordcraft origin/vendor/wordcraft
+          git remote add upstream https://github.com/storytold/wordcraft.git
+          git remote set-url --push upstream DISABLED
+          # A release tag may sit off upstream's main: fetch the commit itself.
+          git fetch --quiet --no-tags upstream main "$SHA"
+          cargo xtask upstream sync "$SHA"
+          git push origin vendor/wordcraft
+      - name: Merge into main and open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABEL: ${{ steps.rev.outputs.label }}
+          SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if git merge-base --is-ancestor vendor/wordcraft origin/main; then
+            echo "main already contains WordCraft $LABEL" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          title="Upstream WordCraft $LABEL"
+          notes="https://github.com/storytold/wordcraft/releases/tag/$LABEL"
+          branch="upstream/wordcraft-$LABEL"
+          git switch --quiet -c "$branch" origin/main
+          if git merge --no-edit -m "$title" vendor/wordcraft; then
+            git push --force origin "$branch"
+            body=$(printf 'WordCraft %s (%s), rebranded on vendor/wordcraft and merged without conflicts.\n\nUpstream changes: %s\n\nRun `cargo xtask ci` on it before merging (docs/upstream.md).' "$LABEL" "$SHA" "$notes")
+            head="$branch"
+          else
+            conflicts=$(git diff --name-only --diff-filter=U | sed 's/^/- `/; s/$/`/')
+            git merge --abort
+            body=$(printf 'WordCraft %s (%s), rebranded on vendor/wordcraft. **The merge conflicts** in:\n\n%s\n\nResolve it on a branch as docs/upstream.md says (keep `main`'"'"'s side where upstream reverts a Strix change), then `cargo xtask ci`.\n\nUpstream changes: %s' "$LABEL" "$SHA" "$conflicts" "$notes")
+            head="vendor/wordcraft"
+            echo "::warning::the merge conflicts: the pull request lists the files"
+          fi
+          url=$(gh pr list --head "$head" --base main --state open --json url --jq '.[0].url // empty')
+          if [ -n "$url" ]; then
+            gh pr edit "$url" --title "$title" --body "$body"
+          else
+            url=$(gh pr create --head "$head" --base main --title "$title" --body "$body")
+          fi
+          echo "Pull request: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$head" != "vendor/wordcraft" ]; then
+            gh workflow run ci.yml --ref "$head"
+          fi

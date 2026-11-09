@@ -42,6 +42,15 @@ main                              … ─┴── Strix work ──────
 
 ## Updating from upstream
 
+**From GitHub:** Actions › **Upstream WordCraft** › Run workflow (`.github/workflows/upstream.yml`),
+with a WordCraft release tag (`v0.16.0`) or commit, or empty for WordCraft's latest release. It
+commits the rebranded snapshot on `vendor/wordcraft`, pushes it and opens a pull request into
+`main`: from `upstream/wordcraft-<version>` with the merge done and CI started when it merges
+cleanly, otherwise from `vendor/wordcraft` with the conflicting files listed, to resolve on a
+branch as below. (Settings › Actions › General must let GitHub Actions create pull requests.)
+
+**By hand:**
+
 ```sh
 cargo xtask upstream status        # how far behind, fork surface
 cargo xtask upstream sync          # commit rebranded upstream/main onto vendor/wordcraft
