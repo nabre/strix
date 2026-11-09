@@ -81,7 +81,7 @@ pub const UI_CRATES: &[&str] = &["egui", "eframe", "winit", "egui_kittest", "rfd
 pub const UI_MIN_LAYER: u8 = 6;
 
 pub fn short_name(pkg: &str) -> &str {
-    pkg.strip_prefix("strix-").unwrap_or(pkg)
+    pkg.strip_prefix("wordcraft-").or_else(|| pkg.strip_prefix("strix-")).unwrap_or(pkg)
 }
 
 pub fn classify(pkg: &str) -> Option<Class> {

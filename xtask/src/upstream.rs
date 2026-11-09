@@ -83,6 +83,7 @@ const PRODUCT_NAME: &[(&str, &str, &str)] = &[
     ("apps/strix/src/main.rs", "log::info!(\"WordCraft {} (", "log::info!(\"Strix Writer {} ("),
     ("apps/strix/src/main.rs", ".with_title(\"WordCraft\")", ".with_title(\"Strix Writer\")"),
     ("apps/strix-web/index.html", "<title>WordCraft</title>", "<title>Strix Writer</title>"),
+    ("crates/docx/tests/it/passthrough.rs", "<Application>WordCraft</Application>", "<Application>Strix Writer</Application>"),
     ("crates/docx/src/write/settings.rs", "\"Application\", &[], \"WordCraft\"", "\"Application\", &[], \"Strix Writer\""),
     ("crates/engine/src/sample.rs", "creator = \"WordCraft\"", "creator = \"Strix Writer\""),
     ("crates/formats/src/html/export.rs", "content=\\\"WordCraft\\\"", "content=\\\"Strix Writer\\\""),
@@ -107,6 +108,11 @@ const PRODUCT_NAME: &[(&str, &str, &str)] = &[
     ("crates/ui-egui/src/chrome.rs", "    \"WordCraft\".to_string()", "    \"Strix Writer\".to_string()"),
     ("crates/ui-egui/src/dialogs/chrome.rs", "\"About WordCraft\"", "\"About Strix Writer\""),
     ("crates/ui-egui/src/dialogs/chrome.rs", "SaveChanges { .. } => \"WordCraft\"", "SaveChanges { .. } => \"Strix Writer\""),
+    (
+        "crates/ui-egui/src/tests.rs",
+        "sent_title, \"WordCraft\", \"the window is titled with the app alone\"",
+        "sent_title, \"Strix Writer\", \"the window is titled with the app alone\"",
+    ),
     ("crates/ui-egui/src/updates_ui.rs", "tl!(\"WordCraft {version} is", "tl!(\"Strix Writer {version} is"),
     ("crates/ui-egui/src/windows.rs", " - WordCraft\"", " - Strix Writer\""),
     ("crates/ui-egui/src/windows.rs", "return \"WordCraft\".to_string()", "return \"Strix Writer\".to_string()"),
@@ -122,6 +128,11 @@ const STRIX_NAMES: &[(&str, &str, &str)] = &[
     ("apps/strix/build.rs", ".set(\"InternalName\", \"wordcraft\")", ".set(\"InternalName\", \"strix\")"),
     ("apps/strix/build.rs", ".set(\"CompanyName\", \"Learning Machines LLC\")", ".set(\"CompanyName\", \"The Strix contributors\")"),
     ("xtask/src/layers.rs", "(\"wordcraft\", Class::Exempt)", "(\"strix\", Class::Exempt)"),
+    (
+        "xtask/src/layers.rs",
+        "pkg.strip_prefix(\"wordcraft-\").unwrap_or(pkg)",
+        "pkg.strip_prefix(\"wordcraft-\").or_else(|| pkg.strip_prefix(\"strix-\")).unwrap_or(pkg)",
+    ),
     ("xtask/src/layers.rs", "for app in [\"wordcraft\", ", "for app in [\"strix\", "),
     // The desktop executable names itself in its usage, version and error lines (and their tests).
     ("apps/strix/src/main.rs", "//! Usage: `wordcraft [", "//! Usage: `strix ["),
@@ -134,6 +145,7 @@ const STRIX_NAMES: &[(&str, &str, &str)] = &[
     ("apps/strix/tests/it/control_arg.rs", "format!(\"wordcraft: --control", "format!(\"strix: --control"),
     ("apps/strix/tests/it/control_arg.rs", "starts_with(\"wordcraft \")", "starts_with(\"strix \")"),
     ("apps/strix/tests/it/non_utf8_args.rs", "\"wordcraft: argument 3", "\"strix: argument 3"),
+    ("crates/mcp/src/tests.rs", "[\"serverInfo\"][\"name\"], \"wordcraft\"", "[\"serverInfo\"][\"name\"], \"strix\""),
     ("crates/mcp/src/lib.rs", "start `wordcraft --control 7981`", "start `strix --control 7981`"),
     // The user's folders and stores (b3); the capitalised ones are string literals ([`PRODUCT_WORD`]).
     ("crates/control-key/src/lib.rs", ".map(|c| c.join(\"wordcraft\"))", ".map(|c| c.join(\"strix\"))"),

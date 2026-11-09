@@ -216,10 +216,10 @@ That is over ~60, almost all because of U2 and `PRODUCT_NAME`. Ways to cut it:
 |---|---|---|
 | `EXACT` | whole names in contents and paths: app id, 2 repository URLs, `apps/wordcraft*`, `app-icon/wordcraft*` (Strix's own icon files keep their names), `wordcraft-cli`, `wordcraft-web`, `wordcraft.exe`, `CARGO_BIN_EXE_wordcraft*` | 9 |
 | `PRODUCT_WORD` | `WordCraft` as a whole word inside string literals of upstream `.rs` files | 1 |
-| `PRODUCT_NAME` | "Strix Writer" where upstream shows its name as a title (the 13 `packaging/` rows went with the folder; the LaTeX and MCP rows also carry the U8 URLs) | 22 |
-| `STRIX_NAMES` | app packages, the desktop executable's own messages and their tests, user folders and stores, the log filter, site links | 26 |
+| `PRODUCT_NAME` | "Strix Writer" where upstream shows its name as a title (the 13 `packaging/` rows went with the folder; the LaTeX and MCP rows also carry the U8 URLs; 2 are tests that check a title) | 24 |
+| `STRIX_NAMES` | app packages, the desktop executable's own messages and their tests, user folders and stores, the log filter, site links, `serverInfo.name` and its test, the layers table | 28 |
 | `STRIX_OWNED` | paths kept as the vendor branch has them | 9 paths |
-| **Total** | | **58 rules** |
+| **Total** | | **62 rules** |
 
 Decided while writing them (each is a case the inventory had missed or got wrong):
 - **U2 is wider than proposed.** The proposal scoped the rule to `tl!()` in ui-egui and engine
@@ -239,12 +239,23 @@ Decided while writing them (each is a case the inventory had missed or got wrong
   `apps/strix/build.rs` (upstream's publisher, "Learning Machines LLC").
 - **Log filter (U3).** `main` already uses `"warn,wordcraft*=info,strix*=info"`. That works with
   today's names and with upstream's.
+- **The layers check** strips `wordcraft-` from package names; the apps (`strix-cli`,
+  `strix-web`) and Strix's crates (`strix-calc`, …) are named `strix-*`, so `short_name` strips
+  both prefixes (one row; `main` already has the line).
 - **Proved on a simulated snapshot.** I rebuilt upstream `9724f15c` by reversing the old rename on
-  `vendor/wordcraft`, passed it through the new rules, and put back `packaging/` as the sync does. No rule is left unapplied.
-  Its build and tests are in the phase 2 report.
+  `vendor/wordcraft`, passed it through the new rules, and put back `packaging/` as the sync does.
+  No rule is left unapplied. The whole workspace builds. Four test failures needed rules (two
+  title checks, MCP `serverInfo.name`, the layers table), and those tests now pass. What's left
+  fails for reasons outside the rules: the Zotero tests, because the sandbox runs them as another
+  uid; the i18n tests, because the build has no craft-i18n catalogs; and
+  `layout::tests::hit_and_caret_agree`, which fails the same way on today's vendor branch and
+  which `main` already fixes in its own copy of the test.
+- **62 rules is slightly over ~60.** The four added rows all exist so that tests and messages say
+  what Strix is called. Declaring more paths Strix-owned wouldn't help: these rows live in core
+  upstream files.
 
 ## Revision history
 
-- 2026-11-09 — phase 2: the rules as written (58), cases settled while writing them.
+- 2026-11-09 — phase 2: the rules as written (62), cases settled while writing them.
 
 - 2026-11-09 — first inventory (phase 1).
