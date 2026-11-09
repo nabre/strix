@@ -147,6 +147,12 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     icon, brand in About / empty window / File menu / web loading screen; `cargo xtask icns`);
     version bumped on `main`, `main` merged into `release`; publish the draft `Strix v0.15.1`
     after review, then run the Site workflow.
+  - Release 0.18.0 (2026-11-09): product name Strix Writer, exercise words following the proofing
+    language, "Calculation and exercise" template, spelling dictionaries on demand, CAD
+    arrowheads/dimensions/hatches, calculation fixes (v0.16 and v0.17 were tagged without
+    packages); version bumped on `main` (`cargo xtask version set 0.18.0`); to do: `main` merged
+    into `release`, publish the draft `Strix v0.18.0` after review (Actions › Publish release,
+    which redeploys the site and the web app).
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
