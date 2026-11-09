@@ -33,11 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           components: rustfmt
       - name: Upstream commit
@@ -89,12 +89,12 @@ jobs:
           git switch --quiet -c "$branch" origin/main
           if git merge --no-edit -m "$title" vendor/wordcraft; then
             git push --force origin "$branch"
-            body=$(printf 'WordCraft %s (%s), rebranded on vendor/wordcraft and merged without conflicts.\n\nUpstream changes: %s\n\nRun `cargo xtask ci` on it before merging (docs/upstream.md).' "$LABEL" "$SHA" "$notes")
+            body=$(printf "WordCraft %s (%s), rebranded on vendor/wordcraft and merged without conflicts.\n\nUpstream changes: %s\n\nRun \`cargo xtask ci\` on it before merging (docs/upstream.md)." "$LABEL" "$SHA" "$notes")
             head="$branch"
           else
-            conflicts=$(git diff --name-only --diff-filter=U | sed 's/^/- `/; s/$/`/')
+            conflicts=$(git diff --name-only --diff-filter=U | sed "s/^/- \`/; s/\$/\`/")
             git merge --abort
-            body=$(printf 'WordCraft %s (%s), rebranded on vendor/wordcraft. **The merge conflicts** in:\n\n%s\n\nResolve it on a branch as docs/upstream.md says (keep `main`'"'"'s side where upstream reverts a Strix change), then `cargo xtask ci`.\n\nUpstream changes: %s' "$LABEL" "$SHA" "$conflicts" "$notes")
+            body=$(printf "WordCraft %s (%s), rebranded on vendor/wordcraft. **The merge conflicts** in:\n\n%s\n\nResolve it on a branch as docs/upstream.md says (keep \`main\`'s side where upstream reverts a Strix change), then \`cargo xtask ci\`.\n\nUpstream changes: %s" "$LABEL" "$SHA" "$conflicts" "$notes")
             head="vendor/wordcraft"
             echo "::warning::the merge conflicts: the pull request lists the files"
           fi
