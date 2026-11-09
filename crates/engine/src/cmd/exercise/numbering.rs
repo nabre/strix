@@ -4,7 +4,11 @@
 //! numbers with, so it is saved with the document and every title renumbers at once; the results
 //! summary heads each exercise with the same label.
 
+use std::sync::Arc;
+
 use serde_json::{Value, json};
+use wordcraft_doc::Block;
+use wordcraft_doc::props::NumRef;
 use wordcraft_doc::section::NumFormat;
 
 use super::{STYLE_TITLE, ensure_styles, update, words};
@@ -31,6 +35,29 @@ impl Numbering {
         let number = self.format.format(n);
         if self.prefix.is_empty() { number } else { format!("{} {number}", self.prefix) }
     }
+}
+
+/// A lone exercise needs no number: while the document has only one, its title switches the
+/// style's list off (`num: 0`, Word's "no numbering" over a style's list) and the summary names
+/// no label; with a second exercise both come back. Only the off switch this sets is touched, so
+/// a numbering of the user's own on the title stays. Whether anything changed.
+pub(crate) fn apply_single(s: &mut Session, layout: &super::Layout) -> bool {
+    let lone = layout.exercises.len() == 1;
+    let mut changed = false;
+    for e in &layout.exercises {
+        let Some(block) = s.doc.body.get_mut(e.start) else { continue };
+        let Block::Para(p) = &**block else { continue };
+        let want = match p.props.numbering {
+            None if lone => Some(NumRef { num: 0, level: 0 }),
+            Some(n) if n.num == 0 && !lone => None,
+            _ => continue,
+        };
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        p.props.numbering = want;
+        p.touch();
+        changed = true;
+    }
+    changed
 }
 
 /// The list exercise titles number with: the Exercise Title style's.
@@ -206,9 +233,10 @@ mod tests {
         s.run("exercise.numbering", &json!({"prefix": null, "format": "decimal", "start": 1})).unwrap();
         assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
         assert!(s.run("exercise.numbering", &json!({})).unwrap()["default"].as_bool().unwrap());
-        // Deleting the first renumbers the second.
+        // Deleting the first leaves a lone exercise: no number on its title or in the summary.
         s.run("exercise.delete", &json!({"exercise": 1})).unwrap();
-        assert_eq!(summary(&s), ["Esercizio 1"]);
+        assert_eq!(labels(&s), Vec::<String>::new());
+        assert_eq!(summary(&s), Vec::<String>::new());
         assert_eq!(scan(&s).exercises.len(), 1);
     }
 
@@ -222,7 +250,9 @@ mod tests {
         // Set before any exercise: the first one takes it.
         s.run("exercise.numbering", &json!({"prefix": "Es.", "start": 5})).unwrap();
         s.run("exercise.insert", &json!({"title": "Uno"})).unwrap();
-        assert_eq!(labels(&s), ["Es. 5."]);
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Due"})).unwrap();
+        assert_eq!(labels(&s), ["Es. 5.", "Es. 6."]);
     }
 
     /// The owner: "Default" follows the language the document is checked in, the one the status
@@ -241,7 +271,36 @@ mod tests {
         assert_eq!((n["prefix"].clone(), n["default"].clone()), (json!("Esercizio"), json!(true)));
         s.run("exercise.numbering", &json!({"prefix": null})).unwrap();
         s.run("exercise.insert", &json!({"title": "Uno"})).unwrap();
-        assert_eq!(labels(&s), ["Esercizio 1."]);
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Due"})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
+    }
+
+    /// The owner: "when I have one exercise alone I don't need the number and the prefix". A
+    /// lone exercise's title switches the list off and the summary names no label; a second
+    /// exercise brings both back, deleting it takes them away again, and the file keeps it.
+    #[test]
+    fn a_lone_exercise_has_no_number() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        assert_eq!(labels(&s), Vec::<String>::new());
+        assert_eq!(summary(&s), Vec::<String>::new());
+        assert!(texts(&s).contains(&"a) risultato non indicato".to_string()));
+        // Saved as Word's "no numbering" over the style's list, and opened again as it was.
+        for name in ["e.xmath", "e.docx"] {
+            let bytes = crate::io::save_bytes(name, &s.doc).unwrap();
+            let back = Session::new(crate::io::open_bytes(name, &bytes).unwrap());
+            assert_eq!(labels(&back), Vec::<String>::new(), "{name}");
+        }
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Due", "questions": ["q"]})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
+        assert_eq!(summary(&s), ["Esercizio 1", "Esercizio 2"]);
+        s.run("exercise.delete", &json!({"exercise": 2})).unwrap();
+        assert_eq!(labels(&s), Vec::<String>::new());
+        // One undo step brings the second exercise, and both numbers, back.
+        s.run("edit.undo", &json!({})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
     }
 
     #[test]

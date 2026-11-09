@@ -272,6 +272,8 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
             let para = s.doc.para_mut(StoryRef::Body, &body_path(top))?;
             para.props.graph = Some(Arc::new(g));
             para.touch();
+            // An exercise's graph paper in a series: every exercise's follows.
+            super::exercise::grid_follows(s, top);
         }
         (Target::Para(top), true) => {
             take_from_para(s, top)?;

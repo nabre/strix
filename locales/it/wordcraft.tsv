@@ -3125,3 +3125,15 @@ paper	Envelope DL	Busta DL
 	{language} (dictionary unreadable)	{language} (dizionario illeggibile)
 	{language}: {file} (unreadable: {reason})	{language}: {file} (illeggibile: {reason})
 	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Parts Shown	Parti visibili
+	Frontispiece	Frontespizio
+	Solution	Risoluzione
+	Graph paper	Quadrettatura
+	Exercise Graph Paper	Quadrettatura dell'esercizio
+	The working under each question; hidden, it stays in the document	Il procedimento sotto ogni domanda; nascosto, resta nel documento
+	The exercise's lines in the results summary	Le righe dell'esercizio nel riepilogo dei risultati
+	Graph paper after the questions, before the solution	Quadrettatura dopo le domande, prima della risoluzione
+	A series: these settings are the same for every exercise, and a new exercise takes them.	Una serie: queste impostazioni valgono per tutti gli esercizi, e un esercizio nuovo le prende.
+	Hidden parts stay in the document as hidden text.	Le parti nascoste restano nel documento come testo nascosto.
+	A first page of your own before the exercises: title, class, date, instructions	Una prima pagina tua prima degli esercizi: titolo, classe, data, istruzioni
+	The first exercise starts a new page; a page break inside the frontispiece gives it more pages.	Il primo esercizio inizia su una pagina nuova; un'interruzione di pagina nel frontespizio gli dà altre pagine.

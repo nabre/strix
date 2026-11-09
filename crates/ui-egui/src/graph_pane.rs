@@ -193,14 +193,38 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
     };
     let mut change: Option<Value> = None;
     egui::ScrollArea::vertical().show(ui, |ui| {
-        preview(ui, &g);
+        change = editor(ui, &g, true);
+        ui.add_space(12.0);
+        if ui.button(tl!("Remove Graph Paper")).clicked() {
+            let _ = app.run("graph.remove", json!({}));
+        }
+        ui.add_space(8.0);
+        let note = if g["target"] == "section" {
+            "Behind the text of every page of this section."
+        } else {
+            "A block in the text: write on it, or press Enter at its end to go on below it."
+        };
+        ui.label(RichText::new(tl!(note)).small().weak());
+    });
+    if let Some(c) = change {
+        let _ = app.run("graph.set", c);
+    }
+}
+
+/// The graph paper's settings (`g` as `graph.get` gives it), with a preview: the change made, as
+/// `graph.set` parameters. `background` offers the background placement (an exercise's graph
+/// paper stays in the text).
+pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> {
+    let mut change: Option<Value> = None;
+    {
+        preview(ui, g);
         ui.add_space(8.0);
         egui::Grid::new("graph_props").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
             ui.label(tl!("Placement"));
             let current = g["placement"].as_str().unwrap_or("pageEnd");
             let label = PLACEMENTS.iter().find(|(k, _)| *k == current).map_or("", |(_, l)| l);
             craft_ui::ComboBox::from_id_salt("graph_placement").selected_text(tl!(label)).width(170.0).show_ui(ui, |ui| {
-                for (k, l) in PLACEMENTS {
+                for (k, l) in PLACEMENTS.iter().copied().filter(|(k, _)| background || *k != "background") {
                     if ui.selectable_label(k == current, tl!(l)).clicked() && k != current {
                         change = Some(json!({"placement": k}));
                     }
@@ -302,19 +326,6 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
                 ui.end_row();
             }
         });
-        ui.add_space(12.0);
-        if ui.button(tl!("Remove Graph Paper")).clicked() {
-            let _ = app.run("graph.remove", json!({}));
-        }
-        ui.add_space(8.0);
-        let note = if g["target"] == "section" {
-            "Behind the text of every page of this section."
-        } else {
-            "A block in the text: write on it, or press Enter at its end to go on below it."
-        };
-        ui.label(RichText::new(tl!(note)).small().weak());
-    });
-    if let Some(c) = change {
-        let _ = app.run("graph.set", c);
     }
+    change
 }

@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks · **Last updated:** 2026-11-09 · **Change:** page breaks before an exercise (when another comes before it), its solution and the results summary; previously: the generated words follow the proofing language
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; previously: page breaks
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -50,6 +50,48 @@ The exercises of a document are numbered by one list, a **document setting** sav
 Every title's label (*Problema C.*) and the summary's lines (*Problema C*) follow at once, in one
 undo step; it is the Exercise Title style's list, so it is saved in `.xmath` (and `.docx`) like
 any list.
+
+**A lone exercise has no number.** While the document has only one exercise, its title shows no
+prefix and no number (it switches the style's list off, Word's "no numbering", `numId 0`) and the
+results summary lists its results without a label (only *Variante B* heads them when it has
+several variants). Adding a second exercise brings the labels back on both; deleting down to one
+takes them away again.
+
+## A series
+
+Two or more exercises in a document are a **series**, and the series rules: the numbering (above),
+the parts shown and the graph paper (below) are the same for every exercise, a change made with
+the cursor in any exercise applies to all of them, and a new exercise takes them. The Exercise
+Properties pane shows the series' settings wherever the cursor is.
+
+## Parts shown
+
+The **solution** (its heading, the repeated questions and the working) and the exercise's lines in
+the **results summary** can be hidden (Exercise Properties › Parts Shown, `exercise.show`), for a
+copy without the working, or without the answers. They become hidden text, so nothing is lost:
+shown again, they come back as they were (Show/Hide ¶ shows hidden text meanwhile). A hidden
+solution still gives its results to the summary. When no exercise shows its results the summary's
+heading is hidden too. The settings are kept on the exercise control (a `strix:exerciseShow`
+element Word ignores); other word processors see ordinary hidden text.
+
+## Graph paper per exercise
+
+**Graph paper** can be ruled in each exercise after the statement and the questions, before the
+solution (Exercise Properties › Parts Shown › Graph paper, `exercise.grid {"on": true}`). It is an
+ordinary graph paper block (docs/graph-paper.md) with the same settings: placement (to the end of
+the page, whole pages, a height…, but not a page background), square size, lines, frame. Set them
+in the Exercise Properties pane, with `exercise.grid`, or with the cursor in it in the Graph Paper
+pane; in a series a change goes to every exercise's graph paper. Turned off, an empty block goes,
+one you wrote on keeps its text.
+
+## Frontispiece
+
+A **frontispiece** (Exercise Properties › Frontispiece, `exercise.frontispiece {"on": true}`) is
+your own first page before the exercises: title of the series, class, date, instructions. It is
+free content at the very start of the document, in a control that can't be deleted by accident
+(type over its placeholder); what follows it starts a new page. A page break inside it
+(Ctrl+Enter) gives it a second page, and so on. Turning it off removes it with its content, in one
+undo step.
 
 ## Page breaks
 
@@ -141,6 +183,9 @@ to the end.
 | `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n}`); without params, the current one → `{"prefix", "format", "start", "default", "example"}` |
 | `exercise.pageBreaks` | page breaks (`{"exercise"?: n, "all"?: bool, "beforeExercise"?, "beforeSolution"?, "beforeResults"?: bool}`); without settings, the current ones |
 | `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
+| `exercise.show` | the parts shown (`{"exercise"?: n, "solution"?, "results"?: bool}`; in a series every exercise) → `{"series", "solution", "results", "grid", "exercises"}` |
+| `exercise.grid` | graph paper after the questions (`{"exercise"?: n, "on"?: bool}` and graph.set's parameters but `background`; in a series every exercise) |
+| `exercise.frontispiece` | add or remove the frontispiece (`{"on"?: bool}`) → `{"on"}` |
 | `exercise.data` | the data and variants of an exercise, with per-item errors |
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
@@ -162,6 +207,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`).
 - 2026-11-09: page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane).
 - 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.
 - 2026-11-08: "Calculation and exercise" template, second in the File › New gallery, after Blank document.

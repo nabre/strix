@@ -37,11 +37,14 @@ use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
 mod breaks;
 mod delete;
+mod front;
 mod language;
 mod numbering;
+mod show;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub(crate) use language::follow_language;
+pub(crate) use show::grid_follows;
 
 pub const TAG_EXERCISE: &str = "strix:exercise";
 /// The title's own control: only the title paragraph, so its placeholder is only the title.
@@ -52,6 +55,8 @@ pub const TAG_SOLUTION: &str = "strix:exercise.solution";
 pub const TAG_PROMPT: &str = "strix:exercise.prompt";
 pub const TAG_RESULTS: &str = "strix:results";
 pub const TAG_DATA: &str = "strix:exercise.data";
+/// The frontispiece of the series, at the start of the document.
+pub const TAG_FRONT: &str = "strix:frontispiece";
 /// The element on the exercise control's properties holding its data and variants (JSON).
 const DATA_EL: &str = "strix:exerciseData";
 /// Most data items and variants of one exercise; longest data text, in characters.
@@ -72,6 +77,7 @@ const STYLE_HEADING: &str = "ExerciseHeading";
 const STYLE_PROMPT: &str = "ExercisePrompt";
 const STYLE_RESULT: &str = "ExerciseResult";
 const STYLE_NOTE: &str = "ExerciseNote";
+const STYLE_FRONT: &str = "ExerciseFrontispiece";
 /// Deepest question nesting (a), a.1), a.1.1)), 0-based.
 const MAX_LEVEL: u8 = 2;
 /// Indent per question level in the repeated questions, points.
@@ -116,6 +122,15 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "all"?: bool (every exercise), "beforeExercise"?: bool (a new page before the exercise when another exercise comes before it), "beforeSolution"?: bool (a new page before its solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; a new exercise takes the last one's settings → {"exercise", "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
+        CommandSpec::new("exercise.show", "Parts Shown", "Math › Exercise", show::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "solution"?: bool (the solution: heading, repeated questions, working), "results"?: bool (its lines in the results summary)} → shows or hides those parts (hidden text: nothing is lost); in a series (two or more exercises) it applies to every exercise; a new exercise takes the last one's → {"series", "solution", "results", "grid", "exercises": [{"solution", "results", "grid"}]}"#),
+        CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Math › Exercise", show::grid_command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
+        CommandSpec::new("exercise.frontispiece", "Frontispiece", "Math › Exercise", front::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: free content at the start of the document (title of the series, class, date…), which can't be deleted by accident; what follows it starts a new page, and a page break inside it gives it more pages → {"on": bool}"#),
         CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -141,6 +156,9 @@ struct Words {
     prompt: &'static str,
     data: &'static str,
     variant: &'static str,
+    /// The frontispiece's placeholder and frame title.
+    front: &'static str,
+    front_part: &'static str,
 }
 
 /// The language exercise words are written in: the one at the caret, resolved through the styles
@@ -194,6 +212,8 @@ const IT: Words = Words {
     prompt: "Domande (automatiche)",
     data: "Dati",
     variant: "variante",
+    front: "Frontespizio: titolo della serie, classe, data, istruzioni.",
+    front_part: "Frontespizio",
 };
 
 const EN: Words = Words {
@@ -210,6 +230,8 @@ const EN: Words = Words {
     prompt: "Questions (automatic)",
     data: "Data",
     variant: "variant",
+    front: "Frontispiece: title of the series, class, date, instructions.",
+    front_part: "Frontispiece",
 };
 
 const FR: Words = Words {
@@ -226,6 +248,8 @@ const FR: Words = Words {
     prompt: "Questions (automatiques)",
     data: "Données",
     variant: "variante",
+    front: "Page de titre : titre de la série, classe, date, consignes.",
+    front_part: "Page de titre",
 };
 
 const DE: Words = Words {
@@ -242,6 +266,8 @@ const DE: Words = Words {
     prompt: "Fragen (automatisch)",
     data: "Daten",
     variant: "Variante",
+    front: "Titelblatt: Titel der Reihe, Klasse, Datum, Hinweise.",
+    front_part: "Titelblatt",
 };
 
 const ES: Words = Words {
@@ -258,6 +284,8 @@ const ES: Words = Words {
     prompt: "Preguntas (automáticas)",
     data: "Datos",
     variant: "variante",
+    front: "Portada: título de la serie, clase, fecha, instrucciones.",
+    front_part: "Portada",
 };
 
 /// Adds the exercise styles the document lacks.
@@ -306,6 +334,12 @@ fn ensure_styles(s: &mut Session) {
             "Exercise Note",
             ParaProps { space_after: Some(3.0), indent_left: Some(18.0), ..Default::default() },
             CharProps { italic: Some(true), ..Default::default() },
+        ),
+        para_style(
+            STYLE_FRONT,
+            "Exercise Frontispiece",
+            ParaProps { align: Some(wordcraft_doc::props::Align::Center), space_before: Some(72.0), space_after: Some(12.0), ..Default::default() },
+            CharProps { bold: Some(true), size: Some(20.0), ..Default::default() },
         ),
         para_style(
             STYLE_RESULT,
@@ -452,6 +486,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let mut exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
     // Page breaks as the document's last exercise has them.
     breaks::write(&mut exercise, breaks::last(s));
+    // Parts shown and graph paper as the series has them.
+    let (shown, grid) = show::last(s);
+    show::write(&mut exercise, shown);
     let mut title_ctl = control(TAG_TITLE, w.title_part, ControlLock::SdtLocked);
     if title.is_none() {
         title_ctl = placeholder(title_ctl, w.title);
@@ -473,6 +510,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
             let num = Some(NumRef { num: list, level: *level });
             blocks.push(para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num));
         }
+    }
+    if let Some(g) = grid {
+        blocks.push(show::grid_para(g));
     }
     blocks.push(para(STYLE_HEADING, w.solution, vec![control(TAG_SOLUTION, w.solution, ControlLock::SdtLocked)], 0, None));
     // The questions repeated: filled in by `update`.
@@ -554,6 +594,10 @@ struct Exercise {
     data: ExerciseData,
     /// Its page breaks, from the exercise control.
     breaks: breaks::Breaks,
+    /// The parts that show, from the exercise control.
+    show: show::Show,
+    /// Its graph paper block, between the questions and the solution.
+    grid: Option<usize>,
     /// The top-level block holding the exercise control's start.
     start: usize,
     /// First and last top-level block of the statement, and of the generated data.
@@ -576,6 +620,8 @@ struct Layout {
     /// Exercise and part of each top-level block.
     parts: Vec<(Option<usize>, Part)>,
     results: Option<(usize, usize)>,
+    /// First and last top-level block of the frontispiece.
+    front: Option<(usize, usize)>,
 }
 
 impl Exercise {
@@ -614,7 +660,13 @@ fn scan(s: &Session) -> Layout {
                 match o {
                     InlineObject::ControlStart { control } => {
                         if control.tag == TAG_EXERCISE && out.exercises.len() < MAX_EXERCISES {
-                            out.exercises.push(Exercise { data: read_data(control), breaks: breaks::read(control), start: i, ..Exercise::default() });
+                            out.exercises.push(Exercise {
+                                data: read_data(control),
+                                breaks: breaks::read(control),
+                                show: show::read(control),
+                                start: i,
+                                ..Exercise::default()
+                            });
                             current = Some(out.exercises.len() - 1);
                         }
                         stack.push((control.tag.clone(), control.showing_placeholder));
@@ -664,6 +716,9 @@ fn scan(s: &Session) -> Layout {
         if part == Part::Results {
             grow(&mut out.results);
         }
+        if has(TAG_FRONT) && !in_exercise {
+            grow(&mut out.front);
+        }
         let Some(e) = ex.and_then(|e| out.exercises.get_mut(e)) else { continue };
         if matches!(part, Part::Solution | Part::Prompt) {
             grow(&mut e.solution_blocks);
@@ -700,6 +755,8 @@ fn scan(s: &Session) -> Layout {
                 }
             }
             (Part::Data, _) => grow(&mut e.data_blocks),
+            // Graph paper in no part, before the solution: the exercise's.
+            (Part::Other, Block::Para(p)) if p.props.graph.is_some() && e.solution_blocks.is_none() && e.grid.is_none() => e.grid = Some(i),
             (Part::Text, _) => grow(&mut e.text_blocks),
             _ => {}
         }
@@ -1290,7 +1347,7 @@ fn is_prompt(s: &Session, i: usize) -> bool {
 fn replace(s: &mut Session, from: usize, to: usize, new: Vec<Paragraph>) -> bool {
     let same = s.doc.body.get(from..=to).is_some_and(|old| {
         old.len() == new.len()
-            && old.iter().zip(&new).all(|(o, n)| matches!(&**o, Block::Para(p) if p.text == n.text && p.objects == n.objects && p.props == n.props))
+            && old.iter().zip(&new).all(|(o, n)| matches!(&**o, Block::Para(p) if p.text == n.text && p.objects == n.objects && p.props == n.props && p.mark.hidden == n.mark.hidden))
     });
     if same || to >= s.doc.body.len() || from > to {
         return false;
@@ -1384,6 +1441,12 @@ fn placeholders(s: &mut Session) {
     }
 }
 
+/// `t` with its first letter upper case (`variante A` → `Variante A`).
+fn capitalized(t: &str) -> String {
+    let mut c = t.chars();
+    c.next().map_or_else(String::new, |f| f.to_uppercase().chain(c).collect())
+}
+
 /// Rebuilds the automatic parts: the questions repeated in each solution and the results summary
 /// (moved to, or created at, the end of the document). Returns whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
@@ -1443,6 +1506,10 @@ pub(crate) fn update(s: &mut Session) -> bool {
     // Page breaks before the exercises and their solutions, as each one's settings say.
     let layout = scan(s);
     changed |= breaks::apply(s, &layout);
+    // A lone exercise's title has no number.
+    changed |= numbering::apply_single(s, &layout);
+    // Hidden solutions stay hidden (their repeated questions were rebuilt).
+    changed |= show::apply(s, &layout);
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
@@ -1452,22 +1519,29 @@ pub(crate) fn update(s: &mut Session) -> bool {
             answers.entry((ex, question)).or_default().push(text);
         }
     }
-    let mut lines = vec![(STYLE_HEADING, w.results.to_string())];
-    // Each exercise by its label alone (`Esercizio 1`, as the document numbers them).
+    // Hidden results are hidden text in the summary; the heading too when every one is hidden.
+    let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];
+    // Each exercise by its label alone (`Esercizio 1`, as the document numbers them); a lone
+    // exercise has no label, so only its variant heads it (when it has several).
     let labels = numbering::current(s);
+    let lone = layout.exercises.len() == 1;
     for (n, e) in layout.exercises.iter().enumerate() {
-        let mut head = labels.label(n);
-        if e.data.variants.len() > 1
-            && let Some(name) = e.data.variants.get(e.data.active)
-        {
-            head.push_str(&format!(" ({} {name})", w.variant));
+        let variant = (e.data.variants.len() > 1).then(|| e.data.variants.get(e.data.active)).flatten();
+        let head = match (lone, variant) {
+            (false, None) => Some(labels.label(n)),
+            (false, Some(name)) => Some(format!("{} ({} {name})", labels.label(n), w.variant)),
+            (true, Some(name)) => Some(capitalized(&format!("{} {name}", w.variant))),
+            (true, None) => None,
+        };
+        let hide = !e.show.results;
+        if let Some(head) = head {
+            lines.push((STYLE_RESULT, head, hide));
         }
-        lines.push((STYLE_RESULT, head));
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
             // Only the question's letter and its result: the question itself is above, in the exercise.
-            lines.push((STYLE_RESULT, format!("{} {value}", q.label)));
+            lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
         }
     }
     let ctl = layout
@@ -1479,7 +1553,16 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut new: Vec<Paragraph> = lines
         .iter()
         .enumerate()
-        .map(|(i, (style, text))| para(style, text, first.take().into_iter().collect(), usize::from(i + 1 == n), None))
+        .map(|(i, (style, text, hide))| {
+            let mut p = para(style, text, first.take().into_iter().collect(), usize::from(i + 1 == n), None);
+            if *hide {
+                for r in &mut p.runs {
+                    r.props.hidden = Some(true);
+                }
+                p.mark.hidden = Some(true);
+            }
+            p
+        })
         .collect();
     // The summary keeps its Page break before (exercise.pageBreaks `beforeResults`).
     let new_page = layout.results.and_then(|(from, _)| s.doc.body.get(from)).and_then(|b| b.as_para()).and_then(|p| p.props.page_break_before);
@@ -1596,7 +1679,6 @@ mod tests {
                 "b) La reazione",
                 "",
                 "Riepilogo dei risultati",
-                "Esercizio 1",
                 "a) risultato non indicato",
                 "b) risultato non indicato",
             ],
@@ -1849,7 +1931,8 @@ mod tests {
         let t = texts(&s);
         assert!(t.contains(&"luce: L = 6 m".to_string()), "{t:?}");
         assert!(t.contains(&"a) M = 45 kN·m".to_string()), "{t:?}");
-        assert!(t.contains(&"Esercizio 1 (variante B)".to_string()), "{t:?}");
+        // A lone exercise has no label: the variant alone heads its results.
+        assert!(t.contains(&"Variante B".to_string()), "{t:?}");
         // The data survive saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
@@ -1880,11 +1963,6 @@ mod tests {
                 _ => None,
             })
             .unwrap_or_default()
-    }
-
-    /// The summary line of the first exercise.
-    fn summary_title(s: &Session) -> String {
-        texts(s).into_iter().find(|t| t.starts_with("Esercizio 1")).unwrap_or_default()
     }
 
     /// The first exercise's title as the exercise reads it (Exercise Info, the summary's source).
@@ -1951,7 +2029,6 @@ mod tests {
         s.run("text.delete", &json!({})).unwrap();
         assert_eq!(title(&s), "Titolo dell'esercizio");
         assert_eq!(known_title(&s), "");
-        assert_eq!(summary_title(&s), "Esercizio 1");
         assert_eq!(scan(&s).exercises.len(), 1);
         s.run("text.insert", &json!({"text": "Di nuovo"})).unwrap();
         assert_eq!(title(&s), "Di nuovo");
