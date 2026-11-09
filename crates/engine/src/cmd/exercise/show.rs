@@ -218,7 +218,7 @@ pub(crate) fn grid_command(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Disabled("the exercise has no graph paper (\"on\": true rules it)".into()));
     }
     // The template a new block starts from: the series' (any exercise's) graph paper, else the default.
-    let base = layout.exercises.iter().find_map(|e| grid_of(s, e)).map_or_else(GraphPaper::default, |g| (*g).clone());
+    let base = layout.exercises.iter().find_map(|e| grid_of(s, e)).map_or_else(GraphPaper::default, |g| *g);
     let fresh = in_flow(crate::cmd::graph::apply(base, v)?)?;
     let mut changed = false;
     // Last exercise first, so earlier block indices stay valid.
@@ -228,13 +228,13 @@ pub(crate) fn grid_command(s: &mut Session, v: &Value) -> CmdResult {
             (Some(at), Some(false)) => changed |= remove_grid(s, at),
             (Some(at), _) => {
                 let Some(old) = grid_of(s, e) else { continue };
-                let g = in_flow(crate::cmd::graph::apply((*old).clone(), v)?)?;
+                let g = in_flow(crate::cmd::graph::apply(*old, v)?)?;
                 changed |= put(s, at, g);
             }
             (None, Some(true)) => {
                 // After the questions (and the notes between them), before the solution.
                 let Some(at) = e.solution_blocks.map(|(from, _)| from) else { continue };
-                s.doc.body.insert(at, para_block(grid_para(Arc::new(fresh.clone()))));
+                s.doc.body.insert(at, para_block(grid_para(Arc::new(fresh))));
                 changed = true;
             }
             (None, _) => {}
@@ -295,10 +295,10 @@ pub(crate) fn grid_follows(s: &mut Session, at: usize) {
     if layout.exercises.len() < 2 || !layout.exercises.iter().any(|e| e.grid == Some(at)) {
         return;
     }
-    let Some(g) = s.doc.body.get(at).and_then(|b| b.as_para()).and_then(|p| p.props.graph.as_deref().cloned()) else { return };
+    let Some(g) = s.doc.body.get(at).and_then(|b| b.as_para()).and_then(|p| p.props.graph.as_deref().copied()) else { return };
     for e in &layout.exercises {
         if let Some(i) = e.grid.filter(|&i| i != at) {
-            put(s, i, g.clone());
+            put(s, i, g);
         }
     }
 }

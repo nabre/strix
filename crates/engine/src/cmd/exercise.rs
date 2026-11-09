@@ -624,7 +624,30 @@ struct Layout {
     front: Option<(usize, usize)>,
 }
 
+impl Layout {
+    /// Block `i` (inside the controls `tags`) belongs to the frontispiece when it is in its
+    /// control and in no exercise; the range grows over contiguous blocks only.
+    fn note_front(&mut self, i: usize, tags: &[(String, bool)]) {
+        let has = |t: &str| tags.iter().any(|(x, _)| x == t);
+        if !has(TAG_FRONT) || has(TAG_EXERCISE) {
+            return;
+        }
+        match self.front {
+            None => self.front = Some((i, i)),
+            Some((a, b)) if b + 1 == i => self.front = Some((a, i)),
+            Some(_) => {}
+        }
+    }
+}
+
 impl Exercise {
+    /// Graph paper in no part, before the solution, is the exercise's (the first such block).
+    fn note_grid(&mut self, p: &Paragraph, i: usize) {
+        if p.props.graph.is_some() && self.solution_blocks.is_none() && self.grid.is_none() {
+            self.grid = Some(i);
+        }
+    }
+
     /// The label of the next question at `level`: `a)`, `a.1)`, `a.1.1)`.
     fn next_label(&mut self, level: u8) -> String {
         let level = usize::from(level.min(MAX_LEVEL));
@@ -716,9 +739,7 @@ fn scan(s: &Session) -> Layout {
         if part == Part::Results {
             grow(&mut out.results);
         }
-        if has(TAG_FRONT) && !in_exercise {
-            grow(&mut out.front);
-        }
+        out.note_front(i, &tags);
         let Some(e) = ex.and_then(|e| out.exercises.get_mut(e)) else { continue };
         if matches!(part, Part::Solution | Part::Prompt) {
             grow(&mut e.solution_blocks);
@@ -755,8 +776,7 @@ fn scan(s: &Session) -> Layout {
                 }
             }
             (Part::Data, _) => grow(&mut e.data_blocks),
-            // Graph paper in no part, before the solution: the exercise's.
-            (Part::Other, Block::Para(p)) if p.props.graph.is_some() && e.solution_blocks.is_none() && e.grid.is_none() => e.grid = Some(i),
+            (Part::Other, Block::Para(p)) => e.note_grid(p, i),
             (Part::Text, _) => grow(&mut e.text_blocks),
             _ => {}
         }

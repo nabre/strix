@@ -46,8 +46,8 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
             update(s);
             s.clamp_selection();
         }
-        (Some(false), Some((from, to))) => {
-            if s.doc.body.get(from..=to).is_some() {
+        (Some(false), Some((from, to))) if s.doc.body.get(from..=to).is_some() => {
+            {
                 s.doc.body.drain(from..=to);
                 // What followed it no longer needs a new page (`update` sets an exercise's again).
                 set_break(s, from, false);
