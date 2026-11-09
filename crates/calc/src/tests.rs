@@ -1482,3 +1482,57 @@ fn a_temperature_difference_column_is_a_difference() {
     assert!(r.updates.contains(&(1, 2, "60".to_string())), "{:?}", r.updates);
     assert!(r.updates.contains(&(1, 4, "80".to_string())), "{:?}", r.updates);
 }
+
+/// Powers of a unit past a dimension's never overflow while the hint is worked out.
+#[test]
+fn huge_unit_powers_in_a_hint_never_overflow() {
+    let deep = format!("{}1 m^12{} =", "(".repeat(8), ")^12".repeat(8));
+    let r = run(&[&deep]).pop().unwrap();
+    assert!(r.error.is_some(), "{r:?}");
+}
+
+/// A large data table keeps name lookups fast: every name read is found by index.
+#[test]
+fn a_large_data_table_keeps_name_lookups_fast() {
+    let mut rows = vec![std::iter::once("Case".to_string()).chain((0..9).map(|k| format!("c{k}"))).collect::<Vec<_>>()];
+    rows.extend((0..10_000).map(|r| std::iter::once(format!("r{r}")).chain((0..9).map(|_| "1".to_string())).collect()));
+    let mut ws = Worksheet::new(Options::default());
+    let start = std::time::Instant::now();
+    assert_eq!(ws.eval_table_named(&rows, Some(CellNames::ColumnRow)).cells.len(), 90_000);
+    let _ = ws.eval_statement(&format!("∑_(i=1)^9999▒({}) =", vec!["π"; 100].join("+")));
+    assert!(start.elapsed() < std::time::Duration::from_secs(20), "{:?}", start.elapsed());
+}
+
+/// Redefining and removing names keeps the scope's order and its index in step.
+#[test]
+fn scope_index_follows_removals() {
+    let mut s = Scope::new();
+    for (n, v) in [("a", 1.0), ("b", 2.0), ("c", 3.0)] {
+        s.set(n, Quantity::number(v));
+    }
+    assert!(s.remove("a").is_some());
+    assert!(s.remove("a").is_none());
+    s.set("b", Quantity::number(5.0));
+    s.set("d", Quantity::number(4.0));
+    assert_eq!(s.iter().map(|(n, _)| n).collect::<Vec<_>>(), ["b", "c", "d"]);
+    assert!(s.get("c").is_some() && s.get("a").is_none());
+}
+
+/// A long table indexed by row stops at the budget instead of copying its columns per cell.
+#[test]
+fn a_long_table_indexed_by_row_stops_quickly() {
+    let mut rows = vec![std::iter::once("x".to_string()).chain((1..10).map(|k| format!("y{k} = x[i+1]"))).collect::<Vec<_>>()];
+    rows.extend((0..10_000).map(|_| std::iter::once("1".to_string()).chain((1..10).map(|_| String::new())).collect()));
+    let start = std::time::Instant::now();
+    let r = Worksheet::new(Options::default()).eval_table(&rows);
+    assert!(start.elapsed() < std::time::Duration::from_secs(20), "{:?}", start.elapsed());
+    assert!(r.errors.iter().any(|(_, _, e)| matches!(e, CalcError::TooMuchWork)));
+}
+
+/// Rounding a number too large to scale keeps it.
+#[test]
+fn rounding_a_huge_number_keeps_it() {
+    let r = run(&["x := round(1e300; 9)"]).pop().unwrap();
+    assert_eq!(r.error, None);
+    assert!(approx(r.value.unwrap().scalar().unwrap().value, 1e300));
+}

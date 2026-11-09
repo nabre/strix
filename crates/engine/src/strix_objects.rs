@@ -17,8 +17,10 @@ use strix_doc::{Block, Document, InlineObject};
 
 use crate::cmd::exercise::{TAG_EXERCISE, TAG_RESULTS};
 
-/// How deep nested tables and groups are walked (hostile files).
-const MAX_DEPTH: usize = 16;
+/// How deep nested tables and groups are walked (hostile files): deeper than anything is
+/// read or calculated, so an object nested past the calculations' depth is still found and a
+/// save that would lose it still warns.
+const MAX_DEPTH: usize = 256;
 
 /// A kind of Strix object, in the order they are listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]

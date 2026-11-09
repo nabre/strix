@@ -117,6 +117,9 @@ impl From<Quantity> for Value {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scope {
     entries: Vec<(String, Value)>,
+    /// Where each name is in `entries`: a data table defines tens of thousands of cells, and
+    /// every name an expression reads is looked up.
+    index: std::collections::HashMap<String, usize>,
     /// User functions, in definition order.
     funcs: Vec<Function>,
     /// Work done by every evaluation against this scope (one worksheet), capped by
@@ -132,22 +135,35 @@ impl Scope {
 
     /// The value of parameter `name`, if defined.
     pub fn get(&self, name: &str) -> Option<&Value> {
-        self.entries.iter().find(|(n, _)| n == name).map(|(_, v)| v)
+        self.entries.get(*self.index.get(name)?).map(|(_, v)| v)
     }
 
     /// Defines or redefines `name`.
     pub fn set(&mut self, name: &str, value: impl Into<Value>) {
         let value = value.into();
-        match self.entries.iter_mut().find(|(n, _)| n == name) {
+        match self.index.get(name).and_then(|&i| self.entries.get_mut(i)) {
             Some(entry) => entry.1 = value,
-            None => self.entries.push((name.to_string(), value)),
+            None => {
+                self.index.insert(name.to_string(), self.entries.len());
+                self.entries.push((name.to_string(), value));
+            }
         }
     }
 
     /// Undefines `name`, returning its old value.
     pub fn remove(&mut self, name: &str) -> Option<Value> {
-        let index = self.entries.iter().position(|(n, _)| n == name)?;
-        Some(self.entries.remove(index).1)
+        let index = self.index.remove(name)?;
+        if index >= self.entries.len() {
+            return None;
+        }
+        let (_, old) = self.entries.remove(index);
+        // The names after it moved down one.
+        for (n, _) in self.entries.iter().skip(index) {
+            if let Some(i) = self.index.get_mut(n) {
+                *i = i.saturating_sub(1);
+            }
+        }
+        Some(old)
     }
 
     /// Defines or redefines a user function.

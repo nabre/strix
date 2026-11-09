@@ -147,7 +147,7 @@ impl Drawing {
         for id in boundary.iter().filter(|id| seen.insert(id.as_str())) {
             let Some((pts, true)) = self.path_of(id) else { continue };
             if pts.len() > left {
-                continue;
+                break;
             }
             left -= pts.len();
             out.push(pts);
