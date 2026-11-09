@@ -11,18 +11,26 @@ use crate::{CmdError, Selection, Session};
 
 /// The beam in the exercise's statement: a simply supported beam of span `L` (metres, from the
 /// exercise's data) under a uniform load `q`, with its supports, load and span dimension.
-const BEAM: &str = r#"{"unit":"m","scale":50,"entities":[
-    {"type":"polyline","pts":[[0,0],["L",0],["L",0.25],[0,0.25]],"closed":true},
+const BEAM: &str = r##"{"unit":"m","scale":50,"layers":[{"name":"0"},{"name":"loads","width":0.35},{"name":"ground","width":0.18}],"entities":[
+    {"type":"polyline","pts":[[0,0],["L",0],["L",0.25],[0,0.25]],"closed":true,"stroke":{"width":0.5}},
     {"type":"polyline","pts":[[0,0],[-0.2,-0.35],[0.2,-0.35]],"closed":true},
     {"type":"polyline","pts":[["L",0],["L-0.2",-0.35],["L+0.2",-0.35]],"closed":true},
-    {"type":"line","a":["L-0.25",-0.45],"b":["L+0.25",-0.45]},
-    {"type":"polyline","pts":[[0,0.6],[0,0.3],["L",0.3],["L",0.6]],"closed":true},
-    {"type":"line","a":["L/4",0.6],"b":["L/4",0.3]},
-    {"type":"line","a":["L/2",0.6],"b":["L/2",0.3]},
-    {"type":"line","a":["3*L/4",0.6],"b":["3*L/4",0.3]},
-    {"type":"text","p":["L/2",0.75],"value":"q","height":3.5,"align":"center"},
-    {"type":"dim","a":[0,-0.35],"b":["L",-0.35],"offset":-8}
-]}"#;
+    {"type":"circle","c":[0,0],"r":0.03},
+    {"type":"circle","c":["L",0],"r":0.03},
+    {"id":"g1","layer":"ground","type":"line","a":[-0.3,-0.35],"b":[0.3,-0.35]},
+    {"id":"g2","layer":"ground","type":"line","a":["L-0.3",-0.45],"b":["L+0.3",-0.45]},
+    {"layer":"ground","type":"strip","along":"g1","side":"right","width":2,"pattern":"lines"},
+    {"layer":"ground","type":"strip","along":"g2","side":"right","width":2,"pattern":"lines"},
+    {"layer":"ground","type":"line","a":["L-0.25",-0.39],"b":["L+0.25",-0.39]},
+    {"layer":"loads","type":"line","a":[0,0.8],"b":["L",0.8]},
+    {"layer":"loads","type":"line","a":[0,0.8],"b":[0,0.3],"arrows":"end"},
+    {"layer":"loads","type":"line","a":["L/4",0.8],"b":["L/4",0.3],"arrows":"end"},
+    {"layer":"loads","type":"line","a":["L/2",0.8],"b":["L/2",0.3],"arrows":"end"},
+    {"layer":"loads","type":"line","a":["3*L/4",0.8],"b":["3*L/4",0.3],"arrows":"end"},
+    {"layer":"loads","type":"line","a":["L",0.8],"b":["L",0.3],"arrows":"end"},
+    {"layer":"loads","type":"text","p":["L/2",0.92],"value":"{{q:both}}","height":3.5,"align":"center"},
+    {"type":"dim","a":[0,-0.45],"b":["L",-0.45],"offset":-8,"text":"{{L:both}}"}
+]}"##;
 
 fn para(text: &str, style: Option<&str>) -> Block {
     let mut p = Paragraph::with_text(text, CharProps::default());

@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-11-09: CAD and calculations made coherent (docs/cad.md, docs/calc.md): open lines, arcs and polylines take arrowheads (loads, forces), drawn 30° across as ISO 129 asks; a negative scale, mirrored and rotated dimensions, strips on mirrored paths, dimension-text picking and text heights now match what is drawn; `cad.get` reports the errors where the drawing sits and an unreadable drawing is never blanked. Calculations: units after numbers alone and after `(12 kN)/m` win over same-named parameters, `b·h = A` is a check rather than "show in amperes", `round` keeps units and rounds as results show, `[°C]` difference columns are differences, no more `1000 kPa`. Equations show a unit's quotient inline (`(12 kN/m)`). The "Calculation and exercise" template's beam has load arrows, hatched ground and dimensions bound to `L` and `q`.
 - 2026-11-08: Exercises (docs/exercise.md): the words Strix writes in an exercise follow the proofing language. Setting the language (status bar, Review › Language, on a selection or as the document's default) rewrites the default ones: frame titles, placeholders still shown, the Solution heading, the default *Esercizio* prefix and the results summary; what the user wrote stays. French, German and Spanish join Italian and English.
 - 2026-11-08: The product is now called **Strix Writer** (Strix for short in running text; the STRIX wordmark is unchanged). The full name shows in the window and About titles, the installers and store entries (Windows MSI and Start menu, macOS bundle name, Linux desktop entry and AppStream), the web app, the site, the MCP server title and the generator recorded in exported DOCX, PDF, ODT, RTF, HTML and LaTeX files. Binaries, crates, the app id `io.github.nabre.strix`, settings folders, environment variables and the `.xmath` format keep `strix`, so installs and settings carry over. Upstream files get the name through `PRODUCT_NAME` in `xtask/src/upstream.rs`.
 - 2026-11-08: Spelling dictionaries download from Strix: while the status bar says *(no dictionary)*, its language menu (and File › Options › Language) offers the language's Hunspell dictionary, fetched from LibreOffice's dictionaries at a fixed revision into the user's dictionaries folder and checked with at once, no restart (`proof.downloadDictionary` for the CLI and agents; new `strix-dictionaries` crate). CAD Output: the maximum size's width and height (and the padding and dimension-style fields) keep a typed value, and the height row is back inside the ribbon.
@@ -677,6 +678,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | trivial | Progress log: CAD arrowheads and CAD/calculation coherence fixes |
 | 2026-10-29 | trivial | Progress log: exercise numbering setting; summary by label |
 | 2026-10-29 | trivial | Progress log: delete a whole exercise |
 | 2026-10-29 | trivial | Progress log: calculation result layout and complete solution steps |

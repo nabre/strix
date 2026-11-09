@@ -755,7 +755,22 @@ impl Worksheet {
         }
         let part = |i: usize| parts.get(i).and_then(|r| tokens.get(r.clone())).unwrap_or_default();
         let last = part(parts.len() - 1);
-        let shows = parts.len() >= 2 && units_only(last);
+        // A defined parameter alone after `=` is that parameter, not a unit spelled the same:
+        // with `A = 0.5 m²`, `b·h = A` is a check, not "show in amperes" (ISO 80000: only after
+        // a number is a name a unit). Only when the parameter has the other side's kind: with a
+        // number `m := 3`, `1 km = m` still asks for metres.
+        let parameter_alone = match last {
+            [Token { tok: Tok::Ident(n), .. }] => self.scope.get(n).and_then(|v| v.scalar()).is_some_and(|p| {
+                let end = parts.first().and_then(|r| tokens.get(r.end)).map_or(len, |t| t.pos);
+                self.parse_expr(part(0), end)
+                    .ok()
+                    .and_then(|l| eval(&l, &self.scope, Names::Worksheet).ok())
+                    .and_then(|v| v.scalar())
+                    .is_some_and(|l| l.dim == p.dim)
+            }),
+            _ => false,
+        };
+        let shows = parts.len() >= 2 && units_only(last) && !parameter_alone;
         match parts.len() - usize::from(shows) {
             1 => {
                 // `L = 4.5 m`, `x^2 + x = 6`, `x^2 + x·1 m = A`: a number or a parameter after `=`
@@ -1569,7 +1584,17 @@ fn numbers_text(v: &Value, scale: f64, opts: &Options) -> String {
 /// `v`'s numbers and its automatic unit; a vector takes the unit of its largest element.
 fn auto_text(v: &Value, opts: &Options) -> (String, String) {
     let largest = v.quantities().iter().map(|q| q.value.abs()).fold(0.0, f64::max);
-    let (scaled, unit) = auto_unit(largest, v.dim());
+    let (mut scaled, mut unit) = auto_unit(largest, v.dim());
+    // The prefix is chosen on the number as it will show: 999999.9996 Pa rounds to 1000 kPa,
+    // which is 1 MPa.
+    let shown: Option<f64> = format_number(scaled, opts).replace(',', ".").parse().ok();
+    if let Some(shown) = shown.filter(|x| x.abs() >= 1000.0 && scaled != 0.0) {
+        let rounded = largest * shown / scaled;
+        let (again, other) = auto_unit(rounded, v.dim());
+        if other != unit {
+            (scaled, unit) = (again * largest / rounded, other);
+        }
+    }
     let scale = if largest == 0.0 { 1.0 } else { scaled / largest };
     (numbers_text(v, scale, opts), unit)
 }
@@ -1581,7 +1606,7 @@ pub(crate) fn in_unit_text(v: &Value, u: Quantity, unit_text: &str, opts: &Optio
 
 /// [`in_unit_text`]; with `absolute`, a temperature shown in `°C`/`°F` (exactly that unit) takes
 /// the scale's offset (293.15 K is 20 °C), without it is a difference (20 K is 20 °C).
-fn in_unit_text_as(v: &Value, u: Quantity, unit_text: &str, opts: &Options, absolute: bool) -> Result<String, CalcError> {
+pub(crate) fn in_unit_text_as(v: &Value, u: Quantity, unit_text: &str, opts: &Options, absolute: bool) -> Result<String, CalcError> {
     if let Some((_, offset)) = affine(unit_text).filter(|_| absolute && u.dim == v.dim()) {
         let shifted = |x: f64| finite(x - offset);
         let v = match v {

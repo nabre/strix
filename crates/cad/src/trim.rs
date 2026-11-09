@@ -225,22 +225,26 @@ impl Drawing {
             let hi = cuts.iter().copied().find(|&u| u > up);
             [lo.map(|l| (0.0, l)), hi.map(|h| (h, n))].into_iter().flatten().collect()
         };
-        let kinds: Vec<Kind> = pieces.iter().filter_map(|&(u0, u1)| piece(&e, &sp, closed, u0, u1)).collect();
+        // Each piece keeps the arrowheads of the ends it still has.
+        let kinds: Vec<(Kind, crate::model::Ends)> =
+            pieces.iter().filter_map(|&(u0, u1)| piece(&e, &sp, closed, u0, u1).map(|k| (k, e.arrows.piece(u0 <= 0.0, u1 >= n)))).collect();
         let mut kinds = kinds.into_iter();
-        let Some(first) = kinds.next() else {
+        let Some((first, arrows)) = kinds.next() else {
             self.remove(&[i]);
             return Ok(());
         };
         if let Some(obj) = self.entities.get_mut(i) {
             obj.kind = first;
+            obj.arrows = arrows;
         }
-        for (k, kind) in kinds.enumerate() {
+        for (k, (kind, arrows)) in kinds.enumerate() {
             if self.entities.len() >= crate::MAX_ENTITIES {
                 return Err(format!("a drawing holds at most {} entities", crate::MAX_ENTITIES));
             }
             let mut more = e.clone();
             more.id = self.fresh_id();
             more.kind = kind;
+            more.arrows = arrows;
             self.entities.insert((i + 1 + k).min(self.entities.len()), more);
         }
         self.sanitize();
