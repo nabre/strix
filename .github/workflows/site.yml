@@ -1,10 +1,15 @@
 name: Site
 
 # The project site on GitHub Pages: https://nabre.github.io/strix/. Built from site/ with the
-# brand files of docs/brand by `cargo xtask site --check` (xtask/src/site.rs), with the web build
-# of the latest release (built from its tag when the release has none) in app/. Deployed with
-# actions/deploy-pages: no gh-pages branch. The repository's Settings › Pages › Source must be
-# "GitHub Actions".
+# brand files of docs/brand by `cargo xtask site --check` (xtask/src/site.rs), with the download
+# links and the web build (app/) of the latest published release (the web app is built from its
+# tag when the release has none). Deployed with actions/deploy-pages: no gh-pages branch. The
+# repository's Settings › Pages › Source must be "GitHub Actions".
+#
+# Always deployed from main: the github-pages environment refuses tags ("Tag v0.17.0 is not
+# allowed to deploy to github-pages"), so a release published on GitHub doesn't deploy from its
+# tag but starts this workflow again on main (job "On main"). One published by
+# publish-release.yml starts it on main itself (GITHUB_TOKEN raises no `release` event).
 on:
   push:
     branches: [main]
@@ -13,12 +18,7 @@ on:
       - 'docs/brand/**'
       - 'assets/app-icon/**'
       - 'xtask/src/site.rs'
-      # The version in the download links.
-      - 'Cargo.toml'
       - '.github/workflows/site.yml'
-  # A new release: new download links and a new web build in app/. A release published by hand on
-  # GitHub raises this event; one published by publish-release.yml (GITHUB_TOKEN) doesn't, so
-  # that workflow starts this one through workflow_dispatch.
   release:
     types: [published]
   workflow_dispatch:
@@ -27,18 +27,32 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name == 'release' && 'release' || 'deploy' }}
   cancel-in-progress: false
 
 jobs:
+  # A release published on GitHub: deploy again from main (a tag may not deploy to Pages).
+  redispatch:
+    name: On main
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Release $TAG published: started the site deploy on main" | tee -a "$GITHUB_STEP_SUMMARY"
+
   build:
     name: Build
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build and check the site
-        run: cargo xtask site --check
       # app/ ("Try it in the browser") is the browser version of the latest release
       # (packaging/web/package.sh); its paths are relative, so it works under /strix/app/. A release
       # made by release.yml carries it as strix-web-<version>.zip. One made by hand on GitHub has
@@ -50,7 +64,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          # The latest published release (drafts and pre-releases aren't "latest").
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName) || {
+            echo "::error::no published release: publish one first (docs/releasing.md)"
+            exit 1
+          }
           echo "tag=$tag" >>"$GITHUB_OUTPUT"
           echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
           if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'strix-web-*.zip' --dir "$RUNNER_TEMP/web"; then
@@ -61,6 +79,13 @@ jobs:
             echo "::notice::release $tag has no strix-web zip: building the web app from its tag"
             echo "Web app: built from the tag $tag (the release has no strix-web zip)" >>"$GITHUB_STEP_SUMMARY"
           fi
+      # Download links to the latest release, not to a version bumped on main but not released.
+      - name: Build and check the site
+        env:
+          VERSION: ${{ steps.web.outputs.version }}
+        run: |
+          cargo xtask site --check --version "$VERSION"
+          echo "Site: download links to v$VERSION" >>"$GITHUB_STEP_SUMMARY"
       - if: steps.web.outputs.build == 'true'
         uses: actions/checkout@v7
         with:

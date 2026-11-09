@@ -41,6 +41,17 @@ Windows builds ship portable.
    (a release published with `GITHUB_TOKEN` starts no other workflow). To redeploy by hand:
    `gh workflow run site.yml --ref main`.
 
+   The site always deploys from `main`: the `github-pages` environment refuses tags, so the run
+   a release published on GitHub starts (on its tag) only starts `site.yml` again on `main`.
+   The download links take the version of the latest *published* release
+   (`cargo xtask site --version`), never Cargo.toml's: bumping the version on `main` doesn't
+   point them at packages that don't exist yet.
+
+   The draft holds what `release` had when it was pushed. **Publish release** warns, and lists
+   in its summary, the commits `main` got afterwards (pull requests merged after the release
+   was built): they are not in this release and go in the next one (bump, merge `main` into
+   `release`).
+
 `.github/workflows/release.yml` is Strix's own pipeline: it reuses the suite's composite actions
 (`storytold/craft-common-actions/actions/*`) but not its reusable release workflow, which requires
 signing on the `release` branch and runs macOS on the paid `macos-15-xlarge` runner. Here:
