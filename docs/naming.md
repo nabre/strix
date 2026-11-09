@@ -1,6 +1,7 @@
 # Naming: WordCraft's internal names, Strix's visible ones
 
-Status: inventory (phase 1 of the naming migration), awaiting approval — 2026-11-09.
+Status: inventory approved; phase 2 (the targeted rules in `xtask/src/upstream.rs`) done — 2026-11-09.
+Phase 3 (the reverse rename on `main`) is next.
 
 Strix keeps its own name only where changing it would break something for the user or make
 Strix collide with a WordCraft installed on the same computer. Everything else goes back to
@@ -19,7 +20,7 @@ vendor branch every `strix`/`Strix`/`STRIX` comes from the rename, apart from th
 | Crate paths | `strix_doc` 4417, `strix_engine` 789, `strix_docx` 704, `strix_geom` 276, `strix_layout` 235, `strix_fonts` 230, `strix_proof` 70, `strix_render` 57, `strix_ui_egui` 44, `strix_formats` 36, `strix_metafile` 14, `strix_zotero` 12, `strix_control_key` 11, `strix_pdf` 9, `strix_mcp` 6, `strix_docbin` 4 | everywhere in `crates/`, `apps/`, `xtask/` |
 | Package names and workspace deps | `strix-doc`, `strix-engine`, … `strix-ui-egui` (16 crates) | `Cargo.toml`, `crates/*/Cargo.toml`, `Cargo.lock` (81) |
 | Types and identifiers | `StrixApp`, `StrixVersion`, `StrixBuildCommit`, `strix_canvas`, `strix_loading`, `strix_viewport_input`, `strix_print_settings`, `strix_ibeam`, test names (`settings_written_by_strix_keep_no_original`, …) | ui-egui, engine, docx |
-| egui ids | `strix.ui`, `strix.colorsDialog`, `strix.colorsDialogOpen`, `strix.moreColorsRequest`, `strix.recentColors` | `crates/ui-egui/src/colors.rs` … (see U6) |
+| egui ids | `strix.colorsDialog`, `strix.colorsDialogOpen`, `strix.moreColorsRequest`, `strix.recentColors` | `crates/ui-egui/src/colors.rs` … (see U6) |
 | Log targets | `strix_docx=trace` in docs; the library crates' targets follow their crate names | `apps/strix/src/logging.rs` (see U3) |
 | Temp file / test prefixes | `.strix-save-…` (safe save), `strix-recovery-…`, `strix-prefs-test-…` and ~70 more test prefixes, `zxqstrixy` | engine, ui-egui, apps tests |
 | Internal keys and URIs | `strix:settings.orig`, `strix:app.kept`, `strix:vbaProject.related`, `strix:glossary.read`, `strix:embedded.parts`, `strix:customXml.roots`, `strix:unmodelled.roots` (passthrough map keys), `strix://document`, `strix://commands` (MCP resources), `strix:open`/`strix:ready`/`strix:save`/`strix:dirty`/`strix:failed` (web host messages) | docx `package.rs`, mcp `server.rs`, strix-web `host.rs` (see U5, U7) |
@@ -207,6 +208,43 @@ That is over ~60, almost all because of U2 and `PRODUCT_NAME`. Ways to cut it:
 
 *Recommendation:* option 1 plus option 3, which gives about 51 rules and fewer conflicts.
 
+## Phase 2: the rules as written
+
+`xtask/src/upstream.rs` now has no substring renames. The tables:
+
+| Table | What | Rules |
+|---|---|---|
+| `EXACT` | whole names in contents and paths: app id, 2 repository URLs, `apps/wordcraft*`, `app-icon/wordcraft*` (Strix's own icon files keep their names), `wordcraft-cli`, `wordcraft-web`, `wordcraft.exe`, `CARGO_BIN_EXE_wordcraft*` | 9 |
+| `PRODUCT_WORD` | `WordCraft` as a whole word inside string literals of upstream `.rs` files | 1 |
+| `PRODUCT_NAME` | "Strix Writer" where upstream shows its name as a title (the 13 `packaging/` rows went with the folder; the LaTeX and MCP rows also carry the U8 URLs) | 22 |
+| `STRIX_NAMES` | app packages, the desktop executable's own messages and their tests, user folders and stores, the log filter, site links | 26 |
+| `STRIX_OWNED` | paths kept as the vendor branch has them | 9 paths |
+| **Total** | | **58 rules** |
+
+Decided while writing them (each is a case the inventory had missed or got wrong):
+- **U2 is wider than proposed.** The proposal scoped the rule to `tl!()` in ui-egui and engine
+  `cmd/`. The same running text is also in MCP errors (`crates/mcp/src/backend.rs`), Zotero
+  (`crates/zotero/src/bridge.rs`), CLI and app messages, and engine I/O errors, and these aren't
+  translated. So `PRODUCT_WORD` covers string literals in every upstream `.rs` file. It doesn't
+  touch identifiers, comments or other formats. It also covers the folder names written with a
+  capital (`Application Support/WordCraft`, `%APPDATA%\WordCraft`, `<base>/WordCraft/dictionaries`),
+  eframe's app name (`"WordCraft"` in `apps/strix/src/main.rs`) and `registeredAppMachine=WordCraft`.
+  None of those needs a row of its own.
+- **The web app's preferences** are stored in `localStorage` under `KEY = "wordcraft.ui"`
+  (`apps/strix-web/src/prefs.rs`). This is user data, so it is group b, not an egui id (group a, as the inventory had it).
+- **The desktop executable names itself** in its usage text, `--version`, error lines and the
+  tests that check them, and the MCP crate's `NEEDS_APP` hint tells users to start it. These are
+  rows in `STRIX_NAMES`. So are `Exec=strix %F`, which the test reads from Strix's own `.desktop` file,
+  the layers table (`("strix", Class::Exempt)`, `xtask/src/layers.rs`) and `CompanyName` in
+  `apps/strix/build.rs` (upstream's publisher, "Learning Machines LLC").
+- **Log filter (U3).** `main` already uses `"warn,wordcraft*=info,strix*=info"`. That works with
+  today's names and with upstream's.
+- **Proved on a simulated snapshot.** I rebuilt upstream `9724f15c` by reversing the old rename on
+  `vendor/wordcraft`, passed it through the new rules, and put back `packaging/` as the sync does. No rule is left unapplied.
+  Its build and tests are in the phase 2 report.
+
 ## Revision history
+
+- 2026-11-09 — phase 2: the rules as written (58), cases settled while writing them.
 
 - 2026-11-09 — first inventory (phase 1).

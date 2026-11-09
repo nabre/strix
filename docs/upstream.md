@@ -1,10 +1,17 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28.
+Status: in use since 2026-10-28; targeted rename rules since 2026-11-09 (`docs/naming.md`).
 
-Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft) with every product name,
-crate name, app id and URL renamed. A direct `git merge` of upstream would conflict on thousands
-of renamed identifiers, so upstream reaches `main` through a **vendor branch**.
+Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
+internal names (crates, Rust paths, types, environment variables) and is Strix only where users
+see it or where it would collide with a WordCraft installed on the same computer: the app id, the
+repository, the executables, the user's folders, the product name on screen
+([`docs/naming.md`](naming.md)). Upstream reaches `main` through a **vendor branch** that applies
+those few rules, so a merge only conflicts where both sides really changed a line.
+
+> **Transition (2026-11-09).** The rules below replace the blind `wordcraft` → `strix` rename.
+> `main` and `vendor/wordcraft` still carry the old names until the reverse rename lands on
+> `main` (phase 3 of `docs/naming.md`); don't run `upstream sync` before that.
 
 ## How it works
 
@@ -16,23 +23,34 @@ vendor/wordcraft                 rebranded(d859c673) ─── rebranded(9724f15
 main                              … ─┴── Strix work ──────────────────────┴── …
 ```
 
-- Every commit on `vendor/wordcraft` is one upstream snapshot passed through the mechanical
-  rename in [`xtask/src/upstream.rs`](../xtask/src/upstream.rs) (`RENAMES`): `WordCraft` →
-  `Strix`, `wordcraft_*` → `strix_*`, `apps/wordcraft*` → `apps/strix*`,
-  `ai.storyteller.wordcraft` → `io.github.nabre.strix`, `storytold/wordcraft` → `nabre/strix`.
-  The commit's `Upstream-Commit:` trailer names the upstream commit. The renamed Rust files are
-  then formatted with the workspace's `rustfmt.toml` (shorter names let lines upstream wrapped
-  fit on one, as in `main`); without `rustfmt` on the PATH the sync warns and skips it.
-- The product's full name is **Strix Writer**: where upstream shows its name as such (window and
-  dialog titles, installers and store entries, the generator recorded in exported files), the
-  path-scoped `PRODUCT_NAME` table in `xtask/src/upstream.rs` turns the renamed `Strix` into
-  `Strix Writer`; running text keeps the short `Strix`. A new upstream title or installer string
-  gets a row there, and the same text in `main`'s file. The first sync after the table landed (2026-11-08) conflicts
-  on three lines `main` had already changed (the LaTeX and MCP website URLs, the ODT meta line):
-  keep `main`'s.
+- Every commit on `vendor/wordcraft` is one upstream snapshot passed through the rules in
+  [`xtask/src/upstream.rs`](../xtask/src/upstream.rs); its `Upstream-Commit:` trailer names the
+  upstream commit. There are no substring renames:
+  - `EXACT`: whole names, in contents and paths: `ai.storyteller.wordcraft` →
+    `io.github.nabre.strix`, `storytold/wordcraft` → `nabre/strix`, `apps/wordcraft*` →
+    `apps/strix*`, `app-icon/wordcraft*` → `app-icon/strix*`, the executables `wordcraft-cli`,
+    `wordcraft-web`, `wordcraft.exe` and `CARGO_BIN_EXE_wordcraft*`.
+  - `PRODUCT_WORD`: in upstream Rust files, the word `WordCraft` inside a string literal (never an
+    identifier or a comment) becomes `Strix`, so every message, label and capitalised folder name
+    says Strix.
+  - `PRODUCT_NAME` and `STRIX_NAMES`: `(file, upstream text, Strix's text)` rows, applied before
+    the others. The product's full name, **Strix Writer**, where upstream shows its name as such
+    (window and dialog titles, the generator recorded in exported files); the app packages'
+    names; the lowercase user folders and stores; the desktop executable's own messages; the MCP
+    `serverInfo.name`; links to WordCraft's site.
+  - `STRIX_OWNED`: `packaging/`, `site/`, `.github/workflows/`, `README.md`, `docs/README.*.md`,
+    `ROADMAP.md`, `docs/roadmap.md`, `docs/gaps.md`, `docs/*-parity.md` are Strix's own: the sync
+    keeps them as the vendor branch already had them and lists the upstream commits that touched
+    them, to review and port by hand. The Windows installer's `UpgradeCode` never changes.
+
+  A new upstream string that names the product as a title gets a `PRODUCT_NAME` row, and the
+  same text in `main`'s file (a test checks that every row's result is in `main`). When upstream
+  changes a line a row matches, the sync warns that the rule didn't apply. The changed Rust files
+  are then formatted with the workspace's `rustfmt.toml`; without `rustfmt` on the PATH the sync
+  warns and skips it.
 - Licence rules are built in: `LICENSE-*` and `NOTICE` stay byte-for-byte, lines with a
-  copyright or attribution notice are never renamed, every renamed file gets the "Modified by the
-  Strix contributors" line (Apache-2.0 §4(b), (c)), and the ArtCraft brand files in `docs/brand/`
+  copyright or attribution notice are never renamed, every file whose contents the rules change gets the "Modified by the
+  Strix contributors" line (a file that only moves doesn't) (Apache-2.0 §4(b), (c)), and the ArtCraft brand files in `docs/brand/`
   never enter the branch.
 - The branch's first commit is the true fork point, upstream `d859c673` (2026-10-26), and `main`
   records it with a history-only merge. From then on `git merge vendor/wordcraft` is an ordinary
@@ -103,9 +121,10 @@ groups moved into their own `crates/ui-egui/src/ribbon/strix.rs` in that merge.
   Strix's own files freely.
 - **Upstream bugs**: fix them in Strix if needed, and send the fix upstream too, so the line
   disappears from the fork surface at the next merge.
-- **Brand text only through the rename.** Don't hand-edit `WordCraft` → `Strix` in upstream
-  files; extend `RENAMES` instead, so the vendor branch does the same and the edit never
-  conflicts.
+- **Brand text only through the rules.** Don't hand-edit `WordCraft` → `Strix` in upstream
+  files; add a row to `PRODUCT_NAME` or `STRIX_NAMES` instead (`docs/naming.md` says which names
+  stay Strix's), so the vendor branch does the same and the edit never conflicts. Internal names
+  stay upstream's.
 - **Dead code**: `cargo xtask unused` reports unused dependencies and the public items in
   Strix's own files that nothing, or only tests, uses; remove those. Unused code in upstream
   files stays: deleting it is a change upstream doesn't have.
