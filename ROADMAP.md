@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-11-09: CAD and calculations made coherent (docs/cad.md, docs/calc.md): open lines, arcs and polylines take arrowheads (loads, forces), drawn 30° across as ISO 129 asks; a negative scale, mirrored and rotated dimensions, strips on mirrored paths, dimension-text picking and text heights now match what is drawn; `cad.get` reports the errors where the drawing sits and an unreadable drawing is never blanked. Calculations: units after numbers alone and after `(12 kN)/m` win over same-named parameters, `b·h = A` is a check rather than "show in amperes", `round` keeps units and rounds as results show, `[°C]` difference columns are differences, no more `1000 kPa`. Equations show a unit's quotient inline (`(12 kN/m)`). The "Calculation and exercise" template's beam has load arrows, hatched ground and dimensions bound to `L` and `q`.
 - 2026-11-08: Spelling dictionaries download from Strix: while the status bar says *(no dictionary)*, its language menu (and File › Options › Language) offers the language's Hunspell dictionary, fetched from LibreOffice's dictionaries at a fixed revision into the user's dictionaries folder and checked with at once, no restart (`proof.downloadDictionary` for the CLI and agents; new `strix-dictionaries` crate). CAD Output: the maximum size's width and height (and the padding and dimension-style fields) keep a typed value, and the height row is back inside the ribbon.
 - 2026-11-08: CAD robustness and speed (docs/cad.md): a drawing renders within one budget of points and hatch segments, so a hostile file draws quickly in bounded memory; a saved drawing always reopens (no `null` from a non-finite number) and saves to the same bytes when read back; Copy and arrays add their copies at once (an array filling the drawing went from seconds to under a millisecond); far-off dashes no longer loop forever; hatches are one SVG path and one page item, so they never crowd out the dimensions over them; the ribbon no longer re-evaluates the document and re-renders every drawing each frame while a drawing is selected. Random-edit tests pin it.
 - 2026-10-30: v0.15.1 released (the STRIX wordmark with a feather I and the matching app icon, the brand in About, the empty window, the File menu and the web loading screen; a dictionary path that is a directory is refused on Windows too).
@@ -675,6 +676,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | trivial | Progress log: CAD arrowheads and CAD/calculation coherence fixes |
 | 2026-10-29 | trivial | Progress log: exercise numbering setting; summary by label |
 | 2026-10-29 | trivial | Progress log: delete a whole exercise |
 | 2026-10-29 | trivial | Progress log: calculation result layout and complete solution steps |

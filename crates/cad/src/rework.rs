@@ -95,9 +95,11 @@ impl Drawing {
                 continue;
             }
             gone.push(e.id.clone());
+            let count = kinds.len();
             for (k, kind) in kinds.into_iter().enumerate() {
                 let mut piece = e.clone();
                 piece.kind = kind;
+                piece.arrows = e.arrows.piece(k == 0, k + 1 == count);
                 if k == 0 {
                     if let Some(obj) = self.entities.get_mut(i) {
                         *obj = piece;

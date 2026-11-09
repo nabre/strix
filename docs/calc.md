@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-10-29 · **Change:** Result Layout (inline ⇒ or line by line); steps for every formula, each algebra step, numeric solves marked
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-09 · **Change:** units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -81,7 +81,13 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   `L = 4.5 m` is still metres and `q = 12 kN/m` still per metre. The units after a number run on
   through `·`, `/`, spaces and powers (`9.81 m/s²`, `30 kN·m`) and stop at the first name that
   is not a unit. To multiply by a parameter spelled like a unit, put it first or use brackets:
-  `L·2 kN`, `(2 kN)·L`, `2·m`.
+  `L·2 kN`, `(2 kN)·L`, `2·m`. The same holds after numbers alone — a vector of numbers or a
+  power of numbers (`[4; 5; 6] m`, `10^3 m`) — and after a written quantity and `/`
+  (`(12 kN)/m`, the linear text of a stacked `12 kN` over `m`, is per metre).
+- After `=`, units alone ask for a display unit, except a **defined parameter alone of the
+  other side's kind**: with `A = 0.5 m²`, `b·h = A` checks against `A` (not "in amperes"), and
+  with `N = 12 kN`, `F_1 + F_2 = N` is a check. A parameter of another kind leaves the request
+  alone (`m := 3`, `1 km = m` shows metres).
 
 ## Sums, products, ranges and vectors
 
@@ -105,7 +111,10 @@ table into a calculated one (Calculated Table, `table.calc`, Data Table, Cells a
 of each page); a table whose first row holds values (a table of numbers) gets an empty header
 row above them, to write the columns' names and formulas in. A header cell is a column name with an optional unit in square
 brackets or parentheses and an optional formula: `L [m]`, `q (kN/m)`, `M [kN·m] = γ·q·L²/8`.
-Any other header (`Beam`, `Load case`, empty) is a label column, never read.
+Any other header (`Beam`, `Load case`, empty) is a label column, never read; so is one whose
+round brackets hold words, not a unit (`Load (case A)`). A unit in square brackets must be one
+(`[kNN]` is reported). In a `[°C]`/`[°F]` column a formula that is a difference of
+temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15), as statements do.
 
 | Beam | L [m] | q [kN/m] | M [kN·m] = γ·q·L²/8 |
 |---|---|---|---|
@@ -292,7 +301,14 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
   (`0.0001` with 2 → `0`); **Significant Digits** counts significant digits (`1234.5` with 2 →
   `1200`).
 - Rounding is half away from zero on the shortest decimal form, capped at 15 significant digits
-  (`2.675` → `2.68` with 2 decimals).
+  (`2.675` → `2.68` with 2 decimals). `round(x; n)` rounds the same way (`round(1.005; 2) =
+  1.01`) and keeps a quantity's unit, rounding its coherent SI value (`round(2.345 m; 2) =
+  2.35 m`); an absolute temperature must be a plain number. Known limit: a value in `°` or `%`
+  is rounded in radians or as a fraction.
+- The automatic prefix is chosen on the number as shown: `999999.9996 Pa` shows `1 MPa`, never
+  `1000 kPa`.
+- In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
+  linear fraction), while the formula's own fractions stay stacked.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 
@@ -404,6 +420,12 @@ Digits, Show Steps, Number Format, Result Layout) and Drawing (CAD Drawing, see 
 
 ## Revision history
 
+- 2026-11-09: units after numbers alone (`[4; 5; 6] m`, `10^3 m`) and after a written quantity
+  and `/` (`(12 kN)/m`) win over parameters; a parameter alone after `=` of the other side's
+  kind is checked, not read as a unit; `round` keeps units and rounds as results show; the
+  automatic prefix follows the shown number; `[°C]` difference columns; round-bracket words in a
+  header are a label; units' quotients inline in equations; recalculating a document with no
+  calculation adds no Unit style.
 - 2026-10-29: Result Layout (`calc.layout`): results and steps inline after `⇒` or line by line
   under the statement; steps for every formula (also `M = q·L²/8 =`, `q·L²/8 =`, `A := … =`, which
   had none), each algebra step of a solved equation, numeric solves marked; check lines' units

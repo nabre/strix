@@ -62,7 +62,9 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
             }
             let can_add = variants.len() < MAX_VARIANTS;
             if ui.add_enabled(can_add, egui::Button::new("+")).on_hover_text(tl!("Add a variant: a copy of the active one's values")).clicked() {
-                let next = char::from(b'A' + (variants.len() % MAX_VARIANTS) as u8).to_string();
+                // The first letter no variant has yet (after A, B removed: A again, not B twice).
+                let taken = |c: &String| variants.iter().any(|v| v == c) || (variants.is_empty() && c == "A");
+                let next = (b'A'..=b'Z').map(|b| char::from(b).to_string()).find(|c| !taken(c)).unwrap_or_else(|| format!("{}", variants.len() + 1));
                 if let Some(names) = data["variants"].as_array_mut() {
                     names.push(json!(next));
                 } else {

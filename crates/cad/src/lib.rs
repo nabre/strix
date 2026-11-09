@@ -36,6 +36,8 @@ mod trim;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_coherence;
+#[cfg(test)]
 mod tests_dims;
 #[cfg(test)]
 mod tests_fuzz;
@@ -47,10 +49,11 @@ pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};
 pub use model::{
-    Align, Dash, DimStyle, DimUnits, Drawing, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke, Unit, fill,
+    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke,
+    Unit, fill,
 };
 pub use modify::Affine;
-pub use props::{ALIGNS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
+pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
