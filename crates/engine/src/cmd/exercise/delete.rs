@@ -329,8 +329,9 @@ Fine"}),
         // The one left is exercise 1, whole, and the summary lists only it.
         assert_eq!(s.run("exercise.info", &json!({})).unwrap()["exercises"], json!(1));
         let summary = &t[find(&s, "Riepilogo dei risultati")..];
-        assert_eq!(summary.iter().filter(|x| x.starts_with("Esercizio")).count(), 1, "{summary:?}");
-        assert!(summary.iter().any(|x| x == "a) risultato non indicato") && !summary.iter().any(|x| x.starts_with("Esercizio 2")), "{summary:?}");
+        // A lone exercise has no label: the summary lists its results alone.
+        assert!(!summary.iter().any(|x| x.starts_with("Esercizio")), "{summary:?}");
+        assert!(summary.iter().any(|x| x == "a) risultato non indicato"), "{summary:?}");
         // Undo brings it back exactly; redo removes it again.
         s.run("edit.undo", &json!({})).unwrap();
         assert_eq!(texts(&s), before);

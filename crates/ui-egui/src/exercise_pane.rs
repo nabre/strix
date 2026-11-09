@@ -34,8 +34,17 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         // The numbering is the document's: it shows wherever the cursor is, once there are exercises.
         let exercises = app.session.run("exercise.info", &json!({})).ok().and_then(|i| i["exercises"].as_u64()).unwrap_or(0);
         if exercises > 0 {
-            crate::pane_kit::section(ui, "", tl!("Numbering"));
-            numbering(app, ui);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                crate::pane_kit::section(ui, "", tl!("Numbering"));
+                numbering(app, ui);
+                // In a series the parts shown are the series': they show wherever the cursor is.
+                if exercises > 1 {
+                    crate::pane_kit::section(ui, "", tl!("Parts Shown"));
+                    parts(app, ui, 0);
+                }
+                crate::pane_kit::section(ui, "", tl!("Frontispiece"));
+                frontispiece(app, ui);
+            });
         }
         return;
     };
@@ -180,7 +189,75 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         page_breaks(app, ui, ex);
         crate::pane_kit::section(ui, "04", tl!("Numbering"));
         numbering(app, ui);
+        crate::pane_kit::section(ui, "05", tl!("Parts Shown"));
+        parts(app, ui, ex);
+        crate::pane_kit::section(ui, "06", tl!("Frontispiece"));
+        frontispiece(app, ui);
     });
+}
+
+/// The parts shown and the graph paper (`exercise.show`, `exercise.grid`): of this exercise, or
+/// of every one in a series (the series rules). `ex` 0: the series, with the cursor anywhere.
+fn parts(app: &mut WordApp, ui: &mut Ui, ex: u64) {
+    let target = if ex > 0 { json!({"exercise": ex}) } else { json!({}) };
+    let Ok(st) = app.session.run("exercise.show", &target) else { return };
+    let with = |mut v: Value, k: &str, on: bool| {
+        if ex > 0 {
+            v["exercise"] = json!(ex);
+        }
+        v[k] = json!(on);
+        v
+    };
+    let run = |app: &mut WordApp, id: &str, params: Value| {
+        if let Err(e) = app.run(id, params) {
+            app.status(e);
+        }
+    };
+    let series = st["series"].as_bool().unwrap_or(false);
+    let mut solution = st["solution"].as_bool().unwrap_or(true);
+    if ui.checkbox(&mut solution, tl!("Solution")).on_hover_text(tl!("The working under each question; hidden, it stays in the document")).changed() {
+        run(app, "exercise.show", with(json!({}), "solution", solution));
+    }
+    let mut results = st["results"].as_bool().unwrap_or(true);
+    if ui.checkbox(&mut results, tl!("Results")).on_hover_text(tl!("The exercise's lines in the results summary")).changed() {
+        run(app, "exercise.show", with(json!({}), "results", results));
+    }
+    let grid = st["grid"].clone();
+    let mut ruled = !grid.is_null();
+    if ui.checkbox(&mut ruled, tl!("Graph paper")).on_hover_text(tl!("Graph paper after the questions, before the solution")).changed() {
+        run(app, "exercise.grid", with(json!({}), "on", ruled));
+    }
+    if !grid.is_null() {
+        ui.indent("exercise_grid", |ui| {
+            if let Some(mut change) = crate::graph_pane::editor(ui, &grid, false) {
+                if ex > 0 {
+                    change["exercise"] = json!(ex);
+                }
+                run(app, "exercise.grid", change);
+            }
+        });
+    }
+    let note = if series {
+        "A series: these settings are the same for every exercise, and a new exercise takes them."
+    } else {
+        "Hidden parts stay in the document as hidden text."
+    };
+    crate::pane_kit::note(ui, tl!(note));
+}
+
+/// The frontispiece of the series (`exercise.frontispiece`).
+fn frontispiece(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(f) = app.session.run("exercise.frontispiece", &json!({})) else { return };
+    let mut on = f["on"].as_bool().unwrap_or(false);
+    if ui
+        .checkbox(&mut on, tl!("Frontispiece"))
+        .on_hover_text(tl!("A first page of your own before the exercises: title, class, date, instructions"))
+        .changed()
+        && let Err(e) = app.run("exercise.frontispiece", json!({"on": on}))
+    {
+        app.status(e);
+    }
+    crate::pane_kit::note(ui, tl!("The first exercise starts a new page; a page break inside the frontispiece gives it more pages."));
 }
 
 /// Page breaks (`exercise.pageBreaks`): before this exercise when another comes before it, before
