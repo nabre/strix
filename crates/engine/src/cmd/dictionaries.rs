@@ -28,7 +28,7 @@ pub fn caret_lang(s: &Session) -> Option<String> {
 pub fn source_for(lang: Option<&str>) -> Result<&'static strix_dictionaries::Source, CmdError> {
     strix_dictionaries::source_for(lang).ok_or_else(|| {
         let shown = lang.filter(|l| !l.is_empty()).unwrap_or("en-US");
-        if strix_proof::has_dictionary(lang) && strix_proof::downloads::hunspell_name(lang).is_none() {
+        if wordcraft_proof::has_dictionary(lang) && wordcraft_proof::downloads::hunspell_name(lang).is_none() {
             CmdError::Failed(format!("{shown}: spelling needs no dictionary to download"))
         } else {
             CmdError::Failed(format!("{shown}: Strix has no spelling dictionary to download for this language"))
@@ -38,9 +38,9 @@ pub fn source_for(lang: Option<&str>) -> Result<&'static strix_dictionaries::Sou
 
 /// Download `src` into the user's dictionaries folder and read the dictionaries again. Blocks.
 pub fn download(src: &strix_dictionaries::Source) -> Result<std::path::PathBuf, CmdError> {
-    let dir = strix_proof::downloads::user_dictionaries_dir().ok_or_else(|| CmdError::Failed("no folder to save dictionaries in".into()))?;
+    let dir = wordcraft_proof::downloads::user_dictionaries_dir().ok_or_else(|| CmdError::Failed("no folder to save dictionaries in".into()))?;
     let file = fetch(src, &dir).map_err(CmdError::Failed)?;
-    strix_proof::downloads::reload_dictionaries();
+    wordcraft_proof::downloads::reload_dictionaries();
     Ok(file)
 }
 
@@ -73,7 +73,8 @@ fn run(s: &mut Session, v: &Value) -> CmdResult {
         "licence": src.licence,
         "source": src.page(),
     });
-    let installed = strix_proof::missing_dictionary(lang.as_deref()).is_none() && strix_proof::unreadable_dictionary(lang.as_deref()).is_none();
+    let installed =
+        wordcraft_proof::missing_dictionary(lang.as_deref()).is_none() && wordcraft_proof::unreadable_dictionary(lang.as_deref()).is_none();
     let (file, downloaded) = if installed && !force { (None, false) } else { (Some(download(src)?), true) };
     let mut out = base;
     out["file"] = json!(file.map(|f| f.display().to_string()));
@@ -89,7 +90,7 @@ mod tests {
 
     #[test]
     fn downloads_the_dictionary_of_the_language_asked_or_at_the_caret() {
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         s.run("document.setText", &json!({"text": "Ciao"})).unwrap();
         // English needs none; a language Strix doesn't check has none.
         let e = s.run("proof.downloadDictionary", &json!({"lang": "en-US"})).unwrap_err().to_string();

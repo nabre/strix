@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! HTML.
 //!
 //! Import is a tolerant tag-soup reader (no DOM): a tokenizer plus a stack of open elements with
@@ -16,8 +15,8 @@
 
 use std::sync::Arc;
 
-use strix_doc::props::VAlign;
-use strix_doc::{Align, Document};
+use wordcraft_doc::props::VAlign;
+use wordcraft_doc::{Align, Document};
 
 use crate::model::{
     self, Cell, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, Meta, Para, base64_encode, data_uri, make_img, mime_of, parse_color,

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::common::{BUILT_IN_LABELS, NUMBER_FORMATS, SEPARATORS, choice};
 use super::shell::{Next, go};
 use super::{Block, RefsDialog, Serialize, Ui, Value, WordApp, buttons, json, vec2};
@@ -34,7 +33,7 @@ impl CaptionForm {
             }
         }
         // In a table the caption is for the table, unless a picture or shape in it is selected.
-        let in_table = strix_engine::cmd::objects::object_selection(&app.session).is_none()
+        let in_table = wordcraft_engine::cmd::objects::object_selection(&app.session).is_none()
             && app.session.sel.focus.path.depth() > 0
             && app
                 .session

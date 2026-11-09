@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Read Aloud: the document as a queue of sentences that the system's speech program speaks one
 //! at a time, so reading can be paused, skipped forwards and backwards, and sped up.
 //!
@@ -21,8 +20,8 @@
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 use serde_json::{Value, json};
-use strix_doc::para::{COLUMN_BREAK, LINE_BREAK, OBJ, PAGE_BREAK};
-use strix_doc::{Document, InlineObject, Pos};
+use wordcraft_doc::para::{COLUMN_BREAK, LINE_BREAK, OBJ, PAGE_BREAK};
+use wordcraft_doc::{Document, InlineObject, Pos};
 
 /// Longest sentence handed to the speech program (longer ones are split at a space).
 const MAX_SENTENCE: usize = 600;
@@ -525,7 +524,7 @@ impl State {
 pub enum Backend {
     /// The system's speech program.
     System,
-    /// Silent; a sentence lasts until something interrupts it (tests, `STRIX_SPEECH=off`).
+    /// Silent; a sentence lasts until something interrupts it (tests, `WORDCRAFT_SPEECH=off`).
     Hold,
     /// Silent; every sentence finishes at once (tests).
     Instant,
@@ -559,7 +558,7 @@ pub struct ReadAloud {
 
 impl Default for ReadAloud {
     fn default() -> Self {
-        let off = cfg!(test) || std::env::var("STRIX_SPEECH").is_ok_and(|v| v == "off");
+        let off = cfg!(test) || std::env::var("WORDCRAFT_SPEECH").is_ok_and(|v| v == "off");
         ReadAloud {
             shared: Arc::new((
                 Mutex::new(Shared { queue: Vec::new(), index: 0, state: State::Stopped, rate: 1.0, generation: 0, error: None, running: false }),

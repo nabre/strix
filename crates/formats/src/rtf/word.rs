@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::state::{CellDef, Dest, FmtRevSt, HeaderFooter, HfPages, MAX_OLD_WORDS, RevSt, St};
 use super::styles::{StyleDef, is_char_format_word, is_format_word};
 use super::{Align, Fmt, Reader, VAlign, model};
@@ -134,13 +133,13 @@ impl Reader {
             }
             "fs" => self.st.fmt.size = if pv > 0 { Some((pv as f32 / 2.0).clamp(1.0, 1638.0)) } else { None },
             "ansicpg" => {
-                if let Some(cp) = u16::try_from(pv).ok().filter(|cp| strix_doc::encoding::is_text_code_page(*cp)) {
+                if let Some(cp) = u16::try_from(pv).ok().filter(|cp| wordcraft_doc::encoding::is_text_code_page(*cp)) {
                     self.ansicpg = cp;
                 }
             }
             // The Macintosh and IBM PC character sets: 8-bit text is Mac OS Roman, or DOS code
             // page 437 (`\pc`) or 850 (`\pca`) (#1653).
-            "mac" if self.ansicpg == 0 => self.ansicpg = strix_doc::encoding::MAC_ROMAN_CODE_PAGE,
+            "mac" if self.ansicpg == 0 => self.ansicpg = wordcraft_doc::encoding::MAC_ROMAN_CODE_PAGE,
             "pc" if self.ansicpg == 0 => self.ansicpg = 437,
             "pca" if self.ansicpg == 0 => self.ansicpg = 850,
             "deff" => self.deff = pv,
@@ -209,7 +208,7 @@ impl Reader {
             | "brdrtbl"
                 if self.cell_side.is_some() || self.st.border_side.is_some() =>
             {
-                use strix_doc::props::{Border, BorderStyle};
+                use wordcraft_doc::props::{Border, BorderStyle};
                 let style = match w {
                     "brdrnone" | "brdrnil" | "brdrtbl" => BorderStyle::None,
                     "brdrth" => BorderStyle::Thick,
@@ -418,9 +417,9 @@ impl Reader {
                 self.font_name.clear();
                 self.font_cp_cur = None;
             }
-            "fcharset" => self.font_cp_cur = strix_doc::encoding::charset_code_page(value),
+            "fcharset" => self.font_cp_cur = wordcraft_doc::encoding::charset_code_page(value),
             "cpg" => {
-                if let Some(cp) = u16::try_from(value).ok().filter(|cp| strix_doc::encoding::is_text_code_page(*cp)) {
+                if let Some(cp) = u16::try_from(value).ok().filter(|cp| wordcraft_doc::encoding::is_text_code_page(*cp)) {
                     self.font_cp_cur = Some(cp);
                 }
             }

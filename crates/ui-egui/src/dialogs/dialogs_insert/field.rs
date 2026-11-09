@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Serialize, Stroke, Tokens, Ui, Value, WordApp, buttons, json, semibold};
 
 // ---------------------------------------------------------------------------------------------
@@ -18,7 +17,7 @@ pub enum FieldKind {
     Plain,
 }
 
-/// The fields Strix computes, by category: (name, category, description).
+/// The fields WordCraft computes, by category: (name, category, description).
 pub const FIELDS: &[(&str, &str, &str)] = &[
     ("CREATEDATE", "Date and Time", "When this document was first created"),
     ("DATE", "Date and Time", "The date it is today"),
@@ -163,7 +162,7 @@ impl FieldForm {
                     .styles
                     .styles
                     .iter()
-                    .filter(|s| matches!(s.kind, strix_doc::StyleKind::Paragraph | strix_doc::StyleKind::Character) && !s.hidden)
+                    .filter(|s| matches!(s.kind, wordcraft_doc::StyleKind::Paragraph | wordcraft_doc::StyleKind::Character) && !s.hidden)
                     .map(|s| s.name.clone())
                     .collect();
                 v.sort_by_key(|n| n.to_lowercase());
@@ -248,7 +247,7 @@ impl FieldForm {
         if code.is_empty() || code.len() > 4096 {
             return None;
         }
-        let name = strix_layout::fields::field_name(&code);
+        let name = wordcraft_layout::fields::field_name(&code);
         Some(if name == "MERGEFIELD" { json!({"instr": code, "result": format!("«{}»", merge_field_name(&code))}) } else { json!({"instr": code}) })
     }
 }
@@ -341,7 +340,7 @@ fn field_options(ui: &mut Ui, f: &mut FieldForm, t: &Tokens) {
             egui::Frame::new().stroke(Stroke::new(1.0, t.border)).inner_margin(2.0).show(ui, |ui| {
                 egui::ScrollArea::vertical().id_salt("field_dates").max_height(170.0).auto_shrink([false, false]).show(ui, |ui| {
                     for pic in DATE_FORMATS {
-                        let sample = strix_engine::cmd::insert::format_date(pic);
+                        let sample = wordcraft_engine::cmd::insert::format_date(pic);
                         if ui.selectable_label(f.date_format == *pic, sample).on_hover_text(*pic).clicked() {
                             f.date_format = (*pic).to_string();
                         }

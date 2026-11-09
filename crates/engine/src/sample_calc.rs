@@ -4,8 +4,8 @@
 //! user would get by making it by hand.
 
 use serde_json::{Value, json};
-use strix_doc::props::CharProps;
-use strix_doc::{Block, Document, Paragraph, Pos, StoryRef};
+use wordcraft_doc::props::CharProps;
+use wordcraft_doc::{Block, Document, Paragraph, Pos, StoryRef};
 
 use crate::{CmdError, Selection, Session};
 
@@ -44,7 +44,7 @@ fn caret_at_end(s: &mut Session, i: usize) {
         Some(Block::Para(p)) => p.text.len(),
         _ => 0,
     };
-    s.sel = Selection::caret(Pos::new(StoryRef::Body, strix_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)]), len));
+    s.sel = Selection::caret(Pos::new(StoryRef::Body, wordcraft_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)]), len));
 }
 
 /// The first top-level paragraph whose text (objects left out, trimmed) is `text`.
@@ -52,7 +52,7 @@ fn find(s: &Session, text: &str) -> Result<usize, CmdError> {
     s.doc
         .body
         .iter()
-        .position(|b| matches!(&**b, Block::Para(p) if p.text.chars().filter(|&c| c != strix_doc::para::OBJ).collect::<String>().trim() == text))
+        .position(|b| matches!(&**b, Block::Para(p) if p.text.chars().filter(|&c| c != wordcraft_doc::para::OBJ).collect::<String>().trim() == text))
         .ok_or_else(|| CmdError::Failed(format!("template: no paragraph \"{text}\"")))
 }
 
@@ -72,7 +72,7 @@ fn calcs(s: &mut Session, lines: &[&str], answer: Option<u32>) -> Result<(), Cmd
     if let Some(q) = answer {
         // Step back onto the equation just inserted.
         let mut at = s.sel.focus.clone();
-        at.off = at.off.saturating_sub(strix_doc::para::OBJ.len_utf8());
+        at.off = at.off.saturating_sub(wordcraft_doc::para::OBJ.len_utf8());
         s.sel = Selection::caret(at);
         run(s, "equation.answer", json!({"question": q}))?;
     }
@@ -163,14 +163,14 @@ mod tests {
         let statement = t.iter().position(|x| x.starts_with("A beam of span L")).unwrap();
         let Block::Para(p) = &*d.body[statement + 1] else { panic!("no drawing paragraph") };
         let graphic = p.objects.iter().find_map(|o| match o {
-            strix_doc::para::InlineObject::Graphic { graphic, .. } if graphic.kind == strix_doc::graphic::GraphicKind::Cad => Some(graphic),
+            wordcraft_doc::para::InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad => Some(graphic),
             _ => None,
         });
         let g = graphic.expect("a CAD drawing under the statement");
         let labels: Vec<&str> = g
             .items
             .iter()
-            .filter_map(|i| if let strix_doc::graphic::GraphicItem::Text { text, .. } = i { Some(text.as_str()) } else { None })
+            .filter_map(|i| if let wordcraft_doc::graphic::GraphicItem::Text { text, .. } = i { Some(text.as_str()) } else { None })
             .collect();
         assert!(labels.iter().any(|l| l.contains("4.5") || l.contains("4,5")), "{labels:?}");
     }

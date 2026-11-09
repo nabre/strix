@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The desktop's animation setting on Linux and the BSDs.
 //!
 //! Asked of the XDG settings portal over D-Bus (`org.freedesktop.portal.Settings`), which GNOME,

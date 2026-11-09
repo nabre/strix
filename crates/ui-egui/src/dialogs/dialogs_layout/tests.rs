@@ -1,13 +1,12 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use serde_json::json;
-use strix_engine::Session;
+use wordcraft_engine::Session;
 
 use super::*;
 use crate::dialogs::Dialog;
 use crate::{Services, WordApp};
 
 fn app() -> WordApp {
-    WordApp::new(Session::new(strix_doc::Document::from_text("Dear Jo,\nThanks.")), Services::default())
+    WordApp::new(Session::new(wordcraft_doc::Document::from_text("Dear Jo,\nThanks.")), Services::default())
 }
 
 fn form(a: &mut WordApp) -> LayoutDialog {
@@ -48,7 +47,7 @@ fn line_numbers_and_hyphenation_options_apply() {
 /// command call without `start` keeps the section's start.
 #[test]
 fn page_numbers_dialog_sets_the_format_and_start() {
-    use strix_doc::section::NumFormat;
+    use wordcraft_doc::section::NumFormat;
     let mut a = app();
     a.run("ui.dialog", json!({"name": "pageNumbers"})).unwrap();
     let LayoutDialog::PageNumbers(mut f) = form(&mut a) else { panic!("page numbers") };
@@ -86,7 +85,7 @@ fn page_numbers_dialog_sets_the_format_and_start() {
     a.run("caret.end", json!({})).unwrap();
     a.run("layout.break", json!({"kind": "continuous"})).unwrap();
     a.run("caret.end", json!({})).unwrap();
-    assert_eq!(strix_engine::cmd::page::section_index_of_focus(&a.session), 1, "the caret is in the new section");
+    assert_eq!(wordcraft_engine::cmd::page::section_index_of_focus(&a.session), 1, "the caret is in the new section");
     a.run("layout.pageNumberFormat", json!({"format": "lowerRoman", "start": 9})).unwrap();
     f.follow(&a);
     assert_eq!((f.section, f.format.as_str(), f.start), (1, "lowerRoman", 9));
@@ -102,7 +101,7 @@ fn line_numbers_and_hyphenation_measure_in_the_options_unit() {
     a.run("ui.dialog", json!({"name": "lineNumbers"})).unwrap();
     let LayoutDialog::LineNumbers(f) = form(&mut a) else { panic!("line numbers") };
     assert!(!f.auto_distance);
-    let cm = 18.0 / strix_geom::PT_PER_CM;
+    let cm = 18.0 / wordcraft_geom::PT_PER_CM;
     assert!((f.distance - cm).abs() < 0.01, "distance was {} cm", f.distance);
     let sent = f.params()["distance"].as_f64().unwrap_or_default();
     assert!((sent - 18.0).abs() < 0.05, "params sent {sent} pt");
@@ -110,7 +109,7 @@ fn line_numbers_and_hyphenation_measure_in_the_options_unit() {
     a.run("layout.hyphenation", json!({"value": true, "zone": 36.0})).unwrap();
     a.run("ui.dialog", json!({"name": "hyphenation"})).unwrap();
     let LayoutDialog::Hyphenation(h) = form(&mut a) else { panic!("hyphenation") };
-    assert!((h.zone - 36.0 / strix_geom::PT_PER_CM).abs() < 0.01, "zone was {} cm", h.zone);
+    assert!((h.zone - 36.0 / wordcraft_geom::PT_PER_CM).abs() < 0.01, "zone was {} cm", h.zone);
     let sent = h.params()["zone"].as_f64().unwrap_or_default();
     assert!((sent - 36.0).abs() < 0.05, "params sent {sent} pt");
 }
@@ -141,14 +140,14 @@ fn language_dialog_reads_inherited_proofing() {
     for source in ["default", "paragraph", "character"] {
         let mut a = app();
         a.run("select.all", json!({})).unwrap();
-        let proofing = strix_doc::CharProps { lang: Some("en-GB".into()), no_proof: Some(true), ..Default::default() };
+        let proofing = wordcraft_doc::CharProps { lang: Some("en-GB".into()), no_proof: Some(true), ..Default::default() };
         match source {
             "default" => a.session.doc.styles.default_chr.overlay(&proofing),
             "paragraph" => a.session.doc.styles.styles.iter_mut().find(|s| s.id == "Normal").unwrap().chr.overlay(&proofing),
             _ => {
-                a.session.doc.styles.styles.push(strix_doc::Style {
+                a.session.doc.styles.styles.push(wordcraft_doc::Style {
                     id: "ProofingCharacter".into(),
-                    kind: strix_doc::StyleKind::Character,
+                    kind: wordcraft_doc::StyleKind::Character,
                     chr: proofing,
                     ..Default::default()
                 });
@@ -221,7 +220,7 @@ fn language_dialog_default_survives_a_restart() {
     h.get_by_label("OK").click();
     h.run_steps(3);
     let saved = serde_json::to_vec(&h.state().prefs()).unwrap();
-    let mut b = WordApp::new(Session::new(strix_doc::Document::new()), crate::Services::default());
+    let mut b = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
     b.apply_prefs(serde_json::from_slice(&saved).unwrap());
     b.logic(&egui::Context::default());
     assert_eq!(LanguageForm::read(&b).lang, "fr-FR");
@@ -251,7 +250,7 @@ fn envelope_dialog_adds_an_envelope_section() {
     let secs = a.session.doc.sections();
     assert_eq!(secs.len(), 2);
     assert!((secs[0].1.page_w - 623.6).abs() < 0.1);
-    assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).contains("Thanks."));
+    assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Thanks."));
 }
 
 /// A table `cols` wide, typed cell by cell (empty cells are skipped over); the caret ends in
@@ -273,7 +272,7 @@ fn table_app(cols: usize, cells: &[&str]) -> WordApp {
 fn fields(a: &WordApp) -> Vec<(String, String)> {
     let mut out = Vec::new();
     a.session.doc.objects_in_reading_order(&mut |o| {
-        if let strix_doc::InlineObject::Field { instr, result, .. } = o {
+        if let wordcraft_doc::InlineObject::Field { instr, result, .. } = o {
             out.push((instr.clone(), result.clone()));
         }
     });
@@ -363,7 +362,7 @@ fn split_cells_opens_its_dialog() {
     // The merged cell spans both rows; its two parts do too.
     assert_eq!(table_shape(&a), [2, 2], "merged into one cell, then split in two");
     let t = a.session.doc.body.iter().find_map(|b| b.as_table()).unwrap();
-    assert!(t.rows[1].cells.iter().all(|c| c.props.vmerge == strix_doc::props::VMerge::Continue));
+    assert!(t.rows[1].cells.iter().all(|c| c.props.vmerge == wordcraft_doc::props::VMerge::Continue));
 
     let mut a = app();
     a.run("ui.dialog", json!({"name": "splitCells"})).unwrap();
@@ -458,7 +457,7 @@ fn split_cells_defaults_follow_the_selection() {
 /// from the text, the row count follows the columns, and OK converts with the settings.
 #[test]
 fn text_to_table_opens_its_dialog() {
-    let mut a = WordApp::new(Session::new(strix_doc::Document::from_text("a\tb\tc\nd")), Services::default());
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("a\tb\tc\nd")), Services::default());
     a.run("select.all", json!({})).unwrap();
     assert_eq!(a.run("table.fromText", json!({})).unwrap(), json!({"pending": "textToTable"}));
     assert!(a.session.doc.body.iter().all(|b| b.as_table().is_none()), "nothing converted yet");
@@ -492,7 +491,7 @@ fn text_to_table_opens_its_dialog() {
     assert_eq!((f.separator.as_str(), f.columns, f.rows), ("paragraph", 1, 2), "a comma in one paragraph only");
 
     // Word opens comma text on Paragraphs too; Commas counts the columns, short lines pad.
-    let mut a = WordApp::new(Session::new(strix_doc::Document::from_text("a,b,c\nd,e,f\ng,h\ni")), Services::default());
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("a,b,c\nd,e,f\ng,h\ni")), Services::default());
     a.run("select.all", json!({})).unwrap();
     a.run("table.fromText", json!({})).unwrap();
     let LayoutDialog::TextToTable(mut f) = form(&mut a) else { panic!("text to table") };
@@ -558,7 +557,7 @@ fn labels_dialog_builds_a_sheet() {
     f.product = LABEL_PRODUCTS.iter().position(|p| p.id == "a4-3x8").unwrap();
     let r = a.session.run("mailings.labels", &f.params()).unwrap();
     assert_eq!(r["labels"], 24);
-    assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).matches("Ada Lovelace").count(), 24);
+    assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).matches("Ada Lovelace").count(), 24);
     f.single = true;
     (f.row, f.col) = (3, 2);
     assert_eq!(a.session.run("mailings.labels", &f.params()).unwrap()["filled"], 1);
@@ -570,18 +569,18 @@ fn png_data(w: u32, h: u32) -> String {
     let img = image::RgbaImage::from_pixel(w, h, image::Rgba([200, 30, 30, 255]));
     let mut png = Vec::new();
     img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
-    strix_engine::cmd::insert::base64_encode(&png)
+    wordcraft_engine::cmd::insert::base64_encode(&png)
 }
 
 /// An app with a `w`×`h` pixel picture, inserted and selected as by Insert › Pictures.
 fn picture_app(w: u32, h: u32) -> WordApp {
-    let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
     a.run("insert.picture", json!({"data": png_data(w, h)})).unwrap();
     a
 }
 
 fn selected_size(a: &WordApp) -> (f32, f32) {
-    let (_, o) = strix_engine::cmd::objects::selected(&a.session).unwrap();
+    let (_, o) = wordcraft_engine::cmd::objects::selected(&a.session).unwrap();
     o.frame().map(|(w, h, _)| (w, h)).unwrap()
 }
 

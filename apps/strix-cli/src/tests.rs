@@ -98,7 +98,7 @@ fn usage_lists_exactly_the_subcommands() {
 
 #[test]
 fn text_keeps_bullet_and_number_labels() {
-    let doc = strix_engine::io::open_bytes("lists.md", b"- alpha\n- beta\n\n1. first\n2. second\n").unwrap();
+    let doc = wordcraft_engine::io::open_bytes("lists.md", b"- alpha\n- beta\n\n1. first\n2. second\n").unwrap();
     assert_eq!(listed_text(&doc).unwrap(), "\u{2022}\talpha\n\u{2022}\tbeta\n1.\tfirst\n2.\tsecond");
 }
 
@@ -106,7 +106,7 @@ fn text_keeps_bullet_and_number_labels() {
 fn author_flag_names_the_headless_session() {
     assert!(validate_options("run", &args(&["--author", "Claude (copyedit)", "--cmd", "edit.undo"]), RUN_OPTIONS).is_ok());
     assert!(validate_options("mcp", &args(&["--author", "Claude"]), MCP_OPTIONS).is_ok());
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     assert!(set_author(&mut s, " Claude (copyedit) ").is_ok());
     assert_eq!(s.author, "Claude (copyedit)");
     assert!(set_author(&mut s, "   ").is_err_and(|e| e.starts_with("--author:")));
@@ -117,7 +117,7 @@ fn author_flag_names_the_headless_session() {
     assert!(run(&args(&["mcp", "--connect", "127.0.0.1:notaport"])).is_err_and(|e| e.to_string().contains("numeric port")));
     assert!(run(&args(&["mcp", "--connect", "notaport"])).is_err_and(|e| e.to_string().contains("numeric port")));
     // The flag goes through the same protection check as the command.
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     s.run("review.restrict", &json!({"mode": "readOnly"})).unwrap();
     let before = s.author.clone();
     assert!(set_author(&mut s, "Claude").is_err());
@@ -127,9 +127,9 @@ fn author_flag_names_the_headless_session() {
 
 #[test]
 fn author_flag_cannot_claim_a_named_exception_after_protection() {
-    use strix_doc::{CharProps, InlineObject, StoryRef};
+    use wordcraft_doc::{CharProps, InlineObject, StoryRef};
 
-    let mut s = Session::new(strix_doc::Document::from_text("Named exception."));
+    let mut s = Session::new(wordcraft_doc::Document::from_text("Named exception."));
     let end = s.doc.end_of(StoryRef::Body);
     s.doc.insert_object(&end, InlineObject::PermEnd { id: 1 }, &CharProps::default()).unwrap();
     let start = s.doc.start_of(StoryRef::Body);
@@ -163,7 +163,7 @@ fn automation_root_flags_are_taken_out_of_the_mcp_arguments() {
     let (roots, _) = automation_roots("mcp", &args(&["--automation-read-root", &read])).unwrap();
     let roots = roots.unwrap();
     assert!(roots.write_root().is_none());
-    assert!(roots.check(&format!("{write}/x.docx"), strix_engine::file_access::Access::Write).unwrap_err().contains("write authority is absent"));
+    assert!(roots.check(&format!("{write}/x.docx"), wordcraft_engine::file_access::Access::Write).unwrap_err().contains("write authority is absent"));
 
     // No flags: nothing is confined and the arguments pass through.
     let (roots, left) = automation_roots("mcp", &args(&["--connect", "127.0.0.1:9"])).unwrap();

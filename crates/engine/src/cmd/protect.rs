@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Restrict Editing (Review › Protect, #412): editing restrictions (read only, comments, tracked
 //! changes, filling in forms), formatting limited to a selection of styles, exceptions — ranges
 //! everyone may still edit (`w:permStart w:edGrp="everyone"`) — and an optional password that
-//! guards Stop Protection (ECMA-376 §17.15.1.29; the hash is in `strix_docx`).
+//! guards Stop Protection (ECMA-376 §17.15.1.29; the hash is in `wordcraft_docx`).
 //!
 //! Enforcement lives in [`crate::Session::run`]: [`check_before`] refuses commands the
 //! restrictions forbid outright, and while exceptions exist [`outside_unchanged`] checks after the
@@ -10,9 +9,9 @@
 
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use strix_doc::para::{InlineObject, OBJ};
-use strix_doc::props::{CellProps, CharProps, RowProps, TableProps};
-use strix_doc::{Block, Blocks, Document, Path, PermRange, Pos, StoryRef};
+use wordcraft_doc::para::{InlineObject, OBJ};
+use wordcraft_doc::props::{CellProps, CharProps, RowProps, TableProps};
+use wordcraft_doc::{Block, Blocks, Document, Path, PermRange, Pos, StoryRef};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
@@ -122,7 +121,7 @@ fn restrict(s: &mut Session, v: &Value) -> CmdResult {
         return stop_protection(s, "");
     }
     let hash = match p::str(v, "password").filter(|p| !p.is_empty()) {
-        Some(pw) => strix_docx::protection_hash(pw, strix_docx::DEFAULT_SPIN_COUNT).map_err(|e| CmdError::Params(e.to_string()))?,
+        Some(pw) => wordcraft_docx::protection_hash(pw, wordcraft_docx::DEFAULT_SPIN_COUNT).map_err(|e| CmdError::Params(e.to_string()))?,
         None => Vec::new(),
     };
     let st = &mut s.doc.settings;
@@ -136,16 +135,16 @@ fn restrict(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// The error Stop Protection reports when the document's password hash uses an algorithm or form
-/// Strix can't check; the protection stays on.
+/// WordCraft can't check; the protection stays on.
 pub const UNSUPPORTED_PASSWORD: &str = "This password type isn't supported";
 
 /// Stop Protection: with the document's password when it has one. The password is checked like
 /// Word checks it — the current hash form and the legacy one (ECMA-376 Part 4 §14.8.1); a hash
-/// Strix can't check refuses ([`UNSUPPORTED_PASSWORD`]) rather than unlocking.
+/// WordCraft can't check refuses ([`UNSUPPORTED_PASSWORD`]) rather than unlocking.
 fn stop_protection(s: &mut Session, password: &str) -> CmdResult {
     if enforced(&s.doc) {
-        use strix_docx::PasswordCheck;
-        match strix_docx::check_protection_password(&s.doc.settings.protect_hash, password) {
+        use wordcraft_docx::PasswordCheck;
+        match wordcraft_docx::check_protection_password(&s.doc.settings.protect_hash, password) {
             PasswordCheck::NoPassword | PasswordCheck::Correct => {}
             PasswordCheck::Incorrect if password.is_empty() => {
                 return Err(CmdError::Params("type the document's password to stop protection".into()));
@@ -470,7 +469,7 @@ fn sources_unchanged(before: &Document, after: &Document) -> bool {
 }
 
 /// The section properties paragraphs end, in order.
-fn sections(doc: &Document) -> Vec<&strix_doc::SectionProps> {
+fn sections(doc: &Document) -> Vec<&wordcraft_doc::SectionProps> {
     doc.para_paths(StoryRef::Body).iter().filter_map(|path| doc.para(StoryRef::Body, path)?.section.as_deref()).collect()
 }
 
@@ -480,7 +479,7 @@ fn sections(doc: &Document) -> Vec<&strix_doc::SectionProps> {
 enum Piece {
     Text(String, CharProps),
     Object(Option<InlineObject>),
-    Mark(Box<strix_doc::ParaProps>, CharProps),
+    Mark(Box<wordcraft_doc::ParaProps>, CharProps),
     /// Tables nested deeper than the paragraph walk reaches, compared as a whole.
     Deep(String),
     Table(Box<TableProps>, Vec<f32>),

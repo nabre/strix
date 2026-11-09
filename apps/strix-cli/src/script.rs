@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! `run --script FILE`: commands read from a JSON file (`-` is stdin), so a job can be kept in a
 //! file instead of a long chain of `--cmd` flags (#1963).
 //!

@@ -5,7 +5,7 @@
 
 Choose **File › Options › Interface language › Magyar**, or follow a Hungarian system display
 language (`hu-HU`, `hu_HU.UTF-8`). The catalog code is `hu`; `ui.language` with `{"value":"hu"}`
-selects it explicitly, and `STRIX_LANGUAGE=hu-HU` does the same for a headless screenshot or a
+selects it explicitly, and `WORDCRAFT_LANGUAGE=hu-HU` does the same for a headless screenshot or a
 launch while the preference is `auto`. The choice is saved with the other interface settings.
 Document text, command ids, CLI/MCP/control responses and file paths do not change.
 
@@ -59,7 +59,7 @@ acute capitals.
 
 ## Verification and remaining scope
 
-`cargo test -p strix-ui-egui --lib i18n::tests` covers Hungarian locale tags and preference
+`cargo test -p wordcraft-ui-egui --lib i18n::tests` covers Hungarian locale tags and preference
 order, saving and restoring `hu`, unchanged document content and the glyphs `ÁáÉéÍíÓóÖöŐőÚúÜüŰű` in
 the bundled Inter (Regular, Medium, SemiBold) and JetBrains Mono. The shared checks (catalog validation and the missing-translation report, `cargo xtask i18n-report`)
 include Hungarian automatically.

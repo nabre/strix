@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Keyboard: typing, editing keys and command shortcuts (the user's custom keys from Customize
 //! Keyboard first, then the registry's `shortcut` fields).
 
@@ -6,7 +5,7 @@ use egui::{Key, Modifiers};
 use serde_json::{Value, json};
 
 use crate::WordApp;
-use strix_engine::ImeEditOutcome;
+use wordcraft_engine::ImeEditOutcome;
 
 mod alt_code;
 mod canvas;

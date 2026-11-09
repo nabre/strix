@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! References dialogs (#402): Caption (with New Label and Numbering), Cross-reference (#916),
 //! Index and Mark Index Entry, Custom Table of Contents (with Options and the TOC styles), Table of
 //! Figures (#3013), and the Source Manager with Create / Edit Source. Each fills a form from the
@@ -10,8 +9,8 @@
 use egui::{Sense, Ui, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
-use strix_doc::{Block, Source, StyleKind};
-use strix_engine::cmd::references::FieldCode;
+use wordcraft_doc::{Block, Source, StyleKind};
+use wordcraft_engine::cmd::references::FieldCode;
 
 use crate::WordApp;
 use crate::dialogs::{Dialog, buttons};

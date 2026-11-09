@@ -23,10 +23,10 @@
 
 use egui::{Color32, Painter, Pos2, Rect, Ui};
 use serde_json::json;
-use strix_doc::para::{InlineObject, OBJ, Wrap};
-use strix_doc::{PartKind, Pos, StoryRef};
-use strix_layout::DocLayout;
-use strix_layout::hit::ObjectHit;
+use wordcraft_doc::para::{InlineObject, OBJ, Wrap};
+use wordcraft_doc::{PartKind, Pos, StoryRef};
+use wordcraft_layout::DocLayout;
+use wordcraft_layout::hit::ObjectHit;
 
 use crate::WordApp;
 use crate::frame::{self, Drag, Grab};
@@ -75,7 +75,7 @@ fn connector_ends(app: &WordApp, layout: &DocLayout) -> Option<(ObjectHit, (f32,
     }
     let (flip_h, flip_v) = (float.flip_h, float.flip_v);
     let o = layout.object(&pos, app.session.page_hint)?;
-    let (a, b) = strix_doc::connector::ends(o.rect.x, o.rect.y, o.rect.w, o.rect.h, flip_h, flip_v);
+    let (a, b) = wordcraft_doc::connector::ends(o.rect.x, o.rect.y, o.rect.w, o.rect.h, flip_h, flip_v);
     Some((o, a, b))
 }
 
@@ -99,12 +99,12 @@ fn connector_end_at(app: &WordApp, layout: &DocLayout, pages: &[Rect], scale: f3
 /// The selected object: the selection is exactly one picture, shape or text box, in the body
 /// or in a header/footer.
 pub fn selected(app: &WordApp) -> Option<(Pos, &InlineObject)> {
-    strix_engine::cmd::objects::object_selection(&app.session).filter(|(p, _)| selectable_story(app, p.story))
+    wordcraft_engine::cmd::objects::object_selection(&app.session).filter(|(p, _)| selectable_story(app, p.story))
 }
 
 /// Whether the selected object is a CAD drawing.
 pub(crate) fn selected_cad(app: &WordApp) -> bool {
-    selected(app).is_some() && strix_engine::cmd::cad::is_selected(&app.session)
+    selected(app).is_some() && wordcraft_engine::cmd::cad::is_selected(&app.session)
 }
 
 /// Whether objects of `story` can be selected and dragged on the canvas: the body and
@@ -128,7 +128,7 @@ fn active_story(app: &WordApp, layout: &DocLayout) -> StoryRef {
     }
 }
 
-/// Whether the object under `hit` keeps its place and size: a chart or diagram Strix has no
+/// Whether the object under `hit` keeps its place and size: a chart or diagram WordCraft has no
 /// model for can be selected and deleted, not moved or resized, so it gets no handles, no move
 /// cursor and no drag.
 fn fixed(app: &WordApp, hit: &ObjectHit) -> bool {
@@ -136,7 +136,7 @@ fn fixed(app: &WordApp, hit: &ObjectHit) -> bool {
     matches!(app.session.doc.para_at(&pos).and_then(|p| p.object_at(pos.off)), Some(InlineObject::Graphic { .. })) && !size_only(app, hit)
 }
 
-/// Whether the object under `hit` is a chart or SmartArt that Strix can edit: it takes
+/// Whether the object under `hit` is a chart or SmartArt that WordCraft can edit: it takes
 /// resize handles and is laid out again at the new size, but it can't be moved or turned.
 fn size_only(app: &WordApp, hit: &ObjectHit) -> bool {
     let pos = hit.pos();
@@ -166,7 +166,7 @@ pub fn active(app: &WordApp, layout: &DocLayout) -> Option<(ObjectHit, bool)> {
     }
 }
 
-fn screen(pages: &[Rect], scale: f32, page: usize, r: strix_geom::Rect) -> Option<Rect> {
+fn screen(pages: &[Rect], scale: f32, page: usize, r: wordcraft_geom::Rect) -> Option<Rect> {
     pages.get(page).map(|p| frame::to_screen(*p, scale, r))
 }
 
@@ -277,7 +277,7 @@ pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, pages: &[Rect]
     let grabbed = grab_at(app, layout, pages, scale, at).or_else(|| pressed.then(|| behind_drag_at(app, layout, pages, scale, at)).flatten());
     let Some((object, grab)) = grabbed else { return false };
     // Double-click a SmartArt graphic (selected by the first click) to edit its text.
-    if resp.double_clicked() && strix_engine::cmd::smart_art::selected_smart_art(&app.session).is_some() {
+    if resp.double_clicked() && wordcraft_engine::cmd::smart_art::selected_smart_art(&app.session).is_some() {
         let _ = app.run("smartArt.textPane", json!({"value": true}));
         return true;
     }
@@ -291,7 +291,7 @@ pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, pages: &[Rect]
     }
     if pressed && grab == Grab::Move && object.behind() && behind_draggable(app, &object) {
         let (min, picture) = match app.session.doc.para_at(&object.pos()).and_then(|p| p.object_at(object.pos().off)) {
-            Some(o) => (strix_engine::cmd::objects::min_size(o), matches!(o, InlineObject::Image { .. })),
+            Some(o) => (wordcraft_engine::cmd::objects::min_size(o), matches!(o, InlineObject::Image { .. })),
             None => return false,
         };
         app.canvas.obj_drag = Some(ObjectDrag {
@@ -313,7 +313,7 @@ pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, pages: &[Rect]
         let end = Pos { off: pos.off + OBJ.len_utf8(), ..pos.clone() };
         let _ = app.run("select.range", json!({"anchor": pos, "focus": end}));
         let (min, picture) = match selected(app) {
-            Some((_, o)) => (strix_engine::cmd::objects::min_size(o), matches!(o, InlineObject::Image { .. })),
+            Some((_, o)) => (wordcraft_engine::cmd::objects::min_size(o), matches!(o, InlineObject::Image { .. })),
             None => return true,
         };
         // Objects in table cells can be selected and resized, not moved; charts neither.
@@ -375,13 +375,13 @@ fn snap_move(layout: &DocLayout, d: &mut ObjectDrag, scale: f32) {
 }
 
 /// The page's own width, without the comment balloons' markup area.
-fn paper_width(pg: &strix_layout::Page) -> f32 {
+fn paper_width(pg: &wordcraft_layout::Page) -> f32 {
     (pg.w - pg.markup).max(0.0)
 }
 
 /// The bounds of the floating objects on `pg` that `me` can snap to: all but itself and, for a
 /// text box, the objects in its text (they move with it).
-fn snap_targets(pg: &strix_layout::Page, me: &ObjectHit) -> Vec<strix_geom::Rect> {
+fn snap_targets(pg: &wordcraft_layout::Page, me: &ObjectHit) -> Vec<wordcraft_geom::Rect> {
     let pos = me.pos();
     let own = me.text_box.map(StoryRef::Part);
     pg.items
@@ -389,7 +389,7 @@ fn snap_targets(pg: &strix_layout::Page, me: &ObjectHit) -> Vec<strix_geom::Rect
         .chain(&pg.header)
         .chain(&pg.footer)
         .filter_map(|it| match it {
-            strix_layout::Placed::Object { rect, spin, story, path, off, wrap, .. }
+            wordcraft_layout::Placed::Object { rect, spin, story, path, off, wrap, .. }
                 if *wrap != Wrap::Inline && !(*story == pos.story && *path == pos.path && *off == pos.off) && Some(*story) != own =>
             {
                 Some(spin.bounds(*rect))
@@ -421,7 +421,7 @@ fn link_click(app: &mut WordApp, layout: &DocLayout, pages: &[Rect], scale: f32,
         return;
     }
     let target = crate::canvas::page_at(pages, layout, scale, at).and_then(|(page, x, y)| {
-        layout.find_object(page, |o| o.page == page && o.text_box.is_some() && o.rect.contains(strix_geom::Point::new(x, y)))
+        layout.find_object(page, |o| o.page == page && o.text_box.is_some() && o.rect.contains(wordcraft_geom::Point::new(x, y)))
     });
     let Some(target) = target else {
         app.status(tl!("Not linked: click a text box"));
@@ -443,7 +443,7 @@ pub fn select_at(app: &mut WordApp, layout: &DocLayout, pages: &[Rect], scale: f
     let Some((object, _)) = grab_at(app, layout, pages, scale, at) else { return false };
     let pos = object.pos();
     // Already selected (alone or among several picked for Group): keep the selection.
-    if !strix_engine::cmd::objects::picked_objects(&app.session).contains(&pos) {
+    if !wordcraft_engine::cmd::objects::picked_objects(&app.session).contains(&pos) {
         let end = Pos { off: pos.off + OBJ.len_utf8(), ..pos.clone() };
         let _ = app.run("select.range", json!({"anchor": pos, "focus": end}));
     }
@@ -533,9 +533,15 @@ fn preview(app: &WordApp, ctx: &egui::Context, layout: &DocLayout, o: &ObjectHit
     let page = layout.pages.get(o.page)?;
     let mut opts = crate::canvas::screen_render_options();
     opts.dark = app.session.view.dark_mode;
-    let items = strix_layout::display::object_display(&app.session.doc, page, obj, o.rect, o.text_box, &opts.display);
+    let items = wordcraft_layout::display::object_display(&app.session.doc, page, obj, o.rect, o.text_box, &opts.display);
     let b = o.bounds();
-    let img = strix_render::render_items(&app.session.doc, &items, strix_geom::Rect::new(b.x, b.y, b.w, b.h), scale * ctx.pixels_per_point(), &opts);
+    let img = wordcraft_render::render_items(
+        &app.session.doc,
+        &items,
+        wordcraft_geom::Rect::new(b.x, b.y, b.w, b.h),
+        scale * ctx.pixels_per_point(),
+        &opts,
+    );
     let ci = egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &img.to_straight());
     Some(ctx.load_texture("object-drag", ci, egui::TextureOptions::LINEAR))
 }
@@ -616,7 +622,7 @@ pub fn paint(app: &WordApp, painter: &Painter, t: &Tokens, layout: &DocLayout, p
                 let mut mesh = egui::Mesh::with_texture(tex.id());
                 let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                 mesh.add_rect_with_uv(bounds, uv, Color32::from_white_alpha(PREVIEW_OPACITY));
-                let delta = strix_geom::normalize_degrees(d.drag.deg - d.object.spin.deg);
+                let delta = wordcraft_geom::normalize_degrees(d.drag.deg - d.object.spin.deg);
                 mesh.rotate(egui::emath::Rot2::from_angle(delta.to_radians()), to.center());
                 painter.add(egui::Shape::mesh(mesh));
             }
@@ -629,7 +635,7 @@ pub fn paint(app: &WordApp, painter: &Painter, t: &Tokens, layout: &DocLayout, p
             // A turned object's pixels fill its rotated bounds, which move with it.
             let r = d.object.bounds();
             let (dx, dy) = (d.drag.rect.x - d.drag.start.x, d.drag.rect.y - d.drag.start.y);
-            let moved = strix_geom::Rect::new(r.x + dx, r.y + dy, r.w, r.h);
+            let moved = wordcraft_geom::Rect::new(r.x + dx, r.y + dy, r.w, r.h);
             let to = if d.object.spin.is_identity() { to } else { screen(pages, scale, d.drag.to_page, moved).unwrap_or(to) };
             let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
             painter.image(tex.id(), to, uv, Color32::from_white_alpha(PREVIEW_OPACITY));
@@ -661,7 +667,7 @@ pub fn paint(app: &WordApp, painter: &Painter, t: &Tokens, layout: &DocLayout, p
 fn paint_drop_caret(d: &ObjectDrag, painter: &Painter, layout: &DocLayout, pages: &[Rect], scale: f32) {
     let Some((pos, color)) = &d.drop_at else { return };
     let Some(c) = layout.caret_on(pos, d.drag.to_page) else { return };
-    let Some(r) = screen(pages, scale, c.page, strix_geom::Rect::new(c.x, c.top, 0.0, c.height)) else { return };
+    let Some(r) = screen(pages, scale, c.page, wordcraft_geom::Rect::new(c.x, c.top, 0.0, c.height)) else { return };
     painter.extend(egui::Shape::dashed_line(&[r.left_top(), r.left_bottom()], egui::Stroke::new(1.5, *color), 2.0, 2.0));
 }
 
@@ -671,11 +677,11 @@ fn paint_end_drag(app: &WordApp, d: &ObjectDrag, painter: &Painter, t: &Tokens, 
     let Some((which, at)) = d.end.filter(|_| d.drag.moved) else { return };
     let Some((_, a, b)) = connector_ends(app, layout) else { return };
     let fixed = if which { a } else { b };
-    let snap = strix_engine::cmd::connectors::SNAP;
+    let snap = wordcraft_engine::cmd::connectors::SNAP;
     let mut best: Option<((f32, f32), f32)> = None;
     if let Some(pg) = layout.pages.get(d.object.page) {
         for it in &pg.items {
-            let strix_layout::Placed::Object { rect, spin, story: StoryRef::Body, path, off, .. } = it else { continue };
+            let wordcraft_layout::Placed::Object { rect, spin, story: StoryRef::Body, path, off, .. } = it else { continue };
             let pos = Pos { story: StoryRef::Body, path: path.clone(), off: *off };
             let Some(InlineObject::Shape { kind, .. }) = app.session.doc.para_at(&pos).and_then(|p| p.object_at(pos.off)) else { continue };
             if kind.is_connector() || pos == d.object.pos() {
@@ -686,8 +692,8 @@ fn paint_end_drag(app: &WordApp, d: &ObjectDrag, painter: &Painter, t: &Tokens, 
             if at.0 < rect.x - 4.0 * snap || at.0 > rect.right() + 4.0 * snap || at.1 < rect.y - 4.0 * snap || at.1 > rect.bottom() + 4.0 * snap {
                 continue;
             }
-            for (i, _) in strix_doc::connector::sites(*kind, rect.w, rect.h).iter().enumerate() {
-                let Some(p) = strix_doc::connector::site_point(*kind, r, *spin, i as u32) else { continue };
+            for (i, _) in wordcraft_doc::connector::sites(*kind, rect.w, rect.h).iter().enumerate() {
+                let Some(p) = wordcraft_doc::connector::site_point(*kind, r, *spin, i as u32) else { continue };
                 let dist = ((p.0 - at.0).powi(2) + (p.1 - at.1).powi(2)).sqrt();
                 if let Some(c) = point_on_screen(pages, scale, d.object.page, p) {
                     painter.circle_stroke(c, 3.5, egui::Stroke::new(1.0, t.accent));

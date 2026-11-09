@@ -1,5 +1,5 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! `strix --help` and `-h` print the options and exit without opening a window (#968).
+//! `wordcraft --help` and `-h` print the options and exit without opening a window (#968).
 
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
@@ -10,8 +10,8 @@ fn app(flag: &str) -> Output {
         // With no display, an app that tries to open a window fails at once instead.
         .env_remove("DISPLAY")
         .env_remove("WAYLAND_DISPLAY")
-        .env_remove("STRIX_CONTROL_PORT")
-        .env("STRIX_NO_PREFS", "1")
+        .env_remove("WORDCRAFT_CONTROL_PORT")
+        .env("WORDCRAFT_NO_PREFS", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -21,7 +21,7 @@ fn app(flag: &str) -> Output {
     while child.try_wait().unwrap().is_none() {
         if Instant::now() > deadline {
             let _ = child.kill();
-            panic!("strix {flag} was still running after 30 s: it started the app");
+            panic!("wordcraft {flag} was still running after 30 s: it started the app");
         }
         std::thread::sleep(Duration::from_millis(50));
     }

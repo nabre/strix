@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::builder::block_kind;
 use super::lexer::{Lexer, Tok};
 
@@ -33,7 +32,7 @@ pub(super) fn read_math(lx: &mut Lexer, name: String, attrs: Vec<(String, String
             }
             Tok::Start { name, attrs, self_close } => {
                 let el = El { name, attrs, children: Vec::new() };
-                if self_close || stack.len() > strix_doc::math::MAX_DEPTH {
+                if self_close || stack.len() > wordcraft_doc::math::MAX_DEPTH {
                     if let Some(top) = stack.last_mut() {
                         top.children.push(Item::El(el));
                     }

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{
     Arc, BTreeMap, Blocks, Comment, DocxError, El, HashMap, HashSet, MAX_PARTS, MAX_SOURCES, MAX_TEMPLATE_PATH, NoteKind, NumFormat, Paragraph,
     PartKind, Reader, Rels, Seen, StoryCtx, Zoom, ZoomFit, int, math, on_off, para_block, props, tw, u32_of,
@@ -343,7 +342,7 @@ pub(crate) const PROTECTION_HASH_ATTRS: [&str; 16] = [
 /// Restrict Editing (`w:documentProtection`, §17.15.1.29): the editing restriction, whether
 /// formatting is limited to unlocked styles, and the password hash. Only enforced protection is
 /// kept; a hostile attribute value can't be longer than a hash needs.
-fn read_protection(k: &El, s: &mut strix_doc::Settings) {
+fn read_protection(k: &El, s: &mut wordcraft_doc::Settings) {
     let on = |v: &str| !matches!(v, "0" | "false" | "off");
     if !k.attr("w:enforcement").is_some_and(on) {
         return;

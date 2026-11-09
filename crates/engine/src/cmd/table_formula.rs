@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Table formulas (Table Layout › Data › Formula): `=SUM(ABOVE)`, cell references and ranges
 //! (`=SUM(B2:B4)`, `=A1*2`), arithmetic, and the functions Word offers in tables. A formula field
 //! is re-evaluated by Update Field (F9), so its result follows the cells it reads.
@@ -9,8 +8,8 @@
 //! the numbers are summed up to the next cell that holds none. A function needs its arguments:
 //! `=SUM()` is a syntax error, as it is in Word.
 
-use strix_doc::table::{MAX_COLS, MAX_ROWS};
-use strix_doc::{Cell, Table};
+use wordcraft_doc::table::{MAX_COLS, MAX_ROWS};
+use wordcraft_doc::{Cell, Table};
 
 use crate::CmdError;
 
@@ -31,7 +30,7 @@ pub fn evaluate(t: &Table, r: usize, c: usize, formula: &str) -> Result<f64, Cmd
 
 pub fn evaluate_with(
     t: &Table,
-    doc: Option<&strix_doc::Document>,
+    doc: Option<&wordcraft_doc::Document>,
     default_lang: Option<&str>,
     r: usize,
     c: usize,
@@ -56,7 +55,7 @@ pub fn evaluate_with(
 
 /// The text a formula result shows: a whole number as is, otherwise two decimals.
 pub fn format_result(v: f64) -> String {
-    strix_doc::locale_number::format_number(v, None)
+    wordcraft_doc::locale_number::format_number(v, None)
 }
 
 /// The text a formula field shows: its result under its `\#` numeric picture when it has one (see
@@ -68,7 +67,7 @@ pub fn evaluate_field(t: &Table, r: usize, c: usize, instr: &str) -> Result<Stri
 
 pub fn evaluate_field_with(
     t: &Table,
-    doc: Option<&strix_doc::Document>,
+    doc: Option<&wordcraft_doc::Document>,
     default_lang: Option<&str>,
     r: usize,
     c: usize,
@@ -97,7 +96,7 @@ pub fn evaluate_field_with(
                     })
                 })
                 .or_else(|| default_lang.map(str::to_string));
-            strix_doc::locale_number::format_number(value, out_lang.as_deref())
+            wordcraft_doc::locale_number::format_number(value, out_lang.as_deref())
         }
     };
     Ok(match switch {
@@ -113,27 +112,27 @@ pub fn evaluate_field_with(
 /// for CardText and OrdText. `\* Hex` writes a whole number from 0 to 4,294,967,295 in uppercase
 /// hexadecimal digits. `\* DollarText` writes a result from 0 to 999,999.99 in lowercase cardinal
 /// text with its first two decimals (rounded) over 100 (see
-/// [`strix_layout::fields::dollar_text`]). Any other result keeps its digits. The capitalization
+/// [`wordcraft_layout::fields::dollar_text`]). Any other result keeps its digits. The capitalization
 /// switches (`\* Upper`, `\* Lower`, `\* Caps`, `\* FirstCap`) then apply to the text in order. Other
 /// `\*` switches leave the text as it is. Quoted text, such as a `\#` picture, is not a switch.
 fn format_switches(switches: &str, value: f64, text: String) -> String {
-    use strix_doc::section::NumFormat;
+    use wordcraft_doc::section::NumFormat;
     let unquoted = switches.split('"').step_by(2).collect::<Vec<_>>().join(" ");
-    let fmt = strix_layout::fields::format_switch(&unquoted).filter(|f| *f != NumFormat::Decimal);
+    let fmt = wordcraft_layout::fields::format_switch(&unquoted).filter(|f| *f != NumFormat::Decimal);
     match fmt {
         Some(NumFormat::DollarText) => {
-            let text = strix_layout::fields::dollar_text(value).unwrap_or(text);
-            strix_layout::fields::apply_case_switch(switches, text)
+            let text = wordcraft_layout::fields::dollar_text(value).unwrap_or(text);
+            wordcraft_layout::fields::apply_case_switch(switches, text)
         }
-        Some(fmt) if number_format_covers(fmt, value) => strix_layout::fields::field_number(switches, fmt, value as u32),
-        _ => strix_layout::fields::apply_case_switch(switches, text),
+        Some(fmt) if number_format_covers(fmt, value) => wordcraft_layout::fields::field_number(switches, fmt, value as u32),
+        _ => wordcraft_layout::fields::apply_case_switch(switches, text),
     }
 }
 
 /// Whether the `\*` number format `fmt` writes `value`: a whole number up to 999,999 for CardText
 /// and OrdText, 1 to 50,000 for roman, 1 to 780 for alphabetic, and 0 to `u32::MAX` otherwise.
-pub(crate) fn number_format_covers(fmt: strix_doc::section::NumFormat, value: f64) -> bool {
-    use strix_doc::section::NumFormat;
+pub(crate) fn number_format_covers(fmt: wordcraft_doc::section::NumFormat, value: f64) -> bool {
+    use wordcraft_doc::section::NumFormat;
     let range = match fmt {
         NumFormat::CardinalText | NumFormat::OrdinalText => 0.0..=999_999.0,
         NumFormat::LowerRoman | NumFormat::UpperRoman => 1.0..=50_000.0,
@@ -236,7 +235,7 @@ pub fn parse_number(text: &str, lang: Option<&str>) -> Option<f64> {
         Some(inner) => (inner.trim(), true),
         None => (t, false),
     };
-    if let Some(x) = strix_doc::locale_number::parse_number(t, lang) {
+    if let Some(x) = wordcraft_doc::locale_number::parse_number(t, lang) {
         let x = if negative { -x.abs() } else { x };
         return x.is_finite().then_some(x);
     }
@@ -537,7 +536,7 @@ fn cell_ref(name: &str) -> Option<(usize, usize)> {
 /// Where the formula's cell sits.
 struct Here<'a> {
     t: &'a Table,
-    doc: Option<&'a strix_doc::Document>,
+    doc: Option<&'a wordcraft_doc::Document>,
     default_lang: Option<&'a str>,
     r: usize,
     c: usize,
@@ -822,7 +821,7 @@ mod tests {
         for (r, row) in rows.iter().enumerate() {
             for (c, text) in row.iter().enumerate() {
                 if let Some(cl) = t.rows.get_mut(r).and_then(|x| x.cells.get_mut(c)) {
-                    cl.blocks = vec![strix_doc::para_block(strix_doc::Paragraph::with_text(text, Default::default()))];
+                    cl.blocks = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text(text, Default::default()))];
                 }
             }
         }

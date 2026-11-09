@@ -1,7 +1,7 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! File › Options (#485): a list of panes on the left (General, Display, Proofing, Save,
 //! Language, Accessibility, Advanced, Agents), the chosen pane's settings on the right. Only
-//! settings Strix carries out are shown. Each pane is one function below, so a new setting
+//! settings WordCraft carries out are shown. Each pane is one function below, so a new setting
 //! goes into its pane's function. Settings agents can change too go through `file.options`; the
 //! rest live in [`crate::UiState`] (saved in `ui.json`).
 
@@ -11,8 +11,8 @@ use egui::{RichText, Ui, vec2};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
-use strix_engine::cmd::options::{MAX_WORD_CHARS, PANES};
-use strix_geom::Unit;
+use wordcraft_engine::cmd::options::{MAX_WORD_CHARS, PANES};
+use wordcraft_geom::Unit;
 
 use crate::WordApp;
 use crate::theme::{Tokens, semibold};
@@ -73,7 +73,7 @@ pub fn parse_length(text: &str, unit: Unit) -> Option<f64> {
             break;
         }
     }
-    strix_geom::parse_measure(&text, unit).map(|pt| f64::from(pt / unit.pt_per_unit()))
+    wordcraft_geom::parse_measure(&text, unit).map(|pt| f64::from(pt / unit.pt_per_unit()))
 }
 
 /// Copy the session's settings the UI reads without the app.
@@ -240,7 +240,7 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
     egui::Grid::new("options_user").num_columns(2).spacing(vec2(8.0, 6.0)).show(ui, |ui| {
         let user_label = ui.label(tl!("User name:"));
         let mut n = app.session.author.clone();
-        let protected = strix_engine::cmd::protect::enforced(&app.session.doc);
+        let protected = wordcraft_engine::cmd::protect::enforced(&app.session.doc);
         if ui.add_enabled(!protected, egui::TextEdit::singleline(&mut n).desired_width(260.0)).labelled_by(user_label.id).changed() && !protected {
             app.session.author = n;
         }
@@ -249,7 +249,9 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
         let mut i = app.session.initials.clone();
         let hint = app.session.user_initials();
         if ui
-            .add(egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(strix_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint))
+            .add(
+                egui::TextEdit::singleline(&mut i).desired_width(80.0).char_limit(wordcraft_engine::cmd::options::MAX_INITIALS_CHARS).hint_text(hint),
+            )
             .labelled_by(initials_label.id)
             .changed()
         {
@@ -318,7 +320,7 @@ fn proofing(app: &mut WordApp, ui: &mut Ui) {
 
 /// Where the spelling dictionaries come from (#1063): a folder searched before the system's
 /// usual places, saved with the settings, and the dictionary each language found. An app started
-/// from Finder or the Dock doesn't see `STRIX_DICTIONARIES`, so this is how it finds a
+/// from Finder or the Dock doesn't see `WORDCRAFT_DICTIONARIES`, so this is how it finds a
 /// dictionary kept in a folder of the user's own.
 fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
     let saved = app.session.prefs.dictionaries_folder.clone().unwrap_or_default();
@@ -349,15 +351,15 @@ fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
     note(ui, "Hunspell .aff and .dic files here (pl_PL, pt_BR, it_IT, hr_HR, tr_TR) are used before the system's.");
     // The dictionary each language found, looked up again after the folder changes.
     let found_id = egui::Id::unique("options_dictionaries_found");
-    let generation = strix_engine::proof::dictionary_generation();
+    let generation = wordcraft_engine::proof::dictionary_generation();
     let cached = ui.data(|d| d.get_temp::<(u64, Vec<(String, Option<String>, Option<String>)>)>(found_id)).filter(|(g, _)| *g == generation);
     let found = match cached {
         Some((_, f)) => f,
         None => {
-            let f: Vec<(String, Option<String>, Option<String>)> = strix_engine::proof::installed_dictionaries()
+            let f: Vec<(String, Option<String>, Option<String>)> = wordcraft_engine::proof::installed_dictionaries()
                 .into_iter()
                 .map(|(lang, dic)| {
-                    let error = strix_engine::proof::dictionary_load_error(lang);
+                    let error = wordcraft_engine::proof::dictionary_load_error(lang);
                     (language_name(lang).to_string(), dic.map(|d| d.to_string_lossy().into_owned()), error)
                 })
                 .collect();
@@ -378,8 +380,8 @@ fn dictionaries(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The interface name of a language with a Hunspell dictionary.
-fn language_name(lang: strix_engine::proof::ProofLang) -> &'static str {
-    use strix_engine::proof::ProofLang;
+fn language_name(lang: wordcraft_engine::proof::ProofLang) -> &'static str {
+    use wordcraft_engine::proof::ProofLang;
     match lang {
         ProofLang::Pl => tl!("Polish"),
         ProofLang::Pt => tl!("Portuguese (Brazil)"),
@@ -401,7 +403,7 @@ fn language_name(lang: strix_engine::proof::ProofLang) -> &'static str {
 /// The custom dictionary: the words Add to Dictionary kept, each with a Remove button, and a
 /// field to add one.
 fn custom_dictionary(app: &mut WordApp, ui: &mut Ui) {
-    let words = strix_engine::proof::user_dictionary();
+    let words = wordcraft_engine::proof::user_dictionary();
     if words.is_empty() {
         note(ui, "No words yet. Add to Dictionary on a misspelled word puts it here.");
     }
@@ -489,7 +491,7 @@ fn language(app: &mut WordApp, ui: &mut Ui) {
 
 /// Draws Accessibility options: the animation setting and Read Aloud speed and skip-citations.
 fn accessibility(app: &mut WordApp, ui: &mut Ui) {
-    use strix_engine::speech::{MAX_RATE, MIN_RATE};
+    use wordcraft_engine::speech::{MAX_RATE, MIN_RATE};
     section(ui, "Visual effects");
     animations_picker(app, ui);
     ui.add_space(8.0);
@@ -811,7 +813,7 @@ fn overlay<T: DeserializeOwned>(
     }
 }
 
-/// File ▸ Options ▸ General: make Strix the default app for Word documents (#295). Only where
+/// File ▸ Options ▸ General: make WordCraft the default app for Word documents (#295). Only where
 /// the host can (`Services::make_default_app`: Windows opens Default apps, Linux and BSD use
 /// `xdg-mime`); macOS shows how to do it in Finder, the web shows nothing.
 fn default_app_button(app: &mut WordApp, ui: &mut Ui) {
@@ -837,7 +839,7 @@ fn default_app_button(app: &mut WordApp, ui: &mut Ui) {
 /// File ▸ Options ▸ Numerals: how digits look on screen (display only, like Word's
 /// File › Options › Advanced › Numeral).
 fn numeral_picker(app: &mut WordApp, ui: &mut Ui) {
-    use strix_layout::NumeralMode;
+    use wordcraft_layout::NumeralMode;
     ui.horizontal(|ui| {
         let label = ui.label(tl!("Numerals:"));
         let mut sel = app.session.view.numeral;

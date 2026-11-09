@@ -20,8 +20,8 @@
 //! Word and LibreOffice is not yet verified. Linux and the BSDs have no Word, and arboard can't
 //! add MIME types of other names, so there the HTML carries the MathML alone.
 
-use strix_engine::cmd::paste::MAX_PASTE_BYTES;
-use strix_ui_egui::paste_picture::ClipboardPicture;
+use wordcraft_engine::cmd::paste::MAX_PASTE_BYTES;
+use wordcraft_ui_egui::paste_picture::ClipboardPicture;
 
 fn open() -> Option<arboard::Clipboard> {
     arboard::Clipboard::new().map_err(|e| log::warn!("clipboard: {e}")).ok()
@@ -195,14 +195,14 @@ mod platform {
         }
         let offered = formats();
         let mime = super::PICTURE_MIMES.into_iter().find(|m| offered.iter().any(|o| o == m))?;
-        read(mime, strix_ui_egui::paste_picture::MAX_FILE_BYTES)
+        read(mime, wordcraft_ui_egui::paste_picture::MAX_FILE_BYTES)
     }
 }
 
 #[cfg(target_os = "windows")]
 mod platform {
     use clipboard_win::{Clipboard, EnumFormats, raw};
-    use strix_ui_egui::paste_picture::{self, ClipboardPicture};
+    use wordcraft_ui_egui::paste_picture::{self, ClipboardPicture};
 
     pub fn formats() -> Vec<String> {
         let Ok(_open) = Clipboard::new_attempts(10) else { return Vec::new() };

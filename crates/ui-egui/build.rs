@@ -12,7 +12,7 @@
 //!
 //! - The interface catalogs in this repository's `locales/` (vendored from storytold/craft-i18n at
 //!   the SHA in `locales/craft-i18n.rev`, then maintained here): `craft_i18n.rs` holds `CRAFT_I18N`, one
-//!   (locale, shared catalog, Strix catalog) entry per locale that has a `strix.tsv`.
+//!   (locale, shared catalog, Strix catalog) entry per locale that has a `wordcraft.tsv`.
 //!   `CRAFT_I18N_DIR` points at another folder with the same `locales/` layout instead. A missing
 //!   folder gives an empty table (a warning) and an English-only interface; with
 //!   `CRAFT_I18N_REQUIRED=1` (releases) that is an error instead.
@@ -39,8 +39,8 @@ fn main() {
     }
 }
 
-/// The catalog this app reads in each locale: `locales/<locale>/strix.tsv`.
-const APP_CATALOG: &str = "strix.tsv";
+/// The catalog this app reads in each locale: `locales/<locale>/wordcraft.tsv`.
+const APP_CATALOG: &str = "wordcraft.tsv";
 
 /// `CRAFT_I18N` from `locales/` (or `CRAFT_I18N_DIR`): the `Embedded` list the craft-i18n crate reads.
 fn craft_i18n() -> String {

@@ -1,20 +1,19 @@
-# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "strix-render"
+name = "wordcraft-render"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Strix rasteriser: pages and thumbnails from the layout display list (vello_cpu), PNG/JPEG export"
+description = "WordCraft rasteriser: pages and thumbnails from the layout display list (vello_cpu), PNG/JPEG export"
 
 [lints]
 workspace = true
 
 [dependencies]
-strix-geom = { workspace = true, features = ["image"] }
-strix-doc = { workspace = true }
-strix-fonts = { workspace = true }
-strix-layout = { workspace = true }
-strix-metafile = { workspace = true }
+wordcraft-geom = { workspace = true, features = ["image"] }
+wordcraft-doc = { workspace = true }
+wordcraft-fonts = { workspace = true }
+wordcraft-layout = { workspace = true }
+wordcraft-metafile = { workspace = true }
 vello_cpu = { workspace = true }
 image = { workspace = true }
 log = { workspace = true }

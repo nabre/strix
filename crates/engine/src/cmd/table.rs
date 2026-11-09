@@ -1,11 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Table Design and Table Layout tabs.
 
 use super::table_formula::parse_number;
 use serde_json::{Value, json};
-use strix_doc::collate::{SortKey, sort_key};
-use strix_doc::props::{Align, Border, BorderStyle, Borders, HeightRule, Rgb, TextDirection, VAlign};
-use strix_doc::{Block, Document, InlineObject, Paragraph, Path, Pos, RevisionKind, StoryRef, Table, para_block};
+use wordcraft_doc::collate::{SortKey, sort_key};
+use wordcraft_doc::props::{Align, Border, BorderStyle, Borders, HeightRule, Rgb, TextDirection, VAlign};
+use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Path, Pos, RevisionKind, StoryRef, Table, para_block};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -184,7 +183,7 @@ pub fn specs() -> Vec<CommandSpec> {
             }
             let set = |x: Option<&str>, cur: &Option<String>| match x {
                 Some(x) if x.trim().is_empty() => None,
-                Some(x) => Some(strix_doc::para::cap_alt(x)),
+                Some(x) => Some(wordcraft_doc::para::cap_alt(x)),
                 None => cur.clone(),
             };
             with_table(s, |t| {

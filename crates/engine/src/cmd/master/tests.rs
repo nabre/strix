@@ -15,17 +15,17 @@ fn dir(name: &str) -> std::path::PathBuf {
 
 /// A Strix document at `path` with these paragraphs.
 fn file(path: &std::path::Path, text: &str) {
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     run(&mut s, "document.setText", json!({"text": text}));
     run(&mut s, "file.saveAs", json!({"path": path.to_str().unwrap()}));
 }
 
 fn text_of(path: &std::path::Path) -> String {
-    crate::io::open_path(path).unwrap().plain_text(strix_doc::StoryRef::Body)
+    crate::io::open_path(path).unwrap().plain_text(wordcraft_doc::StoryRef::Body)
 }
 
 fn body(s: &Session) -> String {
-    s.doc.plain_text(strix_doc::StoryRef::Body)
+    s.doc.plain_text(wordcraft_doc::StoryRef::Body)
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn edits_in_the_master_go_back_to_the_subdocument_file() {
     let (ch1, ch2, book) = (d.join("ch1.xmath"), d.join("ch2.xmath"), d.join("book.xmath"));
     file(&ch1, "Chapter one\nFirst text");
     file(&ch2, "Chapter two\nSecond text");
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     run(&mut s, "document.setText", json!({"text": "Book"}));
     run(&mut s, "caret.docEnd", json!({}));
     run(&mut s, "master.insertSubdocument", json!({"path": ch1.to_str().unwrap()}));
@@ -58,7 +58,7 @@ fn edits_in_the_master_go_back_to_the_subdocument_file() {
 
     // Change chapter two on its own; reopening the master shows it.
     file(&ch2, "Chapter two\nChanged alone");
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     run(&mut s, "file.open", json!({"path": book.to_str().unwrap()}));
     let t = body(&s);
     assert!(t.contains("Changed alone") && t.contains("Edited in the book") && !t.contains("Second text"), "{t:?}");
@@ -76,7 +76,7 @@ fn changes_on_both_sides_are_a_conflict_not_an_overwrite() {
     let d = dir("conflict");
     let ch = d.join("ch.xmath");
     file(&ch, "Original");
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     run(&mut s, "master.insertSubdocument", json!({"path": ch.to_str().unwrap()}));
     run(&mut s, "select.text", json!({"text": "Original"}));
     run(&mut s, "text.insert", json!({"text": "Master side"}));
@@ -98,7 +98,7 @@ fn changes_on_both_sides_are_a_conflict_not_an_overwrite() {
 fn create_makes_a_file_of_the_selected_paragraphs() {
     let d = dir("create");
     let ch = d.join("part");
-    let mut s = Session::new(strix_doc::Document::new());
+    let mut s = Session::new(wordcraft_doc::Document::new());
     run(&mut s, "document.setText", json!({"text": "Intro\nMoved one\nMoved two\nEnd"}));
     run(&mut s, "select.text", json!({"text": "Moved one"}));
     run(&mut s, "caret.paraDown", json!({"extend": true}));

@@ -37,7 +37,7 @@ static EN_US_PAT: &str = include_str!("../../../assets/hyphenation/en-us.pat");
 static PL_PAT: &str = include_str!("../../../assets/hyphenation/pl.pat");
 /// hyph-utf8's `hyph-pt.tex`, unmodified (its BSD 3-clause header is in the file).
 static PT_PAT: &str = include_str!("../../../assets/hyphenation/pt.pat");
-/// hyph-utf8's `hyph-it.tex`, unmodified (offered under MIT or LPPL; Strix uses MIT, whose
+/// hyph-utf8's `hyph-it.tex`, unmodified (offered under MIT or LPPL; WordCraft uses MIT, whose
 /// notice is in the file's header).
 static IT_PAT: &str = include_str!("../../../assets/hyphenation/it.pat");
 /// hyph-utf8's `hyph-de-1996.tex` (reformed spelling), unmodified (MIT; the notice is in the
@@ -136,7 +136,7 @@ fn core_breaks(core: &[char], lang: ProofLang) -> (Vec<usize>, Source) {
         return core_breaks_pl(core);
     }
     // Bulgarian words follow the Bulgarian syllable rules; Latin-script words in a Bulgarian run
-    // (`Strix`, `email`) are hyphenated as English, as in any other language.
+    // (`WordCraft`, `email`) are hyphenated as English, as in any other language.
     if lang == ProofLang::Bg && core.iter().all(|&c| crate::bg::is_letter(c)) {
         return (crate::bg::points(core), Source::Rules);
     }

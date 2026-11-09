@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::autocorrect::{AUTOCORRECT, AutoCap, AutoCorrectPrefs, SMILEYS};
 use super::{CmdError, Pos, Selection, Session};
 
@@ -84,7 +83,7 @@ pub fn autocorrect_word(s: &mut Session, on_enter: bool) -> Result<(), CmdError>
     }
     // A whole-word replacement, else "wait..." → "wait…". Proofing decides what is English the
     // same way (#835); every English (en-GB, en-CA…) counts (#1281).
-    let english = s.doc.para_at(&f).is_none_or(|_| strix_proof::ProofLang::from_tag(lang.as_deref()).is_english());
+    let english = s.doc.para_at(&f).is_none_or(|_| wordcraft_proof::ProofLang::from_tag(lang.as_deref()).is_english());
     let found = if ac.replace_text { ac.replacement_in(&word, english) } else { None };
     let (from, rep) = match found {
         Some(r) => (start, Some(r)),
@@ -113,7 +112,7 @@ pub fn autocorrect_word(s: &mut Session, on_enter: bool) -> Result<(), CmdError>
     let at = |off: usize| Pos { off, ..f.clone() };
     // 1st, 22nd, 103rd → superscript suffix.
     if let Some(n) = ordinal_suffix(&word).filter(|_| ac.ordinals) {
-        s.doc.format_range(&at(end - n), &at(end), &|c| c.vert_align = Some(strix_doc::props::VertAlign::Superscript))?;
+        s.doc.format_range(&at(end - n), &at(end), &|c| c.vert_align = Some(wordcraft_doc::props::VertAlign::Superscript))?;
         return Ok(());
     }
     // Web addresses become links (trailing punctuation stays outside).
@@ -196,7 +195,7 @@ fn prev_token(before: &str) -> String {
 
 /// Turkish, Azerbaijani (and Crimean Tatar) map `i`/`İ` and `ı`/`I` as pairs (#1923).
 pub(crate) fn is_turkic(lang: Option<&str>) -> bool {
-    if strix_proof::ProofLang::from_tag(lang) == strix_proof::ProofLang::Tr {
+    if wordcraft_proof::ProofLang::from_tag(lang) == wordcraft_proof::ProofLang::Tr {
         return true; // tr, tur, any region, same normalisation as proofing
     }
     let Some(tag) = lang.map(str::trim) else { return false };
@@ -269,7 +268,7 @@ fn case_fix(caps: &AutoCorrectPrefs, word: &str, turkic: bool) -> Option<(usize,
 /// [`autocorrect_word`]): the two marks are removed and the text between them is made bold or
 /// italic, for plain and complex-script text. Returns the closing mark's formatting, which is
 /// the formatting outside the span, when anything changed.
-pub fn emphasis_autoformat(s: &mut Session, on_enter: bool) -> Result<Option<strix_doc::props::CharProps>, CmdError> {
+pub fn emphasis_autoformat(s: &mut Session, on_enter: bool) -> Result<Option<wordcraft_doc::props::CharProps>, CmdError> {
     let Some((open, close, bold)) = emphasis_at_caret(s, on_enter) else { return Ok(None) };
     let f = s.sel.focus.clone();
     let para = s.doc.para_mut(f.story, &f.path)?;
@@ -338,7 +337,7 @@ fn emphasis_span(text: &str) -> Option<(usize, usize, bool)> {
     if !edge_ok(inner.chars().next())
         || !edge_ok(inner.chars().next_back())
         || !inner.chars().any(char::is_alphanumeric)
-        || inner.contains(strix_doc::para::OBJ)
+        || inner.contains(wordcraft_doc::para::OBJ)
     {
         return None;
     }

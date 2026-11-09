@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The piece table ([MS-DOC] `Clx`/`Pcdt`/`PlcPcd`): where every character position lives in
 //! the WordDocument stream, and how it is encoded.
 
-use strix_doc::encoding::cp1252;
+use wordcraft_doc::encoding::cp1252;
 
 use crate::DocbinError;
 

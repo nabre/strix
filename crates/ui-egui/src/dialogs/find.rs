@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Serialize, Ui, Value, WordApp, json};
 
 /// The Find and Replace dialog's search options beyond the first row (#543).
@@ -154,7 +153,7 @@ pub(super) fn swallow_shortcut_text(swallow: &mut bool, e: &egui::Event) -> bool
 
 /// Search's filter: every word of the query is in the command's label, location or id, in English
 /// or in the interface language, so "insert table" finds Insert › Tables › Table (#819).
-pub(super) fn command_matches(c: &strix_engine::CommandSpec, query: &str) -> bool {
+pub(super) fn command_matches(c: &wordcraft_engine::CommandSpec, query: &str) -> bool {
     if query.trim().is_empty() {
         return false;
     }

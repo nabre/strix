@@ -22,7 +22,7 @@ pub fn user_dictionaries_dir() -> Option<PathBuf> {
     if cfg!(target_arch = "wasm32") {
         return None;
     }
-    if let Some(d) = strix_control_key::portable_dir() {
+    if let Some(d) = wordcraft_control_key::portable_dir() {
         return Some(d.join("dictionaries"));
     }
     let var = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);

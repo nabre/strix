@@ -1,18 +1,17 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! A small "flow" model every text format maps to and from: paragraphs with a kind (heading,
 //! quote, code…), list membership, alignment and formatted inline spans; tables of cells holding
 //! blocks. [`to_doc`] and [`from_doc`] convert between it and the full [`Document`].
 
 use std::sync::Arc;
 
-use strix_doc::numbering::{AbstractNum, Level, ListKind, Num, levels_for};
-use strix_doc::para::{InlineObject, OBJ, PAGE_BREAK, RubyAlign, Run, ruby_raise};
-use strix_doc::props::{
+use wordcraft_doc::numbering::{AbstractNum, Level, ListKind, Num, levels_for};
+use wordcraft_doc::para::{InlineObject, OBJ, PAGE_BREAK, RubyAlign, Run, ruby_raise};
+use wordcraft_doc::props::{
     Border, BorderStyle, Borders, CellProps, CharProps, NumRef, ParaProps, PropChange, RowProps, TextColor, Underline, VAlign, VMerge, VertAlign,
 };
-use strix_doc::section::NumFormat;
-use strix_doc::styles::{Style, StyleKind};
-use strix_doc::{Align, Block, Blocks, Document, Paragraph, Revision, RevisionKind, Rgb, Table, para_block};
+use wordcraft_doc::section::NumFormat;
+use wordcraft_doc::styles::{Style, StyleKind};
+use wordcraft_doc::{Align, Block, Blocks, Document, Paragraph, Revision, RevisionKind, Rgb, Table, para_block};
 
 mod color;
 mod from_doc;

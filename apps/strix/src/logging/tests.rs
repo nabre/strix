@@ -1,11 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, UNIX_EPOCH};
 
 fn temp_dir(tag: &str) -> PathBuf {
     static N: AtomicUsize = AtomicUsize::new(0);
-    let d = std::env::temp_dir().join(format!("strix-logging-{tag}-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+    let d = std::env::temp_dir().join(format!("wordcraft-logging-{tag}-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
     let _ = std::fs::remove_dir_all(&d);
     d
 }
@@ -15,12 +14,12 @@ fn read(path: &Path) -> String {
 }
 
 #[test]
-fn the_default_filter_shows_strix_info_and_other_crates_warnings() {
+fn the_default_filter_shows_wordcraft_info_and_other_crates_warnings() {
     let f = Filter::parse(DEFAULT_FILTER);
-    assert_eq!(f.level_for("strix"), LevelFilter::Info);
-    assert_eq!(f.level_for("strix::control_server"), LevelFilter::Info);
-    assert_eq!(f.level_for("strix_docx::package"), LevelFilter::Info);
-    assert_eq!(f.level_for("strix_ui_egui"), LevelFilter::Info);
+    assert_eq!(f.level_for("wordcraft"), LevelFilter::Info);
+    assert_eq!(f.level_for("wordcraft::control_server"), LevelFilter::Info);
+    assert_eq!(f.level_for("wordcraft_docx::package"), LevelFilter::Info);
+    assert_eq!(f.level_for("wordcraft_ui_egui"), LevelFilter::Info);
     assert_eq!(f.level_for("wgpu_core::device"), LevelFilter::Warn);
     assert_eq!(f.level_for("naga"), LevelFilter::Warn);
     assert_eq!(f.max(), LevelFilter::Info);
@@ -28,23 +27,23 @@ fn the_default_filter_shows_strix_info_and_other_crates_warnings() {
 
 #[test]
 fn directives_follow_env_logger_and_the_most_specific_one_wins() {
-    let f = Filter::parse("info,wgpu_core=error,strix_pdf=trace,strix_pdf::fonts=off");
+    let f = Filter::parse("info,wgpu_core=error,wordcraft_pdf=trace,wordcraft_pdf::fonts=off");
     assert_eq!(f.level_for("eframe"), LevelFilter::Info);
     assert_eq!(f.level_for("wgpu_core::instance"), LevelFilter::Error);
-    assert_eq!(f.level_for("strix_pdf::images"), LevelFilter::Trace);
-    assert_eq!(f.level_for("strix_pdf::fonts"), LevelFilter::Off);
+    assert_eq!(f.level_for("wordcraft_pdf::images"), LevelFilter::Trace);
+    assert_eq!(f.level_for("wordcraft_pdf::fonts"), LevelFilter::Off);
     assert_eq!(f.max(), LevelFilter::Trace);
     // A module name is matched at `::` boundaries, not as a bare prefix.
     assert_eq!(f.level_for("wgpu_core_extra"), LevelFilter::Info);
     // A trailing `*` is a prefix.
-    assert_eq!(Filter::parse("strix*=debug").level_for("strix_layout::lines"), LevelFilter::Debug);
-    assert_eq!(Filter::parse("strix*=debug").level_for("eframe"), LevelFilter::Error);
+    assert_eq!(Filter::parse("wordcraft*=debug").level_for("wordcraft_layout::lines"), LevelFilter::Debug);
+    assert_eq!(Filter::parse("wordcraft*=debug").level_for("eframe"), LevelFilter::Error);
     // A bare target name sets that target to the most verbose level, as env_logger does.
     assert_eq!(Filter::parse("naga").level_for("naga::front"), LevelFilter::Trace);
     assert_eq!(Filter::parse("naga").level_for("eframe"), LevelFilter::Error);
     // Levels are case-insensitive and surrounding blanks are ignored.
-    assert_eq!(Filter::parse(" WARN , strix = Debug ").level_for("strix"), LevelFilter::Debug);
-    assert_eq!(Filter::parse(" WARN , strix = Debug ").level_for("eframe"), LevelFilter::Warn);
+    assert_eq!(Filter::parse(" WARN , wordcraft = Debug ").level_for("wordcraft"), LevelFilter::Debug);
+    assert_eq!(Filter::parse(" WARN , wordcraft = Debug ").level_for("eframe"), LevelFilter::Warn);
 }
 
 #[test]
@@ -57,29 +56,29 @@ fn hostile_specs_never_panic_and_fall_back_sensibly() {
         "=",
         "==",
         "=debug",
-        "strix=",
+        "wordcraft=",
         "nonsense=loud",
         "🦀=info",
         "*",
         "*=",
         "=*",
         "a=b=c",
-        "warn,,strix=DEBUG",
+        "warn,,wordcraft=DEBUG",
         "\0",
         "é::ü=trace",
         &long,
         &many,
     ] {
         let f = Filter::parse(spec);
-        for target in ["", "strix", "🦀", "a::b", "*"] {
+        for target in ["", "wordcraft", "🦀", "a::b", "*"] {
             let _ = f.level_for(target);
         }
         let _ = f.max();
     }
-    assert_eq!(Filter::parse("warn,,strix=DEBUG").level_for("strix"), LevelFilter::Debug);
+    assert_eq!(Filter::parse("warn,,wordcraft=DEBUG").level_for("wordcraft"), LevelFilter::Debug);
     // An unknown level is skipped: that target keeps the default.
     assert_eq!(Filter::parse("nonsense=loud").level_for("nonsense"), LevelFilter::Error);
-    assert_eq!(Filter::parse("strix=").level_for("strix"), LevelFilter::Error);
+    assert_eq!(Filter::parse("wordcraft=").level_for("wordcraft"), LevelFilter::Error);
     assert_eq!(Filter::parse("=debug").max(), LevelFilter::Error);
     assert_eq!(Filter::parse("🦀=info").level_for("🦀::claw"), LevelFilter::Info);
 }
@@ -115,8 +114,8 @@ fn timestamps_are_utc_with_milliseconds() {
 #[test]
 fn a_line_carries_time_level_thread_target_and_message() {
     assert_eq!(
-        format_line("2026-10-08T07:59:17.728Z", log::Level::Warn, "main", "strix_docx::package", "skipping unreadable zip entry 3"),
-        "2026-10-08T07:59:17.728Z WARN  [main] strix_docx::package: skipping unreadable zip entry 3\n"
+        format_line("2026-10-08T07:59:17.728Z", log::Level::Warn, "main", "wordcraft_docx::package", "skipping unreadable zip entry 3"),
+        "2026-10-08T07:59:17.728Z WARN  [main] wordcraft_docx::package: skipping unreadable zip entry 3\n"
     );
     // A multi-line message keeps its lines; the record still ends in one newline.
     assert!(format_line("t", log::Level::Error, "w", "x", "a\nb\n").ends_with("x: a\nb\n"));
@@ -132,9 +131,9 @@ fn rotation_keeps_the_previous_logs_and_starts_an_empty_file() {
         std::fs::write(&path, format!("run {run}")).expect("write");
     }
     assert_eq!(read(&dir.join(LOG_FILE)), "run 4");
-    assert_eq!(read(&dir.join("strix.1.log")), "run 3");
-    assert_eq!(read(&dir.join("strix.2.log")), "run 2");
-    assert!(!dir.join("strix.3.log").exists(), "only {KEEP} old logs are kept");
+    assert_eq!(read(&dir.join("wordcraft.1.log")), "run 3");
+    assert_eq!(read(&dir.join("wordcraft.2.log")), "run 2");
+    assert!(!dir.join("wordcraft.3.log").exists(), "only {KEEP} old logs are kept");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -223,24 +222,24 @@ fn the_logger_filters_records_and_writes_them_to_the_attached_file() {
     let record = |level, target: &'static str, msg: &'static str| {
         logger.log(&log::Record::builder().level(level).target(target).args(format_args!("{msg}")).build());
     };
-    record(log::Level::Info, "strix", "before the settings directory");
+    record(log::Level::Info, "wordcraft", "before the settings directory");
     record(log::Level::Info, "wgpu_core::device", "too chatty");
     let path = logger.attach_dir(&dir).expect("attach");
     assert_eq!(path, dir.join(LOG_FILE));
     record(log::Level::Warn, "wgpu_hal::vulkan", "a real warning");
-    record(log::Level::Error, "strix_render", "PNG encode: bad size 0×0");
-    record(log::Level::Debug, "strix", "below info");
+    record(log::Level::Error, "wordcraft_render", "PNG encode: bad size 0×0");
+    record(log::Level::Debug, "wordcraft", "below info");
     let text = read(&path);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 3, "{text}");
-    assert!(lines[0].contains(" INFO  [") && lines[0].ends_with("strix: before the settings directory"), "{text}");
+    assert!(lines[0].contains(" INFO  [") && lines[0].ends_with("wordcraft: before the settings directory"), "{text}");
     assert!(lines[1].ends_with("wgpu_hal::vulkan: a real warning"), "{text}");
-    assert!(lines[2].contains(" ERROR [") && lines[2].ends_with("strix_render: PNG encode: bad size 0×0"), "{text}");
-    assert!(logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("strix_ui_egui").build()));
+    assert!(lines[2].contains(" ERROR [") && lines[2].ends_with("wordcraft_render: PNG encode: bad size 0×0"), "{text}");
+    assert!(logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("wordcraft_ui_egui").build()));
     assert!(!logger.enabled(&log::Metadata::builder().level(log::Level::Info).target("naga").build()));
     // Attaching again rotates: the first log becomes `.1`.
     logger.attach_dir(&dir).expect("attach again");
-    assert_eq!(read(&dir.join("strix.1.log")), text);
+    assert_eq!(read(&dir.join("wordcraft.1.log")), text);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -255,7 +254,7 @@ fn records_from_many_threads_are_whole_lines() {
             let l = std::sync::Arc::clone(&logger);
             std::thread::spawn(move || {
                 for i in 0..100 {
-                    l.log(&log::Record::builder().level(log::Level::Info).target("strix").args(format_args!("thread {t} record {i}")).build());
+                    l.log(&log::Record::builder().level(log::Level::Info).target("wordcraft").args(format_args!("thread {t} record {i}")).build());
                 }
             })
         })
@@ -265,7 +264,7 @@ fn records_from_many_threads_are_whole_lines() {
     }
     let text = read(&path);
     assert_eq!(text.lines().count(), 800);
-    assert!(text.lines().all(|l| l.contains(" strix: thread ")), "{text}");
+    assert!(text.lines().all(|l| l.contains(" wordcraft: thread ")), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -299,8 +298,8 @@ fn a_poisoned_sink_still_logs() {
     .join();
     assert!(logger.sink.is_poisoned());
     let path = logger.attach_dir(&dir).expect("attach");
-    logger.log(&log::Record::builder().level(log::Level::Warn).target("strix").args(format_args!("after the poison")).build());
-    assert!(read(&path).contains("strix: after the poison"));
+    logger.log(&log::Record::builder().level(log::Level::Warn).target("wordcraft").args(format_args!("after the poison")).build());
+    assert!(read(&path).contains("wordcraft: after the poison"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

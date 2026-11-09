@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use strix_cad::{Anchor, Drawing, Entity, Prim, Rendered};
-use strix_doc::InlineObject;
-use strix_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
-use strix_doc::para::Float;
-use strix_doc::props::Rgb;
+use wordcraft_doc::InlineObject;
+use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
+use wordcraft_doc::para::Float;
+use wordcraft_doc::props::Rgb;
 
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 
@@ -80,7 +80,7 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
 
 /// The selected CAD drawing for the editor: where it is, the drawing with its coordinates'
 /// values worked out where it sits, and how it renders (with its paper origin and scale).
-pub fn edited(s: &Session) -> Option<(strix_doc::Pos, Drawing, Rendered, Vec<String>)> {
+pub fn edited(s: &Session) -> Option<(wordcraft_doc::Pos, Drawing, Rendered, Vec<String>)> {
     let (pos, obj) = super::objects::selected(s)?;
     let InlineObject::Graphic { graphic, .. } = obj else { return None };
     if graphic.kind != GraphicKind::Cad {
@@ -114,7 +114,7 @@ pub fn edited_drawing(s: &Session) -> Option<Drawing> {
 }
 
 /// The selected object, when it is a CAD drawing: where it is and its source.
-fn selected_source(s: &Session) -> Option<(strix_doc::Pos, Arc<str>)> {
+fn selected_source(s: &Session) -> Option<(wordcraft_doc::Pos, Arc<str>)> {
     let (pos, obj) = super::objects::selected(s)?;
     match obj {
         InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Cad => Some((pos, graphic.cad.clone().unwrap_or_else(|| "".into()))),
@@ -134,13 +134,13 @@ pub fn is_selected(s: &Session) -> bool {
 }
 
 /// The selected CAD drawing: where it is and its source, read.
-pub fn selected_drawing(s: &Session) -> Option<(strix_doc::Pos, Drawing)> {
+pub fn selected_drawing(s: &Session) -> Option<(wordcraft_doc::Pos, Drawing)> {
     selected_source(s).map(|(pos, src)| (pos, Drawing::from_json(&src).unwrap_or_default()))
 }
 
 /// The selected CAD drawing to change: an error, not an empty drawing, when its source can't be
 /// read (changing it would replace the drawing with a blank one).
-fn drawing_to_change(s: &Session) -> Result<(strix_doc::Pos, Drawing), CmdError> {
+fn drawing_to_change(s: &Session) -> Result<(wordcraft_doc::Pos, Drawing), CmdError> {
     let (pos, src) = selected_source(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
     let d = Drawing::from_json(&src).map_err(|e| CmdError::Failed(format!("the drawing can't be read: {e}")))?;
     Ok((pos, d))
@@ -163,7 +163,7 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
 }
 
 /// Stores `d` as the selected drawing's source, then redraws.
-fn store(s: &mut Session, pos: &strix_doc::Pos, d: &Drawing) -> Result<(), CmdError> {
+fn store(s: &mut Session, pos: &wordcraft_doc::Pos, d: &Drawing) -> Result<(), CmdError> {
     let para = s.doc.para_mut(pos.story, &pos.path)?;
     let Some(InlineObject::Graphic { graphic, .. }) = para.object_at_mut(pos.off) else {
         return Err(CmdError::Failed("the drawing vanished".into()));
@@ -287,10 +287,10 @@ const SUB_SCALE: f32 = 0.7;
 
 /// How wide `text` is at `size` points in `family` (italic or not), shaped as the page draws it.
 fn measure(family: &str, italic: bool, text: &str, size: f32) -> f32 {
-    let resolved = strix_fonts::word::resolve(family, false, italic);
+    let resolved = wordcraft_fonts::word::resolve(family, false, italic);
     let face = resolved.face.get();
     let k = size / face.upem.max(1.0) as f32;
-    strix_fonts::shape(face, text, &[], |c| c).iter().map(|g| g.x_advance as f32 * k).sum()
+    wordcraft_fonts::shape(face, text, &[], |c| c).iter().map(|g| g.x_advance as f32 * k).sum()
 }
 
 /// The graphic items of a rendered drawing (points from its top-left corner) and its size. A
@@ -452,7 +452,7 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strix_doc::{Block, Document};
+    use wordcraft_doc::{Block, Document};
 
     fn session() -> Session {
         let mut s = Session::new(Document::new());
@@ -518,7 +518,7 @@ mod tests {
         // 4.5 m at 1:50 is 90 mm of paper, plus margins.
         assert!((94.0..100.0).contains(&(w / PT_PER_MM)), "{w}");
         // Changing L redraws it.
-        s.sel = Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         s.run("equation.set", &json!({"linear": "L = 6 m"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
         let (w, _, g) = drawing(&s).unwrap();
@@ -549,7 +549,7 @@ mod tests {
         assert!(editable(&s));
         assert_eq!(end(&s), 4.5);
         assert_eq!(end(&s), 4.5, "asked again");
-        s.sel = Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         assert!(!editable(&s), "the caret is not on a drawing");
         s.run("equation.set", &json!({"linear": "L = 6 m"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
@@ -574,7 +574,7 @@ mod tests {
         assert!(w / PT_PER_MM <= 160.0 + 1e-3);
         // L = 9 m: the next scale that fits.
         let sel = s.sel.clone();
-        s.sel = Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         s.run("equation.set", &json!({"linear": "L = 9 m"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
         s.sel = sel;
@@ -608,8 +608,8 @@ mod tests {
         let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
         let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
         let wrapped = back.body.iter().any(|b| {
-            matches!(&**b, strix_doc::Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { float, graphic, .. }
-                if graphic.kind == GraphicKind::Cad && float.wrap == strix_doc::para::Wrap::Square)))
+            matches!(&**b, wordcraft_doc::Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { float, graphic, .. }
+                if graphic.kind == GraphicKind::Cad && float.wrap == wordcraft_doc::para::Wrap::Square)))
         });
         assert!(wrapped, "the wrap survives saving");
     }
@@ -698,7 +698,7 @@ mod tests {
         // The equation goes (the first paragraph's text and objects).
         let Block::Para(p) = Arc::make_mut(&mut s.doc.body[0]) else { panic!() };
         let at = p.text.char_indices().map(|(i, _)| i).find(|&i| matches!(p.object_at(i), Some(InlineObject::Equation { .. }))).unwrap();
-        p.delete(at, at + strix_doc::para::OBJ.len_utf8()).unwrap();
+        p.delete(at, at + wordcraft_doc::para::OBJ.len_utf8()).unwrap();
         p.touch();
         s.touch();
         crate::cmd::calc::auto_recalculate(&mut s);

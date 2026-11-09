@@ -5149,16 +5149,16 @@ dependencies = [
  "pollster 1.0.1",
  "rfd",
  "serde_json",
- "strix-control-key",
- "strix-doc",
- "strix-engine",
- "strix-fonts",
- "strix-proof",
- "strix-ui-egui",
  "windows",
  "winit",
  "winresource",
  "wl-clipboard-rs",
+ "wordcraft-control-key",
+ "wordcraft-doc",
+ "wordcraft-engine",
+ "wordcraft-fonts",
+ "wordcraft-proof",
+ "wordcraft-ui-egui",
  "zbus",
 ]
 
@@ -5181,270 +5181,20 @@ name = "strix-cli"
 version = "0.18.0"
 dependencies = [
  "serde_json",
- "strix-doc",
- "strix-engine",
- "strix-mcp",
- "strix-zotero",
  "sys-locale",
  "winresource",
+ "wordcraft-doc",
+ "wordcraft-engine",
+ "wordcraft-mcp",
+ "wordcraft-zotero",
 ]
-
-[[package]]
-name = "strix-control-key"
-version = "0.18.0"
 
 [[package]]
 name = "strix-dictionaries"
 version = "0.18.0"
 dependencies = [
- "strix-proof",
  "ureq",
-]
-
-[[package]]
-name = "strix-doc"
-version = "0.18.0"
-dependencies = [
- "base64 0.23.1",
- "log",
- "proptest",
- "serde",
- "serde_json",
- "strix-geom",
- "thiserror 2.0.21",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "strix-docbin"
-version = "0.18.0"
-dependencies = [
- "cfb",
- "chrono",
- "image",
- "log",
- "miniz_oxide 0.9.1",
- "proptest",
- "serde_json",
- "sha1 0.11.0",
- "strix-doc",
- "strix-geom",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "strix-docx"
-version = "0.18.0"
-dependencies = [
- "aes",
- "base64 0.23.1",
- "cfb",
- "chrono",
- "getrandom 0.4.3",
- "hmac",
- "image",
- "log",
- "proptest",
- "quick-xml 0.41.0",
- "sha1 0.11.0",
- "sha2 0.11.1",
- "strix-doc",
- "strix-geom",
- "thiserror 2.0.21",
- "unicode-bidi",
- "zeroize",
- "zip",
-]
-
-[[package]]
-name = "strix-engine"
-version = "0.18.0"
-dependencies = [
- "cfb",
- "chrono",
- "encoding_rs",
- "getrandom 0.4.3",
- "image",
- "js-sys",
- "libc",
- "log",
- "regex",
- "regex-automata",
- "serde",
- "serde_json",
- "strix-cad",
- "strix-calc",
- "strix-dictionaries",
- "strix-doc",
- "strix-docbin",
- "strix-docx",
- "strix-fonts",
- "strix-formats",
- "strix-geom",
- "strix-layout",
- "strix-pdf",
- "strix-proof",
- "strix-render",
- "thiserror 2.0.21",
- "zeroize",
- "zip",
-]
-
-[[package]]
-name = "strix-fonts"
-version = "0.18.0"
-dependencies = [
- "brotli-decompressor 6.2.0",
- "harfrust 0.13.3",
- "kurbo",
- "log",
- "skrifa 0.47.0",
- "unicode-bidi",
- "unicode-script",
- "wuff",
-]
-
-[[package]]
-name = "strix-formats"
-version = "0.18.0"
-dependencies = [
- "cfb",
- "chardetng",
- "chrono",
- "encoding_rs",
- "image",
- "js-sys",
- "log",
- "proptest",
- "quick-xml 0.41.0",
- "strix-doc",
- "strix-geom",
- "zip",
-]
-
-[[package]]
-name = "strix-geom"
-version = "0.18.0"
-dependencies = [
- "image",
- "serde",
-]
-
-[[package]]
-name = "strix-layout"
-version = "0.18.0"
-dependencies = [
- "image",
- "js-sys",
- "kurbo",
- "serde",
- "serde_json",
- "strix-doc",
- "strix-fonts",
- "strix-geom",
- "strix-metafile",
- "strix-proof",
- "unicode-bidi",
- "unicode-linebreak",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "strix-mcp"
-version = "0.18.0"
-dependencies = [
- "log",
- "serde_json",
- "strix-control-key",
- "strix-doc",
- "strix-engine",
- "strix-render",
-]
-
-[[package]]
-name = "strix-metafile"
-version = "0.18.0"
-dependencies = [
- "kurbo",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "strix-pdf"
-version = "0.18.0"
-dependencies = [
- "chrono",
- "craft-pdf",
- "hayro-cmap",
- "hayro-interpret",
- "hayro-syntax",
- "image",
- "js-sys",
- "kurbo",
- "log",
- "strix-doc",
- "strix-fonts",
- "strix-geom",
- "strix-layout",
- "strix-metafile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "strix-proof"
-version = "0.18.0"
-dependencies = [
- "log",
- "miniz_oxide 0.9.1",
- "proptest",
- "strix-control-key",
- "unicode-normalization",
-]
-
-[[package]]
-name = "strix-render"
-version = "0.18.0"
-dependencies = [
- "image",
- "log",
- "strix-doc",
- "strix-fonts",
- "strix-geom",
- "strix-layout",
- "strix-metafile",
- "vello_cpu",
-]
-
-[[package]]
-name = "strix-ui-egui"
-version = "0.18.0"
-dependencies = [
- "cfb",
- "chrono",
- "craft-i18n",
- "craft-ui",
- "craft-update",
- "craft-window",
- "egui",
- "egui_kittest",
- "image",
- "js-sys",
- "log",
- "serde",
- "serde_json",
- "strix-cad",
- "strix-doc",
- "strix-engine",
- "strix-fonts",
- "strix-geom",
- "strix-layout",
- "strix-render",
- "strix-zotero",
- "sys-locale",
- "toml",
- "web-time",
- "zbus",
- "zip",
+ "wordcraft-proof",
 ]
 
 [[package]]
@@ -5457,26 +5207,12 @@ dependencies = [
  "log",
  "rfd",
  "serde_json",
- "strix-engine",
- "strix-fonts",
- "strix-ui-egui",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "strix-zotero"
-version = "0.18.0"
-dependencies = [
- "log",
- "proptest",
- "serde_json",
- "strix-doc",
- "strix-docx",
- "strix-engine",
- "strix-formats",
- "thiserror 2.0.21",
+ "wordcraft-engine",
+ "wordcraft-fonts",
+ "wordcraft-ui-egui",
 ]
 
 [[package]]
@@ -7004,6 +6740,270 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-wlr",
+]
+
+[[package]]
+name = "wordcraft-control-key"
+version = "0.18.0"
+
+[[package]]
+name = "wordcraft-doc"
+version = "0.18.0"
+dependencies = [
+ "base64 0.23.1",
+ "log",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "unicode-segmentation",
+ "wordcraft-geom",
+]
+
+[[package]]
+name = "wordcraft-docbin"
+version = "0.18.0"
+dependencies = [
+ "cfb",
+ "chrono",
+ "image",
+ "log",
+ "miniz_oxide 0.9.1",
+ "proptest",
+ "serde_json",
+ "sha1 0.11.0",
+ "thiserror 2.0.21",
+ "wordcraft-doc",
+ "wordcraft-geom",
+]
+
+[[package]]
+name = "wordcraft-docx"
+version = "0.18.0"
+dependencies = [
+ "aes",
+ "base64 0.23.1",
+ "cfb",
+ "chrono",
+ "getrandom 0.4.3",
+ "hmac",
+ "image",
+ "log",
+ "proptest",
+ "quick-xml 0.41.0",
+ "sha1 0.11.0",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "unicode-bidi",
+ "wordcraft-doc",
+ "wordcraft-geom",
+ "zeroize",
+ "zip",
+]
+
+[[package]]
+name = "wordcraft-engine"
+version = "0.18.0"
+dependencies = [
+ "cfb",
+ "chrono",
+ "encoding_rs",
+ "getrandom 0.4.3",
+ "image",
+ "js-sys",
+ "libc",
+ "log",
+ "regex",
+ "regex-automata",
+ "serde",
+ "serde_json",
+ "strix-cad",
+ "strix-calc",
+ "strix-dictionaries",
+ "thiserror 2.0.21",
+ "wordcraft-doc",
+ "wordcraft-docbin",
+ "wordcraft-docx",
+ "wordcraft-fonts",
+ "wordcraft-formats",
+ "wordcraft-geom",
+ "wordcraft-layout",
+ "wordcraft-pdf",
+ "wordcraft-proof",
+ "wordcraft-render",
+ "zeroize",
+ "zip",
+]
+
+[[package]]
+name = "wordcraft-fonts"
+version = "0.18.0"
+dependencies = [
+ "brotli-decompressor 6.2.0",
+ "harfrust 0.13.3",
+ "kurbo",
+ "log",
+ "skrifa 0.47.0",
+ "unicode-bidi",
+ "unicode-script",
+ "wuff",
+]
+
+[[package]]
+name = "wordcraft-formats"
+version = "0.18.0"
+dependencies = [
+ "cfb",
+ "chardetng",
+ "chrono",
+ "encoding_rs",
+ "image",
+ "js-sys",
+ "log",
+ "proptest",
+ "quick-xml 0.41.0",
+ "wordcraft-doc",
+ "wordcraft-geom",
+ "zip",
+]
+
+[[package]]
+name = "wordcraft-geom"
+version = "0.18.0"
+dependencies = [
+ "image",
+ "serde",
+]
+
+[[package]]
+name = "wordcraft-layout"
+version = "0.18.0"
+dependencies = [
+ "image",
+ "js-sys",
+ "kurbo",
+ "serde",
+ "serde_json",
+ "unicode-bidi",
+ "unicode-linebreak",
+ "unicode-segmentation",
+ "wordcraft-doc",
+ "wordcraft-fonts",
+ "wordcraft-geom",
+ "wordcraft-metafile",
+ "wordcraft-proof",
+]
+
+[[package]]
+name = "wordcraft-mcp"
+version = "0.18.0"
+dependencies = [
+ "log",
+ "serde_json",
+ "wordcraft-control-key",
+ "wordcraft-doc",
+ "wordcraft-engine",
+ "wordcraft-render",
+]
+
+[[package]]
+name = "wordcraft-metafile"
+version = "0.18.0"
+dependencies = [
+ "kurbo",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "wordcraft-pdf"
+version = "0.18.0"
+dependencies = [
+ "chrono",
+ "craft-pdf",
+ "hayro-cmap",
+ "hayro-interpret",
+ "hayro-syntax",
+ "image",
+ "js-sys",
+ "kurbo",
+ "log",
+ "thiserror 2.0.21",
+ "wordcraft-doc",
+ "wordcraft-fonts",
+ "wordcraft-geom",
+ "wordcraft-layout",
+ "wordcraft-metafile",
+]
+
+[[package]]
+name = "wordcraft-proof"
+version = "0.18.0"
+dependencies = [
+ "log",
+ "miniz_oxide 0.9.1",
+ "proptest",
+ "unicode-normalization",
+ "wordcraft-control-key",
+]
+
+[[package]]
+name = "wordcraft-render"
+version = "0.18.0"
+dependencies = [
+ "image",
+ "log",
+ "vello_cpu",
+ "wordcraft-doc",
+ "wordcraft-fonts",
+ "wordcraft-geom",
+ "wordcraft-layout",
+ "wordcraft-metafile",
+]
+
+[[package]]
+name = "wordcraft-ui-egui"
+version = "0.18.0"
+dependencies = [
+ "cfb",
+ "chrono",
+ "craft-i18n",
+ "craft-ui",
+ "craft-update",
+ "craft-window",
+ "egui",
+ "egui_kittest",
+ "image",
+ "js-sys",
+ "log",
+ "serde",
+ "serde_json",
+ "strix-cad",
+ "sys-locale",
+ "toml",
+ "web-time",
+ "wordcraft-doc",
+ "wordcraft-engine",
+ "wordcraft-fonts",
+ "wordcraft-geom",
+ "wordcraft-layout",
+ "wordcraft-render",
+ "wordcraft-zotero",
+ "zbus",
+ "zip",
+]
+
+[[package]]
+name = "wordcraft-zotero"
+version = "0.18.0"
+dependencies = [
+ "log",
+ "proptest",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wordcraft-doc",
+ "wordcraft-docx",
+ "wordcraft-engine",
+ "wordcraft-formats",
 ]
 
 [[package]]

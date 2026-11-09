@@ -15,9 +15,9 @@ fn page_size_of(region: &str, args: &[&str]) -> (f64, f64) {
     let (src, out) = (dir.join("page.html"), dir.join("out.xmath"));
     std::fs::write(&src, HTML).unwrap();
     let args: Vec<String> = args.iter().map(|a| a.replace("{src}", &src.to_string_lossy()).replace("{out}", &out.to_string_lossy())).collect();
-    let run = Command::new(env!("CARGO_BIN_EXE_strix-cli")).args(&args).env("STRIX_REGION", region).env_remove("LC_ALL").output().unwrap();
+    let run = Command::new(env!("CARGO_BIN_EXE_strix-cli")).args(&args).env("WORDCRAFT_REGION", region).env_remove("LC_ALL").output().unwrap();
     assert!(run.status.success(), "{args:?}: {}", String::from_utf8_lossy(&run.stderr));
-    let doc = serde_json::to_value(strix_engine::io::open_path(&out).unwrap()).unwrap();
+    let doc = serde_json::to_value(wordcraft_engine::io::open_path(&out).unwrap()).unwrap();
     let _ = std::fs::remove_dir_all(&dir);
     let sp = &doc["lastSection"];
     (sp["pageW"].as_f64().unwrap(), sp["pageH"].as_f64().unwrap())

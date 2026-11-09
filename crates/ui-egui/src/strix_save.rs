@@ -1,10 +1,10 @@
 //! Saving a document that has Strix objects (calculations, calculated tables, exercises, CAD
-//! drawings, graph paper: `strix_engine::strix_objects`). Strix saves to `.docx`, `.odt`, `.rtf`…
+//! drawings, graph paper: `wordcraft_engine::strix_objects`). Strix saves to `.docx`, `.odt`, `.rtf`…
 //! like the reference word processor, but only while the document has none: with any, Save goes
 //! to Save As with `.xmath` proposed, Save As offers only Strix's own formats and the static
 //! exports, and File › Export disables the editable formats, each saying why.
 
-use strix_engine::strix_objects::{StrixObjectCount, StrixObjectKind, strix_objects};
+use wordcraft_engine::strix_objects::{StrixObjectCount, StrixObjectKind, strix_objects};
 
 use crate::i18n;
 
@@ -35,7 +35,7 @@ pub(crate) fn objects_text(objects: &[StrixObjectCount]) -> String {
 
 /// Why `doc` saves only as a Strix document (or a static export), or `None` when it has no Strix
 /// objects and every format is open to it.
-pub(crate) fn native_only_reason(doc: &strix_doc::Document) -> Option<String> {
+pub(crate) fn native_only_reason(doc: &wordcraft_doc::Document) -> Option<String> {
     let objects = strix_objects(doc);
     (!objects.is_empty()).then(|| {
         i18n::fmt(
@@ -48,7 +48,7 @@ pub(crate) fn native_only_reason(doc: &strix_doc::Document) -> Option<String> {
 }
 
 /// The note on File › Save As for a document with Strix objects.
-pub(crate) fn save_as_note(doc: &strix_doc::Document, ui: &mut egui::Ui) {
+pub(crate) fn save_as_note(doc: &wordcraft_doc::Document, ui: &mut egui::Ui) {
     if let Some(reason) = native_only_reason(doc) {
         let t = crate::theme::Tokens::get(ui.ctx());
         ui.label(egui::RichText::new(reason).color(t.text_dim));
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn the_reason_lists_the_objects_found() {
-        let mut s = strix_engine::Session::new(strix_doc::Document::from_text("Beam"));
+        let mut s = wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("Beam"));
         assert_eq!(native_only_reason(&s.doc), None);
         s.run("caret.docEnd", &json!({})).unwrap();
         s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();

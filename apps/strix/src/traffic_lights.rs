@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Where AppKit puts the traffic lights, so the integrated title bar fits around them (macOS).
 //!
 //! The lights' size and position change between macOS versions (they grew in macOS 26), so the
@@ -7,7 +6,7 @@
 
 use objc2::MainThreadMarker;
 use objc2_app_kit::{NSApplication, NSWindowButton};
-use strix_ui_egui::chrome::MacTitleBar;
+use wordcraft_ui_egui::chrome::MacTitleBar;
 
 /// The title bar around the app window's traffic lights, or `None` before the window exists or
 /// when AppKit has no zoom button to measure (the caller keeps the standard layout).

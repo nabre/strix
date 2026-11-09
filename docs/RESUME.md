@@ -35,8 +35,8 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   docs/cad.md.
 
 ## Known
-- Windows-only test failure inherited from upstream: `strix-proof`
-  `hunspell::tests::reads_are_bounded_and_regular_files_only`; `strix-engine`
+- Windows-only test failure inherited from upstream: `wordcraft-proof`
+  `hunspell::tests::reads_are_bounded_and_regular_files_only`; `wordcraft-engine`
   `tests::ime_body_epoch_marks_body_replacements_not_edits` is flaky under the parallel run
   (passes alone). Timing tests (`a_megabyte_long_word_lays_out_quickly`, docx
   `content_control_save_cost`) can fail on a loaded machine. Skip them with `--skip`.
@@ -50,7 +50,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   (still upstream's `storytold`) and `sonar.projectKey` (`nabre_strix`) in
   `sonar-project.properties`. Shared workflows track `craft-common-actions@main` (consider
   pinning).
-- Without craft-fonts (`CRAFT_FONTS_DIR`), `strix-layout`
+- Without craft-fonts (`CRAFT_FONTS_DIR`), `wordcraft-layout`
   `tests_complex::myanmar_prevowel_is_drawn_before_its_consonant` and
   `tests_pages::a_page_ends_when_a_multiple_spaced_lines_text_no_longer_fits` depend on the
   installed fonts and can fail (an Ubuntu container with Unifont/WenQuanYi); the GitHub gate
@@ -60,7 +60,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   rebuilding the app binary ("Accesso negato"): close it, or test the `strix` package with
   another `CARGO_TARGET_DIR`.
 - Parallel agents: one worktree and one `CARGO_TARGET_DIR` each; appends to
-  `locales/it/strix.tsv`, `crates/cad/src/tests.rs` and the docs' revision histories conflict on
+  `locales/it/wordcraft.tsv`, `crates/cad/src/tests.rs` and the docs' revision histories conflict on
   merge (keep both sides).
 
 - CAD stage 2: drawings in the document (`GraphicKind::Cad`, `insert.cad`, `cad.get/set/add`),
@@ -123,7 +123,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   - Upstream tracking (docs/upstream.md): `cargo xtask upstream status|sync`, branch
     `vendor/wordcraft` (rebranded upstream snapshots; push it with `main`), fork point recorded
     in `main` (true fork commit `d859c673`, NOTICE corrected). Stale catalog source texts fixed
-    (`STRIX_DICTIONARIES`, `github.com/nabre/strix`).
+    (`WORDCRAFT_DICTIONARIES`, `github.com/nabre/strix`).
   - SignPath Foundation readiness (docs/code-signing.md): code signing policy (attribution, roles,
     privacy, system changes, uninstall) linked from README and site; publisher was upstream's
     "Learning Machines LLC" in the exe, MSI, deb and metainfo, now "The Strix contributors";

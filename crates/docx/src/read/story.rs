@@ -3,14 +3,14 @@
 
 use std::sync::Arc;
 
-use strix_doc::connector::{ConnEnd, ShapeExtra};
-use strix_doc::control::{ContentControl, ControlWrap};
-use strix_doc::effects::{Glow, Shadow, ShapeEffects};
-use strix_doc::graphic::{Embedded, Graphic, GraphicItem, GraphicKind};
-use strix_doc::para::{AltText, Anchor, Float, FloatAlign, NoteKind, PTabAlign, PTabBase, ShapeKind, Wrap, WrapText, cap_alt};
-use strix_doc::props::{CharProps, NumChange, PropChange, Rgb, TextColor};
-use strix_doc::table::{Cell, MAX_COLS, MAX_ROWS, Row, Table};
-use strix_doc::{Block, Blocks, InlineObject, Paragraph, PartKind, RevisionKind, Run, para_block};
+use wordcraft_doc::connector::{ConnEnd, ShapeExtra};
+use wordcraft_doc::control::{ContentControl, ControlWrap};
+use wordcraft_doc::effects::{Glow, Shadow, ShapeEffects};
+use wordcraft_doc::graphic::{Embedded, Graphic, GraphicItem, GraphicKind};
+use wordcraft_doc::para::{AltText, Anchor, Float, FloatAlign, NoteKind, PTabAlign, PTabBase, ShapeKind, Wrap, WrapText, cap_alt};
+use wordcraft_doc::props::{CharProps, NumChange, PropChange, Rgb, TextColor};
+use wordcraft_doc::table::{Cell, MAX_COLS, MAX_ROWS, Row, Table};
+use wordcraft_doc::{Block, Blocks, InlineObject, Paragraph, PartKind, RevisionKind, Run, para_block};
 
 use super::Reader;
 use super::props::{sectpr, tcpr, trpr};
@@ -18,7 +18,7 @@ use super::shape_style::{own_fill, preset_kind, shape_paint, vml_color, vml_fill
 use crate::package::{ContentTypes, Rels, rt};
 use crate::units::{int, measure, u32_of};
 use crate::xml::{El, Node};
-use strix_doc::wordart::TextWarp;
+use wordcraft_doc::wordart::TextWarp;
 
 mod blocks;
 mod drawing;
@@ -82,7 +82,7 @@ struct FieldState {
     /// `FieldStart` and `FieldEnd` markers instead of being buffered.
     range: bool,
     /// The font size of each piece of the code (where it starts in `instr`): an enclosure's
-    /// style is the size of its symbol and text (see [`strix_doc::eq`]).
+    /// style is the size of its symbol and text (see [`wordcraft_doc::eq`]).
     sizes: Vec<(usize, Option<f32>)>,
     /// A legacy form field's `w:ffData`, as raw XML.
     form: String,
@@ -137,9 +137,9 @@ impl PB {
         self.push_run(s.len(), props);
     }
     fn push_obj(&mut self, o: InlineObject, props: &CharProps) {
-        self.text.push(strix_doc::para::OBJ);
+        self.text.push(wordcraft_doc::para::OBJ);
         self.objects.push(o);
-        self.push_run(strix_doc::para::OBJ.len_utf8(), props);
+        self.push_run(wordcraft_doc::para::OBJ.len_utf8(), props);
     }
     fn push_run(&mut self, len: usize, props: &CharProps) {
         match self.runs.last_mut() {
@@ -156,7 +156,7 @@ fn clean_text(s: &str) -> String {
         .filter_map(|c| match c {
             '\n' | '\r' => Some(' '),
             '\t' => Some('\t'),
-            strix_doc::para::OBJ => None,
+            wordcraft_doc::para::OBJ => None,
             c if (c as u32) < 0x20 => None,
             c => Some(c),
         })
@@ -205,7 +205,7 @@ fn collect<'a>(e: &'a El, name: &str, out: &mut Vec<(&'a El, ControlWrap)>, pend
 
 /// Placeholder text as read from a control showing it: one line, bounded.
 fn placeholder_of(s: &str) -> String {
-    s.chars().map(|c| if c.is_control() { ' ' } else { c }).take(strix_doc::control::MAX_CONTROL_TEXT).collect::<String>().trim().to_string()
+    s.chars().map(|c| if c.is_control() { ' ' } else { c }).take(wordcraft_doc::control::MAX_CONTROL_TEXT).collect::<String>().trim().to_string()
 }
 
 fn on_off_attr(e: &El, name: &str) -> bool {

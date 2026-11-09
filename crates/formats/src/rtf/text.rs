@@ -1,11 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::state::{Dest, MAX_PICT, St};
 use super::{Fmt, Inline, Reader, Rgb, make_img, model};
 
 /// The encoding of an East Asian multibyte code page (932 Shift-JIS, 936 GBK, 949 UHC, 950 Big5),
 /// which [`Reader::finish_multibyte`] decodes a run with; `None` for the single-byte code pages.
 fn multibyte_encoding(code_page: u16) -> Option<&'static encoding_rs::Encoding> {
-    let label = strix_doc::encoding::multibyte_encoding_name(code_page)?;
+    let label = wordcraft_doc::encoding::multibyte_encoding_name(code_page)?;
     encoding_rs::Encoding::for_label(label.as_bytes())
 }
 
@@ -39,7 +38,7 @@ impl Reader {
         let cp = self.code_page();
         let Some(encoding) = multibyte_encoding(cp) else {
             self.finish_multibyte();
-            let c = strix_doc::encoding::code_page_byte(cp, b);
+            let c = wordcraft_doc::encoding::code_page_byte(cp, b);
             self.ch(c);
             return;
         };
@@ -117,7 +116,7 @@ impl Reader {
             self.finish_multibyte();
             let mut out = String::with_capacity(chunk.len());
             for b in chunk {
-                out.push(strix_doc::encoding::code_page_byte(cp, *b));
+                out.push(wordcraft_doc::encoding::code_page_byte(cp, *b));
             }
             if !out.is_empty() {
                 self.text(&out);

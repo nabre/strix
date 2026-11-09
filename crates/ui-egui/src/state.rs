@@ -14,9 +14,9 @@ pub(crate) enum PromptSave {
 /// What [`Services::make_default_app`] did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefaultApp {
-    /// The system's default-apps settings opened; the user picks Strix there (Windows).
+    /// The system's default-apps settings opened; the user picks WordCraft there (Windows).
     SettingsOpened,
-    /// Strix is now the default app for Word documents (Linux, BSD).
+    /// WordCraft is now the default app for Word documents (Linux, BSD).
     MadeDefault,
 }
 
@@ -83,5 +83,5 @@ impl AutoSaveBlock {
 /// document was opened from (#2376). AutoSave writes only Strix's own files.
 pub fn keeps_everything(name: &str) -> bool {
     let ext = std::path::Path::new(name).extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
-    strix_engine::io::is_native(&ext) || matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "rtf" | "json" | "xml")
+    wordcraft_engine::io::is_native(&ext) || matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "rtf" | "json" | "xml")
 }

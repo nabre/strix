@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{
     BTreeMap, BTreeSet, CmdError, CmdResult, Comment, InlineObject, Paragraph, PartKind, Pos, Selection, Session, StoryRef, Value, json, now_iso, p,
     para_block, pos_json, sel_result,
@@ -83,7 +82,7 @@ pub(super) fn reply(s: &mut Session, v: &Value) -> CmdResult {
 /// An id no comment has: one past the largest, or the lowest free one once a file used `u32::MAX`.
 fn comment_id(s: &Session) -> Result<u32, CmdError> {
     let ids = &s.doc.comments;
-    strix_doc::free_id(ids.keys().next_back().copied(), ids.keys().copied(), 0).ok_or_else(|| CmdError::Failed("no free comment id".into()))
+    wordcraft_doc::free_id(ids.keys().next_back().copied(), ids.keys().copied(), 0).ok_or_else(|| CmdError::Failed("no free comment id".into()))
 }
 
 /// Comments can't be written or edited in a document protected as read only or for filling in
@@ -157,7 +156,7 @@ fn remove_anchors(s: &mut Session, ids: &BTreeSet<u32>) -> Result<(), CmdError> 
             }
             let para = s.doc.para_mut(story, &path)?;
             for o in offs.into_iter().rev() {
-                para.delete(o, o + strix_doc::para::OBJ.len_utf8())?;
+                para.delete(o, o + wordcraft_doc::para::OBJ.len_utf8())?;
             }
         }
     }

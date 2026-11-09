@@ -3,17 +3,17 @@ use super::dispatch::body;
 use super::{Dialog, Sense, Tokens, Ui, WordApp, vec2};
 
 /// A colour menu: a swatch with the colour grid and No Color. `value` is hex, empty for none.
-pub(crate) fn color_menu(ui: &mut Ui, theme: &[strix_doc::Rgb], value: &mut String) {
+pub(crate) fn color_menu(ui: &mut Ui, theme: &[wordcraft_doc::Rgb], value: &mut String) {
     color_field(ui, theme, value, "No Color", "");
 }
 
 /// A colour field: a swatch and a drop-down with `none_label` (which sets `none_value`), the
 /// colour grid, Recent Colors and More Colors… (#606). `value` is hex or `none_value`.
-pub(crate) fn color_field(ui: &mut Ui, theme: &[strix_doc::Rgb], value: &mut String, none_label: &str, none_value: &str) {
+pub(crate) fn color_field(ui: &mut Ui, theme: &[wordcraft_doc::Rgb], value: &mut String, none_label: &str, none_value: &str) {
     ui.horizontal(|ui| {
         let id = ui.scope_id().with("colorField");
         crate::colors::take_field(ui.ctx(), id, value);
-        let c = strix_doc::Rgb::parse(value);
+        let c = wordcraft_doc::Rgb::parse(value);
         let (r, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
         let t = Tokens::get(ui.ctx());
         match c {

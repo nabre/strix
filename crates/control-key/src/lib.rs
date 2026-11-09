@@ -10,10 +10,10 @@ pub use portable::{Portable, portable, portable_dir};
 /// The app's settings folder (preferences, logs, key files): macOS
 /// `~/Library/Application Support/Strix`, Windows `%APPDATA%\Strix`, otherwise
 /// `$XDG_CONFIG_HOME/strix` or `~/.config/strix`.
-/// `STRIX_PROFILE_DIR` overrides the entire folder for isolated runs; otherwise a portable run
+/// `WORDCRAFT_PROFILE_DIR` overrides the entire folder for isolated runs; otherwise a portable run
 /// uses `StrixData` next to the program ([`portable`]).
 pub fn settings_dir() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("STRIX_PROFILE_DIR").filter(|p| !p.is_empty()) {
+    if let Some(path) = std::env::var_os("WORDCRAFT_PROFILE_DIR").filter(|p| !p.is_empty()) {
         return Some(PathBuf::from(path));
     }
     if let Some(dir) = portable_dir() {

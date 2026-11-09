@@ -23,7 +23,7 @@ fn xmath_imports_word_and_writes_it_back_without_strix_objects() {
     std::fs::write(&txt, "Native round trip\n").unwrap();
     // A Word file to import, written by the engine's low-level writer.
     let docx = dir.join("a.docx");
-    strix_engine::io::save_path(&docx, &strix_doc::Document::from_text("Native round trip")).unwrap();
+    wordcraft_engine::io::save_path(&docx, &wordcraft_doc::Document::from_text("Native round trip")).unwrap();
     let from_txt = dir.join("t.xmath");
     let xmath = dir.join("b.xmath");
     let xmathm = dir.join("c.xmathm");

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{
     Arc, Block, CharProps, CmdError, CmdResult, Document, Paragraph, RevisionKind, Selection, Session, StoryRef, Value, json, p, para_block,
 };
@@ -66,9 +65,9 @@ pub(super) fn compare(s: &mut Session, v: &Value) -> CmdResult {
     let date = crate::cmd::now_iso();
     let old: Vec<Arc<Block>> = s.doc.body.clone();
     let new: Vec<Arc<Block>> = revised.body.clone();
-    s.doc.revisions.push(strix_doc::Revision { kind: RevisionKind::Insert, author: author.clone(), date: date.clone(), move_name: None });
+    s.doc.revisions.push(wordcraft_doc::Revision { kind: RevisionKind::Insert, author: author.clone(), date: date.clone(), move_name: None });
     let ins = (s.doc.revisions.len() - 1) as u32;
-    s.doc.revisions.push(strix_doc::Revision { kind: RevisionKind::Delete, author: author.clone(), date: date.clone(), move_name: None });
+    s.doc.revisions.push(wordcraft_doc::Revision { kind: RevisionKind::Delete, author: author.clone(), date: date.clone(), move_name: None });
     let del = (s.doc.revisions.len() - 1) as u32;
     let key = |b: &Arc<Block>| match &**b {
         Block::Para(p) => opts.key(&p.plain_text()),

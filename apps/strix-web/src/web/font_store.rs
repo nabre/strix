@@ -98,11 +98,11 @@ pub fn load_all(ctx: egui::Context) {
             for i in 0..keys.length().min(values.length()) {
                 let Some(name) = keys.get(i).as_string() else { continue };
                 let Ok(bytes) = values.get(i).dyn_into::<js_sys::Uint8Array>() else { continue };
-                if bytes.length() as usize > strix_fonts::MAX_FONT_FILE_BYTES {
+                if bytes.length() as usize > wordcraft_fonts::MAX_FONT_FILE_BYTES {
                     log::warn!("stored font {name} is too large; skipped");
                     continue;
                 }
-                if let Err(e) = strix_fonts::FontDb::global().install_font(&name, &bytes.to_vec()) {
+                if let Err(e) = wordcraft_fonts::FontDb::global().install_font(&name, &bytes.to_vec()) {
                     log::warn!("stored font {name} skipped: {e}");
                 }
             }

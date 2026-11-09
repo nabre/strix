@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 /// How a style orders its bibliography (and, for numbered styles, numbers its citations).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Order {
@@ -94,7 +93,7 @@ const fn names(first: Name, rest: Name, sep: &'static str, two: &'static str, la
 const AUTHOR_DATE: Cite = Cite::AuthorDate { year_sep: " ", pages_sep: ", p. " };
 
 /// Every style, in picker order (alphabetical). Formats follow the published style guides'
-/// rules for the source types Strix records, written in our own words.
+/// rules for the source types WordCraft records, written in our own words.
 pub static STYLES: [CiteStyle; 12] = [
     CiteStyle {
         name: "APA",

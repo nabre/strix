@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use strix_doc::para::OBJ;
-use strix_doc::{Block, InlineObject, Paragraph};
+use wordcraft_doc::para::OBJ;
+use wordcraft_doc::{Block, InlineObject, Paragraph};
 
 use super::{
     ALL_WORDS, Part, TAG_DATA, TAG_EXERCISE, TAG_PROMPT, TAG_QUESTIONS, TAG_RESULTS, TAG_SOLUTION, TAG_TEXT, TAG_TITLE, Words, numbering, scan,
@@ -144,7 +144,7 @@ mod tests {
     use super::super::plain;
     use super::*;
     use serde_json::json;
-    use strix_doc::Document;
+    use wordcraft_doc::Document;
 
     fn session(lang: &str) -> Session {
         let mut s = Session::new(Document::new());

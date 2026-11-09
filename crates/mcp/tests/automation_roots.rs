@@ -7,8 +7,8 @@
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
-use strix_engine::file_access::AutomationRoots;
-use strix_mcp::{Headless, Server};
+use wordcraft_engine::file_access::AutomationRoots;
+use wordcraft_mcp::{Headless, Server};
 
 /// A 1x1 PNG, so `insert.picture` has something real to read.
 const PNG: &[u8] = &[

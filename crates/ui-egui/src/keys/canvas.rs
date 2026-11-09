@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::alt_code::{alt_code_echoed, alt_code_event, alt_codes_supported};
 use super::ime::{
     MAX_IME_COMMIT_BYTES, MAX_IME_PREEDIT_BYTES, delete_in_equation, delete_surrounding, delete_surrounding_bytes, ime_stamp, note_automatic_change,
@@ -290,7 +289,7 @@ fn equation_event(app: &mut WordApp, ctx: &egui::Context, e: &egui::Event, b: &m
                 app.canvas.ime_preedit.clear();
                 app.canvas.ime_preedit_range = None;
                 if !text.is_empty() {
-                    if text.len() > MAX_IME_COMMIT_BYTES || text.chars().count() > strix_engine::MAX_EQUATION_TYPE_CHARS {
+                    if text.len() > MAX_IME_COMMIT_BYTES || text.chars().count() > wordcraft_engine::MAX_EQUATION_TYPE_CHARS {
                         // Refuse the whole commit (no prefix in either equation mode) and ask
                         // the platform to start the composition afresh. It is not the
                         // replacement for a preceding deletion.
@@ -405,7 +404,7 @@ fn key_press(app: &mut WordApp, ctx: &egui::Context, key: Key, modifiers: Modifi
         return;
     }
     // Escape puts the pen or eraser down (back to selecting).
-    if key == Key::Escape && app.session.view.draw.mode != strix_engine::cmd::draw::DrawMode::Select {
+    if key == Key::Escape && app.session.view.draw.mode != wordcraft_engine::cmd::draw::DrawMode::Select {
         app.canvas.ink = None;
         let _ = app.run("draw.select", json!({}));
         return;
@@ -432,15 +431,15 @@ fn key_press(app: &mut WordApp, ctx: &egui::Context, key: Key, modifiers: Modifi
     // it (#1538). The anchor position is just after the box's object character.
     if key == Key::Escape
         && crate::canvas::in_text_box(app)
-        && let strix_doc::StoryRef::Part(id) = app.session.sel.focus.story
+        && let wordcraft_doc::StoryRef::Part(id) = app.session.sel.focus.story
         && let Some(end) = app.session.doc.text_box_anchor(id)
-        && let Some(off) = end.off.checked_sub(strix_doc::para::OBJ.len_utf8())
+        && let Some(off) = end.off.checked_sub(wordcraft_doc::para::OBJ.len_utf8())
     {
-        let start = strix_doc::Pos { off, ..end.clone() };
+        let start = wordcraft_doc::Pos { off, ..end.clone() };
         let _ = app.run("select.range", json!({"anchor": start, "focus": end}));
         return;
     }
-    if key == Key::Escape && matches!(app.session.sel.focus.story, strix_doc::StoryRef::Part(_)) && app.session.sel.is_collapsed() {
+    if key == Key::Escape && matches!(app.session.sel.focus.story, wordcraft_doc::StoryRef::Part(_)) && app.session.sel.is_collapsed() {
         let _ = app.run("insert.closeHeader", json!({}));
         return;
     }
@@ -603,7 +602,7 @@ fn type_text(app: &mut WordApp, text: &str, ime: bool) {
 ///
 /// A smart quote, an AutoCorrect replacement or a relocated insert makes this false: the edit is
 /// AutoFormat work, not the input method's own change.
-fn inserted_literal_at(app: &WordApp, text: &str, start: &strix_doc::Pos) -> bool {
+fn inserted_literal_at(app: &WordApp, text: &str, start: &wordcraft_doc::Pos) -> bool {
     let Some(para) = app.session.doc.para_at(start) else { return false };
     let Some(end) = start.off.checked_add(text.len()) else { return false };
     para.text.get(start.off..end) == Some(text)

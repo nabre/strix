@@ -153,8 +153,11 @@ fn handle_page_pointer(app: &mut WordApp, pointer: PagePointer<'_>) {
     if handle_completed_click(app, &pointer) {
         return;
     }
-    let hf_zone =
-        if app.session.view.mode == strix_layout::ViewMode::Print && !app.session.view.read_mode { layout.header_footer_zone(page, y) } else { None };
+    let hf_zone = if app.session.view.mode == wordcraft_layout::ViewMode::Print && !app.session.view.read_mode {
+        layout.header_footer_zone(page, y)
+    } else {
+        None
+    };
     let hf_enter = enters_header_footer(app, story, hf_zone);
     let pressed = ui.input(|i| i.pointer.primary_pressed()) && resp.contains_pointer() && !over_balloon(app, p);
     // The equation frame's grip and options strip stay in the equation (the strip's click opens
@@ -255,7 +258,7 @@ fn handle_primary_press(
         if app.run(id, json!({ "page": page })).is_ok() {
             let to = app.session.sel.focus.story;
             if let Some(pos) = app.session.layout().hit(page, x, y, to) {
-                app.session.sel = strix_engine::Selection::caret(pos);
+                app.session.sel = wordcraft_engine::Selection::caret(pos);
             }
             app.session.page_hint = page;
         }
@@ -271,7 +274,7 @@ fn handle_primary_press(
     if !mods.shift
         && let Some((at, inner)) = layout.equation_hit(page, x, y, story)
     {
-        app.session.sel = strix_engine::Selection::caret(at);
+        app.session.sel = wordcraft_engine::Selection::caret(at);
         let _ = app.run("equation.edit", json!({"pos": serde_json::to_value(&inner).unwrap_or_default()}));
         app.session.page_hint = page;
         return;
@@ -396,8 +399,11 @@ fn handle_completed_click(app: &mut WordApp, pointer: &PagePointer<'_>) -> bool 
     }
     // Double-click in the header/footer area edits it (creating it when the page has none, #960);
     // double-click in the body leaves it. Print Layout only: the other views show no margins.
-    let hf_zone =
-        if app.session.view.mode == strix_layout::ViewMode::Print && !app.session.view.read_mode { layout.header_footer_zone(page, y) } else { None };
+    let hf_zone = if app.session.view.mode == wordcraft_layout::ViewMode::Print && !app.session.view.read_mode {
+        layout.header_footer_zone(page, y)
+    } else {
+        None
+    };
     let hf_enter = enters_header_footer(app, story, hf_zone);
     if resp.double_clicked() {
         // Its first press already moved into the header/footer and placed the caret.
@@ -411,14 +417,14 @@ fn handle_completed_click(app: &mut WordApp, pointer: &PagePointer<'_>) -> bool 
             if app.run(id, json!({ "page": page })).is_ok()
                 && let Some(pos) = app.session.layout().hit(page, x, y, app.session.sel.focus.story)
             {
-                app.session.sel = strix_engine::Selection::caret(pos);
+                app.session.sel = wordcraft_engine::Selection::caret(pos);
             }
             return true;
         }
         if matches!(story, StoryRef::Part(_)) && !in_text_box(app) && hf_zone.is_none() {
             let _ = app.run("insert.closeHeader", json!({}));
             if let Some(pos) = layout.hit(page, x, y, StoryRef::Body) {
-                app.session.sel = strix_engine::Selection::caret(pos);
+                app.session.sel = wordcraft_engine::Selection::caret(pos);
             }
             return true;
         }
@@ -426,7 +432,7 @@ fn handle_completed_click(app: &mut WordApp, pointer: &PagePointer<'_>) -> bool 
         if let Some(pos) = layout.hit(page, x, y, story)
             && let Some(field) = field_showing_code(app, &pos)
         {
-            app.session.sel = strix_engine::Selection::caret(field);
+            app.session.sel = wordcraft_engine::Selection::caret(field);
             let _ = app.run("fields.setCode", json!({}));
             return true;
         }
@@ -455,7 +461,7 @@ fn skip_equation_or_outline(app: &mut WordApp, pointer: &PagePointer<'_>) -> boo
     }
     // Outline view: a paragraph's symbol selects it with what is under it; a double-click
     // expands or collapses the heading.
-    if app.session.view.mode == strix_layout::ViewMode::Outline
+    if app.session.view.mode == wordcraft_layout::ViewMode::Outline
         && let Some(block) = layout.outline_symbol_at(*page, *x, *y)
     {
         if resp.double_clicked() {

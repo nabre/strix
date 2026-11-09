@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{FieldCode, InlineObject, NumFormat, Pos};
 
 /// The summary property a TITLE, SUBJECT, AUTHOR, KEYWORDS or COMMENTS field shows.
-pub(super) fn summary_property<'a>(core: &'a strix_doc::CoreProps, field: &str) -> &'a str {
+pub(super) fn summary_property<'a>(core: &'a wordcraft_doc::CoreProps, field: &str) -> &'a str {
     match field {
         "TITLE" => &core.title,
         "SUBJECT" => &core.subject,
@@ -13,7 +12,7 @@ pub(super) fn summary_property<'a>(core: &'a strix_doc::CoreProps, field: &str) 
     }
 }
 
-pub(super) fn set_summary_property(core: &mut strix_doc::CoreProps, field: &str, value: String) {
+pub(super) fn set_summary_property(core: &mut wordcraft_doc::CoreProps, field: &str, value: String) {
     match field {
         "TITLE" => core.title = value,
         "SUBJECT" => core.subject = value,
@@ -35,16 +34,16 @@ pub(super) fn new_property_value(instr: &str) -> Option<String> {
 /// when the format does not cover the count (see [`super::table_formula::number_format_covers`]),
 /// with the field's capitalization switches.
 pub(super) fn count_text(instr: &str, n: usize) -> String {
-    let fmt = strix_layout::fields::format_switch(instr)
+    let fmt = wordcraft_layout::fields::format_switch(instr)
         .filter(|f| crate::cmd::table_formula::number_format_covers(*f, n as f64))
         .unwrap_or(NumFormat::Decimal);
-    strix_layout::fields::field_number(instr, fmt, u32::try_from(n).unwrap_or(u32::MAX))
+    wordcraft_layout::fields::field_number(instr, fmt, u32::try_from(n).unwrap_or(u32::MAX))
 }
 
 /// A field's computed text with its capitalization switches (`\* Upper`, `\* Lower`, `\* Caps`,
 /// `\* FirstCap`) applied in order.
 pub(super) fn text_result(instr: &str, text: String) -> String {
-    strix_layout::fields::apply_case_switch(instr, text)
+    wordcraft_layout::fields::apply_case_switch(instr, text)
 }
 
 /// The property name of a `DOCPROPERTY` field: the word (or quoted text) after the field name,
@@ -61,7 +60,7 @@ pub(super) fn doc_property_arg(instr: &str) -> Option<String> {
 /// The value of a document property under the name a `DOCPROPERTY` field uses: a custom property
 /// when one has this name, else the built-in property (English names, case-insensitively, as
 /// Word's field accepts) from `core`. `None` for a name this application doesn't know.
-pub(super) fn doc_property(doc: &strix_doc::Document, core: &strix_doc::CoreProps, name: &str) -> Option<String> {
+pub(super) fn doc_property(doc: &wordcraft_doc::Document, core: &wordcraft_doc::CoreProps, name: &str) -> Option<String> {
     if let Some(v) = doc.custom_prop(name) {
         return Some(v.to_string());
     }
@@ -91,7 +90,7 @@ pub fn date_picture(instr: &str) -> Option<String> {
 
 /// The text a bookmark marks (field results included), up to its end in the same paragraph or
 /// the paragraph's end. `None` when there is no such bookmark.
-pub fn bookmark_text(doc: &strix_doc::Document, name: &str) -> Option<String> {
+pub fn bookmark_text(doc: &wordcraft_doc::Document, name: &str) -> Option<String> {
     let (_, start) = doc.bookmarks().into_iter().find(|(n, _)| n == name)?;
     let para = doc.para(start.story, &start.path)?;
     let end = para

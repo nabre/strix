@@ -11,6 +11,7 @@ mod layers;
 mod parity;
 mod site;
 mod stats;
+mod unrename;
 mod unused;
 mod upstream;
 mod version;
@@ -44,9 +45,10 @@ commands:
   unused [--strict]
                   dependencies a crate never names, and public items in Strix's own files that
                   nothing (or only tests) uses; a report (--strict fails on hits)
-  upstream [status | sync [REV] | rebrand DIR]
+  upstream [status | sync [REV] | rebrand DIR | unrename UPSTREAM_DIR]
                   track WordCraft: rebrand an upstream commit onto the vendor/wordcraft branch,
-                  then `git merge vendor/wordcraft` (docs/upstream.md)
+                  then `git merge vendor/wordcraft` (docs/upstream.md); unrename: bring main's
+                  internal names back to WordCraft's, once (docs/naming.md, phase 3)
   ico <out.ico> <in.png>...
                   pack square PNGs (<= 256 px) into a Windows .ico (see packaging/icons.sh)
   icns <out.icns> <in.png>...
@@ -190,7 +192,7 @@ fn nextest_available() -> bool {
 
 /// The interface audit, which `cmd_i18n_report` runs on its own so its report is printed.
 const I18N_AUDIT: &str = "i18n::audit::untranslated_interface_text";
-const I18N_AUDIT_FILTER: &str = "package(strix-ui-egui) & test(=i18n::audit::untranslated_interface_text)";
+const I18N_AUDIT_FILTER: &str = "package(wordcraft-ui-egui) & test(=i18n::audit::untranslated_interface_text)";
 
 fn cmd_test() -> Result<(), String> {
     test_run(&["-E", &format!("not ({I18N_AUDIT_FILTER})")], &["--skip", I18N_AUDIT])
@@ -276,7 +278,7 @@ fn cmd_corpus(download: bool) -> Result<(), String> {
         "Test corpora live under {} (git-ignored, never committed).
 Tests that use a corpus skip cleanly when it is absent.
 
-  corpus/pngsuite/   PngSuite (public domain) — strix-codecs compares every file
+  corpus/pngsuite/   PngSuite (public domain) — wordcraft-codecs compares every file
                      against the `image` crate. Fetch: cargo xtask corpus --download
   corpus/psd/        PSD samples from MIT/BSD projects (ag-psd, psd-tools test data).
                      Copy files in manually; licences must be MIT/BSD/CC0.

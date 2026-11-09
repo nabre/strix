@@ -1,12 +1,11 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Paragraph formatting, lists and styles (Home › Paragraph, Home › Styles).
 
 use serde_json::{Value, json};
-use strix_doc::collate::{SortKey, sort_key};
-use strix_doc::numbering::ListKind;
-use strix_doc::props::{Align, Border, BorderStyle, Borders, LineSpacing, NumRef, ParaProps, Rgb, TabAlign, TabLeader, TabStop};
-use strix_doc::styles::{Style, StyleKind};
-use strix_doc::{Block, CharProps, Pos};
+use wordcraft_doc::collate::{SortKey, sort_key};
+use wordcraft_doc::numbering::ListKind;
+use wordcraft_doc::props::{Align, Border, BorderStyle, Borders, LineSpacing, NumRef, ParaProps, Rgb, TabAlign, TabLeader, TabStop};
+use wordcraft_doc::styles::{Style, StyleKind};
+use wordcraft_doc::{Block, CharProps, Pos};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};

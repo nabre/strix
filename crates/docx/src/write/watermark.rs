@@ -1,9 +1,8 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The document's text watermark as a VML text shape in the headers (ECMA-376 Part 4, VML:
 //! `shape`, `shapetype`, `path`, `textpath`, `fill`), which is how a WordprocessingML consumer
 //! draws text behind every page. The reader (`read::story::vml_watermark`) maps it back.
 
-use strix_doc::{SectionProps, Watermark};
+use wordcraft_doc::{SectionProps, Watermark};
 
 use crate::xml::esc;
 

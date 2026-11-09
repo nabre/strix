@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Ui, Value, WordApp, json, vec2};
 
 /// The proofing languages the Language menu offers: tag and English name (translated when drawn).
@@ -21,7 +20,7 @@ pub(crate) const PROOFING_LANGUAGES: [(&str, &str); 16] = [
     ("es-UY", "Spanish (Uruguay)"),
 ];
 
-/// The English name of a proofing language tag, as the status bar shows it (no tag: Strix's
+/// The English name of a proofing language tag, as the status bar shows it (no tag: WordCraft's
 /// default, US English): a listed language by its name; another region of one by the language
 /// and the region ("French (Canada)"); a bare language subtag by its usual variant; else the tag.
 pub(crate) fn language_name(tag: Option<&str>) -> String {
@@ -49,19 +48,19 @@ pub(crate) fn language_name(tag: Option<&str>) -> String {
                 None => tag.to_string(),
             }
         }
-        // A bare language subtag ("pt", "pl"): the variant Strix proofs.
-        None => match strix_engine::proof::ProofLang::from_tag(Some(tag)) {
-            strix_engine::proof::ProofLang::Pl => "Polish".into(),
-            strix_engine::proof::ProofLang::Hr => "Croatian".into(),
-            strix_engine::proof::ProofLang::Pt => "Portuguese (Brazil)".into(),
-            strix_engine::proof::ProofLang::It => "Italian".into(),
-            strix_engine::proof::ProofLang::Tr => "Turkish".into(),
-            strix_engine::proof::ProofLang::Ru => "Russian".into(),
-            strix_engine::proof::ProofLang::Cs => "Czech".into(),
-            strix_engine::proof::ProofLang::Id => "Indonesian".into(),
-            strix_engine::proof::ProofLang::Es => "Spanish (Spain)".into(),
-            strix_engine::proof::ProofLang::De => "German (Germany)".into(),
-            strix_engine::proof::ProofLang::En if tag.eq_ignore_ascii_case("en") => "English (United States)".into(),
+        // A bare language subtag ("pt", "pl"): the variant WordCraft proofs.
+        None => match wordcraft_engine::proof::ProofLang::from_tag(Some(tag)) {
+            wordcraft_engine::proof::ProofLang::Pl => "Polish".into(),
+            wordcraft_engine::proof::ProofLang::Hr => "Croatian".into(),
+            wordcraft_engine::proof::ProofLang::Pt => "Portuguese (Brazil)".into(),
+            wordcraft_engine::proof::ProofLang::It => "Italian".into(),
+            wordcraft_engine::proof::ProofLang::Tr => "Turkish".into(),
+            wordcraft_engine::proof::ProofLang::Ru => "Russian".into(),
+            wordcraft_engine::proof::ProofLang::Cs => "Czech".into(),
+            wordcraft_engine::proof::ProofLang::Id => "Indonesian".into(),
+            wordcraft_engine::proof::ProofLang::Es => "Spanish (Spain)".into(),
+            wordcraft_engine::proof::ProofLang::De => "German (Germany)".into(),
+            wordcraft_engine::proof::ProofLang::En if tag.eq_ignore_ascii_case("en") => "English (United States)".into(),
             _ => tag.to_string(),
         },
     }
@@ -142,7 +141,7 @@ pub(crate) fn caret_language(app: &WordApp) -> String {
 }
 
 /// The formatting at the caret, resolved through the styles and the document default.
-fn caret_char(app: &WordApp) -> strix_doc::resolve::ResolvedChar {
+fn caret_char(app: &WordApp) -> wordcraft_doc::resolve::ResolvedChar {
     let s = &app.session;
     let style = s.doc.para_at(&s.sel.focus).and_then(|p| p.props.style.clone());
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props())
@@ -159,20 +158,20 @@ pub(crate) fn caret_no_proof(app: &WordApp) -> bool {
     caret_char(app).no_proof
 }
 
-/// Does Strix check spelling and grammar in the caret's language at all (Bulgarian: no)?
+/// Does WordCraft check spelling and grammar in the caret's language at all (Bulgarian: no)?
 pub(crate) fn caret_language_proofed(app: &WordApp) -> bool {
-    strix_engine::proof::has_dictionary(caret_lang_tag(app).as_deref())
+    wordcraft_engine::proof::has_dictionary(caret_lang_tag(app).as_deref())
 }
 
 /// The Hunspell dictionary the caret's language needs but doesn't have (`pl_PL`), if any (#1167).
 pub(crate) fn caret_missing_dictionary(app: &WordApp) -> Option<&'static str> {
-    strix_engine::proof::missing_dictionary(caret_lang_tag(app).as_deref())
+    wordcraft_engine::proof::missing_dictionary(caret_lang_tag(app).as_deref())
 }
 
 /// The dictionary file and reason when the caret's language has a dictionary installed that
 /// couldn't be read, so "no dictionary" would send the user to reinstall it for nothing (#2830).
 pub(crate) fn caret_unreadable_dictionary(app: &WordApp) -> Option<(std::path::PathBuf, String)> {
-    strix_engine::proof::unreadable_dictionary(caret_lang_tag(app).as_deref()).map(|(_, file, reason)| (file, reason))
+    wordcraft_engine::proof::unreadable_dictionary(caret_lang_tag(app).as_deref()).map(|(_, file, reason)| (file, reason))
 }
 
 /// Review › Language (and the status bar's language): set the selection's proofing language, or
@@ -197,8 +196,8 @@ pub(crate) fn language_menu(ui: &mut Ui, app: &mut WordApp) {
             || (tag == "it-IT" && current.eq_ignore_ascii_case("it"))
             || (tag == "hr-HR" && current.eq_ignore_ascii_case("hr"))
             || (tag == "tr-TR" && current.eq_ignore_ascii_case("tr"))
-            || (tag == "cs-CZ" && strix_engine::proof::ProofLang::from_tag(Some(&current)) == strix_engine::proof::ProofLang::Cs)
-            || (tag == "id-ID" && strix_engine::proof::ProofLang::from_tag(Some(&current)) == strix_engine::proof::ProofLang::Id)
+            || (tag == "cs-CZ" && wordcraft_engine::proof::ProofLang::from_tag(Some(&current)) == wordcraft_engine::proof::ProofLang::Cs)
+            || (tag == "id-ID" && wordcraft_engine::proof::ProofLang::from_tag(Some(&current)) == wordcraft_engine::proof::ProofLang::Id)
             || (tag == "es-ES" && current.eq_ignore_ascii_case("es"))
             || (tag == "en-US" && current.eq_ignore_ascii_case("en"))
     };

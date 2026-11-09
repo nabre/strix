@@ -1,10 +1,9 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The Equation tab's galleries: structure templates (fractions, scripts, radicals, integrals,
 //! large operators, brackets, functions, accents, limits and logs, operators, matrices), symbol
 //! sets and ready-made equations. Every template is linear-format text (`⬚` = empty slot) that
-//! [`strix_doc::math::parse_linear`] builds into structures.
+//! [`wordcraft_doc::math::parse_linear`] builds into structures.
 
-use strix_doc::math::{Arg, LimLoc, parse_linear};
+use wordcraft_doc::math::{Arg, LimLoc, parse_linear};
 
 /// One template.
 #[derive(Clone, Copy, Debug)]
@@ -32,7 +31,7 @@ impl Template {
     pub fn nodes(&self) -> Arg {
         let mut n = parse_linear(self.linear);
         if self.limits.is_some() {
-            strix_doc::math_edit::set_limits(&mut n, self.limits);
+            wordcraft_doc::math_edit::set_limits(&mut n, self.limits);
         }
         n
     }
@@ -538,12 +537,14 @@ pub const BUILT_INS: &[(&str, &str, &str)] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strix_doc::math::{MNode, to_linear};
+    use wordcraft_doc::math::{MNode, to_linear};
 
     fn has_leftover(a: &[MNode]) -> bool {
         a.iter().any(|n| match n {
             MNode::Run(r) => r.text.contains('⬚') || r.text.contains('▒') || r.text.contains('┬') || r.text.contains('┴'),
-            other => (0..strix_doc::math_edit::child_count(other)).any(|c| strix_doc::math_edit::child(other, c).is_some_and(|x| has_leftover(x))),
+            other => {
+                (0..wordcraft_doc::math_edit::child_count(other)).any(|c| wordcraft_doc::math_edit::child(other, c).is_some_and(|x| has_leftover(x)))
+            }
         })
     }
 
@@ -554,7 +555,9 @@ mod tests {
         a.windows(2).any(|w| {
             matches!(w[0], MNode::Lim { .. } | MNode::Script { .. })
                 && matches!(&w[1], MNode::Run(r) if r.text.starts_with(|c: char| c.is_alphabetic()))
-        }) || a.iter().any(|n| (0..strix_doc::math_edit::child_count(n)).any(|c| strix_doc::math_edit::child(n, c).is_some_and(|x| split_operand(x))))
+        }) || a
+            .iter()
+            .any(|n| (0..wordcraft_doc::math_edit::child_count(n)).any(|c| wordcraft_doc::math_edit::child(n, c).is_some_and(|x| split_operand(x))))
     }
 
     #[test]

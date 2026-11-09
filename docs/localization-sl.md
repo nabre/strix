@@ -5,7 +5,7 @@
 
 Choose **File › Options › Interface language › Slovenščina**, or follow a Slovenian system display
 language (`sl-SI`, `sl_SI.UTF-8`). The catalog code is `sl`; `ui.language` with `{"value":"sl"}`
-selects it explicitly, and `STRIX_LANGUAGE=sl-SI` does the same for a headless screenshot or a
+selects it explicitly, and `WORDCRAFT_LANGUAGE=sl-SI` does the same for a headless screenshot or a
 launch while the preference is `auto`. Document text, command ids, CLI/MCP/control responses and
 file paths do not change.
 

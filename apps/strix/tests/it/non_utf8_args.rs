@@ -13,8 +13,8 @@ fn app(args: &[OsString]) -> Output {
         .env_remove("DISPLAY")
         .env_remove("WAYLAND_DISPLAY")
         .env_remove("WAYLAND_SOCKET")
-        .env_remove("STRIX_CONTROL_PORT")
-        .env("STRIX_NO_PREFS", "1")
+        .env_remove("WORDCRAFT_CONTROL_PORT")
+        .env("WORDCRAFT_NO_PREFS", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -24,7 +24,7 @@ fn app(args: &[OsString]) -> Output {
     while child.try_wait().unwrap().is_none() {
         if Instant::now() > deadline {
             let _ = child.kill();
-            panic!("strix {args:?} was still running after 30 s: it started the app");
+            panic!("wordcraft {args:?} was still running after 30 s: it started the app");
         }
         std::thread::sleep(Duration::from_millis(50));
     }

@@ -7,8 +7,8 @@
 
 use egui::{Align2, Rect, Sense, Stroke, Ui, pos2, vec2};
 use serde_json::json;
-use strix_doc::math::parse_linear;
-use strix_engine::math_gallery::{BUILT_INS, STRUCTURES, SYMBOL_SETS, Template};
+use wordcraft_doc::math::parse_linear;
+use wordcraft_engine::math_gallery::{BUILT_INS, STRUCTURES, SYMBOL_SETS, Template};
 
 use crate::WordApp;
 use crate::theme::{Tokens, regular, semibold};
@@ -37,7 +37,7 @@ struct MathPreview<'a> {
     rect: Rect,
     key: &'a str,
     linear: &'a str,
-    nodes: Option<strix_doc::math::Arg>,
+    nodes: Option<wordcraft_doc::math::Arg>,
     display: bool,
     points: f32,
 }
@@ -76,7 +76,7 @@ pub(crate) fn math_placeholder_with(linear: &str, covered: impl Fn(char) -> bool
     for c in linear.chars() {
         if c.is_whitespace() || covered(c) {
             result.push(c);
-        } else if let Some(name) = strix_doc::math_symbols::name_of(c) {
+        } else if let Some(name) = wordcraft_doc::math_symbols::name_of(c) {
             result.push('\\');
             result.push_str(name);
         } else {
@@ -95,7 +95,7 @@ const EQUATION_PICTURE: &str = "∑_(i=1)^n";
 #[cfg(test)]
 pub(crate) fn placeholder_linears() -> impl Iterator<Item = String> {
     let pictures = STRUCTURES.iter().map(|g| button_picture(g.id).to_string());
-    let templates = strix_engine::math_gallery::templates().map(|t| t.linear.to_string());
+    let templates = wordcraft_engine::math_gallery::templates().map(|t| t.linear.to_string());
     let symbols = SYMBOL_SETS.iter().flat_map(|(_, chars)| chars.chars()).map(|c| c.to_string());
     std::iter::once(EQUATION_PICTURE.to_string())
         .chain(pictures)
@@ -323,10 +323,11 @@ fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
         ui.painter().rect_stroke(r, 2.0, Stroke::new(1.0, t.accent), egui::StrokeKind::Inside);
     }
     let s = c.to_string();
-    let nodes = vec![strix_doc::math::MNode::Run(strix_doc::math::MRun { text: s.clone(), lit: true, ..Default::default() })];
+    let nodes = vec![wordcraft_doc::math::MNode::Run(wordcraft_doc::math::MRun { text: s.clone(), lit: true, ..Default::default() })];
     paint_math(app, ui, MathPreview { rect: r, key: &format!("sym:{s}"), linear: &s, nodes: Some(nodes), display: false, points: 11.0 });
     let display = math_placeholder(ui, &s);
-    let name = strix_doc::math_symbols::name_of(c).map(|n| format!("{display}  \\{n}")).unwrap_or_else(|| format!("{display}  U+{:04X}", c as u32));
+    let name =
+        wordcraft_doc::math_symbols::name_of(c).map(|n| format!("{display}  \\{n}")).unwrap_or_else(|| format!("{display}  U+{:04X}", c as u32));
     resp.on_hover_text(name).clicked()
 }
 
@@ -483,7 +484,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             );
             // The equation is the result of the question it is worked under (in an exercise's
             // solution), or not: one click each way.
-            let is_result = strix_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.answer != 0);
+            let is_result = wordcraft_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.answer != 0);
             small(
                 ui,
                 app,

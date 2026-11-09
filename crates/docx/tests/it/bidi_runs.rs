@@ -1,5 +1,5 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Runs of mixed right-to-left and left-to-right text (#1543). Strix lays a paragraph out with
+//! Runs of mixed right-to-left and left-to-right text (#1543). WordCraft lays a paragraph out with
 //! the Unicode Bidirectional Algorithm (UAX #9) from its text and direction alone, while Word
 //! orders a run's characters by the run's `w:rtl` (ECMA-376 Part 1 §17.3.2.30): text in a run
 //! without it is laid out left to right, so Hebrew words around a Latin name, and the punctuation
@@ -9,8 +9,8 @@
 
 use std::io::Read;
 
-use strix_doc::props::CharProps;
-use strix_doc::{Document, Paragraph, para_block};
+use wordcraft_doc::props::CharProps;
+use wordcraft_doc::{Document, Paragraph, para_block};
 
 /// `word/document.xml` of a written package.
 fn document_xml(bytes: &[u8]) -> String {
@@ -57,7 +57,7 @@ fn doc_of(text: &str, rtl_para: bool, props: CharProps) -> Document {
 }
 
 fn written_runs(d: &Document) -> Vec<(bool, String)> {
-    runs(&document_xml(&strix_docx::write(d).unwrap()))
+    runs(&document_xml(&wordcraft_docx::write(d).unwrap()))
 }
 
 fn owned(v: &[(bool, &str)]) -> Vec<(bool, String)> {
@@ -85,7 +85,7 @@ fn line_breaks_stay_in_the_split_runs() {
 #[test]
 fn split_runs_keep_their_formatting() {
     let d = doc_of("עברית Strix עברית", true, arial());
-    let xml = document_xml(&strix_docx::write(&d).unwrap());
+    let xml = document_xml(&wordcraft_docx::write(&d).unwrap());
     let body = xml.split("<w:body>").nth(1).unwrap();
     assert_eq!(body.matches("<w:r>").count(), 3);
     assert_eq!(body.matches(r#"<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>"#).count(), 4, "three runs and the mark: {body}");
@@ -112,7 +112,7 @@ fn explicit_run_direction_is_kept() {
     let d = doc_of("עברית Strix", true, CharProps { rtl: Some(true), ..arial() });
     assert_eq!(written_runs(&d), owned(&[(true, "עברית Strix")]));
     let d = doc_of("עברית Strix", true, CharProps { rtl: Some(false), ..arial() });
-    let xml = document_xml(&strix_docx::write(&d).unwrap());
+    let xml = document_xml(&wordcraft_docx::write(&d).unwrap());
     assert!(xml.contains(r#"<w:rtl w:val="0"/>"#), "{xml}");
     assert_eq!(runs(&xml).len(), 1);
 }
@@ -121,8 +121,8 @@ fn explicit_run_direction_is_kept() {
 fn mixed_paragraph_round_trips_text_and_direction() {
     let text = "לפני (ABC 123) אחרי; דוא״ל test@example.com.\nעברית Strix 2026 ואחריה עוד עברית.";
     let d = doc_of(text, true, arial());
-    let bytes = strix_docx::write(&d).unwrap();
-    let r = strix_docx::read(&bytes).unwrap();
+    let bytes = wordcraft_docx::write(&d).unwrap();
+    let r = wordcraft_docx::read(&bytes).unwrap();
     let p = r.body.iter().find_map(|b| b.as_para()).unwrap();
     assert_eq!(p.text, text);
     assert_eq!(p.props.bidi, Some(true));
@@ -154,7 +154,7 @@ fn run_langs(xml: &str) -> Vec<(bool, Option<String>)> {
 }
 
 fn langs(d: &Document) -> Vec<(bool, Option<String>)> {
-    run_langs(&document_xml(&strix_docx::write(d).unwrap()))
+    run_langs(&document_xml(&wordcraft_docx::write(d).unwrap()))
 }
 
 fn he(rtl: bool) -> (bool, Option<String>) {

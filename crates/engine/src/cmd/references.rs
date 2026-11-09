@@ -2,11 +2,11 @@
 //! References tab: table of contents, footnotes/endnotes, captions; field updates.
 
 use serde_json::{Value, json};
-use strix_doc::numbering::{Counters, LevelSuffix};
-use strix_doc::para::{InlineObject, NoteKind, OBJ};
-use strix_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
-use strix_doc::section::NumFormat;
-use strix_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, para_block};
+use wordcraft_doc::numbering::{Counters, LevelSuffix};
+use wordcraft_doc::para::{InlineObject, NoteKind, OBJ};
+use wordcraft_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
+use wordcraft_doc::section::NumFormat;
+use wordcraft_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, para_block};
 
 use super::{delete_selection, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};

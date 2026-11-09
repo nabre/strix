@@ -1,13 +1,12 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Blocks, paragraphs, runs, objects and tables → WordprocessingML.
 
-use strix_doc::effects::ShapeEffects;
-use strix_doc::fill::{Fill, GradientFlip, GradientKind, PathShape};
-use strix_doc::para::{AltText, Anchor, Float, NoteKind, ShapeKind, Wrap};
-use strix_doc::props::{CharProps, PropChange, Rgb, TextColor};
-use strix_doc::section::{LineNumberRestart, NoteProps, SectionProps, SectionStart};
-use strix_doc::table::Table;
-use strix_doc::{Block, Blocks, InlineObject, Paragraph, RevisionKind};
+use wordcraft_doc::effects::ShapeEffects;
+use wordcraft_doc::fill::{Fill, GradientFlip, GradientKind, PathShape};
+use wordcraft_doc::para::{AltText, Anchor, Float, NoteKind, ShapeKind, Wrap};
+use wordcraft_doc::props::{CharProps, PropChange, Rgb, TextColor};
+use wordcraft_doc::section::{LineNumberRestart, NoteProps, SectionProps, SectionStart};
+use wordcraft_doc::table::Table;
+use wordcraft_doc::{Block, Blocks, InlineObject, Paragraph, RevisionKind};
 
 use super::props::{ChangeAttrs, borders, open_change, ppr_inner, rpr, rpr_inner, tblpr, tcpr, trpr};
 use super::{PartRels, Writer};

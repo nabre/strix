@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Draw tab and Review › Ink: pens, the eraser, the lasso and ink strokes.
 //!
 //! An ink stroke is a floating freeform shape ([`Freeform`] with its pen set) anchored to the
@@ -16,12 +15,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Value, json};
-use strix_doc::freeform::{FreePath, Freeform, InkTool, MAX_INK_PER_PAGE, MAX_POINTS};
-use strix_doc::para::{Anchor, Float, InlineObject, OBJ, ShapeKind, Wrap};
-use strix_doc::props::Rgb;
-use strix_doc::{CharProps, Pos, StoryRef};
-use strix_geom::Rect;
-use strix_layout::{DocLayout, Placed};
+use wordcraft_doc::freeform::{FreePath, Freeform, InkTool, MAX_INK_PER_PAGE, MAX_POINTS};
+use wordcraft_doc::para::{Anchor, Float, InlineObject, OBJ, ShapeKind, Wrap};
+use wordcraft_doc::props::Rgb;
+use wordcraft_doc::{CharProps, Pos, StoryRef};
+use wordcraft_geom::Rect;
+use wordcraft_layout::{DocLayout, Placed};
 
 use super::ink_shape::{ArrowParts, InkShape, arrow_parts, pair_parts, recognise};
 use super::pos_json;
@@ -303,7 +302,7 @@ pub struct PlacedInk {
     /// Its unturned frame on the page.
     pub rect: Rect,
     /// Its turn about the frame's centre.
-    pub spin: strix_geom::Spin,
+    pub spin: wordcraft_geom::Spin,
     pub freeform: Arc<Freeform>,
     pub color: Option<Rgb>,
     pub width: f32,
@@ -504,7 +503,7 @@ fn place(s: &mut Session, layout: &DocLayout, obj: InlineObject, page: usize, (x
         }
     }
     let (rel, origin) = if on_page {
-        (Anchor::Page, strix_geom::Point::new(0.0, 0.0))
+        (Anchor::Page, wordcraft_geom::Point::new(0.0, 0.0))
     } else {
         s.touch(); // lay out the new object to find where its paragraph puts it
         let origin = s.layout().object(&at, page).ok_or_else(|| CmdError::Failed("the stroke isn't laid out".into()))?.origin;

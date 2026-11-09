@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{BTreeMap, StoryRef, Stroke, Tokens, Ui, Value, WordApp, json, regular, semibold};
 
 /// Draws the Comments pane: New Comment and scrollable comment and reply cards with edit, go-to,
@@ -65,7 +64,7 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// What has been typed in comment and reply fields but not yet written to the document (#1348).
-/// Drafts belong to one document ([`Session::document_id`](strix_engine::Session::document_id)):
+/// Drafts belong to one document ([`Session::document_id`](wordcraft_engine::Session::document_id)):
 /// when another document replaces it they are dropped, so a comment there with the same id never
 /// shows them. A draft is removed only once its command succeeds; a refused edit keeps it.
 #[derive(Default)]

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 mod bidi;
 mod bidi_runs;
 mod cell_margin_inheritance;
@@ -26,6 +27,7 @@ mod section_page_number_type;
 mod section_text_direction;
 mod section_valign;
 mod settings_merge;
+mod strix_canvas_uri;
 mod text_boxes;
 mod toc_ranges;
 mod vml_shapes;

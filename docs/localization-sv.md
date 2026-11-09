@@ -5,7 +5,7 @@
 
 Choose **File › Options › Interface language › Svenska**, or follow a Swedish system display
 language (`sv-SE`, `sv_SE.UTF-8`, and `sv-FI` for Swedish in Finland). The catalog code is `sv`;
-`ui.language` with `{"value":"sv"}` selects it explicitly, and `STRIX_LANGUAGE=sv-SE` does the
+`ui.language` with `{"value":"sv"}` selects it explicitly, and `WORDCRAFT_LANGUAGE=sv-SE` does the
 same for a headless screenshot or a launch while the preference is `auto`. The choice is saved with
 the other interface settings. Document text, command ids, CLI/MCP/control responses and file paths
 do not change.
@@ -79,7 +79,7 @@ quotes); they are translated as written and still act on English text.
 
 ## Verification and remaining scope
 
-`cargo test -p strix-ui-egui --lib i18n::tests` covers Swedish locale tags (`sv`, `sv-SE`,
+`cargo test -p wordcraft-ui-egui --lib i18n::tests` covers Swedish locale tags (`sv`, `sv-SE`,
 `sv_SE.UTF-8`, `SV-se`, `sv-FI`) and preference order, saving and restoring `sv`, unchanged document
 content and the glyphs `ÅÄÖåäöÉé` plus every other accented letter the catalog uses in the bundled
 Inter (Regular, Medium, SemiBold) and JetBrains Mono. The shared checks (catalog validation and the missing-translation report, `cargo xtask i18n-report`)

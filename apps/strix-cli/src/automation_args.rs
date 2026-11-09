@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Parse `--automation-read-root` / `--automation-write-root` before the server starts. A malformed
 //! flag must not silently remove a root and leave the server unconfined.
 

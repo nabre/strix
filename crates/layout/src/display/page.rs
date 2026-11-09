@@ -8,7 +8,7 @@ use super::{
     BezPath, Border, BorderStyle, ChangeBar, Document, Draw, HashMap, InlineObject, LineEnd, Page, Placed, Rect, Rgb, Spin, StoryRef, TextDirection,
     Underline,
 };
-use strix_doc::graphic::PathSeg;
+use wordcraft_doc::graphic::PathSeg;
 
 /// Colour of moved text (both ends of a tracked move).
 pub const MOVE_COLOR: Rgb = Rgb(0x1A, 0x7F, 0x37);
@@ -208,7 +208,7 @@ fn cell_clip(clips: &Clips, story: StoryRef, path: &[u32]) -> Option<Rect> {
 
 /// The text boxes among `items` whose text is warped (Text Effects › Transform, drawn bent): their
 /// story, frame and warp. Empty, without a walk of the document, when none is.
-fn warped_boxes(doc: &Document, items: &[Placed]) -> Vec<(u32, Rect, strix_doc::wordart::TextWarp)> {
+fn warped_boxes(doc: &Document, items: &[Placed]) -> Vec<(u32, Rect, wordcraft_doc::wordart::TextWarp)> {
     items
         .iter()
         .filter_map(|it| {
@@ -228,7 +228,7 @@ struct WarpedText<'doc, 'opts, 'lines, 'placed, 'authors, 'author_doc> {
     doc: &'doc Document,
     lines: &'lines [&'placed Placed],
     rect: Rect,
-    warp: &'lines strix_doc::wordart::TextWarp,
+    warp: &'lines wordcraft_doc::wordart::TextWarp,
     opts: &'opts DisplayOptions,
     authors: &'authors Authors<'author_doc>,
     alpha: f32,
@@ -241,7 +241,7 @@ fn warped_text(input: WarpedText<'_, '_, '_, '_, '_, '_>, out: &mut Vec<Draw>) {
         item(doc, it, opts, authors, alpha, &mut raw);
     }
     // The letters: runs with effects as they are, plain runs from their glyphs.
-    let mut arts: Vec<(BezPath, Box<strix_doc::wordart::TextEffects>, Rgb, f32)> = Vec::new();
+    let mut arts: Vec<(BezPath, Box<wordcraft_doc::wordart::TextEffects>, Rgb, f32)> = Vec::new();
     let mut hidden = Vec::new();
     for d in &raw {
         match d {
@@ -354,7 +354,7 @@ fn rule(x0: f32, y0: f32, x1: f32, y1: f32, b: &Border, alpha: f32) -> Draw {
 /// them, each kind one path; lines on whole squares from the rect's top-left corner, as long as
 /// the grid's whole squares reach. A grid with a frame of its own weight draws its edge lines
 /// as that frame, over the rest. `alpha` (a dimmed body) fades the colours towards the paper.
-pub fn grid_draws(rect: Rect, grid: &strix_doc::graph_paper::GraphPaper, alpha: f32, out: &mut Vec<Draw>) {
+pub fn grid_draws(rect: Rect, grid: &wordcraft_doc::graph_paper::GraphPaper, alpha: f32, out: &mut Vec<Draw>) {
     let g = grid.sanitized();
     let (vs, hs) = g.lines(rect.w, rect.h);
     let (Some(right), Some(bottom)) = (vs.last().map(|l| rect.x + l.0), hs.last().map(|l| rect.y + l.0)) else { return };
@@ -504,7 +504,7 @@ fn item_in(doc: &Document, it: &Placed, opts: &DisplayOptions, authors: &Authors
 #[cfg(test)]
 mod tests_clips {
     use super::*;
-    use strix_doc::Path as DocPath;
+    use wordcraft_doc::Path as DocPath;
 
     /// A cell whose area is told apart by `x`.
     fn cell(story: StoryRef, table: Vec<u32>, row: usize, cell: usize, clip: bool, x: f32) -> Placed {

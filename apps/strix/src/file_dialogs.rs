@@ -3,7 +3,7 @@
 //!
 //! The blocking `rfd::FileDialog` ran on the UI thread: on Linux the xdg-desktop-portal call
 //! blocked the event loop until the dialog closed, and with no parent window the dialog could open
-//! behind Strix, which then sat there frozen. Now the app's request ([`Services::file_dialog`])
+//! behind WordCraft, which then sat there frozen. Now the app's request ([`Services::file_dialog`])
 //! is queued; the frame (which has the window) builds an `rfd::AsyncFileDialog` parented to the
 //! window, and a background thread waits for the answer, hands it to the app and wakes the UI.
 //!
@@ -11,7 +11,7 @@
 //! `zenity`; with neither (a minimal Wayland compositor such as labwc with only
 //! xdg-desktop-portal-wlr, #576) it answers "cancelled" and nothing ever shows. So the waiting
 //! thread first checks that one of them is there and otherwise answers with an error, and the app
-//! shows its built-in file browser. `STRIX_FILE_DIALOG=builtin` always uses the built-in one.
+//! shows its built-in file browser. `WORDCRAFT_FILE_DIALOG=builtin` always uses the built-in one.
 //!
 //! On Linux and the BSDs, rfd reports a portal that failed to show its dialog as a cancel (#2999).
 //! There a cancel quicker than anyone could dismiss a dialog is taken as that failure: the dialog
@@ -19,13 +19,13 @@
 //! built-in browser shows. Windows and macOS always show their dialog, so a quick cancel there is
 //! the person's and is answered as one.
 //!
-//! [`Services::file_dialog`]: strix_ui_egui::Services::file_dialog
+//! [`Services::file_dialog`]: wordcraft_ui_egui::Services::file_dialog
 
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use strix_ui_egui::{FileDialogAnswer, FileDialogRequest};
+use wordcraft_ui_egui::{FileDialogAnswer, FileDialogRequest};
 
 /// A dialog the app asked for, with the channel its answer goes back through.
 type Request = (FileDialogRequest, Sender<FileDialogAnswer>);
@@ -42,7 +42,7 @@ pub struct Launcher {
     ctx: egui::Context,
 }
 
-/// The hook for [`Services::file_dialog`](strix_ui_egui::Services::file_dialog) and the
+/// The hook for [`Services::file_dialog`](wordcraft_ui_egui::Services::file_dialog) and the
 /// launcher that shows what it queues.
 pub fn hook(ctx: &egui::Context) -> (Hook, Launcher) {
     let (queue_tx, queue) = channel::<Request>();
@@ -143,7 +143,7 @@ fn pick<T>(
 
 /// The file types Open offers (shared with the built-in browser).
 fn open_filters(mut d: rfd::AsyncFileDialog, purpose: &str) -> rfd::AsyncFileDialog {
-    for (name, exts) in strix_ui_egui::open_filters(purpose) {
+    for (name, exts) in wordcraft_ui_egui::open_filters(purpose) {
         d = d.add_filter(*name, exts);
     }
     d
@@ -151,8 +151,8 @@ fn open_filters(mut d: rfd::AsyncFileDialog, purpose: &str) -> rfd::AsyncFileDia
 
 /// Why no system file dialog can be shown, if it can't (#576); run off the UI thread.
 fn no_system_dialog() -> Option<String> {
-    if std::env::var_os("STRIX_FILE_DIALOG").is_some_and(|v| v == "builtin") {
-        return Some("STRIX_FILE_DIALOG=builtin".into());
+    if std::env::var_os("WORDCRAFT_FILE_DIALOG").is_some_and(|v| v == "builtin") {
+        return Some("WORDCRAFT_FILE_DIALOG=builtin".into());
     }
     portal_or_zenity_missing()
 }
@@ -205,21 +205,21 @@ fn on_path(program: &str) -> bool {
 /// suggested name's own format first. rfd makes a filter's first extension the dialog's default,
 /// which the Windows, macOS and Linux panels append to a file name the user typed without one;
 /// with no filter at all the name came back bare and the save failed, since the format is chosen
-/// by extension (#689). Shared with the built-in browser ([`strix_ui_egui::save_exts`]).
+/// by extension (#689). Shared with the built-in browser ([`wordcraft_ui_egui::save_exts`]).
 #[cfg(test)]
 fn save_exts(name: &str) -> Vec<String> {
-    strix_ui_egui::save_exts(name)
+    wordcraft_ui_egui::save_exts(name)
 }
 
 /// The "Save as type" list (#1399): one named entry per format, the suggested one first (see
-/// [`strix_ui_egui::save_exts`] for why the order matters): `Strix Document (*.xmath)`,
+/// [`wordcraft_ui_egui::save_exts`] for why the order matters): `Strix Document (*.xmath)`,
 /// `Strix Template (*.xmathm)`, the other editable formats (left out with `native_only`, for a
 /// document with Strix objects), then the export formats.
 ///
 /// rfd doesn't report which entry the user picked, so if they choose "PDF" but leave "name.xmath"
 /// in the name box, the extension in the name wins, as the format is chosen by extension.
 fn save_filters(name: &str, native_only: bool) -> Vec<(String, Vec<String>)> {
-    strix_ui_egui::save_filters_for(name, native_only)
+    wordcraft_ui_egui::save_filters_for(name, native_only)
 }
 
 #[cfg(test)]
@@ -250,11 +250,11 @@ mod tests {
     #[test]
     fn save_dialog_lists_one_named_type_per_format() {
         let filters = save_filters("report.html", false);
-        assert_eq!(filters.len(), strix_engine::io::SAVE_EXTS.len());
+        assert_eq!(filters.len(), wordcraft_engine::io::SAVE_EXTS.len());
         assert_eq!(filters[0].1, vec!["html".to_string()]);
         assert!(filters[0].0.contains("Web Page"), "{}", filters[0].0);
         let all: Vec<&String> = filters.iter().flat_map(|(_, e)| e).collect();
-        for e in strix_engine::io::SAVE_EXTS {
+        for e in wordcraft_engine::io::SAVE_EXTS {
             assert_eq!(all.iter().filter(|x| x.as_str() == *e).count(), 1, "{e}");
         }
         assert!(filters.iter().all(|(l, e)| !l.trim().is_empty() && e.len() == 1));
@@ -270,8 +270,8 @@ mod tests {
         // A document with Strix objects is offered only Strix's own formats and the exports.
         let native_only = save_filters("report.docx", true);
         assert_eq!(native_only[0].1, vec!["xmath".to_string()]);
-        assert!(native_only.iter().flat_map(|(_, e)| e).all(|e| !strix_engine::io::is_foreign_save(e)), "{native_only:?}");
-        assert_eq!(native_only.len(), strix_engine::io::SAVE_EXTS.len() - strix_engine::io::FOREIGN_SAVE_EXTS.len());
+        assert!(native_only.iter().flat_map(|(_, e)| e).all(|e| !wordcraft_engine::io::is_foreign_save(e)), "{native_only:?}");
+        assert_eq!(native_only.len(), wordcraft_engine::io::SAVE_EXTS.len() - wordcraft_engine::io::FOREIGN_SAVE_EXTS.len());
         let native = save_filters("Document1.xmath", false);
         assert_eq!(native[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
         assert_eq!(native[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));
@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(save_exts("mystery.rtf2")[0], "xmath");
         // Every savable format is still offered, once.
         let exts = save_exts("novel.docx");
-        assert!(strix_engine::io::SAVE_EXTS.iter().all(|e| exts.iter().any(|x| x == e)));
-        assert_eq!(exts.len(), strix_engine::io::SAVE_EXTS.len());
+        assert!(wordcraft_engine::io::SAVE_EXTS.iter().all(|e| exts.iter().any(|x| x == e)));
+        assert_eq!(exts.len(), wordcraft_engine::io::SAVE_EXTS.len());
     }
 }

@@ -26,12 +26,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use strix_doc::control::{ContentControl, ControlKind, ControlLock};
-use strix_doc::numbering::ListKind;
-use strix_doc::para::OBJ;
-use strix_doc::props::{CharProps, NumRef, ParaProps};
-use strix_doc::styles::{Style, StyleKind};
-use strix_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
+use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
+use wordcraft_doc::numbering::ListKind;
+use wordcraft_doc::para::OBJ;
+use wordcraft_doc::props::{CharProps, NumRef, ParaProps};
+use wordcraft_doc::styles::{Style, StyleKind};
+use wordcraft_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
@@ -332,7 +332,7 @@ fn ensure_styles(s: &mut Session) {
 /// The list exercise titles are numbered with: `Esercizio 1.` (the word in the document's
 /// language), a space, then the title.
 fn add_title_list(s: &mut Session) -> Result<u32, CmdError> {
-    use strix_doc::numbering::{LevelSuffix, levels_for};
+    use wordcraft_doc::numbering::{LevelSuffix, levels_for};
     let word = words(s).exercise;
     let mut levels = levels_for(ListKind::Numbered);
     levels.truncate(1);
@@ -378,8 +378,8 @@ fn para(style: &str, text: &str, starts: Vec<ContentControl>, ends: usize, numbe
 }
 
 /// The path of top-level body block `i`.
-fn body_path(i: usize) -> strix_doc::Path {
-    strix_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)])
+fn body_path(i: usize) -> wordcraft_doc::Path {
+    wordcraft_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)])
 }
 
 fn letter(k: usize) -> String {
@@ -397,8 +397,8 @@ fn letter(k: usize) -> String {
 
 /// A new list for an exercise's questions: a), then a.1), then a.1.1).
 fn add_question_list(s: &mut Session) -> Result<u32, CmdError> {
-    use strix_doc::numbering::levels_for;
-    use strix_doc::section::NumFormat;
+    use wordcraft_doc::numbering::levels_for;
+    use wordcraft_doc::section::NumFormat;
     let mut levels = levels_for(ListKind::LowerLetter);
     // Each level hangs its label wide enough for `a.1.1)`, so the text never jumps to a tab.
     for (i, text, indent, hanging) in [(0usize, "%1)", 18.0, 18.0), (1, "%1.%2)", 50.0, 28.0), (2, "%1.%2.%3)", 90.0, 36.0)] {
@@ -516,7 +516,7 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         s.doc.body.insert(at + i, para_block(b));
     }
     // The caret goes into the title, ready to type.
-    s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
     s.touch();
     update(s);
     s.clamp_selection();
@@ -997,7 +997,7 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         let ends = prev.objects.iter().filter(|o| matches!(o, InlineObject::ControlEnd)).count();
         let numbering = list.map(|num| NumRef { num, level });
         *prev = para(STYLE_QUESTION, &text, opens, ends, numbering);
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
     } else {
         // The questions control's end moves to the new last question.
         take_last_end(prev)?;
@@ -1005,7 +1005,7 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         let new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
         let caret = new.text.len() - OBJ.len_utf8();
         s.doc.body.insert(last + 1, para_block(new));
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     }
     s.touch();
     update(s);
@@ -1052,7 +1052,7 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
     let new = para(STYLE_NOTE, &text, Vec::new(), 1, None);
     let caret = new.text.len() - OBJ.len_utf8();
     s.doc.body.insert(last + 1, para_block(new));
-    s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     s.touch();
     update(s);
     s.clamp_selection();
@@ -1086,7 +1086,7 @@ fn answer(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// The 1-based number of the question whose prompt is the nearest above `at` in its solution.
-fn question_above(s: &Session, at: &strix_doc::Pos) -> Option<u64> {
+fn question_above(s: &Session, at: &wordcraft_doc::Pos) -> Option<u64> {
     let top = at.path.0.first().map(|&t| t as usize)?;
     let layout = scan(s);
     let e = layout.exercises.iter().find(|e| e.solution_blocks.is_some_and(|(a, b)| (a..=b).contains(&top)))?;
@@ -1509,7 +1509,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strix_doc::Document;
+    use wordcraft_doc::Document;
 
     fn session() -> Session {
         let mut s = Session::new(Document::new());
@@ -1550,7 +1550,7 @@ mod tests {
             let q = texts(&s).iter().position(|t| t == "Trova x").unwrap();
             let Block::Para(p) = &*s.doc.body[q] else { panic!() };
             let x = p.text.find("x").unwrap();
-            let at = |off| strix_doc::Pos::new(StoryRef::Body, body_path(q), off);
+            let at = |off| wordcraft_doc::Pos::new(StoryRef::Body, body_path(q), off);
             s.sel = crate::Selection { anchor: at(x), focus: at(x + 1) };
             s.run("format.bold", &json!({})).unwrap();
             s.run(command, &json!({"text": "Poi"})).unwrap();
@@ -1609,7 +1609,7 @@ mod tests {
         assert_eq!(opener(&s, 1, TAG_EXERCISE).map(|c| c.lock), Some(ControlLock::SdtLocked));
         assert_eq!(opener(&s, 6, TAG_PROMPT).map(|c| c.lock), Some(ControlLock::SdtContentLocked));
         // A second exercise: the summary stays one, at the end.
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(9), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(9), 0));
         s.run("exercise.insert", &json!({"title": "Secondo", "questions": ["x"]})).unwrap();
         let t = texts(&s);
         assert_eq!(t.iter().filter(|x| *x == "Riepilogo dei risultati").count(), 1);
@@ -1638,11 +1638,11 @@ mod tests {
         assert!(t[one..two].iter().any(|x| x == "a) q"), "the first is whole before the second: {t:?}");
         // The caret in the results summary: a new exercise goes before it.
         let summary = t.iter().position(|x| x == "Riepilogo dei risultati").unwrap();
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(summary + 1), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(summary + 1), 0));
         s.run("exercise.insert", &json!({"title": "Terzo", "questions": ["q"]})).unwrap();
         let t = texts(&s);
         assert!(t.iter().position(|x| x == "Terzo").unwrap() < t.iter().position(|x| x == "Riepilogo dei risultati").unwrap(), "{t:?}");
-        let mut counters = strix_doc::numbering::Counters::default();
+        let mut counters = wordcraft_doc::numbering::Counters::default();
         let labels: Vec<String> = s
             .doc
             .body
@@ -1678,7 +1678,7 @@ mod tests {
         s.run("exercise.insert", &json!({"title": "Trave", "questions": ["Momento", "Taglio"]})).unwrap();
         // Type the solution in the free paragraph after the repeated questions.
         let free = texts(&s).iter().position(|t| t == "b) Taglio").unwrap() + 1;
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(free), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(free), 0));
         for t in ["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"] {
             s.run("calc.insert", &json!({"text": t})).unwrap();
             s.run("text.insert", &json!({"text": " "})).unwrap();
@@ -1720,7 +1720,7 @@ mod tests {
         s.run("exercise.insert", &json!({"title": "T", "questions": ["Prima", "Seconda"]})).unwrap();
         let write = |s: &mut Session, after: &str, text: &str| {
             let at = texts(s).iter().position(|t| t == after).unwrap() + 1;
-            s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 0));
+            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 0));
             s.run("text.insert", &json!({"text": text})).unwrap();
         };
         // Each question has its own space in the solution.
@@ -1734,7 +1734,8 @@ mod tests {
         };
         assert_eq!(solution(&s), ["a) Prima", "lavoro a", "b) Seconda", "lavoro b"]);
         // A new question comes after the working of the last one, with room to write.
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(texts(&s).iter().position(|t| t == "Seconda").unwrap()), 0));
+        s.sel =
+            crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(texts(&s).iter().position(|t| t == "Seconda").unwrap()), 0));
         s.run("exercise.addQuestion", &json!({"text": "Terza"})).unwrap();
         assert_eq!(solution(&s), ["a) Prima", "lavoro a", "b) Seconda", "lavoro b", "c) Terza", ""]);
         // A question edited in place keeps its working.
@@ -1743,7 +1744,7 @@ mod tests {
             Block::Para(p) => p.text.len(),
             Block::Table(_) => 0,
         };
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(q), end));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(q), end));
         s.run("text.insert", &json!({"text": " bis"})).unwrap();
         assert_eq!(solution(&s)[..2], ["a) Prima bis", "lavoro a"]);
         // A removed question's prompt goes; the working stays, and the next prompts relabel.
@@ -1752,13 +1753,13 @@ mod tests {
             Block::Para(p) => p.text.len(),
             Block::Table(_) => 0,
         };
-        let pos = |off| strix_doc::Pos::new(StoryRef::Body, body_path(q), off);
+        let pos = |off| wordcraft_doc::Pos::new(StoryRef::Body, body_path(q), off);
         s.sel = crate::Selection { anchor: pos(OBJ.len_utf8()), focus: pos(end) };
         s.run("text.delete", &json!({})).unwrap();
         assert_eq!(solution(&s), ["lavoro a", "a) Seconda", "lavoro b", "b) Terza", ""]);
         // An equation worked under a question is its result by default.
         let at = texts(&s).iter().position(|t| t == "lavoro b").unwrap();
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), "lavoro b".len()));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), "lavoro b".len()));
         s.run("calc.insert", &json!({"text": "x = 2"})).unwrap();
         assert_eq!(s.run("equation.answer", &json!({})).unwrap()["answer"], json!(1));
         // The Result button: off, then on again (the question it is worked under).
@@ -1772,12 +1773,12 @@ mod tests {
         s.run("calc.insert", &json!({"text": "a = 2 m"})).unwrap();
         s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
         let free = texts(&s).iter().position(|t| t == "a) q").unwrap() + 1;
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(free), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(free), 0));
         // Inside, the document's `a` is unknown; `b` defined inside stays inside.
         s.run("calc.insert", &json!({"text": "b = 3 m"})).unwrap();
         s.run("text.insert", &json!({"text": " "})).unwrap();
         s.run("calc.insert", &json!({"text": "a ="})).unwrap();
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(0), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(0), 0));
         s.run("caret.lineEnd", &json!({})).ok();
         s.run("calc.insert", &json!({"text": "b ="})).unwrap();
         let r = s.run("calc.recalculate", &json!({})).unwrap();
@@ -1836,7 +1837,7 @@ mod tests {
         assert_eq!(unit_runs.sum::<usize>(), 2);
         // The solution uses the data without defining them.
         let free = t.iter().position(|x| x == "a) Momento").unwrap() + 1;
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(free), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(free), 0));
         s.run("calc.insert", &json!({"text": "M = q·L^2/8"})).unwrap();
         let mut at = s.sel.focus.clone();
         at.off -= OBJ.len_utf8();
@@ -1941,7 +1942,7 @@ mod tests {
         s.doc.styles.default_chr.lang = Some("it-IT".into());
         assert_eq!(title(&s), "Ponte");
         let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
         s.run("text.insert", &json!({"text": "Il "})).unwrap();
         assert_eq!(title(&s), "Il Ponte");
         assert_eq!(known_title(&s), "Il Ponte");
@@ -1980,7 +1981,7 @@ mod tests {
         s.doc.styles.default_chr.lang = Some("it-IT".into());
         assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
         assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
         s.run("text.insert", &json!({"text": "Vecchio"})).unwrap();
         assert_eq!(title(&s), "Vecchio");
         assert_eq!(known_title(&s), "Vecchio");
@@ -2006,7 +2007,7 @@ mod tests {
         let mut s = session();
         s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
         let end = s.doc.body.len() - 1;
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(end), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(end), 0));
         s.run("exercise.insert", &json!({"title": "Due", "questions": ["r"]})).unwrap();
         // Object, newline and marker characters, and texts past every limit.
         let junk = format!("{}\u{1F}\n{}", "\u{FFFC}".repeat(50), "é".repeat(5000));

@@ -5,7 +5,7 @@ use std::sync::mpsc::{Sender, channel};
 
 use super::*;
 use crate::Services;
-use strix_engine::Session;
+use wordcraft_engine::Session;
 
 const UNSAVED: &str = "My unsaved novel chapter";
 
@@ -50,7 +50,7 @@ fn imported_word_save_asks_for_xmath_and_preserves_the_original() {
         std::fs::write(&original, &bytes).unwrap();
         let (mut a, shown) = async_app();
         a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
-        assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).contains("Legacy contract"));
+        assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Legacy contract"));
         a.run("text.insert", json!({"text": "Revised "})).unwrap();
         let draft = a.session.doc.clone();
         let revision = a.session.rev();
@@ -105,7 +105,7 @@ fn imported_word_close_waits_for_save_as_and_keeps_failed_or_cancelled_drafts() 
     assert!(a.has_document() && a.session.dirty && !a.quit_requested);
     assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
     assert_eq!(std::fs::read(&original).unwrap(), bytes);
-    assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body), draft.plain_text(strix_doc::StoryRef::Body));
+    assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body), draft.plain_text(wordcraft_doc::StoryRef::Body));
 
     a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
     answer(&shown, None);
@@ -233,7 +233,7 @@ fn imported_word_save_controls_ask_for_xmath() {
 fn imported_docx_without_strix_objects_saves_in_place() {
     let dir = scratch("imported-docx");
     let original = dir.join("report.docx");
-    strix_engine::io::save_path(&original, &strix_doc::Document::from_text("Quarterly report")).unwrap();
+    wordcraft_engine::io::save_path(&original, &wordcraft_doc::Document::from_text("Quarterly report")).unwrap();
     let (mut a, shown) = async_app();
     a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
     typed(&mut a);
@@ -256,7 +256,7 @@ fn imported_docx_without_strix_objects_saves_in_place() {
 fn imported_docx_with_strix_objects_save_proposes_xmath() {
     let dir = scratch("imported-docx-objects");
     let original = dir.join("report.docx");
-    strix_engine::io::save_path(&original, &strix_doc::Document::from_text("Quarterly report")).unwrap();
+    wordcraft_engine::io::save_path(&original, &wordcraft_doc::Document::from_text("Quarterly report")).unwrap();
     let bytes = std::fs::read(&original).unwrap();
     let (mut a, shown) = async_app();
     a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
@@ -296,14 +296,14 @@ fn dialogs_offer_strix_formats_first() {
     let open = open_filters("document");
     assert_eq!(open[0], ("Strix documents (*.xmath, *.xmathm)", &["xmath", "xmathm"][..]));
     assert_eq!(open[1].0, "All supported files");
-    for ext in strix_engine::io::OPEN_EXTS.iter().filter(|e| !e.contains('.')) {
+    for ext in wordcraft_engine::io::OPEN_EXTS.iter().filter(|e| !e.contains('.')) {
         assert!(open[1].1.contains(ext), "All supported files lists .{ext}");
     }
     assert!(open.iter().any(|(_, e)| e.contains(&"docx")) && open.last().is_some_and(|(_, e)| *e == ["*"]));
     let save = save_filters("Document1.xmath");
     assert_eq!(save[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
     assert_eq!(save[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));
-    assert_eq!(save.len(), strix_engine::io::SAVE_EXTS.len());
+    assert_eq!(save.len(), wordcraft_engine::io::SAVE_EXTS.len());
     assert_eq!(save_exts("report.pdf")[0], "pdf", "an export suggests its own format first");
     assert_eq!(save_exts("odd.name")[0], "xmath");
 }
@@ -323,7 +323,7 @@ fn async_app() -> (WordApp, Shown) {
         })),
         ..Default::default()
     };
-    (WordApp::new(Session::new(strix_doc::Document::new()), services), shown)
+    (WordApp::new(Session::new(wordcraft_doc::Document::new()), services), shown)
 }
 
 /// Answer the dialog the host is showing (the last one asked for).
@@ -343,18 +343,18 @@ fn typed(a: &mut WordApp) {
 }
 
 fn body_text(a: &WordApp) -> String {
-    a.session.doc.plain_text(strix_doc::StoryRef::Body)
+    a.session.doc.plain_text(wordcraft_doc::StoryRef::Body)
 }
 
 fn scratch(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("strix-ui-dialogs-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("wordcraft-ui-dialogs-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
 fn saved_text(path: &std::path::Path) -> String {
-    strix_engine::io::open_path(path).unwrap().plain_text(strix_doc::StoryRef::Body)
+    wordcraft_engine::io::open_path(path).unwrap().plain_text(wordcraft_doc::StoryRef::Body)
 }
 
 /// Save as Strix Template (#2852) suggests a .xmathm in the user templates folder, which is
@@ -380,7 +380,7 @@ fn save_as_template_starts_in_the_templates_folder() {
     ctx.run_ui(egui::RawInput::default(), |ui| a.logic(ui.ctx())).drop_without_applying_deltas();
     assert!(path.is_file(), "saved as a template");
     assert_eq!(saved_text(&path), UNSAVED);
-    let listed = strix_engine::cmd::user_templates::list_templates(&own.to_string_lossy()).unwrap();
+    let listed = wordcraft_engine::cmd::user_templates::list_templates(&own.to_string_lossy()).unwrap();
     assert_eq!(listed.templates.iter().map(|t| t.label.as_str()).collect::<Vec<_>>(), ["Memo"]);
 
     // A folder chosen in Options wins.
@@ -426,7 +426,9 @@ fn save_as_with_a_new_filename_saves_under_it() {
     let opened = dir.join("one.xmath");
     let picked = dir.join("sub").join("two.xmath");
     std::fs::create_dir_all(dir.join("sub")).unwrap();
-    strix_engine::Session::new(strix_doc::Document::from_text("original")).run("file.save", &json!({"path": opened.to_string_lossy()})).unwrap();
+    wordcraft_engine::Session::new(wordcraft_doc::Document::from_text("original"))
+        .run("file.save", &json!({"path": opened.to_string_lossy()}))
+        .unwrap();
     let (mut a, shown) = async_app();
     a.run("file.open", json!({"path": opened.to_string_lossy()})).unwrap();
     assert_eq!(a.session.path.as_deref(), Some(opened.as_path()));
@@ -692,14 +694,14 @@ fn load_system_fonts_runs_hook_when_present() {
     let called = Rc::new(Cell::new(false));
     let called2 = called.clone();
     let services = Services { load_system_fonts: Some(Box::new(move || called2.set(true))), ..Default::default() };
-    let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
     a.run("font.loadSystem", json!({})).unwrap();
     assert!(called.get());
 }
 
 #[test]
 fn load_system_fonts_without_hook_reports_status() {
-    let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
     a.run("font.loadSystem", json!({})).unwrap();
     assert_eq!(a.status_msg.as_ref().map(|(s, _)| s.as_str()), Some("All system fonts are already available."));
 }

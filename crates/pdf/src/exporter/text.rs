@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{
     Exporter, FaceRef, Fill, FillRule, GlyphId, KrillaGlyph, Point, Rgb, Stroke, Surface, Transform, baseline, cluster_ends, fill, glyph_outlines,
     left_to_right, norm, ok, paint_of, rgb, split_clusters, visual_order,
@@ -183,9 +182,9 @@ impl Exporter<'_> {
 
     /// Draws a metafile text run as PDF text (outlines when the font cannot be embedded). `tf` maps
     /// the run's own space (see [`PlacedItem::Text`]) to the page.
-    pub(crate) fn vector_text(&mut self, s: &mut Surface, t: &strix_metafile::Text, tf: kurbo::Affine) {
-        let face = strix_fonts::word::resolve(&t.font, t.bold, t.italic).face;
-        let shaped = strix_fonts::shape(&face, &t.text, &[], |c| c);
+    pub(crate) fn vector_text(&mut self, s: &mut Surface, t: &wordcraft_metafile::Text, tf: kurbo::Affine) {
+        let face = wordcraft_fonts::word::resolve(&t.font, t.bold, t.italic).face;
+        let shaped = wordcraft_fonts::shape(&face, &t.text, &[], |c| c);
         let glyphs: Vec<_> = shaped.iter().map(|g| (g.cluster, f64::from(g.x_advance), f64::from(g.x_offset), f64::from(g.y_offset))).collect();
         let Some(lay) = t.layout(face.upem, face.ascent, face.descent, &glyphs) else { return };
         let font = self.font(&face);

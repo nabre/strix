@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The rest of Word's table mouse (resizing is `table_resize`): selection areas just above a
 //! column, left of a row and along a cell's left edge inside it select the column, row or cell,
 //! and a drag from one selects every one up to the pointer; insert buttons left of a row border
@@ -11,11 +10,11 @@
 use std::collections::BTreeMap;
 
 use serde_json::Value;
-use strix_doc::para::Anchor;
-use strix_doc::props::TableFloat;
-use strix_doc::{Document, Path, Pos, StoryRef, Table};
-use strix_geom::{Point, Rect};
-use strix_layout::{DocLayout, Placed};
+use wordcraft_doc::para::Anchor;
+use wordcraft_doc::props::TableFloat;
+use wordcraft_doc::{Document, Path, Pos, StoryRef, Table};
+use wordcraft_geom::{Point, Rect};
+use wordcraft_layout::{DocLayout, Placed};
 
 use super::table_resize::{self, CellBox, Edge, REACH, ResizeTarget};
 use super::{sel_result, table};
@@ -186,7 +185,7 @@ fn row_bar(l: &DocLayout, doc: &Document, page: usize, geom: &ResizeTarget, y: f
         return None;
     }
     let rtl = t.props.bidi_visual;
-    let blocked = strix_layout::hit::page_lines(p, StoryRef::Body).iter().any(|ln| {
+    let blocked = wordcraft_layout::hit::page_lines(p, StoryRef::Body).iter().any(|ln| {
         ln.path.0.len() <= 1
             && ln.top < row.bottom - 0.5
             && ln.bottom > row.top + 0.5
@@ -575,7 +574,7 @@ fn fit_column(s: &mut Session, v: &Value) -> CmdResult {
     let t = s.doc.table(target.story, &target.table).ok_or_else(|| CmdError::Failed("there's no table there".into()))?;
     let g = line.checked_sub(1).ok_or_else(|| CmdError::Failed("there's no column left of that border".into()))?;
     let (narrowest, widest) =
-        strix_layout::measure_table_columns(&s.doc, t).get(g).copied().ok_or_else(|| CmdError::Failed("there's no such column".into()))?;
+        wordcraft_layout::measure_table_columns(&s.doc, t).get(g).copied().ok_or_else(|| CmdError::Failed("there's no such column".into()))?;
     let current = target.widths().get(g).copied().unwrap_or(0.0);
     // As in Word, the columns right of it keep their widths and move with the border, so the
     // table narrows or widens: up to the right margin (a nested table's cell's), never below the
@@ -601,7 +600,7 @@ fn room_right(l: &DocLayout, doc: &Document, page: usize, target: &ResizeTarget)
         return margin;
     };
     // A right-to-left table has its cells' start (left) margin on their right.
-    let m = strix_layout::cell_margins(doc, t, row, cell);
+    let m = wordcraft_layout::cell_margins(doc, t, row, cell);
     let inset = if t.props.bidi_visual { m[1] } else { m[3] };
     (b.rect.right() - inset).min(margin)
 }

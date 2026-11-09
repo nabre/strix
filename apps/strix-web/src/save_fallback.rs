@@ -1,7 +1,6 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Save-picker rejection policy, shared with native tests of the browser fallback.
 
-use strix_ui_egui::async_saves::SaveOutcome;
+use wordcraft_ui_egui::async_saves::SaveOutcome;
 
 /// A cancelled picker ends the save. Other picker failures try the browser download path.
 /// Write/close errors do not pass through this function: they retain their own failure.

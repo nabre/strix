@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{MeasureExt, Serialize, Ui, Value, WordApp, buttons, fit_size, heading, json, run, unit, vec2};
 
 // ---------------------------------------------------------------------------------------------
@@ -10,7 +9,7 @@ use super::{MeasureExt, Serialize, Ui, Value, WordApp, buttons, fit_size, headin
 #[serde(rename_all = "camelCase")]
 pub struct SizeForm {
     /// Where the object sized is (the selected one when the dialog opened).
-    pub at: strix_doc::Pos,
+    pub at: wordcraft_doc::Pos,
     pub width: f32,
     pub height: f32,
     /// Changing one side changes the other in proportion (on for pictures, as in Word).
@@ -33,10 +32,10 @@ pub struct SizeForm {
 /// An object's picture, crop and size, bit for bit: what [`SizeForm::follow`] compares.
 type Seen = (String, [u32; 4], [u32; 2]);
 
-fn seen(o: &strix_doc::para::InlineObject) -> Seen {
+fn seen(o: &wordcraft_doc::para::InlineObject) -> Seen {
     let (w, h) = o.frame().map_or((0.0, 0.0), |(w, h, _)| (w, h));
     match o {
-        strix_doc::para::InlineObject::Image { media, crop, .. } => (media.clone(), crop.map(f32::to_bits), [w.to_bits(), h.to_bits()]),
+        wordcraft_doc::para::InlineObject::Image { media, crop, .. } => (media.clone(), crop.map(f32::to_bits), [w.to_bits(), h.to_bits()]),
         _ => (String::new(), [0; 4], [w.to_bits(), h.to_bits()]),
     }
 }
@@ -44,14 +43,14 @@ fn seen(o: &strix_doc::para::InlineObject) -> Seen {
 impl SizeForm {
     /// The selected picture's or shape's size; None when nothing that has one is selected.
     pub fn read(app: &WordApp) -> Option<SizeForm> {
-        use strix_doc::para::InlineObject;
-        let (at, o) = strix_engine::cmd::objects::selected(&app.session)?;
+        use wordcraft_doc::para::InlineObject;
+        let (at, o) = wordcraft_engine::cmd::objects::selected(&app.session)?;
         let (w, h, _) = o.frame()?;
         let full = match &o {
-            InlineObject::Image { media, .. } => strix_engine::cmd::objects::original_size(&app.session, media),
+            InlineObject::Image { media, .. } => wordcraft_engine::cmd::objects::original_size(&app.session, media),
             _ => None,
         };
-        let original = strix_engine::cmd::objects::cropped_original_size(&app.session, &o);
+        let original = wordcraft_engine::cmd::objects::cropped_original_size(&app.session, &o);
         Some(SizeForm {
             at,
             width: w,
@@ -71,7 +70,7 @@ impl SizeForm {
     /// on what is selected, or there is nothing to size (false: close the dialog). OK and Reset
     /// never work from numbers read from another object or an older state of this one.
     pub fn follow(&mut self, app: &WordApp) -> bool {
-        match strix_engine::cmd::objects::selected(&app.session) {
+        match wordcraft_engine::cmd::objects::selected(&app.session) {
             Some((at, o)) if at == self.at && seen(&o) == self.seen => true,
             Some(_) => SizeForm::read(app).map(|f| *self = f).is_some(),
             None => false,
@@ -231,9 +230,9 @@ pub struct PageNumbersForm {
 impl PageNumbersForm {
     /// The section's numbering as it is at the caret.
     pub fn read(app: &WordApp) -> PageNumbersForm {
-        let sp = strix_engine::cmd::page::sect(&app.session);
+        let sp = wordcraft_engine::cmd::page::sect(&app.session);
         PageNumbersForm {
-            section: strix_engine::cmd::page::section_index_of_focus(&app.session),
+            section: wordcraft_engine::cmd::page::section_index_of_focus(&app.session),
             format: sp.page_num_format.ooxml().to_string(),
             cont: sp.page_num_start.is_none(),
             start: sp.page_num_start.unwrap_or(1).clamp(1, 100_000),
@@ -244,7 +243,7 @@ impl PageNumbersForm {
     /// section. The form then shows that section's numbering, so OK never writes numbers read
     /// from another one (the Size dialog follows its object the same way).
     pub fn follow(&mut self, app: &WordApp) {
-        if self.section != strix_engine::cmd::page::section_index_of_focus(&app.session) {
+        if self.section != wordcraft_engine::cmd::page::section_index_of_focus(&app.session) {
             *self = PageNumbersForm::read(app);
         }
     }

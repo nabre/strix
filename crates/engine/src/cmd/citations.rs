@@ -4,10 +4,10 @@
 //! of authorities, footnote options.
 
 use serde_json::{Value, json};
-use strix_doc::collate::{SortKey, heading_letter, sort_key};
-use strix_doc::para::InlineObject;
-use strix_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
-use strix_doc::{Block, Document, Paragraph, Path, Pos, Source, StoryRef};
+use wordcraft_doc::collate::{SortKey, heading_letter, sort_key};
+use wordcraft_doc::para::InlineObject;
+use wordcraft_doc::props::{CharProps, TabAlign, TabLeader, TabStop};
+use wordcraft_doc::{Block, Document, Paragraph, Path, Pos, Source, StoryRef};
 
 use super::references::FieldCode;
 use super::{delete_selection, sel_result};

@@ -1,7 +1,7 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use serde::{Deserialize, Serialize};
-use strix_doc::props::CharProps;
-use strix_doc::{Document, Path, Pos, StoryRef, Table};
+use wordcraft_doc::props::CharProps;
+use wordcraft_doc::{Document, Path, Pos, StoryRef, Table};
 
 /// A selection: anchor (where it started) and focus (where the caret is).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -138,11 +138,11 @@ pub(super) const EDIT_MARKS: usize = 4;
 /// In a calculation showing its solution steps, only the statement (the first row) takes the
 /// caret: the steps are results, never edited (docs/calc.md). A caret elsewhere goes to the end
 /// of the statement.
-pub(super) fn source_only(math: &strix_doc::math::Math, pos: strix_doc::math_edit::MathPos) -> strix_doc::math_edit::MathPos {
+pub(super) fn source_only(math: &wordcraft_doc::math::Math, pos: wordcraft_doc::math_edit::MathPos) -> wordcraft_doc::math_edit::MathPos {
     match math.nodes.as_slice() {
-        [strix_doc::math::MNode::EqArr { rows }] if math.stepped && pos.path.first().is_none_or(|&(n, row)| n != 0 || row != 0) => {
+        [wordcraft_doc::math::MNode::EqArr { rows }] if math.stepped && pos.path.first().is_none_or(|&(n, row)| n != 0 || row != 0) => {
             let row = rows.first().map(Vec::as_slice).unwrap_or_default();
-            strix_doc::math_edit::MathPos::new(vec![(0, 0)], strix_doc::math_edit::node_start(row, row.len()))
+            wordcraft_doc::math_edit::MathPos::new(vec![(0, 0)], wordcraft_doc::math_edit::node_start(row, row.len()))
         }
         _ => pos,
     }
@@ -155,10 +155,10 @@ pub struct MathEdit {
     /// IME owner; [`Self::session`] is.
     pub at: Pos,
     /// The caret inside it.
-    pub pos: strix_doc::math_edit::MathPos,
+    pub pos: wordcraft_doc::math_edit::MathPos,
     /// Where a selection started (Shift with the arrows, Home, End): the selection runs from here
     /// to `pos`, over whole structures where the two are in different boxes.
-    pub anchor: Option<strix_doc::math_edit::MathPos>,
+    pub anchor: Option<wordcraft_doc::math_edit::MathPos>,
     /// A stable token for this editing session, unique across documents and re-entry.
     pub session: u64,
 }
@@ -177,7 +177,7 @@ pub fn next_math_session() -> Option<u64> {
 /// The byte range of the word the caret at `off` ends or sits in, counting apostrophes and
 /// hyphens as the spelling check does; `None` unless a letter or digit comes before the caret.
 pub(super) fn typed_range(text: &str, off: usize) -> Option<(usize, usize)> {
-    let in_word = |c: char| strix_doc::bidi::is_word_char(c) || matches!(c, '’' | '-');
+    let in_word = |c: char| wordcraft_doc::bidi::is_word_char(c) || matches!(c, '’' | '-');
     let before = text.get(..off)?;
     let start = before.char_indices().rev().take_while(|&(_, c)| in_word(c)).last().map(|(i, _)| i)?;
     let end = off.saturating_add(text.get(off..)?.chars().take_while(|&c| in_word(c)).map(char::len_utf8).sum::<usize>());

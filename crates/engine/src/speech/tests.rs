@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::*;
 
 fn texts(v: &[Utterance]) -> Vec<&str> {
@@ -240,7 +239,7 @@ fn sentences_carry_the_run_language() {
     let mut doc = Document::from_text("Привет как твои дела?\nPrivet.");
     let s = sentences(&doc, &Pos::body(0, 0), None, true);
     assert_eq!(s.iter().map(|u| u.lang.as_deref()).collect::<Vec<_>>(), [Some("ru"), Some("en-US")]);
-    if let strix_doc::Block::Para(p) = Arc::make_mut(&mut doc.body[1]) {
+    if let wordcraft_doc::Block::Para(p) = Arc::make_mut(&mut doc.body[1]) {
         for r in &mut p.runs {
             r.props.lang = Some("ru-RU".into());
         }

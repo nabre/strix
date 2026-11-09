@@ -25,7 +25,7 @@ pub enum Placed {
     /// corner, inside it. Behind the text.
     Grid {
         rect: Rect,
-        grid: Arc<strix_doc::graph_paper::GraphPaper>,
+        grid: Arc<wordcraft_doc::graph_paper::GraphPaper>,
     },
     Rule {
         x0: f32,
@@ -46,19 +46,19 @@ pub enum Placed {
     },
     Shape {
         rect: Rect,
-        kind: strix_doc::para::ShapeKind,
-        fill: Option<strix_doc::fill::Fill>,
+        kind: wordcraft_doc::para::ShapeKind,
+        fill: Option<wordcraft_doc::fill::Fill>,
         stroke: Option<Rgb>,
         stroke_width: f32,
         /// A freeform's paths (ink strokes among them).
-        freeform: Option<Arc<strix_doc::freeform::Freeform>>,
-        effects: strix_doc::effects::ShapeEffects,
+        freeform: Option<Arc<wordcraft_doc::freeform::Freeform>>,
+        effects: wordcraft_doc::effects::ShapeEffects,
         spin: Spin,
-        /// Arrowheads and text warp (see [`strix_doc::connector::ShapeExtra`]).
-        extra: strix_doc::connector::ShapeExtra,
+        /// Arrowheads and text warp (see [`wordcraft_doc::connector::ShapeExtra`]).
+        extra: wordcraft_doc::connector::ShapeExtra,
         /// The floating object it draws (a Drawing Canvas's members: the canvas's), for leaving
         /// exactly one object out of a page (see [`crate::display::DisplayOptions::hide_object`]).
-        object: Option<strix_doc::Pos>,
+        object: Option<wordcraft_doc::Pos>,
         /// The description it is tagged with as a figure in tagged PDF (see
         /// [`shape_figure_alt`]); empty for a shape that is an artifact.
         alt: String,
@@ -67,7 +67,7 @@ pub enum Placed {
     /// byte `off` of paragraph `path` (its alt text).
     Graphic {
         rect: Rect,
-        graphic: Arc<strix_doc::graphic::Graphic>,
+        graphic: Arc<wordcraft_doc::graphic::Graphic>,
         story: StoryRef,
         path: Path,
         off: usize,
@@ -109,7 +109,7 @@ pub enum Placed {
         wrap: Wrap,
         /// Its paragraph's column left and top: where offsets relative to the column and the
         /// paragraph (`Anchor::Column` / `Anchor::Paragraph`) start.
-        origin: strix_geom::Point,
+        origin: wordcraft_geom::Point,
     },
 }
 

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Charts (ECMA-376 Part 1 §21.2): the cached data of a `c:chartSpace` drawn as items in points.
 //!
 //! Bar and column (clustered, stacked or 100% stacked), line, area, pie, doughnut and scatter
@@ -9,9 +8,9 @@
 
 use std::f64::consts::{FRAC_PI_2, TAU};
 
-use strix_doc::graphic::{GraphicItem, PathSeg, TextAlign};
-use strix_doc::para::ShapeKind;
-use strix_doc::props::Rgb;
+use wordcraft_doc::graphic::{GraphicItem, PathSeg, TextAlign};
+use wordcraft_doc::para::ShapeKind;
+use wordcraft_doc::props::Rgb;
 
 use super::drawing_color::{fill_colour, slot};
 use crate::units::{int, measure};
@@ -116,7 +115,7 @@ fn title_block(out: &mut Vec<GraphicItem>, t: &str, area: Rect) -> Rect {
     Rect { y: area.y + lh + PAD, h: (area.h - lh - PAD).max(1.0), ..area }
 }
 
-/// A chart whose plot area holds only chart types Strix doesn't draw (stock, bubble…): its
+/// A chart whose plot area holds only chart types WordCraft doesn't draw (stock, bubble…): its
 /// frame with a light border, its title and a line saying which type it is, so it isn't blank
 /// space. Nothing when the plot area has no chart type at all, or a supported one with nothing
 /// to draw.
@@ -140,7 +139,7 @@ fn placeholder(out: &mut Vec<GraphicItem>, space: &El, theme: &[Rgb], w: f32, h:
     text(out, line, &clip_text(&msg, area.w, size), size, TextAlign::Center, false);
 }
 
-/// What a placeholder calls a chart type element Strix doesn't draw.
+/// What a placeholder calls a chart type element WordCraft doesn't draw.
 fn unsupported_name(name: &str) -> &'static str {
     match name {
         "c:stockChart" => "Stock chart",

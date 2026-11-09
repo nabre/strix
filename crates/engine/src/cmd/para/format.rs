@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Align, CmdError, CmdResult, LineSpacing, NumRef, ParaProps, Pos, Session, Value, json, p, sel_result};
 
 /// Resolved paragraph props at the caret.
-pub(super) fn cur(s: &Session) -> strix_doc::resolve::ResolvedPara {
+pub(super) fn cur(s: &Session) -> wordcraft_doc::resolve::ResolvedPara {
     // A selection ending at the next paragraph's start doesn't format that paragraph (#418), so
     // its state comes from the last paragraph it does cover.
     let (a, b) = s.sel.ordered();

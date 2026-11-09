@@ -4,7 +4,7 @@
 //! `localStorage` under [`KEY`]. Restored at startup; written back whenever it changes, so a
 //! reload or a closed tab keeps the last setting (browsers don't reliably run exit code).
 
-use strix_ui_egui::{UiState, WordApp};
+use wordcraft_ui_egui::{UiState, WordApp};
 
 /// The `localStorage` key.
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
@@ -73,10 +73,10 @@ impl PrefsSync {
 mod tests {
     use super::*;
     use serde_json::json;
-    use strix_ui_egui::Services;
+    use wordcraft_ui_egui::Services;
 
     fn app() -> WordApp {
-        WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Services::default())
+        WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Services::default())
     }
 
     /// A host page's name for the user signs the visit but isn't stored; a name the user then
@@ -115,7 +115,7 @@ mod tests {
 
         let mut reloaded = app();
         restore(&mut reloaded, Some(&stored));
-        assert_eq!(reloaded.ui.theme, strix_ui_egui::theme::Appearance::Dark);
+        assert_eq!(reloaded.ui.theme, wordcraft_ui_egui::theme::Appearance::Dark);
         assert_eq!(PrefsSync::new(Some(stored)).changed(&reloaded), None, "restoring doesn't write back");
     }
 
@@ -124,7 +124,7 @@ mod tests {
         for junk in [None, Some(""), Some("not json"), Some("[1,2]"), Some("{\"theme\":42}")] {
             let mut a = app();
             restore(&mut a, junk);
-            assert_eq!(a.ui.theme, strix_ui_egui::theme::Appearance::System, "junk keeps the default appearance");
+            assert_eq!(a.ui.theme, wordcraft_ui_egui::theme::Appearance::System, "junk keeps the default appearance");
         }
     }
 }

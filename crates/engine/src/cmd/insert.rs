@@ -1,10 +1,9 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Insert tab: pages, tables, pictures, shapes, links, bookmarks, headers/footers, text, symbols.
 
 use serde_json::{Value, json};
-use strix_doc::para::{Float, InlineObject, ShapeKind, Wrap};
-use strix_doc::props::{Align, Border, Borders, CharProps, Rgb, TabAlign, TabStop, TextColor};
-use strix_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, Table, para_block};
+use wordcraft_doc::para::{Float, InlineObject, ShapeKind, Wrap};
+use wordcraft_doc::props::{Align, Border, Borders, CharProps, Rgb, TabAlign, TabStop, TextColor};
+use wordcraft_doc::{Block, Paragraph, PartKind, Path, Pos, StoryRef, Table, para_block};
 
 use super::{delete_selection, sel_result, split_para, type_text};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -129,7 +128,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(drop_cap_off),
         CommandSpec::new("insert.horizontalLine", "Horizontal Line", "Home › Paragraph › Borders", |s, _| {
             super::para::fmt(s, &|p| {
-                p.borders = Some(strix_doc::props::Borders { bottom: Some(strix_doc::props::Border::single(1.5)), ..Default::default() })
+                p.borders = Some(wordcraft_doc::props::Borders { bottom: Some(wordcraft_doc::props::Border::single(1.5)), ..Default::default() })
             })
         }),
         CommandSpec::new("insert.textFromFile", "Text from File", "Insert › Text › Object", |s, v| {

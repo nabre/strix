@@ -39,9 +39,9 @@ unsaved documents leaves a copy of each, and the next start lists them all.
 ## Storage and timing
 
 Copies live in `recovery/` under the app's profile folder (`StrixData\recovery` beside the
-program in a portable run, see [releasing](releasing.md)). `STRIX_PROFILE_DIR` selects a
+program in a portable run, see [releasing](releasing.md)). `WORDCRAFT_PROFILE_DIR` selects a
 separate profile for isolated runs, including preferences, logs and control keys.
-`STRIX_NO_PREFS` disables recovery as well as preferences. Headless engine/CLI sessions
+`WORDCRAFT_NO_PREFS` disables recovery as well as preferences. Headless engine/CLI sessions
 and the browser do not create recovery files implicitly.
 
 One worker thread and one store serve every open document, so a record is locked once per
@@ -93,9 +93,9 @@ dialogs.
 `ui.recoveryDiscard={"id":"id"}` opens confirmation; `{"answer":"discard"}` or
 `{"answer":"cancel"}` answers it.
 
-Focused tests are `cargo test -p strix-engine recovery`,
-`cargo test -p strix-engine --test it recovery_format::`, and
-`cargo test -p strix-ui-egui recovery`. They cover lifecycle, preservation, original-file
+Focused tests are `cargo test -p wordcraft-engine recovery`,
+`cargo test -p wordcraft-engine --test it recovery_format::`, and
+`cargo test -p wordcraft-ui-egui recovery`. They cover lifecycle, preservation, original-file
 protection, failed writes, corruption, locks, password cleanup and the actual recovery buttons.
 The contribution also uses a native SIGKILL/restart replay in temporary profiles for both new
 drafts and edited existing files. It uses synthetic inputs and hashes the original before and

@@ -1,10 +1,9 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Typing and deleting.
 
 use serde_json::Value;
-use strix_doc::para::{COLUMN_BREAK, NB_HYPHEN, NBSP, OBJ, PAGE_BREAK, SOFT_HYPHEN};
-use strix_doc::props::{Border, BorderStyle, NumRef};
-use strix_doc::{Block, ListKind, Path, Pos, StoryRef, Table};
+use wordcraft_doc::para::{COLUMN_BREAK, NB_HYPHEN, NBSP, OBJ, PAGE_BREAK, SOFT_HYPHEN};
+use wordcraft_doc::props::{Border, BorderStyle, NumRef};
+use wordcraft_doc::{Block, ListKind, Path, Pos, StoryRef, Table};
 
 use super::{delete_selection, delete_selection_effect, non_mac, sel_result, split_para, type_text, type_text_effect};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};

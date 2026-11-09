@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::bx::{Bx, Cls, RunPart, St, compose, finalize, hcat};
 use super::glyphs::TextAtom;
 use super::state::{MAX_NODES, class_of};
@@ -42,7 +41,7 @@ impl Ctx {
     /// An empty equation: a grey prompt (screen only).
     pub(super) fn hint(&mut self, st: St) -> Bx {
         let size = self.size(st);
-        let rs = strix_fonts::word::resolve(&self.text_font, false, false);
+        let rs = wordcraft_fonts::word::resolve(&self.text_font, false, false);
         let mut g = self.glyphs(rs.face, "Type an equation", size, 0, Rgb(0x80, 0x80, 0x80), (rs.synth_bold, rs.synth_italic));
         g.items = std::mem::take(&mut g.items).into_iter().map(|i| MItem::ScreenOnly(Box::new(i))).collect();
         g.glyph = None;
@@ -129,7 +128,7 @@ impl Ctx {
                 Some(MSty::BoldItalic) => (true, true),
                 _ => (false, false),
             };
-            let rs = strix_fonts::word::resolve(&fam, bold, italic);
+            let rs = wordcraft_fonts::word::resolve(&fam, bold, italic);
             let mut b = self.text_atom(TextAtom {
                 face: rs.face,
                 text: &r.text,

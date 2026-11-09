@@ -1,11 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Sprms → model properties, and style-chain resolution.
 
-use strix_doc::Rgb;
-use strix_doc::props::{
+use wordcraft_doc::Rgb;
+use wordcraft_doc::props::{
     Align, Border, BorderStyle, Borders, CharProps, Highlight, LineSpacing, ParaProps, TabAlign, TabLeader, TabStop, TextColor, Underline, VertAlign,
 };
-use strix_doc::styles::{Style, StyleKind, StyleSheet};
+use wordcraft_doc::styles::{Style, StyleKind, StyleSheet};
 
 use crate::sprm::{self, Prl, Toggle};
 

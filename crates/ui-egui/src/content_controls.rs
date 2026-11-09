@@ -5,9 +5,9 @@
 
 use egui::{Align2, Rect, Stroke, Ui, pos2, vec2};
 use serde_json::json;
-use strix_doc::Pos;
-use strix_doc::control::{ControlKind, ControlRange};
-use strix_layout::DocLayout;
+use wordcraft_doc::Pos;
+use wordcraft_doc::control::{ControlKind, ControlRange};
+use wordcraft_layout::DocLayout;
 
 use crate::WordApp;
 use crate::theme::{Tokens, regular};
@@ -45,7 +45,7 @@ struct Popup {
     month: (i64, u32),
 }
 
-fn screen(pr: Rect, scale: f32, r: strix_geom::Rect) -> Rect {
+fn screen(pr: Rect, scale: f32, r: wordcraft_geom::Rect) -> Rect {
     Rect::from_min_size(pos2(pr.min.x + r.x * scale, pr.min.y + r.y * scale), vec2(r.w * scale, r.h * scale))
 }
 
@@ -102,7 +102,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             painter.rect_stroke(*f, 1.0, stroke, egui::StrokeKind::Outside);
         }
         // The title tab above the first line (its tag in Design Mode when it has no title).
-        let exercise = r.control.tag == strix_engine::cmd::exercise::TAG_EXERCISE;
+        let exercise = r.control.tag == wordcraft_engine::cmd::exercise::TAG_EXERCISE;
         let title = if r.control.title.is_empty() && app.session.view.design_mode { r.control.tag.as_str() } else { r.control.title.as_str() };
         // An exercise's tab is interface: it names the exercise in the interface's language.
         let title = if exercise && !app.session.view.design_mode { tl!("Exercise") } else { title };
@@ -114,7 +114,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             // An exercise's tab sits at the right, clear of its title's.
             let x = if exercise { first.max.x - w.min(320.0) } else { first.min.x };
             let tab = Rect::from_min_size(pos2(x, first.min.y - 14.0), vec2(w.min(320.0), 14.0));
-            let end = Pos { off: r.end.off + strix_doc::para::OBJ.len_utf8(), ..r.end.clone() };
+            let end = Pos { off: r.end.off + wordcraft_doc::para::OBJ.len_utf8(), ..r.end.clone() };
             app.controls.tabs.push((tab, r.start.clone(), end));
             painter.rect_filled(tab, egui::CornerRadius { nw: 3, ne: 3, sw: 0, se: 0 }, if is_current { t.accent } else { t.checked });
             let ink = if is_current { t.on_accent } else { t.accent_text };
@@ -170,13 +170,13 @@ pub fn clicks(app: &mut WordApp, resp: &egui::Response) {
 fn date_of(app: &WordApp, at: &Pos) -> Option<(i64, u32, u32)> {
     let r = app.session.doc.control_at(at)?;
     match &r.control.kind {
-        ControlKind::Date { full_date, .. } => strix_engine::cmd::controls::parse_date(full_date),
+        ControlKind::Date { full_date, .. } => wordcraft_engine::cmd::controls::parse_date(full_date),
         _ => None,
     }
 }
 
 fn today() -> (i64, u32, u32) {
-    let (y, m, d) = strix_engine::cmd::civil_from_days((strix_engine::cmd::now_unix() / 86_400) as i64);
+    let (y, m, d) = wordcraft_engine::cmd::civil_from_days((wordcraft_engine::cmd::now_unix() / 86_400) as i64);
     (y, m, d)
 }
 
@@ -247,10 +247,10 @@ fn calendar(ui: &mut Ui, t: &Tokens, month: &mut (i64, u32)) -> Option<u32> {
         }
     });
     let (y, m) = (y.clamp(1, 9999), m.clamp(1, 12));
-    let first = strix_engine::cmd::controls::days_from_civil(y, m, 1);
+    let first = wordcraft_engine::cmd::controls::days_from_civil(y, m, 1);
     // 1970-01-01 was a Thursday: Monday-first column of the 1st.
     let lead = (first + 3).rem_euclid(7) as u32;
-    let days = strix_engine::cmd::controls::days_in_month(y, m);
+    let days = wordcraft_engine::cmd::controls::days_in_month(y, m);
     egui::Grid::new("cc_calendar").spacing(vec2(2.0, 2.0)).show(ui, |ui| {
         for cell in 0..(lead + days) {
             if cell < lead {

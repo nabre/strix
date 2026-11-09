@@ -44,11 +44,11 @@ const MAX_FONTS_PER_PICK: usize = 2000;
 
 const PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
 /// Strix's own formats: a document and a template.
-const NATIVE: &[&str] = &[strix_engine::io::NATIVE_DOC_EXT, strix_engine::io::NATIVE_TEMPLATE_EXT];
+const NATIVE: &[&str] = &[wordcraft_engine::io::NATIVE_DOC_EXT, wordcraft_engine::io::NATIVE_TEMPLATE_EXT];
 /// Every document format Open reads: Strix's own, then the ones it imports.
 const DOCUMENTS: &[&str] = &[
-    strix_engine::io::NATIVE_DOC_EXT,
-    strix_engine::io::NATIVE_TEMPLATE_EXT,
+    wordcraft_engine::io::NATIVE_DOC_EXT,
+    wordcraft_engine::io::NATIVE_TEMPLATE_EXT,
     "docx",
     "docm",
     "dotx",
@@ -76,9 +76,9 @@ const DOCUMENTS: &[&str] = &[
 pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'static str])] {
     match purpose {
         "picture" => &[("Pictures", PICTURES)],
-        "font" => &[("Fonts", strix_fonts::FONT_FILE_EXTS)],
+        "font" => &[("Fonts", wordcraft_fonts::FONT_FILE_EXTS)],
         "sources" => &[("Word sources", &["xml"]), ("All files", &["*"])],
-        "recipients" => &[("Recipient lists", strix_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
+        "recipients" => &[("Recipient lists", wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
         _ => &[
             ("Strix documents (*.xmath, *.xmathm)", NATIVE),
             ("All supported files", DOCUMENTS),
@@ -120,7 +120,7 @@ pub fn save_format_name(ext: &str) -> &'static str {
 }
 
 /// The extensions Save As offers for the suggested file `name`: every format the engine saves
-/// ([`strix_engine::io::SAVE_EXTS`]: Strix Document, Strix Template, the other editable formats,
+/// ([`wordcraft_engine::io::SAVE_EXTS`]: Strix Document, Strix Template, the other editable formats,
 /// then the exports), with the suggested name's own format first. A dialog makes the first one
 /// its default, which it adds to a name typed without an extension; a name with no format Strix
 /// saves suggests `.xmath`.
@@ -131,13 +131,14 @@ pub fn save_exts(name: &str) -> Vec<String> {
 /// [`save_exts`]; `native_only` leaves out the editable formats that aren't Strix's own (.docx,
 /// .odt…), for a document with Strix objects they would lose.
 pub fn save_exts_for(name: &str, native_only: bool) -> Vec<String> {
-    let saves: Vec<&str> = strix_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !strix_engine::io::is_foreign_save(e)).collect();
+    let saves: Vec<&str> =
+        wordcraft_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !wordcraft_engine::io::is_foreign_save(e)).collect();
     let suggested = std::path::Path::new(name)
         .extension()
         .and_then(std::ffi::OsStr::to_str)
         .map(str::to_ascii_lowercase)
         .filter(|e| saves.contains(&e.as_str()))
-        .unwrap_or_else(|| strix_engine::io::NATIVE_DOC_EXT.to_string());
+        .unwrap_or_else(|| wordcraft_engine::io::NATIVE_DOC_EXT.to_string());
     let mut exts: Vec<String> = Vec::with_capacity(saves.len());
     exts.push(suggested.clone());
     exts.extend(saves.iter().filter(|e| **e != suggested).map(|e| (*e).to_string()));
@@ -500,7 +501,7 @@ impl WordApp {
         // Save on a document opened from .docx (or another editable format) lands here when it
         // has Strix objects: say why it is asked for a .xmath name.
         if let Some(reason) = &native_only
-            && self.session.path.as_ref().is_some_and(|p| strix_engine::io::is_foreign_save(&p.to_string_lossy()))
+            && self.session.path.as_ref().is_some_and(|p| wordcraft_engine::io::is_foreign_save(&p.to_string_lossy()))
         {
             self.status(reason.clone());
         }
@@ -515,7 +516,7 @@ impl WordApp {
         // app's own.
         let saved = self.session.prefs.user_templates_folder.as_deref().map(str::trim).filter(|f| !f.is_empty());
         match saved {
-            Some(f) if strix_engine::cmd::user_templates::check_dir(f).is_ok() && std::path::Path::new(f).is_dir() => {
+            Some(f) if wordcraft_engine::cmd::user_templates::check_dir(f).is_ok() && std::path::Path::new(f).is_dir() => {
                 Some(std::path::PathBuf::from(f))
             }
             Some(f) => {
@@ -539,7 +540,7 @@ impl WordApp {
             log::warn!("couldn't make the templates folder {}: {e}", d.display());
         }
         let dir = dir.filter(|d| d.is_dir()).map(|d| d.to_string_lossy().into_owned());
-        let name = format!("{}.{}", self.title_stem(), strix_engine::io::NATIVE_TEMPLATE_EXT);
+        let name = format!("{}.{}", self.title_stem(), wordcraft_engine::io::NATIVE_TEMPLATE_EXT);
         let after = AfterPick::SaveAs { after: AfterSave::Nothing, document: self.session.document_id() };
         let native_only = crate::strix_save::native_only_reason(&self.session.doc);
         let _ = self.ask_file(FileDialogRequest::Save { name, dir: dir.clone(), native_only }, after);

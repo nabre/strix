@@ -1,11 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Review tab: comments, track changes, word count, spelling (via the proofing hook).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
-use strix_doc::para::InlineObject;
-use strix_doc::{Comment, Paragraph, PartKind, Pos, StoryRef, para_block};
+use wordcraft_doc::para::InlineObject;
+use wordcraft_doc::{Comment, Paragraph, PartKind, Pos, StoryRef, para_block};
 
 use super::{fmt_revisions, now_iso, pos_json, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -95,11 +94,11 @@ pub fn specs() -> Vec<CommandSpec> {
                 return Err(CmdError::Params("no word".into()));
             }
             // The same rule as loading the dictionary file, so a word added is never dropped later.
-            if strix_proof::custom_word(&w).is_none() {
-                let max = strix_proof::MAX_CUSTOM_WORD_CHARS;
+            if wordcraft_proof::custom_word(&w).is_none() {
+                let max = wordcraft_proof::MAX_CUSTOM_WORD_CHARS;
                 return Err(CmdError::Params(format!("{w:?} isn't a single word of at most {max} characters")));
             }
-            strix_proof::add_word(w.trim());
+            wordcraft_proof::add_word(w.trim());
             s.persist_user_dictionary(&[]);
             s.relayout();
             Ok(json!({"added": w}))
@@ -115,7 +114,7 @@ pub fn specs() -> Vec<CommandSpec> {
             };
             // For this session only, as in Word: not added to (or saved with) the dictionary.
             if !w.trim().is_empty() {
-                strix_proof::ignore_word(w.trim());
+                wordcraft_proof::ignore_word(w.trim());
             }
             s.relayout();
             Ok(json!({"ignored": w}))

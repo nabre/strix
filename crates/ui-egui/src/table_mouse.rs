@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The rest of Word's table mouse (resizing is `table_resize`): over a selection area — just
 //! above a column, left of a row, along a cell's left edge — the pointer becomes a selection
 //! arrow and a click selects the column, row or cell (a drag goes on selecting); left of a row
@@ -9,8 +8,8 @@
 
 use egui::{Color32, Pos2, Rect, Shape, Stroke, Ui, vec2};
 use serde_json::json;
-use strix_engine::cmd::table_mouse::{self, Spot, Target};
-use strix_layout::DocLayout;
+use wordcraft_engine::cmd::table_mouse::{self, Spot, Target};
+use wordcraft_layout::DocLayout;
 
 use crate::WordApp;
 use crate::table_resize::{REACH_PX, page_scale, to_screen};
@@ -156,8 +155,8 @@ pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, rects: &[Rect]
 }
 
 /// Whether the selection's anchor (or its selected cells) is in the table at `tp`.
-fn in_table(app: &WordApp, tp: &strix_doc::Path) -> bool {
-    let body = |story| story == strix_doc::StoryRef::Body;
+fn in_table(app: &WordApp, tp: &wordcraft_doc::Path) -> bool {
+    let body = |story| story == wordcraft_doc::StoryRef::Body;
     app.session.cell_range().is_some_and(|c| body(c.story) && &c.table == tp)
         || (body(app.session.sel.anchor.story) && app.session.sel.anchor.path.cell().is_some_and(|(t, ..)| &t == tp))
 }
@@ -291,7 +290,7 @@ fn arrow(painter: &egui::Painter, tip: Pos2, spot: Spot, dark: bool) {
 /// grey in dark mode, where black would vanish), white on black beside a row.
 fn arrow_colors(spot: Spot, dark: bool) -> (Color32, Color32) {
     match spot {
-        Spot::Column(_) | Spot::Cell(..) if dark => (Color32::WHITE, Color32::from_gray(strix_render::DARK_PAPER)),
+        Spot::Column(_) | Spot::Cell(..) if dark => (Color32::WHITE, Color32::from_gray(wordcraft_render::DARK_PAPER)),
         Spot::Column(_) | Spot::Cell(..) => (Color32::BLACK, Color32::WHITE),
         _ => (Color32::WHITE, Color32::BLACK),
     }

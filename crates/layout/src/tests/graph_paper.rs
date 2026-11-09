@@ -2,9 +2,9 @@
 //! in the text flow, for each placement.
 #[allow(unused_imports)]
 use crate::*;
-use strix_doc::graph_paper::PT_PER_MM;
-use strix_doc::graph_paper::{GraphPaper, GridPlacement};
-use strix_doc::para_block;
+use wordcraft_doc::graph_paper::PT_PER_MM;
+use wordcraft_doc::graph_paper::{GraphPaper, GridPlacement};
+use wordcraft_doc::para_block;
 
 fn lay(doc: &Document) -> DocLayout {
     let mut c = LayoutCache::new();
@@ -126,7 +126,7 @@ fn hostile_grids_lay_out() {
     let mut doc = doc_with(vec![para_block(p), grid_para(GridPlacement::Height { height: f32::INFINITY })]);
     doc.last_section.graph_paper = Some(Arc::new(GraphPaper { spacing: -3.0, ..GraphPaper::default() }));
     let l = lay(&doc);
-    assert!(l.pages.len() <= strix_doc::graph_paper::MAX_PAGES as usize + 3);
+    assert!(l.pages.len() <= wordcraft_doc::graph_paper::MAX_PAGES as usize + 3);
     // And the display list draws them.
     let mut out = Vec::new();
     for pg in &l.pages {
@@ -258,7 +258,7 @@ fn a_frame_of_its_own_weight_replaces_the_edge_lines() {
     let lines = |d: &[display::Draw]| -> usize {
         d.iter()
             .map(|d| match d {
-                display::Draw::Path { segs, .. } => segs.iter().filter(|s| matches!(s, strix_doc::graphic::PathSeg::Move(..))).count(),
+                display::Draw::Path { segs, .. } => segs.iter().filter(|s| matches!(s, wordcraft_doc::graphic::PathSeg::Move(..))).count(),
                 _ => 0,
             })
             .sum()
@@ -271,8 +271,8 @@ fn a_frame_of_its_own_weight_replaces_the_edge_lines() {
     match framed.last() {
         Some(display::Draw::Path { segs, stroke_width, .. }) => {
             assert_eq!(*stroke_width, 2.5);
-            assert!(matches!(segs.last(), Some(strix_doc::graphic::PathSeg::Close)));
-            assert!(segs.iter().any(|s| matches!(s, strix_doc::graphic::PathSeg::Line(x, y) if (*x - (10.0 + 4.0 * side())).abs() < 0.01 && (*y - (20.0 + 3.0 * side())).abs() < 0.01)));
+            assert!(matches!(segs.last(), Some(wordcraft_doc::graphic::PathSeg::Close)));
+            assert!(segs.iter().any(|s| matches!(s, wordcraft_doc::graphic::PathSeg::Line(x, y) if (*x - (10.0 + 4.0 * side())).abs() < 0.01 && (*y - (20.0 + 3.0 * side())).abs() < 0.01)));
         }
         other => panic!("a frame last: {other:?}"),
     }

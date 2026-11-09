@@ -3,7 +3,7 @@
 //! calculated tables, exercises, CAD drawings or graph paper, which only `.xmath` keeps live.
 
 use serde_json::json;
-use strix_doc::StoryRef;
+use wordcraft_doc::StoryRef;
 
 use crate::strix_objects::{StrixObjectCount, StrixObjectKind, check_save, describe, has_strix_objects, saves_in_place, strix_objects};
 use crate::{Session, io};
@@ -16,7 +16,7 @@ fn scratch(name: &str) -> std::path::PathBuf {
 }
 
 fn session(text: &str) -> Session {
-    Session::new(strix_doc::Document::from_text(text))
+    Session::new(wordcraft_doc::Document::from_text(text))
 }
 
 fn count(s: &Session, kind: StrixObjectKind) -> usize {
@@ -77,16 +77,16 @@ fn exercises_calculated_tables_and_graph_paper_are_counted() {
 #[test]
 fn objects_outside_the_body_text_are_found() {
     let s = with_calculations();
-    let mut doc = strix_doc::Document::from_text("Cover");
+    let mut doc = wordcraft_doc::Document::from_text("Cover");
     // The calculations' paragraph moves into a header part and inside a table cell.
     let para = s.doc.body.iter().find(|b| b.as_para().is_some_and(|p| !p.objects.is_empty())).cloned().unwrap();
-    doc.parts.insert(7, strix_doc::Part { kind: strix_doc::PartKind::Header, blocks: vec![para.clone()], body: Default::default() });
+    doc.parts.insert(7, wordcraft_doc::Part { kind: wordcraft_doc::PartKind::Header, blocks: vec![para.clone()], body: Default::default() });
     assert_eq!(describe(&strix_objects(&doc)), "3 calculations, 1 CAD drawing");
-    let mut table = strix_doc::Document::from_text("x");
+    let mut table = wordcraft_doc::Document::from_text("x");
     let mut t = session("t");
     t.run("insert.table", &json!({"rows": 1, "cols": 1})).unwrap();
-    let mut tb = t.doc.body.iter().find(|b| matches!(&***b, strix_doc::Block::Table(_))).cloned().unwrap();
-    if let strix_doc::Block::Table(tt) = std::sync::Arc::make_mut(&mut tb) {
+    let mut tb = t.doc.body.iter().find(|b| matches!(&***b, wordcraft_doc::Block::Table(_))).cloned().unwrap();
+    if let wordcraft_doc::Block::Table(tt) = std::sync::Arc::make_mut(&mut tb) {
         tt.rows[0].cells[0].blocks = vec![para];
     }
     table.body = vec![tb];
@@ -145,7 +145,7 @@ fn a_docx_without_strix_objects_saves_back_to_docx() {
     }
     // A Word document is saved with its password again.
     s.run("file.saveAs", &json!({"path": path.to_string_lossy(), "password": "secret"})).unwrap();
-    assert!(strix_docx::is_encrypted(&std::fs::read(&path).unwrap()));
+    assert!(wordcraft_docx::is_encrypted(&std::fs::read(&path).unwrap()));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

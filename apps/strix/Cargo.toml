@@ -6,20 +6,20 @@ edition.workspace = true
 license.workspace = true
 publish = false
 default-run = "strix"
-description = "Strix desktop app"
+description = "WordCraft desktop app"
 
 [lints]
 workspace = true
 
 [dependencies]
-strix-doc = { workspace = true }
-strix-engine = { workspace = true }
-strix-proof = { workspace = true }
+wordcraft-doc = { workspace = true }
+wordcraft-engine = { workspace = true }
+wordcraft-proof = { workspace = true }
 # Fonts the user added (#582) load from the settings folder at start-up.
-strix-fonts = { workspace = true }
-strix-ui-egui = { workspace = true }
+wordcraft-fonts = { workspace = true }
+wordcraft-ui-egui = { workspace = true }
 # The control key file's location (shared with the MCP bridge).
-strix-control-key = { workspace = true }
+wordcraft-control-key = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit", "clipboard", "wayland", "x11", "links"] }
 egui = { workspace = true }
 serde_json = { workspace = true }
@@ -31,7 +31,7 @@ chrono = { workspace = true }
 winresource = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-# Finder double-click, Open With, Dock drops and `open -a Strix letter.docx` arrive as a
+# Finder double-click, Open With, Dock drops and `open -a WordCraft letter.docx` arrive as a
 # kAEOpenDocuments Apple event, which winit 0.30 doesn't handle (#27). This audited crate (also used
 # by PdfCraft and PhotoCraft) registers the handler (Objective-C interop needs unsafe, which our
 # workspace forbids) behind a safe API. Pinned exactly: review the diff before bumping.

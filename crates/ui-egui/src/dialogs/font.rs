@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Dialog, Value, WordApp, json};
 
 /// The Font dialog preview's size: the Size box's points between 6 and 72, else 12. `"NaN"` and
@@ -50,7 +49,7 @@ pub(super) fn font_props(d: &Dialog) -> serde_json::Map<String, Value> {
     if let Ok(s) = size.trim().parse::<f64>() {
         props.insert("size".into(), json!(s));
     }
-    if let Some(c) = strix_doc::Rgb::parse(color) {
+    if let Some(c) = wordcraft_doc::Rgb::parse(color) {
         props.insert("color".into(), json!({"Rgb": [c.0, c.1, c.2]}));
     } else if color.eq_ignore_ascii_case("auto") {
         // Automatic, from the colour field's drop-down (#606).

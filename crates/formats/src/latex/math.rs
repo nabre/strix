@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::limits::MAX_NEST;
 
 // ---------------------------------------------------------------------------------------------
-// Equations: Strix keeps them in the linear format (`x=(-b±√(b^2-4ac))/2a`).
+// Equations: WordCraft keeps them in the linear format (`x=(-b±√(b^2-4ac))/2a`).
 
 /// Symbols with a LaTeX command: (character, command without the backslash).
 const MATH_SYMBOLS: &[(char, &str)] = &[

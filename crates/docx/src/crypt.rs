@@ -29,7 +29,7 @@ use zeroize::Zeroizing;
 use crate::DocxError;
 use crate::xml;
 
-/// The spin count Word uses, and Strix writes.
+/// The spin count Word uses, and WordCraft writes.
 pub const DEFAULT_SPIN_COUNT: u32 = 100_000;
 /// The largest spin count the specification allows (§2.3.4.10 `ST_SpinCount`): it bounds the
 /// work a hostile file can ask for.
@@ -75,7 +75,7 @@ const NS_PASSWORD: &str = "http://schemas.microsoft.com/office/2006/keyEncryptor
 /// Is this an encrypted Office package (a compound file with `EncryptionInfo` and
 /// `EncryptedPackage` streams) rather than a zip?
 pub fn is_encrypted(bytes: &[u8]) -> bool {
-    if bytes.get(..8) != Some(&CFB_MAGIC[..]) || strix_doc::cfb_guard::check(bytes).is_err() {
+    if bytes.get(..8) != Some(&CFB_MAGIC[..]) || wordcraft_doc::cfb_guard::check(bytes).is_err() {
         return false;
     }
     match cfb::CompoundFile::open(Cursor::new(bytes)) {
@@ -88,7 +88,7 @@ pub fn is_encrypted(bytes: &[u8]) -> bool {
 /// [`DocxError::PasswordRequired`] once it knows the file is one it can decrypt; a password that
 /// doesn't fit gives [`DocxError::WrongPassword`].
 pub fn decrypt(bytes: &[u8], password: Option<&str>) -> Result<Vec<u8>, DocxError> {
-    strix_doc::cfb_guard::check(bytes).map_err(|e| bad(format!("not a readable compound file ({e})")))?;
+    wordcraft_doc::cfb_guard::check(bytes).map_err(|e| bad(format!("not a readable compound file ({e})")))?;
     let mut comp = cfb::CompoundFile::open(Cursor::new(bytes)).map_err(|e| bad(format!("not a readable compound file ({e})")))?;
     let info = stream(&mut comp, "/EncryptionInfo", MAX_INFO)?;
     let package = stream(&mut comp, "/EncryptedPackage", bytes.len() as u64)?;
@@ -323,7 +323,7 @@ pub fn encrypt_with_spin_count(package: &[u8], password: &str, spin_count: u32) 
 }
 
 /// A package encrypted with the *Standard* method (§2.3.4.5–§2.3.4.9: AES-ECB, SHA-1, 50,000
-/// spins), as Word 2007 wrote it, for tests only: Strix saves with the agile method
+/// spins), as Word 2007 wrote it, for tests only: WordCraft saves with the agile method
 /// ([`encrypt`]). `key_bits` is 128, 192 or 256. The compound file holds just the two streams
 /// [`decrypt`] reads.
 #[doc(hidden)]
@@ -402,7 +402,7 @@ pub enum PasswordCheck {
     Correct,
     /// The password doesn't match.
     Incorrect,
-    /// The hash uses an algorithm or form Strix can't check, or is damaged. The protection
+    /// The hash uses an algorithm or form WordCraft can't check, or is damaged. The protection
     /// must stay on: guessing would let any password through.
     Unsupported,
 }
@@ -558,7 +558,7 @@ fn stream<F: Read + std::io::Seek>(comp: &mut cfb::CompoundFile<F>, path: &str, 
     Ok(v)
 }
 
-/// The hash algorithms agile encryption names that Strix supports.
+/// The hash algorithms agile encryption names that WordCraft supports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Hash {
     Sha1,
