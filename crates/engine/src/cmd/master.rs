@@ -202,10 +202,21 @@ fn content(doc: &Document, r: &ControlRange) -> Fragment {
 // ---------------------------------------------------------------------------------------------
 // Reading and writing the files
 
+/// The bytes of a subdocument file, at most `max` (files are read through the browser on the web).
+#[cfg(not(target_arch = "wasm32"))]
+fn read_capped(path: &str, max: u64, what: &str) -> Result<Vec<u8>, String> {
+    crate::io::read_file_capped(path, max, what)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_capped(path: &str, _max: u64, _what: &str) -> Result<Vec<u8>, String> {
+    Err(format!("{path}: subdocuments are not available on the web"))
+}
+
 /// A subdocument file's content, as the master shows it, and the hash of its bytes.
 fn load(path: &Path) -> Result<(Fragment, u64), String> {
     let name = path.to_string_lossy();
-    let bytes = crate::io::read_file_capped(&name, MAX_FILE, "subdocument")?;
+    let bytes = read_capped(&name, MAX_FILE, "subdocument")?;
     let doc = crate::io::open_bytes(&name, &bytes)?;
     let mut frag = doc.body_fragment();
     super::paste::unlink_sections(&mut frag.blocks);
@@ -243,11 +254,7 @@ fn write(master: &Document, frag: &Fragment, path: &Path) -> Result<u64, String>
     if crate::io::EXPORT_EXTS.iter().any(|e| name.to_ascii_lowercase().ends_with(&format!(".{e}"))) && !crate::io::is_native(&name) {
         return Err(format!("{name}: a subdocument is saved to a document format (.xmath, .docx, .odt, .rtf…), not an export"));
     }
-    let old = if path.exists() {
-        crate::io::read_file_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok()
-    } else {
-        None
-    };
+    let old = if path.exists() { read_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok() } else { None };
     let doc = subdocument_file(master, frag, old.as_ref());
     crate::strix_objects::check_save(&name, &doc)?;
     let bytes = crate::io::save_bytes(&name, &doc)?;
@@ -486,7 +493,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
         let file = resolve(s, &sub.link);
         let frag = content(&s.doc, &sub.range);
         let now = content_hash(&frag);
-        let disk_now = crate::io::read_file_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
+        let disk_now = read_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
         let last = synced(id, &sub.link.path);
         let edited = last.is_none_or(|l| l.content != now) || sub.link.conflict;
         let changed_on_disk = match (last, disk_now) {
