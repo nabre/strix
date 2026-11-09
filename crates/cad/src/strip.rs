@@ -13,6 +13,8 @@ const MAX_HATCH_LINES: usize = 20_000;
 /// Most intersection tests one strip's hatch makes (lines times the band's sides): a band too
 /// finely hatched for it is hatched more coarsely.
 const MAX_HATCH_WORK: usize = 4_000_000;
+/// Most points of the path a strip or a hatch follows ([`Drawing::path_of`]).
+pub(crate) const MAX_PATH_POINTS: usize = 100_000;
 /// A mitre is at most this many widths long; a sharper corner is cut back to it.
 const MITRE_LIMIT: f64 = 4.0;
 
@@ -91,7 +93,17 @@ impl Drawing {
             Kind::Circle { .. } => true,
             _ => return None,
         };
-        let pts = clean(outline(e).first()?, closed);
+        let mut pts = clean(outline(e).first()?, closed);
+        // A polyline of many tight arcs tessellates to a million points: hatches and strips
+        // follow it at most `MAX_PATH_POINTS` points, evenly kept, its last one always.
+        if pts.len() > MAX_PATH_POINTS {
+            let last = pts.last().copied();
+            let step = pts.len().div_ceil(MAX_PATH_POINTS);
+            pts = pts.into_iter().step_by(step).collect();
+            if let Some(l) = last.filter(|l| pts.last() != Some(l)) {
+                pts.push(l);
+            }
+        }
         (pts.len() >= 2).then_some((pts, closed))
     }
 
@@ -118,7 +130,19 @@ impl Drawing {
     /// `spacing` paper mm apart (measured square to the lines), the spacing running on from one
     /// segment to the next.
     pub fn strip_lines(&self, e: &Entity) -> Vec<(Pt, Pt)> {
-        let (Kind::Strip { pattern, angle, spacing, side, width, .. }, Some(shape)) = (&e.kind, self.strip_shape(e)) else { return Vec::new() };
+        self.strip_lines_and_work(e).0
+    }
+
+    /// [`Drawing::strip_lines`], and the size of the band worked on (its polygon's points), which
+    /// a drawing's budget counts even when few lines come of it.
+    pub(crate) fn strip_lines_and_work(&self, e: &Entity) -> (Vec<(Pt, Pt)>, usize) {
+        let Some(shape) = self.strip_shape(e) else { return (Vec::new(), 1) };
+        let work = shape.path.len() + shape.polygon.len();
+        (self.strip_lines_of(e, &shape), work)
+    }
+
+    fn strip_lines_of(&self, e: &Entity, shape: &StripShape) -> Vec<(Pt, Pt)> {
+        let Kind::Strip { pattern, angle, spacing, side, width, .. } = &e.kind else { return Vec::new() };
         let k = crate::edit::paper_per_unit(self);
         // A conventional pattern fills the band like a hatch; Along draws across the path.
         if *pattern != Pattern::Along {

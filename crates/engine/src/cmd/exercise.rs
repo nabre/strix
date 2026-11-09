@@ -496,6 +496,8 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         && let Some(Block::Para(p)) = s.doc.body.get(top).map(|b| &**b)
         && p.text.is_empty()
         && p.objects.is_empty()
+        // A graph-paper block is an empty paragraph too, and not one to give way.
+        && p.props.graph.is_none()
     {
         let section = p.section.clone();
         if let (Some(sec), Some(last)) = (section, blocks.last_mut()) {
@@ -851,7 +853,7 @@ pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String
 /// The exercise named by `exercise` (1-based) or holding the caret.
 fn target(s: &Session, v: &Value) -> Result<usize, CmdError> {
     match p::u64(v, "exercise") {
-        Some(n) if n >= 1 => Ok(n as usize - 1),
+        Some(n) if n >= 1 => Ok(usize::try_from(n - 1).unwrap_or(usize::MAX)),
         Some(_) => Err(CmdError::Params("exercise: 1-based".into())),
         None => exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into())),
     }
@@ -921,7 +923,8 @@ fn set_data(s: &mut Session, v: &Value) -> CmdResult {
 
 fn set_variant(s: &mut Session, v: &Value) -> CmdResult {
     let ex = target(s, v)?;
-    let active = p::u64(v, "active").ok_or_else(|| CmdError::Params("active: the 0-based variant".into()))? as usize;
+    let active = p::u64(v, "active").ok_or_else(|| CmdError::Params("active: the 0-based variant".into()))?;
+    let active = usize::try_from(active).unwrap_or(usize::MAX);
     with_data(s, ex, |d| d.active = active)
 }
 
@@ -989,17 +992,7 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         s.sel = crate::Selection::caret(strix_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
     } else {
         // The questions control's end moves to the new last question.
-        let Some(end) = prev.objects.iter().rposition(|o| matches!(o, InlineObject::ControlEnd)) else {
-            return Err(CmdError::Failed("the questions part has no end".into()));
-        };
-        prev.objects.remove(end);
-        if let Some(b) = prev.text.rfind(OBJ) {
-            prev.text.replace_range(b..b + OBJ.len_utf8(), "");
-            let total: usize = prev.text.len();
-            prev.runs =
-                if total == 0 { Vec::new() } else { vec![Run { len: total, props: prev.runs.first().map(|r| r.props.clone()).unwrap_or_default() }] };
-        }
-        prev.touch();
+        take_last_end(prev)?;
         let numbering = list.map(|num| NumRef { num, level });
         let new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
         let caret = new.text.len() - OBJ.len_utf8();
@@ -1010,6 +1003,20 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
     update(s);
     s.clamp_selection();
     super::sel_result(s)
+}
+
+/// Takes the questions control's end off `prev`, the last paragraph of the questions, to close it
+/// on a new paragraph after it. Only that marker goes: the question's text keeps its formatting
+/// and its tracked changes.
+fn take_last_end(prev: &mut Paragraph) -> Result<(), CmdError> {
+    let no_end = || CmdError::Failed("the questions part has no end".into());
+    let b = prev.text.rfind(OBJ).ok_or_else(no_end)?;
+    if !matches!(prev.object_at(b), Some(InlineObject::ControlEnd)) {
+        return Err(no_end());
+    }
+    prev.delete(b, b + OBJ.len_utf8()).map_err(|e| CmdError::Failed(e.to_string()))?;
+    prev.touch();
+    Ok(())
 }
 
 /// The question list of the exercise whose questions end at block `last`: the list of its first
@@ -1033,17 +1040,7 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
     let text = p::str(v, "text").unwrap_or_default().to_string();
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
-    let Some(end) = prev.objects.iter().rposition(|o| matches!(o, InlineObject::ControlEnd)) else {
-        return Err(CmdError::Failed("the questions part has no end".into()));
-    };
-    prev.objects.remove(end);
-    if let Some(b) = prev.text.rfind(OBJ) {
-        prev.text.replace_range(b..b + OBJ.len_utf8(), "");
-        let total = prev.text.len();
-        prev.runs =
-            if total == 0 { Vec::new() } else { vec![Run { len: total, props: prev.runs.first().map(|r| r.props.clone()).unwrap_or_default() }] };
-    }
-    prev.touch();
+    take_last_end(prev)?;
     let new = para(STYLE_NOTE, &text, Vec::new(), 1, None);
     let caret = new.text.len() - OBJ.len_utf8();
     s.doc.body.insert(last + 1, para_block(new));
@@ -1514,6 +1511,50 @@ mod tests {
                 Block::Table(_) => "[table]".into(),
             })
             .collect()
+    }
+
+    /// A new exercise at the caret never takes the graph-paper block the caret is in.
+    #[test]
+    fn a_new_exercise_never_takes_the_graph_paper_at_the_caret() {
+        let mut s = session();
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        s.run("graph.insert", &json!({"placement": "pageEnd"})).unwrap();
+        assert!(s.doc.body.iter().any(|b| matches!(&**b, Block::Para(p) if p.props.graph.is_some())));
+        s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
+        assert!(s.doc.body.iter().any(|b| matches!(&**b, Block::Para(p) if p.props.graph.is_some())), "{:?}", texts(&s));
+        assert_eq!(scan(&s).exercises.len(), 1);
+    }
+
+    /// Adding a question or a note after the last question keeps that question's formatting.
+    #[test]
+    fn adding_a_question_or_a_note_keeps_the_last_questions_formatting() {
+        for command in ["exercise.addQuestion", "exercise.addNote"] {
+            let mut s = session();
+            s.run("exercise.insert", &json!({"title": "T", "questions": ["Trova x"]})).unwrap();
+            let q = texts(&s).iter().position(|t| t == "Trova x").unwrap();
+            let Block::Para(p) = &*s.doc.body[q] else { panic!() };
+            let x = p.text.find("x").unwrap();
+            let at = |off| strix_doc::Pos::new(StoryRef::Body, body_path(q), off);
+            s.sel = crate::Selection { anchor: at(x), focus: at(x + 1) };
+            s.run("format.bold", &json!({})).unwrap();
+            s.run(command, &json!({"text": "Poi"})).unwrap();
+            let Block::Para(p) = &*s.doc.body[q] else { panic!() };
+            assert_eq!(p.props_of_char(x).bold, Some(true), "{command}: x stays bold");
+            assert_ne!(p.props_of_char(p.text.find("Trova").unwrap()).bold, Some(true), "{command}: the rest stays plain");
+            assert_eq!(scan(&s).exercises.len(), 1, "{command}");
+            assert!(texts(&s).contains(&"Poi".to_string()), "{command}");
+        }
+    }
+
+    /// An exercise number past what the platform counts never wraps onto another exercise.
+    #[test]
+    fn a_huge_exercise_number_names_no_exercise() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "T"})).unwrap();
+        for n in [u64::MAX, 4_294_967_297, 2] {
+            assert!(s.run("exercise.variant", &json!({"exercise": n, "active": 0})).is_err(), "{n}");
+        }
+        assert!(s.run("exercise.variant", &json!({"exercise": 1, "active": u64::MAX})).is_ok());
     }
 
     #[test]
