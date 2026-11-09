@@ -1,4 +1,4 @@
-//! `cargo xtask site [--check]`: builds the project site (https://nabre.github.io/strix/) into
+//! `cargo xtask site [--check] [--version X.Y.Z]`: builds the project site (https://nabre.github.io/strix/) into
 //! `_site/`, one landing page per language: English at the root, the others in `it/`, `fr/`,
 //! `de/`. The model is `site/landing.html`; `{{> name}}` includes `site/partials/name.html` and
 //! `{{key}}` takes a string from `site/strings/<lang>.json` (every language has the same keys) or
@@ -7,7 +7,8 @@
 //! site's assets, the app icon, the brand files of `docs/brand` and the screenshots of
 //! `site/shots`. `--check` then checks that every page is there and in the sitemap, that no key is
 //! left, and that every relative link and image leads to a file. Published by
-//! `.github/workflows/site.yml`; the rules for the copy are in `docs/brand/MARKETING.md`.
+//! `.github/workflows/site.yml`, which passes `--version` with the latest published release, so the
+//! download links never point at a version bumped on `main` but not released yet; the rules for the copy are in `docs/brand/MARKETING.md`.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -84,7 +85,10 @@ pub fn run(root: &Path, args: &[&str]) -> Result<(), String> {
         }
     }
 
-    let version = workspace_version(&read(&root.join("Cargo.toml"))?)?;
+    let version = match release_version(args)? {
+        Some(v) => v,
+        None => workspace_version(&read(&root.join("Cargo.toml"))?)?,
+    };
 
     // The folder's contents, not the folder: a preview server started in _site keeps it busy.
     fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
@@ -149,6 +153,17 @@ pub fn run(root: &Path, args: &[&str]) -> Result<(), String> {
         println!("site check: {} pages, the sitemap and every relative link in order", LANGS.len());
     }
     Ok(())
+}
+
+/// `--version X.Y.Z` (a leading `v` is dropped): the release the download links point at, when it
+/// isn't Cargo.toml's. Only digits, letters, dots and dashes: it goes into URLs.
+fn release_version(args: &[&str]) -> Result<Option<String>, String> {
+    let Some(i) = args.iter().position(|a| *a == "--version") else { return Ok(None) };
+    let v = args.get(i + 1).map(|v| v.trim_start_matches('v')).ok_or("--version needs a value")?;
+    if v.is_empty() || !v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+        return Err(format!("--version: {v:?} is not a version"));
+    }
+    Ok(Some(v.to_string()))
 }
 
 /// The version in `[workspace.package]` of the root Cargo.toml: the release the download links
@@ -387,6 +402,15 @@ mod tests {
         p.insert("head".to_string(), "<meta>".to_string());
         assert_eq!(include_partials("<head>{{> head}}</head>{{k}}", &p, "t").unwrap(), "<head><meta></head>{{k}}");
         assert!(include_partials("{{> nope}}", &p, "t").is_err());
+    }
+
+    #[test]
+    fn takes_the_release_version() {
+        assert_eq!(release_version(&["--check"]).unwrap(), None);
+        assert_eq!(release_version(&["--check", "--version", "v0.18.0"]).unwrap().as_deref(), Some("0.18.0"));
+        assert_eq!(release_version(&["--version", "0.19.0-rc.1"]).unwrap().as_deref(), Some("0.19.0-rc.1"));
+        assert!(release_version(&["--version"]).is_err());
+        assert!(release_version(&["--version", "1/../x"]).is_err());
     }
 
     #[test]

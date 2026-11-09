@@ -2,7 +2,8 @@
 # (Actions › Publish release › Run workflow) once the draft has been checked. It then redeploys the
 # site (site.yml), so https://nabre.github.io/strix/app/ serves the new web build: a release
 # published with GITHUB_TOKEN raises no `release` event for other workflows, but a
-# workflow_dispatch it starts does run.
+# workflow_dispatch it starts does run. It also lists, as a warning, what main has that the
+# release doesn't (merged after the release branch was built).
 name: Publish release
 
 on:
@@ -39,6 +40,23 @@ jobs:
           else
             gh release edit "$tag" --draft=false --latest
             echo "Published $(gh release view "$tag" --json url --jq .url)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      # A draft is built from the release branch when it was pushed: what main got afterwards
+      # (merged pull requests) isn't in it. Said here, so it isn't a surprise in the app.
+      - name: Check what main has that the release hasn't
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          version="${INPUT_VERSION:-$(awk '/^\[/ { p = ($0 == "[workspace.package]"); next } p && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }' Cargo.toml)}"
+          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/v$version...main" --jq '[.commits[] | select(.parents | length < 2)] | length')" || exit 0
+          if [ "$ahead" -gt 0 ]; then
+            echo "::warning::main has $ahead commit(s) that v$version doesn't include: they go in the next release (bump the version, merge main into release)"
+            {
+              echo "### Not in v$version"
+              gh api "repos/$GITHUB_REPOSITORY/compare/v$version...main" --jq '.commits[] | select(.parents | length < 2) | "- " + (.commit.message | split("\n")[0])'
+            } >>"$GITHUB_STEP_SUMMARY"
           fi
       # The site's download links and its web app (app/) come from the latest release.
       - name: Redeploy the site
