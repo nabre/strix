@@ -341,7 +341,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                             // A unit written inline (`kN∕m`, see `style_parts`) reads as typed.
                             text: math.calc.then(|| equation_text(linear, math).replace('∕', "/")),
                             answer: math.answer,
-                            full: equation_full(linear, math).replace('∕', "/"),
+                            full: equation_full(linear, math),
                         });
                     }
                 }
@@ -1009,6 +1009,12 @@ fn unit_arg(arg: &strix_doc::math::Arg, units: &[String]) -> bool {
                 let words: Vec<&str> = r.text.split(['·', ' ', '\u{2009}']).filter(|w| !w.is_empty()).collect();
                 !words.is_empty() && words.iter().all(|w| units.iter().any(|u| u == w.trim_end_matches(is_superscript)))
             }
+            // A unit raised to a power (`s²` built up as a superscript).
+            MNode::Script { base, sub, sup, .. } => {
+                sub.is_empty()
+                    && unit_arg(base, units)
+                    && sup.iter().all(|n| matches!(n, MNode::Run(r) if r.text.chars().all(|c| c.is_ascii_digit() || c == '-' || c == '−')))
+            }
             _ => false,
         })
 }
@@ -1658,7 +1664,8 @@ mod tests {
             .collect();
         let (steps, display) = &fulls[2];
         assert!(steps.starts_with("█(F&=m·a@a&=F/m@a&="), "{steps}");
-        assert!(steps.ends_with("@a&=2.5m/s²)"), "{steps}");
+        // The unit's quotient inline (a linear fraction).
+        assert!(steps.ends_with("@a&=2.5m∕s²)"), "{steps}");
         assert!(*display, "the steps stand on their own lines");
         // The steps are results: a caret put in them (a click, an arrow key) goes back to the
         // statement, the only part that is edited.
@@ -1698,10 +1705,10 @@ mod tests {
                 .filter_map(|i| if let Item::Equation { full, .. } = i { Some(full.replace(char::is_whitespace, "")) } else { None })
                 .collect()
         };
-        assert_eq!(full(&s)[2], "█(F&=m·a@a&=2.5m/s²)");
+        assert_eq!(full(&s)[2], "█(F&=m·a@a&=2.5m∕s²)");
         let r = s.run("calc.layout", &json!({})).unwrap();
         assert_eq!(r["layout"], "inline");
-        assert_eq!(full(&s)[2], "F=m·a⇒a=2.5m/s²");
+        assert_eq!(full(&s)[2], "F=m·a⇒a=2.5m∕s²");
         let vars = s.run("calc.variables", &json!({})).unwrap();
         assert_eq!(vars["variables"][2]["name"], "a");
         assert_eq!(vars["variables"][2]["region"], 2);
@@ -2101,19 +2108,10 @@ mod tests {
         }
         s.run("calc.recalculate", &json!({})).unwrap();
         let all = maths(&s);
-        let mut kinds = Vec::new();
-        fn walk(nodes: &[strix_doc::math::MNode], out: &mut Vec<strix_doc::math::FracKind>) {
-            for n in nodes {
-                if let strix_doc::math::MNode::Frac { kind, num, den } = n {
-                    out.push(*kind);
-                    walk(num, out);
-                    walk(den, out);
-                }
-            }
-        }
-        walk(&all[2].nodes, &mut kinds);
-        assert!(kinds.contains(&strix_doc::math::FracKind::Linear), "kN/m inline: {kinds:?}");
-        assert!(kinds.contains(&strix_doc::math::FracKind::Bar), "L²/8 stacked: {kinds:?}");
+        // In the linear text a linear fraction is `∕`, a stacked one `/`.
+        let text = to_linear(&all[2].nodes);
+        assert!(text.contains("kN∕m"), "kN/m inline: {text}");
+        assert!(text.contains(")/8") || text.contains("/8"), "L²/8 stacked: {text}");
         // Recalculated again, nothing changes.
         let again = s.run("calc.recalculate", &json!({})).unwrap();
         assert_eq!(again["changed"], 0, "{again}");
