@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary · **Last updated:** 2026-11-08 · **Change:** the generated words follow the proofing language (Italian, English, French, German, Spanish); previously: the "Calculation and exercise" template, after Blank document in File › New
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks · **Last updated:** 2026-11-09 · **Change:** page breaks before an exercise (when another comes before it), its solution and the results summary; previously: the generated words follow the proofing language
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -50,6 +50,20 @@ The exercises of a document are numbered by one list, a **document setting** sav
 Every title's label (*Problema C.*) and the summary's lines (*Problema C*) follow at once, in one
 undo step; it is the Exercise Title style's list, so it is saved in `.xmath` (and `.docx`) like
 any list.
+
+## Page breaks
+
+Each exercise can start a new page **when another exercise comes before it** (the first one of
+the document never breaks), and its **solution** can start a new page; the **results summary**
+can start a new page too. Set them in the Exercise Properties pane (Page Breaks: for this
+exercise, or Apply to all exercises) or with `exercise.pageBreaks`. A new exercise takes the
+settings of the document's last exercise.
+
+An exercise's two settings are kept on its control (a `strix:exerciseBreaks` element Word
+ignores) and shown as Page break before on its title and on its solution's heading, set again
+whenever exercises are added, moved or deleted, so the condition always holds. The summary's is
+Page break before on its first paragraph, kept when the summary is rebuilt. All three are
+ordinary Page break before in the saved file, so other word processors break there too.
 
 ## Deleting an exercise
 
@@ -125,6 +139,7 @@ to the end.
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
 | `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n}`); without params, the current one → `{"prefix", "format", "start", "default", "example"}` |
+| `exercise.pageBreaks` | page breaks (`{"exercise"?: n, "all"?: bool, "beforeExercise"?, "beforeSolution"?, "beforeResults"?: bool}`); without settings, the current ones |
 | `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
 | `exercise.data` | the data and variants of an exercise, with per-item errors |
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
@@ -147,6 +162,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-09: page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane).
 - 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.
 - 2026-11-08: "Calculation and exercise" template, second in the File › New gallery, after Blank document.
 - 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Math › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.

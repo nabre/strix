@@ -62,6 +62,8 @@ pub enum Pane {
     Exercise,
     /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
     GraphPaper,
+    /// Outlining › Master Document: the master document's linked files.
+    Subdocuments,
 }
 
 impl Pane {
@@ -79,6 +81,7 @@ impl Pane {
             Self::Comments => "Comments",
             Self::Exercise => "Exercise Properties",
             Self::GraphPaper => "Graph Paper",
+            Self::Subdocuments => "Subdocuments",
         }
     }
 
@@ -96,6 +99,7 @@ impl Pane {
             Self::Comments => (Edge::End, 290.0),
             Self::Exercise => (Edge::End, 320.0),
             Self::GraphPaper => (Edge::End, 300.0),
+            Self::Subdocuments => (Edge::End, 300.0),
         };
         PaneState::docked(edge, width)
     }
@@ -115,10 +119,11 @@ impl Pane {
             Self::Comments => "comments",
             Self::Exercise => "exercise",
             Self::GraphPaper => "graphPaper",
+            Self::Subdocuments => "subdocuments",
         }
     }
 
-    const ALL: [Self; 12] = [
+    const ALL: [Self; 13] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -131,6 +136,7 @@ impl Pane {
         Self::Comments,
         Self::Exercise,
         Self::GraphPaper,
+        Self::Subdocuments,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -151,6 +157,7 @@ impl Pane {
             Self::Comments => Some("view.commentsPane"),
             Self::Exercise => Some("view.exercisePane"),
             Self::GraphPaper => Some("view.graphPaperPane"),
+            Self::Subdocuments => Some("view.subdocumentsPane"),
             Self::RestrictEditing => None,
         }
     }
@@ -178,6 +185,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Comments => comments(app, ui),
             Pane::Exercise => crate::exercise_pane::pane(app, ui),
             Pane::GraphPaper => crate::graph_pane::pane(app, ui),
+            Pane::Subdocuments => crate::subdocument_pane::pane(app, ui),
         }
     }
 

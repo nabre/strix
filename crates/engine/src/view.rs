@@ -47,6 +47,10 @@ pub struct ViewState {
     /// exercise at the caret (docs/exercise.md).
     #[serde(default)]
     pub exercise_pane: bool,
+    /// The Subdocuments pane (Outlining › Master Document): the master document's linked files
+    /// (docs/master-documents.md).
+    #[serde(default)]
+    pub subdocument_pane: bool,
     /// The Graph Paper pane (Insert › Pages › Graph Paper › Properties): the graph paper at the
     /// caret (docs/graph-paper.md).
     #[serde(default)]
@@ -192,6 +196,7 @@ impl Default for ViewState {
             accessibility_pane: false,
             alt_text_pane: false,
             exercise_pane: false,
+            subdocument_pane: false,
             graph_pane: false,
             format_shape_pane: false,
             multi_page: false,

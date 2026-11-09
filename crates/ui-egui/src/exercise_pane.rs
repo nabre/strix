@@ -34,7 +34,7 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         // The numbering is the document's: it shows wherever the cursor is, once there are exercises.
         let exercises = app.session.run("exercise.info", &json!({})).ok().and_then(|i| i["exercises"].as_u64()).unwrap_or(0);
         if exercises > 0 {
-            ui.add_space(10.0);
+            crate::pane_kit::section(ui, "", tl!("Numbering"));
             numbering(app, ui);
         }
         return;
@@ -50,10 +50,9 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
     };
 
     egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.label(egui::RichText::new(format!("{} {ex}", tl!("Exercise"))).strong());
-        ui.add_space(6.0);
+        ui.label(egui::RichText::new(format!("{} {ex}", tl!("Exercise"))).size(15.0).strong());
         // Variants: the active one is the one the exercise is calculated with.
-        ui.label(tl!("Variants"));
+        crate::pane_kit::section(ui, "01", tl!("Variants"));
         ui.horizontal_wrapped(|ui| {
             for (k, name) in variants.iter().enumerate() {
                 if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked() && k != active {
@@ -100,9 +99,8 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
                 save(app, &data);
             }
         });
-        ui.add_space(10.0);
         // Data: symbol, description, value in the active variant, unit.
-        ui.label(tl!("Data"));
+        crate::pane_kit::section(ui, "02", tl!("Data"));
         let rows = data["items"].as_array().map_or(0, Vec::len);
         let mut remove = None;
         egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true).show(ui, |ui| {
@@ -173,16 +171,47 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
             }
             save(app, &data);
         }
-        ui.add_space(8.0);
-        ui.label(
-            egui::RichText::new(tl!("The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."))
-                .small()
-                .weak(),
+        ui.add_space(6.0);
+        crate::pane_kit::note(
+            ui,
+            tl!("The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."),
         );
-        ui.add_space(10.0);
-        ui.separator();
+        crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
+        page_breaks(app, ui, ex);
+        crate::pane_kit::section(ui, "04", tl!("Numbering"));
         numbering(app, ui);
     });
+}
+
+/// Page breaks (`exercise.pageBreaks`): before this exercise when another comes before it, before
+/// its solution (both for this exercise, or every one), and before the results summary.
+fn page_breaks(app: &mut WordApp, ui: &mut Ui, ex: u64) {
+    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"exercise": ex})) else { return };
+    let set = |app: &mut WordApp, params: Value| {
+        if let Err(e) = app.run("exercise.pageBreaks", params) {
+            app.status(e);
+        }
+    };
+    let mut exercise = b["beforeExercise"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut exercise, tl!("New page before the exercise")).on_hover_text(tl!("Only when another exercise comes before it")).changed() {
+        set(app, json!({"exercise": ex, "beforeExercise": exercise}));
+    }
+    let mut solution = b["beforeSolution"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut solution, tl!("New page before the solution")).changed() {
+        set(app, json!({"exercise": ex, "beforeSolution": solution}));
+    }
+    let mut results = b["beforeResults"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
+        set(app, json!({"beforeResults": results}));
+    }
+    if ui
+        .add(egui::Button::new(tl!("Apply to all exercises")).small())
+        .on_hover_text(tl!("Every exercise of the document takes this exercise's page breaks"))
+        .clicked()
+    {
+        set(app, json!({"all": true, "beforeExercise": exercise, "beforeSolution": solution}));
+    }
+    crate::pane_kit::note(ui, tl!("A new exercise takes the page breaks of the last one."));
 }
 
 /// The number formats offered for exercises: the format's id and how it counts.
@@ -201,8 +230,7 @@ fn numbering(app: &mut WordApp, ui: &mut Ui) {
             app.status(e);
         }
     };
-    ui.label(egui::RichText::new(tl!("Numbering")).strong());
-    ui.label(egui::RichText::new(tl!("For every exercise of the document: the label of each title and of the results summary.")).small().weak());
+    crate::pane_kit::note(ui, tl!("For every exercise of the document: the label of each title and of the results summary."));
     ui.add_space(4.0);
     egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
         ui.label(tl!("Prefix"));

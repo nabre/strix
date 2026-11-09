@@ -30,6 +30,7 @@ pub mod insert;
 pub mod inspector;
 pub mod lists;
 pub mod mailings;
+pub mod master;
 pub mod moves;
 pub mod objects;
 pub mod options;
@@ -115,6 +116,7 @@ pub fn registry() -> Registry {
     v.extend(protect::specs());
     v.extend(speech::specs());
     v.extend(controls::specs());
+    v.extend(master::specs());
     Registry::new(v)
 }
 

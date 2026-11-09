@@ -183,6 +183,17 @@ pub(super) fn outlining(app: &mut WordApp, ui: &mut Ui) {
             });
         });
     });
+    group(ui, "Master Document", None, app, |ui, app| {
+        big(ui, app, "subdocInsert", "Insert", "master.insertSubdocument", json!({}), false);
+        big(ui, app, "subdocCreate", "Create", "master.createSubdocument", json!({}), false);
+        let shown = app.session.view.subdocument_pane;
+        big_toggle(ui, app, "subdocPane", "Subdocuments", "view.subdocumentsPane", shown);
+        stack(ui, |ui| {
+            small(ui, app, "subdocUnlink", None, "Unlink", crate::widgets::ButtonAction::new("master.unlinkSubdocument", json!({}), false));
+            small(ui, app, "subdocRefresh", None, "Reload", crate::widgets::ButtonAction::new("master.refresh", json!({}), false));
+            small(ui, app, "subdocOpen", None, "Open", crate::widgets::ButtonAction::new("master.openSubdocument", json!({}), false));
+        });
+    });
     group(ui, "Close", None, app, |ui, app| {
         big(ui, app, "closeOutline", "Close Outline\nView", "outline.close", json!({}), false);
     });

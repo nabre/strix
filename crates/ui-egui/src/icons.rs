@@ -1925,6 +1925,28 @@ fn paint_file_and_tools(pen: &Pen, name: &str) -> bool {
                 pen.line_c(&[(10.0, 6.5), (10.0, 13.5)], Color32::WHITE);
             }
         }
+        // Master Document: a page holding a smaller linked page.
+        // The Subdocuments pane: a list of linked files.
+        "subdocPane" => {
+            for (k, y) in [5.0_f32, 10.0, 15.0].into_iter().enumerate() {
+                pen.rect(3.0, y - 1.5, 6.0, y + 1.5, if k == 0 { a } else { c });
+                pen.line_c(&[(8.5, y), (17.0, y)], c);
+            }
+        }
+        "subdocInsert" | "subdocCreate" | "subdocUnlink" | "subdocRefresh" | "subdocOpen" => {
+            pen.page(3.0, 2.0, 14.0, 17.0);
+            pen.rect(6.0, 8.0, 14.0, 15.0, a);
+            match name {
+                "subdocInsert" => pen.line_c(&[(10.0, 9.5), (10.0, 13.5)], c),
+                "subdocCreate" => pen.line_c(&[(8.0, 11.5), (12.0, 11.5)], c),
+                "subdocUnlink" => pen.line_c(&[(8.0, 9.5), (12.0, 13.5)], red),
+                "subdocRefresh" => pen.circle(10.0, 11.5, 2.0, c),
+                _ => pen.line_c(&[(8.0, 13.5), (12.0, 9.5)], c),
+            }
+            if name == "subdocInsert" {
+                pen.line_c(&[(8.0, 11.5), (12.0, 11.5)], c);
+            }
+        }
         "closeOutline" => {
             pen.page(4.0, 2.0, 16.0, 18.0);
             pen.line_c(&[(7.0, 8.0), (13.0, 14.0)], red);
