@@ -81,7 +81,12 @@ pub const WRONG_PASSWORD: &str = "the password is incorrect";
 /// transform, so this rides in the extension list Word and other readers skip.
 pub(crate) const CANVAS_SPIN_EXT: &str = "urn:wordcraft:canvas-xfrm";
 /// The same extension as Strix wrote it until 2026-11 (`docs/naming.md`, U5); still read.
-pub(crate) const STRIX_CANVAS_SPIN_EXT: &str = "urn:strix:canvas-xfrm";
+const STRIX_CANVAS_SPIN_EXT: &str = "urn:strix:canvas-xfrm";
+
+/// Whether an `a:ext` URI is [`CANVAS_SPIN_EXT`], or the name Strix gave it before.
+pub(crate) fn is_canvas_spin(uri: Option<&str>) -> bool {
+    uri.is_some_and(|u| u == CANVAS_SPIN_EXT || u == STRIX_CANVAS_SPIN_EXT)
+}
 
 /// Read a package that may be password-protected ([`is_encrypted`]): it is decrypted with
 /// `password` first. An encrypted package without a password gives

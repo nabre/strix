@@ -315,7 +315,7 @@ impl Reader<'_> {
     /// The canvas schema has no `a:xfrm` of its own (nor does the anchor), so a turned or
     /// flipped canvas keeps its turn in our `wpc:extLst` extension ([`CANVAS_SPIN_EXT`]).
     fn read_canvas(&mut self, sc: &mut StoryCtx, c: &El, rels: &Rels, w: f32, h: f32, mut float: Float) -> InlineObject {
-        let spin_ext = c.child("wpc:extLst").and_then(|l| l.els().find(|e| e.name == "a:ext" && matches!(e.attr("uri"), Some(crate::CANVAS_SPIN_EXT | crate::STRIX_CANVAS_SPIN_EXT))));
+        let spin_ext = c.child("wpc:extLst").and_then(|l| l.els().find(|e| e.name == "a:ext" && crate::is_canvas_spin(e.attr("uri"))));
         float.set_spin(xfrm_spin(spin_ext));
         let solid = |e: Option<&El>| {
             e.and_then(|f| f.child("a:solidFill")).and_then(|f| f.child("a:srgbClr")).and_then(|c| c.attr("val")).and_then(Rgb::parse)
