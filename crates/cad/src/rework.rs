@@ -185,7 +185,8 @@ impl Drawing {
 
     /// Gives the entities at `targets` the layer and stroke of entity `source`, and what they
     /// share of its own look: a text's height, a hatch's or strip's pattern, angle and spacing
-    /// (and a strip's width), a dimension's end mark.
+    /// (and a strip's width), a dimension's end mark, and the style of a text (for a text) or of a
+    /// dimension, angle or level mark (for those).
     pub fn match_properties(&mut self, source: usize, targets: &[usize]) {
         let Some(src) = self.entities.get(source).cloned() else { return };
         for &t in targets {
@@ -193,6 +194,10 @@ impl Drawing {
                 continue;
             }
             let Some(e) = self.entities.get_mut(t) else { continue };
+            let annotation = |k: &Kind| matches!(k, Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. });
+            if matches!((&src.kind, &e.kind), (Kind::Text { .. }, Kind::Text { .. })) || (annotation(&src.kind) && annotation(&e.kind)) {
+                e.style = src.style.clone();
+            }
             e.layer = src.layer.clone();
             e.stroke = src.stroke.clone();
             match (&src.kind, &mut e.kind) {

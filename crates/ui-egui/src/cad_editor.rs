@@ -24,7 +24,8 @@ use crate::WordApp;
 use crate::cad_dim_parts;
 
 /// How a circle is given (AutoCAD's Circle options).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum CircleMode {
     /// Centre, then the radius.
     Radius,
@@ -356,6 +357,8 @@ pub struct CadEditor {
     pub last_tool: Option<Tool>,
     /// The way the last circle was started: the Circle button's top part starts it again.
     pub circle_mode: CircleMode,
+    /// The paired buttons' last commands.
+    pub picks: Picks,
     /// What the Properties pane works on.
     pub focus: Focus,
     /// The Properties pane is shown.
@@ -388,9 +391,34 @@ pub struct CadEditor {
     pub(crate) chain_base: Option<usize>,
 }
 
-/// The editor's settings that outlive a drawing: kept by the app while it runs, so the next
-/// drawing opens as the last one was left.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// The second command of each paired button last chosen (Tangent Line, Extend, Chamfer, Polar
+/// array): the button's main part starts it again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Picks {
+    pub line_tan: bool,
+    pub extend: bool,
+    pub chamfer: bool,
+    pub polar: bool,
+}
+
+impl Picks {
+    /// Remembers `tool` when it is one of a pair.
+    fn note(&mut self, tool: Tool) {
+        match tool {
+            Tool::Line | Tool::LineTan => self.line_tan = tool == Tool::LineTan,
+            Tool::Trim | Tool::Extend => self.extend = tool == Tool::Extend,
+            Tool::Fillet | Tool::Chamfer => self.chamfer = tool == Tool::Chamfer,
+            Tool::ArrayRect | Tool::ArrayPolar => self.polar = tool == Tool::ArrayPolar,
+            _ => {}
+        }
+    }
+}
+
+/// The editor's settings that outlive a drawing: kept by the app, and saved with its settings
+/// (`ui.json`), so the next drawing opens as the last one was left, after a restart too.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct CadSettings {
     pub snap: bool,
     pub snaps: Snaps,
@@ -409,6 +437,34 @@ pub struct CadSettings {
     pub array_count: usize,
     /// The Circle button's way (the last one chosen).
     pub circle_mode: CircleMode,
+    /// The paired buttons' commands (the last ones chosen).
+    pub picks: Picks,
+}
+
+impl CadSettings {
+    /// Within what the editor accepts when they are typed: settings read from a file may be
+    /// anything.
+    pub fn sanitized(self) -> CadSettings {
+        let d = CadSettings::default();
+        let size = |v: f64, lo: f64, fallback: f64| if v.is_finite() && v >= lo && v <= strix_cad::MAX_COORD { v } else { fallback };
+        let count = |v: usize, lo: usize, fallback: usize| if (lo..=strix_cad::MAX_ARRAY).contains(&v) { v } else { fallback };
+        CadSettings {
+            offset_dist: if self.offset_dist > 0.0 { size(self.offset_dist, 0.0, d.offset_dist) } else { d.offset_dist },
+            fillet_radius: size(self.fillet_radius, 0.0, d.fillet_radius),
+            chamfer_dist: size(self.chamfer_dist, 0.0, d.chamfer_dist),
+            array_cols: count(self.array_cols, 1, d.array_cols),
+            array_rows: count(self.array_rows, 1, d.array_rows),
+            array_count: count(self.array_count, 2, d.array_count),
+            ..self
+        }
+    }
+}
+
+/// Reads the saved CAD settings leniently: junk (a newer or hand-edited `ui.json`) is the
+/// defaults, never settings that cannot be read.
+pub fn lenient_settings<'de, D: serde::Deserializer<'de>>(d: D) -> Result<CadSettings, D::Error> {
+    let v = <serde_json::Value as serde::Deserialize>::deserialize(d)?;
+    Ok(serde_json::from_value::<CadSettings>(v).unwrap_or_default().sanitized())
 }
 
 impl Default for CadSettings {
@@ -430,12 +486,13 @@ impl Default for CadSettings {
             array_rows: 2,
             array_count: 6,
             circle_mode: CircleMode::Radius,
+            picks: Picks::default(),
         }
     }
 }
 
 impl CadEditor {
-    fn settings(&self) -> CadSettings {
+    pub(crate) fn settings(&self) -> CadSettings {
         CadSettings {
             snap: self.snap,
             snaps: self.snaps,
@@ -453,6 +510,7 @@ impl CadEditor {
             array_rows: self.array_rows,
             array_count: self.array_count,
             circle_mode: self.circle_mode,
+            picks: self.picks,
         }
     }
 }
@@ -498,6 +556,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         snap_once: None,
         last_tool: None,
         circle_mode: kept.circle_mode,
+        picks: kept.picks,
         focus: Focus::default(),
         panel: kept.panel,
         layers_panel: kept.layers_panel,
@@ -677,13 +736,22 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             commit(app, &d);
         }
         "ui.cadDimStyle" => {
-            // The drawing's annotation style: {"text"?, "markSize"?, "extGap"?, "extOver"?,
-            // "textGap"? (mm), "mark"? (tick, arrow, dot, none), "aligned"? (texts along their line)}.
+            // A dimension style: {"style"? (its name; default: the current one), "text"?,
+            // "markSize"?, "markWidth"? (0: automatic), "extGap"?, "extOver"?, "textGap"?,
+            // "lineWidth"?, "lineOver"? (mm), "mark"? (the start's: tick, arrow, dot, none),
+            // "markEnd"? (the end's, or "start": as the start), "textStyle"? (a text style's name,
+            // Standard), "units"?, "aligned"?, "scaled"?}.
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
-            let st = &mut d.dim_style;
+            let name = match p.get("style").and_then(serde_json::Value::as_str) {
+                Some(n) => n.to_string(),
+                None => d.current_dim_style.clone().unwrap_or_else(|| strix_cad::STANDARD.to_string()),
+            };
+            let text_styles = d.styles(strix_cad::StyleKind::Text);
+            let st = d.dim_style_mut(&name).ok_or(format!("no dimension style {name}"))?;
             for (key, slot) in [
                 ("text", &mut st.text),
                 ("markSize", &mut st.mark_size),
+                ("markWidth", &mut st.mark_width),
                 ("extGap", &mut st.ext_gap),
                 ("extOver", &mut st.ext_over),
                 ("textGap", &mut st.text_gap),
@@ -697,6 +765,16 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             if let Some(m) = p.get("mark") {
                 st.mark = m.as_str().and_then(strix_cad::Mark::parse).ok_or("mark: tick, arrow, dot or none")?;
             }
+            if let Some(m) = p.get("markEnd") {
+                st.mark_end = match m.as_str() {
+                    Some("start") => None,
+                    w => Some(w.and_then(strix_cad::Mark::parse).ok_or("markEnd: start, tick, arrow, dot or none")?),
+                };
+            }
+            if let Some(t) = p.get("textStyle") {
+                let t = t.as_str().filter(|t| text_styles.iter().any(|n| n == t)).ok_or("textStyle: the name of a text style")?;
+                st.text_style = (t != strix_cad::STANDARD).then(|| t.to_string());
+            }
             if let Some(u) = p.get("units") {
                 st.units = u.as_str().and_then(strix_cad::DimUnits::parse).ok_or("units: drawing, m, cm, mm or sia")?;
             }
@@ -706,9 +784,85 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             if let Some(v) = p.get("scaled") {
                 st.scaled = v.as_bool().ok_or("scaled: true or false")?;
             }
-            d.dim_style = d.dim_style.sanitized();
+            d.sanitize();
+            let out = serde_json::to_value(d.dim_style_named(Some(&name))).unwrap_or_default();
             commit(app, &d);
-            return Ok(serde_json::to_value(app.cad.as_ref().map(|e| e.drawing.dim_style)).unwrap_or_default());
+            return Ok(out);
+        }
+        "ui.cadTextStyle" => {
+            // A text style: {"style"? (its name; default: the current one), "font"? (a family,
+            // "" the document's), "height"? (mm), "bold"?, "italic"?}. Standard has nothing to set.
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            let name = match p.get("style").and_then(serde_json::Value::as_str) {
+                Some(n) => n.to_string(),
+                None => d.current_text_style.clone().ok_or("Standard is the plain font: make a text style to set its font")?,
+            };
+            let st = d.text_style_mut(&name).ok_or(format!("no text style {name} to change"))?;
+            if let Some(f) = p.get("font") {
+                let f = f.as_str().ok_or("font: a font family")?.trim();
+                st.font = (!f.is_empty()).then(|| f.to_string());
+            }
+            if let Some(h) = p.get("height") {
+                st.height = h.as_f64().ok_or("height: a size in mm")?;
+            }
+            if let Some(v) = p.get("bold") {
+                st.bold = v.as_bool().ok_or("bold: true or false")?;
+            }
+            if let Some(v) = p.get("italic") {
+                st.italic = v.as_bool().ok_or("italic: true or false")?;
+            }
+            d.sanitize();
+            let out = serde_json::to_value(d.text_style_named(Some(&name))).unwrap_or_default();
+            commit(app, &d);
+            return Ok(out);
+        }
+        "ui.cadStyles" => {
+            // Named styles: {"kind": "text" | "dim", and one of "new": name (a copy of "from",
+            // else the current style), "rename": name with "to", "delete": name, "current": name
+            // (also given to the selected objects that take that kind of style)}.
+            let kind = p.get("kind").and_then(serde_json::Value::as_str).and_then(strix_cad::StyleKind::parse).ok_or("kind: text or dim")?;
+            let Some((mut d, sel)) = app.cad.as_ref().map(|e| (e.drawing.clone(), e.selection.clone())) else { return Ok(json!({})) };
+            let word = |k: &str| p.get(k).and_then(serde_json::Value::as_str);
+            if let Some(n) = word("new") {
+                let from = word("from").map(str::to_string).or_else(|| match kind {
+                    strix_cad::StyleKind::Dim => d.current_dim_style.clone(),
+                    strix_cad::StyleKind::Text => d.current_text_style.clone(),
+                });
+                let name = d.free_style_name(kind, n);
+                d.new_style(kind, &name, from.as_deref())?;
+            } else if let Some(old) = word("rename") {
+                d.rename_style(kind, old, word("to").ok_or("to: the new name")?)?;
+            } else if let Some(n) = word("delete") {
+                d.delete_style(kind, n)?;
+            } else if let Some(n) = word("current") {
+                d.set_current_style(kind, n)?;
+                // The selected objects of that kind take it (as a CAD's style list does).
+                let takes: Vec<usize> = sel.iter().copied().filter(|&i| d.entities.get(i).is_some_and(|e| !d.style_names(e).is_empty())).collect();
+                let _ = d.set_style(&takes, n);
+            } else {
+                return Err("new, rename, delete or current".into());
+            }
+            commit(app, &d);
+            let current = match kind {
+                strix_cad::StyleKind::Dim => d.current_dim_style.clone(),
+                strix_cad::StyleKind::Text => d.current_text_style.clone(),
+            };
+            return Ok(json!({"styles": d.styles(kind), "current": current.unwrap_or_else(|| strix_cad::STANDARD.to_string())}));
+        }
+        "ui.cadUnit" => {
+            // The drawing's unit: {"unit": "mm" | "cm" | "m", "convert"?: true (the lengths are
+            // converted, the drawing keeps its size; false: the numbers stay, in the new unit)}.
+            let unit = p.get("unit").and_then(serde_json::Value::as_str).and_then(strix_cad::Unit::parse).ok_or("unit: mm, cm or m")?;
+            let convert = p.get("convert").and_then(serde_json::Value::as_bool).unwrap_or(true);
+            let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
+            if d.unit != unit {
+                d.set_unit(unit, convert);
+                commit(app, &d);
+                if let Some(ed) = app.cad.as_mut() {
+                    ed.fitted = false;
+                }
+            }
+            return Ok(json!({"unit": unit.symbol()}));
         }
         "ui.cadScale" => {
             // The drawing's scale and maximum size, as `cad.scale` sets them in the document:
@@ -975,6 +1129,7 @@ impl CadEditor {
         if let Tool::Circle(mode) = tool {
             self.circle_mode = mode;
         }
+        self.picks.note(tool);
         if tool != Tool::Select {
             self.last_tool = Some(tool);
             if !self.selection.is_empty() {
@@ -2394,7 +2549,7 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
             Prim::Dot { at, r, color } => {
                 painter.circle_filled(view.to_screen(paper_to_drawing(&ed.rendered, *at)), (*r * ed.zoom / k).clamp(2.0, 12.0) as f32, rgb(*color));
             }
-            Prim::Text { at, text, height, anchor, color, angle } => {
+            Prim::Text { at, text, height, anchor, color, angle, look } => {
                 let size = ((*height / 0.7) * ed.zoom / k).clamp(6.0, 200.0) as f32;
                 let align = match anchor {
                     Anchor::BottomCenter | Anchor::BaselineCenter => Align2::CENTER_BOTTOM,
@@ -2405,7 +2560,7 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
                     Anchor::MiddleRight => Align2::RIGHT_CENTER,
                 };
                 let pos = view.to_screen(paper_to_drawing(&ed.rendered, *at));
-                let galley = painter.layout_job(text_job(text, size, rgb(*color), unit));
+                let galley = painter.layout_job(text_job(text, size, rgb(*color), unit, look));
                 // Turned about its anchor: counter-clockwise on paper is clockwise on the
                 // screen (y down).
                 let turn = if angle.is_finite() { -(angle.to_radians() as f32) } else { 0.0 };
@@ -2484,6 +2639,12 @@ fn with(ed: &CadEditor, mut e: Entity) -> Option<Drawing> {
     if d.layers.iter().any(|l| l.name == ed.current_layer) {
         e.layer = ed.current_layer.clone();
     }
+    // New texts take the current text style, new dimensions the current dimension style.
+    e.style = match e.kind {
+        Kind::Text { .. } => d.current_text_style.clone(),
+        Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } => d.current_dim_style.clone(),
+        _ => e.style,
+    };
     // Hatches go behind everything else, as they fill around it.
     let hatch = matches!(e.kind, Kind::Strip { .. } | Kind::Hatch { .. });
     d.add(e).ok()?;
@@ -2499,11 +2660,14 @@ fn pt(p: Pt) -> P {
 
 /// A drawing text laid out for the canvas: a parameter's symbol in italics, its subscript
 /// smaller and lowered, a missing parameter in red (`strix_cad::spans`).
-fn text_job(text: &str, size: f32, color: Color32, unit: Color32) -> egui::text::LayoutJob {
+/// On screen a text style's bold is the interface's semibold and its italic slanted; its font
+/// family shows on the page and in print, where the document's fonts are.
+fn text_job(text: &str, size: f32, color: Color32, unit: Color32, look: &strix_cad::TextLook) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
     for p in strix_cad::spans(text) {
         let sub = p.sub;
-        let font = FontId::proportional(if sub { size * 0.7 } else { size });
+        let px = if sub { size * 0.7 } else { size };
+        let font = if look.bold { FontId::new(px, egui::FontFamily::Name("semibold".into())) } else { FontId::proportional(px) };
         let format = egui::TextFormat {
             font_id: font,
             color: match p.kind {
@@ -2511,7 +2675,7 @@ fn text_job(text: &str, size: f32, color: Color32, unit: Color32) -> egui::text:
                 strix_cad::SpanKind::Unit => unit,
                 strix_cad::SpanKind::Plain => color,
             },
-            italics: p.symbol,
+            italics: p.symbol || look.italic,
             // A subscript's line, shorter than the text's, sits at the bottom: the subscript drops.
             line_height: sub.then_some(size * 0.6),
             ..Default::default()
@@ -2774,7 +2938,7 @@ fn placed_dim(ed: &CadEditor, orient: Orient, a: Pt, b: Pt, at: Pt) -> Kind {
     // Past the farther point along the normal, in drawing units.
     let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-    let (offset, offset_units) = if ed.drawing.dim_style.scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
+    let (offset, offset_units) = if ed.drawing.current_dim().scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
     Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }
 }
 
@@ -2791,7 +2955,7 @@ fn placed_angle(ed: &CadEditor, c: Pt, mut a: Pt, mut b: Pt, at: Pt) -> Result<K
         return Err("An angle needs two sides and an arc away from the vertex");
     }
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-    let (r, r_paper) = if ed.drawing.dim_style.scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
+    let (r, r_paper) = if ed.drawing.current_dim().scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
     Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None })
 }
 
@@ -2876,7 +3040,7 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                     boundary,
                     pattern: strix_cad::Pattern::Lines,
                     angle: 45.0,
-                    spacing: (ed.drawing.dim_style.text * 0.8).max(0.5),
+                    spacing: (ed.drawing.current_dim().text * 0.8).max(0.5),
                 }),
             )
         }
@@ -2895,7 +3059,7 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             let along = ed.drawing.entities.get(i)?.id.clone();
             let side = ed.drawing.side_of(i, pts[1]);
             // Sized like the drawing's annotations.
-            let style = ed.drawing.dim_style;
+            let style = ed.drawing.current_dim().clone();
             with(
                 ed,
                 Entity::new(Kind::Strip {
@@ -3099,8 +3263,8 @@ fn close_polyline(ed: &mut CadEditor) -> Option<Drawing> {
 fn add_text(ed: &mut CadEditor, text: &str) -> Option<Drawing> {
     let p = *ed.points.first()?;
     ed.points.clear();
-    // New texts take the drawing's annotation text height.
-    let height = ed.drawing.dim_style.text;
+    // New texts take the current text style's height (Standard: the dimension text height).
+    let height = ed.drawing.new_text_height();
     with(ed, Entity::new(Kind::Text { p: pt(p), value: text.to_string(), height, angle: 0.0, align: strix_cad::Align::Left }))
 }
 
@@ -3143,13 +3307,53 @@ fn tool_of(app: &WordApp) -> Tool {
     app.cad.as_ref().map_or(Tool::Select, |e| e.tool)
 }
 
+/// A paired button's command: icon, tooltip (its name before the colon), `ui.cadTool` name, tool.
+type Paired = (&'static str, &'static str, &'static str, Tool);
+
+const LINE: Paired = ("cadLine", "Line: two points, then more to go on", "line", Tool::Line);
+const LINE_TAN: Paired =
+    ("cadLineTan", "Tangent Line: a line touching two circles or arcs; pick each near where it should touch", "lineTan", Tool::LineTan);
+const TRIM: [Paired; 2] = [
+    ("cadTrim", "Trim: pick the pieces to take away", "trim", Tool::Trim),
+    ("cadExtend", "Extend: pick near the ends to extend", "extend", Tool::Extend),
+];
+const FILLET: [Paired; 2] = [
+    ("cadFillet", "Fillet: two lines joined with an arc (type the radius; 0 makes the corner)", "fillet", Tool::Fillet),
+    ("cadChamfer", "Chamfer: two lines cut at the corner (type the distance; 0 makes the corner)", "chamfer", Tool::Chamfer),
+];
+const ARRAY: [Paired; 2] = [
+    ("cadArrayRect", "Array: rectangular, of the selection (type columns x rows)", "arrayRect", Tool::ArrayRect),
+    ("cadArrayPolar", "Polar Array: of the selection round a centre (type how many items)", "arrayPolar", Tool::ArrayPolar),
+];
+
 /// Draw, Modify, Layers.
 fn home_tab(app: &mut WordApp, ui: &mut Ui) {
-    use crate::widgets::{big_checked, group, small};
+    use crate::widgets::{group, small};
     let tool = tool_of(app);
     let t = |name: &str| json!({"tool": name});
+    let picks = app.cad.as_ref().map_or(app.cad_settings.picks, |e| e.picks);
     group(ui, "Draw", None, app, |ui, app| {
-        big_checked(ui, app, "cadLine", "Line", "ui.cadTool", t("line"), tool == Tool::Line);
+        // Line and Tangent Line: one split button, as Circle. The top part starts the one chosen
+        // last; the bottom part lists both.
+        let (icon, tip, name, _) = if picks.line_tan { LINE_TAN } else { LINE };
+        crate::widgets::big_split(
+            ui,
+            app,
+            crate::widgets::BigSplit {
+                icon,
+                label: "Line",
+                tip,
+                action: crate::widgets::ButtonAction::new("ui.cadTool", t(name), matches!(tool, Tool::Line | Tool::LineTan)),
+            },
+            |ui, app| {
+                for ((icon, _, name, _), label) in [(LINE, "Line"), (LINE_TAN, "Tangent Line")] {
+                    if crate::widgets::icon_menu_item(ui, icon, tl!(label), "", 200.0).clicked() {
+                        let _ = app.run("ui.cadTool", t(name));
+                        ui.close();
+                    }
+                }
+            },
+        );
         // Circle: a split button, as a CAD ribbon has it. The top part starts the way chosen
         // last (its icon and tooltip say which); the bottom part lists every way.
         let mode = app.cad.as_ref().map_or(app.cad_settings.circle_mode, |e| e.circle_mode);
@@ -3198,14 +3402,6 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
             );
         });
         stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
-                "cadLine",
-                Some("Tangent Line"),
-                "A line touching two circles or arcs: pick each near where it should touch",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("lineTan"), tool == Tool::LineTan),
-            );
             small(ui, app, "cadPoint", Some("Point"), "Point", crate::widgets::ButtonAction::new("ui.cadTool", t("point"), tool == Tool::Point));
             small(
                 ui,
@@ -3218,7 +3414,7 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Modify", None, app, |ui, app| {
-        big_checked(ui, app, "cadSelect", "Select", "ui.cadTool", t("select"), tool == Tool::Select);
+        // No Select button: the editor selects whenever no command runs (Esc ends one).
         stack(ui, &mut |ui| {
             small(
                 ui,
@@ -3235,6 +3431,14 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 Some("Copy"),
                 "Copy the selection: base point, second point",
                 crate::widgets::ButtonAction::new("ui.cadTool", t("copy"), tool == Tool::Copy),
+            );
+            small(
+                ui,
+                app,
+                "cadDelete",
+                Some("Delete"),
+                "Delete the selection (Del)",
+                crate::widgets::ButtonAction::new("ui.cadDelete", json!({}), false),
             );
         });
         stack(ui, &mut |ui| {
@@ -3275,55 +3479,21 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
             small(
                 ui,
                 app,
-                "cadTrim",
-                Some("Trim"),
-                "Trim: pick the pieces to take away",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("trim"), tool == Tool::Trim),
-            );
-            small(
-                ui,
-                app,
-                "cadExtend",
-                Some("Extend"),
-                "Extend: pick near the ends to extend",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("extend"), tool == Tool::Extend),
-            );
-        });
-        stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
-                "cadFillet",
-                Some("Fillet"),
-                "Fillet two lines with an arc (type the radius; 0 makes the corner)",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("fillet"), tool == Tool::Fillet),
-            );
-            small(
-                ui,
-                app,
-                "cadChamfer",
-                Some("Chamfer"),
-                "Chamfer two lines (type the distance; 0 makes the corner)",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("chamfer"), tool == Tool::Chamfer),
-            );
-            small(
-                ui,
-                app,
-                "cadDelete",
-                Some("Delete"),
-                "Delete the selection (Del)",
-                crate::widgets::ButtonAction::new("ui.cadDelete", json!({}), false),
-            );
-        });
-        stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
                 "cadStretch",
                 Some("Stretch"),
                 "Stretch: a crossing window, then a base point and a second point",
                 crate::widgets::ButtonAction::new("ui.cadTool", t("stretch"), tool == Tool::Stretch),
             );
+            small(
+                ui,
+                app,
+                "cadMatch",
+                Some("Match"),
+                "Match Properties: the source, then the objects that take its look",
+                crate::widgets::ButtonAction::new("ui.cadTool", t("matchProp"), tool == Tool::MatchProp),
+            );
+        });
+        stack(ui, &mut |ui| {
             small(
                 ui,
                 app,
@@ -3341,31 +3511,25 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("ui.cadTool", t("join"), tool == Tool::Join),
             );
         });
+        // Trim and Extend, Fillet and Chamfer, the two arrays: each pair one small split button,
+        // its main part the one chosen last, its arrow both.
         stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
-                "cadMatch",
-                Some("Match"),
-                "Match Properties: the source, then the objects that take its look",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("matchProp"), tool == Tool::MatchProp),
-            );
-            small(
-                ui,
-                app,
-                "cadArrayRect",
-                Some("Array"),
-                "Rectangular array of the selection (type columns x rows)",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("arrayRect"), tool == Tool::ArrayRect),
-            );
-            small(
-                ui,
-                app,
-                "cadArrayPolar",
-                Some("Polar"),
-                "Polar array of the selection round a centre (type how many items)",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("arrayPolar"), tool == Tool::ArrayPolar),
-            );
+            for (second, [first_cmd, second_cmd]) in [(picks.extend, TRIM), (picks.chamfer, FILLET), (picks.polar, ARRAY)] {
+                let (icon, tip, name, chosen) = if second { second_cmd } else { first_cmd };
+                let on = tool == chosen || tool == if second { first_cmd.3 } else { second_cmd.3 };
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    crate::widgets::split(ui, app, icon, tip, crate::widgets::ButtonAction::new("ui.cadTool", t(name), on), None, |ui, app| {
+                        for (icon, tip, name, _) in [first_cmd, second_cmd] {
+                            let label = tip.split(':').next().unwrap_or(tip);
+                            if crate::widgets::icon_menu_item(ui, icon, tl!(label), "", 200.0).clicked() {
+                                let _ = app.run("ui.cadTool", t(name));
+                                ui.close();
+                            }
+                        }
+                    });
+                });
+            }
         });
         stack(ui, &mut |ui| {
             small(ui, app, "undo", Some("Undo"), "Undo", crate::widgets::ButtonAction::new("edit.undo", json!({}), false));
@@ -3498,46 +3662,156 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
             crate::widgets::ButtonAction::new("ui.cadFlip", json!({}), false),
         );
     });
-    // The drawing's annotation style: one place for how every dimension and new text looks.
-    let Some(style) = app.cad.as_ref().map(|e| e.drawing.dim_style) else { return };
-    group(ui, "Dimension Style", None, app, |ui, app| {
-        // Labels and fields in columns: each label in its column, each field the same width.
-        let size = |ui: &mut Ui, app: &mut WordApp, label: &str, key: &str, now: f64| {
-            ui.label(tl!(label));
-            // Applied once the value is set: one undo step.
-            if let Some(v) =
-                crate::widgets::value_field(ui, key, vec2(FIELD_W, 18.0), now, |d| d.range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm"))
+    dim_style_group(app, ui);
+    text_style_group(app, ui);
+    units_group(app, ui);
+    group(ui, "Hatch", None, app, |ui, app| {
+        big_checked(ui, app, "cadHatch", "Hatch", "ui.cadTool", t("hatch"), tool == Tool::Hatch);
+        big_checked(ui, app, "cadStrip", "Hatched\nStrip", "ui.cadTool", t("strip"), tool == Tool::Strip);
+    });
+    group(ui, "Text", None, app, |ui, app| {
+        big_checked(ui, app, "cadText", "Text", "ui.cadTool", t("text"), tool == Tool::Text);
+    });
+    layers_group(app, ui);
+}
+
+/// A style list: the current style (choosing one with objects selected gives it to them), its
+/// name to rename, New and Delete. `kind` is the family of styles.
+fn style_picker(app: &mut WordApp, ui: &mut Ui, kind: strix_cad::StyleKind, styles: &[String], current: &str) {
+    let k = match kind {
+        strix_cad::StyleKind::Dim => "dim",
+        strix_cad::StyleKind::Text => "text",
+    };
+    let run = |app: &mut WordApp, params: serde_json::Value| {
+        if let Err(e) = app.run("ui.cadStyles", params) {
+            app.status(e);
+        }
+    };
+    ui.vertical(|ui| {
+        ui.spacing_mut().item_spacing.y = 3.0;
+        let mut pick = None;
+        craft_ui::ComboBox::from_id_salt(("cad_style_current", k)).selected_text(tl!(current)).width(FIELD_W + 40.0).show_ui(ui, |ui| {
+            for name in styles {
+                if ui.selectable_label(name == current, tl!(name.as_str())).clicked() {
+                    pick = Some(name.clone());
+                }
+            }
+        })
+        .response
+        .on_hover_text(tl!("The style new objects take; chosen with objects selected, they take it too"));
+        if let Some(name) = pick {
+            run(app, json!({"kind": k, "current": name}));
+        }
+        // Its name, to rename it (Standard keeps its name).
+        let standard = current == strix_cad::STANDARD;
+        ui.scope(|ui| {
+            ui.set_width(FIELD_W + 40.0);
+            if let Some(to) = crate::a11y_pane::draft_box(ui, ("cad_style_name", k, current), current, !standard, false) {
+                run(app, json!({"kind": k, "rename": current, "to": to}));
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 3.0;
+            if ui.small_button(tl!("New")).on_hover_text(tl!("A new style, a copy of this one, made current")).clicked() {
+                let base = match kind {
+                    strix_cad::StyleKind::Dim => tl!("Dimension style"),
+                    strix_cad::StyleKind::Text => tl!("Text style"),
+                };
+                run(app, json!({"kind": k, "new": base}));
+            }
+            if ui
+                .add_enabled(!standard, egui::Button::new(tl!("Delete")).small())
+                .on_hover_text(tl!("Delete this style: its objects take Standard"))
+                .clicked()
             {
+                run(app, json!({"kind": k, "delete": current}));
+            }
+        });
+    });
+}
+
+/// The dimension styles: the list, then the current style's sizes, marks, text and units.
+fn dim_style_group(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::group;
+    let Some((style, styles, current, text_styles)) = app.cad.as_ref().map(|e| {
+        let d = &e.drawing;
+        let current = d.current_dim_style.clone().unwrap_or_else(|| strix_cad::STANDARD.to_string());
+        (d.current_dim().clone(), d.styles(strix_cad::StyleKind::Dim), current, d.styles(strix_cad::StyleKind::Text))
+    }) else {
+        return;
+    };
+    group(ui, "Dimension Style", None, app, |ui, app| {
+        style_picker(app, ui, strix_cad::StyleKind::Dim, &styles, &current);
+        ui.add_space(10.0);
+        // Labels and fields in columns: each label in its column, each field the same width.
+        let size = |ui: &mut Ui, app: &mut WordApp, label: &str, key: &str, now: f64, hint: &str| {
+            let l = ui.label(tl!(label));
+            if !hint.is_empty() {
+                l.on_hover_text(tl!(hint));
+            }
+            // Applied once the value is set: one undo step.
+            if let Some(v) = crate::widgets::value_field(ui, (key, current.as_str()), vec2(FIELD_W, 18.0), now, |d| {
+                d.range(0.0..=50.0).speed(0.05).max_decimals(2).suffix(" mm")
+            }) {
                 let _ = app.run("ui.cadDimStyle", json!({ key: v }));
             }
             ui.end_row();
         };
-        field_grid(ui, "cad_dim_style_a", |ui| {
-            size(ui, app, "Text height", "text", style.text);
-            size(ui, app, "Mark size", "markSize", style.mark_size);
-            ui.label(tl!("End mark"));
-            craft_ui::ComboBox::from_id_salt("cad_dim_mark")
-                .selected_text(tl!(crate::cad_panel::choice_label(style.mark.name())))
-                .width(FIELD_W + 24.0)
-                .show_ui(ui, |ui| {
-                    for (m, name) in strix_cad::Mark::ALL {
-                        if ui.selectable_label(style.mark == m, tl!(crate::cad_panel::choice_label(name))).clicked() {
-                            let _ = app.run("ui.cadDimStyle", json!({"mark": name}));
-                        }
+        let mark_combo = |ui: &mut Ui, app: &mut WordApp, key: &str, now: Option<strix_cad::Mark>| {
+            // The end mark offers "As the start" (none of its own).
+            let shown = now.map_or(tl!("As the start"), |m| tl!(crate::cad_panel::choice_label(m.name())));
+            craft_ui::ComboBox::from_id_salt(("cad_dim_mark", key)).selected_text(shown).width(FIELD_W + 24.0).show_ui(ui, |ui| {
+                if key == "markEnd" && ui.selectable_label(now.is_none(), tl!("As the start")).clicked() {
+                    let _ = app.run("ui.cadDimStyle", json!({key: "start"}));
+                }
+                for (m, name) in strix_cad::Mark::ALL {
+                    if ui.selectable_label(now == Some(m), tl!(crate::cad_panel::choice_label(name))).clicked() {
+                        let _ = app.run("ui.cadDimStyle", json!({key: name}));
                     }
-                });
+                }
+            });
+        };
+        field_grid(ui, "cad_dim_style_marks", |ui| {
+            ui.label(tl!("Start mark"));
+            mark_combo(ui, app, "mark", Some(style.mark));
+            ui.end_row();
+            ui.label(tl!("End mark"));
+            mark_combo(ui, app, "markEnd", style.mark_end);
+            ui.end_row();
+            ui.label(tl!("Mark width"))
+                .on_hover_text(tl!("The width of the marks' lines; 0: automatic (a tick heavier than the line, an arrow as thin)"));
+            if let Some(v) = crate::widgets::value_field(ui, ("markWidth", current.as_str()), vec2(FIELD_W, 18.0), style.mark_width, |d| {
+                d.range(0.0..=2.0).speed(0.01).max_decimals(2).suffix(" mm")
+            }) {
+                let _ = app.run("ui.cadDimStyle", json!({"markWidth": v}));
+            }
+            ui.end_row();
+        });
+        ui.add_space(10.0);
+        field_grid(ui, "cad_dim_style_a", |ui| {
+            size(ui, app, "Mark size", "markSize", style.mark_size, "");
+            size(ui, app, "Text height", "text", style.text, "");
+            ui.label(tl!("Text style"));
+            let shown = style.text_style.clone().unwrap_or_else(|| strix_cad::STANDARD.to_string());
+            craft_ui::ComboBox::from_id_salt("cad_dim_text_style").selected_text(tl!(shown.as_str())).width(FIELD_W + 24.0).show_ui(ui, |ui| {
+                for name in &text_styles {
+                    if ui.selectable_label(*name == shown, tl!(name.as_str())).clicked() {
+                        let _ = app.run("ui.cadDimStyle", json!({"textStyle": name}));
+                    }
+                }
+            });
             ui.end_row();
         });
         ui.add_space(10.0);
         field_grid(ui, "cad_dim_style_b", |ui| {
-            size(ui, app, "Extension gap", "extGap", style.ext_gap);
-            size(ui, app, "Extension beyond", "extOver", style.ext_over);
-            size(ui, app, "Text gap", "textGap", style.text_gap);
+            size(ui, app, "Extension gap", "extGap", style.ext_gap, "");
+            size(ui, app, "Extension beyond", "extOver", style.ext_over, "");
+            size(ui, app, "Text gap", "textGap", style.text_gap, "");
         });
         ui.add_space(10.0);
         field_grid(ui, "cad_dim_style_c", |ui| {
-            size(ui, app, "Line width", "lineWidth", style.line_width);
-            size(ui, app, "Line beyond", "lineOver", style.line_over);
+            size(ui, app, "Line width", "lineWidth", style.line_width, "");
+            size(ui, app, "Line beyond", "lineOver", style.line_over, "");
         });
         ui.add_space(10.0);
         ui.vertical(|ui| {
@@ -3549,35 +3823,127 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
                     }
                 }
             });
+            let mut aligned = style.aligned;
+            if ui
+                .checkbox(&mut aligned, tl!("Aligned texts"))
+                .on_hover_text(tl!("Dimension texts along their line (never upside down), not level"))
+                .changed()
+            {
+                let _ = app.run("ui.cadDimStyle", json!({"aligned": aligned}));
+            }
+            let mut scaled = style.scaled;
+            if ui
+                .checkbox(&mut scaled, tl!("Scaled distances"))
+                .on_hover_text(tl!(
+                    "Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)"
+                ))
+                .changed()
+            {
+                let _ = app.run("ui.cadDimStyle", json!({"scaled": scaled}));
+            }
         });
+    });
+}
+
+/// The text styles: the list, then the current style's font, height, bold and italic (Standard:
+/// the document's font at the dimension text height, nothing to set).
+fn text_style_group(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::group;
+    let Some((style, styles, current)) = app.cad.as_ref().map(|e| {
+        let d = &e.drawing;
+        let current = d.current_text_style.clone().unwrap_or_else(|| strix_cad::STANDARD.to_string());
+        (d.text_style_named(d.current_text_style.as_deref()).cloned(), d.styles(strix_cad::StyleKind::Text), current)
+    }) else {
+        return;
+    };
+    group(ui, "Text Style", None, app, |ui, app| {
+        style_picker(app, ui, strix_cad::StyleKind::Text, &styles, &current);
         ui.add_space(10.0);
-        let mut aligned = style.aligned;
-        if ui
-            .checkbox(&mut aligned, tl!("Aligned texts"))
-            .on_hover_text(tl!("Dimension texts along their line (never upside down), not level"))
-            .changed()
-        {
-            let _ = app.run("ui.cadDimStyle", json!({"aligned": aligned}));
+        let set = |app: &mut WordApp, params: serde_json::Value| {
+            if let Err(e) = app.run("ui.cadTextStyle", params) {
+                app.status(e);
+            }
+        };
+        ui.add_enabled_ui(style.is_some(), |ui| {
+            let st = style.clone().unwrap_or_default();
+            field_grid(ui, "cad_text_style", |ui| {
+                ui.label(tl!("Font"));
+                let shown = st.font.clone().map_or_else(|| tl!("Document font").to_string(), |f| app.previews.font_shown(&f));
+                let fams = app.previews.families();
+                if let Some(f) = crate::widgets::font_combo(ui, "cad_text_font", FIELD_W + 40.0, &shown, &fams, None)
+                    && f != crate::widgets::ADD_FONT
+                    && f != crate::widgets::LOAD_SYSTEM_FONTS
+                {
+                    let f = app.previews.font_stored(&f);
+                    set(app, json!({"font": f}));
+                }
+                ui.end_row();
+                ui.label(tl!("Height"));
+                if let Some(v) = crate::widgets::value_field(ui, ("cad_text_height", current.as_str()), vec2(FIELD_W, 18.0), st.height, |d| {
+                    d.range(0.5..=50.0).speed(0.05).max_decimals(2).suffix(" mm")
+                }) {
+                    set(app, json!({"height": v}));
+                }
+                ui.end_row();
+            });
+            ui.horizontal(|ui| {
+                let mut bold = st.bold;
+                if ui.checkbox(&mut bold, tl!("Bold")).changed() {
+                    set(app, json!({"bold": bold}));
+                }
+                let mut italic = st.italic;
+                if ui.checkbox(&mut italic, tl!("Italic")).changed() {
+                    set(app, json!({"italic": italic}));
+                }
+            });
+        });
+        if style.is_none() {
+            ui.label(egui::RichText::new(tl!("Standard: the document's font. New makes a style of your own.")).small().weak());
         }
-        let mut scaled = style.scaled;
-        if ui
-            .checkbox(&mut scaled, tl!("Scaled distances"))
-            .on_hover_text(tl!(
-                "Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)"
-            ))
-            .changed()
-        {
-            let _ = app.run("ui.cadDimStyle", json!({"scaled": scaled}));
-        }
     });
-    group(ui, "Hatch", None, app, |ui, app| {
-        big_checked(ui, app, "cadHatch", "Hatch", "ui.cadTool", t("hatch"), tool == Tool::Hatch);
-        big_checked(ui, app, "cadStrip", "Hatched\nStrip", "ui.cadTool", t("strip"), tool == Tool::Strip);
+}
+
+/// The drawing's unit (what one coordinate measures), converting the drawing or keeping its
+/// numbers, and the unit typed values are read in.
+fn units_group(app: &mut WordApp, ui: &mut Ui) {
+    use crate::widgets::group;
+    let Some((unit, input)) = app.cad.as_ref().map(|e| (e.drawing.unit, e.drawing.input)) else { return };
+    let keep_key = egui::Id::unique("cad_unit_keep_numbers");
+    let mut keep = ui.data(|d| d.get_temp::<bool>(keep_key)).unwrap_or(false);
+    group(ui, "Units", None, app, |ui, app| {
+        ui.vertical(|ui| {
+            ui.label(tl!("Drawing unit"));
+            craft_ui::ComboBox::from_id_salt("cad_drawing_unit").selected_text(unit.symbol()).width(FIELD_W).show_ui(ui, |ui| {
+                for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                    if ui.selectable_label(u == unit, u.symbol()).clicked()
+                        && u != unit
+                        && let Err(e) = app.run("ui.cadUnit", json!({"unit": u.symbol(), "convert": !keep}))
+                    {
+                        app.status(e);
+                    }
+                }
+            })
+            .response
+            .on_hover_text(tl!("What one unit of the coordinates measures"));
+            if ui
+                .checkbox(&mut keep, tl!("Keep the numbers"))
+                .on_hover_text(tl!("Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size"))
+                .changed()
+            {
+                ui.data_mut(|d| d.insert_temp(keep_key, keep));
+            }
+            ui.label(tl!("Input unit"));
+            let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
+            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
+                for (u, word) in [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")] {
+                    let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
+                    if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
+                        let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
+                    }
+                }
+            });
+        });
     });
-    group(ui, "Text", None, app, |ui, app| {
-        big_checked(ui, app, "cadText", "Text", "ui.cadTool", t("text"), tool == Tool::Text);
-    });
-    layers_group(app, ui);
 }
 
 /// Precision, object snaps, zoom and the panes.
@@ -4121,8 +4487,18 @@ mod tests {
             json!({"ids": "e1"}),
             json!({"order": 7}),
             json!({"snap": null}),
+            json!({"kind": "dim", "new": "x".repeat(500)}),
+            json!({"kind": "text", "rename": "Standard", "to": ""}),
+            json!({"kind": "dim", "delete": 5}),
+            json!({"style": "nope", "markEnd": 4, "markWidth": f64::MAX, "textStyle": "?"}),
+            json!({"unit": "furlong", "convert": "maybe"}),
+            json!({"font": [1], "height": -1e300}),
         ];
         for id in [
+            "ui.cadDimStyle",
+            "ui.cadTextStyle",
+            "ui.cadStyles",
+            "ui.cadUnit",
             "ui.cadLayer",
             "ui.cadCurrentLayer",
             "ui.cadStroke",
@@ -4153,7 +4529,7 @@ mod tests {
         app.run("ui.cadToggle", json!({"what": "frame"})).unwrap();
         app.run("ui.cadToggle", json!({"what": "snap.quadrant"})).unwrap();
         let ed = app.cad.as_ref().unwrap();
-        assert!(!ed.frame && ed.snaps.quadrant);
+        assert!(!ed.frame && !ed.snaps.quadrant, "Quadrant is on by default; the toggle turns it off");
         assert!(app.run("ui.cadToggle", json!({"what": "nope"})).is_err());
         // The padding is the drawing's: stored in the document, one undo step.
         let before = app.cad.as_ref().unwrap().rendered.size;
@@ -4282,7 +4658,7 @@ mod tests {
         assert!(app.cad.as_ref().unwrap().drawing.dim_style.aligned);
         assert!(app.run("ui.cadDimStyle", json!({"aligned": 3})).is_err());
         assert_eq!(parse_dash("dashDoubleDotted"), Some(Dash::DashDoubleDotted));
-        let st = app.cad.as_ref().unwrap().drawing.dim_style;
+        let st = app.cad.as_ref().unwrap().drawing.dim_style.clone();
         assert_eq!((st.text, st.mark), (3.5, strix_cad::Mark::Arrow));
         assert!(app.run("ui.cadDimStyle", json!({"mark": "star"})).is_err());
         app.run("ui.cadDimStyle", json!({"markSize": -4})).unwrap();
@@ -4290,6 +4666,48 @@ mod tests {
         app.run("edit.undo", json!({})).unwrap();
         reload(&mut app);
         assert_eq!(app.cad.as_ref().unwrap().drawing.dim_style.mark_size, strix_cad::DimStyle::default().mark_size);
+    }
+
+    /// Named styles from the ribbon: a new dimension style is current and new dimensions take it;
+    /// its end mark and mark width are its own; a text style sets new texts' height; choosing a
+    /// style with objects selected gives it to them; the drawing's unit converts.
+    #[test]
+    fn styles_and_the_drawing_unit_from_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let r = app.run("ui.cadStyles", json!({"kind": "dim", "new": "Arrows"})).unwrap();
+        assert_eq!(r["current"], json!("Arrows"));
+        let st = app.run("ui.cadDimStyle", json!({"mark": "tick", "markEnd": "arrow", "markWidth": 0.5})).unwrap();
+        assert_eq!((st["markEnd"].clone(), st["markWidth"].clone()), (json!("arrow"), json!(0.5)));
+        assert!(app.cad.as_ref().unwrap().drawing.dim_style.mark_end.is_none(), "Standard is left as it was");
+        // A new dimension takes the current style.
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::parse("dimAligned").unwrap());
+        feed(ed, Pt::new(0.0, 0.0), None);
+        feed(ed, Pt::new(50.0, 0.0), None);
+        let d = feed(ed, Pt::new(25.0, 10.0), None).expect("a dimension");
+        assert_eq!(d.entities.last().unwrap().style.as_deref(), Some("Arrows"));
+        // A text style: Standard has nothing to set; a new one sets new texts' height.
+        assert!(app.run("ui.cadTextStyle", json!({"bold": true})).is_err());
+        app.run("ui.cadStyles", json!({"kind": "text", "new": "Notes"})).unwrap();
+        app.run("ui.cadTextStyle", json!({"height": 4.0, "italic": true, "font": "Liberation Sans"})).unwrap();
+        let drawing = &app.cad.as_ref().unwrap().drawing;
+        assert_eq!(drawing.new_text_height(), 4.0);
+        assert_eq!(drawing.text_style_named(Some("Notes")).and_then(|s| s.font.clone()).as_deref(), Some("Liberation Sans"));
+        // Choosing Standard with every object selected gives the dimensions Standard.
+        app.run("ui.cadSelect", json!({"all": true})).unwrap();
+        app.run("ui.cadStyles", json!({"kind": "dim", "current": "Standard"})).unwrap();
+        assert!(app.cad.as_ref().unwrap().drawing.entities.iter().all(|e| e.style.is_none()));
+        assert!(app.run("ui.cadStyles", json!({"kind": "dim", "delete": "Standard"})).is_err());
+        app.run("ui.cadStyles", json!({"kind": "dim", "rename": "Arrows", "to": "Arch"})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().drawing.styles(strix_cad::StyleKind::Dim), vec!["Standard", "Arch"]);
+        // The drawing's unit: converted by default.
+        let before = app.cad.as_ref().unwrap().rendered.size;
+        app.run("ui.cadUnit", json!({"unit": "cm"})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        assert_eq!(ed.drawing.unit, strix_cad::Unit::Cm);
+        assert!((ed.rendered.size.0 - before.0).abs() < 1e-6, "the drawing keeps its size");
+        assert!(app.run("ui.cadUnit", json!({"unit": "inch"})).is_err());
     }
 
     /// Hatched strip: a click on the line it follows, a click on its side.
@@ -4308,6 +4726,32 @@ mod tests {
         assert_eq!((along.as_str(), *side), ("e1", strix_cad::Side::Right));
     }
 
+    /// The editor's settings are saved with the app's (`ui.json`): after a restart the editor
+    /// opens as it was left, paired buttons included; junk in the file is the defaults.
+    #[test]
+    fn settings_survive_a_restart() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadToggle", json!({"what": "ortho"})).unwrap();
+        app.run("ui.cadToggle", json!({"what": "snap.quadrant"})).unwrap();
+        app.run("ui.cadTool", json!({"tool": "lineTan"})).unwrap();
+        app.run("ui.cadTool", json!({"tool": "chamfer"})).unwrap();
+        // Saved with the editor still open.
+        let saved = serde_json::to_vec(&app.prefs()).unwrap();
+        let mut b = app_with_drawing();
+        b.apply_prefs(crate::UiState::from_json(&saved).unwrap());
+        b.run("ui.cadEdit", json!({})).unwrap();
+        let ed = b.cad.as_ref().unwrap();
+        assert!(ed.ortho && !ed.snaps.quadrant);
+        assert_eq!(ed.picks, Picks { line_tan: true, chamfer: true, ..Picks::default() });
+        let junk = br#"{"cad": {"ortho": "yes", "arrayCols": 99999999, "offsetDist": -4}}"#;
+        assert_eq!(crate::UiState::from_json(junk).unwrap().cad, CadSettings::default());
+        let huge = br#"{"cad": {"arrayCols": 99999999, "offsetDist": -4, "snaps": {"end": false}}}"#;
+        let cad = crate::UiState::from_json(huge).unwrap().cad;
+        assert_eq!((cad.array_cols, cad.offset_dist), (CadSettings::default().array_cols, CadSettings::default().offset_dist));
+        assert!(!cad.snaps.end && cad.snaps.quadrant, "a snap left out is on");
+    }
+
     /// The editor's settings outlive the drawing: the next one opens as the last was left.
     #[test]
     fn settings_are_kept_while_the_program_runs() {
@@ -4319,7 +4763,7 @@ mod tests {
         app.run("ui.cadClose", json!({})).unwrap();
         app.run("ui.cadEdit", json!({})).unwrap();
         let ed = app.cad.as_ref().unwrap();
-        assert!(ed.ortho && !ed.grid && !ed.frame && ed.layers_panel && !ed.panel && ed.snaps.quadrant);
+        assert!(ed.ortho && !ed.grid && !ed.frame && ed.layers_panel && !ed.panel && !ed.snaps.quadrant);
         // A detached pane opens detached again.
         assert!(ed.layers_float && !ed.panel_float);
     }

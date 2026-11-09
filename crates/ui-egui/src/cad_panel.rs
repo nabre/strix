@@ -499,6 +499,19 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                         });
                         pick
                     }
+                    FieldKind::Style => {
+                        let names: Vec<String> =
+                            ed.drawing.entities.get(i).map(|e| ed.drawing.style_names(e).into_iter().map(str::to_string).collect()).unwrap_or_default();
+                        let mut pick = None;
+                        craft_ui::ComboBox::from_id_salt(("cad_style", &id)).selected_text(tl!(f.text.as_str())).show_ui(ui, |ui| {
+                            for n in &names {
+                                if ui.selectable_label(f.text == *n, tl!(n.as_str())).clicked() {
+                                    pick = Some(n.clone());
+                                }
+                            }
+                        });
+                        pick
+                    }
                     _ => text_field(ui, ui.scope_id().with(("cad_field", &id, &f.key, ed.vertex)), &f.text, 120.0, typing),
                 };
                 let suffix = match (f.kind, f.key.as_str()) {

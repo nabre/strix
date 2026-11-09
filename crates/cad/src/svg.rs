@@ -136,7 +136,7 @@ impl Rendered {
                 Prim::Dot { at, r, color } => {
                     let _ = write!(out, r#"<circle cx="{}" cy="{}" r="{}" fill="{}"/>"#, n(at.0), n(at.1), n(r.max(0.05)), hex(*color));
                 }
-                Prim::Text { at, text, height, angle, anchor, color } => {
+                Prim::Text { at, text, height, angle, anchor, color, look } => {
                     let (ta, base) = match anchor {
                         Anchor::BaselineLeft => ("start", "auto"),
                         Anchor::BaselineCenter => ("middle", "auto"),
@@ -154,6 +154,16 @@ impl Rendered {
                         x = n(at.0),
                         y = n(at.1)
                     );
+                    // The text style's font, bold and italic.
+                    if let Some(font) = &look.font {
+                        let _ = write!(out, r#" font-family="{}""#, escape(font));
+                    }
+                    if look.bold {
+                        out.push_str(r#" font-weight="bold""#);
+                    }
+                    if look.italic {
+                        out.push_str(r#" font-style="italic""#);
+                    }
                     if angle.abs() > 1e-9 && angle.is_finite() {
                         // Counter-clockwise on paper is a negative SVG rotation (y down).
                         let _ = write!(out, r#" transform="rotate({} {} {})""#, n(-angle), n(at.0), n(at.1));

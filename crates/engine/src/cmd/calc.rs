@@ -421,7 +421,8 @@ enum Outcome {
     /// coordinates' values filled in, for the editor).
     /// The rendering for the page, the failed expressions, and for the editor the drawing, the
     /// parameters it can show and its sheet's rendering when that differs (layers not printed).
-    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>, Option<(strix_cad::Drawing, Vec<String>, Option<strix_cad::Rendered>)>),
+    #[allow(clippy::type_complexity)]
+    Cad(Option<strix_cad::Rendered>, Vec<(String, String)>, Option<Box<(strix_cad::Drawing, Vec<String>, Option<strix_cad::Rendered>)>>),
 }
 
 /// The document's worksheets after evaluating it: the main one, and one per exercise (each
@@ -541,7 +542,7 @@ fn run_sheet(
                         let screen = d.has_unprinted().then(|| d.render_layers(Some(ws), true));
                         // The parameters it can show, for the editor's Annotation box.
                         let names = ws.scope().iter().map(|(n, _)| n.to_string()).collect();
-                        Outcome::Cad(Some(rendered), errors, Some((d, names, screen)))
+                        Outcome::Cad(Some(rendered), errors, Some(Box::new((d, names, screen))))
                     }
                     Err(e) => Outcome::Cad(None, vec![(String::new(), e)], None),
                 },
@@ -617,7 +618,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 for (expr, why) in failed {
                     errors.push(json!({"drawing": i, "text": expr, "error": why}));
                 }
-                let fitted = resolved.as_ref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
+                let fitted = resolved.as_deref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 let body_font = s.doc.settings.minor_font.clone();
                 cads.push(drawn.as_ref().map(|r| {
                     let (w, h, items) = super::cad::items_of(r, unit, &body_font);
@@ -780,7 +781,10 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad
     }
     let (_, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
     let resolved = match (found.last(), outcomes.into_iter().last()) {
-        (Some(Item::Cad { .. }), Some(Outcome::Cad(Some(r), _, Some((d, names, screen))))) => Some(std::rc::Rc::new((d, screen.unwrap_or(r), names))),
+        (Some(Item::Cad { .. }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
+            let (d, names, screen) = *resolved;
+            Some(std::rc::Rc::new((d, screen.unwrap_or(r), names)))
+        }
         _ => None,
     };
     CAD_MEMO.with(|m| *m.borrow_mut() = Some((key, resolved.clone())));

@@ -14,7 +14,7 @@ impl Drawing {
 
     /// The row spacing of baseline dimensions, paper mm: a text and its gaps.
     pub fn dim_row(&self) -> f64 {
-        let st = self.dim_style;
+        let st = self.current_dim();
         (st.text * 1.5 + st.text_gap).max(2.0)
     }
 

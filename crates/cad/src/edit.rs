@@ -63,8 +63,10 @@ pub fn outline(e: &Entity) -> Vec<Vec<Pt>> {
     }
 }
 
-/// Which object snaps are on (the prototype's defaults: all but Quadrant).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Which object snaps are on (all of them by default). Kept with the app's settings: a snap
+/// missing from them is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Snaps {
     pub end: bool,
     pub mid: bool,
@@ -84,7 +86,7 @@ impl Default for Snaps {
             mid: true,
             center: true,
             node: true,
-            quadrant: false,
+            quadrant: true,
             intersection: true,
             perpendicular: true,
             tangent: true,
@@ -322,7 +324,7 @@ impl Drawing {
         // the band its text sits in, not the line it measures.
         if let Some(f) = self.dim_frame(e, paper_per_unit(self)) {
             let k = paper_per_unit(self);
-            let st = self.dim_style;
+            let st = self.dim_style_of(e);
             let units = |p: Pt| p.scale(1.0 / k);
             let text_band = {
                 let mid = f.fa.plus(f.fb).scale(0.5);
@@ -534,7 +536,7 @@ impl Drawing {
         // A dimension's line or an angle's arc dragged changes the part the style places (paper,
         // or the drawing when `scaled`); the other part stays.
         let k = paper_per_unit(self);
-        let scaled = self.dim_style.scaled;
+        let scaled = self.entities.get(i).map_or(self.dim_style.scaled, |e| self.dim_style_of(e).scaled);
         let offset_at = match self.entities.get(i).map(|e| &e.kind) {
             Some(Kind::Dim { a, b, orient, .. }) => dim_offset(self, a.pt(), b.pt(), *orient, to),
             _ => 0.0,

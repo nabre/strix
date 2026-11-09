@@ -351,18 +351,38 @@ impl Align {
     }
 }
 
-/// The drawing's annotation style: how its dimensions and new texts look. Paper millimetres, so
-/// annotations read the same at any scale.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+/// The name of the style every drawing has: [`Drawing::dim_style`] for dimensions, the plain
+/// font for texts. Named styles never take it.
+pub const STANDARD: &str = "Standard";
+
+/// Most named text styles, and dimension styles, a drawing keeps.
+pub const MAX_STYLES: usize = 64;
+
+/// A dimension (or level, or angle) style: how dimensions look. Paper millimetres, so annotations
+/// read the same at any scale. The drawing's own ([`Drawing::dim_style`]) is the Standard style;
+/// others are named ([`Drawing::dim_styles`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DimStyle {
     /// Dimension text height (and new texts'), mm.
     pub text: f64,
-    /// The dimension lines' end mark, unless a dimension sets its own.
+    /// The mark at a dimension line's start (and at its end, unless `mark_end` says otherwise),
+    /// unless a dimension sets its own.
     #[serde(deserialize_with = "lenient")]
     pub mark: Mark,
+    /// The mark at the dimension line's end; `None`: the start's.
+    #[serde(deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+    pub mark_end: Option<Mark>,
     /// The mark's length, mm.
     pub mark_size: f64,
+    /// The marks' line width, mm; 0: automatic (a tick heavier than the dimension line, an
+    /// arrowhead as thin). Written only when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub mark_width: f64,
+    /// The text style of the dimension texts (its font, bold and italic; the height is the
+    /// style's `text`); `None`: Standard.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_style: Option<String>,
     /// Extension lines start this far from the measured point…
     pub ext_gap: f64,
     /// …and pass the dimension line by this, mm.
@@ -398,7 +418,10 @@ impl Default for DimStyle {
         DimStyle {
             text: 2.5,
             mark: Mark::Tick,
+            mark_end: None,
             mark_size: 3.0,
+            mark_width: 0.0,
+            text_style: None,
             ext_gap: 1.0,
             ext_over: 2.0,
             text_gap: 1.0,
@@ -414,13 +437,16 @@ impl Default for DimStyle {
 impl DimStyle {
     /// Every size finite and within reason (text 0.5–50 mm, line width 0.05–2 mm, the others
     /// 0–20 mm).
-    pub fn sanitized(self) -> DimStyle {
+    pub fn sanitized(mut self) -> DimStyle {
         let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
         let d = DimStyle::default();
         DimStyle {
             text: c(self.text, 0.5, 50.0, d.text),
             mark: self.mark,
+            mark_end: self.mark_end,
             mark_size: c(self.mark_size, 0.0, 20.0, d.mark_size),
+            mark_width: c(self.mark_width, 0.0, 2.0, 0.0),
+            text_style: self.text_style.take().map(|n| cut_name(&n)).filter(|n| !n.trim().is_empty() && n != STANDARD),
             ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
@@ -435,6 +461,65 @@ impl DimStyle {
     pub fn is_default(&self) -> bool {
         *self == DimStyle::default()
     }
+
+    /// The mark at the dimension line's end.
+    pub fn end_mark(&self) -> Mark {
+        self.mark_end.unwrap_or(self.mark)
+    }
+}
+
+/// A name (a style's, a layer's) cut to 64 characters at a character boundary.
+pub(crate) fn cut_name(name: &str) -> String {
+    name.chars().take(64).collect()
+}
+
+/// A named dimension style.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NamedDimStyle {
+    pub name: String,
+    pub style: DimStyle,
+}
+
+/// A text style: the font, height and weight of the texts that take it (and of the dimension
+/// texts of the dimension styles that name it). Standard is the plain font, the dimension
+/// style's text height.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TextStyle {
+    pub name: String,
+    /// The font family; `None`: the document's (the drawing's plain font).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font: Option<String>,
+    /// The height new texts take, paper mm.
+    pub height: f64,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub bold: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub italic: bool,
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        TextStyle { name: String::new(), font: None, height: text_height(), bold: false, italic: false }
+    }
+}
+
+impl TextStyle {
+    fn sanitized(mut self) -> TextStyle {
+        self.name = cut_name(&self.name);
+        self.font = self.font.map(|f| f.chars().take(128).collect::<String>()).filter(|f| !f.trim().is_empty());
+        self.height = if self.height.is_finite() { self.height.clamp(0.5, 50.0) } else { text_height() };
+        self
+    }
+}
+
+/// How a text is set: its font (`None`: the plain one), bold, italic.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct TextLook {
+    pub font: Option<String>,
+    pub bold: bool,
+    pub italic: bool,
 }
 
 /// What an entity is.
@@ -657,6 +742,10 @@ pub struct Entity {
     /// Arrowheads at the ends of an open line, arc or polyline.
     #[serde(default, skip_serializing_if = "is_no_ends")]
     pub arrows: Ends,
+    /// The named style it takes: a text's text style, a dimension's (angle's, level mark's)
+    /// dimension style; `None` (or a name the drawing doesn't have): Standard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -675,7 +764,7 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, kind }
+        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, kind }
     }
 }
 
@@ -695,9 +784,21 @@ pub struct Drawing {
     pub entities: Vec<Entity>,
     /// The picture's padding around the drawing, paper mm.
     pub padding: Padding,
-    /// How dimensions and new texts look.
+    /// How dimensions and new texts look: the Standard dimension style.
     #[serde(skip_serializing_if = "DimStyle::is_default")]
     pub dim_style: DimStyle,
+    /// The named dimension styles (besides Standard).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub dim_styles: Vec<NamedDimStyle>,
+    /// The named text styles (besides Standard).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub text_styles: Vec<TextStyle>,
+    /// The dimension style new dimensions take; `None`: Standard.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_dim_style: Option<String>,
+    /// The text style new texts take; `None`: Standard.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_text_style: Option<String>,
     /// The drawing's maximum size: when set, the scale is the standard one that fits, worked
     /// out whenever the drawing is drawn (so it follows the calculations), or one picked by hand
     /// among those that fit.
@@ -735,6 +836,10 @@ impl Default for Drawing {
             entities: Vec::new(),
             padding: Padding::default(),
             dim_style: DimStyle::default(),
+            dim_styles: Vec::new(),
+            text_styles: Vec::new(),
+            current_dim_style: None,
+            current_text_style: None,
             fit: None,
         }
     }
@@ -824,7 +929,8 @@ impl Drawing {
     pub fn sanitize(&mut self) {
         self.scale = if self.scale.is_finite() { self.scale.clamp(1e-3, 1e6) } else { 1.0 };
         self.padding = self.padding.sanitized();
-        self.dim_style = self.dim_style.sanitized();
+        self.dim_style = std::mem::take(&mut self.dim_style).sanitized();
+        self.sanitize_styles();
         self.fit = self.fit.map(Fit::sanitized).filter(|f| f.width > 0.0 || f.height > 0.0);
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
@@ -850,6 +956,9 @@ impl Drawing {
                 e.id = format!("e{next}");
             }
             cut(&mut e.layer);
+            if let Some(s) = e.style.as_mut() {
+                cut(s);
+            }
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
@@ -905,6 +1014,93 @@ impl Drawing {
         for (n, _) in self.nums_mut() {
             n.value = if n.value.is_finite() { n.value.clamp(-MAX_COORD, MAX_COORD) } else { 0.0 };
         }
+    }
+
+    /// Named styles: at most [`MAX_STYLES`] of each, names cut, unique, never empty or Standard;
+    /// a current style the drawing doesn't have is Standard.
+    fn sanitize_styles(&mut self) {
+        let mut seen = std::collections::HashSet::new();
+        let dims = std::mem::take(&mut self.dim_styles);
+        self.dim_styles = dims
+            .into_iter()
+            .map(|s| NamedDimStyle { name: cut_name(s.name.trim()), style: s.style.sanitized() })
+            .filter(|s| !s.name.is_empty() && s.name != STANDARD && seen.insert(s.name.clone()))
+            .take(MAX_STYLES)
+            .collect();
+        let mut seen = std::collections::HashSet::new();
+        let texts = std::mem::take(&mut self.text_styles);
+        self.text_styles = texts
+            .into_iter()
+            .map(|s| TextStyle { name: s.name.trim().to_string(), ..s }.sanitized())
+            .filter(|s| !s.name.is_empty() && s.name != STANDARD && seen.insert(s.name.clone()))
+            .take(MAX_STYLES)
+            .collect();
+        let dim_names: Vec<String> = self.dim_styles.iter().map(|s| s.name.clone()).collect();
+        let text_names: Vec<String> = self.text_styles.iter().map(|s| s.name.clone()).collect();
+        self.current_dim_style = self.current_dim_style.take().filter(|n| dim_names.contains(n));
+        self.current_text_style = self.current_text_style.take().filter(|n| text_names.contains(n));
+    }
+
+    /// The dimension style called `name`: Standard for `None`, Standard or a name the drawing
+    /// doesn't have.
+    pub fn dim_style_named(&self, name: Option<&str>) -> &DimStyle {
+        name.and_then(|n| self.dim_styles.iter().find(|s| s.name == n)).map_or(&self.dim_style, |s| &s.style)
+    }
+
+    /// The dimension style entity `e` is drawn with.
+    pub fn dim_style_of(&self, e: &Entity) -> &DimStyle {
+        self.dim_style_named(e.style.as_deref())
+    }
+
+    /// The dimension style new dimensions take.
+    pub fn current_dim(&self) -> &DimStyle {
+        self.dim_style_named(self.current_dim_style.as_deref())
+    }
+
+    /// The text style called `name`; `None` for Standard (or a name the drawing doesn't have).
+    pub fn text_style_named(&self, name: Option<&str>) -> Option<&TextStyle> {
+        name.and_then(|n| self.text_styles.iter().find(|s| s.name == n))
+    }
+
+    /// How texts of the text style `name` are set.
+    pub fn text_look(&self, name: Option<&str>) -> TextLook {
+        self.text_style_named(name).map_or_else(TextLook::default, |s| TextLook { font: s.font.clone(), bold: s.bold, italic: s.italic })
+    }
+
+    /// The height new texts take: the current text style's, else the Standard dimension style's
+    /// text height.
+    pub fn new_text_height(&self) -> f64 {
+        self.text_style_named(self.current_text_style.as_deref()).map_or(self.dim_style.text, |s| s.height)
+    }
+
+    /// Changes the drawing's unit. With `convert` every length is converted (the drawing keeps its
+    /// real size: 1000 mm becomes 1 m) and so is the scale's paper size; without, the numbers stay
+    /// and mean the new unit (the drawing grows or shrinks). Expressions are left as they are:
+    /// they are worked out in the new unit when the drawing is next resolved.
+    pub fn set_unit(&mut self, unit: Unit, convert: bool) {
+        if unit == self.unit {
+            return;
+        }
+        if convert {
+            let k = self.unit.mm() / unit.mm();
+            for (n, kind) in self.nums_mut() {
+                if kind == NumKind::Length && n.expr.is_none() {
+                    n.value *= k;
+                }
+            }
+            for e in &mut self.entities {
+                match &mut e.kind {
+                    Kind::Dim { offset_units, .. } => *offset_units *= k,
+                    Kind::Angle { r, .. } => *r *= k,
+                    _ => {}
+                }
+            }
+        }
+        self.unit = unit;
+        if self.input == Some(unit) {
+            self.input = None;
+        }
+        self.sanitize();
     }
 
     /// The layer called `name`, else layer `0`.
@@ -1054,10 +1250,10 @@ impl Drawing {
 
     /// A linear dimension's label: `text` (else `<>`) with `<>` the size `measured` (drawing
     /// units) in the style's units ([`DimUnits`]), in the document's number style.
-    pub fn dim_label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+    pub fn dim_label(&self, units: DimUnits, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
         let mm = measured * self.unit.mm();
-        let size = match self.dim_style.units {
+        let size = match units {
             DimUnits::Drawing => strix_calc::format_number(measured, &opts),
             DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
             DimUnits::Cm => strix_calc::format_number(mm / 10.0, &opts),
@@ -1111,7 +1307,7 @@ pub fn fill(text: &str, ws: Option<&Worksheet>) -> String {
     out
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum NumKind {
     Length,
     Angle,
