@@ -3690,15 +3690,18 @@ fn style_picker(app: &mut WordApp, ui: &mut Ui, kind: strix_cad::StyleKind, styl
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 3.0;
         let mut pick = None;
-        craft_ui::ComboBox::from_id_salt(("cad_style_current", k)).selected_text(tl!(current)).width(FIELD_W + 40.0).show_ui(ui, |ui| {
-            for name in styles {
-                if ui.selectable_label(name == current, tl!(name.as_str())).clicked() {
-                    pick = Some(name.clone());
+        craft_ui::ComboBox::from_id_salt(("cad_style_current", k))
+            .selected_text(tl!(current))
+            .width(FIELD_W + 40.0)
+            .show_ui(ui, |ui| {
+                for name in styles {
+                    if ui.selectable_label(name == current, tl!(name.as_str())).clicked() {
+                        pick = Some(name.clone());
+                    }
                 }
-            }
-        })
-        .response
-        .on_hover_text(tl!("The style new objects take; chosen with objects selected, they take it too"));
+            })
+            .response
+            .on_hover_text(tl!("The style new objects take; chosen with objects selected, they take it too"));
         if let Some(name) = pick {
             run(app, json!({"kind": k, "current": name}));
         }
@@ -3864,7 +3867,7 @@ fn text_style_group(app: &mut WordApp, ui: &mut Ui) {
                 app.status(e);
             }
         };
-        ui.add_enabled_ui(style.is_some(), |ui| {
+        let fields = ui.add_enabled_ui(style.is_some(), |ui| {
             let st = style.clone().unwrap_or_default();
             field_grid(ui, "cad_text_style", |ui| {
                 ui.label(tl!("Font"));
@@ -3898,7 +3901,7 @@ fn text_style_group(app: &mut WordApp, ui: &mut Ui) {
             });
         });
         if style.is_none() {
-            ui.label(egui::RichText::new(tl!("Standard: the document's font. New makes a style of your own.")).small().weak());
+            fields.response.on_disabled_hover_text(tl!("Standard: the document's font. New makes a style of your own."));
         }
     });
 }
@@ -3912,19 +3915,31 @@ fn units_group(app: &mut WordApp, ui: &mut Ui) {
     let mut keep = ui.data(|d| d.get_temp::<bool>(keep_key)).unwrap_or(false);
     group(ui, "Units", None, app, |ui, app| {
         ui.vertical(|ui| {
-            ui.label(tl!("Drawing unit"));
-            craft_ui::ComboBox::from_id_salt("cad_drawing_unit").selected_text(unit.symbol()).width(FIELD_W).show_ui(ui, |ui| {
-                for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
-                    if ui.selectable_label(u == unit, u.symbol()).clicked()
-                        && u != unit
-                        && let Err(e) = app.run("ui.cadUnit", json!({"unit": u.symbol(), "convert": !keep}))
-                    {
-                        app.status(e);
+            field_grid(ui, "cad_units", |ui| {
+                ui.label(tl!("Drawing unit")).on_hover_text(tl!("What one unit of the coordinates measures"));
+                craft_ui::ComboBox::from_id_salt("cad_drawing_unit").selected_text(unit.symbol()).width(FIELD_W).show_ui(ui, |ui| {
+                    for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                        if ui.selectable_label(u == unit, u.symbol()).clicked()
+                            && u != unit
+                            && let Err(e) = app.run("ui.cadUnit", json!({"unit": u.symbol(), "convert": !keep}))
+                        {
+                            app.status(e);
+                        }
                     }
-                }
-            })
-            .response
-            .on_hover_text(tl!("What one unit of the coordinates measures"));
+                });
+                ui.end_row();
+                ui.label(tl!("Input unit"));
+                let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
+                craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
+                    for (u, word) in [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")] {
+                        let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
+                        if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
+                            let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
+                        }
+                    }
+                });
+                ui.end_row();
+            });
             if ui
                 .checkbox(&mut keep, tl!("Keep the numbers"))
                 .on_hover_text(tl!("Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size"))
@@ -3932,16 +3947,6 @@ fn units_group(app: &mut WordApp, ui: &mut Ui) {
             {
                 ui.data_mut(|d| d.insert_temp(keep_key, keep));
             }
-            ui.label(tl!("Input unit"));
-            let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
-            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
-                for (u, word) in [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")] {
-                    let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                    if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
-                        let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
-                    }
-                }
-            });
         });
     });
 }
