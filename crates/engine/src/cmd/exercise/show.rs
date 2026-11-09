@@ -134,11 +134,11 @@ fn targets(s: &Session, v: &Value, layout: &Layout) -> Result<Vec<usize>, CmdErr
     if layout.exercises.len() > 1 {
         return Ok((0..layout.exercises.len()).collect());
     }
-    let i = target(s, v)?;
-    if i >= layout.exercises.len() {
+    // The only exercise, wherever the cursor is; one named must be it.
+    if v.get("exercise").is_some() && target(s, v)? != 0 {
         return Err(CmdError::Params("no such exercise".into()));
     }
-    Ok(vec![i])
+    Ok(vec![0])
 }
 
 /// Keep `sh` on the exercise control opening in top-level paragraph `start`.
@@ -414,6 +414,10 @@ mod tests {
         let mut s = session();
         add(&mut s, "Uno");
         assert!(s.run("exercise.grid", &json!({"spacing": 4})).is_err(), "no graph paper to change yet");
+        // A lone exercise is the target wherever the cursor is (the ribbon shows its state).
+        s.run("caret.docEnd", &json!({})).unwrap();
+        assert_eq!(run(&mut s, "exercise.show", json!({}))["solution"], json!(true));
+        assert!(s.run("exercise.show", &json!({"exercise": 2})).is_err());
         let r = run(&mut s, "exercise.grid", json!({"on": true, "spacing": 4}));
         assert_eq!(r["grid"]["spacing"].as_f64(), Some(4.0), "{r}");
         // Right before the solution's heading, inside the exercise.
