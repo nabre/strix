@@ -74,6 +74,8 @@ const CHORD_MM: f64 = 0.01;
 pub const MAX_POINTS: usize = 2_000_000;
 /// Most hatch and strip segments one drawing draws, all its hatches and strips together.
 pub const MAX_HATCH_TOTAL: usize = 200_000;
+/// Most boundary points all of a drawing's hatches and strips are worked out from.
+pub(crate) const MAX_HATCH_WORK_POINTS: usize = 2_000_000;
 /// The fewest points a curve is thinned to once the drawing's budget is spent.
 const MIN_THINNED: usize = 16;
 
@@ -125,6 +127,9 @@ impl Drawing {
         // What the drawing may still draw, all its entities together (see `MAX_POINTS`).
         let mut points_left = MAX_POINTS;
         let mut hatch_left = MAX_HATCH_TOTAL;
+        // The boundary points hatches and strips may still work on, drawn or not: an `along`
+        // hatch, or one too fine for its budget, costs its boundary without drawing much.
+        let mut work_left = MAX_HATCH_WORK_POINTS;
         for e in &self.entities {
             let layer = self.layer(&e.layer);
             if !layer.visible || !(layer.print || screen) {
@@ -201,11 +206,12 @@ impl Drawing {
                     let paper = |p: Pt| (p.x * k, p.y * k);
                     let w = if *pattern == crate::model::Pattern::Solid { crate::hatch::SOLID_SPACING * 1.4 } else { width.min(0.18) };
                     // Past the drawing's budget hatches are left out (not even worked out).
-                    let lines = match (hatch_left.min(points_left / 2), &e.kind) {
-                        (0, _) => Vec::new(),
-                        (_, Kind::Strip { .. }) => self.strip_lines(e),
-                        _ => self.hatch_lines(e),
+                    let (lines, work) = match (hatch_left.min(points_left / 2).min(work_left), &e.kind) {
+                        (0, _) => (Vec::new(), 0),
+                        (_, Kind::Strip { .. }) => self.strip_lines_and_work(e),
+                        _ => self.hatch_lines_and_work(e),
                     };
+                    work_left = work_left.saturating_sub(work);
                     let take = hatch_left.min(points_left / 2);
                     hatch_left = hatch_left.saturating_sub(lines.len());
                     for (a, b) in lines.into_iter().take(take) {
@@ -213,12 +219,52 @@ impl Drawing {
                     }
                 }
             }
+            if e.arrows != crate::model::Ends::None
+                && matches!(e.kind, Kind::Line { .. } | Kind::Arc { .. } | Kind::Polyline { closed: false, .. })
+                && let Some(Prim::Path { pts, .. }) = prims.get(drawn)
+            {
+                let heads = self.arrowheads(pts, e.arrows, color, width);
+                prims.extend(heads);
+            }
             let spent: usize = prims.get(drawn..).unwrap_or_default().iter().map(Prim::point_count).sum();
             points_left = points_left.saturating_sub(spent);
         }
         let mut r = place(prims, self.padding);
         r.scale = k;
         r
+    }
+
+    /// The arrowheads `ends` asks for on an open path drawn through `pts` (paper mm, y up): each
+    /// points out of the path along its last chord (or the first chord at least an arrowhead
+    /// long, so a curve's arrow follows it rather than its last tiny chord).
+    fn arrowheads(&self, pts: &[(f64, f64)], ends: crate::model::Ends, color: [u8; 3], width: f64) -> Vec<Prim> {
+        let mut out = Vec::new();
+        let size = self.dim_style.mark_size.max(0.5);
+        let tip_dir = |walk: &mut dyn Iterator<Item = &(f64, f64)>| -> Option<(Pt, Pt)> {
+            let tip = walk.next().map(|&(x, y)| Pt::new(x, y))?;
+            let mut fallback = None;
+            for &(x, y) in walk {
+                let d = Pt::new(x, y).minus(tip);
+                if d.len() >= size {
+                    return Some((tip, d.unit()));
+                }
+                if d.len() > 1e-9 {
+                    fallback = Some(d.unit());
+                }
+            }
+            fallback.map(|d| (tip, d))
+        };
+        if ends.start()
+            && let Some((tip, dir)) = tip_dir(&mut pts.iter())
+        {
+            self.mark(Mark::Arrow, tip, dir, color, width, &mut out);
+        }
+        if ends.end()
+            && let Some((tip, dir)) = tip_dir(&mut pts.iter().rev())
+        {
+            self.mark(Mark::Arrow, tip, dir, color, width, &mut out);
+        }
+        out
     }
 
     /// The end mark `mark` at `at` on a dimension line going along `dir` away from it (paper mm).
@@ -239,9 +285,9 @@ impl Drawing {
                     fill: false,
                 });
             }
-            // A closed arrowhead pointing at the end, a third as wide as it is long.
+            // A closed filled arrowhead pointing at the end, 30° across its tip (ISO 129-1).
             Mark::Arrow => {
-                let (back, side) = (dir.scale(size), normal.scale(size / 6.0));
+                let (back, side) = (dir.scale(size), normal.scale(size * (15f64).to_radians().tan()));
                 let pts = [at, at.plus(back).plus(side), at.plus(back).minus(side)].iter().map(|p| (p.x, p.y)).collect();
                 out.push(Prim::Path { pts, closed: true, color, width, dash: Vec::new(), fill: true });
             }
@@ -314,7 +360,13 @@ impl Drawing {
             let out_dir = normal.scale(side);
             let at = mid.plus(out_dir.scale(st.text_gap + st.ext_over));
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
-            out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
+            // A second text goes under the first, the pair centred on the line's middle.
+            let second = below.as_deref().filter(|b| !b.trim().is_empty()).map(|b| self.dim_label(Some(b), measured, ws));
+            let half = if second.is_some() { st.text * 0.7 } else { 0.0 };
+            out.push(Prim::Text { at: (at.x, at.y + half), text: label, height: st.text, angle: 0.0, anchor, color });
+            if let Some(b) = second {
+                out.push(Prim::Text { at: (at.x, at.y - half), text: b, height: st.text, angle: 0.0, anchor, color });
+            }
         } else {
             self.dim_text((mid, up), angle, label, false, color, out);
             if let Some(b) = below.as_deref().filter(|b| !b.trim().is_empty()) {
@@ -412,8 +464,8 @@ impl Drawing {
         // The half of the triangle on the text side filled, as level marks are drawn.
         out.push(path(vec![(tip.x, tip.y), (tip.x + out_x * half, top), (tip.x, top)], true, true));
         // The line under the text: past the triangle by the text's length (an estimate: about
-        // 0.6 of the height per character).
-        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * st.text * 0.6;
+        // 0.8 of the height per character, as the drawing's bounds estimate texts).
+        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * st.text * 0.8;
         out.push(path(vec![(tip.x - out_x * half, top), (tip.x + out_x * reach, top)], false, false));
         let at_x = tip.x + out_x * (half + st.text_gap);
         let at_y = if *flip { top - st.text_gap - st.text } else { top + st.text_gap };

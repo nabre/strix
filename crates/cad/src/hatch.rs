@@ -11,6 +11,8 @@ const MAX_SEGMENTS: usize = 40_000;
 /// Most edge tests one fill makes (lines times the region's edges): a region too finely hatched
 /// for it is hatched more coarsely.
 const MAX_WORK: usize = 6_000_000;
+/// Most boundary points one hatch follows, all its loops together.
+pub(crate) const MAX_LOOP_POINTS: usize = 200_000;
 /// The spacing of a solid fill's lines, paper mm: drawn with a stroke as wide, they cover it.
 pub(crate) const SOLID_SPACING: f64 = 0.2;
 
@@ -137,15 +139,36 @@ impl Drawing {
     /// The loops of hatch `e`: the closed boundaries it names, drawing units.
     pub fn hatch_loops(&self, e: &Entity) -> Vec<Vec<Pt>> {
         let Kind::Hatch { boundary, .. } = &e.kind else { return Vec::new() };
-        boundary.iter().filter_map(|id| self.path_of(id).filter(|(_, closed)| *closed).map(|(pts, _)| pts)).collect()
+        // Each boundary once, and at most `MAX_LOOP_POINTS` points in all: a file may name one
+        // huge boundary a hundred times.
+        let mut seen = std::collections::HashSet::new();
+        let mut left = MAX_LOOP_POINTS;
+        let mut out = Vec::new();
+        for id in boundary.iter().filter(|id| seen.insert(id.as_str())) {
+            let Some((pts, true)) = self.path_of(id) else { continue };
+            if pts.len() > left {
+                continue;
+            }
+            left -= pts.len();
+            out.push(pts);
+        }
+        out
     }
 
     /// The segments hatch `e` is drawn with, drawing units.
     pub fn hatch_lines(&self, e: &Entity) -> Vec<(Pt, Pt)> {
-        let Kind::Hatch { pattern, angle, spacing, .. } = &e.kind else { return Vec::new() };
+        self.hatch_lines_and_work(e).0
+    }
+
+    /// [`Drawing::hatch_lines`], and the size of the boundaries worked on (their points), which a
+    /// drawing's budget counts even when few lines come of them.
+    pub(crate) fn hatch_lines_and_work(&self, e: &Entity) -> (Vec<(Pt, Pt)>, usize) {
+        let Kind::Hatch { pattern, angle, spacing, .. } = &e.kind else { return (Vec::new(), 1) };
         let k = crate::edit::paper_per_unit(self);
         let s = if *pattern == Pattern::Solid { SOLID_SPACING } else { *spacing };
-        fill(&self.hatch_loops(e), *pattern, *angle, s / k)
+        let loops = self.hatch_loops(e);
+        let work = loops.iter().map(Vec::len).sum::<usize>().max(1);
+        (fill(&loops, *pattern, *angle, s / k), work)
     }
 
     /// The region a click at `p` hatches: the smallest closed object around it, and the closed

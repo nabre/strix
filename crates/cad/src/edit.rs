@@ -327,7 +327,10 @@ impl Drawing {
             let text_band = {
                 let mid = f.fa.plus(f.fb).scale(0.5);
                 let half = f.fb.minus(f.fa).len() / 2.0;
-                let up = f.normal.scale(f.side);
+                // Where the renderer puts the text: on the normal's side, or the other when the
+                // text is turned to read upright (whichever side the line is offset to).
+                let (_, flipped) = crate::render::readable(f.dir.y.atan2(f.dir.x).to_degrees());
+                let up = if flipped { f.normal.scale(-1.0) } else { f.normal };
                 let (lo, hi) = (mid.plus(up.scale(st.text_gap)), mid.plus(up.scale(st.text_gap + st.text)));
                 let along = f.dir.scale(half.max(st.text));
                 vec![lo.minus(along), lo.plus(along), hi.plus(along), hi.minus(along), lo.minus(along)]
@@ -443,7 +446,15 @@ pub fn dim_offset(d: &Drawing, a: Pt, b: Pt, orient: Orient, at: Pt) -> f64 {
     let n = dim_dir(a, b, orient).left();
     let level = |q: Pt| q.x * n.x + q.y * n.y;
     let (na, nb, nl) = (level(a), level(b), level(at));
-    let units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
+    // Between the two measured points' levels the line stays at the farther one (offset 0):
+    // it never jumps past the pointer.
+    let units = if nl >= na.max(nb) {
+        nl - na.max(nb)
+    } else if nl <= na.min(nb) {
+        nl - na.min(nb)
+    } else {
+        0.0
+    };
     let paper = units * paper_per_unit(d);
     // `clamp` keeps a NaN: from points out of range it would reach the saved drawing.
     if paper.is_finite() { paper.clamp(-500.0, 500.0) } else { 0.0 }

@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-08 · **Change:** dimension texts aligned with their dimension line by default; a drawing in the "Calculation and exercise" template
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-09 · **Change:** arrowheads on open lines, arcs and polylines (`arrows`); ISO 129 arrowheads; transforms, picking and limits made coherent with the rendering
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -24,6 +24,12 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   `polyline {pts, bulges, closed}` (DXF bulges), `point {p}`, `text {p, value, height, angle}`,
   `dim {a, b, offset, orient, text}` (aligned, horizontal or vertical), `angle {c, a, b, r}`,
   `level {p, datum, text, flip, left}` (an elevation mark).
+- **Arrowheads** (`"arrows": "start" | "end" | "both"`, Properties › Arrows): an open line,
+  arc or polyline carries filled arrowheads at its ends — a force, a distributed load, a
+  direction — the dimension style's mark size long and 30° across the tip (ISO 129-1), pointing
+  along the path's last stretch at least an arrowhead long (an arc's follows the curve). Closed
+  shapes ignore it. Trimmed, exploded or mirrored, each piece keeps only the arrowheads of the
+  ends it still has.
 - **Paper sizes do not scale**: stroke widths, text heights, dimension offsets, ticks and gaps
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
@@ -179,6 +185,17 @@ page, the PDF and the editor all draw these primitives.
   sits every frame; `calc::resolved_cad` evaluates the document only up to the drawing and keeps
   the answer until what it reads changes (the calculations before it, the exercises, the number
   format).
+- **Transforms keep what was drawn**: Scale by a negative factor is a half turn (arcs keep
+  their sweep), not a mirror; a mirrored linear dimension stays on its side of what it measures
+  and a strip along a mirrored path changes side with it; a horizontal or vertical dimension
+  turned by a quarter turn becomes the other, by any other angle aligned.
+- **Picked where drawn**: a dimension's text is picked on the side it is drawn (above the line as
+  read, whichever way it runs); dragging a dimension line between its two points leaves it at the
+  farther one. An entity on an unknown layer is drawn and picked as layer `0`'s.
+- **One set of limits**: text heights 0.5–50 mm on reading, in Properties and in the style; ids
+  and the references to them (`along`, `boundary`) are cut at 64 characters alike. A steep
+  dimension with its style's aligned texts off keeps its second text under the first. A level
+  mark's line runs the length of its text.
 - **Random edits** (`tests_fuzz.rs`, `CAD_FUZZ=n` for more): every edit on random drawings with
   huge, tiny and degenerate numbers; none panics, and each result saves, reopens and saves to the
   same bytes.
@@ -427,6 +444,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-09: arrowheads on open lines, arcs and polylines (`arrows`, Properties › Arrows); arrowheads 30° across (ISO 129-1); a negative scale is a half turn; mirrored and rotated dimensions and strips stay where drawn; dimension texts picked where drawn; text heights to 50 mm; long ids keep their strips; unknown layers are layer 0; `cad.get` reports the errors where the drawing sits; an unreadable drawing is never replaced by a blank one; `cad.padding` refuses a malformed list; a drawing redraws when the calculation it reads is deleted; the editor shows units in the Unit style's colour; the template's beam has load arrows, hatched ground and dimensions bound to `L` and `q`.
 - 2026-11-08: the "Calculation and exercise" template has a beam drawing sized by its exercise's data (docs/exercise.md).
 - 2026-11-08: dimension texts aligned with their line by default, steep ones too (`dimStyle.aligned` on unless a drawing turns it off).
 - 2026-11-08: past the render budget a polyline keeps its vertices; the SVG picture and page items are thinned past 500 000 points.

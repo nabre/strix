@@ -230,6 +230,62 @@ impl Mark {
     }
 }
 
+/// Which ends of an open line, arc or polyline carry an arrowhead (a force, a load, a
+/// direction): `"arrows": "end"` in the JSON. Closed shapes and other objects ignore it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Ends {
+    #[default]
+    None,
+    Start,
+    End,
+    Both,
+}
+
+impl Ends {
+    pub const ALL: [(Ends, &'static str); 4] = [(Ends::None, "none"), (Ends::Start, "start"), (Ends::End, "end"), (Ends::Both, "both")];
+
+    pub fn name(self) -> &'static str {
+        Ends::ALL.iter().find(|(e, _)| *e == self).map_or("none", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<Ends> {
+        Ends::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(e, _)| *e)
+    }
+
+    pub fn start(self) -> bool {
+        matches!(self, Ends::Start | Ends::Both)
+    }
+
+    pub fn end(self) -> bool {
+        matches!(self, Ends::End | Ends::Both)
+    }
+
+    /// The arrows a piece of the path keeps: its start's if it starts where the path did, its
+    /// end's if it ends where the path did.
+    pub fn piece(self, at_start: bool, at_end: bool) -> Ends {
+        match (self.start() && at_start, self.end() && at_end) {
+            (true, true) => Ends::Both,
+            (true, false) => Ends::Start,
+            (false, true) => Ends::End,
+            (false, false) => Ends::None,
+        }
+    }
+
+    /// The same arrows on the path walked the other way.
+    pub fn reversed(self) -> Ends {
+        match self {
+            Ends::Start => Ends::End,
+            Ends::End => Ends::Start,
+            other => other,
+        }
+    }
+}
+
+fn is_no_ends(e: &Ends) -> bool {
+    *e == Ends::None
+}
+
 /// How linear dimensions show their size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -598,6 +654,9 @@ pub struct Entity {
     pub layer: String,
     #[serde(default, skip_serializing_if = "is_plain")]
     pub stroke: Stroke,
+    /// Arrowheads at the ends of an open line, arc or polyline.
+    #[serde(default, skip_serializing_if = "is_no_ends")]
+    pub arrows: Ends,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -616,7 +675,7 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), kind }
+        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, kind }
     }
 }
 
@@ -771,19 +830,26 @@ impl Drawing {
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());
         }
+        // Cut at a character boundary, as ids: a name from a file may be any text, and each
+        // entity's layer is looked up by it.
+        let cut = |t: &mut String| t.truncate(t.char_indices().nth(64).map_or(t.len(), |(i, _)| i));
         for l in &mut self.layers {
+            cut(&mut l.name);
             l.width = clamp_paper(l.width, 0.35);
         }
         self.entities.truncate(MAX_ENTITIES);
         let mut seen = std::collections::HashSet::new();
         let mut next = 1usize;
         for e in &mut self.entities {
-            if e.id.is_empty() || e.id.len() > 64 || !seen.insert(e.id.clone()) {
+            // 64 characters, as references (`along`, `boundary`) are cut: an id of 40 accented
+            // letters stays the id its strip names.
+            if e.id.is_empty() || e.id.chars().count() > 64 || !seen.insert(e.id.clone()) {
                 while !seen.insert(format!("e{next}")) {
                     next += 1;
                 }
                 e.id = format!("e{next}");
             }
+            cut(&mut e.layer);
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
@@ -795,7 +861,8 @@ impl Drawing {
                 }
                 Kind::Text { value, height, angle, .. } => {
                     value.truncate(value.char_indices().nth(1000).map_or(value.len(), |(i, _)| i));
-                    *height = clamp_paper(*height, 2.5).max(0.5);
+                    // As the Properties pane and the dimension style allow: 0.5–50 mm.
+                    *height = if height.is_finite() { height.clamp(0.5, 50.0) } else { 2.5 };
                     *angle = if angle.is_finite() { *angle % 360.0 } else { 0.0 };
                 }
                 Kind::Dim { offset, offset_units, text, below, .. } => {
@@ -842,7 +909,8 @@ impl Drawing {
 
     /// The layer called `name`, else layer `0`.
     pub fn layer(&self, name: &str) -> Layer {
-        self.layers.iter().find(|l| l.name == name).or_else(|| self.layers.first()).cloned().unwrap_or_default()
+        let zero = || self.layers.iter().find(|l| l.name == "0");
+        self.layers.iter().find(|l| l.name == name).or_else(zero).or_else(|| self.layers.first()).cloned().unwrap_or_default()
     }
 
     /// Adds an entity with a fresh id and returns the id.

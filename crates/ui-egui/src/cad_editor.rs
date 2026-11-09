@@ -1619,6 +1619,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     let mut act: Option<Act> = None;
     let mut close_now = false;
     {
+        // Units in drawing texts take the Unit style's colour, as on the page.
+        let unit = strix_engine::cmd::cad::unit_rgb(&app.session);
         let Some(ed) = app.cad.as_mut() else { return };
         let bottom = 58.0;
         let full = ui.available_rect_before_wrap();
@@ -1644,7 +1646,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             ed.center = ed.center.minus(Pt::new(f64::from(delta.x) / ed.zoom, -f64::from(delta.y) / ed.zoom));
         }
         let view = View { rect, center: ed.center, zoom: ed.zoom };
-        paint_sheet(ed, &painter, view);
+        paint_sheet(ed, &painter, view, rgb(unit));
         paint_selection(ed, &painter, view, t.accent);
         paint_dim_parts(ed, &painter, view, hovering.is_some());
         let grips = shown_grips(ed, view);
@@ -2325,7 +2327,7 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
 
 /// The sheet under the drawing: its grid, the picture's frame (the area outside shaded) and the
 /// drawing as it renders.
-fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View) {
+fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color32) {
     let rect = view.rect;
     // Grid.
     if ed.grid {
@@ -2403,7 +2405,7 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View) {
                     Anchor::MiddleRight => Align2::RIGHT_CENTER,
                 };
                 let pos = view.to_screen(paper_to_drawing(&ed.rendered, *at));
-                let galley = painter.layout_job(text_job(text, size, rgb(*color)));
+                let galley = painter.layout_job(text_job(text, size, rgb(*color), unit));
                 // Turned about its anchor: counter-clockwise on paper is clockwise on the
                 // screen (y down).
                 let turn = if angle.is_finite() { -(angle.to_radians() as f32) } else { 0.0 };
@@ -2497,14 +2499,18 @@ fn pt(p: Pt) -> P {
 
 /// A drawing text laid out for the canvas: a parameter's symbol in italics, its subscript
 /// smaller and lowered, a missing parameter in red (`strix_cad::spans`).
-fn text_job(text: &str, size: f32, color: Color32) -> egui::text::LayoutJob {
+fn text_job(text: &str, size: f32, color: Color32, unit: Color32) -> egui::text::LayoutJob {
     let mut job = egui::text::LayoutJob::default();
     for p in strix_cad::spans(text) {
         let sub = p.sub;
         let font = FontId::proportional(if sub { size * 0.7 } else { size });
         let format = egui::TextFormat {
             font_id: font,
-            color: if p.kind == strix_cad::SpanKind::Missing { Color32::from_rgb(0xC0, 0x1C, 0x1C) } else { color },
+            color: match p.kind {
+                strix_cad::SpanKind::Missing => rgb(strix_cad::MISSING_COLOR),
+                strix_cad::SpanKind::Unit => unit,
+                strix_cad::SpanKind::Plain => color,
+            },
             italics: p.symbol,
             // A subscript's line, shorter than the text's, sits at the bottom: the subscript drops.
             line_height: sub.then_some(size * 0.6),

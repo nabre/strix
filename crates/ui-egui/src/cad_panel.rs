@@ -545,6 +545,9 @@ pub(crate) fn choice_label(s: &str) -> &'static str {
         "dashed" => "Dashed",
         "solid" => "Solid",
         "along" => "Along the path",
+        "start" => "At the start",
+        "end" => "At the end",
+        "both" => "At both ends",
         _ => "",
     }
 }

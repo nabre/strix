@@ -5,7 +5,7 @@
 
 use crate::MAX_COORD;
 use crate::geom::Pt;
-use crate::model::{Align, Drawing, Kind, Mark, Num, Orient, P, Pattern, Side};
+use crate::model::{Align, Drawing, Ends, Kind, Mark, Num, Orient, P, Pattern, Side};
 
 /// What a field holds, for its editor and its unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +78,8 @@ pub const ORIENTS: &[&str] = &["aligned", "horizontal", "vertical"];
 pub const MARKS: &[&str] = &["style", "tick", "arrow", "dot", "none"];
 pub const ALIGNS: &[&str] = &["left", "center", "right"];
 pub const SIDES: &[&str] = &["left", "right"];
+/// The arrowheads an open line, arc or polyline may carry.
+pub const ENDS: &[&str] = &["none", "start", "end", "both"];
 pub const PATTERNS: &[&str] = &["lines", "cross", "steel", "dashed", "solid", "along"];
 
 fn mark_text(m: Option<Mark>) -> String {
@@ -194,6 +196,9 @@ impl Drawing {
                 out.push(f("left", "Text on the left", FieldKind::Bool, left.to_string()));
             }
         }
+        if matches!(e.kind, Kind::Line { .. } | Kind::Arc { .. } | Kind::Polyline { closed: false, .. }) {
+            out.push(f("arrows", "Arrows", FieldKind::Choice(ENDS), e.arrows.name().into()));
+        }
         out
     }
 
@@ -201,6 +206,13 @@ impl Drawing {
     pub fn set_field(&mut self, i: usize, vertex: usize, key: &str, text: &str) -> Result<(), String> {
         let e = self.entities.get_mut(i).ok_or("no such object")?;
         let bad = || format!("no field {key} on this object");
+        if key == "arrows" {
+            if !matches!(e.kind, Kind::Line { .. } | Kind::Arc { .. } | Kind::Polyline { .. }) {
+                return Err(bad());
+            }
+            e.arrows = Ends::parse(text).ok_or("arrows: none, start, end or both")?;
+            return Ok(());
+        }
         match (&mut e.kind, key) {
             (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, "ax") => a.0 = parse_num(text)?,
             (Kind::Line { a, .. } | Kind::Dim { a, .. } | Kind::Angle { a, .. }, "ay") => a.1 = parse_num(text)?,
