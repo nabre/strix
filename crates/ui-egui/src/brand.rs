@@ -132,8 +132,8 @@ mod tests {
             let img = decode(png).unwrap();
             let [w, h] = img.size;
             assert_eq!(h, 192);
-            // viewBox 290 x 88.
-            assert!((w as f32 / h as f32 - 290.0 / 88.0).abs() < 0.02, "{w}x{h}");
+            // The PNGs match the SVGs' viewBox (530 x 88), which is what layout reserves.
+            assert!((w as f32 / h as f32 - WORDMARK_ASPECT).abs() < 0.02, "{w}x{h}");
         }
         assert_eq!(Mark::wordmark(true), Mark::WordmarkDark);
         assert_eq!(Mark::wordmark(false), Mark::WordmarkLight);
