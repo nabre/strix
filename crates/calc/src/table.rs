@@ -279,12 +279,19 @@ impl Worksheet {
                         .enumerate()
                         .any(|(k, other)| other.name() == Some(u.as_str()) && label.get(k) == Some(&false) && !locals.iter().any(|(n, _)| n == *u))
                 });
+                let row_work = order.len().saturating_mul(col_names.len());
                 let result = match missing {
                     Some(name) => Err(CalcError::MissingValue(name.clone())),
+                    // Past the budget an indexed formula isn't even set up: copying the columns
+                    // for every cell of a long table would take minutes before it fails.
+                    None if indexed.get(c) == Some(&true) && steps.saturating_add(row_work) > crate::MAX_STEPS => {
+                        steps = crate::MAX_STEPS.saturating_add(1);
+                        Err(CalcError::TooMuchWork)
+                    }
                     None => {
                         // Indexing by row reads the columns over the data rows (counted as work).
                         let by_row = if indexed.get(c) == Some(&true) {
-                            steps = steps.saturating_add(order.len() * col_names.len());
+                            steps = steps.saturating_add(row_work);
                             columns
                                 .iter()
                                 .enumerate()

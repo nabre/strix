@@ -275,8 +275,8 @@ fn template_tile(ui: &mut Ui, app: &mut WordApp, label: &str, template: &str) {
 
 /// The built-in templates in gallery order: display label and the `file.new` template id.
 const TEMPLATES: [(&str, &str); 6] = [
-    ("Calculation and exercise", "calc"),
     ("Blank document", "blank"),
+    ("Calculation and exercise", "calc"),
     ("Studio handbook (sample)", "sample"),
     ("Letter", "letter"),
     ("Résumé", "resume"),

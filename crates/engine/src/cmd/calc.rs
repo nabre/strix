@@ -316,6 +316,27 @@ fn table_cells(t: &Table) -> Vec<Vec<String>> {
         .collect()
 }
 
+/// Every paragraph of a block, tables included, exactly as deep as [`items`] reads: the
+/// writers count regions as they meet them, so a region deeper than the reader goes would make
+/// every later one take the next one's result.
+fn each_para(b: &mut Block, depth: usize, f: &mut dyn FnMut(&mut Paragraph)) {
+    if depth > MAX_DEPTH {
+        return;
+    }
+    match b {
+        Block::Para(p) => f(p),
+        Block::Table(t) => {
+            for row in &mut t.rows {
+                for cell in &mut row.cells {
+                    for cb in &mut cell.blocks {
+                        each_para(Arc::make_mut(cb), depth + 1, f);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Every equation and calculated table in reading order (body top to bottom, tables cell by
 /// cell). A calculated table is read as a whole; only top-level ones are calculated.
 fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
@@ -818,7 +839,7 @@ fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
         if matches!(&**block, Block::Table(t) if t.props.calc) {
             continue;
         }
-        super::paste::each_para(Arc::make_mut(block), 0, &mut each);
+        each_para(Arc::make_mut(block), 0, &mut each);
     }
     changed
 }
@@ -890,7 +911,7 @@ fn write_back(
                 p.touch();
             }
         };
-        super::paste::each_para(Arc::make_mut(block), 0, &mut each);
+        each_para(Arc::make_mut(block), 0, &mut each);
     }
     restyled
 }
@@ -1376,12 +1397,16 @@ fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
     let story = s.sel.focus.story;
     let t = s.doc.table(story, &tp).ok_or_else(|| CmdError::Failed("no table".into()))?;
     let now = t.props.calc && t.props.calc_index;
+    // The ordinal column stays when the table stops calculating: its flag says it is there.
+    let has_column = t.props.calc_index;
     let on = p::bool(v, "value").unwrap_or(!now);
-    if on != now {
-        if !t.props.calc {
+    if on != now || (!on && has_column) {
+        if on && !t.props.calc {
             toggle_table(s, &json!({"value": true}))?;
         }
-        if on {
+        if on && has_column {
+            // Calculating again: the column is there already.
+        } else if on {
             at_first_cell(s, "table.insertColumnLeft", 0, 1)?;
             let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
             write_cell_text(s, story, &tp, 0, 0, "N.")?;
@@ -1485,6 +1510,46 @@ mod tests {
         let r = s.run("calc.insert", &json!({"text": text})).unwrap();
         s.run("text.insert", &json!({"text": " "})).unwrap();
         r
+    }
+
+    /// A region nested deeper than the calculations read never takes another region's result:
+    /// the writers walk exactly as deep as the reader.
+    #[test]
+    fn a_region_too_deep_to_read_never_takes_another_regions_result() {
+        let eq = |text: &str| {
+            let mut s = session();
+            add(&mut s, text);
+            let has_eq = |b: &&Arc<Block>| matches!(&***b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { .. })));
+            s.doc.body.iter().find(has_eq).cloned().unwrap()
+        };
+        let mut t = strix_doc::Table::new(1, 1, 100.0);
+        t.rows[0].cells[0].blocks = vec![eq("d := 7 m")];
+        for _ in 0..19 {
+            let mut outer = strix_doc::Table::new(1, 1, 100.0);
+            outer.rows[0].cells[0].blocks = vec![Arc::new(Block::Table(t))];
+            t = outer;
+        }
+        t.rows[0].cells[0].blocks.insert(0, eq("a = 1+1 ="));
+        let mut s = session();
+        s.doc.body = vec![Arc::new(Block::Table(t)), eq("y = a*3 m =")];
+        s.run("calc.recalculate", &json!({})).unwrap();
+        fn deepest(b: &Block) -> Option<String> {
+            match b {
+                // The nested table's region, else this cell's own.
+                Block::Table(t) => {
+                    let blocks = &t.rows.first()?.cells.first()?.blocks;
+                    blocks.iter().find(|b| matches!(&***b, Block::Table(_))).or_else(|| blocks.first()).and_then(|b| deepest(b))
+                }
+                Block::Para(p) => p.objects.iter().find_map(|o| match o {
+                    InlineObject::Equation { linear, math, .. } => Some(equation_text(linear, math)),
+                    _ => None,
+                }),
+            }
+        }
+        let deep = deepest(&s.doc.body[0]).unwrap_or_default();
+        assert!(deep.trim_start().starts_with('d'), "the deep region keeps its own text: {deep}");
+        let all = texts(&s);
+        assert!(all.last().is_some_and(|t| t.contains('6')), "{all:?}");
     }
 
     #[test]
@@ -2135,5 +2200,22 @@ mod tests {
         }
         let _ = s.run("calc.recalculate", &json!({"digits": -1, "decimalComma": "yes"}));
         let _ = s.run("calc.variables", &json!({"digits": 0}));
+    }
+
+    /// Turning the ordinal column on again after the table stopped calculating reuses the one
+    /// it has, never adding a second.
+    #[test]
+    fn the_ordinal_column_comes_back_once() {
+        let mut s = session();
+        s.run("calc.insertTable", &json!({})).unwrap();
+        s.run("table.calcIndex", &json!({})).unwrap();
+        s.run("table.calc", &json!({"value": false})).unwrap();
+        s.run("table.calcIndex", &json!({})).unwrap();
+        let header = table_texts(&s).first().cloned().unwrap_or_default();
+        assert_eq!(header.iter().filter(|c| *c == "N.").count(), 1, "{header:?}");
+        // Off for good: the column goes, once.
+        s.run("table.calcIndex", &json!({"value": false})).unwrap();
+        let header = table_texts(&s).first().cloned().unwrap_or_default();
+        assert!(!header.iter().any(|c| c == "N."), "{header:?}");
     }
 }

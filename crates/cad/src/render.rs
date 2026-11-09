@@ -74,6 +74,8 @@ const CHORD_MM: f64 = 0.01;
 pub const MAX_POINTS: usize = 2_000_000;
 /// Most hatch and strip segments one drawing draws, all its hatches and strips together.
 pub const MAX_HATCH_TOTAL: usize = 200_000;
+/// Most boundary points all of a drawing's hatches and strips are worked out from.
+pub(crate) const MAX_HATCH_WORK_POINTS: usize = 2_000_000;
 /// The fewest points a curve is thinned to once the drawing's budget is spent.
 const MIN_THINNED: usize = 16;
 
@@ -125,6 +127,9 @@ impl Drawing {
         // What the drawing may still draw, all its entities together (see `MAX_POINTS`).
         let mut points_left = MAX_POINTS;
         let mut hatch_left = MAX_HATCH_TOTAL;
+        // The boundary points hatches and strips may still work on, drawn or not: an `along`
+        // hatch, or one too fine for its budget, costs its boundary without drawing much.
+        let mut work_left = MAX_HATCH_WORK_POINTS;
         for e in &self.entities {
             let layer = self.layer(&e.layer);
             if !layer.visible || !(layer.print || screen) {
@@ -201,11 +206,12 @@ impl Drawing {
                     let paper = |p: Pt| (p.x * k, p.y * k);
                     let w = if *pattern == crate::model::Pattern::Solid { crate::hatch::SOLID_SPACING * 1.4 } else { width.min(0.18) };
                     // Past the drawing's budget hatches are left out (not even worked out).
-                    let lines = match (hatch_left.min(points_left / 2), &e.kind) {
-                        (0, _) => Vec::new(),
-                        (_, Kind::Strip { .. }) => self.strip_lines(e),
-                        _ => self.hatch_lines(e),
+                    let (lines, work) = match (hatch_left.min(points_left / 2).min(work_left), &e.kind) {
+                        (0, _) => (Vec::new(), 0),
+                        (_, Kind::Strip { .. }) => self.strip_lines_and_work(e),
+                        _ => self.hatch_lines_and_work(e),
                     };
+                    work_left = work_left.saturating_sub(work);
                     let take = hatch_left.min(points_left / 2);
                     hatch_left = hatch_left.saturating_sub(lines.len());
                     for (a, b) in lines.into_iter().take(take) {
