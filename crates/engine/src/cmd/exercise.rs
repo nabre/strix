@@ -35,6 +35,7 @@ use strix_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod breaks;
 mod delete;
 mod language;
 mod numbering;
@@ -112,6 +113,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
         CommandSpec::new("exercise.numbering", "Exercise Numbering", "Math › Exercise", numbering::command)
             .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "default": bool, "example": "Esercizio 1"}"#),
+        CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "all"?: bool (every exercise), "beforeExercise"?: bool (a new page before the exercise when another exercise comes before it), "beforeSolution"?: bool (a new page before its solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; a new exercise takes the last one's settings → {"exercise", "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
         CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -445,7 +449,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     // The title is the user's text, in a control of its own that can't be deleted: its
     // placeholder (only the title, never the whole exercise) is replaced by typing and comes
     // back when the title is deleted.
-    let exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
+    let mut exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
+    // Page breaks as the document's last exercise has them.
+    breaks::write(&mut exercise, breaks::last(s));
     let mut title_ctl = control(TAG_TITLE, w.title_part, ControlLock::SdtLocked);
     if title.is_none() {
         title_ctl = placeholder(title_ctl, w.title);
@@ -546,6 +552,8 @@ struct Exercise {
     counters: [usize; 3],
     /// The data and variants, from the exercise control.
     data: ExerciseData,
+    /// Its page breaks, from the exercise control.
+    breaks: breaks::Breaks,
     /// The top-level block holding the exercise control's start.
     start: usize,
     /// First and last top-level block of the statement, and of the generated data.
@@ -606,7 +614,7 @@ fn scan(s: &Session) -> Layout {
                 match o {
                     InlineObject::ControlStart { control } => {
                         if control.tag == TAG_EXERCISE && out.exercises.len() < MAX_EXERCISES {
-                            out.exercises.push(Exercise { data: read_data(control), start: i, ..Exercise::default() });
+                            out.exercises.push(Exercise { data: read_data(control), breaks: breaks::read(control), start: i, ..Exercise::default() });
                             current = Some(out.exercises.len() - 1);
                         }
                         stack.push((control.tag.clone(), control.showing_placeholder));
@@ -1432,6 +1440,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
             (None, true) => {}
         }
     }
+    // Page breaks before the exercises and their solutions, as each one's settings say.
+    let layout = scan(s);
+    changed |= breaks::apply(s, &layout);
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
@@ -1465,11 +1476,16 @@ pub(crate) fn update(s: &mut Session) -> bool {
         .unwrap_or_else(|| control(TAG_RESULTS, w.results, ControlLock::SdtContentLocked));
     let n = lines.len();
     let mut first = Some(ctl);
-    let new: Vec<Paragraph> = lines
+    let mut new: Vec<Paragraph> = lines
         .iter()
         .enumerate()
         .map(|(i, (style, text))| para(style, text, first.take().into_iter().collect(), usize::from(i + 1 == n), None))
         .collect();
+    // The summary keeps its Page break before (exercise.pageBreaks `beforeResults`).
+    let new_page = layout.results.and_then(|(from, _)| s.doc.body.get(from)).and_then(|b| b.as_para()).and_then(|p| p.props.page_break_before);
+    if let Some(p) = new.first_mut() {
+        p.props.page_break_before = new_page;
+    }
     match layout.results {
         // Kept at the very end: one summary for every exercise.
         Some((from, to)) if to + 1 == s.doc.body.len() => changed |= replace(s, from, to, new),

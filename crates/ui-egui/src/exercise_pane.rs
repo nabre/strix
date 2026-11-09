@@ -181,8 +181,44 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         );
         ui.add_space(10.0);
         ui.separator();
+        page_breaks(app, ui, ex);
+        ui.add_space(10.0);
+        ui.separator();
         numbering(app, ui);
     });
+}
+
+/// Page breaks (`exercise.pageBreaks`): before this exercise when another comes before it, before
+/// its solution (both for this exercise, or every one), and before the results summary.
+fn page_breaks(app: &mut WordApp, ui: &mut Ui, ex: u64) {
+    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"exercise": ex})) else { return };
+    let set = |app: &mut WordApp, params: Value| {
+        if let Err(e) = app.run("exercise.pageBreaks", params) {
+            app.status(e);
+        }
+    };
+    ui.label(egui::RichText::new(tl!("Page Breaks")).strong());
+    ui.add_space(4.0);
+    let mut exercise = b["beforeExercise"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut exercise, tl!("New page before the exercise")).on_hover_text(tl!("Only when another exercise comes before it")).changed() {
+        set(app, json!({"exercise": ex, "beforeExercise": exercise}));
+    }
+    let mut solution = b["beforeSolution"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut solution, tl!("New page before the solution")).changed() {
+        set(app, json!({"exercise": ex, "beforeSolution": solution}));
+    }
+    let mut results = b["beforeResults"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
+        set(app, json!({"beforeResults": results}));
+    }
+    if ui
+        .add(egui::Button::new(tl!("Apply to all exercises")).small())
+        .on_hover_text(tl!("Every exercise of the document takes this exercise's page breaks"))
+        .clicked()
+    {
+        set(app, json!({"all": true, "beforeExercise": exercise, "beforeSolution": solution}));
+    }
+    ui.label(egui::RichText::new(tl!("A new exercise takes the page breaks of the last one.")).small().weak());
 }
 
 /// The number formats offered for exercises: the format's id and how it counts.
