@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use craft_window::{Document, Frame, Viewports, WindowEvent, WindowId, WindowList, WindowMenu};
 use egui::{ViewportCommand, ViewportId};
 use serde_json::{Value, json};
-use strix_engine::WindowView;
+use wordcraft_engine::WindowView;
 
 use crate::{WordApp, documents, window_ui::WindowUi};
 
@@ -242,7 +242,7 @@ pub(crate) struct ViewportInput {
 
 impl egui::Plugin for ViewportInput {
     fn debug_name(&self) -> &'static str {
-        "strix_viewport_input"
+        "wordcraft_viewport_input"
     }
 
     fn input_hook(&mut self, _ctx: &egui::Context, input: &mut egui::RawInput) {

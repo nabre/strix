@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::select::{all_objects, edit_obj, picked_objects, selected, selected_all};
 use super::{CmdError, CmdResult, InlineObject, Pos, Rgb, Session, StoryRef, TextBody, Value, json, p};
 
@@ -9,7 +8,7 @@ pub(super) fn has_text_box(s: &Session) -> Option<&'static str> {
 }
 
 fn is_text_box(s: &Session, id: u32) -> bool {
-    s.doc.parts.get(&id).is_some_and(|p| p.kind == strix_doc::PartKind::TextBox)
+    s.doc.parts.get(&id).is_some_and(|p| p.kind == wordcraft_doc::PartKind::TextBox)
 }
 
 /// The text box the Shape Format › Text commands work on: the selected one, or the one whose
@@ -25,7 +24,7 @@ pub fn text_box_target(s: &Session) -> Option<(Pos, u32)> {
         return None;
     }
     let after = s.doc.text_box_anchor(id)?;
-    let off = after.off.checked_sub(strix_doc::para::OBJ.len_utf8())?;
+    let off = after.off.checked_sub(wordcraft_doc::para::OBJ.len_utf8())?;
     Some((Pos { off, ..after }, id))
 }
 
@@ -87,7 +86,7 @@ const MAX_EFFECT_SHAPES: usize = 10_000;
 
 /// `shape.effects`: set or clear the shadow, glow and soft edges of the selected shapes.
 pub(super) fn shape_effects(s: &mut Session, v: &Value) -> CmdResult {
-    use strix_doc::effects::{Glow, Shadow, ShapeEffects};
+    use wordcraft_doc::effects::{Glow, Shadow, ShapeEffects};
     let color = |o: &Value| p::str(o, "color").and_then(Rgb::parse);
     // Each change is `None` (leave as it is) or `Some(new value)`.
     let shadow: Option<Option<Shadow>> = match v.get("shadow") {

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The system's animation setting, which File › Options › Accessibility › Animation effects
 //! follows when set to "Use system setting" (`Services::animations_enabled`).
 //!

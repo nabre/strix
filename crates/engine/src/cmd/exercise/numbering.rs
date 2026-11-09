@@ -5,7 +5,7 @@
 //! summary heads each exercise with the same label.
 
 use serde_json::{Value, json};
-use strix_doc::section::NumFormat;
+use wordcraft_doc::section::NumFormat;
 
 use super::{STYLE_TITLE, ensure_styles, update, words};
 use crate::{CmdError, CmdResult, Session};
@@ -51,7 +51,7 @@ pub(crate) fn current(s: &Session) -> Numbering {
 
 /// A prefix as kept: no control or object characters, no `%` (it would name a list level).
 fn clean_prefix(t: &str) -> String {
-    t.chars().filter(|&c| !c.is_control() && c != strix_doc::para::OBJ && c != '%').take(MAX_PREFIX).collect::<String>().trim().to_string()
+    t.chars().filter(|&c| !c.is_control() && c != wordcraft_doc::para::OBJ && c != '%').take(MAX_PREFIX).collect::<String>().trim().to_string()
 }
 
 /// `exercise.numbering`: sets what the params name, then returns the numbering.
@@ -121,7 +121,7 @@ pub(super) fn set(s: &mut Session, prefix: Option<String>, format: Option<NumFor
 mod tests {
     use super::super::{body_path, plain, scan};
     use super::*;
-    use strix_doc::{Block, Document, Pos, StoryRef};
+    use wordcraft_doc::{Block, Document, Pos, StoryRef};
 
     fn session() -> Session {
         let mut s = Session::new(Document::new());
@@ -143,7 +143,7 @@ mod tests {
 
     /// The labels the titles show, as the layout numbers them.
     fn labels(s: &Session) -> Vec<String> {
-        let mut counters = strix_doc::numbering::Counters::default();
+        let mut counters = wordcraft_doc::numbering::Counters::default();
         s.doc
             .body
             .iter()

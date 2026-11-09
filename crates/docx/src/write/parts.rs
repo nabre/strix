@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::bibliography::{bibliography_props_xml, bibliography_xml};
 use super::settings::{
     ANONYMOUS_INITIALS, annotation_author, app_xml, core_xml, note_id_base, notes_part, settings_xml, theme_xml, write_comment_ids,
@@ -48,7 +47,7 @@ pub(crate) fn write_parts(doc: &Document, flavor: Flavor) -> Result<Vec<(String,
         toc_end_here: false,
         inline_controls: Vec::new(),
         used_media: Default::default(),
-        boxes: strix_doc::BoxBudget::default(),
+        boxes: wordcraft_doc::BoxBudget::default(),
         written_boxes: std::collections::HashSet::new(),
         embeds: embed::EmbedWriter::new(doc),
         txbx_links: doc

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::builder::{Builder, ImageLoader};
 use super::lexer::{Lexer, Tok};
 use super::math_ruby::{read_math, read_ruby};
@@ -81,7 +80,7 @@ pub fn import_with(s: &str, images: ImageLoader) -> Document {
 
 /// [`import_with`] onto `page` (its size and margins), which tables size to: HTML gives no page
 /// size, so the caller picks it (the region's paper, #1381).
-pub fn import_on(s: &str, images: ImageLoader, page: &strix_doc::SectionProps) -> Document {
+pub fn import_on(s: &str, images: ImageLoader, page: &wordcraft_doc::SectionProps) -> Document {
     model::begin_import();
     model::to_doc_in(&parse_with(s, images), page.clone())
 }

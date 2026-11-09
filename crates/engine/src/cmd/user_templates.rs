@@ -240,7 +240,7 @@ mod tests {
 
     /// A real template written by the engine, with `title` as its core title (empty: none).
     fn template(path: &std::path::Path, text: &str, title: &str) {
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         s.run("document.setText", &json!({"text": text})).unwrap();
         s.doc.core.title = title.into();
         crate::io::save_path(path, &s.doc).unwrap();
@@ -272,7 +272,7 @@ mod tests {
         template(&d.join("Legal/Deeper/Too deep.dotx"), "x", "");
         std::fs::create_dir_all(d.join("Empty")).unwrap();
 
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         let r = s.run("file.listTemplates", &json!({"dir": d.to_string_lossy()})).unwrap();
         assert_eq!(
             labels(&r),
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn refuses_network_relative_and_missing_folders() {
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         for dir in [r"\\host\share\Templates", "//host/share/Templates", "relative/Templates", "", "   "] {
             assert!(matches!(s.run("file.listTemplates", &json!({"dir": dir})), Err(CmdError::Params(_))), "{dir:?}");
         }
@@ -314,7 +314,7 @@ mod tests {
     fn the_saved_folder_is_listed_without_dir() {
         let d = scratch("saved");
         template(&d.join("Saved.dotx"), "x", "");
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         s.run("file.options", &json!({"userTemplatesFolder": d.to_string_lossy()})).unwrap();
         let r = s.run("file.listTemplates", &json!({})).unwrap();
         assert_eq!(labels(&r), [("".to_string(), "Saved".to_string())]);
@@ -341,20 +341,20 @@ mod tests {
         let d = scratch("new");
         let path = d.join("Memo.dotx");
         template(&path, "Memo text", "");
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         s.path = Some(d.join("Earlier.docx"));
         s.run("file.newFromTemplate", &json!({"path": path.to_string_lossy()})).unwrap();
         assert_eq!(s.path, None);
         assert!(s.dirty);
         assert_eq!(s.doc.settings.attached_template.as_deref(), Some(path.to_string_lossy().as_ref()));
-        assert!(s.doc.plain_text(strix_doc::StoryRef::Body).contains("Memo text"));
+        assert!(s.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Memo text"));
         let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
     fn the_templates_folder_option_is_saved_and_checked() {
         let d = scratch("option");
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         for bad in [json!(r"\\host\share"), json!("//host/share"), json!("relative/x"), json!(7)] {
             assert!(s.run("file.options", &json!({"userTemplatesFolder": bad})).is_err(), "{bad}");
         }
@@ -397,7 +397,7 @@ mod tests {
     #[test]
     fn save_template_always_writes_a_strix_template() {
         let d = scratch("save");
-        let mut s = Session::new(strix_doc::Document::new());
+        let mut s = Session::new(wordcraft_doc::Document::new());
         for (asked, saved) in [
             ("A.dotm", "A.dotm.xmathm"),
             ("B.DOTX", "B.DOTX.xmathm"),

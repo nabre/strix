@@ -9,12 +9,12 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use strix_doc::edit::Fragment;
-use strix_doc::para::OBJ;
-use strix_doc::props::{LineSpacing, TabAlign, TabLeader, TabStop};
-use strix_doc::styles::{Style, StyleKind};
-use strix_doc::{CharProps, InlineObject, ParaProps, PartKind, Pos, StoryRef};
-use strix_engine::{Selection, Session};
+use wordcraft_doc::edit::Fragment;
+use wordcraft_doc::para::OBJ;
+use wordcraft_doc::props::{LineSpacing, TabAlign, TabLeader, TabStop};
+use wordcraft_doc::styles::{Style, StyleKind};
+use wordcraft_doc::{CharProps, InlineObject, ParaProps, PartKind, Pos, StoryRef};
+use wordcraft_engine::{Selection, Session};
 
 use crate::fields::{self, ZField};
 use crate::rich;
@@ -274,7 +274,7 @@ impl Bridge {
                 Self::end_edit(s);
                 Ok(Value::Null)
             }
-            // Zotero's field kinds are one kind in Strix; only the note type matters: a
+            // Zotero's field kinds are one kind in WordCraft; only the note type matters: a
             // citation moves between the text, footnotes and endnotes (switching styles).
             "Document_convert" => {
                 let Value::Array(ids) = arg(c, 1)? else { return Err("field ids must be an array".into()) };
@@ -531,7 +531,7 @@ impl Bridge {
             let text = s.doc.copy_range(&a, &b);
             let mut text = text;
             for blk in &mut text.blocks {
-                if let strix_doc::Block::Para(p) = blk {
+                if let wordcraft_doc::Block::Para(p) = blk {
                     let n = p.len();
                     let _ = p.format(0, n, &|c| c.link = None);
                 }

@@ -3,7 +3,7 @@
 //! Strix objects (`tests/strix_objects.rs`); the rest are imported (Open) or exported (Save As).
 
 use serde_json::json;
-use strix_doc::StoryRef;
+use wordcraft_doc::StoryRef;
 
 use crate::{CmdError, Session, io};
 
@@ -15,7 +15,7 @@ fn scratch(name: &str) -> std::path::PathBuf {
 }
 
 fn session(text: &str) -> Session {
-    Session::new(strix_doc::Document::from_text(text))
+    Session::new(wordcraft_doc::Document::from_text(text))
 }
 
 fn body(s: &Session) -> String {
@@ -53,8 +53,8 @@ fn native_names_and_constants() {
     assert_eq!(io::native_path(p("/d/old.doc")), p("/d/old.xmath"));
     assert_eq!(io::native_path(p("/d/notes")), p("/d/notes.xmath"));
     assert_eq!(io::native_path(p("/d/kept.xmathm")), p("/d/kept.xmathm"));
-    assert_eq!(strix_docx::Flavor::from_ext("xmath"), Some(strix_docx::Flavor::Document));
-    assert_eq!(strix_docx::Flavor::from_ext("XMATHM"), Some(strix_docx::Flavor::Template));
+    assert_eq!(wordcraft_docx::Flavor::from_ext("xmath"), Some(wordcraft_docx::Flavor::Document));
+    assert_eq!(wordcraft_docx::Flavor::from_ext("XMATHM"), Some(wordcraft_docx::Flavor::Template));
     assert!(io::can_encrypt("a.xmath") && io::can_encrypt("b.xmathm") && io::can_encrypt("c.docx") && !io::can_encrypt("d.odt"));
     // Strix's own formats first, then the other editable formats, then the static exports.
     assert_eq!(&io::SAVE_EXTS[2..10], io::FOREIGN_SAVE_EXTS);
@@ -67,14 +67,14 @@ fn native_names_and_constants() {
 #[test]
 fn xmath_and_xmathm_round_trip_as_ooxml_packages() {
     let s = session("Strix native\nSecond paragraph");
-    for (name, flavor) in [("a.xmath", strix_docx::Flavor::Document), ("a.xmathm", strix_docx::Flavor::Template)] {
+    for (name, flavor) in [("a.xmath", wordcraft_docx::Flavor::Document), ("a.xmathm", wordcraft_docx::Flavor::Template)] {
         let bytes = io::save_bytes(name, &s.doc).unwrap();
         assert!(bytes.starts_with(b"PK\x03\x04"), "{name} is a zip package");
         assert_eq!(main_content_type(&bytes), flavor.main_content_type(), "{name}");
         let back = io::open_bytes(name, &bytes).unwrap();
         assert_eq!(back.plain_text(StoryRef::Body), body(&s), "{name}");
         // Renamed to Word's extension, the same bytes open as Word's format.
-        let word = if flavor == strix_docx::Flavor::Template { "a.dotx" } else { "a.docx" };
+        let word = if flavor == wordcraft_docx::Flavor::Template { "a.dotx" } else { "a.docx" };
         assert_eq!(io::open_bytes(word, &bytes).unwrap().plain_text(StoryRef::Body), body(&s));
     }
     assert_eq!(main_content_type(&io::save_bytes("t.xmathm", &s.doc).unwrap()), main_content_type(&io::save_bytes("t.dotx", &s.doc).unwrap()));
@@ -90,7 +90,7 @@ fn xmath_is_sniffed_like_a_word_package() {
     let s = session("Secret");
     let plain = io::save_bytes("x.xmath", &s.doc).unwrap();
     let locked = io::save_bytes_with("x.xmath", &s.doc, Some("pw"), &io::ExportOptions::default()).unwrap();
-    assert!(strix_docx::is_encrypted(&locked) && !strix_docx::is_encrypted(&plain));
+    assert!(wordcraft_docx::is_encrypted(&locked) && !wordcraft_docx::is_encrypted(&plain));
     assert!(io::needs_password(&io::open_bytes("x.xmath", &locked).unwrap_err()));
     let (doc, encrypted) = io::open_bytes_with("x.xmathm", &locked, Some("pw")).unwrap();
     assert!(encrypted && doc.plain_text(StoryRef::Body).contains("Secret"));
@@ -152,7 +152,7 @@ fn save_as_without_an_extension_writes_xmath() {
     }
     let template = dir.join("Memo.xmathm");
     s.run("file.saveAs", &json!({"path": template.to_string_lossy()})).unwrap();
-    assert_eq!(main_content_type(&std::fs::read(&template).unwrap()), strix_docx::Flavor::Template.main_content_type());
+    assert_eq!(main_content_type(&std::fs::read(&template).unwrap()), wordcraft_docx::Flavor::Template.main_content_type());
     let r = s.run("file.saveTemplate", &json!({"path": dir.join("Letter").to_string_lossy()})).unwrap();
     assert_eq!(r["path"], json!(dir.join("Letter.xmathm").to_string_lossy()));
     let listed = crate::cmd::user_templates::list_templates(&dir.to_string_lossy()).unwrap();

@@ -1,7 +1,7 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Run direction for mixed right-to-left and left-to-right text (#1543).
 //!
-//! Strix lays a paragraph out with the Unicode Bidirectional Algorithm (UAX #9) from its
+//! WordCraft lays a paragraph out with the Unicode Bidirectional Algorithm (UAX #9) from its
 //! text and direction alone, so a run need not say its direction. Word orders a run's characters
 //! by the run's `w:rtl` (ECMA-376 Part 1 §17.3.2.30): text in a run without it is laid out left
 //! to right, so Hebrew words on either side of a Latin name, and the punctuation between them,
@@ -17,8 +17,8 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use strix_doc::props::CharProps;
-use strix_doc::styles::StyleSheet;
+use wordcraft_doc::props::CharProps;
+use wordcraft_doc::styles::StyleSheet;
 
 /// The language Word expects for right-to-left text of `c`'s script, for the scripts that have
 /// one usual language.
@@ -73,7 +73,7 @@ pub(super) fn direction_spans<'a>(
     runs: impl Iterator<Item = (Range<usize>, &'a CharProps)>,
     inherits_lang: impl Fn(&CharProps) -> bool,
 ) -> Vec<(Range<usize>, Cow<'a, CharProps>)> {
-    if !strix_doc::bidi::has_rtl(text) {
+    if !wordcraft_doc::bidi::has_rtl(text) {
         return runs.map(|(r, p)| (r, Cow::Borrowed(p))).collect();
     }
     let level = if rtl_para { unicode_bidi::Level::rtl() } else { unicode_bidi::Level::ltr() };

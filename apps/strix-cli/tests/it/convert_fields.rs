@@ -1,8 +1,8 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Explicit field refresh for headless conversions; ordinary conversion keeps cached results.
 use std::process::Command;
-use strix_doc::para::InlineObject;
-use strix_doc::{Document, Path, Pos, StoryRef};
+use wordcraft_doc::para::InlineObject;
+use wordcraft_doc::{Document, Path, Pos, StoryRef};
 
 #[test]
 fn convert_refresh_is_opt_in() {
@@ -33,7 +33,7 @@ fn convert_refresh_is_opt_in() {
         }
         let run = cmd.output().unwrap();
         assert!(run.status.success(), "{}", String::from_utf8_lossy(&run.stderr));
-        let out: Document = strix_engine::io::open_path(&output).unwrap();
+        let out: Document = wordcraft_engine::io::open_path(&output).unwrap();
         let results: Vec<_> = out
             .para(StoryRef::Body, &Path::top(0))
             .unwrap()

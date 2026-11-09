@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Layout, Review and Mailings dialogs (#407): Line Numbers (Layout › Line Numbers › Line
 //! Numbering Options…), Hyphenation (Hyphenation Options… and Manual…), Language (Review ›
 //! Language), Envelopes and Labels (Mailings › Create), Formula (Table Layout › Data, #1201)
@@ -15,9 +14,9 @@ use egui::{Ui, vec2};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use strix_doc::section::LineNumberRestart;
-use strix_engine::cmd::mailings::{ENVELOPE_SIZES, LABEL_PRODUCTS};
-use strix_engine::cmd::objects::fit_size;
+use wordcraft_doc::section::LineNumberRestart;
+use wordcraft_engine::cmd::mailings::{ENVELOPE_SIZES, LABEL_PRODUCTS};
+use wordcraft_engine::cmd::objects::fit_size;
 
 use crate::WordApp;
 use crate::options::MeasureExt;
@@ -174,7 +173,7 @@ fn run(app: &mut WordApp, id: &str, params: Value) -> bool {
     }
 }
 
-fn unit() -> strix_geom::Unit {
+fn unit() -> wordcraft_geom::Unit {
     crate::options::unit()
 }
 

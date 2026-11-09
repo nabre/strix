@@ -13,7 +13,7 @@ version_schema: semver
 release: 1
 section: graphics
 priority: optional
-maintainer: ${STRIX_MAINTAINER}
+maintainer: ${WORDCRAFT_MAINTAINER}
 vendor: The Strix contributors
 homepage: https://github.com/nabre/strix
 license: MIT OR Apache-2.0

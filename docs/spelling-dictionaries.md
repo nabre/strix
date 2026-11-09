@@ -99,7 +99,7 @@ The first folder holding a matching pair wins:
 1. The folder set in **File › Options › Proofing › Dictionaries folder**. This is the easiest
    way on every system, and it works for an app started from the Start menu, Finder or the Dock.
    The same pane lists the dictionary file each language found.
-2. The folder in the `STRIX_DICTIONARIES` environment variable.
+2. The folder in the `WORDCRAFT_DICTIONARIES` environment variable.
 3. The folder Strix downloads dictionaries to (above).
 4. The system's usual places:
 
@@ -176,7 +176,7 @@ from the LibreOffice repository (for example `it_IT/it_IT.aff`; the Spanish ones
   ```
 
   The `review.issues` line lists `impramir` as a spelling issue with its suggestions.
-- The log file (`%APPDATA%\Strix\logs\strix.log` on Windows) says
+- The log file (`%APPDATA%\Strix\logs\wordcraft.log` on Windows) says
   `Portuguese spelling: no Hunspell pt_BR dictionary installed` when none was found.
 
 Never commit dictionary files to this repository: they stay on the user's system.

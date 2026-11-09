@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::common::{LEADERS, choice, heading, leader_char, sample};
 use super::shell::{Next, go};
 use super::{FieldCode, RefsDialog, Serialize, Ui, Value, WordApp, buttons, json, vec2};
@@ -21,7 +20,7 @@ pub struct IndexForm {
 /// The first field in the body whose name is `name`.
 pub(super) fn body_field(app: &WordApp, name: &str) -> Option<FieldCode> {
     app.session.doc.body.iter().filter_map(|b| b.as_para()).flat_map(|p| p.objects.iter()).find_map(|o| match o {
-        strix_doc::InlineObject::Field { instr, .. } => {
+        wordcraft_doc::InlineObject::Field { instr, .. } => {
             Some(FieldCode::parse(instr)).filter(|f| f.name == name && (name != "TOC" || !f.is_table_of_figures()))
         }
         _ => None,

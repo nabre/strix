@@ -3,7 +3,7 @@
 //! nothing. Static exports stay allowed.
 
 use serde_json::{Value, json};
-use strix_mcp::{Headless, Server};
+use wordcraft_mcp::{Headless, Server};
 
 /// `tools/call` -> (isError, the first text block).
 fn call(server: &mut Server, name: &str, args: Value) -> (bool, String) {
@@ -16,7 +16,7 @@ fn call(server: &mut Server, name: &str, args: Value) -> (bool, String) {
 
 #[test]
 fn save_document_refuses_lossy_formats_for_strix_objects() {
-    let dir = std::env::temp_dir().join(format!("strix-mcp-objects-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("wordcraft-mcp-objects-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let path = |name: &str| dir.join(name).to_string_lossy().into_owned();

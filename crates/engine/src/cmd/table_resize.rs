@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Resizing a table with the mouse, like Word: drag a border between columns (or the table's
 //! left or right edge), a row's bottom border, or the small handle just outside the table's
 //! bottom-right corner to scale the whole table. With cells selected, a border of theirs moves
@@ -8,11 +7,11 @@
 //! so every drag is one undo step.
 
 use serde_json::Value;
-use strix_doc::props::{Align, HeightRule, VMerge};
-use strix_doc::table::MAX_COLS;
-use strix_doc::{Cell, Document, Path, StoryRef, Table};
-use strix_geom::Rect;
-use strix_layout::{DocLayout, Placed};
+use wordcraft_doc::props::{Align, HeightRule, VMerge};
+use wordcraft_doc::table::MAX_COLS;
+use wordcraft_doc::{Cell, Document, Path, StoryRef, Table};
+use wordcraft_geom::Rect;
+use wordcraft_layout::{DocLayout, Placed};
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
@@ -344,14 +343,14 @@ pub(crate) fn cell_boxes(l: &DocLayout, page: usize) -> Vec<CellBox> {
 /// The drawn geometry of one table on a page, from its cells' boxes.
 fn geometry(t: &Table, boxes: &[&CellBox]) -> Option<(Vec<f32>, Vec<DrawnRow>)> {
     let n = t.cols();
-    if n == 0 || n > strix_doc::table::MAX_COLS || boxes.is_empty() {
+    if n == 0 || n > wordcraft_doc::table::MAX_COLS || boxes.is_empty() {
         return None;
     }
     let mut lines: Vec<Option<f32>> = vec![None; n + 1];
     let mut rows: Vec<DrawnRow> = Vec::new();
     for b in boxes {
         let g = t.grid_col(b.row, b.cell);
-        let span = t.rows.get(b.row).and_then(|r| r.cells.get(b.cell)).map_or(1, strix_doc::Cell::span);
+        let span = t.rows.get(b.row).and_then(|r| r.cells.get(b.cell)).map_or(1, wordcraft_doc::Cell::span);
         let end = g.saturating_add(span).min(n);
         if let Some(x) = lines.get_mut(g) {
             x.get_or_insert(b.rect.x);

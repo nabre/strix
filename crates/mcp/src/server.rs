@@ -29,8 +29,8 @@ list_documents gives their ids, and `doc` on execute, batch and the other docume
 without switching.";
 
 /// Resource URIs.
-pub const DOC_URI: &str = "strix://document";
-pub const COMMANDS_URI: &str = "strix://commands";
+pub const DOC_URI: &str = "wordcraft://document";
+pub const COMMANDS_URI: &str = "wordcraft://commands";
 
 /// Longest request line accepted on stdin.
 pub const MAX_REQUEST_LINE: usize = 1 << 20;

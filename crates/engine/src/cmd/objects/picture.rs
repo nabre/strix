@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::select::{obj_size, selected, with_obj};
 use super::{CmdError, CmdResult, InlineObject, Rgb, Session, Value, Wrap, p};
 
@@ -54,10 +53,10 @@ pub struct OriginalSize {
 pub fn original_size(s: &Session, media: &str) -> Option<OriginalSize> {
     let key = s.originals.get(media).map_or(media, String::as_str);
     let bytes = s.doc.media.get(key).or_else(|| s.doc.media.get(media))?;
-    if let Some((pw, ph)) = strix_render::image_size(bytes) {
+    if let Some((pw, ph)) = wordcraft_render::image_size(bytes) {
         return Some(OriginalSize { w: pw as f32 * 0.75, h: ph as f32 * 0.75, pixels: Some((pw, ph)) });
     }
-    let (w, h, _) = strix_render::metafile_size(bytes)?;
+    let (w, h, _) = wordcraft_render::metafile_size(bytes)?;
     Some(OriginalSize { w, h, pixels: None })
 }
 
@@ -158,8 +157,8 @@ pub(super) fn adjust(s: &mut Session, f: impl Fn(image::DynamicImage) -> Result<
 pub(super) fn adjust_media(s: &mut Session, base: &str, f: impl Fn(image::DynamicImage) -> Result<image::DynamicImage, CmdError>) -> CmdResult {
     let bytes = s.doc.media.get(base).cloned().ok_or_else(|| CmdError::Failed("picture data missing".into()))?;
     // Within the budget pictures are drawn within, checked from the header first (#3644, #3647).
-    let img = strix_geom::picture::decode(&bytes, strix_geom::MAX_DECODED_BYTES).map_err(|e| match e {
-        strix_geom::picture::Refusal::TooLarge { .. } => too_large(),
+    let img = wordcraft_geom::picture::decode(&bytes, wordcraft_geom::MAX_DECODED_BYTES).map_err(|e| match e {
+        wordcraft_geom::picture::Refusal::TooLarge { .. } => too_large(),
         e => CmdError::Failed(format!("can't decode the picture: {e}")),
     })?;
     let out = f(img)?;
@@ -193,7 +192,7 @@ fn too_large() -> CmdError {
 /// A `w` × `h` bitmap of `fill` for an edit to draw on, refused when the picture it makes would be
 /// too large to draw (two RGBA buffers within the decode budget), before it is allocated (#3611).
 fn canvas(w: u32, h: u32, fill: [u8; 4]) -> Result<image::RgbaImage, CmdError> {
-    if !strix_geom::decode_fits(w, h, strix_geom::MAX_DECODED_BYTES) {
+    if !wordcraft_geom::decode_fits(w, h, wordcraft_geom::MAX_DECODED_BYTES) {
         return Err(too_large());
     }
     Ok(image::RgbaImage::from_pixel(w, h, image::Rgba(fill)))

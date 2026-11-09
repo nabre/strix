@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::typing::{INITIAL_CAPS_EXCEPTIONS, NOT_SENTENCE_END};
 use super::{CmdError, CmdResult, Deserialize, Pos, Serialize, Session, Value, json, p};
 
@@ -275,8 +274,8 @@ fn plain_word(w: &str) -> bool {
 pub struct AutoCap {
     /// Undo steps pushed (ever) right after the change (`u64::MAX` until the caller has pushed its step).
     pub(crate) depth: u64,
-    pub(super) story: strix_doc::StoryRef,
-    pub(super) path: strix_doc::Path,
+    pub(super) story: wordcraft_doc::StoryRef,
+    pub(super) path: wordcraft_doc::Path,
     /// Byte offset of the word in its paragraph.
     pub(super) start: usize,
     /// The token before a sentence capital's word, lowercase ("there."); empty when none or when

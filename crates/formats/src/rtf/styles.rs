@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::export::HEAD_SIZES;
 use super::state::St;
 use super::{Fmt, Kind, ListInfo, Para, Reader, model};
@@ -38,8 +37,8 @@ impl Reader {
 
     /// The formatting a paragraph of kind `kind` in style `id` gives its runs. A style whose
     /// entry and `\sbasedon` chain set no character formatting (a bare `{\s2 heading 2;}`) has
-    /// Strix's own (`style_fmt`); otherwise what the chain doesn't set is RTF's default (not
-    /// bold, not italic, 12 pt). The font alone falls back per property: Strix writes the code
+    /// WordCraft's own (`style_fmt`); otherwise what the chain doesn't set is RTF's default (not
+    /// bold, not italic, 12 pt). The font alone falls back per property: WordCraft writes the code
     /// font on each code paragraph, not in its Code entry.
     pub(super) fn style_base(&self, kind: Kind, id: i32) -> Fmt {
         let mut f = style_fmt(kind);
@@ -248,7 +247,7 @@ pub(super) fn is_char_format_word(w: &str) -> bool {
 
 /// The spacing and indents in points of the paragraph formatting `st`.
 fn spacing(st: &St) -> model::Spacing {
-    use strix_doc::props::LineSpacing;
+    use wordcraft_doc::props::LineSpacing;
     let pt = |v: i32| (v as f32 / 20.0).clamp(-1584.0, 1584.0);
     let gap = |v: Option<i32>| v.map(|v| pt(v).max(0.0));
     let sl = st.sl;

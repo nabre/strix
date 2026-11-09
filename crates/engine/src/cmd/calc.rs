@@ -10,9 +10,9 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use strix_calc::{Count, Layout, Options, RegionKind, RegionResult, TableResult, Worksheet};
-use strix_doc::math::{Math, parse_linear, to_linear};
-use strix_doc::props::{Rgb, TextColor};
-use strix_doc::{Block, InlineObject, Paragraph, Table};
+use wordcraft_doc::math::{Math, parse_linear, to_linear};
+use wordcraft_doc::props::{Rgb, TextColor};
+use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
@@ -169,10 +169,10 @@ fn equation_text(linear: &str, math: &Math) -> String {
     // the statement is the first, the result the last (read for the unit it is in). Only arrays
     // Strix made are read so: an array the user wrote is the statement as a whole.
     if math.stepped
-        && let [strix_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
+        && let [wordcraft_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
         && let Some(first) = rows.first()
     {
-        let row = |r: &[strix_doc::math::MNode]| to_linear(&without_notes(r)).replace('&', "").trim().to_string();
+        let row = |r: &[wordcraft_doc::math::MNode]| to_linear(&without_notes(r)).replace('&', "").trim().to_string();
         let first = row(first);
         return match rows.get(1..).and_then(<[_]>::last).map(|r| row(r)) {
             // `= 30.375 kN·m` under a formula: its result, as if after it on its line.
@@ -192,17 +192,17 @@ fn equation_text(linear: &str, math: &Math) -> String {
 }
 
 /// `row` without the notes Strix wrote into it (normal text: "(numerical solution)").
-fn without_notes(row: &[strix_doc::math::MNode]) -> Vec<strix_doc::math::MNode> {
-    row.iter().filter(|n| !matches!(n, strix_doc::math::MNode::Run(r) if r.nor)).cloned().collect()
+fn without_notes(row: &[wordcraft_doc::math::MNode]) -> Vec<wordcraft_doc::math::MNode> {
+    row.iter().filter(|n| !matches!(n, wordcraft_doc::math::MNode::Run(r) if r.nor)).cloned().collect()
 }
 
 /// The equation for `text` (built up from its linear format), with `note` after its result in
 /// normal text.
-fn shown_nodes(text: &str, note: Option<&str>) -> strix_doc::math::Arg {
-    use strix_doc::math::{MNode, MRun, MSty};
+fn shown_nodes(text: &str, note: Option<&str>) -> wordcraft_doc::math::Arg {
+    use wordcraft_doc::math::{MNode, MRun, MSty};
     let mut nodes = parse_linear(text);
     // A check's mark stands apart from the unit before it (the linear format drops the space).
-    let spaced = |row: &mut strix_doc::math::Arg| {
+    let spaced = |row: &mut wordcraft_doc::math::Arg| {
         for n in row.iter_mut() {
             if let MNode::Run(r) = n
                 && r.text.contains(['✓', '✗'])
@@ -279,7 +279,7 @@ enum Item {
     /// cells are named when it is a data table.
     /// `index`: its first column is the ordinal column, written here and never read. `total`:
     /// its last row is the totals row (Table Design › Total Row).
-    Table { top: usize, cells: Vec<Vec<String>>, names: Option<strix_doc::props::CellNames>, math: bool, index: bool, total: bool },
+    Table { top: usize, cells: Vec<Vec<String>>, names: Option<wordcraft_doc::props::CellNames>, math: bool, index: bool, total: bool },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
 }
@@ -297,7 +297,7 @@ fn cell_text(blocks: &[Arc<Block>]) -> String {
 /// The linear text of a paragraph that is one equation and nothing else.
 fn cell_equation(p: &Paragraph) -> Option<String> {
     match p.objects.as_slice() {
-        [InlineObject::Equation { linear, math, .. }] if p.text.trim() == strix_doc::para::OBJ.to_string() => {
+        [InlineObject::Equation { linear, math, .. }] if p.text.trim() == wordcraft_doc::para::OBJ.to_string() => {
             Some(if math.nodes.is_empty() { linear.clone() } else { to_linear(&math.nodes) }.trim().to_string())
         }
         _ => None,
@@ -351,7 +351,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                         return;
                     }
                     if let InlineObject::Graphic { graphic, .. } = o
-                        && graphic.kind == strix_doc::graphic::GraphicKind::Cad
+                        && graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad
                     {
                         out.push(Item::Cad { top, source: graphic.cad.clone().unwrap_or_else(|| Arc::from("")) });
                         continue;
@@ -488,8 +488,8 @@ fn run_sheet(
                     let mut result = ws.eval_table_named(
                         read,
                         names.map(|n| match n {
-                            strix_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
-                            strix_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
+                            wordcraft_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
+                            wordcraft_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
                         }),
                     );
                     if *index {
@@ -812,7 +812,7 @@ thread_local! {
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.
 /// A redrawn drawing: its size, items, the rendering they came from and the Unit colour.
 /// With a fitted scale, the source with the scale it was drawn at (so it shows and saves it).
-type Redrawn = (f32, f32, Vec<strix_doc::graphic::GraphicItem>, strix_cad::Rendered, Rgb, Option<String>);
+type Redrawn = (f32, f32, Vec<wordcraft_doc::graphic::GraphicItem>, strix_cad::Rendered, Rgb, Option<String>);
 
 fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
     if cads.is_empty() {
@@ -825,7 +825,7 @@ fn redraw(s: &mut Session, cads: &[Option<Redrawn>]) -> usize {
             let mut touched = false;
             for o in &mut p.objects {
                 let InlineObject::Graphic { w, h, graphic, .. } = o else { continue };
-                if graphic.kind != strix_doc::graphic::GraphicKind::Cad {
+                if graphic.kind != wordcraft_doc::graphic::GraphicKind::Cad {
                     continue;
                 }
                 // The JSON is the drawing; its SVG picture is made again only when what it shows
@@ -950,11 +950,11 @@ pub(crate) fn unit_color_of(s: &Session) -> Rgb {
 
 pub(crate) fn unit_color(s: &mut Session) -> Rgb {
     if s.doc.styles.get(UNIT_STYLE).is_none() {
-        s.doc.styles.styles.push(strix_doc::styles::Style {
+        s.doc.styles.styles.push(wordcraft_doc::styles::Style {
             id: UNIT_STYLE.into(),
             name: "Unit".into(),
-            kind: strix_doc::styles::StyleKind::Character,
-            chr: strix_doc::props::CharProps { color: Some(TextColor::Rgb(UNIT_COLOR)), ..Default::default() },
+            kind: wordcraft_doc::styles::StyleKind::Character,
+            chr: wordcraft_doc::props::CharProps { color: Some(TextColor::Rgb(UNIT_COLOR)), ..Default::default() },
             priority: Some(30),
             quick: true,
             ..Default::default()
@@ -969,9 +969,9 @@ pub(crate) fn unit_color(s: &mut Session) -> Rgb {
 /// Styles the units of each row with that row's units, part by part: a name that is a unit in
 /// the result (`m` in `25 m/s²`) stays a parameter in the formula (`m` in `F = m·a`), on a line
 /// of its own or on the statement's line (`F = m·a ⇒ a = 25 m/s²`).
-fn style_rows(nodes: &mut strix_doc::math::Arg, rows: &[Parts], color: Rgb) {
-    use strix_doc::math::MNode;
-    let style = |row: &mut strix_doc::math::Arg, parts: Option<&Parts>, depth: usize| {
+fn style_rows(nodes: &mut wordcraft_doc::math::Arg, rows: &[Parts], color: Rgb) {
+    use wordcraft_doc::math::MNode;
+    let style = |row: &mut wordcraft_doc::math::Arg, parts: Option<&Parts>, depth: usize| {
         let parts = parts.map(Vec::as_slice).unwrap_or_default();
         // The parts are told apart by the separators at the row's top level; when they don't
         // match what was read (an `=` the text has in a bracket), all the row's units count.
@@ -1022,8 +1022,8 @@ fn is_superscript(c: char) -> bool {
 
 /// Whether `arg` (a fraction's part) is units alone: words that are all units of the row, joined
 /// by `·` or spaces (`kN`, `kN·m`, `s²`).
-fn unit_arg(arg: &strix_doc::math::Arg, units: &[String]) -> bool {
-    use strix_doc::math::MNode;
+fn unit_arg(arg: &wordcraft_doc::math::Arg, units: &[String]) -> bool {
+    use wordcraft_doc::math::MNode;
     !arg.is_empty()
         && arg.iter().all(|n| match n {
             MNode::Run(r) if !r.nor => {
@@ -1042,15 +1042,15 @@ fn unit_arg(arg: &strix_doc::math::Arg, units: &[String]) -> bool {
 
 /// Splits the math runs so each unit is a run of its own, upright in `color`; runs that are no
 /// longer units lose that colour. Other formatting is kept.
-fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
+fn style_units(root: &mut wordcraft_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
     style_parts(root, &[units], color, depth);
 }
 
 /// [`style_units`] with the units of each part of the row (`parts`, see [`Parts`]): the part
 /// moves on at each separator at this level.
-fn style_parts(root: &mut strix_doc::math::Arg, parts: &[&[String]], color: Rgb, depth: usize) {
-    use strix_doc::math::{MNode, MRun, MSty};
-    use strix_doc::math_edit::{child_count, child_mut};
+fn style_parts(root: &mut wordcraft_doc::math::Arg, parts: &[&[String]], color: Rgb, depth: usize) {
+    use wordcraft_doc::math::{MNode, MRun, MSty};
+    use wordcraft_doc::math_edit::{child_count, child_mut};
     if depth > MAX_DEPTH {
         return;
     }
@@ -1084,11 +1084,11 @@ fn style_parts(root: &mut strix_doc::math::Arg, parts: &[&[String]], color: Rgb,
         // A unit with a quotient reads inline, as ISO 80000 writes it (`12 kN/m`, `9.81 m/s²`),
         // not stacked like the formula's fractions; a thin space parts it from its number.
         if let MNode::Frac { kind, num, den } = &mut n
-            && *kind == strix_doc::math::FracKind::Bar
+            && *kind == wordcraft_doc::math::FracKind::Bar
             && unit_arg(num, units)
             && unit_arg(den, units)
         {
-            *kind = strix_doc::math::FracKind::Linear;
+            *kind = wordcraft_doc::math::FracKind::Linear;
             if let Some(MNode::Run(prev)) = out.last_mut()
                 && !prev.nor
                 && prev.text.ends_with(|c: char| c.is_ascii_digit())
@@ -1163,9 +1163,9 @@ fn style_parts(root: &mut strix_doc::math::Arg, parts: &[&[String]], color: Rgb,
 /// into it) get the Unit style at once, as the recalculation would give them. Only that
 /// argument, not the structures in it, so the caret's path stays valid; the caret moves past a
 /// thin space set between a number and its unit. Returns the caret's new offset.
-pub(crate) fn style_units_typing(a: &mut strix_doc::math::Arg, off: usize, opts: &Options, color: Rgb) -> usize {
-    use strix_doc::math::MNode;
-    let flat = |a: &strix_doc::math::Arg| -> Vec<char> {
+pub(crate) fn style_units_typing(a: &mut wordcraft_doc::math::Arg, off: usize, opts: &Options, color: Rgb) -> usize {
+    use wordcraft_doc::math::MNode;
+    let flat = |a: &wordcraft_doc::math::Arg| -> Vec<char> {
         a.iter()
             .flat_map(|n| match n {
                 MNode::Run(r) => r.text.chars().collect::<Vec<_>>(),
@@ -1363,7 +1363,9 @@ fn toggle_table(s: &mut Session, v: &Value) -> CmdResult {
 fn cell_names(s: &mut Session, v: &Value) -> CmdResult {
     let names = match p::str(v, "value") {
         Some("none") => None,
-        Some(word) => Some(strix_doc::props::CellNames::parse(word).ok_or_else(|| CmdError::Params("value: columnRow, rowColumn or none".into()))?),
+        Some(word) => {
+            Some(wordcraft_doc::props::CellNames::parse(word).ok_or_else(|| CmdError::Params("value: columnRow, rowColumn or none".into()))?)
+        }
         None => return Err(CmdError::Params("value: columnRow, rowColumn or none".into())),
     };
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
@@ -1392,10 +1394,10 @@ fn at_first_cell(s: &mut Session, id: &str, rows: i32, cols: i32) -> Result<(), 
     let keep = s.sel.clone();
     let mut at = tp.0.clone();
     at.extend([0, 0, 0]);
-    s.sel = crate::Selection::caret(strix_doc::Pos::new(keep.focus.story, strix_doc::Path(at), 0));
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(keep.focus.story, wordcraft_doc::Path(at), 0));
     let done = s.run(id, &json!({}));
     let depth = tp.0.len();
-    let shift = |mut p: strix_doc::Pos| {
+    let shift = |mut p: wordcraft_doc::Pos| {
         if p.path.0.len() > depth + 1 && p.path.0.get(..depth) == Some(&tp.0[..]) {
             let gone = cols < 0 && p.path.0.get(depth + 1) == Some(&0);
             for (k, by) in [(depth, rows), (depth + 1, cols)] {
@@ -1491,7 +1493,14 @@ fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// Sets the text of cell (`row`, `col`) of the table at `tp`: its first paragraph, its look kept.
-fn write_cell_text(s: &mut Session, story: strix_doc::StoryRef, tp: &strix_doc::Path, row: usize, col: usize, text: &str) -> Result<(), CmdError> {
+fn write_cell_text(
+    s: &mut Session,
+    story: wordcraft_doc::StoryRef,
+    tp: &wordcraft_doc::Path,
+    row: usize,
+    col: usize,
+    text: &str,
+) -> Result<(), CmdError> {
     let t = s.doc.table_mut(story, tp)?;
     let cell = t.rows.get_mut(row).and_then(|r| r.cells.get_mut(col)).ok_or_else(|| CmdError::Failed("no such cell".into()))?;
     let first = cell.blocks.first_mut().ok_or_else(|| CmdError::Failed("an empty cell".into()))?;
@@ -1554,7 +1563,7 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strix_doc::Document;
+    use wordcraft_doc::Document;
 
     fn session() -> Session {
         let mut s = Session::new(Document::new());
@@ -1584,10 +1593,10 @@ mod tests {
             let has_eq = |b: &&Arc<Block>| matches!(&***b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { .. })));
             s.doc.body.iter().find(has_eq).cloned().unwrap()
         };
-        let mut t = strix_doc::Table::new(1, 1, 100.0);
+        let mut t = wordcraft_doc::Table::new(1, 1, 100.0);
         t.rows[0].cells[0].blocks = vec![eq("d := 7 m")];
         for _ in 0..19 {
-            let mut outer = strix_doc::Table::new(1, 1, 100.0);
+            let mut outer = wordcraft_doc::Table::new(1, 1, 100.0);
             outer.rows[0].cells[0].blocks = vec![Arc::new(Block::Table(t))];
             t = outer;
         }
@@ -1637,7 +1646,7 @@ mod tests {
         add(&mut s, "a*3 =");
         assert_eq!(texts(&s)[1], "a*3=(2m)·3=6m");
         // Edit the definition through the equation command, then recalculate (F9 does it too).
-        s.sel = crate::Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         s.run("equation.set", &json!({"linear": "a := 5 m"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
         let r = s.run("references.updateFields", &json!({})).unwrap();
@@ -1679,7 +1688,7 @@ mod tests {
         s.run("text.insert", &json!({"text": " "})).unwrap();
         add(&mut s, "x*2 =");
         assert_eq!(texts(&s), ["x*2=⚠"], "x isn't defined: its equation isn't calculated");
-        s.sel = crate::Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         let r = s.run("equation.calc", &json!({})).unwrap();
         assert_eq!(r["calc"], true);
         // With steps (on by default) the value substituted.
@@ -1743,11 +1752,11 @@ mod tests {
                 // The stepped equation's own object marker (others may share the paragraph).
                 Block::Para(p) => p
                     .text
-                    .match_indices(strix_doc::para::OBJ)
+                    .match_indices(wordcraft_doc::para::OBJ)
                     .map(|(off, _)| off)
                     .zip(&p.objects)
                     .find(|(_, o)| matches!(o, InlineObject::Equation { math, .. } if math.stepped))
-                    .map(|(off, _)| strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![i as u32]), off)),
+                    .map(|(off, _)| wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![i as u32]), off)),
                 _ => None,
             })
             .next()
@@ -1799,7 +1808,7 @@ mod tests {
         s.run("calc.recalculate", &json!({})).unwrap();
         assert_eq!(full(&s), first);
         // New data: worked anew.
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0]), 0));
         s.run("equation.set", &json!({"linear": "5 m·40 cm = 5 m·0.3 m = 1.5 m²"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
         let changed = full(&s);
@@ -1847,7 +1856,7 @@ mod tests {
         let Block::Table(t) = Arc::make_mut(block) else { return };
         for (row, texts) in t.rows.iter_mut().zip(cells) {
             for (cell, text) in row.cells.iter_mut().zip(texts.iter()) {
-                cell.blocks = vec![strix_doc::para_block(Paragraph::with_text(text, Default::default()))];
+                cell.blocks = vec![wordcraft_doc::para_block(Paragraph::with_text(text, Default::default()))];
             }
         }
     }
@@ -1864,7 +1873,7 @@ mod tests {
     fn a_calculated_table_has_a_header_row() {
         let mut s = session();
         with_table(&mut s, &[&["4", "12"], &["6", "10"]]);
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
         s.run("table.calc", &json!({"value": true})).unwrap();
         assert_eq!(grid(&s), vec![vec!["", ""], vec!["4", "12"], vec!["6", "10"]]);
         let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
@@ -1885,7 +1894,7 @@ mod tests {
     fn ordinal_column_and_total_row() {
         let mut s = session();
         with_table(&mut s, &[&["Beam", "L [m]", "M [m^2] = L^2"], &["B1", "2", ""], &["", "", ""], &["B2", "3", ""], &["", "", ""]]);
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 3, 1, 0]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 3, 1, 0]), 0));
         let r = s.run("table.calcIndex", &json!({})).unwrap();
         assert_eq!(r["index"], true);
         let g = grid(&s);
@@ -1926,11 +1935,15 @@ mod tests {
             s.run("calc.tableInfo", &json!({})).unwrap(),
             json!({"calc": true, "names": "columnRow", "math": false, "index": false, "total": false})
         );
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![s.doc.body.len() as u32 - 1]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(
+            wordcraft_doc::StoryRef::Body,
+            wordcraft_doc::Path(vec![s.doc.body.len() as u32 - 1]),
+            0,
+        ));
         add(&mut s, "F_B·a_A =");
         assert_eq!(texts(&s).last().map(String::as_str), Some("F_B·a_A=(12kN)·(2m)=24kN·m"), "12 kN × 2 m: a moment");
         // The other way round, then saved and opened again.
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
         s.run("table.calcNames", &json!({"value": "rowColumn"})).unwrap();
         let vars = s.run("calc.variables", &json!({})).unwrap();
         let names: Vec<&str> = vars["variables"].as_array().unwrap().iter().filter_map(|v| v["name"].as_str()).collect();
@@ -1938,7 +1951,7 @@ mod tests {
         let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
         let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
         let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.calc_names) } else { None });
-        assert_eq!(t, Some(Some(strix_doc::props::CellNames::RowColumn)));
+        assert_eq!(t, Some(Some(wordcraft_doc::props::CellNames::RowColumn)));
         assert!(s.run("table.calcNames", &json!({"value": "diagonal"})).is_err());
     }
 
@@ -1949,7 +1962,7 @@ mod tests {
     fn table_cells_shown_as_equations() {
         let mut s = session();
         with_table(&mut s, &[&["", "F_k [kN]", "M [kN·m] = F_k·2 m"], &["A", "10", ""], &["B", "12 kN", ""]]);
-        s.sel = crate::Selection::caret(strix_doc::Pos::new(strix_doc::StoryRef::Body, strix_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
         let r = s.run("table.mathCells", &json!({"value": true})).unwrap();
         assert_eq!(r["math"], true);
         let table =
@@ -2027,7 +2040,7 @@ mod tests {
         add(&mut s, "a*3 =");
         assert_eq!(texts(&s)[1], "a*3=(2m)·3=6m");
         // Change the definition and leave the equation: no Recalculate needed.
-        s.sel = crate::Selection::caret(strix_doc::Pos { off: 0, ..s.sel.focus.clone() });
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos { off: 0, ..s.sel.focus.clone() });
         s.run("equation.set", &json!({"linear": "a = 5 m"})).unwrap();
         s.run("equation.exit", &json!({})).ok();
         assert_eq!(texts(&s), ["a=5m", "a*3=(5m)·3=15m"]);
@@ -2043,7 +2056,7 @@ mod tests {
         let Some((tp, _, _)) = s.sel.focus.path.cell() else { panic!("in the table") };
         let mut cell = tp.clone();
         cell.0.extend([1, 0, 0]);
-        s.sel = crate::Selection::caret(strix_doc::Pos { story: s.sel.focus.story, path: cell, off: 1 });
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos { story: s.sel.focus.story, path: cell, off: 1 });
         s.run("text.insert", &json!({"text": "0"})).unwrap();
         assert_eq!(table_texts(&s)[1][0], "20");
         assert_eq!(table_texts(&s)[1][1], "4", "not while typing in the table");
@@ -2072,7 +2085,7 @@ mod tests {
                     if let InlineObject::Equation { math, .. } = o {
                         if k == n {
                             let mut nodes = math.nodes.clone();
-                            strix_doc::math_edit::each_run_mut(&mut nodes, &mut |r| out.push((r.text.clone(), r.color.is_some())));
+                            wordcraft_doc::math_edit::each_run_mut(&mut nodes, &mut |r| out.push((r.text.clone(), r.color.is_some())));
                         }
                         k += 1;
                     }
@@ -2113,7 +2126,7 @@ mod tests {
             for o in &p.objects {
                 if let InlineObject::Equation { math, .. } = o {
                     let mut nodes = math.nodes.clone();
-                    strix_doc::math_edit::each_run_mut(&mut nodes, &mut |r| colors.extend(r.color));
+                    wordcraft_doc::math_edit::each_run_mut(&mut nodes, &mut |r| colors.extend(r.color));
                 }
             }
         }
@@ -2203,8 +2216,8 @@ mod tests {
             for k in [2, 5, 6] {
                 let m = &all[k];
                 match layout {
-                    "inline" => assert!(!m.stepped && !matches!(m.nodes.as_slice(), [strix_doc::math::MNode::EqArr { .. }]), "{}", lin(m)),
-                    _ => assert!(m.stepped && matches!(m.nodes.as_slice(), [strix_doc::math::MNode::EqArr { .. }]), "{}", lin(m)),
+                    "inline" => assert!(!m.stepped && !matches!(m.nodes.as_slice(), [wordcraft_doc::math::MNode::EqArr { .. }]), "{}", lin(m)),
+                    _ => assert!(m.stepped && matches!(m.nodes.as_slice(), [wordcraft_doc::math::MNode::EqArr { .. }]), "{}", lin(m)),
                 }
             }
             let text = lin(&all[2]);
@@ -2215,7 +2228,7 @@ mod tests {
             // The check's units are units, on either layout.
             let mut coloured = Vec::new();
             let mut nodes = all[6].nodes.clone();
-            strix_doc::math_edit::each_run_mut(&mut nodes, &mut |r| {
+            wordcraft_doc::math_edit::each_run_mut(&mut nodes, &mut |r| {
                 if r.color.is_some() {
                     coloured.push(r.text.clone());
                 }
@@ -2254,7 +2267,7 @@ mod tests {
         }
         let all = maths(&s);
         let rows = |m: &Math| match m.nodes.as_slice() {
-            [strix_doc::math::MNode::EqArr { rows }] => rows.iter().map(|r| to_linear(r).replace(char::is_whitespace, "")).collect::<Vec<_>>(),
+            [wordcraft_doc::math::MNode::EqArr { rows }] => rows.iter().map(|r| to_linear(r).replace(char::is_whitespace, "")).collect::<Vec<_>>(),
             _ => Vec::new(),
         };
         assert_eq!(rows(&all[2]).len(), 4, "{:?}", rows(&all[2]));

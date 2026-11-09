@@ -1,6 +1,6 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28; targeted rename rules since 2026-11-09 (`docs/naming.md`).
+Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`).
 
 Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
 internal names (crates, Rust paths, types, environment variables) and is Strix only where users
@@ -10,8 +10,13 @@ repository, the executables, the user's folders, the product name on screen
 those few rules, so a merge only conflicts where both sides really changed a line.
 
 > **Transition (2026-11-09).** The rules below replace the blind `wordcraft` → `strix` rename.
-> `main` and `vendor/wordcraft` still carry the old names until the reverse rename lands on
-> `main` (phase 3 of `docs/naming.md`); don't run `upstream sync` before that.
+> `main`'s internal names went back to WordCraft's with `cargo xtask upstream unrename
+> UPSTREAM_DIR` (phase 3 of `docs/naming.md`; `UPSTREAM_DIR` is a checkout of upstream
+> `9724f15c`, the commit the old vendor branch was made from). Before the next `upstream sync`,
+> `vendor/wordcraft` is re-created with the new rules: delete it, `sync` `d859c673` and merge it
+> into `main` with `git merge -s ours`, `sync` `9724f15c` and merge that with `-s ours` too
+> (`main` already holds that snapshot, under the new names). From then on `sync` and `git merge`
+> work as below.
 
 ## How it works
 
@@ -87,7 +92,7 @@ Resolving:
 - A file upstream deleted or split that Strix modified (modify/delete): move the Strix change
   into upstream's new file, then `git rm` the old one.
 - New upstream user-visible strings land in the catalogs through craft-i18n; Strix's own strings
-  stay in `locales/*/strix.tsv`.
+  stay in `locales/*/wordcraft.tsv`.
 - Branding that is not a plain rename (README, site, store text, About box) stays Strix's.
 - When upstream splits a file Strix changed (it moved inline test modules and big files into
   submodules in 2026-10), git can't follow the moved code: take upstream's version of the file

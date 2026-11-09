@@ -2,7 +2,7 @@
 //! The built-in file browser (#576): Open, Save As, Export, Insert Picture and recipient lists
 //! when the system's file dialog can't be shown — a Linux desktop with neither a file chooser
 //! portal nor zenity (labwc, sway… with only xdg-desktop-portal-wlr) — or when the user asks for
-//! it (File › Open › Browse in Strix…).
+//! it (File › Open › Browse in WordCraft…).
 //!
 //! A folder path field with Up and Home folder, the folder's subfolders and the files of the
 //! chosen type, a file name field and the file types. It only lists folders the user navigates to
@@ -158,7 +158,7 @@ impl FileBrowser {
                 // and the exports for a document with Strix objects).
                 let ext = Path::new(name).extension().and_then(std::ffi::OsStr::to_str).filter(|e| !e.is_empty());
                 let mut f: Vec<(String, Vec<String>)> = match ext {
-                    Some(e) if !strix_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => {
+                    Some(e) if !wordcraft_engine::io::SAVE_EXTS.contains(&e.to_ascii_lowercase().as_str()) => {
                         vec![(format!("*.{e}"), vec![e.to_string()])]
                     }
                     _ => crate::file_dialogs::save_filters_for(name, native_only.is_some()),
@@ -510,10 +510,10 @@ mod tests {
     use crate::Services;
     use serde_json::json;
     use std::sync::mpsc::channel;
-    use strix_engine::Session;
+    use wordcraft_engine::Session;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("strix-ui-browser-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("wordcraft-ui-browser-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -578,7 +578,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
+        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
         a.run("text.insert", json!({"text": "Saved without a portal"})).unwrap();
         a.save_as_dialog();
         assert!(a.file_dialog_open());
@@ -590,8 +590,8 @@ mod tests {
         a.close_file_browser(Some(path));
         assert!(!a.file_dialog_open());
         assert!(!a.session.dirty);
-        let saved = strix_engine::io::open_path(&dir.join("novel.xmath")).unwrap();
-        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Saved without a portal"));
+        let saved = wordcraft_engine::io::open_path(&dir.join("novel.xmath")).unwrap();
+        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Saved without a portal"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -600,7 +600,7 @@ mod tests {
     #[test]
     fn an_empty_folder_says_there_are_no_items() {
         let dir = scratch("empty_state");
-        let mut a = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
         let mut b =
             FileBrowser::new(FileDialogRequest::Open { purpose: "document".into() }, AfterPick::OpenDocument { document: 0 }, dir.clone(), false);
         b.navigate(dir.clone());

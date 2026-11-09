@@ -1,8 +1,8 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Strix's MCP server (Model Context Protocol, JSON-RPC 2.0 over stdio).
+//! WordCraft's MCP server (Model Context Protocol, JSON-RPC 2.0 over stdio).
 //!
 //! Two backends: [`Headless`] runs an in-process editing session (no window); [`backend::Remote`]
-//! talks to a running Strix app through its control channel (`strix --control PORT`), so
+//! talks to a running WordCraft app through its control channel (`wordcraft --control PORT`), so
 //! agents can also click, type and screenshot the real UI.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -16,8 +16,8 @@ pub use server::Server;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_engine::Session;
-use strix_engine::file_access::{self, AutomationRoots};
+use wordcraft_engine::Session;
+use wordcraft_engine::file_access::{self, AutomationRoots};
 
 /// Methods that need the desktop app.
 pub const NEEDS_APP: &str = "needs the desktop app: start `strix --control 7981` and run `strix-cli mcp --connect 127.0.0.1:7981`";
@@ -76,16 +76,16 @@ fn answer_on(session: &mut Session, method: &str, params: Value) -> Result<Value
         }
         "engine.commands" => Ok(session.registry.describe()),
         "document.inspect" => session.run("document.inspect", &params).map_err(|e| e.to_string()),
-        "ui.parity" => Ok(strix_engine::catalog::parity(&session.registry)),
+        "ui.parity" => Ok(wordcraft_engine::catalog::parity(&session.registry)),
         "ui.render" | "render.page" => {
             let page = params.get("page").and_then(Value::as_u64).unwrap_or(1).max(1);
             let page = usize::try_from(page).unwrap_or(usize::MAX).saturating_sub(1);
             let scale = params.get("scale").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.1, 4.0) as f32;
             let l = session.layout();
             let pg = l.pages.get(page).ok_or_else(|| format!("no page {}", page.saturating_add(1)))?;
-            let img = strix_render::render_page(&session.doc, pg, scale, &Default::default());
+            let img = wordcraft_render::render_page(&session.doc, pg, scale, &Default::default());
             let png = img.to_png();
-            Ok(json!({"png": strix_engine::cmd::insert::base64_encode(&png), "width": img.width, "height": img.height, "pages": l.pages.len()}))
+            Ok(json!({"png": wordcraft_engine::cmd::insert::base64_encode(&png), "width": img.width, "height": img.height, "pages": l.pages.len()}))
         }
         m if m.starts_with("ui.") => Err(format!("`{m}` {NEEDS_APP}")),
         other => session.run(other, &params).map_err(|e| e.to_string()),
@@ -94,7 +94,7 @@ fn answer_on(session: &mut Session, method: &str, params: Value) -> Result<Value
 
 impl Default for Headless {
     fn default() -> Self {
-        Headless { session: Session::new(strix_doc::Document::new()), roots: None }
+        Headless { session: Session::new(wordcraft_doc::Document::new()), roots: None }
     }
 }
 

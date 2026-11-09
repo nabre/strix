@@ -13,8 +13,8 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_doc::control::ContentControl;
-use strix_doc::{Block, InlineObject};
+use wordcraft_doc::control::ContentControl;
+use wordcraft_doc::{Block, InlineObject};
 
 use super::{Layout, TAG_EXERCISE, scan, target, update};
 use crate::{CmdError, CmdResult, Session, p};
@@ -154,7 +154,7 @@ fn set_control(s: &mut Session, start: usize, b: Breaks) -> Result<(), CmdError>
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use strix_doc::Document;
+    use wordcraft_doc::Document;
 
     use super::super::{STYLE_HEADING, STYLE_TITLE};
     use crate::Session;

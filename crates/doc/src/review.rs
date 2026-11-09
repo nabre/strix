@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Blocks, Deserialize, Document, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -18,7 +17,7 @@ pub struct Comment {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub durable_id: Option<String>,
     /// The comment's UTC timestamp: from the file (`w16cex:dateUtc`, where `date` is local time),
-    /// or the time Strix stamped the comment with.
+    /// or the time WordCraft stamped the comment with.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date_utc: Option<String>,
 }

@@ -1,6 +1,6 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Desktop spooler adapter. Discovery and submission never run on the UI thread.
-use strix_ui_egui::printing::{Discover, Duplex, Printer, Settings, Submit};
+use wordcraft_ui_egui::printing::{Discover, Duplex, Printer, Settings, Submit};
 
 /// Returns a discovery callback that enumerates spooler printers on a named worker thread and
 /// sends the list through a channel, keeping spooler calls off the UI thread.

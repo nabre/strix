@@ -1,9 +1,9 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Strix desktop app.
+//! WordCraft desktop app.
 //!
 //! Usage: `strix [--control <port>] [--sample] [files…]`; `--help` prints `USAGE`.
 //!
-//! `--control <port>` (or `STRIX_CONTROL_PORT`) starts a localhost JSON-lines control server:
+//! `--control <port>` (or `WORDCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control server:
 //! `{"id":1,"key":"…","method":"engine.execute","params":{"command":"text.insert","params":{"text":"Hi"}}}`.
 //! Every request needs the key the app writes to `<settings>/control-key.<instance>` (mode 0600,
 //! removed on exit). See `docs/control-protocol.md`.
@@ -25,8 +25,8 @@ mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
 
-use strix_engine::Session;
-use strix_ui_egui::{
+use wordcraft_engine::Session;
+use wordcraft_ui_egui::{
     Services, UiState, WordApp,
     window_geometry::{RawWindowState, WindowGeometry, take_rescue},
 };
@@ -164,7 +164,7 @@ fn schedule_macos_terminate(app: &mut WordApp, key_file: Option<&control_server:
 
 /// `ui.json` in the settings folder, which the MCP bridge also uses to find the control key.
 fn prefs_path() -> Option<std::path::PathBuf> {
-    strix_control_key::settings_dir().map(|b| b.join("ui.json"))
+    wordcraft_control_key::settings_dir().map(|b| b.join("ui.json"))
 }
 
 /// Where the log files live: `logs` in the preferences folder (see `logging`).
@@ -174,7 +174,7 @@ fn log_dir() -> Option<std::path::PathBuf> {
 
 /// `custom-dictionary.txt` in the settings folder: the words Add to Dictionary kept (#40).
 fn user_dict_path() -> Option<std::path::PathBuf> {
-    strix_control_key::settings_dir().map(|b| b.join(strix_engine::Session::USER_DICT_FILE))
+    wordcraft_control_key::settings_dir().map(|b| b.join(wordcraft_engine::Session::USER_DICT_FILE))
 }
 
 fn load_user_dictionary(app: &mut WordApp) {
@@ -182,14 +182,14 @@ fn load_user_dictionary(app: &mut WordApp) {
         return;
     }
     if let Some(p) = user_dict_path() {
-        strix_proof::load_user_dictionary(&p);
+        wordcraft_proof::load_user_dictionary(&p);
         app.session.user_dict_path = Some(p);
     }
 }
 
-/// Runs without preferences (`STRIX_NO_PREFS`, agents' test runs) neither read nor write them.
+/// Runs without preferences (`WORDCRAFT_NO_PREFS`, agents' test runs) neither read nor write them.
 fn prefs_enabled() -> bool {
-    std::env::var_os("STRIX_NO_PREFS").is_none()
+    std::env::var_os("WORDCRAFT_NO_PREFS").is_none()
 }
 
 fn load_prefs(app: &mut WordApp) {
@@ -210,8 +210,8 @@ fn load_user_fonts() {
     if !prefs_enabled() {
         return;
     }
-    let Some(dir) = strix_control_key::settings_dir().map(|d| d.join("fonts")) else { return };
-    let (loaded, skipped) = strix_fonts::FontDb::global().load_user_fonts(&dir);
+    let Some(dir) = wordcraft_control_key::settings_dir().map(|d| d.join("fonts")) else { return };
+    let (loaded, skipped) = wordcraft_fonts::FontDb::global().load_user_fonts(&dir);
     if !loaded.is_empty() || !skipped.is_empty() {
         log::info!("user fonts: {} loaded, {} skipped from {}", loaded.len(), skipped.len(), dir.display());
     }
@@ -263,7 +263,7 @@ fn write_prefs(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 /// Native file dialogs, shown without blocking the window (`file_dialogs`, #94), File › Print
 /// through the system spooler (`print`), the system clipboard's text, formatted copies,
 /// pictures and format names (`clipboard`, #45, #584, #687, #833), the system's animation setting
-/// (`animations`), and making Strix the default app for Word documents (`default_apps`, #295).
+/// (`animations`), and making WordCraft the default app for Word documents (`default_apps`, #295).
 fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
     Services {
         file_dialog: Some(file_dialog),
@@ -271,9 +271,9 @@ fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
         print_native: Some(print::submit()),
         clipboard_picture: Some(Box::new(clipboard::picture)),
         // A portable run (`StrixData` beside the program) leaves the system's file associations alone.
-        make_default_app: if strix_control_key::portable_dir().is_some() { None } else { default_apps::hook() },
+        make_default_app: if wordcraft_control_key::portable_dir().is_some() { None } else { default_apps::hook() },
         // Personal templates live in `Templates` in the settings folder (#2852), made on first save.
-        templates_dir: strix_control_key::settings_dir().map(|d| d.join("Templates")),
+        templates_dir: wordcraft_control_key::settings_dir().map(|d| d.join("Templates")),
         animations_enabled: Some(animations::hook(ctx)),
         clipboard_text: Some(Box::new(clipboard::text)),
         clipboard_html: Some(Box::new(clipboard::html)),
@@ -302,14 +302,14 @@ USAGE:
 OPTIONS:
   --sample            open the sample document
   --control PORT      start the localhost control server on PORT, for agents and scripts
-                      (or set STRIX_CONTROL_PORT); see docs/control-protocol.md
+                      (or set WORDCRAFT_CONTROL_PORT); see docs/control-protocol.md
   --version           print the version
   -h, --help          print this help
 ";
 
 /// The commit the build came from (short), or `dev`.
 fn build_sha() -> &'static str {
-    option_env!("STRIX_BUILD_SHA").map(|s| s.get(..8).unwrap_or(s)).unwrap_or("dev")
+    option_env!("WORDCRAFT_BUILD_SHA").map(|s| s.get(..8).unwrap_or(s)).unwrap_or("dev")
 }
 
 /// The arguments as text, and apart the files whose names aren't valid Unicode, such as a Latin-1
@@ -336,8 +336,8 @@ fn text_args() -> (Vec<String>, Vec<std::path::PathBuf>) {
 /// The bytes are read as `file.open` reads a path: only a regular file, and at most 2 GB.
 fn open_non_unicode(app: &mut WordApp, path: &std::path::Path) {
     let name = path.to_string_lossy();
-    let opened = strix_engine::io::read_document(path)
-        .and_then(|bytes| app.run("file.open", serde_json::json!({"path": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)})));
+    let opened = wordcraft_engine::io::read_document(path)
+        .and_then(|bytes| app.run("file.open", serde_json::json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)})));
     match opened {
         // Not when it waits for a password: that open names the document itself.
         Ok(r) if r.get("pending").is_none() => app.session.path = Some(path.into()),
@@ -352,13 +352,14 @@ fn open_non_unicode(app: &mut WordApp, path: &std::path::Path) {
 fn main() -> eframe::Result {
     // Windows: the update helper is a copy of this program started with `--finish-update`.
     #[cfg(windows)]
-    if let Some(result) = craft_update::self_update::finish(&strix_ui_egui::strix_update::STRIX, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
+    if let Some(result) = craft_update::self_update::finish(&wordcraft_ui_egui::strix_update::STRIX, &std::env::args_os().skip(1).collect::<Vec<_>>())
+    {
         std::process::exit(i32::from(result.is_err()));
     }
     // First, so the panic hook and every start-up warning are recorded (`logging`).
     let logger = logging::install();
     logging::install_panic_hook();
-    let mut control_port: Option<u16> = std::env::var("STRIX_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
+    let mut control_port: Option<u16> = std::env::var("WORDCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
     let mut files = Vec::new();
     let mut sample = false;
     let (args, other_files) = text_args();
@@ -407,10 +408,12 @@ fn main() -> eframe::Result {
             None => logger.no_file(),
         }
     }
-    match strix_control_key::portable() {
-        strix_control_key::Portable::On(dir) => log::info!("portable mode: settings in {}", dir.display()),
-        strix_control_key::Portable::Unavailable { reason, .. } => log::warn!("portable mode unavailable, settings in the user profile: {reason}"),
-        strix_control_key::Portable::Off => {}
+    match wordcraft_control_key::portable() {
+        wordcraft_control_key::Portable::On(dir) => log::info!("portable mode: settings in {}", dir.display()),
+        wordcraft_control_key::Portable::Unavailable { reason, .. } => {
+            log::warn!("portable mode unavailable, settings in the user profile: {reason}")
+        }
+        wordcraft_control_key::Portable::Off => {}
     }
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -444,9 +447,9 @@ fn main() -> eframe::Result {
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     // winit has no file drag-and-drop on Wayland (only on X11), so dropping files from the file
-    // manager showed a "no" cursor. Run through XWayland when it's there; STRIX_WAYLAND=1
+    // manager showed a "no" cursor. Run through XWayland when it's there; WORDCRAFT_WAYLAND=1
     // keeps the native Wayland backend.
-    if std::env::var_os("DISPLAY").is_some() && std::env::var_os("STRIX_WAYLAND").is_none() {
+    if std::env::var_os("DISPLAY").is_some() && std::env::var_os("WORDCRAFT_WAYLAND").is_none() {
         options.event_loop_builder = Some(Box::new(|b| {
             use winit::platform::x11::EventLoopBuilderExtX11;
             b.with_x11();
@@ -465,7 +468,7 @@ fn main() -> eframe::Result {
             // The system region picks the new document's paper, the units and the decimal
             // separator (#838).
             let region = region::system();
-            let doc = if sample { strix_engine::sample::sample_document() } else { strix_engine::blank_document(&region) };
+            let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
             let (file_dialog, dialogs) = file_dialogs::hook(&cc.egui_ctx);
             let mut session = Session::new(doc);
             session.system_region = region;
@@ -481,7 +484,7 @@ fn main() -> eframe::Result {
             }
             app.watch_desktop_theme(&cc.egui_ctx);
             if prefs_enabled()
-                && let Some(dir) = strix_control_key::settings_dir()
+                && let Some(dir) = wordcraft_control_key::settings_dir()
             {
                 let ctx = cc.egui_ctx.clone();
                 if let Err(e) = app.session.enable_recovery(dir.join("recovery"), std::sync::Arc::new(move || ctx.request_repaint())) {
@@ -498,7 +501,7 @@ fn main() -> eframe::Result {
             }
             let mut key_file = None;
             if let Some(port) = control_port
-                && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), strix_control_key::settings_dir().as_deref())
+                && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), wordcraft_control_key::settings_dir().as_deref())
             {
                 app = app.with_control(rx);
                 key_file = file;
@@ -544,18 +547,18 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         // A Strix document: only those save in place (every other format is import-only).
         let path = dir.join(std::ffi::OsString::from_vec(b"caf\xe9.xmath".to_vec()));
-        strix_engine::io::save_path(&path, &strix_doc::Document::from_text("Bonjour")).unwrap();
+        wordcraft_engine::io::save_path(&path, &wordcraft_doc::Document::from_text("Bonjour")).unwrap();
 
-        let mut app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
         open_non_unicode(&mut app, &path);
-        assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body).trim(), "Bonjour");
+        assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim(), "Bonjour");
         assert_eq!(app.session.path.as_deref(), Some(path.as_path()));
 
         app.run("caret.docEnd", serde_json::json!({})).unwrap();
         app.run("text.insert", serde_json::json!({"text": " encore"})).unwrap();
         app.run("file.save", serde_json::json!({})).unwrap();
-        let saved = strix_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Bonjour encore"));
+        let saved = wordcraft_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Bonjour encore"));
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "a second file was written");
 
         // A file that can't be read is a warning, as one that fails to open by name is.
@@ -586,14 +589,14 @@ mod tests {
             let _ = std::fs::OpenOptions::new().write(true).open(unblock);
         });
 
-        let mut app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
         app.run("text.insert", serde_json::json!({"text": "kept"})).unwrap();
         for p in [&fifo, &zero] {
             let started = std::time::Instant::now();
             open_non_unicode(&mut app, p);
             assert!(started.elapsed() < std::time::Duration::from_secs(5), "{p:?} took {:?}", started.elapsed());
             assert_eq!(app.session.path, None, "{p:?}");
-            assert!(app.session.doc.plain_text(strix_doc::StoryRef::Body).contains("kept"), "{p:?}");
+            assert!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("kept"), "{p:?}");
         }
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -605,7 +608,7 @@ mod prefs_tests {
 
     #[test]
     fn failed_preferences_write_keeps_the_old_file_and_reports_the_error() {
-        let dir = std::env::temp_dir().join(format!("strix-prefs-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("wordcraft-prefs-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("ui.json");
         std::fs::write(&path, b"old").unwrap();

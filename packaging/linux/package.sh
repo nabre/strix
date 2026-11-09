@@ -38,7 +38,7 @@ case "$ARCH" in
   aarch64 | arm64) ARCH=aarch64; DEB_ARCH=arm64 ;;
   *) echo "unsupported architecture $ARCH" >&2; exit 2 ;;
 esac
-export STRIX_MAINTAINER="${STRIX_MAINTAINER:-Strix maintainers <strix@storyteller.ai>}"
+export WORDCRAFT_MAINTAINER="${WORDCRAFT_MAINTAINER:-Strix maintainers <strix@storyteller.ai>}"
 BASENAME="strix-$VERSION-linux-$ARCH"
 
 echo "==> Strix $VERSION for Linux $ARCH ($FORMATS)"
@@ -62,7 +62,7 @@ install -Dm755 "$BIN/strix-cli" "$STAGE/usr/bin/strix-cli"
 install -Dm644 "$HERE/$APP_ID.desktop" "$STAGE/usr/share/applications/$APP_ID.desktop"
 install -Dm644 "$HERE/$APP_ID.mime.xml" "$STAGE/usr/share/mime/packages/$APP_ID.xml"
 mkdir -p "$STAGE/usr/share/metainfo"
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$STRIX_BUILD_DATE/g" \
+sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$WORDCRAFT_BUILD_DATE/g" \
   "$HERE/$APP_ID.metainfo.xml.in" >"$STAGE/usr/share/metainfo/$APP_ID.metainfo.xml"
 mkdir -p "$STAGE/usr/share/icons"
 cp -R "$ROOT/assets/app-icon/hicolor" "$STAGE/usr/share/icons/"

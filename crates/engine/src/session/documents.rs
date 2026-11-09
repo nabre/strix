@@ -10,9 +10,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 use serde_json::json;
-use strix_doc::props::CharProps;
-use strix_doc::{Document, Pos, StoryRef};
-use strix_layout::LayoutCache;
+use wordcraft_doc::props::CharProps;
+use wordcraft_doc::{Document, Pos, StoryRef};
+use wordcraft_layout::LayoutCache;
 
 use super::{ColumnBlock, FindState, LayoutSlots, MathEdit, Selection, Session, TypedWord, Undo, ViewState, Widened, doc_bib_style};
 use crate::CmdError;

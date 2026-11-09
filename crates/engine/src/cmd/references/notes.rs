@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{
     CharProps, CmdError, CmdResult, InlineObject, NoteKind, Paragraph, PartKind, Pos, Selection, Session, StoryRef, Value, delete_selection, json, p,
     para_block,
@@ -32,7 +31,7 @@ pub(super) fn note(s: &mut Session, v: &Value, kind: NoteKind) -> CmdResult {
 /// `references.noteOptions`: footnote or endnote placement, number format, start and restart,
 /// for the whole document (each section then follows it) or the selection's sections.
 pub(in crate::cmd) fn note_options(s: &mut Session, v: &Value) -> CmdResult {
-    use strix_doc::section::{MAX_NOTE_START, NotePos, NoteProps, NoteRestart, NumFormat};
+    use wordcraft_doc::section::{MAX_NOTE_START, NotePos, NoteProps, NoteRestart, NumFormat};
     let fmt = |k: &str| -> Result<Option<NumFormat>, CmdError> {
         match p::str(v, k) {
             None => Ok(None),
@@ -92,7 +91,7 @@ pub(in crate::cmd) fn note_options(s: &mut Session, v: &Value) -> CmdResult {
             to.num_restart = if clear { None } else { from.num_restart };
         }
     };
-    fn pick(sect: &mut strix_doc::SectionProps, endnote: bool) -> &mut NoteProps {
+    fn pick(sect: &mut wordcraft_doc::SectionProps, endnote: bool) -> &mut NoteProps {
         if endnote { &mut sect.endnote_pr } else { &mut sect.footnote_pr }
     }
     if change.is_empty() {

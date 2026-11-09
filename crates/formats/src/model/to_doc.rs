@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::from_doc::uses_kind;
 use super::types::{
     CODE_STYLE, Cell, Dropped, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, MAX_DEPTH, MAX_RUN_STRINGS, MONO_FONT, Para, RUBY_BASE_SIZE,
@@ -342,11 +341,11 @@ impl<'a> Builder<'a> {
     }
 
     fn table(&mut self, t: &FTable, depth: usize) -> Option<Table> {
-        let rows: Vec<&Vec<Cell>> = t.rows.iter().filter(|r| !r.is_empty()).take(strix_doc::table::MAX_ROWS).collect();
+        let rows: Vec<&Vec<Cell>> = t.rows.iter().filter(|r| !r.is_empty()).take(wordcraft_doc::table::MAX_ROWS).collect();
         if rows.is_empty() {
             return None;
         }
-        let cols = t.cols().clamp(1, strix_doc::table::MAX_COLS);
+        let cols = t.cols().clamp(1, wordcraft_doc::table::MAX_COLS);
         let width = self.doc.last_section.text_width().max(72.0);
         // One template row for the grid widths and props; the real rows are built below. Sizing it
         // to `rows.len()` would allocate a full rows × cols cell grid only to clear it, which a
@@ -360,10 +359,10 @@ impl<'a> Builder<'a> {
         }
         tb.rows.clear();
         for r in rows {
-            let mut row = strix_doc::Row { props: RowProps::default(), cells: Vec::new(), controls: Default::default() };
+            let mut row = wordcraft_doc::Row { props: RowProps::default(), cells: Vec::new(), controls: Default::default() };
             row.props.header = !r.is_empty() && r.iter().all(|c| c.header);
             let mut g = 0usize;
-            for c in r.iter().take(strix_doc::table::MAX_COLS) {
+            for c in r.iter().take(wordcraft_doc::table::MAX_COLS) {
                 let span = (c.colspan.clamp(1, 63) as usize).min(cols.saturating_sub(g).max(1));
                 let w: f32 = tb.grid.get(g..(g + span).min(tb.grid.len())).map(|s| s.iter().sum()).unwrap_or(72.0);
                 g += span;
@@ -378,7 +377,7 @@ impl<'a> Builder<'a> {
                 } else {
                     VMerge::None
                 };
-                row.cells.push(strix_doc::Cell {
+                row.cells.push(wordcraft_doc::Cell {
                     props: CellProps {
                         width: Some(w),
                         span: span as u32,
@@ -393,7 +392,7 @@ impl<'a> Builder<'a> {
                 });
             }
             if row.cells.is_empty() {
-                row.cells.push(strix_doc::Cell::empty());
+                row.cells.push(wordcraft_doc::Cell::empty());
             }
             tb.rows.push(row);
         }
@@ -407,11 +406,11 @@ fn finite_or(v: f32, d: f32) -> f32 {
 
 /// Build a document from a flow.
 pub fn to_doc(flow: &Flow) -> Document {
-    to_doc_in(flow, strix_doc::SectionProps::default())
+    to_doc_in(flow, wordcraft_doc::SectionProps::default())
 }
 
 /// [`to_doc`] on a page of the source's own size and margins (`section`), which tables size to.
-pub fn to_doc_in(flow: &Flow, section: strix_doc::SectionProps) -> Document {
+pub fn to_doc_in(flow: &Flow, section: wordcraft_doc::SectionProps) -> Document {
     let mut doc = Document::new();
     doc.last_section = section;
     doc.numbering = Default::default();

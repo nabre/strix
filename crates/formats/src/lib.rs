@@ -1,5 +1,4 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Strix import/export for the "other" text formats: plain text, Markdown (CommonMark subset
+//! WordCraft import/export for the "other" text formats: plain text, Markdown (CommonMark subset
 //! plus GFM tables and strikethrough), HTML, RTF, OpenDocument Text and LaTeX — and, read-only,
 //! spreadsheet cells for mail-merge recipient lists ([`sheet`]: .xlsx/.xlsm/.xls/.ods).
 //!
@@ -21,7 +20,7 @@ pub mod rtf;
 pub mod sheet;
 pub mod txt;
 
-use strix_doc::Document;
+use wordcraft_doc::Document;
 
 /// Extensions this crate handles.
 pub const EXTENSIONS: &[&str] = &["txt", "text", "md", "markdown", "html", "htm", "xhtml", "rtf", "odt", "tex", "latex", "ltx"];
@@ -47,7 +46,7 @@ pub fn import(ext: &str, bytes: &[u8]) -> Option<Result<Document, String>> {
 /// [`import`] onto `page` (its size and margins) for the formats whose files give no page size:
 /// plain text, Markdown and HTML start on it, and their tables size to it (#1381). The other
 /// formats keep the page their file gives.
-pub fn import_on(ext: &str, bytes: &[u8], page: &strix_doc::SectionProps) -> Option<Result<Document, String>> {
+pub fn import_on(ext: &str, bytes: &[u8], page: &wordcraft_doc::SectionProps) -> Option<Result<Document, String>> {
     let ext = ext.trim_start_matches('.').to_ascii_lowercase();
     let mut doc = match ext.as_str() {
         "txt" | "text" => txt::import_on(bytes, page),

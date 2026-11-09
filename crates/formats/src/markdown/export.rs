@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::blocks::thematic_break;
 use super::inlines::within;
 use super::{Align, Arc, Cell, Document, FBlock, FTable, Fmt, Inline, Kind, model};
@@ -149,7 +148,7 @@ fn inlines_md_impl(inlines: &[Inline], in_table: bool) -> String {
     };
     for (text, f, raw) in pieces {
         // Links are the outermost construct; a script or other non-web target is plain text.
-        let f_link = f.link.clone().filter(|l| strix_doc::link::is_safe_href(l));
+        let f_link = f.link.clone().filter(|l| wordcraft_doc::link::is_safe_href(l));
         if f_link != link || raw.is_some() {
             close_all(&mut out, &mut stack);
             if let Some(l) = &link {

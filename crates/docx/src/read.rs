@@ -17,16 +17,16 @@ mod wordart;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
-use strix_doc::control::{ControlEvent, ControlKind, control_events, pair_events};
-use strix_doc::graphic::{Graphic, GraphicKind};
-use strix_doc::numbering::{AbstractNum, Level, LevelSuffix, Num};
-use strix_doc::para::NoteKind;
-use strix_doc::para::OBJ;
-use strix_doc::props::Rgb;
-use strix_doc::props::VAlign;
-use strix_doc::section::NumFormat;
-use strix_doc::styles::{PartFormat, Style, StyleKind, StyleSheet, TablePart, TableStyleParts};
-use strix_doc::{
+use wordcraft_doc::control::{ControlEvent, ControlKind, control_events, pair_events};
+use wordcraft_doc::graphic::{Graphic, GraphicKind};
+use wordcraft_doc::numbering::{AbstractNum, Level, LevelSuffix, Num};
+use wordcraft_doc::para::NoteKind;
+use wordcraft_doc::para::OBJ;
+use wordcraft_doc::props::Rgb;
+use wordcraft_doc::props::VAlign;
+use wordcraft_doc::section::NumFormat;
+use wordcraft_doc::styles::{PartFormat, Style, StyleKind, StyleSheet, TablePart, TableStyleParts};
+use wordcraft_doc::{
     Block, Blocks, Comment, Document, InlineObject, PagePicture, Paragraph, PartKind, Revision, RevisionKind, Zoom, ZoomFit, para_block,
 };
 
@@ -111,7 +111,7 @@ pub(crate) struct Reader<'p> {
     /// The theme's fill styles, which shapes' style references point to.
     pub theme_fills: shape_style::ThemeFills,
     /// The fill of the group being read (what its members' `a:grpFill` stands for).
-    pub group_fill: Option<strix_doc::fill::Fill>,
+    pub group_fill: Option<wordcraft_doc::fill::Fill>,
 }
 
 /// The package path that internal relationship `id` points at, if it has type `kind` (an `rt`
@@ -208,7 +208,7 @@ pub(crate) fn read_opened(pkg: &Package) -> Result<Document, DocxError> {
         lenient("numbering", r.read_numbering(&p));
     }
     // Without a stated mode (or settings at all) Word lays a document out as Word 2007 did.
-    r.doc.settings.compat_mode = strix_doc::LEGACY_COMPAT_MODE;
+    r.doc.settings.compat_mode = wordcraft_doc::LEGACY_COMPAT_MODE;
     if let Some(p) = part(rt::SETTINGS) {
         lenient("settings", r.read_settings(&p));
     }
@@ -283,7 +283,7 @@ pub(crate) fn read_opened(pkg: &Package) -> Result<Document, DocxError> {
     if let Some(wm) = r.doc.settings.watermark.as_mut()
         && let Some([w, h]) = wm.size
     {
-        let [dw, dh] = strix_doc::Watermark { size: None, ..wm.clone() }.frame(pw, ph);
+        let [dw, dh] = wordcraft_doc::Watermark { size: None, ..wm.clone() }.frame(pw, ph);
         if (w - dw).abs() < 0.06 && (h - dh).abs() < 0.06 {
             wm.size = None;
         }
@@ -403,7 +403,7 @@ impl Reader<'_> {
 
 /// Link the text boxes read as (id, seq, part) into chains (see [`Reader::txbx_links`]): each
 /// id's boxes in `seq` order after the box holding the text. A repeated seq, a chain without its
-/// first box or more than [`strix_doc::MAX_LINKED_BOXES`] boxes: the extra boxes stay apart.
+/// first box or more than [`wordcraft_doc::MAX_LINKED_BOXES`] boxes: the extra boxes stay apart.
 fn link_text_boxes(doc: &mut Document, mut links: Vec<(u32, u32, u32)>) {
     links.sort_by_key(|l| (l.0, l.1));
     links.dedup_by_key(|l| (l.0, l.1));
@@ -411,7 +411,7 @@ fn link_text_boxes(doc: &mut Document, mut links: Vec<(u32, u32, u32)>) {
         if group.first().is_none_or(|l| l.1 != 0) {
             continue;
         }
-        let chain: Vec<u32> = group.iter().take(strix_doc::MAX_LINKED_BOXES).map(|l| l.2).collect();
+        let chain: Vec<u32> = group.iter().take(wordcraft_doc::MAX_LINKED_BOXES).map(|l| l.2).collect();
         for pair in chain.windows(2) {
             if let [a, b] = pair
                 && let Some(p) = doc.parts.get_mut(a)

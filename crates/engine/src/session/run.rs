@@ -36,7 +36,7 @@ impl Session {
             && (id.starts_with("text.") || id.starts_with("caret.") || id.starts_with("select.") || id.starts_with("edit.paste"))
             && let Some(m) = self.math.take()
         {
-            let off = m.at.off + strix_doc::para::OBJ.len_utf8();
+            let off = m.at.off + wordcraft_doc::para::OBJ.len_utf8();
             self.sel = Selection::caret(Pos { off, ..m.at });
         }
     }
@@ -74,7 +74,7 @@ impl Session {
     fn keep_math_in_source(&mut self) {
         let Some(m) = &self.math else { return };
         let pos = match self.doc.para_at(&m.at).and_then(|p| p.object_at(m.at.off)) {
-            Some(strix_doc::InlineObject::Equation { math, .. }) if math.stepped => source_only(math, m.pos.clone()),
+            Some(wordcraft_doc::InlineObject::Equation { math, .. }) if math.stepped => source_only(math, m.pos.clone()),
             _ => return,
         };
         if let Some(m) = self.math.as_mut() {

@@ -1338,7 +1338,7 @@ template	Letter	Pismo
 	No Soft Edges	Bez mekih rubova
 	No sources yet.	Još nema izvora.
 	No Spacing	Bez proreda
-	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations.	Pravopisni rječnik za {language} nije instaliran pa se taj jezik ne provjerava. Strix traži Hunspell rječnik {name} u mapi STRIX_DICTIONARIES i na uobičajenim mjestima u sustavu.
+	No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations.	Pravopisni rječnik za {language} nije instaliran pa se taj jezik ne provjerava. Strix traži Hunspell rječnik {name} u mapi WORDCRAFT_DICTIONARIES i na uobičajenim mjestima u sustavu.
 	No templates match your search.	Nijedan predložak ne odgovara pretrazi.
 	No Transform	Bez transformacije
 	No words yet. Add to Dictionary on a misspelled word puts it here.	Još nema riječi. Naredba Dodaj u rječnik na pogrešno napisanoj riječi stavlja je ovamo.

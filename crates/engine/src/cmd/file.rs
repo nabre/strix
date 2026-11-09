@@ -2,7 +2,7 @@
 //! File tab (Backstage): new, open, save, export, print, properties; document inspection.
 
 use serde_json::{Value, json};
-use strix_doc::{Block, Document, StoryRef};
+use wordcraft_doc::{Block, Document, StoryRef};
 
 use super::{pos_json, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
@@ -321,7 +321,7 @@ fn encrypt(s: &mut Session, v: &Value) -> CmdResult {
         Some(Value::Null) => None,
         Some(Value::String(pw)) if pw.is_empty() => None,
         Some(Value::String(pw)) => {
-            strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
+            wordcraft_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
             Some(crate::io::Password::new(pw))
         }
         _ => return Err(CmdError::Params("`password` must be a string, or null to remove the password".into())),
@@ -388,7 +388,7 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
                 "only Strix and Word documents (.xmath, .xmathm, .docx, .docm, .dotx, .dotm) can be saved with a password".into(),
             ));
         }
-        strix_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
+        wordcraft_docx::check_password(pw).map_err(|e| CmdError::Params(e.to_string()))?;
         s.clear_recovery_before_password()?;
         s.password = Some(crate::io::Password::new(pw));
     }
@@ -445,7 +445,7 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
 fn is_word_2003_file(path: &std::path::Path) -> bool {
     // The root element and its namespaces come first.
     let Ok(head) = crate::io::read_file_head(&path.to_string_lossy(), 64 * 1024) else { return false };
-    strix_docx::sniff_xml(&head) == strix_docx::XmlKind::WordMl2003
+    wordcraft_docx::sniff_xml(&head) == wordcraft_docx::XmlKind::WordMl2003
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -486,12 +486,12 @@ fn export_png(s: &mut Session, v: &Value) -> CmdResult {
     let pg = l.pages.get(page).ok_or_else(|| CmdError::Params(format!("no page {}", page + 1)))?;
     // A page image is the printed page: headers and footers at full strength. Dimming them is
     // the on-screen cue while editing the body, not part of the page.
-    let mut opts = strix_render::RenderOptions::default();
+    let mut opts = wordcraft_render::RenderOptions::default();
     opts.display.dim_header = false;
     if !path.to_ascii_lowercase().ends_with(".png") {
         return Err(CmdError::Params("path must end in .png".into()));
     }
-    let img = strix_render::render_page(&s.doc, pg, scale, &opts);
+    let img = wordcraft_render::render_page(&s.doc, pg, scale, &opts);
     let png = img.to_png();
     crate::io::write_file(path, &png).map_err(CmdError::Failed)?;
     Ok(json!({"path": path, "width": img.width, "height": img.height, "bytes": png.len()}))
@@ -639,7 +639,7 @@ fn inspect(s: &mut Session, v: &Value) -> CmdResult {
 fn paragraph(s: &mut Session, v: &Value) -> CmdResult {
     let path: Vec<u32> = serde_json::from_value(v.get("path").cloned().unwrap_or(json!([0]))).map_err(|e| CmdError::Params(e.to_string()))?;
     let story = super::story_param(s, v);
-    let p = s.doc.para(story, &strix_doc::Path(path)).ok_or_else(|| CmdError::Params("no paragraph there".into()))?;
+    let p = s.doc.para(story, &wordcraft_doc::Path(path)).ok_or_else(|| CmdError::Params("no paragraph there".into()))?;
     let resolved = s.doc.styles.resolve_para(&p.props);
     Ok(json!({"paragraph": p, "resolved": resolved}))
 }
@@ -650,7 +650,7 @@ fn layout_summary(s: &mut Session, _: &Value) -> CmdResult {
         .pages
         .iter()
         .map(|p| {
-            let lines: usize = p.items.iter().map(|it| if let strix_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 }).sum();
+            let lines: usize = p.items.iter().map(|it| if let wordcraft_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 }).sum();
             json!({"number": p.number, "w": p.w, "h": p.h, "section": p.section, "lines": lines, "firstBlock": p.first_block, "header": p.header_story, "footer": p.footer_story})
         })
         .collect();

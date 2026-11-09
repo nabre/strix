@@ -1,6 +1,6 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use serde::{Deserialize, Serialize};
-use strix_layout::{NumeralMode, ViewMode};
+use wordcraft_layout::{NumeralMode, ViewMode};
 
 /// View state that commands can change (ribbon View tab, status bar).
 #[derive(Clone, Debug, Serialize, Deserialize)]

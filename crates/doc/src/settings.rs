@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Deserialize, Rgb, Serialize, math, section, styles};
 
 /// A bibliography source.
@@ -179,7 +178,7 @@ pub enum ZoomFit {
 /// Word's compatibility mode for documents that don't state one.
 pub const LEGACY_COMPAT_MODE: u32 = 12;
 
-/// The compatibility mode of documents created by Word 2013 and later, and by Strix.
+/// The compatibility mode of documents created by Word 2013 and later, and by WordCraft.
 pub const COMPAT_MODE_CURRENT: u32 = 15;
 
 /// Word's hyphenation zone when a document doesn't set one (0.25"), points.
@@ -237,7 +236,7 @@ impl Watermark {
         if let Some([w, h]) = self.size.filter(|[w, h]| w.is_finite() && h.is_finite() && *w > 0.0 && *h > 0.0) {
             return [w.min(4000.0), h.min(4000.0)];
         }
-        let (pw, ph) = (strix_geom::finite(page_w).clamp(72.0, 4000.0), strix_geom::finite(page_h).clamp(72.0, 4000.0));
+        let (pw, ph) = (wordcraft_geom::finite(page_w).clamp(72.0, 4000.0), wordcraft_geom::finite(page_h).clamp(72.0, 4000.0));
         let across = if self.diagonal { (pw * pw + ph * ph).sqrt() } else { pw };
         let width = (across * 0.5).clamp(36.0, 2000.0);
         let chars = self.text.chars().take(200).count().max(1) as f32;

@@ -93,7 +93,7 @@ fn new_ctx<'a>(
         notes_hash,
         numbers: HashMap::new(),
         eq_count: 0,
-        boxes: strix_doc::BoxBudget::default(),
+        boxes: wordcraft_doc::BoxBudget::default(),
         chains: Default::default(),
         grid: para::Grid::default(),
         uses_totals: false,
@@ -155,7 +155,7 @@ fn reflow_sect(first: &SectionProps, opts: &LayoutOptions) -> SectionProps {
     s.margin_top = 18.0;
     s.gutter = 0.0;
     s.columns = Default::default();
-    s.valign = strix_doc::section::PageVAlign::Top;
+    s.valign = wordcraft_doc::section::PageVAlign::Top;
     s
 }
 
@@ -184,7 +184,7 @@ fn new_page_builder<'p>(sect: &'p SectionProps, early: &'p EarlyFloats, web: boo
         line_no: 0,
         page_items_start: 0,
         block_marks: Vec::new(),
-        page_valign: strix_doc::section::PageVAlign::Top,
+        page_valign: wordcraft_doc::section::PageVAlign::Top,
         seps: NoteSeps::default(),
         para_end: None,
         behind: Vec::new(),
@@ -208,7 +208,7 @@ fn endnote_queue(ctx: &Ctx) -> VecDeque<(u32, usize)> {
         .fields
         .notes
         .iter()
-        .filter(|(id, _)| ctx.doc.parts.get(id).is_some_and(|p| p.kind == strix_doc::PartKind::Endnote))
+        .filter(|(id, _)| ctx.doc.parts.get(id).is_some_and(|p| p.kind == wordcraft_doc::PartKind::Endnote))
         .map(|(id, n)| (n.order, *id, n.section))
         .collect();
     ids.sort();
@@ -247,14 +247,14 @@ fn begin_section_state<'p>(ctx: &mut Ctx, pb: &mut PageBuilder<'p>, sec: &Sec<'p
     let (doc, sect, si) = (ctx.doc, sec.sect, sec.si);
     pb.sect = sect;
     pb.sect_idx = si;
-    pb.sect_beneath = doc.note_options(sect, false).pos == strix_doc::section::NotePos::BeneathText;
+    pb.sect_beneath = doc.note_options(sect, false).pos == wordcraft_doc::section::NotePos::BeneathText;
     if !web && !doc.footnote_separators.is_empty() {
         pb.seps = NoteSeps::new(ctx, &doc.footnote_separators, sect.text_width());
     }
     ctx.fields.section = u32::try_from(si).unwrap_or(u32::MAX).saturating_add(1);
     ctx.fields.section_pages = totals.section(si);
     ctx.grid = para::Grid::of(doc, sect);
-    if sect.line_numbers.as_ref().is_some_and(|l| l.restart == strix_doc::section::LineNumberRestart::Section) {
+    if sect.line_numbers.as_ref().is_some_and(|l| l.restart == wordcraft_doc::section::LineNumberRestart::Section) {
         pb.line_no = 0;
     }
 }
@@ -305,7 +305,7 @@ fn continue_page(pb: &mut PageBuilder, sect: &SectionProps) {
 /// again from the start of the block that reaches it, with shorter columns.
 fn prepare_section_end(pb: &mut PageBuilder, sections: &[(usize, &SectionProps)], (si, web): (usize, bool)) -> bool {
     let next = sections.get(si + 1).map(|(_, s)| s.start);
-    let balance = !web && pb.cols.len() > 1 && pb.sect.valign == strix_doc::section::PageVAlign::Top && next == Some(SectionStart::Continuous);
+    let balance = !web && pb.cols.len() > 1 && pb.sect.valign == wordcraft_doc::section::PageVAlign::Top && next == Some(SectionStart::Continuous);
     pb.col_break_page = None;
     pb.next_starts_page = !web && next.is_some_and(|s| s != SectionStart::Continuous);
     balance
@@ -348,7 +348,7 @@ fn place_section_blocks<'p>(
 
 /// Endnotes at the end of the section: those referenced so far.
 fn section_endnotes(ctx: &mut Ctx, pb: &mut PageBuilder, endnotes: &mut VecDeque<(u32, usize)>, (sect, si, block): (&SectionProps, usize, usize)) {
-    if ctx.doc.note_options(sect, true).pos != strix_doc::section::NotePos::SectEnd || pb.pages.is_empty() {
+    if ctx.doc.note_options(sect, true).pos != wordcraft_doc::section::NotePos::SectEnd || pb.pages.is_empty() {
         return;
     }
     let mut here = Vec::new();

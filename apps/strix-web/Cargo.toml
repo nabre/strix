@@ -1,7 +1,7 @@
 # Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
 name = "strix-web"
-description = "Strix in the browser (eframe web runner, WebGPU with WebGL2 fallback)"
+description = "WordCraft in the browser (eframe web runner, WebGPU with WebGL2 fallback)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,12 +15,12 @@ name = "strix-web"
 path = "src/main.rs"
 
 [dependencies]
-strix-engine = { workspace = true }
-strix-ui-egui = { workspace = true }
+wordcraft-engine = { workspace = true }
+wordcraft-ui-egui = { workspace = true }
 egui = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
-strix-fonts = { workspace = true }
+wordcraft-fonts = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # `wgpu` pulls egui-wgpu's defaults: WebGPU plus the WebGL2 fallback.

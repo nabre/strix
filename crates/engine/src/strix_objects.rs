@@ -13,7 +13,7 @@
 use std::path::Path;
 
 use serde::Serialize;
-use strix_doc::{Block, Document, InlineObject};
+use wordcraft_doc::{Block, Document, InlineObject};
 
 use crate::cmd::exercise::{TAG_EXERCISE, TAG_RESULTS};
 
@@ -114,7 +114,7 @@ pub fn has_strix_objects(doc: &Document) -> bool {
     !strix_objects(doc).is_empty()
 }
 
-fn blocks(bl: &strix_doc::Blocks, add: &mut dyn FnMut(StrixObjectKind), depth: usize) {
+fn blocks(bl: &wordcraft_doc::Blocks, add: &mut dyn FnMut(StrixObjectKind), depth: usize) {
     if depth > MAX_DEPTH {
         return;
     }

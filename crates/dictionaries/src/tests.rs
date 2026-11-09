@@ -65,8 +65,8 @@ fn downloads_a_dictionary_whole_and_proofing_reads_it() {
     // No leftovers; the pair is one proofing finds and reads.
     let names: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect();
     assert!(!names.iter().any(|n| n.ends_with(".part")), "{names:?}");
-    let (a, d) = strix_proof::hunspell::find_in(&dir, &["it_IT"]).unwrap();
-    assert!(strix_proof::hunspell::load(&a, &d).is_ok());
+    let (a, d) = wordcraft_proof::hunspell::find_in(&dir, &["it_IT"]).unwrap();
+    assert!(wordcraft_proof::hunspell::load(&a, &d).is_ok());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

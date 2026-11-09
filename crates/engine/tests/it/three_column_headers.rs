@@ -1,9 +1,8 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! #2197: three-column header/footer presets are editable, borderless tables.
 use serde_json::json;
-use strix_doc::props::Align;
-use strix_doc::{Block, Document, Path, Pos, StoryRef, Table};
-use strix_engine::Session;
+use wordcraft_doc::props::Align;
+use wordcraft_doc::{Block, Document, Path, Pos, StoryRef, Table};
+use wordcraft_engine::Session;
 
 fn table(doc: &Document, story: StoryRef) -> &Table {
     let Block::Table(table) = &*doc.story(story).unwrap()[0] else { panic!("three columns must be a table") };
@@ -68,7 +67,7 @@ fn fill_and_check_undo(session: &mut Session, story: StoryRef) -> Document {
 fn assert_roundtrip(session: &Session, header: bool, style: &str, width: f32) {
     let mut back = session.doc.clone();
     for _ in 0..2 {
-        back = strix_docx::read(&strix_docx::write(&back).unwrap()).unwrap();
+        back = wordcraft_docx::read(&wordcraft_docx::write(&back).unwrap()).unwrap();
         let id = if header { back.last_section.headers.default } else { back.last_section.footers.default }.unwrap();
         let story = StoryRef::Part(id);
         assert_filled_three_column_table(&back, story, style, width);

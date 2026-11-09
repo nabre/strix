@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::inlines::parse_inlines;
 use super::{Align, Arc, Cell, Document, FBlock, FTable, Fmt, HashMap, Kind, ListInfo, Para, model};
 
@@ -15,7 +14,7 @@ pub fn import(text: &str) -> Document {
 }
 
 /// [`import`] onto `page`: Markdown gives no page size (#1381).
-pub fn import_on(text: &str, page: &strix_doc::SectionProps) -> Document {
+pub fn import_on(text: &str, page: &wordcraft_doc::SectionProps) -> Document {
     model::begin_import();
     model::to_doc_in(&parse(text), page.clone())
 }

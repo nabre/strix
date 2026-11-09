@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::common::{BUILT_IN_LABELS, choice};
 use super::shell::Next;
 use super::{Serialize, Ui, Value, WordApp, buttons, json, vec2};
@@ -14,7 +13,7 @@ const REF_TYPES: [(&str, &str); 5] =
 /// (Insert Caption › New Label, or already in the document's captions) as `label:<Name>` (#2940).
 pub(super) fn ref_types(app: &WordApp) -> Vec<(String, String)> {
     let mut types: Vec<(String, String)> = REF_TYPES.iter().map(|(v, l)| (v.to_string(), l.to_string())).collect();
-    let in_document = strix_engine::cmd::citations::caption_labels(&app.session);
+    let in_document = wordcraft_engine::cmd::citations::caption_labels(&app.session);
     for l in app.ui.caption_labels.iter().chain(&in_document) {
         let value = format!("label:{l}");
         if !BUILT_IN_LABELS.contains(&l.as_str()) && !types.iter().any(|(v, _)| *v == value) {
@@ -40,7 +39,7 @@ pub struct CrossRefForm {
 
 impl CrossRefForm {
     pub fn read(app: &WordApp, to: &str) -> CrossRefForm {
-        let targets: Vec<String> = strix_engine::cmd::citations::ref_targets(&app.session, to).into_iter().map(|(t, _)| t).collect();
+        let targets: Vec<String> = wordcraft_engine::cmd::citations::ref_targets(&app.session, to).into_iter().map(|(t, _)| t).collect();
         let selected = (!targets.is_empty()).then_some(0);
         CrossRefForm { to: to.into(), show: "text".into(), targets, selected }
     }

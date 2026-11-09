@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::bx::{Bx, St};
 use super::state::fallback;
 use super::{C, Construction, Ctx, FaceRef, FontDb, MItem, MathTable, Rgb, glyph_bounds};
@@ -52,8 +51,8 @@ impl Ctx {
 
     /// Glyph run for `text` in `face` at `size`: a box with ink extents.
     pub(super) fn glyphs(&self, face: FaceRef, text: &str, size: f32, level: u8, color: Rgb, synth: (bool, bool)) -> Bx {
-        let feats = if level > 0 { vec![strix_fonts::feature_value(b"ssty", level as u32)] } else { Vec::new() };
-        let shaped = strix_fonts::shape(&face, text, &feats, |c| c);
+        let feats = if level > 0 { vec![wordcraft_fonts::feature_value(b"ssty", level as u32)] } else { Vec::new() };
+        let shaped = wordcraft_fonts::shape(&face, text, &feats, |c| c);
         let k = size / face.upem.max(1.0) as f32;
         let mut x = 0.0f32;
         let mut b = Bx::default();

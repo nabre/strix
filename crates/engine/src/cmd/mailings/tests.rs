@@ -32,7 +32,7 @@ fn finishing_a_merge_opens_a_new_document_with_a_new_history() {
 /// document alone: it changes nothing, so it is not an edit.
 #[test]
 fn finishing_a_merge_to_a_file_is_not_an_edit() {
-    let dir = std::env::temp_dir().join(format!("strix-merge-to-file-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("wordcraft-merge-to-file-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let out = dir.join("merged.xmath");
     let mut s = Session::new(Document::from_text("Hello"));
@@ -430,7 +430,7 @@ fn recipient_lists_in_legacy_and_utf16_encodings() {
 #[test]
 fn recipients_from_an_xls_workbook() {
     let row = |r: &[&str]| r.iter().map(|c| c.to_string()).collect::<Vec<_>>();
-    let book = strix_formats::sheet::xls_fixture(&[(
+    let book = wordcraft_formats::sheet::xls_fixture(&[(
         "收件人",
         vec![row(&["姓名", "城市", "数量"]), row(&["张三", "北京", "12"]), row(&["李四", "上海", "2"])],
     )])

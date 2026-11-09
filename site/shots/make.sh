@@ -13,7 +13,7 @@ cd "$ROOT"
 if [[ "${1:-}" == "--no-build" ]]; then
   shift
 else
-  cargo build --release -q -p strix-ui-egui --example ui_shot
+  cargo build --release -q -p wordcraft-ui-egui --example ui_shot
 fi
 ONLY=" $* "
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/ui_shot"

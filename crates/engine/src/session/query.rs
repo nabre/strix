@@ -126,7 +126,7 @@ impl Session {
             && !v.read_mode
             && !v.multi_page
             && v.mode == ViewMode::Print
-            && self.prefs.markup.balloons != strix_layout::display::BalloonMode::Inline
+            && self.prefs.markup.balloons != wordcraft_layout::display::BalloonMode::Inline
     }
 
     /// Show revisions in balloons, with the balloons on screen: tracked deletions in the body leave
@@ -134,7 +134,7 @@ impl Session {
     /// as in Word; so do deletions in headers, footers, notes and text boxes, which get no balloons.
     pub fn revisions_in_balloons(&self) -> bool {
         let m = &self.prefs.markup;
-        self.balloons_shown() && m.balloons == strix_layout::display::BalloonMode::Revisions && m.insertions_deletions
+        self.balloons_shown() && m.balloons == wordcraft_layout::display::BalloonMode::Revisions && m.insertions_deletions
     }
 
     /// Initials for new comments: the ones set in File › Options, else the user name's.
@@ -162,9 +162,9 @@ impl Session {
 
     /// The region in effect (#838): the one the user chose ([`Prefs::region`]), else the
     /// system's.
-    pub fn region(&self) -> strix_geom::Region {
+    pub fn region(&self) -> wordcraft_geom::Region {
         match self.prefs.region.as_deref() {
-            Some(tag) => strix_geom::Region::from_tag(tag),
+            Some(tag) => wordcraft_geom::Region::from_tag(tag),
             None => self.system_region.clone(),
         }
     }
@@ -177,7 +177,7 @@ impl Session {
         let r = self.region();
         (r.language == "en" && !r.territory.is_empty() && r.territory != "US")
             .then(|| format!("en-{}", r.territory))
-            .and_then(|t| strix_proof::lang::normalize_tag(&t))
+            .and_then(|t| wordcraft_proof::lang::normalize_tag(&t))
     }
 
     /// The Spanish of the region in effect (`es-MX` on a Mexican system, `es-UY` on a Uruguayan
@@ -188,12 +188,12 @@ impl Session {
         let r = self.region();
         (matches!(r.language.as_str(), "es" | "spa") && !r.territory.is_empty())
             .then(|| format!("es-{}", r.territory))
-            .and_then(|t| strix_proof::lang::normalize_tag(&t))
+            .and_then(|t| wordcraft_proof::lang::normalize_tag(&t))
             .unwrap_or_else(|| "es-ES".into())
     }
 
     /// The unit rulers and dialogs show lengths in: the user's choice, else the region's.
-    pub fn units(&self) -> strix_geom::Unit {
+    pub fn units(&self) -> wordcraft_geom::Unit {
         self.prefs.units.unwrap_or_else(|| self.region().units())
     }
 
@@ -277,7 +277,7 @@ impl Session {
 }
 
 /// A new blank document on `region`'s paper (see [`Session::blank_document`]).
-pub fn blank_document(region: &strix_geom::Region) -> Document {
+pub fn blank_document(region: &wordcraft_geom::Region) -> Document {
     let mut d = Document::new();
     let (_, w, h) = region.paper();
     d.last_section.page_w = w;

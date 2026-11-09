@@ -1,5 +1,5 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! `strix --control` checks its port before the window opens (#1426).
+//! `wordcraft --control` checks its port before the window opens (#1426).
 
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
@@ -12,8 +12,8 @@ fn app(args: &[&str]) -> Output {
         .env_remove("WAYLAND_DISPLAY")
         .env_remove("WAYLAND_SOCKET")
         // A bad `--control` must not fall back to this port either.
-        .env("STRIX_CONTROL_PORT", "7981")
-        .env("STRIX_NO_PREFS", "1")
+        .env("WORDCRAFT_CONTROL_PORT", "7981")
+        .env("WORDCRAFT_NO_PREFS", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -23,7 +23,7 @@ fn app(args: &[&str]) -> Output {
     while child.try_wait().unwrap().is_none() {
         if Instant::now() > deadline {
             let _ = child.kill();
-            panic!("strix {args:?} was still running after 30 s: it started the app");
+            panic!("wordcraft {args:?} was still running after 30 s: it started the app");
         }
         std::thread::sleep(Duration::from_millis(50));
     }

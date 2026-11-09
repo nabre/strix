@@ -204,7 +204,7 @@ Calculation",
         });
         stack(ui, |ui| {
             // Only with the cursor in an exercise, or whole ones selected.
-            let targets = !strix_engine::cmd::exercise::delete_targets(&app.session).is_empty();
+            let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
             ui.add_enabled_ui(targets, |ui| {
                 // Drawn greyed out like a disabled command: the command itself stays on for
                 // scripts naming an exercise.
@@ -319,7 +319,7 @@ Drawing",
             json!({}),
             false,
         );
-        let editable = strix_engine::cmd::cad::editable(&app.session);
+        let editable = wordcraft_engine::cmd::cad::editable(&app.session);
         ui.add_enabled_ui(editable, |ui| {
             big(
                 ui,
@@ -356,7 +356,7 @@ pub(super) fn arrange_group(ui: &mut Ui, app: &mut WordApp, grouping: bool) {
 /// that fits a space, by default the page's), its padding, and what any picture has (alt text,
 /// arrange).
 pub(super) fn cad_picture_format(app: &mut WordApp, ui: &mut Ui) {
-    let Some((_, d)) = strix_engine::cmd::cad::selected_drawing(&app.session) else { return };
+    let Some((_, d)) = wordcraft_engine::cmd::cad::selected_drawing(&app.session) else { return };
     group(ui, "Drawing", None, app, |ui, app| {
         big(ui, app, "cadSelect", "Edit\nDrawing", "ui.cadEdit", json!({}), false);
     });
@@ -373,7 +373,7 @@ Page",
             fitting,
         );
         // What fits is judged on the drawing as drawn, its sizes worked out by the calculations.
-        let drawn = strix_engine::cmd::cad::edited_drawing(&app.session).unwrap_or_else(|| d.clone());
+        let drawn = wordcraft_engine::cmd::cad::edited_drawing(&app.session).unwrap_or_else(|| d.clone());
         crate::cad_editor::scale_fields(ui, app, "cad_picture", &d, &drawn, "cad.scale");
     });
     group(ui, "Picture", None, app, |ui, app| {

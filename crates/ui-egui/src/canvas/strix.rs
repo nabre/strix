@@ -4,7 +4,7 @@
 
 use egui::{Color32, Painter, Rect, Stroke, pos2};
 use serde_json::json;
-use strix_layout::math::MathLayout;
+use wordcraft_layout::math::MathLayout;
 
 use crate::WordApp;
 use crate::theme::{Tokens, regular};
@@ -12,7 +12,7 @@ use crate::theme::{Tokens, regular};
 /// Whether the equation being edited is a calculation region. Leaving one (the caret left the
 /// equation since the last frame) recalculates the document.
 pub(super) fn track_calc_equation(app: &mut WordApp) -> bool {
-    let in_calc = strix_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.calc);
+    let in_calc = wordcraft_engine::cmd::equation::edited_math(&app.session).is_some_and(|m| m.calc);
     if std::mem::replace(&mut app.canvas.in_calc_equation, in_calc) && app.session.math.is_none() {
         let _ = app.run("calc.recalculate", json!({}));
     }
@@ -32,7 +32,7 @@ pub(super) struct EquationAt {
 /// caret, as tall as the box it is in.
 pub(super) fn paint_math_selection(app: &WordApp, painter: &Painter, ml: &MathLayout, at: &EquationAt, color: Color32) {
     let EquationAt { page: pr, x: ex, base, scale: s } = *at;
-    if let Some((path, lo, hi)) = strix_engine::cmd::equation::math_selection(&app.session)
+    if let Some((path, lo, hi)) = wordcraft_engine::cmd::equation::math_selection(&app.session)
         && let (Some(a), Some(b)) = (ml.slot(&path, lo), ml.slot(&path, hi))
     {
         let (up, down) = ml.arg_extent(&path).map_or((ml.ascent, ml.descent), |(_, _, up, down)| (up, down));

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::cells::{cell, with_cells, with_table};
 use super::{
     Align, Border, BorderStyle, Borders, CmdError, CmdResult, HeightRule, Path, Pos, Rgb, Selection, Session, Table, TextDirection, VAlign, Value,
@@ -17,7 +16,7 @@ pub(super) fn autofit(s: &mut Session, v: &Value) -> CmdResult {
         "contents" => {
             let t = s.doc.table(story, &tp).ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
             let avail = (tw - t.props.indent.filter(|i| i.is_finite()).unwrap_or(0.0).max(0.0)).max(72.0);
-            let widths = strix_layout::autofit_widths(&strix_layout::measure_table_columns(&s.doc, t), avail);
+            let widths = wordcraft_layout::autofit_widths(&wordcraft_layout::measure_table_columns(&s.doc, t), avail);
             with_table(s, |t| {
                 t.props.fixed = false;
                 t.props.width = None;

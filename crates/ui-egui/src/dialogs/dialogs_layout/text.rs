@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{LineNumberRestart, MeasureExt, Serialize, Ui, Value, WordApp, buttons, heading, json, run, unit, vec2};
 
 // ---------------------------------------------------------------------------------------------
@@ -20,7 +19,7 @@ pub struct LineNumbersForm {
 
 impl LineNumbersForm {
     pub fn read(app: &WordApp) -> LineNumbersForm {
-        let sp = strix_engine::cmd::page::sect(&app.session);
+        let sp = wordcraft_engine::cmd::page::sect(&app.session);
         let l = sp.line_numbers.clone();
         let cur = l.clone().unwrap_or_default();
         LineNumbersForm {
@@ -157,7 +156,7 @@ pub struct ManualForm {
 impl ManualForm {
     /// From the selection, or from the start of the document.
     pub fn start(app: &mut WordApp) -> ManualForm {
-        let from = if app.session.sel.is_collapsed() { Value::Null } else { strix_engine::cmd::pos_json(&app.session.sel.ordered().0) };
+        let from = if app.session.sel.is_collapsed() { Value::Null } else { wordcraft_engine::cmd::pos_json(&app.session.sel.ordered().0) };
         let from = if from.is_null() { json!({"block": 0, "off": 0}) } else { from };
         Self::next(app, from)
     }

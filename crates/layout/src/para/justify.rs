@@ -1,10 +1,9 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::model::ClKind;
 use super::proof::{ProofRun, lang_at};
 use super::{ParaLayout, SOFT_HYPHEN};
 
 /// Word's default hyphenation zone (0.25"), points.
-pub(super) const HYPHENATION_ZONE: f32 = strix_doc::DEFAULT_HYPHENATION_ZONE;
+pub(super) const HYPHENATION_ZONE: f32 = wordcraft_doc::DEFAULT_HYPHENATION_ZONE;
 
 /// How much of their width the spaces of a justified line may give up to fit more text (Word
 /// 2013+, compatibility mode 15).
@@ -61,7 +60,7 @@ pub(super) fn hyphen_glyph(pl: &ParaLayout, style: u32, cache: &mut Vec<(u32, u3
         .styles
         .get(style as usize)
         .and_then(|st| {
-            let g = strix_fonts::shape(&st.face, "-", &[], |c| c).into_iter().next()?;
+            let g = wordcraft_fonts::shape(&st.face, "-", &[], |c| c).into_iter().next()?;
             let k = st.size / st.face.upem.max(1.0) as f32 * st.rc.scale / 100.0;
             Some((style, g.gid, g.x_advance as f32 * k))
         })
@@ -86,8 +85,8 @@ pub(super) fn hyphenation_points(
     let mut bytes: Vec<usize> = text.char_indices().filter(|(_, c)| *c == SOFT_HYPHEN).map(|(i, c)| i + c.len_utf8()).collect();
     // Vietnamese words are single syllables and never take a hyphen: no automatic hyphenation in
     // a Vietnamese paragraph, nor in a word written with a Vietnamese-only letter (`Nguyễn`).
-    if auto && !strix_proof::vi::looks_vietnamese(text) {
-        let lim = strix_proof::hyphen::Limits::default();
+    if auto && !wordcraft_proof::vi::looks_vietnamese(text) {
+        let lim = wordcraft_proof::hyphen::Limits::default();
         let mut start: Option<usize> = None;
         for (i, c) in text.char_indices().chain(std::iter::once((text.len(), ' '))) {
             let word_char = c.is_alphabetic() || c == '\'' || c == '\u{2019}';
@@ -99,15 +98,15 @@ pub(super) fn hyphenation_points(
                     let all_caps = |w: &str| w.chars().filter(|c| c.is_alphabetic()).all(char::is_uppercase);
                     if let Some(w) = text.get(a..i)
                         && w.chars().count() >= lim.min_word
-                        && !w.chars().any(strix_fonts::is_rtl)
-                        && !strix_proof::vi::is_vietnamese_word(w)
+                        && !w.chars().any(wordcraft_fonts::is_rtl)
+                        && !wordcraft_proof::vi::is_vietnamese_word(w)
                         && (caps || !all_caps(w))
                     {
                         // The word's language: its first letter's run, found by its place in `p.text`.
                         let first = w.chars().next().map_or(1, char::len_utf8);
                         let lang = to_para(a + first).map(|e| lang_at(runs, e.saturating_sub(first))).unwrap_or_default();
                         let offs: Vec<usize> = w.char_indices().map(|(o, _)| o).collect();
-                        for pt in strix_proof::hyphen::hyphen_points_in(w, &lim, lang) {
+                        for pt in wordcraft_proof::hyphen::hyphen_points_in(w, &lim, lang) {
                             if let Some(o) = offs.get(pt) {
                                 bytes.push(a + o);
                             }

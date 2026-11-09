@@ -1,5 +1,5 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! `strix-cli`: Strix from the command line.
+//! `strix-cli`: WordCraft from the command line.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod automation_args;
@@ -12,10 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use serde_json::{Value, json};
-use strix_engine::Session;
+use wordcraft_engine::Session;
 
 const USAGE: &str = "\
-strix-cli — Strix from the command line
+strix-cli — WordCraft from the command line
 
 USAGE:
   strix-cli convert <in> <out> [--markup] [--update-fields] [--format wordml2003|flatopc]
@@ -61,13 +61,13 @@ USAGE:
   strix-cli --version
 
 A password-protected Word file is opened with --password PASS, --password-file PATH or the
-STRIX_PASSWORD environment variable; a password given on the command line is readable by
+WORDCRAFT_PASSWORD environment variable; a password given on the command line is readable by
 every other process, so the other two are better. A file opened with a password is written with
 it again, as the app does. Exports that cannot carry a password (pdf, html, txt) stay plain.
 
 Paper: documents created here, and HTML, Markdown and text files (which give no page size), use
 the system region's paper (A4, or Letter in the US and other Letter regions), read from
-LC_ALL / LC_PAPER / LANG or the platform. Set STRIX_REGION=en-US (or another tag) for the
+LC_ALL / LC_PAPER / LANG or the platform. Set WORDCRAFT_REGION=en-US (or another tag) for the
 same output on every machine.
 ";
 
@@ -90,11 +90,11 @@ fn open(path: &Path, password: Option<&str>) -> Result<Session, String> {
     // A file that gives no page size (HTML, Markdown, plain text) opens on the system region's
     // paper, as in the app: A4 in Italy, Letter in the US (#1381).
     let region = system_region();
-    let (doc, encrypted) = strix_engine::io::open_path_in(path, password, &region)?;
+    let (doc, encrypted) = wordcraft_engine::io::open_path_in(path, password, &region)?;
     let mut s = session(doc);
     s.path = Some(path.into());
     if encrypted {
-        s.password = password.map(strix_engine::io::Password::new);
+        s.password = password.map(wordcraft_engine::io::Password::new);
     }
     Ok(s)
 }
@@ -131,7 +131,7 @@ fn text_args<S: AsRef<OsStr>>(raw: &[S]) -> Result<(Vec<String>, Option<PathBuf>
 }
 
 /// The password for a protected Word file: `--password`, `--password-file`, or
-/// `STRIX_PASSWORD`, in that order. The file form exists because a password on a command line
+/// `WORDCRAFT_PASSWORD`, in that order. The file form exists because a password on a command line
 /// is readable by every other process on the machine; a trailing newline is dropped so a file
 /// written by `echo` works. Never logged, and never named in an error.
 fn password_from(args: &[String]) -> Result<Option<String>, String> {
@@ -142,7 +142,7 @@ fn password_from(args: &[String]) -> Result<Option<String>, String> {
         let raw = std::fs::read_to_string(&path).map_err(|e| format!("--password-file {path}: {e}"))?;
         return Ok(Some(raw.trim_end_matches(['\r', '\n']).to_string()));
     }
-    Ok(std::env::var("STRIX_PASSWORD").ok().filter(|p| !p.is_empty()))
+    Ok(std::env::var("WORDCRAFT_PASSWORD").ok().filter(|p| !p.is_empty()))
 }
 
 /// The positional arguments, skipping every option's value so an option value is never read as a
@@ -167,20 +167,20 @@ fn positionals<'a>(args: &'a [String], specs: &[OptionSpec]) -> Vec<&'a String> 
 
 /// A headless session in the system region: every way the CLI starts one gives `file.new` the
 /// same paper (#1381).
-fn session(doc: strix_doc::Document) -> Session {
+fn session(doc: wordcraft_doc::Document) -> Session {
     let mut s = Session::new(doc);
     s.system_region = system_region();
     s
 }
 
 /// The system region, read as the app reads it (locale variables, else the platform's locale).
-fn system_region() -> strix_engine::Region {
-    strix_engine::Region::from_locale_vars(|name| std::env::var(name).ok(), sys_locale::get_locale)
+fn system_region() -> wordcraft_engine::Region {
+    wordcraft_engine::Region::from_locale_vars(|name| std::env::var(name).ok(), sys_locale::get_locale)
 }
 
 /// The body text for `text`: the plain-text export, so list items keep their bullet or number label.
-fn listed_text(doc: &strix_doc::Document) -> Result<String, String> {
-    let bytes = strix_engine::io::save_bytes("out.txt", doc)?;
+fn listed_text(doc: &wordcraft_doc::Document) -> Result<String, String> {
+    let bytes = wordcraft_engine::io::save_bytes("out.txt", doc)?;
     Ok(String::from_utf8_lossy(&bytes).replace("\r\n", "\n"))
 }
 
@@ -278,7 +278,7 @@ fn validate_options(command: &str, args: &[String], specs: &[OptionSpec]) -> Res
 fn automation_roots(
     command: &str,
     args: &[String],
-) -> Result<(Option<std::sync::Arc<strix_engine::file_access::AutomationRoots>>, Vec<String>), String> {
+) -> Result<(Option<std::sync::Arc<wordcraft_engine::file_access::AutomationRoots>>, Vec<String>), String> {
     let mut found = automation_args::AutomationArgs::new(None, None);
     let mut left = Vec::new();
     let mut it = args.iter().cloned();
@@ -287,13 +287,13 @@ fn automation_roots(
             left.push(arg);
         }
     }
-    let roots = strix_engine::file_access::AutomationRoots::new(found.read_root.as_deref(), found.write_root.as_deref())
+    let roots = wordcraft_engine::file_access::AutomationRoots::new(found.read_root.as_deref(), found.write_root.as_deref())
         .map_err(|e| format!("{command}: {e}"))?;
     Ok((roots, left))
 }
 
 /// The password a protected Word file is opened with: `--password` (which any other process on
-/// the machine can read from the command line), `--password-file`, or `STRIX_PASSWORD`.
+/// the machine can read from the command line), `--password-file`, or `WORDCRAFT_PASSWORD`.
 const PASSWORD_OPTIONS: &[OptionSpec] =
     &[OptionSpec { name: "--password", takes_value: true }, OptionSpec { name: "--password-file", takes_value: true }];
 const CONVERT_OPTIONS: &[OptionSpec] = &[
@@ -504,7 +504,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                 // `file.new` opens beside the session's first document, which is then closed: the
                 // run starts with one open document.
                 (None, t) => {
-                    let mut s = session(strix_doc::Document::new());
+                    let mut s = session(wordcraft_doc::Document::new());
                     let first = s.document_id();
                     let params = t.map_or_else(|| json!({}), |t| json!({"template": t}));
                     s.run("file.new", &params).map_err(|e| e.to_string())?;
@@ -549,10 +549,10 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                 if Path::new(out).is_dir() {
                     return Err(format!("{out}: is a folder, not a file").into());
                 }
-                strix_engine::io::check_writable(out).map_err(|e| format!("{out}: {e}"))?;
-                strix_engine::strix_objects::check_save(out, &s.doc).map_err(|e| format!("{out}: {e}"))?;
+                wordcraft_engine::io::check_writable(out).map_err(|e| format!("{out}: {e}"))?;
+                wordcraft_engine::strix_objects::check_save(out, &s.doc).map_err(|e| format!("{out}: {e}"))?;
                 if !out.to_ascii_lowercase().ends_with(".png") {
-                    strix_engine::io::save_bytes(out, &s.doc)?;
+                    wordcraft_engine::io::save_bytes(out, &s.doc)?;
                 }
             }
             for out in outputs {
@@ -575,7 +575,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
         }
         "commands" => {
             validate_options("commands", &rest, COMMANDS_OPTIONS)?;
-            let s = session(strix_doc::Document::new());
+            let s = session(wordcraft_doc::Document::new());
             if rest.iter().any(|a| a == "--json") {
                 let list = serde_json::to_string_pretty(&s.registry.describe()).unwrap_or_default();
                 write_stdout(|o| writeln!(o, "{list}"))
@@ -590,8 +590,8 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
         }
         "parity" => {
             validate_options("parity", &rest, PARITY_OPTIONS)?;
-            let s = session(strix_doc::Document::new());
-            let p = strix_engine::catalog::parity(&s.registry);
+            let s = session(wordcraft_doc::Document::new());
+            let p = wordcraft_engine::catalog::parity(&s.registry);
             if rest.iter().any(|a| a == "--markdown") {
                 write_stdout(|o| write!(o, "{}", parity_markdown(&p)))
             } else {
@@ -609,7 +609,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                         .into(),
                 );
             }
-            let backend: Box<dyn strix_mcp::Backend> = match connect {
+            let backend: Box<dyn wordcraft_mcp::Backend> = match connect {
                 // The app's user name is the person's own setting; don't rewrite it from a flag.
                 Some(_) if author.is_some() => {
                     return Err("mcp: --author applies to the headless server; with --connect, run file.setAuthor".into());
@@ -620,7 +620,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                     if !valid_connect_addr(&addr) {
                         return Err(format!("mcp: --connect needs HOST:PORT with a numeric port, got `{addr}`").into());
                     }
-                    match strix_mcp::Remote::connect(&addr) {
+                    match wordcraft_mcp::Remote::connect(&addr) {
                         Ok(remote) => {
                             eprintln!("strix-cli mcp: connected to Strix at {addr}");
                             if let Some(w) = remote.key_warning() {
@@ -633,15 +633,15 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                         // (#4078).
                         Err(e) => {
                             eprintln!("strix-cli mcp: Strix is not reachable at {addr} yet ({e}); will retry on each call");
-                            Box::new(strix_mcp::Remote::lazy(&addr))
+                            Box::new(wordcraft_mcp::Remote::lazy(&addr))
                         }
                     }
                 }
                 None => {
-                    let mut headless = strix_mcp::Headless::default();
+                    let mut headless = wordcraft_mcp::Headless::default();
                     if let Some(roots) = roots {
                         // Every thread of this process, not only the server's: nothing reaches past the roots.
-                        strix_engine::file_access::confine_process(roots.clone());
+                        wordcraft_engine::file_access::confine_process(roots.clone());
                         let show = |root: Option<&std::path::Path>| root.map_or_else(|| "none".to_string(), |r| r.display().to_string());
                         eprintln!("strix-cli: files confined: read root {}, write root {}", show(roots.read_root()), show(roots.write_root()));
                         headless = headless.with_automation_roots(Some(roots));
@@ -652,7 +652,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                     Box::new(headless)
                 }
             };
-            let mut server = strix_mcp::Server::new(backend);
+            let mut server = wordcraft_mcp::Server::new(backend);
             let stdin = std::io::stdin();
             // A client that closes our stdout has hung up: `serve` returns BrokenPipe and we end cleanly.
             Ok(server.serve(stdin.lock(), std::io::stdout())?)
@@ -663,7 +663,7 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
             let (Some(name), Some(file)) = (paths.first(), paths.get(1)) else {
                 return Err(missing_argument());
             };
-            let command = strix_zotero::Command::from_name(name).ok_or_else(|| format!("unknown Zotero command `{name}`\n\n{USAGE}"))?;
+            let command = wordcraft_zotero::Command::from_name(name).ok_or_else(|| format!("unknown Zotero command `{name}`\n\n{USAGE}"))?;
             let mut s = open(file, None)?;
             for spec in rest.iter().zip(rest.iter().skip(1)).filter(|(a, _)| *a == "--cmd").map(|(_, v)| v) {
                 let (id, params) = match spec.split_once('=') {
@@ -672,18 +672,18 @@ fn run<S: AsRef<OsStr>>(args: &[S]) -> Result<(), Failure> {
                 };
                 s.run(&id, &params).map_err(|e| format!("{id}: {e}"))?;
             }
-            let mut opts = strix_zotero::client::Options::default();
+            let mut opts = wordcraft_zotero::client::Options::default();
             if let Some(p) = arg_value(&rest, "--port") {
                 opts.addr.set_port(p.parse().map_err(|_| format!("bad port `{p}`"))?);
             }
             let trace = rest.iter().any(|a| a == "--trace");
-            let mut bridge = strix_zotero::Bridge::new();
-            let mut host = strix_zotero::Headless::default();
-            let out = strix_zotero::client::run_command(&opts, command, &mut |call| {
+            let mut bridge = wordcraft_zotero::Bridge::new();
+            let mut host = wordcraft_zotero::Headless::default();
+            let out = wordcraft_zotero::client::run_command(&opts, command, &mut |call| {
                 let r = bridge.handle(&mut s, &mut host, call);
                 if trace {
                     eprintln!("← {} {}", escape_peer(&call.method), escape_peer(&clip(&Value::Array(call.args.clone()).to_string())));
-                    eprintln!("→ {}", escape_peer(&clip(&String::from_utf8_lossy(&strix_zotero::wire::encode_reply(&r)))));
+                    eprintln!("→ {}", escape_peer(&clip(&String::from_utf8_lossy(&wordcraft_zotero::wire::encode_reply(&r)))));
                 }
                 r
             })

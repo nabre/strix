@@ -31,7 +31,7 @@ impl Class {
     }
 }
 
-/// The layering table. Names are package names without the `strix-`
+/// The layering table. Names are package names without the `wordcraft-`
 /// prefix.
 pub const TABLE: &[(&str, Class)] = &[
     ("geom", Class::Layer(0)),
@@ -139,7 +139,7 @@ impl std::fmt::Display for Violation {
                 write!(f, "{krate}: standalone crate must not depend on workspace crate {dep}")
             }
             Violation::TestkitAsNormalDep { krate } => {
-                write!(f, "{krate}: strix-testkit may only be a dev-dependency")
+                write!(f, "{krate}: wordcraft-testkit may only be a dev-dependency")
             }
             Violation::UiBelowL6 { krate, dep, layer } => {
                 write!(f, "{krate} (L{layer}) depends on UI crate `{dep}`; UI toolkits are only allowed in L6+")
@@ -245,76 +245,76 @@ mod tests {
     #[test]
     fn clean_downward_graph_passes() {
         let g = [
-            c("strix-geom", &[("kurbo", Normal, false)]),
-            c("strix-doc", &[("strix-geom", Normal, true)]),
-            c("strix-engine", &[("strix-doc", Normal, true), ("strix-testkit", Dev, true)]),
-            c("strix-ui-egui", &[("strix-engine", Normal, true), ("egui", Normal, false)]),
-            c("strix-cli", &[("strix-ui-egui", Normal, true)]),
+            c("wordcraft-geom", &[("kurbo", Normal, false)]),
+            c("wordcraft-doc", &[("wordcraft-geom", Normal, true)]),
+            c("wordcraft-engine", &[("wordcraft-doc", Normal, true), ("wordcraft-testkit", Dev, true)]),
+            c("wordcraft-ui-egui", &[("wordcraft-engine", Normal, true), ("egui", Normal, false)]),
+            c("strix-cli", &[("wordcraft-ui-egui", Normal, true)]),
         ];
         assert!(check(&g).is_empty(), "{:?}", check(&g));
     }
 
     #[test]
     fn upward_dependency_flagged() {
-        let v = check(&[c("strix-doc", &[("strix-engine", Normal, true)])]);
+        let v = check(&[c("wordcraft-doc", &[("wordcraft-engine", Normal, true)])]);
         assert!(matches!(v[..], [Violation::Upward { from: 1, to: 4, .. }]));
     }
 
     #[test]
     fn sideways_dependency_flagged() {
-        let v = check(&[c("strix-layout", &[("strix-docx", Normal, true)])]);
+        let v = check(&[c("wordcraft-layout", &[("wordcraft-docx", Normal, true)])]);
         assert!(matches!(v[..], [Violation::Upward { from: 2, to: 2, .. }]));
     }
 
     #[test]
     fn l0_foundation_chain_allowed_one_way() {
-        assert!(check(&[c("strix-doc", &[("strix-geom", Normal, true)])]).is_empty());
-        let v = check(&[c("strix-geom", &[("strix-doc", Normal, true)])]);
+        assert!(check(&[c("wordcraft-doc", &[("wordcraft-geom", Normal, true)])]).is_empty());
+        let v = check(&[c("wordcraft-geom", &[("wordcraft-doc", Normal, true)])]);
         assert!(matches!(v[..], [Violation::Upward { from: 0, to: 1, .. }]));
     }
 
     #[test]
     fn self_dev_dependency_ignored() {
-        assert!(check(&[c("strix-doc", &[("strix-doc", Dev, true)])]).is_empty());
+        assert!(check(&[c("wordcraft-doc", &[("wordcraft-doc", Dev, true)])]).is_empty());
     }
 
     #[test]
     fn upward_dev_dependency_flagged() {
-        let v = check(&[c("strix-geom", &[("strix-doc", Dev, true)])]);
+        let v = check(&[c("wordcraft-geom", &[("wordcraft-doc", Dev, true)])]);
         assert!(matches!(v[..], [Violation::Upward { kind: Dev, .. }]));
     }
 
     #[test]
     fn ui_crates_below_l6_flagged() {
         for dep in ["egui", "eframe", "winit", "egui_kittest", "rfd", "bevy_ecs", "bevy"] {
-            let v = check(&[c("strix-engine", &[(dep, Normal, false)])]);
+            let v = check(&[c("wordcraft-engine", &[(dep, Normal, false)])]);
             assert!(matches!(v[..], [Violation::UiBelowL6 { layer: 4, .. }]), "{dep}");
         }
-        assert!(check(&[c("strix-engine", &[("egui_extras_not", Normal, false)])]).is_empty());
-        assert!(!check(&[c("strix-mcp", &[("winit", Normal, false)])]).is_empty());
+        assert!(check(&[c("wordcraft-engine", &[("egui_extras_not", Normal, false)])]).is_empty());
+        assert!(!check(&[c("wordcraft-mcp", &[("winit", Normal, false)])]).is_empty());
     }
 
     #[test]
     fn unregistered_crate_is_error() {
-        let v = check(&[c("strix-mystery", &[])]);
-        assert!(matches!(&v[..], [Violation::Unregistered { krate }] if krate == "strix-mystery"));
+        let v = check(&[c("wordcraft-mystery", &[])]);
+        assert!(matches!(&v[..], [Violation::Unregistered { krate }] if krate == "wordcraft-mystery"));
         assert!(v[0].to_string().contains("register"));
     }
 
     #[test]
     fn testkit_only_as_dev_dependency() {
-        let v = check(&[c("strix-render", &[("strix-testkit", Normal, true)])]);
+        let v = check(&[c("wordcraft-render", &[("wordcraft-testkit", Normal, true)])]);
         assert!(matches!(v[..], [Violation::TestkitAsNormalDep { .. }]));
-        assert!(check(&[c("strix-render", &[("strix-testkit", Dev, true)])]).is_empty());
+        assert!(check(&[c("wordcraft-render", &[("wordcraft-testkit", Dev, true)])]).is_empty());
         // testkit itself may use anything up to L5 but not L6 crates.
-        assert!(check(&[c("strix-testkit", &[("strix-engine", Normal, true)])]).is_empty());
-        assert!(!check(&[c("strix-testkit", &[("strix-ui-egui", Normal, true)])]).is_empty());
+        assert!(check(&[c("wordcraft-testkit", &[("wordcraft-engine", Normal, true)])]).is_empty());
+        assert!(!check(&[c("wordcraft-testkit", &[("wordcraft-ui-egui", Normal, true)])]).is_empty());
     }
 
     #[test]
     fn apps_and_xtask_exempt() {
         for app in ["strix", "strix-cli", "strix-web", "xtask"] {
-            assert!(check(&[c(app, &[("egui", Normal, false), ("strix-ui-egui", Normal, true)])]).is_empty());
+            assert!(check(&[c(app, &[("egui", Normal, false), ("wordcraft-ui-egui", Normal, true)])]).is_empty());
         }
     }
 
@@ -322,17 +322,17 @@ mod tests {
     fn metadata_parsing() {
         let meta: Value = serde_json::from_str(
             r#"{"packages":[
-                {"name":"strix-doc","dependencies":[
-                    {"name":"strix-geom","kind":null,"path":"/x/crates/geom"},
+                {"name":"wordcraft-doc","dependencies":[
+                    {"name":"wordcraft-geom","kind":null,"path":"/x/crates/geom"},
                     {"name":"serde","kind":null},
                     {"name":"proptest","kind":"dev"}]},
-                {"name":"strix-geom","dependencies":[]}
+                {"name":"wordcraft-geom","dependencies":[]}
             ]}"#,
         )
         .unwrap();
         let g = from_metadata(&meta).unwrap();
         assert_eq!(g.len(), 2);
-        let doc = g.iter().find(|c| c.name == "strix-doc").unwrap();
+        let doc = g.iter().find(|c| c.name == "wordcraft-doc").unwrap();
         assert!(doc.deps[0].workspace && !doc.deps[1].workspace);
         assert_eq!(doc.deps[2].kind, Dev);
         assert!(check(&g).is_empty());

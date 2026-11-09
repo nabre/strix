@@ -12,7 +12,7 @@ use super::notes::v_span;
 use super::page::PageBuilder;
 use super::placed::Placed;
 use super::{Arc, Paragraph, Path, Rect, SectionProps, StoryRef};
-use strix_doc::graph_paper::{self, GraphPaper, GridPlacement};
+use wordcraft_doc::graph_paper::{self, GraphPaper, GridPlacement};
 
 /// `r` cut to whole squares down its height: kept on its bottom (`on_bottom`) or on its top.
 /// Empty when not one square fits.

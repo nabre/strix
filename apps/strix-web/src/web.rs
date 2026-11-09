@@ -5,18 +5,18 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use strix_engine::Session;
-use strix_ui_egui::async_saves::{AsyncSaves, SaveOutcome};
-use strix_ui_egui::{Inbox, Services, WordApp};
 use wasm_bindgen::JsCast as _;
+use wordcraft_engine::Session;
+use wordcraft_ui_egui::async_saves::{AsyncSaves, SaveOutcome};
+use wordcraft_ui_egui::{Inbox, Services, WordApp};
 
 const DOC_EXTS: &[&str] =
     &["xmath", "xmathm", "docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "rtf", "txt", "md", "html", "htm", "tex", "json", "xml"];
 const IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
-const RECIPIENT_EXTS: &[&str] = strix_engine::cmd::mailings::RECIPIENT_EXTENSIONS;
+const RECIPIENT_EXTS: &[&str] = wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS;
 mod font_store;
-const CANVAS_ID: &str = "strix_canvas";
-const LOADING_ID: &str = "strix_loading";
+const CANVAS_ID: &str = "wordcraft_canvas";
+const LOADING_ID: &str = "wordcraft_loading";
 
 pub fn start() {
     eframe::WebLogger::init(log::LevelFilter::Info).ok();
@@ -29,7 +29,7 @@ pub fn start() {
             log::error!("missing <canvas id=\"{CANVAS_ID}\">");
             return;
         };
-        // `?host=parent`: a same-origin page framing Strix opens documents in it and stores
+        // `?host=parent`: a same-origin page framing WordCraft opens documents in it and stores
         // what it saves (`host`). That page guards leaving it, so this one doesn't.
         let bridge = if query_param("host").as_deref() == Some("parent") { crate::host::Bridge::new() } else { None };
         let app_bridge = bridge.clone();
@@ -63,10 +63,10 @@ pub fn start() {
                     }
                     // The browser's locale picks the new document's paper, the units and the
                     // decimal separator (#838).
-                    let region = strix_ui_egui::i18n::system_region();
+                    let region = wordcraft_ui_egui::i18n::system_region();
                     // In host mode the parent sends the document to edit; no sample meanwhile.
                     let sample = app_bridge.is_none() && query().contains("sample");
-                    let doc = if sample { strix_engine::sample::sample_document() } else { strix_engine::blank_document(&region) };
+                    let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
                     let mut session = Session::new(doc);
                     session.system_region = region;
                     let messages = Rc::new(RefCell::new(Vec::new()));
@@ -262,7 +262,7 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
             let dialog = if purpose == "picture" {
                 rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS)
             } else if purpose == "font" {
-                rfd::AsyncFileDialog::new().add_filter("Fonts", strix_fonts::FONT_FILE_EXTS)
+                rfd::AsyncFileDialog::new().add_filter("Fonts", wordcraft_fonts::FONT_FILE_EXTS)
             } else if purpose == "recipients" {
                 rfd::AsyncFileDialog::new().add_filter("Recipient lists", RECIPIENT_EXTS)
             } else {
@@ -325,7 +325,7 @@ fn load_system_fonts(ctx: egui::Context, messages: Rc<RefCell<Vec<String>>>) {
         let query_fn = match js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("queryLocalFonts")) {
             Ok(val) if val.is_function() => js_sys::Function::from(val),
             _ => {
-                messages.borrow_mut().push(strix_ui_egui::i18n::t("Local font access is not supported by your browser.").to_string());
+                messages.borrow_mut().push(wordcraft_ui_egui::i18n::t("Local font access is not supported by your browser.").to_string());
                 ctx.request_repaint();
                 return;
             }
@@ -334,7 +334,7 @@ fn load_system_fonts(ctx: egui::Context, messages: Rc<RefCell<Vec<String>>>) {
             Ok(p) => js_sys::Promise::from(p),
             Err(e) => {
                 log::warn!("queryLocalFonts call failed: {e:?}");
-                messages.borrow_mut().push(strix_ui_egui::i18n::t("Local font access was denied.").to_string());
+                messages.borrow_mut().push(wordcraft_ui_egui::i18n::t("Local font access was denied.").to_string());
                 ctx.request_repaint();
                 return;
             }
@@ -343,7 +343,7 @@ fn load_system_fonts(ctx: egui::Context, messages: Rc<RefCell<Vec<String>>>) {
             Ok(val) => val,
             Err(e) => {
                 log::warn!("queryLocalFonts promise rejected: {e:?}");
-                messages.borrow_mut().push(strix_ui_egui::i18n::t("Local font access was denied.").to_string());
+                messages.borrow_mut().push(wordcraft_ui_egui::i18n::t("Local font access was denied.").to_string());
                 ctx.request_repaint();
                 return;
             }
@@ -375,14 +375,14 @@ fn load_system_fonts(ctx: egui::Context, messages: Rc<RefCell<Vec<String>>>) {
             };
             // Skip a face too big on its own or for what is left of the budget, before reading it.
             let size = blob.size().clamp(0.0, usize::MAX as f64) as usize;
-            if size > strix_fonts::MAX_FONT_FILE_BYTES || total_bytes.saturating_add(size) > MAX_SYSTEM_FONT_BYTES {
+            if size > wordcraft_fonts::MAX_FONT_FILE_BYTES || total_bytes.saturating_add(size) > MAX_SYSTEM_FONT_BYTES {
                 continue;
             }
             let Ok(array_buffer) = wasm_bindgen_futures::JsFuture::from(blob.array_buffer()).await else {
                 continue;
             };
             let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-            if bytes.len() > strix_fonts::MAX_FONT_FILE_BYTES {
+            if bytes.len() > wordcraft_fonts::MAX_FONT_FILE_BYTES {
                 continue;
             }
             total_bytes = total_bytes.saturating_add(bytes.len());
@@ -391,17 +391,17 @@ fn load_system_fonts(ctx: egui::Context, messages: Rc<RefCell<Vec<String>>>) {
                 .and_then(|v| v.as_string())
                 .unwrap_or_else(|| format!("local-font-{i}"));
             let name = format!("{ps_name}.ttf");
-            match strix_fonts::FontDb::global().install_font(&name, &bytes) {
+            match wordcraft_fonts::FontDb::global().install_font(&name, &bytes) {
                 Ok(_) => loaded += 1,
-                Err(strix_fonts::UserFontError::AlreadyAvailable(_)) => {}
+                Err(wordcraft_fonts::UserFontError::AlreadyAvailable(_)) => {}
                 Err(e) => log::warn!("local font {name} skipped: {e}"),
             }
         }
         if loaded > 0 {
-            let msg = strix_ui_egui::i18n::fmt(strix_ui_egui::i18n::t("Loaded {count} system fonts."), &[("count", &loaded.to_string())]);
+            let msg = wordcraft_ui_egui::i18n::fmt(wordcraft_ui_egui::i18n::t("Loaded {count} system fonts."), &[("count", &loaded.to_string())]);
             messages.borrow_mut().push(msg);
         } else {
-            messages.borrow_mut().push(strix_ui_egui::i18n::t("All system fonts are already available.").to_string());
+            messages.borrow_mut().push(wordcraft_ui_egui::i18n::t("All system fonts are already available.").to_string());
         }
         ctx.request_repaint();
     });
@@ -465,7 +465,7 @@ fn trigger_save_file_picker(
 ) -> Result<(), String> {
     let js = |e: wasm_bindgen::JsValue| format!("{e:?}");
     let ext =
-        std::path::Path::new(name).extension().and_then(std::ffi::OsStr::to_str).unwrap_or(strix_engine::io::NATIVE_DOC_EXT).to_ascii_lowercase();
+        std::path::Path::new(name).extension().and_then(std::ffi::OsStr::to_str).unwrap_or(wordcraft_engine::io::NATIVE_DOC_EXT).to_ascii_lowercase();
     let dot_ext = format!(".{ext}");
     let mime = mime_for(name);
 
@@ -583,7 +583,7 @@ fn trigger_anchor_download(window: &web_sys::Window, name: &str, bytes: &[u8]) -
 }
 
 /// The hidden iframe the last print loaded its PDF into.
-const PRINT_FRAME_ID: &str = "strix-print-frame";
+const PRINT_FRAME_ID: &str = "wordcraft-print-frame";
 
 /// Opens `bytes` (a PDF) as an object URL in a hidden iframe and calls the
 /// iframe's own `print()` once it has finished loading — this is the

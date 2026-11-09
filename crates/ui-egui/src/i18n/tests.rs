@@ -17,8 +17,8 @@ macro_rules! needs_catalogs {
     };
 }
 
-/// The translations in `code`'s embedded Strix catalog, plural forms apart: the fonts must
-/// cover Strix's own wording. (The shared catalog holds every app's; the CJK checks read it too.)
+/// The translations in `code`'s embedded WordCraft catalog, plural forms apart: the fonts must
+/// cover WordCraft's own wording. (The shared catalog holds every app's; the CJK checks read it too.)
 fn translations(code: &str) -> Vec<String> {
     let code = lang(code).code();
     CRAFT_I18N
@@ -143,7 +143,7 @@ fn placeholders_fill_without_reinterpreting_values() {
 #[test]
 fn the_language_setting_is_a_ui_command_and_persists() {
     needs_catalogs!();
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     assert_eq!(app.ui.language, AUTO);
     let r = app.run("ui.language", serde_json::json!({"value": "ZH-HANT"})).unwrap();
     assert_eq!(app.ui.language, "zh-hant");
@@ -171,7 +171,7 @@ fn ukrainian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(uk), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "uk-UA", "en-US"]), Some(uk));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "UK"})).unwrap();
     assert_eq!(result["effective"], "uk");
@@ -185,7 +185,7 @@ fn ukrainian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_ukrainian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("uk");
     let chars: std::collections::HashSet<char> =
@@ -201,7 +201,7 @@ fn bundled_interface_fonts_cover_ukrainian_without_system_fallbacks() {
 
 #[test]
 fn bundled_interface_fonts_cover_serbian_cyrillic_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("sr");
     let chars: std::collections::HashSet<char> = entries.iter().flat_map(|e| e.chars()).filter(|c| ('\u{0400}'..='\u{04ff}').contains(c)).collect();
@@ -216,7 +216,7 @@ fn bundled_interface_fonts_cover_serbian_cyrillic_without_system_fallbacks() {
 
 #[test]
 fn bundled_interface_fonts_cover_serbian_latin_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("sr-latn");
     // Serbian Latin's letters beyond plain ASCII: š č ć ž đ (and their capitals).
@@ -259,7 +259,7 @@ fn brazilian_portuguese_locales_and_saved_preference_work_without_changing_the_d
     }
     assert_eq!(first_supported(["pt-PT", "fr-FR"]), Some(lang("fr")));
     assert_eq!(first_supported([UNSUPPORTED, "pt-BR", "en-US"]), Some(pt));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "PT-BR"})).unwrap();
     assert_eq!(result["effective"], "pt-br");
@@ -273,7 +273,7 @@ fn brazilian_portuguese_locales_and_saved_preference_work_without_changing_the_d
 
 #[test]
 fn bundled_interface_fonts_cover_brazilian_portuguese_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("pt-br");
     let chars: std::collections::HashSet<char> = entries
@@ -301,7 +301,7 @@ fn czech_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(cs), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "cs-CZ", "en-US"]), Some(cs));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "CS"})).unwrap();
     assert_eq!(result["effective"], "cs");
@@ -315,7 +315,7 @@ fn czech_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_czech_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("cs");
     let chars: std::collections::HashSet<char> = entries
@@ -343,8 +343,8 @@ fn chinese_interface_fonts_load_and_cover_simplified_hanzi() {
     ctx.run_ui(Default::default(), |_| {}).textures_delta.clear();
     let covered = ctx.fonts_mut(|f| f.has_glyphs(&egui::FontId::proportional(14.0), "删除页选"));
     let (catalogs, _) = Lang::cjk_font_text(true);
-    let embedded = !strix_fonts::ui_needs_system_cjk(&catalogs, &strix_fonts::ui_cjk_fonts(true));
-    if embedded || strix_fonts::system_cjk_ui_font(true, &['页']).is_some() {
+    let embedded = !wordcraft_fonts::ui_needs_system_cjk(&catalogs, &wordcraft_fonts::ui_cjk_fonts(true));
+    if embedded || wordcraft_fonts::system_cjk_ui_font(true, &['页']).is_some() {
         assert!(covered, "a Chinese face is available but the interface lacks simplified hanzi");
     }
 }
@@ -359,8 +359,8 @@ fn korean_interface_fonts_load_and_cover_hangul() {
     let (catalogs, names) = Lang::cjk_font_text_for(false, true);
     let mut texts = catalogs;
     texts.push(&names);
-    let embedded = !strix_fonts::ui_needs_system_cjk(&texts, &strix_fonts::ui_cjk_fonts_for(false, true));
-    if embedded || strix_fonts::system_cjk_ui_font_for(false, true, &['한']).is_some() {
+    let embedded = !wordcraft_fonts::ui_needs_system_cjk(&texts, &wordcraft_fonts::ui_cjk_fonts_for(false, true));
+    if embedded || wordcraft_fonts::system_cjk_ui_font_for(false, true, &['한']).is_some() {
         assert!(covered, "a Korean face is available but the interface lacks Hangul glyphs");
     }
 }
@@ -372,7 +372,7 @@ fn cjk_catalogs_are_covered_by_the_embedded_interface_faces() {
     // interface weight; `?` and boxes showed where the Japanese face was the only CJK one. Needs
     // a craft-fonts build (CRAFT_FONTS_DIR); without one there is nothing embedded to check, and
     // the interface reads an installed CJK font instead.
-    if strix_fonts::ui_cjk_fonts(false).is_empty() {
+    if wordcraft_fonts::ui_cjk_fonts(false).is_empty() {
         eprintln!("skipped: built without craft-fonts (CRAFT_FONTS_DIR)");
         return;
     }
@@ -385,7 +385,7 @@ fn cjk_catalogs_are_covered_by_the_embedded_interface_faces() {
         ctx.run_ui(Default::default(), |_| {}).textures_delta.clear();
         let entries = translations(code);
         let chars: std::collections::BTreeSet<char> =
-            entries.iter().flat_map(|e| e.chars()).chain(names.chars()).filter(|c| strix_fonts::is_cjk(*c)).collect();
+            entries.iter().flat_map(|e| e.chars()).chain(names.chars()).filter(|c| wordcraft_fonts::is_cjk(*c)).collect();
         assert!(chars.len() > 300, "{code}: {} CJK characters", chars.len());
         for font in [crate::theme::regular(14.0), crate::theme::medium(14.0), crate::theme::semibold(14.0)] {
             let missing: String = ctx.fonts_mut(|f| chars.iter().filter(|c| !f.has_glyph(&font, **c)).collect());
@@ -394,7 +394,10 @@ fn cjk_catalogs_are_covered_by_the_embedded_interface_faces() {
         // So the interface reads no installed CJK font for these languages.
         let mut texts: Vec<&str> = l.catalog_texts().collect();
         texts.push(&names);
-        assert_eq!(strix_fonts::ui_uncovered_cjk(&texts, &strix_fonts::ui_cjk_fonts_for(l.prefers_hans(), l.prefers_korean())), Vec::<char>::new());
+        assert_eq!(
+            wordcraft_fonts::ui_uncovered_cjk(&texts, &wordcraft_fonts::ui_cjk_fonts_for(l.prefers_hans(), l.prefers_korean())),
+            Vec::<char>::new()
+        );
     }
 }
 
@@ -414,7 +417,7 @@ fn russian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(ru), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "ru-RU", "en-US"]), Some(ru));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "RU"})).unwrap();
     assert_eq!(result["effective"], "ru");
@@ -428,7 +431,7 @@ fn russian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_russian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("ru");
     let chars: std::collections::HashSet<char> = entries
@@ -450,7 +453,7 @@ fn bundled_interface_fonts_cover_russian_without_system_fallbacks() {
 
 #[test]
 fn built_in_style_names_are_translated_for_display_and_user_styles_are_not() {
-    let sheet = strix_doc::StyleSheet::builtin();
+    let sheet = wordcraft_doc::StyleSheet::builtin();
     let name = |id: &str| style_name(sheet.get(id).unwrap());
     set_current(fixture_lang(
         "x-fixture",
@@ -464,7 +467,7 @@ fn built_in_style_names_are_translated_for_display_and_user_styles_are_not() {
     assert_eq!(name("TOC9"), "TOC-FX 9");
     assert_eq!(builtin_style_name("Index 2"), "Index-FX 2");
     // A style the author made keeps its name, even when it matches a built-in one.
-    let mine = strix_doc::Style { name: "Normal".into(), builtin: false, ..Default::default() };
+    let mine = wordcraft_doc::Style { name: "Normal".into(), builtin: false, ..Default::default() };
     assert_eq!(style_name(&mine), "Normal");
     // A built-in name without a translation stays English.
     assert_eq!(builtin_style_name("Some Future Style"), "Some Future Style");
@@ -495,7 +498,7 @@ fn estonian_locales_and_saved_preference_keep_document_content() {
     assert_eq!(first_supported([UNSUPPORTED, "et-EE", "en-US"]), Some(et));
     assert_eq!(normalize_pref("ET"), Some("et"));
     assert_eq!(et.name(), "Eesti");
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "ET"})).unwrap();
     assert_eq!(result["effective"], "et");
@@ -508,7 +511,7 @@ fn estonian_locales_and_saved_preference_keep_document_content() {
 
 #[test]
 fn bundled_interface_fonts_cover_estonian_letters() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     for (family, style) in [("Inter", "Regular"), ("Inter", "Medium"), ("Inter", "SemiBold"), ("JetBrains Mono", "Regular")] {
         let face = db.face(family, style);
         assert_eq!(face.family, family, "must use the bundled interface face");
@@ -527,7 +530,7 @@ fn turkish_locales_and_saved_preference_work_without_changing_the_document() {
     }
     assert_eq!(first_supported([UNSUPPORTED, "tr-TR", "en-US"]), Some(tr));
     assert_eq!(normalize_pref("TR"), Some("tr"));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "TR"})).unwrap();
     assert_eq!(result["effective"], "tr");
@@ -546,7 +549,7 @@ fn turkish_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_turkish_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("tr");
     let extra = "ÇçĞğİıÖöŞşÜü";
@@ -570,7 +573,7 @@ fn hungarian_locales_and_saved_preference_work_without_changing_the_document() {
     }
     assert_eq!(first_supported(["fi-FI", "hu-HU", "en-US"]), Some(hu));
     assert_eq!(normalize_pref("HU"), Some("hu"));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "hu"})).unwrap();
     assert_eq!(result["effective"], "hu");
@@ -585,7 +588,7 @@ fn hungarian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_hungarian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("hu");
     let extra = "ÁáÉéÍíÓóÖöŐőÚúÜüŰű";
@@ -610,7 +613,7 @@ fn french_locales_and_saved_preference_work_without_changing_the_document() {
     assert_eq!(first_supported([UNSUPPORTED, "fr-CA", "en-US"]), Some(fr));
     assert_eq!(normalize_pref("FR"), Some("fr"));
     assert_eq!(fr.name(), "Français");
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "FR"})).unwrap();
     assert_eq!(result["effective"], "fr");
@@ -628,7 +631,7 @@ fn french_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_french_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("fr");
     // French letters and punctuation: accents, ligatures, guillemets and the typographic apostrophe.
@@ -661,7 +664,7 @@ fn polish_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(pl), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "pl-PL", "en-US"]), Some(pl));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "PL"})).unwrap();
     assert_eq!(result["effective"], "pl");
@@ -675,7 +678,7 @@ fn polish_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_polish_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("pl");
     // Polish letters beyond ASCII, both cases, and the Polish quotation marks.
@@ -694,7 +697,7 @@ fn bundled_interface_fonts_cover_polish_without_system_fallbacks() {
 #[test]
 fn a_polish_interface_writes_new_documents_in_polish() {
     needs_catalogs!();
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let ctx = egui::Context::default();
     let frame = |app: &mut crate::WordApp| ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     frame(&mut app);
@@ -726,7 +729,7 @@ fn a_polish_interface_writes_new_documents_in_polish() {
 #[test]
 fn a_czech_interface_writes_new_documents_and_plain_text_in_czech() {
     needs_catalogs!();
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let ctx = egui::Context::default();
     let frame = |app: &mut crate::WordApp| ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     app.run("ui.language", serde_json::json!({"value": "cs"})).unwrap();
@@ -756,7 +759,7 @@ fn a_czech_interface_writes_new_documents_and_plain_text_in_czech() {
 #[test]
 fn an_italian_interface_writes_new_documents_in_italian() {
     needs_catalogs!();
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let ctx = egui::Context::default();
     let frame = |app: &mut crate::WordApp| ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     frame(&mut app);
@@ -777,7 +780,7 @@ fn an_italian_interface_writes_new_documents_in_italian() {
 }
 
 #[test]
-fn the_editing_languages_are_the_ones_strix_can_proof() {
+fn the_editing_languages_are_the_ones_wordcraft_can_proof() {
     let with: Vec<(&str, &str)> = LANGUAGES.iter().filter_map(|l| l.editing_lang.map(|e| (l.code, e))).collect();
     assert_eq!(with, [("pt-br", "pt-BR"), ("pl", "pl-PL"), ("cs", "cs-CZ"), ("tr", "tr-TR"), ("it", "it-IT")]);
 }
@@ -792,7 +795,7 @@ fn german_locales_and_saved_preference_keep_document_content() {
     assert_eq!(first_supported([UNSUPPORTED, "de-AT", "en-US"]), Some(de));
     assert_eq!(normalize_pref("DE"), Some("de"));
     assert_eq!(de.name(), "Deutsch");
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "DE"})).unwrap();
     assert_eq!(result["effective"], "de");
@@ -805,7 +808,7 @@ fn german_locales_and_saved_preference_keep_document_content() {
 
 #[test]
 fn bundled_interface_fonts_cover_german_letters() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     for (family, style) in [("Inter", "Regular"), ("Inter", "Medium"), ("Inter", "SemiBold"), ("JetBrains Mono", "Regular")] {
         let face = db.face(family, style);
         assert_eq!(face.family, family, "must use the bundled interface face");
@@ -825,7 +828,7 @@ fn italian_locales_and_saved_preference_keep_document_content() {
     assert_eq!(first_supported([UNSUPPORTED, "it-IT", "en-US"]), Some(it));
     assert_eq!(normalize_pref("IT"), Some("it"));
     assert_eq!(it.name(), "Italiano");
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "IT"})).unwrap();
     assert_eq!(result["effective"], "it");
@@ -838,7 +841,7 @@ fn italian_locales_and_saved_preference_keep_document_content() {
 
 #[test]
 fn bundled_interface_fonts_cover_italian_letters() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     for (family, style) in [("Inter", "Regular"), ("Inter", "Medium"), ("Inter", "SemiBold"), ("JetBrains Mono", "Regular")] {
         let face = db.face(family, style);
         assert_eq!(face.family, family, "must use the bundled interface face");
@@ -856,7 +859,7 @@ fn bulgarian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(bg), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "bg-BG", "en-US"]), Some(bg));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "BG"})).unwrap();
     assert_eq!(result["effective"], "bg");
@@ -871,7 +874,7 @@ fn bulgarian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_bulgarian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("bg");
     let chars: std::collections::HashSet<char> = entries
@@ -899,7 +902,7 @@ fn croatian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(hr), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "hr-HR", "en-US"]), Some(hr));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "HR"})).unwrap();
     assert_eq!(result["effective"], "hr");
@@ -914,7 +917,7 @@ fn croatian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_croatian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("hr");
     let chars: std::collections::HashSet<char> = entries
@@ -942,7 +945,7 @@ fn swedish_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(sv), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "sv-SE", "en-US"]), Some(sv));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "SV"})).unwrap();
     assert_eq!(result["effective"], "sv");
@@ -957,7 +960,7 @@ fn swedish_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_swedish_letters() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("sv");
     let chars: std::collections::HashSet<char> = entries
@@ -985,7 +988,7 @@ fn vietnamese_locales_and_saved_preference_work_without_changing_the_document() 
         assert_eq!(lang_from_tag(tag), Some(vi), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "vi-VN", "en-US"]), Some(vi));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_engine::sample::sample_document()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_engine::sample::sample_document()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "VI"})).unwrap();
     assert_eq!(result["effective"], "vi");
@@ -1001,7 +1004,7 @@ fn vietnamese_locales_and_saved_preference_work_without_changing_the_document() 
 
 #[test]
 fn bundled_interface_fonts_cover_vietnamese_letters() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("vi");
     // Cover the catalog's Latin letters and combining marks, and all 134 non-ASCII Vietnamese
@@ -1046,7 +1049,7 @@ fn romanian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(ro), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "ro-RO", "en-US"]), Some(ro));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "RO"})).unwrap();
     assert_eq!(result["effective"], "ro");
@@ -1062,7 +1065,7 @@ fn romanian_locales_and_saved_preference_work_without_changing_the_document() {
 
 #[test]
 fn bundled_interface_fonts_cover_romanian_without_system_fallbacks() {
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     needs_catalogs!();
     let entries = translations("ro");
     // Romanian's letters beyond plain ASCII (comma-below ș ț) and its quotation marks.
@@ -1085,7 +1088,7 @@ fn slovenian_locales_and_saved_preference_work_without_changing_the_document() {
         assert_eq!(lang_from_tag(tag), Some(sl), "{tag}");
     }
     assert_eq!(first_supported([UNSUPPORTED, "sl-SI", "en-US"]), Some(sl));
-    let mut app = crate::WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     let before = serde_json::to_value(&app.session.doc).unwrap();
     let result = app.run("ui.language", serde_json::json!({"value": "SL"})).unwrap();
     assert_eq!(result["effective"], "sl");
@@ -1100,7 +1103,7 @@ fn slovenian_locales_and_saved_preference_work_without_changing_the_document() {
 #[test]
 fn bundled_interface_fonts_cover_slovenian_letters() {
     needs_catalogs!();
-    let db = strix_fonts::FontDb::with_font_dirs(Vec::new());
+    let db = wordcraft_fonts::FontDb::with_font_dirs(Vec::new());
     for (family, style) in [("Inter", "Regular"), ("Inter", "Medium"), ("Inter", "SemiBold"), ("JetBrains Mono", "Regular")] {
         let face = db.face(family, style);
         assert_eq!(face.family, family, "must use the bundled interface face");
@@ -1124,7 +1127,7 @@ fn a_context_lookup_never_borrows_the_plain_translation() {
     assert_eq!(get("spacing", "Open"), None);
 }
 
-/// Strix offers exactly the languages in `LANGUAGES` when craft-i18n is embedded, and English
+/// WordCraft offers exactly the languages in `LANGUAGES` when craft-i18n is embedded, and English
 /// alone when it isn't: a missing catalog never fails, it shows English.
 #[test]
 fn the_languages_offered_are_the_embedded_ones_of_the_list() {
@@ -1149,5 +1152,5 @@ fn the_flatpak_manifest_requires_the_catalogs() {
     let manifest = std::fs::read_to_string(root.join("packaging/linux/flatpak/io.github.nabre.strix.yml")).unwrap();
     assert!(manifest.contains("CRAFT_I18N_REQUIRED: '1'"), "a release must embed the catalogs");
     assert!(!manifest.contains("CRAFT_I18N_DIR"), "the catalogs come from locales/ in the source tree");
-    assert!(root.join("locales/it/strix.tsv").is_file(), "the catalogs are in the repository");
+    assert!(root.join("locales/it/wordcraft.tsv").is_file(), "the catalogs are in the repository");
 }

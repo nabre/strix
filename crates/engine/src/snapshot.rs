@@ -1,9 +1,8 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use crate::doc_state::{ColumnBlock, Selection, Undo};
 use std::sync::Arc;
 
-use strix_doc::Document;
-use strix_layout::{DocLayout, NumeralMode, ViewMode};
+use wordcraft_doc::Document;
+use wordcraft_layout::{DocLayout, NumeralMode, ViewMode};
 
 /// What [`Session::restore`] needs to take commands back exactly: the document, the selection,
 /// the undo and redo stacks (also the oldest undo steps the undo limit pushes out meanwhile), the
@@ -69,10 +68,10 @@ pub(super) type LayoutEntry = (
     Option<u32>,
     Arc<DocLayout>,
     bool,
-    Option<strix_layout::outline::OutlineView>,
-    (bool, strix_layout::HideDeleted, bool),
+    Option<wordcraft_layout::outline::OutlineView>,
+    (bool, wordcraft_layout::HideDeleted, bool),
     NumeralMode,
-    Option<strix_layout::TypingWord>,
+    Option<wordcraft_layout::TypingWord>,
     (bool, bool),
 );
 

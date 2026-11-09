@@ -1,17 +1,16 @@
-# Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 [package]
-name = "strix-docx"
+name = "wordcraft-docx"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Strix DOCX (OOXML WordprocessingML) reader and writer"
+description = "WordCraft DOCX (OOXML WordprocessingML) reader and writer"
 
 [lints]
 workspace = true
 
 [dependencies]
-strix-doc = { workspace = true }
-strix-geom = { workspace = true }
+wordcraft-doc = { workspace = true }
+wordcraft-geom = { workspace = true }
 quick-xml = { workspace = true }
 zip = { workspace = true }
 thiserror = { workspace = true }
@@ -32,7 +31,7 @@ zeroize = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"] }
 
 [dev-dependencies]
-strix-doc = { workspace = true, features = ["test-support"] }
+wordcraft-doc = { workspace = true, features = ["test-support"] }
 proptest = { workspace = true }
 image = { workspace = true }
 zip = { workspace = true }

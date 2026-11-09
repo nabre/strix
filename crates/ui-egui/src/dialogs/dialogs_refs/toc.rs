@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::common::{BUILT_IN_LABELS, LEADERS, choice, heading, leader_char, sample};
 use super::index::body_field;
 use super::shell::{Next, go};
@@ -28,7 +27,7 @@ impl TocForm {
     /// The table in the document, or the defaults for a new one.
     pub fn read(app: &WordApp) -> TocForm {
         let f = body_field(app, "TOC").unwrap_or_else(|| FieldCode::parse(r#"TOC \o "1-3" \h \z \u"#));
-        let levels = f.arg('o').and_then(strix_engine::cmd::references::level_range).map_or(3, |r| r.1);
+        let levels = f.arg('o').and_then(wordcraft_engine::cmd::references::level_range).map_or(3, |r| r.1);
         let listed: Vec<(String, u8)> = f
             .arg('t')
             .map(|t| {
@@ -58,9 +57,9 @@ impl TocForm {
             page_numbers: !f.has('n'),
             right_align: f.arg('p').is_none_or(|p| p.contains('\t')),
             leader: match leader {
-                Some(strix_doc::props::TabLeader::None) => "none",
-                Some(strix_doc::props::TabLeader::Hyphen) => "hyphen",
-                Some(strix_doc::props::TabLeader::Underscore) => "underscore",
+                Some(wordcraft_doc::props::TabLeader::None) => "none",
+                Some(wordcraft_doc::props::TabLeader::Hyphen) => "hyphen",
+                Some(wordcraft_doc::props::TabLeader::Underscore) => "underscore",
                 _ => "dot",
             }
             .into(),
@@ -222,7 +221,7 @@ pub struct FiguresForm {
 impl FiguresForm {
     pub fn read(app: &WordApp) -> FiguresForm {
         let mut labels: Vec<String> = BUILT_IN_LABELS.iter().map(ToString::to_string).collect();
-        for l in app.ui.caption_labels.iter().cloned().chain(strix_engine::cmd::citations::caption_labels(&app.session)) {
+        for l in app.ui.caption_labels.iter().cloned().chain(wordcraft_engine::cmd::citations::caption_labels(&app.session)) {
             if !labels.contains(&l) {
                 labels.push(l);
             }

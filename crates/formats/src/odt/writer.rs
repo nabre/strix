@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Align, FBlock, FTable, Fmt, HashMap, Inline, Kind, Para, RevMark, Rgb, VAlign, mime_of, model};
 
 // ---------------------------------------------------------------------------------------------
@@ -360,7 +359,7 @@ impl Writer {
                     }
                     // A script, `file:`, UNC or other non-web target is written as plain text, as
                     // the HTML and Markdown exporters do (LibreOffice follows `file:`/UNC hrefs).
-                    let link = f.link.as_deref().filter(|l| strix_doc::link::is_safe_href(l));
+                    let link = f.link.as_deref().filter(|l| wordcraft_doc::link::is_safe_href(l));
                     if let Some(l) = link {
                         out.push_str(&format!("<text:a xlink:type=\"simple\" xlink:href=\"{}\">", x(l)));
                     }

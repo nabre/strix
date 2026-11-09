@@ -1,6 +1,5 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::*;
-use strix_doc::THEME_COLORS;
+use wordcraft_doc::THEME_COLORS;
 
 const NS: &str =
     r#"xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main""#;

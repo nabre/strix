@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! OpenDocument Text (`.odt`, ODF 1.3).
 //!
 //! Export writes `mimetype` (stored, first), `META-INF/manifest.xml`, `content.xml` (paragraphs,
@@ -24,9 +23,9 @@ use std::sync::Arc;
 
 use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
-use strix_doc::props::VAlign;
-use strix_doc::section::{Columns, SectionStart};
-use strix_doc::{Align, Document, RevisionKind, Rgb, SectionProps};
+use wordcraft_doc::props::VAlign;
+use wordcraft_doc::section::{Columns, SectionStart};
+use wordcraft_doc::{Align, Document, RevisionKind, Rgb, SectionProps};
 
 use crate::model::{self, Cell, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, Meta, Para, RevMark, make_img, mime_of};
 

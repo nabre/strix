@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! LaTeX (`.tex`) import and export.
 //!
 //! **Export** writes a standalone LaTeX 2ε `article` that compiles with pdfLaTeX, XeLaTeX or
@@ -20,7 +19,7 @@
 //! environment nesting is depth-limited and the input size is capped.
 
 use crate::model::{self, Cell, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, Para};
-use strix_doc::{Align, Document, Rgb};
+use wordcraft_doc::{Align, Document, Rgb};
 
 mod export;
 mod lex;

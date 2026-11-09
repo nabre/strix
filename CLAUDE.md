@@ -33,7 +33,7 @@ People trust Strix with their writing; a crash loses their work. **This outranks
 Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch (`cargo xtask upstream status|sync`, then `git merge vendor/wordcraft`; [`docs/upstream.md`](docs/upstream.md)).
 - New Strix code goes in new files/crates; upstream files only get the lines that register or call it.
 - Never reformat, reorder, rename or split upstream code you aren't otherwise changing.
-- Never hand-edit brand names in upstream files: extend `RENAMES` in `xtask/src/upstream.rs`.
+- Internal names (crates, Rust paths, environment variables) are WordCraft's (`wordcraft_doc`, `WORDCRAFT_DICTIONARIES`); Strix's name only where users see it or it would collide with an installed WordCraft ([`docs/naming.md`](docs/naming.md)). Never hand-edit brand names in upstream files: add a row to `PRODUCT_NAME` or `STRIX_NAMES` in `xtask/src/upstream.rs`.
 - Dead code: `cargo xtask unused` lists dependencies nothing names and public items in Strix's own files nothing (or only tests) uses. Remove those; dead code in upstream files stays (report it upstream instead).
 
 ## Architecture (see `plan/architecture.md`)
@@ -63,7 +63,7 @@ Typing, Enter, Backspace, Tab, lists, AutoCorrect and AutoFormat follow Word's o
 ## Running and looking at the app
 - `cargo run --release -p strix -- --sample --control 7981` (sample document + control channel).
 - Drive it with JSON lines on `127.0.0.1:7981`, each with the window's key from `~/.config/strix/control-key.local-7981` (macOS: `~/Library/Application Support/Strix/`), e.g. `{"id":1,"key":"…","method":"engine.execute","params":{"command":"text.insert","params":{"text":"Hello"}}}` then `{"id":2,"key":"…","method":"ui.screenshot","params":{"path":"/tmp/shot.png"}}`. Methods: `crates/ui-egui/src/control.rs`; docs: `docs/control-protocol.md` (Keys).
-- **Headless window screenshots** (no focus stealing, works with a locked screen): `cargo run --release -p strix-ui-egui --example ui_shot -- script.jsonl` (see the example's header).
+- **Headless window screenshots** (no focus stealing, works with a locked screen): `cargo run --release -p wordcraft-ui-egui --example ui_shot -- script.jsonl` (see the example's header).
 - **For UI work, look at the result** (screenshot, read the PNG) and compare with Word side by side.
 - CLI: `strix-cli convert in.docx out.pdf`, `strix-cli run --template sample --cmd 'select.text={"text":"Studio"}' --cmd format.bold --save out.docx`, `strix-cli commands`, `strix-cli parity`.
 - MCP: `strix-cli mcp` (headless) or `strix-cli mcp --connect 127.0.0.1:7981` (drives the running app). See `docs/mcp.md`.

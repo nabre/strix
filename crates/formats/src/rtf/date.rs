@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 pub(super) fn rtf_date(s: &str) -> Option<String> {
     let num = |a: usize, b: usize| s.get(a..b).and_then(|x| x.parse::<u32>().ok());
     let (y, mo, d) = (num(0, 4)?, num(5, 7)?, num(8, 10)?);
@@ -37,7 +36,7 @@ pub fn dttm_to_iso(v: u32) -> Option<String> {
 
 /// An ISO 8601 date (`YYYY-MM-DD`, optionally `THH:MM…`; seconds and zone ignored) as an RTF
 /// DTTM; `None` when it isn't one or falls outside DTTM's years (1900–2411). DTTM has no time
-/// zone or seconds: the clock time is written as given (Strix keeps UTC, `Z`), and seconds
+/// zone or seconds: the clock time is written as given (WordCraft keeps UTC, `Z`), and seconds
 /// and any offset are dropped.
 pub fn iso_to_dttm(s: &str) -> Option<u32> {
     let num = |a: usize, b: usize| s.get(a..b).filter(|t| t.bytes().all(|c| c.is_ascii_digit())).and_then(|t| t.parse::<u32>().ok());

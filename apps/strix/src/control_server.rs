@@ -14,7 +14,7 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
-use strix_ui_egui::ControlRequest;
+use wordcraft_ui_egui::ControlRequest;
 
 /// Longer request lines are refused (and the connection closed).
 const MAX_LINE: usize = 1 << 20;
@@ -54,7 +54,7 @@ pub fn start(port: u16, ctx: egui::Context, settings: Option<&Path>) -> Option<(
     };
     let key_file = match settings {
         Some(dir) => {
-            let p = strix_control_key::key_path(dir, port);
+            let p = wordcraft_control_key::key_path(dir, port);
             match write_key_file(&p, &key) {
                 Ok(()) => Some(KeyFile(p)),
                 Err(e) => {
@@ -470,7 +470,7 @@ mod tests {
     }
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("strix-control-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("wordcraft-control-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -496,7 +496,7 @@ mod tests {
         }
         let ((rx, key_file), port) = started.unwrap();
         let key_file = key_file.unwrap();
-        assert_eq!(key_file.path(), strix_control_key::key_path(&dir, port));
+        assert_eq!(key_file.path(), wordcraft_control_key::key_path(&dir, port));
         let key = std::fs::read_to_string(key_file.path()).unwrap();
         assert_eq!(key.len(), 64);
         #[cfg(unix)]

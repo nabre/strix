@@ -26,10 +26,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde_json::{Value, json};
-use strix_doc::control::{ContentControl, ControlKind, ControlLock, ControlRange};
-use strix_doc::edit::Fragment;
-use strix_doc::para::InlineObject;
-use strix_doc::{Block, Document, Paragraph, Pos, StoryRef};
+use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock, ControlRange};
+use wordcraft_doc::edit::Fragment;
+use wordcraft_doc::para::InlineObject;
+use wordcraft_doc::{Block, Document, Paragraph, Pos, StoryRef};
 
 use super::{delete_selection, sel_result};
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
@@ -275,7 +275,7 @@ fn write(master: &Document, frag: &Fragment, path: &Path) -> Result<u64, String>
 /// The ids content controls already use.
 fn new_control_id(doc: &Document) -> i64 {
     let mut max = 0_i64;
-    strix_doc::control::walk_controls(&doc.body, &mut |c| max = max.max(c.id.unwrap_or(0)));
+    wordcraft_doc::control::walk_controls(&doc.body, &mut |c| max = max.max(c.id.unwrap_or(0)));
     max.saturating_add(1)
 }
 
@@ -421,7 +421,7 @@ fn create(s: &mut Session, v: &Value) -> CmdResult {
 
 /// Remove `sub`'s control markers, keeping its content.
 fn remove_markers(s: &mut Session, sub: &Sub) -> Result<(), CmdError> {
-    let w = strix_doc::para::OBJ.len_utf8();
+    let w = wordcraft_doc::para::OBJ.len_utf8();
     let end = &sub.range.end;
     s.doc.para_mut(end.story, &end.path)?.delete(end.off, end.off + w)?;
     let start = &sub.range.start;
@@ -446,7 +446,7 @@ fn replace(s: &mut Session, sub: &Sub, frag: Fragment) -> Result<(), CmdError> {
     remove_markers(s, sub)?;
     let start = sub.range.start.clone();
     // Without markers the content ends one marker earlier when it shares the start's paragraph.
-    let w = strix_doc::para::OBJ.len_utf8();
+    let w = wordcraft_doc::para::OBJ.len_utf8();
     let end_off = if sub.range.end.path == start.path { sub.range.end.off.saturating_sub(w) } else { sub.range.end.off };
     let end = Pos { off: end_off, ..sub.range.end.clone() };
     let at = s.doc.delete_range(&start, &end)?;
@@ -620,7 +620,7 @@ pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
             }
         }
     }
-    s.sel = Selection::caret(Pos::new(StoryRef::Body, strix_doc::Path::top(0), 0));
+    s.sel = Selection::caret(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(0), 0));
     s.clamp_selection();
     if !missing.is_empty() || !conflicts.is_empty() {
         s.status = format!("Subdocuments: {} not found (the master's copy is shown), {} with unsettled changes", missing.len(), conflicts.len());

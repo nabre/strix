@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::merge::address_block;
 use super::{
     Align, Block, CharProps, CmdError, CmdResult, Document, Paragraph, Pos, SectionProps, Selection, Session, StoryRef, Table, Value, json, p,
@@ -288,14 +287,14 @@ pub(super) fn labels(s: &mut Session, v: &Value) -> CmdResult {
     let width: f32 = grid_cols.iter().map(|c| if c.is_some() { prod.width } else { h_gap }).sum();
     let mut t = Table::new(grid_rows.len(), grid_cols.len(), width);
     t.props.style = None;
-    t.props.borders = Some(strix_doc::props::Borders::default());
+    t.props.borders = Some(wordcraft_doc::props::Borders::default());
     t.props.fixed = true;
     t.grid = grid_cols.iter().map(|c| if c.is_some() { prod.width } else { h_gap }).collect();
     let mut k = 0usize;
     let mut made = 0usize;
     for (row, r) in t.rows.iter_mut().zip(&grid_rows) {
         row.props.height = Some(if r.is_some() { prod.height } else { v_gap });
-        row.props.height_rule = strix_doc::props::HeightRule::Exact;
+        row.props.height_rule = wordcraft_doc::props::HeightRule::Exact;
         for (cell, c) in row.cells.iter_mut().zip(&grid_cols) {
             cell.props.width = Some(if c.is_some() { prod.width } else { h_gap });
             let (Some(r), Some(c)) = (r, c) else { continue };
@@ -311,7 +310,7 @@ pub(super) fn labels(s: &mut Session, v: &Value) -> CmdResult {
             if !content.is_empty() {
                 made += 1;
             }
-            cell.props.valign = Some(strix_doc::props::VAlign::Center);
+            cell.props.valign = Some(wordcraft_doc::props::VAlign::Center);
             cell.blocks = content
                 .split('\n')
                 .take(20)

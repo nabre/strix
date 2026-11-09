@@ -18,11 +18,11 @@ fn job(ctx: &egui::Context) -> Job {
 }
 
 /// The dictionary the caret's language lacks and Strix can download, if any.
-fn wanted(app: &WordApp) -> Option<&'static strix_engine::cmd::dictionaries::Source> {
-    let lang = strix_engine::cmd::dictionaries::caret_lang(&app.session);
-    let missing =
-        strix_engine::proof::missing_dictionary(lang.as_deref()).is_some() || strix_engine::proof::unreadable_dictionary(lang.as_deref()).is_some();
-    if missing { strix_engine::cmd::dictionaries::source_for(lang.as_deref()).ok() } else { None }
+fn wanted(app: &WordApp) -> Option<&'static wordcraft_engine::cmd::dictionaries::Source> {
+    let lang = wordcraft_engine::cmd::dictionaries::caret_lang(&app.session);
+    let missing = wordcraft_engine::proof::missing_dictionary(lang.as_deref()).is_some()
+        || wordcraft_engine::proof::unreadable_dictionary(lang.as_deref()).is_some();
+    if missing { wordcraft_engine::cmd::dictionaries::source_for(lang.as_deref()).ok() } else { None }
 }
 
 /// The name of the dictionary being downloaded, if one is.
@@ -57,7 +57,7 @@ pub(crate) fn offer(ui: &mut Ui, app: &mut WordApp) -> bool {
     true
 }
 
-fn start(ctx: &egui::Context, src: &'static strix_engine::cmd::dictionaries::Source) {
+fn start(ctx: &egui::Context, src: &'static wordcraft_engine::cmd::dictionaries::Source) {
     let job = job(ctx);
     if let Ok(mut g) = job.0.lock() {
         *g = Some((src.name, None));
@@ -65,7 +65,7 @@ fn start(ctx: &egui::Context, src: &'static strix_engine::cmd::dictionaries::Sou
     let worker = job.clone();
     let ctx = ctx.clone();
     let spawned = std::thread::Builder::new().name("dictionary-download".into()).spawn(move || {
-        let result = strix_engine::cmd::dictionaries::download(src).map_err(|e| e.to_string());
+        let result = wordcraft_engine::cmd::dictionaries::download(src).map_err(|e| e.to_string());
         if let Ok(mut g) = worker.0.lock() {
             *g = Some((src.name, Some(result)));
         }
@@ -107,7 +107,7 @@ mod tests {
     use super::*;
 
     fn app(lang: &str) -> WordApp {
-        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": "Testo"})).unwrap();
         app.session.doc.styles.default_chr.lang = Some(lang.into());
         app
@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(wanted(&app("ja-JP")), None);
         // Croatian (unless this machine has it installed).
         let hr = app("hr-HR");
-        if strix_engine::proof::missing_dictionary(Some("hr-HR")).is_some() {
+        if wordcraft_engine::proof::missing_dictionary(Some("hr-HR")).is_some() {
             let src = wanted(&hr).unwrap();
             assert_eq!((src.name, src.licence), ("hr_HR", "GPL-2.0, LGPL-2.1 or MPL-1.1"));
         } else {

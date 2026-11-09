@@ -3,7 +3,7 @@
 
 use egui::{Align2, Rect, Sense, Stroke, Ui, pos2, vec2};
 use serde_json::json;
-use strix_doc::{PartKind, StoryRef};
+use wordcraft_doc::{PartKind, StoryRef};
 
 use crate::theme::{Tokens, TypeRung, fit_text, paint_text, regular, semibold, text_width};
 use crate::{WordApp, icons};
@@ -17,7 +17,7 @@ pub(crate) fn dictionary_problem(lang: &str, unreadable: &Option<(std::path::Pat
         )),
         (None, Some(name)) => Some(crate::i18n::fmt(
             tl!(
-                "No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the STRIX_DICTIONARIES folder and in the usual system locations."
+                "No spelling dictionary for {language} is installed, so it isn't checked. Strix looks for the Hunspell dictionary {name} in the WORDCRAFT_DICTIONARIES folder and in the usual system locations."
             ),
             &[("language", lang), ("name", name)],
         )),
@@ -454,7 +454,7 @@ pub enum Screen {
 }
 
 impl Screen {
-    pub fn of(v: &strix_engine::ViewState) -> Self {
+    pub fn of(v: &wordcraft_engine::ViewState) -> Self {
         if v.focus_mode {
             Screen::Focus
         } else if v.full_screen_view {
@@ -571,7 +571,7 @@ pub fn status_bar(app: &mut WordApp, ui: &mut Ui) {
                 let wtxt = if app.session.sel.is_collapsed() || crate::objects::selected(app).is_some() {
                     crate::i18n::fmt(tl!("{words} words"), &[("words", &words.to_string())])
                 } else {
-                    let sw = strix_doc::count_words(&app.session.selected_text());
+                    let sw = wordcraft_doc::count_words(&app.session.selected_text());
                     crate::i18n::fmt(tl!("{selected} of {words} words"), &[("selected", &sw.to_string()), ("words", &words.to_string())])
                 };
                 if st(ui, &wtxt).clicked() {
@@ -664,8 +664,8 @@ pub fn status_bar(app: &mut WordApp, ui: &mut Ui) {
                     let mode = app.session.view.mode;
                     let read = app.session.view.read_mode;
                     for (icon, id, name, on) in [
-                        ("webLayout", "view.webLayout", tl!("Web Layout"), mode == strix_layout::ViewMode::Web),
-                        ("printLayout", "view.printLayout", tl!("Print Layout"), mode == strix_layout::ViewMode::Print && !read),
+                        ("webLayout", "view.webLayout", tl!("Web Layout"), mode == wordcraft_layout::ViewMode::Web),
+                        ("printLayout", "view.printLayout", tl!("Print Layout"), mode == wordcraft_layout::ViewMode::Print && !read),
                         ("readMode", "view.readMode", tl!("Read Mode"), read),
                     ] {
                         let (r, resp) = ui.allocate_exact_size(vec2(22.0, 20.0), Sense::click());

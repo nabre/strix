@@ -1,5 +1,4 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Equation layout: the [`strix_doc::math`] tree → positioned glyphs and rules.
+//! Equation layout: the [`wordcraft_doc::math`] tree → positioned glyphs and rules.
 //!
 //! Follows the OpenType `MATH` model (the one Word's own math engine and Cambria Math were built
 //! around): font constants for script shifts, fraction and radical gaps, limits and rules; size
@@ -11,14 +10,14 @@
 
 use std::sync::Arc;
 
-use strix_doc::math::{
+use wordcraft_doc::math::{
     Arg, BrkBin, BrkBinSub, ColJc, FracKind, LimLoc, MAX_DEPTH, MClass, MNode, MRun, MScr, MSty, MathProps, ScriptKind, is_integral, math_alnum,
     parse_linear,
 };
-use strix_doc::props::{Rgb, TextColor};
-use strix_doc::resolve::ResolvedChar;
-use strix_fonts::math::{C, Construction, MathTable, glyph_bounds};
-use strix_fonts::{FaceRef, FontDb};
+use wordcraft_doc::props::{Rgb, TextColor};
+use wordcraft_doc::resolve::ResolvedChar;
+use wordcraft_fonts::math::{C, Construction, MathTable, glyph_bounds};
+use wordcraft_fonts::{FaceRef, FontDb};
 
 mod bx;
 mod glyphs;
@@ -151,7 +150,7 @@ fn slot_dist(s: &Slot, x: f32, y: f32) -> f32 {
 }
 
 /// Numbered rows (`#`) in an equation: they advance the automatic numbering.
-pub fn auto_numbers(math: &strix_doc::math::Math, display: bool) -> u32 {
+pub fn auto_numbers(math: &wordcraft_doc::math::Math, display: bool) -> u32 {
     if !display {
         return 0;
     }
@@ -200,7 +199,7 @@ fn split_number(row: &[MNode]) -> Option<(Arg, Arg, usize)> {
 /// wrap to it as `props` says); `counter` counts the document's automatic equation numbers so far
 /// and advances past this equation's.
 pub fn layout_equation(
-    math: &strix_doc::math::Math,
+    math: &wordcraft_doc::math::Math,
     linear: &str,
     rc: &ResolvedChar,
     display: bool,
@@ -215,7 +214,7 @@ pub fn layout_equation(
     } else {
         &math.nodes
     };
-    let (face, table) = strix_fonts::math::resolve_math("Cambria Math");
+    let (face, table) = wordcraft_fonts::math::resolve_math("Cambria Math");
     let color = match rc.color {
         TextColor::Rgb(c) => c,
         TextColor::Auto => Rgb::BLACK,

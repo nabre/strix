@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Stroke, Tokens, Ui, Value, WordApp, json, regular, semibold, vec2};
 
 /// Style Inspector: the paragraph and character levels at the caret, each with its style and the
@@ -6,7 +5,7 @@ use super::{Stroke, Tokens, Ui, Value, WordApp, json, regular, semibold, vec2};
 pub(super) fn inspector(app: &mut WordApp, ui: &mut Ui) {
     // Read-only, so call it directly: running the command every frame would pay for the command
     // machinery and consume per-command state (a pending `join_next_undo`) just to draw the pane.
-    let r = strix_engine::cmd::inspector::inspect(&app.session);
+    let r = wordcraft_engine::cmd::inspector::inspect(&app.session);
     let t = Tokens::get(ui.ctx());
     let none = tl!("None").to_string();
     let para = &r["paragraph"];

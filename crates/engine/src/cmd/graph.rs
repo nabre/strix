@@ -6,15 +6,15 @@
 //! Sizes in the parameters are millimetres (spacing, height) and points (line widths); every
 //! value is clamped by [`GraphPaper::sanitized`].
 //!
-//! [`SectionProps::graph_paper`]: strix_doc::SectionProps::graph_paper
-//! [`ParaProps::graph`]: strix_doc::props::ParaProps::graph
+//! [`SectionProps::graph_paper`]: wordcraft_doc::SectionProps::graph_paper
+//! [`ParaProps::graph`]: wordcraft_doc::props::ParaProps::graph
 
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_doc::graph_paper::{GraphPaper, GridLine, GridLineStyle, GridPlacement, MAX_MAJOR_EVERY, MAX_PAGES, PT_PER_MM};
-use strix_doc::props::Rgb;
-use strix_doc::{Block, Paragraph, Path, Pos, StoryRef, para_block};
+use wordcraft_doc::graph_paper::{GraphPaper, GridLine, GridLineStyle, GridPlacement, MAX_MAJOR_EVERY, MAX_PAGES, PT_PER_MM};
+use wordcraft_doc::props::Rgb;
+use wordcraft_doc::{Block, Paragraph, Path, Pos, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 
@@ -305,7 +305,7 @@ mod tests {
 
     /// One paragraph, "Before", with the caret at its end.
     fn session() -> Session {
-        let mut s = Session::new(strix_doc::Document::from_text("Before"));
+        let mut s = Session::new(wordcraft_doc::Document::from_text("Before"));
         s.sel = Selection::caret(Pos::new(StoryRef::Body, body_path(0), 6));
         s
     }
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn an_empty_paragraph_becomes_the_block() {
-        let mut s = Session::new(strix_doc::Document::from_text("Before\n\nAfter"));
+        let mut s = Session::new(wordcraft_doc::Document::from_text("Before\n\nAfter"));
         assert_eq!(s.doc.body.len(), 3);
         s.sel = Selection::caret(Pos::new(StoryRef::Body, body_path(1), 0));
         s.run("graph.insert", &json!({"placement": "pages", "pages": 3})).unwrap();
@@ -432,14 +432,14 @@ mod tests {
     /// scratch (as reopening the document would): the grid is never left where an earlier edit
     /// put it.
     fn grids(s: &mut Session) -> Vec<(usize, [i32; 4])> {
-        let rects = |l: &strix_layout::DocLayout| -> Vec<(usize, [i32; 4])> {
+        let rects = |l: &wordcraft_layout::DocLayout| -> Vec<(usize, [i32; 4])> {
             let r = |v: f32| (v * 10.0).round() as i32;
             l.pages
                 .iter()
                 .enumerate()
                 .flat_map(|(i, pg)| {
                     pg.items.iter().filter_map(move |it| match it {
-                        strix_layout::Placed::Grid { rect, .. } => Some((i, [r(rect.x), r(rect.y), r(rect.w), r(rect.h)])),
+                        wordcraft_layout::Placed::Grid { rect, .. } => Some((i, [r(rect.x), r(rect.y), r(rect.w), r(rect.h)])),
                         _ => None,
                     })
                 })

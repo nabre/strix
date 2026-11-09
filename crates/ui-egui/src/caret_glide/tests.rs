@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use egui::{pos2, vec2};
 use serde_json::json;
 
@@ -408,7 +407,7 @@ fn key(key: egui::Key) -> egui::Event {
 /// run by a script and a change of zoom don't.
 #[test]
 fn the_canvas_caret_glides_after_a_key() {
-    let mut a = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), Default::default());
+    let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
     a.run("text.insert", json!({"text": "Some text here"})).unwrap();
     // Animation effects off: the caret follows that switch.
     a.run("ui.animations", json!({"value": "off"})).unwrap();

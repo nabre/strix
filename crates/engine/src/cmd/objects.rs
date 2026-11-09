@@ -1,15 +1,14 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Picture Format, Shape Format and Arrange: commands on the selected inline object.
 //!
 //! The selected object is the first picture/shape inside the selection (or right before the
 //! caret). Picture adjustments re-encode the bitmap (originals are kept for Reset Picture).
 
 use serde_json::{Value, json};
-use strix_doc::graphic::GraphicKind;
-use strix_doc::para::{Float, InlineObject, Wrap, WrapText};
-use strix_doc::props::{Rgb, TextVert, VAlign};
-use strix_doc::{Pos, StoryRef, TextBody};
-use strix_geom::Spin;
+use wordcraft_doc::graphic::GraphicKind;
+use wordcraft_doc::para::{Float, InlineObject, Wrap, WrapText};
+use wordcraft_doc::props::{Rgb, TextVert, VAlign};
+use wordcraft_doc::{Pos, StoryRef, TextBody};
+use wordcraft_geom::Spin;
 
 use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};

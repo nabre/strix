@@ -13,7 +13,7 @@ strix-cli mcp --connect 127.0.0.1:7981 # …including clicks, keys and screensho
 Claude Code: `claude mcp add strix -- strix-cli mcp`.
 
 With `--connect`, the bridge sends the app's control key, which it reads from
-`STRIX_CONTROL_KEY` or from the key file the app writes at start. It sends the key only to
+`WORDCRAFT_CONTROL_KEY` or from the key file the app writes at start. It sends the key only to
 loopback addresses; see [Keys](control-protocol.md#keys). The bridge serves even when the app
 isn't open yet: tool calls return "not reachable … will retry on each call" and succeed once the
 app's port opens (#4078), so a client that starts before Strix doesn't lose the server for
@@ -156,7 +156,7 @@ window, so they work on the document on screen.
 `insert.picture` and `insert.icon` leave the caret after the new picture, so typing next doesn't
 replace it; Picture Format commands (`picture.*`, `arrange.*`) still act on it.
 
-Resources: `strix://document` (inspect) and `strix://commands`.
+Resources: `wordcraft://document` (inspect) and `wordcraft://commands`.
 
 The acceptance test `crates/mcp/src/tests.rs` writes a formatted document using MCP only.
 

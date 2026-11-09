@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::toc::is_toc;
 use super::{CharProps, W, Writer, rpr};
 
@@ -19,7 +18,7 @@ impl Writer<'_> {
             self.toc_field = Some((instr.to_string(), locked, dirty, props.clone()));
             return;
         }
-        if let Some(e) = strix_doc::eq::Enclosure::parse(instr) {
+        if let Some(e) = wordcraft_doc::eq::Enclosure::parse(instr) {
             self.rev_open(w, props);
             self.enclosure(w, &e, locked, props);
             self.rev_close(w, props);
@@ -53,7 +52,7 @@ impl Writer<'_> {
                             flush(w, &mut buf);
                             w.empty("w:br", &[]);
                         }
-                        c if (c as u32) < 0x20 || c == strix_doc::para::OBJ => {}
+                        c if (c as u32) < 0x20 || c == wordcraft_doc::para::OBJ => {}
                         c => buf.push(c),
                     }
                 }
@@ -67,8 +66,8 @@ impl Writer<'_> {
     /// Enclosed characters as Word stores them: an `eq \o\ac(○,字)` field with no result, whose
     /// code is split so the symbol and the text get their own sizes: "shrink text" makes the text
     /// smaller (raised to sit in the middle), "enlarge symbol" makes the symbol bigger (lowered).
-    fn enclosure(&self, w: &mut W, e: &strix_doc::eq::Enclosure, locked: bool, props: &CharProps) {
-        use strix_doc::eq::EncloseStyle;
+    fn enclosure(&self, w: &mut W, e: &wordcraft_doc::eq::Enclosure, locked: bool, props: &CharProps) {
+        use wordcraft_doc::eq::EncloseStyle;
         let del = self.is_del(props);
         let tag = if del { "w:delInstrText" } else { "w:instrText" };
         let base = props.size.unwrap_or_else(|| self.doc.styles.resolve_char(None, props).size).clamp(1.0, 1638.0);

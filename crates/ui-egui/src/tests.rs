@@ -12,7 +12,7 @@ fn mod_key(key: egui::Key) -> egui::Event {
 #[test]
 fn word_shortcuts_do_not_zoom_the_window() {
     let ctx = egui::Context::default();
-    let mut app = WordApp::new(Session::new(strix_doc::Document::new()), Services::default());
+    let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
     let mut frame = |events: Vec<egui::Event>| {
         let input = egui::RawInput { events, ..Default::default() };
         // No painter here: dropping the font atlas delta unapplied trips an epaint debug assertion.
@@ -110,7 +110,7 @@ fn focus_hides_the_chrome_drops_the_ribbon_and_esc_leaves() {
     assert!(h.state().canvas.focused, "a click on the dropped ribbon gives the page the keyboard");
     h.event(egui::Event::Text("x".into()));
     h.run_steps(2);
-    assert!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body).contains("Hellox"), "typing after it reaches the page");
+    assert!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body).contains("Hellox"), "typing after it reaches the page");
     assert!(h.state().focus_ribbon, "typing leaves the dropped ribbon down");
     let page = crate::canvas::page_to_screen(h.state_mut(), 0, 300.0, 600.0).unwrap();
     h.event(egui::Event::PointerMoved(page));
@@ -222,7 +222,7 @@ fn ctrl_f1_through_the_app_collapses_the_ribbon() {
 #[test]
 fn a_user_bound_ctrl_f1_through_the_app_runs_the_command() {
     let mut h = canvas_harness();
-    h.state_mut().session.keymap = strix_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
+    h.state_mut().session.keymap = wordcraft_engine::keymap::KeyMap::from_value(&json!({"assigned": {"Mod+F1": "view.focus"}}));
     press_ctrl_f1(&mut h);
     assert!(h.state().session.view.focus_mode, "the bound command ran");
     assert!(!h.state().ui.ribbon_collapsed, "the ribbon is unchanged");
@@ -247,7 +247,7 @@ fn non_latin_file_name_is_drawn_in_the_caption() {
     hebrew.session.path = Some("מסמך.docx".into());
     frame(&mut hebrew);
     let letter = 'מ';
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(hebrew.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the caption borrows a face that covers the file name");
     }
     let n = hebrew.canvas.ime_faces.len();
@@ -269,7 +269,7 @@ fn non_latin_file_name_is_drawn_in_the_caption() {
 fn non_latin_names_in_the_recover_list_get_a_face() {
     let with_copy = |name: &str| {
         let root = std::env::temp_dir().join(format!(
-            "strix-recover-fonts-{}-{}",
+            "wordcraft-recover-fonts-{}-{}",
             std::process::id(),
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
@@ -277,7 +277,7 @@ fn non_latin_names_in_the_recover_list_get_a_face() {
         std::fs::create_dir_all(root.join(id)).unwrap();
         let snapshot = json!({
             "version": 1, "generation": 1, "info": {"id": id, "name": name, "savedAt": "2026-10-11T10:42:00Z"},
-            "document": strix_doc::Document::from_text("Recovered work")
+            "document": wordcraft_doc::Document::from_text("Recovered work")
         });
         std::fs::write(root.join(id).join("snapshot-00000000000000000001.json"), serde_json::to_vec(&snapshot).unwrap()).unwrap();
         let mut a = app();
@@ -323,7 +323,7 @@ fn arabic_comment_text_is_drawn_in_the_balloons() {
     arabic.run("review.newComment", json!({"text": "لتحديد نطاق الأعمال"})).unwrap();
     frame(&mut arabic);
     let letter = 'ن';
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(arabic.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the balloons borrow a face that covers the comment");
     }
     let n = arabic.canvas.ime_faces.len();
@@ -349,7 +349,7 @@ fn recent_documents_borrow_fallback_faces() {
     arabic.ui.recent.push("/home/ice/نواقص 2026.docx".into());
     frame(&mut arabic);
     let letter = 'ن';
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(arabic.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the recent list borrows a face that covers the file name");
     }
     let n = arabic.canvas.ime_faces.len();
@@ -379,7 +379,7 @@ fn georgian_find_text_is_drawn_in_the_navigation_pane() {
     assert!(!georgian.session.find.results.is_empty(), "the search actually found the Georgian word");
     frame(&mut georgian);
     let letter = 'ტ';
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(georgian.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the Results list borrows a face that covers the match");
     }
     let n = georgian.canvas.ime_faces.len();
@@ -392,7 +392,7 @@ fn georgian_find_text_is_drawn_in_the_navigation_pane() {
     typing.run("text.insert", json!({"text": "unrelated"})).unwrap();
     typing.session.find.query = "ტექსტი".into();
     frame(&mut typing);
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(typing.canvas.ime_faces.iter().any(|f| f.covers(letter)), "the typed query alone (no match yet) still gets a fallback face");
     }
 }
@@ -419,7 +419,7 @@ fn editing_beside_an_existing_match_still_gets_a_fallback_face() {
     assert_eq!(a.session.find.results, before, "typing alone doesn't recompute the stale results");
     frame(&mut a);
     let letter = 'ტ';
-    if strix_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
+    if wordcraft_fonts::FontDb::global().fallback_for(letter, u32::MAX).is_some_and(|f| f.data().len() <= 16 << 20) {
         assert!(
             a.canvas.ime_faces.iter().any(|f| f.covers(letter)),
             "Georgian typed beside the match, inside its context window, gets a fallback face too"
@@ -428,7 +428,7 @@ fn editing_beside_an_existing_match_still_gets_a_fallback_face() {
 }
 
 fn app() -> WordApp {
-    WordApp::new(Session::new(strix_doc::Document::new()), Services::default())
+    WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
 }
 
 /// All title-bar inputs have accessible names. Clicking the title opens Rename Document, the
@@ -621,7 +621,7 @@ fn start_screen_shows_file_home_and_esc_leaves_no_document() {
     h.key_press(egui::Key::Enter);
     h.run_steps(2);
     let a = h.state_mut();
-    assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim(), "");
+    assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim(), "");
     assert!(!a.session.dirty && !a.has_document());
     assert!(a.close_requested(), "closing asks nothing");
     assert!(a.dialog.is_none());
@@ -700,7 +700,7 @@ fn blank_document_opens_a_document_from_the_start_screen() {
     assert_ne!(a.session.document_id(), first);
     assert!(widgets::enabled(a, "format.bold"));
     a.run("text.insert", json!({"text": "Hello"})).unwrap();
-    assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body).trim(), "Hello");
+    assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim(), "Hello");
     assert!(a.sent_title.starts_with(&a.title_stem()), "{}", a.sent_title);
 }
 
@@ -784,7 +784,7 @@ fn table_properties_button_opens_the_dialog() {
     assert!(a.dialog.is_none(), "settings apply without the dialog");
     let (tp, _, _) = a.session.sel.focus.path.cell().unwrap();
     let t = a.session.doc.table(a.session.sel.focus.story, &tp).unwrap();
-    assert_eq!(t.props.align, Some(strix_doc::props::Align::Center));
+    assert_eq!(t.props.align, Some(wordcraft_doc::props::Align::Center));
     assert_eq!((t.rows[0].props.height, t.rows[0].props.header), (Some(36.0), true));
     assert_eq!(dialogs::TableForm::read(&a).unwrap().changes(&f), json!({}), "the dialog reopens with the new values");
     // Table direction (#362) is one more setting of the same step.
@@ -867,7 +867,7 @@ fn find_shortcut_focuses_find_what() {
     frame(&mut a, vec![egui::Event::Text("abc".into())]);
     let Some(dialogs::Dialog::Find { query, .. }) = &a.dialog else { panic!("no Find dialog") };
     assert!(query.ends_with("abc"), "typing went into Find what: {query:?}");
-    assert!(a.session.doc.plain_text(strix_doc::StoryRef::Body).is_empty(), "nothing was typed into the document");
+    assert!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body).is_empty(), "nothing was typed into the document");
 }
 
 /// #1610: opening a hyperlink must direct typing and paste into its address.
@@ -901,7 +901,7 @@ fn hyperlink_shortcut_focuses_address_and_preserves_document() {
         let Some(dialogs::Dialog::Link { url, text, .. }) = &a.dialog else { panic!("no Link dialog") };
         assert_eq!(url, expected, "input replaces the initial address");
         assert_eq!(text, "Keep this text");
-        assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Body), "Keep this text");
+        assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Keep this text");
         frame(&mut a, vec![key(egui::Key::Escape, egui::Modifiers::NONE)]);
         frame(&mut a, Vec::new());
         assert!(a.dialog.is_none(), "Cancel closes the dialog");
@@ -1132,7 +1132,7 @@ fn web_layout_fills_the_window_width() {
             .pages
             .iter()
             .flat_map(|p| p.items.iter())
-            .map(|it| if let strix_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 })
+            .map(|it| if let wordcraft_layout::Placed::Lines { l0, l1, .. } = it { l1 - l0 } else { 0 })
             .sum::<usize>()
     };
     let tick = 1.0 / 60.0;
@@ -1192,7 +1192,7 @@ fn reading_mode_keys_turn_columns() {
     let ctx = egui::Context::default();
     let mut a = app();
     a.run("text.insert", json!({"text": "One readable paragraph in many narrow columns. ".repeat(300)})).unwrap();
-    a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
+    a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 740.0));
     let mut t = 0.0;
     let mut frame = |a: &mut WordApp, events: Vec<egui::Event>| {
@@ -1239,7 +1239,7 @@ fn reading_mode_keys_turn_columns() {
 fn reading_mode_columns_wheel_turns_and_navigation() {
     let mut a = app();
     a.run("text.insert", json!({"text": "One readable paragraph in many narrow columns. ".repeat(300)})).unwrap();
-    a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
+    a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
     let original = a.session.doc.settings.clone();
     let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 740.0));
     let mut d = FrameDriver { ctx: egui::Context::default(), t: 0.0 };
@@ -1301,10 +1301,10 @@ fn read_mode_click_and_caret_keep_scroll(d: &mut FrameDriver, a: &mut WordApp, s
     assert!((a.canvas.scroll_offset.x - initial_scroll).abs() < 0.5);
     assert!(a.session.sel.is_collapsed());
     // An explicit caret move outside the visible columns must still reveal its destination.
-    a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 5000)})).unwrap();
+    a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 5000)})).unwrap();
     d.frame(a, vec![], screen);
     assert!(a.canvas.scroll_offset.x > initial_scroll + a.session.view.read_width * a.canvas.scale);
-    a.run("caret.set", json!({"pos": strix_doc::Pos::body(0, 0)})).unwrap();
+    a.run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
     d.frame(a, vec![], screen);
     assert!((a.canvas.scroll_offset.x - initial_scroll).abs() < 0.5);
 }
@@ -1346,7 +1346,7 @@ fn read_mode_wheel_turns(d: &mut FrameDriver, a: &mut WordApp, screen: egui::Rec
 fn read_mode_heading_navigation_aligns_column(d: &mut FrameDriver, a: &mut WordApp, screen: egui::Rect, x: f32) {
     // A heading navigation request must position its column at the leading edge,
     // not wherever egui's generic scroll_to_rect decides the caret is visible.
-    let target = strix_doc::Pos::body(0, 5000);
+    let target = wordcraft_doc::Pos::body(0, 5000);
     a.run("view.navigationPane", json!({"value": true})).unwrap();
     a.run("caret.set", json!({"pos": target})).unwrap();
     a.canvas.nav_to_caret = true;
@@ -1359,7 +1359,7 @@ fn read_mode_heading_navigation_aligns_column(d: &mut FrameDriver, a: &mut WordA
 }
 
 /// Resizing reflows the content, not the zoom or the print paper width.
-fn read_mode_resize_reflows(d: &mut FrameDriver, a: &mut WordApp, initial_width: f32, original: &strix_doc::Settings) {
+fn read_mode_resize_reflows(d: &mut FrameDriver, a: &mut WordApp, initial_width: f32, original: &wordcraft_doc::Settings) {
     // Resizing changes the content width (reflow), not the zoom or the print paper width.
     let narrow = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(850.0, 630.0));
     let before_resize = a.canvas.scroll_offset.x;
@@ -1391,7 +1391,7 @@ fn read_mode_resize_reflows(d: &mut FrameDriver, a: &mut WordApp, initial_width:
     a.run("view.printLayout", json!({})).unwrap();
     d.frame(a, vec![], narrow);
     assert!(!a.session.view.read_mode);
-    assert_eq!(a.session.view.mode, strix_layout::ViewMode::Print);
+    assert_eq!(a.session.view.mode, wordcraft_layout::ViewMode::Print);
     assert_eq!(&a.session.doc.settings, original);
 }
 
@@ -1399,7 +1399,7 @@ fn read_mode_resize_reflows(d: &mut FrameDriver, a: &mut WordApp, initial_width:
 fn app_with_system_animations(system: &std::rc::Rc<std::cell::Cell<Option<bool>>>) -> WordApp {
     let system = system.clone();
     let services = Services { animations_enabled: Some(Box::new(move || system.get())), ..Default::default() };
-    WordApp::new(Session::new(strix_doc::Document::new()), services)
+    WordApp::new(Session::new(wordcraft_doc::Document::new()), services)
 }
 
 /// Animation effects: "Use system setting" (the default) follows what the host reports and is
@@ -2006,7 +2006,7 @@ fn a_click_in_the_footer_while_editing_the_header_moves_there() {
     }
     let page = a.session.layout().pages[0].clone();
     let (header, footer) = (page.header_story.expect("a header"), page.footer_story.expect("a footer"));
-    assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(header));
+    assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(header));
     let (x, foot_y) = (page.body.x + 20.0, (page.body.bottom() + page.h) / 2.0);
     // Scroll down to page 1's footer a wheel notch at a time: page 1's header goes off screen.
     let vp = a.canvas.viewport.expect("the canvas laid out");
@@ -2037,7 +2037,7 @@ fn a_click_in_the_footer_while_editing_the_header_moves_there() {
     for _ in 0..40 {
         frame(&mut a, Vec::new());
     }
-    assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(footer), "editing the footer");
+    assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(footer), "editing the footer");
     assert_eq!(a.session.page_hint, 0, "on the clicked page");
     assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
     // The next page's header, just below: back in the header, still without scrolling.
@@ -2050,10 +2050,10 @@ fn a_click_in_the_footer_while_editing_the_header_moves_there() {
     for _ in 0..40 {
         frame(&mut a, Vec::new());
     }
-    assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(header), "editing the header again");
+    assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(header), "editing the header again");
     assert_eq!(a.session.page_hint, 1, "on the clicked page");
     assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
-    assert_eq!(a.session.doc.plain_text(strix_doc::StoryRef::Part(footer)), "Foot");
+    assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Part(footer)), "Foot");
 }
 
 /// Runs one 1280 by 800 frame through the raw input hook, logic and UI, dropping texture deltas.
@@ -2257,7 +2257,7 @@ fn double_clicking_a_later_pages_footer_does_not_scroll_to_the_top() {
     }
     let footer = page.footer_story.expect("the clicked page has a footer");
     assert!(page.header_story.is_some_and(|h| h != footer), "the page has a separate header: {:?}", page.header_story);
-    assert_eq!(a.session.sel.focus.story, strix_doc::StoryRef::Part(footer), "editing the clicked page's footer");
+    assert_eq!(a.session.sel.focus.story, wordcraft_doc::StoryRef::Part(footer), "editing the clicked page's footer");
     assert_eq!(a.session.page_hint, last, "on the clicked page");
     assert!((a.canvas.scroll_offset.y - before.y).abs() < 1.0, "the view stays put: {before:?} -> {:?}", a.canvas.scroll_offset);
 }
@@ -2448,7 +2448,7 @@ fn typed() -> WordApp {
 }
 
 fn body_text(a: &WordApp) -> String {
-    a.session.doc.plain_text(strix_doc::StoryRef::Body)
+    a.session.doc.plain_text(wordcraft_doc::StoryRef::Body)
 }
 
 /// The reason the Save Changes prompt shows (a failed save), if that prompt is open.
@@ -2515,7 +2515,7 @@ fn copying_a_picture_replaces_the_clipboards_old_text() {
     assert_eq!(last_copied(&ctx).as_deref(), Some(UNSAVED));
 
     a.run("select.collapse", json!({"end": true})).unwrap();
-    let data = strix_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
+    let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
     a.run("insert.picture", json!({"data": data})).unwrap();
     assert!(crate::objects::selected(&a).is_some());
     a.run("edit.copy", json!({})).unwrap();
@@ -2586,7 +2586,7 @@ fn every_cut_entry_point_publishes_to_the_clipboard() {
 
 /// A fresh scratch folder for one test.
 fn scratch(name: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("strix-ui-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("wordcraft-ui-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -2595,7 +2595,7 @@ fn scratch(name: &str) -> std::path::PathBuf {
 /// A Strix document (.xmath) on disk that the app didn't write.
 fn saved_on_disk(dir: &std::path::Path, text: &str) -> std::path::PathBuf {
     let path = dir.join("contract.xmath");
-    let mut s = Session::new(strix_doc::Document::from_text(text));
+    let mut s = Session::new(wordcraft_doc::Document::from_text(text));
     s.run("file.save", &json!({"path": path.to_string_lossy()})).unwrap();
     path
 }
@@ -2629,7 +2629,7 @@ fn a_clean_document_is_replaced_without_asking() {
 fn password_protected_documents_ask_for_the_password() {
     let dir = scratch("password");
     let path = dir.join("locked.xmath");
-    let mut s = Session::new(strix_doc::Document::from_text("Locked away"));
+    let mut s = Session::new(wordcraft_doc::Document::from_text("Locked away"));
     s.run("file.save", &json!({"path": path.to_string_lossy(), "password": "sesame"})).unwrap();
 
     let mut a = typed();
@@ -2751,7 +2751,7 @@ fn window_close_save_writes_the_file_and_quits() {
     assert!(!a.close_requested());
     assert_eq!(prompt(&a), Some("saveChanges"));
     a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
-    let on_disk = strix_engine::io::open_path(&path).unwrap().plain_text(strix_doc::StoryRef::Body);
+    let on_disk = wordcraft_engine::io::open_path(&path).unwrap().plain_text(wordcraft_doc::StoryRef::Body);
     assert!(on_disk.contains("Revised Draft"), "the edit is on disk: {on_disk:?}");
     assert!(a.quit_requested, "the app may close");
     assert!(a.close_requested(), "the close that follows goes ahead");
@@ -2781,7 +2781,7 @@ fn a_text_file_saved_as_a_strix_document_closes() {
     };
 
     // Ctrl+S writes the text file in place, without asking.
-    let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
     a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
     a.run("text.insert", json!({"text": "Hello"})).unwrap();
     a.run("file.save", json!({})).unwrap();
@@ -2808,7 +2808,7 @@ fn a_text_file_saved_as_a_strix_document_closes() {
     assert_eq!(prompt(&a), Some("saveChanges"));
     let r = a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
     assert_eq!(r["done"], true, "{r}");
-    let on_disk = strix_engine::io::open_path(&native).unwrap().plain_text(strix_doc::StoryRef::Body);
+    let on_disk = wordcraft_engine::io::open_path(&native).unwrap().plain_text(wordcraft_doc::StoryRef::Body);
     assert!(on_disk.contains("Revised") && on_disk.contains("Hello"), "the edit is on disk: {on_disk:?}");
     assert_eq!(asked.borrow().len(), 1, "no second Save As");
     assert!(a.quit_requested, "the app may close");
@@ -3161,7 +3161,7 @@ fn ui_print_needs_the_hosts_print_hook() {
     assert!(a.status_msg.as_ref().is_some_and(|(m, _)| m.contains("blocked by the browser")), "the status bar says why");
 }
 
-/// Make Strix the default… (#295) goes through the host's hook and reports the outcome in
+/// Make WordCraft the default… (#295) goes through the host's hook and reports the outcome in
 /// the status bar; without a hook (web, macOS) it's an error and nothing runs.
 #[test]
 fn make_default_app_needs_the_hosts_hook_and_reports_the_outcome() {
@@ -3380,7 +3380,7 @@ fn the_print_preview_fills_the_pane_zooms_and_scrolls_both_ways() {
     assert!((again.height() - fit.height()).abs() < 1.0, "One Page fits the page again: {fit:?} vs {again:?}");
 }
 
-/// File › Options shows Make Strix the default… only when the host can do it (#295), and
+/// File › Options shows Make WordCraft the default… only when the host can do it (#295), and
 /// the button runs the host's hook.
 #[test]
 fn the_default_app_button_shows_only_with_the_hosts_hook() {
@@ -3474,7 +3474,7 @@ fn the_host_hears_about_edits_made_while_drawing() {
 
 #[test]
 fn paragraph_alignment_keeps_the_canvas_focused_for_typing() {
-    use strix_doc::Align;
+    use wordcraft_doc::Align;
 
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
         |ui, app: &mut WordApp| {
@@ -3570,10 +3570,10 @@ fn clicks_on_ribbon_and_status_bar_chrome_keep_typing_in_the_document() {
     // The status bar's view buttons.
     h.get_by_role_and_label(Role::Button, "Web Layout").click();
     type_after_click(&mut h, "Web Layout", " web");
-    assert_eq!(h.state().session.view.mode, strix_layout::ViewMode::Web);
+    assert_eq!(h.state().session.view.mode, wordcraft_layout::ViewMode::Web);
     h.get_by_role_and_label(Role::Button, "Print Layout").click();
     type_after_click(&mut h, "Print Layout", " print");
-    assert_eq!(h.state().session.view.mode, strix_layout::ViewMode::Print);
+    assert_eq!(h.state().session.view.mode, wordcraft_layout::ViewMode::Print);
 
     // The language item opens its menu; a click elsewhere on the status bar cancels it.
     let lang_label = crate::ribbon::caret_language(h.state());
@@ -3758,13 +3758,14 @@ fn word_shortcuts_run_from_the_keyboard() {
     h.step();
     h.event(key(egui::Key::Num1, egui::Modifiers::COMMAND | egui::Modifiers::ALT));
     h.step();
-    let style = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).and_then(|p| p.props.style.clone());
+    let style =
+        |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&wordcraft_doc::Pos::body(0, 0)).and_then(|p| p.props.style.clone());
     assert_eq!(style(&h).as_deref(), Some("Heading1"));
     // Alt+F7 (next misspelling) can come with key text on some platforms; none is typed.
     h.event(key(egui::Key::F7, egui::Modifiers::ALT));
     h.event(egui::Event::Text("x".into()));
     h.step();
-    assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns");
+    assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns");
 }
 
 /// PR #4241: Ctrl/Cmd+Shift+C copies the selection's formatting and Ctrl/Cmd+Shift+V pastes it
@@ -3841,7 +3842,7 @@ fn shift_delete_cuts_the_selection_and_shift_backspace_erases() {
         h.step();
     }
     let key = |key, modifiers| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers };
-    let body = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.plain_text(strix_doc::StoryRef::Body);
+    let body = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body);
     h.event(egui::Event::Text("Kilns fire clay".into()));
     h.step();
     h.event(key(egui::Key::Backspace, egui::Modifiers::SHIFT));
@@ -3870,7 +3871,7 @@ fn escape_selects_a_wordart_box_and_delete_removes_it() {
     h.run_steps(4);
     h.key_press(egui::Key::Escape);
     h.run_steps(2);
-    assert!(strix_engine::cmd::objects::object_selection(&h.state().session).is_some(), "Escape selects the box");
+    assert!(wordcraft_engine::cmd::objects::object_selection(&h.state().session).is_some(), "Escape selects the box");
     h.key_press(egui::Key::Delete);
     h.run_steps(2);
     assert_eq!(h.state().session.doc.text_box_anchor(id), None, "Delete removed the WordArt");
@@ -3882,7 +3883,7 @@ fn escape_selects_a_wordart_box_and_delete_removes_it() {
     h.key_press(egui::Key::Escape);
     h.run_steps(2);
     let s = &h.state().session;
-    assert!(s.sel.is_collapsed() && s.sel.focus.story == strix_doc::StoryRef::Body, "a second Escape leaves a caret in the body");
+    assert!(s.sel.is_collapsed() && s.sel.focus.story == wordcraft_doc::StoryRef::Body, "a second Escape leaves a caret in the body");
 }
 
 /// #1218: Ctrl+Q resets the paragraph formatting and nothing else; it also closed the window
@@ -3904,7 +3905,7 @@ fn ctrl_q_resets_the_paragraph_without_closing_the_window() {
     let closes = |h: &egui_kittest::Harness<WordApp>| {
         h.output().viewport_output.values().flat_map(|v| v.commands.iter()).any(|c| matches!(c, egui::ViewportCommand::Close))
     };
-    let align = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&strix_doc::Pos::body(0, 0)).and_then(|p| p.props.align);
+    let align = |h: &egui_kittest::Harness<WordApp>| h.state().session.doc.para_at(&wordcraft_doc::Pos::body(0, 0)).and_then(|p| p.props.align);
     h.event(egui::Event::Text("Kilns".into()));
     h.step();
     h.state_mut().run("para.alignCenter", json!({})).unwrap();
@@ -3952,7 +3953,7 @@ fn ctrl_alt_q_types_at_symbol_without_closing() {
     h.event(egui::Event::ModifiersChanged(german_mods));
     h.event(egui::Event::Text("@".into()));
     h.step();
-    assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "@", "Ctrl+Alt+Q types the @ character");
+    assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "@", "Ctrl+Alt+Q types the @ character");
 }
 
 /// #819: Alt+Q opens Search with its box focused, as in Word: the Q isn't typed into the
@@ -3991,7 +3992,7 @@ fn alt_q_opens_search_and_typing_goes_there() {
     h.event(egui::Event::Text("bold".into()));
     h.step();
     assert_eq!(query(&h).as_deref(), Some("bold"), "typing goes into the search box");
-    assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns");
+    assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns");
     h.event(key(egui::Key::Escape, egui::Modifiers::NONE));
     h.step();
     h.step();
@@ -4044,8 +4045,8 @@ fn save_then_continue() {
     a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
     assert_eq!(prompt(&a), None);
     assert!(!a.has_document(), "the saved document closed");
-    let saved = strix_engine::io::open_path(&path).unwrap();
-    assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Revised Draft"));
+    let saved = wordcraft_engine::io::open_path(&path).unwrap();
+    assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Revised Draft"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -4132,8 +4133,8 @@ fn host_app(fail: bool) -> (WordApp, std::rc::Rc<std::cell::RefCell<Vec<(String,
 
 /// Open `name` as the host page sends it (bytes of the typed document in that format).
 fn host_open(a: &mut WordApp, name: &str) {
-    let bytes = strix_engine::io::save_bytes_with(name, &typed().session.doc, None, &Default::default()).unwrap();
-    a.execute("file.open", json!({"path": name, "data": strix_engine::cmd::insert::base64_encode(&bytes)})).unwrap();
+    let bytes = wordcraft_engine::io::save_bytes_with(name, &typed().session.doc, None, &Default::default()).unwrap();
+    a.execute("file.open", json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)})).unwrap();
     a.run("text.insert", json!({"text": "Edited "})).unwrap();
     assert!(a.session.dirty);
 }
@@ -4260,8 +4261,8 @@ fn autosave_covers_strix_documents_and_templates() {
         a.run("text.insert", json!({"text": "More "})).unwrap();
         a.autosave_tick(now_ms() + 10_000.0);
         assert!(!a.session.dirty, "{ext}: AutoSave wrote the file");
-        let saved = strix_engine::io::open_path(&path).unwrap();
-        assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("More "), "{ext}");
+        let saved = wordcraft_engine::io::open_path(&path).unwrap();
+        assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("More "), "{ext}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
@@ -4282,8 +4283,8 @@ fn renaming_a_saved_file_keeps_autosave_and_replaces_its_recent_entry() {
     a.run("text.insert", json!({"text": "More "})).unwrap();
     a.autosave_tick(now_ms() + 10_000.0);
     assert!(!a.session.dirty, "AutoSave wrote the renamed file");
-    let saved = strix_engine::io::open_path(&renamed).unwrap();
-    assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("More "));
+    let saved = wordcraft_engine::io::open_path(&renamed).unwrap();
+    assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("More "));
     assert!(!path.exists());
 
     // A file opened but not saved in this session doesn't gain AutoSave by being renamed.
@@ -4436,7 +4437,7 @@ fn web_open_opens_beside_a_save_in_flight() {
     let (mut a, _saves, _last) = web_picker_app();
     let first = a.session.document_id();
     a.execute("file.save", json!({})).unwrap();
-    let data = strix_engine::cmd::insert::base64_encode(&bytes);
+    let data = wordcraft_engine::cmd::insert::base64_encode(&bytes);
     a.run("file.open", json!({"path": "picked.docx", "data": data})).unwrap();
     assert_eq!(prompt(&a), None);
     assert!(body_text(&a).contains("Picked document"), "the picked file opened: {:?}", body_text(&a));
@@ -4498,8 +4499,8 @@ fn save_as_picked_saves_then_continues() {
     a.run("file.close", json!({})).unwrap();
     a.run("ui.saveChanges", json!({"answer": "save"})).unwrap();
     assert!(!a.has_document(), "closed once saved");
-    let saved = strix_engine::io::open_path(&path).unwrap();
-    assert!(saved.plain_text(strix_doc::StoryRef::Body).contains(UNSAVED));
+    let saved = wordcraft_engine::io::open_path(&path).unwrap();
+    assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains(UNSAVED));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -4730,7 +4731,7 @@ fn redo_after_a_mailing_cannot_put_the_result_under_a_saved_file() {
         let dir = scratch(&format!("mailings-redo-{}", id.len()));
         let path = saved_on_disk(&dir, "Signed contract");
         let copy = dir.join("copy.xmath");
-        let on_file = |p: &std::path::Path| strix_engine::io::open_path(p).unwrap().plain_text(strix_doc::StoryRef::Body);
+        let on_file = |p: &std::path::Path| wordcraft_engine::io::open_path(p).unwrap().plain_text(wordcraft_doc::StoryRef::Body);
         let mut a = app();
         a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
         a.run("mailings.recipients", json!({"csv": "Name\nAda"})).unwrap();
@@ -4773,8 +4774,8 @@ fn opened_files_are_not_autosaved_until_the_user_saves() {
     assert!(a.session.dirty);
     a.autosave_tick(now_ms() + 10_000.0);
     assert!(!a.session.dirty);
-    let saved = strix_engine::io::open_path(&path).unwrap();
-    assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("Typed More Original"));
+    let saved = wordcraft_engine::io::open_path(&path).unwrap();
+    assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("Typed More Original"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -4819,7 +4820,7 @@ fn autosave_is_blocked_with_a_reason_for_files_it_cannot_keep() {
 #[test]
 fn autosave_is_unavailable_in_the_browser() {
     let services = Services { download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))), ..Default::default() };
-    let mut a = WordApp::new(Session::new(strix_doc::Document::new()), services);
+    let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), services);
     a.run("text.insert", json!({"text": "Hello"})).unwrap();
     a.run("file.save", json!({"path": "draft.xmath"})).unwrap();
     assert_eq!(a.autosave_block(), Some(AutoSaveBlock::Browser));
@@ -4843,8 +4844,8 @@ fn cancelling_open_keeps_autosave() {
     a.run("text.insert", json!({"text": " continues"})).unwrap();
     a.autosave_tick(now_ms() + 10_000.0);
     assert!(!a.session.dirty);
-    let saved = strix_engine::io::open_path(&path).unwrap();
-    assert!(saved.plain_text(strix_doc::StoryRef::Body).contains("chapter continues"));
+    let saved = wordcraft_engine::io::open_path(&path).unwrap();
+    assert!(saved.plain_text(wordcraft_doc::StoryRef::Body).contains("chapter continues"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -4877,12 +4878,12 @@ fn autosave_failures_are_reported_once() {
 /// `.xmathm` for a Word template) of the same name, and Save As to a Word format is refused.
 #[test]
 fn web_save_keeps_the_opened_strix_format() {
-    let mut doc = strix_doc::Document::new();
+    let mut doc = wordcraft_doc::Document::new();
     doc.passthrough.insert("word/vbaProject.bin".into(), std::sync::Arc::new(vec![0xD0, 0xCF, 0x11, 0xE0, 1, 2, 3]));
     doc.passthrough.insert("word/vbaData.xml".into(), std::sync::Arc::new(b"<wne:vbaSuppData/>".to_vec()));
-    // The docx reader's list of parts the project relates to (strix_docx VBA_RELATED).
+    // The docx reader's list of parts the project relates to (wordcraft_docx VBA_RELATED).
     let related = "http://schemas.microsoft.com/office/2006/relationships/wordVbaData\tword/vbaData.xml\tapplication/vnd.ms-word.vbaData+xml\n";
-    doc.passthrough.insert("strix:vbaProject.related".into(), std::sync::Arc::new(related.as_bytes().to_vec()));
+    doc.passthrough.insert("wordcraft:vbaProject.related".into(), std::sync::Arc::new(related.as_bytes().to_vec()));
     let got: std::rc::Rc<std::cell::RefCell<Vec<(String, Vec<u8>)>>> = Default::default();
     let sink = got.clone();
     let services = Services {
@@ -4907,7 +4908,7 @@ fn web_save_keeps_the_opened_strix_format() {
         a.run("file.save", json!({})).unwrap();
         let (name, bytes) = got.borrow_mut().pop().unwrap();
         assert_eq!(name, expect);
-        assert!(strix_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
+        assert!(wordcraft_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
     }
     // With a calculation, Word formats would lose it: Save gives a Strix document, and Save As
     // .docm or .docx is refused and downloads nothing.
@@ -5004,18 +5005,18 @@ fn task_panes_share_an_edge_close_and_keep_the_styles_place() {
     h.run_steps(2);
     h.get_by_label("Float").click();
     h.run_steps(3);
-    assert_eq!(h.state().session.view.styles_pane_dock, strix_engine::StylesPaneDock::Floating);
+    assert_eq!(h.state().session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Floating);
     let rect = h.state().ui.styles_pane_float.expect("the float rect is kept");
 
     let saved = serde_json::to_vec(&h.state().prefs()).unwrap();
     let mut next = app();
     next.apply_prefs(serde_json::from_slice(&saved).unwrap());
-    assert_eq!(next.session.view.styles_pane_dock, strix_engine::StylesPaneDock::Floating);
+    assert_eq!(next.session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Floating);
     assert_eq!(next.ui.styles_pane_float, Some(rect));
 
     let mut junk = app();
     junk.apply_prefs(serde_json::from_str(r#"{"stylesPaneDock": "top", "stylesPaneFloat": [1, "x", 3, 4], "navPane": true}"#).unwrap());
-    assert_eq!(junk.session.view.styles_pane_dock, strix_engine::StylesPaneDock::Right, "junk reads as the default");
+    assert_eq!(junk.session.view.styles_pane_dock, wordcraft_engine::StylesPaneDock::Right, "junk reads as the default");
     assert_eq!(junk.ui.styles_pane_float, None);
     assert!(junk.session.view.nav_pane, "the rest of the file still loads");
 }
@@ -5419,11 +5420,11 @@ fn the_full_screen_button_toggles_out() {
 #[test]
 fn the_full_screen_button_reports_the_commands_own_enabled_state() {
     use egui_kittest::kittest::{NodeT, Queryable};
-    use strix_engine::{CommandSpec, Registry};
+    use wordcraft_engine::{CommandSpec, Registry};
 
     // The browser build's reason for refusing full screen, forced here so the test says
     /// something on every platform.
-    fn unavailable(_: &strix_engine::Session) -> Option<&'static str> {
+    fn unavailable(_: &wordcraft_engine::Session) -> Option<&'static str> {
         Some("Use the browser's full screen (F11)")
     }
 
@@ -5674,7 +5675,7 @@ fn png_bytes(c: [u8; 4]) -> Vec<u8> {
 }
 
 fn insert_picture(a: &mut WordApp, c: [u8; 4]) {
-    let data = strix_engine::cmd::insert::base64_encode(&png_bytes(c));
+    let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes(c));
     a.session.run("insert.picture", &json!({"data": data})).unwrap();
 }
 
@@ -5686,7 +5687,7 @@ fn object_count(a: &mut WordApp) -> usize {
 /// script inserts (control channel, MCP bridge) leaves the caret after it, and typing keeps it.
 #[test]
 fn inserted_picture_is_selected_for_the_user_not_for_scripts() {
-    let data = strix_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
+    let data = wordcraft_engine::cmd::insert::base64_encode(&png_bytes([200, 30, 30, 255]));
     for (id, params) in [("insert.picture", json!({"data": data})), ("insert.icon", json!({"id": "sun"}))] {
         let mut a = app();
         a.run(id, params.clone()).unwrap();
@@ -5955,7 +5956,7 @@ fn recipient_list_search_and_merged_view() {
     let mut filter = dialogs::RecipientFilter::default();
     filter.rules.push(dialogs::FilterRow {
         field: "City".into(),
-        op: strix_engine::cmd::mailings::FilterOp::Equal,
+        op: wordcraft_engine::cmd::mailings::FilterOp::Equal,
         value: "London".into(),
         or: false,
     });
@@ -6015,7 +6016,7 @@ fn recipient_grid_edits_the_right_record_through_the_ui() {
     type State = (WordApp, Vec<String>, Vec<Vec<String>>, String, dialogs::RecipientFilter);
     let rows = [["Ada", "London"], ["Alan", "Wilmslow"], ["Grace", "London"], ["Émile", "Paris"]];
     let mut filter = dialogs::RecipientFilter::default();
-    let rule = dialogs::FilterRow { field: "City".into(), op: strix_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
+    let rule = dialogs::FilterRow { field: "City".into(), op: wordcraft_engine::cmd::mailings::FilterOp::Equal, value: "London".into(), or: false };
     filter.rules.push(rule);
     let state: State =
         (app(), vec!["Name".into(), "City".into()], rows.iter().map(|r| r.iter().map(|c| c.to_string()).collect()).collect(), String::new(), filter);
@@ -6134,11 +6135,11 @@ fn merge_rules_and_reports_open_dialogs() {
     a.run("mailings.rules", params).unwrap();
     assert!(a.dialog.is_none());
     let fields = |a: &WordApp| -> Vec<String> {
-        let (doc, body) = (&a.session.doc, strix_doc::StoryRef::Body);
+        let (doc, body) = (&a.session.doc, wordcraft_doc::StoryRef::Body);
         let paras = doc.para_paths(body).into_iter().filter_map(|p| doc.para(body, &p).cloned());
         paras
             .flat_map(|p| p.objects)
-            .filter_map(|o| if let strix_doc::para::InlineObject::Field { instr, .. } = o { Some(instr) } else { None })
+            .filter_map(|o| if let wordcraft_doc::para::InlineObject::Field { instr, .. } = o { Some(instr) } else { None })
             .collect()
     };
     assert_eq!(fields(&a), vec![r#"IF { MERGEFIELD City } = "London" "Local" "Away""#]);
@@ -6393,7 +6394,7 @@ fn render_and_screenshot_without_a_path_reply_with_the_png() {
     let control::Outcome::Done(v) = control::handle(&mut a, &ctx, &req) else { panic!("ui.render replies at once") };
     assert_eq!(v["ok"], true, "{v}");
     assert!(v["result"].get("path").is_none(), "no file: {v}");
-    let png = strix_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
+    let png = wordcraft_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
     assert_eq!(&png[..4], b"\x89PNG", "{v}");
     assert!(v["result"]["width"].as_u64().unwrap() > 0 && v["result"]["pages"].as_u64().unwrap() >= 1, "{v}");
 
@@ -6402,7 +6403,7 @@ fn render_and_screenshot_without_a_path_reply_with_the_png() {
     assert_eq!(v["ok"], true, "{v}");
     assert_eq!(v["request"], 41);
     assert!(v["result"].get("path").is_none(), "no file: {v}");
-    let png = strix_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
+    let png = wordcraft_engine::cmd::insert::base64_decode(v["result"]["png"].as_str().expect("png")).expect("base64");
     assert_eq!(&png[..4], b"\x89PNG");
     assert_eq!(v["result"]["width"], 2, "{v}");
     assert_eq!(v["result"]["height"], 1, "{v}");
@@ -6448,7 +6449,7 @@ fn shift_f10_opens_the_context_menu_at_the_caret() {
     h.step();
     h.step();
     assert!(h.state().canvas.context_menu_open);
-    assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns fire");
+    assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns fire");
 }
 
 /// #712: Find, Replace and Go To open as in Word. Ctrl+F puts the keyboard in the Navigation
@@ -6484,7 +6485,7 @@ fn find_replace_and_go_to_keys_like_word() {
     h.step();
     assert_eq!(nav_query(&h), "cool", "typed into the pane's search box");
     assert_eq!(h.state().session.find.results.len(), 1);
-    assert_eq!(h.state().session.doc.plain_text(strix_doc::StoryRef::Body), "Kilns fire clay. Kilns cool.");
+    assert_eq!(h.state().session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Kilns fire clay. Kilns cool.");
     // Manual navigation remains available until the next search edit.
     h.state_mut().ui.nav_tab = "headings".into();
     h.step();
@@ -6631,7 +6632,7 @@ impl egui::DroppedFile for DroppedText {
 #[test]
 fn a_drop_before_font_warm_up_is_not_lost() {
     let (mut app, ctx) = (app(), egui::Context::default());
-    let path = std::env::temp_dir().join(format!("strix-drop-warmup-{}.txt", std::process::id()));
+    let path = std::env::temp_dir().join(format!("wordcraft-drop-warmup-{}.txt", std::process::id()));
     std::fs::write(&path, b"dropped text").expect("write the dropped document");
     let mut raw = shot_raw(egui::vec2(640.0, 480.0), false);
     raw.dropped_files.push(std::sync::Arc::new(DroppedText(path.clone())));
@@ -6642,7 +6643,7 @@ fn a_drop_before_font_warm_up_is_not_lost() {
     })
     .drop_without_applying_deltas();
     assert_eq!(app.fonts_frames, 1, "the UI returned for font warm-up");
-    assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body).trim_end_matches(['\r', '\n']), "dropped text");
+    assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body).trim_end_matches(['\r', '\n']), "dropped text");
     let _ = std::fs::remove_file(&path);
 }
 
@@ -6735,7 +6736,7 @@ fn screenshot_callbacks_complete_out_of_order() {
 #[test]
 fn a_late_screenshot_callback_never_writes_or_replies() {
     let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-    let path = std::env::temp_dir().join(format!("strix-late-shot-{}.png", std::process::id()));
+    let path = std::env::temp_dir().join(format!("wordcraft-late-shot-{}.png", std::process::id()));
     let _ = std::fs::remove_file(&path);
     let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
     let callbacks = issue_ready(&mut app, &ctx, egui::vec2(640.0, 480.0));
@@ -6809,7 +6810,7 @@ fn screenshot_geometry_uses_the_current_raw_screen_rect_on_wayland() {
 #[test]
 fn screenshot_success_writes_the_requested_path_and_correlates_the_token() {
     let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-    let path = std::env::temp_dir().join(format!("strix-shot-ok-{}.png", std::process::id()));
+    let path = std::env::temp_dir().join(format!("wordcraft-shot-ok-{}.png", std::process::id()));
     let _ = std::fs::remove_file(&path);
     let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
     let token = app.shots.requests[0].token;
@@ -6829,7 +6830,7 @@ fn screenshot_success_writes_the_requested_path_and_correlates_the_token() {
 #[test]
 fn screenshot_document_switch_cancels_instead_of_rebinding() {
     let (mut app, ctx) = screenshot_app(egui::vec2(640.0, 480.0));
-    let path = std::env::temp_dir().join(format!("strix-shot-doc-switch-{}.png", std::process::id()));
+    let path = std::env::temp_dir().join(format!("wordcraft-shot-doc-switch-{}.png", std::process::id()));
     let _ = std::fs::remove_file(&path);
     let replies = admit(&mut app, &ctx, Some(path.to_string_lossy().to_string()));
     let document = app.session.document_id();
@@ -7015,7 +7016,7 @@ fn synthetic_input_is_offered_once_through_hidden_and_multipass_frames() {
     })
     .drop_without_applying_deltas();
     assert_eq!(passes, 2, "the discard forced a second pass");
-    assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body), "x");
+    assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "x");
     assert!(!app.synthetic_pending, "the final UI pass acknowledged the step");
     assert_eq!(app.synthetic.len(), 1, "only the offered step was removed");
 
@@ -7030,7 +7031,7 @@ fn synthetic_input_is_offered_once_through_hidden_and_multipass_frames() {
     .drop_without_applying_deltas();
     assert!(!app.synthetic_pending);
     assert!(app.synthetic.is_empty());
-    assert_eq!(app.session.doc.plain_text(strix_doc::StoryRef::Body), "xy", "each step typed once");
+    assert_eq!(app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "xy", "each step typed once");
 }
 
 /// A synthetic step waits for the font warm-up frames rather than being injected into a pass

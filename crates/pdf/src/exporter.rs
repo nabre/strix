@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::export::Fit;
 use super::glyphs::{baseline, cluster_ends, glyph_outlines, left_to_right, split_clusters, visual_order};
 use super::options::{PdfError, PdfOptions};
@@ -40,7 +39,7 @@ pub(crate) struct Exporter<'a> {
     /// take seconds to export.
     /// Bookmarks by exact name, and by ASCII-lowercased name for the case-blind fallback; the
     /// first in document order wins either way.
-    pub(crate) bookmarks: std::cell::OnceCell<(HashMap<String, strix_doc::Pos>, HashMap<String, strix_doc::Pos>)>,
+    pub(crate) bookmarks: std::cell::OnceCell<(HashMap<String, wordcraft_doc::Pos>, HashMap<String, wordcraft_doc::Pos>)>,
 }
 
 impl Exporter<'_> {
@@ -55,7 +54,7 @@ impl Exporter<'_> {
                 let variations = face.is_variable().then_some(face.coords.as_slice());
                 let font = match write::font(face.data(), face.index(), variations) {
                     Ok(font) => Some(font),
-                    // Keep Strix's existing policy: unreadable faces are skipped.
+                    // Keep WordCraft's existing policy: unreadable faces are skipped.
                     Err(WriteError::InvalidFont) => None,
                     Err(error) => {
                         // Allocation, validation or backend failures must fail the export,
@@ -88,7 +87,7 @@ impl Exporter<'_> {
     fn vector(&mut self, key: &str) -> Option<Arc<Vector>> {
         let doc = self.doc;
         let bytes = doc.media.get(key)?;
-        if !strix_metafile::is_metafile(bytes) {
+        if !wordcraft_metafile::is_metafile(bytes) {
             return None;
         }
         if let Some(v) = self.vectors.get(key) {
@@ -276,7 +275,7 @@ impl Exporter<'_> {
     /// A heading's text for bookmarks and tags: what the pages show. That leaves out what its
     /// layout `pl` left out (hidden text, resolved as laid out, so table formatting counts too) and,
     /// without markup, tracked deletions.
-    fn title_text(&self, p: &strix_doc::Paragraph, pl: &strix_layout::para::ParaLayout) -> String {
+    fn title_text(&self, p: &wordcraft_doc::Paragraph, pl: &wordcraft_layout::para::ParaLayout) -> String {
         let mut dropped = pl.left_out.clone();
         if !self.opts.include_markup {
             dropped.extend(p.deleted_ranges());
@@ -285,7 +284,7 @@ impl Exporter<'_> {
     }
 
     /// The structure entry for a paragraph (created on first sight, in reading order).
-    fn entry(&mut self, story: StoryRef, path: &DocPath, pl: &strix_layout::para::ParaLayout) -> usize {
+    fn entry(&mut self, story: StoryRef, path: &DocPath, pl: &wordcraft_layout::para::ParaLayout) -> usize {
         if let Some(i) = self.tag_index.get(&(story, path.clone())) {
             return *i;
         }
@@ -317,11 +316,11 @@ impl Exporter<'_> {
     /// the box's width, its em down the box's height with the em's foot (the font's descent below
     /// the baseline) on the box's bottom; the box centred on the margins (`area`, else the page)
     /// and, when diagonal, turned 45° counterclockwise.
-    fn watermark(&mut self, s: &mut Surface, wm: &strix_doc::Watermark, w: f32, h: f32, area: Rect) {
-        let r = strix_fonts::word::resolve(&wm.font, false, false);
+    fn watermark(&mut self, s: &mut Surface, wm: &wordcraft_doc::Watermark, w: f32, h: f32, area: Rect) {
+        let r = wordcraft_fonts::word::resolve(&wm.font, false, false);
         let face = r.face;
         let text: String = wm.text.chars().take(200).collect();
-        let shaped = strix_fonts::shape(&face, &text, &[], |c| c);
+        let shaped = wordcraft_fonts::shape(&face, &text, &[], |c| c);
         let upem = face.upem.max(1.0) as f32;
         let raw_w: f32 = shaped.iter().map(|g| g.x_advance as f32).sum::<f32>() / upem;
         if raw_w <= 0.0 || !raw_w.is_finite() {
@@ -330,7 +329,7 @@ impl Exporter<'_> {
         let [bw, bh] = wm.frame(w, h);
         let size = bh.min(2000.0);
         let stretch = bw / (raw_w * size);
-        let descent = (strix_fonts::word::line_metrics(&face).1 / face.upem.max(1.0)) as f32;
+        let descent = (wordcraft_fonts::word::line_metrics(&face).1 / face.upem.max(1.0)) as f32;
         let angle = if wm.diagonal { -std::f32::consts::FRAC_PI_4 } else { 0.0 };
         let (c, sn) = (angle.cos(), angle.sin());
         let (dx, dy) = (-bw / 2.0, bh / 2.0 - descent.clamp(0.0, 1.0) * bh);

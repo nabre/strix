@@ -1,7 +1,7 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Strix in the browser.
+//! WordCraft in the browser.
 //!
-//! Runs the same [`strix_ui_egui::WordApp`] as the desktop app through eframe's web runner
+//! Runs the same [`wordcraft_ui_egui::WordApp`] as the desktop app through eframe's web runner
 //! (wgpu: WebGPU where available, WebGL2 otherwise). Build with `trunk build --release` from this
 //! directory (output in `dist/web`).
 //!
@@ -10,7 +10,7 @@
 //! Preferences (theme, interface size, editing options…) are kept in `localStorage` (`prefs`).
 //! URL flags: `?webgl` forces WebGL2; `?sample` opens the sample document.
 //! `?host=parent` (inside an `<iframe>`) talks to a same-origin parent page instead: it sends the
-//! document to open and stores what Strix saves (`host`), and `&author=` names the user for
+//! document to open and stores what WordCraft saves (`host`), and `&author=` names the user for
 //! comments and tracked changes.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 

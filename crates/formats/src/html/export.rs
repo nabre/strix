@@ -54,7 +54,7 @@ fn fmt_tags(f: &Fmt) -> (String, Vec<&'static str>) {
     let mut open = String::new();
     let mut close: Vec<&str> = Vec::new();
     // A script or other non-web target is written as plain text (`is_safe_href`).
-    if let Some(l) = f.link.as_deref().filter(|l| strix_doc::link::is_safe_href(l)) {
+    if let Some(l) = f.link.as_deref().filter(|l| wordcraft_doc::link::is_safe_href(l)) {
         open.push_str(&format!("<a href=\"{}\">", esc(l)));
         close.push("</a>");
     }

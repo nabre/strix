@@ -78,7 +78,7 @@ impl Writer<'_> {
                     if let Some(mark) = self.pending_mark.take() {
                         let mut p = props.clone();
                         if p.style.is_none() && p.vert_align.is_none() {
-                            p.vert_align = Some(strix_doc::props::VertAlign::Superscript);
+                            p.vert_align = Some(wordcraft_doc::props::VertAlign::Superscript);
                         }
                         self.rev_open(w, props);
                         w.open("w:r", &[]);
@@ -97,7 +97,7 @@ impl Writer<'_> {
                 let nid = self.note_id(*id, foot);
                 let mut p = props.clone();
                 if p.style.is_none() && p.vert_align.is_none() {
-                    p.vert_align = Some(strix_doc::props::VertAlign::Superscript);
+                    p.vert_align = Some(wordcraft_doc::props::VertAlign::Superscript);
                 }
                 self.rev_open(w, props);
                 w.open("w:r", &[]);
@@ -122,7 +122,7 @@ impl Writer<'_> {
                 // ECMA-376 §17.3.3.25: a run holding w:ruby (properties, ruby text, base text).
                 let t = if self.is_del(props) { "w:delText" } else { "w:t" };
                 let fin = |v: f32, d: f32| if v.is_finite() { v } else { d };
-                let hps = |v: f32, min: f32| n(strix_geom::to_half_points(v.clamp(min, 1584.0)));
+                let hps = |v: f32, min: f32| n(wordcraft_geom::to_half_points(v.clamp(min, 1584.0)));
                 let size = fin(*size, 5.0).clamp(1.0, 1584.0);
                 let base_size = if base_size.is_finite() && *base_size > 0.0 { *base_size } else { props.size.unwrap_or(10.5) };
                 self.rev_open(w, props);
@@ -178,7 +178,7 @@ impl Writer<'_> {
 
     fn write_graphic(&mut self, w: &mut W, o: &InlineObject, props: &CharProps, rels: &mut PartRels, _depth: usize) {
         let InlineObject::Graphic { w: gw, h: gh, alt, float, graphic } = o else { return };
-        let ink = graphic.kind == strix_doc::graphic::GraphicKind::Ink;
+        let ink = graphic.kind == wordcraft_doc::graphic::GraphicKind::Ink;
         let root = match (graphic.chart.as_deref(), graphic.smart_art.as_deref(), graphic.source.as_deref()) {
             (Some(spec), _, _) => crate::xml::parse(self.chart_graphic(spec, rels).as_bytes()).ok(),
             (None, Some(spec), _) => crate::xml::parse(self.smart_art_graphic(spec, *gw, *gh, rels).as_bytes()).ok(),
@@ -192,7 +192,7 @@ impl Writer<'_> {
             (None, None, None) => match graphic.cad.as_deref() {
                 // A CAD drawing: its source in a Strix `a:graphicData` (an extension
                 // Word passes over).
-                Some(source) if graphic.kind == strix_doc::graphic::GraphicKind::Cad => {
+                Some(source) if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad => {
                     let xml = self.cad_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
                     crate::xml::parse(xml.as_bytes()).ok()
                 }
@@ -227,10 +227,10 @@ impl Writer<'_> {
             }
             let docpr = self.next_docpr();
             let name = match graphic.kind {
-                strix_doc::graphic::GraphicKind::Chart => format!("Chart {docpr}"),
-                strix_doc::graphic::GraphicKind::Diagram => format!("Diagram {docpr}"),
-                strix_doc::graphic::GraphicKind::Ink => format!("Ink {docpr}"),
-                strix_doc::graphic::GraphicKind::Cad => format!("CAD Drawing {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Chart => format!("Chart {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Diagram => format!("Diagram {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Ink => format!("Ink {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Cad => format!("CAD Drawing {docpr}"),
             };
             let z = self.z;
             self.graphic_frame(w, DrawingInfo { float, size: (*gw, *gh), docpr: &docpr, name: &name, alt }, native.unwrap_or(&root));
@@ -299,12 +299,12 @@ impl Writer<'_> {
         // The effect extent leaves room for the shadow and glow.
         let mut float = float.clone();
         for (e, fx) in float.effect.iter_mut().zip(effects.extent()) {
-            *e = strix_geom::finite(*e).max(fx);
+            *e = wordcraft_geom::finite(*e).max(fx);
         }
         // Tight and Through wrapping need a polygon: the shape's outline unless it has one.
         if matches!(float.wrap, Wrap::Tight | Wrap::Through) && float.wrap_polygon.is_none() {
-            float.wrap_polygon = strix_doc::wrap::shape_outline(*kind, *sw, *sh, extra.corner)
-                .and_then(|pts| strix_doc::wrap::WrapPolygon::from_unit(false, &pts))
+            float.wrap_polygon = wordcraft_doc::wrap::shape_outline(*kind, *sw, *sh, extra.corner)
+                .and_then(|pts| wordcraft_doc::wrap::WrapPolygon::from_unit(false, &pts))
                 .map(std::sync::Arc::new);
         }
         let float = &float;
@@ -368,7 +368,7 @@ impl Writer<'_> {
                 "wpg:wgp"
             }
         };
-        for c in children.iter().take(strix_doc::para::MAX_GROUP_CHILDREN) {
+        for c in children.iter().take(wordcraft_doc::para::MAX_GROUP_CHILDREN) {
             let at = (c.x, c.y);
             match &c.obj {
                 InlineObject::Image { media, .. } => {
@@ -381,7 +381,7 @@ impl Writer<'_> {
                     self.wsp(w, &c.obj, Some(&id), at, rels, depth);
                 }
                 // Native ink kept from the file, with its fallback, at the member's place.
-                InlineObject::Graphic { w: iw, h: ih, float, graphic, .. } if graphic.kind == strix_doc::graphic::GraphicKind::Ink => {
+                InlineObject::Graphic { w: iw, h: ih, float, graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Ink => {
                     if let Some(src) = graphic.source.as_deref()
                         && let Some(mut root) = self.embedded_tree(src, rels, None)
                     {
@@ -392,7 +392,7 @@ impl Writer<'_> {
                 _ => {}
             }
         }
-        if canvas.is_some() && float.spin() != strix_geom::Spin::default() {
+        if canvas.is_some() && float.spin() != wordcraft_geom::Spin::default() {
             // The canvas schema has no transform of its own: keep its turn in our
             // extension (Word draws it unturned, as it can't turn a canvas).
             w.open("wpc:extLst", &[]);
@@ -411,18 +411,18 @@ impl Writer<'_> {
     }
 }
 
-pub(super) fn ink_name(tool: strix_doc::freeform::InkTool) -> &'static str {
+pub(super) fn ink_name(tool: wordcraft_doc::freeform::InkTool) -> &'static str {
     match tool {
-        strix_doc::freeform::InkTool::Pen => "Pen",
-        strix_doc::freeform::InkTool::Pencil => "Pencil",
-        strix_doc::freeform::InkTool::Highlighter => "Highlighter",
+        wordcraft_doc::freeform::InkTool::Pen => "Pen",
+        wordcraft_doc::freeform::InkTool::Pencil => "Pencil",
+        wordcraft_doc::freeform::InkTool::Highlighter => "Highlighter",
     }
 }
 
 /// Is kept ink `src` in a form the drawing-level writer writes: its `a:graphic`, a direct run-level
 /// `w:contentPart`, or an `mc:AlternateContent` whose choice holds a drawing (not a group member's
 /// bare `w14:contentPart`, nor one in `mc:AlternateContent` with a `pic:pic` fallback)?
-fn standalone_ink(src: &strix_doc::graphic::Embedded) -> bool {
+fn standalone_ink(src: &wordcraft_doc::graphic::Embedded) -> bool {
     match crate::xml::parse(src.xml.as_bytes()) {
         Ok(root) => match root.name.as_str() {
             "a:graphic" | "w:contentPart" => true,
@@ -436,7 +436,7 @@ fn standalone_ink(src: &strix_doc::graphic::Embedded) -> bool {
 #[cfg(test)]
 mod standalone_ink_tests {
     use super::standalone_ink;
-    use strix_doc::graphic::Embedded;
+    use wordcraft_doc::graphic::Embedded;
 
     fn emb(xml: &str) -> Embedded {
         Embedded { xml: xml.into(), ..Default::default() }

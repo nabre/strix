@@ -41,7 +41,7 @@ Two engine commands work with Zotero's fields without Zotero running:
   bibliography by default. This covers Zotero, Mendeley, EndNote and Word's own citation
   fields. The player window has previous/next sentence, pause, stop and speed (0.5–3×).
   Its commands are `readAloud.playPause`, `.next`, `.previous`, `.stop`, `.speed {"value"}`,
-  `.skipCitations {"value"}` and `.status`. Set `STRIX_SPEECH=off` to keep it silent.
+  `.skipCitations {"value"}` and `.status`. Set `WORDCRAFT_SPEECH=off` to keep it silent.
 
 Switching between an in-text style and a note style in Document Preferences moves the citations:
 into new footnotes (or endnotes) at the same place, and back into the text where the note marks

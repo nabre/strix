@@ -18,7 +18,7 @@ use strix_cad::{
     Anchor, Dash, Drawing, Entity, Focus, Grip, Kind, Num, Order, Orient, P, Prim, Pt, Rendered, SelectOption, SnapKind, Snaps, StrokeEdit, kernel,
     parse_point_in,
 };
-use strix_doc::InlineObject;
+use wordcraft_doc::InlineObject;
 
 use crate::WordApp;
 use crate::cad_dim_parts;
@@ -300,7 +300,7 @@ impl Tool {
 /// The editor's state while a drawing is open.
 pub struct CadEditor {
     /// The drawing's place in the document.
-    pos: strix_doc::Pos,
+    pos: wordcraft_doc::Pos,
     /// The source it was read from: a change (undo, recalculation) is read back.
     source: Option<Arc<str>>,
     pub(crate) drawing: Drawing,
@@ -460,7 +460,7 @@ impl CadEditor {
 /// Opens the selected CAD drawing in the editor.
 pub fn open(app: &mut WordApp) -> Result<(), String> {
     let kept = app.cad_settings;
-    let (pos, drawing, rendered, names) = strix_engine::cmd::cad::edited(&app.session).ok_or("select a CAD drawing first")?;
+    let (pos, drawing, rendered, names) = wordcraft_engine::cmd::cad::edited(&app.session).ok_or("select a CAD drawing first")?;
     let source = current_source(app, &pos);
     app.cad = Some(CadEditor {
         pos,
@@ -520,17 +520,17 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
 }
 
 /// The CAD source of the graphic at `pos`, if it is still one.
-fn current_source(app: &WordApp, pos: &strix_doc::Pos) -> Option<Arc<str>> {
+fn current_source(app: &WordApp, pos: &wordcraft_doc::Pos) -> Option<Arc<str>> {
     match app.session.doc.para_at(pos).and_then(|p| p.object_at(pos.off)) {
-        Some(InlineObject::Graphic { graphic, .. }) if graphic.kind == strix_doc::graphic::GraphicKind::Cad => graphic.cad.clone(),
+        Some(InlineObject::Graphic { graphic, .. }) if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad => graphic.cad.clone(),
         _ => None,
     }
 }
 
 /// Selects the drawing in the document (the `cad.*` commands act on the selection).
-fn select_drawing(app: &mut WordApp, pos: &strix_doc::Pos) {
-    let end = strix_doc::Pos { off: pos.off + strix_doc::para::OBJ.len_utf8(), ..pos.clone() };
-    app.session.sel = strix_engine::Selection { anchor: pos.clone(), focus: end };
+fn select_drawing(app: &mut WordApp, pos: &wordcraft_doc::Pos) {
+    let end = wordcraft_doc::Pos { off: pos.off + wordcraft_doc::para::OBJ.len_utf8(), ..pos.clone() };
+    app.session.sel = wordcraft_engine::Selection { anchor: pos.clone(), focus: end };
 }
 
 /// Reads the drawing back after the document changed (an edit, Undo, a recalculation).
@@ -543,7 +543,7 @@ fn reload(app: &mut WordApp) {
         return;
     }
     select_drawing(app, &pos);
-    if let Some((_, d, r, names)) = strix_engine::cmd::cad::edited(&app.session)
+    if let Some((_, d, r, names)) = wordcraft_engine::cmd::cad::edited(&app.session)
         && let Some(ed) = app.cad.as_mut()
     {
         ed.drawing = d;
@@ -671,7 +671,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         }
         "ui.cadPadding" => {
             // The picture's padding, paper mm: one number, or [top, right, bottom, left].
-            let pad = strix_engine::cmd::cad::padding_param(p)?;
+            let pad = wordcraft_engine::cmd::cad::padding_param(p)?;
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
             d.padding = pad;
             commit(app, &d);
@@ -716,7 +716,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             // "scale"?: n}.
             let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return Ok(json!({})) };
             let page = || {
-                let f = strix_engine::cmd::cad::page_space(&app.session);
+                let f = wordcraft_engine::cmd::cad::page_space(&app.session);
                 (f.width, f.height)
             };
             match p.get("max") {
@@ -1620,7 +1620,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     let mut close_now = false;
     {
         // Units in drawing texts take the Unit style's colour, as on the page.
-        let unit = strix_engine::cmd::cad::unit_rgb(&app.session);
+        let unit = wordcraft_engine::cmd::cad::unit_rgb(&app.session);
         let Some(ed) = app.cad.as_mut() else { return };
         let bottom = 58.0;
         let full = ui.available_rect_before_wrap();
@@ -3780,7 +3780,7 @@ mod tests {
     use super::*;
 
     fn app_with_drawing() -> WordApp {
-        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": ""})).unwrap();
         app.session.run("insert.cad", &json!({})).unwrap();
         app
@@ -3803,7 +3803,7 @@ mod tests {
         assert_eq!(ed.points, [Pt::new(50.0, 20.0)]);
         commit(&mut app, &d);
         assert_eq!(entities(&app), 4);
-        let saved = strix_engine::cmd::cad::edited(&app.session).map(|(_, d, _, _)| d.entities.len());
+        let saved = wordcraft_engine::cmd::cad::edited(&app.session).map(|(_, d, _, _)| d.entities.len());
         assert_eq!(saved, Some(4), "stored in the document");
         // Undo in the document; the editor reads the drawing back.
         app.run("edit.undo", json!({})).unwrap();
@@ -4578,7 +4578,7 @@ mod max_size_kittest {
     /// row fell below the ribbon.
     #[test]
     fn cad_output_fields_take_typed_values() {
-        let mut app = WordApp::new(strix_engine::Session::new(strix_doc::Document::new()), crate::Services::default());
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": ""})).unwrap();
         app.session.run("insert.cad", &json!({})).unwrap();
         app.run("ui.cadEdit", json!({})).unwrap();

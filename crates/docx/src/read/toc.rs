@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Arc, Block, Blocks, ControlEvent, ControlKind, Document, HashSet, InlineObject, OBJ, StyleKind, control_events, pair_events};
 
 /// Word draws a table of contents' entry links without the Hyperlink character style (no blue,
@@ -16,7 +15,7 @@ pub(super) fn unstyle_toc_links(doc: &mut Document) {
         .map(|s| s.id.clone())
         .chain(["Hyperlink".to_string()])
         .collect();
-    for f in doc.field_ranges(strix_doc::StoryRef::Body) {
+    for f in doc.field_ranges(wordcraft_doc::StoryRef::Body) {
         if is_toc(&f.instr) {
             let _ = doc.format_range(&f.start, &f.end, &|c| {
                 if c.link.is_some() && c.style.as_deref().is_some_and(|s| ids.contains(s)) {
@@ -146,7 +145,8 @@ pub(super) fn is_toc(instr: &str) -> bool {
 /// The actual matching end must also be the end the styled writer would choose: at the end
 /// of the last contiguous TOC entry, with no section break or trailing content outside it.
 fn toc_range_end(body: &Blocks, start: usize) -> Option<usize> {
-    let entry = |p: &strix_doc::Paragraph| p.section.is_none() && p.props.style.as_deref().is_some_and(|s| s.starts_with("TOC") && s != "TOCHeading");
+    let entry =
+        |p: &wordcraft_doc::Paragraph| p.section.is_none() && p.props.style.as_deref().is_some_and(|s| s.starts_with("TOC") && s != "TOCHeading");
     let mut depth = 0_usize;
     for (i, b) in body.iter().enumerate().skip(start) {
         let p = b.as_para().filter(|p| entry(p))?;

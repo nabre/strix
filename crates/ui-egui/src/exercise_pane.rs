@@ -4,7 +4,7 @@
 
 use egui::Ui;
 use serde_json::{Value, json};
-use strix_doc::control::ControlRange;
+use wordcraft_doc::control::ControlRange;
 
 use crate::WordApp;
 use crate::a11y_pane::draft_box;
@@ -17,14 +17,14 @@ const MAX_VARIANTS: usize = 26;
 /// on the tab selects the whole exercise.
 pub(crate) fn enclosing_exercise(app: &WordApp, current: Option<&ControlRange>) -> Option<ControlRange> {
     let focus = &app.session.sel.focus;
-    if focus.story != strix_doc::StoryRef::Body {
+    if focus.story != wordcraft_doc::StoryRef::Body {
         return None;
     }
     app.session
         .doc
         .control_ranges(focus.story)
         .into_iter()
-        .filter(|r| r.control.tag == strix_engine::cmd::exercise::TAG_EXERCISE && r.contains(focus))
+        .filter(|r| r.control.tag == wordcraft_engine::cmd::exercise::TAG_EXERCISE && r.contains(focus))
         .find(|r| current.is_none_or(|c| c.start != r.start))
 }
 

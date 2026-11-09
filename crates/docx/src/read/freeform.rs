@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Freeform shapes (DrawingML custom geometry, `a:custGeom`; legacy VML paths) and ink strokes
 //! drawn with them.
 
-use strix_doc::freeform::{FreePath, Freeform, InkTool, MAX_PATHS, MAX_POINTS};
+use wordcraft_doc::freeform::{FreePath, Freeform, InkTool, MAX_PATHS, MAX_POINTS};
 
 use crate::units::int;
 use crate::xml::El;
@@ -311,7 +310,7 @@ fn vml_commands(path: &str) -> Vec<(String, Vec<f64>)> {
     out
 }
 
-/// The pen of an ink stroke written by Strix, from its drawing's name (`Ink Pen 3`,
+/// The pen of an ink stroke written by WordCraft, from its drawing's name (`Ink Pen 3`,
 /// `Ink Highlighter 4`).
 pub fn ink_tool(name: &str) -> Option<InkTool> {
     let mut words = name.split_whitespace();
@@ -321,7 +320,7 @@ pub fn ink_tool(name: &str) -> Option<InkTool> {
     words.next().and_then(InkTool::parse)
 }
 
-/// The drawing order of an ink stroke written by Strix, from its drawing's name
+/// The drawing order of an ink stroke written by WordCraft, from its drawing's name
 /// (`Ink Pen 3 #12`: the twelfth stroke drawn), for Ink Replay.
 pub fn ink_order(name: &str) -> Option<u32> {
     name.split_whitespace().skip(3).find_map(|w| w.strip_prefix('#')?.parse().ok())

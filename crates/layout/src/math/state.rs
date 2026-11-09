@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::bx::{Bx, Cls};
 use super::{Arc, C, FaceRef, MClass, MItem, MathTable, Rgb};
 
@@ -78,7 +77,7 @@ pub(super) fn fallback(c: C) -> f32 {
 
 /// Characters drawn as operators with their own spacing class.
 pub(super) fn class_of(c: char) -> Cls {
-    match strix_doc::math::math_class(c) {
+    match wordcraft_doc::math::math_class(c) {
         MClass::Ord => Cls::Ord,
         MClass::Op => Cls::Op,
         MClass::Bin => Cls::Bin,

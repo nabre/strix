@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Stroke, Tokens, Ui, Value, WordApp, json, regular};
 
 /// Items collected by Copy and Cut, newest first; clicking one pastes it at the caret.
@@ -80,8 +79,8 @@ pub(super) fn styles(app: &mut WordApp, ui: &mut Ui) {
         .styles
         .styles
         .iter()
-        .filter(|s| !s.hidden && s.kind != strix_doc::StyleKind::Table)
-        .map(|s| (s.id.clone(), crate::i18n::style_name(s), s.kind == strix_doc::StyleKind::Character, s.builtin))
+        .filter(|s| !s.hidden && s.kind != wordcraft_doc::StyleKind::Table)
+        .map(|s| (s.id.clone(), crate::i18n::style_name(s), s.kind == wordcraft_doc::StyleKind::Character, s.builtin))
         .collect();
     list.sort_by_key(|s| s.1.to_lowercase());
     egui::ScrollArea::vertical().show(ui, |ui| {

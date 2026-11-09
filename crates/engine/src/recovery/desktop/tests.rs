@@ -2,12 +2,12 @@
 use super::*;
 use crate::Session;
 use serde_json::json;
-use strix_doc::StoryRef;
+use wordcraft_doc::StoryRef;
 
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!("strix-recovery-test-{}", new_id().unwrap()));
+        let path = std::env::temp_dir().join(format!("wordcraft-recovery-test-{}", new_id().unwrap()));
         private_dir(&path).unwrap();
         Self(path)
     }

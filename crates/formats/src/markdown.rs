@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Markdown: a CommonMark subset plus GitHub tables and strikethrough.
 //!
 //! Import: ATX and setext headings, paragraphs with soft/hard breaks, block quotes (→ Quote
@@ -13,7 +12,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use strix_doc::{Align, Document};
+use wordcraft_doc::{Align, Document};
 
 use crate::html::decode_entity;
 use crate::model::{self, Cell, FBlock, FTable, Fmt, Inline, Kind, ListInfo, Para, make_img};

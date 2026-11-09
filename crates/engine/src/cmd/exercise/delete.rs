@@ -4,10 +4,10 @@
 //! covers all of it, which then takes its control markers too.
 
 use serde_json::{Value, json};
-use strix_doc::control::ControlRange;
-use strix_doc::para::OBJ;
-use strix_doc::props::{CharProps, ParaProps};
-use strix_doc::{InlineObject, Pos, StoryRef};
+use wordcraft_doc::control::ControlRange;
+use wordcraft_doc::para::OBJ;
+use wordcraft_doc::props::{CharProps, ParaProps};
+use wordcraft_doc::{InlineObject, Pos, StoryRef};
 
 use super::{
     MAX_EXERCISES, STYLE_DATA, STYLE_HEADING, STYLE_PROMPT, STYLE_RESULT, STYLE_TITLE, TAG_EXERCISE, TAG_RESULTS, exercise_at_caret, scan, update,
@@ -243,7 +243,7 @@ pub(super) fn delete(s: &mut Session, v: &Value) -> CmdResult {
 mod tests {
     use super::super::{TAG_TITLE, body_path, plain};
     use super::*;
-    use strix_doc::{Block, Document};
+    use wordcraft_doc::{Block, Document};
 
     fn session() -> Session {
         let mut s = Session::new(Document::new());

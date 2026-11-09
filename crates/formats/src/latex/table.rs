@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::lex::{Tok, text_symbol};
 use super::limits::MAX_NEST;
 use super::parser::Parser;
@@ -89,7 +88,7 @@ pub(super) fn table(toks: &[Tok], spec: &str, depth: usize) -> FTable {
             }
             _ => {}
         }
-        if rows.len() >= strix_doc::table::MAX_ROWS {
+        if rows.len() >= wordcraft_doc::table::MAX_ROWS {
             break;
         }
     }

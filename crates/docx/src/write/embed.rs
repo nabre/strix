@@ -4,14 +4,14 @@
 //! Each written object gets its kept markup with fresh relationship ids, pointing at copies of the
 //! parts it needs. The first object to use a part writes it under its original name (unless that
 //! name is one this writer uses for something else: then it's renamed). An object written again
-//! (copied and pasted in Strix) gets its own renamed copies of every part, so the copies stay
+//! (copied and pasted in WordCraft) gets its own renamed copies of every part, so the copies stay
 //! independent in Word; past [`MAX_COPY_BYTES`] of such copies, later ones share the first's parts.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
-use strix_doc::graphic::Embedded;
-use strix_doc::para::Float;
+use wordcraft_doc::graphic::Embedded;
+use wordcraft_doc::para::Float;
 
 use super::PartRels;
 use crate::package::{
@@ -55,7 +55,7 @@ pub(crate) struct EmbedWriter<'d> {
 }
 
 impl<'d> EmbedWriter<'d> {
-    pub fn new(doc: &'d strix_doc::Document) -> EmbedWriter<'d> {
+    pub fn new(doc: &'d wordcraft_doc::Document) -> EmbedWriter<'d> {
         let manifest = doc.passthrough.get(EMBEDDED_PARTS).map(|m| EmbeddedManifest::parse(m)).unwrap_or_default();
         let mut taken: HashSet<String> = [
             "word/document.xml",
@@ -408,7 +408,7 @@ impl super::Writer<'_> {
     /// The `a:graphic` of a SmartArt graphic written from its model, laid out `w` × `h` points:
     /// new diagram parts (`word/diagrams/{data,layout,quickStyle,colors,drawing}N.xml`) related
     /// from the story part through `rels`.
-    pub(super) fn smart_art_graphic(&mut self, spec: &strix_doc::smart_art::SmartArtSpec, w: f32, h: f32, rels: &mut PartRels) -> String {
+    pub(super) fn smart_art_graphic(&mut self, spec: &wordcraft_doc::smart_art::SmartArtSpec, w: f32, h: f32, rels: &mut PartRels) -> String {
         use crate::package::rt;
         use crate::smart_art as sa;
         let names = self.embeds.fresh_set(
@@ -462,7 +462,7 @@ impl super::Writer<'_> {
             self.embeds.parts.push((file.clone(), svg.as_bytes().to_vec(), "image/svg+xml".to_string(), PartRels::default()));
             rels.add(crate::package::rt::IMAGE, &relative(STORY_PART, &file), false)
         });
-        let emu = |v: f32| format!("{}", (strix_geom::finite(v).max(0.0) * 12_700.0).round() as i64);
+        let emu = |v: f32| format!("{}", (wordcraft_geom::finite(v).max(0.0) * 12_700.0).round() as i64);
         let mut w = xml::W::default();
         w.open("a:graphic", &[("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main")]);
         w.open("a:graphicData", &[("uri", "http://schemas.openxmlformats.org/drawingml/2006/picture")]);
@@ -518,7 +518,7 @@ impl super::Writer<'_> {
 
     /// The `a:graphic` of a chart written from its model: a new chart part (`word/charts/chartN.xml`)
     /// related from the story part through `rels`.
-    pub(super) fn chart_graphic(&mut self, spec: &strix_doc::chart::ChartSpec, rels: &mut PartRels) -> String {
+    pub(super) fn chart_graphic(&mut self, spec: &wordcraft_doc::chart::ChartSpec, rels: &mut PartRels) -> String {
         let name = self.embeds.fresh("word/charts/chart", ".xml");
         let (xml, cut) = crate::chart_spec::chart_part(spec);
         if cut && !self.embeds.chart_cut {
@@ -886,7 +886,7 @@ fn vml_style_with(style: &str, w: f32, h: f32, float: &Float) -> String {
 
 /// Points for a VML style: finite, bounded, at most two decimals.
 fn pt(v: f32) -> String {
-    let v = strix_geom::finite(v).clamp(-crate::units::MAX_LEN_PT, crate::units::MAX_LEN_PT);
+    let v = wordcraft_geom::finite(v).clamp(-crate::units::MAX_LEN_PT, crate::units::MAX_LEN_PT);
     let s = format!("{v:.2}");
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
@@ -923,9 +923,9 @@ mod tests {
         // A model deserialised as is can hold more than a chart part keeps; the save left the rest
         // out without a word (review of #3872).
         use std::sync::Arc;
-        use strix_doc::chart::{ChartSeries, ChartSpec, ChartType, MAX_SERIES};
-        use strix_doc::graphic::{Graphic, GraphicKind};
-        use strix_doc::{CharProps, InlineObject, Pos};
+        use wordcraft_doc::chart::{ChartSeries, ChartSpec, ChartType, MAX_SERIES};
+        use wordcraft_doc::graphic::{Graphic, GraphicKind};
+        use wordcraft_doc::{CharProps, InlineObject, Pos};
         let chart = |series: usize| {
             let spec = ChartSpec {
                 kind: ChartType::Column,
@@ -939,7 +939,7 @@ mod tests {
             InlineObject::Graphic { w: 100.0, h: 100.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) }
         };
         let save = |charts: Vec<InlineObject>| {
-            let mut doc = strix_doc::Document::new();
+            let mut doc = wordcraft_doc::Document::new();
             for c in charts {
                 doc.insert_object(&Pos::body(0, 0), c, &CharProps::default()).unwrap();
             }
@@ -972,7 +972,7 @@ mod tests {
     #[test]
     fn vml_style_takes_the_rotation_and_flips() {
         let mut float = Float::default();
-        float.set_spin(strix_geom::Spin::new(-30.5, true, true));
+        float.set_spin(wordcraft_geom::Spin::new(-30.5, true, true));
         let s = vml_style_with("width:1pt;rotation:10;flip:x;height:1pt;z-index:3", 2.0, 3.0, &float);
         assert_eq!(s, "z-index:3;width:2pt;height:3pt;rotation:329.5;flip:x y");
         // Unturned: no rotation or flip left behind.
@@ -981,7 +981,7 @@ mod tests {
 
     #[test]
     fn kept_part_names_are_valid_opc_names() {
-        let doc = strix_doc::Document::default();
+        let doc = wordcraft_doc::Document::default();
         let mut w = EmbedWriter::new(&doc);
         for orig in ["word/a\\b.bin", "word/..\\..\\x.bin", "word/a/../b%2Fc.bin", "word/a//./b%5Cc.bin", "word/a./b.bin", "word/a..."] {
             let name = w.alloc(orig);

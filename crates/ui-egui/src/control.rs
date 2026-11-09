@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Programmatic control of the running app (agents, tests, MCP bridge).
 //!
 //! Methods (JSON lines over the host's transport, see `docs/control-protocol.md`):
@@ -196,9 +195,9 @@ mod screenshot_tests {
 
         let other = dir.join("other");
         std::fs::create_dir_all(&other).unwrap();
-        let roots = strix_engine::file_access::AutomationRoots::new(None, Some(&other)).unwrap();
+        let roots = wordcraft_engine::file_access::AutomationRoots::new(None, Some(&other)).unwrap();
         let outside = dir.join("outside.png");
-        let r = strix_engine::file_access::confine(roots.as_ref(), || save_screenshot(&img, outside.to_str(), 104));
+        let r = wordcraft_engine::file_access::confine(roots.as_ref(), || save_screenshot(&img, outside.to_str(), 104));
         assert_eq!(r["ok"], false);
         assert!(!outside.exists());
     }

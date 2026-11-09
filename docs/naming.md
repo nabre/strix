@@ -1,7 +1,8 @@
 # Naming: WordCraft's internal names, Strix's visible ones
 
-Status: inventory approved; phase 2 (the targeted rules in `xtask/src/upstream.rs`) done — 2026-11-09.
-Phase 3 (the reverse rename on `main`) is next.
+Status: inventory approved; phase 2 (the targeted rules in `xtask/src/upstream.rs`) and phase 3
+(the reverse rename on `main`, `cargo xtask upstream unrename`) done — 2026-11-09. Next: re-create
+`vendor/wordcraft` with the new rules (`docs/upstream.md`, Transition).
 
 Strix keeps its own name only where changing it would break something for the user or make
 Strix collide with a WordCraft installed on the same computer. Everything else goes back to
@@ -254,7 +255,40 @@ Decided while writing them (each is a case the inventory had missed or got wrong
   what Strix is called. Declaring more paths Strix-owned wouldn't help: these rows live in core
   upstream files.
 
+## Phase 3: the reverse rename on `main`
+
+`cargo xtask upstream unrename UPSTREAM_DIR` (`xtask/src/unrename.rs`) did it once, from upstream
+`9724f15c` (the commit `vendor/wordcraft` was made from):
+
+1. It rebuilt the new vendor snapshot: upstream through the phase 2 rules, then rustfmt.
+2. It put back upstream's whole names (`NAMES`, 85 entries: the 16 upstream crates' paths and
+   packages, upstream identifiers and test names, the environment variables of the table above,
+   the internal keys and URIs of U5–U7, `wordcraft.log`, `.wordcraft-save-`, `wordcraft.tsv`) in
+   every file of `main` except this one and the rule tables. Strix's own names aren't in the table:
+   `strix-calc`, `strix-cad`, `strix-dictionaries`, `strix_update::STRIX`, `STRIX_NS`,
+   `STRIX_PRETEND_VERSION`, `strix:cad`, `strix:exercise`, …
+3. For upstream code and configuration files, it merged three ways what the new rules do
+   differently from the old rename (`git merge-file`; base: the old vendor file, theirs: the new
+   one). Lines Strix never changed became exactly the new vendor's (comments back to
+   "WordCraft", messages to Strix's). 15 files had lines both sides changed; Strix's lines were
+   kept (test temp-file prefixes, the web loading screen, Strix's own update channel, the About
+   box), which is right: they are Strix's changes.
+4. Upstream prose (`.md`, `.txt`) only had its internal names put back. The new rules leave
+   upstream's prose alone, so merging would have brought back upstream's sentences, and with
+   them WordCraft's package and folder names (`cargo run -p wordcraft`, `~/.config/wordcraft` in
+   `CLAUDE.md`), which are wrong in Strix.
+5. `locales/*/strix.tsv` became `wordcraft.tsv` (U1). The one catalog key that named
+   `STRIX_DICTIONARIES` and its 27 translations changed with the code.
+6. After rustfmt, 680 of the 886 upstream files on the vendor branch are identical to the new
+   vendor files and lost the modification notice (U10). The other 206 are the ones Strix really
+   changes, and they keep it.
+
+By hand, as feature code: the docx reader also accepts `urn:strix:canvas-xfrm` (U5), with a test
+(`crates/docx/tests/it/strix_canvas_uri.rs`).
+
 ## Revision history
+
+- 2026-11-09 — phase 3: the reverse rename on `main`, by `cargo xtask upstream unrename`.
 
 - 2026-11-09 — phase 2: the rules as written (62), cases settled while writing them.
 

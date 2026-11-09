@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Rich Text Format.
 //!
 //! Export: font and colour tables, a small stylesheet (headings with outline levels, Title,
@@ -22,8 +21,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use strix_doc::props::VAlign;
-use strix_doc::{Align, Document, Rgb};
+use wordcraft_doc::props::VAlign;
+use wordcraft_doc::{Align, Document, Rgb};
 
 use crate::model::{self, Cell, FBlock, FTable, Flow, Fmt, Inline, Kind, ListInfo, Meta, Para, RevMark, make_img};
 

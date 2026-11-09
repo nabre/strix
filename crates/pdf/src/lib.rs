@@ -1,8 +1,7 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Strix PDF export through the shared `craft-pdf` writer and Krilla drawing primitives.
+//! WordCraft PDF export through the shared `craft-pdf` writer and Krilla drawing primitives.
 //!
 //! [`export`] lays the document out and draws each page's display list
-//! ([`strix_layout::display::page_display`]) into a PDF page:
+//! ([`wordcraft_layout::display::page_display`]) into a PDF page:
 //!
 //! - **Text as real text:** glyph runs are written with embedded, subsetted fonts and a Unicode
 //!   mapping taken from the paragraph text, so text is selectable, searchable and extractable.
@@ -42,16 +41,16 @@ use krilla::paint::{Fill, FillRule, LineCap, LineJoin, Stroke, StrokeDash};
 use krilla::surface::Surface;
 use krilla::tagging::{Artifact, ArtifactType, ContentTag, Identifier, Node, SpanTag, Tag, TagGroup, TagKind, TagTree};
 use krilla::text::{Font, GlyphId, KrillaGlyph};
-use strix_doc::graphic::GraphicKind;
-use strix_doc::para::{InlineObject, ShapeKind};
-use strix_doc::{Document, Path as DocPath, Rgb, StoryRef};
-use strix_fonts::FaceRef;
-use strix_geom::Rect;
-use strix_layout::display::Paint;
-use strix_layout::display::{DisplayOptions, Draw, ItemDisplay, Stroke as LineStyle};
-use strix_layout::para::{ClKind, LineEnd};
-use strix_layout::{DocLayout, LayoutCache, LayoutOptions, NumeralMode, Page, Placed, layout};
-use strix_metafile::{Picture, PlacedItem};
+use wordcraft_doc::graphic::GraphicKind;
+use wordcraft_doc::para::{InlineObject, ShapeKind};
+use wordcraft_doc::{Document, Path as DocPath, Rgb, StoryRef};
+use wordcraft_fonts::FaceRef;
+use wordcraft_geom::Rect;
+use wordcraft_layout::display::Paint;
+use wordcraft_layout::display::{DisplayOptions, Draw, ItemDisplay, Stroke as LineStyle};
+use wordcraft_layout::para::{ClKind, LineEnd};
+use wordcraft_layout::{DocLayout, LayoutCache, LayoutOptions, NumeralMode, Page, Placed, layout};
+use wordcraft_metafile::{Picture, PlacedItem};
 
 mod export;
 mod exporter;

@@ -272,13 +272,13 @@ check, the layering check and the wasm build. Contributor and agent instructions
 
 | Layer | Crate | Job |
 |---|---|---|
-| L0 | `strix-geom` | units and measurements |
-| L1 | `strix-doc`, `strix-fonts`, `strix-proof`, `strix-calc`, `strix-cad` | document model and editing; fonts and shaping; spelling and hyphenation; **quantities, units, solving and worksheet evaluation**; **parametric drawings and the geometry kernel** |
-| L2 | `strix-layout`, `strix-docx`, `strix-formats` | line breaking, pagination, tables, hit testing; the `.xmath` package (OOXML); imports and static exports |
-| L3 | `strix-render`, `strix-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
-| L4 | `strix-engine` | session, undo, the command registry, calculations, exercises, file dispatch |
-| L5 | `strix-mcp` | MCP server |
-| L6 | `strix-ui-egui` | the desktop and web front end, including the CAD editor |
+| L0 | `wordcraft-geom` | units and measurements |
+| L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof`, `strix-calc`, `strix-cad` | document model and editing; fonts and shaping; spelling and hyphenation; **quantities, units, solving and worksheet evaluation**; **parametric drawings and the geometry kernel** |
+| L2 | `wordcraft-layout`, `wordcraft-docx`, `wordcraft-formats` | line breaking, pagination, tables, hit testing; the `.xmath` package (OOXML); imports and static exports |
+| L3 | `wordcraft-render`, `wordcraft-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
+| L4 | `wordcraft-engine` | session, undo, the command registry, calculations, exercises, file dispatch |
+| L5 | `wordcraft-mcp` | MCP server |
+| L6 | `wordcraft-ui-egui` | the desktop and web front end, including the CAD editor |
 | apps | `strix`, `strix-cli`, `strix-web` | desktop, command line, browser |
 
 Strix never panics on purpose: no `unwrap`, `expect` or `unsafe` in production code, and every

@@ -1,4 +1,4 @@
-//! `cargo xtask upstream <status|sync [REV]|rebrand DIR>`: keep Strix mergeable with WordCraft.
+//! `cargo xtask upstream <status|sync [REV]|rebrand DIR|unrename UPSTREAM_DIR>`: keep Strix mergeable with WordCraft.
 //!
 //! Strix is a fork of WordCraft that keeps WordCraft's internal names (crates, Rust paths, types,
 //! environment variables) and is Strix only where users see it or where it would collide with a
@@ -62,15 +62,15 @@ const STRIX_OWNED: &[&str] = &[
 
 /// Files kept byte-for-byte: Apache-2.0 §4(a) and §4(c) forbid rewording licence texts and
 /// upstream notices.
-const VERBATIM_FILES: &[&str] = &["LICENSE-APACHE", "LICENSE-MIT", "NOTICE"];
+pub(crate) const VERBATIM_FILES: &[&str] = &["LICENSE-APACHE", "LICENSE-MIT", "NOTICE"];
 
 /// Lines holding a copyright or attribution notice are never rebranded (§4(c)), e.g.
 /// "Copyright (c) 2026 ArtCraft Team and the WordCraft contributors" or an ATTRIBUTION.md row
 /// crediting the "WordCraft contributors".
-const NOTICE_MARKERS: &[&str] = &["Copyright", "copyright", "©", "WordCraft contributors", "WordCraft authors"];
+pub(crate) const NOTICE_MARKERS: &[&str] = &["Copyright", "copyright", "©", "WordCraft contributors", "WordCraft authors"];
 
 /// The modification notice every changed upstream file carries (§4(b)); same text as `main`.
-const MARK: &str = "Modified by the Strix contributors (fork of WordCraft); see NOTICE.";
+pub(crate) const MARK: &str = "Modified by the Strix contributors (fork of WordCraft); see NOTICE.";
 
 /// Where upstream shows its product name as such (window and dialog titles, installers, the
 /// generator recorded in exported files), Strix shows its full name, "Strix Writer"; in running
@@ -184,7 +184,7 @@ fn apply_file_rules(path: &str, text: String) -> String {
 }
 
 /// Whether `c` can be part of an identifier, so a name right after it is part of a longer one.
-fn word_char(c: char) -> bool {
+pub(crate) fn word_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
 
@@ -300,7 +300,7 @@ pub fn rebrand_file(path: &str, text: &str) -> Option<String> {
 
 /// `text` with [`MARK`] as a comment near the top, after a shebang, XML declaration or doctype, in the
 /// comment syntax of the file's format; unchanged when the format has none or the mark is there.
-fn with_mark(path: &str, text: String) -> String {
+pub(crate) fn with_mark(path: &str, text: String) -> String {
     let name = path.rsplit('/').next().unwrap_or(path);
     let ext = name.trim_end_matches(".in").rsplit_once('.').map_or("", |(_, e)| e);
     let comment = match ext {
@@ -330,7 +330,7 @@ pub fn rebrand_path(path: &str) -> Option<String> {
 }
 
 /// Whether `path` is one of Strix's own paths ([`STRIX_OWNED`]).
-fn strix_owned(path: &str) -> bool {
+pub(crate) fn strix_owned(path: &str) -> bool {
     STRIX_OWNED.iter().any(|p| match p.split_once('*') {
         _ if p.ends_with('/') => path.starts_with(p),
         Some((head, tail)) => path.strip_prefix(head).and_then(|r| r.strip_suffix(tail)).is_some_and(|mid| !mid.contains('/')),
@@ -352,7 +352,8 @@ pub fn run(root: &Path, args: &[&str]) -> Result<(), String> {
             warn_unapplied_rules(Path::new(dir));
             println!("rebranded {n} file(s)");
         }),
-        _ => Err("usage: cargo xtask upstream [status | sync [REV] | rebrand DIR]".into()),
+        ["unrename", dir] => crate::unrename::run(root, Path::new(dir)),
+        _ => Err("usage: cargo xtask upstream [status | sync [REV] | rebrand DIR | unrename UPSTREAM_DIR]".into()),
     }
 }
 
@@ -468,7 +469,7 @@ fn report_owned_changes(root: &Path, from: &str, to: &str) -> Result<(), String>
 
 /// Runs rustfmt (the workspace's `rustfmt.toml`) on `files`, relative to `dir`. Without rustfmt
 /// it warns and leaves them as they are: the merge then shows the formatting too.
-fn format_rust(dir: &Path, files: &[&str]) {
+pub(crate) fn format_rust(dir: &Path, files: &[&str]) {
     let config = dir.join("rustfmt.toml");
     for chunk in files.chunks(100) {
         let mut cmd = Command::new("rustfmt");
@@ -485,7 +486,7 @@ fn format_rust(dir: &Path, files: &[&str]) {
 }
 
 /// Rewrites every file under `dir` (except `.git`) in place; returns how many changed.
-fn rebrand_tree(dir: &Path) -> Result<usize, String> {
+pub(crate) fn rebrand_tree(dir: &Path) -> Result<usize, String> {
     let mut files = Vec::new();
     walk(dir, dir, &mut files)?;
     let mut changed = 0;
@@ -516,7 +517,7 @@ fn rebrand_tree(dir: &Path) -> Result<usize, String> {
 }
 
 /// Relative `/`-separated paths of the files under `dir`, skipping `.git`.
-fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(), String> {
+pub(crate) fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(), String> {
     let entries = std::fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -563,7 +564,7 @@ warning: using the upstream refs fetched earlier"
     }
 }
 
-fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
     let out = Command::new("git").current_dir(dir).args(args).output().map_err(|e| format!("git: {e}"))?;
     if !out.status.success() {
         return Err(format!("git {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim()));
@@ -571,7 +572,7 @@ fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-fn git_ok(dir: &Path, args: &[&str]) -> bool {
+pub(crate) fn git_ok(dir: &Path, args: &[&str]) -> bool {
     Command::new("git").current_dir(dir).args(args).output().is_ok_and(|o| o.status.success())
 }
 

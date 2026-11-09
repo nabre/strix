@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::screenshots::render_png;
 use super::{ControlRequest, Value, WordApp, json};
 
@@ -219,7 +218,7 @@ pub fn handle(app: &mut WordApp, ctx: &egui::Context, req: &ControlRequest) -> O
             Err(e) => err(e),
         },
         "ui.inspect" => ok(inspect(app, ctx)),
-        "ui.parity" => ok(strix_engine::catalog::parity(&app.session.registry)),
+        "ui.parity" => ok(wordcraft_engine::catalog::parity(&app.session.registry)),
         "ui.click" => {
             let (Some(x), Some(y)) = (f("x"), f("y")) else { return err("missing x/y") };
             let button = match s("button") {

@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Document, FaceRef, ResolvedChar, SOFT_HYPHEN};
 
 /// What a piece of text is shaped as: one face, case, script formatting and direction.
@@ -39,8 +38,8 @@ pub(crate) fn push_caps(rc: &ResolvedChar, c: char, out: &mut String) {
 
 /// The OpenType ligature features a `w14:ligatures` value sets, each on or off. Required
 /// ligatures (`rlig`, Arabic lam-alef) are never turned off.
-pub(crate) fn ligature_features(l: strix_doc::props::Ligatures) -> [strix_fonts::Feature; 4] {
-    let f = |tag: &[u8; 4], on: bool| strix_fonts::feature_value(tag, on as u32);
+pub(crate) fn ligature_features(l: wordcraft_doc::props::Ligatures) -> [wordcraft_fonts::Feature; 4] {
+    let f = |tag: &[u8; 4], on: bool| wordcraft_fonts::feature_value(tag, on as u32);
     [f(b"liga", l.standard), f(b"clig", l.contextual), f(b"hlig", l.historical), f(b"dlig", l.discretional)]
 }
 
@@ -130,14 +129,14 @@ pub(super) const MISSING_ROMAN_FONT: &str = "Cambria";
 /// A font with substitutes of its own keeps them: Times New Roman is roman in every font table,
 /// and where it isn't installed Liberation Serif has its metrics; Word never meets it missing.
 pub(super) fn lookup_family<'f>(doc: &Document, font: &'f str) -> &'f str {
-    let db = strix_fonts::FontDb::global();
+    let db = wordcraft_fonts::FontDb::global();
     let roman = doc.settings.roman_fonts.iter().any(|f| f.eq_ignore_ascii_case(font));
     if roman
-        && !strix_fonts::word::is_thai_family(font)
-        && !strix_doc::symbol_fonts::is_symbol_font(font)
-        && !strix_fonts::word::has_named_substitutes(font)
+        && !wordcraft_fonts::word::is_thai_family(font)
+        && !wordcraft_doc::symbol_fonts::is_symbol_font(font)
+        && !wordcraft_fonts::word::has_named_substitutes(font)
         && !db.has_family(font)
-        && !db.has_family(strix_fonts::word::charset_base_family(font))
+        && !db.has_family(wordcraft_fonts::word::charset_base_family(font))
     {
         MISSING_ROMAN_FONT
     } else {
@@ -151,14 +150,14 @@ pub(super) fn lookup_family<'f>(doc: &Document, font: &'f str) -> &'f str {
 /// `primary` lacks some of the run's Thai or Latin characters; then the first face covering all of
 /// them, if one does. Other families keep Latin text in their own substitute, as Word does.
 pub(crate) fn thai_run_face(font: &str, substituted: bool, primary: FaceRef, text: &str, bold: bool, italic: bool) -> Option<FaceRef> {
-    if !substituted || !strix_fonts::word::is_thai_family(font) {
+    if !substituted || !wordcraft_fonts::word::is_thai_family(font) {
         return None;
     }
     let run: Vec<char> = text.chars().filter(|c| thai_or_latin(*c)).collect();
     if run.iter().all(|c| primary.covers(*c)) {
         return None;
     }
-    strix_fonts::FontDb::global().fallback_for_run(&run, primary.id(), bold, italic).map(|f| FaceRef::of(&f))
+    wordcraft_fonts::FontDb::global().fallback_for_run(&run, primary.id(), bold, italic).map(|f| FaceRef::of(&f))
 }
 
 /// Text a Thai substitute draws: Thai letters, digits and signs (฿), and Latin letters, digits

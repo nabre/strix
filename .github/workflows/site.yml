@@ -110,7 +110,7 @@ jobs:
           set -euo pipefail
           # A tag made by hand may not match its Cargo.toml: the release's version wins.
           cargo xtask version set "$VERSION"
-          STRIX_VERSION="$VERSION" STRIX_BUILD_SHA="$(git rev-parse HEAD)" DIST="$RUNNER_TEMP/web" packaging/web/package.sh
+          WORDCRAFT_VERSION="$VERSION" WORDCRAFT_BUILD_SHA="$(git rev-parse HEAD)" DIST="$RUNNER_TEMP/web" packaging/web/package.sh
       - name: Add the web app
         run: |
           set -euo pipefail

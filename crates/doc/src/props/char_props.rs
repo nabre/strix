@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::color::{Rgb, TextColor};
 use super::para_props::Border;
 use super::{Deserialize, Serialize};
@@ -286,7 +285,7 @@ pub struct CharProps {
     /// Kerning for fonts at or above this size (points); 0 = off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kern: Option<f32>,
-    /// OpenType ligatures (`w14:ligatures`). `None` leaves Strix's default: standard and
+    /// OpenType ligatures (`w14:ligatures`). `None` leaves WordCraft's default: standard and
     /// contextual ligatures.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ligatures: Option<Ligatures>,
