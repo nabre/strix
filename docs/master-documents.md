@@ -53,7 +53,7 @@ Save or Reload all of them.
 
 ## Limits
 
-- Not on the web (files are opened and saved through the browser there).
+- Not on the web: subdocuments are files on disk, which the browser version can't read back or write, so Insert and Create are greyed out there (with that reason); a master made on the desktop still opens and shows its saved copies.
 - Section breaks inside a subdocument are kept as in Text from File; headers and footers come
   from the master.
 

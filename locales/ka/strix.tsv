@@ -2805,3 +2805,260 @@ paper	Envelope DL	კონვერტი DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Strix Writer-ის შესახებ
+
+# Strix additions 2026-11-09
+	(remove) click removes	(ამოღება) დაწკაპუნება აღებს
+	*Bold* and _italic_ as real formatting	*მუქი* და _დახრილი_ როგორც ნამდვილი ფორმატირება
+	1 CAD drawing	1 CAD ნახაზი
+	1 calculated table	1 გამოთვლადი ცხრილი
+	1 calculation	1 გამოთვლა
+	1 exercise	1 სავარჯიშო
+	1 object selected	არჩეულია 1 ობიექტი
+	1 results summary	1 შედეგების შეჯამება
+	A free, open-source word processor written in Rust.	უფასო, ღია კოდის ტექსტური რედაქტორი, დაწერილი Rust-ზე.
+	A grid from the cursor to the end of the page	ბადე კურსორიდან გვერდის ბოლომდე
+	A new exercise takes the page breaks of the last one.	ახალი სავარჯიშო იღებს ბოლო სავარჯიშოს გვერდის წყვეტებს.
+	A new layer, made current	ახალი ფენა, გახდება მიმდინარე
+	A polar array has	პოლარულ მასივს აქვს
+	Add Datum	მონაცემის დამატება
+	Add a period with double-space	წერტილის დამატება ორმაგი ჰარით
+	Add a variant: a copy of the active one's values	ვარიანტის დამატება: აქტიური ვარიანტის მნიშვნელობების ასლი
+	Add an initial datum: a symbol with its value in every variant	საწყისი მონაცემის დამატება: სიმბოლო თავისი მნიშვნელობით ყველა ვარიანტში
+	Advanced Properties…	დამატებითი თვისებები…
+	Aligned texts	გასწორებული ტექსტები
+	All the selection	მთელი მონიშვნა
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	ყველა · F შემოღობვა · WP/CP მრავალკუთხედი · R ამოღება · A დამატება · P წინა · U გაუქმება · Shift+Space ციკლი
+	An array has	მასივს აქვს
+	Apply to all exercises	ყველა სავარჯიშოზე გავრცელება
+	As the grid lines	ბადის ხაზების მსგავსად
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	ავტოშენახვა ინახავს მხოლოდ Strix-ის დოკუმენტებს (.xmath); {name} სხვა ფორმატშია. ავტოშენახვის ჩასართავად შეინახეთ როგორც .xmath.
+	Automatically add words to list (First Letter)	სიტყვების სიაში ავტომატური დამატება (პირველი ასო)
+	Automatically add words to list (INitial CAps)	სიტყვების სიაში ავტომატური დამატება (ორი დიდი ასო)
+	Bookmarks	სანიშნეები
+	Built-in Heading styles	ჩაშენებული სათაურის სტილები
+	ByLayer	ფენის მიხედვით
+	Calculate the exercise with this variant	სავარჯიშოს გამოთვლა ამ ვარიანტით
+	Cancel the step	ნაბიჯის გაუქმება
+	Changed here and in the file: keep one of the two.	შეიცვალა აქ და ფაილში: დატოვეთ ერთ-ერთი.
+	Check for Updates	განახლებების შემოწმება
+	Checking for updates…	განახლებების შემოწმება…
+	Colour	ფერი
+	Columns × rows:	სვეტი × სტრიქონი:
+	Considering	გათვალისწინებით
+	Continue without restoring	გაგრძელება აღდგენის გარეშე
+	Coordinates take a number or an expression of the calculations (L/2)	კოორდინატები იღებს რიცხვს ან გამოთვლების გამოსახულებას (L/2)
+	Could not check for updates:\n{error}	განახლებების შემოწმება ვერ მოხერხდა:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	{name} ვერ შეინახა, ამიტომ ღიაა და არაფერი დაკარგულა: {error}
+	Create Subdocument…	ქვედოკუმენტის შექმნა…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	გვერდზე ამოჭრა მუშაობს არადაგრეხილ სურათებზე: ჯერ დააყენეთ შებრუნება 0°-ზე ან გამოიყენეთ ამოჭრის ჩარჩოები
+	Crossing polygon	გადამკვეთი მრავალკუთხედი
+	Current Document	მიმდინარე დოკუმენტი
+	Current layer	მიმდინარე ფენა
+	Current layer: new objects go on it	მიმდინარე ფენა: ახალი ობიექტები მასზე თავსდება
+	Delete the layer (its objects go to layer 0)	ფენის წაშლა (მისი ობიექტები გადავა ფენა 0-ზე)
+	Detach: a window of its own	მოხსნა: ცალკე ფანჯარაში
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	დაწკაპუნებით ან სახელურით განთავსებული ზომის ხაზები და კუთხის რკალები ინარჩუნებს მანძილს ნახაზში (მიჰყვება მის ზომასა და მასშტაბს); გამორთვისას: ქაღალდზე (ბეჭდვისას იგივეა)
+	Dimension texts along their line (never upside down), not level	ზომის ტექსტები ხაზის გასწვრივ (არასოდეს თავდაყირა), არა ჰორიზონტალურად
+	Dimension units	ზომის ერთეულები
+	Discard	გაუქმება
+	Discard the recovery copy of {name}?	გავაუქმოთ {name}-ის აღდგენის ასლი?
+	Discard…	გაუქმება…
+	Distance	მანძილი
+	Dock	მიმაგრება
+	Dock Left	მარცხნივ მიმაგრება
+	Dock Right	მარჯვნივ მიმაგრება
+	Download	ჩამოტვირთვა
+	Download the {name} spelling dictionary	{name} მართლწერის ლექსიკონის ჩამოტვირთვა
+	Downloading and installing…	ჩამოტვირთვა და ინსტალაცია…
+	Downloading the {name} dictionary…	{name} ლექსიკონის ჩამოტვირთვა…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	ჩამოტვირთავს Hunspell-ის ლექსიკონს {name} LibreOffice-ის ლექსიკონებიდან ({source}), ლიცენზია {licence}, თქვენს ლექსიკონების საქაღალდეში და მართლწერას მაშინვე მისით ამოწმებს.
+	Draw order	ხატვის რიგი
+	Drawing unit	ნახაზის ერთეული
+	End mark	დასასრულის ნიშანი
+	Enter confirms	Enter ადასტურებს
+	Every	ყოველი
+	Every exercise of the document takes this exercise's page breaks	დოკუმენტის ყველა სავარჯიშო იღებს ამ სავარჯიშოს გვერდის წყვეტებს
+	Exercise	სავარჯიშო
+	Exercise, in the document's language	სავარჯიშო, დოკუმენტის ენაზე
+	Exit	გამოსვლა
+	Fence	შემოღობვა
+	File type	ფაილის ტიპი
+	First exercise: {label}	პირველი სავარჯიშო: {label}
+	Fitted to Frame	ჩარჩოში მოერგო
+	Float	მცურავი
+	Folder path	საქაღალდის გზა
+	Follow columns	სვეტების მიყოლა
+	For every exercise of the document: the label of each title and of the results summary.	დოკუმენტის ყველა სავარჯიშოსთვის: თითოეული სათაურის და შედეგების შეჯამების ჭდე.
+	Go to it	გადასვლა მასზე
+	Grid lines	ბადის ხაზები
+	Grip	სახელური
+	Grip: the new point (click, or type it; Esc puts it back)	სახელური: ახალი წერტილი (დააწკაპუნეთ ან აკრიფეთ; Esc აბრუნებს)
+	Heavier lines	უფრო მსხვილი ხაზები
+	Height	სიმაღლე
+	Imported 1 source	იმპორტირებულია 1 წყარო
+	Imported {n} sources	იმპორტირებულია {n} წყარო
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	ერთზე მეტ სვეტიან განყოფილებაში თითოეული სვეტი ცალ-ცალკე იხაზება და მათ შორის სივრცე თავისუფალი რჩება
+	Input unit	შეყვანის ერთეული
+	Insert Graph Paper	მილიმეტრული ქაღალდის ჩასმა
+	Insert Subdocument…	ქვედოკუმენტის ჩასმა…
+	Items:	ელემენტები:
+	Keep the file	ფაილის დატოვება
+	Keep the text in this document, without the link; the file stays as it is	ტექსტის დატოვება ამ დოკუმენტში, ბმულის გარეშე; ფაილი უცვლელი რჩება
+	Keep this version	ამ ვერსიის დატოვება
+	Later	მოგვიანებით
+	Layer	ფენა
+	Layer:	ფენა:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	ნახაზის ზომის შეზღუდვა ქაღალდზე (გვერდის ტექსტის არედან): შემოთავაზებულია მასშტაბები, რომლებზეც ეტევა
+	Linetype	ხაზის ტიპი
+	Lineweight	ხაზის სისქე
+	Link a document at the cursor	დოკუმენტის დაკავშირება კურსორთან
+	Linked files	დაკავშირებული ფაილები
+	Local recovery is unavailable or still loading.	ლოკალური აღდგენა მიუწვდომელია ან ჯერ იტვირთება.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	ობიექტის ფენის მიმდინარედ გახდომა
+	Maximum size	მაქსიმალური ზომა
+	Modify	შეცვლა
+	Move	გადატანა
+	Move Pane: {title}	პანელის გადატანა: {title}
+	Move to layer	ფენაზე გადატანა
+	New layer	ახალი ფენა
+	New page before the exercise	ახალი გვერდი სავარჯიშომდე
+	New page before the results summary	ახალი გვერდი შედეგების შეჯამებამდე
+	New page before the solution	ახალი გვერდი ამოხსნამდე
+	Next object	შემდეგი ობიექტი
+	Next point	შემდეგი წერტილი
+	No matching commands	შესაბამისი ბრძანებები არ არის
+	No new sources in that file	ამ ფაილში ახალი წყაროები არ არის
+	No previous selection	წინა მონიშვნა არ არის
+	No recovery copies.	აღდგენის ასლები არ არის.
+	No selection: click objects, or drag a window	მონიშვნა არ არის: დააწკაპუნეთ ობიექტებზე ან გაავლეთ ფანჯარა
+	Nothing of this type in the document.	ამ ტიპის არაფერია დოკუმენტში.
+	Nothing to undo in the selection	მონიშვნაში გასაუქმებელი არაფერია
+	Object snap settings	ობიექტზე მიმაგრების პარამეტრები
+	Objects	ობიექტები
+	Only text properties can be changed.	შეიძლება შეიცვალოს მხოლოდ ტექსტური თვისებები.
+	Only these	მხოლოდ ესენი
+	Only when another exercise comes before it	მხოლოდ მაშინ, როცა მას სხვა სავარჯიშო უსწრებს
+	Open the file in a window of its own	ფაილის გახსნა ცალკე ფანჯარაში
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	ამიერიდან Strix-ით ხსნის Strix-ის დოკუმენტებს (.xmath, .xmathm), .docx, .doc, .rtf და .odt ფაილებს და Word-ის შაბლონებს.
+	Other corner of the window (to the right: whole objects; to the left: touched too)	ფანჯრის მეორე კუთხე (მარჯვნივ: მთლიანი ობიექტები; მარცხნივ: შეხებულიც)
+	Outer frame	გარე ჩარჩო
+	Overwrite the file with the text shown here	ფაილის გადაწერა აქ ნაჩვენები ტექსტით
+	Padding	შიდა დაშორება
+	Page color	გვერდის ფერი
+	Pane Options	პანელის პარამეტრები
+	Placement	განლაგება
+	Prefix	პრეფიქსი
+	Previous object	წინა ობიექტი
+	Property names are 1–{max} characters.	თვისებების სახელები 1–{max} სიმბოლოსაგან შედგება.
+	Property values are at most {max} bytes.	თვისებების მნიშვნელობები არაუმეტეს {max} ბაიტია.
+	Put the cursor in an exercise to see its data and variants.	დააყენეთ კურსორი სავარჯიშოში, რომ ნახოთ მისი მონაცემები და ვარიანტები.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	დააყენეთ კურსორი მილიმეტრულ ქაღალდში (ან გვერდზე მილიმეტრული ქაღალდის ფონით), რომ ნახოთ მისი თვისებები.
+	Recovery copy	აღდგენის ასლი
+	Recovery is disabled while this document has a password.	აღდგენა გამორთულია, სანამ ამ დოკუმენტს პაროლი აქვს.
+	Reduce the selection to the objects considered	მონიშვნის დავიწროება განსახილველ ობიექტებამდე
+	Release notes	გამოშვების შენიშვნები
+	Reload	ხელახლა ჩატვირთვა
+	Reload Subdocuments	ქვედოკუმენტების ხელახლა ჩატვირთვა
+	Remove Graph Paper	მილიმეტრული ქაღალდის მოცილება
+	Remove the active variant	აქტიური ვარიანტის მოცილება
+	Remove this datum	ამ მონაცემის მოცილება
+	Replace the text shown here with the file's	აქ ნაჩვენები ტექსტის ჩანაცვლება ფაილის ტექსტით
+	Resize Pane	პანელის ზომის შეცვლა
+	Restore	აღდგენა
+	Restore opens an unsaved copy. Your original file stays unchanged.	აღდგენა ხსნის შეუნახავ ასლს. თქვენი ორიგინალი ფაილი უცვლელი რჩება.
+	Save Subdocuments	ქვედოკუმენტების შენახვა
+	Save as Strix Template…	Strix-ის შაბლონად შენახვა…
+	Save or close your documents first: updating restarts Strix Writer.	ჯერ შეინახეთ ან დახურეთ დოკუმენტები: განახლება Strix Writer-ს თავიდან გაუშვებს.
+	Save the selected paragraphs as a new file, linked in their place	მონიშნული აბზაცების შენახვა ახალ ფაილად, მათ ადგილზე დაკავშირებულად
+	Save your documents: Strix Writer then closes and restarts in the new version.	შეინახეთ დოკუმენტები: Strix Writer დაიხურება და ახალ ვერსიაში თავიდან გაიშვება.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	ინახავს .xmathm შაბლონს თქვენი შაბლონების საქაღალდეში. ის გამოჩნდება ფაილი › შექმნა განყოფილებაში „პირადი“.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	დოკუმენტის შენახვა ინახავს აქ რედაქტირებულ ყველა ქვედოკუმენტს. გახსნისას თითოეული ფაილი ნაჩვენებია ისეთი, როგორიც ახლაა.
+	Scaled distances	მასშტაბირებადი მანძილები
+	Select a property to change.	აირჩიეთ შესაცვლელი თვისება.
+	Select objects	ობიექტების არჩევა
+	Selection options	არჩევის პარამეტრები
+	Set left- and first-indent with tabs and backspaces	მარცხენა და პირველი ხაზის შეწევის დაყენება ტაბულაციითა და Backspace-ით
+	Show every file as it is on disk, discarding edits made here	ყველა ფაილის ჩვენება დისკზე არსებული სახით, აქ შესრულებული ცვლილებების გაუქმებით
+	Show the file as it is on disk, discarding edits made here	ფაილის ჩვენება დისკზე არსებული სახით, აქ შესრულებული ცვლილებების გაუქმებით
+	Snap for the next point	მიმაგრება შემდეგი წერტილისთვის
+	Snap for the next point (Shift+right-click)	მიმაგრება შემდეგი წერტილისთვის (Shift+მარჯვენა დაწკაპუნება)
+	Software Update	პროგრამის განახლება
+	Spanish (Latin America)	ესპანური (ლათინური ამერიკა)
+	Spanish (Uruguay)	ესპანური (ურუგვაი)
+	Square size	უჯრის ზომა
+	Start at	დაწყება
+	Strix Writer {version} is available	ხელმისაწვდომია Strix Writer {version}
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} ამჟამად ყველაზე ახალი ხელმისაწვდომი ვერსიაა.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix არის WordCraft-ის ფორკი. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. იხ. NOTICE.
+	Text Size	ტექსტის ზომა
+	Text properties only: Word's number, date and yes-no types aren't offered.	მხოლოდ ტექსტური თვისებები: Word-ის რიცხვის, თარიღისა და დიახ/არას ტიპები არ არის შემოთავაზებული.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	ეს ფორმატი ყველაფერს ვერ ინახავს, ამიტომ დოკუმენტი ღიაა. გასაგრძელებლად შეინახეთ როგორც Strix-ის დოკუმენტი (.xmath).
+	That would make the object degenerate	ეს ობიექტს გააუვარგისებდა
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	მონაცემები სავარჯიშოს გამოთვლების პირველი პარამეტრებია: ამოხსნა მათ სიმბოლოთი იყენებს. ვარიანტის შეცვლა სავარჯიშოს თავიდან ითვლის.
+	The layer of the selected objects becomes the current layer	მონიშნული ობიექტების ფენა ხდება მიმდინარე ფენა
+	The number must be a divisor of {max}.	რიცხვი უნდა იყოს {max}-ის გამყოფი.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	{language}-ის მართლწერის ლექსიკონი ვერ წაიკითხა, ამიტომ მართლწერა არ მოწმდება. ფაილი: {file}. მიზეზი: {reason}
+	The update couldn't be installed: {error}	განახლება ვერ დაინსტალირდა: {error}
+	The whole family	მთელი ოჯახი
+	The {name} dictionary couldn't be downloaded: {reason}	{name} ლექსიკონის ჩამოტვირთვა ვერ მოხერხდა: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	{name} ლექსიკონი დაინსტალირებულია: {language}-ის მართლწერა ახლა მოწმდება.
+	This cannot be undone. Your original file stays unchanged.	ამის გაუქმება შეუძლებელია. თქვენი ორიგინალი ფაილი უცვლელი რჩება.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Strix Writer-ის ამ ასლს თავის ჩანაცვლება არ შეუძლია: ჩამოტვირთეთ ახალი ვერსია და დააინსტალირეთ ამის თავზე.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	ამ დოკუმენტში არის Strix-ის ობიექტები ({objects}). Word და სხვა რედაქტირებადი ფორმატები მათ დაკარგავდა, ამიტომ ის ინახება მხოლოდ Strix-ის დოკუმენტად (.xmath). PDF, PNG, LaTeX, HTML და Markdown ექსპორტი რჩება ხელმისაწვდომი სტატიკური ასლების სახით.
+	This document has no custom properties.	ამ დოკუმენტს არ აქვს მორგებული თვისებები.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	ეს დოკუმენტი ჯერ სხვა დოკუმენტს არ აკავშირებს. ჩასვით ერთი ან მონიშნეთ აბზაცები და შექმენით მათგან: მისი ტექსტი აქ ჩანს და ინახება თავის ფაილში.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	აკრიფეთ წერტილი (x,y  @dx,dy  @d<a), მანძილი, ბრძანება (l, pl, rec, c, a, t, m, co), პარამეტრი ან დააჭირეთ Enter-ს
+	Unit	ერთეული
+	Unit:	ერთეული:
+	Unknown selection option:	უცნობი არჩევის პარამეტრი:
+	Unlink	კავშირის გაწყვეტა
+	Update and Restart	განახლება და გადატვირთვა
+	Update check is not supported in the web browser.	განახლებების შემოწმება ვებ-ბრაუზერში მხარდაჭერილი არ არის.
+	Value:	მნიშვნელობა:
+	Variants	ვარიანტები
+	Varies	იცვლება
+	Vertex	წვერო
+	View and edit the document's custom properties.	დოკუმენტის მორგებული თვისებების ნახვა და რედაქტირება.
+	What's new	რა სიახლეებია
+	Window polygon	ფანჯრის მრავალკუთხედი
+	Write the edited subdocuments to their files now (also done by saving the document)	რედაქტირებული ქვედოკუმენტების ფაილებში ჩაწერა ახლავე (ასევე კეთდება დოკუმენტის შენახვისას)
+	You have version {version}.	თქვენ გაქვთ ვერსია {version}.
+	already selected	უკვე მონიშნულია
+	annotative {size}	ანოტაციური {size}
+	click adds, Shift+click removes	დაწკაპუნება ამატებს, Shift+დაწკაპუნება აშორებს
+	click on empty space for a window, drag for a lasso	დააწკაპუნეთ ცარიელ ადგილას ფანჯრისთვის, გაავლეთ ლასოსთვის
+	click the vertices; Enter or right-click closes, Esc cancels	დააწკაპუნეთ წვეროებზე; Enter ან მარჯვენა დაწკაპუნება ხურავს, Esc აუქმებს
+	click to pick it	დააწკაპუნეთ ასარჩევად
+	conflict	კონფლიქტი
+	cycle:	ციკლი:
+	edited	შეცვლილია
+	fitted to frame	ჩარჩოში მორგებული
+	found	ნაპოვნია
+	graph paper	მილიმეტრული ქაღალდი
+	in step	ნაბიჯში
+	input	შეყვანა
+	installed	დაინსტალირებულია
+	no snap	მიმაგრების გარეშე
+	not found	ვერ მოიძებნა
+	objects	ობიექტები
+	objects selected	ობიექტი მონიშნულია
+	of	-დან
+	removed	ამოღებულია
+	scaled {size}	მასშტაბირებული {size}
+	selected	მონიშნულია
+	squares (0: none)	უჯრები (0: არცერთი)
+	{field}, record {n}	{field}, ჩანაწერი {n}
+	{language} (dictionary unreadable)	{language} (ლექსიკონი არ იკითხება)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (არ იკითხება: {reason})
+	{n} CAD drawings	{n} CAD ნახაზი
+	{n} calculated tables	{n} გამოთვლადი ცხრილი
+	{n} calculations	{n} გამოთვლა
+	{n} exercises	{n} სავარჯიშო
+	{n} results summaries	{n} შედეგების შეჯამება
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	განახლებების\nშემოწმება…
+	Edit\nDrawing	ნახაზის\nრედაქტირება
+	New\nExercise	ახალი\nსავარჯიშო
+	Show\nSteps	ნაბიჯების\nჩვენება
+	Switch\nWindows	ფანჯრების\nგადართვა

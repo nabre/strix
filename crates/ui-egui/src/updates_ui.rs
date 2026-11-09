@@ -3,16 +3,9 @@
 
 use crate::WordApp;
 
-/// Strix has no release channel of its own yet. `craft_update`'s suites point at WordCraft's
-/// releases, so checking would offer to replace Strix with WordCraft: checks stay off until
-/// Strix publishes its own update feed.
-pub(crate) const UPDATE_CHANNEL: bool = false;
-
-/// Where Strix releases are published meanwhile.
-pub(crate) const RELEASES_URL: &str = "https://github.com/nabre/strix/releases";
-
+// Strix's own releases (nabre/strix), offered in a translated window: `strix_update`.
 #[cfg(not(target_arch = "wasm32"))]
-use craft_update::updater::{Action, Status, Updater};
+use crate::strix_update::{Action, Status, Updater};
 
 pub(crate) struct Runtime {
     #[cfg(not(target_arch = "wasm32"))]
@@ -33,7 +26,7 @@ impl Default for Runtime {
     fn default() -> Self {
         Self {
             #[cfg(not(target_arch = "wasm32"))]
-            updater: Updater::new(&craft_update::suite::WORDCRAFT, env!("CARGO_PKG_VERSION")),
+            updater: Updater::new(env!("CARGO_PKG_VERSION")),
             #[cfg(not(target_arch = "wasm32"))]
             startup_check: false,
             #[cfg(not(target_arch = "wasm32"))]
@@ -55,12 +48,6 @@ impl WordApp {
 }
 
 pub(crate) fn check(app: &mut WordApp) {
-    if !UPDATE_CHANNEL {
-        app.updates_rt.manual_window_open = true;
-        app.updates_rt.status_message =
-            Some(crate::i18n::fmt(tl!("Automatic updates are not available yet. New versions are published at {url}"), &[("url", RELEASES_URL)]));
-        return;
-    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.updates_rt.check_requested = true;
@@ -80,10 +67,6 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
     {
         let rt = &mut app.updates_rt;
         rt.repaint = Some(ctx.clone());
-        if !UPDATE_CHANNEL {
-            rt.check_requested = false;
-            return;
-        }
         if std::mem::take(&mut rt.check_requested) {
             rt.updater.check_now(ctx);
         } else if rt.startup_check {
@@ -97,10 +80,10 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
 
 pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
-    if UPDATE_CHANNEL {
+    {
         // The restart helper is scheduled before the app closes, so no update starts over unsaved work.
         let clean = !(app.session.dirty || app.save_unconfirmed() || app.printing.busy() || crate::panes::has_comment_drafts(app));
-        match app.updates_rt.updater.show_if(ctx, clean) {
+        match app.updates_rt.updater.show(ctx, clean) {
             Action::OpenUrl(url) => ctx.open_url(egui::OpenUrl::new_tab(url)),
             Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Action::None => {}

@@ -2071,3 +2071,710 @@ paper	Envelope DL	Конверт DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Про Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(вилучити) клацання вилучає
+	*Bold* and _italic_ as real formatting	*Жирний* і _курсив_ як справжнє форматування
+	1 CAD drawing	1 CAD-креслення
+	1 calculated table	1 обчислювана таблиця
+	1 calculation	1 розрахунок
+	1 exercise	1 задача
+	1 object selected	Виділено 1 об'єкт
+	1 results summary	1 зведення результатів
+	1×2 Empty Matrix	Порожня матриця 1×2
+	1×3 Empty Matrix	Порожня матриця 1×3
+	2×1 Empty Matrix	Порожня матриця 2×1
+	2×2 Determinant	Визначник 2×2
+	2×2 Empty Matrix	Порожня матриця 2×2
+	2×2 Identity Matrix	Одинична матриця 2×2
+	2×2 Identity Matrix (sparse)	Одинична матриця 2×2 (розріджена)
+	2×2 Matrix in Brackets	Матриця 2×2 у квадратних дужках
+	2×2 Matrix in Double Bars	Матриця 2×2 у подвійних рисках
+	2×2 Matrix in Parentheses	Матриця 2×2 у круглих дужках
+	2×3 Empty Matrix	Порожня матриця 2×3
+	3×1 Empty Matrix	Порожня матриця 3×1
+	3×2 Empty Matrix	Порожня матриця 3×2
+	3×3 Empty Matrix	Порожня матриця 3×3
+	3×3 Identity Matrix	Одинична матриця 3×3
+	3×3 Identity Matrix (sparse)	Одинична матриця 3×3 (розріджена)
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Перший стовпець, стовпець 0, що нумерує рядки даних 1, 2, 3… (розрахунки його ніколи не читають)
+	A free, open-source word processor written in Rust.	Безкоштовний текстовий процесор із відкритим кодом, написаний мовою Rust.
+	A grid from the cursor to the end of the page	Сітка від курсора до кінця сторінки
+	A new exercise takes the page breaks of the last one.	Нова задача успадковує розриви сторінок попередньої.
+	A new layer, made current	Новий шар, що стає поточним
+	A polar array has	Полярний масив має
+	A xor B	A xor B
+	ASAP	ASAP
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	Випадки з модулем
+	Accents	Діакритичні знаки
+	Accept All Changes and Stop Tracking	Прийняти всі зміни й припинити відстеження
+	Accept and Move to Next	Прийняти й перейти до наступної
+	Acute	Акут
+	Add Datum	Додати вихідну величину
+	Add Note	Додати примітку
+	Add Question	Додати запитання
+	Add Sub-question	Додати підзапитання
+	Add a note between the questions: free text that is not a question	Додати примітку між запитаннями: вільний текст, що не є запитанням
+	Add a period with double-space	Ставити крапку подвійним пробілом
+	Add a question at the end of the exercise at the cursor	Додати запитання в кінець задачі під курсором
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Додати запитання, вкладене під останнє (a.1, a.1.1); Tab і Shift+Tab змінюють рівень запитання
+	Add a variant: a copy of the active one's values	Додати варіант: копію значень активного
+	Add an initial datum: a symbol with its value in every variant	Додати початкову величину: символ із його значенням у кожному варіанті
+	Add to CAD Drawing	Додати до CAD-креслення
+	Advanced Properties…	Додаткові властивості…
+	Aligned texts	Вирівняні тексти
+	All - Linear	Усе — лінійно
+	All - Professional	Усе — професійно
+	All the selection	Усе виділене
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Усі · F рамка · WP/CP багатокутник · R вилучити · A додати · P попередній · U скасувати · Shift+Пробіл перемкнути
+	An array has	Масив має
+	Angle Brackets	Кутові дужки
+	Angle Brackets with Separator	Кутові дужки з роздільником
+	Angle Brackets with Two Separators	Кутові дужки з двома роздільниками
+	Apply to all exercises	Застосувати до всіх задач
+	As the grid lines	Як лінії сітки
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Автозбереження зберігає лише документи Strix (.xmath); {name} має інший формат. Збережіть як .xmath, щоб увімкнути автозбереження.
+	Automatic (Decimals, Significant Below 1)	Автоматично (десяткові, значущі нижче 1)
+	Automatic updates are not available yet. New versions are published at {url}	Автоматичні оновлення поки що недоступні. Нові версії публікуються на {url}
+	Automatically add words to list (First Letter)	Автоматично додавати слова до списку (перша літера)
+	Automatically add words to list (INitial CAps)	Автоматично додавати слова до списку (ДВі ВЕликі)
+	Baseline Dots	Крапки на базовій лінії
+	Basic Math	Основи математики
+	Bayes' rule	Формула Баєса
+	Binomial Coefficient	Біноміальний коефіцієнт
+	Binomial Coefficient (angle)	Біноміальний коефіцієнт (кутові)
+	Binomial Coefficient with Angle Brackets	Біноміальний коефіцієнт із кутовими дужками
+	Binomial expansion of (x+a)ⁿ	Біноміальний розклад (x+a)ⁿ
+	Body text in a short paragraph to show spacing.	Основний текст у короткому абзаці для показу інтервалів.
+	Book Title	Назва книги
+	Bookmarks	Закладки
+	Boxed Formula	Формула в рамці
+	Boxed Formula (example)	Формула в рамці (приклад)
+	Boxed Formulas	Формули в рамці
+	Braces	Фігурні дужки
+	Braces with Separator	Фігурні дужки з роздільником
+	Brackets	Квадратні дужки
+	Brackets with Separators	Квадратні дужки з роздільниками
+	Breve	Бреве
+	Built-in Heading styles	Вбудовані стилі заголовків
+	ByLayer	ПоШару
+	CAD	CAD
+	Drawing	Креслення
+	CAD Drawing	CAD-креслення
+	CAD Drawing Source	Джерело CAD-креслення
+	CAD Picture Format	Формат CAD-зображення
+	CONFIDENTIAL	КОНФІДЕНЦІЙНО
+	Calculate New Equations	Обчислити нові рівняння
+	Calculate This Table	Обчислити цю таблицю
+	Calculate the exercise with this variant	Обчислити задачу з цим варіантом
+	Calculated	Обчислювана
+	Table	Таблиця
+	Calculated Table	Обчислювана таблиця
+	Calculated Table Info	Відомості про обчислювану таблицю
+	Calculation	Розрахунок
+	Calculations	Розрахунки
+	Cancel the step	Скасувати крок
+	Cases (Three Conditions)	Випадки (три умови)
+	Cases (Two Conditions)	Випадки (дві умови)
+	Cases and Stacks	Випадки та стеки
+	Ceiling	Стеля
+	Cells as Equations	Клітинки як рівняння
+	Centered as Group	По центру як група
+	Change in y over change in x	Зміна y до зміни x
+	Change to Level 1	Перейти на рівень 1
+	Change to Level 2	Перейти на рівень 2
+	Change to Level 3	Перейти на рівень 3
+	Change to Level 4	Перейти на рівень 4
+	Change to Level 5	Перейти на рівень 5
+	Changed here and in the file: keep one of the two.	Змінено тут і у файлі: залиште одну з двох версій.
+	Check	Перевірити
+	Check for	Перевірити
+	Updates…	наявність оновлень…
+	Check for Updates	Перевірити наявність оновлень
+	Checking for updates…	Перевірка оновлень…
+	Circle area from its radius	Площа круга за радіусом
+	Circled Dot	Коло з крапкою
+	Circled Plus	Коло з плюсом
+	Circled Times	Коло з множенням
+	Close Document	Закрити документ
+	Colon Equal	Двокрапка-дорівнює
+	Column, Row Below (F_A)	Стовпець, рядок нижче (F_A)
+	Columns × rows:	Стовпців × рядків:
+	Common Accent Objects	Поширені діакритичні об'єкти
+	Common Brackets	Поширені дужки
+	Common Fractions	Поширені дроби
+	Common Functions	Поширені функції
+	Common Large Operators	Поширені великі оператори
+	Common Operator Structures	Поширені структури операторів
+	Common Operators	Поширені оператори
+	Common Radicals	Поширені радикали
+	Common Subscripts and Superscripts	Поширені нижні та верхні індекси
+	Considering	З урахуванням
+	Continue without restoring	Продовжити без відновлення
+	Contour Integral	Контурний інтеграл
+	Contour Integral with Limits	Контурний інтеграл із межами
+	Contour Integral with Stacked Limits	Контурний інтеграл зі складеними межами
+	Contour Integrals	Контурні інтеграли
+	Convert between built-up and linear form	Перетворити між розгорнутою та лінійною формами
+	Coordinates take a number or an expression of the calculations (L/2)	Координати беруть число або вираз розрахунків (L/2)
+	Coproduct	Копродукт
+	Coproduct with Limits	Копродукт із межами
+	Coproduct with Lower Limit	Копродукт із нижньою межею
+	Coproduct with Subscript-Superscript Limits	Копродукт із межами у вигляді нижнього та верхнього індексів
+	Cosecant Function	Функція косеканса
+	Cosine 2x	Косинус 2x
+	Cosine Function	Функція косинуса
+	Cotangent Function	Функція котангенса
+	Could not check for updates:\n{error}	Не вдалося перевірити наявність оновлень:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Не вдалося зберегти {name}, тому документ залишається відкритим і нічого не втрачено: {error}
+	Create Subdocument	Створити піддокумент
+	Create Subdocument…	Створити піддокумент…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Обрізання на сторінці працює з неповернутими зображеннями: спершу встановіть поворот 0° або скористайтеся полями обрізання
+	Crossing polygon	Багатокутник перетину
+	Cube Root	Кубічний корінь
+	Current - Linear	Поточні — лінійно
+	Current - Professional	Поточні — професійно
+	Current Document	Поточний документ
+	Current layer	Поточний шар
+	Current layer: new objects go on it	Поточний шар: нові об'єкти потрапляють на нього
+	DO NOT COPY	НЕ КОПІЮВАТИ
+	DRAFT	ЧЕРНЕТКА
+	Data Table	Таблиця даних
+	Decimal Places	Десяткові знаки
+	Delete Exercise	Видалити задачу
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Видалити задачу під курсором або виділені задачі повністю: умова, запитання й розв'язок зникають, результати залишають зведення (Скасувати повертає їх)
+	Delete the layer (its objects go to layer 0)	Видалити шар (його об'єкти переходять на шар 0)
+	Delta Equal To	Дельта дорівнює
+	Delta over arrow	Дельта над стрілкою
+	Derivative as a limit	Похідна як границя
+	Detach: a window of its own	Відокремити: окреме вікно
+	Diagonal Dots	Діагональні крапки
+	Differential	Диференціал
+	Differential theta	Диференціал тета
+	Differential x	Диференціал x
+	Differential y	Диференціал y
+	Differentials	Диференціали
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Розмірні лінії та дуги кутів, розміщені клацанням або маркером, зберігають свою відстань у кресленні (вони слідують його розміру й масштабу); вимкнено: на папері (так само в друку)
+	Dimension texts along their line (never upside down), not level	Розмірні написи вздовж лінії (ніколи догори дриґом), а не горизонтально
+	Dimension units	Одиниці розмірів
+	Discard the recovery copy of {name}?	Відхилити копію відновлення {name}?
+	Discard…	Відхилити…
+	Dock	Закріпити
+	Dock Left	Закріпити ліворуч
+	Dock Right	Закріпити праворуч
+	Double Bar	Подвійна риска
+	Double Dot	Подвійна крапка
+	Double Integral	Подвійний інтеграл
+	Double Integral with Limits	Подвійний інтеграл із межами
+	Double Integral with Stacked Limits	Подвійний інтеграл зі складеними межами
+	Double Left Arrow with Text Above	Подвійна стрілка вліво з текстом над нею
+	Double Left Arrow with Text Below	Подвійна стрілка вліво з текстом під нею
+	Double Left Right Arrow with Text Above	Подвійна стрілка вліво-вправо з текстом над нею
+	Double Left Right Arrow with Text Below	Подвійна стрілка вліво-вправо з текстом під нею
+	Double Right Arrow with Text Above	Подвійна стрілка вправо з текстом над нею
+	Double Right Arrow with Text Below	Подвійна стрілка вправо з текстом під нею
+	Double Square Brackets	Подвійні квадратні дужки
+	Double Vertical Bars	Подвійні вертикальні риски
+	Double summation	Подвійна сума
+	Download Dictionary	Завантажити словник
+	Download the {name} spelling dictionary	Завантажити орфографічний словник {name}
+	Downloading and installing…	Завантаження та встановлення…
+	Downloading the {name} dictionary…	Завантаження словника {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Завантажує словник Hunspell {name} зі словників LibreOffice ({source}) за ліцензією {licence} у вашу теку словників і відразу перевіряє з ним правопис.
+	Draw order	Порядок малювання
+	Drawing Padding	Поля креслення
+	Drawing Scale	Масштаб креслення
+	Drawing unit	Одиниця креслення
+	Edit	Редагування
+	Emphasis	Наголос
+	Empty Matrices	Порожні матриці
+	End mark	Кінцевий знак
+	Endnote Reference	Посилання на кінцеву виноску
+	Endnote Text	Текст кінцевої виноски
+	Enter bookmark name:	Введіть назву закладки:
+	Enter confirms	Enter підтверджує
+	Equal Equal	Дорівнює дорівнює
+	Equal by Definition	Дорівнює за визначенням
+	Euler's identity	Тотожність Ейлера
+	Every	Кожна
+	Every exercise of the document takes this exercise's page breaks	Кожна задача документа успадковує розриви сторінок цієї задачі
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Кожне значення є параметром, названим за його стовпцем і підписом його рядка (першого стовпця), з індексом: F_A або A_F
+	Exercise	Задача
+	Exercise Data	Дані задачі
+	Exercise Info	Відомості про задачу
+	Exercise Numbering	Нумерація задач
+	Exercise Properties	Властивості задачі
+	Exercise Result	Результат задачі
+	Exercise, in the document's language	Задача, мовою документа
+	Exponential	Експонента
+	Exponential series	Ряд для експоненти
+	Fence	Рамка
+	Fewer Digits	Менше цифр
+	File type	Тип файлу
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Файл › Створити показує тут, у розділі «Особисті», шаблони .xmathm, .dotx і .dotm; «Зберегти як шаблон Strix» починається тут.
+	Find “{text}” in the document	Знайти «{text}» у документі
+	First exercise: {label}	Перша задача: {label}
+	Fitted to Frame	Підігнано до рамки
+	Float	Плаваюче
+	Floor	Підлога
+	Folder path	Шлях до теки
+	Follow columns	Слідувати за стовпцями
+	Footnote Reference	Посилання на виноску
+	Footnote Text	Текст виноски
+	For Two Pages	Для двох сторінок
+	For a Height of 5 cm	Для висоти 5 см
+	For every exercise of the document: the label of each title and of the results summary.	Для кожної задачі документа: підпис кожного заголовка та зведення результатів.
+	For which item:	Для якого елемента:
+	Go to it	Перейти до нього
+	Graph	Міліметровий
+	Paper	Папір
+	Graph Paper	Міліметровий папір
+	Graph Paper Pane	Панель міліметрового паперу
+	Graph Paper Properties	Властивості міліметрового паперу
+	Graph Paper at Cursor	Міліметровий папір під курсором
+	Grave	Гравіс
+	Greek Letters	Грецькі літери
+	Grid Table 1 Light	Таблиця-сітка 1, світла
+	Grid Table 4 – Blue	Таблиця-сітка 4 — синя
+	Grid Table 4 – Green	Таблиця-сітка 4 — зелена
+	Grid Table 4 – Orange	Таблиця-сітка 4 — оранжева
+	Grid Table 4 – Purple	Таблиця-сітка 4 — фіолетова
+	Grid lines	Лінії сітки
+	Grip	Маркер
+	Grip: the new point (click, or type it; Esc puts it back)	Маркер: нова точка (клацніть або введіть її; Esc повертає назад)
+	Grouping Character Above	Символ групування зверху
+	Grouping Character Below	Символ групування знизу
+	Hat	Циркумфлекс
+	Heading	Заголовок
+	Heading text	Текст заголовка
+	Heavier lines	Товстіші лінії
+	How results are rounded	Як округлюються результати
+	Hyperbolic Cosecant Function	Гіперболічний косеканс
+	Hyperbolic Cosine Function	Гіперболічний косинус
+	Hyperbolic Cotangent Function	Гіперболічний котангенс
+	Hyperbolic Functions	Гіперболічні функції
+	Hyperbolic Secant Function	Гіперболічний секанс
+	Hyperbolic Sine Function	Гіперболічний синус
+	Hyperbolic Tangent Function	Гіперболічний тангенс
+	Hyperlink	Гіперпосилання
+	Hypotenuse	Гіпотенуза
+	Identity Matrices	Одиничні матриці
+	Imported 1 source	Імпортовано 1 джерело
+	Imported {n} sources	Імпортовано джерел: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	У розділі з кількома стовпцями кожен стовпець лінується окремо, а проміжок між ними залишається вільним
+	Inline (⇒)	У рядку (⇒)
+	Input unit	Одиниця введення
+	Insert Graph Paper	Вставити міліметровий папір
+	Insert Subdocument	Вставити піддокумент
+	Insert Subdocument…	Вставити піддокумент…
+	Insert reference to:	Вставити посилання на:
+	Integral of e^(−x²)	Інтеграл від e^(−x²)
+	Integral with Limits	Інтеграл із межами
+	Integral with Stacked Limits	Інтеграл зі складеними межами
+	Integrals	Інтеграли
+	Intense Emphasis	Сильний наголос
+	Intense Quote	Виразна цитата
+	Intense Reference	Виразне посилання
+	Intersection with Limits	Перетин із межами
+	Intersection with Lower Limit	Перетин із нижньою межею
+	Intersection with Subscript-Superscript Limits	Перетин із межами у вигляді нижнього та верхнього індексів
+	Inverse Cosecant Function	Функція арккосеканса
+	Inverse Cosine Function	Функція арккосинуса
+	Inverse Cotangent Function	Функція арккотангенса
+	Inverse Functions	Обернені функції
+	Inverse Hyperbolic Cosecant Function	Обернений гіперболічний косеканс
+	Inverse Hyperbolic Cosine Function	Обернений гіперболічний косинус
+	Inverse Hyperbolic Cotangent Function	Обернений гіперболічний котангенс
+	Inverse Hyperbolic Functions	Обернені гіперболічні функції
+	Inverse Hyperbolic Secant Function	Обернений гіперболічний секанс
+	Inverse Hyperbolic Sine Function	Обернений гіперболічний синус
+	Inverse Hyperbolic Tangent Function	Обернений гіперболічний тангенс
+	Inverse Secant Function	Функція арксеканса
+	Inverse Sine Function	Функція арксинуса
+	Inverse Tangent Function	Функція арктангенса
+	Items:	Елементи:
+	Justification of a display equation	Вирівнювання винесеного рівняння
+	Keep the file	Залишити файл
+	Keep the text in this document, without the link; the file stays as it is	Залишити текст у цьому документі без посилання; файл залишається як є
+	Keep this version	Залишити цю версію
+	Layer:	Шар:
+	Left Arrow with Text Above	Стрілка вліво з текстом над нею
+	Left Arrow with Text Below	Стрілка вліво з текстом під нею
+	Left Bracket Twice	Ліва дужка двічі
+	Left Right Arrow Above	Стрілка вліво-вправо зверху
+	Left Right Arrow with Text Above	Стрілка вліво-вправо з текстом над нею
+	Left Right Arrow with Text Below	Стрілка вліво-вправо з текстом під нею
+	Left Subscript-Superscript	Лівий нижній і верхній індекс
+	Leftwards Arrow Above	Стрілка вліво зверху
+	Leftwards Harpoon Above	Гарпун вліво зверху
+	Letter-Like Symbols	Літероподібні символи
+	Level 1	Рівень 1
+	Level 2	Рівень 2
+	Level 3	Рівень 3
+	Limit	Границя
+	Limit Example	Приклад границі
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Обмежити розмір креслення на папері (від текстової області сторінки): пропонуються масштаби, за яких воно вміщується
+	Line by Line	Рядок за рядком
+	Linear Fraction	Лінійний дріб
+	Linetype	Тип лінії
+	Lineweight	Вага лінії
+	Link a document at the cursor	Прив'язати документ у місці курсора
+	Linked files	Пов'язані файли
+	List Paragraph	Абзац списку
+	List Table 3 – Blue	Таблиця-список 3 — синя
+	List Table 3 – Green	Таблиця-список 3 — зелена
+	List Table 3 – Orange	Таблиця-список 3 — оранжева
+	List Table 3 – Purple	Таблиця-список 3 — фіолетова
+	Local recovery is unavailable or still loading.	Локальне відновлення недоступне або ще завантажується.
+	Logarithm	Логарифм
+	Logarithm with Base	Логарифм за основою
+	Logical AND	Логічне І
+	Logical AND with Limits	Логічне І з межами
+	Logical OR	Логічне АБО
+	Logical OR with Limits	Логічне АБО з межами
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Зробити шар об'єкта поточним
+	Make the equation at the cursor a live calculation, or an ordinary one	Зробити рівняння під курсором живим розрахунком або звичайним
+	Make this equation a live calculation: write it with = and the unknown is solved for	Зробити це рівняння живим розрахунком: запишіть його з =, і невідома буде знайдена
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Позначити рівняння під курсором як результат запитання: його значення потрапляє у зведення результатів
+	Master Document	Головний документ
+	Math	Математика
+	Matrices with Brackets	Матриці з дужками
+	Maximum Example	Приклад максимуму
+	Maximum size	Максимальний розмір
+	Measured By	Виміряно за
+	Midline Dots	Крапки по центру рядка
+	Minus Equal	Мінус дорівнює
+	More Digits	Більше цифр
+	Move Pane: {title}	Перемістити панель: {title}
+	Move to layer	Перемістити на шар
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Назвати та пронумерувати задачі документа: префікс («Esercizio», власний текст або без нього), формат числа й перше число, на панелі «Властивості задачі»
+	Natural Logarithm	Натуральний логарифм
+	Negated Relations	Заперечені відношення
+	New Calculation	Новий розрахунок
+	New Exercise	Нова задача
+	New equations are live calculations	Нові рівняння є живими розрахунками
+	New layer	Новий шар
+	New page before the exercise	Нова сторінка перед задачею
+	New page before the results summary	Нова сторінка перед зведенням результатів
+	New page before the solution	Нова сторінка перед розв'язком
+	Next object	Наступний об'єкт
+	Next point	Наступна точка
+	No Spacing	Без інтервалу
+	No items to show.	Немає елементів для показу.
+	No new sources in that file	У цьому файлі немає нових джерел
+	No previous selection	Немає попереднього виділення
+	No recovery copies.	Немає копій відновлення.
+	No selection: click objects, or drag a window	Нічого не виділено: клацайте об'єкти або тягніть вікно
+	Normal probability density	Нормальна щільність імовірності
+	Not a Data Table	Не таблиця даних
+	Nothing of this type in the document.	У документі немає нічого цього типу.
+	Nothing to undo in the selection	У виділенні немає чого скасовувати
+	Number Format	Формат числа
+	Number the equation; the number sits at the right margin (or type # then the number)	Пронумеруйте рівняння; номер стоїть біля правого поля (або введіть # і номер)
+	Object snap settings	Параметри об'єктної прив'язки
+	Objects	Об'єкти
+	One half	Одна друга
+	Only text properties can be changed.	Можна змінити лише властивості тексту.
+	Only these	Лише ці
+	Only when another exercise comes before it	Лише коли перед нею є інша задача
+	Open Subdocument	Відкрити піддокумент
+	Open the file in a window of its own	Відкрити файл в окремому вікні
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Відтепер відкриває документи Strix (.xmath, .xmathm), файли .docx, .doc, .rtf і .odt та шаблони Word у Strix.
+	Operator Structures	Структури операторів
+	Operators	Оператори
+	Ordinal Column	Порядковий стовпець
+	Other Large Operators	Інші великі оператори
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Інший кут вікна (праворуч: цілі об'єкти; ліворуч: також зачеплені)
+	Outer frame	Зовнішня рамка
+	Outward Brackets	Дужки назовні
+	Overbar	Риска зверху
+	Overbars and Underbars	Риски зверху та знизу
+	Overbrace	Верхня дужка
+	Overwrite the file with the text shown here	Перезаписати файл показаним тут текстом
+	Padding	Відступ
+	Page color	Колір сторінки
+	Pane Options	Параметри панелі
+	Parentheses	Круглі дужки
+	Parentheses with Separator	Круглі дужки з роздільником
+	Partial Differential	Частковий диференціал
+	Pi Over 2	Пі на 2
+	Placement	Розташування
+	Plain Table 1	Звичайна таблиця 1
+	Plus Equal	Плюс дорівнює
+	Possible spelling mistake	Можлива орфографічна помилка
+	Power series of (1+x)ⁿ	Степеневий ряд для (1+x)ⁿ
+	Previous object	Попередній об'єкт
+	Product	Добуток
+	Product of A	Добуток A
+	Product with Limits	Добуток із межами
+	Product with Lower Limit	Добуток із нижньою межею
+	Product with Subscript-Superscript Limits	Добуток із межами у вигляді нижнього та верхнього індексів
+	Products and Coproducts	Добутки та копродукти
+	Property names are 1–{max} characters.	Імена властивостей мають 1–{max} символів.
+	Property values are at most {max} bytes.	Значення властивостей не перевищують {max} байтів.
+	Put the cursor in an exercise to see its data and variants.	Поставте курсор у задачу, щоб побачити її дані та варіанти.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставте курсор у міліметровий папір (або на сторінку з фоном міліметрового паперу), щоб побачити його властивості.
+	Quadratic Root	Квадратний корінь
+	Quick Keys	Швидкі клавіші
+	Quick Keys in Formulas	Швидкі клавіші у формулах
+	Quote	Цитата
+	Radical with Degree	Радикал зі степенем
+	Radicals	Радикали
+	Reading Page Color	Колір сторінки для читання
+	Rebuild the repeated questions and the results summary	Перебудувати повторювані запитання та зведення результатів
+	Recalculate	Перерахувати
+	Recalculate every calculation in the document (F9)	Перерахувати всі розрахунки в документі (F9)
+	Recovery copy	Копія відновлення
+	Recovery is disabled while this document has a password.	Відновлення вимкнено, доки документ має пароль.
+	Reduce the selection to the objects considered	Звузити виділення до розглянутих об'єктів
+	Reference type:	Тип посилання:
+	Reject All Changes and Stop Tracking	Відхилити всі зміни й припинити відстеження
+	Reject and Move to Next	Відхилити й перейти до наступної
+	Release notes	Примітки до випуску
+	Reload Subdocuments	Перезавантажити піддокументи
+	Remove Graph Paper	Вилучити міліметровий папір
+	Remove the active variant	Вилучити активний варіант
+	Remove this datum	Вилучити цю величину
+	Replace the text shown here with the file's	Замінити показаний тут текст текстом файлу
+	Resize Pane	Змінити розмір панелі
+	Restore opens an unsaved copy. Your original file stays unchanged.	«Відновити» відкриває незбережену копію. Ваш вихідний файл не змінюється.
+	Result Layout	Макет результату
+	Result Of	Результат
+	Right Arrow with Text Above	Стрілка вправо з текстом над нею
+	Right Arrow with Text Below	Стрілка вправо з текстом під нею
+	Right Bracket Twice	Права дужка двічі
+	Rightwards Arrow Above	Стрілка вправо зверху
+	Rightwards Harpoon Above	Гарпун вправо зверху
+	Roots of ax²+bx+c	Корені ax²+bx+c
+	Row, Column Below (A_F)	Рядок, стовпець нижче (A_F)
+	SAMPLE	ЗРАЗОК
+	Save Subdocuments	Зберегти піддокументи
+	Save as Strix Template…	Зберегти як шаблон Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Спершу збережіть або закрийте документи: оновлення перезапускає Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Зберегти виділені абзаци як новий файл, прив'язаний на їхньому місці
+	Save your documents: Strix Writer then closes and restarts in the new version.	Збережіть документи: Strix Writer закриється й перезапуститься в новій версії.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Зберігає шаблон .xmathm у вашій теці шаблонів. Він з'являється у Файл › Створити в розділі «Особисті».
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Збереження документа зберігає кожен піддокумент, відредагований тут. Відкриття показує кожен файл у поточному стані.
+	Scale Font Sizes	Масштабувати розміри шрифтів
+	Scaled distances	Масштабовані відстані
+	Secant Function	Функція секанса
+	Select a place in this document:	Виберіть місце в цьому документі:
+	Select a property to change.	Виберіть властивість для зміни.
+	Select objects	Вибрати об'єкти
+	Selection options	Параметри вибору
+	Separate text with	Розділяти текст
+	Set CAD Drawing	Задати CAD-креслення
+	Set Exercise Data	Задати дані задачі
+	Set left- and first-indent with tabs and backspaces	Задавати лівий відступ і відступ першого рядка табуляцією та Backspace
+	Steps	кроки
+	Show Steps	Показати кроки
+	Show Trailing Zeros	Показувати кінцеві нулі
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Показувати кожну клітинку як рівняння: імена курсивом, індекси, одиниці у стилі «Одиниця»
+	Show every file as it is on disk, discarding edits made here	Показати кожен файл таким, як на диску, відкинувши зміни, внесені тут
+	Show one digit less in results	Показувати на одну цифру менше в результатах
+	Show one more digit in results	Показувати на одну цифру більше в результатах
+	Show the equation in the line of text	Показати рівняння в рядку тексту
+	Show the equation on a line of its own	Показати рівняння в окремому рядку
+	Show the exercise's data and variants	Показати дані та варіанти задачі
+	Show the file as it is on disk, discarding edits made here	Показати файл таким, як на диску, відкинувши зміни, внесені тут
+	Sides of a right triangle	Сторони прямокутного трикутника
+	Significant Digits	Значущі цифри
+	Sine Function	Функція синуса
+	Sine and cosine series of f(x)	Ряди синуса й косинуса для f(x)
+	Sine theta	Синус тета
+	Single Brackets	Одинарні дужки
+	Single Left Angle	Одна ліва кутова дужка
+	Single Left Bar	Одна ліва риска
+	Single Left Brace	Одна ліва фігурна дужка
+	Single Left Bracket	Одна ліва квадратна дужка
+	Single Left Parenthesis	Одна ліва кругла дужка
+	Single Right Brace	Одна права фігурна дужка
+	Single Right Bracket	Одна права квадратна дужка
+	Single Right Parenthesis	Одна права кругла дужка
+	Skewed Fraction	Скошений дріб
+	Small change	Невелика зміна
+	Snap for the next point	Прив'язка для наступної точки
+	Snap for the next point (Shift+right-click)	Прив'язка для наступної точки (Shift+права кнопка)
+	Software Update	Оновлення програми
+	Spanish (Latin America)	Іспанська (Латинська Америка)
+	Spanish (Uruguay)	Іспанська (Уругвай)
+	Sparse Matrices	Розріджені матриці
+	Square Root	Квадратний корінь
+	Square Root with Degree	Квадратний корінь зі степенем
+	Square Union	Квадратне об'єднання
+	Square size	Розмір квадрата
+	Stack Object	Складений об'єкт
+	Stack Object (Three)	Складений об'єкт (три)
+	Stacked Fraction	Складений дріб
+	Stacked, no bar	Складений, без риски
+	Start at	Починати з
+	Strix Writer {version} is available	Доступний Strix Writer {version}
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} — наразі найновіша доступна версія.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Strong	Сильний
+	Styles Pane Position	Розташування панелі стилів
+	Subdocuments	Піддокументи
+	Subdocuments Pane	Панель піддокументів
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Піддокументи — це файли на диску: настільна версія прив'язує їх, версія для браузера не може.
+	Subscript-Superscript	Нижній і верхній індекс
+	Subscripts and Superscripts	Нижні та верхні індекси
+	Subtitle	Підзаголовок
+	Subtle Emphasis	Ледь помітний наголос
+	Subtle Reference	Ледь помітне посилання
+	Sum of cosines	Сума косинусів
+	Sum or difference of sines	Сума або різниця синусів
+	Summation	Сума
+	Summation from 0 to n	Сума від 0 до n
+	Summation over binomials	Сума за біномами
+	Summation with Limits	Сума з межами
+	Summation with Lower Limit	Сума з нижньою межею
+	Summation with Subscript Limit	Сума з індексом знизу
+	Summation with Subscript-Superscript Limits	Сума з межами у вигляді нижнього та верхнього індексів
+	Summations	Суми
+	Surface Integral	Поверхневий інтеграл
+	Surface Integral with Limits	Поверхневий інтеграл із межами
+	Surface Integral with Stacked Limits	Поверхневий інтеграл зі складеними межами
+	Switch	Перемкнути
+	Windows	Вікна
+	Switch Windows	Перемкнути вікна
+	TOC Heading	Заголовок змісту
+	Table Grid	Сітка таблиці
+	Table of Figures	Список ілюстрацій
+	Tangent Function	Функція тангенса
+	Tangent formula	Формула тангенса
+	Text Size	Розмір тексту
+	Text over Colon Equal	Текст над двокрапкою-дорівнює
+	Text over Equal	Текст над дорівнює
+	Text properties only: Word's number, date and yes-no types aren't offered.	Лише властивості тексту: типи числа, дати й так/ні не пропонуються.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Цей формат зберігає не все, тому документ залишається відкритим. Збережіть його як документ Strix (.xmath), щоб продовжити.
+	That would make the object degenerate	Це зробило б об'єкт виродженим
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Дані — це перші параметри розрахунків задачі: розв'язок використовує їх за символом. Зміна варіанта перераховує задачу.
+	The document has no subdocuments.	У документі немає піддокументів.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Останній рядок підсумовує кожен стовпець (Σ =); клітинка, записана там, зберігає власний текст (середнє =, макс =)
+	The layer of the selected objects becomes the current layer	Шар виділених об'єктів стає поточним шаром
+	The number must be a divisor of {max}.	Число має бути дільником {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Не вдалося прочитати орфографічний словник для {language}, тому правопис не перевіряється. Файл: {file}. Причина: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Таблиця під курсором обчислюється: назвіть її стовпці в першому рядку (L [m], M [kN·m] = q·L²/8) і підсумуйте їх за допомогою Σ =
+	The update couldn't be installed: {error}	Не вдалося встановити оновлення: {error}
+	The whole family	Ціла родина
+	The {name} dictionary couldn't be downloaded: {reason}	Не вдалося завантажити словник {name}: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Словник {name} встановлено: тепер перевіряється правопис мовою «{language}».
+	This cannot be undone. Your original file stays unchanged.	Цю дію не можна скасувати. Ваш вихідний файл не змінюється.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Ця копія Strix Writer не може замінити себе: завантажте нову версію та встановіть її поверх цієї.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Цей документ містить об'єкти Strix ({objects}). Word та інші редаговані формати втратили б їх, тому його можна зберегти лише як документ Strix (.xmath). Експорт у PDF, PNG, LaTeX, HTML і Markdown залишається доступним як статичні копії.
+	This document has no custom properties.	Цей документ не має власних властивостей.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Цей документ ще не пов'язує інших документів. Вставте один або виділіть абзаци й створіть з них документ: його текст показується тут і зберігається назад у власний файл.
+	This equation is the result of the question it is worked under (shown in the results summary)	Це рівняння є результатом запитання, під яким воно розв'язується (показано у зведенні результатів)
+	Tilde	Тильда
+	To the End of the Page	До кінця сторінки
+	Top of the Document	Початок документа
+	Track	Відстежувати
+	Changes ✓	зміни ✓
+	Trigonometric Functions	Тригонометричні функції
+	Triple Dot	Потрійна крапка
+	Triple Integral	Потрійний інтеграл
+	Triple Integral with Limits	Потрійний інтеграл із межами
+	Triple Integral with Stacked Limits	Потрійний інтеграл зі складеними межами
+	Type a page number, or +2 / -1.	Введіть номер сторінки або +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Введіть точку (x,y  @dx,dy  @d<a), відстань, команду (l, pl, rec, c, a, t, m, co), параметр або натисніть Enter
+	Type equations in LaTeX	Вводити рівняння в LaTeX
+	Type equations in the linear format (UnicodeMath)	Вводити рівняння в лінійному форматі (UnicodeMath)
+	Type normal (non-math) text in the equation	Вводити звичайний (нематематичний) текст у рівнянні
+	URGENT	ТЕРМІНОВО
+	Underbar	Риска знизу
+	Underbrace	Нижня дужка
+	Union of intersections	Об'єднання перетинів
+	Union with Limits	Об'єднання з межами
+	Union with Lower Limit	Об'єднання з нижньою межею
+	Union with Plus	Об'єднання з плюсом
+	Union with Subscript-Superscript Limits	Об'єднання з межами у вигляді нижнього та верхнього індексів
+	Unions and Intersections	Об'єднання та перетини
+	Unit	Одиниця
+	Unit:	Одиниця:
+	Unknown selection option:	Невідомий параметр вибору:
+	Unlink	Від'єднати
+	Unlink Subdocument	Від'єднати піддокумент
+	Until the Next Even Page	До наступної парної сторінки
+	Until the Next Odd Page	До наступної непарної сторінки
+	Up Diagonal Dots	Діагональні крапки вгору
+	Update Summary	Оновити зведення
+	Update and Restart	Оновити й перезапустити
+	Update check is not supported in the web browser.	Перевірка оновлень не підтримується у веб-браузері.
+	Variant	Варіант
+	Variants	Варіанти
+	Varies	Змінюється
+	Vector A	Вектор A
+	Vector AB	Вектор AB
+	Vertex	Вершина
+	Vertical Bars	Вертикальні риски
+	Vertical Dots	Вертикальні крапки
+	View and edit the document's custom properties.	Переглянути та змінити власні властивості документа.
+	Volume Integral	Об'ємний інтеграл
+	Volume Integral with Limits	Об'ємний інтеграл із межами
+	Volume Integral with Stacked Limits	Об'ємний інтеграл зі складеними межами
+	Wait for the print job to finish submitting before closing.	Зачекайте, поки завдання друку закінчить надсилання, перш ніж закривати.
+	What's new	Що нового
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Куди йдуть результати та кроки: після ⇒ у рядку умови або по одному рядку під нею, вирівняні за =
+	Window polygon	Багатокутник вікна
+	Write the edited subdocuments to their files now (also done by saving the document)	Записати відредаговані піддокументи у їхні файли зараз (це також робить збереження документа)
+	Yields	Дає
+	You have version {version}.	У вас версія {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / відразу створюють верхній індекс, нижній індекс або дріб (вимкнено: вони будуються за пробілом, як у Word)
+	already selected	уже виділено
+	an exercise goes in the body, outside tables	задача розміщується в основному тексті, поза таблицями
+	annotative {size}	анотативний {size}
+	click adds, Shift+click removes	клацання додає, Shift+клацання вилучає
+	click on empty space for a window, drag for a lasso	клацання на порожньому місці — вікно, перетягування — ласо
+	click the vertices; Enter or right-click closes, Esc cancels	клацайте вершини; Enter або права кнопка замикає, Esc скасовує
+	click to pick it	клацніть, щоб вибрати
+	conflict	конфлікт
+	cycle:	цикл:
+	edited	змінено
+	fitted to frame	підігнано до рамки
+	found	знайдено
+	graph paper	міліметровий папір
+	in step	у кроці
+	input	введення
+	installed	встановлено
+	no graph paper at the cursor	під курсором немає міліметрового паперу
+	no snap	без прив'язки
+	not available: the cursor isn't in an exercise	недоступно: курсор не в задачі
+	not found	не знайдено
+	n×n Identity Matrix	Одинична матриця n×n
+	n×n Matrix	Матриця n×n
+	objects	об'єкти
+	objects selected	виділено об'єктів
+	of	з
+	removed	вилучено
+	scaled {size}	масштабовано {size}
+	select a CAD drawing first	спершу виберіть CAD-креслення
+	selected	виділено
+	squares (0: none)	клітинки (0: немає)
+	tOGGLE cASE	пЕРЕМКНУТИ рЕГІСТР
+	the cursor isn't in an exercise	курсор не в задачі
+	the document has no exercise	у документі немає задач
+	x bar	x з рискою
+	{field}, record {n}	{field}, запис {n}
+	{language} (dictionary unreadable)	{language} (словник нечитабельний)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (нечитабельний: {reason})
+	{name} options	Параметри {name}
+	{n} CAD drawings	{n} CAD-креслень
+	{n} calculated tables	{n} обчислюваних таблиць
+	{n} calculations	{n} розрахунків
+	{n} exercises	{n} задач
+	{n} results summaries	{n} зведень результатів
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ Немає
+	Check for\nUpdates…	Перевірити\nоновлення…
+	Edit\nDrawing	Редагувати\nкреслення
+	New\nExercise	Нова\nзадача
+	Show\nSteps	Показати\nкроки
+	Switch\nWindows	Перемкнути\nвікна
+	Track\nChanges ✓	Відстежувати\nзміни ✓
+	Track\nChanges	Відстежувати\nзміни
+	CAD\nDrawing	Креслення\nCAD
+	Calculated\nTable	Розрахункова\nтаблиця
+	Graph\nPaper	Міліметровий\nпапір
+	New\nCalculation	Новий\nрозрахунок

@@ -2456,3 +2456,369 @@ paper	Envelope DL	Phong bì DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Giới thiệu về Strix Writer
+
+
+# Strix additions 2026-11-09
+	(remove) click removes	(xóa) nhấp để xóa
+	*Bold* and _italic_ as real formatting	*Đậm* và _nghiêng_ như định dạng thực sự
+	1 CAD drawing	1 bản vẽ CAD
+	1 calculated table	1 bảng tính toán
+	1 calculation	1 phép tính
+	1 exercise	1 bài tập
+	1 object selected	1 đối tượng được chọn
+	1 results summary	1 bản tóm tắt kết quả
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Cột đầu tiên, cột 0, đánh số các hàng dữ liệu 1, 2, 3… (các phép tính không bao giờ đọc nó)
+	A free, open-source word processor written in Rust.	Trình soạn thảo văn bản miễn phí, mã nguồn mở, viết bằng Rust.
+	A grid from the cursor to the end of the page	Lưới từ con trỏ đến cuối trang
+	A new exercise takes the page breaks of the last one.	Bài tập mới lấy các dấu ngắt trang của bài tập cuối.
+	A new layer, made current	Một lớp mới, được đặt làm lớp hiện hành
+	A polar array has	Một mảng cực có
+	Accept All Changes and Stop Tracking	Chấp nhận tất cả thay đổi và dừng theo dõi
+	Accept and Move to Next	Chấp nhận và chuyển sang mục tiếp theo
+	Add Datum	Thêm dữ kiện
+	Add Note	Thêm ghi chú
+	Add Question	Thêm câu hỏi
+	Add Sub-question	Thêm câu hỏi con
+	Add a note between the questions: free text that is not a question	Thêm ghi chú giữa các câu hỏi: văn bản tự do, không phải câu hỏi
+	Add a period with double-space	Thêm dấu chấm bằng hai dấu cách
+	Add a question at the end of the exercise at the cursor	Thêm câu hỏi vào cuối bài tập tại con trỏ
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Thêm câu hỏi lồng dưới câu hỏi cuối (a.1, a.1.1); Tab và Shift+Tab đổi cấp của câu hỏi
+	Add a variant: a copy of the active one's values	Thêm biến thể: bản sao các giá trị của biến thể đang dùng
+	Add an initial datum: a symbol with its value in every variant	Thêm dữ kiện ban đầu: một ký hiệu cùng giá trị của nó trong mọi biến thể
+	Add to CAD Drawing	Thêm vào bản vẽ CAD
+	Advanced Properties…	Thuộc tính nâng cao…
+	Aligned texts	Văn bản căn thẳng hàng
+	All the selection	Toàn bộ vùng chọn
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Tất cả · F hàng rào · WP/CP đa giác · R loại bỏ · A thêm · P trước · U hoàn tác · Shift+Dấu cách để chuyển vòng
+	An array has	Một mảng có
+	Apply to all exercises	Áp dụng cho mọi bài tập
+	As the grid lines	Như các đường lưới
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Tự động lưu chỉ giữ tài liệu Strix (.xmath); {name} ở định dạng khác. Hãy lưu dưới dạng .xmath để bật tự động lưu.
+	Automatic (Decimals, Significant Below 1)	Tự động (số thập phân, chữ số có nghĩa khi dưới 1)
+	Automatic updates are not available yet. New versions are published at {url}	Chưa có cập nhật tự động. Các phiên bản mới được phát hành tại {url}
+	Automatically add words to list (First Letter)	Tự động thêm từ vào danh sách (chữ cái đầu)
+	Automatically add words to list (INitial CAps)	Tự động thêm từ vào danh sách (HAi chữ hoa đầu)
+	Bookmarks	Dấu trang
+	Built-in Heading styles	Các kiểu tiêu đề tích hợp sẵn
+	ByLayer	Theo lớp
+	CAD	CAD
+	Drawing	Bản vẽ
+	CAD Drawing	Bản vẽ CAD
+	CAD Drawing Source	Nguồn bản vẽ CAD
+	CAD Picture Format	Định dạng hình CAD
+	Calculate New Equations	Tính các phương trình mới
+	Calculate This Table	Tính bảng này
+	Calculate the exercise with this variant	Tính bài tập với biến thể này
+	Calculated	Bảng
+	Calculated Table	Bảng tính toán
+	Calculated Table Info	Thông tin bảng tính toán
+	Calculation	Phép tính
+	Calculations	Các phép tính
+	Cancel the step	Hủy bước
+	Cells as Equations	Ô dưới dạng phương trình
+	Changed here and in the file: keep one of the two.	Đã thay đổi ở đây và trong tệp: hãy giữ một trong hai.
+	Check for	Kiểm tra
+	Updates…	bản cập nhật…
+	Check for Updates	Kiểm tra bản cập nhật
+	Checking for updates…	Đang kiểm tra bản cập nhật…
+	Close Document	Đóng tài liệu
+	Column, Row Below (F_A)	Cột, hàng bên dưới (F_A)
+	Columns × rows:	Cột × hàng:
+	Considering	Xét đến
+	Continue without restoring	Tiếp tục mà không khôi phục
+	Coordinates take a number or an expression of the calculations (L/2)	Tọa độ nhận một số hoặc một biểu thức của các phép tính (L/2)
+	Could not check for updates:\n{error}	Không thể kiểm tra bản cập nhật:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Không lưu được {name}, nên tài liệu vẫn đang mở và không mất gì: {error}
+	Create Subdocument	Tạo tài liệu con
+	Create Subdocument…	Tạo tài liệu con…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Cắt trên trang chỉ áp dụng cho hình chưa xoay: hãy đặt Góc xoay về 0° trước, hoặc dùng các khung cắt
+	Crossing polygon	Đa giác cắt ngang
+	Current Document	Tài liệu hiện tại
+	Current layer	Lớp hiện hành
+	Current layer: new objects go on it	Lớp hiện hành: đối tượng mới được đặt vào đó
+	Data Table	Bảng dữ liệu
+	Decimal Places	Chữ số thập phân
+	Delete Exercise	Xóa bài tập
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Xóa bài tập tại con trỏ, hoặc các bài tập đã chọn, toàn bộ: đề bài, câu hỏi và lời giải bị xóa, kết quả rời khỏi bản tóm tắt (Hoàn tác sẽ khôi phục)
+	Delete the layer (its objects go to layer 0)	Xóa lớp (các đối tượng của nó chuyển sang lớp 0)
+	Detach: a window of its own	Tách rời: cửa sổ riêng
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Đường kích thước và cung góc đặt bằng nhấp chuột hoặc tay nắm giữ nguyên khoảng cách trong bản vẽ (theo kích thước và tỉ lệ của bản vẽ); tắt: trên giấy (khi in cũng vậy)
+	Dimension texts along their line (never upside down), not level	Chữ kích thước nằm dọc theo đường (không bao giờ lộn ngược), không nằm ngang
+	Dimension units	Đơn vị kích thước
+	Discard the recovery copy of {name}?	Bỏ bản sao khôi phục của {name}?
+	Discard…	Bỏ…
+	Dock	Gắn
+	Dock Left	Gắn bên trái
+	Dock Right	Gắn bên phải
+	Download Dictionary	Tải từ điển
+	Download the {name} spelling dictionary	Tải từ điển chính tả {name}
+	Downloading and installing…	Đang tải xuống và cài đặt…
+	Downloading the {name} dictionary…	Đang tải từ điển {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Tải từ điển Hunspell {name} từ các từ điển của LibreOffice ({source}), giấy phép {licence}, vào thư mục từ điển của bạn và kiểm tra chính tả bằng nó ngay.
+	Draw order	Thứ tự vẽ
+	Drawing Padding	Lề bản vẽ
+	Drawing Scale	Tỉ lệ bản vẽ
+	Drawing unit	Đơn vị bản vẽ
+	End mark	Dấu kết thúc
+	Enter confirms	Enter để xác nhận
+	Every	Mỗi
+	Every exercise of the document takes this exercise's page breaks	Mọi bài tập trong tài liệu lấy các dấu ngắt trang của bài tập này
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Mỗi giá trị là một tham số đặt tên theo cột và nhãn hàng của nó (cột đầu tiên), kèm chỉ số dưới: F_A hoặc A_F
+	Exercise	Bài tập
+	Exercise Data	Dữ liệu bài tập
+	Exercise Info	Thông tin bài tập
+	Exercise Numbering	Đánh số bài tập
+	Exercise Properties	Thuộc tính bài tập
+	Exercise Result	Kết quả bài tập
+	Exercise, in the document's language	Bài tập, theo ngôn ngữ của tài liệu
+	Fence	Hàng rào
+	Fewer Digits	Bớt chữ số
+	File type	Loại tệp
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Tệp › Mới liệt kê các mẫu .xmathm, .dotx và .dotm tại đây trong mục Cá nhân; Lưu thành mẫu Strix bắt đầu từ đây.
+	First exercise: {label}	Bài tập đầu tiên: {label}
+	Fitted to Frame	Vừa khung
+	Float	Nổi
+	Folder path	Đường dẫn thư mục
+	Follow columns	Theo cột
+	For Two Pages	Cho hai trang
+	For a Height of 5 cm	Cho chiều cao 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Cho mọi bài tập trong tài liệu: nhãn của từng tiêu đề và của bản tóm tắt kết quả.
+	Go to it	Đi tới đó
+	Graph	Giấy
+	Graph Paper	Giấy kẻ ô li
+	Graph Paper Pane	Ngăn giấy kẻ ô li
+	Graph Paper Properties	Thuộc tính giấy kẻ ô li
+	Graph Paper at Cursor	Giấy kẻ ô li tại con trỏ
+	Grid lines	Đường lưới
+	Grip	Tay nắm
+	Grip: the new point (click, or type it; Esc puts it back)	Tay nắm: điểm mới (nhấp, hoặc nhập; Esc để đặt lại)
+	Heavier lines	Nét đậm hơn
+	How results are rounded	Cách làm tròn kết quả
+	Imported 1 source	Đã nhập 1 nguồn
+	Imported {n} sources	Đã nhập {n} nguồn
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Trong phần có nhiều hơn một cột, mỗi cột được kẻ riêng và khoảng giữa các cột được để trống
+	Inline (⇒)	Trên dòng (⇒)
+	Input unit	Đơn vị nhập
+	Insert Graph Paper	Chèn giấy kẻ ô li
+	Insert Subdocument	Chèn tài liệu con
+	Insert Subdocument…	Chèn tài liệu con…
+	Items:	Mục:
+	Keep the file	Giữ tệp
+	Keep the text in this document, without the link; the file stays as it is	Giữ văn bản trong tài liệu này, không có liên kết; tệp giữ nguyên
+	Keep this version	Giữ phiên bản này
+	Layer:	Lớp:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Giới hạn kích thước bản vẽ trên giấy (theo vùng văn bản của trang): các tỉ lệ được đề xuất là những tỉ lệ mà bản vẽ vừa
+	Line by Line	Từng dòng
+	Linetype	Kiểu đường
+	Lineweight	Độ dày nét
+	Link a document at the cursor	Liên kết tài liệu tại con trỏ
+	Linked files	Tệp đã liên kết
+	Local recovery is unavailable or still loading.	Khôi phục cục bộ không khả dụng hoặc vẫn đang tải.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Đặt lớp của đối tượng làm lớp hiện hành
+	Make the equation at the cursor a live calculation, or an ordinary one	Biến phương trình tại con trỏ thành phép tính trực tiếp, hoặc thành phương trình thường
+	Make this equation a live calculation: write it with = and the unknown is solved for	Biến phương trình này thành phép tính trực tiếp: viết với dấu = và ẩn số sẽ được giải
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Đánh dấu phương trình tại con trỏ là kết quả của một câu hỏi: giá trị của nó đi vào bản tóm tắt kết quả
+	Master Document	Tài liệu chính
+	Math	Toán học
+	Maximum size	Kích thước tối đa
+	More Digits	Thêm chữ số
+	Move Pane: {title}	Di chuyển ngăn: {title}
+	Move to layer	Chuyển sang lớp
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Đặt tên và đánh số các bài tập của tài liệu: tiền tố (Esercizio, văn bản riêng của bạn hoặc không có), định dạng số và số đầu tiên, trong ngăn Thuộc tính bài tập
+	New Calculation	Phép tính mới
+	New Exercise	Bài tập mới
+	New equations are live calculations	Phương trình mới là phép tính trực tiếp
+	New layer	Lớp mới
+	New page before the exercise	Trang mới trước bài tập
+	New page before the results summary	Trang mới trước bản tóm tắt kết quả
+	New page before the solution	Trang mới trước lời giải
+	Next object	Đối tượng tiếp theo
+	Next point	Điểm tiếp theo
+	No new sources in that file	Không có nguồn mới trong tệp đó
+	No previous selection	Không có vùng chọn trước
+	No recovery copies.	Không có bản sao khôi phục.
+	No selection: click objects, or drag a window	Không có vùng chọn: nhấp vào đối tượng, hoặc kéo một khung
+	Not a Data Table	Không phải bảng dữ liệu
+	Nothing of this type in the document.	Tài liệu không có mục nào thuộc loại này.
+	Nothing to undo in the selection	Không có gì để hoàn tác trong vùng chọn
+	Number Format	Định dạng số
+	Object snap settings	Cài đặt bắt điểm đối tượng
+	Objects	Đối tượng
+	Only text properties can be changed.	Chỉ có thể thay đổi các thuộc tính văn bản.
+	Only these	Chỉ những mục này
+	Only when another exercise comes before it	Chỉ khi có bài tập khác đứng trước
+	Open Subdocument	Mở tài liệu con
+	Open the file in a window of its own	Mở tệp trong cửa sổ riêng
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Từ giờ mở tài liệu Strix (.xmath, .xmathm), tệp .docx, .doc, .rtf, .odt và mẫu Word bằng Strix.
+	Ordinal Column	Cột số thứ tự
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Góc đối diện của khung (sang phải: nguyên đối tượng; sang trái: cả đối tượng bị chạm)
+	Outer frame	Khung ngoài
+	Overwrite the file with the text shown here	Ghi đè tệp bằng văn bản đang hiển thị ở đây
+	Padding	Đệm
+	Page color	Màu trang
+	Pane Options	Tùy chọn ngăn
+	Placement	Vị trí
+	Previous object	Đối tượng trước
+	Property names are 1–{max} characters.	Tên thuộc tính dài 1–{max} ký tự.
+	Property values are at most {max} bytes.	Giá trị thuộc tính tối đa {max} byte.
+	Put the cursor in an exercise to see its data and variants.	Đặt con trỏ vào một bài tập để xem dữ liệu và biến thể của nó.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Đặt con trỏ vào giấy kẻ ô li (hoặc trên trang có nền giấy kẻ ô li) để xem thuộc tính của nó.
+	Quick Keys	Phím nhanh
+	Quick Keys in Formulas	Phím nhanh trong công thức
+	Reading Page Color	Màu trang khi đọc
+	Rebuild the repeated questions and the results summary	Dựng lại các câu hỏi lặp lại và bản tóm tắt kết quả
+	Recalculate	Tính lại
+	Recalculate every calculation in the document (F9)	Tính lại mọi phép tính trong tài liệu (F9)
+	Recovery copy	Bản sao khôi phục
+	Recovery is disabled while this document has a password.	Khôi phục bị tắt khi tài liệu này có mật khẩu.
+	Reduce the selection to the objects considered	Thu hẹp vùng chọn xuống các đối tượng đang xét
+	Reject All Changes and Stop Tracking	Từ chối tất cả thay đổi và dừng theo dõi
+	Reject and Move to Next	Từ chối và chuyển sang mục tiếp theo
+	Release notes	Ghi chú phát hành
+	Reload Subdocuments	Tải lại tài liệu con
+	Remove Graph Paper	Xóa giấy kẻ ô li
+	Remove the active variant	Xóa biến thể đang dùng
+	Remove this datum	Xóa dữ kiện này
+	Replace the text shown here with the file's	Thay văn bản đang hiển thị ở đây bằng nội dung của tệp
+	Resize Pane	Đổi kích thước ngăn
+	Restore opens an unsaved copy. Your original file stays unchanged.	Khôi phục sẽ mở một bản sao chưa lưu. Tệp gốc của bạn không bị thay đổi.
+	Result Layout	Bố cục kết quả
+	Result Of	Kết quả của
+	Row, Column Below (A_F)	Hàng, cột bên dưới (A_F)
+	Save Subdocuments	Lưu tài liệu con
+	Save as Strix Template…	Lưu thành mẫu Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Hãy lưu hoặc đóng tài liệu trước: cập nhật sẽ khởi động lại Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Lưu các đoạn đã chọn thành tệp mới, liên kết tại chỗ của chúng
+	Save your documents: Strix Writer then closes and restarts in the new version.	Hãy lưu tài liệu của bạn: Strix Writer sẽ đóng và khởi động lại ở phiên bản mới.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Lưu một mẫu .xmathm vào thư mục mẫu của bạn. Mẫu hiện trong Tệp › Mới ở mục Cá nhân.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Lưu tài liệu sẽ lưu mọi tài liệu con được sửa ở đây. Khi mở, mỗi tệp được hiển thị như hiện có.
+	Scale Font Sizes	Co giãn cỡ phông
+	Scaled distances	Khoảng cách co giãn
+	Select a place in this document:	Chọn một vị trí trong tài liệu này:
+	Select a property to change.	Chọn một thuộc tính để thay đổi.
+	Select objects	Chọn đối tượng
+	Selection options	Tùy chọn chọn
+	Separate text with	Phân tách văn bản bằng
+	Set CAD Drawing	Đặt bản vẽ CAD
+	Set Exercise Data	Đặt dữ liệu bài tập
+	Set left- and first-indent with tabs and backspaces	Đặt thụt lề trái và thụt dòng đầu bằng phím Tab và Backspace
+	Steps	các bước
+	Show Steps	Hiện các bước
+	Show Trailing Zeros	Hiện số 0 ở cuối
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Hiện mọi ô dưới dạng phương trình: tên in nghiêng, chỉ số dưới, đơn vị theo kiểu Đơn vị
+	Show every file as it is on disk, discarding edits made here	Hiện mọi tệp như trên đĩa, bỏ các chỉnh sửa đã thực hiện ở đây
+	Show one digit less in results	Hiện bớt một chữ số trong kết quả
+	Show one more digit in results	Hiện thêm một chữ số trong kết quả
+	Show the exercise's data and variants	Hiện dữ liệu và biến thể của bài tập
+	Show the file as it is on disk, discarding edits made here	Hiện tệp như trên đĩa, bỏ các chỉnh sửa đã thực hiện ở đây
+	Significant Digits	Chữ số có nghĩa
+	Snap for the next point	Bắt điểm cho điểm tiếp theo
+	Snap for the next point (Shift+right-click)	Bắt điểm cho điểm tiếp theo (Shift+nhấp chuột phải)
+	Software Update	Cập nhật phần mềm
+	Spanish (Latin America)	Tiếng Tây Ban Nha (Mỹ Latinh)
+	Spanish (Uruguay)	Tiếng Tây Ban Nha (Uruguay)
+	Square size	Kích thước ô vuông
+	Start at	Bắt đầu từ
+	Strix Writer {version} is available	Đã có Strix Writer {version}
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} hiện là phiên bản mới nhất.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix là một nhánh phát triển của WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Xem NOTICE.
+	Styles Pane Position	Vị trí ngăn kiểu
+	Subdocuments	Tài liệu con
+	Subdocuments Pane	Ngăn tài liệu con
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Tài liệu con là các tệp trên đĩa: bản máy tính liên kết được chúng, bản trình duyệt thì không.
+	Switch	Chuyển
+	Switch Windows	Chuyển cửa sổ
+	Text Size	Cỡ chữ
+	Text properties only: Word's number, date and yes-no types aren't offered.	Chỉ thuộc tính văn bản: các kiểu số, ngày và có/không không được cung cấp.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Định dạng đó không giữ được mọi thứ, nên tài liệu vẫn đang mở. Hãy lưu dưới dạng tài liệu Strix (.xmath) để tiếp tục.
+	That would make the object degenerate	Việc đó sẽ làm đối tượng bị suy biến
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Dữ liệu là các tham số đầu tiên của các phép tính trong bài tập: lời giải dùng chúng theo ký hiệu. Đổi biến thể sẽ tính lại bài tập.
+	The document has no subdocuments.	Tài liệu không có tài liệu con.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Hàng cuối cộng từng cột (Σ =); ô được viết ở đó giữ văn bản riêng (trung bình =, max =)
+	The layer of the selected objects becomes the current layer	Lớp của các đối tượng đã chọn trở thành lớp hiện hành
+	The number must be a divisor of {max}.	Số phải là ước của {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Không đọc được từ điển chính tả cho {language}, nên không kiểm tra. Tệp: {file}. Lý do: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Bảng tại con trỏ được tính toán: đặt tên các cột ở hàng đầu (L [m], M [kN·m] = q·L²/8) và cộng tổng bằng Σ =
+	The update couldn't be installed: {error}	Không cài đặt được bản cập nhật: {error}
+	The whole family	Cả họ
+	The {name} dictionary couldn't be downloaded: {reason}	Không tải được từ điển {name}: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Đã cài từ điển {name}: chính tả tiếng {language} hiện được kiểm tra.
+	This cannot be undone. Your original file stays unchanged.	Không thể hoàn tác thao tác này. Tệp gốc của bạn không bị thay đổi.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Bản Strix Writer này không thể tự thay thế: hãy tải phiên bản mới và cài đè lên bản này.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Tài liệu này có các đối tượng Strix ({objects}). Word và các định dạng chỉnh sửa được khác sẽ làm mất chúng, nên tài liệu chỉ được lưu dưới dạng tài liệu Strix (.xmath). Xuất sang PDF, PNG, LaTeX, HTML và Markdown vẫn dùng được dưới dạng bản sao tĩnh.
+	This document has no custom properties.	Tài liệu này không có thuộc tính tùy chỉnh.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Tài liệu này chưa liên kết tài liệu nào khác. Hãy chèn một tài liệu, hoặc chọn các đoạn và tạo tài liệu từ chúng: văn bản hiển thị ở đây và được lưu lại vào tệp riêng của nó.
+	This equation is the result of the question it is worked under (shown in the results summary)	Phương trình này là kết quả của câu hỏi mà nó được giải dưới đó (hiển thị trong bản tóm tắt kết quả)
+	To the End of the Page	Đến cuối trang
+	Top of the Document	Đầu tài liệu
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Nhập một điểm (x,y  @dx,dy  @d<a), một khoảng cách, một lệnh (l, pl, rec, c, a, t, m, co), một tùy chọn hoặc nhấn Enter
+	Unit	Đơn vị
+	Unit:	Đơn vị:
+	Unknown selection option:	Tùy chọn chọn không xác định:
+	Unlink	Bỏ liên kết
+	Unlink Subdocument	Bỏ liên kết tài liệu con
+	Until the Next Even Page	Đến trang chẵn tiếp theo
+	Until the Next Odd Page	Đến trang lẻ tiếp theo
+	Update Summary	Cập nhật bản tóm tắt
+	Update and Restart	Cập nhật và khởi động lại
+	Update check is not supported in the web browser.	Trình duyệt web không hỗ trợ kiểm tra bản cập nhật.
+	Variant	Biến thể
+	Variants	Các biến thể
+	Varies	Thay đổi
+	Vertex	Đỉnh
+	View and edit the document's custom properties.	Xem và sửa các thuộc tính tùy chỉnh của tài liệu.
+	What's new	Có gì mới
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Nơi đặt kết quả và các bước: sau ⇒ trên dòng đề bài, hoặc mỗi mục một dòng bên dưới, căn theo dấu =
+	Window polygon	Đa giác cửa sổ
+	Write the edited subdocuments to their files now (also done by saving the document)	Ghi ngay các tài liệu con đã sửa vào tệp của chúng (lưu tài liệu cũng làm việc này)
+	You have version {version}.	Bạn đang dùng phiên bản {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / tạo ngay chỉ số trên, chỉ số dưới hoặc phân số (tắt: chúng được dựng khi nhấn Dấu cách, như trong Word)
+	already selected	đã được chọn
+	an exercise goes in the body, outside tables	bài tập nằm trong phần thân, ngoài bảng
+	annotative {size}	chú thích {size}
+	click adds, Shift+click removes	nhấp để thêm, Shift+nhấp để bỏ
+	click on empty space for a window, drag for a lasso	nhấp vào chỗ trống để chọn khung, kéo để chọn tự do
+	click the vertices; Enter or right-click closes, Esc cancels	nhấp vào các đỉnh; Enter hoặc nhấp chuột phải để đóng, Esc để hủy
+	click to pick it	nhấp để chọn
+	conflict	xung đột
+	cycle:	chuyển vòng:
+	edited	đã sửa
+	fitted to frame	vừa khung
+	found	đã tìm thấy
+	graph paper	giấy kẻ ô li
+	in step	trong bước
+	input	đầu vào
+	installed	đã cài đặt
+	no graph paper at the cursor	không có giấy kẻ ô li tại con trỏ
+	no snap	không bắt điểm
+	not available: the cursor isn't in an exercise	không khả dụng: con trỏ không nằm trong bài tập
+	not found	không tìm thấy
+	objects	đối tượng
+	objects selected	đối tượng được chọn
+	of	trên
+	removed	đã xóa
+	scaled {size}	đã co giãn {size}
+	select a CAD drawing first	hãy chọn một bản vẽ CAD trước
+	selected	đã chọn
+	squares (0: none)	ô vuông (0: không có)
+	the cursor isn't in an exercise	con trỏ không nằm trong bài tập
+	the document has no exercise	tài liệu không có bài tập
+	{field}, record {n}	{field}, bản ghi {n}
+	{language} (dictionary unreadable)	{language} (không đọc được từ điển)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (không đọc được: {reason})
+	{n} CAD drawings	{n} bản vẽ CAD
+	{n} calculated tables	{n} bảng tính toán
+	{n} calculations	{n} phép tính
+	{n} exercises	{n} bài tập
+	{n} results summaries	{n} bản tóm tắt kết quả
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Kiểm tra\nbản cập nhật…
+	Edit\nDrawing	Sửa\nbản vẽ
+	New\nExercise	Bài tập\nmới
+	Show\nSteps	Hiện\ncác bước
+	Switch\nWindows	Chuyển\ncửa sổ
+	CAD\nDrawing	Bản vẽ\nCAD
+	Calculated\nTable	Bảng\ntính toán
+	Graph\nPaper	Giấy\nkẻ ô
+	New\nCalculation	Phép tính\nmới

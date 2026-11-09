@@ -2056,3 +2056,715 @@ paper	Envelope DL	DL 信封
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	關於 Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	（移除）按一下即移除
+	*Bold* and _italic_ as real formatting	將 *粗體* 和 _斜體_ 轉為真正的格式
+	1 CAD drawing	1 個 CAD 圖面
+	1 calculated table	1 個計算表
+	1 calculation	1 個計算
+	1 exercise	1 道習題
+	1 object selected	已選取 1 個物件
+	1 results summary	1 個結果彙總
+	1×2 Empty Matrix	1×2 空矩陣
+	1×3 Empty Matrix	1×3 空矩陣
+	2×1 Empty Matrix	2×1 空矩陣
+	2×2 Determinant	2×2 行列式
+	2×2 Empty Matrix	2×2 空矩陣
+	2×2 Identity Matrix	2×2 單位矩陣
+	2×2 Identity Matrix (sparse)	2×2 單位矩陣（稀疏）
+	2×2 Matrix in Brackets	中括號 2×2 矩陣
+	2×2 Matrix in Double Bars	雙直線 2×2 矩陣
+	2×2 Matrix in Parentheses	小括號 2×2 矩陣
+	2×3 Empty Matrix	2×3 空矩陣
+	3×1 Empty Matrix	3×1 空矩陣
+	3×2 Empty Matrix	3×2 空矩陣
+	3×3 Empty Matrix	3×3 空矩陣
+	3×3 Identity Matrix	3×3 單位矩陣
+	3×3 Identity Matrix (sparse)	3×3 單位矩陣（稀疏）
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	第一欄（第 0 欄）依 1、2、3… 為資料列編號（計算不會讀取它）
+	A free, open-source word processor written in Rust.	以 Rust 撰寫的免費開放原始碼文書處理軟體。
+	A grid from the cursor to the end of the page	從游標到頁面結尾的方格
+	A new exercise takes the page breaks of the last one.	新習題沿用上一道習題的分頁設定。
+	A new layer, made current	新增圖層，並設為目前圖層
+	A polar array has	環形陣列設定：
+	A xor B	A xor B
+	ASAP	盡速
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	絕對值分段
+	Accents	重音符號
+	Accept All Changes and Stop Tracking	接受所有修訂並停止追蹤
+	Accept and Move to Next	接受並移至下一個
+	Acute	銳音符
+	Add Datum	新增已知量
+	Add Note	新增註記
+	Add Question	新增題目
+	Add Sub-question	新增小題
+	Add a note between the questions: free text that is not a question	在題目之間新增註記：不是題目的自由文字
+	Add a period with double-space	連按兩次空白鍵後自動加上句號
+	Add a question at the end of the exercise at the cursor	在游標所在習題的結尾新增題目
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	在上一題之下新增巢狀題目（a.1、a.1.1）；Tab 和 Shift+Tab 可變更題目的層級
+	Add a variant: a copy of the active one's values	新增變體：複製目前變體的值
+	Add an initial datum: a symbol with its value in every variant	新增初始已知量：一個符號及其在每個變體中的值
+	Add to CAD Drawing	新增至 CAD 圖面
+	Advanced Properties…	進階屬性…
+	Aligned texts	對齊的文字
+	All - Linear	全部 - 線性
+	All - Professional	全部 - 專業
+	All the selection	全部選取範圍
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	全部 · F 柵選 · WP/CP 多邊形 · R 移除 · A 新增 · P 上一個 · U 復原 · Shift+Space 循環
+	An array has	陣列設定：
+	Angle Brackets	尖括號
+	Angle Brackets with Separator	含分隔符號的尖括號
+	Angle Brackets with Two Separators	含兩個分隔符號的尖括號
+	Apply to all exercises	套用至所有習題
+	As the grid lines	與格線相同
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	自動儲存只保留 Strix 文件（.xmath）；{name} 為其他格式。請另存為 .xmath 以啟用自動儲存。
+	Automatic (Decimals, Significant Below 1)	自動（小數，小於 1 時用有效位數）
+	Automatic updates are not available yet. New versions are published at {url}	尚不支援自動更新。新版本發佈於 {url}
+	Automatically add words to list (First Letter)	自動將單字新增至清單（首字母）
+	Automatically add words to list (INitial CAps)	自動將單字新增至清單（前兩個字母大寫）
+	Baseline Dots	基線點
+	Basic Math	基礎數學
+	Bayes' rule	貝氏定理
+	Binomial Coefficient	二項式係數
+	Binomial Coefficient (angle)	二項式係數（尖括號）
+	Binomial Coefficient with Angle Brackets	含尖括號的二項式係數
+	Binomial expansion of (x+a)ⁿ	(x+a)ⁿ 的二項式展開
+	Body text in a short paragraph to show spacing.	用來顯示間距的一小段本文。
+	Book Title	書名
+	Bookmarks	書籤
+	Boxed Formula	加框公式
+	Boxed Formula (example)	加框公式（範例）
+	Boxed Formulas	加框公式
+	Braces	大括號
+	Braces with Separator	含分隔符號的大括號
+	Brackets	中括號
+	Brackets with Separators	含分隔符號的中括號
+	Breve	短音符
+	Built-in Heading styles	內建標題樣式
+	ByLayer	ByLayer
+	CAD	CAD
+	Drawing	圖面
+	CAD Drawing	CAD 圖面
+	CAD Drawing Source	CAD 圖面來源
+	CAD Picture Format	CAD 圖片格式
+	CONFIDENTIAL	機密
+	Calculate New Equations	計算新方程式
+	Calculate This Table	計算此表
+	Calculate the exercise with this variant	以此變體計算習題
+	Calculated	已計算
+	Table	表
+	Calculated Table	計算表
+	Calculated Table Info	計算表資訊
+	Calculation	計算
+	Calculations	計算
+	Cancel the step	取消此步驟
+	Cases (Three Conditions)	分段（三個條件）
+	Cases (Two Conditions)	分段（兩個條件）
+	Cases and Stacks	分段與堆疊
+	Category	類別
+	Ceiling	上高斯函數
+	Cells as Equations	儲存格作為方程式
+	Centered as Group	作為一組置中
+	Change in y over change in x	y 的變化量比 x 的變化量
+	Change to Level 1	變更為層級 1
+	Change to Level 2	變更為層級 2
+	Change to Level 3	變更為層級 3
+	Change to Level 4	變更為層級 4
+	Change to Level 5	變更為層級 5
+	Changed here and in the file: keep one of the two.	此處和檔案中都有變更：請保留其中一個。
+	Check	檢查
+	Check for	檢查
+	Updates…	更新…
+	Check for Updates	檢查更新
+	Checking for updates…	正在檢查更新…
+	Circle area from its radius	由半徑求圓面積
+	Circled Dot	圓圈點
+	Circled Plus	圓圈加號
+	Circled Times	圓圈乘號
+	Close Document	關閉文件
+	Colon Equal	冒號等號
+	Column, Row Below (F_A)	欄、下方列 (F_A)
+	Columns × rows:	欄數 × 列數：
+	Common Accent Objects	常用重音符號物件
+	Common Brackets	常用括號
+	Common Fractions	常用分數
+	Common Functions	常用函數
+	Common Large Operators	常用大型運算子
+	Common Operator Structures	常用運算子結構
+	Common Operators	常用運算子
+	Common Radicals	常用根式
+	Common Subscripts and Superscripts	常用下標和上標
+	Considering	考慮中
+	Continue without restoring	不還原，繼續
+	Contour Integral	迴路積分
+	Contour Integral with Limits	含上下限的迴路積分
+	Contour Integral with Stacked Limits	含堆疊上下限的迴路積分
+	Contour Integrals	迴路積分
+	Convert between built-up and linear form	在組合格式與線性格式之間轉換
+	Coordinates take a number or an expression of the calculations (L/2)	座標可以是數字，也可以是計算中的運算式（L/2）
+	Coproduct	餘積
+	Coproduct with Limits	含上下限的餘積
+	Coproduct with Lower Limit	含下限的餘積
+	Coproduct with Subscript-Superscript Limits	含上下標式上下限的餘積
+	Cosecant Function	餘割函數
+	Cosine 2x	cos 2x
+	Cosine Function	餘弦函數
+	Cotangent Function	餘切函數
+	Could not check for updates:\n{error}	無法檢查更新：\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	無法儲存 {name}，因此它仍保持開啟，沒有遺失任何內容：{error}
+	Create Subdocument	建立子文件
+	Create Subdocument…	建立子文件…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	頁面上的裁剪適用於未旋轉的圖片：請先將旋轉設為 0°，或使用裁剪方塊
+	Crossing polygon	相交多邊形
+	Cube Root	立方根
+	Current - Linear	目前 - 線性
+	Current - Professional	目前 - 專業
+	Current Document	目前文件
+	Current layer	目前圖層
+	Current layer: new objects go on it	目前圖層：新物件會放在此圖層上
+	DO NOT COPY	請勿複製
+	DRAFT	草稿
+	Data Table	資料表
+	Decimal Places	小數位數
+	Delete Exercise	刪除習題
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	整體刪除游標所在的習題或所選習題：其題幹、題目和解答都會刪除，其結果會從結果彙總中移除（可復原）
+	Delete the layer (its objects go to layer 0)	刪除圖層（其物件移至圖層 0）
+	Delta Equal To	Delta 等於
+	Delta over arrow	箭頭上方的 Delta
+	Derivative as a limit	導數的極限定義
+	Detach: a window of its own	分離：獨立視窗
+	Diagonal Dots	斜向點
+	Differential	微分
+	Differential theta	微分 θ
+	Differential x	微分 x
+	Differential y	微分 y
+	Differentials	微分
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	以按一下或夾點放置的尺寸線和角度弧線會在圖面中保持其距離（隨圖面的大小和比例變化）；關閉後則依紙面距離（列印時相同）
+	Dimension texts along their line (never upside down), not level	尺寸文字沿尺寸線放置（不會上下顛倒），而非水平放置
+	Dimension units	尺寸單位
+	Discard the recovery copy of {name}?	要捨棄 {name} 的復原副本嗎？
+	Discard…	捨棄…
+	Dock	停駐
+	Dock Left	停駐於左側
+	Dock Right	停駐於右側
+	Double Bar	雙直線
+	Double Dot	雙點
+	Double Integral	二重積分
+	Double Integral with Limits	含上下限的二重積分
+	Double Integral with Stacked Limits	含堆疊上下限的二重積分
+	Double Left Arrow with Text Above	上方含文字的雙左箭頭
+	Double Left Arrow with Text Below	下方含文字的雙左箭頭
+	Double Left Right Arrow with Text Above	上方含文字的雙左右箭頭
+	Double Left Right Arrow with Text Below	下方含文字的雙左右箭頭
+	Double Right Arrow with Text Above	上方含文字的雙右箭頭
+	Double Right Arrow with Text Below	下方含文字的雙右箭頭
+	Double Square Brackets	雙中括號
+	Double Vertical Bars	雙直線
+	Double summation	二重求和
+	Download Dictionary	下載字典
+	Download the {name} spelling dictionary	下載 {name} 拼字字典
+	Downloading and installing…	正在下載並安裝…
+	Downloading the {name} dictionary…	正在下載 {name} 字典…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	從 LibreOffice 的字典（{source}，授權：{licence}）下載 Hunspell 字典 {name} 至你的字典資料夾，並立即用它檢查拼字。
+	Draw order	繪製順序
+	Drawing Padding	圖面邊界
+	Drawing Scale	圖面比例
+	Drawing unit	圖面單位
+	Edit	編輯
+	Emphasis	強調
+	Empty Matrices	空矩陣
+	End mark	結束標記
+	Endnote Reference	章節附註參照
+	Endnote Text	章節附註文字
+	Enter bookmark name:	輸入書籤名稱：
+	Enter confirms	按 Enter 確認
+	Equal Equal	等號等號
+	Equal by Definition	定義等於
+	Euler's identity	歐拉恆等式
+	Every	每個
+	Every exercise of the document takes this exercise's page breaks	文件中的每道習題都採用此習題的分頁設定
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	每個值都是一個參數，以其所在欄和所在列的標籤（第一欄）命名，並帶下標：F_A 或 A_F
+	Exercise	習題
+	Exercise Data	習題資料
+	Exercise Info	習題資訊
+	Exercise Numbering	習題編號
+	Exercise Properties	習題屬性
+	Exercise Result	習題結果
+	Exercise, in the document's language	習題（使用文件的語言）
+	Exponential	指數函數
+	Exponential series	指數級數
+	Fence	柵欄
+	Fewer Digits	減少位數
+	File type	檔案類型
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	「檔案」›「新增」的「個人」下會列出此處的 .xmathm、.dotx 和 .dotm 範本；「另存為 Strix 範本」也從這裡開始。
+	Find “{text}” in the document	在文件中尋找「{text}」
+	First exercise: {label}	第一道習題：{label}
+	Fitted to Frame	符合框架
+	Float	浮動
+	Floor	下高斯函數
+	Folder path	資料夾路徑
+	Follow columns	跟隨各欄
+	Footnote Reference	註腳參照
+	Footnote Text	註腳文字
+	For Two Pages	適用於兩頁
+	For a Height of 5 cm	適用於 5 cm 的高度
+	For every exercise of the document: the label of each title and of the results summary.	適用於文件中的每道習題：每個標題和結果彙總的標籤。
+	For which item:	針對哪一項：
+	Geometry	幾何
+	Go to it	前往
+	Graph	圖
+	Paper	紙
+	Graph Paper	方格紙
+	Graph Paper Pane	方格紙窗格
+	Graph Paper Properties	方格紙屬性
+	Graph Paper at Cursor	游標處的方格紙
+	Grave	重音符
+	Greek Letters	希臘字母
+	Grid Table 1 Light	格線表格 1 淺色
+	Grid Table 4 – Blue	格線表格 4 – 藍色
+	Grid Table 4 – Green	格線表格 4 – 綠色
+	Grid Table 4 – Orange	格線表格 4 – 橙色
+	Grid Table 4 – Purple	格線表格 4 – 紫色
+	Grid lines	格線
+	Grip	夾點
+	Grip: the new point (click, or type it; Esc puts it back)	夾點：新的點（按一下或輸入；Esc 還原）
+	Grouping Character Above	上方群組字元
+	Grouping Character Below	下方群組字元
+	Hat	抑揚符
+	Heading	標題
+	Heading text	標題文字
+	Heavier lines	加粗線條
+	How results are rounded	結果的捨入方式
+	Hyperbolic Cosecant Function	雙曲餘割函數
+	Hyperbolic Cosine Function	雙曲餘弦函數
+	Hyperbolic Cotangent Function	雙曲餘切函數
+	Hyperbolic Functions	雙曲函數
+	Hyperbolic Secant Function	雙曲正割函數
+	Hyperbolic Sine Function	雙曲正弦函數
+	Hyperbolic Tangent Function	雙曲正切函數
+	Hyperlink	超連結
+	Hypotenuse	斜邊
+	Identity Matrices	單位矩陣
+	Imported 1 source	已匯入 1 個來源
+	Imported {n} sources	已匯入 {n} 個來源
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	在多欄的章節中，每一欄單獨畫線，欄間留空
+	Inline (⇒)	行內 (⇒)
+	Input unit	輸入單位
+	Insert Graph Paper	插入方格紙
+	Insert Subdocument	插入子文件
+	Insert Subdocument…	插入子文件…
+	Insert reference to:	插入參照至：
+	Integral of e^(−x²)	e^(−x²) 的積分
+	Integral with Limits	含上下限的積分
+	Integral with Stacked Limits	含堆疊上下限的積分
+	Integrals	積分
+	Intense Emphasis	明顯強調
+	Intense Quote	明顯引文
+	Intense Reference	明顯參照
+	Intersection with Limits	含上下限的交集
+	Intersection with Lower Limit	含下限的交集
+	Intersection with Subscript-Superscript Limits	含上下標式上下限的交集
+	Inverse Cosecant Function	反餘割函數
+	Inverse Cosine Function	反餘弦函數
+	Inverse Cotangent Function	反餘切函數
+	Inverse Functions	反函數
+	Inverse Hyperbolic Cosecant Function	反雙曲餘割函數
+	Inverse Hyperbolic Cosine Function	反雙曲餘弦函數
+	Inverse Hyperbolic Cotangent Function	反雙曲餘切函數
+	Inverse Hyperbolic Functions	反雙曲函數
+	Inverse Hyperbolic Secant Function	反雙曲正割函數
+	Inverse Hyperbolic Sine Function	反雙曲正弦函數
+	Inverse Hyperbolic Tangent Function	反雙曲正切函數
+	Inverse Secant Function	反正割函數
+	Inverse Sine Function	反正弦函數
+	Inverse Tangent Function	反正切函數
+	Items:	項目：
+	Justification of a display equation	獨立方程式的對齊方式
+	Keep the file	保留檔案
+	Keep the text in this document, without the link; the file stays as it is	保留本文件中的文字，移除連結；檔案維持不變
+	Keep this version	保留此版本
+	Layer:	圖層：
+	Left Arrow with Text Above	上方含文字的左箭頭
+	Left Arrow with Text Below	下方含文字的左箭頭
+	Left Bracket Twice	左括號兩次
+	Left Right Arrow Above	上方左右箭頭
+	Left Right Arrow with Text Above	上方含文字的左右箭頭
+	Left Right Arrow with Text Below	下方含文字的左右箭頭
+	Left Subscript-Superscript	左下標-上標
+	Leftwards Arrow Above	上方向左箭頭
+	Leftwards Harpoon Above	上方向左魚叉
+	Letter-Like Symbols	類字母符號
+	Level 1	層級 1
+	Level 2	層級 2
+	Level 3	層級 3
+	Limit	極限
+	Limit Example	極限範例
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	限制圖面在紙面上的大小（取自頁面文字區域）：提供的比例均可容納該圖面
+	Line by Line	逐行
+	Linear Fraction	線性分數
+	Linetype	線型
+	Lineweight	線寬
+	Link a document at the cursor	在游標處連結文件
+	Linked files	已連結的檔案
+	List Paragraph	清單段落
+	List Table 3 – Blue	清單表格 3 – 藍色
+	List Table 3 – Green	清單表格 3 – 綠色
+	List Table 3 – Orange	清單表格 3 – 橙色
+	List Table 3 – Purple	清單表格 3 – 紫色
+	Local recovery is unavailable or still loading.	本機復原無法使用，或仍在載入。
+	Logarithm	對數
+	Logarithm with Base	含底數的對數
+	Logical AND	邏輯且
+	Logical AND with Limits	含上下限的邏輯且
+	Logical OR	邏輯或
+	Logical OR with Limits	含上下限的邏輯或
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	將物件所在圖層設為目前圖層
+	Make the equation at the cursor a live calculation, or an ordinary one	將游標處的方程式設為即時計算或一般方程式
+	Make this equation a live calculation: write it with = and the unknown is solved for	將此方程式設為即時計算：用 = 書寫，即可求解未知數
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	將游標處的方程式標記為某道題目的結果：其值會進入結果彙總
+	Master Document	主控文件
+	Math	數學
+	Matrices with Brackets	含括號的矩陣
+	Maximum Example	最大值範例
+	Maximum size	最大尺寸
+	Measured By	度量單位
+	Midline Dots	中線點
+	Minus Equal	減號等號
+	More Digits	增加位數
+	Move Pane: {title}	移動窗格：{title}
+	Move to layer	移至圖層
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	為文件中的習題命名並編號：前綴（Esercizio、自訂文字或無）、編號格式和起始編號，在「習題屬性」窗格中設定
+	Natural Logarithm	自然對數
+	Negated Relations	否定關係
+	New	新增
+	New Calculation	新增計算
+	New Exercise	新增習題
+	New equations are live calculations	新方程式為即時計算
+	New layer	新增圖層
+	New page before the exercise	在習題前另起一頁
+	New page before the results summary	在結果彙總前另起一頁
+	New page before the solution	在解答前另起一頁
+	Next object	下一個物件
+	Next point	下一個點
+	No Spacing	無間距
+	No items to show.	沒有可顯示的項目。
+	No new sources in that file	該檔案中沒有新來源
+	No previous selection	沒有上一個選取範圍
+	No recovery copies.	沒有復原副本。
+	No selection: click objects, or drag a window	未選取：按一下物件，或拖曳視窗
+	Normal probability density	常態機率密度
+	Not a Data Table	不是資料表
+	Nothing of this type in the document.	文件中沒有此類型的內容。
+	Nothing to undo in the selection	選取範圍中沒有可復原的動作
+	Number Format	編號格式
+	Number the equation; the number sits at the right margin (or type # then the number)	為方程式編號；編號位於右邊界（或輸入 # 再輸入編號）
+	Object snap settings	物件鎖點設定
+	Objects	物件
+	One half	二分之一
+	Only text properties can be changed.	只能變更文字屬性。
+	Only these	僅這些
+	Only when another exercise comes before it	僅當前面還有其他習題時
+	Open Subdocument	開啟子文件
+	Open the file in a window of its own	在獨立視窗中開啟檔案
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	今後以 Strix 開啟 Strix 文件（.xmath、.xmathm）、.docx、.doc、.rtf 和 .odt 檔案以及 Word 範本。
+	Operator Structures	運算子結構
+	Operators	運算子
+	Ordinal Column	序號欄
+	Other Large Operators	其他大型運算子
+	Other corner of the window (to the right: whole objects; to the left: touched too)	視窗的另一個角（向右：完整包含的物件；向左：碰到的物件也選取）
+	Outer frame	外框
+	Outward Brackets	外向括號
+	Overbar	上橫線
+	Overbars and Underbars	上橫線與下橫線
+	Overbrace	上括號
+	Overwrite the file with the text shown here	以此處顯示的文字覆寫檔案
+	Padding	內距
+	Page color	頁面色彩
+	Pane Options	窗格選項
+	Parentheses	小括號
+	Parentheses with Separator	含分隔符號的小括號
+	Partial Differential	偏微分
+	Pi Over 2	二分之 π
+	Placement	位置
+	Plain Table 1	簡單表格 1
+	Plus Equal	加號等號
+	Possible spelling mistake	可能的拼字錯誤
+	Power series of (1+x)ⁿ	(1+x)ⁿ 的冪級數
+	Previous object	上一個物件
+	Product	乘積
+	Product of A	A 的乘積
+	Product with Limits	含上下限的乘積
+	Product with Lower Limit	含下限的乘積
+	Product with Subscript-Superscript Limits	含上下標式上下限的乘積
+	Products and Coproducts	乘積與餘積
+	Property names are 1–{max} characters.	屬性名稱為 1–{max} 個字元。
+	Property values are at most {max} bytes.	屬性值最多 {max} 位元組。
+	Put the cursor in an exercise to see its data and variants.	將游標置於習題中以檢視其資料和變體。
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	將游標置於方格紙中（或帶方格紙背景的頁面上）以檢視其屬性。
+	Quadratic Root	二次方根
+	Quick Keys	快速鍵
+	Quick Keys in Formulas	方程式中的快速鍵
+	Quote	引文
+	Radical with Degree	含根指數的根式
+	Radicals	根式
+	Reading Page Color	閱讀頁面色彩
+	Rebuild the repeated questions and the results summary	重建重複的題目和結果彙總
+	Recalculate	重新計算
+	Recalculate every calculation in the document (F9)	重新計算文件中的所有計算 (F9)
+	Recovery copy	復原副本
+	Recovery is disabled while this document has a password.	文件設有密碼時，復原功能已停用。
+	Reduce the selection to the objects considered	將選取範圍縮小為所考慮的物件
+	Reference type:	參照類型：
+	Reject All Changes and Stop Tracking	拒絕所有修訂並停止追蹤
+	Reject and Move to Next	拒絕並移至下一個
+	Release notes	版本資訊
+	Reload Subdocuments	重新載入子文件
+	Remove Graph Paper	移除方格紙
+	Remove the active variant	移除目前的變體
+	Remove this datum	移除此已知量
+	Replace the text shown here with the file's	以檔案內容取代此處顯示的文字
+	Resize Pane	調整窗格大小
+	Restore opens an unsaved copy. Your original file stays unchanged.	「還原」會開啟一份未儲存的副本。你的原始檔案維持不變。
+	Result Layout	結果版面配置
+	Result Of	結果來自
+	Right Arrow with Text Above	上方含文字的右箭頭
+	Right Arrow with Text Below	下方含文字的右箭頭
+	Right Bracket Twice	右括號兩次
+	Rightwards Arrow Above	上方向右箭頭
+	Rightwards Harpoon Above	上方向右魚叉
+	Roots of ax²+bx+c	ax²+bx+c 的根
+	Row, Column Below (A_F)	列、下方欄 (A_F)
+	SAMPLE	範例
+	Save Subdocuments	儲存子文件
+	Save as Strix Template…	另存為 Strix 範本…
+	Save or close your documents first: updating restarts Strix Writer.	請先儲存或關閉文件：更新會重新啟動 Strix Writer。
+	Save the selected paragraphs as a new file, linked in their place	將所選段落儲存為新檔案，並在原位置連結
+	Save your documents: Strix Writer then closes and restarts in the new version.	請儲存文件：Strix Writer 隨後會關閉並以新版本重新啟動。
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	將 .xmathm 範本儲存到你的範本資料夾，它會出現在「檔案」›「新增」的「個人」下。
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	儲存文件會儲存在此處編輯的所有子文件。開啟文件時，每個檔案依其目前內容顯示。
+	Scale Font Sizes	縮放字型大小
+	Scaled distances	依比例縮放的距離
+	Secant Function	正割函數
+	Select a place in this document:	在本文件中選取位置：
+	Select a property to change.	選取要變更的屬性。
+	Select objects	選取物件
+	Selection options	選取選項
+	Separate text with	文字分隔符號
+	Set CAD Drawing	設定 CAD 圖面
+	Set Exercise Data	設定習題資料
+	Set left- and first-indent with tabs and backspaces	用定位點和退格鍵設定左縮排和第一行縮排
+	Show	顯示
+	Steps	步驟
+	Show Steps	顯示步驟
+	Show Trailing Zeros	顯示結尾的零
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	將每個儲存格顯示為方程式：名稱為斜體，帶下標，單位使用「單位」樣式
+	Show every file as it is on disk, discarding edits made here	依磁碟上的狀態顯示每個檔案，捨棄在此所做的編輯
+	Show one digit less in results	結果少顯示一位數字
+	Show one more digit in results	結果多顯示一位數字
+	Show the equation in the line of text	在文字行內顯示方程式
+	Show the equation on a line of its own	在單獨一行顯示方程式
+	Show the exercise's data and variants	顯示習題的資料和變體
+	Show the file as it is on disk, discarding edits made here	依磁碟上的狀態顯示檔案，捨棄在此所做的編輯
+	Sides of a right triangle	直角三角形的邊
+	Significant Digits	有效位數
+	Sine Function	正弦函數
+	Sine and cosine series of f(x)	f(x) 的正弦和餘弦級數
+	Sine theta	θ 的正弦
+	Single Brackets	單括號
+	Single Left Angle	單左尖括號
+	Single Left Bar	單左直線
+	Single Left Brace	單左大括號
+	Single Left Bracket	單左中括號
+	Single Left Parenthesis	單左小括號
+	Single Right Brace	單右大括號
+	Single Right Bracket	單右中括號
+	Single Right Parenthesis	單右小括號
+	Skewed Fraction	斜分數
+	Small change	微小變化
+	Snap for the next point	下一個點的鎖點
+	Snap for the next point (Shift+right-click)	下一個點的鎖點（Shift+按右鍵）
+	Software Update	軟體更新
+	Spanish (Latin America)	西班牙文（拉丁美洲）
+	Spanish (Uruguay)	西班牙文（烏拉圭）
+	Sparse Matrices	稀疏矩陣
+	Square Root	平方根
+	Square Root with Degree	含根指數的平方根
+	Square Union	方形聯集
+	Square size	方格大小
+	Stack Object	堆疊物件
+	Stack Object (Three)	堆疊物件（三個）
+	Stacked Fraction	堆疊分數
+	Stacked, no bar	堆疊，無分數線
+	Start at	起始於
+	Strix Writer {version} is available	Strix Writer {version} 可供使用
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} 是目前可用的最新版本。
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix 是 WordCraft 的分支。Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. 請參閱 NOTICE。
+	Strong	加重
+	Styles Pane Position	樣式窗格位置
+	Subdocuments	子文件
+	Subdocuments Pane	子文件窗格
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	子文件是磁碟上的檔案：桌面版可以連結它們，瀏覽器版不行。
+	Subscript-Superscript	下標-上標
+	Subscripts and Superscripts	下標和上標
+	Subtitle	副標題
+	Subtle Emphasis	不明顯強調
+	Subtle Reference	不明顯參照
+	Sum of cosines	餘弦之和
+	Sum or difference of sines	正弦之和或差
+	Summation	求和
+	Summation from 0 to n	從 0 到 n 求和
+	Summation over binomials	二項式係數求和
+	Summation with Limits	含上下限的求和
+	Summation with Lower Limit	含下限的求和
+	Summation with Subscript Limit	含下標限的求和
+	Summation with Subscript-Superscript Limits	含上下標式上下限的求和
+	Summations	求和
+	Surface Integral	曲面積分
+	Surface Integral with Limits	含上下限的曲面積分
+	Surface Integral with Stacked Limits	含堆疊上下限的曲面積分
+	Switch	切換
+	Windows	視窗
+	Switch Windows	切換視窗
+	TOC Heading	目錄標題
+	Table Grid	表格格線
+	Table of Figures	圖表目錄
+	Tangent Function	正切函數
+	Tangent formula	正切公式
+	Text Size	文字大小
+	Text over Colon Equal	冒號等號上方含文字
+	Text over Equal	等號上方含文字
+	Text properties only: Word's number, date and yes-no types aren't offered.	僅限文字屬性：不提供數字、日期和是/否類型。
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	該格式無法保留所有內容，因此文件仍保持開啟。請另存為 Strix 文件（.xmath）後繼續。
+	That would make the object degenerate	這會使物件退化
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	資料是習題計算的第一批參數：解答依符號使用它們。變更變體會重新計算習題。
+	The document has no subdocuments.	文件沒有子文件。
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	最後一列對各欄求和（Σ =）；寫在那裡的儲存格保留其自身文字（mean =、max =）
+	The layer of the selected objects becomes the current layer	所選物件所在的圖層成為目前圖層
+	The number must be a divisor of {max}.	該數必須是 {max} 的因數。
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	無法讀取 {language} 的拼字字典，因此不會檢查。檔案：{file}。原因：{reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	游標處的表是計算表：在第一列為各欄命名（L [m]、M [kN·m] = q·L²/8），並用 Σ = 求和
+	The update couldn't be installed: {error}	無法安裝更新：{error}
+	The whole family	整個系列
+	The {name} dictionary couldn't be downloaded: {reason}	無法下載 {name} 字典：{reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	已安裝 {name} 字典：現在會檢查 {language} 拼字。
+	This cannot be undone. Your original file stays unchanged.	此動作無法復原。你的原始檔案維持不變。
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	此 Strix Writer 無法替換自身：請下載新版本並安裝到此版本之上。
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	本文件含有 Strix 物件（{objects}）。Word 和其他可編輯格式會遺失它們，因此只能儲存為 Strix 文件（.xmath）。PDF、PNG、LaTeX、HTML 和 Markdown 匯出仍可使用，為靜態副本。
+	This document has no custom properties.	本文件沒有自訂屬性。
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	本文件尚未連結其他文件。請插入一個，或選取段落並由它們建立：其文字顯示在此，並儲存回各自的檔案。
+	This equation is the result of the question it is worked under (shown in the results summary)	此方程式是其所屬題目的結果（顯示在結果彙總中）
+	Tilde	波浪號
+	To the End of the Page	到頁面結尾
+	Top of the Document	文件頂端
+	Track	修訂
+	Changes ✓	追蹤 ✓
+	Trigonometric Functions	三角函數
+	Triple Dot	三點
+	Triple Integral	三重積分
+	Triple Integral with Limits	含上下限的三重積分
+	Triple Integral with Stacked Limits	含堆疊上下限的三重積分
+	Type a page number, or +2 / -1.	輸入頁碼，或 +2 / -1。
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	輸入點（x,y  @dx,dy  @d<a）、距離、命令（l、pl、rec、c、a、t、m、co）、選項，或按 Enter
+	Type equations in LaTeX	以 LaTeX 輸入方程式
+	Type equations in the linear format (UnicodeMath)	以線性格式（UnicodeMath）輸入方程式
+	Type normal (non-math) text in the equation	在方程式中輸入一般（非數學）文字
+	URGENT	緊急
+	Underbar	下橫線
+	Underbrace	下括號
+	Union	聯集
+	Union of intersections	交集的聯集
+	Union with Limits	含上下限的聯集
+	Union with Lower Limit	含下限的聯集
+	Union with Plus	含加號的聯集
+	Union with Subscript-Superscript Limits	含上下標式上下限的聯集
+	Unions and Intersections	聯集與交集
+	Unit	單位
+	Unit:	單位：
+	Unknown selection option:	未知的選取選項：
+	Unlink	取消連結
+	Unlink Subdocument	取消子文件連結
+	Until the Next Even Page	到下一個偶數頁
+	Until the Next Odd Page	到下一個奇數頁
+	Up Diagonal Dots	右上斜向點
+	Update Summary	更新彙總
+	Update and Restart	更新並重新啟動
+	Update check is not supported in the web browser.	網頁瀏覽器不支援檢查更新。
+	Variant	變體
+	Variants	變體
+	Varies	可變
+	Vector A	向量 A
+	Vector AB	向量 AB
+	Vertex	頂點
+	Vertical Bars	直線
+	Vertical Dots	直向點
+	View and edit the document's custom properties.	檢視及編輯文件的自訂屬性。
+	Volume Integral	體積分
+	Volume Integral with Limits	含上下限的體積分
+	Volume Integral with Stacked Limits	含堆疊上下限的體積分
+	Wait for the print job to finish submitting before closing.	請等待列印工作送出完畢後再關閉。
+	What's new	新功能
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	結果和步驟的位置：在題幹行的 ⇒ 之後，或在其下各占一行，依 = 對齊
+	Window polygon	視窗多邊形
+	Write the edited subdocuments to their files now (also done by saving the document)	立即將編輯過的子文件寫入各自的檔案（儲存文件時也會寫入）
+	Yields	得出
+	You have version {version}.	你的版本是 {version}。
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / 立即產生上標、下標或分數（關閉：按 Space 才產生，如 Word 中那樣）
+	already selected	已選取
+	an exercise goes in the body, outside tables	習題放在本文中，不在表格內
+	annotative {size}	註解性 {size}
+	click adds, Shift+click removes	按一下新增，Shift+按一下移除
+	click on empty space for a window, drag for a lasso	按一下空白處為視窗選取，拖曳為套索選取
+	click the vertices; Enter or right-click closes, Esc cancels	按一下各頂點；Enter 或按右鍵閉合，Esc 取消
+	click to pick it	按一下以選取
+	conflict	衝突
+	cycle:	循環：
+	edited	已編輯
+	fitted to frame	已符合框架
+	found	已找到
+	graph paper	方格紙
+	in step	同步
+	input	輸入
+	installed	已安裝
+	no graph paper at the cursor	游標處沒有方格紙
+	no snap	不鎖點
+	not available: the cursor isn't in an exercise	無法使用：游標不在習題中
+	not found	找不到
+	n×n Identity Matrix	n×n 單位矩陣
+	n×n Matrix	n×n 矩陣
+	objects	物件
+	objects selected	個物件已選取
+	of	/
+	removed	已移除
+	scaled {size}	縮放 {size}
+	select a CAD drawing first	請先選取 CAD 圖面
+	selected	已選取
+	squares (0: none)	方格（0：無）
+	tOGGLE cASE	反轉大小寫
+	the cursor isn't in an exercise	游標不在習題中
+	the document has no exercise	文件中沒有習題
+	x bar	x 上橫線
+	{field}, record {n}	{field}，記錄 {n}
+	{language} (dictionary unreadable)	{language}（字典無法讀取）
+	{language}: {file} (unreadable: {reason})	{language}：{file}（無法讀取：{reason}）
+	{name} options	{name} 選項
+	{n} CAD drawings	{n} 個 CAD 圖面
+	{n} calculated tables	{n} 個計算表
+	{n} calculations	{n} 個計算
+	{n} exercises	{n} 道習題
+	{n} results summaries	{n} 個結果彙總
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ 無
+	Check for\nUpdates…	檢查\n更新…
+	Edit\nDrawing	編輯\n圖面
+	New\nExercise	新增\n習題
+	Show\nSteps	顯示\n步驟
+	Switch\nWindows	切換\n視窗
+	Track\nChanges ✓	追蹤修訂 ✓
+	Track\nChanges	追蹤修訂
+	CAD\nDrawing	CAD\n圖面
+	Calculated\nTable	計算\n表格
+	Graph\nPaper	方格紙
+	New\nCalculation	新增\n計算

@@ -2439,3 +2439,417 @@ paper	Envelope DL	Envelop DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Over Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(verwijderen) klik verwijdert
+	*Bold* and _italic_ as real formatting	*Vet* en _cursief_ als echte opmaak
+	1 CAD drawing	1 CAD-tekening
+	1 calculated table	1 berekende tabel
+	1 calculation	1 berekening
+	1 exercise	1 oefening
+	1 object selected	1 object geselecteerd
+	1 results summary	1 resultatenoverzicht
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Een eerste kolom, kolom 0, die de gegevensrijen 1, 2, 3… nummert (de berekeningen lezen haar nooit)
+	A free, open-source word processor written in Rust.	Een vrije, open-source tekstverwerker geschreven in Rust.
+	A grid from the cursor to the end of the page	Een raster vanaf de cursor tot het einde van de pagina
+	A new exercise takes the page breaks of the last one.	Een nieuwe oefening neemt de pagina-einden van de laatste over.
+	A new layer, made current	Een nieuwe laag, als huidige ingesteld
+	A polar array has	Een polaire reeks heeft
+	Accept All Changes and Stop Tracking	Alle wijzigingen accepteren en bijhouden stoppen
+	Accept and Move to Next	Accepteren en naar de volgende
+	Add Datum	Gegeven toevoegen
+	Add Note	Notitie toevoegen
+	Add Question	Vraag toevoegen
+	Add Sub-question	Deelvraag toevoegen
+	Add a note between the questions: free text that is not a question	Een notitie tussen de vragen toevoegen: vrije tekst die geen vraag is
+	Add a period with double-space	Een punt toevoegen met dubbele spatie
+	Add a question at the end of the exercise at the cursor	Een vraag toevoegen aan het einde van de oefening bij de cursor
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Een vraag toevoegen onder de laatste (a.1, a.1.1); Tab en Shift+Tab wijzigen het niveau van een vraag
+	Add a variant: a copy of the active one's values	Een variant toevoegen: een kopie van de waarden van de actieve
+	Add an initial datum: a symbol with its value in every variant	Een beginwaarde toevoegen: een symbool met zijn waarde in elke variant
+	Add gradient stop	Kleurovergangspunt toevoegen
+	Add to CAD Drawing	Toevoegen aan CAD-tekening
+	Advanced Properties…	Geavanceerde eigenschappen…
+	Aligned texts	Uitgelijnde teksten
+	All the selection	De hele selectie
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Alles · F hek · WP/CP veelhoek · R verwijderen · A toevoegen · P vorige · U ongedaan maken · Shift+Space wisselen
+	An array has	Een reeks heeft
+	Apply to all exercises	Toepassen op alle oefeningen
+	As the grid lines	Zoals de rasterlijnen
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Automatisch opslaan bewaart alleen Strix-documenten (.xmath); {name} heeft een ander formaat. Sla op als .xmath om automatisch opslaan in te schakelen.
+	Automatic (Decimals, Significant Below 1)	Automatisch (decimalen, significant onder 1)
+	Automatic updates are not available yet. New versions are published at {url}	Automatische updates zijn nog niet beschikbaar. Nieuwe versies worden gepubliceerd op {url}
+	Automatically add words to list (First Letter)	Woorden automatisch aan lijst toevoegen (eerste letter)
+	Automatically add words to list (INitial CAps)	Woorden automatisch aan lijst toevoegen (TWee HOofdletters)
+	Bookmarks	Bladwijzers
+	Built-in Heading styles	Ingebouwde kopstijlen
+	ByLayer	PerLaag
+	CAD	CAD
+	Drawing	Tekening
+	CAD Drawing	CAD-tekening
+	CAD Drawing Source	Bron van CAD-tekening
+	CAD Picture Format	CAD-afbeeldingsindeling
+	Calculate	Berekenen
+	Calculate New Equations	Nieuwe vergelijkingen berekenen
+	Calculate This Table	Deze tabel berekenen
+	Calculate the exercise with this variant	De oefening berekenen met deze variant
+	Calculated	Berekend
+	Table	Tabel
+	Calculated Table	Berekende tabel
+	Calculated Table Info	Info over berekende tabel
+	Calculation	Berekening
+	Calculations	Berekeningen
+	Cancel the step	De stap annuleren
+	Cells as Equations	Cellen als vergelijkingen
+	Changed here and in the file: keep one of the two.	Hier en in het bestand gewijzigd: bewaar een van de twee.
+	Check for	Controleren op
+	Updates…	Updates…
+	Checking for updates…	Controleren op updates…
+	Close Document	Document sluiten
+	Colour	Kleur
+	Column, Row Below (F_A)	Kolom, rij eronder (F_A)
+	Columns × rows:	Kolommen × rijen:
+	Considering	Rekening houdend met
+	Continue from previous section	Doorgaan vanaf de vorige sectie
+	Continue without restoring	Doorgaan zonder te herstellen
+	Coordinates take a number or an expression of the calculations (L/2)	Coördinaten accepteren een getal of een expressie uit de berekeningen (L/2)
+	Could not check for updates:\n{error}	Kon niet controleren op updates:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Kon {name} niet opslaan; het blijft open en er is niets verloren gegaan: {error}
+	Create Subdocument	Subdocument maken
+	Create Subdocument…	Subdocument maken…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Bijsnijden op de pagina werkt bij niet-gedraaide afbeeldingen: zet eerst Rotatie op 0° of gebruik de bijsnijvakken
+	Crossing polygon	Kruisende veelhoek
+	Current Document	Huidig document
+	Current layer	Huidige laag
+	Current layer: new objects go on it	Huidige laag: nieuwe objecten komen erop
+	Data Table	Gegevenstabel
+	Decimal Places	Decimalen
+	Delete Exercise	Oefening verwijderen
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	De oefening bij de cursor, of de geselecteerde oefeningen, helemaal verwijderen: opgave, vragen en oplossing verdwijnen, de resultaten verdwijnen uit het overzicht (Ongedaan maken brengt het terug)
+	Delete the layer (its objects go to layer 0)	De laag verwijderen (de objecten gaan naar laag 0)
+	Detach: a window of its own	Losmaken: een eigen venster
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Maatlijnen en hoekbogen die met een klik of een greep zijn geplaatst, behouden hun afstand in de tekening (ze volgen de grootte en schaal ervan); uit: op papier (hetzelfde in druk)
+	Dimension texts along their line (never upside down), not level	Maatteksten langs hun lijn (nooit ondersteboven), niet horizontaal
+	Dimension units	Maateenheden
+	Discard the recovery copy of {name}?	De herstelkopie van {name} verwerpen?
+	Discard…	Verwerpen…
+	Dock	Vastzetten
+	Dock Left	Links vastzetten
+	Dock Right	Rechts vastzetten
+	Dot-dot-dash	Punt-punt-streep
+	Download Dictionary	Woordenlijst downloaden
+	Download the {name} spelling dictionary	De spellingwoordenlijst {name} downloaden
+	Downloading and installing…	Downloaden en installeren…
+	Downloading the {name} dictionary…	De woordenlijst {name} downloaden…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Downloadt de Hunspell-woordenlijst {name} van de woordenlijsten van LibreOffice ({source}), met licentie {licence}, naar uw map met woordenlijsten en controleert er meteen de spelling mee.
+	Draw order	Tekenvolgorde
+	Drawing Padding	Tekenmarge
+	Drawing Scale	Tekenschaal
+	Drawing unit	Tekeneenheid
+	Edit	Bewerken
+	Editing endnote	Eindnoot bewerken
+	Editing footnote	Voetnoot bewerken
+	End mark	Eindmarkering
+	English (Australia)	Engels (Australië)
+	English (Canada)	Engels (Canada)
+	Enter bookmark name:	Voer de naam van de bladwijzer in:
+	Enter confirms	Enter bevestigt
+	Every	Elke
+	Every exercise of the document takes this exercise's page breaks	Elke oefening van het document neemt de pagina-einden van deze oefening over
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Elke waarde is een parameter met de naam van haar kolom en het label van haar rij (de eerste kolom), met een subscript: F_A of A_F
+	Exercise	Oefening
+	Exercise Data	Oefeningsgegevens
+	Exercise Info	Oefeninginfo
+	Exercise Numbering	Oefeningnummering
+	Exercise Properties	Oefeningseigenschappen
+	Exercise Result	Oefeningresultaat
+	Exercise, in the document's language	Oefening, in de taal van het document
+	Fence	Hek
+	Fewer Digits	Minder cijfers
+	File locations	Bestandslocaties
+	File type	Bestandstype
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Bestand › Nieuw toont hier onder Persoonlijk de sjablonen .xmathm, .dotx en .dotm; Opslaan als Strix-sjabloon begint hier.
+	Find “{text}” in the document	“{text}” zoeken in het document
+	First exercise: {label}	Eerste oefening: {label}
+	Fitted to Frame	Aangepast aan kader
+	Float	Zwevend
+	Folder path	Mappad
+	Follow columns	Kolommen volgen
+	For Two Pages	Voor twee pagina's
+	For a Height of 5 cm	Voor een hoogte van 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Voor elke oefening van het document: het label van elke titel en van het resultatenoverzicht.
+	Format Shape	Vorm opmaken
+	Go to it	Ernaartoe gaan
+	Gradient fill	Kleurovergangsvulling
+	Gradient stops	Kleurovergangspunten
+	Graph	Grafiek
+	Paper	Papier
+	Graph Paper	Ruitjespapier
+	Graph Paper Pane	Paneel Ruitjespapier
+	Graph Paper Properties	Eigenschappen van ruitjespapier
+	Graph Paper at Cursor	Ruitjespapier bij cursor
+	Grid lines	Rasterlijnen
+	Grip	Greep
+	Grip: the new point (click, or type it; Esc puts it back)	Greep: het nieuwe punt (klik, of typ het; Esc zet het terug)
+	Heavier lines	Zwaardere lijnen
+	How results are rounded	Hoe resultaten worden afgerond
+	Imported 1 source	1 bron geïmporteerd
+	Imported {n} sources	{n} bronnen geïmporteerd
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	In een sectie met meer dan één kolom wordt elke kolom afzonderlijk gelinieerd en blijft de ruimte ertussen vrij
+	Include label and number	Label en nummer opnemen
+	Inline (⇒)	Inline (⇒)
+	Input unit	Invoereenheid
+	Insert Graph Paper	Ruitjespapier invoegen
+	Insert Subdocument	Subdocument invoegen
+	Insert Subdocument…	Subdocument invoegen…
+	Items:	Items:
+	Keep the file	Het bestand behouden
+	Keep the text in this document, without the link; the file stays as it is	De tekst in dit document behouden, zonder de koppeling; het bestand blijft zoals het is
+	Keep this version	Deze versie behouden
+	Later	Later
+	Layer:	Laag:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	De grootte van de tekening op papier beperken (vanaf het tekstgebied van de pagina): de aangeboden schalen zijn die waarbij ze past
+	Line by Line	Regel voor regel
+	Linetype	Lijntype
+	Lineweight	Lijndikte
+	Link a document at the cursor	Een document koppelen bij de cursor
+	Linked files	Gekoppelde bestanden
+	Local recovery is unavailable or still loading.	Lokaal herstel is niet beschikbaar of wordt nog geladen.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Laag van object huidig maken
+	Make the equation at the cursor a live calculation, or an ordinary one	De vergelijking bij de cursor een live berekening maken, of een gewone
+	Make this equation a live calculation: write it with = and the unknown is solved for	Van deze vergelijking een live berekening maken: schrijf haar met = en de onbekende wordt opgelost
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	De vergelijking bij de cursor markeren als resultaat van een vraag: de waarde komt in het resultatenoverzicht
+	Master Document	Hoofddocument
+	Math	Wiskunde
+	Maximum size	Maximale grootte
+	More Digits	Meer cijfers
+	More Gradients…	Meer kleurovergangen…
+	More Underlines…	Meer onderstrepingen…
+	More tabs	Meer tabbladen
+	Move Pane: {title}	Paneel verplaatsen: {title}
+	Move to layer	Naar laag verplaatsen
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	De oefeningen van het document een naam en nummer geven: voorvoegsel (Esercizio, uw eigen tekst of geen), nummerformaat en eerste nummer, in het paneel Oefeningseigenschappen
+	New	Nieuw
+	New Calculation	Nieuwe berekening
+	New Exercise	Nieuwe oefening
+	New equations are live calculations	Nieuwe vergelijkingen zijn live berekeningen
+	New layer	Nieuwe laag
+	New page before the exercise	Nieuwe pagina vóór de oefening
+	New page before the results summary	Nieuwe pagina vóór het resultatenoverzicht
+	New page before the solution	Nieuwe pagina vóór de oplossing
+	Next object	Volgend object
+	Next point	Volgend punt
+	No Gradient	Geen kleurovergang
+	No fill	Geen vulling
+	No new sources in that file	Geen nieuwe bronnen in dat bestand
+	No previous selection	Geen vorige selectie
+	No recovery copies.	Geen herstelkopieën.
+	No selection: click objects, or drag a window	Geen selectie: klik op objecten of sleep een venster
+	Not a Data Table	Geen gegevenstabel
+	Not set	Niet ingesteld
+	Nothing of this type in the document.	Niets van dit type in het document.
+	Nothing to undo in the selection	Niets om ongedaan te maken in de selectie
+	Number Format	Getalnotatie
+	Object snap settings	Instellingen voor objectaanhaking
+	Objects	Objecten
+	Old menu keys: Alt, {keys}. Keep typing, or press Esc to cancel.	Oude menutoetsen: Alt, {keys}. Typ verder of druk op Esc om te annuleren.
+	Only text properties can be changed.	Alleen tekstkenmerken kunnen worden gewijzigd.
+	Only these	Alleen deze
+	Only when another exercise comes before it	Alleen als er een andere oefening voor staat
+	Open Subdocument	Subdocument openen
+	Open the file in a window of its own	Het bestand openen in een eigen venster
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Opent Strix-documenten (.xmath, .xmathm), .docx-, .doc-, .rtf- en .odt-bestanden en Word-sjablonen voortaan met Strix.
+	Ordinal Column	Rangnummerkolom
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Andere hoek van het venster (naar rechts: hele objecten; naar links: ook aangeraakte)
+	Outer frame	Buitenkader
+	Overwrite the file with the text shown here	Het bestand overschrijven met de hier getoonde tekst
+	Padding	Opvulling
+	Page Number Format	Notatie van paginanummers
+	Page color	Paginakleur
+	Page numbering	Paginanummering
+	Pane Options	Paneelopties
+	Personal	Persoonlijk
+	Placement	Plaatsing
+	Prefix	Voorvoegsel
+	Preset gradients	Vooraf ingestelde kleurovergangen
+	Previous object	Vorig object
+	Property names are 1–{max} characters.	Eigenschapsnamen zijn 1–{max} tekens lang.
+	Property values are at most {max} bytes.	Eigenschapswaarden zijn maximaal {max} bytes.
+	Put the cursor in an exercise to see its data and variants.	Zet de cursor in een oefening om de gegevens en varianten ervan te zien.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Zet de cursor in ruitjespapier (of op een pagina met ruitjespapier als achtergrond) om de eigenschappen ervan te zien.
+	Quick Keys	Sneltoetsen
+	Quick Keys in Formulas	Sneltoetsen in formules
+	Reading Page Color	Paginakleur voor lezen
+	Rebuild the repeated questions and the results summary	De herhaalde vragen en het resultatenoverzicht opnieuw opbouwen
+	Recalculate	Opnieuw berekenen
+	Recalculate every calculation in the document (F9)	Elke berekening in het document opnieuw berekenen (F9)
+	Recovery copy	Herstelkopie
+	Recovery is disabled while this document has a password.	Herstel is uitgeschakeld zolang dit document een wachtwoord heeft.
+	Reduce the selection to the objects considered	De selectie beperken tot de beschouwde objecten
+	Reject All Changes and Stop Tracking	Alle wijzigingen weigeren en bijhouden stoppen
+	Reject and Move to Next	Weigeren en naar de volgende
+	Release notes	Release-opmerkingen
+	Reload	Opnieuw laden
+	Reload Subdocuments	Subdocumenten opnieuw laden
+	Remove Graph Paper	Ruitjespapier verwijderen
+	Remove gradient stop	Kleurovergangspunt verwijderen
+	Remove the active variant	De actieve variant verwijderen
+	Remove this datum	Dit gegeven verwijderen
+	Replace the text shown here with the file's	De hier getoonde tekst vervangen door die van het bestand
+	Resize Pane	Paneelgrootte wijzigen
+	Restore opens an unsaved copy. Your original file stays unchanged.	Herstellen opent een niet-opgeslagen kopie. Uw oorspronkelijke bestand blijft ongewijzigd.
+	Result Layout	Resultaatindeling
+	Result Of	Resultaat van
+	Rotate with shape	Meedraaien met vorm
+	Row, Column Below (A_F)	Rij, kolom eronder (A_F)
+	Save Subdocuments	Subdocumenten opslaan
+	Save as Strix Template…	Opslaan als Strix-sjabloon…
+	Save or close your documents first: updating restarts Strix Writer.	Sla eerst uw documenten op of sluit ze: bij het bijwerken wordt Strix Writer opnieuw gestart.
+	Save the selected paragraphs as a new file, linked in their place	De geselecteerde alinea's opslaan als een nieuw bestand, op hun plaats gekoppeld
+	Save your documents: Strix Writer then closes and restarts in the new version.	Sla uw documenten op: Strix Writer wordt daarna gesloten en opnieuw gestart in de nieuwe versie.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Slaat een .xmathm-sjabloon op in uw sjablonenmap. Het verschijnt in Bestand › Nieuw onder Persoonlijk.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Bij het opslaan van het document wordt elk hier bewerkt subdocument opgeslagen. Bij het openen wordt elk bestand getoond zoals het nu is.
+	Scale Font Sizes	Lettergrootten schalen
+	Scaled distances	Geschaalde afstanden
+	Select a place in this document:	Kies een plaats in dit document:
+	Select a property to change.	Kies een eigenschap om te wijzigen.
+	Select a shape, text box or drawing canvas to format its fill.	Selecteer een vorm, tekstvak of tekenvlak om de vulling ervan op te maken.
+	Select objects	Objecten selecteren
+	Selection options	Selectieopties
+	Separate text with	Tekst scheiden met
+	Set CAD Drawing	CAD-tekening instellen
+	Set Exercise Data	Oefeningsgegevens instellen
+	Set left- and first-indent with tabs and backspaces	Linker- en eerste inspringing instellen met tabs en backspaces
+	Show	Tonen
+	Steps	Stappen
+	Show Steps	Stappen tonen
+	Show Trailing Zeros	Volgnullen tonen
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Elke cel als vergelijking tonen: namen cursief, subscripts, eenheden in de stijl Eenheid
+	Show every file as it is on disk, discarding edits made here	Elk bestand tonen zoals het op schijf staat, met verwerping van hier gemaakte wijzigingen
+	Show one digit less in results	Eén cijfer minder tonen in resultaten
+	Show one more digit in results	Eén cijfer meer tonen in resultaten
+	Show the exercise's data and variants	De gegevens en varianten van de oefening tonen
+	Show the file as it is on disk, discarding edits made here	Het bestand tonen zoals het op schijf staat, met verwerping van hier gemaakte wijzigingen
+	Show the ribbon	Het lint tonen
+	Significant Digits	Significante cijfers
+	Snap for the next point	Aanhaking voor het volgende punt
+	Snap for the next point (Shift+right-click)	Aanhaking voor het volgende punt (Shift+rechtsklik)
+	Software Update	Software-update
+	Solid fill	Effen vulling
+	Spanish (Latin America)	Spaans (Latijns-Amerika)
+	Spanish (Uruguay)	Spaans (Uruguay)
+	Square size	Vierkantsgrootte
+	Start at	Beginnen bij
+	Strix Writer {version} is available	Strix Writer {version} is beschikbaar
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} is momenteel de nieuwste beschikbare versie.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix is een fork van WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Zie NOTICE.
+	Styles Pane Position	Positie van stijlenvenster
+	Subdocuments	Subdocumenten
+	Subdocuments Pane	Paneel Subdocumenten
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Subdocumenten zijn bestanden op schijf: de desktopversie koppelt ze, de browserversie kan dat niet.
+	Switch	Overschakelen
+	Windows	Vensters
+	Switch Windows	Van venster wisselen
+	Templates you save in your templates folder show up here.	Sjablonen die u in uw sjablonenmap opslaat, verschijnen hier.
+	Text Size	Tekstgrootte
+	Text properties only: Word's number, date and yes-no types aren't offered.	Alleen tekstkenmerken: de typen getal, datum en ja/nee van Word worden niet aangeboden.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Dat formaat bewaart niet alles, dus het document blijft geopend. Sla het op als Strix-document (.xmath) om door te gaan.
+	That would make the object degenerate	Daardoor zou het object ontaarden
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	De gegevens zijn de eerste parameters van de berekeningen van de oefening: de oplossing gebruikt ze via hun symbool. Het wijzigen van de variant berekent de oefening opnieuw.
+	The document has no subdocuments.	Het document heeft geen subdocumenten.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	De laatste rij telt elke kolom op (Σ =); een daar geschreven cel behoudt haar eigen tekst (gemiddelde =, max =)
+	The layer of the selected objects becomes the current layer	De laag van de geselecteerde objecten wordt de huidige laag
+	The number must be a divisor of {max}.	Het getal moet een deler zijn van {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	De spellingwoordenlijst voor {language} kon niet worden gelezen, dus er wordt niet gecontroleerd. Bestand: {file}. Reden: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	De tabel bij de cursor is berekend: geef de kolommen een naam in de eerste rij (L [m], M [kN·m] = q·L²/8) en tel ze op met Σ =
+	The update couldn't be installed: {error}	De update kon niet worden geïnstalleerd: {error}
+	The whole family	De hele familie
+	The {name} dictionary couldn't be downloaded: {reason}	De woordenlijst {name} kon niet worden gedownload: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	De woordenlijst {name} is geïnstalleerd: spelling in {language} wordt nu gecontroleerd.
+	This cannot be undone. Your original file stays unchanged.	Dit kan niet ongedaan worden gemaakt. Uw oorspronkelijke bestand blijft ongewijzigd.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Deze kopie van Strix Writer kan zichzelf niet vervangen: download de nieuwe versie en installeer die over deze heen.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Dit document bevat Strix-objecten ({objects}). Word en de andere bewerkbare formaten zouden ze verliezen, dus het wordt alleen opgeslagen als Strix-document (.xmath). Export naar PDF, PNG, LaTeX, HTML en Markdown blijft beschikbaar als statische kopieën.
+	This document has no bookmarks.	Dit document heeft geen bladwijzers.
+	This document has no custom properties.	Dit document heeft geen aangepaste eigenschappen.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Dit document koppelt nog geen andere documenten. Voeg er een in, of selecteer alinea's en maak er een van: de tekst ervan wordt hier getoond en teruggeschreven naar het eigen bestand.
+	This equation is the result of the question it is worked under (shown in the results summary)	Deze vergelijking is het resultaat van de vraag waaronder ze wordt uitgewerkt (getoond in het resultatenoverzicht)
+	To the End of the Page	Tot het einde van de pagina
+	Top of the Document	Begin van het document
+	Type a page number, or +2 / -1.	Typ een paginanummer, of +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Typ een punt (x,y  @dx,dy  @d<a), een afstand, een opdracht (l, pl, rec, c, a, t, m, co), een optie of druk op Enter
+	Unit	Eenheid
+	Unit:	Eenheid:
+	Unknown selection option:	Onbekende selectieoptie:
+	Unlink	Ontkoppelen
+	Unlink Subdocument	Subdocument ontkoppelen
+	Until the Next Even Page	Tot de volgende even pagina
+	Until the Next Odd Page	Tot de volgende oneven pagina
+	Update Summary	Overzicht bijwerken
+	Update and Restart	Bijwerken en opnieuw starten
+	Update check is not supported in the web browser.	Controleren op updates wordt niet ondersteund in de webbrowser.
+	User templates:	Gebruikerssjablonen:
+	Value:	Waarde:
+	Variant	Variant
+	Variants	Varianten
+	Varies	Varieert
+	Vertex	Hoekpunt
+	View and edit the document's custom properties.	De aangepaste eigenschappen van het document bekijken en bewerken.
+	Wait for the print job to finish submitting before closing.	Wacht tot de afdruktaak is verzonden voordat u sluit.
+	What's new	Wat is er nieuw
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Waar resultaten en stappen komen: na ⇒ op de regel van de opgave, of elk op een eigen regel eronder, uitgelijnd op =
+	Window polygon	Vensterveelhoek
+	Write the edited subdocuments to their files now (also done by saving the document)	De bewerkte subdocumenten nu naar hun bestanden schrijven (gebeurt ook bij het opslaan van het document)
+	You have version {version}.	U hebt versie {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / maken meteen de superscript, subscript of breuk (uit: ze worden opgebouwd met Spatie, zoals in Word)
+	already selected	al geselecteerd
+	an exercise goes in the body, outside tables	een oefening staat in de hoofdtekst, buiten tabellen
+	annotative {size}	annotatief {size}
+	click adds, Shift+click removes	klik voegt toe, Shift+klik verwijdert
+	click on empty space for a window, drag for a lasso	klik op lege ruimte voor een venster, sleep voor een lasso
+	click the vertices; Enter or right-click closes, Esc cancels	klik op de hoekpunten; Enter of rechtsklik sluit, Esc annuleert
+	click to pick it	klik om te kiezen
+	cm	cm
+	conflict	conflict
+	cycle:	wisselen:
+	edited	bewerkt
+	fitted to frame	aangepast aan kader
+	found	gevonden
+	graph paper	ruitjespapier
+	in step	in stap
+	input	invoer
+	installed	geïnstalleerd
+	mm	mm
+	no graph paper at the cursor	geen ruitjespapier bij de cursor
+	no snap	geen aanhaking
+	not available: the cursor isn't in an exercise	niet beschikbaar: de cursor staat niet in een oefening
+	not found	niet gevonden
+	objects	objecten
+	objects selected	objecten geselecteerd
+	of	van
+	pi	pi
+	removed	verwijderd
+	scaled {size}	geschaald {size}
+	select a CAD drawing first	selecteer eerst een CAD-tekening
+	selected	geselecteerd
+	squares (0: none)	vierkanten (0: geen)
+	the cursor isn't in an exercise	de cursor staat niet in een oefening
+	the document has no exercise	het document heeft geen oefening
+	{field}, record {n}	{field}, record {n}
+	{language} (dictionary unreadable)	{language} (woordenlijst onleesbaar)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (onleesbaar: {reason})
+	{n} CAD drawings	{n} CAD-tekeningen
+	{n} calculated tables	{n} berekende tabellen
+	{n} calculations	{n} berekeningen
+	{n} exercises	{n} oefeningen
+	{n} results summaries	{n} resultatenoverzichten
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Controleren\nop updates…
+	Edit\nDrawing	Tekening\nbewerken
+	New\nExercise	Nieuwe\noefening
+	Show\nSteps	Stappen\ntonen
+	Switch\nWindows	Ander\nvenster
+	CAD\nDrawing	CAD-\ntekening
+	Calculated\nTable	Berekende\ntabel
+	Graph\nPaper	Millimeter-\npapier
+	New\nCalculation	Nieuwe\nberekening

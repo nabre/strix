@@ -2408,7 +2408,6 @@ preview	Title	Esempio
 	Resize Pane	Ridimensiona riquadro
 	Scale Font Sizes	Scala le dimensioni del carattere
 	Separate text with	Separa il testo con
-	Source code: github.com/nabre/strix	Codice sorgente: github.com/nabre/strix
 	Spanish (Latin America)	Spagnolo (America Latina)
 	Spanish (Uruguay)	Spagnolo (Uruguay)
 	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix è un fork di WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Vedi NOTICE.
@@ -2503,7 +2502,6 @@ preview	Title	Esempio
 	Add an initial datum: a symbol with its value in every variant	Aggiungi un dato iniziale: un simbolo con il suo valore in ogni variante
 	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	I dati sono i primi parametri dei calcoli dell'esercizio: la risoluzione li usa tramite il simbolo. Cambiando variante l'esercizio viene ricalcolato.
 	Exercise Data	Dati esercizio
-	Unit	Unità di misura
 	Show\nSteps	Mostra\npassaggi
 	Show Steps	Mostra passaggi
 	Result Layout	Disposizione risultati
@@ -2709,7 +2707,6 @@ preview	Title	Esempio
 	Grey 35%	Grigio 35%
 	Grey 20%	Grigio 20%
 	Grey 10%	Grigio 10%
-	Exercise Result	Risultato esercizio
 	This equation is the result of the question it is worked under (shown in the results summary)	Questa equazione è il risultato della domanda sotto cui è svolta (compare nel riepilogo dei risultati)
 	Quick Keys	Tasti rapidi
 	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / creano subito apice, pedice o frazione (disattivati: si trasformano con lo Spazio, come in Word)
@@ -3039,3 +3036,92 @@ paper	Envelope DL	Busta DL
 	Show the file as it is on disk, discarding edits made here	Mostra il file com'è sul disco, scartando le modifiche fatte qui
 	Open the file in a window of its own	Apri il file in una finestra propria
 	Keep the text in this document, without the link; the file stays as it is	Tieni il testo in questo documento, senza collegamento; il file resta com'è
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	I sottodocumenti sono file sul disco: li collega la versione desktop, non quella per browser.
+
+# Strix additions 2026-11-09
+	*Bold* and _italic_ as real formatting	*Grassetto* e _corsivo_ come vera formattazione
+	Add a period with double-space	Aggiungi un punto con il doppio spazio
+	Add to CAD Drawing	Aggiungi al disegno CAD
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Il salvataggio automatico conserva solo i documenti Strix (.xmath); {name} è in un altro formato. Salva come .xmath per attivare il salvataggio automatico.
+	Automatically add words to list (First Letter)	Aggiungi automaticamente le parole all'elenco (prima lettera)
+	Automatically add words to list (INitial CAps)	Aggiungi automaticamente le parole all'elenco (DUe iniziali maiuscole)
+	Bookmarks	Segnalibri
+	Built-in Heading styles	Stili di titolo predefiniti
+	CAD Drawing Source	Origine del disegno CAD
+	Calculated Table Info	Informazioni sulla tabella calcolata
+	Calculation	Calcolo
+	Checking for updates…	Ricerca di aggiornamenti in corso…
+	Continue without restoring	Continua senza ripristinare
+	Could not check for updates:\n{error}	Impossibile cercare gli aggiornamenti:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Impossibile salvare {name}, quindi resta aperto e non si è perso nulla: {error}
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Il ritaglio sulla pagina funziona con immagini non ruotate: imposta prima la rotazione a 0° oppure usa le caselle di ritaglio
+	Current Document	Documento corrente
+	Discard the recovery copy of {name}?	Scartare la copia di recupero di {name}?
+	Discard…	Scarta…
+	Download Dictionary	Scarica dizionario
+	Download the {name} spelling dictionary	Scarica il dizionario ortografico {name}
+	Downloading and installing…	Download e installazione in corso…
+	Downloading the {name} dictionary…	Download del dizionario {name} in corso…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Scarica il dizionario Hunspell {name} dai dizionari di LibreOffice ({source}), con licenza {licence}, nella cartella dei dizionari e controlla subito l'ortografia con esso.
+	Drawing Padding	Margine del disegno
+	Drawing Scale	Scala del disegno
+	Exercise Info	Informazioni sull'esercizio
+	File type	Tipo di file
+	Folder path	Percorso della cartella
+	Graph Paper Pane	Riquadro Carta millimetrata
+	Graph Paper at Cursor	Carta millimetrata al cursore
+	Imported 1 source	1 fonte importata
+	Imported {n} sources	{n} fonti importate
+	Local recovery is unavailable or still loading.	Il recupero locale non è disponibile o è ancora in caricamento.
+	No new sources in that file	Nessuna nuova fonte in quel file
+	No recovery copies.	Nessuna copia di recupero.
+	Nothing of this type in the document.	Nel documento non c'è nulla di questo tipo.
+	Only text properties can be changed.	È possibile modificare solo le proprietà del testo.
+	Property names are 1–{max} characters.	I nomi delle proprietà hanno da 1 a {max} caratteri.
+	Property values are at most {max} bytes.	I valori delle proprietà hanno al massimo {max} byte.
+	Quick Keys in Formulas	Tasti rapidi nelle formule
+	Recovery copy	Copia di recupero
+	Recovery is disabled while this document has a password.	Il recupero è disattivato finché il documento ha una password.
+	Release notes	Note di rilascio
+	Restore opens an unsaved copy. Your original file stays unchanged.	Ripristina apre una copia non salvata. Il file originale resta invariato.
+	Save as Strix Template…	Salva come modello Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Salva o chiudi prima i documenti: l'aggiornamento riavvia Strix Writer.
+	Save your documents: Strix Writer then closes and restarts in the new version.	Salva i documenti: poi Strix Writer si chiude e si riavvia nella nuova versione.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Salva un modello .xmathm nella cartella dei modelli. Compare in File › Nuovo sotto Personali.
+	Select a place in this document:	Seleziona un punto in questo documento:
+	Select a property to change.	Seleziona una proprietà da modificare.
+	Set CAD Drawing	Imposta disegno CAD
+	Set Exercise Data	Imposta dati dell'esercizio
+	Set left- and first-indent with tabs and backspaces	Imposta il rientro sinistro e della prima riga con tabulazioni e backspace
+	Software Update	Aggiornamento del software
+	Strix Writer {version} is available	Strix Writer {version} è disponibile
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} è attualmente la versione più recente disponibile.
+	Text Size	Dimensione del testo
+	Text properties only: Word's number, date and yes-no types aren't offered.	Solo proprietà di testo: i tipi numero, data e sì/no non sono offerti.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Quel formato non conserva tutto, quindi il documento resta aperto. Salvalo come documento Strix (.xmath) per continuare.
+	The document has no subdocuments.	Il documento non ha sottodocumenti.
+	The number must be a divisor of {max}.	Il numero deve essere un divisore di {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Impossibile leggere il dizionario ortografico per {language}, quindi non viene controllato. File: {file}. Motivo: {reason}
+	The update couldn't be installed: {error}	Impossibile installare l'aggiornamento: {error}
+	The {name} dictionary couldn't be downloaded: {reason}	Impossibile scaricare il dizionario {name}: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Il dizionario {name} è installato: ora l'ortografia in {language} viene controllata.
+	This cannot be undone. Your original file stays unchanged.	Questa operazione non può essere annullata. Il file originale resta invariato.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Questa copia di Strix Writer non può sostituirsi da sola: scarica la nuova versione e installala sopra questa.
+	This document has no custom properties.	Questo documento non ha proprietà personalizzate.
+	Top of the Document	Inizio del documento
+	Update and Restart	Aggiorna e riavvia
+	Update check is not supported in the web browser.	Il controllo degli aggiornamenti non è supportato nel browser web.
+	Variant	Variante
+	What's new	Novità
+	You have version {version}.	Hai la versione {version}.
+	an exercise goes in the body, outside tables	un esercizio va nel corpo del testo, fuori dalle tabelle
+	installed	installato
+	no graph paper at the cursor	nessuna carta millimetrata al cursore
+	not available: the cursor isn't in an exercise	non disponibile: il cursore non è in un esercizio
+	select a CAD drawing first	seleziona prima un disegno CAD
+	the cursor isn't in an exercise	il cursore non è in un esercizio
+	the document has no exercise	il documento non ha esercizi
+	{field}, record {n}	{field}, record {n}
+	{language} (dictionary unreadable)	{language} (dizionario illeggibile)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (illeggibile: {reason})
+	{paper}   {width} × {height}	{paper}   {width} × {height}

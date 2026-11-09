@@ -2022,3 +2022,707 @@ paper	Envelope DL	Envelope DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Sobre o Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(remover) o clique remove
+	*Bold* and _italic_ as real formatting	*Negrito* e _itálico_ como formatação real
+	1 CAD drawing	1 desenho CAD
+	1 calculated table	1 tabela calculada
+	1 calculation	1 cálculo
+	1 exercise	1 exercício
+	1 object selected	1 objeto selecionado
+	1 results summary	1 resumo de resultados
+	1×2 Empty Matrix	Matriz vazia 1×2
+	1×3 Empty Matrix	Matriz vazia 1×3
+	2×1 Empty Matrix	Matriz vazia 2×1
+	2×2 Determinant	Determinante 2×2
+	2×2 Empty Matrix	Matriz vazia 2×2
+	2×2 Identity Matrix	Matriz identidade 2×2
+	2×2 Identity Matrix (sparse)	Matriz identidade 2×2 (esparsa)
+	2×2 Matrix in Brackets	Matriz 2×2 entre colchetes
+	2×2 Matrix in Double Bars	Matriz 2×2 entre barras duplas
+	2×2 Matrix in Parentheses	Matriz 2×2 entre parênteses
+	2×3 Empty Matrix	Matriz vazia 2×3
+	3×1 Empty Matrix	Matriz vazia 3×1
+	3×2 Empty Matrix	Matriz vazia 3×2
+	3×3 Empty Matrix	Matriz vazia 3×3
+	3×3 Identity Matrix	Matriz identidade 3×3
+	3×3 Identity Matrix (sparse)	Matriz identidade 3×3 (esparsa)
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Uma primeira coluna, a coluna 0, que numera as linhas de dados 1, 2, 3… (os cálculos nunca a leem)
+	A free, open-source word processor written in Rust.	Um processador de texto livre e de código aberto, escrito em Rust.
+	A grid from the cursor to the end of the page	Uma grade do cursor até o fim da página
+	A new exercise takes the page breaks of the last one.	Um novo exercício adota as quebras de página do último.
+	A new layer, made current	Uma nova camada, tornada a atual
+	A polar array has	Uma matriz polar tem
+	A xor B	A xor B
+	ASAP	ASAP
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	Casos com valor absoluto
+	Accents	Acentos
+	Accept All Changes and Stop Tracking	Aceitar todas as alterações e parar o controle
+	Accept and Move to Next	Aceitar e ir para a próxima
+	Acute	Agudo
+	Add Datum	Adicionar dado
+	Add Note	Adicionar nota
+	Add Question	Adicionar pergunta
+	Add Sub-question	Adicionar subpergunta
+	Add a note between the questions: free text that is not a question	Adicionar uma nota entre as perguntas: texto livre que não é uma pergunta
+	Add a period with double-space	Adicionar ponto com espaço duplo
+	Add a question at the end of the exercise at the cursor	Adicionar uma pergunta no fim do exercício no cursor
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Adicionar uma pergunta aninhada sob a última (a.1, a.1.1); Tab e Shift+Tab mudam o nível de uma pergunta
+	Add a variant: a copy of the active one's values	Adicionar uma variante: uma cópia dos valores da ativa
+	Add an initial datum: a symbol with its value in every variant	Adicionar um dado inicial: um símbolo com seu valor em cada variante
+	Add to CAD Drawing	Adicionar ao desenho CAD
+	Advanced Properties…	Propriedades avançadas…
+	Aligned texts	Textos alinhados
+	All - Linear	Tudo – Linear
+	All - Professional	Tudo – Profissional
+	All the selection	Toda a seleção
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Tudo · F cerca · WP/CP polígono · R remover · A adicionar · P anterior · U desfazer · Shift+Espaço alternar
+	An array has	Uma matriz tem
+	Angle Brackets	Colchetes angulares
+	Angle Brackets with Separator	Colchetes angulares com separador
+	Angle Brackets with Two Separators	Colchetes angulares com dois separadores
+	Apply to all exercises	Aplicar a todos os exercícios
+	As the grid lines	Como as linhas da grade
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	O salvamento automático só mantém documentos Strix (.xmath); {name} está em outro formato. Salve como .xmath para ativar o salvamento automático.
+	Automatic (Decimals, Significant Below 1)	Automático (casas decimais, significativos abaixo de 1)
+	Automatic updates are not available yet. New versions are published at {url}	As atualizações automáticas ainda não estão disponíveis. Novas versões são publicadas em {url}
+	Automatically add words to list (First Letter)	Adicionar palavras automaticamente à lista (primeira letra)
+	Automatically add words to list (INitial CAps)	Adicionar palavras automaticamente à lista (DUas MAiúsculas)
+	Baseline Dots	Pontos na linha de base
+	Basic Math	Matemática básica
+	Bayes' rule	Regra de Bayes
+	Binomial Coefficient	Coeficiente binomial
+	Binomial Coefficient (angle)	Coeficiente binomial (angular)
+	Binomial Coefficient with Angle Brackets	Coeficiente binomial com colchetes angulares
+	Binomial expansion of (x+a)ⁿ	Expansão binomial de (x+a)ⁿ
+	Body text in a short paragraph to show spacing.	Texto do corpo em um parágrafo curto para mostrar o espaçamento.
+	Book Title	Título do livro
+	Bookmarks	Indicadores
+	Boxed Formula	Fórmula em caixa
+	Boxed Formula (example)	Fórmula em caixa (exemplo)
+	Boxed Formulas	Fórmulas em caixa
+	Braces	Chaves
+	Braces with Separator	Chaves com separador
+	Brackets	Colchetes
+	Brackets with Separators	Colchetes com separadores
+	Breve	Breve
+	Built-in Heading styles	Estilos de título internos
+	ByLayer	PorCamada
+	CAD	CAD
+	Drawing	Desenho
+	CAD Drawing	Desenho CAD
+	CAD Drawing Source	Origem do desenho CAD
+	CAD Picture Format	Formato de imagem CAD
+	CONFIDENTIAL	CONFIDENCIAL
+	Calculate New Equations	Calcular novas equações
+	Calculate This Table	Calcular esta tabela
+	Calculate the exercise with this variant	Calcular o exercício com esta variante
+	Calculated	Calculada
+	Table	Tabela
+	Calculated Table	Tabela calculada
+	Calculated Table Info	Informações da tabela calculada
+	Calculation	Cálculo
+	Calculations	Cálculos
+	Cancel the step	Cancelar a etapa
+	Cases (Three Conditions)	Casos (três condições)
+	Cases (Two Conditions)	Casos (duas condições)
+	Cases and Stacks	Casos e pilhas
+	Ceiling	Teto
+	Cells as Equations	Células como equações
+	Centered as Group	Centralizado como grupo
+	Change in y over change in x	Variação de y sobre variação de x
+	Change to Level 1	Mudar para o nível 1
+	Change to Level 2	Mudar para o nível 2
+	Change to Level 3	Mudar para o nível 3
+	Change to Level 4	Mudar para o nível 4
+	Change to Level 5	Mudar para o nível 5
+	Changed here and in the file: keep one of the two.	Alterado aqui e no arquivo: mantenha uma das duas versões.
+	Check	Verificar
+	Check for	Verificar
+	Updates…	atualizações…
+	Checking for updates…	Verificando atualizações…
+	Circle area from its radius	Área do círculo a partir do raio
+	Circled Dot	Ponto circulado
+	Circled Plus	Mais circulado
+	Circled Times	Vezes circulado
+	Close Document	Fechar documento
+	Colon Equal	Dois-pontos igual
+	Column, Row Below (F_A)	Coluna, linha abaixo (F_A)
+	Columns × rows:	Colunas × linhas:
+	Common Accent Objects	Objetos de acento comuns
+	Common Brackets	Colchetes comuns
+	Common Fractions	Frações comuns
+	Common Functions	Funções comuns
+	Common Large Operators	Operadores grandes comuns
+	Common Operator Structures	Estruturas de operadores comuns
+	Common Operators	Operadores comuns
+	Common Radicals	Radicais comuns
+	Common Subscripts and Superscripts	Subscritos e sobrescritos comuns
+	Considering	Considerando
+	Continue without restoring	Continuar sem restaurar
+	Contour Integral	Integral de contorno
+	Contour Integral with Limits	Integral de contorno com limites
+	Contour Integral with Stacked Limits	Integral de contorno com limites empilhados
+	Contour Integrals	Integrais de contorno
+	Convert between built-up and linear form	Converter entre a forma desenvolvida e a linear
+	Coordinates take a number or an expression of the calculations (L/2)	As coordenadas aceitam um número ou uma expressão dos cálculos (L/2)
+	Coproduct	Coproduto
+	Coproduct with Limits	Coproduto com limites
+	Coproduct with Lower Limit	Coproduto com limite inferior
+	Coproduct with Subscript-Superscript Limits	Coproduto com limites subscrito-sobrescrito
+	Cosecant Function	Função cossecante
+	Cosine 2x	Cosseno de 2x
+	Cosine Function	Função cosseno
+	Cotangent Function	Função cotangente
+	Could not check for updates:\n{error}	Não foi possível verificar atualizações:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Não foi possível salvar {name}, então ele continua aberto e nada foi perdido: {error}
+	Create Subdocument	Criar subdocumento
+	Create Subdocument…	Criar subdocumento…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	O corte na página funciona com imagens sem rotação: defina primeiro a rotação como 0° ou use as caixas de corte
+	Crossing polygon	Polígono de cruzamento
+	Cube Root	Raiz cúbica
+	Current - Linear	Atual – Linear
+	Current - Professional	Atual – Profissional
+	Current Document	Documento atual
+	Current layer	Camada atual
+	Current layer: new objects go on it	Camada atual: os novos objetos vão para ela
+	DO NOT COPY	NÃO COPIAR
+	DRAFT	RASCUNHO
+	Data Table	Tabela de dados
+	Decimal Places	Casas decimais
+	Delete Exercise	Excluir exercício
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Excluir por inteiro o exercício no cursor ou os exercícios selecionados: enunciado, perguntas e solução somem, seus resultados saem do resumo (Desfazer o traz de volta)
+	Delete the layer (its objects go to layer 0)	Excluir a camada (seus objetos vão para a camada 0)
+	Delta Equal To	Delta igual a
+	Delta over arrow	Delta sobre seta
+	Derivative as a limit	Derivada como limite
+	Detach: a window of its own	Destacar: uma janela própria
+	Diagonal Dots	Pontos diagonais
+	Differential	Diferencial
+	Differential theta	Diferencial de teta
+	Differential x	Diferencial de x
+	Differential y	Diferencial de y
+	Differentials	Diferenciais
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	As linhas de cota e os arcos de ângulo colocados com um clique ou uma alça mantêm sua distância no desenho (acompanham seu tamanho e escala); desativado: no papel (igual na impressão)
+	Dimension texts along their line (never upside down), not level	Textos de cota ao longo da linha (nunca de cabeça para baixo), não na horizontal
+	Dimension units	Unidades de cota
+	Discard the recovery copy of {name}?	Descartar a cópia de recuperação de {name}?
+	Discard…	Descartar…
+	Dock	Ancorar
+	Dock Left	Ancorar à esquerda
+	Dock Right	Ancorar à direita
+	Double Bar	Barra dupla
+	Double Dot	Ponto duplo
+	Double Integral	Integral dupla
+	Double Integral with Limits	Integral dupla com limites
+	Double Integral with Stacked Limits	Integral dupla com limites empilhados
+	Double Left Arrow with Text Above	Seta dupla para a esquerda com texto acima
+	Double Left Arrow with Text Below	Seta dupla para a esquerda com texto abaixo
+	Double Left Right Arrow with Text Above	Seta dupla esquerda-direita com texto acima
+	Double Left Right Arrow with Text Below	Seta dupla esquerda-direita com texto abaixo
+	Double Right Arrow with Text Above	Seta dupla para a direita com texto acima
+	Double Right Arrow with Text Below	Seta dupla para a direita com texto abaixo
+	Double Square Brackets	Colchetes duplos
+	Double Vertical Bars	Barras verticais duplas
+	Double summation	Somatório duplo
+	Download Dictionary	Baixar dicionário
+	Download the {name} spelling dictionary	Baixar o dicionário ortográfico {name}
+	Downloading and installing…	Baixando e instalando…
+	Downloading the {name} dictionary…	Baixando o dicionário {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Baixa o dicionário Hunspell {name} dos dicionários do LibreOffice ({source}), sob a licença {licence}, para a sua pasta de dicionários e verifica a ortografia com ele imediatamente.
+	Draw order	Ordem de desenho
+	Drawing Padding	Margem do desenho
+	Drawing Scale	Escala do desenho
+	Drawing unit	Unidade do desenho
+	Edit	Editar
+	Emphasis	Ênfase
+	Empty Matrices	Matrizes vazias
+	End mark	Marca final
+	Endnote Reference	Referência de nota de fim
+	Endnote Text	Texto de nota de fim
+	Enter bookmark name:	Digite o nome do indicador:
+	Enter confirms	Enter confirma
+	Equal Equal	Igual igual
+	Equal by Definition	Igual por definição
+	Euler's identity	Identidade de Euler
+	Every	Cada
+	Every exercise of the document takes this exercise's page breaks	Todos os exercícios do documento adotam as quebras de página deste exercício
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Cada valor é um parâmetro nomeado por sua coluna e pelo rótulo de sua linha (a primeira coluna), com um subscrito: F_A ou A_F
+	Exercise	Exercício
+	Exercise Data	Dados do exercício
+	Exercise Info	Informações do exercício
+	Exercise Numbering	Numeração de exercícios
+	Exercise Properties	Propriedades do exercício
+	Exercise Result	Resultado do exercício
+	Exercise, in the document's language	Exercício, no idioma do documento
+	Exponential	Exponencial
+	Exponential series	Série exponencial
+	Fence	Cerca
+	Fewer Digits	Menos dígitos
+	File type	Tipo de arquivo
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Arquivo › Novo lista aqui os modelos .xmathm, .dotx e .dotm em Pessoais; Salvar como modelo Strix começa aqui.
+	Find “{text}” in the document	Localizar “{text}” no documento
+	First exercise: {label}	Primeiro exercício: {label}
+	Fitted to Frame	Ajustado ao quadro
+	Float	Flutuante
+	Floor	Piso
+	Folder path	Caminho da pasta
+	Follow columns	Seguir colunas
+	Footnote Reference	Referência de nota de rodapé
+	Footnote Text	Texto de nota de rodapé
+	For Two Pages	Para duas páginas
+	For a Height of 5 cm	Para uma altura de 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Para cada exercício do documento: o rótulo de cada título e do resumo de resultados.
+	For which item:	Para qual item:
+	Go to it	Ir até ele
+	Graph	Milimetrado
+	Paper	Papel
+	Graph Paper	Papel milimetrado
+	Graph Paper Pane	Painel de papel milimetrado
+	Graph Paper Properties	Propriedades do papel milimetrado
+	Graph Paper at Cursor	Papel milimetrado no cursor
+	Grave	Grave
+	Greek Letters	Letras gregas
+	Grid Table 1 Light	Tabela em grade 1 clara
+	Grid Table 4 – Blue	Tabela em grade 4 – Azul
+	Grid Table 4 – Green	Tabela em grade 4 – Verde
+	Grid Table 4 – Orange	Tabela em grade 4 – Laranja
+	Grid Table 4 – Purple	Tabela em grade 4 – Roxo
+	Grid lines	Linhas de grade
+	Grip	Alça
+	Grip: the new point (click, or type it; Esc puts it back)	Alça: o novo ponto (clique ou digite; Esc o devolve)
+	Grouping Character Above	Caractere de agrupamento acima
+	Grouping Character Below	Caractere de agrupamento abaixo
+	Hat	Circunflexo
+	Heading	Título
+	Heading text	Texto do título
+	Heavier lines	Linhas mais grossas
+	How results are rounded	Como os resultados são arredondados
+	Hyperbolic Cosecant Function	Cossecante hiperbólica
+	Hyperbolic Cosine Function	Cosseno hiperbólico
+	Hyperbolic Cotangent Function	Cotangente hiperbólica
+	Hyperbolic Functions	Funções hiperbólicas
+	Hyperbolic Secant Function	Secante hiperbólica
+	Hyperbolic Sine Function	Seno hiperbólico
+	Hyperbolic Tangent Function	Tangente hiperbólica
+	Hyperlink	Hiperlink
+	Hypotenuse	Hipotenusa
+	Identity Matrices	Matrizes identidade
+	Imported 1 source	1 fonte importada
+	Imported {n} sources	{n} fontes importadas
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Em uma seção com mais de uma coluna, cada coluna é pautada separadamente e o espaço entre elas fica livre
+	Inline (⇒)	No texto (⇒)
+	Input unit	Unidade de entrada
+	Insert Graph Paper	Inserir papel milimetrado
+	Insert Subdocument	Inserir subdocumento
+	Insert Subdocument…	Inserir subdocumento…
+	Insert reference to:	Inserir referência para:
+	Integral of e^(−x²)	Integral de e^(−x²)
+	Integral with Limits	Integral com limites
+	Integral with Stacked Limits	Integral com limites empilhados
+	Integrals	Integrais
+	Intense Emphasis	Ênfase intensa
+	Intense Quote	Citação intensa
+	Intense Reference	Referência intensa
+	Intersection with Limits	Interseção com limites
+	Intersection with Lower Limit	Interseção com limite inferior
+	Intersection with Subscript-Superscript Limits	Interseção com limites subscrito-sobrescrito
+	Inverse Cosecant Function	Função arco cossecante
+	Inverse Cosine Function	Função arco cosseno
+	Inverse Cotangent Function	Função arco cotangente
+	Inverse Functions	Funções inversas
+	Inverse Hyperbolic Cosecant Function	Cossecante hiperbólica inversa
+	Inverse Hyperbolic Cosine Function	Cosseno hiperbólico inverso
+	Inverse Hyperbolic Cotangent Function	Cotangente hiperbólica inversa
+	Inverse Hyperbolic Functions	Funções hiperbólicas inversas
+	Inverse Hyperbolic Secant Function	Secante hiperbólica inversa
+	Inverse Hyperbolic Sine Function	Seno hiperbólico inverso
+	Inverse Hyperbolic Tangent Function	Tangente hiperbólica inversa
+	Inverse Secant Function	Função arco secante
+	Inverse Sine Function	Função arco seno
+	Inverse Tangent Function	Função arco tangente
+	Items:	Itens:
+	Justification of a display equation	Justificação de uma equação em destaque
+	Keep the file	Manter o arquivo
+	Keep the text in this document, without the link; the file stays as it is	Manter o texto neste documento, sem o vínculo; o arquivo permanece como está
+	Keep this version	Manter esta versão
+	Layer:	Camada:
+	Left Arrow with Text Above	Seta para a esquerda com texto acima
+	Left Arrow with Text Below	Seta para a esquerda com texto abaixo
+	Left Bracket Twice	Colchete esquerdo duplo
+	Left Right Arrow Above	Seta esquerda-direita acima
+	Left Right Arrow with Text Above	Seta esquerda-direita com texto acima
+	Left Right Arrow with Text Below	Seta esquerda-direita com texto abaixo
+	Left Subscript-Superscript	Subscrito-sobrescrito à esquerda
+	Leftwards Arrow Above	Seta para a esquerda acima
+	Leftwards Harpoon Above	Arpão para a esquerda acima
+	Letter-Like Symbols	Símbolos tipo letra
+	Limit	Limite
+	Limit Example	Exemplo de limite
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Limitar o tamanho do desenho no papel (a partir da área de texto da página): as escalas oferecidas são aquelas em que ele cabe
+	Line by Line	Linha por linha
+	Linear Fraction	Fração linear
+	Linetype	Tipo de linha
+	Lineweight	Espessura de linha
+	Link a document at the cursor	Vincular um documento no cursor
+	Linked files	Arquivos vinculados
+	List Paragraph	Parágrafo de lista
+	List Table 3 – Blue	Tabela de lista 3 – Azul
+	List Table 3 – Green	Tabela de lista 3 – Verde
+	List Table 3 – Orange	Tabela de lista 3 – Laranja
+	List Table 3 – Purple	Tabela de lista 3 – Roxo
+	Local recovery is unavailable or still loading.	A recuperação local não está disponível ou ainda está carregando.
+	Logarithm	Logaritmo
+	Logarithm with Base	Logaritmo com base
+	Logical AND	E lógico
+	Logical AND with Limits	E lógico com limites
+	Logical OR	OU lógico
+	Logical OR with Limits	OU lógico com limites
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Tornar atual a camada do objeto
+	Make the equation at the cursor a live calculation, or an ordinary one	Tornar a equação no cursor um cálculo ativo ou uma equação comum
+	Make this equation a live calculation: write it with = and the unknown is solved for	Tornar esta equação um cálculo ativo: escreva-a com = e a incógnita é resolvida
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Marcar a equação no cursor como o resultado de uma pergunta: seu valor vai para o resumo de resultados
+	Master Document	Documento mestre
+	Math	Matemática
+	Matrices with Brackets	Matrizes com colchetes
+	Maximum Example	Exemplo de máximo
+	Maximum size	Tamanho máximo
+	Measured By	Medido por
+	Midline Dots	Pontos na linha central
+	Minus Equal	Menos igual
+	More Digits	Mais dígitos
+	Move Pane: {title}	Mover painel: {title}
+	Move to layer	Mover para a camada
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Nomear e numerar os exercícios do documento: prefixo (Esercizio, texto próprio ou nenhum), formato do número e primeiro número, no painel Propriedades do exercício
+	Natural Logarithm	Logaritmo natural
+	Negated Relations	Relações negadas
+	New	Novo
+	New Calculation	Novo cálculo
+	New Exercise	Novo exercício
+	New equations are live calculations	As novas equações são cálculos ativos
+	New layer	Nova camada
+	New page before the exercise	Nova página antes do exercício
+	New page before the results summary	Nova página antes do resumo de resultados
+	New page before the solution	Nova página antes da solução
+	Next object	Próximo objeto
+	Next point	Próximo ponto
+	No Spacing	Sem espaçamento
+	No items to show.	Nenhum item para mostrar.
+	No new sources in that file	Nenhuma fonte nova nesse arquivo
+	No previous selection	Nenhuma seleção anterior
+	No recovery copies.	Nenhuma cópia de recuperação.
+	No selection: click objects, or drag a window	Nenhuma seleção: clique em objetos ou arraste uma janela
+	Normal probability density	Densidade de probabilidade normal
+	Not a Data Table	Não é uma tabela de dados
+	Nothing of this type in the document.	Nada deste tipo no documento.
+	Nothing to undo in the selection	Nada a desfazer na seleção
+	Number Format	Formato do número
+	Number the equation; the number sits at the right margin (or type # then the number)	Numerar a equação; o número fica na margem direita (ou digite # e depois o número)
+	Object snap settings	Configurações de snap de objetos
+	Objects	Objetos
+	One half	Um meio
+	Only text properties can be changed.	Somente propriedades de texto podem ser alteradas.
+	Only these	Somente estes
+	Only when another exercise comes before it	Somente quando outro exercício vem antes dele
+	Open Subdocument	Abrir subdocumento
+	Open the file in a window of its own	Abrir o arquivo em uma janela própria
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Abre documentos Strix (.xmath, .xmathm), arquivos .docx, .doc, .rtf e .odt e modelos do Word com o Strix a partir de agora.
+	Operator Structures	Estruturas de operadores
+	Operators	Operadores
+	Ordinal Column	Coluna ordinal
+	Other Large Operators	Outros operadores grandes
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Outro canto da janela (para a direita: objetos inteiros; para a esquerda: também os tocados)
+	Outer frame	Moldura externa
+	Outward Brackets	Colchetes voltados para fora
+	Overbar	Barra superior
+	Overbars and Underbars	Barras superiores e inferiores
+	Overbrace	Chave superior
+	Overwrite the file with the text shown here	Sobrescrever o arquivo com o texto mostrado aqui
+	Padding	Preenchimento
+	Page color	Cor da página
+	Pane Options	Opções do painel
+	Parentheses	Parênteses
+	Parentheses with Separator	Parênteses com separador
+	Partial Differential	Diferencial parcial
+	Pi Over 2	Pi sobre 2
+	Placement	Posicionamento
+	Plain Table 1	Tabela simples 1
+	Plus Equal	Mais igual
+	Possible spelling mistake	Possível erro de ortografia
+	Power series of (1+x)ⁿ	Série de potências de (1+x)ⁿ
+	Previous object	Objeto anterior
+	Product	Produto
+	Product of A	Produto de A
+	Product with Limits	Produto com limites
+	Product with Lower Limit	Produto com limite inferior
+	Product with Subscript-Superscript Limits	Produto com limites subscrito-sobrescrito
+	Products and Coproducts	Produtos e coprodutos
+	Property names are 1–{max} characters.	Os nomes de propriedade têm de 1 a {max} caracteres.
+	Property values are at most {max} bytes.	Os valores de propriedade têm no máximo {max} bytes.
+	Put the cursor in an exercise to see its data and variants.	Coloque o cursor em um exercício para ver seus dados e variantes.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Coloque o cursor em um papel milimetrado (ou em uma página com fundo de papel milimetrado) para ver suas propriedades.
+	Quadratic Root	Raiz quadrática
+	Quick Keys	Teclas rápidas
+	Quick Keys in Formulas	Teclas rápidas em fórmulas
+	Quote	Citação
+	Radical with Degree	Radical com índice
+	Radicals	Radicais
+	Reading Page Color	Cor da página na leitura
+	Rebuild the repeated questions and the results summary	Refazer as perguntas repetidas e o resumo de resultados
+	Recalculate	Recalcular
+	Recalculate every calculation in the document (F9)	Recalcular todos os cálculos do documento (F9)
+	Recovery copy	Cópia de recuperação
+	Recovery is disabled while this document has a password.	A recuperação fica desativada enquanto este documento tiver senha.
+	Reduce the selection to the objects considered	Reduzir a seleção aos objetos considerados
+	Reference type:	Tipo de referência:
+	Reject All Changes and Stop Tracking	Rejeitar todas as alterações e parar o controle
+	Reject and Move to Next	Rejeitar e ir para a próxima
+	Release notes	Notas da versão
+	Reload Subdocuments	Recarregar subdocumentos
+	Remove Graph Paper	Remover papel milimetrado
+	Remove the active variant	Remover a variante ativa
+	Remove this datum	Remover este dado
+	Replace the text shown here with the file's	Substituir o texto mostrado aqui pelo do arquivo
+	Resize Pane	Redimensionar painel
+	Restore opens an unsaved copy. Your original file stays unchanged.	Restaurar abre uma cópia não salva. Seu arquivo original permanece inalterado.
+	Result Layout	Layout do resultado
+	Result Of	Resultado de
+	Right Arrow with Text Above	Seta para a direita com texto acima
+	Right Arrow with Text Below	Seta para a direita com texto abaixo
+	Right Bracket Twice	Colchete direito duplo
+	Rightwards Arrow Above	Seta para a direita acima
+	Rightwards Harpoon Above	Arpão para a direita acima
+	Roots of ax²+bx+c	Raízes de ax²+bx+c
+	Row, Column Below (A_F)	Linha, coluna abaixo (A_F)
+	SAMPLE	EXEMPLO
+	Save Subdocuments	Salvar subdocumentos
+	Save as Strix Template…	Salvar como modelo Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Salve ou feche seus documentos primeiro: a atualização reinicia o Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Salvar os parágrafos selecionados como um novo arquivo, vinculado no lugar deles
+	Save your documents: Strix Writer then closes and restarts in the new version.	Salve seus documentos: o Strix Writer então fecha e reinicia na nova versão.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Salva um modelo .xmathm na sua pasta de modelos. Ele aparece em Arquivo › Novo, em Pessoais.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Salvar o documento salva todo subdocumento editado aqui. Abri-lo mostra cada arquivo como está agora.
+	Scale Font Sizes	Dimensionar tamanhos de fonte
+	Scaled distances	Distâncias escaladas
+	Secant Function	Função secante
+	Select a place in this document:	Selecione um lugar neste documento:
+	Select a property to change.	Selecione uma propriedade para alterar.
+	Select objects	Selecionar objetos
+	Selection options	Opções de seleção
+	Separate text with	Separar o texto com
+	Set CAD Drawing	Definir desenho CAD
+	Set Exercise Data	Definir dados do exercício
+	Set left- and first-indent with tabs and backspaces	Definir o recuo esquerdo e o da primeira linha com tabulações e backspaces
+	Show	Mostrar
+	Steps	etapas
+	Show Steps	Mostrar etapas
+	Show Trailing Zeros	Mostrar zeros finais
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Mostrar cada célula como equação: nomes em itálico, subscritos, unidades no estilo Unidade
+	Show every file as it is on disk, discarding edits made here	Mostrar cada arquivo como está no disco, descartando as edições feitas aqui
+	Show one digit less in results	Mostrar um dígito a menos nos resultados
+	Show one more digit in results	Mostrar um dígito a mais nos resultados
+	Show the equation in the line of text	Mostrar a equação na linha de texto
+	Show the equation on a line of its own	Mostrar a equação em uma linha própria
+	Show the exercise's data and variants	Mostrar os dados e as variantes do exercício
+	Show the file as it is on disk, discarding edits made here	Mostrar o arquivo como está no disco, descartando as edições feitas aqui
+	Sides of a right triangle	Lados de um triângulo retângulo
+	Significant Digits	Dígitos significativos
+	Sine Function	Função seno
+	Sine and cosine series of f(x)	Séries de seno e cosseno de f(x)
+	Sine theta	Seno de teta
+	Single Brackets	Colchetes simples
+	Single Left Angle	Colchete angular esquerdo simples
+	Single Left Bar	Barra esquerda simples
+	Single Left Brace	Chave esquerda simples
+	Single Left Bracket	Colchete esquerdo simples
+	Single Left Parenthesis	Parêntese esquerdo simples
+	Single Right Brace	Chave direita simples
+	Single Right Bracket	Colchete direito simples
+	Single Right Parenthesis	Parêntese direito simples
+	Skewed Fraction	Fração inclinada
+	Small change	Pequena alteração
+	Snap for the next point	Snap para o próximo ponto
+	Snap for the next point (Shift+right-click)	Snap para o próximo ponto (Shift+clique direito)
+	Software Update	Atualização de software
+	Spanish (Latin America)	Espanhol (América Latina)
+	Spanish (Uruguay)	Espanhol (Uruguai)
+	Sparse Matrices	Matrizes esparsas
+	Square Root	Raiz quadrada
+	Square Root with Degree	Raiz quadrada com índice
+	Square Union	União quadrada
+	Square size	Tamanho do quadrado
+	Stack Object	Objeto empilhado
+	Stack Object (Three)	Objeto empilhado (três)
+	Stacked Fraction	Fração empilhada
+	Stacked, no bar	Empilhada, sem barra
+	Start at	Começar em
+	Strix Writer {version} is available	O Strix Writer {version} está disponível
+	Strix Writer {version} is currently the newest version available.	O Strix Writer {version} é atualmente a versão mais recente disponível.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Strong	Forte
+	Styles Pane Position	Posição do painel de estilos
+	Subdocuments	Subdocumentos
+	Subdocuments Pane	Painel de subdocumentos
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Subdocumentos são arquivos em disco: a versão para desktop os vincula, a versão para navegador não pode.
+	Subscript-Superscript	Subscrito-sobrescrito
+	Subscripts and Superscripts	Subscritos e sobrescritos
+	Subtle Emphasis	Ênfase sutil
+	Subtle Reference	Referência sutil
+	Sum of cosines	Soma de cossenos
+	Sum or difference of sines	Soma ou diferença de senos
+	Summation	Somatório
+	Summation from 0 to n	Somatório de 0 a n
+	Summation over binomials	Somatório sobre binomiais
+	Summation with Limits	Somatório com limites
+	Summation with Lower Limit	Somatório com limite inferior
+	Summation with Subscript Limit	Somatório com limite subscrito
+	Summation with Subscript-Superscript Limits	Somatório com limites subscrito-sobrescrito
+	Summations	Somatórios
+	Surface Integral	Integral de superfície
+	Surface Integral with Limits	Integral de superfície com limites
+	Surface Integral with Stacked Limits	Integral de superfície com limites empilhados
+	Switch	Alternar
+	Windows	Janelas
+	Switch Windows	Alternar janelas
+	TOC Heading	Título do sumário
+	Table Grid	Grade de tabela
+	Table of Figures	Índice de ilustrações
+	Tangent Function	Função tangente
+	Tangent formula	Fórmula da tangente
+	Text Size	Tamanho do texto
+	Text over Colon Equal	Texto sobre dois-pontos igual
+	Text over Equal	Texto sobre igual
+	Text properties only: Word's number, date and yes-no types aren't offered.	Somente propriedades de texto: os tipos número, data e sim/não do Word não são oferecidos.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Esse formato não mantém tudo, então o documento continua aberto. Salve-o como documento Strix (.xmath) para continuar.
+	That would make the object degenerate	Isso deixaria o objeto degenerado
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Os dados são os primeiros parâmetros dos cálculos do exercício: a solução os usa pelo símbolo. Mudar a variante recalcula o exercício.
+	The document has no subdocuments.	O documento não tem subdocumentos.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	A última linha soma cada coluna (Σ =); uma célula escrita ali mantém seu próprio texto (média =, máx =)
+	The layer of the selected objects becomes the current layer	A camada dos objetos selecionados passa a ser a camada atual
+	The number must be a divisor of {max}.	O número deve ser um divisor de {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Não foi possível ler o dicionário ortográfico de {language}, então ele não é verificado. Arquivo: {file}. Motivo: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	A tabela no cursor é calculada: nomeie suas colunas na primeira linha (L [m], M [kN·m] = q·L²/8) e some-as com Σ =
+	The update couldn't be installed: {error}	Não foi possível instalar a atualização: {error}
+	The whole family	A família toda
+	The {name} dictionary couldn't be downloaded: {reason}	Não foi possível baixar o dicionário {name}: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	O dicionário {name} está instalado: a ortografia em {language} agora é verificada.
+	This cannot be undone. Your original file stays unchanged.	Isto não pode ser desfeito. Seu arquivo original permanece inalterado.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Esta cópia do Strix Writer não pode se substituir: baixe a nova versão e instale-a sobre esta.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Este documento tem objetos Strix ({objects}). O Word e os outros formatos editáveis os perderiam, então ele só é salvo como documento Strix (.xmath). As exportações para PDF, PNG, LaTeX, HTML e Markdown continuam disponíveis como cópias estáticas.
+	This document has no custom properties.	Este documento não tem propriedades personalizadas.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Este documento ainda não vincula outros documentos. Insira um ou selecione parágrafos e crie um a partir deles: o texto aparece aqui e é salvo de volta no próprio arquivo.
+	This equation is the result of the question it is worked under (shown in the results summary)	Esta equação é o resultado da pergunta sob a qual é resolvida (mostrado no resumo de resultados)
+	Tilde	Til
+	To the End of the Page	Até o fim da página
+	Top of the Document	Início do documento
+	Track	Controlar
+	Changes ✓	alterações ✓
+	Trigonometric Functions	Funções trigonométricas
+	Triple Dot	Ponto triplo
+	Triple Integral	Integral tripla
+	Triple Integral with Limits	Integral tripla com limites
+	Triple Integral with Stacked Limits	Integral tripla com limites empilhados
+	Type a page number, or +2 / -1.	Digite um número de página ou +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Digite um ponto (x,y  @dx,dy  @d<a), uma distância, um comando (l, pl, rec, c, a, t, m, co), uma opção ou pressione Enter
+	Type equations in LaTeX	Digitar equações em LaTeX
+	Type equations in the linear format (UnicodeMath)	Digitar equações no formato linear (UnicodeMath)
+	Type normal (non-math) text in the equation	Digitar texto normal (não matemático) na equação
+	URGENT	URGENTE
+	Underbar	Barra inferior
+	Underbrace	Chave inferior
+	Union of intersections	União de interseções
+	Union with Limits	União com limites
+	Union with Lower Limit	União com limite inferior
+	Union with Plus	União com mais
+	Union with Subscript-Superscript Limits	União com limites subscrito-sobrescrito
+	Unions and Intersections	Uniões e interseções
+	Unit	Unidade
+	Unit:	Unidade:
+	Unknown selection option:	Opção de seleção desconhecida:
+	Unlink	Desvincular
+	Unlink Subdocument	Desvincular subdocumento
+	Until the Next Even Page	Até a próxima página par
+	Until the Next Odd Page	Até a próxima página ímpar
+	Up Diagonal Dots	Pontos diagonais ascendentes
+	Update Summary	Atualizar resumo
+	Update and Restart	Atualizar e reiniciar
+	Update check is not supported in the web browser.	A verificação de atualizações não é compatível com o navegador da web.
+	Variant	Variante
+	Variants	Variantes
+	Varies	Varia
+	Vector A	Vetor A
+	Vector AB	Vetor AB
+	Vertex	Vértice
+	Vertical Bars	Barras verticais
+	Vertical Dots	Pontos verticais
+	View and edit the document's custom properties.	Ver e editar as propriedades personalizadas do documento.
+	Volume Integral	Integral de volume
+	Volume Integral with Limits	Integral de volume com limites
+	Volume Integral with Stacked Limits	Integral de volume com limites empilhados
+	Wait for the print job to finish submitting before closing.	Aguarde o envio do trabalho de impressão terminar antes de fechar.
+	What's new	Novidades
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Para onde vão resultados e etapas: após ⇒ na linha do enunciado, ou uma linha cada abaixo dele, alinhadas em =
+	Window polygon	Polígono de janela
+	Write the edited subdocuments to their files now (also done by saving the document)	Gravar agora os subdocumentos editados em seus arquivos (também feito ao salvar o documento)
+	Yields	Resulta em
+	You have version {version}.	Você tem a versão {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / criam de imediato o sobrescrito, o subscrito ou a fração (desativado: eles se formam com Espaço, como no Word)
+	already selected	já selecionado
+	an exercise goes in the body, outside tables	um exercício fica no corpo, fora de tabelas
+	annotative {size}	anotativo {size}
+	click adds, Shift+click removes	clique adiciona, Shift+clique remove
+	click on empty space for a window, drag for a lasso	clique em espaço vazio para uma janela, arraste para um laço
+	click the vertices; Enter or right-click closes, Esc cancels	clique nos vértices; Enter ou clique direito fecha, Esc cancela
+	click to pick it	clique para escolher
+	conflict	conflito
+	cycle:	alternar:
+	edited	editado
+	fitted to frame	ajustado ao quadro
+	found	encontrado
+	graph paper	papel milimetrado
+	in step	na etapa
+	input	entrada
+	installed	instalado
+	no graph paper at the cursor	nenhum papel milimetrado no cursor
+	no snap	sem snap
+	not available: the cursor isn't in an exercise	indisponível: o cursor não está em um exercício
+	not found	não encontrado
+	n×n Identity Matrix	Matriz identidade n×n
+	n×n Matrix	Matriz n×n
+	objects	objetos
+	objects selected	objetos selecionados
+	of	de
+	removed	removido
+	scaled {size}	escalado {size}
+	select a CAD drawing first	selecione primeiro um desenho CAD
+	selected	selecionado
+	squares (0: none)	quadrados (0: nenhum)
+	tOGGLE cASE	aLTERNAR mAIÚSCULAS/mINÚSCULAS
+	the cursor isn't in an exercise	o cursor não está em um exercício
+	the document has no exercise	o documento não tem exercício
+	x bar	x barra
+	{field}, record {n}	{field}, registro {n}
+	{language} (dictionary unreadable)	{language} (dicionário ilegível)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (ilegível: {reason})
+	{name} options	Opções de {name}
+	{n} CAD drawings	{n} desenhos CAD
+	{n} calculated tables	{n} tabelas calculadas
+	{n} calculations	{n} cálculos
+	{n} exercises	{n} exercícios
+	{n} results summaries	{n} resumos de resultados
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ Nenhum
+	Check for\nUpdates…	Verificar\natualizações…
+	Edit\nDrawing	Editar\ndesenho
+	New\nExercise	Novo\nexercício
+	Show\nSteps	Mostrar\netapas
+	Switch\nWindows	Alternar\njanelas
+	Track\nChanges ✓	Controlar\nalterações ✓
+	Track\nChanges	Controlar\nalterações
+	CAD\nDrawing	Desenho\nCAD
+	Calculated\nTable	Tabela\ncalculada
+	Graph\nPaper	Papel\nmilimetrado
+	New\nCalculation	Novo\ncálculo

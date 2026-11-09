@@ -2376,3 +2376,379 @@ paper	Envelope DL	Плик DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	За Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(премахване) щракването премахва
+	*Bold* and _italic_ as real formatting	*Получер* и _курсив_ като истинско форматиране
+	1 CAD drawing	1 CAD чертеж
+	1 calculated table	1 изчислена таблица
+	1 calculation	1 изчисление
+	1 exercise	1 задача
+	1 object selected	1 избран обект
+	1 results summary	обобщение на резултатите
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Първа колона, колона 0, която номерира редовете с данни 1, 2, 3… (изчисленията никога не я четат)
+	A free, open-source word processor written in Rust.	Безплатен текстообработващ редактор с отворен код, написан на Rust.
+	A grid from the cursor to the end of the page	Мрежа от курсора до края на страницата
+	A new exercise takes the page breaks of the last one.	Новата задача поема прекъсванията на страници на последната.
+	A new layer, made current	Нов слой, направен текущ
+	A polar array has	Полярният масив има
+	Accept All Changes and Stop Tracking	Приемане на всички промени и спиране на проследяването
+	Accept and Move to Next	Приемане и преминаване към следващата
+	Add Datum	Добавяне на данна
+	Add Note	Добавяне на бележка
+	Add Question	Добавяне на въпрос
+	Add Sub-question	Добавяне на подвъпрос
+	Add a note between the questions: free text that is not a question	Добавяне на бележка между въпросите: свободен текст, който не е въпрос
+	Add a period with double-space	Добавяне на точка с двоен интервал
+	Add a question at the end of the exercise at the cursor	Добавяне на въпрос в края на задачата при курсора
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Добавяне на въпрос, вложен под последния (a.1, a.1.1); Tab и Shift+Tab променят нивото на въпроса
+	Add a variant: a copy of the active one's values	Добавяне на вариант: копие на стойностите на активния
+	Add an initial datum: a symbol with its value in every variant	Добавяне на начална данна: символ със своята стойност във всеки вариант
+	Add to CAD Drawing	Добавяне към CAD чертеж
+	Advanced Properties…	Допълнителни свойства…
+	Aligned texts	Подравнени текстове
+	All the selection	Целият избор
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Всички · F ограда · WP/CP многоъгълник · R премахване · A добавяне · P предишен · U отмяна · Shift+Space превключване
+	An array has	Масивът има
+	Apply to all exercises	Прилагане към всички задачи
+	As the grid lines	Като линиите на мрежата
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Автоматичното записване пази само документи на Strix (.xmath); {name} е в друг формат. Запишете като .xmath, за да включите автоматичното записване.
+	Automatic (Decimals, Significant Below 1)	Автоматично (десетични знаци, значещи под 1)
+	Automatic updates are not available yet. New versions are published at {url}	Автоматичните актуализации още не са налични. Новите версии се публикуват на {url}
+	Automatically add words to list (First Letter)	Автоматично добавяне на думи към списъка (първа буква)
+	Automatically add words to list (INitial CAps)	Автоматично добавяне на думи към списъка (ГОлеми НАчални букви)
+	Bookmarks	Показалци
+	Built-in Heading styles	Вградени стилове за заглавия
+	ByLayer	ПоСлой
+	CAD	CAD
+	Drawing	Чертеж
+	CAD Drawing	CAD чертеж
+	CAD Drawing Source	Източник на CAD чертежа
+	CAD Picture Format	Формат на CAD картината
+	Calculate New Equations	Изчисляване на новите уравнения
+	Calculate This Table	Изчисляване на тази таблица
+	Calculate the exercise with this variant	Изчисляване на задачата с този вариант
+	Calculated	Изчислена
+	Table	таблица
+	Calculated Table	Изчислена таблица
+	Calculated Table Info	Информация за изчислената таблица
+	Calculation	Изчисление
+	Calculations	Изчисления
+	Cancel the step	Отказ от стъпката
+	Cells as Equations	Клетки като уравнения
+	Changed here and in the file: keep one of the two.	Променено тук и във файла: запазете едното от двете.
+	Check for	Проверка за
+	Updates…	актуализации…
+	Check for Updates	Проверка за актуализации
+	Checking for updates…	Проверка за актуализации…
+	Close Document	Затваряне на документа
+	Column, Row Below (F_A)	Колона, ред отдолу (F_A)
+	Columns × rows:	Колони × редове:
+	Considering	Отчитане
+	Continue without restoring	Продължаване без възстановяване
+	Coordinates take a number or an expression of the calculations (L/2)	Координатите приемат число или израз от изчисленията (L/2)
+	Could not check for updates:\n{error}	Проверката за актуализации не е възможна:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	{name} не можа да се запише, затова остава отворен и нищо не е загубено: {error}
+	Create Subdocument	Създаване на поддокумент
+	Create Subdocument…	Създаване на поддокумент…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Изрязването върху страницата работи за неразвъртени картини: първо задайте завъртане 0° или използвайте рамките за изрязване
+	Crossing polygon	Пресичащ многоъгълник
+	Current Document	Текущ документ
+	Current layer	Текущ слой
+	Current layer: new objects go on it	Текущ слой: новите обекти отиват в него
+	Data Table	Таблица с данни
+	Decimal Places	Десетични знаци
+	Delete Exercise	Изтриване на задачата
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Изтриване цялостно на задачата при курсора или на избраните задачи: условието, въпросите и решението изчезват, а резултатите от него напускат обобщението (Отмяната я връща)
+	Delete the layer (its objects go to layer 0)	Изтриване на слоя (обектите му отиват в слой 0)
+	Detach: a window of its own	Откачане: отделен прозорец
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Размерните линии и ъгловите дъги, поставени с щракване или дръжка, запазват разстоянието си в чертежа (следват размера и мащаба му); изключено, върху хартията (същото и при печат)
+	Dimension texts along their line (never upside down), not level	Размерни текстове по линията им (никога с главата надолу), не хоризонтално
+	Dimension units	Мерни единици за размери
+	Discard the recovery copy of {name}?	Да се отхвърли ли копието за възстановяване на {name}?
+	Discard…	Отхвърляне…
+	Dock	Закотвяне
+	Dock Left	Закотвяне вляво
+	Dock Right	Закотвяне вдясно
+	Download Dictionary	Изтегляне на речник
+	Download the {name} spelling dictionary	Изтегляне на правописния речник {name}
+	Downloading and installing…	Изтегляне и инсталиране…
+	Downloading the {name} dictionary…	Изтегляне на речника {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Изтегля речника Hunspell {name} от речниците на LibreOffice ({source}), с лиценз {licence}, в папката ви с речници и веднага проверява правописа с него.
+	Draw order	Ред на чертане
+	Drawing Padding	Вътрешно поле на чертежа
+	Drawing Scale	Мащаб на чертежа
+	Drawing unit	Единица на чертежа
+	Edit	Редактиране на
+	End mark	Знак за край
+	Enter confirms	Enter потвърждава
+	Every	Всеки
+	Every exercise of the document takes this exercise's page breaks	Всички задачи в документа поемат прекъсванията на страници на тази задача
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Всяка стойност е параметър, наименуван по колоната и етикета на реда си (първата колона), с долен индекс: F_A или A_F
+	Exercise	Задача
+	Exercise Data	Данни на задачата
+	Exercise Info	Информация за задачата
+	Exercise Numbering	Номериране на задачите
+	Exercise Properties	Свойства на задачата
+	Exercise Result	Резултат от задачата
+	Exercise, in the document's language	Задача, на езика на документа
+	Fence	Ограда
+	Fewer Digits	По-малко цифри
+	File type	Тип на файла
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Файл › Нов показва тук шаблоните .xmathm, .dotx и .dotm в Лични; Запис като шаблон на Strix започва оттук.
+	First exercise: {label}	Първа задача: {label}
+	Fitted to Frame	Побрано в рамката
+	Float	Плаващо
+	Folder path	Път до папката
+	Follow columns	Следване на колоните
+	For Two Pages	За две страници
+	For a Height of 5 cm	За височина 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	За всяка задача в документа: етикетът на всяко заглавие и на обобщението на резултатите.
+	Go to it	Към него
+	Graph	Графика
+	Paper	хартия
+	Graph Paper	Милиметрова хартия
+	Graph Paper Pane	Панел „Милиметрова хартия“
+	Graph Paper Properties	Свойства на милиметровата хартия
+	Graph Paper at Cursor	Милиметрова хартия при курсора
+	Grid lines	Линии на мрежата
+	Grip	Дръжка
+	Grip: the new point (click, or type it; Esc puts it back)	Дръжка: новата точка (щракнете или я въведете; Esc я връща)
+	Heavier lines	По-дебели линии
+	How results are rounded	Как се закръглят резултатите
+	Imported 1 source	Внесен 1 източник
+	Imported {n} sources	Внесени източници: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	В раздел с повече от една колона всяка колона се разчертава отделно, а пространството между тях остава чисто
+	Inline (⇒)	В реда (⇒)
+	Input unit	Входна единица
+	Insert Graph Paper	Вмъкване на милиметрова хартия
+	Insert Subdocument	Вмъкване на поддокумент
+	Insert Subdocument…	Вмъкване на поддокумент…
+	Items:	Елементи:
+	Keep the file	Запазване на файла
+	Keep the text in this document, without the link; the file stays as it is	Запазване на текста в този документ, без връзката; файлът остава както е
+	Keep this version	Запазване на тази версия
+	Layer:	Слой:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Ограничаване на размера на чертежа върху хартията (според текстовата област на страницата): предлагат се мащабите, при които се побира
+	Line by Line	Ред по ред
+	Linetype	Тип линия
+	Lineweight	Дебелина на линията
+	Link a document at the cursor	Свързване на документ при курсора
+	Linked files	Свързани файлове
+	Local recovery is unavailable or still loading.	Локалното възстановяване не е налично или още се зарежда.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Правене на слоя на обекта текущ
+	Make the equation at the cursor a live calculation, or an ordinary one	Превръщане на уравнението при курсора в живо изчисление или в обикновено
+	Make this equation a live calculation: write it with = and the unknown is solved for	Превръщане на това уравнение в живо изчисление: запишете го с = и неизвестното се решава
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Отбелязване на уравнението при курсора като резултат от въпрос: стойността му отива в обобщението на резултатите
+	Master Document	Основен документ
+	Math	Математика
+	Maximum size	Максимален размер
+	More Digits	Още цифри
+	Move Pane: {title}	Преместване на панела: {title}
+	Move to layer	Преместване в слой
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Именуване и номериране на задачите в документа: префикс (Esercizio, собствен текст или без), формат на числата и първо число, в панела „Свойства на задачата“
+	New	Ново
+	New Calculation	Ново изчисление
+	New Exercise	Нова задача
+	New equations are live calculations	Новите уравнения са живи изчисления
+	New layer	Нов слой
+	New page before the exercise	Нова страница преди задачата
+	New page before the results summary	Нова страница преди обобщението на резултатите
+	New page before the solution	Нова страница преди решението
+	Next object	Следващ обект
+	Next point	Следваща точка
+	No matching commands	Няма съответстващи команди
+	No new sources in that file	Няма нови източници в този файл
+	No previous selection	Няма предишен избор
+	No recovery copies.	Няма копия за възстановяване.
+	No selection: click objects, or drag a window	Няма избор: щракнете върху обекти или плъзнете прозорец
+	Not a Data Table	Не е таблица с данни
+	Nothing of this type in the document.	В документа няма нищо от този тип.
+	Nothing to undo in the selection	Няма какво да се отмени в избора
+	Number Format	Формат на числата
+	Object snap settings	Настройки на прихващането към обекти
+	Objects	Обекти
+	Only text properties can be changed.	Могат да се променят само свойства на текст.
+	Only these	Само тези
+	Only when another exercise comes before it	Само когато преди нея има друга задача
+	Open Subdocument	Отваряне на поддокумент
+	Open the file in a window of its own	Отваряне на файла в отделен прозорец
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Отваря оттук нататък документи на Strix (.xmath, .xmathm), файлове .docx, .doc, .rtf и .odt и шаблони на Word със Strix.
+	Ordinal Column	Пореден номер на колона
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Другият ъгъл на прозореца (надясно: цели обекти; наляво: и докоснатите)
+	Outer frame	Външна рамка
+	Overwrite the file with the text shown here	Презаписване на файла с показания тук текст
+	Padding	Вътрешно поле
+	Page color	Цвят на страницата
+	Pane Options	Опции на панела
+	Placement	Разположение
+	Previous object	Предишен обект
+	Property names are 1–{max} characters.	Имената на свойствата са от 1 до {max} знака.
+	Property values are at most {max} bytes.	Стойностите на свойствата са най-много {max} байта.
+	Put the cursor in an exercise to see its data and variants.	Поставете курсора в задача, за да видите нейните данни и варианти.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставете курсора в милиметрова хартия (или на страница с фон от милиметрова хартия), за да видите нейните свойства.
+	Quick Keys	Бързи клавиши
+	Quick Keys in Formulas	Бързи клавиши във формули
+	Reading Page Color	Цвят на страницата за четене
+	Rebuild the repeated questions and the results summary	Възстановяване на повтарящите се въпроси и на обобщението на резултатите
+	Recalculate	Преизчисляване
+	Recalculate every calculation in the document (F9)	Преизчисляване на всяко изчисление в документа (F9)
+	Recovery copy	Копие за възстановяване
+	Recovery is disabled while this document has a password.	Възстановяването е изключено, докато документът има парола.
+	Reduce the selection to the objects considered	Свеждане на избора до разглежданите обекти
+	Reject All Changes and Stop Tracking	Отхвърляне на всички промени и спиране на проследяването
+	Reject and Move to Next	Отхвърляне и преминаване към следващата
+	Release notes	Бележки за изданието
+	Reload Subdocuments	Презареждане на поддокументите
+	Remove Graph Paper	Премахване на милиметровата хартия
+	Remove the active variant	Премахване на активния вариант
+	Remove this datum	Премахване на тази данна
+	Replace the text shown here with the file's	Замяна на показания тук текст с този от файла
+	Resize Pane	Преоразмеряване на панела
+	Restore opens an unsaved copy. Your original file stays unchanged.	Възстановяването отваря незаписано копие. Оригиналният ви файл остава непроменен.
+	Result Layout	Подредба на резултата
+	Result Of	Резултат от
+	Row, Column Below (A_F)	Ред, колона отдолу (A_F)
+	Save Subdocuments	Запис на поддокументите
+	Save as Strix Template…	Запис като шаблон на Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Първо запишете или затворете документите си: актуализирането рестартира Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Запис на избраните абзаци като нов файл, свързан на тяхно място
+	Save your documents: Strix Writer then closes and restarts in the new version.	Запишете документите си: след това Strix Writer се затваря и рестартира в новата версия.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Записва шаблон .xmathm в папката ви с шаблони. Появява се във Файл › Нов под Лични.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Записването на документа записва всеки поддокумент, редактиран тук. Отварянето показва всеки файл такъв, какъвто е сега.
+	Scale Font Sizes	Мащабиране на размерите на шрифта
+	Scaled distances	Мащабирани разстояния
+	Select a place in this document:	Изберете място в този документ:
+	Select a property to change.	Изберете свойство за промяна.
+	Select objects	Избор на обекти
+	Selection options	Опции за избора
+	Separate text with	Разделяне на текста с
+	Set CAD Drawing	Задаване на CAD чертеж
+	Set Exercise Data	Задаване на данните на задачата
+	Set left- and first-indent with tabs and backspaces	Задаване на ляв и първи отстъп с табулатори и Backspace
+	Show	Показване
+	Steps	на стъпките
+	Show Steps	Показване на стъпките
+	Show Trailing Zeros	Показване на крайните нули
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Показване на всяка клетка като уравнение: имена в курсив, долни индекси, единици в стил „Единица“
+	Show every file as it is on disk, discarding edits made here	Показване на всеки файл такъв, какъвто е на диска, с отхвърляне на редакциите тук
+	Show one digit less in results	Показване с една цифра по-малко в резултатите
+	Show one more digit in results	Показване с една цифра повече в резултатите
+	Show the exercise's data and variants	Показване на данните и вариантите на задачата
+	Show the file as it is on disk, discarding edits made here	Показване на файла такъв, какъвто е на диска, с отхвърляне на редакциите тук
+	Significant Digits	Значещи цифри
+	Snap for the next point	Прихващане за следващата точка
+	Snap for the next point (Shift+right-click)	Прихващане за следващата точка (Shift+десен бутон)
+	Software Update	Актуализация на програмата
+	Spanish (Latin America)	Испански (Латинска Америка)
+	Spanish (Uruguay)	Испански (Уругвай)
+	Square size	Размер на квадрата
+	Start at	Начало от
+	Strix Writer {version} is available	Strix Writer {version} е наличен
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} е най-новата налична версия в момента.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix е разклонение (fork) на WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Styles Pane Position	Позиция на панела със стилове
+	Subdocuments	Поддокументи
+	Subdocuments Pane	Панел „Поддокументи“
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Поддокументите са файлове на диска: настолната версия ги свързва, версията в браузър не може.
+	Switch	Превключване
+	Windows	на прозорците
+	Switch Windows	Превключване на прозорците
+	Text Size	Размер на текста
+	Text properties only: Word's number, date and yes-no types aren't offered.	Само свойства на текст: типовете число, дата и да/не на Word не се предлагат.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Този формат не запазва всичко, затова документът остава отворен. Запишете го като документ на Strix (.xmath), за да продължите.
+	That would make the object degenerate	Това би направило обекта изроден
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Данните са първите параметри на изчисленията на задачата: решението ги използва по символ. Смяната на варианта преизчислява задачата.
+	The document has no subdocuments.	Документът няма поддокументи.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Последният ред сумира всяка колона (Σ =); клетка, написана там, запазва собствения си текст (mean =, max =)
+	The layer of the selected objects becomes the current layer	Слоят на избраните обекти става текущ слой
+	The number must be a divisor of {max}.	Числото трябва да е делител на {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Правописният речник за {language} не можа да се прочете, затова не се проверява. Файл: {file}. Причина: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Таблицата при курсора е изчислена: наименувайте колоните на таблицата в първия ред (L [m], M [kN·m] = q·L²/8) и ги сумирайте със Σ =
+	The update couldn't be installed: {error}	Актуализацията не можа да се инсталира: {error}
+	The whole family	Цялото семейство
+	The {name} dictionary couldn't be downloaded: {reason}	Речникът {name} не можа да се изтегли: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Речникът {name} е инсталиран: правописът на {language} вече се проверява.
+	This cannot be undone. Your original file stays unchanged.	Това не може да се отмени. Оригиналният ви файл остава непроменен.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Това копие на Strix Writer не може да се замени само: изтеглете новата версия и я инсталирайте върху тази.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Този документ има обекти на Strix ({objects}). Word и другите редактируеми формати биха ги загубили, затова се записва само като документ на Strix (.xmath). Експортите в PDF, PNG, LaTeX, HTML и Markdown остават налични като статични копия.
+	This document has no custom properties.	Този документ няма потребителски свойства.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Този документ още не свързва други документи. Вмъкнете един или изберете абзаци и създайте от тях: текстът им се показва тук и се записва обратно в собствения им файл.
+	This equation is the result of the question it is worked under (shown in the results summary)	Това уравнение е резултатът от въпроса, под който се решава (показва се в обобщението на резултатите)
+	To the End of the Page	До края на страницата
+	Top of the Document	Начало на документа
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Въведете точка (x,y  @dx,dy  @d<a), разстояние, команда (l, pl, rec, c, a, t, m, co), опция или натиснете Enter
+	Unit	Единица
+	Unit:	Единица:
+	Unknown selection option:	Неизвестна опция за избор:
+	Unlink	Прекъсване на връзката
+	Unlink Subdocument	Прекъсване на връзката с поддокумента
+	Until the Next Even Page	До следващата четна страница
+	Until the Next Odd Page	До следващата нечетна страница
+	Update Summary	Актуализиране на обобщението
+	Update and Restart	Актуализиране и рестартиране
+	Update check is not supported in the web browser.	Проверката за актуализации не се поддържа в уеб браузъра.
+	Variant	Вариант
+	Variants	Варианти
+	Varies	Варира
+	Vertex	Връх
+	View and edit the document's custom properties.	Преглед и редактиране на потребителските свойства на документа.
+	What's new	Какво е новото
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Къде отиват резултатите и стъпките: след ⇒ на реда на условието или по един ред под него, подравнени по =
+	Window polygon	Прозоречен многоъгълник
+	Write the edited subdocuments to their files now (also done by saving the document)	Запис на редактираните поддокументи във файловете им сега (прави се и при записване на документа)
+	You have version {version}.	Имате версия {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / веднага правят горен индекс, долен индекс или дроб (изключено: изграждат се при Space, както в Word)
+	already selected	вече избрано
+	an exercise goes in the body, outside tables	задачата отива в тялото на текста, извън таблиците
+	annotative {size}	анотативно {size}
+	click adds, Shift+click removes	щракването добавя, Shift+щракването премахва
+	click on empty space for a window, drag for a lasso	щракнете върху празно място за прозорец, плъзнете за ласо
+	click the vertices; Enter or right-click closes, Esc cancels	щракайте върху върховете; Enter или десен бутон затваря, Esc отказва
+	click to pick it	щракнете, за да го изберете
+	conflict	конфликт
+	cycle:	цикъл:
+	edited	редактирано
+	fitted to frame	побрано в рамката
+	found	намерено
+	graph paper	милиметрова хартия
+	in step	в стъпката
+	input	вход
+	installed	инсталирано
+	no graph paper at the cursor	няма милиметрова хартия при курсора
+	no snap	без прихващане
+	not available: the cursor isn't in an exercise	не е налично: курсорът не е в задача
+	not found	не е намерено
+	objects	обекти
+	objects selected	избрани обекти
+	of	от
+	removed	премахнато
+	scaled {size}	мащабирано {size}
+	select a CAD drawing first	първо изберете CAD чертеж
+	selected	избрано
+	squares (0: none)	квадрати (0: няма)
+	the cursor isn't in an exercise	курсорът не е в задача
+	the document has no exercise	документът няма задачи
+	{field}, record {n}	{field}, запис {n}
+	{language} (dictionary unreadable)	{language} (речникът не се чете)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (не се чете: {reason})
+	{n} CAD drawings	CAD чертежи: {n}
+	{n} calculated tables	изчислени таблици: {n}
+	{n} calculations	изчисления: {n}
+	{n} exercises	задачи: {n}
+	{n} results summaries	обобщения на резултатите: {n}
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Enter bookmark name:	Въведете име на показалец:
+	Find “{text}” in the document	Намиране на „{text}“ в документа
+	Type a page number, or +2 / -1.	Въведете номер на страница или +2 / -1.
+	Wait for the print job to finish submitting before closing.	Изчакайте изпращането на заданието за печат да приключи, преди да затворите.
+	Check for\nUpdates…	Проверка за\nактуализации…
+	Edit\nDrawing	Редактиране\nна чертежа
+	New\nExercise	Нова\nзадача
+	Show\nSteps	Покажи\nстъпките
+	Switch\nWindows	Превключване\nна прозорци
+	CAD\nDrawing	CAD\nчертеж
+	Calculated\nTable	Изчислителна\nтаблица
+	Graph\nPaper	Милиметрова\nхартия
+	New\nCalculation	Ново\nизчисление

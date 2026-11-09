@@ -1991,3 +1991,717 @@ paper	Envelope DL	Ümbrik DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Strix Writeri teave
+# Strix additions 2026-11-09
+	(remove) click removes	(eemalda) klõps eemaldab
+	*Bold* and _italic_ as real formatting	*Rasvane* ja _kaldkiri_ päris vormindusena
+	1 CAD drawing	1 CAD-joonis
+	1 calculated table	1 arvutustabel
+	1 calculation	1 arvutus
+	1 exercise	1 ülesanne
+	1 object selected	1 objekt valitud
+	1 results summary	1 tulemuste kokkuvõte
+	1×2 Empty Matrix	Tühi maatriks 1×2
+	1×3 Empty Matrix	Tühi maatriks 1×3
+	2×1 Empty Matrix	Tühi maatriks 2×1
+	2×2 Determinant	Determinant 2×2
+	2×2 Empty Matrix	Tühi maatriks 2×2
+	2×2 Identity Matrix	Ühikmaatriks 2×2
+	2×2 Identity Matrix (sparse)	Ühikmaatriks 2×2 (hõre)
+	2×2 Matrix in Brackets	Maatriks 2×2 nurksulgudes
+	2×2 Matrix in Double Bars	Maatriks 2×2 topeltkriipsude vahel
+	2×2 Matrix in Parentheses	Maatriks 2×2 ümarsulgudes
+	2×3 Empty Matrix	Tühi maatriks 2×3
+	3×1 Empty Matrix	Tühi maatriks 3×1
+	3×2 Empty Matrix	Tühi maatriks 3×2
+	3×3 Empty Matrix	Tühi maatriks 3×3
+	3×3 Identity Matrix	Ühikmaatriks 3×3
+	3×3 Identity Matrix (sparse)	Ühikmaatriks 3×3 (hõre)
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Esimene veerg, veerg 0, mis nummerdab andmeread 1, 2, 3… (arvutused seda kunagi ei loe)
+	A free, open-source word processor written in Rust.	Tasuta avatud lähtekoodiga tekstitöötlusprogramm, mis on kirjutatud Rustis.
+	A grid from the cursor to the end of the page	Ruudustik kursorist lehekülje lõpuni
+	A new exercise takes the page breaks of the last one.	Uus ülesanne võtab viimase ülesande lehevahetused.
+	A new layer, made current	Uus kiht, tehtud praeguseks
+	A polar array has	Polaarmassiivil on
+	A xor B	A xor B
+	ASAP	KIIREST
+	AaBbCcDd	AaBbCcDd
+	Absolute value cases	Absoluutväärtuse juhud
+	Accents	Rõhumärgid
+	Accept All Changes and Stop Tracking	Nõustu kõigi muudatustega ja lõpeta jälgimine
+	Accept and Move to Next	Nõustu ja liigu järgmise juurde
+	Acute	Terav aktsent
+	Add Datum	Lisa algandme
+	Add Note	Lisa märkus
+	Add Question	Lisa küsimus
+	Add Sub-question	Lisa alamküsimus
+	Add a note between the questions: free text that is not a question	Lisa küsimuste vahele märkus: vaba tekst, mis ei ole küsimus
+	Add a period with double-space	Lisa punkt kahe tühikuga
+	Add a question at the end of the exercise at the cursor	Lisa küsimus kursoril oleva ülesande lõppu
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Lisa viimase alla pesastatud küsimus (a.1, a.1.1); Tab ja Shift+Tab muudavad küsimuse taset
+	Add a variant: a copy of the active one's values	Lisa variant: aktiivse variandi väärtuste koopia
+	Add an initial datum: a symbol with its value in every variant	Lisa algandme: sümbol oma väärtusega igas variandis
+	Add to CAD Drawing	Lisa CAD-joonisele
+	Advanced Properties…	Täpsemad atribuudid…
+	Aligned texts	Joondatud tekstid
+	All - Linear	Kõik – lineaarne
+	All - Professional	Kõik – professionaalne
+	All the selection	Kogu valik
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Kõik · F tara · WP/CP hulknurk · R eemalda · A lisa · P eelmine · U võta tagasi · Shift+Space tsükkel
+	An array has	Massiivil on
+	Angle Brackets	Teravsulud
+	Angle Brackets with Separator	Teravsulud eraldajaga
+	Angle Brackets with Two Separators	Teravsulud kahe eraldajaga
+	Apply to all exercises	Rakenda kõigile ülesannetele
+	As the grid lines	Nagu ruudujooned
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Automaatsalvestus säilitab ainult Strixi dokumente (.xmath); {name} on teises vormingus. Automaatsalvestuse sisselülitamiseks salvesta vormingus .xmath.
+	Automatic (Decimals, Significant Below 1)	Automaatne (kümnendkohad, olulised alla 1)
+	Automatic updates are not available yet. New versions are published at {url}	Automaatsed värskendused pole veel saadaval. Uued versioonid avaldatakse aadressil {url}
+	Automatically add words to list (First Letter)	Lisa sõnad automaatselt loendisse (esimene täht)
+	Automatically add words to list (INitial CAps)	Lisa sõnad automaatselt loendisse (KAks suurtähte)
+	Baseline Dots	Põhijoone punktid
+	Basic Math	Põhimatemaatika
+	Bayes' rule	Bayesi reegel
+	Binomial Coefficient	Binoomkordaja
+	Binomial Coefficient (angle)	Binoomkordaja (nurk)
+	Binomial Coefficient with Angle Brackets	Binoomkordaja teravsulgudega
+	Binomial expansion of (x+a)ⁿ	Binoomlahutus (x+a)ⁿ
+	Body text in a short paragraph to show spacing.	Põhitekst lühikeses lõigus vahede näitamiseks.
+	Bookmarks	Järjehoidjad
+	Boxed Formula	Raamitud valem
+	Boxed Formula (example)	Raamitud valem (näide)
+	Boxed Formulas	Raamitud valemid
+	Braces	Looksulud
+	Braces with Separator	Looksulud eraldajaga
+	Brackets	Nurksulud
+	Brackets with Separators	Nurksulud eraldajatega
+	Breve	Breve
+	Built-in Heading styles	Sisseehitatud pealkirjastiilid
+	ByLayer	Kihi järgi
+	CAD	CAD
+	Drawing	Joonis
+	CAD Drawing	CAD-joonis
+	CAD Drawing Source	CAD-joonise allikas
+	CAD Picture Format	CAD-pildi vorming
+	CONFIDENTIAL	KONFIDENTSIAALNE
+	Calculate	Arvuta
+	Calculate New Equations	Arvuta uued võrrandid
+	Calculate This Table	Arvuta see tabel
+	Calculate the exercise with this variant	Arvuta ülesanne selle variandiga
+	Calculated	Arvutatud
+	Table	Tabel
+	Calculated Table	Arvutustabel
+	Calculated Table Info	Arvutustabeli teave
+	Calculation	Arvutus
+	Calculations	Arvutused
+	Cancel the step	Tühista samm
+	Cases (Three Conditions)	Juhud (kolm tingimust)
+	Cases (Two Conditions)	Juhud (kaks tingimust)
+	Cases and Stacks	Juhud ja virnad
+	Ceiling	Ülemine täisosa
+	Cells as Equations	Lahtrid võrranditena
+	Centered as Group	Tsentreeritud rühmana
+	Change in y over change in x	y muut x muudu suhtes
+	Change to Level 1	Muuda tasemeks 1
+	Change to Level 2	Muuda tasemeks 2
+	Change to Level 3	Muuda tasemeks 3
+	Change to Level 4	Muuda tasemeks 4
+	Change to Level 5	Muuda tasemeks 5
+	Changed here and in the file: keep one of the two.	Muudetud siin ja failis: säilita üks neist kahest.
+	Check	Kontrolli
+	Check for	Otsi
+	Updates…	värskendusi…
+	Check for Updates	Otsi värskendusi
+	Checking for updates…	Värskenduste otsimine…
+	Circle area from its radius	Ringi pindala raadiusest
+	Circled Dot	Ringjoonega punkt
+	Circled Plus	Ringjoonega pluss
+	Circled Times	Ringjoonega korrutus
+	Close Document	Sulge dokument
+	Colon Equal	Koolon ja võrdusmärk
+	Colour	Värv
+	Column, Row Below (F_A)	Veerg, rida all (F_A)
+	Columns × rows:	Veerud × read:
+	Common Accent Objects	Levinud rõhumärgiobjektid
+	Common Brackets	Levinud sulud
+	Common Fractions	Levinud murrud
+	Common Functions	Levinud funktsioonid
+	Common Large Operators	Levinud suured operaatorid
+	Common Operator Structures	Levinud operaatorstruktuurid
+	Common Operators	Levinud operaatorid
+	Common Radicals	Levinud juured
+	Common Subscripts and Superscripts	Levinud alaindeksid ja ülaindeksid
+	Considering	Arvestades
+	Continue without restoring	Jätka taastamata
+	Contour Integral	Kontuurintegraal
+	Contour Integral with Limits	Kontuurintegraal rajadega
+	Contour Integral with Stacked Limits	Kontuurintegraal virnastatud rajadega
+	Contour Integrals	Kontuurintegraalid
+	Convert between built-up and linear form	Teisenda liitvormi ja lineaarse vormi vahel
+	Coordinates take a number or an expression of the calculations (L/2)	Koordinaadid võivad olla arv või arvutuste avaldis (L/2)
+	Coproduct	Kooskorrutis
+	Coproduct with Limits	Kooskorrutis rajadega
+	Coproduct with Lower Limit	Kooskorrutis alamrajaga
+	Coproduct with Subscript-Superscript Limits	Kooskorrutis ala- ja ülaindeksi rajadega
+	Cosecant Function	Kosekansi funktsioon
+	Cosine 2x	Koosinus 2x
+	Cosine Function	Koosinuse funktsioon
+	Cotangent Function	Kotangensi funktsioon
+	Could not check for updates:\n{error}	Värskenduste otsimine ebaõnnestus:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Faili {name} ei saanud salvestada, seega on see endiselt avatud ja midagi pole kaotsi läinud: {error}
+	Create Subdocument	Loo alamdokument
+	Create Subdocument…	Loo alamdokument…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Lehel kärpimine töötab pööramata piltidel: määra esmalt pööramiseks 0° või kasuta kärpimiskaste
+	Crossing polygon	Lõikuv hulknurk
+	Cube Root	Kuupjuur
+	Current - Linear	Praegune – lineaarne
+	Current - Professional	Praegune – professionaalne
+	Current Document	Praegune dokument
+	Current layer	Praegune kiht
+	Current layer: new objects go on it	Praegune kiht: uued objektid lähevad sellele
+	DO NOT COPY	ÄRA KOPEERI
+	DRAFT	MUSTAND
+	Data Table	Andmetabel
+	Decimal Places	Kümnendkohad
+	Delete Exercise	Kustuta ülesanne
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Kustuta kursoril olev ülesanne või valitud ülesanded tervikuna: nende tekst, küsimused ja lahendus kaovad ning tulemused lahkuvad kokkuvõttest (Võta tagasi toob need tagasi)
+	Delete the layer (its objects go to layer 0)	Kustuta kiht (selle objektid lähevad kihile 0)
+	Delta Equal To	Delta võrdub
+	Delta over arrow	Delta noole peal
+	Derivative as a limit	Tuletis piirväärtusena
+	Detach: a window of its own	Eralda: oma aken
+	Diagonal Dots	Diagonaalpunktid
+	Differential	Diferentsiaal
+	Differential theta	Diferentsiaal teeta
+	Differential x	Diferentsiaal x
+	Differential y	Diferentsiaal y
+	Differentials	Diferentsiaalid
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Kliki või käepidemega paigutatud mõõtjooned ja nurgakaared säilitavad joonisel oma kauguse (need järgivad joonise suurust ja mõõtkava); väljas, paberil (sama ka printimisel)
+	Dimension texts along their line (never upside down), not level	Mõõtteksid piki oma joont (kunagi tagurpidi), mitte horisontaalselt
+	Dimension units	Mõõtühikud
+	Discard	Loobu
+	Discard the recovery copy of {name}?	Kas loobuda faili {name} taastekoopiast?
+	Discard…	Loobu…
+	Distance	Kaugus
+	Dock	Dokki
+	Dock Left	Dokki vasakule
+	Dock Right	Dokki paremale
+	Dot	Punkt
+	Dots	Punktid
+	Double Bar	Topeltkriips
+	Double Dot	Topeltpunkt
+	Double Integral	Kaksikintegraal
+	Double Integral with Limits	Kaksikintegraal rajadega
+	Double Integral with Stacked Limits	Kaksikintegraal virnastatud rajadega
+	Double Left Arrow with Text Above	Topeltnool vasakule tekstiga peal
+	Double Left Arrow with Text Below	Topeltnool vasakule tekstiga all
+	Double Left Right Arrow with Text Above	Topeltnool vasakule-paremale tekstiga peal
+	Double Left Right Arrow with Text Below	Topeltnool vasakule-paremale tekstiga all
+	Double Right Arrow with Text Above	Topeltnool paremale tekstiga peal
+	Double Right Arrow with Text Below	Topeltnool paremale tekstiga all
+	Double Square Brackets	Topeltnurksulud
+	Double Vertical Bars	Topelt püstkriipsud
+	Double summation	Kordne summa
+	Download	Laadi alla
+	Download Dictionary	Laadi sõnastik alla
+	Download the {name} spelling dictionary	Laadi alla õigekirjasõnastik {name}
+	Downloading and installing…	Allalaadimine ja paigaldamine…
+	Downloading the {name} dictionary…	Sõnastiku {name} allalaadimine…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Laadib Hunspelli sõnastiku {name} alla LibreOffice'i sõnastikest ({source}), litsents {licence}, sinu sõnastikukausta ja kontrollib kohe selle abil õigekirja.
+	Draw order	Joonistusjärjekord
+	Drawing Padding	Joonise polsterdus
+	Drawing Scale	Joonise mõõtkava
+	Drawing unit	Joonise ühik
+	Edit	Redigeeri
+	Empty Matrices	Tühjad maatriksid
+	End mark	Lõpumärk
+	Enter bookmark name:	Sisesta järjehoidja nimi:
+	Enter confirms	Enter kinnitab
+	Equal Equal	Võrdus võrdus
+	Equal by Definition	Võrdne definitsiooni järgi
+	Euler's identity	Euleri samasus
+	Every	Iga
+	Every exercise of the document takes this exercise's page breaks	Iga dokumendi ülesanne võtab selle ülesande lehevahetused
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Iga väärtus on parameeter, mille nimi tuleb veeru ja rea sildi (esimene veerg) järgi, alaindeksiga: F_A või A_F
+	Exercise	Ülesanne
+	Exercise Data	Ülesande andmed
+	Exercise Info	Ülesande teave
+	Exercise Numbering	Ülesannete nummerdus
+	Exercise Properties	Ülesande atribuudid
+	Exercise Result	Ülesande tulemus
+	Exercise, in the document's language	Ülesanne dokumendi keeles
+	Exit	Välju
+	Exponential	Eksponentfunktsioon
+	Exponential series	Eksponentrida
+	Fence	Tara
+	Fewer Digits	Vähem numbreid
+	File type	Failitüüp
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Fail › Uus loetleb siin mallid .xmathm, .dotx ja .dotm jaotises Isiklikud; Salvesta Strixi mallina algab siit.
+	Find “{text}” in the document	Leia dokumendist „{text}“
+	First exercise: {label}	Esimene ülesanne: {label}
+	Fitted to Frame	Raamile sobitatud
+	Float	Hõljuv
+	Floor	Alumine täisosa
+	Folder path	Kausta tee
+	Follow columns	Järgi veerge
+	For Two Pages	Kahe lehekülje jaoks
+	For a Height of 5 cm	Kõrgusele 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Dokumendi iga ülesande jaoks: iga pealkirja ja tulemuste kokkuvõtte silt.
+	For which item:	Millise üksuse jaoks:
+	Functions	Funktsioonid
+	Geometry	Geomeetria
+	Go to it	Mine selle juurde
+	Graph	Graafik
+	Paper	Paber
+	Graph Paper	Millimeetripaber
+	Graph Paper Pane	Millimeetripaberi paan
+	Graph Paper Properties	Millimeetripaberi atribuudid
+	Graph Paper at Cursor	Millimeetripaber kursori kohal
+	Grave	Gravis
+	Greek Letters	Kreeka tähed
+	Grid Table 1 Light	Ruudustikutabel 1 hele
+	Grid Table 4 – Blue	Ruudustikutabel 4 – sinine
+	Grid Table 4 – Green	Ruudustikutabel 4 – roheline
+	Grid Table 4 – Orange	Ruudustikutabel 4 – oranž
+	Grid Table 4 – Purple	Ruudustikutabel 4 – lilla
+	Grid lines	Ruudujooned
+	Grip	Käepide
+	Grip: the new point (click, or type it; Esc puts it back)	Käepide: uus punkt (klõpsa või sisesta see; Esc toob selle tagasi)
+	Grouping Character Above	Rühmitusmärk peal
+	Grouping Character Below	Rühmitusmärk all
+	Hat	Katus
+	Heading	Pealkiri
+	Heading text	Pealkirja tekst
+	Heavier lines	Jämedamad jooned
+	Height	Kõrgus
+	How results are rounded	Kuidas tulemusi ümardatakse
+	Hyperbolic Cosecant Function	Hüperboolse kosekansi funktsioon
+	Hyperbolic Cosine Function	Hüperboolse koosinuse funktsioon
+	Hyperbolic Cotangent Function	Hüperboolse kotangensi funktsioon
+	Hyperbolic Functions	Hüperboolsed funktsioonid
+	Hyperbolic Secant Function	Hüperboolse sekansi funktsioon
+	Hyperbolic Sine Function	Hüperboolse siinuse funktsioon
+	Hyperbolic Tangent Function	Hüperboolse tangensi funktsioon
+	Hypotenuse	Hüpotenuus
+	Identity Matrices	Ühikmaatriksid
+	Imported 1 source	Imporditud 1 allikas
+	Imported {n} sources	Imporditud allikaid: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Mitme veeruga jaotises joonitakse iga veerg eraldi ja nende vaheline ruum jäetakse puhtaks
+	Inline (⇒)	Reasisene (⇒)
+	Input unit	Sisendühik
+	Insert Graph Paper	Lisa millimeetripaber
+	Insert Subdocument	Lisa alamdokument
+	Insert Subdocument…	Lisa alamdokument…
+	Insert reference to:	Lisa viide objektile:
+	Integral of e^(−x²)	Funktsiooni e^(−x²) integraal
+	Integral with Limits	Integraal rajadega
+	Integral with Stacked Limits	Integraal virnastatud rajadega
+	Integrals	Integraalid
+	Intersection	Ühisosa
+	Intersection with Limits	Ühisosa rajadega
+	Intersection with Lower Limit	Ühisosa alamrajaga
+	Intersection with Subscript-Superscript Limits	Ühisosa ala- ja ülaindeksi rajadega
+	Inverse Cosecant Function	Arkuskosekansi funktsioon
+	Inverse Cosine Function	Arkuskoosinuse funktsioon
+	Inverse Cotangent Function	Arkuskotangensi funktsioon
+	Inverse Functions	Pöördfunktsioonid
+	Inverse Hyperbolic Cosecant Function	Pöördhüperboolse kosekansi funktsioon
+	Inverse Hyperbolic Cosine Function	Pöördhüperboolse koosinuse funktsioon
+	Inverse Hyperbolic Cotangent Function	Pöördhüperboolse kotangensi funktsioon
+	Inverse Hyperbolic Functions	Pöördhüperboolsed funktsioonid
+	Inverse Hyperbolic Secant Function	Pöördhüperboolse sekansi funktsioon
+	Inverse Hyperbolic Sine Function	Pöördhüperboolse siinuse funktsioon
+	Inverse Hyperbolic Tangent Function	Pöördhüperboolse tangensi funktsioon
+	Inverse Secant Function	Arkussekansi funktsioon
+	Inverse Sine Function	Arkussiinuse funktsioon
+	Inverse Tangent Function	Arkustangensi funktsioon
+	Items:	Üksused:
+	Justification of a display equation	Eraldi rea valemi joondus
+	Keep the file	Säilita fail
+	Keep the text in this document, without the link; the file stays as it is	Säilita tekst selles dokumendis ilma lingita; fail jääb samaks
+	Keep this version	Säilita see versioon
+	Later	Hiljem
+	Layer	Kiht
+	Layer:	Kiht:
+	Left Arrow with Text Above	Nool vasakule tekstiga peal
+	Left Arrow with Text Below	Nool vasakule tekstiga all
+	Left Bracket Twice	Vasaksulg kaks korda
+	Left Right Arrow Above	Nool vasakule-paremale peal
+	Left Right Arrow with Text Above	Nool vasakule-paremale tekstiga peal
+	Left Right Arrow with Text Below	Nool vasakule-paremale tekstiga all
+	Left Subscript-Superscript	Vasak alaindeks ja ülaindeks
+	Leftwards Arrow Above	Nool vasakule peal
+	Leftwards Harpoon Above	Harpuun vasakule peal
+	Letter-Like Symbols	Tähetaolised sümbolid
+	Level 1	Tase 1
+	Level 2	Tase 2
+	Level 3	Tase 3
+	Limit	Piirväärtus
+	Limit Example	Piirväärtuse näide
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Piira joonise suurust paberil (lehekülje tekstiala järgi): pakutakse mõõtkavasid, mille juures see ära mahub
+	Line by Line	Rida rea haaval
+	Linear Fraction	Lineaarmurd
+	Linetype	Joonetüüp
+	Lineweight	Joone paksus
+	Link a document at the cursor	Lingi dokument kursori kohale
+	Linked files	Lingitud failid
+	List Table 3 – Blue	Loenditabel 3 – sinine
+	List Table 3 – Green	Loenditabel 3 – roheline
+	List Table 3 – Orange	Loenditabel 3 – oranž
+	List Table 3 – Purple	Loenditabel 3 – lilla
+	Local recovery is unavailable or still loading.	Kohalik taaste pole saadaval või laaditakse veel.
+	Logarithm	Logaritm
+	Logarithm with Base	Logaritm alusega
+	Logical AND	Loogiline JA
+	Logical AND with Limits	Loogiline JA rajadega
+	Logical OR	Loogiline VÕI
+	Logical OR with Limits	Loogiline VÕI rajadega
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Autoriõigus (c) 2026 nabre ja Strixi panustajad.
+	Make object's layer current	Tee objekti kiht praeguseks
+	Make the equation at the cursor a live calculation, or an ordinary one	Tee kursoril olev võrrand otsearvutuseks või tavaliseks
+	Make this equation a live calculation: write it with = and the unknown is solved for	Tee see võrrand otsearvutuseks: kirjuta see märgiga = ja tundmatu lahendatakse
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Märgi kursoril olev võrrand küsimuse tulemuseks: selle väärtus läheb tulemuste kokkuvõttesse
+	Master Document	Põhidokument
+	Math	Matemaatika
+	Matrices with Brackets	Maatriksid sulgudega
+	Maximum	Maksimum
+	Maximum Example	Maksimumi näide
+	Maximum size	Suurim suurus
+	Measured By	Mõõdetud
+	Midline Dots	Keskjoone punktid
+	Minimum	Miinimum
+	Minus Equal	Miinus ja võrdusmärk
+	Modify	Muuda
+	More Digits	Rohkem numbreid
+	Move	Teisalda
+	Move Pane: {title}	Teisalda paan: {title}
+	Move to layer	Teisalda kihile
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Anna dokumendi ülesannetele nimi ja number: eesliide (Esercizio, oma tekst või puudub), numbrivorming ja esimene number, paanil Ülesande atribuudid
+	Natural Logarithm	Naturaallogaritm
+	Negated Relations	Eitatud seosed
+	New	Uus
+	New Calculation	Uus arvutus
+	New Exercise	Uus ülesanne
+	New equations are live calculations	Uued võrrandid on otsearvutused
+	New layer	Uus kiht
+	New page before the exercise	Uus lehekülg enne ülesannet
+	New page before the results summary	Uus lehekülg enne tulemuste kokkuvõtet
+	New page before the solution	Uus lehekülg enne lahendust
+	Next object	Järgmine objekt
+	Next point	Järgmine punkt
+	No items to show.	Pole näidatavaid üksusi.
+	No matching commands	Sobivaid käske pole
+	No new sources in that file	Selles failis pole uusi allikaid
+	No previous selection	Eelmist valikut pole
+	No recovery copies.	Taastekoopiaid pole.
+	No selection: click objects, or drag a window	Valikut pole: klõpsa objektidel või lohista aken
+	Normal	Tavaline
+	Normal probability density	Normaaljaotuse tihedus
+	Not a Data Table	Pole andmetabel
+	Nothing of this type in the document.	Dokumendis pole seda tüüpi midagi.
+	Nothing to undo in the selection	Valikus pole midagi tagasi võtta
+	Number Format	Arvuvorming
+	Number the equation; the number sits at the right margin (or type # then the number)	Nummerda võrrand; number asub parempoolsel veerisel (või kirjuta # ja seejärel number)
+	Object snap settings	Objektihaarde sätted
+	Objects	Objektid
+	One half	Pool
+	Only text properties can be changed.	Muuta saab ainult tekstiatribuute.
+	Only these	Ainult need
+	Only when another exercise comes before it	Ainult siis, kui enne seda on mõni teine ülesanne
+	Open Subdocument	Ava alamdokument
+	Open the file in a window of its own	Ava fail eraldi aknas
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Avab edaspidi Strixiga Strixi dokumente (.xmath, .xmathm), faile .docx, .doc, .rtf ja .odt ning Wordi malle.
+	Operator Structures	Operaatorstruktuurid
+	Operators	Operaatorid
+	Ordinal Column	Järjekorranumbri veerg
+	Other Large Operators	Muud suured operaatorid
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Akna teine nurk (paremale: terved objektid; vasakule: ka puudutatud)
+	Outer frame	Välisraam
+	Outward Brackets	Väljapoole suunatud sulud
+	Overbar	Ülejoon
+	Overbars and Underbars	Ülejooned ja alajooned
+	Overbrace	Ülemine looksulg
+	Overwrite the file with the text shown here	Kirjuta fail üle siin kuvatava tekstiga
+	Padding	Polsterdus
+	Page color	Lehekülje värv
+	Pane Options	Paani valikud
+	Parentheses	Ümarsulud
+	Parentheses with Separator	Ümarsulud eraldajaga
+	Partial Differential	Osadiferentsiaal
+	Pi Over 2	Pii jagatud kahega
+	Placement	Paigutus
+	Plain Table 1	Lihttabel 1
+	Plus Equal	Pluss ja võrdusmärk
+	Possible spelling mistake	Võimalik õigekirjaviga
+	Power series of (1+x)ⁿ	Astmerida funktsioonile (1+x)ⁿ
+	Prefix	Eesliide
+	Previous object	Eelmine objekt
+	Product	Korrutis
+	Product of A	A korrutis
+	Product with Limits	Korrutis rajadega
+	Product with Lower Limit	Korrutis alamrajaga
+	Product with Subscript-Superscript Limits	Korrutis ala- ja ülaindeksi rajadega
+	Products and Coproducts	Korrutised ja kooskorrutised
+	Property names are 1–{max} characters.	Atribuutide nimed on 1–{max} märki pikad.
+	Property values are at most {max} bytes.	Atribuutide väärtused on kuni {max} baiti pikad.
+	Put the cursor in an exercise to see its data and variants.	Aseta kursor ülesandesse, et näha selle andmeid ja variante.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Aseta kursor millimeetripaberisse (või lehele, mille taust on millimeetripaber), et näha selle atribuute.
+	Quadratic Root	Ruutvõrrandi lahend
+	Quick Keys	Kiirklahvid
+	Quick Keys in Formulas	Kiirklahvid valemites
+	Radical with Degree	Juur astendajaga
+	Radicals	Juured
+	Reading Page Color	Lugemislehekülje värv
+	Rebuild the repeated questions and the results summary	Ehita korduvad küsimused ja tulemuste kokkuvõte uuesti
+	Recalculate	Arvuta uuesti
+	Recalculate every calculation in the document (F9)	Arvuta dokumendi kõik arvutused uuesti (F9)
+	Recovery copy	Taastekoopia
+	Recovery is disabled while this document has a password.	Taaste on keelatud, kuni dokumendil on parool.
+	Reduce the selection to the objects considered	Kitenda valik arvestatud objektideni
+	Reference type:	Viite tüüp:
+	Reject All Changes and Stop Tracking	Lükka tagasi kõik muudatused ja lõpeta jälgimine
+	Reject and Move to Next	Lükka tagasi ja liigu järgmise juurde
+	Release notes	Väljalaskemärkused
+	Reload	Laadi uuesti
+	Reload Subdocuments	Laadi alamdokumendid uuesti
+	Remove Graph Paper	Eemalda millimeetripaber
+	Remove the active variant	Eemalda aktiivne variant
+	Remove this datum	Eemalda see algandme
+	Replace the text shown here with the file's	Asenda siin kuvatav tekst faili tekstiga
+	Resize Pane	Muuda paani suurust
+	Restore	Taasta
+	Restore opens an unsaved copy. Your original file stays unchanged.	Taastamine avab salvestamata koopia. Sinu algne fail jääb muutmata.
+	Result Layout	Tulemuste paigutus
+	Result Of	Tulemuse allikas
+	Right Arrow with Text Above	Nool paremale tekstiga peal
+	Right Arrow with Text Below	Nool paremale tekstiga all
+	Right Bracket Twice	Paremsulg kaks korda
+	Rightwards Arrow Above	Nool paremale peal
+	Rightwards Harpoon Above	Harpuun paremale peal
+	Roots of ax²+bx+c	Avaldise ax²+bx+c juured
+	Row, Column Below (A_F)	Rida, veerg all (A_F)
+	SAMPLE	NÄIDIS
+	Save Subdocuments	Salvesta alamdokumendid
+	Save as Strix Template…	Salvesta Strixi mallina…
+	Save or close your documents first: updating restarts Strix Writer.	Salvesta või sulge esmalt oma dokumendid: värskendamine taaskäivitab Strix Writeri.
+	Save the selected paragraphs as a new file, linked in their place	Salvesta valitud lõigud uue failina, mis lingitakse nende asemele
+	Save your documents: Strix Writer then closes and restarts in the new version.	Salvesta oma dokumendid: Strix Writer sulgub ja käivitub seejärel uues versioonis uuesti.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Salvestab .xmathm-malli sinu mallikausta. See kuvatakse jaotises Fail › Uus rubriigis Isiklikud.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Dokumendi salvestamine salvestab iga siin muudetud alamdokumendi. Avamisel kuvatakse iga fail praegusel kujul.
+	Scale Font Sizes	Skaleeri fondi suurusi
+	Scaled distances	Skaleeritud kaugused
+	Scripts	Kirjasüsteemid
+	Secant Function	Sekansi funktsioon
+	Select a place in this document:	Vali selles dokumendis koht:
+	Select a property to change.	Vali muudetav atribuut.
+	Select objects	Vali objektid
+	Selection options	Valiku valikud
+	Separate text with	Eralda tekst märgiga
+	Set CAD Drawing	Määra CAD-joonis
+	Set Exercise Data	Määra ülesande andmed
+	Set left- and first-indent with tabs and backspaces	Määra vasak- ja esimene taane tabeldus- ja tagasilükkeklahvidega
+	Show	Näita
+	Steps	Sammud
+	Show Steps	Näita samme
+	Show Trailing Zeros	Näita lõpunulle
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Näita iga lahtrit võrrandina: nimed kaldkirjas, alaindeksid, ühikud ühikustiilis
+	Show every file as it is on disk, discarding edits made here	Näita iga faili sellisena, nagu see on kettal, loobudes siin tehtud muudatustest
+	Show one digit less in results	Näita tulemustes ühe numbri võrra vähem
+	Show one more digit in results	Näita tulemustes ühe numbri võrra rohkem
+	Show the equation in the line of text	Näita võrrandit tekstireal
+	Show the equation on a line of its own	Näita võrrandit eraldi real
+	Show the exercise's data and variants	Näita ülesande andmeid ja variante
+	Show the file as it is on disk, discarding edits made here	Näita faili sellisena, nagu see on kettal, loobudes siin tehtud muudatustest
+	Sides of a right triangle	Täisnurkse kolmnurga küljed
+	Significant Digits	Olulised numbrid
+	Sine Function	Siinuse funktsioon
+	Sine and cosine series of f(x)	Funktsiooni f(x) siinus- ja koosinusread
+	Sine theta	Siinus teeta
+	Single Brackets	Üksiksulud
+	Single Left Angle	Üks vasak teravsulg
+	Single Left Bar	Üks vasak püstkriips
+	Single Left Brace	Üks vasak looksulg
+	Single Left Bracket	Üks vasak nurksulg
+	Single Left Parenthesis	Üks vasak ümarsulg
+	Single Right Brace	Üks parem looksulg
+	Single Right Bracket	Üks parem nurksulg
+	Single Right Parenthesis	Üks parem ümarsulg
+	Skewed Fraction	Kaldmurd
+	Small change	Väike muutus
+	Snap for the next point	Haare järgmise punkti jaoks
+	Snap for the next point (Shift+right-click)	Haare järgmise punkti jaoks (Shift+paremklõps)
+	Software Update	Tarkvaravärskendus
+	Spanish (Latin America)	Hispaania (Ladina-Ameerika)
+	Spanish (Uruguay)	Hispaania (Uruguay)
+	Sparse Matrices	Hõredad maatriksid
+	Square Root	Ruutjuur
+	Square Root with Degree	Ruutjuur astendajaga
+	Square Union	Ruutühend
+	Square size	Ruudu suurus
+	Stack Object	Virnaobjekt
+	Stack Object (Three)	Virnaobjekt (kolm)
+	Stacked Fraction	Virnastatud murd
+	Stacked, no bar	Virnastatud, ilma kriipsuta
+	Start at	Alusta kohast
+	Strix Writer {version} is available	Strix Writer {version} on saadaval
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} on praegu uusim saadaolev versioon.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix on WordCrafti haru (fork). Autoriõigus (c) 2026 ArtCraft Team ja WordCrafti panustajad. Vaata faili NOTICE.
+	Styles Pane Position	Stiilipaani asukoht
+	Subdocuments	Alamdokumendid
+	Subdocuments Pane	Alamdokumentide paan
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Alamdokumendid on kettal olevad failid: töölauaversioon lingib neid, brauseriversioon ei saa.
+	Subscript-Superscript	Alaindeks-ülaindeks
+	Subscripts and Superscripts	Alaindeksid ja ülaindeksid
+	Sum of cosines	Koosinuste summa
+	Sum or difference of sines	Siinuste summa või vahe
+	Summation	Summa
+	Summation from 0 to n	Summa 0-st n-ni
+	Summation over binomials	Summa binoomide üle
+	Summation with Limits	Summa rajadega
+	Summation with Lower Limit	Summa alamrajaga
+	Summation with Subscript Limit	Summa alaindeksi rajaga
+	Summation with Subscript-Superscript Limits	Summa ala- ja ülaindeksi rajadega
+	Summations	Summad
+	Surface Integral	Pindintegraal
+	Surface Integral with Limits	Pindintegraal rajadega
+	Surface Integral with Stacked Limits	Pindintegraal virnastatud rajadega
+	Switch	Vaheta
+	Windows	aknaid
+	Switch Windows	Vaheta aknaid
+	Table Grid	Tabeliruudustik
+	Table of Figures	Piltide loend
+	Tangent Function	Tangensi funktsioon
+	Tangent formula	Tangensi valem
+	Text Size	Teksti suurus
+	Text over Colon Equal	Tekst koolon-võrdusmärgi peal
+	Text over Equal	Tekst võrdusmärgi peal
+	Text properties only: Word's number, date and yes-no types aren't offered.	Ainult tekstiatribuudid: Wordi arvu-, kuupäeva- ja jah/ei-tüüpe ei pakuta.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	See vorming ei säilita kõike, seega on dokument endiselt avatud. Jätkamiseks salvesta see Strixi dokumendina (.xmath).
+	That would make the object degenerate	See muudaks objekti degenereerunuks
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Andmed on ülesande arvutuste esimesed parameetrid: lahendus kasutab neid sümboli järgi. Variandi muutmine arvutab ülesande uuesti.
+	The document has no subdocuments.	Dokumendil pole alamdokumente.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Viimane rida liidab iga veeru kokku (Σ =); sinna kirjutatud lahter säilitab oma teksti (mean =, max =)
+	The layer of the selected objects becomes the current layer	Valitud objektide kiht muutub praeguseks kihiks
+	The number must be a divisor of {max}.	Arv peab olema arvu {max} tegur.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Keele {language} õigekirjasõnastikku ei saanud lugeda, seega seda ei kontrollita. Fail: {file}. Põhjus: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Kursoril olev tabel on arvutustabel: pane veerud esimesel real nimed (L [m], M [kN·m] = q·L²/8) ja liida need kokku märgiga Σ =
+	The update couldn't be installed: {error}	Värskendust ei saanud paigaldada: {error}
+	The whole family	Kogu pere
+	The {name} dictionary couldn't be downloaded: {reason}	Sõnastikku {name} ei saanud alla laadida: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Sõnastik {name} on paigaldatud: keele {language} õigekirja kontrollitakse nüüd.
+	This cannot be undone. Your original file stays unchanged.	Seda ei saa tagasi võtta. Sinu algne fail jääb muutmata.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	See Strix Writeri koopia ei saa end ise asendada: laadi alla uus versioon ja paigalda see selle peale.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Selles dokumendis on Strixi objekte ({objects}). Word ja muud muudetavad vormingud kaotaksid need, seega salvestatakse see ainult Strixi dokumendina (.xmath). Eksport vormingutesse PDF, PNG, LaTeX, HTML ja Markdown jääb saadavaks staatiliste koopiatena.
+	This document has no bookmarks.	Selles dokumendis pole järjehoidjaid.
+	This document has no custom properties.	Selles dokumendis pole kohandatud atribuute.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	See dokument ei lingi veel ühtegi teist dokumenti. Lisa üks või vali lõigud ja loo neist üks: selle tekst kuvatakse siin ja salvestatakse tagasi oma faili.
+	This equation is the result of the question it is worked under (shown in the results summary)	See võrrand on küsimuse tulemus, mille all seda lahendatakse (kuvatakse tulemuste kokkuvõttes)
+	Tilde	Tilde
+	To the End of the Page	Lehekülje lõpuni
+	Top of the Document	Dokumendi algus
+	Trigonometric Functions	Trigonomeetrilised funktsioonid
+	Triple Dot	Kolmikpunkt
+	Triple Integral	Kolmikintegraal
+	Triple Integral with Limits	Kolmikintegraal rajadega
+	Triple Integral with Stacked Limits	Kolmikintegraal virnastatud rajadega
+	Type a page number, or +2 / -1.	Sisesta lehekülje number või +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Sisesta punkt (x,y  @dx,dy  @d<a), kaugus, käsk (l, pl, rec, c, a, t, m, co), valik või vajuta Enter
+	Type equations in LaTeX	Kirjuta võrrandid LaTeXis
+	Type equations in the linear format (UnicodeMath)	Kirjuta võrrandid lineaarses vormingus (UnicodeMath)
+	Type normal (non-math) text in the equation	Kirjuta võrrandisse tavalist (mittematemaatilist) teksti
+	URGENT	KIIREDASTI
+	Underbar	Alajoon
+	Underbrace	Alumine looksulg
+	Union	Ühend
+	Union of intersections	Ühisosade ühend
+	Union with Limits	Ühend rajadega
+	Union with Lower Limit	Ühend alamrajaga
+	Union with Plus	Ühend plussiga
+	Union with Subscript-Superscript Limits	Ühend ala- ja ülaindeksi rajadega
+	Unions and Intersections	Ühendid ja ühisosad
+	Unit	Ühik
+	Unit:	Ühik:
+	Unknown selection option:	Tundmatu valiku valik:
+	Unlink	Katkesta link
+	Unlink Subdocument	Katkesta alamdokumendi link
+	Until the Next Even Page	Kuni järgmise paarisleheküljeni
+	Until the Next Odd Page	Kuni järgmise paaritu leheküljeni
+	Up Diagonal Dots	Diagonaalpunktid üles
+	Update Summary	Värskenduse kokkuvõte
+	Update and Restart	Värskenda ja taaskäivita
+	Update check is not supported in the web browser.	Värskenduste otsimist veebibrauser ei toeta.
+	Value:	Väärtus:
+	Variables	Muutujad
+	Variant	Variant
+	Variants	Variandid
+	Varies	Varieerub
+	Vector A	Vektor A
+	Vector AB	Vektor AB
+	Vertex	Tipp
+	Vertical Bars	Püstkriipsud
+	Vertical Dots	Vertikaalpunktid
+	View and edit the document's custom properties.	Vaata ja muuda dokumendi kohandatud atribuute.
+	Volume Integral	Ruumalaintegraal
+	Volume Integral with Limits	Ruumalaintegraal rajadega
+	Volume Integral with Stacked Limits	Ruumalaintegraal virnastatud rajadega
+	Wait for the print job to finish submitting before closing.	Oota enne sulgemist, kuni printimistöö esitamine lõpeb.
+	What's new	Mis on uut
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Kuhu tulemused ja sammud lähevad: pärast ⇒ ülesande teksti real või üks rida allpool, joondatud märgile =
+	Window polygon	Aknahulknurk
+	Write the edited subdocuments to their files now (also done by saving the document)	Kirjuta muudetud alamdokumendid nüüd nende failidesse (seda teeb ka dokumendi salvestamine)
+	Yields	Annab
+	You have version {version}.	Sul on versioon {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / loovad ülaindeksi, alaindeksi või murru kohe (väljas: need ehitatakse tühikuga, nagu Wordis)
+	already selected	juba valitud
+	an exercise goes in the body, outside tables	ülesanne läheb põhiossa, väljaspool tabeleid
+	annotative {size}	annotatiivne {size}
+	click adds, Shift+click removes	klõps lisab, Shift+klõps eemaldab
+	click on empty space for a window, drag for a lasso	klõps tühjal alal annab akna, lohistamine lassoo
+	click the vertices; Enter or right-click closes, Esc cancels	klõpsa tippudel; Enter või paremklõps sulgeb, Esc tühistab
+	click to pick it	klõpsa valimiseks
+	conflict	konflikt
+	cycle:	tsükkel:
+	edited	muudetud
+	fitted to frame	raamile sobitatud
+	found	leitud
+	graph paper	millimeetripaber
+	in step	sammus
+	input	sisend
+	installed	paigaldatud
+	no graph paper at the cursor	kursori kohal pole millimeetripaberit
+	no snap	haaret pole
+	not available: the cursor isn't in an exercise	pole saadaval: kursor ei asu ülesandes
+	not found	ei leitud
+	n×n Identity Matrix	Ühikmaatriks n×n
+	n×n Matrix	Maatriks n×n
+	objects	objektid
+	objects selected	objekti valitud
+	of	/
+	removed	eemaldatud
+	scaled {size}	skaleeritud {size}
+	select a CAD drawing first	vali esmalt CAD-joonis
+	selected	valitud
+	squares (0: none)	ruudud (0: puudub)
+	tOGGLE cASE	vAHETA tÄHESUURUST
+	the cursor isn't in an exercise	kursor ei asu ülesandes
+	the document has no exercise	dokumendis pole ühtegi ülesannet
+	x bar	x kriipsuga
+	{field}, record {n}	{field}, kirje {n}
+	{language} (dictionary unreadable)	{language} (sõnastikku ei saa lugeda)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (ei saa lugeda: {reason})
+	{name} options	{name} valikud
+	{n} CAD drawings	{n} CAD-joonist
+	{n} calculated tables	{n} arvutustabelit
+	{n} calculations	{n} arvutust
+	{n} exercises	{n} ülesannet
+	{n} results summaries	{n} tulemuste kokkuvõtet
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	✓ None	✓ Puudub
+	Check for\nUpdates…	Otsi\nvärskendusi…
+	Edit\nDrawing	Redigeeri\njoonist
+	New\nExercise	Uus\nülesanne
+	Show\nSteps	Näita\nsamme
+	Switch\nWindows	Vaheta\naknaid
+	CAD\nDrawing	CAD-\njoonis
+	Calculated\nTable	Arvutatud\ntabel
+	Graph\nPaper	Millimeetri-\npaber
+	New\nCalculation	Uus\narvutus

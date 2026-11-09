@@ -2363,3 +2363,377 @@ paper	Envelope DL	Obálka DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	O aplikaci Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(odebrat) kliknutí odebere
+	*Bold* and _italic_ as real formatting	*Tučné* a _kurzíva_ jako skutečné formátování
+	1 CAD drawing	1 výkres CAD
+	1 calculated table	1 vypočtená tabulka
+	1 calculation	1 výpočet
+	1 exercise	1 cvičení
+	1 object selected	1 vybraný objekt
+	1 results summary	souhrn výsledků
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	První sloupec, sloupec 0, který čísluje řádky dat 1, 2, 3… (výpočty ho nikdy nečtou)
+	A free, open-source word processor written in Rust.	Bezplatný textový procesor s otevřeným kódem napsaný v jazyce Rust.
+	A grid from the cursor to the end of the page	Mřížka od kurzoru do konce stránky
+	A new exercise takes the page breaks of the last one.	Nové cvičení převezme zalomení stránek toho posledního.
+	A new layer, made current	Nová vrstva nastavená jako aktuální
+	A polar array has	Polární pole má
+	Accept All Changes and Stop Tracking	Přijmout všechny změny a zastavit sledování
+	Accept and Move to Next	Přijmout a přejít na další
+	Add Datum	Přidat údaj
+	Add Note	Přidat poznámku
+	Add Question	Přidat otázku
+	Add Sub-question	Přidat podotázku
+	Add a note between the questions: free text that is not a question	Přidat poznámku mezi otázky: volný text, který není otázkou
+	Add a period with double-space	Přidat tečku dvojitou mezerou
+	Add a question at the end of the exercise at the cursor	Přidat otázku na konec cvičení u kurzoru
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Přidat otázku vnořenou pod poslední (a.1, a.1.1); Tab a Shift+Tab mění úroveň otázky
+	Add a variant: a copy of the active one's values	Přidat variantu: kopii hodnot aktivní varianty
+	Add an initial datum: a symbol with its value in every variant	Přidat počáteční údaj: symbol s jeho hodnotou v každé variantě
+	Add to CAD Drawing	Přidat do výkresu CAD
+	Advanced Properties…	Upřesňující vlastnosti…
+	Aligned texts	Zarovnané texty
+	All the selection	Celý výběr
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Vše · F ohrada · WP/CP mnohoúhelník · R odebrat · A přidat · P předchozí · U zpět · Shift+Space přepnout
+	An array has	Pole má
+	Apply to all exercises	Použít na všechna cvičení
+	As the grid lines	Jako čáry mřížky
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Automatické ukládání uchovává jen dokumenty Strix (.xmath); {name} je v jiném formátu. Uložte jako .xmath a automatické ukládání se zapne.
+	Automatic (Decimals, Significant Below 1)	Automaticky (desetinná místa, platné cifry pod 1)
+	Automatic updates are not available yet. New versions are published at {url}	Automatické aktualizace zatím nejsou dostupné. Nové verze se zveřejňují na {url}
+	Automatically add words to list (First Letter)	Automaticky přidávat slova do seznamu (první písmeno)
+	Automatically add words to list (INitial CAps)	Automaticky přidávat slova do seznamu (DVě VElká počáteční písmena)
+	Bookmarks	Záložky
+	Built-in Heading styles	Vestavěné styly nadpisů
+	ByLayer	PodleVrstvy
+	CAD	CAD
+	Drawing	Výkres
+	CAD Drawing	Výkres CAD
+	CAD Drawing Source	Zdroj výkresu CAD
+	CAD Picture Format	Formát obrázku CAD
+	Calculate New Equations	Vypočítat nové rovnice
+	Calculate This Table	Vypočítat tuto tabulku
+	Calculate the exercise with this variant	Vypočítat cvičení s touto variantou
+	Calculated	Vypočtená
+	Table	tabulka
+	Calculated Table	Vypočtená tabulka
+	Calculated Table Info	Informace o vypočtené tabulce
+	Calculation	Výpočet
+	Calculations	Výpočty
+	Cancel the step	Zrušit krok
+	Cells as Equations	Buňky jako rovnice
+	Changed here and in the file: keep one of the two.	Změněno tady i v souboru: ponechte jedno z obou.
+	Check for	Zkontrolovat
+	Updates…	aktualizace…
+	Checking for updates…	Kontrola aktualizací…
+	Close Document	Zavřít dokument
+	Column, Row Below (F_A)	Sloupec, řádek pod ním (F_A)
+	Columns × rows:	Sloupců × řádků:
+	Considering	Zvažuje se
+	Continue without restoring	Pokračovat bez obnovení
+	Coordinates take a number or an expression of the calculations (L/2)	Souřadnice přijímají číslo nebo výraz z výpočtů (L/2)
+	Could not check for updates:\n{error}	Aktualizace se nepodařilo zkontrolovat:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Soubor {name} se nepodařilo uložit, takže zůstává otevřený a nic se neztratilo: {error}
+	Create Subdocument	Vytvořit dílčí dokument
+	Create Subdocument…	Vytvořit dílčí dokument…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Oříznutí na stránce funguje u neotočených obrázků: nejprve nastavte otočení na 0° nebo použijte rámečky oříznutí
+	Crossing polygon	Protínající mnohoúhelník
+	Current Document	Aktuální dokument
+	Current layer	Aktuální vrstva
+	Current layer: new objects go on it	Aktuální vrstva: nové objekty patří do ní
+	Data Table	Tabulka dat
+	Decimal Places	Desetinná místa
+	Delete Exercise	Odstranit cvičení
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Odstranit celé cvičení u kurzoru, nebo vybraná cvičení: zadání, otázky i řešení zmizí a výsledky opustí souhrn (Zpět je vrátí)
+	Delete the layer (its objects go to layer 0)	Odstranit vrstvu (její objekty přejdou do vrstvy 0)
+	Detach: a window of its own	Odpojit: samostatné okno
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Kótovací čáry a úhlové oblouky umístěné kliknutím nebo úchopem si ve výkresu drží vzdálenost (sledují jeho velikost a měřítko); vypnuto, na papíře (stejně i při tisku)
+	Dimension texts along their line (never upside down), not level	Kótovací texty podél své čáry (nikdy hlavou dolů), ne vodorovně
+	Dimension units	Jednotky kót
+	Discard the recovery copy of {name}?	Zahodit záložní kopii souboru {name}?
+	Discard…	Zahodit…
+	Dock	Ukotvit
+	Dock Left	Ukotvit vlevo
+	Dock Right	Ukotvit vpravo
+	Download Dictionary	Stáhnout slovník
+	Download the {name} spelling dictionary	Stáhnout pravopisný slovník {name}
+	Downloading and installing…	Stahování a instalace…
+	Downloading the {name} dictionary…	Stahování slovníku {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Stáhne slovník Hunspell {name} ze slovníků LibreOffice ({source}) s licencí {licence} do vaší složky slovníků a hned s ním kontroluje pravopis.
+	Draw order	Pořadí kreslení
+	Drawing Padding	Odsazení výkresu
+	Drawing Scale	Měřítko výkresu
+	Drawing unit	Jednotka výkresu
+	Edit	Upravit
+	End mark	Koncová značka
+	Enter confirms	Enter potvrdí
+	Every	Každé
+	Every exercise of the document takes this exercise's page breaks	Všechna cvičení v dokumentu převezmou zalomení stránek tohoto cvičení
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Každá hodnota je parametr pojmenovaný podle svého sloupce a popisku řádku (první sloupec) s dolním indexem: F_A nebo A_F
+	Exercise	Cvičení
+	Exercise Data	Data cvičení
+	Exercise Info	Informace o cvičení
+	Exercise Numbering	Číslování cvičení
+	Exercise Properties	Vlastnosti cvičení
+	Exercise Result	Výsledek cvičení
+	Exercise, in the document's language	Cvičení, v jazyce dokumentu
+	Fence	Ohrada
+	Fewer Digits	Méně číslic
+	File type	Typ souboru
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Soubor › Nový zde uvádí šablony .xmathm, .dotx a .dotm v části Osobní; Uložit jako šablonu Strix začíná zde.
+	First exercise: {label}	První cvičení: {label}
+	Fitted to Frame	Přizpůsobeno rámu
+	Float	Plovoucí
+	Folder path	Cesta ke složce
+	Follow columns	Sledovat sloupce
+	For Two Pages	Pro dvě stránky
+	For a Height of 5 cm	Pro výšku 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Pro všechna cvičení v dokumentu: popisek každého nadpisu a souhrnu výsledků.
+	Go to it	Přejít na něj
+	Graph	Graf
+	Paper	papír
+	Graph Paper	Milimetrový papír
+	Graph Paper Pane	Podokno milimetrového papíru
+	Graph Paper Properties	Vlastnosti milimetrového papíru
+	Graph Paper at Cursor	Milimetrový papír u kurzoru
+	Grid lines	Čáry mřížky
+	Grip	Úchop
+	Grip: the new point (click, or type it; Esc puts it back)	Úchop: nový bod (klikněte, nebo ho zadejte; Esc ho vrátí)
+	Heavier lines	Tlustší čáry
+	How results are rounded	Jak se zaokrouhlují výsledky
+	Imported 1 source	Naimportován 1 zdroj
+	Imported {n} sources	Naimportováno zdrojů: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	V oddílu s více než jedním sloupcem se každý sloupec linkuje zvlášť a prostor mezi nimi zůstává volný
+	Inline (⇒)	V řádku (⇒)
+	Input unit	Vstupní jednotka
+	Insert Graph Paper	Vložit milimetrový papír
+	Insert Subdocument	Vložit dílčí dokument
+	Insert Subdocument…	Vložit dílčí dokument…
+	Items:	Položky:
+	Keep the file	Ponechat soubor
+	Keep the text in this document, without the link; the file stays as it is	Ponechat text v tomto dokumentu, bez odkazu; soubor zůstane, jak je
+	Keep this version	Ponechat tuto verzi
+	Layer:	Vrstva:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Omezit velikost výkresu na papíře (podle textové oblasti stránky): nabízejí se měřítka, při kterých se vejde
+	Line by Line	Po řádcích
+	Linetype	Typ čáry
+	Lineweight	Tloušťka čáry
+	Link a document at the cursor	Propojit dokument u kurzoru
+	Linked files	Propojené soubory
+	Local recovery is unavailable or still loading.	Místní obnovení není dostupné, nebo se ještě načítá.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Nastavit vrstvu objektu jako aktuální
+	Make the equation at the cursor a live calculation, or an ordinary one	Změnit rovnici u kurzoru na živý výpočet, nebo na obyčejnou
+	Make this equation a live calculation: write it with = and the unknown is solved for	Změnit tuto rovnici na živý výpočet: napište ji s = a neznámá se vyřeší
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Označit rovnici u kurzoru jako výsledek otázky: její hodnota přejde do souhrnu výsledků
+	Master Document	Hlavní dokument
+	Math	Matematika
+	Maximum size	Maximální velikost
+	More Digits	Více číslic
+	Move Pane: {title}	Přesunout podokno: {title}
+	Move to layer	Přesunout do vrstvy
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Pojmenovat a očíslovat cvičení dokumentu: předpona (Esercizio, vlastní text nebo žádná), formát čísla a první číslo, v podokně Vlastnosti cvičení
+	New	Nový
+	New Calculation	Nový výpočet
+	New Exercise	Nové cvičení
+	New equations are live calculations	Nové rovnice jsou živé výpočty
+	New layer	Nová vrstva
+	New page before the exercise	Nová stránka před cvičením
+	New page before the results summary	Nová stránka před souhrnem výsledků
+	New page before the solution	Nová stránka před řešením
+	Next object	Další objekt
+	Next point	Další bod
+	No new sources in that file	V tom souboru nejsou žádné nové zdroje
+	No previous selection	Žádný předchozí výběr
+	No recovery copies.	Žádné záložní kopie.
+	No selection: click objects, or drag a window	Nic není vybráno: klikněte na objekty, nebo přetáhněte okno
+	Not a Data Table	Není tabulka dat
+	Nothing of this type in the document.	V dokumentu není nic tohoto typu.
+	Nothing to undo in the selection	Ve výběru není co vrátit zpět
+	Number Format	Formát čísla
+	Object snap settings	Nastavení uchopení objektů
+	Objects	Objekty
+	Only text properties can be changed.	Měnit lze jen vlastnosti textu.
+	Only these	Jen tyto
+	Only when another exercise comes before it	Jen když před ním je jiné cvičení
+	Open Subdocument	Otevřít dílčí dokument
+	Open the file in a window of its own	Otevřít soubor v samostatném okně
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Od nynějška otevírá dokumenty Strix (.xmath, .xmathm), soubory .docx, .doc, .rtf a .odt a šablony Wordu ve Strixu.
+	Ordinal Column	Pořadový sloupec
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Druhý roh okna (doprava: celé objekty; doleva: i dotčené)
+	Outer frame	Vnější rám
+	Overwrite the file with the text shown here	Přepsat soubor zde zobrazeným textem
+	Padding	Odsazení
+	Page color	Barva stránky
+	Pane Options	Možnosti podokna
+	Placement	Umístění
+	Previous object	Předchozí objekt
+	Property names are 1–{max} characters.	Názvy vlastností mají 1–{max} znaků.
+	Property values are at most {max} bytes.	Hodnoty vlastností mají nejvýše {max} bajtů.
+	Put the cursor in an exercise to see its data and variants.	Umístěte kurzor do cvičení, abyste viděli jeho data a varianty.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Umístěte kurzor do milimetrového papíru (nebo na stránku s pozadím milimetrového papíru), abyste viděli jeho vlastnosti.
+	Quick Keys	Klávesové zkratky
+	Quick Keys in Formulas	Klávesové zkratky ve vzorcích
+	Reading Page Color	Barva stránky pro čtení
+	Rebuild the repeated questions and the results summary	Znovu sestavit opakované otázky a souhrn výsledků
+	Recalculate	Přepočítat
+	Recalculate every calculation in the document (F9)	Přepočítat každý výpočet v dokumentu (F9)
+	Recovery copy	Záložní kopie
+	Recovery is disabled while this document has a password.	Obnovení je vypnuto, dokud má dokument heslo.
+	Reduce the selection to the objects considered	Zúžit výběr na zvažované objekty
+	Reject All Changes and Stop Tracking	Odmítnout všechny změny a zastavit sledování
+	Reject and Move to Next	Odmítnout a přejít na další
+	Release notes	Poznámky k vydání
+	Reload Subdocuments	Znovu načíst dílčí dokumenty
+	Remove Graph Paper	Odebrat milimetrový papír
+	Remove the active variant	Odebrat aktivní variantu
+	Remove this datum	Odebrat tento údaj
+	Replace the text shown here with the file's	Nahradit zde zobrazený text textem souboru
+	Resize Pane	Změnit velikost podokna
+	Restore opens an unsaved copy. Your original file stays unchanged.	Obnovení otevře neuloženou kopii. Váš původní soubor zůstane beze změny.
+	Result Layout	Rozložení výsledku
+	Result Of	Výsledek z
+	Row, Column Below (A_F)	Řádek, sloupec pod ním (A_F)
+	Save Subdocuments	Uložit dílčí dokumenty
+	Save as Strix Template…	Uložit jako šablonu Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Nejprve uložte nebo zavřete dokumenty: aktualizace restartuje Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Uložit vybrané odstavce jako nový soubor, odkazovaný na jejich místě
+	Save your documents: Strix Writer then closes and restarts in the new version.	Uložte dokumenty: Strix Writer se pak zavře a znovu spustí v nové verzi.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Uloží šablonu .xmathm do vaší složky šablon. Objeví se v Soubor › Nový v části Osobní.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Uložením dokumentu se uloží každý dílčí dokument upravený zde. Otevření ukáže každý soubor tak, jak je nyní.
+	Scale Font Sizes	Měnit velikosti písma
+	Scaled distances	Měřítkované vzdálenosti
+	Select a place in this document:	Vyberte místo v tomto dokumentu:
+	Select a property to change.	Vyberte vlastnost ke změně.
+	Select objects	Vybrat objekty
+	Selection options	Možnosti výběru
+	Separate text with	Oddělit text pomocí
+	Set CAD Drawing	Nastavit výkres CAD
+	Set Exercise Data	Nastavit data cvičení
+	Set left- and first-indent with tabs and backspaces	Nastavit levé a první odsazení tabulátory a backspacem
+	Show	Zobrazit
+	Steps	kroky
+	Show Steps	Zobrazit kroky
+	Show Trailing Zeros	Zobrazit koncové nuly
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Zobrazit každou buňku jako rovnici: názvy kurzívou, dolní indexy, jednotky ve stylu Jednotka
+	Show every file as it is on disk, discarding edits made here	Zobrazit každý soubor tak, jak je na disku, a zahodit zde provedené úpravy
+	Show one digit less in results	Zobrazit ve výsledcích o jednu číslici méně
+	Show one more digit in results	Zobrazit ve výsledcích o jednu číslici více
+	Show the exercise's data and variants	Zobrazit data a varianty cvičení
+	Show the file as it is on disk, discarding edits made here	Zobrazit soubor tak, jak je na disku, a zahodit zde provedené úpravy
+	Significant Digits	Platné číslice
+	Snap for the next point	Uchopení pro další bod
+	Snap for the next point (Shift+right-click)	Uchopení pro další bod (Shift+pravé kliknutí)
+	Software Update	Aktualizace programu
+	Spanish (Latin America)	Španělština (Latinská Amerika)
+	Spanish (Uruguay)	Španělština (Uruguay)
+	Square size	Velikost čtverce
+	Start at	Začít od
+	Strix Writer {version} is available	Strix Writer {version} je k dispozici
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} je aktuálně nejnovější dostupná verze.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix je fork projektu WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Styles Pane Position	Umístění podokna stylů
+	Subdocuments	Dílčí dokumenty
+	Subdocuments Pane	Podokno dílčích dokumentů
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Dílčí dokumenty jsou soubory na disku: desktopová verze je propojuje, verze v prohlížeči ne.
+	Switch	Přepnout
+	Windows	okna
+	Switch Windows	Přepnout okna
+	Text Size	Velikost textu
+	Text properties only: Word's number, date and yes-no types aren't offered.	Jen vlastnosti textu: typy čísla, data a ano/ne z Wordu se nenabízejí.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Tento formát neuchová všechno, takže dokument zůstává otevřený. Pro pokračování ho uložte jako dokument Strix (.xmath).
+	That would make the object degenerate	Tím by se objekt zdegeneroval
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Data jsou první parametry výpočtů cvičení: řešení je používá podle symbolu. Změna varianty cvičení přepočítá.
+	The document has no subdocuments.	Dokument nemá žádné dílčí dokumenty.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Poslední řádek sčítá každý sloupec (Σ =); buňka tam zapsaná si ponechá vlastní text (mean =, max =)
+	The layer of the selected objects becomes the current layer	Vrstva vybraných objektů se stane aktuální vrstvou
+	The number must be a divisor of {max}.	Číslo musí být dělitelem čísla {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Pravopisný slovník pro jazyk {language} se nepodařilo přečíst, proto se nekontroluje. Soubor: {file}. Důvod: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Tabulka u kurzoru je vypočtená: pojmenujte její sloupce v prvním řádku (L [m], M [kN·m] = q·L²/8) a sečtěte je pomocí Σ =
+	The update couldn't be installed: {error}	Aktualizaci se nepodařilo nainstalovat: {error}
+	The whole family	Celá rodina
+	The {name} dictionary couldn't be downloaded: {reason}	Slovník {name} se nepodařilo stáhnout: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Slovník {name} je nainstalován: pravopis v jazyce {language} se nyní kontroluje.
+	This cannot be undone. Your original file stays unchanged.	Toto nelze vrátit zpět. Váš původní soubor zůstane beze změny.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Tato kopie Strix Writeru se nemůže nahradit sama: stáhněte novou verzi a nainstalujte ji přes tuto.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Tento dokument obsahuje objekty Strix ({objects}). Word a další upravitelné formáty by je ztratily, proto se ukládá jen jako dokument Strix (.xmath). Exporty do PDF, PNG, LaTeX, HTML a Markdown zůstávají k dispozici jako statické kopie.
+	This document has no custom properties.	Tento dokument nemá žádné vlastní vlastnosti.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Tento dokument zatím neodkazuje na žádné jiné dokumenty. Vložte některý, nebo vyberte odstavce a vytvořte z nich dokument: jejich text se zobrazí zde a uloží se zpět do jejich vlastního souboru.
+	This equation is the result of the question it is worked under (shown in the results summary)	Tato rovnice je výsledkem otázky, pod kterou se řeší (zobrazí se v souhrnu výsledků)
+	To the End of the Page	Do konce stránky
+	Top of the Document	Začátek dokumentu
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Zadejte bod (x,y  @dx,dy  @d<a), vzdálenost, příkaz (l, pl, rec, c, a, t, m, co), volbu, nebo stiskněte Enter
+	Unit	Jednotka
+	Unit:	Jednotka:
+	Unknown selection option:	Neznámá volba výběru:
+	Unlink	Zrušit propojení
+	Unlink Subdocument	Zrušit propojení dílčího dokumentu
+	Until the Next Even Page	Do další sudé stránky
+	Until the Next Odd Page	Do další liché stránky
+	Update Summary	Aktualizovat souhrn
+	Update and Restart	Aktualizovat a restartovat
+	Update check is not supported in the web browser.	Kontrola aktualizací není ve webovém prohlížeči podporována.
+	Variant	Varianta
+	Variants	Varianty
+	Varies	Proměnlivé
+	Vertex	Vrchol
+	View and edit the document's custom properties.	Zobrazit a upravit vlastní vlastnosti dokumentu.
+	What's new	Co je nového
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Kam přijdou výsledky a kroky: za ⇒ na řádku zadání, nebo po jednom řádku pod ním, zarovnané u =
+	Window polygon	Mnohoúhelník okna
+	Write the edited subdocuments to their files now (also done by saving the document)	Zapsat upravené dílčí dokumenty hned do jejich souborů (provede to i uložení dokumentu)
+	You have version {version}.	Máte verzi {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / vytvoří horní index, dolní index nebo zlomek hned (vypnuto: sestaví se po Space, jako ve Wordu)
+	already selected	již vybráno
+	an exercise goes in the body, outside tables	cvičení patří do těla textu, mimo tabulky
+	annotative {size}	anotativní {size}
+	click adds, Shift+click removes	kliknutí přidá, Shift+kliknutí odebere
+	click on empty space for a window, drag for a lasso	kliknutím na prázdné místo vytvoříte okno, tažením laso
+	click the vertices; Enter or right-click closes, Esc cancels	klikejte na vrcholy; Enter nebo pravé kliknutí uzavře, Esc zruší
+	click to pick it	kliknutím ho vyberete
+	conflict	konflikt
+	cycle:	cyklus:
+	edited	upraveno
+	fitted to frame	přizpůsobeno rámu
+	found	nalezeno
+	graph paper	milimetrový papír
+	in step	v kroku
+	input	vstup
+	installed	nainstalováno
+	no graph paper at the cursor	u kurzoru není milimetrový papír
+	no snap	bez uchopení
+	not available: the cursor isn't in an exercise	nedostupné: kurzor není v cvičení
+	not found	nenalezeno
+	objects	objekty
+	objects selected	vybrané objekty
+	of	z
+	removed	odebráno
+	scaled {size}	měřítkováno {size}
+	select a CAD drawing first	nejprve vyberte výkres CAD
+	selected	vybráno
+	squares (0: none)	čtverce (0: žádné)
+	the cursor isn't in an exercise	kurzor není v cvičení
+	the document has no exercise	dokument nemá žádné cvičení
+	{field}, record {n}	{field}, záznam {n}
+	{language} (dictionary unreadable)	{language} (slovník nelze přečíst)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (nelze přečíst: {reason})
+	{n} CAD drawings	výkresů CAD: {n}
+	{n} calculated tables	vypočtených tabulek: {n}
+	{n} calculations	výpočtů: {n}
+	{n} exercises	cvičení: {n}
+	{n} results summaries	souhrnů výsledků: {n}
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Enter bookmark name:	Zadejte název záložky:
+	Find “{text}” in the document	Najít „{text}“ v dokumentu
+	Type a page number, or +2 / -1.	Zadejte číslo stránky, nebo +2 / -1.
+	Wait for the print job to finish submitting before closing.	Před zavřením počkejte, až se tisková úloha dokončí.
+	Check for\nUpdates…	Zkontrolovat\naktualizace…
+	Edit\nDrawing	Upravit\nvýkres
+	New\nExercise	Nové\ncvičení
+	Show\nSteps	Zobrazit\nkroky
+	Switch\nWindows	Přepnout\nokna
+	CAD\nDrawing	CAD\nvýkres
+	Calculated\nTable	Počítaná\ntabulka
+	Graph\nPaper	Milimetrový\npapír
+	New\nCalculation	Nový\nvýpočet

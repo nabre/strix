@@ -2362,3 +2362,379 @@ paper	Envelope DL	Kuvert DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Om Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(ta bort) klick tar bort
+	*Bold* and _italic_ as real formatting	*Fet* och _kursiv_ som riktig formatering
+	1 CAD drawing	1 CAD-ritning
+	1 calculated table	1 beräknad tabell
+	1 calculation	1 beräkning
+	1 exercise	1 övning
+	1 object selected	1 objekt markerat
+	1 results summary	resultatsammanfattning
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	En första kolumn, kolumn 0, som numrerar dataraderna 1, 2, 3… (beräkningarna läser den aldrig)
+	A free, open-source word processor written in Rust.	En gratis ordbehandlare med öppen källkod, skriven i Rust.
+	A grid from the cursor to the end of the page	Ett rutnät från markören till slutet av sidan
+	A new exercise takes the page breaks of the last one.	En ny övning tar över sidbrytningarna från den förra.
+	A new layer, made current	Ett nytt lager, gjort till aktuellt
+	A polar array has	En polär matris har
+	Accept All Changes and Stop Tracking	Godkänn alla ändringar och sluta spåra
+	Accept and Move to Next	Godkänn och gå till nästa
+	Add Datum	Lägg till data
+	Add Note	Lägg till anteckning
+	Add Question	Lägg till fråga
+	Add Sub-question	Lägg till delfråga
+	Add a note between the questions: free text that is not a question	Lägg till en anteckning mellan frågorna: fri text som inte är en fråga
+	Add a period with double-space	Lägg till punkt med dubbelt blanksteg
+	Add a question at the end of the exercise at the cursor	Lägg till en fråga i slutet av övningen vid markören
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Lägg till en fråga under den sista (a.1, a.1.1); Tab och Shift+Tab ändrar frågans nivå
+	Add a variant: a copy of the active one's values	Lägg till en variant: en kopia av den aktivas värden
+	Add an initial datum: a symbol with its value in every variant	Lägg till en startdata: en symbol med sitt värde i varje variant
+	Add to CAD Drawing	Lägg till i CAD-ritning
+	Advanced Properties…	Avancerade egenskaper…
+	Aligned texts	Justerade texter
+	All the selection	Hela markeringen
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Alla · F stängsel · WP/CP polygon · R ta bort · A lägg till · P föregående · U ångra · Shift+Space växla
+	An array has	En matris har
+	Apply to all exercises	Använd på alla övningar
+	As the grid lines	Som rutnätslinjerna
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Autospara behåller bara Strix-dokument (.xmath); {name} har ett annat format. Spara som .xmath för att aktivera Autospara.
+	Automatic (Decimals, Significant Below 1)	Automatiskt (decimaler, signifikanta under 1)
+	Automatic updates are not available yet. New versions are published at {url}	Automatiska uppdateringar finns inte ännu. Nya versioner publiceras på {url}
+	Automatically add words to list (First Letter)	Lägg automatiskt till ord i listan (första bokstav)
+	Automatically add words to list (INitial CAps)	Lägg automatiskt till ord i listan (TVå STora begynnelsebokstäver)
+	Bookmarks	Bokmärken
+	Built-in Heading styles	Inbyggda rubrikstilar
+	ByLayer	EfterLager
+	CAD	CAD
+	Drawing	Ritning
+	CAD Drawing	CAD-ritning
+	CAD Drawing Source	Källa för CAD-ritning
+	CAD Picture Format	Format för CAD-bild
+	Calculate	Beräkna
+	Calculate New Equations	Beräkna nya ekvationer
+	Calculate This Table	Beräkna den här tabellen
+	Calculate the exercise with this variant	Beräkna övningen med den här varianten
+	Calculated	Beräknad
+	Table	tabell
+	Calculated Table	Beräknad tabell
+	Calculated Table Info	Information om beräknad tabell
+	Calculation	Beräkning
+	Calculations	Beräkningar
+	Cancel the step	Avbryt steget
+	Cells as Equations	Celler som ekvationer
+	Changed here and in the file: keep one of the two.	Ändrad här och i filen: behåll en av dem.
+	Check for	Sök
+	Updates…	uppdateringar…
+	Check for Updates	Sök efter uppdateringar
+	Checking for updates…	Söker efter uppdateringar…
+	Close Document	Stäng dokument
+	Colour	Färg
+	Column, Row Below (F_A)	Kolumn, rad nedanför (F_A)
+	Columns × rows:	Kolumner × rader:
+	Considering	Beaktar
+	Continue without restoring	Fortsätt utan att återställa
+	Coordinates take a number or an expression of the calculations (L/2)	Koordinater tar ett tal eller ett uttryck i beräkningarna (L/2)
+	Could not check for updates:\n{error}	Det gick inte att söka efter uppdateringar:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Det gick inte att spara {name}, så det är fortfarande öppet och inget har gått förlorat: {error}
+	Create Subdocument	Skapa underdokument
+	Create Subdocument…	Skapa underdokument…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Beskärning på sidan fungerar på bilder som inte är roterade: ställ först in Rotation på 0° eller använd beskärningsrutorna
+	Crossing polygon	Korsande polygon
+	Current Document	Aktuellt dokument
+	Current layer	Aktuellt lager
+	Current layer: new objects go on it	Aktuellt lager: nya objekt hamnar på det
+	Data Table	Datatabell
+	Decimal Places	Decimaler
+	Delete Exercise	Ta bort övning
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Ta bort övningen vid markören, eller de markerade övningarna, helt: uppgiften, frågorna och lösningen försvinner, resultaten lämnar sammanfattningen (Ångra tar tillbaka den)
+	Delete the layer (its objects go to layer 0)	Ta bort lagret (dess objekt flyttas till lager 0)
+	Detach: a window of its own	Lösgör: ett eget fönster
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Måttlinjer och vinkelbågar som placeras med ett klick eller ett grepp behåller sitt avstånd i ritningen (de följer dess storlek och skala); av: på papperet (samma vid utskrift)
+	Dimension texts along their line (never upside down), not level	Måtttexter längs sin linje (aldrig upp och ned), inte vågräta
+	Dimension units	Måttenheter
+	Discard the recovery copy of {name}?	Släng återställningskopian av {name}?
+	Discard…	Släng…
+	Dock	Docka
+	Dock Left	Docka till vänster
+	Dock Right	Docka till höger
+	Download Dictionary	Hämta ordlista
+	Download the {name} spelling dictionary	Hämta stavningsordlistan {name}
+	Downloading and installing…	Hämtar och installerar…
+	Downloading the {name} dictionary…	Hämtar ordlistan {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Hämtar Hunspell-ordlistan {name} från LibreOffices ordlistor ({source}), licens {licence}, till din ordlistemapp och stavningskontrollerar med den direkt.
+	Draw order	Ritordning
+	Drawing Padding	Marginal i ritningen
+	Drawing Scale	Ritningsskala
+	Drawing unit	Ritningsenhet
+	Edit	Redigera
+	End mark	Slutmarkering
+	Enter confirms	Enter bekräftar
+	Every	Varje
+	Every exercise of the document takes this exercise's page breaks	Alla övningar i dokumentet tar över den här övningens sidbrytningar
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Varje värde är en parameter som namnges efter sin kolumn och radens etikett (första kolumnen), med index: F_A eller A_F
+	Exercise	Övning
+	Exercise Data	Övningsdata
+	Exercise Info	Övningsinformation
+	Exercise Numbering	Övningsnumrering
+	Exercise Properties	Övningsegenskaper
+	Exercise Result	Övningsresultat
+	Exercise, in the document's language	Övning, på dokumentets språk
+	Fence	Stängsel
+	Fewer Digits	Färre siffror
+	File type	Filtyp
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Arkiv › Nytt visar mallarna .xmathm, .dotx och .dotm här under Personliga; Spara som Strix-mall börjar här.
+	First exercise: {label}	Första övningen: {label}
+	Fitted to Frame	Anpassad till ramen
+	Float	Flytande
+	Folder path	Mappsökväg
+	Follow columns	Följ kolumnerna
+	For Two Pages	För två sidor
+	For a Height of 5 cm	För en höjd på 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	För varje övning i dokumentet: etiketten för varje rubrik och för resultatsammanfattningen.
+	Go to it	Gå till den
+	Graph	Graf
+	Paper	papper
+	Graph Paper	Rutpapper
+	Graph Paper Pane	Rutpapperspanel
+	Graph Paper Properties	Egenskaper för rutpapper
+	Graph Paper at Cursor	Rutpapper vid markören
+	Grid lines	Rutnätslinjer
+	Grip	Grepp
+	Grip: the new point (click, or type it; Esc puts it back)	Grepp: den nya punkten (klicka eller skriv den; Esc sätter tillbaka den)
+	Heavier lines	Tjockare linjer
+	How results are rounded	Hur resultat avrundas
+	Imported 1 source	1 källa importerad
+	Imported {n} sources	{n} källor importerade
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	I ett avsnitt med fler än en kolumn rutas varje kolumn för sig och utrymmet mellan dem lämnas tomt
+	Inline (⇒)	I raden (⇒)
+	Input unit	Indataenhet
+	Insert Graph Paper	Infoga rutpapper
+	Insert Subdocument	Infoga underdokument
+	Insert Subdocument…	Infoga underdokument…
+	Items:	Objekt:
+	Keep the file	Behåll filen
+	Keep the text in this document, without the link; the file stays as it is	Behåll texten i det här dokumentet, utan länken; filen förblir som den är
+	Keep this version	Behåll den här versionen
+	Later	Senare
+	Layer:	Lager:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Begränsa ritningens storlek på papperet (utifrån sidans textyta): skalorna som erbjuds är de där den ryms
+	Line by Line	Rad för rad
+	Linetype	Linjetyp
+	Lineweight	Linjetjocklek
+	Link a document at the cursor	Länka ett dokument vid markören
+	Linked files	Länkade filer
+	Local recovery is unavailable or still loading.	Lokal återställning är inte tillgänglig eller läses fortfarande in.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Gör objektets lager aktuellt
+	Make the equation at the cursor a live calculation, or an ordinary one	Gör ekvationen vid markören till en levande beräkning, eller en vanlig
+	Make this equation a live calculation: write it with = and the unknown is solved for	Gör den här ekvationen till en levande beräkning: skriv den med = så löses det okända
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Markera ekvationen vid markören som resultatet av en fråga: dess värde hamnar i resultatsammanfattningen
+	Master Document	Huvuddokument
+	Math	Matematik
+	Maximum size	Största storlek
+	More Digits	Fler siffror
+	Move Pane: {title}	Flytta panel: {title}
+	Move to layer	Flytta till lager
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Namnge och numrera dokumentets övningar: prefix (Esercizio, egen text eller inget), sifferformat och första nummer, i panelen Övningsegenskaper
+	New	Ny
+	New Calculation	Ny beräkning
+	New Exercise	Ny övning
+	New equations are live calculations	Nya ekvationer är levande beräkningar
+	New layer	Nytt lager
+	New page before the exercise	Ny sida före övningen
+	New page before the results summary	Ny sida före resultatsammanfattningen
+	New page before the solution	Ny sida före lösningen
+	Next object	Nästa objekt
+	Next point	Nästa punkt
+	No matching commands	Inga matchande kommandon
+	No new sources in that file	Inga nya källor i filen
+	No previous selection	Ingen föregående markering
+	No recovery copies.	Inga återställningskopior.
+	No selection: click objects, or drag a window	Ingen markering: klicka på objekt eller dra ett fönster
+	Not a Data Table	Ingen datatabell
+	Nothing of this type in the document.	Inget av den här typen i dokumentet.
+	Nothing to undo in the selection	Inget att ångra i markeringen
+	Number Format	Sifferformat
+	Object snap settings	Inställningar för objektfästning
+	Objects	Objekt
+	Only text properties can be changed.	Bara textegenskaper kan ändras.
+	Only these	Bara dessa
+	Only when another exercise comes before it	Bara när en annan övning står före
+	Open Subdocument	Öppna underdokument
+	Open the file in a window of its own	Öppna filen i ett eget fönster
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Öppnar från och med nu Strix-dokument (.xmath, .xmathm), .docx-, .doc-, .rtf- och .odt-filer samt Word-mallar med Strix.
+	Ordinal Column	Ordningskolumn
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Fönstrets andra hörn (åt höger: hela objekt; åt vänster: även berörda)
+	Outer frame	Yttre ram
+	Overwrite the file with the text shown here	Skriv över filen med texten som visas här
+	Padding	Marginal
+	Page color	Sidfärg
+	Pane Options	Panelalternativ
+	Placement	Placering
+	Prefix	Prefix
+	Previous object	Föregående objekt
+	Property names are 1–{max} characters.	Egenskapsnamn är 1–{max} tecken.
+	Property values are at most {max} bytes.	Egenskapsvärden är högst {max} byte.
+	Put the cursor in an exercise to see its data and variants.	Placera markören i en övning för att se dess data och varianter.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Placera markören i rutpapper (eller på en sida med rutpapper som bakgrund) för att se dess egenskaper.
+	Quick Keys	Kortkommandon
+	Quick Keys in Formulas	Kortkommandon i formler
+	Reading Page Color	Sidfärg för läsning
+	Rebuild the repeated questions and the results summary	Bygg om de upprepade frågorna och resultatsammanfattningen
+	Recalculate	Beräkna om
+	Recalculate every calculation in the document (F9)	Beräkna om varje beräkning i dokumentet (F9)
+	Recovery copy	Återställningskopia
+	Recovery is disabled while this document has a password.	Återställning är avstängd medan dokumentet har ett lösenord.
+	Reduce the selection to the objects considered	Begränsa markeringen till de beaktade objekten
+	Reject All Changes and Stop Tracking	Avvisa alla ändringar och sluta spåra
+	Reject and Move to Next	Avvisa och gå till nästa
+	Release notes	Versionsanteckningar
+	Reload Subdocuments	Läs in underdokument igen
+	Remove Graph Paper	Ta bort rutpapper
+	Remove the active variant	Ta bort den aktiva varianten
+	Remove this datum	Ta bort den här datan
+	Replace the text shown here with the file's	Ersätt texten som visas här med filens
+	Resize Pane	Ändra panelstorlek
+	Restore opens an unsaved copy. Your original file stays unchanged.	Återställ öppnar en osparad kopia. Din originalfil förblir oförändrad.
+	Result Layout	Resultatlayout
+	Result Of	Resultat av
+	Row, Column Below (A_F)	Rad, kolumn nedanför (A_F)
+	Save Subdocuments	Spara underdokument
+	Save as Strix Template…	Spara som Strix-mall…
+	Save or close your documents first: updating restarts Strix Writer.	Spara eller stäng dina dokument först: uppdateringen startar om Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Spara de markerade styckena som en ny fil, länkad på deras plats
+	Save your documents: Strix Writer then closes and restarts in the new version.	Spara dina dokument: Strix Writer stängs sedan och startar om i den nya versionen.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Sparar en .xmathm-mall i din mallmapp. Den visas i Arkiv › Nytt under Personliga.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	När dokumentet sparas sparas varje underdokument som redigerats här. När det öppnas visas varje fil som den är nu.
+	Scale Font Sizes	Skala teckenstorlekar
+	Scaled distances	Skalade avstånd
+	Select a place in this document:	Välj en plats i det här dokumentet:
+	Select a property to change.	Välj en egenskap att ändra.
+	Select objects	Markera objekt
+	Selection options	Markeringsalternativ
+	Separate text with	Avgränsa text med
+	Set CAD Drawing	Ange CAD-ritning
+	Set Exercise Data	Ange övningsdata
+	Set left- and first-indent with tabs and backspaces	Ställ in vänster- och förstaradsindrag med tabbar och backsteg
+	Show	Visa
+	Steps	steg
+	Show Steps	Visa steg
+	Show Trailing Zeros	Visa avslutande nollor
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Visa varje cell som en ekvation: namn i kursiv, index, enheter i stilen Enhet
+	Show every file as it is on disk, discarding edits made here	Visa varje fil som den är på disk och kassera ändringar som gjorts här
+	Show one digit less in results	Visa en siffra färre i resultaten
+	Show one more digit in results	Visa en siffra till i resultaten
+	Show the exercise's data and variants	Visa övningens data och varianter
+	Show the file as it is on disk, discarding edits made here	Visa filen som den är på disk och kassera ändringar som gjorts här
+	Significant Digits	Signifikanta siffror
+	Snap for the next point	Fäst för nästa punkt
+	Snap for the next point (Shift+right-click)	Fäst för nästa punkt (Shift+högerklick)
+	Software Update	Programuppdatering
+	Spanish (Latin America)	Spanska (Latinamerika)
+	Spanish (Uruguay)	Spanska (Uruguay)
+	Square size	Rutstorlek
+	Start at	Börja vid
+	Strix Writer {version} is available	Strix Writer {version} är tillgänglig
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} är för närvarande den senaste tillgängliga versionen.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix är en fork av WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.
+	Styles Pane Position	Stilpanelens placering
+	Subdocuments	Underdokument
+	Subdocuments Pane	Underdokumentpanel
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Underdokument är filer på disk: skrivbordsversionen länkar dem, webbläsarversionen kan inte.
+	Switch	Växla
+	Windows	fönster
+	Switch Windows	Växla fönster
+	Text Size	Textstorlek
+	Text properties only: Word's number, date and yes-no types aren't offered.	Bara textegenskaper: Words tal-, datum- och ja/nej-typer erbjuds inte.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Det formatet behåller inte allt, så dokumentet är fortfarande öppet. Spara det som ett Strix-dokument (.xmath) för att fortsätta.
+	That would make the object degenerate	Det skulle göra objektet degenererat
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Datan är beräkningarnas första parametrar i övningen: lösningen använder dem via symbol. När varianten ändras beräknas övningen om.
+	The document has no subdocuments.	Dokumentet har inga underdokument.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Sista raden summerar varje kolumn (Σ =); en cell som skrivs där behåller sin egen text (mean =, max =)
+	The layer of the selected objects becomes the current layer	Lagret för de markerade objekten blir aktuellt lager
+	The number must be a divisor of {max}.	Talet måste vara en delare av {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Stavningsordlistan för {language} kunde inte läsas, så ingen kontroll sker. Fil: {file}. Orsak: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Tabellen vid markören är beräknad: namnge dess kolumner på första raden (L [m], M [kN·m] = q·L²/8) och summera dem med Σ =
+	The update couldn't be installed: {error}	Uppdateringen kunde inte installeras: {error}
+	The whole family	Hela familjen
+	The {name} dictionary couldn't be downloaded: {reason}	Ordlistan {name} kunde inte hämtas: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Ordlistan {name} är installerad: stavningen på {language} kontrolleras nu.
+	This cannot be undone. Your original file stays unchanged.	Det går inte att ångra. Din originalfil förblir oförändrad.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Den här kopian av Strix Writer kan inte ersätta sig själv: hämta den nya versionen och installera den över den här.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Det här dokumentet har Strix-objekt ({objects}). Word och de andra redigerbara formaten skulle förlora dem, så det sparas bara som Strix-dokument (.xmath). Export till PDF, PNG, LaTeX, HTML och Markdown finns kvar som statiska kopior.
+	This document has no custom properties.	Det här dokumentet har inga anpassade egenskaper.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Det här dokumentet länkar inga andra dokument än. Infoga ett, eller markera stycken och skapa ett av dem: deras text visas här och sparas tillbaka i en egen fil.
+	This equation is the result of the question it is worked under (shown in the results summary)	Den här ekvationen är resultatet av frågan den arbetas under (visas i resultatsammanfattningen)
+	To the End of the Page	Till slutet av sidan
+	Top of the Document	Dokumentets överkant
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Ange en punkt (x,y  @dx,dy  @d<a), ett avstånd, ett kommando (l, pl, rec, c, a, t, m, co), ett alternativ eller tryck på Enter
+	Unit	Enhet
+	Unit:	Enhet:
+	Unknown selection option:	Okänt markeringsalternativ:
+	Unlink	Ta bort länk
+	Unlink Subdocument	Ta bort länk till underdokument
+	Until the Next Even Page	Till nästa jämna sida
+	Until the Next Odd Page	Till nästa udda sida
+	Update Summary	Uppdatera sammanfattning
+	Update and Restart	Uppdatera och starta om
+	Update check is not supported in the web browser.	Uppdateringskontroll stöds inte i webbläsaren.
+	Variant	Variant
+	Variants	Varianter
+	Varies	Varierar
+	Vertex	Hörn
+	View and edit the document's custom properties.	Visa och redigera dokumentets anpassade egenskaper.
+	What's new	Nyheter
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Var resultat och steg hamnar: efter ⇒ på uppgiftens rad, eller en rad var under den, justerade vid =
+	Window polygon	Fönsterpolygon
+	Write the edited subdocuments to their files now (also done by saving the document)	Skriv de redigerade underdokumenten till sina filer nu (sker även när dokumentet sparas)
+	You have version {version}.	Du har version {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / skapar upphöjt, nedsänkt eller bråk direkt (av: de byggs upp vid Space, som i Word)
+	already selected	redan markerad
+	an exercise goes in the body, outside tables	en övning hör hemma i brödtexten, utanför tabeller
+	annotative {size}	annoterande {size}
+	click adds, Shift+click removes	klick lägger till, Shift+klick tar bort
+	click on empty space for a window, drag for a lasso	klicka på tomt utrymme för ett fönster, dra för ett lasso
+	click the vertices; Enter or right-click closes, Esc cancels	klicka på hörnen; Enter eller högerklick stänger, Esc avbryter
+	click to pick it	klicka för att välja den
+	conflict	konflikt
+	cycle:	växla:
+	edited	redigerad
+	fitted to frame	anpassad till ramen
+	found	hittad
+	graph paper	rutpapper
+	in step	i steget
+	input	indata
+	installed	installerad
+	no graph paper at the cursor	inget rutpapper vid markören
+	no snap	ingen fästning
+	not available: the cursor isn't in an exercise	inte tillgängligt: markören är inte i en övning
+	not found	hittades inte
+	objects	objekt
+	objects selected	objekt markerade
+	of	av
+	removed	borttagen
+	scaled {size}	skalad {size}
+	select a CAD drawing first	markera en CAD-ritning först
+	selected	markerad
+	squares (0: none)	rutor (0: inga)
+	the cursor isn't in an exercise	markören är inte i en övning
+	the document has no exercise	dokumentet har ingen övning
+	{field}, record {n}	{field}, post {n}
+	{language} (dictionary unreadable)	{language} (ordlistan kan inte läsas)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (kan inte läsas: {reason})
+	{n} CAD drawings	{n} CAD-ritningar
+	{n} calculated tables	{n} beräknade tabeller
+	{n} calculations	{n} beräkningar
+	{n} exercises	{n} övningar
+	{n} results summaries	{n} resultatsammanfattningar
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Sök efter\nuppdateringar…
+	Edit\nDrawing	Redigera\nritning
+	New\nExercise	Ny\növning
+	Show\nSteps	Visa\nsteg
+	Switch\nWindows	Byt\nfönster
+	CAD\nDrawing	CAD-\nritning
+	Calculated\nTable	Beräknad\ntabell
+	Graph\nPaper	Millimeter-\npapper
+	New\nCalculation	Ny\nberäkning

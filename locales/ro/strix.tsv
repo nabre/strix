@@ -2802,3 +2802,387 @@ paper	Envelope DL	Plic DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Despre Strix Writer
+
+# Strix additions 2026-11-09
+	(remove) click removes	(eliminare) clic elimină
+	*Bold* and _italic_ as real formatting	*Aldin* și _cursiv_ ca formatare reală
+	1 CAD drawing	1 desen CAD
+	1 calculated table	1 tabel calculat
+	1 calculation	1 calcul
+	1 exercise	1 exercițiu
+	1 object selected	1 obiect selectat
+	1 results summary	1 rezumat al rezultatelor
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	O primă coloană, coloana 0, care numerotează rândurile de date 1, 2, 3… (calculele nu o citesc niciodată)
+	A free, open-source word processor written in Rust.	Un procesor de text liber, cu sursă deschisă, scris în Rust.
+	A grid from the cursor to the end of the page	O grilă de la cursor până la sfârșitul paginii
+	A new exercise takes the page breaks of the last one.	Un exercițiu nou preia salturile de pagină ale ultimului.
+	A new layer, made current	Un strat nou, făcut curent
+	A polar array has	O matrice polară are
+	Accept All Changes and Stop Tracking	Acceptarea tuturor modificărilor și oprirea urmăririi
+	Accept and Move to Next	Acceptare și trecere la următoarea
+	Add Datum	Adăugare dată
+	Add Note	Adăugare notă
+	Add Question	Adăugare întrebare
+	Add Sub-question	Adăugare subîntrebare
+	Add a note between the questions: free text that is not a question	Adăugați o notă între întrebări: text liber care nu este o întrebare
+	Add a period with double-space	Adăugare punct cu dublu spațiu
+	Add a question at the end of the exercise at the cursor	Adăugați o întrebare la sfârșitul exercițiului de la cursor
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Adăugați o întrebare imbricată sub ultima (a.1, a.1.1); Tab și Shift+Tab schimbă nivelul unei întrebări
+	Add a variant: a copy of the active one's values	Adăugați o variantă: o copie a valorilor celei active
+	Add an initial datum: a symbol with its value in every variant	Adăugați o dată inițială: un simbol cu valoarea sa în fiecare variantă
+	Add to CAD Drawing	Adăugare la desenul CAD
+	Advanced Properties…	Proprietăți avansate…
+	Aligned texts	Texte aliniate
+	All the selection	Toată selecția
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Toate · F gard · WP/CP poligon · R eliminare · A adăugare · P anterior · U anulare · Shift+Space comutare
+	An array has	O matrice are
+	Apply to all exercises	Aplicare la toate exercițiile
+	As the grid lines	Ca liniile grilei
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Salvarea automată păstrează doar documente Strix (.xmath); {name} este în alt format. Salvați ca .xmath pentru a activa salvarea automată.
+	Automatic (Decimals, Significant Below 1)	Automat (zecimale, semnificative sub 1)
+	Automatic updates are not available yet. New versions are published at {url}	Actualizările automate nu sunt încă disponibile. Versiunile noi sunt publicate la {url}
+	Automatically add words to list (First Letter)	Adăugare automată a cuvintelor în listă (prima literă)
+	Automatically add words to list (INitial CAps)	Adăugare automată a cuvintelor în listă (DOuă MAjuscule inițiale)
+	Bookmarks	Marcaje
+	Built-in Heading styles	Stiluri de titlu încorporate
+	ByLayer	PerStrat
+	CAD	CAD
+	Drawing	Desen
+	CAD Drawing	Desen CAD
+	CAD Drawing Source	Sursa desenului CAD
+	CAD Picture Format	Format imagine CAD
+	Calculate	Calculare
+	Calculate New Equations	Calculare ecuații noi
+	Calculate This Table	Calculare acest tabel
+	Calculate the exercise with this variant	Calculați exercițiul cu această variantă
+	Calculated	Calculat
+	Calculated Table	Tabel calculat
+	Calculated Table Info	Informații despre tabelul calculat
+	Calculation	Calcul
+	Calculations	Calcule
+	Cancel the step	Anulare pas
+	Cells as Equations	Celule ca ecuații
+	Changed here and in the file: keep one of the two.	Modificat aici și în fișier: păstrați unul dintre cele două.
+	Check for	Verificare pentru
+	Updates…	Actualizări…
+	Check for Updates	Căutare actualizări
+	Checking for updates…	Se caută actualizări…
+	Close Document	Închidere document
+	Colour	Culoare
+	Column, Row Below (F_A)	Coloană, rândul de dedesubt (F_A)
+	Columns × rows:	Coloane × rânduri:
+	Considering	Luând în considerare
+	Continue without restoring	Continuare fără restaurare
+	Coordinates take a number or an expression of the calculations (L/2)	Coordonatele acceptă un număr sau o expresie din calcule (L/2)
+	Could not check for updates:\n{error}	Nu s-a putut verifica dacă există actualizări:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Nu s-a putut salva {name}, deci rămâne deschis și nu s-a pierdut nimic: {error}
+	Create Subdocument	Creare subdocument
+	Create Subdocument…	Creare subdocument…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Decuparea pe pagină funcționează la imagini nerotite: setați mai întâi Rotirea la 0° sau folosiți casetele de decupare
+	Crossing polygon	Poligon de intersecție
+	Current Document	Documentul curent
+	Current layer	Stratul curent
+	Current layer: new objects go on it	Stratul curent: obiectele noi merg pe el
+	Data Table	Tabel de date
+	Decimal Places	Zecimale
+	Delete Exercise	Ștergere exercițiu
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Ștergeți complet exercițiul de la cursor sau exercițiile selectate: enunțul, întrebările și soluția dispar, rezultatele ies din rezumat (Anulare îl readuce)
+	Delete the layer (its objects go to layer 0)	Ștergeți stratul (obiectele lui merg pe stratul 0)
+	Detach: a window of its own	Detașare: o fereastră separată
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Liniile de cotare și arcele de unghi plasate cu un clic sau o prindere își păstrează distanța în desen (urmează dimensiunea și scara lui); dezactivat, pe hârtie (la fel la tipărire)
+	Dimension texts along their line (never upside down), not level	Textele de cotare de-a lungul liniei lor (niciodată cu susul în jos), nu orizontale
+	Dimension units	Unități de cotare
+	Discard	Renunțare
+	Discard the recovery copy of {name}?	Renunțați la copia de recuperare a {name}?
+	Discard…	Renunțare…
+	Distance	Distanță
+	Dock	Ancorare
+	Dock Left	Ancorare la stânga
+	Dock Right	Ancorare la dreapta
+	Download	Descărcare
+	Download Dictionary	Descărcare dicționar
+	Download the {name} spelling dictionary	Descărcați dicționarul ortografic {name}
+	Downloading and installing…	Se descarcă și se instalează…
+	Downloading the {name} dictionary…	Se descarcă dicționarul {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Descarcă dicționarul Hunspell {name} din dicționarele LibreOffice ({source}), cu licența {licence}, în dosarul dumneavoastră de dicționare și verifică imediat ortografia cu el.
+	Draw order	Ordinea de desenare
+	Drawing Padding	Margine desen
+	Drawing Scale	Scara desenului
+	Drawing unit	Unitatea desenului
+	Edit	Editare
+	End mark	Marcaj de sfârșit
+	Enter confirms	Enter confirmă
+	Every	Fiecare
+	Every exercise of the document takes this exercise's page breaks	Toate exercițiile documentului preiau salturile de pagină ale acestui exercițiu
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Fiecare valoare este un parametru numit după coloana sa și eticheta rândului său (prima coloană), cu un indice: F_A sau A_F
+	Exercise	Exercițiu
+	Exercise Data	Datele exercițiului
+	Exercise Info	Informații despre exercițiu
+	Exercise Numbering	Numerotarea exercițiilor
+	Exercise Properties	Proprietățile exercițiului
+	Exercise Result	Rezultatul exercițiului
+	Exercise, in the document's language	Exercițiu, în limba documentului
+	Exit	Ieșire
+	Fence	Gard
+	Fewer Digits	Mai puține cifre
+	File type	Tip de fișier
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Fișier › Nou listează aici, la Personale, șabloanele .xmathm, .dotx și .dotm; Salvare ca șablon Strix începe aici.
+	First exercise: {label}	Primul exercițiu: {label}
+	Fitted to Frame	Potrivit în cadru
+	Float	Flotant
+	Folder path	Calea dosarului
+	Follow columns	Urmărire coloane
+	For Two Pages	Pentru două pagini
+	For a Height of 5 cm	Pentru o înălțime de 5 cm
+	For every exercise of the document: the label of each title and of the results summary.	Pentru fiecare exercițiu al documentului: eticheta fiecărui titlu și a rezumatului rezultatelor.
+	Go to it	Salt la el
+	Graph	Grafic
+	Graph Paper	Hârtie milimetrică
+	Graph Paper Pane	Panou hârtie milimetrică
+	Graph Paper Properties	Proprietățile hârtiei milimetrice
+	Graph Paper at Cursor	Hârtie milimetrică la cursor
+	Grid lines	Linii de grilă
+	Grip	Mâner
+	Grip: the new point (click, or type it; Esc puts it back)	Mâner: punctul nou (clic sau tastați-l; Esc îl pune la loc)
+	Heavier lines	Linii mai groase
+	Height	Înălțime
+	How results are rounded	Cum sunt rotunjite rezultatele
+	Imported 1 source	1 sursă importată
+	Imported {n} sources	{n} surse importate
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	Într-o secțiune cu mai multe coloane, fiecare coloană este liniată separat, iar spațiul dintre ele rămâne liber
+	Inline (⇒)	În rând (⇒)
+	Input unit	Unitate de intrare
+	Insert Graph Paper	Inserare hârtie milimetrică
+	Insert Subdocument	Inserare subdocument
+	Insert Subdocument…	Inserare subdocument…
+	Items:	Elemente:
+	Keep the file	Păstrare fișier
+	Keep the text in this document, without the link; the file stays as it is	Păstrați textul în acest document, fără legătură; fișierul rămâne cum este
+	Keep this version	Păstrare această versiune
+	Later	Mai târziu
+	Layer	Strat
+	Layer:	Strat:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Limitați dimensiunea desenului pe hârtie (din zona de text a paginii): scările oferite sunt cele la care încape
+	Line by Line	Rând cu rând
+	Linetype	Tip de linie
+	Lineweight	Grosime de linie
+	Link a document at the cursor	Legare document la cursor
+	Linked files	Fișiere legate
+	Local recovery is unavailable or still loading.	Recuperarea locală nu este disponibilă sau încă se încarcă.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Setare strat curent după obiect
+	Make the equation at the cursor a live calculation, or an ordinary one	Transformați ecuația de la cursor într-un calcul viu sau într-una obișnuită
+	Make this equation a live calculation: write it with = and the unknown is solved for	Transformați această ecuație într-un calcul viu: scrieți-o cu = și necunoscuta este rezolvată
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Marcați ecuația de la cursor ca rezultat al unei întrebări: valoarea ei intră în rezumatul rezultatelor
+	Master Document	Document principal
+	Math	Matematică
+	Maximum size	Dimensiune maximă
+	Modify	Modificare
+	More Digits	Mai multe cifre
+	Move	Mutare
+	Move Pane: {title}	Mutare panou: {title}
+	Move to layer	Mutare pe strat
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Denumiți și numerotați exercițiile documentului: prefix (Esercizio, propriul text sau niciunul), formatul numărului și primul număr, în panoul Proprietățile exercițiului
+	New Calculation	Calcul nou
+	New Exercise	Exercițiu nou
+	New equations are live calculations	Ecuațiile noi sunt calcule vii
+	New layer	Strat nou
+	New page before the exercise	Pagină nouă înaintea exercițiului
+	New page before the results summary	Pagină nouă înaintea rezumatului rezultatelor
+	New page before the solution	Pagină nouă înaintea soluției
+	Next object	Obiectul următor
+	Next point	Punctul următor
+	No matching commands	Nicio comandă potrivită
+	No new sources in that file	Nicio sursă nouă în acel fișier
+	No previous selection	Nicio selecție anterioară
+	No recovery copies.	Nicio copie de recuperare.
+	No selection: click objects, or drag a window	Nicio selecție: faceți clic pe obiecte sau trageți o fereastră
+	Not a Data Table	Nu este un tabel de date
+	Nothing of this type in the document.	Nimic de acest tip în document.
+	Nothing to undo in the selection	Nimic de anulat în selecție
+	Number Format	Format număr
+	Object snap settings	Setări de agățare la obiecte
+	Objects	Obiecte
+	Only text properties can be changed.	Pot fi modificate doar proprietățile textului.
+	Only these	Numai acestea
+	Only when another exercise comes before it	Numai când un alt exercițiu îl precede
+	Open Subdocument	Deschidere subdocument
+	Open the file in a window of its own	Deschideți fișierul într-o fereastră separată
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Deschide de acum înainte documentele Strix (.xmath, .xmathm), fișierele .docx, .doc, .rtf și .odt și șabloanele Word cu Strix.
+	Ordinal Column	Coloană ordinală
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Celălalt colț al ferestrei (spre dreapta: obiecte întregi; spre stânga: și cele atinse)
+	Outer frame	Cadru exterior
+	Overwrite the file with the text shown here	Suprascrieți fișierul cu textul afișat aici
+	Padding	Spațiere interioară
+	Page color	Culoarea paginii
+	Pane Options	Opțiuni panou
+	Placement	Plasare
+	Prefix	Prefix
+	Previous object	Obiectul anterior
+	Property names are 1–{max} characters.	Numele proprietăților au 1–{max} caractere.
+	Property values are at most {max} bytes.	Valorile proprietăților au cel mult {max} octeți.
+	Put the cursor in an exercise to see its data and variants.	Puneți cursorul într-un exercițiu pentru a-i vedea datele și variantele.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Puneți cursorul în hârtie milimetrică (sau pe o pagină cu fundal de hârtie milimetrică) pentru a-i vedea proprietățile.
+	Quick Keys	Taste rapide
+	Quick Keys in Formulas	Taste rapide în formule
+	Reading Page Color	Culoarea paginii la citire
+	Rebuild the repeated questions and the results summary	Reconstruiți întrebările repetate și rezumatul rezultatelor
+	Recalculate	Recalculare
+	Recalculate every calculation in the document (F9)	Recalculați toate calculele din document (F9)
+	Recovery copy	Copie de recuperare
+	Recovery is disabled while this document has a password.	Recuperarea este dezactivată cât timp acest document are parolă.
+	Reduce the selection to the objects considered	Reduceți selecția la obiectele luate în considerare
+	Reject All Changes and Stop Tracking	Respingerea tuturor modificărilor și oprirea urmăririi
+	Reject and Move to Next	Respingere și trecere la următoarea
+	Release notes	Note de versiune
+	Reload	Reîncărcare
+	Reload Subdocuments	Reîncărcare subdocumente
+	Remove Graph Paper	Eliminare hârtie milimetrică
+	Remove the active variant	Eliminați varianta activă
+	Remove this datum	Eliminați această dată
+	Replace the text shown here with the file's	Înlocuiți textul afișat aici cu cel al fișierului
+	Resize Pane	Redimensionare panou
+	Restore	Restaurare
+	Restore opens an unsaved copy. Your original file stays unchanged.	Restaurare deschide o copie nesalvată. Fișierul dumneavoastră original rămâne neschimbat.
+	Result Layout	Aspectul rezultatelor
+	Result Of	Rezultat din
+	Row, Column Below (A_F)	Rând, coloana de dedesubt (A_F)
+	Save Subdocuments	Salvare subdocumente
+	Save as Strix Template…	Salvare ca șablon Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Salvați sau închideți mai întâi documentele: actualizarea repornește Strix Writer.
+	Save the selected paragraphs as a new file, linked in their place	Salvați paragrafele selectate ca fișier nou, legat în locul lor
+	Save your documents: Strix Writer then closes and restarts in the new version.	Salvați documentele: Strix Writer se închide apoi și repornește în noua versiune.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Salvează un șablon .xmathm în dosarul dumneavoastră de șabloane. Apare în Fișier › Nou, la Personale.
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Salvarea documentului salvează fiecare subdocument editat aici. Deschiderea lui arată fiecare fișier așa cum este acum.
+	Scale Font Sizes	Scalare dimensiuni font
+	Scaled distances	Distanțe scalate
+	Select a place in this document:	Selectați un loc din acest document:
+	Select a property to change.	Selectați o proprietate de modificat.
+	Select objects	Selectare obiecte
+	Selection options	Opțiuni de selecție
+	Separate text with	Separare text cu
+	Set CAD Drawing	Setare desen CAD
+	Set Exercise Data	Setare date exercițiu
+	Set left- and first-indent with tabs and backspaces	Setați indentarea din stânga și de la prima linie cu taburi și backspace
+	Steps	Pași
+	Show Steps	Afișare pași
+	Show Trailing Zeros	Afișare zerouri finale
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Afișați fiecare celulă ca ecuație: nume cursive, indici, unități în stilul Unitate
+	Show every file as it is on disk, discarding edits made here	Afișați fiecare fișier așa cum este pe disc, renunțând la modificările făcute aici
+	Show one digit less in results	Afișați o cifră mai puțin în rezultate
+	Show one more digit in results	Afișați o cifră mai mult în rezultate
+	Show the exercise's data and variants	Afișați datele și variantele exercițiului
+	Show the file as it is on disk, discarding edits made here	Afișați fișierul așa cum este pe disc, renunțând la modificările făcute aici
+	Significant Digits	Cifre semnificative
+	Snap for the next point	Agățare pentru punctul următor
+	Snap for the next point (Shift+right-click)	Agățare pentru punctul următor (Shift+clic dreapta)
+	Software Update	Actualizare software
+	Spanish (Latin America)	Spaniolă (America Latină)
+	Spanish (Uruguay)	Spaniolă (Uruguay)
+	Square size	Dimensiunea pătratului
+	Start at	Început la
+	Strix Writer {version} is available	Strix Writer {version} este disponibil
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} este în prezent cea mai nouă versiune disponibilă.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix este un fork al WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Consultați NOTICE.
+	Styles Pane Position	Poziția panoului de stiluri
+	Subdocuments	Subdocumente
+	Subdocuments Pane	Panou subdocumente
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Subdocumentele sunt fișiere de pe disc: versiunea pentru desktop le leagă, versiunea din browser nu poate.
+	Switch	Comutare
+	Windows	Ferestre
+	Switch Windows	Comutare ferestre
+	Text Size	Dimensiune text
+	Text properties only: Word's number, date and yes-no types aren't offered.	Doar proprietăți de text: tipurile Word pentru număr, dată și da/nu nu sunt oferite.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Acel format nu păstrează totul, deci documentul rămâne deschis. Salvați-l ca document Strix (.xmath) pentru a continua.
+	That would make the object degenerate	Aceasta ar face obiectul degenerat
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Datele sunt primii parametri ai calculelor exercițiului: soluția le folosește după simbol. Schimbarea variantei recalculează exercițiul.
+	The document has no subdocuments.	Documentul nu are subdocumente.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Ultimul rând însumează fiecare coloană (Σ =); o celulă scrisă acolo își păstrează propriul text (medie =, max =)
+	The layer of the selected objects becomes the current layer	Stratul obiectelor selectate devine stratul curent
+	The number must be a divisor of {max}.	Numărul trebuie să fie un divizor al lui {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Dicționarul ortografic pentru {language} nu a putut fi citit, deci nu se verifică. Fișier: {file}. Motiv: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Tabelul de la cursor este calculat: denumiți-i coloanele în primul rând (L [m], M [kN·m] = q·L²/8) și însumați-le cu Σ =
+	The update couldn't be installed: {error}	Actualizarea nu a putut fi instalată: {error}
+	The whole family	Toată familia
+	The {name} dictionary couldn't be downloaded: {reason}	Dicționarul {name} nu a putut fi descărcat: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Dicționarul {name} este instalat: ortografia în {language} este acum verificată.
+	This cannot be undone. Your original file stays unchanged.	Aceasta nu poate fi anulată. Fișierul dumneavoastră original rămâne neschimbat.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Această copie a Strix Writer nu se poate înlocui singură: descărcați versiunea nouă și instalați-o peste aceasta.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Acest document are obiecte Strix ({objects}). Word și celelalte formate editabile le-ar pierde, deci se salvează doar ca document Strix (.xmath). Exporturile PDF, PNG, LaTeX, HTML și Markdown rămân disponibile ca copii statice.
+	This document has no custom properties.	Acest document nu are proprietăți personalizate.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Acest document nu leagă încă alte documente. Inserați unul sau selectați paragrafe și creați unul din ele: textul lui apare aici și este salvat înapoi în propriul fișier.
+	This equation is the result of the question it is worked under (shown in the results summary)	Această ecuație este rezultatul întrebării la care este rezolvată (afișat în rezumatul rezultatelor)
+	To the End of the Page	Până la sfârșitul paginii
+	Top of the Document	Începutul documentului
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Tastați un punct (x,y  @dx,dy  @d<a), o distanță, o comandă (l, pl, rec, c, a, t, m, co), o opțiune sau apăsați Enter
+	Unit	Unitate
+	Unit:	Unitate:
+	Unknown selection option:	Opțiune de selecție necunoscută:
+	Unlink	Dezlegare
+	Unlink Subdocument	Dezlegare subdocument
+	Until the Next Even Page	Până la următoarea pagină pară
+	Until the Next Odd Page	Până la următoarea pagină impară
+	Update Summary	Actualizare rezumat
+	Update and Restart	Actualizare și repornire
+	Update check is not supported in the web browser.	Verificarea actualizărilor nu este acceptată în browserul web.
+	Value:	Valoare:
+	Variables	Variabile
+	Variant	Variantă
+	Variants	Variante
+	Varies	Variază
+	Vertex	Vârf
+	View and edit the document's custom properties.	Vizualizați și editați proprietățile personalizate ale documentului.
+	What's new	Noutăți
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Unde merg rezultatele și pașii: după ⇒ pe linia enunțului sau câte o linie fiecare sub el, aliniate la =
+	Window polygon	Poligon de fereastră
+	Write the edited subdocuments to their files now (also done by saving the document)	Scrieți acum subdocumentele editate în fișierele lor (se face și la salvarea documentului)
+	You have version {version}.	Aveți versiunea {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / creează imediat exponentul, indicele sau fracția (dezactivat: se construiesc la Spațiu, ca în Word)
+	already selected	deja selectat
+	an exercise goes in the body, outside tables	un exercițiu merge în corp, în afara tabelelor
+	annotative {size}	adnotativ {size}
+	click adds, Shift+click removes	clic adaugă, Shift+clic elimină
+	click on empty space for a window, drag for a lasso	clic pe spațiu gol pentru o fereastră, tragere pentru un laț
+	click the vertices; Enter or right-click closes, Esc cancels	faceți clic pe vârfuri; Enter sau clic dreapta închide, Esc anulează
+	click to pick it	clic pentru a-l alege
+	conflict	conflict
+	cycle:	comutare:
+	edited	editat
+	fitted to frame	potrivit în cadru
+	found	găsit
+	graph paper	hârtie milimetrică
+	in step	în pas
+	input	intrare
+	installed	instalat
+	no graph paper at the cursor	nicio hârtie milimetrică la cursor
+	no snap	fără agățare
+	not available: the cursor isn't in an exercise	indisponibil: cursorul nu este într-un exercițiu
+	not found	negăsit
+	objects	obiecte
+	objects selected	obiecte selectate
+	of	din
+	removed	eliminat
+	scaled {size}	scalat {size}
+	select a CAD drawing first	selectați mai întâi un desen CAD
+	selected	selectat
+	squares (0: none)	pătrate (0: niciunul)
+	the cursor isn't in an exercise	cursorul nu este într-un exercițiu
+	the document has no exercise	documentul nu are niciun exercițiu
+	{field}, record {n}	{field}, înregistrarea {n}
+	{language} (dictionary unreadable)	{language} (dicționar ilizibil)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (ilizibil: {reason})
+	{n} CAD drawings	{n} desene CAD
+	{n} calculated tables	{n} tabele calculate
+	{n} calculations	{n} calcule
+	{n} exercises	{n} exerciții
+	{n} results summaries	{n} rezumate ale rezultatelor
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Căutare\nactualizări…
+	Edit\nDrawing	Editare\ndesen
+	New\nExercise	Exercițiu\nnou
+	Show\nSteps	Afișare\npași
+	Switch\nWindows	Comutare\nferestre
+	CAD\nDrawing	Desen\nCAD
+	Calculated\nTable	Tabel\ncalculat
+	Graph\nPaper	Hârtie\nmilimetrică
+	New\nCalculation	Calcul\nnou

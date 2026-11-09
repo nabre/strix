@@ -2364,3 +2364,373 @@ paper	Envelope DL	Конверт DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	О Strix Writer
+
+
+
+# Strix additions 2026-11-09
+	(remove) click removes	(удалить) щелчок удаляет
+	*Bold* and _italic_ as real formatting	*Полужирный* и _курсив_ как настоящее форматирование
+	1 CAD drawing	1 чертёж CAD
+	1 calculated table	1 вычисляемая таблица
+	1 calculation	1 вычисление
+	1 exercise	1 задача
+	1 object selected	выделен 1 объект
+	1 results summary	1 сводка результатов
+	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Первый столбец, нулевой, нумерует строки данных 1, 2, 3… (вычисления его не читают)
+	A free, open-source word processor written in Rust.	Свободный текстовый процессор с открытым исходным кодом, написанный на Rust.
+	A grid from the cursor to the end of the page	Сетка от курсора до конца страницы
+	A new exercise takes the page breaks of the last one.	Новая задача наследует разрывы страниц последней.
+	A new layer, made current	Новый слой, делается текущим
+	A polar array has	Круговой массив содержит
+	Accept All Changes and Stop Tracking	Принять все изменения и прекратить отслеживание
+	Accept and Move to Next	Принять и перейти к следующему
+	Add Datum	Добавить данное
+	Add Note	Добавить примечание
+	Add Question	Добавить вопрос
+	Add Sub-question	Добавить подвопрос
+	Add a note between the questions: free text that is not a question	Добавить примечание между вопросами: свободный текст, не являющийся вопросом
+	Add a period with double-space	Добавлять точку по двойному пробелу
+	Add a question at the end of the exercise at the cursor	Добавить вопрос в конец задачи в позиции курсора
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Добавить вопрос, вложенный в последний (a.1, a.1.1); Tab и Shift+Tab меняют уровень вопроса
+	Add a variant: a copy of the active one's values	Добавить вариант: копию значений текущего
+	Add an initial datum: a symbol with its value in every variant	Добавить исходное данное: символ со своим значением в каждом варианте
+	Add to CAD Drawing	Добавить в чертёж CAD
+	Advanced Properties…	Дополнительные свойства…
+	Aligned texts	Выровненные тексты
+	All the selection	Всё выделение
+	All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle	Все · F рамка · WP/CP многоугольник · R убрать · A добавить · P предыдущее · U отменить · Shift+Пробел переключает
+	An array has	Массив содержит
+	Apply to all exercises	Применить ко всем задачам
+	As the grid lines	Как линии сетки
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Автосохранение работает только с документами Strix (.xmath); {name} имеет другой формат. Сохраните как .xmath, чтобы включить автосохранение.
+	Automatic (Decimals, Significant Below 1)	Автоматически (десятичные, значащие ниже 1)
+	Automatic updates are not available yet. New versions are published at {url}	Автоматические обновления пока недоступны. Новые версии публикуются по адресу {url}
+	Automatically add words to list (First Letter)	Автоматически добавлять слова в список (первая буква)
+	Automatically add words to list (INitial CAps)	Автоматически добавлять слова в список (ДВе Прописные)
+	Bookmarks	Закладки
+	Built-in Heading styles	Встроенные стили заголовков
+	ByLayer	По слою
+	CAD	CAD
+	Drawing	Чертёж
+	CAD Drawing	Чертёж CAD
+	CAD Drawing Source	Источник чертежа CAD
+	CAD Picture Format	Формат рисунка CAD
+	Calculate New Equations	Вычислить новые уравнения
+	Calculate This Table	Вычислить эту таблицу
+	Calculate the exercise with this variant	Вычислить задачу с этим вариантом
+	Calculated	Вычисляемая
+	Calculated Table	Вычисляемая таблица
+	Calculated Table Info	Сведения о вычисляемой таблице
+	Calculation	Вычисление
+	Calculations	Вычисления
+	Cancel the step	Отменить шаг
+	Cells as Equations	Ячейки как уравнения
+	Changed here and in the file: keep one of the two.	Изменено здесь и в файле: оставьте одну из двух версий.
+	Check for	Проверить
+	Updates…	обновления…
+	Checking for updates…	Проверка обновлений…
+	Close Document	Закрыть документ
+	Column, Row Below (F_A)	Столбец, строка ниже (F_A)
+	Columns × rows:	Столбцов × строк:
+	Considering	Учитывая
+	Continue without restoring	Продолжить без восстановления
+	Coordinates take a number or an expression of the calculations (L/2)	Координаты принимают число или выражение из вычислений (L/2)
+	Could not check for updates:\n{error}	Не удалось проверить обновления:\n{error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Не удалось сохранить {name}; документ остался открытым, ничего не потеряно: {error}
+	Create Subdocument	Создать поддокумент
+	Create Subdocument…	Создать поддокумент…
+	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Обрезка на странице работает с неповёрнутыми рисунками: сначала задайте поворот 0° или используйте рамки обрезки
+	Crossing polygon	Секущий многоугольник
+	Current Document	Текущий документ
+	Current layer	Текущий слой
+	Current layer: new objects go on it	Текущий слой: новые объекты попадают в него
+	Data Table	Таблица данных
+	Decimal Places	Знаков после запятой
+	Delete Exercise	Удалить задачу
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Удалить задачу в позиции курсора или выделенные задачи целиком: условие, вопросы и решение удаляются, результаты исчезают из сводки (отмена возвращает их)
+	Delete the layer (its objects go to layer 0)	Удалить слой (его объекты перейдут на слой 0)
+	Detach: a window of its own	Открепить: в отдельном окне
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Размерные линии и дуги углов, поставленные щелчком или маркером, сохраняют расстояние в чертеже (следуют его размеру и масштабу); выкл.: на бумаге (так же при печати)
+	Dimension texts along their line (never upside down), not level	Размерные тексты вдоль линии (никогда вверх ногами), а не горизонтально
+	Dimension units	Единицы размеров
+	Discard the recovery copy of {name}?	Удалить копию восстановления {name}?
+	Discard…	Отказаться…
+	Dock	Закрепить
+	Dock Left	Закрепить слева
+	Dock Right	Закрепить справа
+	Download Dictionary	Загрузить словарь
+	Download the {name} spelling dictionary	Загрузить орфографический словарь {name}
+	Downloading and installing…	Загрузка и установка…
+	Downloading the {name} dictionary…	Загрузка словаря {name}…
+	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Загружает словарь Hunspell {name} из словарей LibreOffice ({source}), лицензия {licence}, в вашу папку словарей и сразу проверяет с ним орфографию.
+	Draw order	Порядок отрисовки
+	Drawing Padding	Поля чертежа
+	Drawing Scale	Масштаб чертежа
+	Drawing unit	Единица чертежа
+	End mark	Конечный маркер
+	Enter bookmark name:	Введите имя закладки:
+	Enter confirms	Enter подтверждает
+	Every	Каждый
+	Every exercise of the document takes this exercise's page breaks	Все задачи документа получают разрывы страниц этой задачи
+	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Каждое значение — параметр, названный по столбцу и подписи строки (первый столбец), с индексом: F_A или A_F
+	Exercise	Задача
+	Exercise Data	Данные задачи
+	Exercise Info	Сведения о задаче
+	Exercise Numbering	Нумерация задач
+	Exercise Properties	Свойства задачи
+	Exercise Result	Результат задачи
+	Exercise, in the document's language	Задача, на языке документа
+	Fence	Рамка
+	Fewer Digits	Меньше цифр
+	File type	Тип файла
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Файл › Создать показывает здесь шаблоны .xmathm, .dotx и .dotm в разделе «Личные»; «Сохранить как шаблон Strix» открывает эту папку.
+	Find “{text}” in the document	Найти «{text}» в документе
+	First exercise: {label}	Первая задача: {label}
+	Fitted to Frame	Вписано в рамку
+	Float	Плавающая
+	Folder path	Путь к папке
+	Follow columns	По столбцам
+	For Two Pages	На две страницы
+	For a Height of 5 cm	Для высоты 5 см
+	For every exercise of the document: the label of each title and of the results summary.	Для всех задач документа: подпись каждого заголовка и сводки результатов.
+	Go to it	Перейти
+	Graph	Миллиметровая
+	Graph Paper	Миллиметровая бумага
+	Graph Paper Pane	Область миллиметровой бумаги
+	Graph Paper Properties	Свойства миллиметровой бумаги
+	Graph Paper at Cursor	Миллиметровая бумага в позиции курсора
+	Grid lines	Линии сетки
+	Grip	Маркер
+	Grip: the new point (click, or type it; Esc puts it back)	Маркер: новая точка (щёлкните или введите; Esc возвращает прежнюю)
+	Heavier lines	Более толстые линии
+	How results are rounded	Как округляются результаты
+	Imported 1 source	Импортирован 1 источник
+	Imported {n} sources	Импортировано источников: {n}
+	In a section with more than one column, each column is ruled on its own and the space between them is left clear	В разделе с несколькими столбцами каждый столбец размечается отдельно, а промежуток между ними остаётся чистым
+	Inline (⇒)	В строке (⇒)
+	Input unit	Входная единица
+	Insert Graph Paper	Вставить миллиметровую бумагу
+	Insert Subdocument	Вставить поддокумент
+	Insert Subdocument…	Вставить поддокумент…
+	Items:	Элементы:
+	Keep the file	Оставить файл
+	Keep the text in this document, without the link; the file stays as it is	Оставить текст в этом документе без ссылки; файл не меняется
+	Keep this version	Оставить эту версию
+	Layer:	Слой:
+	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Ограничить размер чертежа на бумаге (по области текста страницы): предлагаются масштабы, при которых он помещается
+	Line by Line	Строка за строкой
+	Linetype	Тип линии
+	Lineweight	Вес линии
+	Link a document at the cursor	Связать документ в позиции курсора
+	Linked files	Связанные файлы
+	Local recovery is unavailable or still loading.	Локальное восстановление недоступно или ещё загружается.
+	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.	MIT OR Apache-2.0. Copyright (c) 2026 nabre and the Strix contributors.
+	Make object's layer current	Сделать слой объекта текущим
+	Make the equation at the cursor a live calculation, or an ordinary one	Сделать уравнение в позиции курсора живым вычислением или обычным
+	Make this equation a live calculation: write it with = and the unknown is solved for	Сделать это уравнение живым вычислением: запишите его со знаком =, и неизвестное будет найдено
+	Mark the equation at the cursor as the result of a question: its value goes into the results summary	Отметить уравнение в позиции курсора как результат вопроса: его значение попадает в сводку результатов
+	Master Document	Главный документ
+	Math	Математика
+	Maximum size	Максимальный размер
+	More Digits	Больше цифр
+	Move Pane: {title}	Переместить область: {title}
+	Move to layer	Переместить на слой
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Название и нумерация задач документа: префикс (Esercizio, свой текст или без него), формат номера и первый номер в области «Свойства задачи»
+	New Calculation	Новое вычисление
+	New Exercise	Новая задача
+	New equations are live calculations	Новые уравнения — живые вычисления
+	New layer	Новый слой
+	New page before the exercise	Новая страница перед задачей
+	New page before the results summary	Новая страница перед сводкой результатов
+	New page before the solution	Новая страница перед решением
+	Next object	Следующий объект
+	Next point	Следующая точка
+	No new sources in that file	В этом файле нет новых источников
+	No previous selection	Нет предыдущего выделения
+	No recovery copies.	Нет копий восстановления.
+	No selection: click objects, or drag a window	Нет выделения: щёлкайте объекты или растяните рамку
+	Not a Data Table	Не таблица данных
+	Nothing of this type in the document.	В документе нет объектов этого типа.
+	Nothing to undo in the selection	В выделении нечего отменять
+	Number Format	Числовой формат
+	Object snap settings	Параметры объектной привязки
+	Objects	Объекты
+	Only text properties can be changed.	Можно изменять только текстовые свойства.
+	Only these	Только эти
+	Only when another exercise comes before it	Только если перед ней есть другая задача
+	Open Subdocument	Открыть поддокумент
+	Open the file in a window of its own	Открыть файл в отдельном окне
+	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	С этого момента открывает документы Strix (.xmath, .xmathm), файлы .docx, .doc, .rtf и .odt и шаблоны Word в Strix.
+	Ordinal Column	Столбец с номерами
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Противоположный угол рамки (вправо: объекты целиком; влево: и затронутые)
+	Outer frame	Внешняя рамка
+	Overwrite the file with the text shown here	Перезаписать файл показанным здесь текстом
+	Padding	Отступ
+	Page color	Цвет страницы
+	Pane Options	Параметры области
+	Placement	Размещение
+	Previous object	Предыдущий объект
+	Property names are 1–{max} characters.	Имена свойств содержат от 1 до {max} знаков.
+	Property values are at most {max} bytes.	Значения свойств занимают не более {max} байт.
+	Put the cursor in an exercise to see its data and variants.	Поставьте курсор в задачу, чтобы увидеть её данные и варианты.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставьте курсор в миллиметровую бумагу (или на страницу с фоном из миллиметровой бумаги), чтобы увидеть её свойства.
+	Quick Keys	Быстрые клавиши
+	Quick Keys in Formulas	Быстрые клавиши в формулах
+	Reading Page Color	Цвет страницы для чтения
+	Rebuild the repeated questions and the results summary	Перестроить повторяющиеся вопросы и сводку результатов
+	Recalculate	Пересчитать
+	Recalculate every calculation in the document (F9)	Пересчитать все вычисления в документе (F9)
+	Recovery copy	Копия восстановления
+	Recovery is disabled while this document has a password.	Восстановление отключено, пока документ защищён паролем.
+	Reduce the selection to the objects considered	Сузить выделение до учитываемых объектов
+	Reject All Changes and Stop Tracking	Отклонить все изменения и прекратить отслеживание
+	Reject and Move to Next	Отклонить и перейти к следующему
+	Release notes	Заметки о выпуске
+	Reload Subdocuments	Перезагрузить поддокументы
+	Remove Graph Paper	Удалить миллиметровую бумагу
+	Remove the active variant	Удалить активный вариант
+	Remove this datum	Удалить это данное
+	Replace the text shown here with the file's	Заменить показанный здесь текст текстом из файла
+	Resize Pane	Изменить размер области
+	Restore opens an unsaved copy. Your original file stays unchanged.	Восстановление открывает несохранённую копию. Исходный файл остаётся без изменений.
+	Result Layout	Размещение результатов
+	Result Of	Результат для
+	Row, Column Below (A_F)	Строка, столбец ниже (A_F)
+	Save Subdocuments	Сохранить поддокументы
+	Save as Strix Template…	Сохранить как шаблон Strix…
+	Save or close your documents first: updating restarts Strix Writer.	Сначала сохраните или закройте документы: при обновлении Strix Writer перезапускается.
+	Save the selected paragraphs as a new file, linked in their place	Сохранить выделенные абзацы как новый файл, связанный на их месте
+	Save your documents: Strix Writer then closes and restarts in the new version.	Сохраните документы: затем Strix Writer закроется и перезапустится в новой версии.
+	Saves a .xmathm template in your templates folder. It shows up in File › New under Personal.	Сохраняет шаблон .xmathm в папке шаблонов. Он появится в Файл › Создать в разделе «Личные».
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Сохранение документа сохраняет все поддокументы, изменённые здесь. При открытии каждый файл показывается в текущем состоянии.
+	Scale Font Sizes	Масштабировать размеры шрифта
+	Scaled distances	Масштабируемые расстояния
+	Select a place in this document:	Выберите место в этом документе:
+	Select a property to change.	Выберите свойство для изменения.
+	Select objects	Выбор объектов
+	Selection options	Параметры выбора
+	Separate text with	Разделять текст
+	Set CAD Drawing	Задать чертёж CAD
+	Set Exercise Data	Задать данные задачи
+	Set left- and first-indent with tabs and backspaces	Задавать левый отступ и отступ первой строки табуляцией и Backspace
+	Steps	шаги
+	Show Steps	Показать шаги
+	Show Trailing Zeros	Показывать конечные нули
+	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Показывать каждую ячейку как уравнение: имена курсивом, индексы, единицы стилем «Единица»
+	Show every file as it is on disk, discarding edits made here	Показать каждый файл как на диске, отбросив изменения, сделанные здесь
+	Show one digit less in results	Показать на одну цифру меньше в результатах
+	Show one more digit in results	Показать на одну цифру больше в результатах
+	Show the exercise's data and variants	Показать данные и варианты задачи
+	Show the file as it is on disk, discarding edits made here	Показать файл как на диске, отбросив изменения, сделанные здесь
+	Significant Digits	Значащие цифры
+	Snap for the next point	Привязка для следующей точки
+	Snap for the next point (Shift+right-click)	Привязка для следующей точки (Shift + щелчок правой кнопкой)
+	Software Update	Обновление программы
+	Spanish (Latin America)	Испанский (Латинская Америка)
+	Spanish (Uruguay)	Испанский (Уругвай)
+	Square size	Размер клетки
+	Start at	Начать с
+	Strix Writer {version} is available	Доступен Strix Writer {version}
+	Strix Writer {version} is currently the newest version available.	Strix Writer {version} — самая новая доступная версия.
+	Strix is a fork of WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. See NOTICE.	Strix — ответвление WordCraft. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. См. NOTICE.
+	Styles Pane Position	Положение области стилей
+	Subdocuments	Поддокументы
+	Subdocuments Pane	Область поддокументов
+	Subdocuments are files on disk: the desktop version links them, the browser version can't.	Поддокументы — это файлы на диске: настольная версия связывает их, браузерная не может.
+	Switch	Переключить
+	Switch Windows	Переключить окно
+	Text Size	Размер текста
+	Text properties only: Word's number, date and yes-no types aren't offered.	Только текстовые свойства: числовой, дата и логический типы Word не предлагаются.
+	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Этот формат сохраняет не всё, поэтому документ остаётся открытым. Чтобы продолжить, сохраните его как документ Strix (.xmath).
+	That would make the object degenerate	Это сделало бы объект вырожденным
+	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Данные — первые параметры вычислений задачи: решение использует их по символу. Смена варианта пересчитывает задачу.
+	The document has no subdocuments.	В документе нет поддокументов.
+	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	Последняя строка суммирует каждый столбец (Σ =); записанная там ячейка сохраняет свой текст (среднее =, макс =)
+	The layer of the selected objects becomes the current layer	Слой выделенных объектов становится текущим слоем
+	The number must be a divisor of {max}.	Число должно быть делителем {max}.
+	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Не удалось прочитать орфографический словарь для {language}, поэтому проверка не выполняется. Файл: {file}. Причина: {reason}
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Таблица в позиции курсора вычисляемая: назовите столбцы в первой строке (L [m], M [kN·m] = q·L²/8) и подведите итоги с помощью Σ =
+	The update couldn't be installed: {error}	Не удалось установить обновление: {error}
+	The whole family	Всё семейство
+	The {name} dictionary couldn't be downloaded: {reason}	Не удалось загрузить словарь {name}: {reason}
+	The {name} dictionary is installed: spelling in {language} is checked now.	Словарь {name} установлен: орфография на языке «{language}» теперь проверяется.
+	This cannot be undone. Your original file stays unchanged.	Это действие нельзя отменить. Исходный файл остаётся без изменений.
+	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Эта копия Strix Writer не может заменить себя: загрузите новую версию и установите её поверх этой.
+	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	В этом документе есть объекты Strix ({objects}). Word и другие редактируемые форматы потеряли бы их, поэтому он сохраняется только как документ Strix (.xmath). Экспорт в PDF, PNG, LaTeX, HTML и Markdown остаётся доступен в виде статичных копий.
+	This document has no custom properties.	У этого документа нет настраиваемых свойств.
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Этот документ пока не связывает другие документы. Вставьте один или выделите абзацы и создайте из них документ: его текст показывается здесь и сохраняется обратно в свой файл.
+	This equation is the result of the question it is worked under (shown in the results summary)	Это уравнение — результат вопроса, в рамках которого оно решается (показано в сводке результатов)
+	To the End of the Page	До конца страницы
+	Top of the Document	Начало документа
+	Type a page number, or +2 / -1.	Введите номер страницы или +2 / -1.
+	Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter	Введите точку (x,y  @dx,dy  @d<a), расстояние, команду (l, pl, rec, c, a, t, m, co), параметр или нажмите Enter
+	Unit	Единица
+	Unit:	Единица:
+	Unknown selection option:	Неизвестный параметр выбора:
+	Unlink	Разорвать связь
+	Unlink Subdocument	Разорвать связь с поддокументом
+	Until the Next Even Page	До следующей чётной страницы
+	Until the Next Odd Page	До следующей нечётной страницы
+	Update Summary	Обновить сводку
+	Update and Restart	Обновить и перезапустить
+	Update check is not supported in the web browser.	Проверка обновлений не поддерживается в веб-браузере.
+	Variant	Вариант
+	Variants	Варианты
+	Varies	Меняется
+	Vertex	Вершина
+	View and edit the document's custom properties.	Просмотр и изменение настраиваемых свойств документа.
+	Wait for the print job to finish submitting before closing.	Дождитесь окончания отправки задания печати, прежде чем закрывать.
+	What's new	Что нового
+	Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =	Куда помещаются результаты и шаги: после ⇒ в строке условия или по одной строке под ним, выровненные по =
+	Window polygon	Секущая рамка
+	Write the edited subdocuments to their files now (also done by saving the document)	Записать изменённые поддокументы в их файлы сейчас (это делает и сохранение документа)
+	You have version {version}.	У вас версия {version}.
+	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / сразу создают верхний индекс, нижний индекс или дробь (выкл.: они строятся по Пробелу, как в Word)
+	already selected	уже выделено
+	an exercise goes in the body, outside tables	задача находится в основном тексте, вне таблиц
+	annotative {size}	аннотативный {size}
+	click adds, Shift+click removes	щелчок добавляет, Shift+щелчок убирает
+	click on empty space for a window, drag for a lasso	щёлкните пустое место для рамки, перетащите для лассо
+	click the vertices; Enter or right-click closes, Esc cancels	щёлкайте вершины; Enter или правый щелчок замыкает, Esc отменяет
+	click to pick it	щёлкните, чтобы выбрать
+	conflict	конфликт
+	cycle:	переключение:
+	edited	изменено
+	fitted to frame	вписано в рамку
+	found	найдено
+	graph paper	миллиметровая бумага
+	in step	на шаге
+	input	ввод
+	installed	установлено
+	no graph paper at the cursor	в позиции курсора нет миллиметровой бумаги
+	no snap	без привязки
+	not available: the cursor isn't in an exercise	недоступно: курсор не в задаче
+	not found	не найдено
+	objects	объектов
+	objects selected	объектов выделено
+	of	из
+	removed	удалено
+	scaled {size}	масштабировано {size}
+	select a CAD drawing first	сначала выберите чертёж CAD
+	selected	выделено
+	squares (0: none)	клеток (0: нет)
+	the cursor isn't in an exercise	курсор не в задаче
+	the document has no exercise	в документе нет задач
+	{field}, record {n}	{field}, запись {n}
+	{language} (dictionary unreadable)	{language} (словарь не читается)
+	{language}: {file} (unreadable: {reason})	{language}: {file} (не читается: {reason})
+	{n} CAD drawings	Чертежей CAD: {n}
+	{n} calculated tables	Вычисляемых таблиц: {n}
+	{n} calculations	Вычислений: {n}
+	{n} exercises	Задач: {n}
+	{n} results summaries	Сводок результатов: {n}
+	{paper}   {width} × {height}	{paper}   {width} × {height}
+	Check for\nUpdates…	Проверить\nобновления…
+	Edit\nDrawing	Изменить\nчертёж
+	New\nExercise	Новая\nзадача
+	Show\nSteps	Показать\nшаги
+	Switch\nWindows	Сменить\nокно
+	CAD\nDrawing	Чертёж\nCAD
+	Calculated\nTable	Расчётная\nтаблица
+	Graph\nPaper	Миллиметровая\nбумага
+	New\nCalculation	Новый\nрасчёт
