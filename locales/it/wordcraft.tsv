@@ -3137,3 +3137,14 @@ paper	Envelope DL	Busta DL
 	Hidden parts stay in the document as hidden text.	Le parti nascoste restano nel documento come testo nascosto.
 	A first page of your own before the exercises: title, class, date, instructions	Una prima pagina tua prima degli esercizi: titolo, classe, data, istruzioni
 	The first exercise starts a new page; a page break inside the frontispiece gives it more pages.	Il primo esercizio inizia su una pagina nuova; un'interruzione di pagina nel frontespizio gli dà altre pagine.
+	Always Calculate	Calcola sempre
+	Calculate Table	Calcola tabella
+	Number Display	Visualizzazione numeri
+	Rounding	Arrotondamento
+	Show	Mostra
+	Results in the Summary	Risultati nel riepilogo
+	Graph Paper Before the Solution	Quadrettatura prima della risoluzione
+	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Scegli cosa mostra l'esercizio (tutti gli esercizi in una serie): le parti nascoste restano nel documento come testo nascosto
+	A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages	Una prima pagina tua prima degli esercizi (titolo, classe, data, istruzioni); un'interruzione di pagina al suo interno gli dà altre pagine
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e quadrettatura, nel riquadro Proprietà esercizio
+	Show the substitution steps of every calculation: the formula with its values, then the result	Mostra i passaggi di ogni calcolo: la formula con i valori, poi il risultato

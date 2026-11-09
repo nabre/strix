@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -40,7 +40,7 @@ questions, working and a prefix of your own stay as written. One undo step takes
 ## Numbering
 
 The exercises of a document are numbered by one list, a **document setting** saved with it
-(Math › Exercise › Numbering opens it in the Exercise Properties pane; `exercise.numbering`):
+(Math › Exercise › Properties shows it in the Exercise Properties pane; `exercise.numbering`):
 
 - **Prefix**: *Esercizio* / *Exercise* (the document's language) by default, any text of your
   own (*Problema*, *Es.*), or none for the number alone; Default puts the word back.
@@ -67,7 +67,8 @@ Properties pane shows the series' settings wherever the cursor is.
 ## Parts shown
 
 The **solution** (its heading, the repeated questions and the working) and the exercise's lines in
-the **results summary** can be hidden (Exercise Properties › Parts Shown, `exercise.show`), for a
+the **results summary** can be hidden (Math › Exercise › Show, or Exercise Properties › Parts
+Shown; `exercise.show`), for a
 copy without the working, or without the answers. They become hidden text, so nothing is lost:
 shown again, they come back as they were (Show/Hide ¶ shows hidden text meanwhile). A hidden
 solution still gives its results to the summary. When no exercise shows its results the summary's
@@ -77,7 +78,8 @@ element Word ignores); other word processors see ordinary hidden text.
 ## Graph paper per exercise
 
 **Graph paper** can be ruled in each exercise after the statement and the questions, before the
-solution (Exercise Properties › Parts Shown › Graph paper, `exercise.grid {"on": true}`). It is an
+solution (Math › Exercise › Show › Graph Paper Before the Solution, or Exercise Properties › Parts
+Shown; `exercise.grid {"on": true}`). It is an
 ordinary graph paper block (docs/graph-paper.md) with the same settings: placement (to the end of
 the page, whole pages, a height…, but not a page background), square size, lines, frame. Set them
 in the Exercise Properties pane, with `exercise.grid`, or with the cursor in it in the Graph Paper
@@ -86,7 +88,8 @@ one you wrote on keeps its text.
 
 ## Frontispiece
 
-A **frontispiece** (Exercise Properties › Frontispiece, `exercise.frontispiece {"on": true}`) is
+A **frontispiece** (Math › Exercise › Frontispiece, or the Exercise Properties pane;
+`exercise.frontispiece {"on": true}`) is
 your own first page before the exercises: title of the series, class, date, instructions. It is
 free content at the very start of the document, in a control that can't be deleted by accident
 (type over its placeholder); what follows it starts a new page. A page break inside it
@@ -167,7 +170,7 @@ equations as calculations show it (`a) M = 30.375 kJ`: only the letter and the r
 
 The repeated questions and the summary are rebuilt after every command that changes the
 questions, titles, marks or results (with the automatic recalculation, `docs/calc.md`), and on
-demand with Update Summary (`exercise.update`). Adding an exercise later moves the summary back
+demand with `exercise.update` (Update Summary in command search). Adding an exercise later moves the summary back
 to the end.
 
 ## Commands
@@ -207,7 +210,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
-- 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`).
+- 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`). Math › Exercise: Show (Solution, Results, Graph Paper) and Frontispiece added; Update Summary (automatic anyway) and Numbering (the same pane as Properties) left out of the ribbon, still in command search.
 - 2026-11-09: page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane).
 - 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.
 - 2026-11-08: "Calculation and exercise" template, second in the File › New gallery, after Blank document.

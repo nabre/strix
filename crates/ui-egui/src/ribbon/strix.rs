@@ -81,7 +81,7 @@ pub(super) fn symbols_group(app: &mut WordApp, ui: &mut Ui) {
 
 /// Math: every calculation tool (docs/calc.md) in one place.
 pub(super) fn math(app: &mut WordApp, ui: &mut Ui) {
-    group(ui, "Calculations", None, app, |ui, app| {
+    group(ui, "Calculation", None, app, |ui, app| {
         big(
             ui,
             app,
@@ -108,7 +108,7 @@ Calculation",
                 ui,
                 app,
                 "check",
-                Some("Calculate New Equations"),
+                Some("Always Calculate"),
                 "New equations are live calculations",
                 crate::widgets::ButtonAction::new("calc.newEquations", json!({}), by_default),
             );
@@ -184,25 +184,27 @@ Calculation",
                     mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
                 },
             );
+            show_menu(ui, app);
+            let front = app.session.run("exercise.frontispiece", &json!({})).ok().is_some_and(|v| v["on"].as_bool().unwrap_or(false));
             small(
                 ui,
                 app,
-                "equation",
-                Some("Update Summary"),
-                "Rebuild the repeated questions and the results summary",
-                crate::widgets::ButtonAction::new("exercise.update", json!({}), false),
+                "coverPage",
+                Some("Frontispiece"),
+                "A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages",
+                crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
             );
+        });
+        stack(ui, |ui| {
             let pane = app.session.view.exercise_pane;
             small(
                 ui,
                 app,
                 "exerciseProperties",
                 Some("Properties"),
-                "Show the exercise's data and variants",
+                "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
                 crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
             );
-        });
-        stack(ui, |ui| {
             // Only with the cursor in an exercise, or whole ones selected.
             let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
             ui.add_enabled_ui(targets, |ui| {
@@ -220,14 +222,6 @@ Calculation",
                     crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
                 );
             });
-            small(
-                ui,
-                app,
-                "numbering",
-                Some("Numbering"),
-                "Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane",
-                crate::widgets::ButtonAction::new("view.exercisePane", json!({"value": true}), false),
-            );
         });
     });
     group(ui, "Tables", None, app, |ui, app| {
@@ -247,7 +241,7 @@ Table",
                 ui,
                 app,
                 "calcTable",
-                Some("Calculate This Table"),
+                Some("Calculate Table"),
                 "The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =",
                 crate::widgets::ButtonAction::new("table.calc", json!({}), on),
             );
@@ -255,7 +249,7 @@ Table",
         });
         stack(ui, |ui| calc_table_rows(ui, app));
     });
-    group(ui, "Results", None, app, |ui, app| {
+    group(ui, "Number Display", None, app, |ui, app| {
         let digits = u64::from(app.session.prefs.calc_digits);
         stack(ui, |ui| {
             small(
@@ -274,39 +268,48 @@ Table",
                 "Show one digit less in results",
                 crate::widgets::ButtonAction::new("calc.options", json!({"digits": digits.saturating_sub(1)}), false),
             );
+            let steps = app.session.prefs.calc_steps;
+            small(
+                ui,
+                app,
+                "steps",
+                Some("Show Steps"),
+                "Show the substitution steps of every calculation: the formula with its values, then the result",
+                crate::widgets::ButtonAction::new("calc.steps", json!({}), steps),
+            );
         });
-        let steps = app.session.prefs.calc_steps;
-        crate::widgets::big_toggle(ui, app, "steps", "Show\nSteps", "calc.steps", steps);
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new("numberFormat", Some("Number Format"), "How results are rounded", true, "calc.options"),
-            |ui, app| {
-                let count = app.session.prefs.calc_count.clone();
-                mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
-                mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
-                mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
-                ui.separator();
-                let zeros = app.session.prefs.calc_zeros;
-                mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
-            },
-        );
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new(
-                "lineSpacing",
-                Some("Result Layout"),
-                "Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =",
-                true,
-                "calc.layout",
-            ),
-            |ui, app| {
-                let lines = app.session.prefs.calc_layout == "lines";
-                mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
-                mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
-            },
-        );
+        stack(ui, |ui| {
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new("numberFormat", Some("Rounding"), "How results are rounded", false, "calc.options"),
+                |ui, app| {
+                    let count = app.session.prefs.calc_count.clone();
+                    mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
+                    mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
+                    mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
+                    ui.separator();
+                    let zeros = app.session.prefs.calc_zeros;
+                    mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
+                },
+            );
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new(
+                    "lineSpacing",
+                    Some("Result Layout"),
+                    "Where results and steps go: after ⇒ on the statement's line, or one line each under it, aligned at =",
+                    false,
+                    "calc.layout",
+                ),
+                |ui, app| {
+                    let lines = app.session.prefs.calc_layout == "lines";
+                    mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
+                    mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
+                },
+            );
+        });
     });
     group(ui, "Drawing", None, app, |ui, app| {
         big(
@@ -467,4 +470,18 @@ Table",
     );
     stack(ui, |ui| calc_table_tools(ui, app));
     stack(ui, |ui| calc_table_rows(ui, app));
+}
+
+/// Math › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
+/// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
+fn show_menu(ui: &mut Ui, app: &mut WordApp) {
+    let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();
+    let flag = |k: &str| st[k].as_bool().unwrap_or(true);
+    let (solution, results, grid) = (flag("solution"), flag("results"), !st["grid"].is_null());
+    let tip = "Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text";
+    menu_button(ui, app, crate::widgets::MenuButtonOptions::new("showNotes", Some("Show"), tip, false, "exercise.show"), |ui, app| {
+        mi_check(ui, app, "Solution", solution, "exercise.show", json!({"solution": !solution}));
+        mi_check(ui, app, "Results in the Summary", results, "exercise.show", json!({"results": !results}));
+        mi_check(ui, app, "Graph Paper Before the Solution", grid, "exercise.grid", json!({"on": !grid}));
+    });
 }

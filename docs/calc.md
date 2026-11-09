@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-09 · **Change:** units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-09 · **Change:** Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -14,7 +14,7 @@ A **calc region** is an equation (`InlineObject::Equation`) marked as calculated
 saved in the `.xmath` package as `strix:calc="1"` on its `m:oMath` (a Strix namespace listed in
 `mc:Ignorable`). The **Calculate** button (Equation tab, Math tab, or `=` beside the equation's
 frame) or `equation.calc` turns it on and off. New equations are calculated by default; the
-**Calculate New Equations** preference (`calc.newEquations`) changes that.
+**Always Calculate** preference (`calc.newEquations`) changes that.
 
 A **calculated table** is an ordinary Word table with `TableProps::calc` on (Table Layout ›
 Data › Calculated Table, Math › Tables, `table.calc`), saved as `strix:calc="1"` on `w:tblPr`.
@@ -293,7 +293,7 @@ working unit written for the kind wins.
 
 ## Number format
 
-Set on the Math tab (Results: More/Fewer Digits, Number Format) or with `calc.options`; kept as
+Set on the Math tab (Number Display: More/Fewer Digits, Rounding) or with `calc.options`; kept as
 a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 
 - **Digits** (default 3) with **Automatic** count: decimal places for |x| ≥ 1, significant
@@ -314,7 +314,7 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 
 ## Solution steps and layout
 
-**Show Steps** (`calc.steps`, Math › Results, on by default) shows how each result was found:
+**Show Steps** (`calc.steps`, Math › Number Display, on by default) shows how each result was found:
 
 | Statement | Steps |
 |---|---|
@@ -327,7 +327,7 @@ A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a param
 (`M =`) have no steps: the result says it all. A unit asked for after `=` (`= cm^2`) is the
 result's unit, after the working (and, being a working unit, the substitution's).
 
-**Result Layout** (`calc.layout`, Math › Results; a preference like the number format) says where
+**Result Layout** (`calc.layout`, Math › Number Display; a preference like the number format) says where
 the result and the steps go:
 
 - **Inline (⇒)** (`inline`, the default): on the statement's line, the algebra after `⇒`, the
@@ -402,9 +402,10 @@ Off, the three characters build up on Space as in Word.
 (the fraction, the script). Typing, a symbol or a structure replaces it, Backspace and Delete
 remove it, Copy gives its linear text (`(L^2)/8`); a plain move drops it.
 
-The **Math** tab gathers the tools: Calculations (New Calculation, Calculate, Calculate New
-Equations, Recalculate), Tables (Calculated Table, Calculate This Table), Results (More/Fewer
-Digits, Show Steps, Number Format, Result Layout) and Drawing (CAD Drawing, see `docs/cad.md`).
+The **Math** tab gathers the tools: Calculation (New Calculation, Calculate, Always Calculate,
+Recalculate), Symbols, Exercise (docs/exercise.md), Tables (Calculated Table, Calculate Table),
+Number Display (More/Fewer Digits, Show Steps, Rounding, Result Layout) and Drawing (CAD Drawing,
+Edit Drawing, see `docs/cad.md`).
 
 ## Stages
 
@@ -420,6 +421,7 @@ Digits, Show Steps, Number Format, Result Layout) and Drawing (CAD Drawing, see 
 
 ## Revision history
 
+- 2026-11-09: Math tab: Calculation (Always Calculate, was Calculate New Equations), Calculate Table (was Calculate This Table), Number Display (was Results; Rounding, was Number Format), smaller and in two columns.
 - 2026-11-09: units after numbers alone (`[4; 5; 6] m`, `10^3 m`) and after a written quantity
   and `/` (`(12 kN)/m`) win over parameters; a parameter alone after `=` of the other side's
   kind is checked, not read as a unit; `round` keeps units and rounds as results show; the
