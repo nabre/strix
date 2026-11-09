@@ -207,7 +207,8 @@ pub(super) fn apply_at_start(plain: bool) -> bool {
         log::warn!("the last Strix update failed: {e}");
     }
     let Some(staged) = load(&paths.data) else { return false };
-    let running = self_update::current_version(&super::STRIX, env!("CARGO_PKG_VERSION")).map_or_else(|| env!("CARGO_PKG_VERSION").to_string(), |v| v.to_string());
+    let running = self_update::current_version(&super::STRIX, env!("CARGO_PKG_VERSION"))
+        .map_or_else(|| env!("CARGO_PKG_VERSION").to_string(), |v| v.to_string());
     let install = self_update::current(&super::STRIX);
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match plan(&staged, &running, install, plain, Platform::current()) {
         Plan::Keep => Ok(false),
@@ -247,7 +248,8 @@ fn install_staged(paths: &Paths, staged: &Staged, install: &Install, running: &s
 pub(super) fn apply_at_exit() {
     let Ok(paths) = Paths::for_app(&super::STRIX) else { return };
     let Some(staged) = load(&paths.data) else { return };
-    let running = self_update::current_version(&super::STRIX, env!("CARGO_PKG_VERSION")).map_or_else(|| env!("CARGO_PKG_VERSION").to_string(), |v| v.to_string());
+    let running = self_update::current_version(&super::STRIX, env!("CARGO_PKG_VERSION"))
+        .map_or_else(|| env!("CARGO_PKG_VERSION").to_string(), |v| v.to_string());
     let outcome = match plan(&staged, &running, self_update::current(&super::STRIX), true, Platform::current()) {
         Plan::Apply(install) => install_staged(&paths, &staged, &install, &running),
         Plan::Keep => Err("this installation can't be updated without a question".into()),
@@ -291,7 +293,12 @@ mod tests {
                 html_url: format!("https://github.com/nabre/strix/releases/tag/{tag}"),
                 assets: names
                     .iter()
-                    .map(|n| Asset { name: n.clone(), size: 1, url: format!("https://github.com/nabre/strix/releases/download/{tag}/{n}"), sha256: Some(SHA.into()) })
+                    .map(|n| Asset {
+                        name: n.clone(),
+                        size: 1,
+                        url: format!("https://github.com/nabre/strix/releases/download/{tag}/{n}"),
+                        sha256: Some(SHA.into()),
+                    })
                     .collect(),
                 ..Release::default()
             },
@@ -337,7 +344,12 @@ mod tests {
     #[test]
     fn a_package_that_needs_the_password_prompt_waits_for_the_window() {
         let mut s = staged("v0.22.0", "strix-0.22.0-linux-x86_64.deb");
-        s.release.assets.push(Asset { name: s.asset.clone(), size: 1, url: "https://github.com/nabre/strix/releases/download/v0.22.0/strix-0.22.0-linux-x86_64.deb".into(), sha256: Some(SHA.into()) });
+        s.release.assets.push(Asset {
+            name: s.asset.clone(),
+            size: 1,
+            url: "https://github.com/nabre/strix/releases/download/v0.22.0/strix-0.22.0-linux-x86_64.deb".into(),
+            sha256: Some(SHA.into()),
+        });
         let deb = Install::Package(PackageKind::Deb, PathBuf::from("/usr/bin/strix"));
         assert!(!silent(&deb));
         assert_eq!(plan(&s, "0.21.0", Some(deb), true, LINUX), Plan::Keep);

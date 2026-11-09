@@ -500,8 +500,12 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                         pick
                     }
                     FieldKind::Style => {
-                        let names: Vec<String> =
-                            ed.drawing.entities.get(i).map(|e| ed.drawing.style_names(e).into_iter().map(str::to_string).collect()).unwrap_or_default();
+                        let names: Vec<String> = ed
+                            .drawing
+                            .entities
+                            .get(i)
+                            .map(|e| ed.drawing.style_names(e).into_iter().map(str::to_string).collect())
+                            .unwrap_or_default();
                         let mut pick = None;
                         craft_ui::ComboBox::from_id_salt(("cad_style", &id)).selected_text(tl!(f.text.as_str())).show_ui(ui, |ui| {
                             for n in &names {

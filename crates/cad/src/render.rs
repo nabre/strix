@@ -479,7 +479,15 @@ impl Drawing {
         let at_x = tip.x + out_x * (half + st.text_gap);
         let at_y = if *flip { top - st.text_gap - st.text } else { top + st.text_gap };
         let anchor = if *left { Anchor::BaselineRight } else { Anchor::BaselineLeft };
-        out.push(Prim::Text { at: (at_x, at_y), text: label, height: st.text, angle: 0.0, anchor, color, look: self.text_look(st.text_style.as_deref()) });
+        out.push(Prim::Text {
+            at: (at_x, at_y),
+            text: label,
+            height: st.text,
+            angle: 0.0,
+            anchor,
+            color,
+            look: self.text_look(st.text_style.as_deref()),
+        });
     }
 }
 

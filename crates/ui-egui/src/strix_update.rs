@@ -86,7 +86,9 @@ enum Staging {
     Off,
     Downloading,
     /// Downloaded and verified; `silent`: installed at the next start without a question.
-    Ready { silent: bool },
+    Ready {
+        silent: bool,
+    },
     /// The download failed; the window offers the update as it would without it.
     Failed,
 }
@@ -210,7 +212,8 @@ impl Updater {
         // A fresh stop: an earlier download may have been cancelled.
         self.stop = Arc::new(Stop::default());
         let (tx, rx) = channel();
-        let (stager, release, version, stop, ctx) = (self.stager.clone(), offer.release.clone(), self.version.clone(), self.stop.clone(), ctx.clone());
+        let (stager, release, version, stop, ctx) =
+            (self.stager.clone(), offer.release.clone(), self.version.clone(), self.stop.clone(), ctx.clone());
         let spawned = std::thread::Builder::new().name("update-download".into()).spawn(move || {
             let run = || match &stager {
                 Some(stage) => stage(&install, &release, &version, &stop),
@@ -771,7 +774,8 @@ mod tests {
         let r = release("v0.22.0", &[]);
         let how = How::Download(r.html_url.clone());
         let before = calls.load(Ordering::SeqCst);
-        let mut u = Updater::new("0.21.0").with_source(Arc::new(move || Ok(Some((r.clone(), how.clone()))))).with_stager(counting(&calls, Ok(true)), true);
+        let mut u =
+            Updater::new("0.21.0").with_source(Arc::new(move || Ok(Some((r.clone(), how.clone()))))).with_stager(counting(&calls, Ok(true)), true);
         u.check_at_start(&ctx);
         settle(&mut u, &ctx);
         assert_eq!(u.offer.as_ref().map(|o| o.staging.clone()), Some(Staging::Off));

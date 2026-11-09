@@ -84,10 +84,7 @@ impl Drawing {
                 if self.text_styles.len() >= MAX_STYLES {
                     return Err(format!("a drawing has at most {MAX_STYLES} text styles"));
                 }
-                let style = self
-                    .text_style_named(from)
-                    .cloned()
-                    .unwrap_or_else(|| TextStyle { height: self.dim_style.text, ..TextStyle::default() });
+                let style = self.text_style_named(from).cloned().unwrap_or_else(|| TextStyle { height: self.dim_style.text, ..TextStyle::default() });
                 self.text_styles.push(TextStyle { name: name.clone(), ..style });
                 self.current_text_style = Some(name.clone());
             }
