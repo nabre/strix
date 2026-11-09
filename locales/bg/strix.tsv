@@ -2459,7 +2459,7 @@ paper	Envelope DL	Плик DL
 	Data Table	Таблица с данни
 	Decimal Places	Десетични знаци
 	Delete Exercise	Изтриване на задачата
-	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Изтриване цялостно на задачата при курсора или на избраните задачи: условието, въпросите и решението изчезват, а резултатите ѝ напускат обобщението (Отмяната я връща)
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Изтриване цялостно на задачата при курсора или на избраните задачи: условието, въпросите и решението изчезват, а резултатите от него напускат обобщението (Отмяната я връща)
 	Delete the layer (its objects go to layer 0)	Изтриване на слоя (обектите му отиват в слой 0)
 	Detach: a window of its own	Откачане: отделен прозорец
 	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Размерните линии и ъгловите дъги, поставени с щракване или дръжка, запазват разстоянието си в чертежа (следват размера и мащаба му); изключено, върху хартията (същото и при печат)
@@ -2587,7 +2587,7 @@ paper	Envelope DL	Плик DL
 	Property names are 1–{max} characters.	Имената на свойствата са от 1 до {max} знака.
 	Property values are at most {max} bytes.	Стойностите на свойствата са най-много {max} байта.
 	Put the cursor in an exercise to see its data and variants.	Поставете курсора в задача, за да видите нейните данни и варианти.
-	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставете курсора в милиметрова хартия (или на страница с фон от милиметрова хартия), за да видите свойствата ѝ.
+	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Поставете курсора в милиметрова хартия (или на страница с фон от милиметрова хартия), за да видите нейните свойства.
 	Quick Keys	Бързи клавиши
 	Quick Keys in Formulas	Бързи клавиши във формули
 	Reading Page Color	Цвят на страницата за четене
@@ -2665,7 +2665,7 @@ paper	Envelope DL	Плик DL
 	The layer of the selected objects becomes the current layer	Слоят на избраните обекти става текущ слой
 	The number must be a divisor of {max}.	Числото трябва да е делител на {max}.
 	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Правописният речник за {language} не можа да се прочете, затова не се проверява. Файл: {file}. Причина: {reason}
-	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Таблицата при курсора е изчислена: наименувайте колоните ѝ в първия ред (L [m], M [kN·m] = q·L²/8) и ги сумирайте със Σ =
+	The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =	Таблицата при курсора е изчислена: наименувайте колоните на таблицата в първия ред (L [m], M [kN·m] = q·L²/8) и ги сумирайте със Σ =
 	The update couldn't be installed: {error}	Актуализацията не можа да се инсталира: {error}
 	The whole family	Цялото семейство
 	The {name} dictionary couldn't be downloaded: {reason}	Речникът {name} не можа да се изтегли: {reason}
