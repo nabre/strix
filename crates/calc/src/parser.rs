@@ -245,7 +245,13 @@ impl Parser<'_> {
                 _ => return Ok(left),
             };
             self.bump();
-            let right = self.unary()?;
+            // A written quantity divided by units: `(12 kN)/m` (a built-up fraction's linear
+            // text) is per metre, even with a parameter named `m`.
+            let right = if op == BinOp::Div && (crate::format::is_quantity(&left) || crate::format::is_units(&left)) && self.unit_at(self.i) {
+                self.unit_chain()?
+            } else {
+                self.unary()?
+            };
             left = self.bin(op, left, right)?;
         }
     }
@@ -268,7 +274,8 @@ impl Parser<'_> {
     fn implicit(&mut self) -> R<Expr> {
         let mut left = self.power()?;
         // A number followed by units: the units are read as such (`4.5 m`, `9.81 m/s²`).
-        if matches!(left, Expr::Num(_)) && self.unit_at(self.i) {
+        // So are units after numbers alone: `[4; 5; 6] m`, `10^3 m`.
+        if crate::format::is_numeric(&left) && self.unit_at(self.i) {
             let unit = self.unit_chain()?;
             left = self.bin(BinOp::Mul, left, unit)?;
         }

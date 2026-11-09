@@ -1409,3 +1409,76 @@ fn table_rows_are_reached_by_index() {
     let rows: Vec<Vec<String>> = [vec!["x", "q = x[i + 0.5]"], vec!["1", ""]].iter().map(|r| r.iter().map(|s| s.to_string()).collect()).collect();
     assert!(!Worksheet::new(Options::default()).eval_table(&rows).errors.is_empty());
 }
+
+/// A defined parameter alone after `=`, of the other side's kind, is that parameter (a check),
+/// not a unit spelled the same.
+#[test]
+fn a_parameter_named_like_a_unit_after_equals_is_checked() {
+    let r = run(&["A = 0.5 m²", "b = 1 m", "h = 0.5 m", "b·h = A"]);
+    assert_eq!(r[3].error, None, "{:?}", r[3]);
+    let r = run(&["N = 12 kN", "F_1 = 4 kN", "F_2 = 6 kN", "F_1 + F_2 = N", "F_3 = 5 kN", "F_3 ="]);
+    assert!(r[3].error.is_some(), "10 kN is not 12 kN: {:?}", r[3]);
+    assert_eq!(r[5].display.as_deref(), Some("F_3 = 5 kN"), "the working unit stays kN");
+    // A parameter of another kind leaves the unit request alone.
+    assert_eq!(last(&["m := 3", "1 km = m"]), "1 km = 1000 m");
+}
+
+/// Units right after numbers alone, or after a written quantity and `/`, are units even when a
+/// parameter has their name.
+#[test]
+fn units_after_numbers_and_quantities_win_over_parameters() {
+    let base = ["m = 400 kg"];
+    let after = |s: &str, show: &str| {
+        let mut v = base.to_vec();
+        v.push(s);
+        v.push(show);
+        last(&v)
+    };
+    assert_eq!(after("q = (12 kN)/m", "q ="), "q = 12 kN/m");
+    assert_eq!(after("L = [4; 5; 6] m", "L ="), "L = [4; 5; 6] m");
+    assert_eq!(after("x = 10^3 m", "x ="), "x = 1000 m");
+    // After anything else the parameter still wins.
+    assert_eq!(after("y = (2 + 3) m", "y ="), "y = 2000 kg");
+}
+
+/// `round` rounds as results are shown and keeps a quantity's unit.
+#[test]
+fn round_matches_the_number_format_and_keeps_units() {
+    assert_eq!(last(&["round(1.005; 2) ="]), "round(1.005; 2) = 1.01");
+    assert_eq!(last(&["round(2.675; 2) ="]), "round(2.675; 2) = 2.68");
+    assert_eq!(last(&["round(2.345 m; 2) ="]), "round(2.345 m; 2) = 2.35 m");
+    assert_eq!(last(&["round(-2.5) ="]), "round(-2.5) = -3");
+    assert!(last_error(&["T = 20 °C", "round(T) ="]).to_string().contains("plain number"));
+}
+
+/// The prefix is chosen on the number as shown: never `1000 kPa`.
+#[test]
+fn a_result_rounding_up_to_1000_takes_the_next_prefix() {
+    assert_eq!(last(&["999999.9996 Pa ="]), "999999.9996 Pa = 1 MPa");
+    assert_eq!(last(&["999.9996 N ="]), "999.9996 N = 1 kN");
+    assert_eq!(last(&["999.4 N ="]), "999.4 N = 999.4 N");
+}
+
+/// Words in round brackets make a label column, not an unknown unit.
+#[test]
+fn a_header_with_words_in_brackets_is_a_label() {
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table(&table(&[&["Load (case A)", "F [kN]", "G [kN] = 2*F"], &["x", "3", ""]]));
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates, vec![(1, 2, "6".to_string())]);
+    // A typo in square brackets is still reported.
+    assert!(!ws.eval_table(&table(&[&["F [kNN]"], &["3"]])).errors.is_empty());
+}
+
+/// A difference of `[°C]` columns, shown in a `[°C]` column, takes no offset.
+#[test]
+fn a_temperature_difference_column_is_a_difference() {
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table(&table(&[
+        &["T_1 [°C]", "T_2 [°C]", "ΔT [°C] = T_2 - T_1", "T_m [°C] = (T_1 + T_2)/2", "T_3 [°C] = T_1 + ΔT"],
+        &["20", "80", "", "", ""],
+    ]));
+    assert_eq!(r.errors, vec![]);
+    assert!(r.updates.contains(&(1, 2, "60".to_string())), "{:?}", r.updates);
+    assert!(r.updates.contains(&(1, 4, "80".to_string())), "{:?}", r.updates);
+}

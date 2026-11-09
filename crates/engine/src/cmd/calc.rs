@@ -338,9 +338,10 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     if let InlineObject::Equation { linear, math, .. } = o {
                         out.push(Item::Equation {
                             top,
-                            text: math.calc.then(|| equation_text(linear, math)),
+                            // A unit written inline (`kN∕m`, see `style_parts`) reads as typed.
+                            text: math.calc.then(|| equation_text(linear, math).replace('∕', "/")),
                             answer: math.answer,
-                            full: equation_full(linear, math),
+                            full: equation_full(linear, math).replace('∕', "/"),
                         });
                     }
                 }
@@ -538,7 +539,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let (_, outcomes) = run_sheet(&found, opts, &super::exercise::zones(s), &super::exercise::seeds(s));
     let mut updates: Vec<Option<(String, Option<&'static str>)>> = Vec::new();
     let note = numeric_note(s);
-    let unit = unit_color(s);
+    // The Unit style is added only to a document that has something to style: recalculating a
+    // document with no calculation leaves it as it was.
+    let live = found.iter().any(|i| !matches!(i, Item::Equation { text: None, .. }));
+    let unit = if live { unit_color(s) } else { unit_color_of(s) };
     let mut units: Vec<Vec<Parts>> = Vec::new();
     let mut stepped: Vec<bool> = Vec::new();
     let mut cads: Vec<Option<Redrawn>> = Vec::new();
@@ -592,7 +596,6 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 for (expr, why) in failed {
                     errors.push(json!({"drawing": i, "text": expr, "error": why}));
                 }
-                let unit = unit_color(s);
                 let fitted = resolved.as_ref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 let body_font = s.doc.settings.minor_font.clone();
                 cads.push(drawn.as_ref().map(|r| {
@@ -611,10 +614,8 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
             Item::Table { .. } | Item::Cad { .. } => None,
         })
         .collect();
-    let color = unit_color(s);
-    let restyled = write_back(s, &equations, &updates, &stepped, &units, color);
+    let restyled = write_back(s, &equations, &updates, &stepped, &units, unit);
     changed += restyled + redraw(s, &cads);
-    let unit = unit_color(s);
     for (top, grid) in &math_cells {
         changed += write_math_cells(s, *top, grid, unit);
     }
@@ -663,7 +664,11 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
     if s.calc_seen == Some(key) {
         return;
     }
-    if found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. })) {
+    // Drawings alone count once the document is open: a drawing whose calculations were just
+    // deleted shows its parameters as missing, not their old values (on opening, a document
+    // with drawings and no calculations is left as saved).
+    let drawings = s.calc_seen.is_some() && found.iter().any(|i| matches!(i, Item::Cad { .. }));
+    if drawings || found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. })) {
         let report = recalculate_now(s);
         if report["changed"].as_u64().unwrap_or(0) > 0 {
             s.touch();
@@ -759,6 +764,20 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad
     };
     CAD_MEMO.with(|m| *m.borrow_mut() = Some((key, resolved.clone())));
     resolved
+}
+
+/// The expressions of drawing `source` that fail where it sits (the parameter or expression and
+/// why), as the recalculation reports them; `None` when the drawing isn't in the body.
+pub(crate) fn cad_errors(s: &Session, source: &Arc<str>) -> Option<Vec<(String, String)>> {
+    let mut found = items(&s.doc.body);
+    let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
+    found.truncate(at + 1);
+    let (zones, seeds) = (super::exercise::zones(s), super::exercise::seeds(s));
+    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds);
+    match outcomes.into_iter().last() {
+        Some(Outcome::Cad(_, errors, _)) => Some(errors),
+        _ => None,
+    }
 }
 
 /// A drawing resolved where it sits: the drawing, how it renders, the parameters it can show.
@@ -900,6 +919,14 @@ fn write_back(
 pub(crate) const UNIT_STYLE: &str = "MathUnit";
 const UNIT_COLOR: Rgb = Rgb(0x1B, 0x6F, 0x8A);
 
+/// The Unit style's colour, without adding the style when the document has none.
+pub(crate) fn unit_color_of(s: &Session) -> Rgb {
+    match s.doc.styles.get(UNIT_STYLE).and_then(|st| st.chr.color) {
+        Some(TextColor::Rgb(c)) => c,
+        _ => UNIT_COLOR,
+    }
+}
+
 pub(crate) fn unit_color(s: &mut Session) -> Rgb {
     if s.doc.styles.get(UNIT_STYLE).is_none() {
         s.doc.styles.styles.push(strix_doc::styles::Style {
@@ -972,6 +999,20 @@ fn is_superscript(c: char) -> bool {
     matches!(c, '¹' | '²' | '³' | '⁰' | '⁴'..='⁹' | '⁻')
 }
 
+/// Whether `arg` (a fraction's part) is units alone: words that are all units of the row, joined
+/// by `·` or spaces (`kN`, `kN·m`, `s²`).
+fn unit_arg(arg: &strix_doc::math::Arg, units: &[String]) -> bool {
+    use strix_doc::math::MNode;
+    !arg.is_empty()
+        && arg.iter().all(|n| match n {
+            MNode::Run(r) if !r.nor => {
+                let words: Vec<&str> = r.text.split(['·', ' ', '\u{2009}']).filter(|w| !w.is_empty()).collect();
+                !words.is_empty() && words.iter().all(|w| units.iter().any(|u| u == w.trim_end_matches(is_superscript)))
+            }
+            _ => false,
+        })
+}
+
 /// Splits the math runs so each unit is a run of its own, upright in `color`; runs that are no
 /// longer units lose that colour. Other formatting is kept.
 fn style_units(root: &mut strix_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
@@ -1011,6 +1052,21 @@ fn style_parts(root: &mut strix_doc::math::Arg, parts: &[&[String]], color: Rgb,
             }
             if prev.text.is_empty() {
                 out.pop();
+            }
+        }
+        // A unit with a quotient reads inline, as ISO 80000 writes it (`12 kN/m`, `9.81 m/s²`),
+        // not stacked like the formula's fractions; a thin space parts it from its number.
+        if let MNode::Frac { kind, num, den } = &mut n
+            && *kind == strix_doc::math::FracKind::Bar
+            && unit_arg(num, units)
+            && unit_arg(den, units)
+        {
+            *kind = strix_doc::math::FracKind::Linear;
+            if let Some(MNode::Run(prev)) = out.last_mut()
+                && !prev.nor
+                && prev.text.ends_with(|c: char| c.is_ascii_digit())
+            {
+                prev.text.push('\u{2009}');
             }
         }
         let MNode::Run(r) = n else {
@@ -2033,6 +2089,37 @@ mod tests {
         out
     }
 
+    /// A unit's quotient (`kN/m`) reads inline in a calculation, its formula's fractions stacked;
+    /// recalculating again changes nothing.
+    #[test]
+    fn a_units_quotient_reads_inline_and_stays_put() {
+        let mut s = session();
+        s.run("calc.steps", &json!({"value": true})).unwrap();
+        for t in ["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8 ="] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let all = maths(&s);
+        let mut kinds = Vec::new();
+        fn walk(nodes: &[strix_doc::math::MNode], out: &mut Vec<strix_doc::math::FracKind>) {
+            for n in nodes {
+                if let strix_doc::math::MNode::Frac { kind, num, den } = n {
+                    out.push(*kind);
+                    walk(num, out);
+                    walk(den, out);
+                }
+            }
+        }
+        walk(&all[2].nodes, &mut kinds);
+        assert!(kinds.contains(&strix_doc::math::FracKind::Linear), "kN/m inline: {kinds:?}");
+        assert!(kinds.contains(&strix_doc::math::FracKind::Bar), "L²/8 stacked: {kinds:?}");
+        // Recalculated again, nothing changes.
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "{again}");
+        assert_eq!(maths(&s), all);
+    }
+
     /// The owner's beam, typed as in the app: with Show Steps every formula and check shows its
     /// working, on its line or on lines under it; recalculating, saving and reopening keep it.
     #[test]
@@ -2058,7 +2145,8 @@ mod tests {
                 }
             }
             let text = lin(&all[2]);
-            assert!(text.contains("(12kN/m)·") && text.contains("(4.5m)²") && text.trim_end_matches(')').ends_with("30.375kN·m"), "{text}");
+            // The unit's quotient reads inline (a linear fraction), the formula's stacked.
+            assert!(text.contains("(12kN∕m)·") && text.contains("(4.5m)²") && text.trim_end_matches(')').ends_with("30.375kN·m"), "{text}");
             assert!(lin(&all[5]).contains("(30.375kN·m)"), "{}", lin(&all[5]));
             assert!(lin(&all[6]).contains("30.375MPa") && lin(&all[6]).contains('✓'), "{}", lin(&all[6]));
             // The check's units are units, on either layout.
