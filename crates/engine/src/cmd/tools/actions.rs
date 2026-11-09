@@ -46,6 +46,7 @@ pub(super) fn language(s: &mut Session, v: &Value) -> CmdResult {
     if p::bool(v, "default") == Some(true) {
         s.prefs.default_language = lang;
     }
+    crate::cmd::exercise::follow_language(s);
     Ok(result)
 }
 

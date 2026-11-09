@@ -58,7 +58,7 @@ fn clean_prefix(t: &str) -> String {
 pub(super) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let prefix = match v.get("prefix") {
         None => None,
-        Some(Value::Null) => Some(words(s).exercise.to_string()),
+        Some(Value::Null) => Some(super::doc_words(s).exercise.to_string()),
         Some(Value::String(t)) => Some(clean_prefix(t)),
         Some(_) => return Err(CmdError::Params("prefix: a text, or null for the default".into())),
     };
@@ -82,12 +82,12 @@ pub(super) fn command(s: &mut Session, v: &Value) -> CmdResult {
         "prefix": n.prefix,
         "format": n.format.ooxml(),
         "start": n.start,
-        "default": n.prefix == words(s).exercise,
+        "default": n.prefix == super::doc_words(s).exercise,
         "example": n.label(0),
     }))
 }
 
-fn set(s: &mut Session, prefix: Option<String>, format: Option<NumFormat>, start: Option<u32>) -> Result<(), CmdError> {
+pub(super) fn set(s: &mut Session, prefix: Option<String>, format: Option<NumFormat>, start: Option<u32>) -> Result<(), CmdError> {
     ensure_styles(s);
     let num = title_list(s).ok_or_else(|| CmdError::Failed("the Exercise Title style has no numbering".into()))?;
     let was = current(s);
