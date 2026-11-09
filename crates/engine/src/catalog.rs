@@ -435,6 +435,9 @@ Outlining|Outline Tools|Collapse|outline.collapse
 Outlining|Outline Tools|Show Level|outline.showLevel
 Outlining|Outline Tools|Show Text Formatting|outline.showFormatting
 Outlining|Outline Tools|Show First Line Only|outline.firstLineOnly
+Outlining|Master Document|Insert|master.insertSubdocument
+Outlining|Master Document|Create|master.createSubdocument
+Outlining|Master Document|Unlink|master.unlinkSubdocument
 Outlining|Close|Close Outline View|outline.close
 Picture Format|Adjust|Remove Background|picture.removeBackground
 Picture Format|Adjust|Corrections|picture.corrections

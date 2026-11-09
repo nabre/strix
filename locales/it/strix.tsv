@@ -2997,3 +2997,20 @@ paper	Envelope DL	Busta DL
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Informazioni su Strix Writer
+# Strix (2026-11-09): master documents and exercise page breaks.
+	Master Document	Documento master
+	Unlink	Scollega
+	Insert Subdocument	Inserisci sottodocumento
+	Create Subdocument	Crea sottodocumento
+	Unlink Subdocument	Scollega sottodocumento
+	Reload Subdocuments	Ricarica sottodocumenti
+	Save Subdocuments	Salva sottodocumenti
+	Open Subdocument	Apri sottodocumento
+	Subdocuments	Sottodocumenti
+	New page before the exercise	Nuova pagina prima dell'esercizio
+	Only when another exercise comes before it	Solo quando prima c'è un altro esercizio
+	New page before the solution	Nuova pagina prima della risoluzione
+	New page before the results summary	Nuova pagina prima del riepilogo dei risultati
+	Apply to all exercises	Applica a tutti gli esercizi
+	Every exercise of the document takes this exercise's page breaks	Tutti gli esercizi del documento prendono le interruzioni di pagina di questo
+	A new exercise takes the page breaks of the last one.	Un nuovo esercizio prende le interruzioni di pagina dell'ultimo.

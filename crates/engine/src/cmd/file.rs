@@ -290,6 +290,8 @@ fn open(s: &mut Session, v: &Value) -> CmdResult {
     if encrypted {
         s.password = password.map(crate::io::Password::new);
     }
+    // A master document shows its subdocuments as their files are now.
+    super::master::after_open(s);
     Ok(
         json!({"path": path, "paragraphs": s.doc.paragraph_count(), "words": s.doc.word_count(), "encrypted": encrypted, "alreadyOpen": false, "id": s.document_id()}),
     )
@@ -336,7 +338,7 @@ fn encrypt(s: &mut Session, v: &Value) -> CmdResult {
 
 /// The file an explicit save `path` names: a name without an extension (or ending in a dot) is a
 /// Strix document, `.xmath`.
-fn with_native_default(path: &str) -> std::path::PathBuf {
+pub(crate) fn with_native_default(path: &str) -> std::path::PathBuf {
     let path = std::path::PathBuf::from(path);
     if path.extension().is_none_or(|e| e.is_empty()) && path.file_name().is_some() {
         let mut name = path.file_name().map(|n| n.to_string_lossy().trim_end_matches('.').to_string()).unwrap_or_default();
@@ -407,6 +409,8 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     // Undone below if the write fails: a failed save (no permission, disk full, a bad path)
     // must not leave the document's own save stamps — zoom, modified/created, author, revision —
     // changed, or a later save would persist them for a write that never actually happened.
+    // A master document writes its edited subdocuments back first (Outlining › Master Document).
+    let subdocuments = super::master::before_save(s, &path);
     let before_stamp =
         (s.doc.settings.zoom, s.doc.core.last_modified_by.clone(), s.doc.core.created.clone(), s.doc.core.modified.clone(), s.doc.core.revision);
     s.stamp_save();
@@ -429,7 +433,11 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
         s.dirty = false;
         s.relayout();
     }
-    Ok(json!({"saved": true, "path": path.to_string_lossy(), "encrypted": encrypted}))
+    let mut r = json!({"saved": true, "path": path.to_string_lossy(), "encrypted": encrypted});
+    if let (Some(subs), Some(o)) = (subdocuments, r.as_object_mut()) {
+        o.insert("subdocuments".into(), subs);
+    }
+    Ok(r)
 }
 
 /// Does `path` hold a Word 2003 XML Document already (so a plain save keeps that format)?

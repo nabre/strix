@@ -436,6 +436,15 @@ impl WordApp {
                 "exportPdf" => self.export_dialog("pdf"),
                 "exportPng" => self.export_dialog("png"),
                 "insertPicture" => self.pick_picture(),
+                "insertSubdocument" => {
+                    let after = crate::file_dialogs::AfterPick::WithPath { command: "master.insertSubdocument" };
+                    let _ = self.ask_file(crate::file_dialogs::FileDialogRequest::Open { purpose: "document".into() }, after);
+                }
+                "createSubdocument" => {
+                    let after = crate::file_dialogs::AfterPick::WithPath { command: "master.createSubdocument" };
+                    let req = crate::file_dialogs::FileDialogRequest::Save { name: "Subdocument.xmath".into(), dir: None, native_only: None };
+                    let _ = self.ask_file(req, after);
+                }
                 "addFont" => self.pick_font(),
                 "loadSystemFonts" => self.load_system_fonts(),
                 "print" => {
