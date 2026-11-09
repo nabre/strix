@@ -157,6 +157,11 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     `wuff` 0.2.10 / `brotli-decompressor` 6.3.1 (crafted WOFF2 no longer panics), `ureq` 3.5.1;
     version bumped on `main`, `main` merged into `release`; publish the draft `Strix v0.20.0`
     after review (Actions › Publish release).
+  - Release 0.21.0 (2026-11-09): exercises (lone exercise unnumbered, series-wide parts and graph
+    paper, frontispiece), printing workflow on macOS/Windows only; v0.21.0 had been tagged on
+    `main` without a bump or packages, so its release and tag were deleted; version bumped on
+    `main`, `main` merged into `release`; publish the draft `Strix v0.21.0` (Actions › Publish
+    release), titled `Strix v0.21.0 — <highlights>` like every other release.
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.

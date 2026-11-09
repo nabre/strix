@@ -32,7 +32,8 @@ written (a read-only drive, Program Files), Strix uses `%APPDATA%\Strix` and log
 `WORDCRAFT_PROFILE_DIR` still overrides both. The rule is the same on every platform, but only the
 Windows builds ship portable.
 
-3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review it, then
+3. The run drafts a GitHub Release `Strix v<version>` with `SHA256SUMS.txt`; review it, complete
+   its title as `Strix v<version> — <highlights>` (every release is titled this way), then
    publish it on GitHub or with Actions › **Publish release** (`publish-release.yml`, by hand:
    it makes the draft the published, latest release). Publishing redeploys the site
    (`site.yml`), so the download links and the browser version at
