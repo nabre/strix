@@ -6,7 +6,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
 - WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
   files removed (their licence requires forks to remove them).
 - New icon, Atollo palette in `theme::Tokens` (contrast tests pass).
-- Update check disabled until Strix has its own release feed.
+- Updates: Strix checks nabre/strix releases at start and offers them (docs/updates.md).
 - i18n catalogs in `locales/`, Italian complete; OS language followed (`auto`).
 - Native files: Strix saves only `.xmath`/`.xmathm`; every other editable format is import-only;
   static exports PDF, PNG, LaTeX, HTML, Markdown (`io::EXPORT_EXTS`, `io::check_writable`).

@@ -66,6 +66,8 @@ pub mod ribbon;
 pub mod ribbon_fit;
 pub mod ruler_tabs;
 pub mod scroll;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod strix_update;
 pub mod subdocument_pane;
 pub mod system_clipboard;
 pub mod table_mouse;
