@@ -8,9 +8,9 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>Strix</string>
+  <string>Strix Writer</string>
   <key>CFBundleName</key>
-  <string>Strix</string>
+  <string>Strix Writer</string>
   <key>CFBundleExecutable</key>
   <string>Strix</string>
   <key>CFBundleIdentifier</key>

@@ -2316,3 +2316,6 @@ paper	Letter	Carta
 paper	Legal	Oficio
 paper	Envelope #10	Sobre n.º 10
 paper	Envelope DL	Sobre DL
+
+# Strix (2026-11-08): the full product name, Strix Writer, in titles.
+	About Strix Writer	Acerca de Strix Writer

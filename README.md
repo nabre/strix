@@ -3,14 +3,14 @@
   <img src="assets/app-icon/hicolor/256x256/apps/io.github.nabre.strix.png" width="128" height="128" alt="Strix icon: an owl, half feathers and half circuit, with a quill, on a deep green tile">
 </p>
 
-<h1 align="center">Strix</h1>
+<h1 align="center">Strix Writer</h1>
 
 <p align="center">
   <b>WYSIWYG math for engineers: type an equation in the page, and it calculates.</b>
 </p>
 
 <p align="center">
-  Strix is an open-source document editor, written in pure Rust, for working out math and
+  Strix Writer (Strix for short) is an open-source document editor, written in pure Rust, for working out math and
   engineering problems. You write the problem as you would on paper (text, tables, equations,
   drawings), and the equations are live: they carry units, solve for what is unknown, check
   limits, and update as soon as an input changes. Exercises keep a locked structure with a
@@ -35,7 +35,7 @@
 <p align="center">English · <a href="docs/README.it.md">Italiano</a> · <a href="docs/README.fr.md">Français</a> · <a href="docs/README.de.md">Deutsch</a></p>
 
 <p align="center">
-  <img src="docs/brand/social.png" alt="Strix: type the equation, it calculates. A beam calculation with units, a solved result and a stress check." width="100%">
+  <img src="docs/brand/social.png" alt="Strix Writer: type the equation, it calculates. A beam calculation with units, a solved result and a stress check." width="100%">
 </p>
 
 <p align="center">

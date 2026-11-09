@@ -2062,3 +2062,6 @@ paper	Letter	信纸
 paper	Legal	法律文书纸
 paper	Envelope #10	10 号信封
 paper	Envelope DL	DL 信封
+
+# Strix (2026-11-08): the full product name, Strix Writer, in titles.
+	About Strix Writer	关于 Strix Writer

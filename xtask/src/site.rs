@@ -257,7 +257,7 @@ fn json_ld(lang: &str, s: &BTreeMap<String, String>, version: &str) -> Result<St
     let ld = json!({
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        "name": "Strix",
+        "name": "Strix Writer",
         "alternateName": s.get("title"),
         "description": description,
         "url": format!("{BASE}{}", path_of(lang)),

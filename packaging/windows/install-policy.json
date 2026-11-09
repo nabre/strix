@@ -32,7 +32,7 @@
       "-1",
       "Software\\Strix\\Capabilities",
       "ApplicationName",
-      "Strix"
+      "Strix Writer"
     ],
     [
       "-1",
@@ -50,7 +50,7 @@
       "-1",
       "Software\\Classes\\Applications\\strix.exe",
       "FriendlyAppName",
-      "Strix"
+      "Strix Writer"
     ],
     [
       "-1",

@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -3 290 88" role="img" aria-label="Strix">
-  <!-- Strix wordmark for dark backgrounds: STRIX drawn as strokes, no font; the I is the feather
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -3 530 88" role="img" aria-label="Strix Writer">
+  <!-- Strix wordmark for dark backgrounds: STRIX WRITER drawn as strokes, no font; the I is the feather
        of the app icon, nib on the baseline. Original work by the Strix contributors,
        MIT OR Apache-2.0. Rules: docs/brand/MARKETING.md, section 7. -->
   <defs>
     <clipPath id="cap"><rect x="0" y="18" width="290" height="64"/></clipPath>
+    <clipPath id="cap-writer"><rect x="296" y="42" width="234" height="40"/></clipPath>
     <linearGradient id="vane" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="-88">
       <stop offset="0" stop-color="#EA580C"/>
       <stop offset="1" stop-color="#FDBA74"/>
@@ -20,5 +21,14 @@
   <g transform="translate(192 82) rotate(16)">
     <path fill="url(#vane)" d="M0 0 L-2.4 -13 C-8.5 -20 -12 -33 -12 -47 C-12 -52 -11.6 -56 -11 -59.5 L-4.6 -53.5 L-10.2 -63.5 C-8 -73 -4.5 -81 0.6 -89 C8 -80 13.6 -67 14 -52 L7 -42 L13.7 -46.5 C13 -32 9 -20 2.4 -13 Z"/>
     <path d="M0 -4 C0.6 -30 0.9 -58 0.6 -83" fill="none" stroke="#431407" stroke-width="1.9" stroke-linecap="round"/>
+  </g>
+  <!-- WRITER: the same strokes, lighter (7) and 40 tall on STRIX's baseline. -->
+  <g fill="none" stroke="#6EE7B7" stroke-width="7" clip-path="url(#cap-writer)" stroke-linejoin="miter">
+    <path d="M303 36 L314.5 88 L326.5 47 L338.5 88 L350 36"/>
+    <path d="M364.5 88 V45.5 H377 C385 45.5 389.5 50 389.5 55.5 C389.5 61 385 65.5 377 65.5 H364.5 M378 65.5 L392 88"/>
+    <path d="M404.5 40 V88"/>
+    <path d="M415 45.5 H445 M430 45.5 V88"/>
+    <path d="M481 45.5 H460.5 V78.5 H481 M460.5 62 H478"/>
+    <path d="M493.5 88 V45.5 H506 C514 45.5 518.5 50 518.5 55.5 C518.5 61 514 65.5 506 65.5 H493.5 M507 65.5 L521 88"/>
   </g>
 </svg>

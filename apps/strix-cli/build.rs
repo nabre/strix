@@ -11,8 +11,8 @@ fn main() {
         return;
     }
     let mut res = winresource::WindowsResource::new();
-    res.set("ProductName", "Strix")
-        .set("FileDescription", "Strix command line")
+    res.set("ProductName", "Strix Writer")
+        .set("FileDescription", "Strix Writer command line")
         .set("CompanyName", "The Strix contributors")
         .set("LegalCopyright", "Copyright (c) the Strix contributors and the WordCraft authors. MIT OR Apache-2.0.")
         .set("OriginalFilename", "strix-cli.exe")

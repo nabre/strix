@@ -54,7 +54,8 @@ fn styles_xml(pages: &[(String, strix_doc::SectionProps)], body_font: &str) -> S
 }
 
 fn meta_xml(m: &Meta) -> String {
-    let mut s = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta {NS}><office:meta><meta:generator>Strix</meta:generator>");
+    let mut s =
+        format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta {NS}><office:meta><meta:generator>Strix Writer</meta:generator>");
     if !m.title.is_empty() {
         s.push_str(&format!("<dc:title>{}</dc:title>", x(&m.title)));
     }

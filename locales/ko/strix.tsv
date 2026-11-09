@@ -2292,3 +2292,6 @@ paper	Legal	리갈
 paper	Envelope #10	봉투 #10
 paper	Envelope DL	봉투 DL
 	Word 2003 XML Document (*.xml)	Word 2003 XML 문서 (*.xml)
+
+# Strix (2026-11-08): the full product name, Strix Writer, in titles.
+	About Strix Writer	Strix Writer 정보
