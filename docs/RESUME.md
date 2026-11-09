@@ -153,6 +153,10 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     packages); version bumped on `main` (`cargo xtask version set 0.18.0`); to do: `main` merged
     into `release`, publish the draft `Strix v0.18.0` after review (Actions › Publish release,
     which redeploys the site and the web app).
+  - Release 0.20.0 (2026-11-09): naming phases 2 and 3 (internal names back to WordCraft's),
+    `wuff` 0.2.10 / `brotli-decompressor` 6.3.1 (crafted WOFF2 no longer panics), `ureq` 3.5.1;
+    version bumped on `main`, `main` merged into `release`; publish the draft `Strix v0.20.0`
+    after review (Actions › Publish release).
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
