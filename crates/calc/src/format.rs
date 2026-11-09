@@ -69,6 +69,21 @@ fn decimal_digits(v: f64) -> (bool, Vec<u8>, i32) {
     (v < 0.0, ds, exp)
 }
 
+/// `v` rounded to `places` decimals (negative: to tens, hundreds…) the way results are shown:
+/// half away from zero on its shortest decimal form, so `round(1.005; 2)` is 1.01 as `1.005`
+/// shown with two decimals is.
+pub(crate) fn round_decimal(v: f64, places: i32) -> f64 {
+    if !v.is_finite() {
+        return v;
+    }
+    let (negative, mut ds, mut exp) = decimal_digits(v);
+    round_at(&mut ds, &mut exp, -places);
+    let digits: String = ds.iter().map(|d| char::from(b'0' + d)).collect();
+    let shift = i64::from(exp) - (ds.len() as i64 - 1);
+    let r: f64 = format!("{digits}e{shift}").parse().unwrap_or(v);
+    if negative { -r } else { r }
+}
+
 /// Rounds the digits (first at 10^exp) half away from zero to the power of ten `unit`.
 fn round_at(ds: &mut Vec<u8>, exp: &mut i32, unit: i32) {
     // Digits kept: those at 10^exp down to 10^unit.
@@ -190,6 +205,10 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
             BinOp::Sub => format!("{} - {}", render(left), wrap(right, is_sum(right))),
             // A written quantity reads as written: `30 cm`, `12 kN/m`.
             BinOp::Mul if is_quantity(expr) => format!("{} {}", render(left), render(right)),
+            // Numbers and their units: `[4; 5; 6] m`, `10³ m` (read back as units).
+            BinOp::Mul if is_numeric(left) && !matches!(**left, Expr::Neg(_)) && is_units(right) => {
+                format!("{} {}", render(left), render(right))
+            }
             BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right))),
             BinOp::Div => {
                 format!("{}/{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_product(right)))
@@ -234,6 +253,18 @@ pub(crate) fn is_units(expr: &Expr) -> bool {
 /// A quantity as written: a number and its units (`30 cm`, `9.81 m/s²`).
 pub(crate) fn is_quantity(expr: &Expr) -> bool {
     matches!(expr, Expr::Bin(BinOp::Mul, n, u) if matches!(**n, Expr::Num(_)) && is_units(u))
+}
+
+/// Numbers alone: a number, a vector of numbers, a power of numbers (`10^3`), negated. Units
+/// right after one are read as units, as after a number (`[4; 5; 6] m`, `10³ m`).
+pub(crate) fn is_numeric(expr: &Expr) -> bool {
+    match expr {
+        Expr::Num(_) => true,
+        Expr::Neg(inner) => is_numeric(inner),
+        Expr::Vector(items) => !items.is_empty() && items.iter().all(is_numeric),
+        Expr::Bin(BinOp::Pow, base, exp) => is_numeric(base) && is_numeric(exp),
+        _ => false,
+    }
 }
 
 fn is_sum(expr: &Expr) -> bool {

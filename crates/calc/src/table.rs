@@ -27,7 +27,7 @@ use crate::lexer::{Tok, Token, lex};
 use crate::parser::{Expr, Func, parse};
 use crate::quantity::Quantity;
 use crate::solve::free_names;
-use crate::worksheet::{Worksheet, in_unit_text};
+use crate::worksheet::{Worksheet, in_unit_text, in_unit_text_as};
 use crate::{CalcError, MAX_INPUT_CHARS, MAX_VALUES};
 
 /// Most columns of a calculated table that are read.
@@ -226,6 +226,20 @@ impl Worksheet {
                 _ => None,
             })
             .collect();
+        // Which columns hold absolute temperatures or their differences, left to right.
+        let mut kinds: Vec<(String, Option<bool>)> = Vec::new();
+        let mut temps: Vec<Option<bool>> = Vec::new();
+        for col in &columns {
+            let t = match col {
+                Column::Input { unit: Some(u), .. } => crate::units::affine(&u.text).map(|_| true),
+                Column::Formula { expr, .. } => temp_kind(expr, &kinds, 0),
+                _ => None,
+            };
+            if let Some(name) = col.name() {
+                kinds.push((name.to_string(), t));
+            }
+            temps.push(t);
+        }
         // Whether each formula indexes a column by row, and the data rows in order: `i` is a
         // row's place among them (1, 2, 3…), `n` how many there are.
         let indexed: Vec<bool> = columns.iter().map(|col| matches!(col, Column::Formula { expr, .. } if indexes(expr, &col_names))).collect();
@@ -310,7 +324,8 @@ impl Worksheet {
                         value
                     }
                 };
-                let shown = match result.and_then(|q| Ok((q, self.cell_text(q, unit.as_ref(), hint.as_deref())?))) {
+                let absolute = temps.get(c).copied().flatten() != Some(false);
+                let shown = match result.and_then(|q| Ok((q, self.cell_text_as(q, unit.as_ref(), hint.as_deref(), absolute)?))) {
                     Ok((q, shown)) => {
                         if let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r)) {
                             *slot = Some(q);
@@ -532,8 +547,14 @@ impl Worksheet {
             };
             let inner = tokens.get(2..end).unwrap_or_default();
             let end_pos = tokens.get(end).map_or(0, |t| t.pos);
-            let expr = parse(inner, end_pos)?;
-            let q = eval_scalar(&expr, &self.scope, Names::UnitsOnly)?;
+            // Round brackets that hold no unit are words (`Load (case A)`): a label column. A
+            // unit in square brackets must be one (a typo there is reported).
+            let read = parse(inner, end_pos).and_then(|expr| eval_scalar(&expr, &self.scope, Names::UnitsOnly));
+            let q = match read {
+                Ok(q) => q,
+                Err(_) if *open == Tok::LParen => return Ok(Column::Label),
+                Err(e) => return Err(e),
+            };
             let span = |t: Option<&Token>| t.map_or(0, |t| t.byte);
             let raw = text.get(span(tokens.get(2))..span(tokens.get(end))).unwrap_or_default().trim();
             unit = Some(Unit { q, text: raw.to_string() });
@@ -580,13 +601,62 @@ impl Worksheet {
 
     /// A computed cell: the number in the column's unit, or the number and its automatic unit.
     fn cell_text(&self, q: Quantity, unit: Option<&Unit>, hint: Option<&str>) -> Result<String, CalcError> {
+        self.cell_text_as(q, unit, hint, true)
+    }
+
+    /// [`Self::cell_text`]; without `absolute`, a `[°C]`/`[°F]` value is a difference (no offset).
+    fn cell_text_as(&self, q: Quantity, unit: Option<&Unit>, hint: Option<&str>, absolute: bool) -> Result<String, CalcError> {
         match unit {
+            Some(u) if !absolute => in_unit_text_as(&Value::Scalar(q), u.q, &u.text, &self.opts, false),
             Some(u) => in_unit_text(&Value::Scalar(q), u.q, &u.text, &self.opts),
             None => {
                 let (number, unit) = self.auto_hinted(&Value::Scalar(q), hint);
                 Ok(crate::worksheet::with_unit(&number, &unit))
             }
         }
+    }
+}
+
+/// Whether a column holds absolute temperatures (`Some(true)`: written in `[°C]`/`[°F]`, or
+/// worked out from them), differences of them (`Some(false)`) or neither, by how its formula is
+/// written, as statements are (docs/calc.md, Temperatures): `T_2 - T_1` is a difference, shown
+/// in a `[°C]` column without the scale's offset.
+fn temp_kind(e: &Expr, kinds: &[(String, Option<bool>)], depth: usize) -> Option<bool> {
+    if depth > crate::MAX_DEPTH {
+        return None;
+    }
+    let kind = |x: &Expr| temp_kind(x, kinds, depth + 1);
+    match e {
+        Expr::Name(n) => kinds.iter().find(|(k, _)| k == n).and_then(|(_, t)| *t),
+        Expr::Neg(a) => kind(a).filter(|k| !k),
+        Expr::Bin(crate::parser::BinOp::Sub, a, b) => match (kind(a), kind(b)) {
+            (Some(true), Some(true)) => Some(false),
+            (Some(true), _) => Some(true),
+            (Some(false), _) | (None, Some(false)) => Some(false),
+            _ => None,
+        },
+        Expr::Bin(crate::parser::BinOp::Add, a, b) => match (kind(a), kind(b)) {
+            (Some(true), Some(true)) => None,
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            _ => None,
+        },
+        Expr::Bin(crate::parser::BinOp::Mul, a, b) => match (kind(a), kind(b)) {
+            (Some(false), None) | (None, Some(false)) => Some(false),
+            _ => None,
+        },
+        Expr::Bin(crate::parser::BinOp::Div, a, b) => match (kind(a), kind(b)) {
+            (Some(false), None) => Some(false),
+            _ => None,
+        },
+        Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs | Func::Round, args) => {
+            let mut found = None;
+            for a in args.iter().take(1) {
+                found = kind(a);
+            }
+            found
+        }
+        _ => None,
     }
 }
 

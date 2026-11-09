@@ -5,7 +5,7 @@
 
 use crate::geom::Pt;
 use crate::kernel::{Curve, canon, curves, direction};
-use crate::model::{Drawing, Entity, Kind, Num, P};
+use crate::model::{Drawing, Entity, Kind, Num, Orient, P, Side};
 
 /// An affine map of the plane: `p ↦ (a·x + b·y + c, d·x + e·y + f)`, with the factor it scales
 /// lengths by and whether it mirrors (which turns arcs and angles the other way).
@@ -19,7 +19,9 @@ pub struct Affine {
 impl Affine {
     /// Scaling by `k` about `base`.
     pub fn scaling(base: Pt, k: f64) -> Affine {
-        Affine { m: [k, 0.0, base.x * (1.0 - k), 0.0, k, base.y * (1.0 - k)], scale: k.abs(), mirror: k < 0.0 }
+        // A negative factor turns the plane half round (its determinant k² keeps the sense of
+        // turning): no mirror.
+        Affine { m: [k, 0.0, base.x * (1.0 - k), 0.0, k, base.y * (1.0 - k)], scale: k.abs(), mirror: false }
     }
 
     /// Rotation by `deg` counter-clockwise about `base`.
@@ -109,10 +111,29 @@ impl Drawing {
                     map_p(b, t);
                 }
                 // The scaled part of its distance follows; the paper part stays.
-                Kind::Dim { a, b, offset_units, .. } => {
+                Kind::Dim { a, b, offset_units, orient, .. } => {
                     map_p(a, t);
                     map_p(b, t);
                     *offset_units *= t.scale;
+                    // Mirrored, the line stays on the side it was (its offset is along the left
+                    // of a→b, which a mirror turns right).
+                    if t.mirror {
+                        std::mem::swap(a, b);
+                    }
+                    // A horizontal or vertical dimension turned: the axis it now lies along, or
+                    // aligned with its points when it lies along neither.
+                    if *orient != Orient::Aligned {
+                        let along = if *orient == Orient::Horizontal { 0.0 } else { 90.0 };
+                        let turned = t.angle(along).rem_euclid(180.0);
+                        let near = |x: f64| (turned - x).abs() < 1e-6 || (turned - x - 180.0).abs() < 1e-6;
+                        *orient = if near(0.0) {
+                            Orient::Horizontal
+                        } else if near(90.0) {
+                            Orient::Vertical
+                        } else {
+                            Orient::Aligned
+                        };
+                    }
                 }
                 Kind::Circle { c, r } => {
                     map_p(c, t);
@@ -126,6 +147,9 @@ impl Drawing {
                     let (s, en) = if t.mirror { (en, s) } else { (s, en) };
                     *start = Num::new(s);
                     *end = Num::new(en);
+                    if t.mirror {
+                        e.arrows = e.arrows.reversed();
+                    }
                 }
                 Kind::Polyline { pts, bulges, .. } => {
                     pts.iter_mut().for_each(|p| map_p(p, t));
@@ -152,6 +176,17 @@ impl Drawing {
                 }
                 // A strip or a hatch follows its path or boundaries.
                 Kind::Strip { .. } | Kind::Hatch { .. } => {}
+            }
+        }
+        // A strip along a mirrored path is on the path's other side.
+        if t.mirror {
+            let moved: Vec<String> = indices.iter().filter_map(|&i| self.entities.get(i)).map(|e| e.id.clone()).collect();
+            for e in &mut self.entities {
+                if let Kind::Strip { along, side, .. } = &mut e.kind
+                    && moved.contains(along)
+                {
+                    *side = if *side == Side::Left { Side::Right } else { Side::Left };
+                }
             }
         }
         self.sanitize();

@@ -572,12 +572,15 @@ impl<'a> Ctx<'a> {
                     }
                     _ => return Err(CalcError::Arity { function: function.to_string(), expected: "1 or 2 arguments" }),
                 };
-                let scale = 10f64.powf(digits);
+                // A quantity with a unit is rounded in coherent SI and keeps its unit
+                // (`round(2.345 m; 2) = 2.35 m`); a temperature's kelvins aren't what was written,
+                // so it must be a plain number.
+                let places = digits as i32;
                 self.map(x, |q| {
-                    let v = plain(function, q)?;
-                    // A number too large to scale is already whole at that precision.
-                    let scaled = v * scale;
-                    Ok(Quantity::number(if scaled.is_finite() { finite(scaled.round() / scale)? } else { finite(v)? }))
+                    if q.dim.exponents().get(4).copied().unwrap_or(0) != 0 {
+                        plain(function, q)?;
+                    }
+                    Ok(Quantity::new(finite(crate::format::round_decimal(q.value, places))?, q.dim))
                 })
             }
             _ => {

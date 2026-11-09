@@ -2991,6 +2991,9 @@ paper	Letter	Lettera
 paper	Legal	Legale
 paper	Envelope #10	Busta n. 10
 paper	Envelope DL	Busta DL
+	At the start	All'inizio
+	At the end	Alla fine
+	At both ends	Alle due estremità
 
 # Strix (2026-11-08): the full product name, Strix Writer, in titles.
 	About Strix Writer	Informazioni su Strix Writer

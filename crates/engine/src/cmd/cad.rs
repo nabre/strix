@@ -122,6 +122,12 @@ fn selected_source(s: &Session) -> Option<(strix_doc::Pos, Arc<str>)> {
     }
 }
 
+/// The colour drawing texts show units in: the Unit style's, as on the page.
+pub fn unit_rgb(s: &Session) -> [u8; 3] {
+    let c = super::calc::unit_color_of(s);
+    [c.0, c.1, c.2]
+}
+
 /// Whether the selected object is a CAD drawing.
 pub fn is_selected(s: &Session) -> bool {
     selected_source(s).is_some()
@@ -132,10 +138,26 @@ pub fn selected_drawing(s: &Session) -> Option<(strix_doc::Pos, Drawing)> {
     selected_source(s).map(|(pos, src)| (pos, Drawing::from_json(&src).unwrap_or_default()))
 }
 
+/// The selected CAD drawing to change: an error, not an empty drawing, when its source can't be
+/// read (changing it would replace the drawing with a blank one).
+fn drawing_to_change(s: &Session) -> Result<(strix_doc::Pos, Drawing), CmdError> {
+    let (pos, src) = selected_source(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    let d = Drawing::from_json(&src).map_err(|e| CmdError::Failed(format!("the drawing can't be read: {e}")))?;
+    Ok((pos, d))
+}
+
 fn get(s: &mut Session, _: &Value) -> CmdResult {
-    let (_, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
-    let opts = super::calc::options_now(s);
-    let errors = d.resolve(&strix_calc::Worksheet::new(opts));
+    let (_, src) = selected_source(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    let mut d = Drawing::from_json(&src).map_err(|e| CmdError::Failed(format!("the drawing can't be read: {e}")))?;
+    // The errors where the drawing sits (its parameters come from the calculations before it);
+    // outside the body, against no calculations.
+    let errors = match (super::calc::cad_errors(s, &src), super::calc::resolved_cad(s, &src)) {
+        (Some(errors), Some(resolved)) => {
+            d = resolved.0.clone();
+            errors
+        }
+        _ => d.resolve(&strix_calc::Worksheet::new(super::calc::options_now(s))),
+    };
     let drawing: Value = serde_json::from_str(&d.to_json()).unwrap_or(Value::Null);
     Ok(json!({"drawing": drawing, "errors": errors}))
 }
@@ -171,20 +193,22 @@ pub fn page_space(s: &Session) -> strix_cad::Fit {
 /// A padding parameter: one size for all sides, or `[top, right, bottom, left]`, mm.
 pub fn padding_param(v: &Value) -> Result<strix_cad::Padding, String> {
     match v.get("value") {
-        Some(p @ (Value::Number(_) | Value::Array(_))) => serde_json::from_value(p.clone()).map_err(|e| e.to_string()),
+        Some(p @ Value::Number(_)) => serde_json::from_value(p.clone()).map_err(|e| e.to_string()),
+        // Four sides, each a number: anything else would read as the default padding.
+        Some(p @ Value::Array(a)) if a.len() == 4 && a.iter().all(Value::is_number) => serde_json::from_value(p.clone()).map_err(|e| e.to_string()),
         _ => Err("value: the padding in mm, or [top, right, bottom, left]".into()),
     }
 }
 
 fn padding(s: &mut Session, v: &Value) -> CmdResult {
-    let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    let (pos, mut d) = drawing_to_change(s)?;
     d.padding = padding_param(v).map_err(CmdError::Params)?;
     store(s, &pos, &d)?;
     Ok(serde_json::to_value(d.padding).unwrap_or(Value::Null))
 }
 
 fn scale(s: &mut Session, v: &Value) -> CmdResult {
-    let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    let (pos, mut d) = drawing_to_change(s)?;
     // The drawing with its sizes worked out by the calculations: what fits is judged on it.
     let resolved = edited(s).map_or_else(|| d.clone(), |(_, r, ..)| r);
     let probe = |fit: Option<strix_cad::Fit>| {
@@ -243,7 +267,7 @@ fn scale(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 fn add(s: &mut Session, v: &Value) -> CmdResult {
-    let (pos, mut d) = selected_drawing(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    let (pos, mut d) = drawing_to_change(s)?;
     let entity: Entity = v
         .get("entity")
         .cloned()
@@ -396,7 +420,9 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
                         let ps = piece_size(&piece);
                         let c = match piece.kind {
                             strix_cad::SpanKind::Unit => unit_color,
-                            strix_cad::SpanKind::Missing => Rgb(0xC0, 0x1C, 0x1C),
+                            strix_cad::SpanKind::Missing => {
+                                Rgb(strix_cad::MISSING_COLOR[0], strix_cad::MISSING_COLOR[1], strix_cad::MISSING_COLOR[2])
+                            }
                             strix_cad::SpanKind::Plain => rgb(*color),
                         };
                         let align = TextAlign::Left;
@@ -611,6 +637,84 @@ mod tests {
         }
         let _ = s.run("cad.get", &json!({}));
         let _ = s.run("cad.add", &json!({"entity": null}));
+    }
+
+    /// `cad.get` reports the errors where the drawing sits: a parameter defined before it is no
+    /// error; a missing one is.
+    #[test]
+    fn cad_get_reports_errors_where_the_drawing_sits() {
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}, {"type": "line", "a": [0, 0], "b": ["Z", 0]}]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        let got = s.run("cad.get", &json!({})).unwrap();
+        let errors = got["errors"].as_array().cloned().unwrap_or_default();
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(errors[0].to_string().contains('Z'), "{errors:?}");
+        // The drawing comes back resolved: L is 4.5 there.
+        assert_eq!(got["drawing"]["entities"][0]["b"][0], json!("L"));
+    }
+
+    /// A padding of the wrong shape is refused, not read as the default.
+    #[test]
+    fn a_padding_of_the_wrong_shape_is_refused() {
+        let mut s = session();
+        s.run("insert.cad", &json!({})).unwrap();
+        assert!(s.run("cad.padding", &json!({"value": [1, 2]})).is_err());
+        assert!(s.run("cad.padding", &json!({"value": [1, 2, "x", 4]})).is_err());
+        assert!(s.run("cad.padding", &json!({"value": [1, 2, 3, 4]})).is_ok());
+        assert!(s.run("cad.padding", &json!({"value": 3})).is_ok());
+    }
+
+    /// A drawing whose source can't be read is never replaced by a blank one.
+    #[test]
+    fn an_unreadable_drawing_is_never_overwritten() {
+        let mut s = session();
+        s.run("insert.cad", &json!({})).unwrap();
+        let (pos, _) = selected_source(&s).unwrap();
+        let para = s.doc.para_mut(pos.story, &pos.path).unwrap();
+        let Some(InlineObject::Graphic { graphic, .. }) = para.object_at_mut(pos.off) else { panic!() };
+        Arc::make_mut(graphic).cad = Some("{not json".into());
+        for (id, v) in [
+            ("cad.padding", json!({"value": 3})),
+            ("cad.scale", json!({"scale": 10})),
+            ("cad.add", json!({"entity": {"type": "point", "p": [0, 0]}})),
+        ] {
+            assert!(s.run(id, &v).is_err(), "{id}");
+        }
+        assert_eq!(selected_source(&s).unwrap().1.as_ref(), "{not json");
+    }
+
+    /// Deleting the calculation a drawing reads redraws it with the parameter missing.
+    #[test]
+    fn a_drawing_shows_a_deleted_parameter_as_missing() {
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "entities": [{"type": "dim", "a": [0, 0], "b": [5, 0], "text": "{{L}}"}]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        assert_eq!(texts(&drawing(&s).unwrap().2), ["4.5 m"]);
+        // The equation goes (the first paragraph's text and objects).
+        let Block::Para(p) = Arc::make_mut(&mut s.doc.body[0]) else { panic!() };
+        let at = p.text.char_indices().map(|(i, _)| i).find(|&i| matches!(p.object_at(i), Some(InlineObject::Equation { .. }))).unwrap();
+        p.delete(at, at + strix_doc::para::OBJ.len_utf8()).unwrap();
+        p.touch();
+        s.touch();
+        crate::cmd::calc::auto_recalculate(&mut s);
+        let shown = texts(&drawing(&s).unwrap().2);
+        assert!(shown[0].contains("L?"), "{shown:?}");
+    }
+
+    /// Recalculating a document with no calculation leaves its styles alone.
+    #[test]
+    fn recalculating_without_calculations_adds_no_style() {
+        let mut s = session();
+        s.run("text.insert", &json!({"text": "Plain text"})).unwrap();
+        let before = s.doc.styles.styles.len();
+        s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(s.doc.styles.styles.len(), before);
+        assert!(s.doc.styles.get(super::super::calc::UNIT_STYLE).is_none());
     }
 
     /// Fine hatches drawn first (they go behind everything) no longer use up the page's item
