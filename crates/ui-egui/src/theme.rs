@@ -363,8 +363,9 @@ impl Tokens {
             ],
             menu: Color32::WHITE,
             blue: Color32::from_rgb(0x2F, 0x6F, 0xD0),
-            red: Color32::from_rgb(0xD1, 0x3B, 0x3B),
-            green: Color32::from_rgb(0x38, 0x8A, 0x34),
+            // Atollo's semantic states: Error #B01011, Success #007100.
+            red: Color32::from_rgb(0xB0, 0x10, 0x11),
+            green: Color32::from_rgb(0x00, 0x71, 0x00),
             orange: Color32::from_rgb(0xC2, 0x41, 0x0C),
             close_hover: Color32::from_rgb(0xC4, 0x2B, 0x1C),
             close_pressed: Color32::from_rgb(0xA6, 0x23, 0x16),
@@ -429,8 +430,9 @@ impl Tokens {
                 Color32::from_rgb(0xE0, 0x7B, 0x1F),
             ],
             menu: Color32::from_rgb(0x20, 0x20, 0x20),
-            blue: Color32::from_rgb(0x6C, 0x9B, 0xEA),
-            red: Color32::from_rgb(0xEE, 0x6A, 0x6A),
+            // Atollo's semantic states: Info #3794FF, Error #F88070.
+            blue: Color32::from_rgb(0x37, 0x94, 0xFF),
+            red: Color32::from_rgb(0xF8, 0x80, 0x70),
             green: Color32::from_rgb(0x73, 0xC9, 0x91),
             orange: Color32::from_rgb(0xF9, 0x73, 0x16),
             // A little lighter than the light theme's red, so it reads against the dark window.
@@ -780,7 +782,8 @@ fn visuals(t: &Tokens) -> Visuals {
     v.extreme_bg_color = t.input;
     v.faint_bg_color = t.panel;
     v.window_stroke = Stroke::new(1.0, t.border_strong);
-    v.window_corner_radius = CornerRadius::same(8);
+    // Atollo: dialogs 12 px, menus 6 px, list rows and controls 4 px.
+    v.window_corner_radius = CornerRadius::same(12);
     v.menu_corner_radius = CornerRadius::same(6);
     v.selection.bg_fill = t.selection;
     v.selection.stroke = Stroke::new(1.0, t.accent);
