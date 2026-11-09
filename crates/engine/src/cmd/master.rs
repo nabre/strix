@@ -45,10 +45,12 @@ const MAX_SUBDOCS: usize = 500;
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("master.insertSubdocument", "Insert Subdocument", LOC, insert)
-            .params(r#"{"path"?: string (a document Strix opens: .xmath, .docx, .odt, .rtf…; without it the app asks)}"#),
+            .params(r#"{"path"?: string (a document Strix opens: .xmath, .docx, .odt, .rtf…; without it the app asks)}"#)
+            .when(on_the_web),
         CommandSpec::new("master.createSubdocument", "Create Subdocument", LOC, create).params(
             r#"{"path"?: string (the new file; .xmath when it has no extension; without it the app asks), "overwrite"?: bool (replace an existing file; default false)}"#,
-        ),
+        )
+        .when(on_the_web),
         CommandSpec::new("master.unlinkSubdocument", "Unlink Subdocument", LOC, unlink)
             .params(r#"{"path"?: string (which subdocument; default the one at the caret)}"#)
             .when(no_subdocuments),
@@ -69,6 +71,11 @@ pub fn specs() -> Vec<CommandSpec> {
         .params(r#"{"value"?: bool}"#)
         .pure(),
     ]
+}
+
+/// Subdocuments are files on disk, which the browser version can't read back or write.
+fn on_the_web(_: &Session) -> Option<&'static str> {
+    cfg!(target_arch = "wasm32").then_some("Subdocuments are files on disk: the desktop version links them, the browser version can't.")
 }
 
 fn no_subdocuments(s: &Session) -> Option<&'static str> {
