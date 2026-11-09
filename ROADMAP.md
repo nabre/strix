@@ -146,6 +146,7 @@ Ranked, to beta (detail and remaining milestones in [docs/roadmap.md](docs/roadm
 
 ## Progress log
 
+- 2026-11-09: Software updates (docs/updates.md): Strix checks its own releases (nabre/strix) at start and on Help › Check for Updates, and offers a newer one in a translated window: Update and Restart where it can replace the installation (per-user MSI, AppImage, .deb/.rpm, a tar.gz in the home folder), Download of this platform's package elsewhere. Upstream: Actions › Upstream WordCraft syncs a WordCraft release onto vendor/wordcraft and opens the merge pull request. Interface catalogs: every string the interface audit sees or a `tl!` names is translated in all 27 languages (about 12,700 rows added; Italian 86). On the web, Insert/Create Subdocument are greyed out with the reason.
 - 2026-11-09: Release and site workflows (docs/releasing.md): the site always deploys from `main` (a release published on GitHub used to deploy from its tag, which the `github-pages` environment refuses, so the site stayed on the old release); its download links follow the latest published release instead of Cargo.toml; Publish release warns about commits on `main` the release doesn't include.
 - 2026-11-09: Master documents (docs/master-documents.md): Outlining › Master Document links other documents (any format Strix opens) as subdocuments shown and edited in place; saving the master writes each edited subdocument back to its own file, opening it reloads them from their files, and a file changed on both sides is a conflict, never overwritten (Reload or force settle it). Create saves selected paragraphs as a new linked file; Unlink, Reload and Open complete it (`master.*`). Exercises (docs/exercise.md): page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane); a new exercise takes the last one's.
 - 2026-11-09: v0.18.0 prepared (version bumped; the Release workflow builds every platform from `release`: macOS universal DMG, Windows x64/x86/arm64 MSI and portable builds, Linux x86_64/aarch64 AppImage, Flatpak, deb, rpm and tar.gz, Linux riscv64, FreeBSD, web): the full product name Strix Writer; exercises whose generated words follow the proofing language; the "Calculation and exercise" template; spelling dictionaries downloaded on demand; CAD arrowheads, coherent dimensions and bounded hatches; calculation fixes (units after numbers, round keeping units, [°C] differences, no 1000 kPa). v0.16 and v0.17 were tagged without packages.
@@ -681,6 +682,7 @@ Footer page-table height and body wrapping are corrected. Other pagination gaps 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-09 | trivial | Progress log: updates, upstream workflow, complete catalogs |
 | 2026-11-09 | trivial | Progress log: release and site workflows |
 | 2026-11-09 | trivial | Progress log: master documents; exercise page breaks |
 | 2026-11-09 | trivial | Progress log: CAD arrowheads and CAD/calculation coherence fixes |
