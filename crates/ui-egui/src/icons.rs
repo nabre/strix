@@ -1926,6 +1926,13 @@ fn paint_file_and_tools(pen: &Pen, name: &str) -> bool {
             }
         }
         // Master Document: a page holding a smaller linked page.
+        // The Subdocuments pane: a list of linked files.
+        "subdocPane" => {
+            for (k, y) in [5.0_f32, 10.0, 15.0].into_iter().enumerate() {
+                pen.rect(3.0, y - 1.5, 6.0, y + 1.5, if k == 0 { a } else { c });
+                pen.line_c(&[(8.5, y), (17.0, y)], c);
+            }
+        }
         "subdocInsert" | "subdocCreate" | "subdocUnlink" | "subdocRefresh" | "subdocOpen" => {
             pen.page(3.0, 2.0, 14.0, 17.0);
             pen.rect(6.0, 8.0, 14.0, 15.0, a);

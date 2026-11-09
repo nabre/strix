@@ -62,6 +62,12 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"path"?: string (default the subdocument at the caret)}"#)
             .when(no_subdocuments),
         CommandSpec::new("master.subdocuments", "Subdocuments", LOC, list).pure(),
+        CommandSpec::new("view.subdocumentsPane", "Subdocuments Pane", LOC, |s, v| {
+            s.view.subdocument_pane = p::bool(v, "value").unwrap_or(!s.view.subdocument_pane);
+            Ok(json!({"value": s.view.subdocument_pane}))
+        })
+        .params(r#"{"value"?: bool}"#)
+        .pure(),
     ]
 }
 
@@ -543,7 +549,7 @@ fn list(s: &mut Session, _: &Value) -> CmdResult {
                 "edited": synced(id, &x.link.path).is_none_or(|l| l.content != now),
                 "conflict": x.link.conflict,
                 "start": super::pos_json(&x.range.start),
-                "text": s.doc.control_text(&x.range).chars().take(80).collect::<String>(),
+                "text": s.doc.control_text(&x.range).split('\n').map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" · ").chars().take(120).collect::<String>(),
             })
         })
         .collect();

@@ -23,6 +23,12 @@ Outlining › Master Document (in Outline view):
 
 Without `path`, the commands act on the subdocument at the caret (Insert and Create ask for a file).
 
+The **Subdocuments** pane (the Subdocuments button, `view.subdocumentsPane`) lists the linked
+files, each on a card with its folder, its first words and its state: *in step*, *edited* (saved
+with the master), *conflict* (with Keep this version / Keep the file) or *not found*; a click on
+the name goes to it, and Reload, Open and Unlink act on that one. Below, Insert and Create, and
+Save or Reload all of them.
+
 ## How the link works
 
 - A subdocument is a block-level rich text content control around its content, tagged
@@ -53,4 +59,4 @@ Without `path`, the commands act on the subdocument at the caret (Insert and Cre
 
 ## Revision history
 
-- 2026-11-09: first version.
+- 2026-11-09: first version; the Subdocuments pane.

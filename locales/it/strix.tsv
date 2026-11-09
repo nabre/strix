@@ -3014,3 +3014,28 @@ paper	Envelope DL	Busta DL
 	Apply to all exercises	Applica a tutti gli esercizi
 	Every exercise of the document takes this exercise's page breaks	Tutti gli esercizi del documento prendono le interruzioni di pagina di questo
 	A new exercise takes the page breaks of the last one.	Un nuovo esercizio prende le interruzioni di pagina dell'ultimo.
+	Subdocuments Pane	Riquadro Sottodocumenti
+	Linked files	File collegati
+	Add	Aggiungi
+	All	Tutti
+	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Questo documento non collega ancora altri documenti. Inseriscine uno, o seleziona dei paragrafi e creane uno: il suo testo compare qui e viene salvato nel suo file.
+	Insert Subdocument…	Inserisci sottodocumento…
+	Create Subdocument…	Crea sottodocumento…
+	Link a document at the cursor	Collega un documento nel punto del cursore
+	Save the selected paragraphs as a new file, linked in their place	Salva i paragrafi selezionati in un nuovo file, collegato al loro posto
+	Write the edited subdocuments to their files now (also done by saving the document)	Scrivi ora nei loro file i sottodocumenti modificati (lo fa anche il salvataggio del documento)
+	Show every file as it is on disk, discarding edits made here	Mostra ogni file com'è sul disco, scartando le modifiche fatte qui
+	Saving the document saves every subdocument edited here. Opening it shows each file as it is now.	Salvando il documento si salva ogni sottodocumento modificato qui. Aprendolo, ogni file compare com'è ora.
+	conflict	conflitto
+	not found	non trovato
+	edited	modificato
+	in step	allineato
+	Go to it	Vai al sottodocumento
+	Changed here and in the file: keep one of the two.	Modificato qui e nel file: tieni una delle due versioni.
+	Keep this version	Tieni questa versione
+	Overwrite the file with the text shown here	Sovrascrivi il file con il testo mostrato qui
+	Keep the file	Tieni il file
+	Replace the text shown here with the file's	Sostituisci il testo mostrato qui con quello del file
+	Show the file as it is on disk, discarding edits made here	Mostra il file com'è sul disco, scartando le modifiche fatte qui
+	Open the file in a window of its own	Apri il file in una finestra propria
+	Keep the text in this document, without the link; the file stays as it is	Tieni il testo in questo documento, senza collegamento; il file resta com'è
