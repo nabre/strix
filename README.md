@@ -249,6 +249,7 @@ Requirements: a Rust toolchain (1.95 or later); for the web build,
 git clone https://github.com/nabre/strix
 cd strix
 cargo run --release -p strix -- --sample          # the desktop app with a sample document
+cargo xtask dev                                   # debug build, rebuilt and restarted on every change (watchexec)
 cargo run --release -p strix -- problem.xmath     # open a Strix document
 ```
 

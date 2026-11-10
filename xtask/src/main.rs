@@ -5,6 +5,7 @@
 //! invoked through `std::process::Command`.
 
 mod assets;
+mod dev;
 mod icns;
 mod ico;
 mod layers;
@@ -49,6 +50,9 @@ commands:
                   track WordCraft: rebrand an upstream commit onto the vendor/wordcraft branch,
                   then `git merge vendor/wordcraft` (docs/upstream.md); unrename: bring main's
                   internal names back to WordCraft's, once (docs/naming.md, phase 3)
+  dev [--once] [-- <app args>]
+                  run the app in debug (default args: --sample), rebuilt and restarted on every
+                  change when watchexec is installed; lean on RAM and disk (xtask/src/dev.rs)
   ico <out.ico> <in.png>...
                   pack square PNGs (<= 256 px) into a Windows .ico (see packaging/icons.sh)
   icns <out.icns> <in.png>...
@@ -75,6 +79,7 @@ fn main() -> ExitCode {
         Some("version") => version::run(&root(), &rest),
         Some("upstream") => upstream::run(&root(), &rest),
         Some("unused") => unused::run(&root(), &rest),
+        Some("dev") => dev::run(&rest),
         Some("-h" | "--help" | "help") | None => {
             print!("{USAGE}");
             Ok(())
