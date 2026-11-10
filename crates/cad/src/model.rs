@@ -859,6 +859,14 @@ pub struct Drawing {
     /// among those that fit.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fit: Option<Fit>,
+    /// A stable name other drawings of the document refer to it by (an underlay's source);
+    /// given when it is first needed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Another drawing of the document shown under this one to trace over
+    /// ([`crate::Underlay`]): a reference by id, never a copy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub underlay: Option<crate::Underlay>,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -896,6 +904,8 @@ impl Default for Drawing {
             current_dim_style: None,
             current_text_style: None,
             fit: None,
+            id: None,
+            underlay: None,
         }
     }
 }
@@ -987,6 +997,9 @@ impl Drawing {
         self.dim_style = std::mem::take(&mut self.dim_style).sanitized();
         self.sanitize_styles();
         self.fit = self.fit.map(Fit::sanitized).filter(|f| f.width > 0.0 || f.height > 0.0);
+        self.id = self.id.take().map(|n| cut_name(&n)).filter(|n| !n.trim().is_empty());
+        // Never its own underlay.
+        self.underlay = self.underlay.take().map(crate::Underlay::sanitized).filter(|u| Some(&u.source) != self.id.as_ref() && !u.source.is_empty());
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());

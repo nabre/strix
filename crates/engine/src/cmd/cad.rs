@@ -13,6 +13,9 @@ use wordcraft_doc::props::Rgb;
 
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 
+mod underlay;
+pub use underlay::{CadEntry, entries, underlay_view};
+
 /// Points in a millimetre.
 const PT_PER_MM: f32 = 72.0 / 25.4;
 /// Most items one drawing makes (each segment of a tessellated arc counts once).
@@ -26,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
     let selected = |s: &Session| if is_selected(s) { None } else { Some("select a CAD drawing first") };
     vec![
         CommandSpec::new("insert.cad", "CAD Drawing", "Insert › Illustrations", insert).params(
-            r#"{"drawing"?: object|string (a strix-cad drawing: {"unit", "scale", "layers", "entities": [{"type": "line", "a": [0,0], "b": ["L",0]} …]}; default: a starter drawing, its maximum size the space where it goes)} → inserts a CAD drawing in line at the caret; coordinates may be expressions of the calculations' parameters"#,
+            r#"{"drawing"?: object|string (a strix-cad drawing: {"unit", "scale", "layers", "entities": [{"type": "line", "a": [0,0], "b": ["L",0]} …]}; default: a starter drawing, its maximum size the space where it goes), "underlay"?: n | id (another drawing as its underlay, its layers and styles inherited), "inherit"?: n | id (only its layers and styles)} → inserts a CAD drawing in line at the caret; coordinates may be expressions of the calculations' parameters"#,
         ),
         CommandSpec::new("cad.get", "CAD Drawing Source", "Insert › Illustrations", get).pure().when(selected).params(r#"→ {"drawing": object, "errors": [[expression, why]]}: the selected drawing"#),
         CommandSpec::new("cad.set", "Set CAD Drawing", "Insert › Illustrations", set).when(selected).params(r#"{"drawing": object|string} → replaces the selected drawing's source and redraws it"#),
@@ -35,6 +38,15 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"entity": object ({"type": "line|circle|arc|polyline|point|text|dim|angle|level", …})} → adds an entity to the selected drawing; returns its id"#),
         CommandSpec::new("cad.space", "Drawing Space", "CAD Picture Format › Scale", space).pure().when(selected).params(
             r#"→ {"width", "height"} mm: the space where the selected drawing sits (its column's width, the height from its top down to the page's bottom margin), a guide for its size, not a limit; null when it is not laid out"#,
+        ),
+        CommandSpec::new("cad.drawings", "Drawings of the Document", "CAD Picture Format › Underlay", underlay::drawings).pure().params(
+            r#"→ [{"index", "id", "name", "page", "current", "underlay"}]: the document's CAD drawings (body paragraphs, reading order), to pick an underlay from"#,
+        ),
+        CommandSpec::new("cad.underlay", "Drawing Underlay", "CAD Picture Format › Underlay", underlay::underlay).when(selected).params(
+            r#"{"source"?: n | id (another drawing: its number in cad.drawings or its id; taken by id, never copied), "inherit"?: true (default: its layers and styles merged in), "dx"?, "dy"? (drawing units), "fade"? (0–0.95), "show"?, "print"? (also on the page and in the PDF; default: only in the editor), "remove"?: true} → {"underlay", "inherited"}; refuses the drawing itself and two drawings taking each other; one level deep"#,
+        ),
+        CommandSpec::new("cad.inherit", "Inherit Layers and Styles", "CAD Picture Format › Underlay", underlay::inherit).when(selected).params(
+            r#"{"source": n | id} → {"inherited": {"layers", "dimStyles", "textStyles"}}: another drawing's layers and styles merged into the selected one (names it has keep its definition), no underlay"#,
         ),
         CommandSpec::new("cad.padding", "Drawing Padding", "CAD Picture Format › Picture", padding)
             .when(selected)
@@ -91,6 +103,12 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     {
         d.fit = Some(space.sanitized());
         store(s, &at, &d)?;
+    }
+    // Started from another drawing: its layers and styles, and as an underlay.
+    if let Some(src) = v.get("underlay") {
+        underlay::underlay(s, &json!({"source": src}))?;
+    } else if let Some(src) = v.get("inherit") {
+        underlay::inherit(s, &json!({"source": src}))?;
     }
     super::sel_result(s)
 }

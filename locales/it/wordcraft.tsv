@@ -3104,6 +3104,18 @@ paper	Envelope DL	Busta DL
 	Drawing Padding	Margine del disegno
 	Drawing Scale	Scala del disegno
 	Drawing Space	Spazio del disegno
+	Underlay	Sottomano
+	Underlay: another drawing of the document under this one, faded and locked, to trace over (its objects snap)	Sottomano: un altro disegno del documento sotto questo, sbiadito e bloccato, da ricalcare (i suoi oggetti fanno da snap)
+	No other drawing in the document	Nessun altro disegno nel documento
+	page	pagina
+	Import styles and layers only	Importa solo stili e livelli
+	Fade	Sbiadimento
+	Print with the drawing	Stampa con il disegno
+	Remove Underlay	Rimuovi sottomano
+	The underlay's drawing is no longer in the document	Il disegno del sottomano non è più nel documento
+	Drawings of the Document	Disegni del documento
+	Drawing Underlay	Sottomano del disegno
+	Inherit Layers and Styles	Eredita livelli e stili
 	Exercise Info	Informazioni sull'esercizio
 	File type	Tipo di file
 	Folder path	Percorso della cartella

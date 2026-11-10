@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-10 · **Change:** style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-10 · **Change:** underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -402,6 +402,24 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    with the drawing. **Flip Side** (`ui.cadFlip {"strips": true}`) puts the selected strips and
    slope ticks on the other side of their line; plain `ui.cadFlip` flips the selected
    dimensions, level marks and strips together.
+   **Underlay** (CAD Drawing › Underlay): another drawing of the document shown under the open
+   one, faded and locked, to trace over — its objects are never picked or changed, but the object
+   snaps find its geometry. The button's menu lists the document's other drawings (body
+   paragraphs, reading order: their alternative text or "Drawing n", and page; `cad.drawings`);
+   picking one takes it (`cad.underlay {"source": n | id}`; `ui.cadUnderlay` in the editor) and
+   merges its layers (colour, lineweight, linetype) and named dimension, level and text styles
+   into the drawing: a name the drawing has keeps its own definition, new ones are added
+   (`Drawing::inherit`; there are no drawing-level hatch or strip settings to merge: those are
+   each strip's own). **Import styles and layers only** (`cad.inherit {"source"}`) merges without
+   an underlay, and `insert.cad {"underlay": n}` / `{"inherit": n}` starts a new drawing from
+   another. The underlay is a reference by the source's `id` (`d1`, `d2`…, given when first
+   needed), never a copy: later edits to the source show. It sits 1:1 in drawing units (converted
+   to this drawing's unit) with an optional offset (`dx`, `dy`), a fade (`fade`, 0–0.95, 0.6 by
+   default), Show (the button) and Remove; by default it shows only in the editor, and **Print
+   with the drawing** (`print`) draws it on the page and in the PDF too, the picture growing to
+   hold it. A drawing never takes itself, two drawings never take each other, and an underlay's
+   own underlay is never drawn (one level deep); at most 5000 of its objects are drawn and snapped
+   to. A source deleted or unreadable shows nothing and says so on the status bar.
    **Space here**: a drawing knows the space where it sits — its column's width and the height
    from its top down to the page's bottom margin (`cad.space`, from the layout) — a guide, not a
    limit: a new drawing takes it as its maximum size (the scale fitted to it), Maximum size and
@@ -514,6 +532,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-10: underlays: another drawing of the document under this one, faded, locked and snapped to, by id (`cad.drawings`, `cad.underlay`, `underlay`), optionally printed; its layers and styles inherited (`cad.inherit`, `insert.cad {"underlay" | "inherit"}`); no self-reference, no pair, one level deep.
 
 - 2026-11-10: style windows for the dimension, level and text styles; Show the unit in dimension and level texts; level text and triangle heights; text grips (`textShift`, `ui.cadTextShift`) with leaders; slope ticks (`pattern: "slope"`, tool `slope`/`barbette`) and Flip Side for strips; `cad.space` (the space where a drawing sits), used for new drawings, Maximum size and Fit Here, drawn as a guide; scales typed by hand; Snap, Grid, Ortho, the object snaps and Zoom Fit as icons in the status line, the CAD View tab removed; Match large beside the Layer Manager, Explode/Join one split button, Undo/Redo out of the ribbon; the document's panes hidden while a drawing is open; Grid off by default.
 

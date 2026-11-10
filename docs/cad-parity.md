@@ -1,6 +1,6 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-11-10 · **Change:** style windows, units in
+> **Status:** in progress · **Last updated:** 2026-11-10 · **Change:** underlays and inherited layers and styles; style windows, units in
 > dimension and level texts, text grips, slope ticks and Flip Side, the space where a drawing
 > sits, typed scales, the drawing aids in the status line (no CAD View tab); previously: Circle
 > is a split button
@@ -89,6 +89,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-11-10: underlays (another drawing to trace over, by id) and inherited layers and styles.
 - 2026-11-10: style windows; Show the unit; text grips; slope ticks (barbette) and Flip Side; space where a drawing sits; typed scales; snaps and aids in the status line, no CAD View tab.
 - 2026-10-29: Circle split button.
 - 2026-10-29: the editor shows a dimension's scaled and annotative parts; frame on by default.

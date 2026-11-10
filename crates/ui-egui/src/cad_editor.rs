@@ -399,6 +399,9 @@ pub struct CadEditor {
     /// The space where the drawing sits (its column's width, down to the page's bottom), mm:
     /// a guide on the sheet and in the scale fields, not a limit.
     pub(crate) space: Option<strix_cad::Fit>,
+    /// The underlay as shown (in this drawing's unit and scale, moved, faded, locked) and its
+    /// rendering: drawn under the sheet's drawing and snapped to, never picked.
+    pub(crate) underlay: Option<(Drawing, Rendered)>,
 }
 
 /// The second command of each paired button last chosen (Tangent Line, Extend, Chamfer, Polar
@@ -591,7 +594,9 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         chain_base: None,
         style_dialog: None,
         space,
+        underlay: None,
     });
+    refresh_underlay(app);
     Ok(())
 }
 
@@ -636,6 +641,23 @@ fn reload(app: &mut WordApp) {
         if ed.grip.is_some_and(|(i, _, _)| i >= ed.drawing.entities.len()) {
             ed.grip = None;
         }
+    }
+    refresh_underlay(app);
+}
+
+/// Works the underlay out again from its source as it is now: none when the drawing has none or
+/// it is hidden; a source gone or unreadable shows nothing and says so on the status bar.
+fn refresh_underlay(app: &mut WordApp) {
+    let Some(d) = app.cad.as_ref().map(|e| e.drawing.clone()) else { return };
+    let (view, error) = match wordcraft_engine::cmd::cad::underlay_view(&app.session, &d) {
+        Ok(v) => (v.map(|v| (v.render(None), v)).map(|(r, v)| (v, r)), None),
+        Err(e) => (None, Some(e)),
+    };
+    if let Some(ed) = app.cad.as_mut() {
+        ed.underlay = view;
+    }
+    if let Some(e) = error {
+        app.status(tl!(&e).to_string());
     }
 }
 
@@ -966,6 +988,16 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             }
             commit(app, &d);
             return Ok(json!({"flipped": n}));
+        }
+        "ui.cadUnderlay" | "ui.cadInherit" => {
+            // The drawing's underlay (`cad.underlay`'s params) or its inherited layers and styles
+            // (`cad.inherit`'s), on the drawing open in the editor; the underlay read again.
+            let Some(pos) = app.cad.as_ref().map(|e| e.pos.clone()) else { return Ok(json!({})) };
+            select_drawing(app, &pos);
+            let engine = if id == "ui.cadUnderlay" { "cad.underlay" } else { "cad.inherit" };
+            let out = app.run(engine, p.clone());
+            reload(app);
+            return out;
         }
         "ui.cadStyleDialog" => {
             // Opens a style window: {"which": "dim" | "level" | "text"}, or {"close": true}.
@@ -2482,6 +2514,13 @@ fn pointer_point(ed: &CadEditor, view: View, h: Pos2, free: bool, base: Option<P
         // Exact snaps from the geometry kernel: ends, midpoints, centres, nodes,
         // quadrants, intersections, perpendiculars and tangents from the base point.
         snapped = ed.drawing.snap(raw, 10.0 / ed.zoom, base, &on);
+        // The underlay's geometry snaps too (the point of tracing over it): the nearer wins.
+        if let Some((u, _)) = &ed.underlay
+            && let Some(q) = u.snap(raw, 10.0 / ed.zoom, base, &on)
+            && snapped.is_none_or(|(p, _)| q.0.minus(raw).len() < p.minus(raw).len())
+        {
+            snapped = Some(q);
+        }
     }
     let mut p = snapped.map_or(raw, |(p, _)| p);
     if !free && snapped.is_none() && ed.grid && ed.snap && ed.snap_once.is_none() {
@@ -2712,12 +2751,21 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
         }
         painter.text(r.right_top() + vec2(-4.0, 4.0), Align2::RIGHT_TOP, tl!("Space here"), FontId::proportional(11.0), guide.color);
     }
+    // The underlay, under the drawing.
+    if let Some((_, r)) = &ed.underlay {
+        paint_prims(r, ed.zoom, painter, view, unit);
+    }
     // The drawing.
-    let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-    for prim in &ed.rendered.prims {
+    paint_prims(&ed.rendered, ed.zoom, painter, view, unit);
+}
+
+/// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
+fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, unit: Color32) {
+    let k = if rd.scale > 0.0 { rd.scale } else { 1.0 };
+    for prim in &rd.prims {
         match prim {
             Prim::Path { pts, color, width, fill, .. } => {
-                let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(&ed.rendered, *q));
+                let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(rd, *q));
                 let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
                 if *fill {
                     painter.add(Shape::convex_polygon(pts.iter().map(to_screen).collect(), rgb(*color), stroke));
@@ -2729,10 +2777,10 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
                 }
             }
             Prim::Dot { at, r, color } => {
-                painter.circle_filled(view.to_screen(paper_to_drawing(&ed.rendered, *at)), (*r * ed.zoom / k).clamp(2.0, 12.0) as f32, rgb(*color));
+                painter.circle_filled(view.to_screen(paper_to_drawing(rd, *at)), (*r * zoom / k).clamp(2.0, 12.0) as f32, rgb(*color));
             }
             Prim::Text { at, text, height, anchor, color, angle, look } => {
-                let size = ((*height / 0.7) * ed.zoom / k).clamp(6.0, 200.0) as f32;
+                let size = ((*height / 0.7) * zoom / k).clamp(6.0, 200.0) as f32;
                 let align = match anchor {
                     Anchor::BottomCenter | Anchor::BaselineCenter => Align2::CENTER_BOTTOM,
                     Anchor::TopCenter => Align2::CENTER_TOP,
@@ -2741,7 +2789,7 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
                     Anchor::MiddleLeft => Align2::LEFT_CENTER,
                     Anchor::MiddleRight => Align2::RIGHT_CENTER,
                 };
-                let pos = view.to_screen(paper_to_drawing(&ed.rendered, *at));
+                let pos = view.to_screen(paper_to_drawing(rd, *at));
                 let galley = painter.layout_job(text_job(text, size, rgb(*color), unit, look));
                 // Turned about its anchor: counter-clockwise on paper is clockwise on the
                 // screen (y down).
@@ -3724,7 +3772,87 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
+    underlay_group(app, ui);
     layers_group(app, ui);
+}
+
+/// Underlay: another drawing of the document under this one, to trace over. The button shows or
+/// hides it; its menu lists the document's other drawings (name and page) to take one (its
+/// layers and styles come too) or only inherit its layers and styles, the fade, Print and
+/// Remove.
+fn underlay_group(app: &mut WordApp, ui: &mut Ui) {
+    let Some(under) = app.cad.as_ref().map(|e| e.drawing.underlay.clone()) else { return };
+    let shown = under.as_ref().is_some_and(|u| u.show);
+    crate::widgets::group(ui, "Underlay", None, app, |ui, app| {
+        let action = match &under {
+            Some(u) => crate::widgets::ButtonAction::new("ui.cadUnderlay", json!({"show": !u.show}), shown),
+            None => crate::widgets::ButtonAction::new("ui.cadUnderlay", json!({}), false),
+        };
+        crate::widgets::big_split(
+            ui,
+            app,
+            crate::widgets::BigSplit {
+                icon: "cadUnderlay",
+                label: "Underlay",
+                tip: "Underlay: another drawing of the document under this one, faded and locked, to trace over (its objects snap)",
+                action,
+            },
+            |ui, app| {
+                ui.set_min_width(260.0);
+                ui.label(egui::RichText::new(tl!("Underlay")).strong());
+                // Listed when the menu is open, not every frame.
+                let listed = app.run("cad.drawings", json!({})).ok().and_then(|v| v.as_array().cloned()).unwrap_or_default();
+                let others: Vec<&serde_json::Value> = listed.iter().filter(|r| r["current"] != json!(true)).collect();
+                if others.is_empty() {
+                    ui.label(egui::RichText::new(tl!("No other drawing in the document")).weak());
+                }
+                let row = |r: &serde_json::Value| {
+                    let name = r["name"].as_str().unwrap_or_default().to_string();
+                    match r["page"].as_u64() {
+                        Some(p) => format!("{name} · {} {p}", tl!("page")),
+                        None => name,
+                    }
+                };
+                for r in &others {
+                    let on = r["underlay"] == json!(true);
+                    if ui.selectable_label(on, row(r)).clicked() {
+                        if let Err(e) = app.run("ui.cadUnderlay", json!({"source": r["index"]})) {
+                            app.status(e);
+                        }
+                        ui.close();
+                    }
+                }
+                if !others.is_empty() {
+                    ui.separator();
+                    ui.label(egui::RichText::new(tl!("Import styles and layers only")).strong());
+                    for r in &others {
+                        if ui.button(row(r)).clicked() {
+                            if let Err(e) = app.run("ui.cadInherit", json!({"source": r["index"]})) {
+                                app.status(e);
+                            }
+                            ui.close();
+                        }
+                    }
+                }
+                if let Some(u) = &under {
+                    ui.separator();
+                    let mut fade = u.fade;
+                    let slider = ui.add(egui::Slider::new(&mut fade, 0.0..=0.95).text(tl!("Fade")));
+                    if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
+                        let _ = app.run("ui.cadUnderlay", json!({"fade": fade}));
+                    }
+                    let mut print = u.print;
+                    if ui.checkbox(&mut print, tl!("Print with the drawing")).changed() {
+                        let _ = app.run("ui.cadUnderlay", json!({"print": print}));
+                    }
+                    if ui.button(tl!("Remove Underlay")).clicked() {
+                        let _ = app.run("ui.cadUnderlay", json!({"remove": true}));
+                        ui.close();
+                    }
+                }
+            },
+        );
+    });
 }
 
 /// Layers: the Layer Manager, Properties, the current layer.
@@ -4370,10 +4498,14 @@ mod tests {
             json!({"scale": 1e308}),
             json!({"which": 7}),
             json!({"strips": "yes"}),
+            json!({"source": -1, "dx": f64::MAX, "fade": "x", "print": 3}),
+            json!({"source": "self", "remove": "yes"}),
             json!({"levelText": f64::MAX, "levelMark": -1, "showUnit": 2, "levelUnit": "y"}),
         ];
         for id in [
             "ui.cadTextShift",
+            "ui.cadUnderlay",
+            "ui.cadInherit",
             "ui.cadFlip",
             "ui.cadScale",
             "ui.cadStyleDialog",
@@ -4706,6 +4838,44 @@ mod tests {
         assert!(app.run("ui.cadScale", json!({"scale": "1:0"})).is_err());
         let space = app.cad.as_ref().unwrap().space.expect("the space here");
         assert!((space.width - 165.1).abs() < 0.5 && space.height > 100.0, "{space:?}");
+    }
+
+    /// Another drawing as the underlay: shown under the open one, snapped to, never selected;
+    /// a source that is gone shows nothing and says so.
+    #[test]
+    fn an_underlay_is_traced_over_but_never_picked() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.session.run("document.setText", &json!({"text": ""})).unwrap();
+        let src = json!({"entities": [{"type": "line", "a": [0, 0], "b": [500, 300]}]});
+        app.session.run("insert.cad", &json!({"drawing": src})).unwrap();
+        app.session.sel = wordcraft_engine::Selection::caret(app.session.sel.focus.clone());
+        app.session.run("text.insert", &json!({"text": "\n"})).unwrap();
+        app.session.run("insert.cad", &json!({})).unwrap();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let own = entities(&app);
+        app.run("ui.cadUnderlay", json!({"source": 1})).unwrap();
+        let ed = app.cad.as_ref().unwrap();
+        let (u, _) = ed.underlay.as_ref().expect("the underlay is shown");
+        assert_eq!(entities(&app), own, "its objects are not the drawing's");
+        // Its geometry snaps (the end at 500, 300), and select-all leaves it alone.
+        assert!(u.snap(Pt::new(499.0, 299.5), 5.0, None, &Snaps::default()).is_some_and(|(p, _)| p.minus(Pt::new(500.0, 300.0)).len() < 1e-9));
+        app.run("ui.cadSelect", json!({"all": true})).unwrap();
+        assert_eq!(app.cad.as_ref().unwrap().selection.len(), own);
+        // Hidden, shown, removed; a source that is gone: nothing, and a message.
+        app.run("ui.cadUnderlay", json!({"show": false})).unwrap();
+        assert!(app.cad.as_ref().unwrap().underlay.is_none());
+        app.run("ui.cadUnderlay", json!({"show": true})).unwrap();
+        assert!(app.cad.as_ref().unwrap().underlay.is_some());
+        if let Some(ed) = app.cad.as_mut()
+            && let Some(un) = ed.drawing.underlay.as_mut()
+        {
+            un.source = "gone".into();
+        }
+        refresh_underlay(&mut app);
+        assert!(app.cad.as_ref().unwrap().underlay.is_none());
+        assert!(app.status_msg.is_some(), "the status bar says why");
+        assert!(app.run("ui.cadUnderlay", json!({"source": 2})).is_err(), "not itself");
+        app.run("ui.cadInherit", json!({"source": 1})).unwrap();
     }
 
     /// Match is a large button of the Layers group; Explode and Join one split button that

@@ -572,6 +572,14 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let mut math_cells: Vec<(usize, Vec<Vec<(String, Vec<String>)>>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
+    // The drawings by id, resolved: the underlays printed with a drawing are drawn from them.
+    let by_id: std::collections::HashMap<String, &strix_cad::Drawing> = outcomes
+        .iter()
+        .filter_map(|o| match o {
+            Outcome::Cad(_, _, Some(r)) => r.0.id.clone().map(|id| (id, &r.0)),
+            _ => None,
+        })
+        .collect();
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
         match (item, outcome) {
             (Item::Equation { text: Some(text), full, .. }, Outcome::Equation(Some(r), found_units)) => {
@@ -620,6 +628,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 }
                 let fitted = resolved.as_deref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 let body_font = s.doc.settings.minor_font.clone();
+                let drawn = with_printed_underlay(drawn.clone(), resolved.as_deref().map(|r| &r.0), &by_id);
                 cads.push(drawn.as_ref().map(|r| {
                     let (w, h, items) = super::cad::items_of(r, unit, &body_font);
                     (w, h, items, r.clone(), unit, fitted.clone())
@@ -645,6 +654,19 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
         write_cells(s, *top, list);
     }
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
+}
+
+/// Drawing `d`'s rendering `drawn` with its underlay beneath, when the underlay prints and shows
+/// (its source found by id; one level deep, never itself).
+fn with_printed_underlay(
+    drawn: Option<strix_cad::Rendered>,
+    d: Option<&strix_cad::Drawing>,
+    by_id: &std::collections::HashMap<String, &strix_cad::Drawing>,
+) -> Option<strix_cad::Rendered> {
+    let (Some(r), Some(d)) = (drawn.as_ref(), d) else { return drawn };
+    let Some(u) = d.underlay.as_ref().filter(|u| u.print && u.show && d.id.as_ref() != Some(&u.source)) else { return drawn };
+    let Some(src) = by_id.get(&u.source) else { return drawn };
+    Some(r.clone().with_under(d.underlay_view(src).render(None)))
 }
 
 /// A hash of what the calculations read: every item's text, in order.

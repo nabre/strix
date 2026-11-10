@@ -1523,6 +1523,13 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
                 pen.line_c(&[(x, 8.0), (x + 3.5, 13.0)], a);
             }
         }
+        // Underlay: a sheet behind (dimmed), a sheet in front drawn over it.
+        "cadUnderlay" => {
+            pen.rect(2.0, 2.0, 13.0, 13.0, c.gamma_multiply(0.45));
+            pen.line_c(&[(4.0, 10.0), (9.0, 5.0)], c.gamma_multiply(0.45));
+            pen.rect(7.0, 7.0, 18.0, 18.0, c);
+            pen.line_c(&[(9.0, 15.0), (14.0, 10.0)], a);
+        }
         // Slope ticks (a cut's crest): a line with ticks square to it on one side, long and
         // short in turn.
         "cadSlope" => {
