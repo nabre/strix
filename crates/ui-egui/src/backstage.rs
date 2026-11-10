@@ -685,6 +685,9 @@ fn info_page(app: &mut WordApp, ui: &mut Ui) {
         }
         let path = info.get("path").and_then(|v| v.as_str()).unwrap_or(tl!("Not saved yet"));
         ui.label(crate::i18n::fmt(tl!("Location: {path}"), &[("path", path)]));
+        // Strix's own updates: checked, downloaded and reported here, quietly (docs/updates.md).
+        ui.add_space(18.0);
+        crate::updates_ui::info_section(app, ui);
     });
 }
 

@@ -1,11 +1,12 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-//! Software updates, background check at startup, and startup prompt modal.
+//! Software updates: the quiet check at start (and daily after it), and the Updates section of
+//! File › Info that shows everything about them. Help › Check for Updates opens that section.
 
 use crate::WordApp;
 
-// Strix's own releases (nabre/strix), offered in a translated window: `strix_update`.
+// Strix's own releases (nabre/strix), shown in File › Info in the interface's language: `strix_update`.
 #[cfg(not(target_arch = "wasm32"))]
-use crate::strix_update::{Action, Status, Updater};
+use crate::strix_update::{Action, Updater};
 
 pub(crate) struct Runtime {
     #[cfg(not(target_arch = "wasm32"))]
@@ -18,8 +19,6 @@ pub(crate) struct Runtime {
     /// The context of the last frame, to wake the UI when a check is queued from a menu callback.
     #[cfg(not(target_arch = "wasm32"))]
     repaint: Option<egui::Context>,
-    pub(crate) manual_window_open: bool,
-    pub(crate) status_message: Option<String>,
 }
 
 impl Default for Runtime {
@@ -33,8 +32,6 @@ impl Default for Runtime {
             check_requested: false,
             #[cfg(not(target_arch = "wasm32"))]
             repaint: None,
-            manual_window_open: false,
-            status_message: None,
         }
     }
 }
@@ -47,18 +44,17 @@ impl WordApp {
     }
 }
 
+/// Help › Check for Updates: opens File › Info, whose Updates section shows the check and what it
+/// finds, and starts the check.
 pub(crate) fn check(app: &mut WordApp) {
+    app.ui.backstage = true;
+    app.ui.backstage_page = "info".into();
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.updates_rt.check_requested = true;
         if let Some(ctx) = &app.updates_rt.repaint {
             ctx.request_repaint();
         }
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        app.updates_rt.manual_window_open = true;
-        app.updates_rt.status_message = Some(tl!("Update check is not supported in the web browser.").to_string());
     }
 }
 
@@ -78,58 +74,43 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
     let _ = (app, ctx);
 }
 
+/// No unsaved work, so Strix may close to restart in a new version. The restart helper is
+/// scheduled before the app closes, so no update starts over unsaved work.
+#[cfg(not(target_arch = "wasm32"))]
+fn clean(app: &WordApp) -> bool {
+    !(app.session.dirty || app.save_unconfirmed() || app.printing.busy() || crate::panes::has_comment_drafts(app))
+}
+
+/// Every frame: once an update is installed and nothing is left unsaved, Strix closes and the new
+/// version starts. Nothing is ever shown here: File › Info has it all.
 pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        // The restart helper is scheduled before the app closes, so no update starts over unsaved work.
-        let clean = !(app.session.dirty || app.save_unconfirmed() || app.printing.busy() || crate::panes::has_comment_drafts(app));
-        match app.updates_rt.updater.show(ctx, clean) {
-            Action::OpenUrl(url) => ctx.open_url(egui::OpenUrl::new_tab(url)),
-            Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+        let clean = clean(app);
+        if app.updates_rt.updater.close_when_installed(clean) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    let _ = (app, ctx);
+}
+
+/// The Updates section of File › Info.
+pub(crate) fn info_section(app: &mut WordApp, ui: &mut egui::Ui) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let clean = clean(app);
+        match app.updates_rt.updater.panel(ui, clean) {
+            Action::OpenUrl(url) => ui.ctx().open_url(egui::OpenUrl::new_tab(url)),
+            Action::Close => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close),
             Action::None => {}
         }
-        // The window answers Help ▸ Check for Updates, so it follows the updater's status.
-        let rt = &mut app.updates_rt;
-        (rt.manual_window_open, rt.status_message) = match rt.updater.status() {
-            Status::Idle => (false, None),
-            Status::Checking => (true, None),
-            Status::UpToDate => {
-                (true, Some(tl!("Strix Writer {version} is currently the newest version available.").replace("{version}", env!("CARGO_PKG_VERSION"))))
-            }
-            Status::Failed(e) => (true, Some(tl!("Could not check for updates:\n{error}").replace("{error}", e))),
-        };
     }
-
-    if app.updates_rt.manual_window_open {
-        let mut open = true;
-        let mut close = false;
-        egui::Window::new(tl!("Check for Updates"))
-            .open(&mut open)
-            .resizable(false)
-            .collapsible(false)
-            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-            .show(ctx, |ui| {
-                if let Some(msg) = &app.updates_rt.status_message {
-                    ui.label(msg);
-                } else {
-                    ui.label(tl!("Checking for updates…"));
-                }
-                ui.add_space(8.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button(tl!("Close")).clicked() {
-                        close = true;
-                    }
-                });
-            });
-        if !open || close {
-            app.updates_rt.manual_window_open = false;
-            app.updates_rt.status_message = None;
-        }
-    }
-
-    // Closing the window dismisses the outcome it showed.
-    #[cfg(not(target_arch = "wasm32"))]
-    if !app.updates_rt.manual_window_open {
-        app.updates_rt.updater.dismiss_status();
+    #[cfg(target_arch = "wasm32")]
+    {
+        // The web build has nothing to check: its runtime is empty.
+        let _ = &app.updates_rt;
+        ui.label(egui::RichText::new(tl!("Updates")).font(crate::theme::semibold(15.0)));
+        crate::pane_kit::note(ui, tl!("The web version always runs the newest release of Strix Writer."));
     }
 }
