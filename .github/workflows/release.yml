@@ -131,7 +131,8 @@ jobs:
 
   # Main has a version without a release: merge this commit into the release branch (created from
   # it when missing) and start this workflow there, where the signed builds run. The run is started
-  # explicitly because a push made with a workflow token starts no workflow. GITHUB_TOKEN can't
+  # explicitly because a push made with a workflow token starts no workflow; a push made with
+  # RELEASE_PUSH_TOKEN starts it by itself, and is then not started again. GITHUB_TOKEN can't
   # push a merge that changes .github/workflows/: set the secret RELEASE_PUSH_TOKEN (a fine-grained
   # token with Contents and Workflows write on this repository) to cover that case too; without
   # it, such a merge fails here and main is merged into release by hand.
@@ -147,31 +148,50 @@ jobs:
       actions: write
     steps:
       - name: Merge main into release
+        id: merge
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+          # A ref created or moved with RELEASE_PUSH_TOKEN raises a `push` on release, which
+          # starts this workflow there by itself; one moved with GITHUB_TOKEN starts nothing.
+          PUSH_STARTS_RUN: ${{ secrets.RELEASE_PUSH_TOKEN != '' }}
           SHA: ${{ github.sha }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
+          pushed=false
           if ! gh api "repos/$repo/branches/release" --silent 2>/dev/null; then
             gh api "repos/$repo/git/refs" -f ref=refs/heads/release -f sha="$SHA" --silent
+            pushed=true
             echo "Created the release branch at ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
+          else
+            # 201: merged (a body); 204: release already holds this commit (no body); 409: conflict.
+            if ! out="$(gh api "repos/$repo/merges" -f base=release -f head="$SHA" \
+                -f commit_message="Release v$VERSION: merge main (${SHA:0:7}) into release" 2>&1)"; then
+              echo "::error::merging ${SHA:0:7} into release failed: $out (merge main into release by hand; a merge that changes .github/workflows/ needs the RELEASE_PUSH_TOKEN secret)"
+              exit 1
+            fi
+            if [ -n "$out" ]; then
+              pushed=true
+              echo "Merged ${SHA:0:7} into release" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "release already holds ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
           fi
-          # 201: merged; 204: release already holds this commit; 409: conflict.
-          if ! out="$(gh api "repos/$repo/merges" -f base=release -f head="$SHA" \
-              -f commit_message="Release v$VERSION: merge main (${SHA:0:7}) into release" 2>&1)"; then
-            echo "::error::merging ${SHA:0:7} into release failed: $out (merge main into release by hand; a merge that changes .github/workflows/ needs the RELEASE_PUSH_TOKEN secret)"
-            exit 1
-          fi
-          echo "Merged ${SHA:0:7} into release" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Started here only when no push will start it: never two runs for one release.
+          start=true
+          [ "$pushed" = true ] && [ "$PUSH_STARTS_RUN" = true ] && start=false
+          echo "start=$start" >>"$GITHUB_OUTPUT"
       - name: Start the release build on release
+        if: steps.merge.outputs.start == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref release
           echo "Started Release on the release branch" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Release started by the push
+        if: steps.merge.outputs.start != 'true'
+        run: echo "The push to release (RELEASE_PUSH_TOKEN) starts Release there" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # What other workflows already checked, read instead of run again. It runs beside the builds
   # (no build waits for it) and only the publishing job needs it:

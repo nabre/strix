@@ -50,7 +50,9 @@ Windows builds ship portable.
    `.github/workflows/`: then it fails with that reason, and `main` is merged into `release` by
    hand, unless the repository secret `RELEASE_PUSH_TOKEN` (a fine-grained token with Contents
    and Workflows write on this repository) is set, which the job uses instead. A conflict on
-   `release` fails the same way.
+   `release` fails the same way. A merge pushed with `GITHUB_TOKEN` starts no workflow, so the job
+   starts Release on `release` itself; one pushed with `RELEASE_PUSH_TOKEN` starts it through the
+   push, and the job then doesn't start it again (one run per release, never two).
 
    Publishing redeploys the site (`site.yml`, started by the release run: a release published
    with `GITHUB_TOKEN` starts no other workflow), so the download links and the browser version
