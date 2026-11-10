@@ -16,13 +16,13 @@ use serde_json::{Value, json};
 use wordcraft_doc::control::ContentControl;
 use wordcraft_doc::{Block, InlineObject};
 
-use super::{Layout, TAG_EXERCISE, scan, target, update};
+use super::{Layout, TAG_EXERCISE, scan, update};
 use crate::{CmdError, CmdResult, Session, p};
 
 const EL: &str = "strix:exerciseBreaks";
 
 /// One exercise's page breaks.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub(crate) struct Breaks {
     /// A new page before the exercise when another exercise comes before it in the document.
     pub exercise: bool,
@@ -47,9 +47,9 @@ pub(crate) fn write(ctl: &mut ContentControl, b: Breaks) {
     }
 }
 
-/// The breaks of the document's last exercise: what a new one starts with.
-pub(crate) fn last(s: &Session) -> Breaks {
-    scan(s).exercises.last().map_or_else(Breaks::default, |e| e.breaks)
+/// The breaks of the document's first exercise (the series'): what a new one starts with.
+pub(crate) fn first(s: &Session) -> Breaks {
+    scan(s).exercises.first().map_or_else(Breaks::default, |e| e.breaks)
 }
 
 /// Page break before on the titles and solution headings as the exercises' settings say (an
@@ -91,18 +91,13 @@ fn results_break(s: &Session) -> bool {
         .is_some_and(|b| matches!(&**b, Block::Para(p) if p.props.page_break_before == Some(true)))
 }
 
-/// `exercise.pageBreaks`: show or change the page breaks of an exercise (or every one with
-/// `all`) and of the results summary.
+/// `exercise.pageBreaks`: show or change the page breaks of the exercises (in a series, every
+/// one's: the series rules; `all` is accepted and changes nothing) and of the results summary.
 pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let layout = scan(s);
-    if layout.exercises.is_empty() {
-        return Err(CmdError::Disabled("the document has no exercise".into()));
-    }
-    let all = p::bool(v, "all") == Some(true);
-    let which: Vec<usize> = if all { (0..layout.exercises.len()).collect() } else { vec![target(s, v)?] };
-    if which.iter().any(|&i| i >= layout.exercises.len()) {
-        return Err(CmdError::Params("no such exercise".into()));
-    }
+    // In a series every exercise (the series rules), else the only one wherever the cursor is.
+    let which = super::show::targets(s, v, &layout)?;
+    let all = which.len() > 1;
     let (exercise, solution, results) = (p::bool(v, "beforeExercise"), p::bool(v, "beforeSolution"), p::bool(v, "beforeResults"));
     let mut changed = false;
     if exercise.is_some() || solution.is_some() {
@@ -139,7 +134,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// Keep `b` on the exercise control opening in top-level paragraph `start`.
-fn set_control(s: &mut Session, start: usize, b: Breaks) -> Result<(), CmdError> {
+pub(super) fn set_control(s: &mut Session, start: usize, b: Breaks) -> Result<(), CmdError> {
     let gone = || CmdError::Failed("exercise vanished".into());
     let block = s.doc.body.get_mut(start).ok_or_else(gone)?;
     let Block::Para(p) = Arc::make_mut(block) else { return Err(gone()) };
@@ -199,7 +194,7 @@ mod tests {
         assert_eq!(breaks(&s, STYLE_TITLE), [false, true, true]);
         run(&mut s, "exercise.delete", json!({"exercise": 1}));
         assert_eq!(breaks(&s, STYLE_TITLE), [false, true]);
-        // Off again for one exercise; one undo step takes it back.
+        // Off again, named for one exercise: the series follows; one undo step takes it back.
         run(&mut s, "exercise.pageBreaks", json!({"exercise": 2, "beforeExercise": false}));
         assert_eq!(breaks(&s, STYLE_TITLE), [false, false]);
         assert!(s.undo());
@@ -211,8 +206,8 @@ mod tests {
         let mut s = two_exercises();
         let r = run(&mut s, "exercise.pageBreaks", json!({"exercise": 1, "beforeSolution": true, "beforeResults": true}));
         assert_eq!((r["beforeSolution"].as_bool(), r["beforeResults"].as_bool()), (Some(true), Some(true)), "{r}");
-        // Headings: solution 1, solution 2, then the summary's.
-        assert_eq!(breaks(&s, STYLE_HEADING), [true, false, true]);
+        // Headings: solution 1, solution 2 (the series rules), then the summary's.
+        assert_eq!(breaks(&s, STYLE_HEADING), [true, true, true]);
         // The summary keeps it when it is rebuilt.
         run(&mut s, "exercise.addQuestion", json!({"text": "more"}));
         run(&mut s, "exercise.update", json!({}));
@@ -223,6 +218,6 @@ mod tests {
         let r = run(&mut s, "exercise.pageBreaks", json!({"exercise": 1}));
         assert_eq!((r["beforeSolution"].as_bool(), r["beforeResults"].as_bool()), (Some(true), Some(true)), "{r}");
         run(&mut s, "exercise.update", json!({}));
-        assert_eq!(breaks(&s, STYLE_HEADING), [true, false, true]);
+        assert_eq!(breaks(&s, STYLE_HEADING), [true, true, true]);
     }
 }
