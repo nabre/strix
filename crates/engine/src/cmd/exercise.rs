@@ -31,7 +31,7 @@ use wordcraft_doc::numbering::ListKind;
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::props::{CharProps, NumRef, ParaProps};
 use wordcraft_doc::styles::{Style, StyleKind};
-use wordcraft_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
+use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
@@ -42,10 +42,12 @@ mod language;
 mod numbering;
 mod series;
 mod show;
+mod structure;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub(crate) use language::follow_language;
 pub(crate) use show::grid_follows;
+pub(crate) use structure::{collapse_empty_part, keeps_edge};
 
 pub const TAG_EXERCISE: &str = "strix:exercise";
 /// The title's own control: only the title paragraph, so its placeholder is only the title.
@@ -55,6 +57,8 @@ pub const TAG_QUESTIONS: &str = "strix:exercise.questions";
 pub const TAG_SOLUTION: &str = "strix:exercise.solution";
 pub const TAG_PROMPT: &str = "strix:exercise.prompt";
 pub const TAG_RESULTS: &str = "strix:results";
+/// The tag a master document's subdocuments start with (`cmd/master.rs`).
+const SUBDOC_TAG: &str = "strix-subdoc";
 pub const TAG_DATA: &str = "strix:exercise.data";
 /// The frontispiece of the series, at the start of the document.
 pub const TAG_FRONT: &str = "strix:frontispiece";
@@ -119,7 +123,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
         CommandSpec::new("exercise.numbering", "Exercise Numbering", "Math › Exercise", numbering::command)
-            .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "default": bool, "example": "Esercizio 1"}"#),
+            .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767), "separator"?: "." | ":" | "-" | ")" | " " (after the number in the titles; " ": a space alone)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "separator", "default": bool, "example": "Esercizio 1"}"#),
         CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; a lone exercise is the target wherever the caret is), "beforeExercise"?: bool (a new page before each exercise another exercise comes before), "beforeSolution"?: bool (a new page before the solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"exercise" (null in a series), "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
@@ -708,7 +712,9 @@ fn scan(s: &Session) -> Layout {
         }
         let has = |t: &str| tags.iter().any(|(x, _)| x == t);
         let in_exercise = has(TAG_EXERCISE);
-        let part = if has(TAG_RESULTS) {
+        // A summary inside a subdocument (a master's copy from before subdocuments left theirs
+        // out) is not the document's: the master has its own at the end.
+        let part = if has(TAG_RESULTS) && !tags.iter().any(|(t, _)| t.starts_with(SUBDOC_TAG)) {
             Part::Results
         } else if !in_exercise {
             Part::Other
@@ -1331,6 +1337,33 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
                         *at -= 1;
                     }
                 });
+                // Its working joins the question above: an empty paragraph meeting another
+                // empty one goes, so no blank line is left over (the one holding the
+                // solution's end stays).
+                let blank = |s: &Session, k: usize, markers: bool| {
+                    matches!(s.doc.body.get(k).map(|b| &**b), Some(Block::Para(p)) if p.text.chars().all(|c| c == OBJ)
+                        && (markers || p.objects.is_empty())
+                        && p.objects.iter().all(|o| matches!(o, InlineObject::ControlEnd))
+                        && p.props.style.as_deref().is_none_or(|st| st == "Normal"))
+                };
+                // The first question's working, with no question above, goes when empty too.
+                let heading =
+                    i > 0 && matches!(s.doc.body.get(i - 1).map(|b| &**b), Some(Block::Para(p)) if p.props.style.as_deref() == Some(STYLE_HEADING));
+                let gone = if i > 0 && blank(s, i - 1, false) && blank(s, i, true) {
+                    Some(i - 1)
+                } else if heading && blank(s, i, false) {
+                    Some(i)
+                } else {
+                    None
+                };
+                if let Some(g) = gone {
+                    s.doc.body.remove(g);
+                    inserts.iter_mut().for_each(|(at, _)| {
+                        if *at != usize::MAX && *at > g {
+                            *at -= 1;
+                        }
+                    });
+                }
             }
         }
     }
@@ -1392,6 +1425,27 @@ fn opener(s: &Session, i: usize, tag: &str) -> Option<ContentControl> {
 /// the exercise, so it was refused and the title couldn't be edited. Their title paragraph gets
 /// its own control, showing the placeholder; the exercise control stops showing one. Returns
 /// whether anything changed.
+/// The title's paragraph style can't be changed: it is what numbers the title and what marks it
+/// as the exercise's title. A paragraph holding a title control that another style reached (Apply
+/// Style, the Styles pane, Clear Formatting, Format Painter, a paste) takes Exercise Title back;
+/// change the Exercise Title style itself to restyle every title. Whether anything changed.
+fn title_styles(s: &mut Session) -> bool {
+    let mut changed = false;
+    for block in s.doc.body.iter_mut() {
+        let Block::Para(p) = &**block else { continue };
+        if p.props.style.as_deref() == Some(STYLE_TITLE)
+            || !p.objects.iter().any(|o| matches!(o, InlineObject::ControlStart { control } if control.tag == TAG_TITLE))
+        {
+            continue;
+        }
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        p.props.style = Some(STYLE_TITLE.into());
+        p.touch();
+        changed = true;
+    }
+    changed
+}
+
 fn title_controls(s: &mut Session) -> bool {
     let w = doc_words(s);
     let mut changed = false;
@@ -1467,10 +1521,37 @@ fn capitalized(t: &str) -> String {
     c.next().map_or_else(String::new, |f| f.to_uppercase().chain(c).collect())
 }
 
+/// The first block of the results summary, when the document has one.
+pub(crate) fn results_start(s: &Session) -> Option<usize> {
+    scan(s).results.map(|(from, _)| from)
+}
+
+/// `doc` without its results summary: a subdocument's content as a master shows it (the master
+/// makes one summary for all its exercises).
+pub(crate) fn without_results(doc: Document) -> Document {
+    let mut s = Session::new(doc);
+    if let Some((from, to)) = scan(&s).results
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+        s.doc.ensure_nonempty();
+    }
+    s.doc
+}
+
+/// `doc` with its automatic parts up to date, its results summary included: a subdocument's
+/// file, written from a master, opened alone.
+pub(crate) fn with_results(doc: Document) -> Document {
+    let mut s = Session::new(doc);
+    update(&mut s);
+    s.doc
+}
+
 /// Rebuilds the automatic parts: the questions repeated in each solution and the results summary
 /// (moved to, or created at, the end of the document). Returns whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = title_controls(s);
+    changed |= title_styles(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
@@ -1665,6 +1746,41 @@ mod tests {
             assert_eq!(scan(&s).exercises.len(), 1, "{command}");
             assert!(texts(&s).contains(&"Poi".to_string()), "{command}");
         }
+    }
+
+    /// The owner: the paragraph style of the title can't be changed. Another style applied to it
+    /// (Apply Style, Normal, a heading) gives Exercise Title back at once, so the title keeps its
+    /// number and stays the exercise's title; its text is still free.
+    #[test]
+    fn the_title_style_cannot_be_changed() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Due", "questions": ["q"]})).unwrap();
+        let styles = |s: &Session| -> Vec<Option<String>> {
+            texts(s)
+                .iter()
+                .zip(s.doc.body.iter())
+                .filter(|(t, _)| *t == "Uno" || *t == "Due")
+                .map(|(_, b)| match &**b {
+                    Block::Para(p) => p.props.style.clone(),
+                    Block::Table(_) => None,
+                })
+                .collect()
+        };
+        for style in ["Normal", "Heading1", "ExerciseQuestion"] {
+            s.run("select.text", &json!({"text": "Uno"})).unwrap();
+            s.run("para.style", &json!({"style": style})).unwrap();
+            assert_eq!(styles(&s), [Some(STYLE_TITLE.to_string()), Some(STYLE_TITLE.to_string())], "{style}");
+            let e = scan(&s);
+            assert_eq!(e.exercises.len(), 2, "{style}");
+            assert_eq!(e.exercises.iter().map(|e| e.questions.len()).collect::<Vec<_>>(), [1, 1], "{style}");
+        }
+        // Over both titles at once (and the text between): both keep it.
+        s.run("select.all", &json!({})).unwrap();
+        s.run("para.style", &json!({"style": "Normal"})).unwrap();
+        assert_eq!(styles(&s), [Some(STYLE_TITLE.to_string()), Some(STYLE_TITLE.to_string())]);
+        assert_eq!(scan(&s).exercises.len(), 2);
     }
 
     /// An exercise number past what the platform counts never wraps onto another exercise.
@@ -2135,5 +2251,56 @@ mod tests {
         let _ = s.run("equation.answer", &json!({"question": u64::MAX}));
         let _ = s.run("exercise.update", &json!({}));
         let _ = s.run("exercise.info", &json!({}));
+    }
+
+    /// The owner: the placeholders of the statement and of the questions "don't always work",
+    /// and the structure must hold. Deleting a selection that empties a part (also of extra
+    /// empty paragraphs) brings its placeholder back; Backspace at the start of an empty part
+    /// never joins it to the part before (the statement used to end up in the title); questions
+    /// removed leave no blank line behind in the solution.
+    #[test]
+    fn placeholders_come_back_and_parts_never_join() {
+        fn part(s: &Session, tag: &str) -> (bool, String) {
+            let ranges = s.doc.control_ranges(StoryRef::Body);
+            let r = ranges.iter().find(|r| r.control.tag == tag).unwrap();
+            (r.control.showing_placeholder, s.doc.control_text(r))
+        }
+        for (tag, shown) in [(TAG_TEXT, "Scrivi qui il testo dell'esercizio: dati, figure, tabelle."), (TAG_QUESTIONS, "Scrivi qui la domanda.")] {
+            let mut s = session();
+            s.run("exercise.insert", &json!({})).unwrap();
+            let fresh = texts(&s);
+            let ranges = s.doc.control_ranges(StoryRef::Body);
+            let start = ranges.iter().find(|r| r.control.tag == tag).unwrap().content_start();
+            s.sel = crate::Selection::caret(start);
+            s.run("text.insert", &json!({"text": "Due"})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+            s.run("text.insert", &json!({"text": "Tre"})).unwrap();
+            assert_eq!(part(&s, tag), (false, "Due\nTre".to_string()), "{tag}");
+            s.run("select.text", &json!({"text": "Due"})).unwrap();
+            s.run("text.delete", &json!({})).unwrap();
+            s.run("select.text", &json!({"text": "Tre"})).unwrap();
+            s.run("text.delete", &json!({})).unwrap();
+            assert_eq!(part(&s, tag), (true, shown.to_string()), "{tag}: the placeholder is back");
+            for _ in 0..3 {
+                s.run("text.backspace", &json!({})).unwrap();
+            }
+            for _ in 0..2 {
+                s.run("text.delete", &json!({})).unwrap();
+            }
+            assert_eq!(part(&s, tag), (true, shown.to_string()), "{tag}");
+            assert_eq!(texts(&s), fresh, "{tag}: nothing joined, no blank line left");
+            assert_eq!(scan(&s).exercises.len(), 1);
+        }
+        // Delete at the end of the title, Backspace at the start of the questions: refused edges.
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "text": "Dati", "questions": ["Trova x"]})).unwrap();
+        let fresh = texts(&s);
+        s.run("select.text", &json!({"text": "Uno"})).unwrap();
+        s.run("caret.end", &json!({})).unwrap();
+        s.run("text.delete", &json!({})).unwrap();
+        s.run("select.text", &json!({"text": "Trova"})).unwrap();
+        s.run("caret.home", &json!({})).unwrap();
+        s.run("text.backspace", &json!({})).unwrap();
+        assert_eq!(texts(&s), fresh);
     }
 }

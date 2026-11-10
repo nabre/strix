@@ -220,14 +220,15 @@ fn read_capped(path: &str, _max: u64, _what: &str) -> Result<Vec<u8>, String> {
     Err(format!("{path}: subdocuments are not available on the web"))
 }
 
-/// A subdocument file's content, as the master shows it, and the hash of its bytes.
-fn load(path: &Path) -> Result<(Fragment, u64), String> {
+/// A subdocument file's content as the master shows it, and the hash of its bytes. The master
+/// rules, as when a style is updated: the styles, lists and pictures the content uses come with it
+/// (a style the master has keeps the master's look), and what is the master's to make, the
+/// exercises' one results summary, is left out (the master builds its own for every exercise).
+fn load(s: &mut Session, path: &Path) -> Result<(Fragment, u64), String> {
     let name = path.to_string_lossy();
     let bytes = read_capped(&name, MAX_FILE, "subdocument")?;
-    let doc = crate::io::open_bytes(&name, &bytes)?;
-    let mut frag = doc.body_fragment();
-    super::paste::unlink_sections(&mut frag.blocks);
-    Ok((frag, hash(&bytes)))
+    let doc = super::exercise::without_results(crate::io::open_bytes(&name, &bytes)?);
+    Ok((super::paste::adopt(s, doc), hash(&bytes)))
 }
 
 /// The file a subdocument with content `frag` saves as: the master with only that content, the
@@ -262,7 +263,8 @@ fn write(master: &Document, frag: &Fragment, path: &Path) -> Result<u64, String>
         return Err(format!("{name}: a subdocument is saved to a document format (.xmath, .docx, .odt, .rtf…), not an export"));
     }
     let old = if path.exists() { read_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok() } else { None };
-    let doc = subdocument_file(master, frag, old.as_ref());
+    // The file opened alone is complete: its exercises get their own results summary back.
+    let doc = super::exercise::with_results(subdocument_file(master, frag, old.as_ref()));
     crate::strix_objects::check_save(&name, &doc)?;
     let bytes = crate::io::save_bytes(&name, &doc)?;
     crate::io::write_file(&name, &bytes)?;
@@ -325,9 +327,30 @@ fn place(s: &mut Session, at: &Pos, frag: Fragment, link: &Link) -> Result<(), C
 }
 
 /// An empty top-level body paragraph at the caret (after the caret's paragraph when it has text
-/// before the caret), with a paragraph after it.
+/// before the caret), with a paragraph after it when nothing follows. In or after the exercises'
+/// results summary (the caret at the end of the document), the place is before the summary, which
+/// stays last.
 fn empty_paragraph_here(s: &mut Session) -> Result<Pos, CmdError> {
     let at = delete_selection(s)?;
+    if at.story == StoryRef::Body
+        && let Some(first) = super::exercise::results_start(s)
+        && at.path.0.first().is_some_and(|&t| t as usize >= first)
+    {
+        // An empty paragraph just before it (the one after the subdocument before) takes it.
+        let before = first.checked_sub(1).filter(|&i| {
+            matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.text.is_empty() && p.objects.is_empty() && p.section.is_none())
+                && s.doc.control_at(&Pos::new(StoryRef::Body, wordcraft_doc::Path::top(i), 0)).is_none()
+        });
+        let at = match before {
+            Some(i) => i,
+            None => {
+                s.doc.body.insert(first, std::sync::Arc::new(Block::Para(Paragraph::new())));
+                s.touch();
+                first
+            }
+        };
+        return Ok(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(at), 0));
+    }
     if at.story != StoryRef::Body || at.path.depth() != 0 {
         return Err(CmdError::Failed("a subdocument goes in the main text, outside tables and text boxes".into()));
     }
@@ -336,7 +359,10 @@ fn empty_paragraph_here(s: &mut Session) -> Result<Pos, CmdError> {
     }
     let len = s.doc.para_at(&at).map_or(0, Paragraph::len);
     let at = if at.off > 0 { s.doc.split_paragraph(&Pos { off: len, ..at })? } else { at };
-    s.doc.split_paragraph(&at)?;
+    let last = at.path.0.first().is_none_or(|&t| t as usize + 1 >= s.doc.body.len());
+    if last || s.doc.para_at(&at).is_some_and(|p| !p.is_empty()) {
+        s.doc.split_paragraph(&at)?;
+    }
     Ok(Pos { off: 0, ..at })
 }
 
@@ -363,9 +389,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     };
     let path = absolute(Path::new(path));
     check_link(s, &path)?;
-    let (frag, disk) = load(&path).map_err(CmdError::Failed)?;
-    let content = content_hash(&frag);
     let at = empty_paragraph_here(s)?;
+    let (frag, disk) = load(s, &path).map_err(CmdError::Failed)?;
+    let content = content_hash(&frag);
     let link = Link { path: path.clone(), conflict: false };
     place(s, &at, frag, &link)?;
     // What the master shows after it went in, which is what later saves compare with.
@@ -462,7 +488,7 @@ fn replace(s: &mut Session, sub: &Sub, frag: Fragment) -> Result<(), CmdError> {
 /// Reload `sub` from its file; `Ok(false)` when the file can't be read (the master keeps its copy).
 fn reload(s: &mut Session, sub: &Sub) -> Result<Result<(), String>, CmdError> {
     let file = resolve(s, &sub.link);
-    let (frag, disk) = match load(&file) {
+    let (frag, disk) = match load(s, &file) {
         Ok(x) => x,
         Err(e) => return Ok(Err(e)),
     };
@@ -620,6 +646,8 @@ pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
             }
         }
     }
+    // The exercises of every subdocument follow the master's series, numbering and summary.
+    super::exercise::update(s);
     s.sel = Selection::caret(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(0), 0));
     s.clamp_selection();
     if !missing.is_empty() || !conflicts.is_empty() {

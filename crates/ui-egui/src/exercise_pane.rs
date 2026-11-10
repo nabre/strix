@@ -355,13 +355,18 @@ fn set_breaks(app: &mut WordApp, params: Value) {
 const FORMATS: [(&str, &str); 5] =
     [("decimal", "1, 2, 3"), ("upperLetter", "A, B, C"), ("lowerLetter", "a, b, c"), ("upperRoman", "I, II, III"), ("lowerRoman", "i, ii, iii")];
 
-/// Exercise numbering, a document setting (`exercise.numbering`): the prefix, number format and
-/// first number of every exercise's label, in the titles and the results summary.
+/// The separators offered after an exercise's number (`exercise.numbering`'s ids) and their names.
+const SEPARATORS: [(&str, &str); 5] =
+    [(".", "Period (1.)"), (":", "Colon (1:)"), ("-", "Dash (1 -)"), (")", "Parenthesis (1))"), (" ", "Space (1 Title)")];
+
+/// Exercise numbering, a document setting (`exercise.numbering`): the prefix, number format,
+/// separator and first number of every exercise's label, in the titles and the results summary.
 fn numbering(app: &mut WordApp, ui: &mut Ui) {
     let Ok(n) = app.session.run("exercise.numbering", &json!({})) else { return };
     let prefix = n["prefix"].as_str().unwrap_or_default().to_string();
     let format = n["format"].as_str().unwrap_or("decimal").to_string();
     let start = n["start"].as_u64().unwrap_or(1);
+    let separator = n["separator"].as_str().unwrap_or(".").to_string();
     let set = |app: &mut WordApp, params: Value| {
         if let Err(e) = app.run("exercise.numbering", params) {
             app.status(e);
@@ -394,6 +399,16 @@ fn numbering(app: &mut WordApp, ui: &mut Ui) {
             for (id, label) in FORMATS {
                 if ui.selectable_label(id == format, label).clicked() && id != format {
                     set(app, json!({"format": id}));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Separator"));
+        let shown = SEPARATORS.iter().find(|(id, _)| *id == separator).map_or(separator.clone(), |(_, l)| tl!(l).to_string());
+        craft_ui::ComboBox::from_id_salt("exercise_numbering_separator").selected_text(shown).show_ui(ui, |ui| {
+            for (id, label) in SEPARATORS {
+                if ui.selectable_label(id == separator, tl!(label)).clicked() && id != separator {
+                    set(app, json!({"separator": id}));
                 }
             }
         });
