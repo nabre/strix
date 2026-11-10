@@ -2749,7 +2749,7 @@ preview	Title	Esempio
 	Dimension Style	Stile quote
 	Text height	Altezza testo
 	Mark size	Dimensione terminale
-	End mark	Terminale
+	End mark	Terminale finale
 	Extension gap	Distacco richiamo
 	Extension beyond	Prolungamento richiamo
 	Text gap	Distacco testo
@@ -3148,3 +3148,41 @@ paper	Envelope DL	Busta DL
 	A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages	Una prima pagina tua prima degli esercizi (titolo, classe, data, istruzioni); un'interruzione di pagina al suo interno gli dà altre pagine
 	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e quadrettatura, nel riquadro Proprietà esercizio
 	Show the substitution steps of every calculation: the formula with its values, then the result	Mostra i passaggi di ogni calcolo: la formula con i valori, poi il risultato
+	Series	Serie
+	For every exercise of the series: a new exercise takes these settings too.	Per tutti gli esercizi della serie: anche un esercizio nuovo prende queste impostazioni.
+	New page before each exercise	Nuova pagina prima di ogni esercizio
+	Every exercise but the first starts a new page	Ogni esercizio tranne il primo comincia su una pagina nuova
+	New page before each solution	Nuova pagina prima di ogni risoluzione
+	Each exercise's solution starts a new page	La risoluzione di ogni esercizio comincia su una pagina nuova
+	An exercise can differ: set its own in the Exercise tab.	Un esercizio può fare eccezione: impostalo nella scheda Esercizio.
+	Restart Now	Riavvia ora
+	downloaded	scaricato
+	Don't Restart	Non riavviare
+	Download updates automatically	Scarica automaticamente gli aggiornamenti
+	Downloading in the background…	Download in background in corso…
+	It will be installed when you restart Strix Writer.	Verrà installato al prossimo riavvio di Strix Writer.
+	Strix Writer restarts in the new version as soon as it closes.	Strix Writer si riavvierà nella nuova versione non appena si chiude.
+	Installing it asks for your password, then Strix Writer restarts.	L'installazione chiede la password, poi Strix Writer si riavvia.
+	The download in the background didn't succeed; Update and Restart tries again.	Il download in background non è riuscito; Aggiorna e riavvia ci riprova.
+	Line: two points, then more to go on	Linea: due punti, poi altri per proseguire
+	Tangent Line: a line touching two circles or arcs; pick each near where it should touch	Linea tangente: una linea che tocca due cerchi o archi; scegli ciascuno vicino al punto di contatto
+	Fillet: two lines joined with an arc (type the radius; 0 makes the corner)	Raccorda: due linee unite da un arco (digita il raggio; 0 fa lo spigolo)
+	Chamfer: two lines cut at the corner (type the distance; 0 makes the corner)	Cima: due linee tagliate allo spigolo (digita la distanza; 0 fa lo spigolo)
+	Array: rectangular, of the selection (type columns x rows)	Serie: rettangolare, della selezione (digita colonne x righe)
+	Polar Array: of the selection round a centre (type how many items)	Serie polare: della selezione attorno a un centro (digita quanti elementi)
+	Text Style	Stile di testo
+	Dimension style	Stile di quota
+	Text style	Stile di testo
+	Start mark	Terminale iniziale
+	As the start	Come l'iniziale
+	Mark width	Spessore terminale
+	Document font	Carattere del documento
+	Keep the numbers	Mantieni i numeri
+	The style new objects take; chosen with objects selected, they take it too	Lo stile dei nuovi oggetti; scelto con oggetti selezionati, lo prendono anche loro
+	A new style, a copy of this one, made current	Un nuovo stile, copia di questo, reso corrente
+	Delete this style: its objects take Standard	Elimina questo stile: i suoi oggetti prendono Standard
+	The width of the marks' lines; 0: automatic (a tick heavier than the line, an arrow as thin)	Lo spessore delle linee dei terminali; 0: automatico (un trattino più spesso della linea, una freccia sottile come lei)
+	Standard: the document's font. New makes a style of your own.	Standard: il carattere del documento. Nuovo crea uno stile tuo.
+	What one unit of the coordinates measures	Quanto misura un'unità delle coordinate
+	Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size	Cambiando unità le coordinate mantengono i numeri (il disegno si ingrandisce o si rimpicciolisce); disattivato, vengono convertite e il disegno mantiene le sue dimensioni
+	Marks	Terminali

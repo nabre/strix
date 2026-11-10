@@ -286,8 +286,8 @@ const MATH_FONT: &str = "Cambria Math";
 const SUB_SCALE: f32 = 0.7;
 
 /// How wide `text` is at `size` points in `family` (italic or not), shaped as the page draws it.
-fn measure(family: &str, italic: bool, text: &str, size: f32) -> f32 {
-    let resolved = wordcraft_fonts::word::resolve(family, false, italic);
+fn measure(family: &str, bold: bool, italic: bool, text: &str, size: f32) -> f32 {
+    let resolved = wordcraft_fonts::word::resolve(family, bold, italic);
     let face = resolved.face.get();
     let k = size / face.upem.max(1.0) as f32;
     wordcraft_fonts::shape(face, text, &[], |c| c).iter().map(|g| g.x_advance as f32 * k).sum()
@@ -365,7 +365,9 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
             }
             // A text is laid out level from its anchor, then turned about it by its angle: each
             // piece's rectangle turns about its own centre, its centre about the anchor.
-            Prim::Text { at, text, height, angle, anchor, color } => {
+            Prim::Text { at, text, height, angle, anchor, color, look } => {
+                // The text style's font (else the document's), bold and italic.
+                let text_font = look.font.as_deref().unwrap_or(body_font);
                 let angle = if angle.is_finite() { *angle as f32 } else { 0.0 };
                 let (sin, cos) = angle.to_radians().sin_cos();
                 let (ax, ay) = (pt(at.0), pt(at.1));
@@ -385,7 +387,9 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
                 // lowered.
                 let pieces = strix_cad::spans(text);
                 let piece_size = |p: &strix_cad::Span| if p.sub { size * SUB_SCALE } else { size };
-                let piece_w = |p: &strix_cad::Span| measure(if p.math { MATH_FONT } else { body_font }, p.symbol, &p.text, piece_size(p));
+                let piece_w = |p: &strix_cad::Span| {
+                    measure(if p.math { MATH_FONT } else { text_font }, look.bold && !p.math, p.symbol || look.italic, &p.text, piece_size(p))
+                };
                 let widths: Vec<f32> = pieces.iter().map(piece_w).collect();
                 let w: f32 = widths.iter().sum();
                 let (x, y) = (pt(at.0), pt(at.1));
@@ -405,10 +409,10 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
                         text: pieces.into_iter().map(|p| p.text).collect(),
                         size,
                         color: rgb(*color),
-                        bold: false,
-                        italic: false,
+                        bold: look.bold,
+                        italic: look.italic,
                         align,
-                        font: None,
+                        font: look.font.clone(),
                         angle,
                     });
                 } else {
@@ -434,10 +438,10 @@ pub(crate) fn items_of(r: &Rendered, unit_color: Rgb, body_font: &str) -> (f32, 
                             text: piece.text,
                             size: ps,
                             color: c,
-                            bold: false,
-                            italic: piece.symbol,
+                            bold: look.bold && !piece.math,
+                            italic: piece.symbol || look.italic,
                             align,
-                            font: piece.math.then(|| MATH_FONT.to_string()),
+                            font: if piece.math { Some(MATH_FONT.to_string()) } else { look.font.clone() },
                             angle,
                         });
                         cursor += pw;

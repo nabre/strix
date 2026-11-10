@@ -28,26 +28,68 @@ pub(crate) fn enclosing_exercise(app: &WordApp, current: Option<&ControlRange>) 
         .find(|r| current.is_none_or(|c| c.start != r.start))
 }
 
+/// The pane's two tabs in a series: this exercise's own settings, and the series' (every
+/// exercise's). A lone exercise has no Series tab: what of it applies follows in Exercise.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    Exercise,
+    Series,
+}
+
 pub fn pane(app: &mut WordApp, ui: &mut Ui) {
-    let Ok(info) = app.session.run("exercise.data", &json!({})) else {
+    let info = app.session.run("exercise.data", &json!({})).ok();
+    let exercises = app.session.run("exercise.info", &json!({})).ok().and_then(|i| i["exercises"].as_u64()).unwrap_or(0);
+    let hint = |ui: &mut Ui| {
         ui.label(egui::RichText::new(tl!("Put the cursor in an exercise to see its data and variants.")).weak());
-        // The numbering is the document's: it shows wherever the cursor is, once there are exercises.
-        let exercises = app.session.run("exercise.info", &json!({})).ok().and_then(|i| i["exercises"].as_u64()).unwrap_or(0);
-        if exercises > 0 {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                crate::pane_kit::section(ui, "", tl!("Numbering"));
-                numbering(app, ui);
-                // In a series the parts shown are the series': they show wherever the cursor is.
-                if exercises > 1 {
-                    crate::pane_kit::section(ui, "", tl!("Parts Shown"));
-                    parts(app, ui, 0);
-                }
-                crate::pane_kit::section(ui, "", tl!("Frontispiece"));
-                frontispiece(app, ui);
-            });
+    };
+    if exercises < 2 {
+        match info {
+            Some(info) => {
+                egui::ScrollArea::vertical().show(ui, |ui| exercise_tab(app, ui, &info, true));
+            }
+            None => hint(ui),
         }
         return;
+    }
+    // The tab chosen stays chosen; until one is, Exercise with the cursor in one, else Series.
+    let key = egui::Id::unique("exercise_pane_tab");
+    let chosen = ui.data(|d| d.get_temp::<bool>(key));
+    let mut tab = match chosen {
+        Some(true) => Tab::Series,
+        Some(false) => Tab::Exercise,
+        None if info.is_some() => Tab::Exercise,
+        None => Tab::Series,
     };
+    let names = [tl!("Exercise").to_string(), tl!("Series").to_string()];
+    if let Some(k) = crate::widgets::dialog_tabs(ui, &names, usize::from(tab == Tab::Series)) {
+        tab = if k == 1 { Tab::Series } else { Tab::Exercise };
+        ui.data_mut(|d| d.insert_temp(key, tab == Tab::Series));
+    }
+    ui.add_space(6.0);
+    egui::ScrollArea::vertical().show(ui, |ui| match (tab, info) {
+        (Tab::Exercise, Some(info)) => exercise_tab(app, ui, &info, false),
+        (Tab::Exercise, None) => hint(ui),
+        (Tab::Series, _) => series_tab(app, ui),
+    });
+}
+
+/// The series' settings, the same for every exercise: numbering, parts shown, page breaks and
+/// the frontispiece. They show wherever the cursor is.
+fn series_tab(app: &mut WordApp, ui: &mut Ui) {
+    crate::pane_kit::note(ui, tl!("For every exercise of the series: a new exercise takes these settings too."));
+    crate::pane_kit::section(ui, "01", tl!("Numbering"));
+    numbering(app, ui);
+    crate::pane_kit::section(ui, "02", tl!("Parts Shown"));
+    parts(app, ui, 0);
+    crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
+    series_breaks(app, ui);
+    crate::pane_kit::section(ui, "04", tl!("Frontispiece"));
+    frontispiece(app, ui);
+}
+
+/// The exercise at the caret (`info`, from `exercise.data`): its variants, data and page breaks.
+/// `lone`: the document's only exercise, so the series' settings that apply to it follow here.
+fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
     let errors = info["errors"].as_array().cloned().unwrap_or_default();
@@ -58,13 +100,17 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         let _ = app.run("exercise.setData", json!({"exercise": ex, "data": data}));
     };
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.label(egui::RichText::new(format!("{} {ex}", tl!("Exercise"))).size(15.0).strong());
+    {
+        // A lone exercise has no number.
+        let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
+        ui.label(egui::RichText::new(title).size(15.0).strong());
         // Variants: the active one is the one the exercise is calculated with.
         crate::pane_kit::section(ui, "01", tl!("Variants"));
         ui.horizontal_wrapped(|ui| {
             for (k, name) in variants.iter().enumerate() {
-                if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked() && k != active {
+                if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked()
+                    && k != active
+                {
                     let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
                 }
             }
@@ -183,17 +229,19 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         ui.add_space(6.0);
         crate::pane_kit::note(
             ui,
-            tl!("The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."),
+            tl!(
+                "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
+            ),
         );
         crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
-        page_breaks(app, ui, ex);
-        crate::pane_kit::section(ui, "04", tl!("Numbering"));
-        numbering(app, ui);
-        crate::pane_kit::section(ui, "05", tl!("Parts Shown"));
-        parts(app, ui, ex);
-        crate::pane_kit::section(ui, "06", tl!("Frontispiece"));
-        frontispiece(app, ui);
-    });
+        page_breaks(app, ui, ex, lone);
+        if lone {
+            crate::pane_kit::section(ui, "04", tl!("Parts Shown"));
+            parts(app, ui, ex);
+            crate::pane_kit::section(ui, "05", tl!("Frontispiece"));
+            frontispiece(app, ui);
+        }
+    }
 }
 
 /// The parts shown and the graph paper (`exercise.show`, `exercise.grid`): of this exercise, or
@@ -213,7 +261,6 @@ fn parts(app: &mut WordApp, ui: &mut Ui, ex: u64) {
             app.status(e);
         }
     };
-    let series = st["series"].as_bool().unwrap_or(false);
     let mut solution = st["solution"].as_bool().unwrap_or(true);
     if ui.checkbox(&mut solution, tl!("Solution")).on_hover_text(tl!("The working under each question; hidden, it stays in the document")).changed() {
         run(app, "exercise.show", with(json!({}), "solution", solution));
@@ -237,12 +284,8 @@ fn parts(app: &mut WordApp, ui: &mut Ui, ex: u64) {
             }
         });
     }
-    let note = if series {
-        "A series: these settings are the same for every exercise, and a new exercise takes them."
-    } else {
-        "Hidden parts stay in the document as hidden text."
-    };
-    crate::pane_kit::note(ui, tl!(note));
+    // In a series the Series tab says already that these are every exercise's.
+    crate::pane_kit::note(ui, tl!("Hidden parts stay in the document as hidden text."));
 }
 
 /// The frontispiece of the series (`exercise.frontispiece`).
@@ -260,35 +303,57 @@ fn frontispiece(app: &mut WordApp, ui: &mut Ui) {
     crate::pane_kit::note(ui, tl!("The first exercise starts a new page; a page break inside the frontispiece gives it more pages."));
 }
 
-/// Page breaks (`exercise.pageBreaks`): before this exercise when another comes before it, before
-/// its solution (both for this exercise, or every one), and before the results summary.
-fn page_breaks(app: &mut WordApp, ui: &mut Ui, ex: u64) {
+/// This exercise's page breaks (`exercise.pageBreaks`): before it when another exercise comes
+/// before it, and before its solution. `lone`: the only exercise, so no exercise comes before it
+/// and the results summary's page break, the series', shows here too.
+fn page_breaks(app: &mut WordApp, ui: &mut Ui, ex: u64, lone: bool) {
     let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"exercise": ex})) else { return };
-    let set = |app: &mut WordApp, params: Value| {
-        if let Err(e) = app.run("exercise.pageBreaks", params) {
-            app.status(e);
-        }
-    };
     let mut exercise = b["beforeExercise"].as_bool().unwrap_or(false);
-    if ui.checkbox(&mut exercise, tl!("New page before the exercise")).on_hover_text(tl!("Only when another exercise comes before it")).changed() {
-        set(app, json!({"exercise": ex, "beforeExercise": exercise}));
+    if !lone
+        && ui.checkbox(&mut exercise, tl!("New page before the exercise")).on_hover_text(tl!("Only when another exercise comes before it")).changed()
+    {
+        set_breaks(app, json!({"exercise": ex, "beforeExercise": exercise}));
     }
     let mut solution = b["beforeSolution"].as_bool().unwrap_or(false);
     if ui.checkbox(&mut solution, tl!("New page before the solution")).changed() {
-        set(app, json!({"exercise": ex, "beforeSolution": solution}));
+        set_breaks(app, json!({"exercise": ex, "beforeSolution": solution}));
     }
-    let mut results = b["beforeResults"].as_bool().unwrap_or(false);
-    if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
-        set(app, json!({"beforeResults": results}));
-    }
-    if ui
-        .add(egui::Button::new(tl!("Apply to all exercises")).small())
-        .on_hover_text(tl!("Every exercise of the document takes this exercise's page breaks"))
-        .clicked()
-    {
-        set(app, json!({"all": true, "beforeExercise": exercise, "beforeSolution": solution}));
+    if lone {
+        let mut results = b["beforeResults"].as_bool().unwrap_or(false);
+        if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
+            set_breaks(app, json!({"beforeResults": results}));
+        }
     }
     crate::pane_kit::note(ui, tl!("A new exercise takes the page breaks of the last one."));
+}
+
+/// The series' page breaks (`exercise.pageBreaks` with `all`): before every exercise but the
+/// first, before every solution (mixed when the exercises differ), before the results summary.
+fn series_breaks(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"all": true})) else { return };
+    let each: Vec<&Value> = b["exercises"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
+    let mut every = |ui: &mut Ui, key: &str, label: &str, hover: &str| {
+        let on = each.iter().filter(|e| e[key].as_bool().unwrap_or(false)).count();
+        let mut all = !each.is_empty() && on == each.len();
+        let mixed = on > 0 && on < each.len();
+        if ui.add(egui::Checkbox::new(&mut all, label).indeterminate(mixed)).on_hover_text(hover).clicked() {
+            // Mixed turns on for all; on turns off for all.
+            set_breaks(app, json!({"all": true, key: mixed || all}));
+        }
+    };
+    every(ui, "beforeExercise", tl!("New page before each exercise"), tl!("Every exercise but the first starts a new page"));
+    every(ui, "beforeSolution", tl!("New page before each solution"), tl!("Each exercise's solution starts a new page"));
+    let mut results = b["beforeResults"].as_bool().unwrap_or(false);
+    if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
+        set_breaks(app, json!({"beforeResults": results}));
+    }
+    crate::pane_kit::note(ui, tl!("An exercise can differ: set its own in the Exercise tab."));
+}
+
+fn set_breaks(app: &mut WordApp, params: Value) {
+    if let Err(e) = app.run("exercise.pageBreaks", params) {
+        app.status(e);
+    }
 }
 
 /// The number formats offered for exercises: the format's id and how it counts.

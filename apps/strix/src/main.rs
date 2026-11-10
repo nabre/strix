@@ -415,6 +415,13 @@ fn main() -> eframe::Result {
         }
         wordcraft_control_key::Portable::Off => {}
     }
+    // An update downloaded ahead of time installs silently before the window opens; its helper
+    // then starts the new version (docs/updates.md).
+    if prefs_enabled()
+        && wordcraft_ui_egui::strix_update::apply_staged_at_start(files.is_empty() && other_files.is_empty() && !sample && control_port.is_none())
+    {
+        return Ok(());
+    }
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Strix Writer")
@@ -461,7 +468,7 @@ fn main() -> eframe::Result {
     let apple_events = apple_events::AppleEvents::install();
     #[cfg(target_os = "macos")]
     let apple_events = &apple_events;
-    eframe::run_native(
+    let ran = eframe::run_native(
         "Strix",
         options,
         Box::new(move |cc| {
@@ -531,7 +538,10 @@ fn main() -> eframe::Result {
                 apple_events.connect(&cc.egui_ctx),
             )))
         }),
-    )
+    );
+    // Restart Now: the update downloaded ahead of time goes in as Strix quits.
+    wordcraft_ui_egui::strix_update::finish_at_exit();
+    ran
 }
 
 // Not on macOS: APFS refuses file names that aren't valid UTF-8, so no such file can exist there.

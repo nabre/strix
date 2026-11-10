@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -61,8 +61,14 @@ takes them away again.
 
 Two or more exercises in a document are a **series**, and the series rules: the numbering (above),
 the parts shown and the graph paper (below) are the same for every exercise, a change made with
-the cursor in any exercise applies to all of them, and a new exercise takes them. The Exercise
-Properties pane shows the series' settings wherever the cursor is.
+the cursor in any exercise applies to all of them, and a new exercise takes them.
+
+In a series the Exercise Properties pane has two tabs: **Exercise**, the settings of the exercise
+at the caret alone (variants, data, its page breaks), and **Series**, the settings of every
+exercise (numbering, parts shown and graph paper, page breaks of all the exercises and of the
+results summary, frontispiece), shown wherever the cursor is. A lone exercise has no Series tab:
+what applies to it (its page breaks and the summary's, parts shown, frontispiece) follows in the
+Exercise tab, and numbering is left out, since a lone exercise has no number.
 
 ## Parts shown
 
@@ -100,8 +106,8 @@ undo step.
 
 Each exercise can start a new page **when another exercise comes before it** (the first one of
 the document never breaks), and its **solution** can start a new page; the **results summary**
-can start a new page too. Set them in the Exercise Properties pane (Page Breaks: for this
-exercise, or Apply to all exercises) or with `exercise.pageBreaks`. A new exercise takes the
+can start a new page too. Set them in the Exercise Properties pane (Exercise tab: for this
+exercise; Series tab: for every exercise, mixed when they differ, and for the summary) or with `exercise.pageBreaks`. A new exercise takes the
 settings of the document's last exercise.
 
 An exercise's two settings are kept on its control (a `strix:exerciseBreaks` element Word
@@ -210,6 +216,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-09: the Exercise Properties pane in two tabs: Exercise (this exercise's variants, data, page breaks) and Series (numbering, parts shown, page breaks of every exercise and of the summary, frontispiece); a lone exercise has no Series tab and shows what applies to it in Exercise.
 - 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`). Math › Exercise: Show (Solution, Results, Graph Paper) and Frontispiece added; Update Summary (automatic anyway) and Numbering (the same pane as Properties) left out of the ribbon, still in command search.
 - 2026-11-09: page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane).
 - 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.

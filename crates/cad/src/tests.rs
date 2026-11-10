@@ -476,10 +476,10 @@ fn snaps_are_exact_and_ranked() {
     let (q, k) = d.snap(t.plus(Pt::new(0.1, 0.1)), 1.0, Some(from), &on).unwrap();
     assert_eq!(k, SnapKind::Tangent);
     assert!((deg(angle_at(q, Pt::new(50.0, 50.0), from)) - 90.0).abs() < 1e-10);
-    // Quadrant only when asked; the centre from inside the circle.
-    assert_ne!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &on).map(|s| s.1), Some(SnapKind::Quadrant));
-    let quad = Snaps { quadrant: true, ..on };
-    assert_eq!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &quad).map(|s| s.1), Some(SnapKind::Quadrant));
+    // Quadrant (on by default) only when on; the centre from inside the circle.
+    let no_quad = Snaps { quadrant: false, ..on };
+    assert_ne!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &no_quad).map(|s| s.1), Some(SnapKind::Quadrant));
+    assert_eq!(d.snap(Pt::new(70.2, 50.0), 1.0, None, &on).map(|s| s.1), Some(SnapKind::Quadrant));
     assert_eq!(d.snap(Pt::new(50.5, 50.5), 1.0, None, &on).map(|s| s.1), Some(SnapKind::Center));
     // Nothing close: no snap; junk input: none, never a panic.
     assert!(d.snap(Pt::new(500.0, 500.0), 1.0, None, &on).is_none());
