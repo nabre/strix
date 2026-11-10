@@ -1,11 +1,16 @@
 name: CI
 
 # Quality gates for every push to main and every pull request (`cargo xtask ci`), through the
-# suite's shared gate workflow in craft-common-actions.
+# suite's shared gate workflow in craft-common-actions. A push to main whose code a PR already
+# passed doesn't run them again (tested-tree.yml).
 on:
   push:
     branches: [main]
   pull_request:
+  # Nightly on main, for the dependency caches only main's runs save: skipped when main has no
+  # new code since its last full run (tested-tree.yml).
+  schedule:
+    - cron: "41 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +22,19 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Already passed on the PR that brought this exact code to main: not run again (tested-tree.yml).
+  tested:
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: ci.yml
+      mode: check
+
   gate:
+    needs: [tested]
+    if: needs.tested.outputs.tested != 'true'
     # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:
@@ -26,3 +43,15 @@ jobs:
       packages: >-
         pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
         libgtk-3-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
+
+  # Checks passed on a PR or on main: remember the tree (tested-tree.yml).
+  record:
+    needs: [gate]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: ci.yml
+      mode: record

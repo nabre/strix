@@ -197,6 +197,17 @@ pub(super) fn customize_keyboard(s: &mut Session, v: &Value) -> CmdResult {
         asked = true;
         s.keymap.reset();
     }
+    // A whole map (one saved or exported earlier): read leniently, like the preferences, so junk
+    // entries are dropped rather than failing the rest.
+    if let Some(m) = v.get("map") {
+        asked = true;
+        if !m.is_object() {
+            return Err(CmdError::Params("`map` is an object: {\"assigned\": {key: id}, \"removed\": [key]}".into()));
+        }
+        let mut map = crate::KeyMap::from_value(m);
+        map.retain_known(&reg);
+        s.keymap = map;
+    }
     if let Some(a) = v.get("assign") {
         asked = true;
         let (id, key) = pair(a)?;

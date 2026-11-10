@@ -9,14 +9,14 @@
 //! Only installations that are replaced without a question stage for a silent install: the
 //! per-user Windows Installer package (run unattended by the helper), the AppImage and the
 //! binary of a tar.gz (renamed over the old file). A `.deb`/`.rpm` needs the package manager's
-//! password prompt, so it is downloaded ahead but installed only from the Software Update window.
+//! password prompt, so it is downloaded ahead but installed only from File › Info (Update and Restart).
 //! Anything that goes wrong discards the staged file and starts the current version: the next
 //! check offers the update again.
 
 use std::path::Path;
 
 use craft_update::self_update::{self, Install};
-use craft_update::{App, Asset, Http, PackageKind, Paths, Platform, Release, Stop, pick_asset};
+use craft_update::{App, Asset, Http, JobPhase, PackageKind, Paths, Platform, Release, Stop, pick_asset};
 use serde::{Deserialize, Serialize};
 
 /// Ends `self_update::update` once the package is downloaded and verified, before anything is
@@ -120,7 +120,7 @@ fn remove_download(paths: &Paths, asset: &Asset) {
 pub(super) enum Plan {
     /// Install it now, silently: the package and this installation match.
     Apply(Install),
-    /// Leave it for the Software Update window (it needs a question, or this start opens
+    /// Leave it for File › Info (it needs a question, or this start opens
     /// documents and the restart helper would start the new version without them).
     Keep,
     /// It no longer applies (installed already, older, another kind of installation): forget it.
@@ -164,8 +164,16 @@ fn intact(paths: &Paths, staged: &Staged) -> bool {
 }
 
 /// Downloads and verifies `release` for `install` into the cache and records it for the next
-/// start (runs on its thread). `stop` cancels the download. Returns the record.
-pub(super) fn stage(app: &App, install: &Install, release: &Release, running: &str, stop: &Stop) -> Result<Staged, String> {
+/// start (runs on its thread). `stop` cancels the download; `phase` hears how far it got (the
+/// File › Info progress bar). Returns the record.
+pub(super) fn stage(
+    app: &App,
+    install: &Install,
+    release: &Release,
+    running: &str,
+    stop: &Stop,
+    phase: &mut dyn FnMut(JobPhase),
+) -> Result<Staged, String> {
     let http = Http::new("Strix/Update")?;
     let paths = Paths::for_app(app)?;
     let platform = Platform::current().ok_or("this platform doesn't update itself")?;
@@ -187,7 +195,7 @@ pub(super) fn stage(app: &App, install: &Install, release: &Release, running: &s
         discard(&paths);
     }
     let last = || Err(STAGED.to_string());
-    match self_update::update(app, install, &release, platform, &http, &paths, stop, &mut |_| {}, &last, Some(running)) {
+    match self_update::update(app, install, &release, platform, &http, &paths, stop, phase, &last, Some(running)) {
         Err(e) if e == STAGED => {}
         Err(e) => return Err(e),
         // `last` refuses, so nothing was replaced; never expected.

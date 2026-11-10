@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix architecture
 
-> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
+> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (a push to `main` skips the checks a PR already passed on the same code; previously minor: each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
 
 How Strix is built today (origin/main `40c5d51`). The longer design notes in
 `plan/architecture.md` are gitignored and local to the original author's machine; this file is the
@@ -64,7 +64,10 @@ winit or rfd.
   everywhere), layering, wasm build.
 - `cargo xtask parity` regenerates [`parity-checklist.md`](parity-checklist.md); a test keeps the
   catalog percentage above a floor that only rises.
-- GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs;
+- GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs,
+  but a push to `main` whose exact code (git tree) a PR already passed skips it, as Printing and
+  Packaging lint do (`tested-tree.yml`; a nightly run on `main` refreshes the dependency caches
+  when every push was skipped);
   packaging lint, and FreeBSD / Windows ARM64 on PRs that change their files and nightly on `main`;
   one release workflow: a push to `main` whose version has no GitHub Release merges it into
   `release`, where every package is built (signed) and the release published, reading those runs instead of running them again (the
@@ -75,6 +78,7 @@ winit or rfd.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-10 | minor | A push to `main` doesn't run again CI, Printing and Packaging lint when a PR already passed them on the same tree (`tested-tree.yml`) |
 | 2026-11-10 | minor | One release workflow: a version without a release on `main` is merged into `release`, built signed and published with every package |
 | 2026-11-10 | minor | Each check runs once across the workflows (release reads CI and the nightlies instead of running them again); `cargo xtask workflows` in `cargo xtask ci` |
 | 2026-10-28 | minor | Layer table matches `cargo xtask layers` (`calc`, `cad`, `metafile`; `zotero` L5; `control-key` standalone) |

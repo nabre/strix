@@ -23,6 +23,7 @@ use shortcuts::{
     dispatch, is_context_menu_key, is_global_shortcut, is_paste_release, is_paste_special_release, is_shift_delete, paste_release_modifiers,
     shift_variant_params, ui_shortcut,
 };
+pub(crate) use shortcuts::{reserved_key, ui_shortcut_label};
 
 #[cfg(test)]
 mod tests;

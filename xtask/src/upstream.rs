@@ -667,13 +667,15 @@ mod tests {
         assert_eq!(rebrand_file("crates/doc/Cargo.toml", "name = \"wordcraft\"\n"), None);
     }
 
-    /// `main` already shows what the next sync writes: every file rule's result is in its file.
+    /// `main` already shows what the next sync writes: every file rule's result is in its file,
+    /// unless Strix rewrote that part of the file (neither text is left; the rule still keeps
+    /// upstream's unchanged line the same as the last sync, so Strix's rewrite merges cleanly).
     #[test]
     fn main_has_strixs_text_where_the_file_rules_put_it() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         for (path, from, to) in file_rules() {
             let text = std::fs::read_to_string(root.join(path)).unwrap_or_else(|e| panic!("{path}: {e}"));
-            assert!(text.contains(to), "{path} lacks {to:?}");
+            assert!(text.contains(to) || !text.contains(from), "{path} lacks {to:?}");
             assert!(!text.contains(from) || to.contains(from), "{path} still has {from:?}");
         }
     }

@@ -26,6 +26,12 @@ pub fn key_name(k: Key) -> Option<&'static str> {
         Key::Comma => ",",
         Key::OpenBracket => "[",
         Key::CloseBracket => "]",
+        // Keys only Customize Keyboard gives commands (no built-in shortcut uses them).
+        Key::Slash => "/",
+        Key::Backslash => "\\",
+        Key::Semicolon => ";",
+        Key::Quote => "'",
+        Key::Backtick => "`",
         Key::Num0 => "0",
         Key::Num1 => "1",
         Key::Num2 => "2",
@@ -48,6 +54,14 @@ pub fn key_name(k: Key) -> Option<&'static str> {
         Key::F10 => "F10",
         Key::F11 => "F11",
         Key::F12 => "F12",
+        Key::F13 => "F13",
+        Key::F14 => "F14",
+        Key::F15 => "F15",
+        Key::F16 => "F16",
+        Key::F17 => "F17",
+        Key::F18 => "F18",
+        Key::F19 => "F19",
+        Key::F20 => "F20",
         Key::A => "A",
         Key::B => "B",
         Key::C => "C",
@@ -116,13 +130,36 @@ pub(super) fn ui_shortcut(key: Key, m: Modifiers) -> Option<(&'static str, Value
     }
 }
 
+/// Keys the interface keeps whatever Customize Keyboard says (#1678 review): Alt+Q goes to Search
+/// (not on macOS) and ⌘⌥R collapses the ribbon (macOS only). The dialog doesn't offer them.
+/// Returns the label of what they do.
+pub(crate) fn reserved_key(key: &str) -> Option<&'static str> {
+    match wordcraft_engine::keymap::normalize(key)?.as_str() {
+        "Alt+Q" if !cfg!(target_os = "macos") => Some("Search"),
+        "Mod+Alt+R" if cfg!(target_os = "macos") => Some("Collapse the Ribbon"),
+        _ => None,
+    }
+}
+
+/// The interface command a key runs, for Customize Keyboard's "Now used by": a reserved key, or
+/// Ctrl+F1 (collapse the ribbon, not on macOS) while no command has it.
+pub(crate) fn ui_shortcut_label(app: &WordApp, key: &str) -> Option<&'static str> {
+    if let Some(label) = reserved_key(key) {
+        return Some(label);
+    }
+    let key = wordcraft_engine::keymap::normalize(key)?;
+    (key == "Ctrl+F1" && !cfg!(target_os = "macos") && app.session.keymap.resolve(&app.session.registry, &key).is_none())
+        .then_some("Collapse the Ribbon")
+}
+
 /// Find and run the command bound to this key. Returns true if handled.
 pub(super) fn dispatch(app: &mut WordApp, key: Key, m: Modifiers) -> bool {
     let reg = app.session.registry.clone();
     let name = key_name(key);
     let bound = name.and_then(|n| app.session.keymap.resolve(&reg, &combo(m, n, true)));
     // Ctrl+F1 collapses the ribbon only when the user hasn't given it to a command (#1678); the
-    // other interface shortcuts (Alt+Q, ⌘⌥R) keep their place ahead of the keymap.
+    // other interface shortcuts (Alt+Q, ⌘⌥R) keep their place ahead of the keymap
+    // ([`reserved_key`]: Customize Keyboard doesn't offer them).
     if let Some((id, params)) = ui_shortcut(key, m).filter(|_| key != Key::F1 || bound.is_none()) {
         let _ = app.run(id, params);
         return true;

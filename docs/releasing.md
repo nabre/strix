@@ -50,7 +50,9 @@ Windows builds ship portable.
    `.github/workflows/`: then it fails with that reason, and `main` is merged into `release` by
    hand, unless the repository secret `RELEASE_PUSH_TOKEN` (a fine-grained token with Contents
    and Workflows write on this repository) is set, which the job uses instead. A conflict on
-   `release` fails the same way.
+   `release` fails the same way. A merge pushed with `GITHUB_TOKEN` starts no workflow, so the job
+   starts Release on `release` itself; one pushed with `RELEASE_PUSH_TOKEN` starts it through the
+   push, and the job then doesn't start it again (one run per release, never two).
 
    Publishing redeploys the site (`site.yml`, started by the release run: a release published
    with `GITHUB_TOKEN` starts no other workflow), so the download links and the browser version
@@ -88,6 +90,14 @@ signing on the `release` branch (as here) and runs macOS on the paid `macos-15-x
     `main`, reported in the summary, a warning when one failed. Start one by hand
     (`gh workflow run freebsd.yml --ref main`) to check the latest `main` before bumping.
   - Packaging lint runs on `main` and on PRs that change packaging, not again in the release.
+  - CI, Printing and Packaging lint don't run again on a push to `main` whose code a PR already
+    passed (`tested-tree.yml`): a PR run whose checks pass records its tree (the merge of the PR
+    into `main`) as a small artifact, and the push that merges it, with the same tree when `main`
+    didn't move meanwhile, skips its jobs and still ends "success", so **Checks already run**
+    finds the CI passed. A fork's PR doesn't count; any doubt runs the checks. Because only runs
+    on `main` save the dependency caches, CI and Printing also run nightly on `main`, skipped when
+    `main` has no new code since its last full run. SonarCloud still runs on both: its analysis
+    of `main` is a different report from the PR's.
 - `cargo xtask workflows` (in `cargo xtask ci`) keeps the workflows in step: every action from
   outside the suite pinned to a full commit SHA, one commit per action, one craft-fonts commit
   in every workflow. The suite's own `storytold/…` actions follow `@main` on purpose.

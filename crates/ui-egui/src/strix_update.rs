@@ -1,35 +1,37 @@
-//! Updates for Strix Writer (docs/updates.md): at start, and on Help › Check for Updates, Strix asks
-//! GitHub for the newest published release of nabre/strix; when there is one it offers it in a
-//! translated window. Installations Strix can replace safely update themselves and restart (the
-//! Windows Installer package installed per user, the AppImage, the .deb/.rpm packages, a tar.gz
-//! unpacked in the home folder on Linux); every other one (macOS, Flatpak, FreeBSD, portable and
-//! per-machine Windows copies) gets the package for its platform downloaded in the browser.
+//! Updates for Strix Writer (docs/updates.md). Everything happens quietly, and everything is
+//! shown in one place: the **Updates** section of File › Info ([`Updater::panel`]). Strix asks
+//! GitHub for the newest published release of nabre/strix when it starts, again every day while it
+//! stays open (an hour after a check that failed, such as one made offline), and on Help › Check
+//! for Updates, which opens File › Info. No window ever pops up for it.
+//!
+//! Installations Strix can replace safely update themselves (the Windows Installer package
+//! installed per user, the AppImage, the .deb/.rpm packages, a tar.gz unpacked in the home folder
+//! on Linux): a newer release is downloaded and verified in the background as soon as it is found
+//! (unless that's turned off), with its progress in File › Info, and installed silently when Strix
+//! next starts, before its window opens ([`apply_staged_at_start`], `staging`). "Restart Now"
+//! closes Strix through the normal close (which asks about unsaved work) and installs it on the
+//! way out ([`finish_at_exit`]). Every other installation (macOS, Flatpak, FreeBSD, portable and
+//! per-machine Windows copies) gets a Download button that opens its package in the browser.
 //!
 //! The release checking, downloading, verifying and swapping is `craft_update`'s (shared with the
 //! Craft apps); Strix brings its own identity ([`STRIX`]), the choice of what may update itself,
-//! and the window, so that it speaks the interface's language. Nothing here blocks a frame: the
-//! check (and detecting how Strix was installed, which may ask the package manager) and the
-//! installation run on threads.
-//!
-//! Where the installation can replace itself, a newer release is downloaded and verified in the
-//! background as soon as it is found (unless that's turned off in the window), and installed
-//! silently when Strix next starts, before its window opens ([`apply_staged_at_start`],
-//! `staging`). "Restart Now" closes Strix through the normal close (which asks about unsaved
-//! work) and installs it on the way out ([`finish_at_exit`]).
+//! and the panel, so that it speaks the interface's language. Nothing here blocks a frame: the
+//! check (and detecting how Strix was installed, which may ask the package manager), the download
+//! and the installation run on threads.
 
 mod staging;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError, channel};
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use craft_update::self_update::{self, Install};
-use craft_update::{App, Http, Paths, Platform, Release, Stop, check_for_update, pick_asset};
+use craft_update::{App, Http, JobPhase, Paths, Platform, Release, Stop, check_for_update, pick_asset};
 use egui::RichText;
 
 use crate::pane_kit;
-use crate::theme::Tokens;
+use crate::theme::{Tokens, semibold};
 
 /// Strix as its releases know it: assets `strix-<version>-<platform>…` in nabre/strix. `name` is
 /// the folder the Windows installer uses per user (`%LOCALAPPDATA%\Programs\Strix`).
@@ -41,17 +43,23 @@ pub const STRIX: App = App {
 /// Longest part of the release notes shown.
 const NOTES_CHARS: usize = 1500;
 
-/// What a requested check came to, for the window that answers Help › Check for Updates.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum Status {
-    #[default]
-    Idle,
-    Checking,
+/// A Strix left open looks again this long after a check that answered.
+const RECHECK: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// … and this long after one that failed (offline, GitHub unreachable).
+const RETRY: Duration = Duration::from_secs(60 * 60);
+
+/// What the last finished check came to, for File › Info.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// Nothing newer than the running version.
     UpToDate,
+    /// A newer release (it is the offer).
+    Found,
     Failed(String),
 }
 
-/// What the app should do after [`Updater::show`].
+/// What the app should do after [`Updater::panel`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
     None,
@@ -75,9 +83,47 @@ type Found = Result<Option<(Release, How)>, String>;
 /// Stands in for GitHub in tests.
 type CheckSource = Arc<dyn Fn() -> Found + Send + Sync>;
 
-/// Downloads and verifies a release ahead of time for the next start; true when it then installs
-/// without any question. Stands in for the download in tests.
-type StageSource = Arc<dyn Fn(&Install, &Release, &str, &Stop) -> Result<bool, String> + Send + Sync>;
+/// Downloads and verifies a release ahead of time for the next start, reporting how far it got;
+/// true when it then installs without any question. Stands in for the download in tests.
+type StageSource = Arc<dyn Fn(&Install, &Release, &str, &Stop, &Progress) -> Result<bool, String> + Send + Sync>;
+
+/// How far the download in the background has come, written by its thread and read by the panel.
+#[derive(Debug, Default)]
+pub struct Progress {
+    done: AtomicU64,
+    total: AtomicU64,
+    /// [`Progress::DOWNLOADING`], [`Progress::RECONNECTING`] or [`Progress::VERIFYING`].
+    phase: AtomicU8,
+}
+
+impl Progress {
+    const DOWNLOADING: u8 = 0;
+    const RECONNECTING: u8 = 1;
+    const VERIFYING: u8 = 2;
+
+    fn hear(&self, phase: JobPhase) {
+        let (p, done, total) = match phase {
+            JobPhase::Downloading { done, total } => (Self::DOWNLOADING, done, total),
+            JobPhase::Reconnecting { done, total } => (Self::RECONNECTING, done, total),
+            JobPhase::Verifying => (Self::VERIFYING, self.total.load(Ordering::Relaxed), self.total.load(Ordering::Relaxed)),
+            _ => return,
+        };
+        self.done.store(done.min(total), Ordering::Relaxed);
+        self.total.store(total, Ordering::Relaxed);
+        self.phase.store(p, Ordering::Relaxed);
+    }
+
+    fn reset(&self) {
+        self.done.store(0, Ordering::Relaxed);
+        self.total.store(0, Ordering::Relaxed);
+        self.phase.store(Self::DOWNLOADING, Ordering::Relaxed);
+    }
+
+    /// (bytes done, bytes in all, phase); `total` is 0 until the size is known.
+    fn read(&self) -> (u64, u64, u8) {
+        (self.done.load(Ordering::Relaxed), self.total.load(Ordering::Relaxed), self.phase.load(Ordering::Relaxed))
+    }
+}
 
 /// Where the download ahead of time of an offered release stands.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,8 +135,8 @@ enum Staging {
     Ready {
         silent: bool,
     },
-    /// The download failed; the window offers the update as it would without it.
-    Failed,
+    /// The download failed; the panel offers the update as it would without it.
+    Failed(String),
 }
 
 struct Offer {
@@ -108,10 +154,12 @@ static RESTART_AT_EXIT: AtomicBool = AtomicBool::new(false);
 pub struct Updater {
     version: String,
     source: Option<CheckSource>,
-    status: Status,
-    requested: bool,
+    /// The checks have begun (at start, or asked for): the daily ones follow.
     started: bool,
     check: Option<Receiver<Found>>,
+    /// When the last check finished, as a monotonic instant (for the next one) and as Unix time
+    /// (to show), and what it came to.
+    last: Option<(Instant, i64, Outcome)>,
     offer: Option<Offer>,
     install: Option<Receiver<Result<(), String>>>,
     /// Installed: Strix closes (and restarts) once it holds no unsaved work.
@@ -122,10 +170,32 @@ pub struct Updater {
     /// The download ahead of time under way, for the release with this tag.
     stage: Option<(String, Receiver<Result<bool, String>>)>,
     stop: Arc<Stop>,
+    progress: Arc<Progress>,
     /// The release (tag) downloaded ahead of time, and whether it installs silently.
     ready: Option<(String, bool)>,
     /// Restart Now: installed as Strix quits.
     restart: bool,
+    /// Whether this copy can replace itself; worked out (on the check's thread) with the first
+    /// answer, so the panel says what the automatic download means here.
+    self_updating: Option<bool>,
+}
+
+/// Seconds since the Unix epoch, now.
+fn unix_now() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+}
+
+/// `secs` (Unix time) as the panel shows it: the time of day when it is today, else the date and
+/// time, in local time.
+fn when(secs: i64, now: i64) -> String {
+    use chrono::{Local, TimeZone};
+    let (Some(t), Some(n)) = (Local.timestamp_opt(secs, 0).earliest(), Local.timestamp_opt(now, 0).earliest()) else { return String::new() };
+    if t.date_naive() == n.date_naive() { t.format("%H:%M").to_string() } else { t.format("%Y-%m-%d %H:%M").to_string() }
+}
+
+/// A size in MB with one decimal, as the progress line shows it.
+fn megabytes(bytes: u64) -> String {
+    format!("{:.1}", bytes as f64 / 1_048_576.0)
 }
 
 impl Updater {
@@ -150,12 +220,12 @@ impl Updater {
         self
     }
 
-    /// Whether a newer release downloads by itself (on unless turned off in the window).
+    /// Whether a newer release downloads by itself (on unless turned off).
     fn auto_download(&mut self) -> bool {
         *self.auto_download.get_or_insert_with(|| Paths::for_app(&STRIX).is_ok_and(|p| staging::auto_download(&p.data)))
     }
 
-    /// The offer window's checkbox. Off cancels a download under way and deletes a staged package.
+    /// The panel's checkbox. Off cancels a download under way and deletes a staged package.
     fn set_auto_download(&mut self, ctx: &egui::Context, on: bool) {
         self.auto_download = Some(on);
         if self.stager.is_none()
@@ -190,7 +260,7 @@ impl Updater {
     }
 
     /// Starts downloading the offered release ahead of time, when it installs by itself and the
-    /// setting allows it.
+    /// setting allows it. A download under way for an older offer is cancelled.
     fn start_stage(&mut self, ctx: &egui::Context) {
         if !self.auto_download() {
             return;
@@ -209,15 +279,24 @@ impl Updater {
             return;
         }
         offer.staging = Staging::Downloading;
-        // A fresh stop: an earlier download may have been cancelled.
+        // A download for another release makes way; then a fresh stop, as an earlier download may
+        // have been cancelled.
+        self.stop.cancel();
         self.stop = Arc::new(Stop::default());
+        self.progress.reset();
         let (tx, rx) = channel();
-        let (stager, release, version, stop, ctx) =
-            (self.stager.clone(), offer.release.clone(), self.version.clone(), self.stop.clone(), ctx.clone());
+        let (stager, release, version, stop, progress, ctx) =
+            (self.stager.clone(), offer.release.clone(), self.version.clone(), self.stop.clone(), self.progress.clone(), ctx.clone());
         let spawned = std::thread::Builder::new().name("update-download".into()).spawn(move || {
             let run = || match &stager {
-                Some(stage) => stage(&install, &release, &version, &stop),
-                None => staging::stage(&STRIX, &install, &release, &version, &stop).map(|_| staging::silent(&install)),
+                Some(stage) => stage(&install, &release, &version, &stop, &progress),
+                None => {
+                    let mut hear = |phase: JobPhase| {
+                        progress.hear(phase);
+                        ctx.request_repaint();
+                    };
+                    staging::stage(&STRIX, &install, &release, &version, &stop, &mut hear).map(|_| staging::silent(&install))
+                }
             };
             let outcome =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)).unwrap_or_else(|_| Err("the download failed unexpectedly".into()));
@@ -243,7 +322,7 @@ impl Updater {
                     Staging::Off
                 } else {
                     log::warn!("Strix update: downloading {tag} failed: {e}");
-                    Staging::Failed
+                    Staging::Failed(e)
                 }
             }
         };
@@ -254,37 +333,36 @@ impl Updater {
         }
     }
 
-    /// The check at start, once.
+    /// The check at start, once; the daily checks follow from [`Self::tick`].
     pub fn check_at_start(&mut self, ctx: &egui::Context) {
         if !std::mem::replace(&mut self.started, true) {
-            self.begin(ctx, false);
+            self.begin(ctx);
         }
     }
 
-    /// Help › Check for Updates: [`Self::status`] reports the outcome.
+    /// Help › Check for Updates and the panel's button: File › Info shows the outcome.
     pub fn check_now(&mut self, ctx: &egui::Context) {
         self.started = true;
-        self.begin(ctx, true);
+        self.begin(ctx);
     }
 
-    pub fn status(&self) -> &Status {
-        &self.status
+    /// Whether a check is under way.
+    pub fn checking(&self) -> bool {
+        self.check.is_some()
     }
 
-    pub fn dismiss_status(&mut self) {
-        self.requested = false;
-        self.status = Status::Idle;
+    /// What the last finished check came to.
+    pub fn outcome(&self) -> Option<&Outcome> {
+        self.last.as_ref().map(|(_, _, o)| o)
     }
 
-    fn begin(&mut self, ctx: &egui::Context, requested: bool) {
-        if self.install.is_some() || self.installed || self.restart {
-            return;
-        }
-        if requested {
-            self.requested = true;
-            self.status = Status::Checking;
-        }
-        if self.check.is_some() {
+    /// Nothing more is checked once an update is installing, installed or waiting for the close.
+    fn busy(&self) -> bool {
+        self.install.is_some() || self.installed || self.restart
+    }
+
+    fn begin(&mut self, ctx: &egui::Context) {
+        if self.busy() || self.check.is_some() {
             return;
         }
         let (tx, rx) = channel();
@@ -300,31 +378,51 @@ impl Updater {
             waker.request_repaint();
         });
         match spawned {
-            Ok(_) => self.check = Some(rx),
+            Ok(_) => {
+                self.check = Some(rx);
+                ctx.request_repaint();
+            }
             Err(e) => self.finish_check(ctx, Err(e.to_string())),
         }
     }
 
     fn finish_check(&mut self, ctx: &egui::Context, answer: Found) {
-        let requested = std::mem::take(&mut self.requested);
-        match answer {
+        let outcome = match answer {
             Ok(Some((release, how))) => {
-                self.status = Status::Idle;
-                if self.offer.is_none() && !self.installed {
+                self.self_updating = Some(matches!(how, How::Install(_)));
+                // A newer release than the one offered replaces it, unless that one is already
+                // being installed.
+                let replace = self.offer.as_ref().is_none_or(|o| o.release.tag != release.tag && !o.installing);
+                if replace && !self.busy() {
                     self.offer = Some(Offer { release, how, message: None, installing: false, staging: Staging::Off });
                     self.start_stage(ctx);
                 }
+                Outcome::Found
             }
-            Ok(None) => self.status = if requested { Status::UpToDate } else { Status::Idle },
+            Ok(None) => Outcome::UpToDate,
             Err(e) => {
                 log::warn!("Strix update check failed: {e}");
-                self.status = if requested { Status::Failed(e) } else { Status::Idle };
+                Outcome::Failed(e)
             }
+        };
+        self.last = Some((Instant::now(), unix_now(), outcome));
+    }
+
+    /// Whether the next check is due at `now`, after the last one.
+    fn due(&self, now: Instant) -> bool {
+        match &self.last {
+            Some((at, _, Outcome::Failed(_))) => now.saturating_duration_since(*at) >= RETRY,
+            Some((at, _, _)) => now.saturating_duration_since(*at) >= RECHECK,
+            None => false,
         }
     }
 
-    /// Picks up a finished check or installation; call once per frame before [`Self::show`].
+    /// Picks up a finished check, download or installation, and starts the daily check when it is
+    /// due; call once per frame.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        if self.started && self.check.is_none() && self.due(Instant::now()) {
+            self.begin(ctx);
+        }
         if let Some(rx) = &self.check {
             match rx.try_recv() {
                 Ok(answer) => {
@@ -337,11 +435,14 @@ impl Updater {
                     self.finish_check(ctx, Err("the update check stopped unexpectedly".into()));
                 }
             }
+        } else if self.started {
+            // Wake up for the next daily check even when nothing else repaints.
+            ctx.request_repaint_after(RETRY);
         }
         if let Some((tag, rx)) = &self.stage {
             let outcome = match rx.try_recv() {
                 Ok(outcome) => Some(outcome),
-                // The download may take minutes: a slow poll is enough.
+                // The download may take minutes; its thread wakes the panel as bytes arrive.
                 Err(TryRecvError::Empty) => {
                     ctx.request_repaint_after(Duration::from_millis(500));
                     None
@@ -381,137 +482,178 @@ impl Updater {
         }
     }
 
-    /// The offer window. `clean`: no unsaved work, so Strix may close to restart.
-    pub fn show(&mut self, ctx: &egui::Context, clean: bool) -> Action {
+    /// Once an update is installed and no unsaved work is left (`clean`), Strix closes so that it
+    /// restarts in the new version; call once per frame.
+    pub fn close_when_installed(&mut self, clean: bool) -> bool {
         if self.installed && clean {
             self.installed = false;
             self.offer = None;
-            return Action::Close;
+            return true;
         }
-        let auto_download = match &self.offer {
-            Some(offer) if matches!(offer.how, How::Install(_)) => Some(self.auto_download()),
-            _ => None,
-        };
-        let restart_pending = self.restart;
-        let Some(offer) = &mut self.offer else { return Action::None };
-        let t = Tokens::get(ctx);
+        false
+    }
+
+    /// The Updates section of File › Info. `clean`: no unsaved work, so Strix may close to restart.
+    pub fn panel(&mut self, ui: &mut egui::Ui, clean: bool) -> Action {
+        let t = Tokens::get(ui.ctx());
         let mut action = Action::None;
         let mut start = false;
-        let mut later = false;
         let mut restart = None;
-        let mut auto = auto_download;
-        let mut open = true;
+        let mut check = false;
+        let auto_before = self.auto_download();
+        let mut auto = auto_before;
+        let restart_pending = self.restart;
         let installed = self.installed;
-        egui::Window::new(tl!("Software Update"))
-            .open(&mut open)
-            .resizable(false)
-            .collapsible(false)
-            .default_width(420.0)
-            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-            .show(ctx, |ui| {
-                ui.set_max_width(420.0);
-                let new = offer.release.version_label();
-                ui.label(RichText::new(crate::i18n::fmt(tl!("Strix Writer {version} is available"), &[("version", &new)])).size(15.0).strong());
-                pane_kit::note(ui, &crate::i18n::fmt(tl!("You have version {version}."), &[("version", &self.version)]));
-                let notes = notes(&offer.release.notes);
-                if !notes.is_empty() {
-                    pane_kit::section(ui, "", tl!("What's new"));
+        let busy = self.busy();
+        let checking = self.check.is_some();
+        let now = unix_now();
+        let (done, total, phase) = self.progress.read();
+
+        ui.label(RichText::new(tl!("Updates")).font(semibold(15.0)));
+        pane_kit::note(ui, &crate::i18n::fmt(tl!("Strix Writer {version}"), &[("version", &self.version)]));
+        ui.add_space(4.0);
+        if let Some(offer) = &mut self.offer {
+            let new = offer.release.version_label();
+            ui.label(RichText::new(crate::i18n::fmt(tl!("Strix Writer {version} is available"), &[("version", &new)])).strong());
+            if let Some(published) = offer.release.published_at {
+                pane_kit::note(ui, &crate::i18n::fmt(tl!("Published {date}"), &[("date", &when(published, now))]));
+            }
+            if installed {
+                pane_kit::badge(ui, tl!("installed"), pane_kit::Status::Ok);
+                pane_kit::note(ui, tl!("Save your documents: Strix Writer then closes and restarts in the new version."));
+            } else if offer.installing {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(tl!("Downloading and installing…"));
+                });
+            } else if let How::Download(_) = offer.how {
+                pane_kit::note(ui, tl!("This copy of Strix Writer can't replace itself: download the new version and install it over this one."));
+            } else {
+                match &offer.staging {
+                    Staging::Downloading => {
+                        let text = match phase {
+                            Progress::VERIFYING => tl!("Verifying the download…").to_string(),
+                            Progress::RECONNECTING => tl!("The connection dropped; trying again shortly…").to_string(),
+                            _ if total > 0 => crate::i18n::fmt(
+                                tl!("Downloading in the background: {done} of {total} MB"),
+                                &[("done", &megabytes(done)), ("total", &megabytes(total))],
+                            ),
+                            _ => tl!("Downloading in the background…").to_string(),
+                        };
+                        let fraction = if total > 0 { (done as f32 / total as f32).clamp(0.0, 1.0) } else { 0.0 };
+                        ui.add(egui::ProgressBar::new(fraction).desired_width(320.0).animate(total == 0 || phase != Progress::DOWNLOADING));
+                        pane_kit::note(ui, &text);
+                        pane_kit::note(ui, tl!("It will be installed when you restart Strix Writer."));
+                    }
+                    Staging::Ready { silent: true } if restart_pending => {
+                        pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
+                        pane_kit::note(ui, tl!("Strix Writer restarts in the new version as soon as it closes."));
+                    }
+                    Staging::Ready { silent: true } => {
+                        pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
+                        pane_kit::note(ui, tl!("It will be installed when you restart Strix Writer."));
+                    }
+                    Staging::Ready { silent: false } => {
+                        pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
+                        pane_kit::note(ui, tl!("Installing it asks for your password, then Strix Writer restarts."));
+                    }
+                    Staging::Failed(e) => {
+                        pane_kit::note(ui, tl!("The download in the background didn't succeed; Update and Restart tries again."));
+                        ui.label(RichText::new(e).size(11.0).color(t.text_dim));
+                    }
+                    Staging::Off => {}
+                }
+            }
+            if let Some(m) = &offer.message {
+                ui.label(RichText::new(m).size(11.5).color(t.red));
+            }
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                if offer.installing || installed {
+                    return;
+                }
+                match (&offer.how, &offer.staging) {
+                    (How::Install(_), Staging::Ready { silent: true }) if restart_pending => {
+                        if ui.button(tl!("Don't Restart")).clicked() {
+                            restart = Some(false);
+                        }
+                    }
+                    (How::Install(_), Staging::Ready { silent: true }) => {
+                        if ui.button(RichText::new(tl!("Restart Now")).strong()).clicked() {
+                            restart = Some(true);
+                        }
+                    }
+                    // Waiting for the download.
+                    (How::Install(_), Staging::Downloading) => {}
+                    (How::Install(_), _) => {
+                        if ui.button(RichText::new(tl!("Update and Restart")).strong()).clicked() {
+                            start = true;
+                        }
+                    }
+                    (How::Download(url), _) => {
+                        if ui.button(RichText::new(tl!("Download")).strong()).clicked() {
+                            action = Action::OpenUrl(url.clone());
+                        }
+                    }
+                }
+                ui.hyperlink_to(tl!("Release notes"), &offer.release.html_url);
+            });
+            let notes = notes(&offer.release.notes);
+            if !notes.is_empty() {
+                egui::CollapsingHeader::new(tl!("What's new")).id_salt("update-notes").show(ui, |ui| {
                     egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
                         ui.label(RichText::new(notes).size(11.5).color(t.text_dim));
                     });
-                }
-                ui.hyperlink_to(tl!("Release notes"), &offer.release.html_url);
-                ui.add_space(6.0);
-                if installed {
-                    pane_kit::badge(ui, tl!("installed"), pane_kit::Status::Ok);
-                    pane_kit::note(ui, tl!("Save your documents: Strix Writer then closes and restarts in the new version."));
-                } else if offer.installing {
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(tl!("Downloading and installing…"));
-                    });
-                } else if let How::Download(_) = offer.how {
-                    pane_kit::note(ui, tl!("This copy of Strix Writer can't replace itself: download the new version and install it over this one."));
-                } else {
-                    match offer.staging {
-                        Staging::Downloading => {
-                            ui.horizontal(|ui| {
-                                ui.spinner();
-                                ui.label(tl!("Downloading in the background…"));
-                            });
-                            pane_kit::note(ui, tl!("It will be installed when you restart Strix Writer."));
-                        }
-                        Staging::Ready { silent: true } if restart_pending => {
-                            pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
-                            pane_kit::note(ui, tl!("Strix Writer restarts in the new version as soon as it closes."));
-                        }
-                        Staging::Ready { silent: true } => {
-                            pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
-                            pane_kit::note(ui, tl!("It will be installed when you restart Strix Writer."));
-                        }
-                        Staging::Ready { silent: false } => {
-                            pane_kit::badge(ui, tl!("downloaded"), pane_kit::Status::Ok);
-                            pane_kit::note(ui, tl!("Installing it asks for your password, then Strix Writer restarts."));
-                        }
-                        Staging::Failed => {
-                            pane_kit::note(ui, tl!("The download in the background didn't succeed; Update and Restart tries again."));
-                        }
-                        Staging::Off => {}
-                    }
-                    if let Some(on) = &mut auto {
-                        ui.checkbox(on, tl!("Download updates automatically"));
-                    }
-                }
-                if let Some(m) = &offer.message {
-                    ui.label(RichText::new(m).size(11.5).color(t.red));
-                }
-                ui.add_space(8.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if offer.installing || installed {
-                        return;
-                    }
-                    match (&offer.how, &offer.staging) {
-                        (How::Install(_), Staging::Ready { silent: true }) if restart_pending => {
-                            if ui.button(tl!("Don't Restart")).clicked() {
-                                restart = Some(false);
-                            }
-                            return;
-                        }
-                        (How::Install(_), Staging::Ready { silent: true }) => {
-                            if ui.button(RichText::new(tl!("Restart Now")).strong()).clicked() {
-                                restart = Some(true);
-                            }
-                        }
-                        // Waiting for the download; Later leaves it running.
-                        (How::Install(_), Staging::Downloading) => {}
-                        (How::Install(_), _) => {
-                            if ui.button(RichText::new(tl!("Update and Restart")).strong()).clicked() {
-                                start = true;
-                            }
-                        }
-                        (How::Download(url), _) => {
-                            if ui.button(RichText::new(tl!("Download")).strong()).clicked() {
-                                action = Action::OpenUrl(url.clone());
-                                later = true;
-                            }
-                        }
-                    }
-                    if ui.button(tl!("Later")).clicked() {
-                        later = true;
-                    }
                 });
+            }
+        } else if checking {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(tl!("Checking for updates…"));
             });
+        } else {
+            match &self.last {
+                Some((_, at, Outcome::Failed(e))) => {
+                    ui.label(tl!("Could not check for updates."));
+                    ui.label(RichText::new(e).size(11.0).color(t.text_dim));
+                    pane_kit::note(
+                        ui,
+                        &crate::i18n::fmt(tl!("Last attempt: {time}. Strix Writer tries again within an hour."), &[("time", &when(*at, now))]),
+                    );
+                }
+                Some((_, at, _)) => {
+                    ui.label(tl!("You have the newest version."));
+                    pane_kit::note(ui, &crate::i18n::fmt(tl!("Last checked: {time}"), &[("time", &when(*at, now))]));
+                }
+                None => pane_kit::note(ui, tl!("Strix Writer looks for a newer version when it starts and once a day.")),
+            }
+        }
+
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            if ui.add_enabled(!checking && !busy, egui::Button::new(tl!("Check for Updates"))).clicked() {
+                check = true;
+            }
+        });
+        // Only copies that replace themselves download ahead; elsewhere the setting does nothing.
+        if self.self_updating != Some(false) {
+            ui.checkbox(&mut auto, tl!("Download updates automatically")).on_hover_text(tl!(
+                "A newer version is downloaded in the background and installed, without any question, the next time Strix Writer starts."
+            ));
+        }
+
+        if check {
+            self.check_now(ui.ctx());
+        }
         if start {
             if clean {
-                self.start_install(ctx);
+                self.start_install(ui.ctx());
             } else if let Some(offer) = &mut self.offer {
                 offer.message = Some(tl!("Save or close your documents first: updating restarts Strix Writer.").to_string());
             }
         }
-        if let Some(on) = auto
-            && Some(on) != auto_download
-        {
-            self.set_auto_download(ctx, on);
+        if auto != auto_before {
+            self.set_auto_download(ui.ctx(), auto);
         }
         match restart {
             // The normal close asks about unsaved work; the update is installed on the way out.
@@ -521,11 +663,6 @@ impl Updater {
             }
             Some(false) => self.set_restart(false),
             None => {}
-        }
-        // Closing the window while it installs lets the installation carry on and report back; a
-        // download in the background carries on too, for the next start.
-        if (later || !open) && self.install.is_none() && !self.installed && !self.restart {
-            self.offer = None;
         }
         action
     }
@@ -669,22 +806,17 @@ mod tests {
     }
 
     #[test]
-    fn a_requested_check_reports_up_to_date_or_the_failure() {
+    fn a_check_reports_up_to_date_or_the_failure() {
         let ctx = egui::Context::default();
         let mut u = Updater::new("0.18.0").with_source(Arc::new(|| Ok(None)));
         u.check_now(&ctx);
-        assert_eq!(u.status(), &Status::Checking);
+        assert!(u.checking());
         settle(&mut u, &ctx);
-        assert_eq!(u.status(), &Status::UpToDate);
-        let mut u = Updater::new("0.18.0").with_source(Arc::new(|| Err("offline".into())));
-        u.check_now(&ctx);
-        settle(&mut u, &ctx);
-        assert_eq!(u.status(), &Status::Failed("offline".into()));
-        // The check at start reports nothing when nothing's new.
+        assert_eq!(u.outcome(), Some(&Outcome::UpToDate));
         let mut u = Updater::new("0.18.0").with_source(Arc::new(|| Err("offline".into())));
         u.check_at_start(&ctx);
         settle(&mut u, &ctx);
-        assert_eq!(u.status(), &Status::Idle);
+        assert_eq!(u.outcome(), Some(&Outcome::Failed("offline".into())));
         assert!(u.offer.is_none());
     }
 
@@ -697,13 +829,117 @@ mod tests {
         u.check_at_start(&ctx);
         settle(&mut u, &ctx);
         assert!(u.offer.is_some());
-        assert_eq!(u.status(), &Status::Idle);
+        assert_eq!(u.outcome(), Some(&Outcome::Found));
+        assert_eq!(u.self_updating, Some(false));
         // Installed: Strix closes (to restart) once nothing is unsaved, and nothing more starts.
         u.installed = true;
         u.check_now(&ctx);
         assert!(u.check.is_none());
-        assert_eq!(u.show(&ctx, true), Action::Close);
+        assert!(!u.close_when_installed(false));
+        assert!(u.close_when_installed(true));
         assert!(u.offer.is_none());
+    }
+
+    /// Strix left open looks again a day after a check that answered and an hour after one that
+    /// failed; a newer release found then replaces the one offered.
+    #[test]
+    fn checks_repeat_daily_and_a_newer_release_replaces_the_offer() {
+        let ctx = egui::Context::default();
+        let tag = Arc::new(std::sync::Mutex::new("v0.22.0"));
+        let t = tag.clone();
+        let mut u = Updater::new("0.21.0").with_source(Arc::new(move || {
+            let tag = t.lock().map(|g| *g).unwrap_or("v0.22.0");
+            Ok(Some((release(tag, &[]), How::Download(String::new()))))
+        }));
+        // No check before the first one.
+        u.tick(&ctx);
+        assert!(!u.checking());
+        u.check_at_start(&ctx);
+        settle(&mut u, &ctx);
+        assert_eq!(u.offer.as_ref().map(|o| o.release.tag.as_str()), Some("v0.22.0"));
+        // Not due yet.
+        u.tick(&ctx);
+        assert!(!u.checking());
+        // A day later the check is due, runs, and finds v0.23.0.
+        let now = Instant::now();
+        assert!(!u.due(now + RECHECK / 2));
+        assert!(u.due(now + RECHECK));
+        *tag.lock().unwrap() = "v0.23.0";
+        u.begin(&ctx);
+        assert!(u.checking());
+        settle(&mut u, &ctx);
+        assert_eq!(u.offer.as_ref().map(|o| o.release.tag.as_str()), Some("v0.23.0"));
+        // After a failure, an hour is enough.
+        let now = Instant::now();
+        u.last = Some((now, 0, Outcome::Failed("offline".into())));
+        assert!(u.due(now + RETRY));
+        u.last = Some((now, 0, Outcome::UpToDate));
+        assert!(!u.due(now + RETRY));
+    }
+
+    /// What File › Info shows for an update: its state, the progress of the download and the
+    /// buttons, all in the panel (no window).
+    #[test]
+    fn the_info_panel_shows_each_state() {
+        fn drawn(u: &mut Updater) -> Vec<String> {
+            let ctx = egui::Context::default();
+            let mut out = Vec::new();
+            for _ in 0..2 {
+                let mut o = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    u.panel(ui, true);
+                });
+                o.textures_delta.clear();
+                out = o
+                    .shapes
+                    .iter()
+                    .filter_map(|s| match &s.shape {
+                        egui::Shape::Text(t) => Some(t.galley.text().to_string()),
+                        _ => None,
+                    })
+                    .collect();
+            }
+            out
+        }
+        let has = |texts: &[String], s: &str| texts.iter().any(|t| t.contains(s));
+        let mut u = Updater::new("0.21.0").with_stager(counting(&Arc::default(), Ok(true)), true);
+        let texts = drawn(&mut u);
+        assert!(has(&texts, "once a day") && has(&texts, "Check for Updates"), "{texts:?}");
+        u.last = Some((Instant::now(), unix_now(), Outcome::UpToDate));
+        assert!(has(&drawn(&mut u), "You have the newest version."));
+        u.last = Some((Instant::now(), unix_now(), Outcome::Failed("offline".into())));
+        let texts = drawn(&mut u);
+        assert!(has(&texts, "Could not check for updates.") && has(&texts, "offline"), "{texts:?}");
+        // Downloading: the bytes so far.
+        let mut r = release("v0.22.0", &[]);
+        r.notes = "* Faster".into();
+        u.offer = Some(Offer {
+            release: r,
+            how: How::Install(Install::AppImage("/home/u/Strix.AppImage".into())),
+            message: None,
+            installing: false,
+            staging: Staging::Downloading,
+        });
+        u.progress.hear(JobPhase::Downloading { done: 1_048_576, total: 4 * 1_048_576 });
+        let texts = drawn(&mut u);
+        assert!(has(&texts, "0.22.0 is available") && has(&texts, "1.0 of 4.0 MB") && has(&texts, "What's new"), "{texts:?}");
+        u.progress.hear(JobPhase::Verifying);
+        assert!(has(&drawn(&mut u), "Verifying"));
+        if let Some(o) = &mut u.offer {
+            o.staging = Staging::Ready { silent: true };
+        }
+        assert!(has(&drawn(&mut u), "Restart Now"));
+        if let Some(o) = &mut u.offer {
+            o.staging = Staging::Failed("disk full".into());
+        }
+        let texts = drawn(&mut u);
+        assert!(has(&texts, "Update and Restart") && has(&texts, "disk full"), "{texts:?}");
+        // A copy that can't replace itself: Download, and no automatic download setting.
+        if let Some(o) = &mut u.offer {
+            o.how = How::Download("https://x/strix.dmg".into());
+        }
+        u.self_updating = Some(false);
+        let texts = drawn(&mut u);
+        assert!(has(&texts, "Download") && !has(&texts, "Download updates automatically"), "{texts:?}");
     }
 
     fn installable(tag: &'static str) -> CheckSource {
@@ -712,7 +948,7 @@ mod tests {
 
     fn counting(calls: &Arc<std::sync::atomic::AtomicUsize>, outcome: Result<bool, String>) -> StageSource {
         let calls = calls.clone();
-        Arc::new(move |_, _, _, _| {
+        Arc::new(move |_, _, _, _, _| {
             calls.fetch_add(1, Ordering::SeqCst);
             outcome.clone()
         })
@@ -727,8 +963,7 @@ mod tests {
         settle(&mut u, &ctx);
         assert_eq!(u.offer.as_ref().map(|o| o.staging.clone()), Some(Staging::Ready { silent: true }));
         assert_eq!(u.ready, Some(("v0.22.0".into(), true)));
-        // Later hides the window; asking again shows the download that's there, not a new one.
-        u.offer = None;
+        // Asking again shows the download that's there, not a new one.
         u.check_now(&ctx);
         settle(&mut u, &ctx);
         assert_eq!(u.offer.as_ref().map(|o| o.staging.clone()), Some(Staging::Ready { silent: true }));
@@ -763,7 +998,7 @@ mod tests {
         let mut u = Updater::new("0.21.0").with_source(installable("v0.22.0")).with_stager(counting(&calls, Err("offline".into())), true);
         u.check_at_start(&ctx);
         settle(&mut u, &ctx);
-        assert_eq!(u.offer.as_ref().map(|o| o.staging.clone()), Some(Staging::Failed));
+        assert_eq!(u.offer.as_ref().map(|o| o.staging.clone()), Some(Staging::Failed("offline".into())));
         assert_eq!(u.ready, None);
         // A package that asks for the password is downloaded, but not installed silently.
         let mut u = Updater::new("0.21.0").with_source(installable("v0.22.0")).with_stager(counting(&calls, Ok(false)), true);
