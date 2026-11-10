@@ -2,7 +2,8 @@
 # Exercise the native print host and all UI tests on PRs; the broad FreeBSD/ARM64 gates
 # stay on their existing nightly/release schedule. Linux is left to ci.yml, whose
 # `cargo xtask ci` already runs fmt, workspace clippy and tests, and the wasm check: here only
-# the macOS and Windows hosts compile, without repeating what doesn't depend on the OS.
+# the macOS and Windows hosts compile, without repeating what doesn't depend on the OS. A push to
+# main whose code a PR already passed doesn't run them again (tested-tree.yml).
 name: Printing
 
 on:
@@ -21,6 +22,10 @@ on:
       - 'apps/strix-web/**'
       - 'crates/ui-egui/**'
       - '.github/workflows/printing.yml'
+  # Nightly on main, for the dependency caches only main's runs save: skipped when main has no
+  # new code since its last full run (tested-tree.yml).
+  schedule:
+    - cron: "53 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -31,8 +36,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Already passed on the PR that brought this exact code to main: not run again (tested-tree.yml).
+  tested:
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: printing.yml
+      mode: check
+
   native:
     name: Print (${{ matrix.os }})
+    needs: [tested]
+    if: needs.tested.outputs.tested != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -59,3 +76,15 @@ jobs:
 
       - name: Native app and UI tests
         run: cargo test -p strix -p wordcraft-ui-egui --locked
+
+  # Checks passed on a PR or on main: remember the tree (tested-tree.yml).
+  record:
+    needs: [native]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: printing.yml
+      mode: record

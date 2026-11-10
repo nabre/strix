@@ -1,6 +1,7 @@
 # Quick static checks for the release pipeline (seconds, no Rust build): workflow syntax,
 # packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata. On main and
-# PRs that change those files; release.yml doesn't run it again.
+# PRs that change those files; release.yml doesn't run it again, nor does a push to main whose
+# code a PR already passed (tested-tree.yml).
 name: Packaging lint
 
 on:
@@ -19,11 +20,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Already passed on the PR that brought this exact code to main: not run again (tested-tree.yml).
+  tested:
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: packaging-lint.yml
+      mode: check
+
   lint:
+    needs: [tested]
+    if: needs.tested.outputs.tested != 'true'
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/packaging-lint.yml@main
 
   windows-install-policy:
+    needs: [tested]
+    if: needs.tested.outputs.tested != 'true'
     timeout-minutes: 10
     name: Windows installation policy (no app build)
     runs-on: windows-latest
@@ -46,3 +61,15 @@ jobs:
       - name: Build and check non-executable installer fixtures
         shell: pwsh
         run: ./packaging/windows/test-install-policy.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'craft-install-policy-tests')
+
+  # Checks passed on a PR or on main: remember the tree (tested-tree.yml).
+  record:
+    needs: [lint, windows-install-policy]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tested-tree.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      workflow: packaging-lint.yml
+      mode: record
