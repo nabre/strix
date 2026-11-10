@@ -1,6 +1,6 @@
 # Quick static checks for the release pipeline (seconds, no Rust build): workflow syntax,
-# packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata. Not on the
-# `release` branch: it only gets main merged in, and main's files were checked there already.
+# packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata. On main and
+# PRs that change those files; release.yml doesn't run it again.
 name: Packaging lint
 
 on:

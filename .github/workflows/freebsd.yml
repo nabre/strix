@@ -4,8 +4,8 @@ name: FreeBSD
 
 # The VM build is slow, so it runs nightly on main, not on every pull request: a drifted dependency
 # still shows up within a day. PRs that change the FreeBSD workflow or packaging itself still run
-# it. A push to `release` doesn't run it again: release.yml builds the FreeBSD package in its own
-# VM and reports this workflow's last run on main (job "Checks already run").
+# it. A release doesn't run it again: release.yml builds the FreeBSD package in its own VM and
+# reports this workflow's last run on main (job "Checks already run").
 on:
   pull_request:
     paths:

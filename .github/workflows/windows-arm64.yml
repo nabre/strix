@@ -6,8 +6,8 @@
 name: Windows ARM64
 
 # Nightly on main (dependency and runner-image drift shows up within a day) and on PRs that change
-# the Windows packaging itself. A push to `release` doesn't run it again: release.yml builds the
-# ARM64 MSI itself and reports this workflow's last run on main (job "Checks already run").
+# the Windows packaging itself. A release doesn't run it again: release.yml builds the ARM64 MSI
+# itself and reports this workflow's last run on main (job "Checks already run").
 on:
   schedule:
     - cron: "13 6 * * *"

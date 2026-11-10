@@ -8,8 +8,8 @@ name: Site
 #
 # Always deployed from main: the github-pages environment refuses tags ("Tag v0.17.0 is not
 # allowed to deploy to github-pages"), so a release published on GitHub doesn't deploy from its
-# tag but starts this workflow again on main (job "On main"). One published by
-# publish-release.yml starts it on main itself (GITHUB_TOKEN raises no `release` event).
+# tag but starts this workflow again on main (job "On main"). One published by release.yml
+# starts it on main itself (GITHUB_TOKEN raises no `release` event).
 on:
   push:
     branches: [main]
