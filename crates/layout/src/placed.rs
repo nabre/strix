@@ -22,10 +22,12 @@ pub enum Placed {
         color: Rgb,
     },
     /// Graph paper over `rect` (docs/graph-paper.md): lines on whole squares from its top-left
-    /// corner, inside it. Behind the text.
+    /// corner, inside it, or from the sheet's origin when it is a part of a larger sheet.
+    /// Behind the text.
     Grid {
         rect: Rect,
         grid: Arc<wordcraft_doc::graph_paper::GraphPaper>,
+        sheet: Option<GridSheet>,
     },
     Rule {
         x0: f32,
@@ -113,6 +115,30 @@ pub enum Placed {
     },
 }
 
+/// A grid rect that is one part of a larger sheet of graph paper (a grid across columns): its
+/// squares and heavier lines count from the sheet's origin, and the sheet has one frame round
+/// all its parts instead of one each.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GridSheet {
+    /// The page point the sheet's squares count from.
+    pub origin: (f32, f32),
+    /// The rect's edges (left, top, right, bottom) that lie wholly on the sheet's outline: with
+    /// a frame of its own weight, drawn by the frame instead of as grid lines.
+    pub edges: [bool; 4],
+    /// The sheet's outline (page points, closed), drawn as the frame by the part that carries it
+    /// (the last one, so the frame comes over every part's lines).
+    pub outline: Option<Arc<[(f32, f32)]>>,
+}
+
+impl GridSheet {
+    fn translate(&mut self, dx: f32, dy: f32) {
+        self.origin = (self.origin.0 + dx, self.origin.1 + dy);
+        if let Some(o) = self.outline.as_mut() {
+            *o = o.iter().map(|(x, y)| (x + dx, y + dy)).collect();
+        }
+    }
+}
+
 impl Placed {
     pub(crate) fn translate(&mut self, dx: f32, dy: f32) {
         match self {
@@ -120,8 +146,14 @@ impl Placed {
                 *x += dx;
                 *y += dy;
             }
+            Placed::Grid { rect, sheet, .. } => {
+                rect.x += dx;
+                rect.y += dy;
+                if let Some(s) = sheet.as_mut() {
+                    s.translate(dx, dy);
+                }
+            }
             Placed::Fill { rect, .. }
-            | Placed::Grid { rect, .. }
             | Placed::Image { rect, .. }
             | Placed::Shape { rect, .. }
             | Placed::Graphic { rect, .. }
@@ -178,8 +210,12 @@ impl Placed {
                     *t = turn;
                 }
             }
+            Placed::Grid { rect, sheet, .. } => {
+                // A turned grid is ruled on its own.
+                *rect = turn_rect(turn, x, y, *rect);
+                *sheet = None;
+            }
             Placed::Fill { rect, .. }
-            | Placed::Grid { rect, .. }
             | Placed::Image { rect, .. }
             | Placed::Shape { rect, .. }
             | Placed::Graphic { rect, .. }
