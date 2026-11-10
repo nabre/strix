@@ -66,8 +66,8 @@ winit or rfd.
   catalog percentage above a floor that only rises.
 - GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs;
   packaging lint, and FreeBSD / Windows ARM64 on PRs that change their files and nightly on `main`;
-  one release workflow on pushes to `main` that builds and publishes every package only when the
-  version has no GitHub Release yet, reading those runs instead of running them again (the
+  one release workflow: a push to `main` whose version has no GitHub Release merges it into
+  `release`, where every package is built (signed) and the release published, reading those runs instead of running them again (the
   released commit's CI must have passed; the nightly FreeBSD and Windows ARM64 runs are
   reported). See [`releasing.md`](releasing.md).
 
@@ -75,7 +75,7 @@ winit or rfd.
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-11-10 | minor | One release workflow on `main`: publishes the version's release with every package when it has none |
+| 2026-11-10 | minor | One release workflow: a version without a release on `main` is merged into `release`, built signed and published with every package |
 | 2026-11-10 | minor | Each check runs once across the workflows (release reads CI and the nightlies instead of running them again); `cargo xtask workflows` in `cargo xtask ci` |
 | 2026-10-28 | minor | Layer table matches `cargo xtask layers` (`calc`, `cad`, `metafile`; `zotero` L5; `control-key` standalone) |
 | 2026-10-10 | minor | `proof`: proofing languages (English, Polish), affix engine, Polish patterns; layout and engine route each run by its language |

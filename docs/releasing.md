@@ -9,7 +9,11 @@ this file has the Strix specifics.
    `WORDCRAFT_BUILD_SHA`).
 2. Merge it into `main`. `.github/workflows/release.yml` runs on every push to `main`; its
    **Version** job checks whether `v<version>` is already a published GitHub Release. If it is,
-   nothing else runs. If it isn't, the workflow builds every package from that commit:
+   nothing else runs. If it isn't, **Promote main to release** merges that commit into the
+   `release` branch and starts the workflow there (signed builds run only on `release`: the
+   `release` environment gives its signing secrets to that branch alone, and SignPath signs only
+   requests from it). Merging `main` into `release` by hand and pushing does the same. On
+   `release` the workflow builds every package:
 
 | Platform | Artifacts | Signing |
 |---|---|---|
@@ -40,7 +44,13 @@ Windows builds ship portable.
    `SHA256SUMS.txt`. Complete its title afterwards as `Strix v<version> — <highlights>` (every
    release is titled this way). A tag made without a release (by hand) is built from the tag's
    commit, if its Cargo.toml carries the same version; a draft left by the old flow is replaced.
-   There is one release workflow: no `release` branch, no draft to publish by hand.
+   There is one release workflow and no draft to publish by hand.
+
+   **Promote main to release** uses `GITHUB_TOKEN`, which can't push a merge that changes
+   `.github/workflows/`: then it fails with that reason, and `main` is merged into `release` by
+   hand, unless the repository secret `RELEASE_PUSH_TOKEN` (a fine-grained token with Contents
+   and Workflows write on this repository) is set, which the job uses instead. A conflict on
+   `release` fails the same way.
 
    Publishing redeploys the site (`site.yml`, started by the release run: a release published
    with `GITHUB_TOKEN` starts no other workflow), so the download links and the browser version
@@ -57,7 +67,7 @@ Windows builds ship portable.
 
 `.github/workflows/release.yml` is Strix's own pipeline: it reuses the suite's composite actions
 (`storytold/craft-common-actions/actions/*`) but not its reusable release workflow, which requires
-signing on a `release` branch and runs macOS on the paid `macos-15-xlarge` runner. Here:
+signing on the `release` branch (as here) and runs macOS on the paid `macos-15-xlarge` runner. Here:
 
 - **Every platform builds whether or not it can be signed.** The **Signing (check only)** job
   reads the secrets and reports, as warnings and in the run's summary, what will be signed: it
@@ -69,9 +79,10 @@ signing on a `release` branch and runs macOS on the paid `macos-15-xlarge` runne
 - The release waits for every build (not for signing) and for **Checks already run**.
 - **Each check runs once.** The release doesn't run again what other workflows already checked;
   **Checks already run** reads their results beside the builds (no build waits for it):
-  - CI (`ci.yml`, `cargo xtask ci`) of the released commit, started by the same push to `main`:
-    waited for while it runs. **Failed: nothing is published** (fix it on `main`: the next push
-    publishes the release). No run found: a warning.
+  - CI (`ci.yml`, `cargo xtask ci`) of the released code: the built commit's run or, when
+    `release` got `main` through a merge commit, the run of the `main` commit merged in. Still
+    running: waited for. **Failed: nothing is published** (fix it on `main`: the next push
+    brings the fix into `release`). No run found: a warning.
   - The last completed nightly **FreeBSD** (`freebsd.yml`: build and tests in a VM) and **Windows
     ARM64** (`windows-arm64.yml`: the ARM64 MSI installed and run on an ARM64 runner) runs on
     `main`, reported in the summary, a warning when one failed. Start one by hand
@@ -91,10 +102,6 @@ release, 0.12.0).
 Local packaging: `packaging/macos/package.sh --arch universal`, `packaging/windows/package.ps1`,
 `packaging/linux/package.sh` (then `packaging/linux/flatpak-bundle.sh` for the Flatpak), `packaging/web/package.sh`.
 
-Dry run: `gh workflow run release.yml --ref <branch>` on any branch but `main` builds every
-package and publishes nothing (the signing jobs need the `release` environment to allow that
-branch, or they are refused).
-
-**Owner settings for releases from `main`:** the `release` environment (Settings › Environments)
-must allow deployments from `main` (it used to allow only `release`), and the SignPath signing
-policy must accept requests from `main`.
+Dry run: `gh workflow run release.yml --ref <branch>` on any branch but `main` and `release`
+builds the unsigned jobs (version, Linux, Linux riscv64, Flatpak, FreeBSD, web) and publishes
+nothing; the signing jobs are refused there by the `release` environment's branch rule.

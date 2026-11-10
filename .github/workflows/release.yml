@@ -1,29 +1,32 @@
 # Modified by the Strix contributors (fork of WordCraft); see NOTICE.
-# Strix's one release workflow (docs/releasing.md): every push to main checks whether the version
-# in Cargo.toml ([workspace.package] version) already has its GitHub Release `vX.Y.Z`. When it has,
-# nothing runs past the "Version" job. When it hasn't, every platform's packages are built from
-# that commit and the release is published with all of them, SHA256SUMS.txt and generated notes,
-# then the site (site.yml) is redeployed so its download links and web app move to it.
+# Strix's one release workflow (docs/releasing.md). Signed packages are built only on the `release`
+# branch: the `release` environment gives its signing secrets to that branch alone, and SignPath
+# signs only requests from the Release workflow on `release` (docs/code-signing.md).
+#
+# - Push to main: when the version in Cargo.toml ([workspace.package] version) has no published
+#   GitHub Release `vX.Y.Z`, job "Promote main to release" merges this commit into `release` and
+#   starts this workflow there. Otherwise nothing runs past "Version".
+# - Push to release (by that job, or by hand: merge main into release): when the version has no
+#   release, every platform's packages are built, and the release is published with all of them,
+#   SHA256SUMS.txt and generated notes; then the site (site.yml) is redeployed so its download
+#   links and web app move to it.
+# - Run by hand on any other branch: every package built as a dry run, nothing published.
 #
 # Every platform builds whether or not the signing secrets are set: the "Signing" job reports what
 # is missing as warnings, never as a failure, and the macOS and Windows packaging scripts then sign
 # ad hoc or not at all.
 #
-# Nothing checked elsewhere is run again here (job "Checks already run"): the released commit's CI
-# run (`cargo xtask ci`, ci.yml, started by the same push) must pass, and the last nightly FreeBSD
-# and Windows ARM64 runs on main (freebsd.yml, windows-arm64.yml) are reported.
-#
-# Run by hand (Actions › Release › Run workflow): on main it does what a push does (publishes a
-# missing release); on any other branch it builds every package as a dry run and publishes nothing.
+# Nothing checked elsewhere is run again here (job "Checks already run"): CI (`cargo xtask ci`,
+# ci.yml) of the main commit released must pass, and the last nightly FreeBSD and Windows ARM64
+# runs on main (freebsd.yml, windows-arm64.yml) are reported.
 #
 # It reuses the suite's composite actions (storytold/craft-common-actions/actions/*) but not its
-# reusable release workflow, which requires signing on a release branch and a paid
-# macos-15-xlarge runner.
+# reusable release workflow, which runs macOS on a paid macos-15-xlarge runner.
 name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, release]
   workflow_dispatch:
 
 permissions:
@@ -43,10 +46,12 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Whether this run builds and publishes, decided once; every other job follows its outputs.
+  # What this run does, decided once; every other job follows its outputs.
   # - version: Cargo.toml's [workspace.package] version; tag v<version>.
-  # - build: false when v<version> is already a published release (on main), true otherwise.
-  # - publish: true on main only (a run on another branch is a dry run).
+  # - promote: on main, v<version> has no published release: bring main into release.
+  # - build: on release, v<version> has no published release; on another branch (not main), a
+  #   dry run.
+  # - publish: on release only.
   # - sha: the commit built: this one, or the tag's when v<version> was tagged without a release
   #   (the release must hold what the tag names).
   version:
@@ -58,6 +63,7 @@ jobs:
       date: ${{ steps.v.outputs.date }}
       prerelease: ${{ steps.v.outputs.prerelease }}
       sha: ${{ steps.v.outputs.sha }}
+      promote: ${{ steps.v.outputs.promote }}
       build: ${{ steps.v.outputs.build }}
       publish: ${{ steps.v.outputs.publish }}
     steps:
@@ -78,44 +84,100 @@ jobs:
           prerelease=false
           case "$version" in *-*) prerelease=true ;; esac
           sha="$GITHUB_SHA"
-          build=true
+          promote=false
+          build=false
           publish=false
           echo "### Release" >>"$GITHUB_STEP_SUMMARY"
-          if [ "$GITHUB_REF" = refs/heads/main ]; then
-            publish=true
-            draft="$(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null || true)"
-            if [ "$draft" = false ]; then
-              build=false
-              publish=false
-              echo "$tag is already released: nothing to build" | tee -a "$GITHUB_STEP_SUMMARY"
-            elif tagged="$(gh api "repos/$repo/commits/$tag" --jq .sha 2>/dev/null)" && [ -n "$tagged" ]; then
-              # Tagged without a release: build what the tag names, if it carries this version.
-              at_tag="$(gh api "repos/$repo/contents/Cargo.toml?ref=$tagged" --jq .content | base64 -d | version_of)"
-              if [ "$at_tag" != "$version" ]; then
-                echo "::error::tag $tag points at ${tagged:0:7}, whose Cargo.toml says $at_tag: move or delete the tag, or bump the version"
-                exit 1
+          released=false
+          [ "$(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null || true)" = false ] && released=true
+          case "$GITHUB_REF" in
+            refs/heads/main | refs/heads/release)
+              if [ "$released" = true ]; then
+                echo "$tag is already released: nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"
+              elif [ "$GITHUB_REF" = refs/heads/main ]; then
+                promote=true
+                echo "$tag has no release: bringing ${sha:0:7} into the release branch, which builds and publishes it" | tee -a "$GITHUB_STEP_SUMMARY"
+              elif tagged="$(gh api "repos/$repo/commits/$tag" --jq .sha 2>/dev/null)" && [ -n "$tagged" ]; then
+                # Tagged without a release: build what the tag names, if it carries this version.
+                at_tag="$(gh api "repos/$repo/contents/Cargo.toml?ref=$tagged" --jq .content | base64 -d | version_of)"
+                if [ "$at_tag" != "$version" ]; then
+                  echo "::error::tag $tag points at ${tagged:0:7}, whose Cargo.toml says $at_tag: move or delete the tag, or bump the version"
+                  exit 1
+                fi
+                sha="$tagged"
+                build=true
+                publish=true
+                echo "$tag is tagged (${tagged:0:7}) but not released: building and publishing it" | tee -a "$GITHUB_STEP_SUMMARY"
+              else
+                build=true
+                publish=true
+                echo "$tag has no release: building and publishing it from ${sha:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
               fi
-              sha="$tagged"
-              echo "$tag is tagged (${tagged:0:7}) but not released: building and publishing it" | tee -a "$GITHUB_STEP_SUMMARY"
-            else
-              echo "$tag has no release: building and publishing it from ${sha:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
-            fi
-          else
-            echo "Dry run on $GITHUB_REF_NAME: every package of $version is built, nothing is published" | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+              ;;
+            *)
+              build=true
+              echo "Dry run on $GITHUB_REF_NAME: every package of $version is built, nothing is published" | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
           {
             echo "version=$version"
             echo "date=$(date -u +%Y-%m-%d)"
             echo "prerelease=$prerelease"
             echo "sha=$sha"
+            echo "promote=$promote"
             echo "build=$build"
             echo "publish=$publish"
           } >>"$GITHUB_OUTPUT"
 
+  # Main has a version without a release: merge this commit into the release branch (created from
+  # it when missing) and start this workflow there, where the signed builds run. The run is started
+  # explicitly because a push made with a workflow token starts no workflow. GITHUB_TOKEN can't
+  # push a merge that changes .github/workflows/: set the secret RELEASE_PUSH_TOKEN (a fine-grained
+  # token with Contents and Workflows write on this repository) to cover that case too; without
+  # it, such a merge fails here and main is merged into release by hand.
+  promote:
+    name: Promote main to release
+    needs: [version]
+    if: needs.version.outputs.promote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      # gh workflow run release.yml
+      actions: write
+    steps:
+      - name: Merge main into release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          if ! gh api "repos/$repo/branches/release" --silent 2>/dev/null; then
+            gh api "repos/$repo/git/refs" -f ref=refs/heads/release -f sha="$SHA" --silent
+            echo "Created the release branch at ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # 201: merged; 204: release already holds this commit; 409: conflict.
+          if ! out="$(gh api "repos/$repo/merges" -f base=release -f head="$SHA" \
+              -f commit_message="Release v$VERSION: merge main (${SHA:0:7}) into release" 2>&1)"; then
+            echo "::error::merging ${SHA:0:7} into release failed: $out (merge main into release by hand; a merge that changes .github/workflows/ needs the RELEASE_PUSH_TOKEN secret)"
+            exit 1
+          fi
+          echo "Merged ${SHA:0:7} into release" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Start the release build on release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref release
+          echo "Started Release on the release branch" | tee -a "$GITHUB_STEP_SUMMARY"
+
   # What other workflows already checked, read instead of run again. It runs beside the builds
   # (no build waits for it) and only the publishing job needs it:
-  # - CI (ci.yml, `cargo xtask ci`) of the released commit, started by the same push: waited for
-  #   while it runs. Failed: nothing is published. Not found: a warning.
+  # - CI (ci.yml, `cargo xtask ci`) of the released code: the built commit's run or, when the
+  #   release branch got main through a merge commit, the run of the main commit merged in (its
+  #   second parent). Waited for while it runs. Failed: nothing is published. Not found: a warning.
   # - The last completed nightly FreeBSD and Windows ARM64 runs on main: reported, a warning when
   #   one failed (they don't hold the release back).
   checks:
@@ -128,7 +190,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: CI of the released commit
+      - name: CI of the released code
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ needs.version.outputs.sha }}
@@ -141,28 +203,31 @@ jobs:
             gh run list --repo "$repo" --workflow ci.yml --commit "$1" --limit 1 \
               --json databaseId,status,url,conclusion --jq '.[] | "\(.databaseId) \(.status) \(.url) \(.conclusion)"'
           }
-          # The same push starts ci.yml: give it a few minutes to show up.
-          run=""
-          for _ in $(seq 1 10); do
-            run="$(run_of "$SHA")"
-            [ -z "$run" ] || break
-            sleep 30
-          done
+          checked="$SHA"
+          run="$(run_of "$checked")"
+          if [ -z "$run" ]; then
+            # A merge commit on release: the main commit merged in (second parent) had the CI run.
+            merged="$(gh api "repos/$repo/commits/$SHA" --jq '.parents[1].sha // empty')"
+            if [ -n "$merged" ]; then
+              checked="$merged"
+              run="$(run_of "$checked")"
+            fi
+          fi
           echo "### Checks already run" >>"$GITHUB_STEP_SUMMARY"
           if [ -z "$run" ]; then
-            echo "::warning::no CI run (ci.yml) for $SHA: the released code's cargo xtask ci can't be confirmed"
-            echo "- CI: no run found for $SHA" >>"$GITHUB_STEP_SUMMARY"
+            echo "::warning::no CI run (ci.yml) for $checked: the released code's cargo xtask ci can't be confirmed"
+            echo "- CI: no run found for $checked" >>"$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           read -r id status url conclusion <<<"$run"
           if [ "$status" != completed ]; then
-            echo "CI run $id for $SHA is still running: waiting for it"
+            echo "CI run $id for $checked is still running: waiting for it"
             gh run watch "$id" --repo "$repo" --interval 60 >/dev/null || true
             conclusion="$(gh run view "$id" --repo "$repo" --json conclusion --jq .conclusion)"
           fi
-          echo "- CI on $SHA: $conclusion ($url)" >>"$GITHUB_STEP_SUMMARY"
+          echo "- CI on $checked: $conclusion ($url)" >>"$GITHUB_STEP_SUMMARY"
           if [ "$conclusion" != success ]; then
-            echo "::error::CI (ci.yml) on $SHA ended \"$conclusion\": $url (fix it on main: the next push publishes the release)"
+            echo "::error::CI (ci.yml) on $checked ended \"$conclusion\": $url (fix it on main: the next push to main brings the fix into release)"
             exit 1
           fi
       - name: Last nightly FreeBSD and Windows ARM64 runs
@@ -635,8 +700,8 @@ jobs:
           if-no-files-found: error
 
   # The GitHub Release v<version>, published with every package and SHA256SUMS.txt once every
-  # build has passed and the released commit's CI too (the signing report never holds it back).
-  # On main only. Then the site is redeployed: a release published with GITHUB_TOKEN raises no
+  # build has passed and the released code's CI too (the signing report never holds it back).
+  # On the release branch only. Then the site is redeployed: a release published with GITHUB_TOKEN raises no
   # `release` event for site.yml, but a workflow_dispatch started here does run.
   release:
     name: Publish GitHub Release
@@ -668,8 +733,8 @@ jobs:
           rm -f SHA256SUMS.txt
           sha256sum -- * >SHA256SUMS.txt
           ls -l
-          # A draft left by the old two-step flow (release branch, then Publish release) is
-          # replaced: it holds no tag, and the release below carries every package.
+          # A draft left by the old flow (draft, then Publish release) is replaced: it holds no
+          # tag, and the release below carries every package.
           if [ "$(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null || true)" = true ]; then
             gh release delete "$tag" --repo "$repo" --yes
             echo "Replaced the draft $tag" >>"$GITHUB_STEP_SUMMARY"

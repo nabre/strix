@@ -10,8 +10,7 @@ Free code signing provided by [SignPath.io](https://about.signpath.io), certific
 ## What is signed
 
 Only Strix's own Windows programs and installers, built from this repository by the GitHub
-Actions [Release workflow](../.github/workflows/release.yml) on the `main` branch (when the
-version has no release yet):
+Actions [Release workflow](../.github/workflows/release.yml) on the `release` branch:
 
 - `strix.exe` and `strix-cli.exe`, in the MSI installers and in the portable ZIP;
 - the installers `strix-<version>-windows-<arch>.msi` (one dual-scope package per architecture);
@@ -23,7 +22,7 @@ programs and libraries are never signed with Strix's certificate. The signing co
 [`.signpath/artifact-configuration.xml`](../.signpath/artifact-configuration.xml).
 
 Each release is signed only after a person in the Approvers role checks the signing request in
-SignPath: the request must come from the Release workflow on the `main` branch of
+SignPath: the request must come from the Release workflow on the `release` branch of
 `github.com/nabre/strix`, for a version whose changes have been reviewed.
 
 ## Team roles
