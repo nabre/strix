@@ -95,6 +95,9 @@ pub enum GridPlacement {
     /// A block from where it is in the text to the bottom of the page.
     #[default]
     PageEnd,
+    /// A block from where it is in the text to the bottom of its column; what follows starts in
+    /// the next column (on the next page after the last one).
+    ColumnEnd,
     /// The rest of this page, then whole pages until the next odd-numbered page starts.
     UntilOdd,
     /// The rest of this page, then whole pages until the next even-numbered page starts.
@@ -110,6 +113,7 @@ impl GridPlacement {
         match self {
             GridPlacement::Background => "background",
             GridPlacement::PageEnd => "pageEnd",
+            GridPlacement::ColumnEnd => "columnEnd",
             GridPlacement::UntilOdd => "untilOdd",
             GridPlacement::UntilEven => "untilEven",
             GridPlacement::Pages { .. } => "pages",
@@ -122,6 +126,7 @@ impl GridPlacement {
             match s {
                 "background" => GridPlacement::Background,
                 "pageEnd" | "fill" => GridPlacement::PageEnd,
+                "columnEnd" => GridPlacement::ColumnEnd,
                 "untilOdd" => GridPlacement::UntilOdd,
                 "untilEven" => GridPlacement::UntilEven,
                 "pages" => GridPlacement::Pages { pages },
@@ -371,6 +376,7 @@ mod tests {
             GraphPaper { placement: GridPlacement::Background, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::UntilOdd, major_every: 5, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::UntilEven, ..GraphPaper::default() },
+            GraphPaper { placement: GridPlacement::ColumnEnd, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::Pages { pages: 3 }, spacing: 4.0 * PT_PER_MM, ..GraphPaper::default() },
             GraphPaper {
                 placement: GridPlacement::Height { height: 80.0 },

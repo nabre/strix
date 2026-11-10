@@ -94,6 +94,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     {
         app.ui.tab = prev;
     }
+    // Editing a header or footer brings up the Header & Footer tab; leaving it goes back.
+    strix::follow_header_footer(app, ui.ctx());
     // The CAD editor brings up the CAD Drawing tab; closing it goes back.
     if let Some(ed) = app.cad.as_mut()
         && ed.prev_tab.is_none()
@@ -373,6 +375,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Home" => home(app, ui),
                         "Insert" => insert(app, ui),
                         "Math" => strix::math(app, ui),
+                        "Teaching" => strix::teaching(app, ui),
+                        "Header & Footer" => strix::header_footer(app, ui),
                         "Draw" => draw(app, ui),
                         "Design" => design(app, ui),
                         "Layout" => layout(app, ui),

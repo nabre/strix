@@ -1,7 +1,7 @@
 // Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{Stroke, Tokens, Ui, WordApp, json, semibold};
 
-pub const TABS: [&str; 14] = wordcraft_engine::ribbon::TABS;
+pub const TABS: [&str; 15] = wordcraft_engine::ribbon::TABS;
 
 /// True when the caret/selection touches a picture (#147).
 pub fn has_picture_selected(s: &wordcraft_engine::Session) -> bool {
@@ -106,9 +106,19 @@ pub fn has_chart_selected(s: &wordcraft_engine::Session) -> bool {
     wordcraft_engine::cmd::chart::selected_chart(s).is_some()
 }
 
+/// Whether the caret is in a header or footer (so the Header & Footer tab is shown).
+pub fn is_editing_header_footer(s: &wordcraft_engine::Session) -> bool {
+    let wordcraft_doc::StoryRef::Part(id) = s.sel.focus.story else { return false };
+    s.doc.parts.get(&id).is_some_and(|p| matches!(p.kind, wordcraft_doc::PartKind::Header | wordcraft_doc::PartKind::Footer))
+}
+
 /// Contextual tabs for the current selection (pure, tested).
 pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
     let mut tabs = Vec::new();
+    // Editing a header or footer (docs/headers-footers.md).
+    if is_editing_header_footer(s) {
+        tabs.push("Header & Footer");
+    }
     if s.sel.focus.path.cell().is_some() {
         tabs.push("Table Design");
         tabs.push("Table Layout");

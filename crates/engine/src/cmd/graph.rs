@@ -21,7 +21,7 @@ use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 /// The parameters every graph paper command takes (documented once).
 macro_rules! grid_params {
     () => {
-        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted", "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?, "followColumns"?: bool (ruled in each text column of the section, the space between them clear; default false: across the whole text width), "frameWidth"?: pt (0.1–6, the frame round the ruled area) | null (the frame weighs what the grid lines do: the default)"#
+        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "columnEnd" (to the end of the column; what follows starts in the next column) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted", "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?, "followColumns"?: bool (ruled in each text column of the section, the space between them clear; default false: across the whole text width), "frameWidth"?: pt (0.1–6, the frame round the ruled area) | null (the frame weighs what the grid lines do: the default)"#
     };
 }
 
@@ -117,7 +117,7 @@ pub fn apply(g: GraphPaper, v: &Value) -> Result<GraphPaper, CmdError> {
             other => other,
         },
         Some(Value::String(name)) => GridPlacement::parse(name, pages, height)
-            .ok_or_else(|| CmdError::Params("`placement`: background, pageEnd, untilOdd, untilEven, pages or height".into()))?,
+            .ok_or_else(|| CmdError::Params("`placement`: background, pageEnd, columnEnd, untilOdd, untilEven, pages or height".into()))?,
         Some(_) => return Err(CmdError::Params("`placement`: a string".into())),
     };
     let major_every = match num(v, "majorEvery")? {

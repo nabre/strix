@@ -9,18 +9,47 @@ use wordcraft_doc::para_block;
 use super::{breaks, scan, show};
 use crate::Session;
 
+/// A series' settings: those of its first exercise.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Settings {
+    breaks: breaks::Breaks,
+    show: show::Show,
+    grid: Option<wordcraft_doc::graph_paper::GraphPaper>,
+}
+
+/// The settings of the document's first exercise (the series'); `None` without exercises.
+pub(crate) fn settings(s: &Session) -> Option<Settings> {
+    let layout = scan(s);
+    let first = layout.exercises.first()?;
+    Some(Settings { breaks: first.breaks, show: first.show, grid: show::grid_of(s, first).map(|g| *g) })
+}
+
+/// Every exercise, the first included, takes `set` (a master document's series kept over the
+/// subdocuments it shows, a subdocument's file given its own back), then the automatic parts are
+/// rebuilt. Whether anything changed.
+pub(crate) fn impose(s: &mut Session, set: &Settings) -> bool {
+    let changed = align(s, 0, set);
+    super::update(s) || changed
+}
+
 /// Every exercise after the first takes the first one's page breaks, parts shown and graph paper
 /// (on, off, and its settings). Whether anything changed. Nothing for a lone exercise.
 pub(crate) fn conform(s: &mut Session) -> bool {
     let layout = scan(s);
-    let Some(first) = layout.exercises.first() else { return false };
     if layout.exercises.len() < 2 {
         return false;
     }
-    let (b, sh, grid) = (first.breaks, first.show, show::grid_of(s, first).map(|g| *g));
+    let Some(set) = settings(s) else { return false };
+    align(s, 1, &set)
+}
+
+/// The exercises from the `skip`-th on take `set`. Whether anything changed.
+fn align(s: &mut Session, skip: usize, set: &Settings) -> bool {
+    let layout = scan(s);
+    let (b, sh, grid) = (set.breaks, set.show, set.grid);
     let mut changed = false;
     // Last exercise first, so earlier block indices stay valid.
-    for e in layout.exercises.iter().skip(1).rev() {
+    for e in layout.exercises.iter().skip(skip).rev() {
         if e.breaks != b {
             changed |= breaks::set_control(s, e.start, b).is_ok();
         }
@@ -37,6 +66,7 @@ pub(crate) fn conform(s: &mut Session) -> bool {
                     }
                 }
             }
+            // Results shown again: the summary's hidden lines are rebuilt by `update`.
         }
         // The graph paper sits before the solution, after everything read above.
         match (e.grid, grid) {

@@ -43,7 +43,7 @@ pub struct ViewState {
     /// The Alt Text pane (Picture/Shape Format › Alt Text): the selected object's or table's alt text.
     #[serde(default)]
     pub alt_text_pane: bool,
-    /// The Exercise Properties pane (Math › Exercise › Properties): the data and variants of the
+    /// The Exercise Properties pane (Teaching › Exercise › Properties): the data and variants of the
     /// exercise at the caret (docs/exercise.md).
     #[serde(default)]
     pub exercise_pane: bool,

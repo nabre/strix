@@ -1,8 +1,8 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** a scores table (`exercise.scores`); the Teaching tab; the frontispiece is ended by a Frontispiece Break (no control or placeholder); in a master document the series' settings, numbering and styles stay the master's and the files keep their own; hidden parts start no page; previously: numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
-An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
+An **exercise** (Teaching › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
 "risolutore esercizi"; the tool is called *Exercise* / *Esercizio*.)
 
@@ -47,7 +47,7 @@ questions, working and a prefix of your own stay as written. One undo step takes
 ## Numbering
 
 The exercises of a document are numbered by one list, a **document setting** saved with it
-(Math › Exercise › Properties shows it in the Exercise Properties pane; `exercise.numbering`):
+(Teaching › Exercise › Properties shows it in the Exercise Properties pane; `exercise.numbering`):
 
 - **Prefix**: *Esercizio* / *Exercise* (the document's language) by default, any text of your
   own (*Problema*, *Es.*), or none for the number alone; Default puts the word back.
@@ -92,18 +92,19 @@ Exercise tab, and numbering is left out, since a lone exercise has no number.
 ## Parts shown
 
 The **solution** (its heading, the repeated questions and the working) and the exercise's lines in
-the **results summary** can be hidden (Math › Exercise › Show, or Exercise Properties › Parts
+the **results summary** can be hidden (Teaching › Exercise › Show, or Exercise Properties › Parts
 Shown; `exercise.show`), for a
 copy without the working, or without the answers. They become hidden text, so nothing is lost:
 shown again, they come back as they were (Show/Hide ¶ shows hidden text meanwhile). A hidden
 solution still gives its results to the summary. When no exercise shows its results the summary's
-heading is hidden too. The settings are kept on the exercise control (a `strix:exerciseShow`
+heading is hidden too. Hidden parts take no room on the page: a hidden solution that starts a
+new page (Page breaks) starts none while it is hidden. The settings are kept on the exercise control (a `strix:exerciseShow`
 element Word ignores); other word processors see ordinary hidden text.
 
 ## Graph paper per exercise
 
 **Graph paper** can be ruled in each exercise after the statement and the questions, before the
-solution (Math › Exercise › Show › Graph Paper Before the Solution, or Exercise Properties › Parts
+solution (Teaching › Exercise › Show › Graph Paper Before the Solution, or Exercise Properties › Parts
 Shown; `exercise.grid {"on": true}`). It is an
 ordinary graph paper block (docs/graph-paper.md) with the same settings: placement (to the end of
 the page, whole pages, a height…, but not a page background), square size, lines, frame. Set them
@@ -113,13 +114,19 @@ one you wrote on keeps its text.
 
 ## Frontispiece
 
-A **frontispiece** (Math › Exercise › Frontispiece, or the Exercise Properties pane;
+A **frontispiece** (Teaching › Exercise › Frontispiece, or the Exercise Properties pane;
 `exercise.frontispiece {"on": true}`) is
-your own first page before the exercises: title of the series, class, date, instructions. It is
-free content at the very start of the document, in a control that can't be deleted by accident
-(type over its placeholder); what follows it starts a new page. A page break inside it
-(Ctrl+Enter) gives it a second page, and so on. Turning it off removes it with its content, in one
-undo step.
+your own pages before the exercises: title of the series, class, date, instructions. It is ended
+by a **Frontispiece Break**: a next-page section break marked as the frontispiece's
+(`strix:frontispiece="1"` on its `w:sectPr`), shown with Show/Hide ¶ like any section break, with
+its own name. Everything before it is the frontispiece: free text with no frame and no
+placeholder, as many pages as you write (page breaks, more paragraphs). Turning it on puts an
+empty paragraph ending in the break at the start of the document, the caret in it; what follows
+the break starts a new page. Being a section of its own, it can have its own headers and footers
+and page numbering. Turning it off removes it with its content, in one undo step. Documents from
+before, whose frontispiece was a control with a placeholder, get the break as they are next
+updated (the control goes, and the placeholder if still shown). Word sees an ordinary section
+break.
 
 ## Page breaks
 
@@ -142,7 +149,7 @@ The parts can't be deleted one by one, so an exercise goes **whole**:
 - **The grip**: with the cursor in an exercise, a handle of six dots stands in the margin at the
   left of its title. A click opens its menu: **Select Exercise** (all of it, as its tab does),
   **Exercise Properties** (the pane) and **Delete Exercise** (that exercise, whole).
-- **Delete Exercise** (Math › Exercise, or right-click in the exercise; `exercise.delete`)
+- **Delete Exercise** (Teaching › Exercise, or right-click in the exercise; `exercise.delete`)
   removes the exercise at the cursor, or every exercise a selection covers whole.
 - **Select the whole exercise and press Delete or Backspace** (or Cut, which copies it whole so
   Paste brings it back): a selection covering all of an exercise's content (from its title's
@@ -167,15 +174,55 @@ series of the master, which rules as when a style is updated:
   numbering, and questions keep their letters;
 - the results summary is the master's, one for every exercise at the end of the master: the
   subdocuments' own summaries are left out (a subdocument inserted at the end goes before it);
-- the series' settings (page breaks, parts shown, graph paper) are the master's first exercise's,
-  on every exercise of every subdocument, also when the master opens;
-- saving the master writes them back to the subdocument files, each with its own summary rebuilt
-  so it still opens complete on its own; a style or the numbering (prefix, format, separator)
-  changed in the master reaches every file too.
+- the series' settings (page breaks, parts shown, graph paper), the numbering and the styles are
+  **the master's**, on every exercise of every subdocument: kept when the master opens again and
+  its files are read back, and when a subdocument comes in before the first exercise;
+- the master has its own frontispiece; a subdocument's (a series called up in another master) is
+  left out, like its summary;
+- the files stay as they were thought out: saving the master writes back only the text edited in
+  a subdocument, and the file keeps its own styles, numbering, series' settings and frontispiece,
+  with its own summary rebuilt so it still opens complete on its own. Changing a setting, a style
+  or the numbering in the master is no edit of the files.
+
+So one file per exercise makes an archive, and a master makes a series out of them to hand out
+(with or without the solutions, its own page breaks and frontispiece); another master can call up
+a whole series and lay it out its own way, and none of it changes the files.
+
+## Scores table
+
+A **scores table** (Teaching › Scores › Scores Table, `exercise.scores {"on": true}`) lists the
+points of each exercise, to hand out with a test. It goes after the caret's paragraph, outside the
+exercises (in the frontispiece, say):
+
+| Exercise | IMP | | MOD | | CAL/RIS | | Total | |
+|---|---|---|---|---|---|---|---|---|
+| 1 | | 2 | | 2 | | 1 | | 5 |
+| 2 | | 2 | | 2 | | 1 | | 5 |
+| Total | | 4 | | 4 | | 2 | | 10 |
+
+- the **rows are the document's exercises**, gathered by themselves and numbered as they are (a
+  new exercise adds its row, a deleted one takes it away);
+- each **criterion** (IMP, MOD…) has **two columns**: one left empty, for the points given on the
+  sheet, and one for the points the exercise is worth, typed in (`2`, `1,5`). Add Criterion adds
+  both (`exercise.scores {"add": "MOD"}`); its name is typed in the header (or `"rename"`);
+  Remove Criterion takes one away with its points (`"remove": n`);
+- with **more than one criterion** a **Total column** adds each row up across; with **more than
+  one exercise** a **Total row** adds each column up down, and the grand total. They follow at
+  once as points are typed.
+
+It is a table in a content control (`strix:scores`) that can't be deleted by accident; Scores
+Table again (`"on": false`) removes it, in one undo step. Points can be set by script too:
+`exercise.scores {"exercise": 1, "criterion": 2, "points": 2}`. Word sees an ordinary table.
+
+## The Teaching tab
+
+The **Teaching** tab (Didattica) gathers what is for teaching: the Exercise group (New Exercise,
+questions and notes, Result Of, Show, Frontispiece, Properties, Delete Exercise), the Scores group
+(Scores Table, Add Criterion, Remove Criterion) and Graph Paper (also in Insert › Pages).
 
 ## Data and variants (Exercise Properties pane)
 
-Math › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret:
+Teaching › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret:
 
 - **Data**: rows of symbol, description, value and unit (`L`, luce, 4.5, m). They are the first
   parameters of the exercise's sandbox, so the solution uses `L` without defining it; each row
@@ -206,7 +253,7 @@ are split into one line each.)
 
 ## Results
 
-An equation in the solution is marked as the **result** of a question (Math › Exercise ›
+An equation in the solution is marked as the **result** of a question (Teaching › Exercise ›
 Result Of, `equation.answer {"question": n}`; without `question`, the question it is worked
 under), saved as `strix:answer="n"` on `m:oMath`). The
 summary lists, for every exercise, its label alone (*Esercizio 1*, as the exercises are numbered, never the title; the variant when there are several) and each question with the value of its result
@@ -232,6 +279,7 @@ to the end.
 | `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
 | `exercise.show` | the parts shown (`{"exercise"?: n, "solution"?, "results"?: bool}`; in a series every exercise) → `{"series", "solution", "results", "grid", "exercises"}` |
 | `exercise.grid` | graph paper after the questions (`{"exercise"?: n, "on"?: bool}` and graph.set's parameters but `background`; in a series every exercise) |
+| `exercise.scores` | the scores table: insert or remove it (`{"on"}`), add, remove or rename a criterion (`{"add"}`, `{"remove": n}`, `{"rename": n, "name"}`), set points (`{"exercise": n, "criterion": n, "points"}`) → `{"on", "criteria", "points", "exercises"}` |
 | `exercise.frontispiece` | add or remove the frontispiece (`{"on"?: bool}`) → `{"on"}` |
 | `exercise.data` | the data and variants of an exercise, with per-item errors |
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
@@ -254,17 +302,19 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-10: the scores table (`exercise.scores`): the exercises' rows by themselves, two columns per criterion, a Total column with more than one criterion and a Total row with more than one exercise; the Teaching tab gathers exercises, scores and graph paper.
+- 2026-11-10: the frontispiece is free text ended by a Frontispiece Break (a marked next-page section break), no control or placeholder; older frontispieces converted. In a master the series' settings, numbering and styles are the master's (kept on reopening), a subdocument's frontispiece is left out, and the files written back keep their own formatting and frontispiece. A hidden solution starts no page.
 - 2026-11-10: editing keeps the structure: placeholders come back when a part is emptied over several paragraphs, Backspace/Delete never join two parts nor eat a placeholder, removed questions leave no blank line; exercises in a master document follow the master (styles and lists brought in, one results summary, the series' settings, written back to the files).
 - 2026-11-10: a separator after the number in the numbering (period, colon, dash, parenthesis, space; `exercise.numbering {"separator"}`, a drop-down in Exercise Properties › Series); the title's paragraph style is locked to Exercise Title.
 
 - 2026-11-10: the series rules every exercise: page breaks too (no exercise of a series differs any more; the Exercise tab keeps only variants and data), the first exercise's settings forced on every other one however it came in, a new exercise takes the series'; the exercise's grip in the margin (Select, Properties, Delete Exercise).
 
 - 2026-11-09: the Exercise Properties pane in two tabs: Exercise (this exercise's variants, data, page breaks) and Series (numbering, parts shown, page breaks of every exercise and of the summary, frontispiece); a lone exercise has no Series tab and shows what applies to it in Exercise.
-- 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`). Math › Exercise: Show (Solution, Results, Graph Paper) and Frontispiece added; Update Summary (automatic anyway) and Numbering (the same pane as Properties) left out of the ribbon, still in command search.
+- 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`). Teaching › Exercise: Show (Solution, Results, Graph Paper) and Frontispiece added; Update Summary (automatic anyway) and Numbering (the same pane as Properties) left out of the ribbon, still in command search.
 - 2026-11-09: page breaks before an exercise when another comes before it, before its solution and before the results summary (`exercise.pageBreaks`, Exercise Properties pane).
 - 2026-11-08: the generated words follow the proofing language: changing it (status bar, Review › Language) translates an exercise's default words, the default prefix and the summary; French, German and Spanish words.
 - 2026-11-08: "Calculation and exercise" template, second in the File › New gallery, after Blank document.
-- 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Math › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.
+- 2026-10-29: exercise numbering as a document setting (prefix, format, first number; `exercise.numbering`, Numbering in Teaching › Exercise and the Exercise Properties pane); the summary heads each exercise with its label alone, without the title.
 - 2026-10-29: delete a whole exercise: Delete Exercise (ribbon, context menu, `exercise.delete`), Delete/Backspace/Cut over a selection covering it, a click on its tab selects it; the summary goes with the last exercise. Before, every way was refused by the locked parts.
 
 - 2026-10-29: the title has its own control (`strix:exercise.title`), so it is typed over, replaced and deleted in place; before, a New Exercise without a title could not have its title typed over.

@@ -279,6 +279,7 @@ impl Reader<'_> {
         sp.graph_paper = s.attr("strix:graph").and_then(wordcraft_doc::graph_paper::GraphPaper::from_attr).map(|g| {
             std::sync::Arc::new(wordcraft_doc::graph_paper::GraphPaper { placement: wordcraft_doc::graph_paper::GridPlacement::Background, ..g })
         });
+        sp.frontispiece = s.attr("strix:frontispiece") == Some("1");
         // §17.13.5.32: the section's properties before a tracked change (no header references).
         if let Some(ch) = s.child("w:sectPrChange") {
             let old = ch.child("w:sectPr").map(|o| sectpr(o).0).unwrap_or_default();

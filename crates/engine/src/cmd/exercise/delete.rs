@@ -15,7 +15,7 @@ use super::{
 use crate::{CmdError, CmdResult, Selection, Session};
 
 /// Why a deletion of part of an exercise is refused, and how to delete all of it.
-pub(crate) const REFUSED: &str = "The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Math › Exercise, or right-click it), or select all of it and press Delete.";
+pub(crate) const REFUSED: &str = "The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Teaching › Exercise, or right-click it), or select all of it and press Delete.";
 
 /// The message for a refused deletion touching the control tagged `tag`: [`REFUSED`] for an
 /// exercise's parts, none for other controls.

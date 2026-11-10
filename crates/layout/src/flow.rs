@@ -714,11 +714,19 @@ fn add_items(pb: &mut PageBuilder, behind: Vec<Placed>, items: Vec<Placed>) {
     }
 }
 
+/// Whether a paragraph's mark and every run of its text are hidden text.
+fn wholly_hidden(ctx: &Ctx, p: &Paragraph) -> bool {
+    let style = p.props.style.as_deref();
+    ctx.doc.styles.resolve_char(style, &p.mark).hidden && p.runs.iter().all(|r| ctx.doc.styles.resolve_char(style, &r.props).hidden)
+}
+
 pub(crate) fn place_para_in_flow(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32) {
     let mut f = Flow::new(ctx, pb, p, (block, body_top));
     let spot = |pb: &PageBuilder| (pb.pages.len(), pb.col);
     let placed_at = spot(pb);
-    let broke_before = f.pl.rp.page_break_before && !pb.at_top() && !pb.web;
+    // A paragraph wholly hidden (its text and mark, hidden text not shown) takes no room, and
+    // starts no page either.
+    let broke_before = f.pl.rp.page_break_before && !pb.at_top() && !pb.web && !(!ctx.opts.show_hidden && wholly_hidden(ctx, p));
     if broke_before {
         pb.new_page(block, body_top);
     }

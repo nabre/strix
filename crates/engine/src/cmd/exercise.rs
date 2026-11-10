@@ -40,6 +40,7 @@ mod delete;
 mod front;
 mod language;
 mod numbering;
+mod scores;
 mod series;
 mod show;
 mod structure;
@@ -97,46 +98,49 @@ pub fn specs() -> Vec<CommandSpec> {
         }
     };
     vec![
-        CommandSpec::new("exercise.insert", "New Exercise", "Math › Exercise", insert)
+        CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
             .params(r#"{"title"?: string, "text"?: string, "questions"?: [string]} → inserts an exercise after the paragraph at the caret: title, statement, questions, solution; the results summary goes (or stays) at the end of the document"#),
-        CommandSpec::new("exercise.addQuestion", "Add Question", "Math › Exercise", add_question)
+        CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
-        CommandSpec::new("exercise.addNote", "Add Note", "Math › Exercise", add_note)
+        CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
-        CommandSpec::new("equation.answer", "Result Of", "Math › Exercise", answer)
+        CommandSpec::new("equation.answer", "Result Of", "Teaching › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
             .params(r#"{"question"?: n (1-based; 0 = none; default: the question it is worked under), "toggle"?: bool (a result is taken off)} → the equation at the caret is the result of that question of its exercise"#),
-        CommandSpec::new("exercise.info", "Exercise Info", "Math › Exercise", info)
+        CommandSpec::new("exercise.info", "Exercise Info", "Teaching › Exercise", info)
             .pure()
             .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
-        CommandSpec::new("exercise.data", "Exercise Data", "Math › Exercise", data_info)
+        CommandSpec::new("exercise.data", "Exercise Data", "Teaching › Exercise", data_info)
             .pure()
             .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n}, "errors": [string|null per item]}"#),
-        CommandSpec::new("exercise.setData", "Set Exercise Data", "Math › Exercise", set_data)
+        CommandSpec::new("exercise.setData", "Set Exercise Data", "Teaching › Exercise", set_data)
             .params(r#"{"exercise"?: n, "data": {"items": [...], "variants": [...], "active": n}} → stores the exercise's data and variants, then recalculates"#),
-        CommandSpec::new("exercise.variant", "Variant", "Math › Exercise", set_variant)
+        CommandSpec::new("exercise.variant", "Variant", "Teaching › Exercise", set_variant)
             .params(r#"{"exercise"?: n, "active": n (0-based)} → makes that variant the active one"#),
-        CommandSpec::new("exercise.delete", "Delete Exercise", "Math › Exercise", delete::delete)
+        CommandSpec::new("exercise.delete", "Delete Exercise", "Teaching › Exercise", delete::delete)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
-        CommandSpec::new("exercise.numbering", "Exercise Numbering", "Math › Exercise", numbering::command)
+        CommandSpec::new("exercise.numbering", "Exercise Numbering", "Teaching › Exercise", numbering::command)
             .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767), "separator"?: "." | ":" | "-" | ")" | " " (after the number in the titles; " ": a space alone)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "separator", "default": bool, "example": "Esercizio 1"}"#),
-        CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
+        CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Teaching › Exercise", breaks::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; a lone exercise is the target wherever the caret is), "beforeExercise"?: bool (a new page before each exercise another exercise comes before), "beforeSolution"?: bool (a new page before the solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"exercise" (null in a series), "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
-        CommandSpec::new("exercise.show", "Parts Shown", "Math › Exercise", show::command)
+        CommandSpec::new("exercise.show", "Parts Shown", "Teaching › Exercise", show::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "solution"?: bool (the solution: heading, repeated questions, working), "results"?: bool (its lines in the results summary)} → shows or hides those parts (hidden text: nothing is lost); in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"series", "solution", "results", "grid", "exercises": [{"solution", "results", "grid"}]}"#),
-        CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Math › Exercise", show::grid_command)
+        CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Teaching › Exercise", show::grid_command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
-        CommandSpec::new("exercise.frontispiece", "Frontispiece", "Math › Exercise", front::command)
+        CommandSpec::new("exercise.frontispiece", "Frontispiece", "Teaching › Exercise", front::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
-            .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: free content at the start of the document (title of the series, class, date…), which can't be deleted by accident; what follows it starts a new page, and a page break inside it gives it more pages → {"on": bool}"#),
-        CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
+            .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: your own pages at the start of the document (title of the series, class, date…), as many as you like, ended by a Frontispiece Break (a next-page section break marked as the frontispiece's, shown with the formatting marks); added, it is an empty paragraph with the break and the caret in it; removed, everything before the break goes with it → {"on": bool}"#),
+        CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"on"?: bool (insert the scores table after the caret's paragraph, outside the exercises / remove it), "add"?: name | true (a criterion: two columns, one left empty and one for its points), "remove"?: n, "rename"?: n, "name"?: text, "exercise"?: n, "criterion"?: n, "points"?: number | null} → {"on", "criteria": [name], "points": [[number | null]] (per exercise, per criterion), "exercises"}; the rows are the document's exercises, a Total column with more than one criterion and a Total row with more than one exercise"#),
+        CommandSpec::new("exercise.update", "Update Summary", "Teaching › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
         })
@@ -148,6 +152,9 @@ pub fn specs() -> Vec<CommandSpec> {
 /// Spanish; English for the others).
 struct Words {
     exercise: &'static str,
+    /// The scores table's total and its default criterion.
+    total: &'static str,
+    points: &'static str,
     solution: &'static str,
     results: &'static str,
     title: &'static str,
@@ -161,9 +168,6 @@ struct Words {
     prompt: &'static str,
     data: &'static str,
     variant: &'static str,
-    /// The frontispiece's placeholder and frame title.
-    front: &'static str,
-    front_part: &'static str,
 }
 
 /// The language exercise words are written in: the one at the caret, resolved through the styles
@@ -205,6 +209,8 @@ const ALL_WORDS: [&Words; 5] = [&IT, &EN, &FR, &DE, &ES];
 
 const IT: Words = Words {
     exercise: "Esercizio",
+    total: "Totale",
+    points: "Punti",
     solution: "Risoluzione",
     results: "Riepilogo dei risultati",
     title: "Titolo dell'esercizio",
@@ -217,12 +223,12 @@ const IT: Words = Words {
     prompt: "Domande (automatiche)",
     data: "Dati",
     variant: "variante",
-    front: "Frontespizio: titolo della serie, classe, data, istruzioni.",
-    front_part: "Frontespizio",
 };
 
 const EN: Words = Words {
     exercise: "Exercise",
+    total: "Total",
+    points: "Points",
     solution: "Solution",
     results: "Results",
     title: "Exercise title",
@@ -235,12 +241,12 @@ const EN: Words = Words {
     prompt: "Questions (automatic)",
     data: "Data",
     variant: "variant",
-    front: "Frontispiece: title of the series, class, date, instructions.",
-    front_part: "Frontispiece",
 };
 
 const FR: Words = Words {
     exercise: "Exercice",
+    total: "Total",
+    points: "Points",
     solution: "Solution",
     results: "Récapitulatif des résultats",
     title: "Titre de l'exercice",
@@ -253,12 +259,12 @@ const FR: Words = Words {
     prompt: "Questions (automatiques)",
     data: "Données",
     variant: "variante",
-    front: "Page de titre : titre de la série, classe, date, consignes.",
-    front_part: "Page de titre",
 };
 
 const DE: Words = Words {
     exercise: "Aufgabe",
+    total: "Summe",
+    points: "Punkte",
     solution: "Lösung",
     results: "Ergebnisübersicht",
     title: "Titel der Aufgabe",
@@ -271,12 +277,12 @@ const DE: Words = Words {
     prompt: "Fragen (automatisch)",
     data: "Daten",
     variant: "Variante",
-    front: "Titelblatt: Titel der Reihe, Klasse, Datum, Hinweise.",
-    front_part: "Titelblatt",
 };
 
 const ES: Words = Words {
     exercise: "Ejercicio",
+    total: "Total",
+    points: "Puntos",
     solution: "Solución",
     results: "Resumen de resultados",
     title: "Título del ejercicio",
@@ -289,8 +295,6 @@ const ES: Words = Words {
     prompt: "Preguntas (automáticas)",
     data: "Datos",
     variant: "variante",
-    front: "Portada: título de la serie, clase, fecha, instrucciones.",
-    front_part: "Portada",
 };
 
 /// Adds the exercise styles the document lacks.
@@ -624,21 +628,38 @@ struct Layout {
     /// Exercise and part of each top-level block.
     parts: Vec<(Option<usize>, Part)>,
     results: Option<(usize, usize)>,
-    /// First and last top-level block of the frontispiece.
+    /// First and last top-level block of the frontispiece: from the document's start to the
+    /// paragraph ending in its Frontispiece Break, before any exercise.
     front: Option<(usize, usize)>,
+    /// A frontispiece from before the break, in a control (`TAG_FRONT`): first and last block,
+    /// and whether it still shows its placeholder. [`front::migrate`] turns it into a break.
+    legacy_front: Option<(usize, usize, bool)>,
 }
 
 impl Layout {
-    /// Block `i` (inside the controls `tags`) belongs to the frontispiece when it is in its
-    /// control and in no exercise; the range grows over contiguous blocks only.
+    /// Block `i`, outside every control (`top`) and before any exercise, ending in the
+    /// Frontispiece Break ends the frontispiece (the first such one).
+    fn note_front_break(&mut self, i: usize, b: &Block, top: bool) {
+        if self.front.is_none()
+            && self.exercises.is_empty()
+            && top
+            && matches!(b, Block::Para(p) if p.section.as_ref().is_some_and(|sp| sp.frontispiece))
+        {
+            self.front = Some((0, i));
+        }
+    }
+
+    /// Block `i` (inside the controls `tags`) belongs to an old frontispiece control when it is
+    /// in it and in no exercise; the range grows over contiguous blocks only.
     fn note_front(&mut self, i: usize, tags: &[(String, bool)]) {
         let has = |t: &str| tags.iter().any(|(x, _)| x == t);
         if !has(TAG_FRONT) || has(TAG_EXERCISE) {
             return;
         }
-        match self.front {
-            None => self.front = Some((i, i)),
-            Some((a, b)) if b + 1 == i => self.front = Some((a, i)),
+        let placeholder = tags.iter().any(|(t, ph)| t == TAG_FRONT && *ph);
+        match self.legacy_front {
+            None => self.legacy_front = Some((i, i, placeholder)),
+            Some((a, b, ph)) if b + 1 == i => self.legacy_front = Some((a, i, ph || placeholder)),
             Some(_) => {}
         }
     }
@@ -746,6 +767,7 @@ fn scan(s: &Session) -> Layout {
             grow(&mut out.results);
         }
         out.note_front(i, &tags);
+        out.note_front_break(i, b, stack.is_empty());
         let Some(e) = ex.and_then(|e| out.exercises.get_mut(e)) else { continue };
         if matches!(part, Part::Solution | Part::Prompt) {
             grow(&mut e.solution_blocks);
@@ -1028,6 +1050,8 @@ pub(crate) fn signature(s: &Session) -> u64 {
         (&e.title, &e.questions, e.data.statements(), e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
+    // Points typed in a scores table change its totals.
+    scores::fingerprint(s).hash(&mut h);
     h.finish()
 }
 
@@ -1526,16 +1550,77 @@ pub(crate) fn results_start(s: &Session) -> Option<usize> {
     scan(s).results.map(|(from, _)| from)
 }
 
-/// `doc` without its results summary: a subdocument's content as a master shows it (the master
-/// makes one summary for all its exercises).
+/// `doc` without its results summary and its frontispiece: a subdocument's content as a master
+/// shows it (the master makes one summary for all its exercises, and has its own frontispiece).
 pub(crate) fn without_results(doc: Document) -> Document {
     let mut s = Session::new(doc);
+    front::migrate(&mut s);
     if let Some((from, to)) = scan(&s).results
         && s.doc.body.get(from..=to).is_some()
     {
         s.doc.body.drain(from..=to);
-        s.doc.ensure_nonempty();
     }
+    if let Some((from, to)) = scan(&s).front
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+    }
+    s.doc.ensure_nonempty();
+    s.doc
+}
+
+/// The series' settings of a document (its first exercise's), to keep over a change that brings
+/// in other exercises (a master reloading its subdocuments).
+pub(crate) use series::Settings as SeriesSettings;
+
+pub(crate) fn series_settings(s: &Session) -> Option<SeriesSettings> {
+    series::settings(s)
+}
+
+/// Every exercise takes `set` (when there is one), then the automatic parts are rebuilt.
+pub(crate) fn impose_series(s: &mut Session, set: Option<&SeriesSettings>) -> bool {
+    match set {
+        Some(set) => series::impose(s, set),
+        None => update(s),
+    }
+}
+
+/// A subdocument's file `doc`, written from a master, given back what is the file's own and not
+/// the master's (docs/master-documents.md): its styles and document defaults, the exercises'
+/// numbering, the series' settings (page breaks, parts shown, graph paper) and its frontispiece,
+/// all as in `old`, the file as it was. The content edited in the master stays.
+pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
+    let mut own = Session::new(old.clone());
+    front::migrate(&mut own);
+    let had_exercises = !scan(&own).exercises.is_empty();
+    let set = series::settings(&own);
+    let numbering = numbering::current(&own);
+    let front: Vec<Arc<Block>> = scan(&own).front.and_then(|(a, b)| own.doc.body.get(a..=b)).map(<[Arc<Block>]>::to_vec).unwrap_or_default();
+    let mut s = Session::new(doc);
+    // The file's styles, each list a style numbers with still the one this document has.
+    s.doc.styles.default_chr = own.doc.styles.default_chr.clone();
+    s.doc.styles.default_para = own.doc.styles.default_para.clone();
+    for st in &own.doc.styles.styles {
+        let mut st = st.clone();
+        st.para.numbering = s.doc.styles.get(&st.id).and_then(|x| x.para.numbering);
+        s.doc.styles.upsert(st);
+    }
+    // Its own frontispiece, in place of any.
+    if let Some((from, to)) = scan(&s).front
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+    }
+    for (k, b) in front.into_iter().enumerate() {
+        s.doc.body.insert(k, b);
+    }
+    if had_exercises {
+        let numbering::Numbering { prefix, format, start, separator } = numbering;
+        let _ =
+            numbering::set(&mut s, numbering::Change { prefix: Some(prefix), format: Some(format), start: Some(start), separator: Some(separator) });
+    }
+    impose_series(&mut s, set.as_ref());
+    s.doc.ensure_nonempty();
     s.doc
 }
 
@@ -1550,11 +1635,15 @@ pub(crate) fn with_results(doc: Document) -> Document {
 /// Rebuilds the automatic parts: the questions repeated in each solution and the results summary
 /// (moved to, or created at, the end of the document). Returns whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
-    let mut changed = title_controls(s);
+    // A frontispiece in a control (documents from before the Frontispiece Break) becomes one.
+    let mut changed = front::migrate(s);
+    changed |= title_controls(s);
     changed |= title_styles(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
+    // The scores tables: one row per exercise, the totals.
+    changed |= scores::update(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.

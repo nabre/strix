@@ -404,3 +404,63 @@ fn a_sheet_across_columns_has_its_heavier_lines_and_its_frame_in_common() {
     assert!((max_y - body.bottom()).abs() < 0.05 && min_y < first.y - 0.5 && min_y - body.y < side(), "{pts:?}");
     assert_eq!(pts.len(), 6, "an L round the two parts: {pts:?}");
 }
+
+/// The column the body paragraph `block` starts in on `page`: the x of its first line.
+fn line_x(l: &DocLayout, page: usize, block: usize) -> Option<f32> {
+    l.pages.get(page)?.items.iter().find_map(|it| match it {
+        Placed::Lines { story: StoryRef::Body, path, x, .. } if *path == Path::top(block) => Some(*x),
+        _ => None,
+    })
+}
+
+#[test]
+fn column_end_fills_the_rest_of_the_column_and_moves_the_text_to_the_next() {
+    // Two columns: a grid to the end of the left column below some text, the text after it at the
+    // top of the right column, on the same page, and nothing ruled there.
+    for follow in [false, true] {
+        let mut p = Paragraph::new();
+        p.props.graph = Some(Arc::new(GraphPaper { placement: GridPlacement::ColumnEnd, follow_columns: follow, ..GraphPaper::default() }));
+        let mut doc = doc_with(vec![para("Before"), para_block(p), para("After")]);
+        two_columns(&mut doc);
+        let l = lay(&doc);
+        let g = grids(&l);
+        let body = l.pages[0].body;
+        let left = doc.last_section.margin_left + doc.last_section.gutter;
+        let cols = doc.last_section.column_boxes();
+        assert_eq!(g[0].len(), 1, "one rect, in the left column: {:?}", g[0]);
+        let r = g[0][0];
+        assert!((r.x - (left + cols[0].0)).abs() < 0.05 && (r.w - cols[0].1).abs() < 0.05, "{r:?}");
+        assert!(r.y > body.y + 1.0, "below the text before it");
+        assert!((r.bottom() - body.bottom()).abs() < 0.05, "to the end of the column");
+        assert!(whole(r.h));
+        assert_eq!(page_of(&l, 2), Some(0), "the text after it stays on the page");
+        let x = line_x(&l, 0, 2).unwrap_or(0.0);
+        assert!(x >= left + cols[1].0 - 0.5, "the text after it is in the right column: {x}");
+    }
+}
+
+#[test]
+fn column_end_in_the_last_column_or_one_column_goes_on_the_next_page() {
+    let doc = doc_with(vec![para("Before"), grid_para(GridPlacement::ColumnEnd), para("After")]);
+    let l = lay(&doc);
+    let g = grids(&l);
+    let (r, body) = (g[0][0], l.pages[0].body);
+    assert!((r.bottom() - body.bottom()).abs() < 0.05 && r.y > body.y + 1.0);
+    assert_eq!(page_of(&l, 2), Some(1), "one column: the text after it starts on the next page");
+
+    // Two columns, the grid in the right one: the text after it on the next page, left column.
+    let mut blocks = vec![para("Before")];
+    blocks.push(grid_para(GridPlacement::ColumnEnd));
+    blocks.push(grid_para(GridPlacement::ColumnEnd));
+    blocks.push(para("After"));
+    let mut doc = doc_with(blocks);
+    two_columns(&mut doc);
+    let l = lay(&doc);
+    let g = grids(&l);
+    let left = doc.last_section.margin_left + doc.last_section.gutter;
+    let cols = doc.last_section.column_boxes();
+    assert_eq!(g[0].len(), 2, "{:?}", g[0]);
+    assert!((g[0][1].x - (left + cols[1].0)).abs() < 0.05 && g[0][1].y - l.pages[0].body.y < side(), "the second fills the right column");
+    assert_eq!(page_of(&l, 3), Some(1));
+    assert!(line_x(&l, 1, 3).is_some_and(|x| x < left + cols[0].1));
+}
