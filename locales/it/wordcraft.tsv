@@ -2781,6 +2781,44 @@ preview	Title	Esempio
 	Hatched strip	Fascia tratteggiata
 	Hatched strip: pick the line or polyline it follows	Fascia tratteggiata: scegli la linea o polilinea da seguire
 	Hatched strip: click on the side it goes	Fascia tratteggiata: fai clic sul lato in cui va
+	Explode: polylines into lines and arcs	Esplodi: le polilinee in linee e archi
+	Join: objects that meet end to end into a polyline	Unisci: gli oggetti che si toccano agli estremi in una polilinea
+	Snap: to the object snaps and the grid	Snap: agli snap ad oggetto e alla griglia
+	Ortho: lines level or plumb (F8)	Orto: linee orizzontali o verticali (F8)
+	on	attivo
+	off	disattivo
+	Styles	Stili
+	Dimension\nStyle	Stile\nquota
+	Level\nStyle	Stile quota\naltimetrica
+	Text\nStyle	Stile\ntesto
+	Dimension Style: marks, sizes, text and units of the dimensions	Stile quota: segni, misure, testo e unità delle quote
+	Level Style: text, triangle and unit of the level marks	Stile quota altimetrica: testo, triangolo e unità delle quote altimetriche
+	Text Style: font, height, bold and italic of the texts	Stile testo: carattere, altezza, grassetto e corsivo dei testi
+	Texts	Testi
+	Level Style	Stile quota altimetrica
+	Style	Stile
+	Name	Nome
+	Show the unit	Mostra l'unità
+	Sizes end with their unit (3.50 m); off, the number alone	Le misure finiscono con la loro unità (3,50 m); disattivato, solo il numero
+	Level marks take the dimension styles: these settings are the style's.	Le quote altimetriche usano gli stili quota: queste impostazioni sono dello stile.
+	Triangle height	Altezza del triangolo
+	0: the dimension text height	0: l'altezza del testo delle quote
+	0: automatic (a text and a fifth)	0: automatica (un testo e un quinto)
+	Elevations end with their unit (+3.00 m); off, the number alone	Le quote altimetriche finiscono con la loro unità (+3,00 m); disattivato, solo il numero
+	Slope\nTicks	Barbette
+	Slope ticks	Barbette
+	Slope ticks: pick the line or polyline of the crest	Barbette: scegli la linea o polilinea del ciglio
+	Slope ticks: click on the side the slope goes down	Barbette: fai clic sul lato verso cui scende la scarpata
+	Short ticks	Tratti corti
+	Flip Side	Ribalta
+	Flip the selected hatched strips and slope ticks to the other side of their line	Ribalta le fasce tratteggiate e le barbette selezionate sull'altro lato della loro linea
+	Type a scale such as 1:75 or 2:1	Scrivi una scala come 1:75 o 2:1
+	Fitted to frame	Adattata alla cornice
+	Type a scale such as 1:75 or 2:1, or pick one	Scrivi una scala come 1:75 o 2:1, o sceglila
+	Space here	Spazio qui
+	Where the drawing sits: its column's width, and the height down to the page's bottom margin. A guide, not a limit.	Dove si trova il disegno: la larghezza della sua colonna e l'altezza fino al margine inferiore della pagina. Una guida, non un limite.
+	Fit Here	Adatta qui
+	Make the space here the maximum size and fit the scale to it	Usa lo spazio qui come dimensione massima e adatta la scala
 	Side	Lato
 	Solid	Pieno
 	Cells as Equations	Celle come equazioni
@@ -3065,6 +3103,7 @@ paper	Envelope DL	Busta DL
 	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Scarica il dizionario Hunspell {name} dai dizionari di LibreOffice ({source}), con licenza {licence}, nella cartella dei dizionari e controlla subito l'ortografia con esso.
 	Drawing Padding	Margine del disegno
 	Drawing Scale	Scala del disegno
+	Drawing Space	Spazio del disegno
 	Exercise Info	Informazioni sull'esercizio
 	File type	Tipo di file
 	Folder path	Percorso della cartella

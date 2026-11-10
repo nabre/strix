@@ -61,7 +61,11 @@ impl WordApp {
                     return;
                 }
                 chrome::status_bar(self, ui);
-                panes::show(self, ui);
+                // The document's panes stay hidden while a CAD drawing is open (they come back
+                // as they were when it closes): the editor has its own Properties and layers.
+                if self.cad.is_none() {
+                    panes::show(self, ui);
+                }
             }
             if moved(self) {
                 return;

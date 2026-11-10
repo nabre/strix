@@ -57,7 +57,7 @@ pub use model::{
 };
 pub use modify::Affine;
 pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
-pub use render::{Anchor, Prim, Rendered, scale_text, standard_scales};
+pub use render::{Anchor, Prim, Rendered, SCALE_RANGE, parse_scale, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
 pub use spans::{Span, SpanKind, spans};

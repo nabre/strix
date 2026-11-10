@@ -83,7 +83,7 @@ pub const ALIGNS: &[&str] = &["left", "center", "right"];
 pub const SIDES: &[&str] = &["left", "right"];
 /// The arrowheads an open line, arc or polyline may carry.
 pub const ENDS: &[&str] = &["none", "start", "end", "both"];
-pub const PATTERNS: &[&str] = &["lines", "cross", "steel", "dashed", "solid", "along"];
+pub const PATTERNS: &[&str] = &["lines", "cross", "steel", "dashed", "solid", "along", "slope"];
 
 fn mark_text(m: Option<Mark>) -> String {
     m.map_or("style", Mark::name).into()
@@ -168,16 +168,20 @@ impl Drawing {
                 out.push(f("orient", "Orientation", FieldKind::Choice(ORIENTS), o.into()));
                 out.push(f("mark", "Marks", FieldKind::Choice(MARKS), mark_text(*mark)));
             }
-            Kind::Strip { width, side, pattern, angle, spacing, .. } => {
+            Kind::Strip { width, side, pattern, angle, spacing, ratio, .. } => {
                 out.push(f("width", "Width", FieldKind::Paper, number(*width)));
                 out.push(f("side", "Side", FieldKind::Choice(SIDES), if *side == Side::Left { "left" } else { "right" }.into()));
                 out.push(f("pattern", "Pattern", FieldKind::Choice(PATTERNS), pattern.name().into()));
-                out.push(f("angle", "Angle", FieldKind::Derived, number(*angle)));
+                if *pattern == Pattern::Slope {
+                    out.push(f("ratio", "Short ticks", FieldKind::Derived, number(*ratio)));
+                } else {
+                    out.push(f("angle", "Angle", FieldKind::Derived, number(*angle)));
+                }
                 out.push(f("spacing", "Spacing", FieldKind::Paper, number(*spacing)));
             }
             Kind::Hatch { pattern, angle, spacing, boundary } => {
                 // Along a path is a strip's: a hatch offers the region patterns.
-                let choices = PATTERNS.get(..PATTERNS.len().saturating_sub(1)).unwrap_or(PATTERNS);
+                let choices = PATTERNS.get(..PATTERNS.len().saturating_sub(2)).unwrap_or(PATTERNS);
                 out.push(f("pattern", "Pattern", FieldKind::Choice(choices), pattern.name().into()));
                 out.push(f("angle", "Angle", FieldKind::Derived, number(*angle)));
                 out.push(f("spacing", "Spacing", FieldKind::Paper, number(*spacing)));
@@ -198,7 +202,7 @@ impl Drawing {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 point(&mut out, p, ("x", "X"), ("y", "Y"));
                 out.push(f("datum", "Datum (±0.00) Y", FieldKind::Length, num_text(datum)));
-                out.push(f("elevation", "Elevation", FieldKind::Derived, self.level_label(None, p.1.value - datum.value, None)));
+                out.push(f("elevation", "Elevation", FieldKind::Derived, self.level_label(None, p.1.value - datum.value, false, None)));
                 out.push(f("flip", "Under the level", FieldKind::Bool, flip.to_string()));
                 out.push(f("left", "Text on the left", FieldKind::Bool, left.to_string()));
             }
@@ -320,6 +324,7 @@ impl Drawing {
             (Kind::Dim { text: t, .. } | Kind::Angle { text: t, .. } | Kind::Level { text: t, .. }, "text") => *t = dim_text(text),
             (Kind::Dim { below, .. }, "below") => *below = dim_text(text),
             (Kind::Strip { width, .. }, "width") => *width = parse_f64(text)?,
+            (Kind::Strip { ratio, .. }, "ratio") => *ratio = parse_f64(text)?,
             (Kind::Strip { spacing, .. } | Kind::Hatch { spacing, .. }, "spacing") => *spacing = parse_f64(text)?,
             (Kind::Strip { angle, .. } | Kind::Hatch { angle, .. }, "angle") => *angle = parse_f64(text)?,
             (Kind::Strip { side, .. }, "side") => {
@@ -330,10 +335,12 @@ impl Drawing {
                 }
             }
             (Kind::Strip { pattern, .. }, "pattern") => {
-                *pattern = Pattern::parse(text).ok_or("pattern: lines, cross, steel, dashed, solid or along")?
+                *pattern = Pattern::parse(text).ok_or("pattern: lines, cross, steel, dashed, solid, along or slope")?
             }
             (Kind::Hatch { pattern, .. }, "pattern") => {
-                *pattern = Pattern::parse(text).filter(|p| *p != Pattern::Along).ok_or("pattern: lines, cross, steel, dashed or solid")?
+                *pattern = Pattern::parse(text)
+                    .filter(|p| !matches!(p, Pattern::Along | Pattern::Slope))
+                    .ok_or("pattern: lines, cross, steel, dashed or solid")?
             }
             (Kind::Dim { mark, .. } | Kind::Angle { mark, .. }, "mark") => *mark = parse_mark(text)?,
             (Kind::Dim { offset, .. }, "offset") => *offset = parse_f64(text)?.clamp(-500.0, 500.0),

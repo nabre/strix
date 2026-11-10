@@ -41,7 +41,7 @@ impl Pattern {
             Pattern::Cross => &CROSS,
             Pattern::Steel => &STEEL,
             Pattern::Dashed => &DASHED,
-            Pattern::Along => &[],
+            Pattern::Along | Pattern::Slope => &[],
         }
     }
 }

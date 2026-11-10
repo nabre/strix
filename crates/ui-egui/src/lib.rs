@@ -23,6 +23,7 @@ pub mod brand;
 mod cad_dim_parts;
 pub mod cad_editor;
 mod cad_panel;
+mod cad_style_dialog;
 pub mod canvas;
 pub mod caret_glide;
 pub mod chrome;

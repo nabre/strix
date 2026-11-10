@@ -143,3 +143,118 @@ fn the_drawing_unit_converts_or_reinterprets() {
     let Kind::Line { b, .. } = &kept.entities[0].kind else { panic!() };
     assert_eq!((kept.unit, b.0.value), (Unit::Cm, 1000.0));
 }
+
+/// A dimension style can show the unit after linear sizes and after level marks' elevations;
+/// off (the default), the number alone, as before. Level marks take their own text and
+/// triangle heights; all of it is saved only when set.
+#[test]
+fn dimension_and_level_texts_show_their_unit_when_the_style_says() {
+    let mut d = Drawing { unit: Unit::Mm, ..Drawing::default() };
+    d.add(dim()).unwrap();
+    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false })).unwrap();
+    let plain: Vec<String> = texts(&d.render(None)).into_iter().map(|t| t.0).collect();
+    assert_eq!(plain, vec!["100".to_string(), "+3.00".to_string()]);
+    assert!(!d.to_json().contains("showUnit") && !d.to_json().contains("levelUnit"));
+    d.dim_style.show_unit = true;
+    d.dim_style.level_unit = true;
+    d.dim_style.level_text = 4.0;
+    d.dim_style.level_mark = 6.0;
+    let r = d.render(None);
+    let shown: Vec<String> = texts(&r).into_iter().map(|t| t.0.chars().filter(|c| !crate::is_marker(*c)).collect()).collect();
+    assert_eq!(shown, vec!["100 mm".to_string(), "+3.00 m".to_string()]);
+    assert_eq!(texts(&r)[1].1, 4.0, "the level mark's own text height");
+    assert_eq!(texts(&r)[0].1, d.dim_style.text, "dimensions keep theirs");
+    // Saved and read back; junk sizes come back within reason.
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert!(back.dim_style.show_unit && back.dim_style.level_unit && back.dim_style.level_mark == 6.0);
+    d.dim_style.level_text = f64::NAN;
+    d.dim_style.level_mark = 1e9;
+    let s = d.dim_style.clone().sanitized();
+    assert_eq!((s.level_text, s.level_mark), (0.0, 50.0));
+    // In metres the dimension's unit follows the units shown.
+    d.dim_style.units = DimUnits::M;
+    let shown: Vec<String> = texts(&d.render(None)).into_iter().map(|t| t.0.chars().filter(|c| !crate::is_marker(*c)).collect()).collect();
+    assert!(shown[0].ends_with(" m"), "{shown:?}");
+}
+
+/// Slope ticks (a cut's crest): long and short in turn, square to the path on the strip's side,
+/// `spacing` apart; Flip puts them on the other side; a hostile spacing stays bounded.
+#[test]
+fn slope_ticks_alternate_and_flip() {
+    let mut d = Drawing::from_json(
+        r#"{"entities":[{"id":"p","type":"line","a":[0,0],"b":[100,0]},{"type":"strip","along":"p","pattern":"slope","width":4,"spacing":10,"ratio":0.5}]}"#,
+    )
+    .unwrap();
+    let e = d.entities[1].clone();
+    let ticks = d.strip_lines(&e);
+    assert_eq!(ticks.len(), 11, "{ticks:?}");
+    for (i, (a, b)) in ticks.iter().enumerate() {
+        assert!((a.y).abs() < 1e-9 && (a.x - b.x).abs() < 1e-9, "square to the path");
+        let want = if i % 2 == 0 { 4.0 } else { 2.0 };
+        assert!((b.y - want).abs() < 1e-9, "tick {i}: {b:?}");
+    }
+    assert_eq!(d.flip_strips(&[0, 1, 99]), 1, "only strips flip; a missing index is skipped");
+    let e = d.entities[1].clone();
+    assert!(d.strip_lines(&e).iter().all(|(_, b)| b.y < 0.0), "now on the right");
+    // The ratio is saved only when not a half, and kept within 0.1–1.
+    assert!(!d.to_json().contains("ratio"));
+    let mut h = Drawing::from_json(
+        r#"{"entities":[{"id":"p","type":"line","a":[0,0],"b":[1e9,0]},{"type":"strip","along":"p","pattern":"slope","spacing":-5,"ratio":99}]}"#,
+    )
+    .unwrap();
+    h.sanitize();
+    assert!(matches!(h.entities[1].kind, Kind::Strip { ratio, .. } if ratio == 1.0));
+    let e = h.entities[1].clone();
+    assert!(h.strip_lines(&e).len() <= 20_000);
+    // It renders: thin lines, no fill.
+    assert!(d.render(None).prims.len() >= 11);
+}
+
+/// A dimension's and a level mark's text has a grip of its own: dragged, the text moves (in
+/// scale), with a leader back when it is off its line; the measured value stays; it is saved,
+/// and hostile shifts are kept within the limits.
+#[test]
+fn dimension_and_level_texts_move_with_their_grip() {
+    let mut d = Drawing { unit: Unit::Mm, ..Drawing::default() };
+    d.add(dim()).unwrap();
+    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false })).unwrap();
+    let before = d.render(None).prims.len();
+    for i in 0..2 {
+        let (_, at) = d.grips(i).into_iter().find(|(g, _)| *g == Grip::Text).expect("a text grip");
+        assert!(d.move_grip(i, Grip::Text, Pt::new(at.x + 40.0, at.y + 30.0)));
+        let (_, now) = d.grips(i).into_iter().find(|(g, _)| *g == Grip::Text).unwrap();
+        assert!((now.x - at.x - 40.0).abs() < 1e-9 && (now.y - at.y - 30.0).abs() < 1e-9);
+    }
+    let r = d.render(None);
+    assert_eq!(r.prims.len(), before + 2, "a leader for each moved text");
+    let shown: Vec<String> = texts(&r).into_iter().map(|t| t.0).collect();
+    assert_eq!(shown, vec!["100".to_string(), "+3.00".to_string()], "the values stay");
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert_eq!(back.entities[0].text_shift, Some([40.0, 30.0]));
+    // Junk from a file: infinite or on an object with no text to move.
+    let mut h = Drawing::from_json(
+        r#"{"entities":[{"type":"dim","a":[0,0],"b":[10,0],"textShift":[1e300,-1e300]},{"type":"line","a":[0,0],"b":[1,1],"textShift":[1,1]}]}"#,
+    )
+    .unwrap();
+    h.sanitize();
+    assert_eq!(h.entities[0].text_shift, Some([MAX_COORD, -MAX_COORD]));
+    assert_eq!(h.entities[1].text_shift, None);
+    assert!(!h.move_grip(0, Grip::Text, Pt::new(f64::NAN, 0.0)));
+}
+
+/// A scale typed by hand: `1:75`, `1/75`, `75`, `2:1`, a decimal comma; junk is refused and
+/// extremes are kept within the range a drawing keeps.
+#[test]
+fn scales_typed_by_hand() {
+    assert_eq!(parse_scale("1:75"), Some(75.0));
+    assert_eq!(parse_scale(" 1 / 75 "), Some(75.0));
+    assert_eq!(parse_scale("75"), Some(75.0));
+    assert_eq!(parse_scale("2:1"), Some(0.5));
+    assert_eq!(parse_scale("1:12,5"), Some(12.5));
+    for junk in ["", "0", "-5", "1:0", "abc", "1:x", "NaN", "inf", "1:-2", ":", "1:2:3"] {
+        assert_eq!(parse_scale(junk), None, "{junk}");
+    }
+    assert_eq!(parse_scale("1:1e300"), Some(SCALE_RANGE.1));
+    assert_eq!(parse_scale("1e300:1"), Some(SCALE_RANGE.0));
+    assert_eq!(scale_text(parse_scale("1:75").unwrap()), "1:75");
+}

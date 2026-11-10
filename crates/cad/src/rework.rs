@@ -205,8 +205,11 @@ impl Drawing {
                 (Kind::Hatch { pattern, angle, spacing, .. }, Kind::Hatch { pattern: p, angle: a, spacing: s, .. }) => {
                     (*p, *a, *s) = (*pattern, *angle, *spacing);
                 }
-                (Kind::Strip { width, pattern, angle, spacing, .. }, Kind::Strip { width: w, pattern: p, angle: a, spacing: s, .. }) => {
-                    (*w, *p, *a, *s) = (*width, *pattern, *angle, *spacing);
+                (
+                    Kind::Strip { width, pattern, angle, spacing, ratio, .. },
+                    Kind::Strip { width: w, pattern: p, angle: a, spacing: s, ratio: r, .. },
+                ) => {
+                    (*w, *p, *a, *s, *r) = (*width, *pattern, *angle, *spacing, *ratio);
                 }
                 (Kind::Dim { mark, .. }, Kind::Dim { mark: m, .. }) | (Kind::Angle { mark, .. }, Kind::Angle { mark: m, .. }) => *m = *mark,
                 _ => {}
