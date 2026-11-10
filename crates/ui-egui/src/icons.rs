@@ -1260,6 +1260,14 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.fcircle(3.0, 16.0, 1.6, a);
             pen.fcircle(17.0, 4.0, 1.6, a);
         }
+        // Tangent line: a line along the top of two circles, touching each.
+        "cadLineTan" => {
+            pen.circle(6.0, 12.0, 3.5, c);
+            pen.circle(14.0, 12.0, 3.5, c);
+            pen.line_c(&[(2.0, 8.5), (18.0, 8.5)], a);
+            pen.fcircle(6.0, 8.5, 1.3, a);
+            pen.fcircle(14.0, 8.5, 1.3, a);
+        }
         "cadPolyline" => {
             pen.line_c(&[(3.0, 15.0), (7.0, 5.0), (13.0, 13.0), (17.0, 4.0)], c);
             pen.fcircle(7.0, 5.0, 1.3, a);

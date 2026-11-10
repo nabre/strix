@@ -30,6 +30,7 @@ mod rework;
 mod select;
 mod spans;
 mod strip;
+mod styles;
 mod svg;
 mod trim;
 
@@ -43,14 +44,16 @@ mod tests_dims;
 mod tests_fuzz;
 #[cfg(test)]
 mod tests_rework;
+#[cfg(test)]
+mod tests_styles;
 
 pub use dim_parts::DimParts;
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};
 pub use model::{
-    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, MAX_PADDING, Mark, Num, Orient, P, Padding, Pattern, Side, Stroke,
-    Unit, fill,
+    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, MAX_PADDING, MAX_STYLES, Mark, NamedDimStyle, Num, Orient, P, Padding,
+    Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
 };
 pub use modify::Affine;
 pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
@@ -59,6 +62,7 @@ pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
 pub use spans::{Span, SpanKind, spans};
 pub use strip::StripShape;
+pub use styles::StyleKind;
 pub use svg::MISSING_COLOR;
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in

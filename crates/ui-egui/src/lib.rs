@@ -36,6 +36,7 @@ pub mod dialogs;
 mod dictionary_download;
 pub mod documents;
 pub mod equation_tab;
+mod exercise_grip;
 pub mod exercise_pane;
 /// The built-in file browser, for desktops without a system file dialog (#576).
 #[cfg(not(target_arch = "wasm32"))]
@@ -282,6 +283,9 @@ pub struct UiState {
     pub update_fields_before_print: bool,
     /// The custom dictionary (File › Options › Proofing, Add to Dictionary), kept between runs.
     pub dictionary: Vec<String>,
+    /// The CAD editor's settings (snaps, ortho, grid, panes, the last distances), kept between runs.
+    #[serde(deserialize_with = "cad_editor::lenient_settings")]
+    pub cad: cad_editor::CadSettings,
 }
 
 /// The ribbon tab the app opens on, and the one it falls back to when the tab that was showing
@@ -356,6 +360,7 @@ impl Default for UiState {
             print_backgrounds: false,
             update_fields_before_print: false,
             dictionary: Vec::new(),
+            cad: cad_editor::CadSettings::default(),
         }
     }
 }

@@ -24,6 +24,9 @@ pub enum FieldKind {
     Choice(&'static [&'static str]),
     /// `true` or `false`.
     Bool,
+    /// The name of a style of the drawing: a text style for a text, a dimension style for a
+    /// dimension, an angle or a level mark ([`crate::STANDARD`] for the drawing's own).
+    Style,
 }
 
 /// One field: its key, label (English; the UI translates it), kind and current text.
@@ -113,6 +116,10 @@ impl Drawing {
     pub fn fields(&self, i: usize, vertex: usize) -> Vec<Field> {
         let Some(e) = self.entities.get(i) else { return Vec::new() };
         let mut out = Vec::new();
+        if matches!(e.kind, Kind::Text { .. } | Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. }) {
+            let name = self.style_name(e);
+            out.push(f("style", "Style", FieldKind::Style, name.to_string()));
+        }
         match &e.kind {
             Kind::Line { a, b } => {
                 point(&mut out, a, ("ax", "Start X"), ("ay", "Start Y"));
@@ -159,7 +166,7 @@ impl Drawing {
                     Orient::Vertical => "vertical",
                 };
                 out.push(f("orient", "Orientation", FieldKind::Choice(ORIENTS), o.into()));
-                out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("mark", "Marks", FieldKind::Choice(MARKS), mark_text(*mark)));
             }
             Kind::Strip { width, side, pattern, angle, spacing, .. } => {
                 out.push(f("width", "Width", FieldKind::Paper, number(*width)));
@@ -185,7 +192,7 @@ impl Drawing {
                 out.push(f("radiusPaper", "Annotative radius", FieldKind::Paper, number(*r_paper)));
                 let (ua, ub) = (a.pt().minus(c.pt()), b.pt().minus(c.pt()));
                 out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
-                out.push(f("mark", "End mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("mark", "Marks", FieldKind::Choice(MARKS), mark_text(*mark)));
             }
             Kind::Level { p, datum, text, flip, left } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
@@ -202,8 +209,29 @@ impl Drawing {
         out
     }
 
+    /// The name of the style entity `e` is drawn with: its own when the drawing has it, else
+    /// Standard.
+    pub fn style_name<'a>(&'a self, e: &'a crate::model::Entity) -> &'a str {
+        let own = e.style.as_deref().filter(|n| self.style_names(e).contains(n));
+        own.unwrap_or(crate::model::STANDARD)
+    }
+
+    /// The styles entity `e` may take: Standard, then the drawing's text styles (for a text) or
+    /// dimension styles (for a dimension, angle or level mark); none for other objects.
+    pub fn style_names(&self, e: &crate::model::Entity) -> Vec<&str> {
+        let named: Vec<&str> = match e.kind {
+            Kind::Text { .. } => self.text_styles.iter().map(|s| s.name.as_str()).collect(),
+            Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } => self.dim_styles.iter().map(|s| s.name.as_str()).collect(),
+            _ => return Vec::new(),
+        };
+        std::iter::once(crate::model::STANDARD).chain(named).collect()
+    }
+
     /// Sets field `key` of entity `i` (a polyline's vertex `vertex`) from `text`.
     pub fn set_field(&mut self, i: usize, vertex: usize, key: &str, text: &str) -> Result<(), String> {
+        if key == "style" {
+            return self.set_style(&[i], text);
+        }
         let e = self.entities.get_mut(i).ok_or("no such object")?;
         let bad = || format!("no field {key} on this object");
         if key == "arrows" {
@@ -329,6 +357,39 @@ impl Drawing {
         }
         if !self.entities.get(i).is_some_and(|e| crate::edit::outline(e).iter().flatten().all(|p: &Pt| p.is_finite())) {
             return Err("the object would not be drawable".into());
+        }
+        self.sanitize();
+        Ok(())
+    }
+
+    /// Gives the entities at `indices` the style `name` ([`crate::STANDARD`]: the drawing's own):
+    /// the texts a text style (and its height), the dimensions, angles and level marks a
+    /// dimension style; other objects are left as they are. An error when none of them takes it.
+    pub fn set_style(&mut self, indices: &[usize], name: &str) -> Result<(), String> {
+        let name = name.trim();
+        let standard = name == crate::model::STANDARD || name.is_empty();
+        let text = self.text_style_named(Some(name)).map(|s| s.height);
+        let dim = self.dim_styles.iter().any(|s| s.name == name);
+        let mut done = 0usize;
+        for &i in indices {
+            let Some(e) = self.entities.get_mut(i) else { continue };
+            match &mut e.kind {
+                Kind::Text { height, .. } if standard || text.is_some() => {
+                    e.style = (!standard).then(|| name.to_string());
+                    if let Some(h) = text {
+                        *height = h;
+                    }
+                    done += 1;
+                }
+                Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. } if standard || dim => {
+                    e.style = (!standard).then(|| name.to_string());
+                    done += 1;
+                }
+                _ => {}
+            }
+        }
+        if done == 0 {
+            return Err(format!("no style {name} for these objects"));
         }
         self.sanitize();
         Ok(())

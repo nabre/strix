@@ -148,6 +148,8 @@ Il faut une chaîne d'outils Rust (1.95 ou plus récente) ; pour la version web,
 git clone https://github.com/nabre/strix
 cd strix
 cargo run --release -p strix -- --sample          # l'application avec un document d'exemple
+cargo xtask dev                                   # build de débogage, recompilée et relancée à chaque modification (watchexec)
+                                                  # sans écran (sandbox, SSH) ou --web : build web sur http://127.0.0.1:8771/?sample
 cargo run --release -p strix -- probleme.xmath    # ouvrir un document Strix
 strix-cli convert probleme.xmath probleme.pdf     # export statique : pdf, png, tex, html, md
 ```

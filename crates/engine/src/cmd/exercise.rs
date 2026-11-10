@@ -40,6 +40,7 @@ mod delete;
 mod front;
 mod language;
 mod numbering;
+mod series;
 mod show;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
@@ -121,10 +122,10 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "default": bool, "example": "Esercizio 1"}"#),
         CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
-            .params(r#"{"exercise"?: n (1-based; default: at the caret), "all"?: bool (every exercise), "beforeExercise"?: bool (a new page before the exercise when another exercise comes before it), "beforeSolution"?: bool (a new page before its solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; a new exercise takes the last one's settings → {"exercise", "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
+            .params(r#"{"exercise"?: n (1-based; a lone exercise is the target wherever the caret is), "beforeExercise"?: bool (a new page before each exercise another exercise comes before), "beforeSolution"?: bool (a new page before the solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"exercise" (null in a series), "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
         CommandSpec::new("exercise.show", "Parts Shown", "Math › Exercise", show::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
-            .params(r#"{"exercise"?: n (1-based; default: at the caret), "solution"?: bool (the solution: heading, repeated questions, working), "results"?: bool (its lines in the results summary)} → shows or hides those parts (hidden text: nothing is lost); in a series (two or more exercises) it applies to every exercise; a new exercise takes the last one's → {"series", "solution", "results", "grid", "exercises": [{"solution", "results", "grid"}]}"#),
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "solution"?: bool (the solution: heading, repeated questions, working), "results"?: bool (its lines in the results summary)} → shows or hides those parts (hidden text: nothing is lost); in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"series", "solution", "results", "grid", "exercises": [{"solution", "results", "grid"}]}"#),
         CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Math › Exercise", show::grid_command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
@@ -484,10 +485,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     // placeholder (only the title, never the whole exercise) is replaced by typing and comes
     // back when the title is deleted.
     let mut exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
-    // Page breaks as the document's last exercise has them.
-    breaks::write(&mut exercise, breaks::last(s));
-    // Parts shown and graph paper as the series has them.
-    let (shown, grid) = show::last(s);
+    // Page breaks, parts shown and graph paper as the series (its first exercise) has them.
+    breaks::write(&mut exercise, breaks::first(s));
+    let (shown, grid) = show::first(s);
     show::write(&mut exercise, shown);
     let mut title_ctl = control(TAG_TITLE, w.title_part, ControlLock::SdtLocked);
     if title.is_none() {
@@ -1019,7 +1019,7 @@ pub(crate) fn signature(s: &Session) -> u64 {
     let layout = scan(s);
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for e in &layout.exercises {
-        (&e.title, &e.questions, e.data.statements()).hash(&mut h);
+        (&e.title, &e.questions, e.data.statements(), e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
     h.finish()
@@ -1472,6 +1472,8 @@ fn capitalized(t: &str) -> String {
 pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = title_controls(s);
     placeholders(s);
+    // A series: every exercise has its first one's page breaks, parts shown and graph paper.
+    changed |= series::conform(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.

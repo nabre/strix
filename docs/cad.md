@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-09 · **Change:** arrowheads on open lines, arcs and polylines (`arrows`); ISO 129 arrowheads; transforms, picking and limits made coherent with the rendering
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-09 · **Change:** named text and dimension styles (start and end marks, mark width); the drawing's unit set in the editor; CAD Drawing tab reorganised (Line and Tangent Line one button; Trim/Extend, Fillet/Chamfer, Array/Polar paired); the editor's settings kept between runs, Quadrant snap on by default; previously: arrowheads on open lines
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -44,6 +44,30 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   (`lineWidth`; a dimension's own stroke width wins), ticks 3 mm drawn heavier (about 0.5 mm),
   extension lines from 1 mm off the object to 2 mm past the dimension line, and with ticks or
   dots the dimension line runs 1.5 mm past the extension lines (`lineOver`; not with arrows).
+- **Styles** (CAD Annotate › Dimension Style and Text Style; `strix_cad::StyleKind`, `crates/cad/src/styles.rs`):
+  every drawing has the **Standard** dimension style (`dimStyle`) and as many named ones as it
+  needs (`dimStyles: [{"name", "style": {…as dimStyle}}]`, at most 64), and named **text
+  styles** (`textStyles: [{"name", "font"?, "height", "bold"?, "italic"?}]`; Standard is the
+  document's font at the dimension text height). A text, dimension, angle or level mark names its
+  style (`"style": "Arch"`; none, or a name the drawing doesn't have: Standard). New objects take
+  the current style (`currentDimStyle`, `currentTextStyle`; a new text also the style's height).
+  A dimension style has a **start mark** (`mark`) and an **end mark** (`markEnd`, absent: as the
+  start), a **mark width** (`markWidth` mm, 0 or absent: automatic — a tick about 2.8× the line,
+  an arrowhead as thin), and may name the **text style** of its texts (`textStyle`: their font,
+  bold and italic; the height stays the style's `text`). A dimension's own `mark` (Properties ›
+  Marks) puts that mark at both ends. Renaming or deleting a style carries along the objects,
+  current styles and dimension styles that name it (deleted: they take Standard). The ribbon:
+  the style list (choosing one with objects selected gives it to them, as a CAD's list does),
+  its name to rename it, New (a copy of it, made current), Delete; then the current style's
+  fields. Commands: `ui.cadStyles {"kind": "dim"|"text", "new"|"rename"+"to"|"delete"|"current"}`,
+  `ui.cadDimStyle {"style"?, …, "markEnd"?, "markWidth"?, "textStyle"?}` and
+  `ui.cadTextStyle {"style"?, "font"?, "height"?, "bold"?, "italic"?}`. On screen a text style's
+  bold is the interface's semibold and its font family is shown on the page and in print.
+- **Drawing unit** (CAD Annotate › Units; `ui.cadUnit {"unit": "mm"|"cm"|"m", "convert"?}`):
+  what one coordinate measures. Changed, the drawing's lengths are converted (1000 mm becomes
+  1 m: the drawing keeps its size, on paper too), or with **Keep the numbers** they stay and mean
+  the new unit. Expressions are left as written and worked out in the new unit. The input unit
+  is beside it.
 - **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
   linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
   in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
@@ -336,8 +360,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    own, moved by its background, resizable; `ui.cadToggle {"what": "props.float"}` /
    `"layers.float"`), Dock and Close (×); docked or detached, they stay so for the next drawing.
    **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
-   (Dimensions, Text), CAD View (Precision, Object Snaps), CAD Output (Picture) — each with Close
-   Drawing; the document's tabs are disabled until the drawing is closed.
+   (Dimensions, Dimension Style, Text Style, Units, Hatch, Text), CAD View (Precision, Object
+   Snaps), CAD Output (Picture) — each with Close Drawing; the document's tabs are disabled until
+   the drawing is closed. In CAD Drawing, **Line** is a split button as Circle is (Line, Tangent
+   Line: the top part starts the one chosen last), and Trim/Extend, Fillet/Chamfer and
+   Array/Polar Array are small split buttons, each pair one icon with its arrow; there is no
+   Select button (the editor selects whenever no command runs; Esc ends one). The choices of the
+   paired buttons, the snaps (all on by default, Quadrant too), Ortho, Grid, Frame, the panes and
+   the last distances and counts are the editor's settings, saved with the app's (`ui.json`,
+   `cad`): every drawing opens as the last was left, after a restart too.
    **Annotations** (CAD Annotate tab): the drawing's **dimension style** (`dimStyle`, paper mm:
    text height — also new texts' —, end mark tick/arrow/dot/none, mark size, extension gap and
    overshoot, text gap; `ui.cadDimStyle`, one undo step, sizes clamped); a dimension may set its
@@ -443,6 +474,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-09: named text styles (font, height, bold, italic) and dimension styles (start and end marks, mark width, text style), with the current ones new objects take; Properties › Style; the drawing's unit in CAD Annotate › Units (converted or kept); CAD Drawing: Line and Tangent Line one split button, Trim/Extend, Fillet/Chamfer and Array/Polar small split buttons, no Select button; the editor's settings saved between runs; Quadrant snap on by default.
 
 - 2026-11-09: arrowheads on open lines, arcs and polylines (`arrows`, Properties › Arrows); arrowheads 30° across (ISO 129-1); a negative scale is a half turn; mirrored and rotated dimensions and strips stay where drawn; dimension texts picked where drawn; text heights to 50 mm; long ids keep their strips; unknown layers are layer 0; `cad.get` reports the errors where the drawing sits; an unreadable drawing is never replaced by a blank one; `cad.padding` refuses a malformed list; a drawing redraws when the calculation it reads is deleted; the editor shows units in the Unit style's colour; the template's beam has load arrows, hatched ground and dimensions bound to `L` and `q`.
 - 2026-11-08: the "Calculation and exercise" template has a beam drawing sized by its exercise's data (docs/exercise.md).

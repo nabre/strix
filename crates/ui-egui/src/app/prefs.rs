@@ -25,6 +25,7 @@ impl WordApp {
         ui.keyboard = self.session.keymap.clone();
         ui.ribbon = self.session.ribbon.clone();
         ui.ink_pens = self.session.view.draw.pens.clone();
+        ui.cad = self.cad.as_ref().map_or(self.cad_settings, crate::cad_editor::CadEditor::settings);
         ui
     }
 
@@ -65,6 +66,7 @@ impl WordApp {
         if let Some(f) = self.session.prefs.dictionaries_folder.as_deref() {
             wordcraft_engine::cmd::options::use_dictionaries_folder(Some(f));
         }
+        self.cad_settings = self.ui.cad.sanitized();
         self.session.read_aloud.set_rate(self.ui.read_aloud_rate);
         self.session.read_aloud.skip_citations = self.ui.read_aloud_skip_citations;
         self.session.view.dark_mode = self.ui.dark_page;

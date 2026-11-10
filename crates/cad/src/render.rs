@@ -3,7 +3,7 @@
 use strix_calc::Worksheet;
 
 use crate::geom::{Pt, arc_points_tol, bulge_points_tol};
-use crate::model::{Align, Drawing, Entity, Fit, Kind, Mark, Orient};
+use crate::model::{Align, DimStyle, Drawing, Entity, Fit, Kind, Mark, Orient, TextLook};
 
 /// Where a text sits on its point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +49,8 @@ pub enum Prim {
         angle: f64,
         anchor: Anchor,
         color: [u8; 3],
+        /// Its font, bold and italic (from its text style).
+        look: TextLook,
     },
 }
 
@@ -194,12 +196,13 @@ impl Drawing {
                             Align::Right => Anchor::BaselineRight,
                         },
                         color,
+                        look: self.text_look(e.style.as_deref()),
                     });
                 }
-                // Annotations are thin, the style's line width, unless they set their own.
-                Kind::Dim { .. } => self.dimension(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
-                Kind::Angle { .. } => self.angular(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
-                Kind::Level { .. } => self.level(e, k, color, e.stroke.width.unwrap_or(self.dim_style.line_width), ws, &mut prims),
+                // Annotations are thin, their style's line width, unless they set their own.
+                Kind::Dim { .. } => self.dimension(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
+                Kind::Angle { .. } => self.angular(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
+                Kind::Level { .. } => self.level(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
                 // A hatch or a hatched strip: its lines, thin as hatches are; a solid fill's lines
                 // close enough, and wide enough, to cover it (with its islands, on any output).
                 Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
@@ -257,19 +260,23 @@ impl Drawing {
         if ends.start()
             && let Some((tip, dir)) = tip_dir(&mut pts.iter())
         {
-            self.mark(Mark::Arrow, tip, dir, color, width, &mut out);
+            self.mark(&self.dim_style, Mark::Arrow, tip, dir, color, width, &mut out);
         }
         if ends.end()
             && let Some((tip, dir)) = tip_dir(&mut pts.iter().rev())
         {
-            self.mark(Mark::Arrow, tip, dir, color, width, &mut out);
+            self.mark(&self.dim_style, Mark::Arrow, tip, dir, color, width, &mut out);
         }
         out
     }
 
-    /// The end mark `mark` at `at` on a dimension line going along `dir` away from it (paper mm).
-    fn mark(&self, mark: Mark, at: Pt, dir: Pt, color: [u8; 3], width: f64, out: &mut Vec<Prim>) {
-        let size = self.dim_style.mark_size;
+    /// The end mark `mark` at `at` on a dimension line going along `dir` away from it (paper mm),
+    /// sized as style `st` says.
+    #[allow(clippy::too_many_arguments)]
+    fn mark(&self, st: &DimStyle, mark: Mark, at: Pt, dir: Pt, color: [u8; 3], width: f64, out: &mut Vec<Prim>) {
+        let size = st.mark_size;
+        // The style's mark width, else automatic: a tick heavier than the line, an arrow as thin.
+        let own = (st.mark_width > 0.0).then_some(st.mark_width);
         let normal = dir.left();
         match mark {
             Mark::None => {}
@@ -280,7 +287,7 @@ impl Drawing {
                     pts: vec![(at.x - t.x, at.y - t.y), (at.x + t.x, at.y + t.y)],
                     closed: false,
                     color,
-                    width: (width * 2.8).clamp(0.35, 1.0).max(width),
+                    width: own.unwrap_or_else(|| (width * 2.8).clamp(0.35, 1.0).max(width)),
                     dash: Vec::new(),
                     fill: false,
                 });
@@ -289,18 +296,18 @@ impl Drawing {
             Mark::Arrow => {
                 let (back, side) = (dir.scale(size), normal.scale(size * (15f64).to_radians().tan()));
                 let pts = [at, at.plus(back).plus(side), at.plus(back).minus(side)].iter().map(|p| (p.x, p.y)).collect();
-                out.push(Prim::Path { pts, closed: true, color, width, dash: Vec::new(), fill: true });
+                out.push(Prim::Path { pts, closed: true, color, width: own.unwrap_or(width), dash: Vec::new(), fill: true });
             }
             Mark::Dot => out.push(Prim::Dot { at: (at.x, at.y), r: size / 5.0, color }),
         }
     }
 
     /// A dimension's text above (`up`) or below its line at `mid`, along `angle`.
-    fn dim_text(&self, (mid, up): (Pt, Pt), angle: f64, label: String, below: bool, color: [u8; 3], out: &mut Vec<Prim>) {
-        let st = self.dim_style;
+    #[allow(clippy::too_many_arguments)]
+    fn dim_text(&self, st: &DimStyle, (mid, up): (Pt, Pt), angle: f64, label: String, below: bool, color: [u8; 3], out: &mut Vec<Prim>) {
         let (at, anchor) =
             if below { (mid.minus(up.scale(st.text_gap)), Anchor::TopCenter) } else { (mid.plus(up.scale(st.text_gap)), Anchor::BottomCenter) };
-        out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle, anchor, color });
+        out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle, anchor, color, look: self.text_look(st.text_style.as_deref()) });
     }
 
     /// A linear dimension: extension lines, the dimension line with its end marks, and its texts.
@@ -331,7 +338,8 @@ impl Drawing {
 
     fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
         let Kind::Dim { text, below, mark, .. } = &e.kind else { return };
-        let st = self.dim_style;
+        let st = self.dim_style_of(e);
+        let look = self.text_look(st.text_style.as_deref());
         let Some(DimFrame { a, b, fa, fb, dir, normal, side }) = self.dim_frame(e, k) else { return };
         let measured = fb.minus(fa).len() / k;
         let line =
@@ -342,18 +350,18 @@ impl Drawing {
                 out.push(line(vec![start, f.plus(normal.scale(st.ext_over * side))]));
             }
         }
-        // The end marks, each pointing at its end. With ticks and dots the line runs on past
-        // the extension lines.
-        let mark = mark.unwrap_or(st.mark);
-        let over = if matches!(mark, Mark::Tick | Mark::Dot) { st.line_over } else { 0.0 };
-        out.push(line(vec![fa.minus(dir.scale(over)), fb.plus(dir.scale(over))]));
-        self.mark(mark, fa, dir, color, width, out);
-        self.mark(mark, fb, dir.scale(-1.0), color, width, out);
+        // The end marks, each pointing at its end: the style's start and end marks, or the
+        // dimension's own at both. Past a tick or a dot the line runs on beyond the extension line.
+        let (m1, m2) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+        let over = |m: Mark| if matches!(m, Mark::Tick | Mark::Dot) { st.line_over } else { 0.0 };
+        out.push(line(vec![fa.minus(dir.scale(over(m1))), fb.plus(dir.scale(over(m2)))]));
+        self.mark(st, m1, fa, dir, color, width, out);
+        self.mark(st, m2, fb, dir.scale(-1.0), color, width, out);
         // Texts above and below the line's middle, kept readable (never upside down).
         let mid = fa.plus(fb).scale(0.5);
         let (angle, flipped) = readable(dir.y.atan2(dir.x).to_degrees());
         let up = if flipped { normal.scale(-1.0) } else { normal };
-        let label = self.dim_label(text.as_deref(), measured, ws);
+        let label = self.dim_label(st.units, text.as_deref(), measured, ws);
         if angle.abs() > 45.0 && !st.aligned {
             // With the style's aligned texts off, a steep dimension's text reads level, beside the
             // line on its outer side (by default it turns with the line, as below).
@@ -361,16 +369,16 @@ impl Drawing {
             let at = mid.plus(out_dir.scale(st.text_gap + st.ext_over));
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
             // A second text goes under the first, the pair centred on the line's middle.
-            let second = below.as_deref().filter(|b| !b.trim().is_empty()).map(|b| self.dim_label(Some(b), measured, ws));
+            let second = below.as_deref().filter(|b| !b.trim().is_empty()).map(|b| self.dim_label(st.units, Some(b), measured, ws));
             let half = if second.is_some() { st.text * 0.7 } else { 0.0 };
-            out.push(Prim::Text { at: (at.x, at.y + half), text: label, height: st.text, angle: 0.0, anchor, color });
+            out.push(Prim::Text { at: (at.x, at.y + half), text: label, height: st.text, angle: 0.0, anchor, color, look: look.clone() });
             if let Some(b) = second {
-                out.push(Prim::Text { at: (at.x, at.y - half), text: b, height: st.text, angle: 0.0, anchor, color });
+                out.push(Prim::Text { at: (at.x, at.y - half), text: b, height: st.text, angle: 0.0, anchor, color, look });
             }
         } else {
-            self.dim_text((mid, up), angle, label, false, color, out);
+            self.dim_text(st, (mid, up), angle, label, false, color, out);
             if let Some(b) = below.as_deref().filter(|b| !b.trim().is_empty()) {
-                self.dim_text((mid, up), angle, self.dim_label(Some(b), measured, ws), true, color, out);
+                self.dim_text(st, (mid, up), angle, self.dim_label(st.units, Some(b), measured, ws), true, color, out);
             }
         }
     }
@@ -380,7 +388,8 @@ impl Drawing {
     /// arc's middle. A zero angle draws nothing (not a full circle).
     fn angular(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
         let Kind::Angle { c, a, b, r, r_paper, text, mark } = &e.kind else { return };
-        let st = self.dim_style;
+        let st = self.dim_style_of(e);
+        let look = self.text_look(st.text_style.as_deref());
         let (c, a, b) = (c.pt().scale(k), a.pt().scale(k), b.pt().scale(k));
         let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
         // The scaled part of the radius on paper, plus its paper part.
@@ -413,9 +422,9 @@ impl Drawing {
         }
         // The marks point along the arc, into each end.
         let (pa, pb) = (c.plus(ua.scale(r)), c.plus(ub.scale(r)));
-        let mark = mark.unwrap_or(st.mark);
-        self.mark(mark, pa, ua.left(), color, width, out);
-        self.mark(mark, pb, ub.left().scale(-1.0), color, width, out);
+        let (m1, m2) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+        self.mark(st, m1, pa, ua.left(), color, width, out);
+        self.mark(st, m2, pb, ub.left().scale(-1.0), color, width, out);
         // The label reads level just outside the arc's middle, anchored on the side facing it.
         let mid_dir = Pt::new((start + sweep / 2.0).cos(), (start + sweep / 2.0).sin());
         let at = c.plus(mid_dir.scale(r + st.text_gap));
@@ -433,10 +442,10 @@ impl Drawing {
             // would read upside down, then hanging outward from its point instead of standing.
             let (angle, flipped) = readable((start + sweep / 2.0).to_degrees() - 90.0);
             let anchor = if flipped { Anchor::TopCenter } else { Anchor::BottomCenter };
-            out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle, anchor, color });
+            out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle, anchor, color, look });
             return;
         }
-        out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color });
+        out.push(Prim::Text { at: (at.x, at.y), text: label, height: st.text, angle: 0.0, anchor, color, look });
     }
 }
 
@@ -446,7 +455,7 @@ impl Drawing {
     /// running out to the text side, and the elevation on that line (under it when flipped).
     fn level(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
         let Kind::Level { p, datum, text, flip, left } = &e.kind else { return };
-        let st = self.dim_style;
+        let st = self.dim_style_of(e);
         let tip = p.pt().scale(k);
         if !tip.is_finite() {
             return;
@@ -470,7 +479,15 @@ impl Drawing {
         let at_x = tip.x + out_x * (half + st.text_gap);
         let at_y = if *flip { top - st.text_gap - st.text } else { top + st.text_gap };
         let anchor = if *left { Anchor::BaselineRight } else { Anchor::BaselineLeft };
-        out.push(Prim::Text { at: (at_x, at_y), text: label, height: st.text, angle: 0.0, anchor, color });
+        out.push(Prim::Text {
+            at: (at_x, at_y),
+            text: label,
+            height: st.text,
+            angle: 0.0,
+            anchor,
+            color,
+            look: self.text_look(st.text_style.as_deref()),
+        });
     }
 }
 
