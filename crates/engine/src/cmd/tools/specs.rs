@@ -46,7 +46,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .pure(),
         CommandSpec::new("tools.customizeKeyboard", "Customize Keyboard", "File › Options", customize_keyboard)
             .params(
-                r#"{"command"?: id (its keys), "key"?: "Mod+Shift+K" (the command it runs), "assign"?: {"command": id, "key": string}, "remove"?: {"command": id, "key": string}, "reset"?: true (built-in keys only)} → {custom: {assigned: {key: id}, removed: [key]}, …}; no params opens the dialog"#,
+                r#"{"command"?: id (its keys), "key"?: "Mod+Shift+K" (the command it runs), "assign"?: {"command": id, "key": string} (a combination with Mod, Ctrl or Alt, a function key, or Insert), "remove"?: {"command": id, "key": string}, "reset"?: true (built-in keys only), "map"?: {"assigned": {key: id}, "removed": [key]} (replaces every custom key; unknown commands and keys dropped)} → {custom: {assigned: {key: id}, removed: [key]}, …}; no params opens the dialog"#,
             )
             .pure(),
         CommandSpec::new("tools.customizeRibbon", "Customize Ribbon", "File › Options", customize_ribbon)

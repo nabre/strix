@@ -3190,3 +3190,19 @@ paper	Envelope DL	Busta DL
 	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e quadrettatura sono della serie: vedi la scheda Serie.
 	Select Exercise	Seleziona esercizio
 	The whole exercise goes: its statement, questions and solution (Undo brings it back)	Se ne va l'intero esercizio: testo, domande e risoluzione (Annulla lo riporta)
+	Strix Writer {version}	Strix Writer {version}
+	Published {date}	Pubblicata il {date}
+	Verifying the download…	Verifica del download in corso…
+	The connection dropped; trying again shortly…	La connessione si è interrotta; nuovo tentativo a breve…
+	Downloading in the background: {done} of {total} MB	Download in background: {done} di {total} MB
+	Could not check for updates.	Impossibile verificare gli aggiornamenti.
+	Last attempt: {time}. Strix Writer tries again within an hour.	Ultimo tentativo: {time}. Strix Writer riprova entro un'ora.
+	You have the newest version.	Hai la versione più recente.
+	Last checked: {time}	Ultima verifica: {time}
+	Strix Writer looks for a newer version when it starts and once a day.	Strix Writer cerca una versione più recente all'avvio e una volta al giorno.
+	A newer version is downloaded in the background and installed, without any question, the next time Strix Writer starts.	Una versione più recente viene scaricata in background e installata, senza domande, al prossimo avvio di Strix Writer.
+	The web version always runs the newest release of Strix Writer.	La versione web usa sempre la release più recente di Strix Writer.
+	Reserved by the interface: it can't be given to another command.	Riservata all'interfaccia: non può essere assegnata a un altro comando.
+	{key} removed from {command}	{key} rimossa da {command}
+	Your shortcuts ({count})	Le tue scelte rapide ({count})
+	Collapse the Ribbon	Comprimi la barra multifunzione

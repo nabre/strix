@@ -81,6 +81,26 @@ fn canonical_name(name: &str) -> Option<String> {
     (1..=24).contains(&n).then(|| format!("F{n}"))
 }
 
+/// Whether a canonical key may be given to a command: a combination with Mod, Ctrl or Alt, a
+/// function key, or Insert (with or without Shift). Plain characters, Shift+character and the
+/// editing keys (Space, Enter, Tab, Backspace, Delete, Escape, arrows, Home/End, PageUp/PageDown)
+/// type text or move the caret, so taking them would break typing; they can still be removed from
+/// a command (a built-in key the user doesn't want).
+pub fn assignable(key: &str) -> bool {
+    let (mods, name) = match key.strip_suffix("++") {
+        Some(m) => (m, "+"),
+        None => key.rsplit_once('+').unwrap_or(("", key)),
+    };
+    let function = name.strip_prefix('F').is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+    let held = |m: &str| mods.split('+').any(|x| x == m);
+    held("Mod") || held("Ctrl") || held("Alt") || function || name == "Insert"
+}
+
+/// Why `key` (canonical) can't be assigned, for the error.
+fn not_assignable(key: &str) -> String {
+    format!("`{key}` types text or moves the caret: use a combination with Ctrl (⌘ on macOS) or Alt, or a function key")
+}
+
 /// A command's built-in keys, normalized.
 fn builtin_keys(spec: &CommandSpec) -> impl Iterator<Item = String> + '_ {
     spec.shortcut.split(" / ").filter_map(normalize)
@@ -97,7 +117,7 @@ impl KeyMap {
         let mut map = KeyMap::default();
         if let Some(a) = v.get("assigned").and_then(Value::as_object) {
             for (k, id) in a.iter().take(MAX_ENTRIES) {
-                if let (Some(k), Some(id)) = (normalize(k), id.as_str().filter(|id| !id.is_empty() && id.len() <= 128)) {
+                if let (Some(k), Some(id)) = (normalize(k).filter(|k| assignable(k)), id.as_str().filter(|id| !id.is_empty() && id.len() <= 128)) {
                     map.assigned.insert(k, id.to_string());
                 }
             }
@@ -156,6 +176,9 @@ impl KeyMap {
             return Err(format!("unknown command `{id}`"));
         }
         let key = normalize(key).ok_or_else(|| format!("`{key}` isn't a key (e.g. Mod+Shift+K, Alt+F7, F2)"))?;
+        if !assignable(&key) {
+            return Err(not_assignable(&key));
+        }
         let previous = self.resolve(reg, &key).map(|s| s.id.to_string()).filter(|p| p != id);
         match builtin(reg, &key) {
             // Back to its own built-in key: no custom entry needed.
@@ -208,6 +231,22 @@ mod tests {
 
     use super::*;
 
+    /// Every built-in key is spelled so that it parses: a misspelt one (`Mod+Hyphen`, `Ctl+B`)
+    /// would silently never run, and couldn't be removed or shown in Customize Keyboard.
+    #[test]
+    fn every_built_in_key_parses() {
+        let reg = crate::cmd::registry();
+        let mut bad = Vec::new();
+        for spec in reg.all() {
+            for k in spec.shortcut.split(" / ").filter(|k| !k.trim().is_empty()) {
+                if normalize(k).is_none() {
+                    bad.push(format!("{}: {k:?}", spec.id));
+                }
+            }
+        }
+        assert!(bad.is_empty(), "unparsable built-in keys: {bad:?}");
+    }
+
     #[test]
     fn keys_normalize_to_one_spelling() {
         assert_eq!(normalize("mod+shift+alt+v").as_deref(), Some("Mod+Alt+Shift+V"));
@@ -242,6 +281,13 @@ mod tests {
         assert_eq!(m.resolve(&reg, "Mod+Shift+Alt+U").map(|s| s.id), Some("format.underline"));
         assert!(m.assign(&reg, "no.such.command", "Mod+Q").is_err());
         assert!(m.assign(&reg, "format.bold", "Hyper+Q").is_err());
+        // Keys that type text or move the caret can't be taken (they'd break typing).
+        for typing in ["A", "Shift+A", "Space", "Enter", "Left", "Shift+Tab", "Backspace", "+", "Shift+5"] {
+            assert!(m.assign(&reg, "format.bold", typing).is_err(), "{typing}");
+        }
+        for ok in ["Mod+;", "Alt+/", "Ctrl+Shift+F13", "F2", "Shift+F3", "Insert", "Mod++"] {
+            assert!(m.assign(&reg, "format.bold", ok).is_ok(), "{ok}");
+        }
         m.reset();
         assert_eq!(m.resolve(&reg, "Mod+B").map(|s| s.id), Some("format.bold"));
         assert_eq!(m.resolve(&reg, "Mod+U").map(|s| s.id), Some("format.underline"));
@@ -262,7 +308,7 @@ mod tests {
         m.assign(&reg, "format.italic", "Mod+B").unwrap();
         let back: KeyMap = serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
         assert_eq!(back, m);
-        let junk = json!({"assigned": {"Hyper+X": "format.bold", "Mod+Q": 7, "Mod+J": "no.such", "Mod+Alt+K": "format.bold"}, "removed": ["Mod+U", 3, "F99", "Mod+Shift+Q"]});
+        let junk = json!({"assigned": {"Hyper+X": "format.bold", "Mod+Q": 7, "Mod+J": "no.such", "Mod+Alt+K": "format.bold", "E": "format.bold"}, "removed": ["Mod+U", 3, "F99", "Mod+Shift+Q"]});
         let mut j: KeyMap = serde_json::from_value(junk).unwrap();
         j.retain_known(&reg);
         assert_eq!(j.assigned.len(), 1, "{j:?}");

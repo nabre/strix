@@ -6,7 +6,7 @@
 use egui::{Sense, Ui, vec2};
 use serde::Serialize;
 use serde_json::json;
-use wordcraft_engine::keymap::normalize;
+use wordcraft_engine::keymap::{assignable, normalize};
 
 use crate::WordApp;
 use crate::theme::{Tokens, semibold};
@@ -99,14 +99,6 @@ pub(crate) fn matching_commands(app: &WordApp, category: &str, query: &str) -> V
 /// Keep `wanted` when it is still listed, else fall back to the first row (#1845).
 pub(crate) fn select_in(rows: &[(String, String)], wanted: &str) -> String {
     if rows.iter().any(|(id, _)| id == wanted) { wanted.to_string() } else { rows.first().map(|(id, _)| id.clone()).unwrap_or_default() }
-}
-
-/// Only combinations with Mod, Ctrl or Alt, or function keys, can be assigned from the dialog
-/// (plain letters and Shift+letter type text).
-fn assignable(key: &str) -> bool {
-    let name = key.rsplit('+').next().unwrap_or("");
-    let function = name.strip_prefix('F').is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-    key.contains("Mod+") || key.contains("Ctrl+") || key.contains("Alt+") || function
 }
 
 /// The key combination a focused "New shortcut" box received this frame, if any.
@@ -238,17 +230,29 @@ pub fn customize_keyboard(app: &mut WordApp, ui: &mut Ui, f: &mut KeyboardForm) 
             close = capture(ui, f);
             ui.add_space(4.0);
             if !f.pressed.is_empty() {
-                let owner = match app.session.keymap.resolve(&reg, &f.pressed) {
-                    Some(s) => crate::i18n::fmt(tl!("Now used by {command}"), &[("command", tl!(s.label))]),
-                    None => tl!("Not used by any command").to_string(),
+                let owner = match (app.session.keymap.resolve(&reg, &f.pressed), crate::keys::ui_shortcut_label(app, &f.pressed)) {
+                    (Some(s), _) => crate::i18n::fmt(tl!("Now used by {command}"), &[("command", tl!(s.label))]),
+                    // Interface shortcuts (Ctrl+F1…) give way to a command assigned the key.
+                    (None, Some(label)) => crate::i18n::fmt(tl!("Now used by {command}"), &[("command", tl!(label))]),
+                    (None, None) => tl!("Not used by any command").to_string(),
                 };
                 ui.label(owner);
+                if crate::keys::reserved_key(&f.pressed).is_some() {
+                    pane_note(ui, tl!("Reserved by the interface: it can't be given to another command."));
+                }
             }
         });
     });
     if let Some(spec) = reg.get(&f.command) {
         ui.add_space(4.0);
         ui.label(egui::RichText::new(format!("{} · {}", crate::i18n::location(spec.location), spec.id)).small().weak());
+    }
+
+    if let Some(id) = custom_list(app, ui) {
+        f.filter.clear();
+        f.category = ALL.to_string();
+        f.command = id;
+        f.current.clear();
     }
 
     ui.add_space(8.0);
@@ -266,13 +270,14 @@ pub fn customize_keyboard(app: &mut WordApp, ui: &mut Ui, f: &mut KeyboardForm) 
         return close;
     }
     ui.horizontal(|ui| {
-        let can_assign = !f.command.is_empty() && !f.pressed.is_empty() && !keys.contains(&f.pressed);
+        let can_assign =
+            !f.command.is_empty() && !f.pressed.is_empty() && !keys.contains(&f.pressed) && crate::keys::reserved_key(&f.pressed).is_none();
         if ui.add_enabled(can_assign, egui::Button::new(tl!("Assign"))).clicked()
             && change(app, json!({"assign": {"command": f.command, "key": f.pressed}}))
         {
             f.current = std::mem::take(&mut f.pressed);
         }
-        if ui.add_enabled(!f.current.is_empty(), egui::Button::new(tl!("Remove"))).clicked()
+        if ui.add_enabled(!f.current.is_empty() && crate::keys::reserved_key(&f.current).is_none(), egui::Button::new(tl!("Remove"))).clicked()
             && change(app, json!({"remove": {"command": f.command, "key": f.current}}))
         {
             f.current.clear();
@@ -287,6 +292,38 @@ pub fn customize_keyboard(app: &mut WordApp, ui: &mut Ui, f: &mut KeyboardForm) 
         });
     });
     close
+}
+
+fn pane_note(ui: &mut Ui, text: &str) {
+    ui.label(egui::RichText::new(text).small().weak());
+}
+
+/// Your shortcuts: every key assigned or removed in this dialog, as "key → command" rows; a click
+/// picks the command. Returns the command picked.
+fn custom_list(app: &WordApp, ui: &mut Ui) -> Option<String> {
+    let km = &app.session.keymap;
+    if km.is_empty() {
+        return None;
+    }
+    let reg = &app.session.registry;
+    let label = |id: &str| reg.get(id).map_or_else(|| id.to_string(), |s| tl!(s.label).to_string());
+    let mut rows: Vec<(String, String)> = km.assigned.iter().map(|(k, id)| (id.clone(), format!("{}  →  {}", key_text(k), label(id)))).collect();
+    // A removed built-in key that nothing took over: it now does nothing.
+    for k in km.removed.iter().filter(|k| !km.assigned.contains_key(*k)) {
+        if let Some(owner) = reg.all().iter().find(|s| s.shortcut.split(" / ").filter_map(normalize).any(|b| &b == k)) {
+            let text = crate::i18n::fmt(tl!("{key} removed from {command}"), &[("key", &key_text(k)), ("command", tl!(owner.label))]);
+            rows.push((owner.id.to_string(), text));
+        }
+    }
+    let mut picked = None;
+    ui.add_space(4.0);
+    egui::CollapsingHeader::new(crate::i18n::fmt(tl!("Your shortcuts ({count})"), &[("count", &rows.len().to_string())])).id_salt("kb_custom").show(
+        ui,
+        |ui| {
+            picked = list(ui, "kb_custom_list", vec2(478.0, 90.0), &rows, "");
+        },
+    );
+    picked
 }
 
 /// The "New shortcut" box: takes keyboard focus and records the combination pressed.
@@ -487,6 +524,40 @@ mod tests {
         settle(&mut h);
         assert_eq!(h.state().1.command, first_of_home.0);
         assert!(row_in_view(&h, &first_of_home.1), "the new selection {} is in view", first_of_home.0);
+    }
+
+    /// The New shortcut box records combinations with punctuation (Ctrl+;) and function keys past
+    /// F12, ignores keys that type text, and marks the interface's own keys as reserved; what you
+    /// assigned is listed under Your shortcuts.
+    #[test]
+    fn new_shortcut_box_records_assignable_keys_only() {
+        use egui_kittest::kittest::Queryable;
+        let mut h = harness("Home", Some("format.bold"));
+        let press = |h: &mut KbHarness<'_>, key: egui::Key, modifiers: egui::Modifiers| {
+            h.event(egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers });
+            h.step();
+            h.step();
+        };
+        press(&mut h, egui::Key::Semicolon, egui::Modifiers::COMMAND);
+        assert_eq!(h.state().1.pressed, "Mod+;");
+        // A plain letter and Shift+letter type text: the box keeps the last combination.
+        press(&mut h, egui::Key::A, egui::Modifiers::NONE);
+        press(&mut h, egui::Key::A, egui::Modifiers::SHIFT);
+        assert_eq!(h.state().1.pressed, "Mod+;");
+        press(&mut h, egui::Key::F15, egui::Modifiers::NONE);
+        assert_eq!(h.state().1.pressed, "F15");
+        if !cfg!(target_os = "macos") {
+            press(&mut h, egui::Key::Q, egui::Modifiers::ALT);
+            assert_eq!(h.state().1.pressed, "Alt+Q");
+            assert!(h.query_by_label_contains("Reserved by the interface").is_some(), "Alt+Q is reserved");
+        }
+        // Assign Mod+; to Bold and it shows under Your shortcuts.
+        press(&mut h, egui::Key::Semicolon, egui::Modifiers::COMMAND);
+        h.get_by_label("Assign").click();
+        settle(&mut h);
+        let (app, _) = h.state();
+        assert_eq!(app.session.keymap.resolve(&app.session.registry, "Mod+;").map(|s| s.id), Some("format.bold"));
+        assert!(h.query_by_label_contains("Your shortcuts (1)").is_some());
     }
 
     /// #1845: the command filter searches every command by label or id, ignoring the category.
