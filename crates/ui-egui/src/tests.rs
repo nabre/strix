@@ -75,7 +75,7 @@ fn window_title_with_nul_is_safe_for_x11() {
         assert!(std::ffi::CString::new(title.as_str()).is_ok(), "X11 needs a title without NUL: {title:?}");
     }
     assert_eq!(app.title_stem(), fallback);
-    assert_eq!(app.default_save_name(), format!("{fallback}.docx"));
+    assert_eq!(app.default_save_name(), format!("{fallback}.xmath"));
     assert_eq!(app.session.doc.core.title, "\u{0}");
 }
 
@@ -124,7 +124,7 @@ fn a_suggested_name_is_the_first_words_of_the_text() {
 #[test]
 fn save_as_suggests_the_first_words_of_a_new_document() {
     let mut app = app();
-    assert_eq!(app.default_save_name(), format!("{}.docx", app.title_stem()), "an empty document");
+    assert_eq!(app.default_save_name(), format!("{}.xmath", app.title_stem()), "an empty document");
     for c in [
         json!(["text.newParagraph", {}]),
         json!(["text.insert", {"text": "Minutes of the board meeting. Present: all"}]),
@@ -133,14 +133,14 @@ fn save_as_suggests_the_first_words_of_a_new_document() {
     ] {
         app.session.run(c[0].as_str().unwrap(), &c[1]).unwrap();
     }
-    assert_eq!(app.default_save_name(), "Minutes of the board meeting.docx");
+    assert_eq!(app.default_save_name(), "Minutes of the board meeting.xmath");
     assert_eq!(
         app.title_stem(),
         crate::documents::untitled_title(&app.session.resolved_filenames().0).unwrap_or_else(|| "Document1".into()),
         "the window title stays Document1"
     );
     app.session.doc.core.title = "Board minutes".into();
-    assert_eq!(app.default_save_name(), "Board minutes.docx", "a title wins");
+    assert_eq!(app.default_save_name(), "Board minutes.xmath", "a title wins");
     app.session.doc.core.title.clear();
     app.session.path = Some(std::path::PathBuf::from("/tmp/kept.docm"));
     assert_eq!(app.default_save_name(), "kept.docm", "a saved file keeps its name and format");

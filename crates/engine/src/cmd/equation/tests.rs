@@ -674,7 +674,7 @@ fn an_autocorrected_operator_waits_for_its_limits() {
     // #4917: as in Word, `\int` + Space gives a ∫ that `_x^y` then Space decorates; the
     // operand typed next goes inside the operator.
     let typed = |keys: &[&str]| {
-        let mut s = session();
+        let mut s = word_session();
         s.run("insert.equation", &json!({})).unwrap();
         for t in keys {
             s.run("equation.type", &json!({"text": t})).unwrap();
@@ -747,7 +747,7 @@ fn a_math_name_is_corrected_by_any_character_that_cannot_continue_it() {
     // typed, so Space then builds the integral with its limits; `\alpha` + `+` gives α+, and a
     // letter or digit leaves the name as typed.
     let typed = |keys: &[&str]| {
-        let mut s = session();
+        let mut s = word_session();
         s.run("insert.equation", &json!({})).unwrap();
         for t in keys {
             s.run("equation.type", &json!({"text": t})).unwrap();

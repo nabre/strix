@@ -1,6 +1,6 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10.
+Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10, upstream main up to `a42c9eaa` the same day.
 
 Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
 internal names (crates, Rust paths, types, environment variables) and is Strix only where users
@@ -24,6 +24,14 @@ those few rules, so a merge only conflicts where both sides really changed a lin
 > others were merged three-way and by hand. So `main` already holds v0.17.0: when
 > `vendor/wordcraft` is re-created as above, also `sync` `5574b326c` and merge it with `git merge -s
 > ours`; the next real merge starts from there.
+>
+> **Up to `a42c9eaa` (2026-11-10).** The 17 upstream commits after v0.17.0 (to `a42c9eaa`: strict
+> PDF/PNG export, `--strict` on `convert` and `render`, ODT fixes for gap 19, RTF style-sheet
+> names, pasted CSS colours with alpha, the macOS title bar behind a modal dialog) went in as
+> upstream's diff `5574b326..a42c9eaa`, with `wordcraft-cli` → `strix-cli` applied to it; six
+> files Strix had changed were merged three-way. Upstream's `Cargo.toml` version (back to
+> 0.15.1) and Strix-owned files were left out. So `sync` `a42c9eaa` and merge it with `git merge
+> -s ours` too when `vendor/wordcraft` is re-created.
 
 ## How it works
 

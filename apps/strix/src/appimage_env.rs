@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! An AppImage's environment inherited from another program (#5653).
 //!
 //! The AppImage runtime gives the program it starts `APPIMAGE` (the image's file), `APPDIR` (where
@@ -42,7 +43,7 @@ pub(crate) fn drop_inherited() -> Option<std::io::Error> {
         return None;
     }
     // The logger isn't up yet, and wouldn't survive `exec`. Unlike `eprintln!`, never panics.
-    let _ = writeln!(std::io::stderr(), "wordcraft: ignoring the AppImage {:?} inherited from another program", Path::new(&appimage));
+    let _ = writeln!(std::io::stderr(), "strix: ignoring the AppImage {:?} inherited from another program", Path::new(&appimage));
     let mut args = std::env::args_os();
     // This file, whatever has happened to its path since it started.
     let mut again = Command::new("/proc/self/exe");

@@ -259,6 +259,7 @@ Command line (`cargo run --release -p strix-cli -- …`, or the built `strix-cli
 ```sh
 strix-cli convert report.docx report.xmath        # import a Word document
 strix-cli convert problem.xmath problem.pdf       # static export: pdf, png, tex, html, md
+strix-cli convert problem.xmath problem.pdf --strict  # exit 3, no file, if a character or picture would be left out
 strix-cli run --template sample \
   --cmd 'calc.insert={"text":"L = 4.5 m"}' --save beam.xmath
 strix-cli commands                                # every command id

@@ -107,7 +107,9 @@ fn canvas_scroll_style() -> egui::style::ScrollStyle {
 /// the thumb would vanish into its track. Grey at rest, darker (lighter in the dark theme) under
 /// the pointer and while dragged. Only the scroll area's own visuals: the pages' contents keep theirs.
 fn canvas_scroll_thumb(visuals: &mut egui::Visuals, t: &Tokens) {
-    visuals.widgets.inactive.bg_fill = t.border_strong;
+    // Strix's dark palette keeps `border_strong` next to `input` (#3C on #31), so its thumb takes
+    // the disabled-text grey there, still below the hovered and dragged greys.
+    visuals.widgets.inactive.bg_fill = if visuals.dark_mode { t.text_disabled } else { t.border_strong };
     visuals.widgets.hovered.bg_fill = t.input_border;
     visuals.widgets.active.bg_fill = t.text_dim;
 }

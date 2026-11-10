@@ -39,7 +39,7 @@ vendor branch every `strix`/`Strix`/`STRIX` comes from the rename, apart from th
 |---|---|---|---|
 | `STRIX_LANGUAGE` | upstream `crates/ui-egui/src/i18n.rs` | 5 / 5 | `WORDCRAFT_LANGUAGE` |
 | `STRIX_REGION` | upstream `crates/geom/src/region.rs`, `apps/strix/src/region.rs` | 5 / 5 | `WORDCRAFT_REGION` |
-| `STRIX_DICTIONARIES` | upstream `crates/proof/src/hunspell.rs` | 6 / 35 | `WORDCRAFT_DICTIONARIES` (also used by Strix's `crates/engine/src/prefs.rs`, `cmd/dictionaries.rs`; named in one UI string, see translations) |
+| `STRIX_DICTIONARIES` | upstream `crates/proof/src/hunspell.rs` (now craft-proof, storytold/craft-libs) | 6 / 35 | `WORDCRAFT_DICTIONARIES` (also used by Strix's `crates/engine/src/prefs.rs`, `cmd/dictionaries.rs`; named in one UI string, see translations) |
 | `STRIX_WAYLAND` | upstream `apps/strix/src/main.rs` | 3 / 1 | `WORDCRAFT_WAYLAND` |
 | `STRIX_CONTROL_PORT` | upstream `apps/strix/src/main.rs` | 6 / 6 | `WORDCRAFT_CONTROL_PORT` |
 | `STRIX_CONTROL_KEY` | upstream `crates/mcp/src/backend.rs` | 3 / 3 | `WORDCRAFT_CONTROL_KEY` |
@@ -76,10 +76,10 @@ Lines are in `main`; on the vendor branch each line holds upstream's text, and a
 |---|---|---|
 | b1 | App id `io.github.nabre.strix` (exact rule from `ai.storyteller.wordcraft`) | `apps/strix/src/main.rs:418` (+ packaging, owned) |
 | b2 | Repository URL `nabre/strix` (exact rules from `github.com/storytold/wordcraft`, `storytold/wordcraft`) | `Cargo.toml:12`, `crates/engine/src/sample.rs:116`, `crates/mcp/src/server.rs:184`, docs |
-| b3 | User folders | `crates/control-key/src/lib.rs:23,25,30` (`Application Support/Strix`, `APPDATA\Strix`, `~/.config/strix`); `crates/proof/src/hunspell.rs:93` (`<base>/Strix/dictionaries`); `crates/proof/src/downloads.rs:30,32,34` is a Strix file and stays |
+| b3 | User folders | `crates/control-key/src/lib.rs:23,25,30` (`Application Support/Strix`, `APPDATA\Strix`, `~/.config/strix`); Strix's dictionaries folder is `crates/dictionaries/src/downloads.rs` (`user_dictionaries_dir`), a Strix file, handed to the external `craft-proof` as the folder it searches first (proofing left `crates/proof` with WordCraft 0.17.0) |
 | b4 | App package and executable names | `apps/strix/Cargo.toml:3`, `apps/strix-cli/Cargo.toml:3,11`, `apps/strix-web/Cargo.toml:3,14`; the path rule `apps/wordcraft*` → `apps/strix*`; `apps/strix/build.rs:22-23` (`OriginalFilename`, `InternalName`) |
 | b5 | `serverInfo.name` `"strix"` | `crates/mcp/src/server.rs:182` (test `crates/mcp/src/tests.rs:26`) |
-| b6 | `PRODUCT_NAME` rows outside `packaging/` (23 rows; the 13 `packaging/` rows go, the folder becomes Strix's) | `apps/strix/build.rs`, `apps/strix/src/main.rs`, `apps/strix-web/index.html`, docx `write/settings.rs`, `engine/sample.rs`, formats html/latex/odt/rtf, `mcp/server.rs`, `pdf/metadata.rs`, ui-egui `chrome.rs`, `dialogs/chrome.rs`, `updates_ui.rs`, `windows.rs` |
+| b6 | `PRODUCT_NAME` rows outside `packaging/` (24 rows, the CLI's usage line added 2026-11-10; the 13 `packaging/` rows go, the folder becomes Strix's) | `apps/strix/build.rs`, `apps/strix/src/main.rs`, `apps/strix-web/index.html`, `apps/strix-cli/src/main.rs`, docx `write/settings.rs`, `engine/sample.rs`, formats html/latex/odt/rtf, `mcp/server.rs`, `pdf/metadata.rs`, ui-egui `chrome.rs`, `dialogs/chrome.rs`, `updates_ui.rs`, `windows.rs` |
 
 ## Group c — external names, never renamed
 
@@ -111,7 +111,7 @@ Strix's own crates and files keep their names and only get their imports updated
 `strix_objects.rs`, `sample_calc.rs`, `ribbon/strix.rs`, `canvas/strix.rs`, `cad_editor.rs`, `cad_panel.rs`,
 `cad_dim_parts.rs`, `graph_pane.rs`, `exercise_pane.rs`, `subdocument_pane.rs`, `pane_kit.rs`, `strix_save.rs`,
 `strix_update.rs`, `brand.rs`, `dictionary_download.rs`, `backstage/tiles.rs`, `widgets/{big_split,value_field}.rs`,
-`crates/control-key/src/portable.rs`, `crates/proof/src/downloads.rs`, `crates/doc/src/graph_paper.rs`,
+`crates/control-key/src/portable.rs`, `crates/dictionaries/src/downloads.rs`, `crates/doc/src/graph_paper.rs`,
 `crates/layout/src/graph.rs`.
 
 ## Translations of group-b strings
@@ -287,6 +287,8 @@ By hand, as feature code: the docx reader also accepts `urn:strix:canvas-xfrm` (
 (`crates/docx/tests/it/strix_canvas_uri.rs`).
 
 ## Revision history
+
+- 2026-11-10 — b3 and the list of Strix files: the dictionaries folder is `crates/dictionaries` now that proofing is the external `craft-proof` (WordCraft 0.17.0). b6: the CLI's usage line names Strix Writer (a `PRODUCT_NAME` row; a line inside a multi-line string escaped the literal rule).
 
 - 2026-11-09 — phase 3: the reverse rename on `main`, by `cargo xtask upstream unrename`.
 

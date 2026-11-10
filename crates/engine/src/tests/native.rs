@@ -55,10 +55,14 @@ fn native_names_and_constants() {
     assert_eq!(io::native_path(p("/d/kept.xmathm")), p("/d/kept.xmathm"));
     assert_eq!(wordcraft_docx::Flavor::from_ext("xmath"), Some(wordcraft_docx::Flavor::Document));
     assert_eq!(wordcraft_docx::Flavor::from_ext("XMATHM"), Some(wordcraft_docx::Flavor::Template));
-    assert!(io::can_encrypt("a.xmath") && io::can_encrypt("b.xmathm") && io::can_encrypt("c.docx") && !io::can_encrypt("d.odt"));
+    assert!(io::can_encrypt("a.xmath") && io::can_encrypt("b.xmathm") && io::can_encrypt("c.docx"));
+    // ODT packages take a password too (ODF 1.3 Part 2 §3.4, WordCraft 0.17.0); RTF and text never.
+    assert!(io::can_encrypt("d.odt") && io::can_encrypt("e.ott") && !io::can_encrypt("f.rtf") && !io::can_encrypt("g.txt"));
     // Strix's own formats first, then the other editable formats, then the static exports.
-    assert_eq!(&io::SAVE_EXTS[2..10], io::FOREIGN_SAVE_EXTS);
-    assert_eq!(&io::SAVE_EXTS[10..], io::EXPORT_EXTS);
+    let foreign_end = 2 + io::FOREIGN_SAVE_EXTS.len();
+    assert_eq!(&io::SAVE_EXTS[..2], [io::NATIVE_DOC_EXT, io::NATIVE_TEMPLATE_EXT]);
+    assert_eq!(&io::SAVE_EXTS[2..foreign_end], io::FOREIGN_SAVE_EXTS);
+    assert_eq!(&io::SAVE_EXTS[foreign_end..], io::EXPORT_EXTS);
     assert!(io::is_foreign_save("a.DOCX") && io::is_foreign_save("rtf") && !io::is_foreign_save("a.doc") && !io::is_foreign_save("a.xmath"));
 }
 

@@ -27,6 +27,7 @@ pub mod sample_calc;
 mod session;
 pub(crate) mod snapshot;
 pub mod speech;
+pub mod strict;
 pub mod strix_objects;
 pub(crate) mod view;
 

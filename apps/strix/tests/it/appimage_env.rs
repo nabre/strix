@@ -71,7 +71,7 @@ fn another_programs_variables_are_dropped_once_and_the_program_carries_on() {
     let out = app(&["--version".into()], &other, &tmp.0);
     let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     assert!(out.status.success(), "status {:?}, stderr: {stderr}", out.status);
-    assert!(stdout.starts_with("wordcraft "), "stdout: {stdout}");
+    assert!(stdout.starts_with("strix "), "stdout: {stdout}");
     assert_eq!(stderr.matches(NOTICE).count(), 1, "stderr: {stderr}");
     assert!(stderr.contains("other-app.AppImage"), "stderr: {stderr}");
     assert_eq!(std::fs::read(&other).unwrap(), b"another program");
@@ -95,6 +95,6 @@ fn its_own_images_variables_stay() {
     let out = app(&["--version".into()], &mount.join("Strix.AppImage"), mount);
     let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     assert!(out.status.success(), "status {:?}, stderr: {stderr}", out.status);
-    assert!(stdout.starts_with("wordcraft "), "stdout: {stdout}");
+    assert!(stdout.starts_with("strix "), "stdout: {stdout}");
     assert!(!stderr.contains(NOTICE), "stderr: {stderr}");
 }

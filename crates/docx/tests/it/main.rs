@@ -22,6 +22,7 @@ mod heading_levels;
 mod legacy_forms;
 mod ligatures;
 mod malformed;
+mod missing_pictures;
 mod nested_block_controls;
 mod note_comments;
 mod passthrough;
