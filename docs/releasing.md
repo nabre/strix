@@ -64,7 +64,22 @@ signing on the `release` branch and runs macOS on the paid `macos-15-xlarge` run
   `AZURE_*` secrets Windows is unsigned (SmartScreen warns).
 - macOS builds on the standard `macos-latest` runner (Apple silicon, the x86_64 half too).
 - FreeBSD x86_64 builds in a VM (`vmactions/freebsd-vm`): the app and the CLI in a tar.gz.
-- The draft release waits for every build (not for signing).
+- The draft release waits for every build (not for signing) and for **Checks already run**.
+- **Each check runs once.** A push to `release` doesn't run again what other workflows already
+  checked; **Checks already run** reads their results beside the builds (no build waits for it):
+  - CI (`ci.yml`, `cargo xtask ci`) of the released code: the release commit's run or, when
+    `release` got `main` through a merge commit, the run of the `main` commit merged in. Still
+    running: waited for. **Failed: no draft** (fix it on `main`, merge `main` into `release`
+    again). No run found: a warning.
+  - The last completed nightly **FreeBSD** (`freebsd.yml`: build and tests in a VM) and **Windows
+    ARM64** (`windows-arm64.yml`: the ARM64 MSI installed and run on an ARM64 runner) runs on
+    `main`, reported in the summary, a warning when one failed. These workflows no longer run on
+    pushes to `release` (they never held the draft back); start one by hand
+    (`gh workflow run freebsd.yml --ref main`) to check the latest `main` before releasing.
+  - Packaging lint runs on `main` and on PRs, not again on `release` (same files).
+- `cargo xtask workflows` (in `cargo xtask ci`) keeps the workflows in step: every action from
+  outside the suite pinned to a full commit SHA, one commit per action, one craft-fonts commit
+  in every workflow. The suite's own `storytold/…` actions follow `@main` on purpose.
 
 Signing secrets live in the repository's `release` environment, synced from the release manager's
 machine (`craftrules/release/signing-setup.md`); set them and the next run signs.

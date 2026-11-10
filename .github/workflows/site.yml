@@ -51,8 +51,10 @@ jobs:
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: stable
       # app/ ("Try it in the browser") is the browser version of the latest release
       # (packaging/web/package.sh); its paths are relative, so it works under /strix/app/. A release
       # made by release.yml carries it as strix-web-<version>.zip. One made by hand on GitHub has
@@ -87,7 +89,7 @@ jobs:
           cargo xtask site --check --version "$VERSION"
           echo "Site: download links to v$VERSION" >>"$GITHUB_STEP_SUMMARY"
       - if: steps.web.outputs.build == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.web.outputs.tag }}
           path: web-src
@@ -119,8 +121,8 @@ jobs:
           test -f "$dir/index.html"
           mkdir -p _site/app
           cp -R "$dir/." _site/app/
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
 
@@ -136,4 +138,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

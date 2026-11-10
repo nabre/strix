@@ -1,10 +1,11 @@
 # Quick static checks for the release pipeline (seconds, no Rust build): workflow syntax,
-# packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata.
+# packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata. Not on the
+# `release` branch: it only gets main merged in, and main's files were checked there already.
 name: Packaging lint
 
 on:
   push:
-    branches: [main, release]
+    branches: [main]
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]
   pull_request:
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]

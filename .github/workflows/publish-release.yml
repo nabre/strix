@@ -26,14 +26,25 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Publish
+        with:
+          persist-credentials: false
+      # The version, read once: the input, else Cargo.toml's [workspace.package] version.
+      - name: Version
+        id: v
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -eu
           version="${INPUT_VERSION:-$(awk '/^\[/ { p = ($0 == "[workspace.package]"); next } p && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }' Cargo.toml)}"
-          tag="v$version"
+          [ -n "$version" ] || { echo "::error::no version: none given and none in Cargo.toml's [workspace.package]"; exit 1; }
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -eu
+          tag="v$VERSION"
           draft="$(gh release view "$tag" --json isDraft --jq .isDraft)" || { echo "::error::there is no release $tag: run Release first"; exit 1; }
           if [ "$draft" != "true" ]; then
             echo "$tag is already published"
@@ -46,16 +57,15 @@ jobs:
       - name: Check what main has that the release hasn't
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
           set -eu
-          version="${INPUT_VERSION:-$(awk '/^\[/ { p = ($0 == "[workspace.package]"); next } p && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }' Cargo.toml)}"
-          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/v$version...main" --jq '[.commits[] | select(.parents | length < 2)] | length')" || exit 0
+          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/v$VERSION...main" --jq '[.commits[] | select(.parents | length < 2)] | length')" || exit 0
           if [ "$ahead" -gt 0 ]; then
-            echo "::warning::main has $ahead commit(s) that v$version doesn't include: they go in the next release (bump the version, merge main into release)"
+            echo "::warning::main has $ahead commit(s) that v$VERSION doesn't include: they go in the next release (bump the version, merge main into release)"
             {
-              echo "### Not in v$version"
-              gh api "repos/$GITHUB_REPOSITORY/compare/v$version...main" --jq '.commits[] | select(.parents | length < 2) | "- " + (.commit.message | split("\n")[0])'
+              echo "### Not in v$VERSION"
+              gh api "repos/$GITHUB_REPOSITORY/compare/v$VERSION...main" --jq '.commits[] | select(.parents | length < 2) | "- " + (.commit.message | split("\n")[0])'
             } >>"$GITHUB_STEP_SUMMARY"
           fi
       # The site's download links and its web app (app/) come from the latest release.

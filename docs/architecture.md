@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix architecture
 
-> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-08 · **Change:** minor (`dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
+> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
 
 How Strix is built today (origin/main `40c5d51`). The longer design notes in
 `plan/architecture.md` are gitignored and local to the original author's machine; this file is the
@@ -59,16 +59,22 @@ winit or rfd.
   input, `.doc`, formats, typing parity (`engine/src/tests/typing.rs`), bidi, i18n catalogs, UI
   interaction (egui_kittest), MCP acceptance; `hostile_params_never_panic` runs every command with
   junk params.
-- `cargo xtask ci`: fmt, clippy `-D warnings`, tests, asset attribution, layering, wasm build.
+- `cargo xtask ci`: fmt, clippy `-D warnings`, tests, asset attribution, the GitHub workflows
+  (`cargo xtask workflows`: outside actions pinned to one commit each, one craft-fonts commit
+  everywhere), layering, wasm build.
 - `cargo xtask parity` regenerates [`parity-checklist.md`](parity-checklist.md); a test keeps the
   catalog percentage above a floor that only rises.
-- GitHub Actions on PRs: packaging lint, and FreeBSD / Windows ARM64 when build files change;
-  release builds on pushes to `release`.
+- GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs;
+  packaging lint, and FreeBSD / Windows ARM64 on PRs that change their files and nightly on `main`;
+  release builds on pushes to `release`, which read those runs instead of running them again
+  (the released code's CI must have passed; the nightly FreeBSD and Windows ARM64 runs are
+  reported). See [`releasing.md`](releasing.md).
 
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-10 | minor | Each check runs once across the workflows (release reads CI and the nightlies instead of running them again); `cargo xtask workflows` in `cargo xtask ci` |
 | 2026-10-28 | minor | Layer table matches `cargo xtask layers` (`calc`, `cad`, `metafile`; `zotero` L5; `control-key` standalone) |
 | 2026-10-10 | minor | `proof`: proofing languages (English, Polish), affix engine, Polish patterns; layout and engine route each run by its language |
 | 2026-10-10 | major | First committed architecture doc, from the crates' sources and `AGENTS.md` |

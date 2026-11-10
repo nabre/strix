@@ -4,6 +4,10 @@
 # failure, and the macOS and Windows packaging scripts then sign ad hoc or not at all. A draft
 # GitHub Release collects every package once all the builds have passed.
 #
+# Nothing checked elsewhere is run again here (job "Checks already run"): the released code's CI
+# run (`cargo xtask ci`, ci.yml) must have passed, and the last nightly FreeBSD and Windows ARM64
+# runs on main (freebsd.yml, windows-arm64.yml: build, tests, install on ARM64) are reported.
+#
 # It reuses the suite's composite actions (storytold/craft-common-actions/actions/*) but not its
 # reusable release workflow, which requires signing on the release branch and a paid
 # macos-15-xlarge runner.
@@ -34,6 +38,80 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # What other workflows already checked, read instead of run again. It runs beside the builds
+  # (no build waits for it) and only the draft release needs it:
+  # - CI (ci.yml, `cargo xtask ci`) of the released code: this commit's run or, when the release
+  #   branch got main through a merge commit, the run of the main commit merged in (its second
+  #   parent). Still running: waited for. Failed: no draft. Not found: a warning.
+  # - The last completed nightly FreeBSD and Windows ARM64 runs on main: reported, a warning when
+  #   one failed (they never held the draft back, so neither do they here).
+  checks:
+    name: Checks already run
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: CI of the released code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          # "id status url conclusion" of the commit's CI run, nothing without one (the conclusion
+          # last: it is empty while the run goes on).
+          run_of() {
+            gh run list --repo "$repo" --workflow ci.yml --commit "$1" --limit 1 \
+              --json databaseId,status,url,conclusion --jq '.[] | "\(.databaseId) \(.status) \(.url) \(.conclusion)"'
+          }
+          checked="$GITHUB_SHA"
+          run="$(run_of "$checked")"
+          if [ -z "$run" ] && merged="$(git rev-parse -q --verify "$GITHUB_SHA^2")"; then
+            checked="$merged"
+            run="$(run_of "$checked")"
+          fi
+          echo "### Checks already run" >>"$GITHUB_STEP_SUMMARY"
+          if [ -z "$run" ]; then
+            echo "::warning::no CI run (ci.yml) for $checked: the released code's cargo xtask ci can't be confirmed"
+            echo "- CI: no run found for $checked" >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          read -r id status url conclusion <<<"$run"
+          if [ "$status" != completed ]; then
+            echo "CI run $id for $checked is still running: waiting for it"
+            gh run watch "$id" --repo "$repo" --interval 60 >/dev/null || true
+            conclusion="$(gh run view "$id" --repo "$repo" --json conclusion --jq .conclusion)"
+          fi
+          echo "- CI on $checked: $conclusion ($url)" >>"$GITHUB_STEP_SUMMARY"
+          if [ "$conclusion" != success ]; then
+            echo "::error::CI (ci.yml) on $checked ended \"$conclusion\": $url (fix it on main, then merge main into release again)"
+            exit 1
+          fi
+      - name: Last nightly FreeBSD and Windows ARM64 runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for wf in freebsd.yml windows-arm64.yml; do
+            last="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$wf" --branch main --status completed --limit 1 \
+              --json conclusion,headSha,createdAt,url --jq '.[] | "\(.conclusion) \(.headSha) \(.createdAt) \(.url)"')"
+            if [ -z "$last" ]; then
+              echo "::warning::$wf: no completed run on main yet"
+              echo "- $wf: no completed run on main" >>"$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            read -r conclusion sha when url <<<"$last"
+            echo "- $wf: $conclusion on ${sha:0:7} ($when, $url)" >>"$GITHUB_STEP_SUMMARY"
+            if [ "$conclusion" != success ]; then
+              echo "::warning::$wf: the last run on main (${sha:0:7}, $when) ended \"$conclusion\": $url"
+            fi
+          done
+
   version:
     name: Version
     runs-on: ubuntu-latest
@@ -483,11 +561,12 @@ jobs:
           path: dist/release/*.tar.gz
           if-no-files-found: error
 
-  # A draft GitHub Release with every package and SHA256SUMS.txt, once every build has passed
-  # (the signing report never holds it back). Review and publish it by hand.
+  # A draft GitHub Release with every package and SHA256SUMS.txt, once every build has passed and
+  # the released code's CI too (the signing report never holds it back). Review and publish it by
+  # hand.
   release:
     name: Draft GitHub Release
-    needs: [version, signing, macos, windows, linux, linux-riscv64, flatpak, arch, web, freebsd]
+    needs: [checks, version, signing, macos, windows, linux, linux-riscv64, flatpak, arch, web, freebsd]
     if: "!cancelled() && !contains(needs.*.result, 'failure')"
     runs-on: ubuntu-latest
     timeout-minutes: 15
