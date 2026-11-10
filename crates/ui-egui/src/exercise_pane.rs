@@ -78,7 +78,9 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
 fn series_tab(app: &mut WordApp, ui: &mut Ui) {
     crate::pane_kit::note(
         ui,
-        tl!("Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them."),
+        tl!(
+            "Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them."
+        ),
     );
     crate::pane_kit::section(ui, "01", tl!("Numbering"));
     numbering(app, ui);

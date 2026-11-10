@@ -44,8 +44,7 @@ pub(crate) fn clear(ctx: &egui::Context) {
 /// Draw the grip of exercise `r` at the left of `first`, its frame's first rect on screen.
 pub(crate) fn paint(app: &WordApp, painter: &egui::Painter, t: &Tokens, r: &ControlRange, first: Rect) {
     let tag = wordcraft_engine::cmd::exercise::TAG_EXERCISE;
-    let mut starts: Vec<Pos> =
-        app.session.doc.control_ranges(r.start.story).into_iter().filter(|c| c.control.tag == tag).map(|c| c.start).collect();
+    let mut starts: Vec<Pos> = app.session.doc.control_ranges(r.start.story).into_iter().filter(|c| c.control.tag == tag).map(|c| c.start).collect();
     starts.sort();
     let Some(k) = starts.iter().position(|s| *s == r.start) else { return };
     let rect = Rect::from_min_size(pos2(first.min.x - 18.0, first.min.y + 1.0), vec2(12.0, 18.0));
@@ -108,6 +107,7 @@ pub(crate) fn menu(app: &mut WordApp, ctx: &egui::Context) {
     let shown = area.show(ctx, |ui| {
         egui::Frame::popup(ui.style()).fill(t.menu).show(ui, |ui| {
             ui.set_min_width(190.0);
+            ui.set_max_width(230.0);
             let item = |ui: &mut egui::Ui, icon: &str, text: &str| crate::widgets::icon_menu_item(ui, icon, text, "", 190.0);
             if item(ui, "select", tl!("Select Exercise")).clicked() {
                 let _ = app.run("select.range", json!({"anchor": grip.from, "focus": grip.to}));

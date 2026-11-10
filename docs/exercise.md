@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece · **Last updated:** 2026-11-09 · **Change:** Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -59,14 +59,23 @@ takes them away again.
 
 ## A series
 
-Two or more exercises in a document are a **series**, and the series rules: the numbering (above),
-the parts shown and the graph paper (below) are the same for every exercise, a change made with
-the cursor in any exercise applies to all of them, and a new exercise takes them.
+Two or more exercises in a document are a **series**, and the series rules: every exercise has
+the same configuration, the **first exercise's**: numbering (above), page breaks, parts shown and
+graph paper (below). No exercise of a series can differ:
 
-In a series the Exercise Properties pane has two tabs: **Exercise**, the settings of the exercise
-at the caret alone (variants, data, its page breaks), and **Series**, the settings of every
-exercise (numbering, parts shown and graph paper, page breaks of all the exercises and of the
-results summary, frontispiece), shown wherever the cursor is. A lone exercise has no Series tab:
+- a change made with the cursor in any exercise (or naming one, `"exercise": n`) applies to all
+  of them;
+- a new exercise takes the series' settings;
+- an exercise that comes in different (pasted from another document, from an older file, its
+  graph paper changed by hand) is brought back in line with the first one at once (`update`):
+  page breaks and parts shown on its control, graph paper ruled, changed or taken away (graph
+  paper you wrote on keeps its text);
+- deleting the first exercise changes nothing: the next one already has the same settings.
+
+In a series the Exercise Properties pane has two tabs: **Exercise**, the exercise at the caret
+alone (its variants and data), and **Series**, the settings of every exercise (numbering, parts
+shown and graph paper, page breaks before each exercise, each solution and the results summary,
+frontispiece), shown wherever the cursor is. A lone exercise has no Series tab:
 what applies to it (its page breaks and the summary's, parts shown, frontispiece) follows in the
 Exercise tab, and numbering is left out, since a lone exercise has no number.
 
@@ -106,9 +115,9 @@ undo step.
 
 Each exercise can start a new page **when another exercise comes before it** (the first one of
 the document never breaks), and its **solution** can start a new page; the **results summary**
-can start a new page too. Set them in the Exercise Properties pane (Exercise tab: for this
-exercise; Series tab: for every exercise, mixed when they differ, and for the summary) or with `exercise.pageBreaks`. A new exercise takes the
-settings of the document's last exercise.
+can start a new page too. Set them in the Exercise Properties pane (Series tab in a series, Exercise tab
+for a lone exercise) or with `exercise.pageBreaks`. In a series every exercise has the same
+settings (A series, above); a new exercise takes them.
 
 An exercise's two settings are kept on its control (a `strix:exerciseBreaks` element Word
 ignores) and shown as Page break before on its title and on its solution's heading, set again
@@ -120,6 +129,9 @@ ordinary Page break before in the saved file, so other word processors break the
 
 The parts can't be deleted one by one, so an exercise goes **whole**:
 
+- **The grip**: with the cursor in an exercise, a handle of six dots stands in the margin at the
+  left of its title. A click opens its menu: **Select Exercise** (all of it, as its tab does),
+  **Exercise Properties** (the pane) and **Delete Exercise** (that exercise, whole).
 - **Delete Exercise** (Math › Exercise, or right-click in the exercise; `exercise.delete`)
   removes the exercise at the cursor, or every exercise a selection covers whole.
 - **Select the whole exercise and press Delete or Backspace** (or Cut, which copies it whole so
@@ -190,7 +202,7 @@ to the end.
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
 | `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n}`); without params, the current one → `{"prefix", "format", "start", "default", "example"}` |
-| `exercise.pageBreaks` | page breaks (`{"exercise"?: n, "all"?: bool, "beforeExercise"?, "beforeSolution"?, "beforeResults"?: bool}`); without settings, the current ones |
+| `exercise.pageBreaks` | page breaks (`{"beforeExercise"?, "beforeSolution"?, "beforeResults"?: bool}`; in a series every exercise); without settings, the current ones |
 | `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
 | `exercise.show` | the parts shown (`{"exercise"?: n, "solution"?, "results"?: bool}`; in a series every exercise) → `{"series", "solution", "results", "grid", "exercises"}` |
 | `exercise.grid` | graph paper after the questions (`{"exercise"?: n, "on"?: bool}` and graph.set's parameters but `background`; in a series every exercise) |
@@ -215,6 +227,8 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
+
+- 2026-11-10: the series rules every exercise: page breaks too (no exercise of a series differs any more; the Exercise tab keeps only variants and data), the first exercise's settings forced on every other one however it came in, a new exercise takes the series'; the exercise's grip in the margin (Select, Properties, Delete Exercise).
 
 - 2026-11-09: the Exercise Properties pane in two tabs: Exercise (this exercise's variants, data, page breaks) and Series (numbering, parts shown, page breaks of every exercise and of the summary, frontispiece); a lone exercise has no Series tab and shows what applies to it in Exercise.
 - 2026-11-09: a lone exercise has no number or prefix (title and summary); a series rules the parts shown and the graph paper; parts shown (solution, results) as hidden text (`exercise.show`); graph paper per exercise between the questions and the solution (`exercise.grid`, Graph Paper pane follows in a series); a frontispiece of one or more pages (`exercise.frontispiece`). Math › Exercise: Show (Solution, Results, Graph Paper) and Frontispiece added; Update Summary (automatic anyway) and Numbering (the same pane as Properties) left out of the ribbon, still in command search.

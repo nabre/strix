@@ -3186,3 +3186,7 @@ paper	Envelope DL	Busta DL
 	What one unit of the coordinates measures	Quanto misura un'unità delle coordinate
 	Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size	Cambiando unità le coordinate mantengono i numeri (il disegno si ingrandisce o si rimpicciolisce); disattivato, vengono convertite e il disegno mantiene le sue dimensioni
 	Marks	Terminali
+	Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them.	Tutti gli esercizi della serie hanno le stesse impostazioni, quelle del primo esercizio: una modifica vale per tutti e un esercizio nuovo le prende.
+	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e quadrettatura sono della serie: vedi la scheda Serie.
+	Select Exercise	Seleziona esercizio
+	The whole exercise goes: its statement, questions and solution (Undo brings it back)	Se ne va l'intero esercizio: testo, domande e risoluzione (Annulla lo riporta)
