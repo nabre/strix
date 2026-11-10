@@ -146,6 +146,7 @@ e il target `wasm32-unknown-unknown`.
 git clone https://github.com/nabre/strix
 cd strix
 cargo run --release -p strix -- --sample          # l'app desktop con un documento di esempio
+cargo xtask dev                                   # build di debug, ricompilata e riavviata a ogni modifica (watchexec)
 cargo run --release -p strix -- problema.xmath    # apre un documento Strix
 strix-cli convert problema.xmath problema.pdf     # esportazione statica: pdf, png, tex, html, md
 ```
