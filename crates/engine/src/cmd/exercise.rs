@@ -359,14 +359,14 @@ fn ensure_styles(s: &mut Session) {
     ];
     for st in wanted {
         if s.doc.styles.get(&st.id).is_none() {
-            s.doc.styles.styles.push(st);
+            std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(st);
         }
     }
     // The title numbers itself (Esercizio 1., Esercizio 2. …): one list in the style, so every
     // exercise of the document counts on, also in documents made before it was numbered.
     if s.doc.styles.get(STYLE_TITLE).is_some_and(|st| st.para.numbering.is_none())
         && let Ok(num) = add_title_list(s)
-        && let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE)
+        && let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE)
     {
         st.para.numbering = Some(NumRef { num, level: 0 });
     }
@@ -386,7 +386,7 @@ fn add_title_list(s: &mut Session) -> Result<u32, CmdError> {
         l.tab = None;
         l.suffix = LevelSuffix::Space;
     }
-    s.doc.numbering.try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering).try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn control(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
@@ -455,7 +455,9 @@ fn add_question_list(s: &mut Session) -> Result<u32, CmdError> {
             l.tab = None;
         }
     }
-    s.doc.numbering.try_add_levels(Some("Exercise questions".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering)
+        .try_add_levels(Some("Exercise questions".into()), levels)
+        .map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
@@ -1598,12 +1600,12 @@ pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
     let front: Vec<Arc<Block>> = scan(&own).front.and_then(|(a, b)| own.doc.body.get(a..=b)).map(<[Arc<Block>]>::to_vec).unwrap_or_default();
     let mut s = Session::new(doc);
     // The file's styles, each list a style numbers with still the one this document has.
-    s.doc.styles.default_chr = own.doc.styles.default_chr.clone();
-    s.doc.styles.default_para = own.doc.styles.default_para.clone();
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr = own.doc.styles.default_chr.clone();
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_para = own.doc.styles.default_para.clone();
     for st in &own.doc.styles.styles {
         let mut st = st.clone();
         st.para.numbering = s.doc.styles.get(&st.id).and_then(|x| x.para.numbering);
-        s.doc.styles.upsert(st);
+        std::sync::Arc::make_mut(&mut s.doc.styles).upsert(st);
     }
     // Its own frontispiece, in place of any.
     if let Some((from, to)) = scan(&s).front
@@ -1789,7 +1791,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -1935,7 +1937,7 @@ mod tests {
         let mut s = session();
         s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
         // Numbering taken away (a document from before): the next insert puts it back.
-        if let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
+        if let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
             st.para.numbering = None;
         }
         // The caret still in the first exercise's title: the second goes after the first.
@@ -2242,9 +2244,9 @@ mod tests {
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
         // Italian as it opens (the words come from the preferences, else the document's language).
-        doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut doc.styles).default_chr.lang = Some("it-IT".into());
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(title(&s), "Ponte");
         let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
@@ -2282,7 +2284,7 @@ mod tests {
         }
         assert_eq!(p.objects.len(), 1);
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
         assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));

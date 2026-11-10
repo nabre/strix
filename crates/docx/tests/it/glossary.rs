@@ -1,10 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The glossary document (ECMA-376 §17.12: building blocks, Quick Parts, AutoText): kept byte
 //! for byte while unchanged, read into `Document::glossary`, and written from the model once
 //! edited. Hand-written fixtures (from the spec), no files produced by Word.
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 use wordcraft_doc::{Block, BuildingBlock, CharProps, Document, Paragraph, para_block};
 
@@ -30,7 +30,7 @@ fn unzip(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
         let mut f = z.by_index(i).unwrap();
         let mut b = Vec::new();
         f.read_to_end(&mut b).unwrap();
-        assert!(out.insert(f.name().unwrap().to_string(), b).is_none(), "duplicate part {}", f.name().unwrap());
+        assert!(out.insert(f.name().to_string(), b).is_none(), "duplicate part {}", f.name());
     }
     out
 }
@@ -192,7 +192,7 @@ fn glossary_entries_are_read_into_the_model() {
 fn edited_glossary_is_written_from_the_model() {
     let mut doc = wordcraft_docx::read(&with_glossary()).unwrap();
     doc.glossary[0].name = "Sign-off".into();
-    let num = doc.numbering.add_list(wordcraft_doc::ListKind::Bullet);
+    let num = Arc::make_mut(&mut doc.numbering).add_list(wordcraft_doc::ListKind::Bullet);
     let mut listed = Paragraph::with_text("Second line", CharProps::default());
     listed.props.numbering = Some(wordcraft_doc::props::NumRef { num, level: 0 });
     doc.glossary.push(BuildingBlock {

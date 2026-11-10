@@ -976,7 +976,7 @@ pub(crate) fn unit_color_of(s: &Session) -> Rgb {
 
 pub(crate) fn unit_color(s: &mut Session) -> Rgb {
     if s.doc.styles.get(UNIT_STYLE).is_none() {
-        s.doc.styles.styles.push(wordcraft_doc::styles::Style {
+        std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(wordcraft_doc::styles::Style {
             id: UNIT_STYLE.into(),
             name: "Unit".into(),
             kind: wordcraft_doc::styles::StyleKind::Character,
@@ -2144,7 +2144,7 @@ mod tests {
         assert!(rows.iter().any(|(t, c)| t.contains('m') && !c), "the mass m is not a unit: {rows:?}");
         assert!(rows.iter().any(|(t, c)| t == "m" && *c), "the metre in the result is: {rows:?}");
         // The style's colour is the units' colour.
-        let st = s.doc.styles.get_mut(UNIT_STYLE).unwrap();
+        let st = std::sync::Arc::make_mut(&mut s.doc.styles).get_mut(UNIT_STYLE).unwrap();
         st.chr.color = Some(TextColor::Rgb(Rgb(200, 0, 0)));
         s.run("calc.recalculate", &json!({})).unwrap();
         let mut colors = Vec::new();

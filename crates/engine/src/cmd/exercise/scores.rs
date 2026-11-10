@@ -423,7 +423,7 @@ mod tests {
     fn a_scores_table_gathers_the_exercises_and_adds_up() {
         let mut s = Session::new(Document::new());
         run(&mut s, "document.setText", json!({"text": "Verifica"}));
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         run(&mut s, "caret.docEnd", json!({}));
         run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
         // One exercise, one criterion: no totals.

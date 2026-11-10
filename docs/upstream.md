@@ -1,6 +1,6 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`).
+Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10.
 
 Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
 internal names (crates, Rust paths, types, environment variables) and is Strix only where users
@@ -17,6 +17,13 @@ those few rules, so a merge only conflicts where both sides really changed a lin
 > into `main` with `git merge -s ours`, `sync` `9724f15c` and merge that with `-s ours` too
 > (`main` already holds that snapshot, under the new names). From then on `sync` and `git merge`
 > work as below.
+>
+> **v0.17.0 merged by hand (2026-11-10).** Upstream `5574b326` (WordCraft v0.17.0) went into `main`
+> file by file, without a vendor commit: both snapshots (`9724f15c` and `5574b326`) were passed
+> through `cargo xtask upstream rebrand`, files Strix hadn't changed took upstream's version, the
+> others were merged three-way and by hand. So `main` already holds v0.17.0: when
+> `vendor/wordcraft` is re-created as above, also `sync` `5574b326c` and merge it with `git merge -s
+> ours`; the next real merge starts from there.
 
 ## How it works
 

@@ -2,7 +2,7 @@
 //! languages read (they are large, and several are GPL or LGPL): this crate knows where each one
 //! is published — the LibreOffice dictionaries repository, at a fixed revision — and downloads
 //! the `.aff`/`.dic` pair into the user's dictionaries folder
-//! ([`wordcraft_proof::downloads::user_dictionaries_dir`]), which proofing searches. The user's
+//! ([`crate::downloads::download_dir`]), which proofing searches. The user's
 //! computer fetches the files from their publisher; Strix doesn't redistribute them.
 //!
 //! Only the dictionaries listed in [`SOURCES`] can be fetched (never a URL from a caller), each
@@ -25,7 +25,7 @@ pub const MAX_FILE: usize = 64 << 20;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Source {
     /// The Hunspell name a proofing language asks for (`it_IT`; see
-    /// [`wordcraft_proof::downloads::hunspell_name`]).
+    /// [`crate::downloads::hunspell_name`]).
     pub name: &'static str,
     /// Its folder in the repository and its file stem there, which is also the name it is saved
     /// under (Latin American Spanish has no dictionary of its own: it reads the Mexican one,
@@ -60,7 +60,7 @@ pub fn source(name: &str) -> Option<&'static Source> {
 
 /// The dictionary the proofing language of `lang` (a BCP 47 tag) reads, if Strix can download it.
 pub fn source_for(lang: Option<&str>) -> Option<&'static Source> {
-    wordcraft_proof::downloads::hunspell_name(lang).and_then(source)
+    crate::downloads::hunspell_name(lang).and_then(source)
 }
 
 impl Source {
@@ -76,7 +76,7 @@ fn base_url() -> String {
 }
 
 /// Download `src` into `dir` (created if needed) and return the `.dic` written. Proofing reads it
-/// once its dictionaries are loaded again ([`wordcraft_proof::downloads::reload_dictionaries`]).
+/// once its dictionaries are loaded again ([`crate::downloads::reload_dictionaries`]).
 /// Blocks while it downloads (seconds to a minute): call it off the interface's thread.
 pub fn download(src: &Source, dir: &Path) -> Result<PathBuf, String> {
     download_from(&base_url(), src, dir, MAX_FILE)
@@ -180,3 +180,5 @@ mod net {
 
 #[cfg(test)]
 mod tests;
+
+pub mod downloads;

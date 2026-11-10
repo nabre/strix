@@ -125,7 +125,7 @@ fn bad_links_are_errors() {
 /// One exercise in its own file, Italian.
 fn exercise_file(path: &std::path::Path, title: &str) {
     let mut s = Session::new(wordcraft_doc::Document::new());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut s, "exercise.insert", json!({"title": title, "questions": ["Trova x"]}));
     run(&mut s, "file.saveAs", json!({"path": path.to_str().unwrap()}));
 }
@@ -158,7 +158,7 @@ fn exercises_in_subdocuments_follow_the_master() {
     exercise_file(&a, "Area");
     exercise_file(&b, "Pendenza");
     let mut s = Session::new(wordcraft_doc::Document::new());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut s, "document.setText", json!({"text": "Libro"}));
     for p in [&a, &b] {
         run(&mut s, "caret.docEnd", json!({}));
@@ -195,7 +195,7 @@ fn exercises_in_subdocuments_follow_the_master() {
     run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
     for p in [&a, &b] {
         let mut alone = Session::new(crate::io::open_path(p).unwrap());
-        alone.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut alone.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(count(&alone.doc, "Riepilogo dei risultati"), 1, "{:?}", paras(&alone.doc));
         // The file keeps its own settings.
         assert_eq!(run(&mut alone, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(false), "{}", p.display());
@@ -205,7 +205,7 @@ fn exercises_in_subdocuments_follow_the_master() {
     // Reopened: the files come in again, still one summary, with the master's settings.
     let mut s = Session::new(crate::io::open_path(&book).unwrap());
     s.path = Some(book.clone());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     check(&s);
     assert_eq!(run(&mut s, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(true));
@@ -227,14 +227,14 @@ fn a_series_in_another_master_keeps_its_own_frontispiece() {
     // The series: a frontispiece then the exercise file's exercises (here copied in, as a master's
     // copy would be).
     let mut sr = Session::new(crate::io::open_path(&a).unwrap());
-    sr.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut sr.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut sr, "caret.docEnd", json!({}));
     run(&mut sr, "exercise.insert", json!({"title": "Volume", "questions": ["q"]}));
     run(&mut sr, "exercise.frontispiece", json!({"on": true}));
     run(&mut sr, "text.insert", json!({"text": "Verifica di prima"}));
     run(&mut sr, "file.saveAs", json!({"path": series.to_str().unwrap()}));
     let mut s = Session::new(wordcraft_doc::Document::new());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut s, "document.setText", json!({"text": ""}));
     run(&mut s, "master.insertSubdocument", json!({"path": series.to_str().unwrap()}));
     assert!(!body(&s).contains("Verifica di prima"), "{}", body(&s));
@@ -258,7 +258,7 @@ fn insert_with_the_caret_in_an_exercise_goes_after_it() {
     exercise_file(&a, "Area");
     exercise_file(&b, "Pendenza");
     let mut s = Session::new(wordcraft_doc::Document::new());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut s, "master.insertSubdocument", json!({"path": a.to_str().unwrap()}));
     // The caret is in the first file's exercise title: the next one goes after that subdocument.
     assert!(s.doc.control_at(&s.sel.focus).is_some());
@@ -283,7 +283,7 @@ fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     exercise_file(&a, "Area");
     exercise_file(&b, "Pendenza");
     let mut s = Session::new(wordcraft_doc::Document::new());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     run(&mut s, "document.setText", json!({"text": "Libro"}));
     for p in [&a, &b] {
         run(&mut s, "caret.docEnd", json!({}));
@@ -297,7 +297,7 @@ fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     // Reopened, nothing is edited either.
     let mut s = Session::new(crate::io::open_path(&book).unwrap());
     s.path = Some(book.clone());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     run(&mut s, "file.save", json!({}));
     assert_eq!(edited(&mut s), 0, "saved after opening");
@@ -307,13 +307,13 @@ fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 0, "{r}");
     for p in [&a, &b] {
         let mut alone = Session::new(crate::io::open_path(p).unwrap());
-        alone.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut alone.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(run(&mut alone, "exercise.numbering", json!({}))["separator"], json!("."), "{}", p.display());
     }
     // Reopened, the master still has its own.
     let mut s = Session::new(crate::io::open_path(&book).unwrap());
     s.path = Some(book.clone());
-    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     assert_eq!(run(&mut s, "exercise.numbering", json!({}))["separator"], json!(")"));
 }

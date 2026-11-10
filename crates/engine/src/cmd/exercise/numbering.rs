@@ -160,7 +160,7 @@ pub(super) fn set(s: &mut Session, change: Change) -> Result<(), CmdError> {
         return Ok(());
     }
     let text = want.level_text();
-    let numbering = &mut s.doc.numbering;
+    let numbering = std::sync::Arc::make_mut(&mut s.doc.numbering);
     let Some(n) = numbering.nums.iter_mut().find(|n| n.id == num) else { return Err(CmdError::Failed("the exercise list is missing".into())) };
     // The list's own level 0 and start would hide the definition's.
     n.level_overrides.retain(|(l, _)| *l != 0);
@@ -190,7 +190,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -262,7 +262,7 @@ mod tests {
         // Saved with the document.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut back = Session::new(crate::io::open_bytes("e.xmath", &bytes).unwrap());
-        back.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut back.doc.styles).default_chr.lang = Some("it-IT".into());
         let n = back.run("exercise.numbering", &json!({})).unwrap();
         assert_eq!((n["prefix"].clone(), n["format"].clone(), n["start"].clone()), (json!(""), json!("lowerRoman"), json!(3)));
         assert_eq!(labels(&back), ["iii.", "iv."]);
@@ -298,7 +298,7 @@ mod tests {
     fn default_prefix_follows_the_document_language() {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("en-US".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("en-US".into());
         s.prefs.default_language = Some("it-IT".into());
         let n = s.run("exercise.numbering", &json!({})).unwrap();
         assert_eq!((n["prefix"].clone(), n["default"].clone()), (json!("Exercise"), json!(true)));
@@ -367,7 +367,7 @@ mod tests {
         for name in ["e.xmath", "e.docx"] {
             let bytes = crate::io::save_bytes(name, &s.doc).unwrap();
             let mut back = Session::new(crate::io::open_bytes(name, &bytes).unwrap());
-            back.doc.styles.default_chr.lang = Some("it-IT".into());
+            std::sync::Arc::make_mut(&mut back.doc.styles).default_chr.lang = Some("it-IT".into());
             assert_eq!(back.run("exercise.numbering", &json!({})).unwrap()["separator"], json!(")"), "{name}");
             assert_eq!(labels(&back), ["Esercizio a)", "Esercizio b)"], "{name}");
         }

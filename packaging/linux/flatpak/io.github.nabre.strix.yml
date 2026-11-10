@@ -45,7 +45,9 @@ modules:
       env:
         CARGO_HOME: /run/build/strix/cargo
         CARGO_NET_OFFLINE: 'true'
-        # The interface translations (this repository's locales/) must be embedded by build.rs.
+        # The interface translations (this repository's locales/) and craft-proof's Language data
+        # (the craft-i18n source below) must be embedded.
+        CRAFT_I18N_DIR: /run/build/strix/craft-i18n
         CRAFT_I18N_REQUIRED: '1'
     build-commands:
       - cargo --offline build --release --locked -p strix -p strix-cli
@@ -69,4 +71,10 @@ modules:
           - corpus
           - build-flatpak
           - .flatpak-builder
+      # craft-proof's Language data (spelling lists, hyphenation patterns) at the commit in
+      # craft-i18n.rev (a test keeps the two equal).
+      - type: git
+        url: https://github.com/storytold/craft-i18n
+        commit: 1e515422afdda2f317af430c1f9d68a5f83935b4
+        dest: craft-i18n
       - cargo-sources.json

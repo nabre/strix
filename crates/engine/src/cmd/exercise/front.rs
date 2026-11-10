@@ -144,7 +144,7 @@ mod tests {
     fn series() -> Session {
         let mut s = Session::new(Document::new());
         run(&mut s, "document.setText", json!({"text": ""}));
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
         run(&mut s, "caret.docEnd", json!({}));
         run(&mut s, "exercise.insert", json!({"title": "Due", "questions": ["q"]}));

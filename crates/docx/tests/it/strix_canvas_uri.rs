@@ -15,7 +15,7 @@ fn edit_document(bytes: &[u8], edit: impl Fn(&str) -> String) -> Vec<u8> {
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i).unwrap();
-        let name = entry.name().unwrap().to_string();
+        let name = entry.name().to_string();
         let mut data = Vec::new();
         entry.read_to_end(&mut data).unwrap();
         if name == "word/document.xml" {
