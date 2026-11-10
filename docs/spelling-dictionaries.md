@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Installing languages and spelling dictionaries
 
-> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-10 · **Change:** minor (WordCraft 0.17.0 merged: proofing is craft-proof, and Language packs install a language's spelling and hyphenation from File › Options › Language; without a Dictionaries folder of your own, the folder Strix downloads dictionaries to is searched first; previously minor: Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692)
+> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-10 · **Change:** trivial (European Portuguese reads and downloads `pt_PT`; previously minor: WordCraft 0.17.0 merged: proofing is craft-proof, and Language packs install a language's spelling and hyphenation from File › Options › Language; without a Dictionaries folder of your own, the folder Strix downloads dictionaries to is searched first; previously minor: Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692)
 
 English spelling works out of the box. Polish, Russian, Portuguese, Czech, Italian, Croatian,
 Turkish, Indonesian and Spanish spelling use a standard **Hunspell** dictionary (an `.aff` and a `.dic` file) that
@@ -49,6 +49,7 @@ strix-cli run --cmd 'proof.downloadDictionary={"lang":"it-IT"}' --print
 |---|---|
 | `pl_PL` | GPL-2.0, LGPL-2.1, MPL-1.1, Apache-2.0 or CC-BY-4.0 |
 | `pt_BR` | LGPL-3.0 or MPL |
+| `pt_PT` | GPL-2.0, LGPL-2.1 or MPL-1.1 |
 | `it_IT` | GPL-3.0 |
 | `hr_HR` | GPL-2.0, LGPL-2.1 or MPL-1.1 |
 | `tr_TR` | MPL-2.0 |
@@ -112,7 +113,8 @@ Strix looks for the first of these file names (each name means a `<name>.aff` an
 |---|---|---|
 | Polish | `pl_PL`, `pl-PL`, `pl` | SJP.PL |
 | Russian | `ru_RU`, `ru-RU`, `ru` | LibreOffice `dict-ru` |
-| Portuguese (Brazil and Portugal) | `pt_BR`, `pt-BR`, `pt` | VERO (LibreOffice `dict-pt-BR`) |
+| Portuguese (Brazil) | `pt_BR`, `pt-BR`, `pt` | VERO (LibreOffice `dict-pt-BR`) |
+| Portuguese (Portugal) | `pt_PT`, `pt-PT`, `pt` | LibreOffice `dict-pt-PT` (Natura, Universidade do Minho) |
 | Czech | `cs_CZ`, `cs-CZ`, `cs` | LibreOffice `dict-cs` |
 | Italian | `it_IT`, `it_CH`, `it-IT`, `it` | LibreOffice `dict-it` |
 | Croatian | `hr_HR`, `hr-HR`, `hr` | LibreOffice `dict-hr` |
@@ -123,8 +125,8 @@ Strix looks for the first of these file names (each name means a `<name>.aff` an
 | Spanish (Latin America, and the other Spanish regions of the Americas) | `es_419`, `es-419`, `es_ANY`, `es`, `es_US`, `es_MX`, `es_AR`, `es-AR` | LibreOffice `dict-es` (RLA-ES) |
 | Spanish (Uruguay) | `es_UY`, `es-UY`, `es_AR`, `es-AR`, `es_419`, `es-419`, `es_ANY`, `es` | LibreOffice `dict-es` (RLA-ES) |
 
-Every Portuguese region uses the same `pt_BR` dictionary, so text marked *Português (Portugal)*
-is checked with it too.
+European Portuguese spells differently: text marked *Português (Portugal)* uses `pt_PT` (or a
+`pt-pt` Language pack), and Brazilian Portuguese and the other regions `pt_BR`.
 
 Spanish has a dictionary per variety: text marked *Español (España)* uses `es_ES`, *Español
 (México)* `es_MX`, *Español (Uruguay)* `es_UY`, and *Español (Latinoamérica)* and the other
@@ -239,6 +241,7 @@ Never commit dictionary files to this repository: they stay on the user's system
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-10 | trivial | European Portuguese has its own dictionary, `pt_PT`, which Strix downloads too (craft-proof reads it for *Português (Portugal)*; before, `pt_BR` served every region) |
 | 2026-11-10 | minor | WordCraft 0.17.0 merged into Strix: proofing is craft-proof; Strix's downloaded dictionaries are searched as the Dictionaries folder when you haven't set one, and downloads go to whichever folder that is |
 | 2026-11-03 | trivial | Language packs (CP4.3): the missing-pack bar offers a language before the list is fetched and gets the list, then the pack, on Install; a missing or stale list is fetched once while downloading is on; the caret's typing language counts |
 | 2026-11-03 | trivial | Language packs: install from Your languages or Add a language… in Options › Language; the Dictionaries folder is in Options › Language, not Proofing |

@@ -41,6 +41,7 @@ pub struct Source {
 pub const SOURCES: &[Source] = &[
     Source { name: "pl_PL", folder: "pl_PL", file: "pl_PL", licence: "GPL-2.0, LGPL-2.1, MPL-1.1, Apache-2.0 or CC-BY-4.0" },
     Source { name: "pt_BR", folder: "pt_BR", file: "pt_BR", licence: "LGPL-3.0 or MPL" },
+    Source { name: "pt_PT", folder: "pt_PT", file: "pt_PT", licence: "GPL-2.0, LGPL-2.1 or MPL-1.1" },
     Source { name: "it_IT", folder: "it_IT", file: "it_IT", licence: "GPL-3.0" },
     Source { name: "hr_HR", folder: "hr_HR", file: "hr_HR", licence: "GPL-2.0, LGPL-2.1 or MPL-1.1" },
     Source { name: "tr_TR", folder: "tr_TR", file: "tr_TR", licence: "MPL-2.0" },

@@ -19,6 +19,8 @@ pub fn hunspell_name(lang: Option<&str>) -> Option<&'static str> {
     match ProofLang::from_tag(lang) {
         ProofLang::Pl => Some("pl_PL"),
         ProofLang::Pt => Some("pt_BR"),
+        // European Portuguese spells on its own: craft-proof reads `pt_PT` for it (a `pt-pt` language).
+        ProofLang::Pack(l) if l.as_str() == "pt-pt" => Some("pt_PT"),
         ProofLang::It => Some("it_IT"),
         ProofLang::Hr => Some("hr_HR"),
         ProofLang::Tr => Some("tr_TR"),
@@ -90,7 +92,7 @@ mod tests {
         for (tag, name) in [
             ("pl-PL", "pl_PL"),
             ("pt-BR", "pt_BR"),
-            ("pt-PT", "pt_BR"),
+            ("pt-PT", "pt_PT"),
             ("it-IT", "it_IT"),
             ("hr-HR", "hr_HR"),
             ("tr-TR", "tr_TR"),
