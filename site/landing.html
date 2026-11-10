@@ -1,9 +1,10 @@
 <!doctype html>
 <!-- Strix project site, landing page model. Built by `cargo xtask site` (xtask/src/site.rs) into
      _site/, one page per language: the partials come from site/partials/, the keys from
-     site/strings/LANG.json and from the build. Plain HTML and CSS, no scripts; every
-     illustration is drawn for this page. Original work by the Strix contributors,
-     MIT OR Apache-2.0. Marketing rules: docs/brand/MARKETING.md. -->
+     site/strings/LANG.json and from the build. Plain HTML and CSS; the only scripts (the
+     language and the download pick) are made by the build. Every illustration is drawn for this
+     page. Original work by the Strix contributors, MIT OR Apache-2.0. Marketing rules:
+     docs/brand/MARKETING.md. -->
 <html lang="{{lang}}">
 <head>
 {{> head}}
@@ -229,61 +230,77 @@ strix-cli commands</pre>
   </div>
 </section>
 
-<!-- Download -->
+<!-- Download: a pick for the reader's system, filled by the script xtask/src/site.rs makes
+     (dl_script; without it the pick points at the browser version), then every build by system
+     and format. Each link says its system (the card's data-os), format (the row's data-fmt) and
+     processor (data-arch). -->
 <section id="download" class="band">
   <div class="wrap">
     <div class="eyebrow">{{dlEyebrow}}</div>
     <h2>{{dlTitle}}</h2>
     <p class="intro">{{dlIntro}}</p>
+    <div class="dl-pick" data-for-you="{{dlForYou}}" data-also="{{dlAlso}}" data-guess="{{dlArchGuess}}" data-mobile-title="{{dlMobileTitle}}" data-mobile-text="{{dlMobileText}}" data-nobuild-title="{{dlNoBuildTitle}}" data-nobuild-text="{{dlNoBuildText}}" data-download="{{dlDownload}}">
+      <div class="dl-pick-copy">
+        <div class="eyebrow dl-pick-eyebrow">{{dlPickEyebrow}}</div>
+        <h3 class="dl-pick-title">{{dlPickTitle}}</h3>
+        <p class="dl-pick-text muted">{{dlPickText}}</p>
+        <p class="dl-pick-note small"></p>
+      </div>
+      <div class="dl-pick-actions">
+        <a class="btn btn-primary dl-pick-go" href="{{base}}app/?sample">{{ctaTryWeb}}</a>
+        <span class="dl-pick-file"></span>
+        <p class="dl-pick-alt small"></p>
+      </div>
+    </div>
     <div class="downloads">
-      <article class="dl">
-        <h3>Windows</h3>
+      <article class="dl" data-os="windows">
+        <div class="dl-head"><h3>Windows</h3><span class="dl-badge">{{dlYourSystem}}</span></div>
         <p class="small muted">{{dlWindowsNote}}</p>
-        <ul>
-          <li><a href="{{dl}}windows-x64.msi">{{dlInstaller}} · x64</a></li>
-          <li><a href="{{dl}}windows-arm64.msi">{{dlInstaller}} · ARM64</a></li>
-          <li><a href="{{dl}}windows-x86.msi">{{dlInstaller}} · x86</a></li>
-          <li><a href="{{dl}}windows-x64-portable.zip">{{dlPortable}} · x64</a></li>
-          <li><a href="{{dl}}windows-arm64-portable.zip">{{dlPortable}} · ARM64</a></li>
-          <li><a href="{{dl}}windows-x64-portable.exe">{{dlPortableExe}} · x64</a> · <a href="{{dl}}windows-arm64-portable.exe">ARM64</a> · <a href="{{dl}}windows-x86-portable.exe">x86</a></li>
+        <ul class="fmts">
+          <li class="fmt" data-fmt="msi"><span class="fmt-label"><span class="fmt-name">{{dlInstaller}}</span><span class="fmt-hint">{{dlMsiHint}}</span></span><span class="archs"><a href="{{dl}}windows-x64.msi" data-arch="x64">x64</a><a href="{{dl}}windows-arm64.msi" data-arch="arm64">ARM64</a><a href="{{dl}}windows-x86.msi" data-arch="x86">x86</a></span></li>
+          <li class="fmt" data-fmt="exe"><span class="fmt-label"><span class="fmt-name">{{dlPortableExe}}</span><span class="fmt-hint">{{dlPortableExeHint}}</span></span><span class="archs"><a href="{{dl}}windows-x64-portable.exe" data-arch="x64">x64</a><a href="{{dl}}windows-arm64-portable.exe" data-arch="arm64">ARM64</a><a href="{{dl}}windows-x86-portable.exe" data-arch="x86">x86</a></span></li>
+          <li class="fmt" data-fmt="zip"><span class="fmt-label"><span class="fmt-name">{{dlPortable}}</span><span class="fmt-hint">{{dlPortableZipHint}}</span></span><span class="archs"><a href="{{dl}}windows-x64-portable.zip" data-arch="x64">x64</a><a href="{{dl}}windows-arm64-portable.zip" data-arch="arm64">ARM64</a><a href="{{dl}}windows-x86-portable.zip" data-arch="x86">x86</a></span></li>
         </ul>
       </article>
-      <article class="dl">
-        <h3>macOS</h3>
+      <article class="dl" data-os="macos">
+        <div class="dl-head"><h3>macOS</h3><span class="dl-badge">{{dlYourSystem}}</span></div>
         <p class="small muted">{{dlMacNote}}</p>
-        <ul>
-          <li><a href="{{dl}}macos-universal.dmg">DMG · Apple silicon + Intel</a></li>
+        <ul class="fmts">
+          <li class="fmt" data-fmt="dmg"><span class="fmt-label"><span class="fmt-name">{{dlDmg}}</span><span class="fmt-hint">{{dlDmgHint}}</span></span><span class="archs"><a href="{{dl}}macos-universal.dmg" data-arch="universal">Universal</a></span></li>
+          <li class="fmt" data-fmt="cli"><span class="fmt-label"><span class="fmt-name">{{dlCliZip}}</span><span class="fmt-hint">{{dlCliZipHint}}</span></span><span class="archs"><a href="https://github.com/nabre/strix/releases/download/v{{version}}/strix-cli-{{version}}-macos-universal.zip" data-arch="universal">Universal</a></span></li>
         </ul>
       </article>
-      <article class="dl">
-        <h3>Linux</h3>
+      <article class="dl" data-os="linux">
+        <div class="dl-head"><h3>Linux</h3><span class="dl-badge">{{dlYourSystem}}</span></div>
         <p class="small muted">{{dlLinuxNote}}</p>
-        <ul>
-          <li><a href="{{dl}}linux-x86_64.AppImage">AppImage · x86_64</a> · <a href="{{dl}}linux-aarch64.AppImage">aarch64</a></li>
-          <li><a href="{{dl}}linux-x86_64.deb">deb · x86_64</a> · <a href="{{dl}}linux-aarch64.deb">aarch64</a> · <a href="{{dl}}linux-riscv64.deb">riscv64</a></li>
-          <li><a href="{{dl}}linux-x86_64.rpm">rpm · x86_64</a> · <a href="{{dl}}linux-aarch64.rpm">aarch64</a> · <a href="{{dl}}linux-riscv64.rpm">riscv64</a></li>
-          <li><a href="{{dl}}linux-x86_64.flatpak">Flatpak · x86_64</a> · <a href="{{dl}}linux-aarch64.flatpak">aarch64</a></li>
-          <li><a href="{{dl}}linux-x86_64.pkg.tar.zst">Arch · x86_64</a> · <a href="{{dl}}linux-aarch64.pkg.tar.zst">aarch64</a></li>
+        <ul class="fmts">
+          <li class="fmt" data-fmt="appimage"><span class="fmt-label"><span class="fmt-name">AppImage</span><span class="fmt-hint">{{dlAppImageHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.AppImage" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.AppImage" data-arch="arm64">aarch64</a></span></li>
+          <li class="fmt" data-fmt="deb"><span class="fmt-label"><span class="fmt-name">deb</span><span class="fmt-hint">{{dlDebHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.deb" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.deb" data-arch="arm64">aarch64</a><a href="{{dl}}linux-riscv64.deb" data-arch="riscv64">riscv64</a></span></li>
+          <li class="fmt" data-fmt="rpm"><span class="fmt-label"><span class="fmt-name">rpm</span><span class="fmt-hint">{{dlRpmHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.rpm" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.rpm" data-arch="arm64">aarch64</a><a href="{{dl}}linux-riscv64.rpm" data-arch="riscv64">riscv64</a></span></li>
+          <li class="fmt" data-fmt="flatpak"><span class="fmt-label"><span class="fmt-name">Flatpak</span><span class="fmt-hint">{{dlFlatpakHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.flatpak" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.flatpak" data-arch="arm64">aarch64</a></span></li>
+          <li class="fmt" data-fmt="arch"><span class="fmt-label"><span class="fmt-name">Arch Linux</span><span class="fmt-hint">{{dlArchPkgHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.pkg.tar.zst" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.pkg.tar.zst" data-arch="arm64">aarch64</a></span></li>
+          <li class="fmt" data-fmt="tar"><span class="fmt-label"><span class="fmt-name">tar.gz</span><span class="fmt-hint">{{dlTarHint}}</span></span><span class="archs"><a href="{{dl}}linux-x86_64.tar.gz" data-arch="x64">x86_64</a><a href="{{dl}}linux-aarch64.tar.gz" data-arch="arm64">aarch64</a><a href="{{dl}}linux-riscv64.tar.gz" data-arch="riscv64">riscv64</a></span></li>
         </ul>
       </article>
-      <article class="dl">
-        <h3>FreeBSD</h3>
+      <article class="dl" data-os="freebsd">
+        <div class="dl-head"><h3>FreeBSD</h3><span class="dl-badge">{{dlYourSystem}}</span></div>
         <p class="small muted">{{dlBsdNote}}</p>
-        <ul>
-          <li><a href="{{dl}}freebsd-x86_64.tar.gz">tar.gz · x86_64</a></li>
+        <ul class="fmts">
+          <li class="fmt" data-fmt="tar"><span class="fmt-label"><span class="fmt-name">tar.gz</span><span class="fmt-hint">{{dlBsdTarHint}}</span></span><span class="archs"><a href="{{dl}}freebsd-x86_64.tar.gz" data-arch="x64">x86_64</a></span></li>
         </ul>
       </article>
-      <article class="dl web">
-        <h3>{{dlWebTitle}}</h3>
+      <article class="dl web" data-os="web">
+        <div class="dl-head"><h3>{{dlWebTitle}}</h3><span class="dl-badge">{{dlYourSystem}}</span></div>
         <p class="small muted">{{dlWebNote}}</p>
-        <ul>
-          <li><a href="{{base}}app/?sample">{{ctaTryWeb}}</a></li>
-          <li><a href="https://github.com/nabre/strix/releases/download/v{{version}}/strix-web-{{version}}.zip">{{dlWebZip}}</a></li>
+        <ul class="fmts">
+          <li class="fmt"><span class="fmt-label"><a class="fmt-name" href="{{base}}app/?sample">{{ctaTryWeb}}</a><span class="fmt-hint">{{dlWebOpenHint}}</span></span></li>
+          <li class="fmt"><span class="fmt-label"><a class="fmt-name" href="https://github.com/nabre/strix/releases/download/v{{version}}/strix-web-{{version}}.zip">{{dlWebZip}}</a><span class="fmt-hint">{{dlWebZipHint}}</span></span></li>
         </ul>
       </article>
     </div>
     <p class="small muted">{{dlAllFiles}} <a href="https://github.com/nabre/strix/releases/tag/v{{version}}">Strix Writer v{{version}}</a> · <a href="https://github.com/nabre/strix/releases/download/v{{version}}/SHA256SUMS.txt">SHA256SUMS.txt</a> · <a href="https://github.com/nabre/strix/blob/main/docs/code-signing.md">{{dlSigning}}</a></p>
   </div>
+  {{dlScript}}
 </section>
 
 <!-- Trust -->
