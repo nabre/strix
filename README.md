@@ -250,6 +250,7 @@ git clone https://github.com/nabre/strix
 cd strix
 cargo run --release -p strix -- --sample          # the desktop app with a sample document
 cargo xtask dev                                   # debug build, rebuilt and restarted on every change (watchexec)
+                                                  # no screen (sandbox, SSH) or --web: web build on http://127.0.0.1:8771/?sample
 cargo run --release -p strix -- problem.xmath     # open a Strix document
 ```
 
