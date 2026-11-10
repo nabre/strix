@@ -94,6 +94,9 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             app.controls.checks.push((*f, r.content_start()));
         }
     }
+    // Subdocuments have marks of their own, always shown.
+    shown.retain(|r| !crate::subdocument_marks::is_subdocument(&r.control.tag));
+    crate::subdocument_marks::paint(app, painter, t, layout, rects, scale);
     shown.sort_by_key(|r| r.depth);
     for r in &shown {
         let is_current = current.as_ref().is_some_and(|c| c.start == r.start);
@@ -153,7 +156,7 @@ pub fn clicks(app: &mut WordApp, resp: &egui::Response) {
         return;
     }
     let Some(p) = resp.interact_pointer_pos() else { return };
-    if crate::exercise_grip::click(&resp.ctx, p) {
+    if crate::exercise_grip::click(&resp.ctx, p) || crate::subdocument_marks::click(app, &resp.ctx, p) {
         return;
     }
     // A title tab selects its whole control (an exercise: so Delete removes it).

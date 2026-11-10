@@ -202,3 +202,68 @@ fn exercises_in_subdocuments_follow_the_master() {
     crate::cmd::master::after_open(&mut s);
     check(&s);
 }
+
+/// The owner: in a master of exercises Unlink, Reload and Open did nothing. The caret is in an
+/// exercise there, which is a content control: Insert refused to go in it (and the app swallowed
+/// the error), so no subdocument came in and the buttons stayed grey. Now it goes after the
+/// exercise, and with one subdocument Unlink and Open act on it wherever the caret is.
+#[test]
+fn insert_with_the_caret_in_an_exercise_goes_after_it() {
+    let d = dir("in-exercise");
+    let (a, b) = (d.join("a.xmath"), d.join("b.xmath"));
+    exercise_file(&a, "Area");
+    exercise_file(&b, "Pendenza");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut s, "master.insertSubdocument", json!({"path": a.to_str().unwrap()}));
+    // The caret is in the first file's exercise title: the next one goes after that subdocument.
+    assert!(s.doc.control_at(&s.sel.focus).is_some());
+    run(&mut s, "master.insertSubdocument", json!({"path": b.to_str().unwrap()}));
+    let subs = run(&mut s, "master.subdocuments", json!({}));
+    let paths: Vec<_> = subs["subdocuments"].as_array().unwrap().iter().map(|x| x["path"].as_str().unwrap().to_string()).collect();
+    assert_eq!(paths, [a.to_str().unwrap(), b.to_str().unwrap()]);
+    assert_eq!(count(&s.doc, "Riepilogo dei risultati"), 1, "{:?}", paras(&s.doc));
+    // With one left, Unlink acts on it wherever the caret is (here in the results summary).
+    run(&mut s, "master.unlinkSubdocument", json!({"path": b.to_str().unwrap()}));
+    run(&mut s, "caret.docEnd", json!({}));
+    assert_eq!(run(&mut s, "master.unlinkSubdocument", json!({}))["unlinked"], json!(a));
+    assert!(run(&mut s, "master.subdocuments", json!({}))["subdocuments"].as_array().unwrap().is_empty());
+}
+
+/// The master rules the styles and the series: a change to the exercises' numbering (a list) or
+/// to a style, made in the master, is an edit of every subdocument and reaches the files on save.
+#[test]
+fn style_and_numbering_changes_in_the_master_reach_the_files() {
+    let d = dir("context");
+    let (a, b, book) = (d.join("a.xmath"), d.join("b.xmath"), d.join("book.xmath"));
+    exercise_file(&a, "Area");
+    exercise_file(&b, "Pendenza");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Libro"}));
+    for p in [&a, &b] {
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "master.insertSubdocument", json!({"path": p.to_str().unwrap()}));
+    }
+    run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    let edited = |s: &mut Session| {
+        run(s, "master.subdocuments", json!({}))["subdocuments"].as_array().unwrap().iter().filter(|x| x["edited"] == json!(true)).count()
+    };
+    assert_eq!(edited(&mut s), 0, "just saved");
+    // Reopened, nothing is edited either.
+    let mut s = Session::new(crate::io::open_path(&book).unwrap());
+    s.path = Some(book.clone());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    crate::cmd::master::after_open(&mut s);
+    run(&mut s, "file.save", json!({}));
+    assert_eq!(edited(&mut s), 0, "saved after opening");
+    run(&mut s, "exercise.numbering", json!({"separator": ")"}));
+    assert_eq!(edited(&mut s), 2, "the numbering is the master's");
+    let r = run(&mut s, "file.save", json!({}));
+    assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 2, "{r}");
+    for p in [&a, &b] {
+        let mut alone = Session::new(crate::io::open_path(p).unwrap());
+        alone.doc.styles.default_chr.lang = Some("it-IT".into());
+        assert_eq!(run(&mut alone, "exercise.numbering", json!({}))["separator"], json!(")"), "{}", p.display());
+    }
+}

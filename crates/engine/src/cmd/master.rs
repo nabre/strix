@@ -144,9 +144,17 @@ fn target(s: &Session, v: &Value) -> Result<Sub, CmdError> {
             .ok_or_else(|| CmdError::Params(format!("no subdocument links {path}")));
     }
     let at = &s.sel.focus;
-    subs.into_iter()
-        .find(|x| x.range.contains(at))
-        .ok_or_else(|| CmdError::Failed("the caret isn't in a subdocument: put it in one, or name it with `path`".into()))
+    // The one at the caret; with the caret elsewhere, the document's only one.
+    let lone = subs.len() == 1;
+    let mut subs = subs.into_iter();
+    let found = if lone { subs.next() } else { subs.find(|x| x.range.contains(at)) };
+    found.ok_or_else(|| CmdError::Failed("the cursor isn't in a subdocument: click in one (its frame names its file), or name it with `path`".into()))
+}
+
+/// The file a subdocument's control links, from its tag; `None` for any other control. The
+/// interface frames subdocuments with it.
+pub fn linked_file(tag: &str) -> Option<PathBuf> {
+    Link::parse(tag).map(|l| l.path)
 }
 
 fn absolute(path: &Path) -> PathBuf {
@@ -176,6 +184,22 @@ struct Synced {
     disk: u64,
     /// Hash of the content the master showed.
     content: u64,
+    /// Hash of the master's styles and lists then: the file is saved with them, so changing a
+    /// style or the exercises' numbering in the master is an edit of every subdocument.
+    context: u64,
+}
+
+impl Synced {
+    /// Whether the master's subdocument, with content hash `content` and the master's styles and
+    /// lists hash `context`, differs from what the file was last given or read.
+    fn differs(self, content: u64, context: u64) -> bool {
+        self.content != content || self.context != context
+    }
+}
+
+/// Whether a subdocument has changes to write: never synced, or [`Synced::differs`].
+fn edited(last: Option<Synced>, content: u64, context: u64) -> bool {
+    last.is_none_or(|l| l.differs(content, context))
 }
 
 /// By (document id, subdocument file).
@@ -192,6 +216,18 @@ fn set_synced(id: u64, path: &Path, v: Synced) {
     }
 }
 
+/// The master's styles and lists as they are now count as the ones every subdocument was last
+/// given: opening the master or bringing in a subdocument (whose styles come in) changes them
+/// without being an edit of the other subdocuments.
+fn resync_context(s: &Session) {
+    let (id, context) = (s.document_id(), context_hash(&s.doc));
+    for sub in subdocuments(&s.doc) {
+        if let Some(last) = synced(id, &sub.link.path) {
+            set_synced(id, &sub.link.path, Synced { context, ..last });
+        }
+    }
+}
+
 /// FNV-1a: stable across builds and platforms.
 fn hash(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
@@ -199,6 +235,14 @@ fn hash(bytes: &[u8]) -> u64 {
 
 fn content_hash(frag: &Fragment) -> u64 {
     serde_json::to_vec(&frag.blocks).map(|b| hash(&b)).unwrap_or(0)
+}
+
+/// Hash of what a subdocument's file takes from the master besides its content: the styles and
+/// lists (the exercises' numbering is the Exercise Title style's list).
+fn context_hash(doc: &Document) -> u64 {
+    let styles = serde_json::to_vec(&doc.styles).map(|b| hash(&b)).unwrap_or(0);
+    let lists = serde_json::to_vec(&doc.numbering).map(|b| hash(&b)).unwrap_or(0);
+    styles ^ lists.rotate_left(1)
 }
 
 /// A subdocument's content, without its control's markers.
@@ -354,6 +398,15 @@ fn empty_paragraph_here(s: &mut Session) -> Result<Pos, CmdError> {
     if at.story != StoryRef::Body || at.path.depth() != 0 {
         return Err(CmdError::Failed("a subdocument goes in the main text, outside tables and text boxes".into()));
     }
+    // In an exercise, another subdocument or any block content control: just after it (its
+    // outermost one), as the caret is usually in one in a document of exercises.
+    let at = match s.doc.control_ranges(StoryRef::Body).into_iter().find(|r| r.depth == 0 && r.contains(&at)) {
+        Some(r) if r.end.path.depth() == 0 => {
+            let len = s.doc.para(StoryRef::Body, &r.end.path).map_or(0, Paragraph::len);
+            Pos::new(StoryRef::Body, r.end.path.clone(), len)
+        }
+        _ => at,
+    };
     if s.doc.control_at(&at).is_some() {
         return Err(CmdError::Failed("a subdocument can't go inside a content control or another subdocument".into()));
     }
@@ -396,7 +449,8 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     place(s, &at, frag, &link)?;
     // What the master shows after it went in, which is what later saves compare with.
     let shown = subdocuments(&s.doc).into_iter().find(|x| x.link == link).map_or(content, |x| content_hash(&self::content(&s.doc, &x.range)));
-    set_synced(s.document_id(), &path, Synced { disk, content: shown });
+    set_synced(s.document_id(), &path, Synced { disk, content: shown, context: context_hash(&s.doc) });
+    resync_context(s);
     let mut r = sel_result(s)?;
     if let Some(o) = r.as_object_mut() {
         o.insert("subdocument".into(), json!(path));
@@ -436,7 +490,7 @@ fn create(s: &mut Session, v: &Value) -> CmdResult {
     let link = Link { path: path.clone(), conflict: false };
     place(s, &at, frag, &link)?;
     if let Some(x) = subdocuments(&s.doc).into_iter().find(|x| x.link == link) {
-        set_synced(s.document_id(), &path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)) });
+        set_synced(s.document_id(), &path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)), context: context_hash(&s.doc) });
     }
     let mut r = sel_result(s)?;
     if let Some(o) = r.as_object_mut() {
@@ -495,7 +549,11 @@ fn reload(s: &mut Session, sub: &Sub) -> Result<Result<(), String>, CmdError> {
     let caret = s.sel.clone();
     replace(s, sub, frag)?;
     if let Some(x) = subdocuments(&s.doc).into_iter().find(|x| x.link.path == sub.link.path) {
-        set_synced(s.document_id(), &sub.link.path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)) });
+        set_synced(
+            s.document_id(),
+            &sub.link.path,
+            Synced { disk, content: content_hash(&content(&s.doc, &x.range)), context: context_hash(&s.doc) },
+        );
     }
     s.sel = caret;
     s.clamp_selection();
@@ -521,6 +579,7 @@ fn refresh(s: &mut Session, v: &Value) -> CmdResult {
 /// changed on disk since; without it those are conflicts, marked in their tags when `mark`.
 fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
     let id = s.document_id();
+    let context = context_hash(&s.doc);
     let (mut saved, mut unchanged, mut conflicts, mut failed) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for sub in subdocuments(&s.doc) {
         let file = resolve(s, &sub.link);
@@ -528,7 +587,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
         let now = content_hash(&frag);
         let disk_now = read_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
         let last = synced(id, &sub.link.path);
-        let edited = last.is_none_or(|l| l.content != now) || sub.link.conflict;
+        let edited = edited(last, now, context) || sub.link.conflict;
         let changed_on_disk = match (last, disk_now) {
             (Some(l), Some(d)) => l.disk != d,
             (None, Some(_)) => sub.link.conflict,
@@ -547,7 +606,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
         }
         match write(&s.doc, &frag, &file) {
             Ok(disk) => {
-                set_synced(id, &sub.link.path, Synced { disk, content: now });
+                set_synced(id, &sub.link.path, Synced { disk, content: now, context });
                 if sub.link.conflict {
                     set_tag(s, &sub, Link { conflict: false, ..sub.link.clone() });
                 }
@@ -577,6 +636,7 @@ fn open_subdocument(s: &mut Session, v: &Value) -> CmdResult {
 
 fn list(s: &mut Session, _: &Value) -> CmdResult {
     let id = s.document_id();
+    let context = context_hash(&s.doc);
     let subs: Vec<Value> = subdocuments(&s.doc)
         .iter()
         .map(|x| {
@@ -586,7 +646,7 @@ fn list(s: &mut Session, _: &Value) -> CmdResult {
                 "path": x.link.path,
                 "file": file,
                 "exists": file.exists(),
-                "edited": synced(id, &x.link.path).is_none_or(|l| l.content != now),
+                "edited": edited(synced(id, &x.link.path), now, context),
                 "conflict": x.link.conflict,
                 "start": super::pos_json(&x.range.start),
                 "text": s.doc.control_text(&x.range).split('\n').map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" · ").chars().take(120).collect::<String>(),
@@ -641,13 +701,14 @@ pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
             Ok(Ok(())) => reloaded.push(json!(path)),
             Ok(Err(_)) | Err(_) => {
                 // Missing: a later save writes the master's copy back (creating the file).
-                set_synced(id, &path, Synced { disk: 0, content: now.wrapping_add(1) });
+                set_synced(id, &path, Synced { disk: 0, content: now.wrapping_add(1), context: 0 });
                 missing.push(json!(path));
             }
         }
     }
     // The exercises of every subdocument follow the master's series, numbering and summary.
     super::exercise::update(s);
+    resync_context(s);
     s.sel = Selection::caret(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(0), 0));
     s.clamp_selection();
     if !missing.is_empty() || !conflicts.is_empty() {

@@ -170,7 +170,8 @@ series of the master, which rules as when a style is updated:
 - the series' settings (page breaks, parts shown, graph paper) are the master's first exercise's,
   on every exercise of every subdocument, also when the master opens;
 - saving the master writes them back to the subdocument files, each with its own summary rebuilt
-  so it still opens complete on its own.
+  so it still opens complete on its own; a style or the numbering (prefix, format, separator)
+  changed in the master reaches every file too.
 
 ## Data and variants (Exercise Properties pane)
 
