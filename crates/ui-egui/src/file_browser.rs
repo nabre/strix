@@ -312,6 +312,7 @@ impl WordApp {
         let picked = picked.map(|p| p.to_string_lossy().into_owned());
         if let Err(e) = self.finish_pick(b.after, picked) {
             log::warn!("file browser: {e}");
+            self.status(e);
         }
         self.canvas.want_focus = true;
     }

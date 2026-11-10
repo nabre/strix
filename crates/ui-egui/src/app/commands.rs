@@ -438,12 +438,18 @@ impl WordApp {
                 "insertPicture" => self.pick_picture(),
                 "insertSubdocument" => {
                     let after = crate::file_dialogs::AfterPick::WithPath { command: "master.insertSubdocument" };
-                    let _ = self.ask_file(crate::file_dialogs::FileDialogRequest::Open { purpose: "document".into() }, after);
+                    if let crate::file_dialogs::Asked::Done(Err(e)) =
+                        self.ask_file(crate::file_dialogs::FileDialogRequest::Open { purpose: "document".into() }, after)
+                    {
+                        self.status(e);
+                    }
                 }
                 "createSubdocument" => {
                     let after = crate::file_dialogs::AfterPick::WithPath { command: "master.createSubdocument" };
                     let req = crate::file_dialogs::FileDialogRequest::Save { name: "Subdocument.xmath".into(), dir: None, native_only: None };
-                    let _ = self.ask_file(req, after);
+                    if let crate::file_dialogs::Asked::Done(Err(e)) = self.ask_file(req, after) {
+                        self.status(e);
+                    }
                 }
                 "addFont" => self.pick_font(),
                 "loadSystemFonts" => self.load_system_fonts(),

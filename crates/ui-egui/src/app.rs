@@ -368,7 +368,10 @@ impl WordApp {
         zotero::poll(self, ctx);
         read_aloud::poll(self, ctx);
         self.clear_stale_change_picture();
-        let _ = self.poll_file_dialog();
+        // What the picked file was for failed (Insert Subdocument in an exercise…): say why.
+        if let Some(Err(e)) = self.poll_file_dialog() {
+            self.status(e);
+        }
         self.autosave_tick(now_ms());
         if self.autosaves() && self.session.dirty {
             ctx.request_repaint_after(std::time::Duration::from_millis(1000));
