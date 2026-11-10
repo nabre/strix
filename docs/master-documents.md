@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** subdocuments always marked on the page; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -26,7 +26,8 @@ document has one (Insert and Create ask for a file; an error after picking it, s
 that can't be read, shows on the status bar). Insert with the caret in an exercise or another
 block content control puts the subdocument just after it.
 
-On the page every subdocument is always marked, wherever the caret is: a light frame around it,
+With Show/Hide ¶ on (`view.marks`), every subdocument is marked on the page, wherever the caret
+is, like the other formatting marks: a light frame around it,
 a bar in the left margin along it, and a tab above it with its file's name (the full path in its
 tooltip). A click on the tab puts the caret in it, so Unlink, Reload and Open act on that one.
 
@@ -78,7 +79,7 @@ Save or Reload all of them.
 
 ## Revision history
 
-- 2026-11-10: subdocuments marked on the page (frame, margin bar, file tab); Insert in an exercise goes after it; Unlink and Open act on a lone subdocument; style and numbering changes made in the master are written to the files; an error after the file dialog is shown.
+- 2026-11-10: subdocuments marked on the page (frame, margin bar, file tab) with Show/Hide ¶ on; Insert in an exercise goes after it; Unlink and Open act on a lone subdocument; style and numbering changes made in the master are written to the files; an error after the file dialog is shown.
 
 - 2026-11-10: styles and lists of a subdocument come with it; exercises follow the master; no blank paragraph between subdocuments.
 
