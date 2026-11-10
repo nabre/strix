@@ -131,8 +131,8 @@ fn hostile_grids_lay_out() {
     let mut out = Vec::new();
     for pg in &l.pages {
         for it in &pg.items {
-            if let Placed::Grid { rect, grid } = it {
-                display::grid_draws(*rect, grid, 1.0, &mut out);
+            if let Placed::Grid { rect, grid, sheet } = it {
+                display::grid_sheet_draws(*rect, grid, sheet.as_ref(), 1.0, &mut out);
             }
         }
     }
@@ -277,4 +277,130 @@ fn a_frame_of_its_own_weight_replaces_the_edge_lines() {
         other => panic!("a frame last: {other:?}"),
     }
     assert_eq!(lines(&framed), 5 + 1);
+}
+
+#[test]
+fn a_grid_across_columns_is_one_sheet_unless_it_follows_them() {
+    // Two columns, a grid to the page's end in the left one below some text: not following the
+    // columns, the space between them is ruled too, from the grid's top in the left column, on
+    // the left column's squares (every vertical line of every rect on them), all on the bottom.
+    for follow in [false, true] {
+        let mut p = Paragraph::new();
+        p.props.graph = Some(Arc::new(GraphPaper { placement: GridPlacement::PageEnd, follow_columns: follow, ..GraphPaper::default() }));
+        let mut doc = doc_with(vec![para("Before"), para("More text before"), para_block(p), para("After")]);
+        two_columns(&mut doc);
+        let l = lay(&doc);
+        let g = &grids(&l)[0];
+        let body = l.pages[0].body;
+        let left = doc.last_section.margin_left + doc.last_section.gutter;
+        let cols = doc.last_section.column_boxes();
+        let (c0, c1) = (cols[0], cols[1]);
+        let first = g.iter().copied().find(|r| (r.x - (left + c0.0)).abs() < 0.05).expect("a grid starting on the left column");
+        assert!(first.y > body.y + 1.0, "below the text before it");
+        let covers = |x: f32, y: f32| g.iter().any(|r| x >= r.x - 0.01 && x <= r.right() + 0.01 && y >= r.y - 0.01 && y <= r.bottom() + 0.01);
+        let gap_x = left + c0.0 + c0.1 + (c1.0 - c0.0 - c0.1) / 2.0;
+        // The right column is ruled down its whole height either way.
+        assert!(covers(left + c1.0 + 1.0, body.y + side()), "follow {follow}: {g:?}");
+        assert!(g.iter().all(|r| whole(r.h) && (r.bottom() - body.bottom()).abs() < 0.05));
+        if follow {
+            assert!(!covers(gap_x, first.y + side()), "following the columns, the space between them is clear: {g:?}");
+            continue;
+        }
+        for y in [first.y + 0.5, (first.y + body.bottom()) / 2.0, body.bottom() - 0.5] {
+            assert!(covers(gap_x, y), "the space between the columns at {y}: {g:?}");
+        }
+        assert!(!covers(gap_x, first.y - side()), "beside the text before it, the space stays clear: {g:?}");
+        // One sheet: every rect's left edge and every vertical line on the left column's squares,
+        // every horizontal line on the same rows.
+        for r in g {
+            let n = (r.x - first.x) / side();
+            assert!((n - n.round()).abs() < 0.01, "{r:?} off the squares of {first:?}");
+            let rows = (r.y - first.y) / side();
+            assert!((rows - rows.round()).abs() < 0.01, "{r:?} off the rows of {first:?}");
+        }
+        assert!(g.iter().all(|r| r.right() <= body.right() + 0.05), "inside the text width");
+        // The ruled area reaches the right column's right edge but for less than a square.
+        let far = g.iter().map(|r| first.x + ((r.right() - first.x) / side() + 0.001).floor() * side()).fold(0.0, f32::max);
+        assert!(body.right() - far < side() + 0.05, "{far} vs {}", body.right());
+    }
+}
+
+#[test]
+fn a_sheet_across_columns_has_its_heavier_lines_and_its_frame_in_common() {
+    // Heavier lines every 4 squares and a frame of its own: across the columns the heavier lines
+    // count from the start column's grid's top-left corner in every part, and one frame goes round
+    // the whole sheet (no seam between the parts).
+    let every = 4;
+    let mut p = Paragraph::new();
+    p.props.graph = Some(Arc::new(GraphPaper { placement: GridPlacement::PageEnd, major_every: every, frame: Some(2.5), ..GraphPaper::default() }));
+    // Enough text before for heavier lines above the block in the right column.
+    let mut blocks: Vec<Arc<Block>> = (0..12).map(|i| para(&format!("Line {i}"))).collect();
+    blocks.extend([para_block(p), para("After")]);
+    let mut doc = doc_with(blocks);
+    two_columns(&mut doc);
+    let l = lay(&doc);
+    let body = l.pages[0].body;
+    let parts: Vec<_> = l.pages[0]
+        .items
+        .iter()
+        .filter_map(|it| if let Placed::Grid { rect, grid, sheet } = it { Some((*rect, grid.clone(), sheet.clone())) } else { None })
+        .collect();
+    assert_eq!(parts.len(), 2, "{parts:?}");
+    let first = parts[0].0;
+    assert!(parts.iter().all(|(_, _, s)| s.as_ref().is_some_and(|s| s.origin == (first.x, first.y))), "one origin: {parts:?}");
+    let mut out = Vec::new();
+    for (rect, grid, sheet) in &parts {
+        display::grid_sheet_draws(*rect, grid, sheet.as_ref(), 1.0, &mut out);
+    }
+    let major_w = GraphPaper::default().major.width;
+    let (mut xs, mut ys) = (Vec::new(), Vec::new());
+    let mut frames = Vec::new();
+    for d in &out {
+        let display::Draw::Path { segs, stroke_width, .. } = d else { continue };
+        if (*stroke_width - 2.5).abs() < 0.01 {
+            frames.push(segs.clone());
+            continue;
+        }
+        if (*stroke_width - major_w).abs() > 0.01 {
+            continue;
+        }
+        for pair in segs.chunks(2) {
+            if let [wordcraft_doc::graphic::PathSeg::Move(x0, y0), wordcraft_doc::graphic::PathSeg::Line(x1, y1)] = pair {
+                if (x0 - x1).abs() < 0.01 {
+                    xs.push(*x0);
+                } else if (y0 - y1).abs() < 0.01 {
+                    ys.push(*y0);
+                }
+            }
+        }
+    }
+    let unit = every as f32 * side();
+    let on = |v: f32, o: f32| {
+        let n = (v - o) / unit;
+        (n - n.round()).abs() < 0.01
+    };
+    assert!(xs.iter().all(|x| on(*x, first.x)), "heavier verticals off the sheet's: {xs:?} from {}", first.x);
+    assert!(ys.iter().all(|y| on(*y, first.y)), "heavier horizontals off the sheet's: {ys:?} from {}", first.y);
+    let cols = doc.last_section.column_boxes();
+    let right_col = doc.last_section.margin_left + doc.last_section.gutter + cols[1].0;
+    assert!(xs.iter().any(|x| *x > right_col), "heavier lines in the right column too: {xs:?}");
+    assert!(ys.iter().any(|y| *y < first.y - 0.5), "heavier lines above the start column's grid: {ys:?}");
+    // One frame, round the union: from the start column's left edge to the right column's, down
+    // to the bottom margin, and up to the right column's top.
+    assert_eq!(frames.len(), 1, "one frame for the sheet: {frames:?}");
+    let pts: Vec<(f32, f32)> = frames[0]
+        .iter()
+        .filter_map(|s| match s {
+            wordcraft_doc::graphic::PathSeg::Move(x, y) | wordcraft_doc::graphic::PathSeg::Line(x, y) => Some((*x, *y)),
+            _ => None,
+        })
+        .collect();
+    assert!(matches!(frames[0].last(), Some(wordcraft_doc::graphic::PathSeg::Close)));
+    let min_x = pts.iter().map(|p| p.0).fold(f32::MAX, f32::min);
+    let max_x = pts.iter().map(|p| p.0).fold(f32::MIN, f32::max);
+    let min_y = pts.iter().map(|p| p.1).fold(f32::MAX, f32::min);
+    let max_y = pts.iter().map(|p| p.1).fold(f32::MIN, f32::max);
+    assert!((min_x - first.x).abs() < 0.05 && body.right() - max_x < side() + 0.05, "{pts:?}");
+    assert!((max_y - body.bottom()).abs() < 0.05 && min_y < first.y - 0.5 && min_y - body.y < side(), "{pts:?}");
+    assert_eq!(pts.len(), 6, "an L round the two parts: {pts:?}");
 }

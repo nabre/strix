@@ -13,6 +13,9 @@ use wordcraft_doc::props::Rgb;
 
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 
+mod underlay;
+pub use underlay::{CadEntry, entries, underlay_view};
+
 /// Points in a millimetre.
 const PT_PER_MM: f32 = 72.0 / 25.4;
 /// Most items one drawing makes (each segment of a tessellated arc counts once).
@@ -26,18 +29,30 @@ pub fn specs() -> Vec<CommandSpec> {
     let selected = |s: &Session| if is_selected(s) { None } else { Some("select a CAD drawing first") };
     vec![
         CommandSpec::new("insert.cad", "CAD Drawing", "Insert › Illustrations", insert).params(
-            r#"{"drawing"?: object|string (a strix-cad drawing: {"unit", "scale", "layers", "entities": [{"type": "line", "a": [0,0], "b": ["L",0]} …]}; default: a starter drawing)} → inserts a CAD drawing in line at the caret; coordinates may be expressions of the calculations' parameters"#,
+            r#"{"drawing"?: object|string (a strix-cad drawing: {"unit", "scale", "layers", "entities": [{"type": "line", "a": [0,0], "b": ["L",0]} …]}; default: a starter drawing, its maximum size the space where it goes), "underlay"?: n | id (another drawing as its underlay, its layers and styles inherited), "inherit"?: n | id (only its layers and styles)} → inserts a CAD drawing in line at the caret; coordinates may be expressions of the calculations' parameters"#,
         ),
         CommandSpec::new("cad.get", "CAD Drawing Source", "Insert › Illustrations", get).pure().when(selected).params(r#"→ {"drawing": object, "errors": [[expression, why]]}: the selected drawing"#),
         CommandSpec::new("cad.set", "Set CAD Drawing", "Insert › Illustrations", set).when(selected).params(r#"{"drawing": object|string} → replaces the selected drawing's source and redraws it"#),
         CommandSpec::new("cad.add", "Add to CAD Drawing", "Insert › Illustrations", add)
             .when(selected)
             .params(r#"{"entity": object ({"type": "line|circle|arc|polyline|point|text|dim|angle|level", …})} → adds an entity to the selected drawing; returns its id"#),
+        CommandSpec::new("cad.space", "Drawing Space", "CAD Picture Format › Scale", space).pure().when(selected).params(
+            r#"→ {"width", "height"} mm: the space where the selected drawing sits (its column's width, the height from its top down to the page's bottom margin), a guide for its size, not a limit; null when it is not laid out"#,
+        ),
+        CommandSpec::new("cad.drawings", "Drawings of the Document", "CAD Picture Format › Underlay", underlay::drawings).pure().params(
+            r#"→ [{"index", "id", "name", "page", "current", "underlay"}]: the document's CAD drawings (body paragraphs, reading order), to pick an underlay from"#,
+        ),
+        CommandSpec::new("cad.underlay", "Drawing Underlay", "CAD Picture Format › Underlay", underlay::underlay).when(selected).params(
+            r#"{"source"?: n | id (another drawing: its number in cad.drawings or its id; taken by id, never copied), "inherit"?: true (default: its layers and styles merged in), "dx"?, "dy"? (drawing units), "fade"? (0–0.95), "show"?, "print"? (also on the page and in the PDF; default: only in the editor), "remove"?: true} → {"underlay", "inherited"}; refuses the drawing itself and two drawings taking each other; one level deep"#,
+        ),
+        CommandSpec::new("cad.inherit", "Inherit Layers and Styles", "CAD Picture Format › Underlay", underlay::inherit).when(selected).params(
+            r#"{"source": n | id} → {"inherited": {"layers", "dimStyles", "textStyles"}}: another drawing's layers and styles merged into the selected one (names it has keep its definition), no underlay"#,
+        ),
         CommandSpec::new("cad.padding", "Drawing Padding", "CAD Picture Format › Picture", padding)
             .when(selected)
             .params(r#"{"value": mm | [top, right, bottom, left]} → the space around the selected drawing in its picture (0–100 mm)"#),
         CommandSpec::new("cad.scale", "Drawing Scale", "CAD Picture Format › Scale", scale).when(selected).params(
-            r#"{"fit"?: true (the page's text width and two thirds of its height) | false | {"width"?: mm, "height"?: mm} (a maximum size, the scale fitted to it), "max"?: true | false | {"width"?, "height"?} (the maximum size alone; how the scale is chosen stays), "auto"?: true (the scale fitted to the maximum size again), "scale"?: n (a fixed 1:n; with a maximum size, one at which the drawing fits)} → {"scale": n, "fit": {"width", "height", "fixed"}|null, "scales": [n…] (the standard scales that fit)}"#,
+            r#"{"fit"?: true (the space where it sits: its column's width and the height down to the page's bottom margin; else the page's text width and two thirds of its height) | false | {"width"?: mm, "height"?: mm} (a maximum size, the scale fitted to it), "max"?: true | false | {"width"?, "height"?} (the maximum size alone; how the scale is chosen stays), "auto"?: true (the scale fitted to the maximum size again), "scale"?: n | "1:75" | "2:1" (a fixed scale, any; with a maximum size, one at which the drawing fits)} → {"scale": n, "fit": {"width", "height", "fixed"}|null, "scales": [n…] (the standard scales that fit)}"#,
         ),
     ]
 }
@@ -59,10 +74,14 @@ fn drawing_param(v: &Value, key: &str) -> Result<Option<Drawing>, CmdError> {
 }
 
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
-    let drawing = match drawing_param(v, "drawing")? {
+    let given = drawing_param(v, "drawing")?;
+    // The starter drawing is given the space where it goes once laid out (below).
+    let is_starter = given.is_none();
+    let drawing = match given {
         Some(d) => d,
         None => Drawing::from_json(STARTER).map_err(CmdError::Failed)?,
     };
+    let starter = is_starter.then(|| drawing.clone());
     let rendered = drawing.render(None);
     let unit = super::calc::unit_color(s);
     let (w, h, items) = items_of(&rendered, unit, &s.doc.settings.minor_font);
@@ -72,9 +91,25 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let props = s.typing_props();
     let at = super::delete_selection(s)?;
     let end = s.doc.insert_object(&at, obj, &props)?;
-    s.sel = Selection { anchor: at, focus: end };
+    s.sel = Selection { anchor: at.clone(), focus: end };
     // Its parameters come from the calculations before it.
     super::calc::recalculate_now(s);
+    // A new drawing knows the space where it went (its column's width, down to the page's
+    // bottom): its maximum size, the scale fitted to it. Not binding: it may be made larger.
+    // (The document changed: laid out again, not read from the layout before the insert.)
+    s.touch();
+    if let Some(mut d) = starter
+        && let Some(space) = space_at(s, &at)
+    {
+        d.fit = Some(space.sanitized());
+        store(s, &at, &d)?;
+    }
+    // Started from another drawing: its layers and styles, and as an underlay.
+    if let Some(src) = v.get("underlay") {
+        underlay::underlay(s, &json!({"source": src}))?;
+    } else if let Some(src) = v.get("inherit") {
+        underlay::inherit(s, &json!({"source": src}))?;
+    }
     super::sel_result(s)
 }
 
@@ -190,6 +225,68 @@ pub fn page_space(s: &Session) -> strix_cad::Fit {
     strix_cad::Fit { width: mm(crate::io::text_width(&s.doc)), height: mm(height) * 2.0 / 3.0, fixed: false }
 }
 
+/// The space where the selected drawing sits, mm: the width of the column it is in, and the
+/// height from its top to the bottom of the page's text area (in the layout of the view shown).
+/// A guide, not a limit: the drawing may be larger. None when it is not laid out.
+pub fn space_here(s: &mut Session) -> Option<strix_cad::Fit> {
+    let (pos, _) = selected_source(s)?;
+    space_at(s, &pos)
+}
+
+/// [`space_here`] for the drawing at `pos` (its U+FFFC).
+fn space_at(s: &mut Session, pos: &wordcraft_doc::Pos) -> Option<strix_cad::Fit> {
+    let pos = pos.clone();
+    let layout = s.layout();
+    let page_i = layout.page_of(&pos)?;
+    let hit = layout.object(&pos, page_i)?;
+    let page = layout.pages.get(page_i)?;
+    let mm = |pt: f32| f64::from(pt / PT_PER_MM);
+    let sections = s.doc.sections();
+    let columns = sections.get(page.section).or_else(|| sections.last()).map(|(_, sp)| sp.columns.clone()).unwrap_or_default();
+    let body = page.body;
+    let gaps = columns.space.max(0.0) * columns.count.saturating_sub(1) as f32;
+    let width = if columns.count <= 1 {
+        body.w
+    } else if columns.widths.is_empty() {
+        (body.w - gaps) / columns.count.max(1) as f32
+    } else {
+        // Unequal columns: the one the drawing starts in.
+        let mut x = body.x;
+        let mut found = columns.widths.first().map_or(body.w, |w| w.0);
+        for (w, after) in columns.widths.iter().take(64) {
+            if hit.rect.x < x + w + after {
+                found = *w;
+                break;
+            }
+            x += w + after;
+        }
+        found
+    };
+    let height = body.y + body.h - hit.rect.y;
+    let (w, h) = (mm(width), mm(height));
+    (w.is_finite() && h.is_finite()).then(|| strix_cad::Fit { width: w.clamp(10.0, 5000.0), height: h.clamp(10.0, 5000.0), fixed: false })
+}
+
+fn space(s: &mut Session, _: &Value) -> CmdResult {
+    selected_source(s).ok_or_else(|| CmdError::Disabled("select a CAD drawing first".into()))?;
+    Ok(space_here(s).map_or(Value::Null, |f| json!({"width": f.width, "height": f.height})))
+}
+
+/// [`space_here`], else the page's ([`page_space`]).
+pub fn space_or_page(s: &mut Session) -> strix_cad::Fit {
+    space_here(s).unwrap_or_else(|| page_space(s))
+}
+
+/// The scale parameter of `cad.scale` and the editor's: a number `n` (1:n) or a scale as written
+/// (`"1:75"`, `"2:1"`, `"75"`).
+pub fn scale_param(v: &Value) -> Result<f64, String> {
+    let n = match v {
+        Value::String(t) => strix_cad::parse_scale(t),
+        other => other.as_f64().filter(|n| n.is_finite() && *n > 0.0).map(|n| n.clamp(strix_cad::SCALE_RANGE.0, strix_cad::SCALE_RANGE.1)),
+    };
+    n.ok_or_else(|| "scale: the n of 1:n (more than 0), or a scale such as \"1:75\" or \"2:1\"".to_string())
+}
+
 /// A padding parameter: one size for all sides, or `[top, right, bottom, left]`, mm.
 pub fn padding_param(v: &Value) -> Result<strix_cad::Padding, String> {
     match v.get("value") {
@@ -222,7 +319,7 @@ fn scale(s: &mut Session, v: &Value) -> CmdResult {
     };
     match v.get("fit") {
         None | Some(Value::Null) => {}
-        Some(Value::Bool(true)) => d.fit = Some(page_space(s)),
+        Some(Value::Bool(true)) => d.fit = Some(space_or_page(s)),
         Some(Value::Bool(false)) => d.fit = None,
         Some(o @ Value::Object(_)) => d.fit = Some(space(o)?),
         Some(_) => return Err(CmdError::Params("fit: true, false or {\"width\", \"height\"} in mm".into())),
@@ -235,7 +332,7 @@ fn scale(s: &mut Session, v: &Value) -> CmdResult {
         Some(m) => {
             let fixed = d.fit.is_some_and(|f| f.fixed);
             let mut f = match m {
-                Value::Bool(true) => page_space(s),
+                Value::Bool(true) => space_or_page(s),
                 Value::Object(_) => space(m)?,
                 _ => return Err(CmdError::Params("max: true (the page), false or {\"width\", \"height\"} in mm".into())),
             };
@@ -244,11 +341,14 @@ fn scale(s: &mut Session, v: &Value) -> CmdResult {
         }
     }
     if v.get("auto").and_then(Value::as_bool) == Some(true) {
-        let f = d.fit.unwrap_or_else(|| page_space(s));
+        let f = match d.fit {
+            Some(f) => f,
+            None => space_or_page(s),
+        };
         d.fit = Some(strix_cad::Fit { fixed: false, ..f });
     }
     if let Some(n) = v.get("scale") {
-        let n = n.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("scale: the n of 1:n, more than 0".into()))?;
+        let n = scale_param(n).map_err(CmdError::Params)?;
         let mut p = probe(d.fit);
         p.set_fixed_scale(n, None).map_err(CmdError::Params)?;
         d.fit = p.fit;
@@ -616,6 +716,48 @@ mod tests {
                 if graphic.kind == GraphicKind::Cad && float.wrap == wordcraft_doc::para::Wrap::Square)))
         });
         assert!(wrapped, "the wrap survives saving");
+    }
+
+    /// A drawing knows the space where it sits: its column's width and the height down to the
+    /// page's bottom margin; a new drawing takes it as its maximum size (not binding: a larger
+    /// fixed scale stays possible once the maximum size is off). Scales may be typed as written.
+    #[test]
+    fn a_drawing_knows_the_space_where_it_sits() {
+        let mut s = session();
+        s.run("insert.cad", &json!({})).unwrap();
+        let top = s.run("cad.space", &json!({})).unwrap();
+        // The text width, and the text height from the top of the text area (the drawing is
+        // the first thing on the page).
+        let (text_w, text_h) = s.doc.sections().first().map(|(_, sp)| (sp.text_width(), sp.text_height())).unwrap();
+        let mm = |pt: f32| f64::from(pt / PT_PER_MM);
+        assert!((top["width"].as_f64().unwrap() - mm(text_w)).abs() < 0.5, "{top}");
+        assert!((top["height"].as_f64().unwrap() - mm(text_h)).abs() < 1.0, "{top}");
+        let fit = s.run("cad.get", &json!({})).unwrap()["drawing"]["fit"].clone();
+        assert!((fit["width"].as_f64().unwrap() - mm(text_w)).abs() < 0.5, "a new drawing fits the space: {fit}");
+        // In a document with text and calculations, at the caret where it opens.
+        let mut sample = Session::new(crate::sample::sample_document());
+        // Laid out before (as the window has it): the insert lays it out again.
+        let _ = sample.layout();
+        sample.run("insert.cad", &json!({})).unwrap();
+        let src = sample.run("cad.get", &json!({})).unwrap();
+        assert!(src["drawing"]["fit"].is_object(), "{}", sample.run("cad.space", &json!({})).map(|v| v.to_string()).unwrap_or_default());
+        // Lower on the page, less height; two columns, half the width less the gap.
+        let mut s = session();
+        s.run("text.insert", &json!({"text": "One\nTwo\nThree\nFour\n"})).unwrap();
+        s.run("layout.columns", &json!({"count": 2})).unwrap();
+        s.run("insert.cad", &json!({})).unwrap();
+        let low = s.run("cad.space", &json!({})).unwrap();
+        assert!(low["height"].as_f64().unwrap() < top["height"].as_f64().unwrap() - 10.0, "{low}");
+        assert!(low["width"].as_f64().unwrap() < mm(text_w) / 2.0, "{low}");
+        // Typed scales.
+        s.run("cad.scale", &json!({"max": false})).unwrap();
+        assert_eq!(s.run("cad.scale", &json!({"scale": "1:75"})).unwrap()["scale"], json!(75.0));
+        assert_eq!(s.run("cad.scale", &json!({"scale": "2:1"})).unwrap()["scale"], json!(0.5));
+        for junk in [json!("1:0"), json!("abc"), json!(0), json!(-3), json!(null), json!([1]), json!({"n": 2})] {
+            assert!(s.run("cad.scale", &json!({"scale": junk})).is_err(), "{junk}");
+        }
+        assert_eq!(s.run("cad.scale", &json!({"scale": 1e300})).unwrap()["scale"], json!(strix_cad::SCALE_RANGE.1));
+        assert_eq!(scale_param(&json!("1:x")), Err(scale_param(&json!(-1)).unwrap_err()));
     }
 
     #[test]

@@ -1523,6 +1523,35 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
                 pen.line_c(&[(x, 8.0), (x + 3.5, 13.0)], a);
             }
         }
+        // Underlay: a sheet behind (dimmed), a sheet in front drawn over it.
+        "cadUnderlay" => {
+            pen.rect(2.0, 2.0, 13.0, 13.0, c.gamma_multiply(0.45));
+            pen.line_c(&[(4.0, 10.0), (9.0, 5.0)], c.gamma_multiply(0.45));
+            pen.rect(7.0, 7.0, 18.0, 18.0, c);
+            pen.line_c(&[(9.0, 15.0), (14.0, 10.0)], a);
+        }
+        // Slope ticks (a cut's crest): a line with ticks square to it on one side, long and
+        // short in turn.
+        "cadSlope" => {
+            pen.line_c(&[(2.0, 6.0), (18.0, 6.0)], c);
+            for (i, x) in [3.0, 6.5, 10.0, 13.5, 17.0].into_iter().enumerate() {
+                let len = if i % 2 == 0 { 9.0 } else { 4.5 };
+                pen.line_c(&[(x, 7.0), (x, 7.0 + len)], a);
+            }
+        }
+        // Flip a strip to the other side: a line, slanted strokes above it, an arrow round to
+        // the side below.
+        "cadStripFlip" => {
+            pen.line_c(&[(2.0, 10.0), (13.0, 10.0)], c);
+            for x in [3.0, 6.5, 10.0] {
+                pen.line_c(&[(x, 9.0), (x + 2.5, 5.0)], c);
+            }
+            pen.line_c(&[(15.5, 5.0), (17.5, 8.0), (17.5, 12.0), (15.5, 15.0)], a);
+            pen.line_c(&[(13.5, 13.5), (15.5, 15.0), (17.5, 13.0)], a);
+            for x in [3.0, 6.5, 10.0] {
+                pen.line_c(&[(x, 11.0), (x + 2.5, 15.0)], a);
+            }
+        }
         // Layers: three sheets stacked, the top one in the accent.
         "cadLayers" => {
             pen.line_c(&[(2.0, 13.0), (10.0, 17.0), (18.0, 13.0)], c);

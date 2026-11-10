@@ -409,6 +409,22 @@ pub struct DimStyle {
     /// Written only when not the drawing's unit.
     #[serde(deserialize_with = "lenient", skip_serializing_if = "DimUnits::is_drawing")]
     pub units: DimUnits,
+    /// Linear dimension texts end with their unit (`3.50 m`); off (the default), the number
+    /// alone. Written only when on.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub show_unit: bool,
+    /// Level marks' text height, mm; 0 (the default): the dimension text height. Written only
+    /// when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_text: f64,
+    /// Level marks' triangle height, mm; 0 (the default): automatic (a text and a fifth high).
+    /// Written only when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_mark: f64,
+    /// Level marks' elevations end with their unit (`+3.00 m`); off (the default), the number
+    /// alone. Written only when on.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub level_unit: bool,
 }
 
 impl Default for DimStyle {
@@ -430,6 +446,10 @@ impl Default for DimStyle {
             aligned: true,
             scaled: false,
             units: DimUnits::Drawing,
+            show_unit: false,
+            level_text: 0.0,
+            level_mark: 0.0,
+            level_unit: false,
         }
     }
 }
@@ -455,7 +475,21 @@ impl DimStyle {
             aligned: self.aligned,
             scaled: self.scaled,
             units: self.units,
+            show_unit: self.show_unit,
+            level_text: c(self.level_text, 0.0, 50.0, 0.0),
+            level_mark: c(self.level_mark, 0.0, 50.0, 0.0),
+            level_unit: self.level_unit,
         }
+    }
+
+    /// The level marks' text height, mm (their own, else the dimension text's).
+    pub fn level_text_height(&self) -> f64 {
+        if self.level_text > 0.0 { self.level_text } else { self.text }
+    }
+
+    /// The level marks' triangle height, mm (their own, else a text and a fifth, at least 1 mm).
+    pub fn level_mark_height(&self) -> f64 {
+        if self.level_mark > 0.0 { self.level_mark } else { (self.level_text_height() * 1.2).max(1.0) }
     }
 
     pub fn is_default(&self) -> bool {
@@ -600,6 +634,10 @@ pub enum Kind {
         angle: f64,
         #[serde(default = "strip_spacing")]
         spacing: f64,
+        /// Slope ticks (the `slope` pattern): the short ticks' length as a part of the long
+        /// ones' (`width`), 0.1–1. Written only when not a half.
+        #[serde(default = "strip_ratio", skip_serializing_if = "is_half")]
+        ratio: f64,
     },
     /// A hatch filling the region bounded by the closed objects with ids `boundary` (the outer
     /// one and its islands, even-odd), so it follows them: `pattern` at `angle` degrees, its
@@ -670,16 +708,20 @@ pub enum Pattern {
     Solid,
     /// A strip's lines across it at the angle to each segment of its path (ground, insulation).
     Along,
+    /// Slope ticks (a cut's crest, an embankment): ticks square to the path on the strip's side,
+    /// long (the strip's width) and short (`ratio` of it) in turn, `spacing` apart.
+    Slope,
 }
 
 impl Pattern {
-    pub const ALL: [(Pattern, &'static str); 6] = [
+    pub const ALL: [(Pattern, &'static str); 7] = [
         (Pattern::Lines, "lines"),
         (Pattern::Cross, "cross"),
         (Pattern::Steel, "steel"),
         (Pattern::Dashed, "dashed"),
         (Pattern::Solid, "solid"),
         (Pattern::Along, "along"),
+        (Pattern::Slope, "slope"),
     ];
 
     pub fn name(self) -> &'static str {
@@ -705,6 +747,14 @@ fn strip_angle() -> f64 {
 
 fn strip_spacing() -> f64 {
     1.5
+}
+
+pub(crate) fn strip_ratio() -> f64 {
+    0.5
+}
+
+fn is_half(v: &f64) -> bool {
+    *v == 0.5
 }
 
 fn is_left(a: &Align) -> bool {
@@ -746,6 +796,11 @@ pub struct Entity {
     /// dimension style; `None` (or a name the drawing doesn't have): Standard.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
+    /// A dimension's or level mark's text moved from its place by `[dx, dy]` drawing units (in
+    /// scale: it follows the drawing), with a leader back when it is off its line; `None`: in
+    /// its place. The measured value never changes.
+    #[serde(default, rename = "textShift", skip_serializing_if = "Option::is_none")]
+    pub text_shift: Option<[f64; 2]>,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -764,7 +819,7 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, kind }
+        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, text_shift: None, kind }
     }
 }
 
@@ -804,6 +859,14 @@ pub struct Drawing {
     /// among those that fit.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fit: Option<Fit>,
+    /// A stable name other drawings of the document refer to it by (an underlay's source);
+    /// given when it is first needed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Another drawing of the document shown under this one to trace over
+    /// ([`crate::Underlay`]): a reference by id, never a copy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub underlay: Option<crate::Underlay>,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -841,6 +904,8 @@ impl Default for Drawing {
             current_dim_style: None,
             current_text_style: None,
             fit: None,
+            id: None,
+            underlay: None,
         }
     }
 }
@@ -932,6 +997,9 @@ impl Drawing {
         self.dim_style = std::mem::take(&mut self.dim_style).sanitized();
         self.sanitize_styles();
         self.fit = self.fit.map(Fit::sanitized).filter(|f| f.width > 0.0 || f.height > 0.0);
+        self.id = self.id.take().map(|n| cut_name(&n)).filter(|n| !n.trim().is_empty());
+        // Never its own underlay.
+        self.underlay = self.underlay.take().map(crate::Underlay::sanitized).filter(|u| Some(&u.source) != self.id.as_ref() && !u.source.is_empty());
         self.layers.truncate(MAX_LAYERS);
         if !self.layers.iter().any(|l| l.name == "0") {
             self.layers.insert(0, Layer::default());
@@ -962,6 +1030,15 @@ impl Drawing {
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
+            // A text shift only on what has a text to move, finite and within the limits.
+            if !matches!(e.kind, Kind::Dim { .. } | Kind::Level { .. }) {
+                e.text_shift = None;
+            }
+            e.text_shift = e
+                .text_shift
+                .filter(|s| s.iter().all(|v| v.is_finite()))
+                .map(|s| s.map(|v| v.clamp(-MAX_COORD, MAX_COORD)))
+                .filter(|s| s.iter().any(|v| *v != 0.0));
             match &mut e.kind {
                 Kind::Polyline { pts, bulges, .. } => {
                     pts.truncate(MAX_VERTICES);
@@ -981,11 +1058,12 @@ impl Drawing {
                         t.truncate(t.char_indices().nth(200).map_or(t.len(), |(i, _)| i));
                     }
                 }
-                Kind::Strip { width, angle, spacing, along, .. } => {
+                Kind::Strip { width, angle, spacing, along, ratio, .. } => {
                     let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
                     *width = c(*width, 0.1, 100.0, strip_width());
                     *angle = c(*angle, 5.0, 175.0, strip_angle());
                     *spacing = c(*spacing, 0.2, 50.0, strip_spacing());
+                    *ratio = c(*ratio, 0.1, 1.0, strip_ratio());
                     // Cut at a character boundary: an id from a file may be any text.
                     along.truncate(along.char_indices().nth(64).map_or(along.len(), |(i, _)| i));
                 }
@@ -1089,6 +1167,9 @@ impl Drawing {
                 }
             }
             for e in &mut self.entities {
+                if let Some(s) = e.text_shift.as_mut() {
+                    *s = s.map(|v| v * k);
+                }
                 match &mut e.kind {
                     Kind::Dim { offset_units, .. } => *offset_units *= k,
                     Kind::Angle { r, .. } => *r *= k,
@@ -1232,7 +1313,8 @@ impl Drawing {
     /// A level mark's label: `text` (else `<>`) with `<>` the elevation `height` (drawing units)
     /// in metres, two decimals and signed (`+3.00`, `−1.50`, `±0.00`), in the document's number
     /// style (a decimal comma when it uses one).
-    pub fn level_label(&self, text: Option<&str>, height: f64, ws: Option<&Worksheet>) -> String {
+    /// With `unit`, the elevation ends with ` m` (marked for the Unit style).
+    pub fn level_label(&self, text: Option<&str>, height: f64, unit: bool, ws: Option<&Worksheet>) -> String {
         let doc = ws.map(|w| *w.options()).unwrap_or_default();
         let opts = strix_calc::Options { digits: 2, count: strix_calc::Count::Decimals, zeros: true, ..doc };
         let m = height * self.unit.mm() / 1000.0;
@@ -1245,14 +1327,25 @@ impl Drawing {
         } else {
             format!("\u{2212}{digits}")
         };
+        let value = if unit { format!("{value} {}m{}", crate::UNIT_START, crate::UNIT_END) } else { value };
         fill(&text.unwrap_or("<>").replace("<>", &value), ws)
     }
 
     /// A linear dimension's label: `text` (else `<>`) with `<>` the size `measured` (drawing
-    /// units) in the style's units ([`DimUnits`]), in the document's number style.
-    pub fn dim_label(&self, units: DimUnits, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+    /// units) in the style's units ([`DimUnits`]), in the document's number style, followed by
+    /// its unit when the style shows it.
+    pub fn dim_label(&self, st: &DimStyle, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
         let mm = measured * self.unit.mm();
+        let units = st.units;
+        let symbol = match units {
+            DimUnits::Drawing => self.unit.symbol(),
+            DimUnits::M => "m",
+            DimUnits::Cm => "cm",
+            DimUnits::Mm => "mm",
+            DimUnits::Sia if (mm.abs() / 10.0).round() >= 100.0 => "m",
+            DimUnits::Sia => "cm",
+        };
         let size = match units {
             DimUnits::Drawing => strix_calc::format_number(measured, &opts),
             DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
@@ -1265,6 +1358,7 @@ impl Drawing {
             }
             DimUnits::Sia => strix_calc::format_number(mm / 10.0, &opts),
         };
+        let size = if st.show_unit { format!("{size} {}{symbol}{}", crate::UNIT_START, crate::UNIT_END) } else { size };
         fill(&text.unwrap_or("<>").replace("<>", &size), ws)
     }
 

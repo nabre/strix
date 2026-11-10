@@ -425,6 +425,8 @@ pub enum Grip {
     Point,
     /// A dimension's line: changes its distance from the measured points.
     DimLine,
+    /// A dimension's or level mark's text: moves it anywhere (its text shift).
+    Text,
 }
 
 /// The paper mm a drawing unit measures.
@@ -500,7 +502,12 @@ impl Drawing {
                 }
                 out
             }
-            Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Level { p, .. } => {
+                let mut out = vec![(Grip::Point, p.pt())];
+                out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
+                out
+            }
             Kind::Strip { .. } | Kind::Hatch { .. } => Vec::new(),
             Kind::Dim { a, b, offset, offset_units, orient, .. } => {
                 let (pa, pb) = (a.pt(), b.pt());
@@ -509,7 +516,9 @@ impl Drawing {
                 let units = offset / paper_per_unit(self) + offset_units;
                 let at = if units >= 0.0 { level(pa).max(level(pb)) + units } else { level(pa).min(level(pb)) + units };
                 let m = mid(pa, pb);
-                vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))]
+                let mut out = vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))];
+                out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
+                out
             }
             // The vertex, the two rays' points and the arc's middle (its radius).
             Kind::Angle { c, a, b, r, r_paper, .. } => {
@@ -532,6 +541,17 @@ impl Drawing {
             return false;
         }
         let Some(from) = self.grips(i).into_iter().find(|(k, _)| *k == g).map(|(_, p)| p) else { return false };
+        if g == Grip::Text {
+            // The text moves; what is measured stays.
+            let Some(e) = self.entities.get_mut(i) else { return false };
+            let [dx, dy] = e.text_shift.unwrap_or_default();
+            let (nx, ny) = (dx + to.x - from.x, dy + to.y - from.y);
+            if !(nx.is_finite() && ny.is_finite()) {
+                return false;
+            }
+            e.text_shift = Some([nx.clamp(-crate::MAX_COORD, crate::MAX_COORD), ny.clamp(-crate::MAX_COORD, crate::MAX_COORD)]);
+            return true;
+        }
         let d = to.minus(from);
         // A dimension's line or an angle's arc dragged changes the part the style places (paper,
         // or the drawing when `scaled`); the other part stays.

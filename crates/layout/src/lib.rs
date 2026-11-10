@@ -76,7 +76,7 @@ use notes::{NOTE_SEP, note_numbers};
 use page::item_bottom;
 use pass::layout_pass;
 pub use pass::now_ms;
-pub use placed::{HfSlot, Placed, turn_point, turn_rect, unturn_point};
+pub use placed::{GridSheet, HfSlot, Placed, turn_point, turn_rect, unturn_point};
 
 /// How the document is viewed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]

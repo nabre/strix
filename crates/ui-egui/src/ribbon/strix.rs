@@ -377,7 +377,8 @@ Page",
         );
         // What fits is judged on the drawing as drawn, its sizes worked out by the calculations.
         let drawn = wordcraft_engine::cmd::cad::edited_drawing(&app.session).unwrap_or_else(|| d.clone());
-        crate::cad_editor::scale_fields(ui, app, "cad_picture", &d, &drawn, "cad.scale");
+        let space = wordcraft_engine::cmd::cad::space_here(&mut app.session);
+        crate::cad_editor::scale_fields(ui, app, "cad_picture", (&d, &drawn), space, "cad.scale");
     });
     group(ui, "Picture", None, app, |ui, app| {
         crate::cad_editor::field_grid(ui, "cad_picture_grid", |ui| {

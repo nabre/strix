@@ -94,7 +94,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             app.controls.checks.push((*f, r.content_start()));
         }
     }
-    // Subdocuments have marks of their own, always shown.
+    // Subdocuments have marks of their own, shown with Show/Hide ¶.
     shown.retain(|r| !crate::subdocument_marks::is_subdocument(&r.control.tag));
     crate::subdocument_marks::paint(app, painter, t, layout, rects, scale);
     shown.sort_by_key(|r| r.depth);

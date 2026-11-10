@@ -1,7 +1,7 @@
-//! Subdocuments on the page (docs/master-documents.md): every linked file of a master document is
-//! always marked, wherever the caret is, so a file brought in is seen as one: a bar in the left
-//! margin along its text, a light frame around it, and a tab above it with the file's name and its
-//! state. A click on the tab puts the caret in it, so Unlink, Reload and Open act on that one.
+//! Subdocuments on the page (docs/master-documents.md): with Show/Hide ¶ on (`view.marks`), every
+//! linked file of a master document is marked, wherever the caret is, so a file brought in is seen
+//! as one: a bar in the left margin along its text, a light frame around it, and a tab above it
+//! with the file's name and its state. A click on the tab puts the caret in it, so Unlink, Reload and Open act on that one.
 //! Drawn in code; everything ends in a command.
 
 use egui::{Align2, Rect, Stroke, pos2, vec2};
@@ -49,6 +49,11 @@ fn frames(app: &WordApp, layout: &DocLayout, rects: &[Rect], scale: f32, from: &
 pub(crate) fn paint(app: &WordApp, painter: &egui::Painter, t: &Tokens, layout: &DocLayout, rects: &[Rect], scale: f32) {
     let ctx = painter.ctx();
     let mut tabs = Vec::new();
+    // Structure marks are formatting marks: shown only with Show/Hide ¶ on.
+    if !app.session.view.marks {
+        ctx.data_mut(|d| d.insert_temp(tabs_id(), tabs));
+        return;
+    }
     let focus = &app.session.sel.focus;
     let subs: Vec<_> = app
         .session

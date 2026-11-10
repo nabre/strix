@@ -1,6 +1,6 @@
 # Graph paper
 
-> **Status:** stage 1 done: model, the six placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-10-29 · **Change:** the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight
+> **Status:** stage 1 done: model, the six placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-10 · **Change:** with Follow columns off, a block across columns is one sheet: the space between the columns is ruled on the start column's squares and heavier lines, one frame round it all
 
 **Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper, `graph.insert`) is a square
 grid drawn behind the text, for working a problem by hand, sketching or writing on squares as
@@ -37,13 +37,19 @@ the ordinary ones. A dimmed body (header/footer editing) fades the grid too.
 the section had one column, and the whole pages of a block likewise. On, in a section with more
 than one text column, each column is ruled on its own (squares from its left edge, on the bottom
 margin) and the space between the columns is left clear. A block already starts in its own
-column, and the page's columns after it are ruled one by one either way.
+column. Off, a block that runs to the end of the page is one sheet of graph paper from its
+column's left edge to the text's right edge: its column and the space after it are ruled from
+the block's top, the columns after it down their whole height, all on the same squares and rows
+as the block's column, the heavier lines too, counted from the block's grid's top-left corner
+(the space between the columns beside the text above the block stays clear); on its later pages, as on the pages its text runs over, the whole text width is ruled.
+On, the page's columns after the block's are ruled one by one.
 
 **Frame.** The frame is the border of the ruled area, the outermost lines. By default it weighs
 what the ordinary lines do, so the grid looks as it always has (the top and left edges are
 heavier lines when there are heavier lines). Given a weight of its own, the edge lines are drawn
 as one frame of that weight, in the ordinary lines' style and colour, over the rest; each ruled
-area (each page, each column) has its own.
+area (each page, each column followed) has its own, and a sheet across columns (Follow columns
+off) has one round all of it, with no seam where its parts meet.
 
 ## Placements
 
@@ -110,13 +116,14 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 ## Code
 
 - Model: `crates/doc/src/graph_paper.rs` (`GraphPaper`, `GridLine`, `GridPlacement`,
-  `sanitized`, `lines`, `to_attr` / `from_attr`); `SectionProps::graph_paper`,
+  `sanitized`, `lines`, `lines_along` for a part of a sheet, `to_attr` / `from_attr`); `SectionProps::graph_paper`,
   `ParaProps::graph` (a split leaves it on the first part).
-- Layout: `Placed::Grid` (the rect ruled: whole squares down); `crates/layout/src/graph.rs`
-  (`background`, the page decoration behind everything; `place_graph_para`; `whole_rows`,
-  `page_areas`); tests in `crates/layout/src/tests/graph_paper.rs`. The grid is laid out again
+- Layout: `Placed::Grid` (the rect ruled: whole squares down; a part of a sheet across columns
+  carries a `GridSheet`: the sheet's origin, its edges on the outline, and on the last part the
+  outline the frame follows); `crates/layout/src/graph.rs` (`background`, the page decoration
+  behind everything; `place_graph_para`; `whole_rows`, `page_areas`, `sheet_rects`); tests in `crates/layout/src/tests/graph_paper.rs`. The grid is laid out again
   with the rest of the page on every edit (and undo/redo), so a block follows the text before it.
-- Drawing: `display::grid_draws` (two dashed or solid paths, ordinary then heavier, then the
+- Drawing: `display::grid_draws` / `grid_sheet_draws` (two dashed or solid paths, ordinary then heavier, then the
   frame), which the screen, PNG and PDF renderers share.
 - Commands: `crates/engine/src/cmd/graph.rs`; pane: `crates/ui-egui/src/graph_pane.rs`.
 
@@ -129,3 +136,5 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 ## Revision history
 
 - 2026-10-28: new: model, placements, rendering, commands, menu and pane, `.xmath` round trip.
+- 2026-10-29: the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight.
+- 2026-11-10: fix: with Follow columns off, a block in a section with columns left the space between the columns empty on its first page and ruled the next column on squares of its own; now it is one sheet on the block column's squares and heavier lines, with one frame round it all.

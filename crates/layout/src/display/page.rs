@@ -355,29 +355,46 @@ fn rule(x0: f32, y0: f32, x1: f32, y1: f32, b: &Border, alpha: f32) -> Draw {
 /// the grid's whole squares reach. A grid with a frame of its own weight draws its edge lines
 /// as that frame, over the rest. `alpha` (a dimmed body) fades the colours towards the paper.
 pub fn grid_draws(rect: Rect, grid: &wordcraft_doc::graph_paper::GraphPaper, alpha: f32, out: &mut Vec<Draw>) {
+    grid_sheet_draws(rect, grid, None, alpha, out)
+}
+
+/// [`grid_draws`] for a rect that may be a part of a larger sheet: its lines (the heavier ones
+/// too) on the squares from the sheet's origin, and with a frame of its own weight, the edges on
+/// the sheet's outline left to the one frame round the sheet, drawn by the part that carries it.
+pub fn grid_sheet_draws(
+    rect: Rect,
+    grid: &wordcraft_doc::graph_paper::GraphPaper,
+    sheet: Option<&crate::GridSheet>,
+    alpha: f32,
+    out: &mut Vec<Draw>,
+) {
     let g = grid.sanitized();
-    let (vs, hs) = g.lines(rect.w, rect.h);
+    let (ox, oy) = sheet.map_or((rect.x, rect.y), |s| s.origin);
+    let (vs, hs) = (g.lines_along(rect.x - ox, rect.w), g.lines_along(rect.y - oy, rect.h));
+    let (Some(left), Some(top)) = (vs.first().map(|l| rect.x + l.0), hs.first().map(|l| rect.y + l.0)) else { return };
     let (Some(right), Some(bottom)) = (vs.last().map(|l| rect.x + l.0), hs.last().map(|l| rect.y + l.0)) else { return };
     let fade = |c: Rgb| {
         let a = alpha.clamp(0.0, 1.0);
         let mix = |v: u8| (255.0 - (255.0 - f32::from(v)) * a).round().clamp(0.0, 255.0) as u8;
         Rgb(mix(c.0), mix(c.1), mix(c.2))
     };
-    // With a frame, the edge lines are the frame's, drawn last.
+    // With a frame, the edge lines are the frame's, drawn last; in a sheet only the edges on its
+    // outline.
     let framed = g.frame.is_some();
-    let edge = |i: usize, n: usize| framed && (i == 0 || i + 1 == n);
+    let on_frame = |side: usize| framed && sheet.is_none_or(|s| s.edges.get(side).copied().unwrap_or(false));
+    let edge = |i: usize, n: usize, first: usize, last: usize| (i == 0 && on_frame(first)) || (i + 1 == n && on_frame(last));
     for major in [false, true] {
         let line = if major { g.major } else { g.line };
         let mut segs = Vec::new();
         for (i, (at, m)) in vs.iter().enumerate() {
-            if *m == major && !edge(i, vs.len()) {
-                segs.push(PathSeg::Move(rect.x + at, rect.y));
+            if *m == major && !edge(i, vs.len(), 0, 2) {
+                segs.push(PathSeg::Move(rect.x + at, top));
                 segs.push(PathSeg::Line(rect.x + at, bottom));
             }
         }
         for (i, (at, m)) in hs.iter().enumerate() {
-            if *m == major && !edge(i, hs.len()) {
-                segs.push(PathSeg::Move(rect.x, rect.y + at));
+            if *m == major && !edge(i, hs.len(), 1, 3) {
+                segs.push(PathSeg::Move(left, rect.y + at));
                 segs.push(PathSeg::Line(right, rect.y + at));
             }
         }
@@ -392,24 +409,31 @@ pub fn grid_draws(rect: Rect, grid: &wordcraft_doc::graph_paper::GraphPaper, alp
             });
         }
     }
-    if framed && right > rect.x && bottom > rect.y {
-        let w = g.frame_width();
-        let segs = vec![
-            PathSeg::Move(rect.x, rect.y),
-            PathSeg::Line(right, rect.y),
-            PathSeg::Line(right, bottom),
-            PathSeg::Line(rect.x, bottom),
-            PathSeg::Close,
-        ];
-        out.push(Draw::Path {
-            segs,
-            fill: None,
-            stroke: Some(fade(g.line.color)),
-            stroke_width: w,
-            dash: g.line.style.dashes(w),
-            cap: Default::default(),
-        });
+    if !framed {
+        return;
     }
+    let outline: Vec<(f32, f32)> = match sheet {
+        None if right > left && bottom > top => vec![(left, top), (right, top), (right, bottom), (left, bottom)],
+        None => Vec::new(),
+        Some(s) => s.outline.as_deref().map(<[(f32, f32)]>::to_vec).unwrap_or_default(),
+    };
+    let mut points = outline.into_iter().filter(|(x, y)| x.is_finite() && y.is_finite());
+    let Some((x0, y0)) = points.next() else { return };
+    let mut segs = vec![PathSeg::Move(x0, y0)];
+    segs.extend(points.map(|(x, y)| PathSeg::Line(x, y)));
+    if segs.len() < 3 {
+        return;
+    }
+    segs.push(PathSeg::Close);
+    let w = g.frame_width();
+    out.push(Draw::Path {
+        segs,
+        fill: None,
+        stroke: Some(fade(g.line.color)),
+        stroke_width: w,
+        dash: g.line.style.dashes(w),
+        cap: Default::default(),
+    });
 }
 
 /// Closed box around one line segment of a character-border group, widened by `space`.
@@ -431,7 +455,7 @@ fn item(doc: &Document, it: &Placed, opts: &DisplayOptions, authors: &Authors, a
 fn item_in(doc: &Document, it: &Placed, opts: &DisplayOptions, authors: &Authors, alpha: f32, outer: Spin, out: &mut Vec<Draw>) {
     match it {
         Placed::Fill { rect, color } => out.push(Draw::Fill { rect: *rect, color: *color, alpha, text_bg: false }),
-        Placed::Grid { rect, grid } => grid_draws(*rect, grid, alpha, out),
+        Placed::Grid { rect, grid, sheet } => grid_sheet_draws(*rect, grid, sheet.as_ref(), alpha, out),
         Placed::Rule { x0, y0, x1, y1, border } => out.push(rule(*x0, *y0, *x1, *y1, border, alpha)),
         Placed::Image { rect, media, crop, spin, .. } => spun(
             *spin,

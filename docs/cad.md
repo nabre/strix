@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-09 · **Change:** named text and dimension styles (start and end marks, mark width); the drawing's unit set in the editor; CAD Drawing tab reorganised (Line and Tangent Line one button; Trim/Extend, Fillet/Chamfer, Array/Polar paired); the editor's settings kept between runs, Quadrant snap on by default; previously: arrowheads on open lines
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-10 · **Change:** underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -301,8 +301,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`).
    **Object snaps** (exact, from the kernel; AutoCAD's markers and names): Endpoint, Midpoint,
    Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point, Nearest
-   (only when nothing else); the nearest wins, ties to that order; each toggles in Object Snaps
-   (`ui.cadToggle {"what": "snap.<kind>"}`); Ortho holds a point only when no object snap does.
+   (only when nothing else); the nearest wins, ties to that order; each toggles with its icon in
+   the status line (`ui.cadToggle {"what": "snap.<kind>"}`); Ortho holds a point only when no object snap does.
    The status line shows distance, angle, Δx and Δy from the last point.
    **Grips** (AutoCAD and Allplan): the selected objects (up to 50) show square grips; a click
    takes one (hot, red), the next point places it (a click with snaps and Ortho, or a typed point:
@@ -360,15 +360,73 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    own, moved by its background, resizable; `ui.cadToggle {"what": "props.float"}` /
    `"layers.float"`), Dock and Close (×); docked or detached, they stay so for the next drawing.
    **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
-   (Dimensions, Dimension Style, Text Style, Units, Hatch, Text), CAD View (Precision, Object
-   Snaps), CAD Output (Picture) — each with Close Drawing; the document's tabs are disabled until
-   the drawing is closed. In CAD Drawing, **Line** is a split button as Circle is (Line, Tangent
-   Line: the top part starts the one chosen last), and Trim/Extend, Fillet/Chamfer and
-   Array/Polar Array are small split buttons, each pair one icon with its arrow; there is no
-   Select button (the editor selects whenever no command runs; Esc ends one). The choices of the
-   paired buttons, the snaps (all on by default, Quadrant too), Ortho, Grid, Frame, the panes and
-   the last distances and counts are the editor's settings, saved with the app's (`ui.json`,
-   `cad`): every drawing opens as the last was left, after a restart too.
+   (Dimensions, Styles, Units, Hatch, Text), CAD Output (Scale, Picture) — each with Close
+   Drawing; the document's tabs are disabled until the drawing is closed, and the document's
+   task panes (Styles, Navigation, Format Shape…) are hidden while it is open (they come back as
+   they were when it closes). In CAD Drawing, **Line** is a split button as Circle is (Line,
+   Tangent Line: the top part starts the one chosen last), and Trim/Extend, Fillet/Chamfer,
+   Array/Polar Array and **Explode/Join** are small split buttons, each pair one icon with its
+   arrow; **Match** Properties is a large button in the Layers group, beside the Layer Manager;
+   there are no Undo and Redo buttons (the title bar and Ctrl+Z / Ctrl+Y have them) and no
+   Select button (the editor selects whenever no command runs; Esc ends one). There is no CAD
+   View tab: the **status line** under the sheet holds, as icons without labels (names and state
+   in tooltips, a pressed look when on), Snap, Grid and Ortho, the nine object snaps (Endpoint,
+   Midpoint, Centre, Intersection, Perpendicular, Tangent, Quadrant, Node, Nearest) and Zoom Fit
+   — the same `ui.cadToggle {"what": …}` and `ui.cadFit` as before; the context menu has them
+   too. The choices of the paired buttons, the snaps (all on by default, Quadrant too), Ortho,
+   Grid (off by default), Frame, the panes and the last distances and counts are the editor's
+   settings, saved with the app's (`ui.json`, `cad`): every drawing opens as the last was left,
+   after a restart too (a saved Grid on stays on).
+   **Style windows** (CAD Annotate › Styles): Dimension Style, Level Style and Text Style each
+   open a modal window (`ui.cadStyleDialog {"which": "dim" | "level" | "text"}`; scripts set the
+   same things with `ui.cadDimStyle`, `ui.cadTextStyle` and `ui.cadStyles`, no window) with the
+   style list (current, rename, New, Delete) and that style's settings; the ribbon keeps the
+   current dimension and text styles. **Show the unit** (`showUnit`, Dimension Style) ends
+   linear sizes with their unit (`3.50 m`, the unit of the style's Dimension units; SIA 400: m or
+   cm as shown); off by default, as before. Level marks take the dimension styles; the Level
+   Style window sets their **text height** (`levelText`, 0: the dimension text's), **triangle
+   height** (`levelMark`, 0: a text and a fifth) and **Show the unit** (`levelUnit`: `+3.00 m`),
+   all written only when set. **Text grips**: a selected dimension or level mark has a grip on
+   its text; dragged anywhere, the text moves (`textShift: [dx, dy]`, drawing units: in scale,
+   it follows the drawing; converted with the unit), with a thin leader back to the dimension
+   line's middle or the level mark's top when it is more than a text height away; the measured
+   value never changes; one undo step. `ui.cadTextShift {"dx", "dy"}` sets it on the selected
+   dimensions and level marks (`{"reset": true}` puts the texts back); shifts are kept within
+   the coordinates' limits and only on dimensions and level marks.
+   **Slope ticks** (barbette, the crest of a cut; tool `slope`, aliases `barbette`, `ciglio`;
+   CAD Annotate › Hatch › Slope Ticks): picked as a hatched strip (the line or polyline of the
+   crest, then the side the slope goes down), a strip with `pattern: "slope"` — ticks square to
+   the path, long (`width`, paper mm) and short (`ratio` of it, 0.1–1, a half by default) in
+   turn, `spacing` apart, at most 20 000 (a too fine spacing on a long path is widened). They
+   follow their path, render on the page, in the PDF and the SVG like any strip, and are saved
+   with the drawing. **Flip Side** (`ui.cadFlip {"strips": true}`) puts the selected strips and
+   slope ticks on the other side of their line; plain `ui.cadFlip` flips the selected
+   dimensions, level marks and strips together.
+   **Underlay** (CAD Drawing › Underlay): another drawing of the document shown under the open
+   one, faded and locked, to trace over — its objects are never picked or changed, but the object
+   snaps find its geometry. The button's menu lists the document's other drawings (body
+   paragraphs, reading order: their alternative text or "Drawing n", and page; `cad.drawings`);
+   picking one takes it (`cad.underlay {"source": n | id}`; `ui.cadUnderlay` in the editor) and
+   merges its layers (colour, lineweight, linetype) and named dimension, level and text styles
+   into the drawing: a name the drawing has keeps its own definition, new ones are added
+   (`Drawing::inherit`; there are no drawing-level hatch or strip settings to merge: those are
+   each strip's own). **Import styles and layers only** (`cad.inherit {"source"}`) merges without
+   an underlay, and `insert.cad {"underlay": n}` / `{"inherit": n}` starts a new drawing from
+   another. The underlay is a reference by the source's `id` (`d1`, `d2`…, given when first
+   needed), never a copy: later edits to the source show. It sits 1:1 in drawing units (converted
+   to this drawing's unit) with an optional offset (`dx`, `dy`), a fade (`fade`, 0–0.95, 0.6 by
+   default), Show (the button) and Remove; by default it shows only in the editor, and **Print
+   with the drawing** (`print`) draws it on the page and in the PDF too, the picture growing to
+   hold it. A drawing never takes itself, two drawings never take each other, and an underlay's
+   own underlay is never drawn (one level deep); at most 5000 of its objects are drawn and snapped
+   to. A source deleted or unreadable shows nothing and says so on the status bar.
+   **Space here**: a drawing knows the space where it sits — its column's width and the height
+   from its top down to the page's bottom margin (`cad.space`, from the layout) — a guide, not a
+   limit: a new drawing takes it as its maximum size (the scale fitted to it), Maximum size and
+   `cad.scale {"fit": true}` use it, the scale fields show it with **Fit Here**, and the editor
+   draws it as a dashed frame from the picture's top left. The **Scale** field takes a scale typed
+   by hand (`1:75`, `1/75`, `75`, `2:1`, a decimal comma; 1000:1 to 1:1 000 000) besides the
+   list; `cad.scale` and `ui.cadScale` take `"scale": n` or the text.
    **Annotations** (CAD Annotate tab): the drawing's **dimension style** (`dimStyle`, paper mm:
    text height — also new texts' —, end mark tick/arrow/dot/none, mark size, extension gap and
    overshoot, text gap; `ui.cadDimStyle`, one undo step, sizes clamped); a dimension may set its
@@ -474,6 +532,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-10: underlays: another drawing of the document under this one, faded, locked and snapped to, by id (`cad.drawings`, `cad.underlay`, `underlay`), optionally printed; its layers and styles inherited (`cad.inherit`, `insert.cad {"underlay" | "inherit"}`); no self-reference, no pair, one level deep.
+
+- 2026-11-10: style windows for the dimension, level and text styles; Show the unit in dimension and level texts; level text and triangle heights; text grips (`textShift`, `ui.cadTextShift`) with leaders; slope ticks (`pattern: "slope"`, tool `slope`/`barbette`) and Flip Side for strips; `cad.space` (the space where a drawing sits), used for new drawings, Maximum size and Fit Here, drawn as a guide; scales typed by hand; Snap, Grid, Ortho, the object snaps and Zoom Fit as icons in the status line, the CAD View tab removed; Match large beside the Layer Manager, Explode/Join one split button, Undo/Redo out of the ribbon; the document's panes hidden while a drawing is open; Grid off by default.
 
 - 2026-11-09: named text styles (font, height, bold, italic) and dimension styles (start and end marks, mark width, text style), with the current ones new objects take; Properties › Style; the drawing's unit in CAD Annotate › Units (converted or kept); CAD Drawing: Line and Tangent Line one split button, Trim/Extend, Fillet/Chamfer and Array/Polar small split buttons, no Select button; the editor's settings saved between runs; Quadrant snap on by default.
 
