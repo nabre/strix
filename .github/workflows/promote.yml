@@ -1,0 +1,114 @@
+# Strix's release, step 2 of 4 (docs/releasing.md, "The release flow"): a push to main whose
+# version (Cargo.toml's [workspace.package] version) has no published GitHub Release `vX.Y.Z` is
+# merged into the `release` branch, and the Release workflow (release.yml) is started there, where
+# the signed builds run. Every other push to main stops after reading the version.
+#
+# Its own workflow, not a job of release.yml: a push to main then shows one job, not Release's
+# eleven skipped ones, and every Release run is a real build of the release branch.
+#
+# The run is started explicitly because a push made with a workflow token starts no workflow; a
+# push made with RELEASE_PUSH_TOKEN starts it by itself, and is then not started again. GITHUB_TOKEN
+# can't push a merge that changes .github/workflows/: set the secret RELEASE_PUSH_TOKEN (a
+# fine-grained token with Contents and Workflows write on this repository) to cover that case too;
+# without it, such a merge fails here and main is merged into release by hand.
+name: Promote
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time, never cancelled: each push's promotion finishes before the next one looks.
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote main to release
+    # Run by hand on another branch: nothing to promote (a dry run is release.yml on that branch).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      # gh workflow run release.yml
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Version without a release?
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Cargo.toml's [workspace.package] version (the same awk as release.yml and packaging/env.sh).
+          version="$(awk '/^\[/ { p = ($0 == "[workspace.package]"); next } p && $1 == "version" { gsub(/[" ]/, "", $3); print $3; exit }' Cargo.toml)"
+          [ -n "$version" ] || { echo "::error::no version in Cargo.toml's [workspace.package]"; exit 1; }
+          tag="v$version"
+          promote=false
+          echo "### Promote" >>"$GITHUB_STEP_SUMMARY"
+          if [ "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || true)" = false ]; then
+            echo "$tag is already released: nothing to promote" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            promote=true
+            echo "$tag has no release: bringing ${GITHUB_SHA:0:7} into the release branch, which builds and publishes it" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo "version=$version"
+            echo "promote=$promote"
+          } >>"$GITHUB_OUTPUT"
+      # Where this run sits in the release flow: the diagram of docs/releasing.md, this step marked.
+      - name: Show the release flow
+        run: bash .github/release-flow.sh promote >>"$GITHUB_STEP_SUMMARY"
+      - name: Merge main into release
+        id: merge
+        if: steps.v.outputs.promote == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+          # A ref created or moved with RELEASE_PUSH_TOKEN raises a `push` on release, which
+          # starts Release there by itself; one moved with GITHUB_TOKEN starts nothing.
+          PUSH_STARTS_RUN: ${{ secrets.RELEASE_PUSH_TOKEN != '' }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          pushed=false
+          if ! gh api "repos/$repo/branches/release" --silent 2>/dev/null; then
+            gh api "repos/$repo/git/refs" -f ref=refs/heads/release -f sha="$SHA" --silent
+            pushed=true
+            echo "Created the release branch at ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            # 201: merged (a body); 204: release already holds this commit (no body); 409: conflict.
+            if ! out="$(gh api "repos/$repo/merges" -f base=release -f head="$SHA" \
+                -f commit_message="Release v$VERSION: merge main (${SHA:0:7}) into release" 2>&1)"; then
+              echo "::error::merging ${SHA:0:7} into release failed: $out (merge main into release by hand; a merge that changes .github/workflows/ needs the RELEASE_PUSH_TOKEN secret)"
+              exit 1
+            fi
+            if [ -n "$out" ]; then
+              pushed=true
+              echo "Merged ${SHA:0:7} into release" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "release already holds ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          # Started here only when no push will start it: never two runs for one release.
+          start=true
+          [ "$pushed" = true ] && [ "$PUSH_STARTS_RUN" = true ] && start=false
+          echo "start=$start" >>"$GITHUB_OUTPUT"
+      - name: Start the release build on release
+        if: steps.merge.outputs.start == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref release
+          echo "Started Release on the release branch" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Release started by the push
+        if: steps.merge.outputs.start == 'false'
+        run: echo "The push to release (RELEASE_PUSH_TOKEN) starts Release there" | tee -a "$GITHUB_STEP_SUMMARY"
