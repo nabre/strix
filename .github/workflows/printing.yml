@@ -31,9 +31,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to a PR branch cancels its older run; every run on main (push or nightly) runs to
+# the end, so its dependency cache and tested tree are saved (as in ci.yml).
 concurrency:
-  group: printing-${{ github.ref }}
-  cancel-in-progress: true
+  group: printing-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Already passed on the PR that brought this exact code to main: not run again (tested-tree.yml).
