@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
 An **exercise** (Math › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -14,13 +14,20 @@ deleted; the automatic parts can't be edited):
 | Part | Control tag | Lock | Content |
 |---|---|---|---|
 | Exercise | `strix:exercise` | can't delete | everything below |
-| Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; Exercise Info follows the title as it is typed (the summary shows only the label; prefix, format and first number: see Numbering). Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
+| Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; Exercise Info follows the title as it is typed (the summary shows only the label; prefix, format, separator and first number: see Numbering). Its paragraph style can't be changed: another style applied to it (Apply Style, Styles pane, Clear Formatting) gives Exercise Title back at once, since the style numbers the title and marks it as the title; to restyle every title, modify the Exercise Title style. Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
 | Data | `strix:exercise.data` | read-only | the initial data in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Properties pane, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
 | Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
 | Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
+
+**Editing keeps the structure.** Backspace and Delete never join a paragraph across the edge of
+a part (the statement into the title, a question into the statement, the title into the paragraph
+before), and take no letters out of a placeholder shown. A statement, questions or title emptied
+of everything (deleting a selection, Cut, Backspace, also over several paragraphs) is one empty
+paragraph again and shows its placeholder; typing over it replaces it. A question removed leaves
+no blank line behind in the solution.
 
 Only paragraphs in the Exercise Question style are questions: the repeated questions and the
 summary use their labels (`a.1) …`), indented by level; notes and other content between them
@@ -45,6 +52,9 @@ The exercises of a document are numbered by one list, a **document setting** sav
 - **Prefix**: *Esercizio* / *Exercise* (the document's language) by default, any text of your
   own (*Problema*, *Es.*), or none for the number alone; Default puts the word back.
 - **Number format**: 1, 2, 3 · A, B, C · a, b, c · I, II, III · i, ii, iii.
+- **Separator**: what follows the number in the titles, from a list: a period (*Esercizio 1.*,
+  the default), a colon (*Esercizio 1:*), a dash (*Esercizio 1 -*), a parenthesis (*Esercizio 1)*)
+  or a space alone (*Esercizio 1 Title*). The results summary shows the label without it.
 - **Start at**: the first exercise's number (1 to 32767).
 
 Every title's label (*Problema C.*) and the summary's lines (*Problema C*) follow at once, in one
@@ -147,6 +157,21 @@ other exercises renumber, the summary drops its lines, and it goes with the last
 selection over only part of an exercise is still refused, with a message saying how to delete
 the whole one.
 
+## In a master document
+
+Exercises kept one per file and gathered in a master document (docs/master-documents.md) are one
+series of the master, which rules as when a style is updated:
+
+- a subdocument comes in with the styles and lists its content uses (a style the master already
+  has keeps the master's look), so titles are in Exercise Title and numbered by the master's
+  numbering, and questions keep their letters;
+- the results summary is the master's, one for every exercise at the end of the master: the
+  subdocuments' own summaries are left out (a subdocument inserted at the end goes before it);
+- the series' settings (page breaks, parts shown, graph paper) are the master's first exercise's,
+  on every exercise of every subdocument, also when the master opens;
+- saving the master writes them back to the subdocument files, each with its own summary rebuilt
+  so it still opens complete on its own.
+
 ## Data and variants (Exercise Properties pane)
 
 Math › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret:
@@ -201,7 +226,7 @@ to the end.
 | `equation.answer` | the equation at the caret is the result of question `n` (0: none) |
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
-| `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n}`); without params, the current one → `{"prefix", "format", "start", "default", "example"}` |
+| `exercise.numbering` | the numbering of every exercise (`{"prefix"?: text \| null, "format"?: "decimal" \| "upperLetter" \| "lowerLetter" \| "upperRoman" \| "lowerRoman", "start"?: n, "separator"?: "." \| ":" \| "-" \| ")" \| " "}`); without params, the current one → `{"prefix", "format", "start", "separator", "default", "example"}` |
 | `exercise.pageBreaks` | page breaks (`{"beforeExercise"?, "beforeSolution"?, "beforeResults"?: bool}`; in a series every exercise); without settings, the current ones |
 | `exercise.delete` | remove whole exercises (`{"exercise"?: n \| [n]}`; default: those the selection covers whole, else the one at the caret), one undo step → `{"deleted", "exercises"}` |
 | `exercise.show` | the parts shown (`{"exercise"?: n, "solution"?, "results"?: bool}`; in a series every exercise) → `{"series", "solution", "results", "grid", "exercises"}` |
@@ -227,6 +252,9 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
+
+- 2026-11-10: editing keeps the structure: placeholders come back when a part is emptied over several paragraphs, Backspace/Delete never join two parts nor eat a placeholder, removed questions leave no blank line; exercises in a master document follow the master (styles and lists brought in, one results summary, the series' settings, written back to the files).
+- 2026-11-10: a separator after the number in the numbering (period, colon, dash, parenthesis, space; `exercise.numbering {"separator"}`, a drop-down in Exercise Properties › Series); the title's paragraph style is locked to Exercise Title.
 
 - 2026-11-10: the series rules every exercise: page breaks too (no exercise of a series differs any more; the Exercise tab keeps only variants and data), the first exercise's settings forced on every other one however it came in, a new exercise takes the series'; the exercise's grip in the margin (Select, Properties, Delete Exercise).
 

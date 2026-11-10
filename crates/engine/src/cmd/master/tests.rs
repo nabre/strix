@@ -121,3 +121,84 @@ fn bad_links_are_errors() {
     assert_eq!(super::Link::parse("strix-subdoc path="), None);
     assert_eq!(super::Link::parse("strix-subdoc conflict path=/a b").map(|l| (l.conflict, l.path)), Some((true, "/a b".into())));
 }
+
+/// One exercise in its own file, Italian.
+fn exercise_file(path: &std::path::Path, title: &str) {
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut s, "exercise.insert", json!({"title": title, "questions": ["Trova x"]}));
+    run(&mut s, "file.saveAs", json!({"path": path.to_str().unwrap()}));
+}
+
+fn paras(doc: &wordcraft_doc::Document) -> Vec<(Option<String>, String)> {
+    doc.body
+        .iter()
+        .filter_map(|b| match &**b {
+            wordcraft_doc::Block::Para(p) => Some((p.props.style.clone(), p.text.replace('\u{FFFC}', ""))),
+            _ => None,
+        })
+        .collect()
+}
+
+fn count(doc: &wordcraft_doc::Document, text: &str) -> usize {
+    paras(doc).iter().filter(|(_, t)| t == text).count()
+}
+
+/// The owner: exercises kept one per file and gathered in a master showed the results summary
+/// twice, lost their styles (titles not in Exercise Title, questions without their letters),
+/// left empty paragraphs between the files and didn't follow the series. The master rules, as a
+/// style update: the files' styles and lists come in, one summary for all, the series' settings
+/// on every exercise, and the files written back carry them (with their own summary, so each
+/// still opens complete).
+#[test]
+fn exercises_in_subdocuments_follow_the_master() {
+    let d = dir("exercises");
+    let (a, b, book) = (d.join("a.xmath"), d.join("b.xmath"), d.join("book.xmath"));
+    exercise_file(&a, "Area");
+    exercise_file(&b, "Pendenza");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Libro"}));
+    for p in [&a, &b] {
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "master.insertSubdocument", json!({"path": p.to_str().unwrap()}));
+    }
+    let check = |s: &Session| {
+        assert_eq!(count(&s.doc, "Riepilogo dei risultati"), 1, "{:?}", paras(&s.doc));
+        assert_eq!(count(&s.doc, "Esercizio 1") + count(&s.doc, "Esercizio 2"), 2, "{:?}", paras(&s.doc));
+        // No empty paragraph left between the subdocuments, nor before the summary.
+        let p = paras(&s.doc);
+        let empties = p.iter().filter(|(st, t)| t.is_empty() && st.as_deref() != Some("Normal")).count();
+        assert_eq!(empties, 0, "{p:?}");
+        // Titles numbered by the Exercise Title style, questions lettered by an existing list.
+        let title = s.doc.styles.get("ExerciseTitle").expect("the style came in");
+        let num = title.para.numbering.expect("numbered").num;
+        assert!(s.doc.numbering.num(num).is_some());
+        for blk in s.doc.body.iter() {
+            if let wordcraft_doc::Block::Para(p) = &**blk
+                && p.props.style.as_deref() == Some("ExerciseQuestion")
+            {
+                let n = p.props.numbering.expect("lettered");
+                assert!(s.doc.numbering.num(n.num).is_some(), "the question's list exists");
+            }
+        }
+    };
+    check(&s);
+    assert_eq!(run(&mut s, "exercise.numbering", json!({}))["example"], json!("Esercizio 1"));
+    // A series setting made in the master reaches every file's exercise.
+    run(&mut s, "exercise.pageBreaks", json!({"beforeSolution": true}));
+    let r = run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 2, "{r}");
+    for p in [&a, &b] {
+        let mut alone = Session::new(crate::io::open_path(p).unwrap());
+        alone.doc.styles.default_chr.lang = Some("it-IT".into());
+        assert_eq!(count(&alone.doc, "Riepilogo dei risultati"), 1, "{:?}", paras(&alone.doc));
+        assert_eq!(run(&mut alone, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(true));
+    }
+    // Reopened: the files come in again, still one summary.
+    let mut s = Session::new(crate::io::open_path(&book).unwrap());
+    s.path = Some(book.clone());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    crate::cmd::master::after_open(&mut s);
+    check(&s);
+}

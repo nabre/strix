@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-09 · **Change:** new
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** a subdocument brings its styles and lists; exercises follow the master (one results summary, the series); no blank paragraph left between subdocuments; previously: new
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -51,6 +51,15 @@ Save or Reload all of them.
   is opened as a master itself. A document can't be its own subdocument, nor link the same file
   twice.
 
+- A subdocument brings the **styles, lists and pictures** its content uses, as Text from File
+  does: a style the master has keeps the master's definition (the master rules, as a style
+  update), one it lacks comes in, and numbered paragraphs count with the lists brought over.
+- It goes in an empty paragraph at the caret; a paragraph after it is added only when nothing
+  follows, so two subdocuments inserted one after the other leave no blank line between them.
+- **Exercises** in subdocuments are one series of the master (docs/exercise.md, In a master
+  document): one results summary at the end of the master, the series' settings on all, written
+  back to the files, each file getting its own summary again.
+
 ## Limits
 
 - Not on the web: subdocuments are files on disk, which the browser version can't read back or write, so Insert and Create are greyed out there (with that reason); a master made on the desktop still opens and shows its saved copies.
@@ -58,5 +67,7 @@ Save or Reload all of them.
   from the master.
 
 ## Revision history
+
+- 2026-11-10: styles and lists of a subdocument come with it; exercises follow the master; no blank paragraph between subdocuments.
 
 - 2026-11-09: first version; the Subdocuments pane.

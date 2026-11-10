@@ -132,7 +132,7 @@ pub(crate) fn follow_language(s: &mut Session) -> bool {
     let prefix = numbering::current(s).prefix;
     if let Some(new) = swap(&prefix, |w| w.exercise, doc_words) {
         // `set` rebuilds the summary too.
-        changed |= numbering::set(s, Some(new.to_string()), None, None).is_ok();
+        changed |= numbering::set(s, numbering::Change { prefix: Some(new.to_string()), ..Default::default() }).is_ok();
     }
     changed |= update(s);
     s.clamp_selection();

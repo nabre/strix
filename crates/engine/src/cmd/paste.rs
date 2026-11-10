@@ -447,7 +447,7 @@ pub(crate) fn unlink_sections(blocks: &mut [Block]) {
 
 /// Turn an imported document into a fragment of the session's document: bring over the media,
 /// lists and styles it refers to (renumbered so they can't collide with ours).
-fn adopt(s: &mut Session, src: Document) -> Fragment {
+pub(crate) fn adopt(s: &mut Session, src: Document) -> Fragment {
     let mut media = BTreeMap::new();
     for (key, data) in &src.media {
         let ext = key.rsplit_once('.').map(|(_, e)| e).unwrap_or("png");
@@ -470,7 +470,14 @@ fn adopt(s: &mut Session, src: Document) -> Fragment {
     }
     for st in &src.styles.styles {
         if s.doc.styles.get(&st.id).is_none() {
-            s.doc.styles.upsert(st.clone());
+            let mut st = st.clone();
+            // A numbered style (headings, exercise titles) counts with the list brought over.
+            if let Some(n) = st.para.numbering.as_mut()
+                && n.num != 0
+            {
+                n.num = num_map.get(&n.num).copied().unwrap_or(0);
+            }
+            s.doc.styles.upsert(st);
         }
     }
     // Tracked changes the source carries (RTF revisions) point at its own revisions: add them

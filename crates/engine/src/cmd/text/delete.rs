@@ -45,6 +45,9 @@ fn backspace_inner(s: &mut Session, _: &Value) -> CmdResult {
         return sel_result(s);
     }
     let f = s.sel.focus.clone();
+    if crate::cmd::exercise::keeps_edge(s, &f, true) {
+        return sel_result(s);
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off > 0 {
         let a = Pos { off: para.backspace_from(f.off), ..f.clone() };
@@ -145,6 +148,9 @@ fn delete_inner(s: &mut Session, _: &Value) -> CmdResult {
     // A caret before the starts of block-level controls (Home, a click at the line's start)
     // deletes their first character, as typing goes inside them, not the zero-width markers.
     let f = Some(s.doc.typing_pos(&f)).filter(|t| t.off > f.off).unwrap_or(f);
+    if crate::cmd::exercise::keeps_edge(s, &f, false) {
+        return sel_result(s);
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off < para.len() {
         let b = Pos { off: para.next_boundary(f.off), ..f.clone() };

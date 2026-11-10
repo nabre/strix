@@ -403,6 +403,7 @@ pub fn check_edit(s: &mut Session, a: &Pos, b: &Pos) -> Result<(), CmdError> {
 
 /// After the user deleted something: a control left empty shows its placeholder again.
 pub fn restore_placeholder(s: &mut Session) -> Result<(), CmdError> {
+    super::exercise::collapse_empty_part(s)?;
     let at = s.sel.focus.clone();
     let Some(r) = s.doc.control_at(&at) else { return Ok(()) };
     if !r.is_empty() || r.control.showing_placeholder {
