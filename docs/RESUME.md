@@ -162,6 +162,12 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
     `main` without a bump or packages, so its release and tag were deleted; version bumped on
     `main`, `main` merged into `release`; publish the draft `Strix v0.21.0` (Actions › Publish
     release), titled `Strix v0.21.0 — <highlights>` like every other release.
+  - Release 0.22.0 (2026-11-10): Exercise Properties tabs (Exercise, Series) with page breaks;
+    CAD text and dimension styles, start/end marks and mark width, drawing unit, CAD Drawing tab
+    reorganised, editor settings persisted; updates staged in the background and installed at the
+    next plain start. Version bumped on `main`; to do: `main` merged into `release`, publish the
+    draft `Strix v0.22.0` after review (Actions › Publish release), titled
+    `Strix v0.22.0 — <highlights>`.
 
 ## In progress (stopped, unfinished, on their own branches)
 - None.
