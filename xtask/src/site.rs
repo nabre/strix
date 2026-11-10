@@ -118,6 +118,7 @@ pub fn run(root: &Path, args: &[&str]) -> Result<(), String> {
             ("langLinks", lang_menu(lang, &here, &strings)?),
             ("jsonLd", json_ld(lang, s, &version)?),
             ("langDetect", lang_script(lang)),
+            ("dlScript", DL_SCRIPT.to_string()),
         ];
         for (k, v) in computed {
             values.insert(k.to_string(), v);
@@ -226,10 +227,63 @@ fn og_locales(locale: &str) -> String {
     tags.join("\n")
 }
 
+/// The download pick (`#download .dl-pick`): from the browser (user agent, and the client hints'
+/// processor where the browser has them), the system and processor of the reader's computer.
+/// The builds that fit are marked (`.fit`: their system's card moves first, with its badge), the
+/// best of them becomes the pick's button with the others beside it, and the pick warns when the
+/// processor is only guessed (Windows and Linux browsers often say x64 on ARM). Phones, tablets
+/// and systems without a build get the browser version. The words come from the pick's `data-*`
+/// (the page's language) and the cards, so one script serves every language; without it the
+/// page still lists everything and the pick points at the browser version.
+const DL_SCRIPT: &str = r#"<script>(function(){try{
+var d=document.getElementById("download"),p=d&&d.querySelector(".dl-pick");if(!p)return;
+var t=p.dataset,n=navigator,u=n.userAgent||"",$=function(c){return p.querySelector(c)};
+var go=$(".dl-pick-go"),web={href:go.href,text:go.textContent};
+var L=["appimage","deb","rpm","flatpak","arch","tar"],PREF={windows:["msi","exe","zip"],macos:["dmg","cli"],freebsd:["tar"],linux:L};
+function all(c){return Array.prototype.slice.call(d.querySelectorAll(c))}
+function guess(){var s={os:"",arch:"",sure:false,pref:null};
+if(/Android|iPhone|iPad|iPod|Mobile/.test(u)||(/Macintosh/.test(u)&&n.maxTouchPoints>1))s.os="mobile";
+else if(/CrOS/.test(u))s.os="other";
+else if(/Windows/.test(u)){s.os="windows";s.arch=/ARM64|aarch64/i.test(u)?"arm64":/Win64|WOW64|x64|amd64/i.test(u)?"x64":"x86";s.sure=s.arch==="arm64"}
+else if(/Macintosh|Mac OS X/.test(u)){s.os="macos";s.arch="universal";s.sure=true}
+else if(/FreeBSD/.test(u)){s.os="freebsd";s.sure=/amd64|x86_64|i[3-6]86/.test(u);s.arch=/i[3-6]86/.test(u)&&!/amd64|x86_64/.test(u)?"x86":"x64"}
+else if(/OpenBSD|NetBSD|DragonFly|SunOS|Haiku/.test(u))s.os="other";
+else if(/Linux|X11/.test(u)){s.os="linux";s.sure=true;
+if(/aarch64|arm64|armv8/i.test(u))s.arch="arm64";else if(/riscv64/i.test(u))s.arch="riscv64";else if(/armv[67]/i.test(u))s.arch="arm";
+else if(/i[3-6]86/.test(u)&&!/x86_64/.test(u))s.arch="x86";else{s.arch="x64";s.sure=false}
+if(/Ubuntu|Debian|Mint|Pop!_OS|elementary/i.test(u))s.pref=["deb"].concat(L);
+else if(/Fedora|Red Hat|CentOS|SUSE|Rocky|Alma/i.test(u))s.pref=["rpm"].concat(L);
+else if(/Arch Linux|Manjaro/i.test(u))s.pref=["arch"].concat(L)}
+return s}
+function hints(s,h){if(!h||(s.os!=="windows"&&s.os!=="linux"&&s.os!=="freebsd"))return s;var b=h.bitness==="32";
+if(h.architecture==="arm")s.arch=b?"arm":"arm64";else if(h.architecture==="x86")s.arch=b?"x86":"x64";else return s;
+s.sure=true;return s}
+function fmt(a){var r=a.closest(".fmt"),f=r&&r.querySelector(".fmt-name");return(f?f.textContent:"")+" · "+a.textContent}
+function apply(s){var fit=[],pref=s.pref||PREF[s.os]||[];
+all(".dl[data-os] a[data-arch]").forEach(function(a){var c=a.closest(".dl"),ok=c.dataset.os===s.os&&(a.dataset.arch===s.arch||a.dataset.arch==="universal");a.classList.toggle("fit",ok);if(ok)fit.push(a)});
+var rank=function(a){var i=pref.indexOf(a.closest(".fmt").dataset.fmt);return i<0?99:i};
+fit.sort(function(a,b){return rank(a)-rank(b)});
+var os=fit.length?s.os:"web";all(".dl[data-os]").forEach(function(c){c.classList.toggle("fit",c.dataset.os===os)});
+var alt=$(".dl-pick-alt"),note=$(".dl-pick-note");alt.textContent="";note.textContent="";$(".dl-pick-file").textContent="";
+if(fit.length){var a=fit[0],c=a.closest(".dl"),h=a.closest(".fmt").querySelector(".fmt-hint");
+$(".dl-pick-eyebrow").textContent=t.forYou;$(".dl-pick-title").textContent=c.querySelector("h3").textContent+" · "+a.textContent;
+$(".dl-pick-text").textContent=h?h.textContent:"";go.href=a.href;go.textContent=t.download+" · "+fmt(a);
+$(".dl-pick-file").textContent=a.href.split("/").pop();if(!s.sure)note.textContent=t.guess;
+var seen={};seen[a.closest(".fmt").dataset.fmt]=1;fit.slice(1).forEach(function(b){var f=b.closest(".fmt").dataset.fmt;if(seen[f])return;seen[f]=1;
+if(!alt.firstChild)alt.appendChild(document.createTextNode(t.also+" "));else alt.appendChild(document.createTextNode(" · "));
+var e=document.createElement("a");e.href=b.href;e.textContent=fmt(b);alt.appendChild(e)})}
+else{var m=s.os==="mobile";$(".dl-pick-title").textContent=m?t.mobileTitle:t.nobuildTitle;$(".dl-pick-text").textContent=m?t.mobileText:t.nobuildText;
+$(".dl-pick-eyebrow").textContent=t.forYou;go.href=web.href;go.textContent=web.text}
+p.classList.add("ready")}
+var s=guess();if(!s.os)return;apply(s);
+if(n.userAgentData&&n.userAgentData.getHighEntropyValues)n.userAgentData.getHighEntropyValues(["architecture","bitness"]).then(function(h){apply(hints(s,h))},function(){});
+}catch(e){}})()</script>"#;
+
 /// The script of a page's language: every page keeps a language picked in the menu (`?lang=`,
 /// in the browser's storage); the root page, English and `x-default`, also moves to the first
 /// of the browser's languages the site speaks, unless a language was picked. GitHub Pages
-/// can't negotiate the language, so this is the only script of the site, made here.
+/// can't negotiate the language, so this script is made here (with [`DL_SCRIPT`], the site's only
+/// other one).
 fn lang_script(lang: &str) -> String {
     const KEEP: &str = "var q=new URLSearchParams(location.search).get(\"lang\");if(q)localStorage.setItem(\"strix-lang\",q);";
     if lang != "en" {
@@ -441,6 +495,25 @@ mod tests {
         }
         let menu = lang_menu("it", "it/", &strings).unwrap();
         assert!(menu.contains("href=\".././?lang=en\"") && menu.contains("href=\"../fr/?lang=fr\""), "{menu}");
+    }
+
+    /// The download pick's script: one for every language (its words come from the page), nothing
+    /// the build would read as a key or a link, and a pick for each system the cards offer.
+    #[test]
+    fn the_download_pick_knows_every_system() {
+        assert!(!DL_SCRIPT.contains("{{"), "the build would read a key");
+        assert!(links(DL_SCRIPT).is_empty(), "the site check would read a link");
+        for key in ["t.forYou", "t.also", "t.guess", "t.mobileTitle", "t.nobuildText", "t.download"] {
+            assert!(DL_SCRIPT.contains(key), "{key}");
+        }
+        let model = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../site/landing.html")).unwrap();
+        for os in ["windows", "macos", "linux", "freebsd"] {
+            assert!(model.contains(&format!("data-os=\"{os}\"")), "no card for {os}");
+            assert!(DL_SCRIPT.contains(&format!("s.os=\"{os}\"")), "the script never picks {os}");
+        }
+        for attr in ["for-you", "also", "guess", "mobile-title", "mobile-text", "nobuild-title", "nobuild-text", "download"] {
+            assert!(model.contains(&format!("data-{attr}=\"")), "the pick has no data-{attr}");
+        }
     }
 
     #[test]
