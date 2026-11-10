@@ -1,0 +1,98 @@
+# A check that already passed on the same code isn't run again on main.
+#
+# The code is the commit's git tree (every file's exact content). When a run's checks pass, mode
+# "record" uploads a tiny artifact named tested-<workflow>-<tree>; mode "check" looks for one:
+# - Push to main: a pull_request run of this workflow passed this tree. A PR run tests GitHub's
+#   merge of the PR into main (refs/pull/N/merge), so the push that merges it has the same tree
+#   when main didn't move in between (or the PR was up to date).
+# - Nightly run on main (schedule): a push or nightly run on main already passed this tree. The
+#   nightly run exists for the dependency caches, which only runs on main save (pull requests
+#   never write one): when every push of the day was skipped, it runs the checks once and saves
+#   them; when main has no new code since its last full run, it is skipped too.
+# Output `tested` true: the caller skips its jobs, and the run still ends "success", so
+# release.yml's "Checks already run" finds a passed CI on that commit. Any other case (main moved,
+# a fork's PR, no artifact, a run started by hand) answers false and the checks run.
+#
+# Only artifacts uploaded by this same workflow file, from a branch of this repository, count: a
+# fork's PR runs its own copy of the workflow and could upload anything.
+name: Tested tree
+
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: "The caller's file name (ci.yml): its artifacts are kept apart from the others'"
+        type: string
+        required: true
+      mode:
+        description: "check (on main: was this tree already tested?) or record (after the checks passed)"
+        type: string
+        required: true
+    outputs:
+      tested:
+        description: "true when this workflow already passed this exact tree (see above)"
+        value: ${{ jobs.tree.outputs.tested }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tree:
+    name: ${{ inputs.mode == 'record' && 'Record the tested tree' || 'Already tested?' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tested: ${{ steps.find.outputs.tested }}
+      name: ${{ steps.find.outputs.name }}
+    steps:
+      # An error here (GitHub API) never fails the caller: `tested` stays unset, so the checks run.
+      - id: find
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ inputs.workflow }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          # On a PR, GITHUB_SHA is the merge commit the checks ran on.
+          tree="$(gh api "repos/$repo/git/commits/$GITHUB_SHA" --jq .tree.sha)"
+          name="tested-${WORKFLOW%.yml}-$tree"
+          echo "name=$name" >>"$GITHUB_OUTPUT"
+          tested=false
+          # Which runs' artifacts count, by event.
+          accept=""
+          if [ "$MODE" = check ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+            case "$GITHUB_EVENT_NAME" in
+              push) accept="pull_request" ;;
+              schedule) accept="push schedule" ;;
+            esac
+          fi
+          if [ -n "$accept" ]; then
+            repo_id="$(gh api "repos/$repo" --jq .id)"
+            # Run ids of unexpired artifacts with this name uploaded by runs of this repository's own branches.
+            runs="$(gh api "repos/$repo/actions/artifacts?name=$name&per_page=20" \
+              --jq ".artifacts[] | select(.expired | not) | select(.workflow_run.head_repository_id == $repo_id) | .workflow_run.id")"
+            for run in $runs; do
+              read -r event path <<<"$(gh api "repos/$repo/actions/runs/$run" --jq '"\(.event) \(.path)"')"
+              [ "$path" = ".github/workflows/$WORKFLOW" ] || continue
+              case " $accept " in *" $event "*) ;; *) continue ;; esac
+              tested=true
+              url="$GITHUB_SERVER_URL/$repo/actions/runs/$run"
+              echo "${GITHUB_SHA:0:7} has the tree $tree, already passed by $WORKFLOW ($event run $url): not run again" | tee -a "$GITHUB_STEP_SUMMARY"
+              break
+            done
+            [ "$tested" = true ] || echo "No earlier run of $WORKFLOW ($accept) passed the tree $tree: the checks run" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "tested=$tested" >>"$GITHUB_OUTPUT"
+          [ "$MODE" = record ] && echo "$tree" >"$RUNNER_TEMP/tree.txt"
+          true
+      - if: inputs.mode == 'record' && steps.find.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.find.outputs.name }}
+          path: ${{ runner.temp }}/tree.txt
+          retention-days: 14
+          overwrite: true
