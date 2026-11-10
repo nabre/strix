@@ -3,7 +3,8 @@
 # stay on their existing nightly/release schedule. Linux is left to ci.yml, whose
 # `cargo xtask ci` already runs fmt, workspace clippy and tests, and the wasm check: here only
 # the macOS and Windows hosts compile, without repeating what doesn't depend on the OS. A push to
-# main whose code a PR already passed doesn't run them again (tested-tree.yml).
+# main whose code a PR already passed doesn't run them again (tested-tree.yml). Workspace crates
+# that didn't change since main's last cached build aren't compiled again (job "native").
 name: Printing
 
 on:
@@ -58,9 +59,25 @@ jobs:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    permissions:
+      contents: read
+      # gh cache delete: only the newest cache of the workspace crates is kept.
+      actions: write
     env:
       CARGO_TERM_COLOR: always
       CARGO_INCREMENTAL: '0'
+      # The workspace crates' build outputs (strix*, wordcraft*), which rust-cache leaves out: the
+      # same list for restoring and saving (the cache's version is a hash of it).
+      WS_CACHE_PATHS: |
+        target/.printing-ws-sha
+        target/debug/.fingerprint/strix-*
+        target/debug/.fingerprint/wordcraft-*
+        target/debug/build/strix-*
+        target/debug/build/wordcraft-*
+        target/debug/deps/*strix*
+        target/debug/deps/*wordcraft*
+        target/debug/examples
+        target/debug/strix*
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -69,15 +86,95 @@ jobs:
           toolchain: stable
           components: clippy
 
+      # Dependencies from crates.io and git (rust-cache cleans the workspace crates out of it).
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Workspace crates that didn't change since the cached build aren't compiled again. Main saves
+      # their build outputs with the commit they were built from (target/.printing-ws-sha); a run
+      # restores the newest one for the same compiler and manifests (Cargo.toml, Cargo.lock), so
+      # nothing stale piles up when a manifest or the toolchain changes: that run compiles them all.
+      - name: Cache key of the workspace crates
+        id: ws
+        shell: bash
+        env:
+          MANIFESTS: ${{ hashFiles('**/Cargo.toml', 'Cargo.lock', '.cargo/config.toml', 'rust-toolchain*') }}
+        run: |
+          set -euo pipefail
+          rustc="$(rustc -V | awk '{ gsub(/[()]/, "", $3); print $2 "-" $3 }')"
+          prefix="printing-ws-$RUNNER_OS-$RUNNER_ARCH-$rustc-$MANIFESTS-"
+          echo "prefix=$prefix" >>"$GITHUB_OUTPUT"
+          echo "key=$prefix$GITHUB_SHA" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.WS_CACHE_PATHS }}
+          key: ${{ steps.ws.outputs.key }}
+          restore-keys: ${{ steps.ws.outputs.prefix }}
+
+      # Cargo rebuilds a workspace crate when a source file is newer than its last build, and the
+      # checkout dates every file now. Files unchanged since the cached commit get a date long
+      # before it, the changed ones (and the folders that hold them, for build scripts watching a
+      # folder) stay "now": Cargo compiles those crates and what depends on them. Without a cached
+      # commit to compare with, every date stays "now" and everything is compiled, as before.
+      - name: Date the files changed since the cached build
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp=target/.printing-ws-sha
+          cached="$(cat "$stamp" 2>/dev/null || true)"
+          if ! printf '%s' "$cached" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "No cached build of the workspace crates: all of them are compiled" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! git cat-file -e "$cached^{commit}" 2>/dev/null && ! git fetch --quiet --no-tags --depth=1 origin "$cached"; then
+            echo "::notice::commit $cached of the cached build not found: every workspace crate is compiled"
+            exit 0
+          fi
+          changed="$RUNNER_TEMP/ws-changed"
+          git diff --name-only -z --no-renames "$cached" HEAD >"$changed"
+          # Each path with the folders above it, NUL-separated.
+          with_folders() {
+            tr '\0' '\n' | awk -F/ '{ p = $1; print p; for (i = 2; i <= NF; i++) { p = p "/" $i; print p } }' | sort -u | tr '\n' '\0'
+          }
+          git ls-files -z | with_folders | xargs -0 touch -c -t 200001010000
+          if [ -s "$changed" ]; then with_folders <"$changed" | xargs -0 touch -c; fi
+          count="$(tr -cd '\0' <"$changed" | wc -c | tr -d ' ')"
+          echo "Cached build of ${cached:0:7}: $count files changed since, only their crates are compiled" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Native app and UI Clippy
         run: cargo clippy -p strix -p wordcraft-ui-egui --all-targets --locked -- -D warnings
 
       - name: Native app and UI tests
         run: cargo test -p strix -p wordcraft-ui-egui --locked
+
+      - name: Save the workspace crates' commit
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: echo "$GITHUB_SHA" >target/.printing-ws-sha
+
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.WS_CACHE_PATHS }}
+          key: ${{ steps.ws.outputs.key }}
+
+      # Older caches of the workspace crates would only take space (and push other caches out).
+      - name: Remove the older caches of the workspace crates
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFIX: printing-ws-${{ runner.os }}-${{ runner.arch }}-
+          KEY: ${{ steps.ws.outputs.key }}
+        run: |
+          set -euo pipefail
+          gh cache list --repo "$GITHUB_REPOSITORY" --key "$PREFIX" --limit 100 --json id,key \
+            --jq ".[] | select(.key != \"$KEY\") | .id" | while read -r id; do
+            gh cache delete "$id" --repo "$GITHUB_REPOSITORY"
+          done
 
   # Checks passed on a PR or on main: remember the tree (tested-tree.yml).
   record:
