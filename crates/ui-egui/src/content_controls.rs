@@ -75,6 +75,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
     app.controls.checks.clear();
     app.controls.button = None;
     app.controls.tabs.clear();
+    crate::exercise_grip::clear(painter.ctx());
     let story = app.session.sel.focus.story;
     let current = app.session.doc.control_at(&app.session.sel.focus);
     let mut shown: Vec<ControlRange> = if app.session.view.design_mode {
@@ -120,6 +121,10 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
             let ink = if is_current { t.on_accent } else { t.accent_text };
             painter.with_clip_rect(tab).text(pos2(tab.min.x + 5.0, tab.center().y), Align2::LEFT_CENTER, title, font, ink);
         }
+        // An exercise's grip, in the margin at the left of its title: its menu deletes it.
+        if exercise && let Some(first) = fr.first() {
+            crate::exercise_grip::paint(app, painter, t, r, *first);
+        }
         // The list/calendar button at the right of the current one.
         if is_current
             && matches!(r.control.kind, ControlKind::ComboBox { .. } | ControlKind::DropDown { .. } | ControlKind::Date { .. })
@@ -148,6 +153,9 @@ pub fn clicks(app: &mut WordApp, resp: &egui::Response) {
         return;
     }
     let Some(p) = resp.interact_pointer_pos() else { return };
+    if crate::exercise_grip::click(&resp.ctx, p) {
+        return;
+    }
     // A title tab selects its whole control (an exercise: so Delete removes it).
     if let Some((_, a, b)) = app.controls.tabs.iter().find(|(r, ..)| r.contains(p)).cloned() {
         let _ = app.run("select.range", json!({"anchor": a, "focus": b}));

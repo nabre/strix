@@ -24,7 +24,7 @@ use crate::{CmdError, CmdResult, Session, p};
 const EL: &str = "strix:exerciseShow";
 
 /// The parts of an exercise that show.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Show {
     /// The solution: its heading, the repeated questions and the working.
     pub solution: bool,
@@ -55,15 +55,16 @@ pub(crate) fn write(ctl: &mut ContentControl, sh: Show) {
     }
 }
 
-/// What a new exercise starts with: the settings and the graph paper of the document's last one.
-pub(crate) fn last(s: &Session) -> (Show, Option<Arc<GraphPaper>>) {
+/// What a new exercise starts with: the settings and the graph paper of the document's first one
+/// (the series').
+pub(crate) fn first(s: &Session) -> (Show, Option<Arc<GraphPaper>>) {
     let layout = scan(s);
-    let Some(e) = layout.exercises.last() else { return (Show::default(), None) };
+    let Some(e) = layout.exercises.first() else { return (Show::default(), None) };
     (e.show, grid_of(s, e))
 }
 
 /// The graph paper of an exercise.
-fn grid_of(s: &Session, e: &Exercise) -> Option<Arc<GraphPaper>> {
+pub(super) fn grid_of(s: &Session, e: &Exercise) -> Option<Arc<GraphPaper>> {
     e.grid.and_then(|i| s.doc.body.get(i)).and_then(|b| b.as_para()).and_then(|p| p.props.graph.clone())
 }
 
@@ -76,7 +77,7 @@ pub(crate) fn grid_para(g: Arc<GraphPaper>) -> wordcraft_doc::Paragraph {
 
 /// Hidden text on (or off) every run and paragraph mark of `b`, tables' cells included; whether
 /// anything changed. Depth is bounded by the document model (nested tables).
-fn set_hidden(b: &mut Arc<Block>, on: bool) -> bool {
+pub(super) fn set_hidden(b: &mut Arc<Block>, on: bool) -> bool {
     let want = on.then_some(true);
     if !needs(b, want) {
         return false;
@@ -127,7 +128,7 @@ pub(crate) fn apply(s: &mut Session, layout: &Layout) -> bool {
 
 /// The exercises a setting applies to: every one in a series (the series rules), else the one
 /// the params or the caret name.
-fn targets(s: &Session, v: &Value, layout: &Layout) -> Result<Vec<usize>, CmdError> {
+pub(super) fn targets(s: &Session, v: &Value, layout: &Layout) -> Result<Vec<usize>, CmdError> {
     if layout.exercises.is_empty() {
         return Err(CmdError::Disabled("the document has no exercise".into()));
     }
@@ -142,7 +143,7 @@ fn targets(s: &Session, v: &Value, layout: &Layout) -> Result<Vec<usize>, CmdErr
 }
 
 /// Keep `sh` on the exercise control opening in top-level paragraph `start`.
-fn set_control(s: &mut Session, start: usize, sh: Show) -> Result<(), CmdError> {
+pub(super) fn set_control(s: &mut Session, start: usize, sh: Show) -> Result<(), CmdError> {
     let gone = || CmdError::Failed("exercise vanished".into());
     let block = s.doc.body.get_mut(start).ok_or_else(gone)?;
     let Block::Para(p) = Arc::make_mut(block) else { return Err(gone()) };
@@ -262,7 +263,7 @@ fn in_flow(g: GraphPaper) -> Result<GraphPaper, CmdError> {
 }
 
 /// Graph paper `g` on top-level paragraph `at`; whether it changed.
-fn put(s: &mut Session, at: usize, g: GraphPaper) -> bool {
+pub(super) fn put(s: &mut Session, at: usize, g: GraphPaper) -> bool {
     let Some(block) = s.doc.body.get_mut(at) else { return false };
     if matches!(&**block, Block::Para(p) if p.props.graph.as_deref() == Some(&g)) {
         return false;
@@ -274,7 +275,7 @@ fn put(s: &mut Session, at: usize, g: GraphPaper) -> bool {
 }
 
 /// The graph paper block at `at` goes: with its paragraph when empty, else only the grid.
-fn remove_grid(s: &mut Session, at: usize) -> bool {
+pub(super) fn remove_grid(s: &mut Session, at: usize) -> bool {
     let Some(block) = s.doc.body.get_mut(at) else { return false };
     let empty = matches!(&**block, Block::Para(p) if p.text.is_empty());
     if empty {

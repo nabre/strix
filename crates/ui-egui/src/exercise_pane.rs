@@ -76,7 +76,12 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
 /// The series' settings, the same for every exercise: numbering, parts shown, page breaks and
 /// the frontispiece. They show wherever the cursor is.
 fn series_tab(app: &mut WordApp, ui: &mut Ui) {
-    crate::pane_kit::note(ui, tl!("For every exercise of the series: a new exercise takes these settings too."));
+    crate::pane_kit::note(
+        ui,
+        tl!(
+            "Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them."
+        ),
+    );
     crate::pane_kit::section(ui, "01", tl!("Numbering"));
     numbering(app, ui);
     crate::pane_kit::section(ui, "02", tl!("Parts Shown"));
@@ -87,8 +92,9 @@ fn series_tab(app: &mut WordApp, ui: &mut Ui) {
     frontispiece(app, ui);
 }
 
-/// The exercise at the caret (`info`, from `exercise.data`): its variants, data and page breaks.
-/// `lone`: the document's only exercise, so the series' settings that apply to it follow here.
+/// The exercise at the caret (`info`, from `exercise.data`): its variants and data.
+/// `lone`: the document's only exercise, so the settings a series would rule (page breaks, parts
+/// shown, frontispiece) follow here.
 fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
@@ -233,13 +239,16 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
                 "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
             ),
         );
-        crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
-        page_breaks(app, ui, ex, lone);
         if lone {
+            crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
+            page_breaks(app, ui);
             crate::pane_kit::section(ui, "04", tl!("Parts Shown"));
             parts(app, ui, ex);
             crate::pane_kit::section(ui, "05", tl!("Frontispiece"));
             frontispiece(app, ui);
+        } else {
+            ui.add_space(6.0);
+            crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
         }
     }
 }
@@ -303,51 +312,37 @@ fn frontispiece(app: &mut WordApp, ui: &mut Ui) {
     crate::pane_kit::note(ui, tl!("The first exercise starts a new page; a page break inside the frontispiece gives it more pages."));
 }
 
-/// This exercise's page breaks (`exercise.pageBreaks`): before it when another exercise comes
-/// before it, and before its solution. `lone`: the only exercise, so no exercise comes before it
-/// and the results summary's page break, the series', shows here too.
-fn page_breaks(app: &mut WordApp, ui: &mut Ui, ex: u64, lone: bool) {
-    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"exercise": ex})) else { return };
-    let mut exercise = b["beforeExercise"].as_bool().unwrap_or(false);
-    if !lone
-        && ui.checkbox(&mut exercise, tl!("New page before the exercise")).on_hover_text(tl!("Only when another exercise comes before it")).changed()
-    {
-        set_breaks(app, json!({"exercise": ex, "beforeExercise": exercise}));
-    }
+/// The lone exercise's page breaks (`exercise.pageBreaks`): before its solution and before the
+/// results summary (no exercise comes before it).
+fn page_breaks(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({})) else { return };
     let mut solution = b["beforeSolution"].as_bool().unwrap_or(false);
     if ui.checkbox(&mut solution, tl!("New page before the solution")).changed() {
-        set_breaks(app, json!({"exercise": ex, "beforeSolution": solution}));
+        set_breaks(app, json!({"beforeSolution": solution}));
     }
-    if lone {
-        let mut results = b["beforeResults"].as_bool().unwrap_or(false);
-        if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
-            set_breaks(app, json!({"beforeResults": results}));
-        }
-    }
-    crate::pane_kit::note(ui, tl!("A new exercise takes the page breaks of the last one."));
-}
-
-/// The series' page breaks (`exercise.pageBreaks` with `all`): before every exercise but the
-/// first, before every solution (mixed when the exercises differ), before the results summary.
-fn series_breaks(app: &mut WordApp, ui: &mut Ui) {
-    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({"all": true})) else { return };
-    let each: Vec<&Value> = b["exercises"].as_array().map(|a| a.iter().collect()).unwrap_or_default();
-    let mut every = |ui: &mut Ui, key: &str, label: &str, hover: &str| {
-        let on = each.iter().filter(|e| e[key].as_bool().unwrap_or(false)).count();
-        let mut all = !each.is_empty() && on == each.len();
-        let mixed = on > 0 && on < each.len();
-        if ui.add(egui::Checkbox::new(&mut all, label).indeterminate(mixed)).on_hover_text(hover).clicked() {
-            // Mixed turns on for all; on turns off for all.
-            set_breaks(app, json!({"all": true, key: mixed || all}));
-        }
-    };
-    every(ui, "beforeExercise", tl!("New page before each exercise"), tl!("Every exercise but the first starts a new page"));
-    every(ui, "beforeSolution", tl!("New page before each solution"), tl!("Each exercise's solution starts a new page"));
     let mut results = b["beforeResults"].as_bool().unwrap_or(false);
     if ui.checkbox(&mut results, tl!("New page before the results summary")).changed() {
         set_breaks(app, json!({"beforeResults": results}));
     }
-    crate::pane_kit::note(ui, tl!("An exercise can differ: set its own in the Exercise tab."));
+}
+
+/// The series' page breaks (`exercise.pageBreaks`; the series rules, so every exercise has the
+/// first one's): before every exercise but the first, before every solution, before the results
+/// summary.
+fn series_breaks(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(b) = app.session.run("exercise.pageBreaks", &json!({})) else { return };
+    for (key, label, hover) in [
+        ("beforeExercise", tl!("New page before each exercise"), tl!("Every exercise but the first starts a new page")),
+        ("beforeSolution", tl!("New page before each solution"), tl!("Each exercise's solution starts a new page")),
+        ("beforeResults", tl!("New page before the results summary"), ""),
+    ] {
+        let mut on = b[key].as_bool().unwrap_or(false);
+        let r = ui.checkbox(&mut on, label);
+        let r = if hover.is_empty() { r } else { r.on_hover_text(hover) };
+        if r.changed() {
+            set_breaks(app, json!({key: on}));
+        }
+    }
 }
 
 fn set_breaks(app: &mut WordApp, params: Value) {

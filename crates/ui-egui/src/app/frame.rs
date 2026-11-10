@@ -87,6 +87,7 @@ impl WordApp {
         let window = self.windows.shown();
         let moved = |app: &WordApp| app.windows.shown() != window;
         content_controls::popup(self, ctx);
+        crate::exercise_grip::menu(self, ctx);
         dialogs::show(self, ctx);
         if moved(self) {
             return;
