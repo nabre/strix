@@ -2866,3 +2866,36 @@ paper	Envelope DL	Umschlag DL
 	Teal	Blaugrün
 	To the End of the Column	Bis zum Ende der Spalte
 	Underlay	Unterlage
+	All on	Alle ein
+	All off	Alle aus
+	Arc, 3 points	Bogen, 3 Punkte
+	Arc 3 points: start point	Bogen 3 Punkte: Startpunkt
+	Arc 3 points: a point on the arc	Bogen 3 Punkte: ein Punkt auf dem Bogen
+	Arc 3 points: end point	Bogen 3 Punkte: Endpunkt
+	Arc: centre (or a3p, sce, ser)	Bogen: Mittelpunkt (oder a3p, sce, ser)
+	Arc: end point	Bogen: Endpunkt
+	Arc: radius (a point or a number)	Bogen: Radius (ein Punkt oder eine Zahl)
+	Arc: start, a point on it, end	Bogen: Start, ein Punkt darauf, Ende
+	Arc, start centre end	Bogen, Start Mittelpunkt Ende
+	Arc: start, centre, end (counter-clockwise)	Bogen: Start, Mittelpunkt, Ende (gegen den Uhrzeigersinn)
+	Arc, start end radius	Bogen, Start Ende Radius
+	Arc: start, end, radius	Bogen: Start, Ende, Radius
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Ein kurzer Name für die Zeichnung (Buchstaben, Ziffern und Bindestriche), in der Liste der Unterlagen angezeigt
+	Centre, Start, End	Mittelpunkt, Start, Ende
+	Start, Centre, End	Start, Mittelpunkt, Ende
+	Start, End, Radius	Start, Ende, Radius
+	The arc has no size	Der Bogen hat keine Größe
+	The start and end are the same point	Start und Ende sind derselbe Punkt
+	The three points are in line	Die drei Punkte liegen auf einer Geraden
+	3 Points	Drei Punkte
+	Arc: centre	Bogen: Mittelpunkt
+	Arc: start point	Bogen: Startpunkt
+	Arc: centre, start, end (counter-clockwise)	Bogen: Mittelpunkt, Start, Ende (gegen den Uhrzeigersinn)
+	Arc: end point (counter-clockwise)	Bogen: Endpunkt (gegen den Uhrzeigersinn)
+	Fitted to frame	An Rahmen angepasst
+	Polyline: points, Enter to end, c to close	Polylinie: Punkte, Eingabe zum Beenden, c zum Schließen
+	Snap	Fang
+	Tangent Line	Tangente
+	Type a scale such as 1:75 or 2:1	Geben Sie einen Maßstab wie 1:75 oder 2:1 ein
+	Type a scale such as 1:75 or 2:1, or pick one	Geben Sie einen Maßstab wie 1:75 oder 2:1 ein oder wählen Sie einen aus
+	What one unit of the coordinates measures	Was eine Einheit der Koordinaten misst

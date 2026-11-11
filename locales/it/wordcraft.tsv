@@ -3378,3 +3378,24 @@ paper	Envelope DL	Busta DL
 	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} non è installato su questo computer, quindi il suo testo è mostrato in {shown}. Le interruzioni di riga e il numero di pagine possono essere diversi da quelli del computer dove il documento è stato creato. Se hai il file del carattere, aggiungilo con Aggiungi carattere… in fondo a questo elenco.
 	{language} (default)	{language} (predefinita)
 	{n} KB	{n} KB
+	All on	Tutti attivi
+	All off	Tutti disattivi
+	Arc, 3 points	Arco, 3 punti
+	Arc 3 points: start point	Arco 3 punti: punto iniziale
+	Arc 3 points: a point on the arc	Arco 3 punti: un punto dell'arco
+	Arc 3 points: end point	Arco 3 punti: punto finale
+	Arc: centre (or a3p, sce, ser)	Arco: centro (oppure a3p, sce, ser)
+	Arc: end point	Arco: punto finale
+	Arc: radius (a point or a number)	Arco: raggio (un punto o un numero)
+	Arc: start, a point on it, end	Arco: inizio, un punto dell'arco, fine
+	Arc, start centre end	Arco, inizio centro fine
+	Arc: start, centre, end (counter-clockwise)	Arco: inizio, centro, fine (antiorario)
+	Arc, start end radius	Arco, inizio fine raggio
+	Arc: start, end, radius	Arco: inizio, fine, raggio
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Un nome breve per il disegno (lettere, cifre e trattini), mostrato nell'elenco dei sottomano
+	Centre, Start, End	Centro, inizio, fine
+	Start, Centre, End	Inizio, centro, fine
+	Start, End, Radius	Inizio, fine, raggio
+	The arc has no size	L'arco non ha dimensione
+	The start and end are the same point	L'inizio e la fine sono lo stesso punto
+	The three points are in line	I tre punti sono allineati

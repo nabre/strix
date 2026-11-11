@@ -71,7 +71,7 @@ pub struct LangInfo {
 
 /// The languages WordCraft offers, when their catalogs are embedded. English first: it is the
 /// fallback and the source language.
-pub static LANGUAGES: [LangInfo; 28] = [
+pub static LANGUAGES: [LangInfo; 27] = [
     LangInfo { code: "en", prefer_hans: false, editing_lang: None },
     // Simplified Chinese; `zh`, `zh-CN`, `zh-SG` and `zh-Hans-*` resolve here (the crate's matching).
     LangInfo { code: "zh-hans", prefer_hans: true, editing_lang: None },
@@ -125,9 +125,9 @@ pub static LANGUAGES: [LangInfo; 28] = [
     LangInfo { code: "da", prefer_hans: false, editing_lang: None },
     // Romanian; `ro`, `ro-RO`, `ro_RO.UTF-8` and `ro-MD` resolve here.
     LangInfo { code: "ro", prefer_hans: false, editing_lang: None },
-    // Arabic (Modern Standard); `ar` and every `ar-*` locale (`ar-MA`, `ar-EG`, `ar-SA` …) resolve
-    // here. Right to left: see [`RTL_LANGUAGES`] and [`Lang::rtl`].
-    LangInfo { code: "ar", prefer_hans: false, editing_lang: None },
+    // Arabic (`ar`, right to left: [`RTL_LANGUAGES`]) is upstream's, left out of Strix's list: Strix
+    // has no Arabic catalog in `locales/` and offers only English, Italian, German and French
+    // (`interface_languages.rs`). The mirrored interface stays, for fixture catalogs in tests.
     // Slovenian; `sl`, `sl-SI` and `sl_SI.UTF-8` resolve here.
     LangInfo { code: "sl", prefer_hans: false, editing_lang: None },
 ];

@@ -2900,3 +2900,36 @@ paper	Envelope DL	Enveloppe DL
 	Teal	Bleu canard
 	To the End of the Column	Jusqu’à la fin de la colonne
 	Underlay	Sous-couche
+	All on	Tout activer
+	All off	Tout désactiver
+	Arc, 3 points	Arc, 3 points
+	Arc 3 points: start point	Arc 3 points : point de départ
+	Arc 3 points: a point on the arc	Arc 3 points : un point de l’arc
+	Arc 3 points: end point	Arc 3 points : point d’arrivée
+	Arc: centre (or a3p, sce, ser)	Arc : centre (ou a3p, sce, ser)
+	Arc: end point	Arc : point d’arrivée
+	Arc: radius (a point or a number)	Arc : rayon (un point ou un nombre)
+	Arc: start, a point on it, end	Arc : départ, un point de l’arc, arrivée
+	Arc, start centre end	Arc, départ centre arrivée
+	Arc: start, centre, end (counter-clockwise)	Arc : départ, centre, arrivée (sens antihoraire)
+	Arc, start end radius	Arc, départ arrivée rayon
+	Arc: start, end, radius	Arc : départ, arrivée, rayon
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Un nom court pour le dessin (lettres, chiffres et traits d’union), affiché dans la liste des sous-couches
+	Centre, Start, End	Centre, départ, arrivée
+	Start, Centre, End	Départ, centre, arrivée
+	Start, End, Radius	Départ, arrivée, rayon
+	The arc has no size	L’arc n’a pas de taille
+	The start and end are the same point	Le départ et l’arrivée sont le même point
+	The three points are in line	Les trois points sont alignés
+	3 Points	3 points
+	Arc: centre	Arc : centre
+	Arc: start point	Arc : point de départ
+	Arc: centre, start, end (counter-clockwise)	Arc : centre, départ, arrivée (sens antihoraire)
+	Arc: end point (counter-clockwise)	Arc : point d’arrivée (sens antihoraire)
+	Fitted to frame	Ajusté au cadre
+	Polyline: points, Enter to end, c to close	Polyligne : points, Entrée pour terminer, c pour fermer
+	Snap	Accrochage
+	Tangent Line	Ligne tangente
+	Type a scale such as 1:75 or 2:1	Saisissez une échelle comme 1:75 ou 2:1
+	Type a scale such as 1:75 or 2:1, or pick one	Saisissez une échelle comme 1:75 ou 2:1, ou choisissez-en une
+	What one unit of the coordinates measures	Ce que mesure une unité des coordonnées
