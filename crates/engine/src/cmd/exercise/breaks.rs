@@ -56,16 +56,12 @@ pub(crate) fn first(s: &Session) -> Breaks {
 /// exercise without one before it never breaks). Whether anything changed.
 pub(crate) fn apply(s: &mut Session, layout: &Layout) -> bool {
     let mut changed = false;
-    // What follows the frontispiece starts a new page (an exercise or not).
-    let after_front = layout.front.map(|(_, to)| to + 1);
+    // What follows the frontispiece starts a new page by its Frontispiece Break.
     for (n, e) in layout.exercises.iter().enumerate() {
-        changed |= set_break(s, e.start, (e.breaks.exercise && n > 0) || after_front == Some(e.start));
+        changed |= set_break(s, e.start, e.breaks.exercise && n > 0);
         if let Some((heading, _)) = e.solution_blocks {
             changed |= set_break(s, heading, e.breaks.solution);
         }
-    }
-    if let Some(i) = after_front {
-        changed |= set_break(s, i, true);
     }
     changed
 }

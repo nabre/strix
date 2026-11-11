@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -44,10 +44,10 @@ Save or Reload all of them.
   accident (only its content is edited); Unlink removes it.
 - **Saving** the master as its own file (`.xmath`, or another editable format; not a static
   export) first writes every subdocument edited in the master back to its file, in that file's
-  format, with the master's styles, lists and notes and the file's own document properties. A
-  subdocument not edited isn't rewritten. Changing a style or a list in the master (the
-  exercises' numbering is one) counts as an edit of every subdocument, so their files take it on
-  the next save; opening the master or inserting a subdocument (whose new styles come in) doesn't.
+  format, with the file's own styles and document defaults, its exercises' numbering and series'
+  settings and its frontispiece kept as they were (the formatting is the master's only inside the
+  master), and the file's own document properties. A subdocument not edited isn't rewritten:
+  changing a style, a list or the exercises' settings in the master is no edit of the files.
   The save's result lists them under `subdocuments`.
 - **Opening** the master reloads every subdocument from its file: a chapter edited on its own
   shows up in the book. A missing file leaves the master's copy (the master's file always keeps
@@ -68,8 +68,9 @@ Save or Reload all of them.
 - It goes in an empty paragraph at the caret; a paragraph after it is added only when nothing
   follows, so two subdocuments inserted one after the other leave no blank line between them.
 - **Exercises** in subdocuments are one series of the master (docs/exercise.md, In a master
-  document): one results summary at the end of the master, the series' settings on all, written
-  back to the files, each file getting its own summary again.
+  document): one results summary at the end of the master, the master's series' settings on all
+  (kept when it reopens), the master's own frontispiece (a subdocument's is left out); the files
+  keep theirs, each getting its own summary again.
 
 ## Limits
 
@@ -78,6 +79,8 @@ Save or Reload all of them.
   from the master.
 
 ## Revision history
+
+- 2026-11-10: the master's styles, numbering and series' settings stay in the master (no edit of the files, kept on reopening); a file written back keeps its own formatting and frontispiece; a subdocument's frontispiece is left out of the master.
 
 - 2026-11-10: subdocuments marked on the page (frame, margin bar, file tab) with Show/Hide ¶ on; Insert in an exercise goes after it; Unlink and Open act on a lone subdocument; style and numbering changes made in the master are written to the files; an error after the file dialog is shown.
 

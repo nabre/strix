@@ -28,10 +28,16 @@ impl Writer<'_> {
 
     pub fn sectpr(&mut self, w: &mut W, s: &SectionProps, rels: &mut PartRels) {
         // The section's background graph paper (docs/graph-paper.md).
-        match s.graph_paper.as_ref().map(|g| g.to_attr()) {
-            Some(g) => w.open("w:sectPr", &[("strix:graph", g.as_str())]),
-            None => w.open("w:sectPr", &[]),
+        // A series of exercises' frontispiece ends with this section (docs/exercise.md).
+        let graph = s.graph_paper.as_ref().map(|g| g.to_attr());
+        let mut attrs: Vec<(&str, &str)> = Vec::new();
+        if let Some(g) = graph.as_deref() {
+            attrs.push(("strix:graph", g));
         }
+        if s.frontispiece {
+            attrs.push(("strix:frontispiece", "1"));
+        }
+        w.open("w:sectPr", &attrs);
         let headers = self.watermark_headers(s);
         for (set, footer) in [(&headers, false), (&s.footers, true)] {
             for (kind, id) in [("default", set.default), ("first", set.first), ("even", set.even)] {

@@ -11937,3 +11937,24 @@ fn graphic_text_with_an_angle_is_drawn_turned() {
     assert_eq!(turned, [(270.0, 1)], "{draws:?}");
     assert!(draws.iter().any(|x| matches!(x, display::Draw::Glyphs { text, .. } if text == "Q1")), "the level one");
 }
+
+/// A wholly hidden paragraph with Page break before (an exercise's hidden solution that starts a
+/// page) starts no page while hidden text isn't shown; shown, it breaks.
+#[test]
+fn a_hidden_paragraph_starts_no_page() {
+    let mut h = wordcraft_doc::Paragraph::with_text("Hidden solution", Default::default());
+    for r in &mut h.runs {
+        r.props.hidden = Some(true);
+    }
+    h.mark.hidden = Some(true);
+    h.props.page_break_before = Some(true);
+    let mut d = Document::new();
+    d.body = vec![
+        wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("Before", Default::default())),
+        wordcraft_doc::para_block(h),
+        wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text("After", Default::default())),
+    ];
+    assert_eq!(lay(&d).pages.len(), 1);
+    let shown = layout(&d, &mut LayoutCache::new(), &LayoutOptions { show_hidden: true, ..Default::default() });
+    assert_eq!(shown.pages.len(), 2);
+}

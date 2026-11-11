@@ -148,8 +148,9 @@ fn count(doc: &wordcraft_doc::Document, text: &str) -> usize {
 /// twice, lost their styles (titles not in Exercise Title, questions without their letters),
 /// left empty paragraphs between the files and didn't follow the series. The master rules, as a
 /// style update: the files' styles and lists come in, one summary for all, the series' settings
-/// on every exercise, and the files written back carry them (with their own summary, so each
-/// still opens complete).
+/// on every exercise. Then: "the series' settings are in the master; the files of the single
+/// exercises keep their formatting": written back, a file keeps its own settings (with its own
+/// summary, so each still opens complete), and the master reopened keeps the master's.
 #[test]
 fn exercises_in_subdocuments_follow_the_master() {
     let d = dir("exercises");
@@ -185,22 +186,65 @@ fn exercises_in_subdocuments_follow_the_master() {
     };
     check(&s);
     assert_eq!(run(&mut s, "exercise.numbering", json!({}))["example"], json!("Esercizio 1"));
-    // A series setting made in the master reaches every file's exercise.
+    // A series setting made in the master is the master's: every exercise shown there has it…
     run(&mut s, "exercise.pageBreaks", json!({"beforeSolution": true}));
-    let r = run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
-    assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 2, "{r}");
+    run(&mut s, "exercise.show", json!({"solution": false}));
+    // …and a text edit in a file's exercise still goes to the file.
+    run(&mut s, "select.text", json!({"text": "Pendenza"}));
+    run(&mut s, "text.insert", json!({"text": "Pendenza della rampa"}));
+    run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
     for p in [&a, &b] {
         let mut alone = Session::new(crate::io::open_path(p).unwrap());
         alone.doc.styles.default_chr.lang = Some("it-IT".into());
         assert_eq!(count(&alone.doc, "Riepilogo dei risultati"), 1, "{:?}", paras(&alone.doc));
-        assert_eq!(run(&mut alone, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(true));
+        // The file keeps its own settings.
+        assert_eq!(run(&mut alone, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(false), "{}", p.display());
+        assert_eq!(run(&mut alone, "exercise.show", json!({}))["solution"], json!(true), "{}", p.display());
     }
-    // Reopened: the files come in again, still one summary.
+    assert!(text_of(&b).contains("Pendenza della rampa"));
+    // Reopened: the files come in again, still one summary, with the master's settings.
     let mut s = Session::new(crate::io::open_path(&book).unwrap());
     s.path = Some(book.clone());
     s.doc.styles.default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     check(&s);
+    assert_eq!(run(&mut s, "exercise.pageBreaks", json!({}))["beforeSolution"], json!(true));
+    assert_eq!(run(&mut s, "exercise.show", json!({}))["solution"], json!(false));
+    let edited =
+        run(&mut s, "master.subdocuments", json!({}))["subdocuments"].as_array().unwrap().iter().filter(|x| x["edited"] == json!(true)).count();
+    assert_eq!(edited, 0, "the master's settings are no edit of the files");
+}
+
+/// The owner: "another master calls up a series: its frontispiece changed there, its layout and
+/// what it shows, while the other files stay as they were first thought out". A series file with
+/// a frontispiece, linked in a master with its own: the series' frontispiece is left out of the
+/// master, and its file keeps it when the master writes an edit back.
+#[test]
+fn a_series_in_another_master_keeps_its_own_frontispiece() {
+    let d = dir("front");
+    let (a, series, book) = (d.join("a.xmath"), d.join("series.xmath"), d.join("book.xmath"));
+    exercise_file(&a, "Area");
+    // The series: a frontispiece then the exercise file's exercises (here copied in, as a master's
+    // copy would be).
+    let mut sr = Session::new(crate::io::open_path(&a).unwrap());
+    sr.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut sr, "caret.docEnd", json!({}));
+    run(&mut sr, "exercise.insert", json!({"title": "Volume", "questions": ["q"]}));
+    run(&mut sr, "exercise.frontispiece", json!({"on": true}));
+    run(&mut sr, "text.insert", json!({"text": "Verifica di prima"}));
+    run(&mut sr, "file.saveAs", json!({"path": series.to_str().unwrap()}));
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": ""}));
+    run(&mut s, "master.insertSubdocument", json!({"path": series.to_str().unwrap()}));
+    assert!(!body(&s).contains("Verifica di prima"), "{}", body(&s));
+    run(&mut s, "exercise.frontispiece", json!({"on": true}));
+    run(&mut s, "text.insert", json!({"text": "Recupero"}));
+    run(&mut s, "select.text", json!({"text": "Volume"}));
+    run(&mut s, "text.insert", json!({"text": "Volume del cono"}));
+    run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    let file = text_of(&series);
+    assert!(file.contains("Verifica di prima") && !file.contains("Recupero") && file.contains("Volume del cono"), "{file}");
 }
 
 /// The owner: in a master of exercises Unlink, Reload and Open did nothing. The caret is in an
@@ -230,10 +274,10 @@ fn insert_with_the_caret_in_an_exercise_goes_after_it() {
     assert!(run(&mut s, "master.subdocuments", json!({}))["subdocuments"].as_array().unwrap().is_empty());
 }
 
-/// The master rules the styles and the series: a change to the exercises' numbering (a list) or
-/// to a style, made in the master, is an edit of every subdocument and reaches the files on save.
+/// The master's styles and numbering are the master's: a change to the exercises' numbering (a
+/// list) made in the master is no edit of the subdocuments, and their files keep their own.
 #[test]
-fn style_and_numbering_changes_in_the_master_reach_the_files() {
+fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     let d = dir("context");
     let (a, b, book) = (d.join("a.xmath"), d.join("b.xmath"), d.join("book.xmath"));
     exercise_file(&a, "Area");
@@ -258,12 +302,18 @@ fn style_and_numbering_changes_in_the_master_reach_the_files() {
     run(&mut s, "file.save", json!({}));
     assert_eq!(edited(&mut s), 0, "saved after opening");
     run(&mut s, "exercise.numbering", json!({"separator": ")"}));
-    assert_eq!(edited(&mut s), 2, "the numbering is the master's");
+    assert_eq!(edited(&mut s), 0, "the numbering is the master's");
     let r = run(&mut s, "file.save", json!({}));
-    assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 2, "{r}");
+    assert_eq!(r["subdocuments"]["saved"].as_array().unwrap().len(), 0, "{r}");
     for p in [&a, &b] {
         let mut alone = Session::new(crate::io::open_path(p).unwrap());
         alone.doc.styles.default_chr.lang = Some("it-IT".into());
-        assert_eq!(run(&mut alone, "exercise.numbering", json!({}))["separator"], json!(")"), "{}", p.display());
+        assert_eq!(run(&mut alone, "exercise.numbering", json!({}))["separator"], json!("."), "{}", p.display());
     }
+    // Reopened, the master still has its own.
+    let mut s = Session::new(crate::io::open_path(&book).unwrap());
+    s.path = Some(book.clone());
+    s.doc.styles.default_chr.lang = Some("it-IT".into());
+    crate::cmd::master::after_open(&mut s);
+    assert_eq!(run(&mut s, "exercise.numbering", json!({}))["separator"], json!(")"));
 }

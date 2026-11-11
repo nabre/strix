@@ -526,7 +526,9 @@ fn formatting_marks(ctx: &LineContext<'_, '_, '_>, out: &mut Vec<Draw>) {
             // The last paragraph of a section ends in a section break instead of a plain ¶.
             if let Some(start) = section_break_after(doc, story, path) {
                 let (x0, x1) = if line.rtl { (x + line.left, ex - 2.0) } else { (ex + 2.0, x + line.right) };
-                section_break_mark(start, x0, x1, base, size, alpha, out);
+                // A series of exercises' frontispiece ends here (docs/exercise.md).
+                let front = para.and_then(|p| p.section.as_ref()).is_some_and(|s| s.frontispiece);
+                section_break_mark(if front { "Frontispiece Break" } else { section_break_label(start) }, x0, x1, base, size, alpha, out);
             } else {
                 out.push(Draw::Mark { x: mx, baseline: base, size, ch: '¶', color });
             }
@@ -726,8 +728,7 @@ pub fn mark_text_width(text: &str, size: f32) -> f32 {
 
 /// A section break mark between `x0` and `x1`: a dotted double rule with the break's name centred
 /// in it (just the name when there is no room for the rule).
-fn section_break_mark(start: SectionStart, x0: f32, x1: f32, base: f32, size: f32, alpha: f32, out: &mut Vec<Draw>) {
-    let text = section_break_label(start);
+fn section_break_mark(text: &str, x0: f32, x1: f32, base: f32, size: f32, alpha: f32, out: &mut Vec<Draw>) {
     let lsize = (size * 0.8).clamp(6.0, 11.0);
     let w = mark_text_width(text, lsize);
     let gap = lsize * 0.4;

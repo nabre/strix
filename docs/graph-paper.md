@@ -1,6 +1,6 @@
 # Graph paper
 
-> **Status:** stage 1 done: model, the six placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-10 · **Change:** with Follow columns off, a block across columns is one sheet: the space between the columns is ruled on the start column's squares and heavier lines, one frame round it all
+> **Status:** stage 1 done: model, the seven placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-10 · **Change:** new placement To the end of the column (`columnEnd`)
 
 **Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper, `graph.insert`) is a square
 grid drawn behind the text, for working a problem by hand, sketching or writing on squares as
@@ -57,6 +57,7 @@ off) has one round all of it, with no seam where its parts meet.
 |---|---|---|
 | Background | `background` | behind the text of **every page of the section**, over the body (the margin box, below a header taller than its margin); the text flows over it as usual |
 | To the end of the page | `pageEnd` (default) | from where it is in the text to the bottom of the page (the column, then the page's other columns); what follows starts on the next page |
+| To the end of the column | `columnEnd` | from where it is in the text to the bottom of its column; what follows starts at the top of the next column (after the last column, or with one column, on the next page). One column only: Follow columns doesn't change it |
 | Until the next odd page | `untilOdd` | the rest of the page, then whole pages until the next odd-numbered page starts (on page 3: pages 3 and 4) |
 | Until the next even page | `untilEven` | the same up to the next even page (on page 3: page 3 only) |
 | For N pages | `pages` + `pages` | the rest of the page and N − 1 whole pages after it (1–100) |
@@ -88,7 +89,7 @@ are clamped, non-finite ones fall back to the defaults. `strix-cli run --cmd
 
 ## Interface
 
-Insert › Pages › **Graph Paper** opens a menu: *To the End of the Page*, *Page Background*,
+Insert › Pages › **Graph Paper** opens a menu: *To the End of the Page*, *To the End of the Column*, *Page Background*,
 *Until the Next Odd/Even Page*, *For Two Pages*, *For a Height of 5 cm*, then *Graph Paper
 Properties* (the pane) and *Remove Graph Paper*. The icon (a sheet ruled in squares) is drawn in
 code (`icons.rs`, `graphPaper`, `graphPaperProperties`).
@@ -137,4 +138,5 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 
 - 2026-10-28: new: model, placements, rendering, commands, menu and pane, `.xmath` round trip.
 - 2026-10-29: the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight.
+- 2026-11-10: new placement *To the end of the column* (`columnEnd`): the rest of the block's column, the text after it in the next column.
 - 2026-11-10: fix: with Follow columns off, a block in a section with columns left the space between the columns empty on its first page and ruled the next column on squares of its own; now it is one sheet on the block column's squares and heavier lines, with one frame round it all.

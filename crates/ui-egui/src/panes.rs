@@ -58,7 +58,7 @@ pub enum Pane {
     FormatShape,
     RestrictEditing,
     Comments,
-    /// Math › Exercise › Properties: the data and variants of the exercise at the caret.
+    /// Teaching › Exercise › Properties: the data and variants of the exercise at the caret.
     Exercise,
     /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
     GraphPaper,

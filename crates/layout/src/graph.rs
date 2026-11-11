@@ -100,10 +100,13 @@ pub(crate) fn background(s: &SectionProps, body: Rect) -> Vec<Placed> {
 /// starts at its first line and is as tall as the placement says: a fixed height (moved to the
 /// next column or page when it doesn't fit), the rest of the column, or the rest of the page and
 /// whole pages after it (a number of them, or until the next odd or even page). Text after a
-/// block that reaches the page's end starts on the next page.
+/// block that reaches the page's end starts on the next page, after one that reaches its
+/// column's end in the next column.
 pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, block: usize, body_top: f32, grid: &Arc<GraphPaper>) {
     let g = grid.sanitized();
     let fixed = matches!(g.placement, GridPlacement::Height { .. });
+    // To the end of the column: one column only, never a sheet across them.
+    let column = g.placement == GridPlacement::ColumnEnd;
     let room = pb.bottom - pb.y;
     let needs = match g.placement {
         GridPlacement::Height { height } => height.min(pb.bottom - pb.top),
@@ -126,7 +129,7 @@ pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragrap
     let start_page = pb.pages.len().saturating_sub(1);
     let (x, w, y0, start_col) = (pb.col_x(), pb.col_w(), pb.y, pb.col);
     // Not following the columns, a grid down to the page's end is one sheet across the columns.
-    let sheet = !fixed && !g.follow_columns && pb.cols.len() > 1;
+    let sheet = !fixed && !column && !g.follow_columns && pb.cols.len() > 1;
     place_para_in_flow(ctx, pb, p, block, body_top);
     let path = Path::top(block);
     let is_own = |it: &Placed| matches!(it, Placed::Lines { story: StoryRef::Body, path: q, .. } if *q == path);
@@ -168,7 +171,30 @@ pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragrap
         let r = whole_rows(Rect::new(x, t, w, body.bottom() - t), &g, true);
         put(pb, pi, r, None);
     }
-    let top = if first_page == last_page { top } else { pb.top };
+    // To the end of the column with its text run on to a later column of the page: the columns
+    // it left are ruled down to their bottom (the start one from the grid's top), and the grid
+    // goes on in the column the text ends in, from its top.
+    let (x, w, top) = if column && (first_page != last_page || pb.col != start_col) {
+        let left = pb.sect.margin_left + pb.sect.gutter;
+        let from = if first_page == last_page { start_col } else { 0 };
+        let left_cols: Vec<Rect> = pb
+            .cols
+            .iter()
+            .enumerate()
+            .skip(from)
+            .take(pb.col.saturating_sub(from))
+            .map(|(ci, (cx, cw))| {
+                let t = if ci == start_col && first_page == last_page { top } else { pb.top };
+                whole_rows(Rect::new(left + cx, t, *cw, pb.bottom - t), &g, true)
+            })
+            .collect();
+        for r in left_cols {
+            put(pb, last_page, r, None);
+        }
+        (pb.col_x(), pb.col_w(), pb.top)
+    } else {
+        (x, w, if first_page == last_page { top } else { pb.top })
+    };
     let text_bottom = pb.y;
     let bottom = match g.placement {
         GridPlacement::Height { height } => (top + height).max(text_bottom).min(pb.bottom),
@@ -186,7 +212,7 @@ pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragrap
     }
     pb.content_bottom = pb.content_bottom.max(bottom);
     pb.y = pb.y.max(bottom);
-    if !fixed && !sheet {
+    if !fixed && !sheet && !column {
         // The page's columns after this one are grid down their whole height too.
         let left = pb.sect.margin_left + pb.sect.gutter;
         let rest: Vec<Rect> = pb
@@ -225,7 +251,11 @@ pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragrap
         pb.y = pb.bottom;
         pb.content_bottom = pb.bottom;
     }
-    if !fixed {
+    if column {
+        // What follows starts in the next column (on the next page after the last one).
+        pb.y = pb.bottom;
+        pb.max_y = pb.max_y.max(pb.bottom);
+    } else if !fixed {
         // What follows starts on the next page: no column of this one is left.
         pb.col = pb.cols.len().saturating_sub(1);
         pb.y = pb.bottom;

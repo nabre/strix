@@ -1,4 +1,4 @@
-//! Strix's own ribbon groups and tabs: the Math tab, graph paper, CAD drawings and calculated
+//! Strix's own ribbon groups and tabs: the Math and Teaching tabs, the Header & Footer tab, graph paper, CAD drawings and calculated
 //! tables. Kept apart from the upstream tab files so upstream merges don't touch them
 //! (docs/upstream.md); the tab files only call in here.
 
@@ -7,6 +7,272 @@ use super::common::{mi_icon, stack};
 use super::language::mi_check;
 use super::shape::alt_text_group;
 use super::{Ui, Value, WordApp, big, big_toggle, group, json, menu_button, mi, small};
+
+/// The Teaching tab (Didattica): the objects for teaching, exercises and their series, the
+/// scores table and graph paper.
+pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
+    exercise_group(app, ui);
+    group(ui, "Scores", None, app, |ui, app| {
+        let st = app.session.run("exercise.scores", &json!({})).ok().unwrap_or_default();
+        let on = st["on"].as_bool().unwrap_or(false);
+        crate::widgets::big_checked(ui, app, "calcTotal", "Scores\nTable", "exercise.scores", json!({"on": !on}), on);
+        stack(ui, |ui| {
+            ui.add_enabled_ui(on, |ui| {
+                small(
+                    ui,
+                    app,
+                    "plus",
+                    Some("Add Criterion"),
+                    "Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)",
+                    crate::widgets::ButtonAction::new("exercise.scores", json!({"add": true}), false),
+                );
+                let criteria: Vec<String> =
+                    st["criteria"].as_array().map(|a| a.iter().filter_map(|c| c.as_str().map(str::to_string)).collect()).unwrap_or_default();
+                menu_button(
+                    ui,
+                    app,
+                    crate::widgets::MenuButtonOptions::new(
+                        "minus",
+                        Some("Remove Criterion"),
+                        "Remove a criterion and its points from the scores table",
+                        false,
+                        "exercise.scores",
+                    ),
+                    |ui, app| {
+                        for (k, c) in criteria.iter().enumerate() {
+                            let label = if c.is_empty() { format!("{}", k + 1) } else { c.clone() };
+                            mi(ui, app, &label, "exercise.scores", json!({"remove": k + 1}));
+                        }
+                    },
+                );
+            });
+        });
+    });
+    group(ui, "Graph Paper", None, app, |ui, app| {
+        graph_paper_button(ui, app);
+    });
+}
+
+/// The Header & Footer tab, while a header or footer is edited (docs/headers-footers.md): go to
+/// the header or footer and between sections, Link to Previous for the header and the footer
+/// apart, Different First Page (the section's) and Different Odd & Even Pages, and Close.
+pub(super) fn header_footer(app: &mut WordApp, ui: &mut Ui) {
+    let st = app.session.run("hf.state", &json!({})).ok().unwrap_or_default();
+    let flag = |k: &str| st[k].as_bool().unwrap_or(false);
+    let editing = st["editing"].as_str().unwrap_or("").to_string();
+    let page = app.session.page_hint;
+    group(ui, "Navigation", None, app, |ui, app| {
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "header",
+                Some("Go to Header"),
+                "Edit this page's header",
+                crate::widgets::ButtonAction::new("insert.editHeader", json!({"page": page}), editing == "header"),
+            );
+            small(
+                ui,
+                app,
+                "footer",
+                Some("Go to Footer"),
+                "Edit this page's footer",
+                crate::widgets::ButtonAction::new("insert.editFooter", json!({"page": page}), editing == "footer"),
+            );
+        });
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "chevronUp",
+                Some("Previous"),
+                "The previous section's header or footer",
+                crate::widgets::ButtonAction::new("hf.previous", json!({}), false),
+            );
+            small(
+                ui,
+                app,
+                "chevronDown",
+                Some("Next"),
+                "The next section's header or footer",
+                crate::widgets::ButtonAction::new("hf.next", json!({}), false),
+            );
+        });
+        // The first section has none before it to link to.
+        let later = st["section"].as_u64().unwrap_or(1) > 1;
+        stack(ui, |ui| {
+            if !later {
+                ui.disable();
+            }
+            let (h, f) = (flag("headerLinked"), flag("footerLinked"));
+            small(
+                ui,
+                app,
+                "link",
+                Some("Link Header to Previous"),
+                "On: this section shows the previous section's header. Off: it has its own (a copy to change)",
+                crate::widgets::ButtonAction::new("layout.linkToPrevious", json!({"footer": false, "value": !h}), h),
+            );
+            small(
+                ui,
+                app,
+                "link",
+                Some("Link Footer to Previous"),
+                "On: this section shows the previous section's footer. Off: it has its own (a copy to change)",
+                crate::widgets::ButtonAction::new("layout.linkToPrevious", json!({"footer": true, "value": !f}), f),
+            );
+        });
+    });
+    group(ui, "Options", None, app, |ui, app| {
+        stack(ui, |ui| {
+            let (first, odd_even) = (flag("firstPage"), flag("oddEven"));
+            small(
+                ui,
+                app,
+                "check",
+                Some("Different First Page"),
+                "This section's first page has a header and footer of its own",
+                crate::widgets::ButtonAction::new("layout.differentFirstPage", json!({"value": !first}), first),
+            );
+            small(
+                ui,
+                app,
+                "check",
+                Some("Different Odd & Even Pages"),
+                "Even pages have a header and footer of their own (the whole document)",
+                crate::widgets::ButtonAction::new("layout.differentOddEven", json!({"value": !odd_even}), odd_even),
+            );
+            let section = format!("{} {} / {}", tl!("Section"), st["section"].as_u64().unwrap_or(1), st["sections"].as_u64().unwrap_or(1));
+            ui.label(egui::RichText::new(section).small());
+        });
+    });
+    group(ui, "Close", None, app, |ui, app| {
+        big(ui, app, "close", "Close Header\nand Footer", "insert.closeHeader", json!({}), false);
+    });
+}
+
+/// Editing a header or footer brings up the Header & Footer tab; leaving it goes back to the tab
+/// shown before (kept in the context's memory).
+pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
+    let id = egui::Id::unique("strix_hf_prev_tab");
+    let prev: Option<String> = ctx.data(|d| d.get_temp(id));
+    if super::tabs::is_editing_header_footer(&app.session) {
+        if prev.is_none() {
+            ctx.data_mut(|d| d.insert_temp(id, app.ui.tab.clone()));
+            app.ui.tab = "Header & Footer".into();
+        }
+    } else if let Some(prev) = prev {
+        ctx.data_mut(|d| d.remove_temp::<String>(id));
+        if app.ui.tab == "Header & Footer" {
+            app.ui.tab = prev;
+        }
+    }
+}
+
+/// Teaching › Exercise (docs/exercise.md).
+fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Exercise", None, app, |ui, app| {
+        big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
+        let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "addQuestion",
+                Some("Add Question"),
+                "Add a question at the end of the exercise at the cursor",
+                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({}), false),
+            );
+            small(
+                ui,
+                app,
+                "addSubQuestion",
+                Some("Add Sub-question"),
+                "Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level",
+                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({"sub": true}), false),
+            );
+            small(
+                ui,
+                app,
+                "addNote",
+                Some("Add Note"),
+                "Add a note between the questions: free text that is not a question",
+                crate::widgets::ButtonAction::new("exercise.addNote", json!({}), false),
+            );
+        });
+        stack(ui, |ui| {
+            let strings = |key: &str| -> Vec<String> {
+                info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
+            };
+            let (questions, labels) = (strings("questions"), strings("labels"));
+            let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
+            let current = info["answer"].as_u64().unwrap_or(0);
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new(
+                    "resultOf",
+                    Some("Result Of"),
+                    "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
+                    false,
+                    "equation.answer",
+                ),
+                |ui, app| {
+                    for (k, q) in questions.iter().enumerate() {
+                        let n = k as u64 + 1;
+                        let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
+                        let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
+                        let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
+                        if resp.clicked() {
+                            let _ = app.run("equation.answer", json!({"question": n}));
+                            ui.close();
+                        }
+                    }
+                    ui.separator();
+                    mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
+                },
+            );
+            show_menu(ui, app);
+            let front = app.session.run("exercise.frontispiece", &json!({})).ok().is_some_and(|v| v["on"].as_bool().unwrap_or(false));
+            small(
+                ui,
+                app,
+                "coverPage",
+                Some("Frontispiece"),
+                "Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break",
+                crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
+            );
+        });
+        stack(ui, |ui| {
+            let pane = app.session.view.exercise_pane;
+            small(
+                ui,
+                app,
+                "exerciseProperties",
+                Some("Properties"),
+                "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
+                crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
+            );
+            // Only with the cursor in an exercise, or whole ones selected.
+            let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
+            ui.add_enabled_ui(targets, |ui| {
+                // Drawn greyed out like a disabled command: the command itself stays on for
+                // scripts naming an exercise.
+                if !targets {
+                    ui.multiply_opacity(0.4);
+                }
+                small(
+                    ui,
+                    app,
+                    "deleteTable",
+                    Some("Delete Exercise"),
+                    "Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)",
+                    crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
+                );
+            });
+        });
+    });
+}
 
 /// Insert › Pages › Graph Paper (docs/graph-paper.md).
 pub(super) fn graph_paper_button(ui: &mut Ui, app: &mut WordApp) {
@@ -30,6 +296,7 @@ Paper",
 /// Insert › Pages › Graph Paper (docs/graph-paper.md): the placements, then the pane.
 fn graph_paper_menu(ui: &mut Ui, app: &mut WordApp) {
     mi_icon(ui, app, "graphPaper", "To the End of the Page", "graph.insert", json!({"placement": "pageEnd"}));
+    mi(ui, app, "To the End of the Column", "graph.insert", json!({"placement": "columnEnd"}));
     mi(ui, app, "Page Background", "graph.insert", json!({"placement": "background"}));
     mi(ui, app, "Until the Next Odd Page", "graph.insert", json!({"placement": "untilOdd"}));
     mi(ui, app, "Until the Next Even Page", "graph.insert", json!({"placement": "untilEven"}));
@@ -123,107 +390,6 @@ Calculation",
         });
     });
     symbols_group(app, ui);
-    group(ui, "Exercise", None, app, |ui, app| {
-        big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
-        let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
-        stack(ui, |ui| {
-            small(
-                ui,
-                app,
-                "addQuestion",
-                Some("Add Question"),
-                "Add a question at the end of the exercise at the cursor",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({}), false),
-            );
-            small(
-                ui,
-                app,
-                "addSubQuestion",
-                Some("Add Sub-question"),
-                "Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({"sub": true}), false),
-            );
-            small(
-                ui,
-                app,
-                "addNote",
-                Some("Add Note"),
-                "Add a note between the questions: free text that is not a question",
-                crate::widgets::ButtonAction::new("exercise.addNote", json!({}), false),
-            );
-        });
-        stack(ui, |ui| {
-            let strings = |key: &str| -> Vec<String> {
-                info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
-            };
-            let (questions, labels) = (strings("questions"), strings("labels"));
-            let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
-            let current = info["answer"].as_u64().unwrap_or(0);
-            menu_button(
-                ui,
-                app,
-                crate::widgets::MenuButtonOptions::new(
-                    "resultOf",
-                    Some("Result Of"),
-                    "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
-                    false,
-                    "equation.answer",
-                ),
-                |ui, app| {
-                    for (k, q) in questions.iter().enumerate() {
-                        let n = k as u64 + 1;
-                        let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
-                        let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
-                        let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
-                        if resp.clicked() {
-                            let _ = app.run("equation.answer", json!({"question": n}));
-                            ui.close();
-                        }
-                    }
-                    ui.separator();
-                    mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
-                },
-            );
-            show_menu(ui, app);
-            let front = app.session.run("exercise.frontispiece", &json!({})).ok().is_some_and(|v| v["on"].as_bool().unwrap_or(false));
-            small(
-                ui,
-                app,
-                "coverPage",
-                Some("Frontispiece"),
-                "A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages",
-                crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
-            );
-        });
-        stack(ui, |ui| {
-            let pane = app.session.view.exercise_pane;
-            small(
-                ui,
-                app,
-                "exerciseProperties",
-                Some("Properties"),
-                "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
-                crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
-            );
-            // Only with the cursor in an exercise, or whole ones selected.
-            let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
-            ui.add_enabled_ui(targets, |ui| {
-                // Drawn greyed out like a disabled command: the command itself stays on for
-                // scripts naming an exercise.
-                if !targets {
-                    ui.multiply_opacity(0.4);
-                }
-                small(
-                    ui,
-                    app,
-                    "deleteTable",
-                    Some("Delete Exercise"),
-                    "Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)",
-                    crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
-                );
-            });
-        });
-    });
     group(ui, "Tables", None, app, |ui, app| {
         big(
             ui,
@@ -473,7 +639,7 @@ Table",
     stack(ui, |ui| calc_table_rows(ui, app));
 }
 
-/// Math › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
+/// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
 fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();

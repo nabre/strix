@@ -1,4 +1,4 @@
-//! The Exercise Properties pane (Math › Exercise › Properties, docs/exercise.md): the initial data
+//! The Exercise Properties pane (Teaching › Exercise › Properties, docs/exercise.md): the initial data
 //! and the variants of the exercise at the caret. Every change goes through `exercise.setData` or
 //! `exercise.variant`, so it is undoable and recalculates like any edit.
 
@@ -303,13 +303,16 @@ fn frontispiece(app: &mut WordApp, ui: &mut Ui) {
     let mut on = f["on"].as_bool().unwrap_or(false);
     if ui
         .checkbox(&mut on, tl!("Frontispiece"))
-        .on_hover_text(tl!("A first page of your own before the exercises: title, class, date, instructions"))
+        .on_hover_text(tl!("Pages of your own before the exercises: title, class, date, instructions"))
         .changed()
         && let Err(e) = app.run("exercise.frontispiece", json!({"on": on}))
     {
         app.status(e);
     }
-    crate::pane_kit::note(ui, tl!("The first exercise starts a new page; a page break inside the frontispiece gives it more pages."));
+    crate::pane_kit::note(
+        ui,
+        tl!("Everything before the Frontispiece Break is the frontispiece: write there, as many pages as you need. Show/Hide ¶ shows the break."),
+    );
 }
 
 /// The lone exercise's page breaks (`exercise.pageBreaks`): before its solution and before the

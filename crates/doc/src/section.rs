@@ -777,6 +777,11 @@ pub struct SectionProps {
     /// placement is [`crate::graph_paper::GridPlacement::Background`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub graph_paper: Option<std::sync::Arc<crate::graph_paper::GraphPaper>>,
+    /// The section is a series of exercises' frontispiece (docs/exercise.md, Frontispiece):
+    /// everything from the start of the document to its break; its break is shown as a
+    /// Frontispiece Break. `strix:frontispiece="1"` on `w:sectPr`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub frontispiece: bool,
 }
 
 impl Default for SectionProps {
@@ -813,6 +818,7 @@ impl Default for SectionProps {
             footnote_pr: NoteProps::default(),
             endnote_pr: NoteProps::default(),
             graph_paper: None,
+            frontispiece: false,
         }
     }
 }

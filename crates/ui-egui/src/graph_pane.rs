@@ -9,8 +9,9 @@ use serde_json::{Value, json};
 use crate::WordApp;
 
 /// The placements, as `graph.set` names them, with their labels.
-const PLACEMENTS: [(&str, &str); 6] = [
+const PLACEMENTS: [(&str, &str); 7] = [
     ("pageEnd", "To the end of the page"),
+    ("columnEnd", "To the end of the column"),
     ("background", "Page background"),
     ("untilOdd", "Until the next odd page"),
     ("untilEven", "Until the next even page"),

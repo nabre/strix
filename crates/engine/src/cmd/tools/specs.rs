@@ -234,19 +234,9 @@ pub fn specs() -> Vec<CommandSpec> {
             sel_result(s)
         })
         .params(r#"{"csv"?: string}"#),
-        CommandSpec::new("layout.linkToPrevious", "Link to Previous", "Header & Footer › Navigation", |s, v| {
-            let header = p::bool(v, "footer").map(|f| !f).unwrap_or(true);
-            let block = s.sel.focus.path.0.first().copied().unwrap_or(0) as usize;
-            let sect = s.doc.section_mut(block);
-            if header {
-                sect.headers = Default::default();
-            } else {
-                sect.footers = Default::default();
-            }
-            Ok(json!({"linked": true}))
-        })
-        .key(crate::cmd::non_mac("Alt+Shift+R"))
-        .params(r#"{"footer"?: bool}"#),
+        CommandSpec::new("layout.linkToPrevious", "Link to Previous", "Header & Footer › Navigation", crate::cmd::hf_options::link)
+            .key(crate::cmd::non_mac("Alt+Shift+R"))
+            .params(r#"{"footer"?: bool (default: the footer when editing one, else the header), "value"?: bool (true links, false unlinks: the section gets its own copies; left out toggles)} → hf.state"#),
         CommandSpec::new("hf.next", "Next Section", "Header & Footer › Navigation", |s, _| hf_nav(s, 1)).pure(),
         CommandSpec::new("hf.previous", "Previous Section", "Header & Footer › Navigation", |s, _| hf_nav(s, -1)).pure(),
         CommandSpec::new("hf.position", "Header/Footer Position", "Header & Footer › Position", |s, v| {
