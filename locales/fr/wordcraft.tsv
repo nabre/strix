@@ -2708,7 +2708,7 @@ paper	Envelope DL	Enveloppe DL
 	The {name} dictionary is installed: spelling in {language} is checked now.	Le dictionnaire {name} est installé : l’orthographe en {language} est maintenant vérifiée.
 	This cannot be undone. Your original file stays unchanged.	Cette action est irréversible. Votre fichier d’origine reste inchangé.
 	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Cette copie de Strix Writer ne peut pas se remplacer elle-même : téléchargez la nouvelle version et installez-la par-dessus celle-ci.
-	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ce document contient des objets Strix ({objects}). Word et les autres formats modifiables les perdraient ; il ne s’enregistre donc qu’au format Strix (.xmath). Les exportations PDF, PNG, LaTeX, HTML et Markdown restent disponibles sous forme de copies statiques.
+	This document has Strix objects ({objects}). They stay live in a Strix document (.xmath) and in a Word document (.docx); OpenDocument, RTF, plain text and Word XML would lose them. PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ce document contient des objets Strix ({objects}). Ils restent dynamiques dans un document Strix (.xmath) et dans un document Word (.docx) ; OpenDocument, RTF, texte brut et Word XML les perdraient. Les exportations PDF, PNG, LaTeX, HTML et Markdown restent disponibles en copies statiques.
 	This document has no custom properties.	Ce document n’a aucune propriété personnalisée.
 	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Ce document ne lie encore aucun autre document. Insérez-en un, ou sélectionnez des paragraphes et créez-en un à partir d’eux : son texte s’affiche ici et est réenregistré dans son propre fichier.
 	This equation is the result of the question it is worked under (shown in the results summary)	Cette équation est le résultat de la question sous laquelle elle est traitée (affiché dans le récapitulatif des résultats)
@@ -2933,3 +2933,14 @@ paper	Envelope DL	Enveloppe DL
 	Type a scale such as 1:75 or 2:1	Saisissez une échelle comme 1:75 ou 2:1
 	Type a scale such as 1:75 or 2:1, or pick one	Saisissez une échelle comme 1:75 ou 2:1, ou choisissez-en une
 	What one unit of the coordinates measures	Ce que mesure une unité des coordonnées
+	Default format saved.	Format par défaut enregistré.
+	Update automatically	Mettre à jour automatiquement
+@plural	{n} font not installed|{n} fonts not installed	{n} police non installée|{n} polices non installées
+@plural	…and {n} more|…and {n} more	…et {n} autre|…et {n} autres
+@plural	{n} Strix object was changed in another program and is static for now.|{n} Strix objects were changed in another program and are static for now.	{n} objet Strix a été modifié dans un autre programme et reste statique pour l'instant.|{n} objets Strix ont été modifiés dans un autre programme et restent statiques pour l'instant.
+	Recalculate from Strix	Recalculer depuis Strix
+	Make them live again from their Strix source: the changes made in the other program are replaced	Les rend de nouveau dynamiques depuis leur source Strix : les modifications faites dans l'autre programme sont remplacées
+	Keep Changes	Conserver les modifications
+	Keep what the other program shows: they stay static and lose their Strix source	Conserve ce qu'affiche l'autre programme : ils restent statiques et perdent leur source Strix
+	Decide Later	Décider plus tard
+	Objects Changed in Another Program	Objets modifiés dans un autre programme

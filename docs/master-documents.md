@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-10 · **Change:** the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-11 · **Change:** DSA formatting stays in the master; a known gap noted (series-setting changes rewrite the files); previously: the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -77,8 +77,15 @@ Save or Reload all of them.
 - Not on the web: subdocuments are files on disk, which the browser version can't read back or write, so Insert and Create are greyed out there (with that reason); a master made on the desktop still opens and shows its saved copies.
 - Section breaks inside a subdocument are kept as in Text from File; headers and footers come
   from the master.
+- A change to the exercises' series settings in the master (page breaks, parts shown, graph
+  paper; DSA formatting changes some of them) marks the subdocuments edited, so saving writes
+  their files again: with their own settings and formatting, but needlessly. Styles and numbering
+  don't.
+- DSA formatting ([dsa.md](dsa.md)) stays in the master: a file written back keeps its own styles.
 
 ## Revision history
+
+- 2026-11-11: DSA formatting stays in the master; known gap: series-setting changes rewrite the files.
 
 - 2026-11-10: the master's styles, numbering and series' settings stay in the master (no edit of the files, kept on reopening); a file written back keeps its own formatting and frontispiece; a subdocument's frontispiece is left out of the master.
 

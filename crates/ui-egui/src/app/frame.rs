@@ -92,6 +92,7 @@ impl WordApp {
                     return;
                 }
                 crate::language_packs::bar(self, ui);
+                crate::external_edits::bar(self, ui);
                 chrome::status_bar(self, ui);
                 // The document's panes stay hidden while a CAD drawing is open (they come back
                 // as they were when it closes): the editor has its own Properties and layers.

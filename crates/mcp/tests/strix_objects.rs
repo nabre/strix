@@ -1,6 +1,7 @@
-//! `save_document` writes Word and the other editable formats only for a document without Strix
-//! objects; with any (a calculation) it refuses, naming them and proposing `.xmath`, and writes
-//! nothing. Static exports stay allowed.
+//! `save_document` writes the editable formats that lose Strix objects (ODT, RTF, text) only for
+//! a document without them; with any (a calculation) it refuses, naming them and proposing
+//! `.xmath`, and writes nothing. Word documents keep them (docs/word-round-trip.md); static
+//! exports stay allowed.
 
 use serde_json::{Value, json};
 use wordcraft_mcp::{Headless, Server};
@@ -29,13 +30,15 @@ fn save_document_refuses_lossy_formats_for_strix_objects() {
 
     let (error, text) = call(&mut server, "execute", json!({"command": "calc.insert", "params": {"text": "L = 4.5 m"}}));
     assert!(!error, "{text}");
-    let (error, text) = call(&mut server, "save_document", json!({"path": path("beam.docx")}));
+    let (error, text) = call(&mut server, "save_document", json!({"path": path("beam.odt")}));
     assert!(error, "{text}");
     assert!(text.contains("1 calculation") && text.contains("beam.xmath"), "{text}");
-    assert!(!dir.join("beam.docx").exists());
-    // Saving in place the .docx it is now would lose the calculation too.
+    assert!(!dir.join("beam.odt").exists());
+    // A Word document keeps it, and saves in place.
+    let (error, text) = call(&mut server, "save_document", json!({"path": path("beam.docx")}));
+    assert!(!error && dir.join("beam.docx").is_file(), "{text}");
     let (error, text) = call(&mut server, "save_document", json!({}));
-    assert!(error && text.contains("1 calculation"), "{text}");
+    assert!(!error, "{text}");
     for ok in ["beam.xmath", "beam.pdf"] {
         let (error, text) = call(&mut server, "save_document", json!({"path": path(ok)}));
         assert!(!error && dir.join(ok).is_file(), "{ok}: {text}");

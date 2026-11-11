@@ -238,6 +238,21 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed
 }
 
+/// The points the document's first scores table adds up to: every point typed in for its
+/// exercises, across all criteria (the grand total); `None` without a scores table or with no
+/// points typed in. The archive's Score property follows it (`super::archive`).
+pub(crate) fn grand_total(s: &Session) -> Option<f64> {
+    let i = tables(s).into_iter().next()?;
+    let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { return None };
+    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let all: Vec<f64> = read(t).points.iter().take(rows).flatten().flatten().copied().collect();
+    if all.is_empty() {
+        return None;
+    }
+    let sum: f64 = all.iter().sum();
+    sum.is_finite().then_some(sum)
+}
+
 /// The document's language changed: every criterion `rename` gives a new name (a default one, in
 /// another language) takes it, and the tables are rebuilt with the new words. Whether anything
 /// changed.

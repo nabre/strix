@@ -497,7 +497,7 @@ pub fn export_formats(app: &mut WordApp, ui: &mut Ui) {
         ("Page image (*.png)", "png"),
     ] {
         let file_ext = if ext == EXPORT_WORD_2003 { "xml" } else { ext };
-        let blocked = native_only.as_deref().filter(|_| wordcraft_engine::io::is_foreign_save(file_ext));
+        let blocked = native_only.as_deref().filter(|_| crate::strix_save::loses_objects(file_ext));
         let button = egui::Button::new(egui::RichText::new(tl!(label)).font(medium(13.5))).min_size(vec2(320.0, 34.0));
         let r = ui.add_enabled(blocked.is_none(), button);
         let r = match blocked {

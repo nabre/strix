@@ -267,11 +267,14 @@ mod tests {
         assert_eq!(save_filters("report.doc", false)[0].1, vec!["xmath".to_string()]);
         assert_eq!(save_filters("report.odt", false)[0].1, vec!["odt".to_string()]);
         assert!(!all.iter().any(|e| ["doc", "dot", "json"].contains(&e.as_str())), "import-only formats are never offered");
-        // A document with Strix objects is offered only Strix's own formats and the exports.
-        let native_only = save_filters("report.docx", true);
+        // A document with Strix objects is offered only Strix's own formats, Word documents (they
+        // keep the objects) and the exports.
+        let native_only = save_filters("report.odt", true);
         assert_eq!(native_only[0].1, vec!["xmath".to_string()]);
-        assert!(native_only.iter().flat_map(|(_, e)| e).all(|e| !wordcraft_engine::io::is_foreign_save(e)), "{native_only:?}");
-        assert_eq!(native_only.len(), wordcraft_engine::io::SAVE_EXTS.len() - wordcraft_engine::io::FOREIGN_SAVE_EXTS.len());
+        let keeps = |e: &str| !wordcraft_engine::io::is_foreign_save(e) || wordcraft_engine::strix_objects::keeps_objects(e);
+        assert!(native_only.iter().flat_map(|(_, e)| e).all(|e| keeps(e)), "{native_only:?}");
+        assert_eq!(native_only.len(), wordcraft_engine::io::SAVE_EXTS.iter().filter(|e| keeps(e)).count());
+        assert_eq!(save_filters("report.docx", true)[0].1, vec!["docx".to_string()], "a Word document stays one");
         let native = save_filters("Document1.xmath", false);
         assert_eq!(native[0], ("Strix Document (*.xmath)".to_string(), vec!["xmath".to_string()]));
         assert_eq!(native[1], ("Strix Template (*.xmathm)".to_string(), vec!["xmathm".to_string()]));

@@ -36,8 +36,10 @@ use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Run, StoryRef, par
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 use words::Words;
 
+mod archive;
 mod breaks;
 mod delete;
+mod dsa;
 mod front;
 mod language;
 mod numbering;
@@ -142,6 +144,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"on"?: bool (insert the scores table after the caret's paragraph, outside the exercises / remove it), "add"?: name | true (a criterion: two columns, one left empty and one for its points), "remove"?: n, "rename"?: n, "name"?: text, "exercise"?: n, "criterion"?: n, "points"?: number | null} → {"on", "criteria": [name], "points": [[number | null]] (per exercise, per criterion), "exercises"}; the rows are the document's exercises, a Total column with more than one criterion and a Total row with more than one exercise"#),
+        CommandSpec::new("design.dsa", "DSA", "Design › Document Formatting", dsa::command).params(
+            r#"{"reading"?: bool (dyslexia: 14 pt, wider letter spacing), "writing"?: bool (dysgraphia: 1 cm graph paper, room under each question), "math"?: bool (dyscalculia, working memory: the data framed), "none"?: true (all off)} → turns those versions on or off; they combine over a common base (13 pt, line spacing 1.5, left aligned, no italics, no hyphenation, each exercise on a new page). Formatting only (styles, hyphenation, the series' page breaks and graph paper), kept in the document so taking it off brings back its own; in a master document the files keep theirs. Without params, the versions on → {"reading", "writing", "math", "on"}"#,
+        ),
+        CommandSpec::new("archive.properties", "Archive Properties", "Teaching › Archive", archive::command).params(
+            r#"{"grade"?: 1–20, "section"?: text, "profession"?: text, "subject"?: text (the document's subject), "teacher"?: text (the document's author), "duration"?: minutes 1–600} → sets those given (null or empty text removes one) as document properties Word shows too: grade, section, profession, duration and score are custom properties named in the language of the document's exercises (Classe, Sezione, Professione, Durata (min), Punteggio); the score is the scores table's grand total, computed, never set; without params, reads them → {"grade", "section", "profession", "subject", "teacher", "duration", "score", "names": {…}}"#,
+        ),
         CommandSpec::new("exercise.update", "Update Summary", "Teaching › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
@@ -1496,6 +1504,8 @@ pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
     let numbering = numbering::current(&own);
     let front: Vec<Arc<Block>> = scan(&own).front.and_then(|(a, b)| own.doc.body.get(a..=b)).map(<[Arc<Block>]>::to_vec).unwrap_or_default();
     let mut s = Session::new(doc);
+    // The master's DSA formatting stays in the master.
+    dsa::leave_out(&mut s.doc, &own.doc);
     // The file's styles, each list a style numbers with still the one this document has.
     std::sync::Arc::make_mut(&mut s.doc.styles).default_chr = own.doc.styles.default_chr.clone();
     std::sync::Arc::make_mut(&mut s.doc.styles).default_para = own.doc.styles.default_para.clone();
@@ -1543,6 +1553,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= series::conform(s);
     // The scores tables: one row per exercise, the totals.
     changed |= scores::update(s);
+    // The archive's Score property: the scores table's grand total.
+    changed |= archive::sync_score(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.

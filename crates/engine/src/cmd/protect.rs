@@ -349,7 +349,9 @@ pub(crate) fn check_before(s: &Session, id: &str, params: &Value) -> Result<bool
     // reads the document, and is let through by `always_allowed`.)
     if enforced(&s.doc) {
         match id {
-            "file.properties" => return Err(CmdError::Disabled(format!("{id}: stop protection before changing the document's properties"))),
+            "file.properties" | "archive.properties" => {
+                return Err(CmdError::Disabled(format!("{id}: stop protection before changing the document's properties")));
+            }
             "file.privacyOptions" => return Err(CmdError::Disabled(format!("{id}: stop protection before changing the privacy options"))),
             "file.inspect" => return Err(CmdError::Disabled(format!("{id}: stop protection before removing content with the inspector"))),
             _ => {}

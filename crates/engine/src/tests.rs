@@ -22,6 +22,7 @@ mod para_tools;
 mod revision_checks;
 mod strix_objects;
 mod typing;
+mod word_round_trip;
 mod wordart;
 
 /// True, after saying so on stderr, when this build lacks the Language data the proofing tests

@@ -132,11 +132,10 @@ pub fn save_exts(name: &str) -> Vec<String> {
     save_exts_for(name, false)
 }
 
-/// [`save_exts`]; `native_only` leaves out the editable formats that aren't Strix's own (.docx,
-/// .odt…), for a document with Strix objects they would lose.
+/// [`save_exts`]; `native_only` leaves out the editable formats that would lose Strix objects
+/// (.odt, .rtf…; Strix's own formats and Word documents keep them), for a document with some.
 pub fn save_exts_for(name: &str, native_only: bool) -> Vec<String> {
-    let saves: Vec<&str> =
-        wordcraft_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !wordcraft_engine::io::is_foreign_save(e)).collect();
+    let saves: Vec<&str> = wordcraft_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !crate::strix_save::loses_objects(e)).collect();
     let suggested = std::path::Path::new(name)
         .extension()
         .and_then(std::ffi::OsStr::to_str)
@@ -505,7 +504,7 @@ impl WordApp {
         // Save on a document opened from .docx (or another editable format) lands here when it
         // has Strix objects: say why it is asked for a .xmath name.
         if let Some(reason) = &native_only
-            && self.session.path.as_ref().is_some_and(|p| wordcraft_engine::io::is_foreign_save(&p.to_string_lossy()))
+            && self.session.path.as_ref().is_some_and(|p| crate::strix_save::loses_objects(&p.to_string_lossy()))
         {
             self.status(reason.clone());
         }

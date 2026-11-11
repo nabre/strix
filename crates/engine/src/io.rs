@@ -243,6 +243,8 @@ fn open_encrypted_odt(bytes: &[u8], password: Option<&str>, page: &wordcraft_doc
 /// `DATE`/`TIME` fields up to now the way Word does on open (see
 /// [`crate::cmd::references::refresh_date_fields`]).
 fn opened(doc: &mut Document) {
+    // Strix objects that went through Word come back live (`word_envelope`).
+    crate::word_envelope::unwrap(doc);
     doc.ensure_nonempty();
     crate::cmd::references::refresh_date_fields(doc);
 }

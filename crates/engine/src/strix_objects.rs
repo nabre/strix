@@ -1,14 +1,17 @@
-//! Strix objects: the parts of a document whose live behaviour only Strix's own formats
-//! (`.xmath`, `.xmathm`) keep. Word and the other editable formats (DOCX, ODT, RTF, plain text,
-//! Word XML) would keep at most their last look: a calculation becomes a plain equation, a
-//! calculated table a plain table, an exercise loses its locked structure and results summary, a
-//! CAD drawing its parametric source.
+//! Strix objects: the parts of a document whose live behaviour Strix keeps only in its own
+//! formats (`.xmath`, `.xmathm`) and in Word packages (`.docx`, `.docm`, `.dotx`, `.dotm`), which
+//! carry them in a form Word keeps when it saves the file (`crate::word_envelope`,
+//! docs/word-round-trip.md). The other editable formats (ODT, RTF, plain text, Word XML) would
+//! keep at most their last look: a calculation becomes a plain equation, a calculated table a
+//! plain table, an exercise loses its locked structure and results summary, a CAD drawing its
+//! parametric source.
 //!
 //! Like the reference word processor, Strix saves a document back to the editable format it was
-//! opened from, and Save As offers those formats, **as long as the document has no Strix
-//! objects** ([`strix_objects`]). With any, a save to one of them is refused ([`check_save`]) with
-//! the objects named and `.xmath` proposed: never a silently lossy file. Static exports (PDF, PNG,
-//! LaTeX, HTML, Markdown) stay allowed: they are copies, not saves.
+//! opened from, and Save As offers those formats. A document with Strix objects
+//! ([`strix_objects`]) goes only to Strix's own formats and Word packages ([`keeps_objects`]): a
+//! save to another editable format is refused ([`check_save`]) with the objects named and
+//! `.xmath` proposed, never a silently lossy file. Static exports (PDF, PNG, LaTeX, HTML,
+//! Markdown) stay allowed: they are copies, not saves.
 
 use std::path::Path;
 
@@ -176,20 +179,31 @@ pub fn describe(objects: &[StrixObjectCount]) -> String {
         .join(", ")
 }
 
-/// Whether a plain Save (no path) writes `doc` back to its file at `path`: Strix's own files
-/// always, another editable format Strix writes (`.docx`, `.odt`…, [`crate::io::FOREIGN_SAVE_EXTS`])
-/// only while the document has no Strix objects. Otherwise Save asks where (Save As, `.xmath`).
+/// Whether a format keeps Strix objects live (`ext_or_name`: a bare extension or a file name):
+/// Strix's own (`.xmath`, `.xmathm`) and the Word packages (`.docx`, `.docm`, `.dotx`, `.dotm`),
+/// which carry them through Word (`crate::word_envelope`).
+pub fn keeps_objects(ext_or_name: &str) -> bool {
+    let file = ext_or_name.rsplit(['/', '\\']).next().unwrap_or(ext_or_name);
+    let ext = if file.contains('.') { file.rsplit_once('.').map(|(_, e)| e).unwrap_or("") } else { file };
+    crate::io::is_native(ext) || matches!(ext.to_ascii_lowercase().as_str(), "docx" | "docm" | "dotx" | "dotm")
+}
+
+/// Whether a plain Save (no path) writes `doc` back to its file at `path`: Strix's own files and
+/// Word packages always, another editable format Strix writes (`.odt`, `.rtf`…,
+/// [`crate::io::FOREIGN_SAVE_EXTS`]) only while the document has no Strix objects. Otherwise Save
+/// asks where (Save As, `.xmath`).
 pub fn saves_in_place(path: &Path, doc: &Document) -> bool {
     let name = path.to_string_lossy();
-    crate::io::is_native(&name) || (crate::io::is_foreign_save(&name) && !has_strix_objects(doc))
+    keeps_objects(&name) || (crate::io::is_foreign_save(&name) && !has_strix_objects(doc))
 }
 
 /// Whether a user-facing save may write `doc` to `ext_or_name` (a bare extension or a file
-/// name): [`crate::io::check_writable`] for the format, then, for an editable format that isn't
-/// Strix's own, no Strix objects. The error names the objects and proposes `.xmath`.
+/// name): [`crate::io::check_writable`] for the format, then, for an editable format that doesn't
+/// keep Strix objects ([`keeps_objects`]), no Strix objects. The error names the objects and
+/// proposes `.xmath`.
 pub fn check_save(ext_or_name: &str, doc: &Document) -> Result<(), String> {
     crate::io::check_writable(ext_or_name)?;
-    if !crate::io::is_foreign_save(ext_or_name) {
+    if !crate::io::is_foreign_save(ext_or_name) || keeps_objects(ext_or_name) {
         return Ok(());
     }
     let objects = strix_objects(doc);
@@ -209,7 +223,7 @@ pub fn lossy_save_error(ext_or_name: &str, objects: &[StrixObjectCount]) -> Stri
         (format!(".{}", file.to_ascii_lowercase()), String::new())
     };
     format!(
-        "this document has Strix objects ({}) that {shown} would lose: their calculations, exercise structure and CAD sources stay live only in Strix's own format. Save it as a Strix document (.{}){proposed}; PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies",
+        "this document has Strix objects ({}) that {shown} would lose: their calculations, exercise structure and CAD sources stay live only in Strix's own format and in Word documents (.docx). Save it as a Strix document (.{}){proposed} or a Word document; PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies",
         describe(objects),
         crate::io::NATIVE_DOC_EXT,
     )
