@@ -1344,10 +1344,8 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.fcircle(5.97, 10.06, 1.4, a);
             pen.fcircle(14.03, 10.06, 1.4, a);
         }
-        "cadArc" => {
-            pen.line_c(&[(3.5, 14.0), (5.0, 8.0), (10.0, 5.0), (15.0, 8.0), (16.5, 14.0)], c);
-            pen.fcircle(10.0, 14.0, 1.2, a);
-        }
+        // Arc, by its ways.
+        "cadArc" | "cadArc3P" | "cadArcSCE" | "cadArcSER" => arc_icon(pen, name),
         "cadPoint" => {
             pen.fcircle(10.0, 10.0, 2.2, a);
             pen.line_c(&[(4.0, 10.0), (7.0, 10.0)], c);
@@ -1456,9 +1454,13 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.closed(&[(8.0, 5.0), (8.0, 15.0), (3.0, 15.0)], c);
             pen.closed(&[(12.0, 5.0), (12.0, 15.0), (17.0, 15.0)], c);
         }
+        // Offset: a rounded corner and its copy at a distance, parallel all along (the arc
+        // round the same centre), the distance between them marked with an arrow.
         "cadOffset" => {
-            pen.line_c(&[(3.0, 15.0), (8.0, 6.0), (17.0, 6.0)], c);
-            pen.line_c(&[(3.0, 18.0), (9.5, 9.5), (17.0, 9.5)], a);
+            pen.line_c(&[(9.0, 18.0), (9.0, 13.0), (9.3, 11.5), (10.2, 10.2), (11.5, 9.3), (13.0, 9.0), (18.0, 9.0)], c);
+            pen.line_c(&[(3.0, 18.0), (3.0, 13.0), (3.8, 9.2), (5.9, 5.9), (9.2, 3.8), (13.0, 3.0), (18.0, 3.0)], a);
+            pen.line_c(&[(16.0, 9.0), (16.0, 6.5)], a);
+            pen.fill(&[(16.0, 4.0), (14.4, 6.6), (17.6, 6.6)], a);
         }
         // Trim (a cutting edge, the line kept up to it, the piece cut away dashed), extend (a
         // line running on to a boundary), fillet (a corner rounded), chamfer (a corner cut).
@@ -2207,6 +2209,40 @@ pub fn library(p: &Painter, r: Rect, icon: &wordcraft_render::icon_lib::Icon, c:
                 p.circle_filled(*end, stroke.width / 2.0, c);
             }
             p.add(Shape::line(pts, stroke));
+        }
+    }
+}
+
+/// The Arc button's icons: the same arc (round 10, 14) with the points each way asks for.
+fn arc_icon(pen: &Pen, name: &str) {
+    let (c, a) = (pen.c, pen.a);
+    let arc: Vec<(f32, f32)> = (0..=10)
+        .map(|i| {
+            let t = (20.0 + 14.0 * i as f32).to_radians();
+            (10.0 + 7.0 * t.cos(), 14.0 - 7.0 * t.sin())
+        })
+        .collect();
+    pen.line_c(&arc, c);
+    let (start, end, top) = ((16.6, 11.6), (3.4, 11.6), (10.0, 7.0));
+    match name {
+        "cadArc3P" => {
+            for (x, y) in [start, top, end] {
+                pen.fcircle(x, y, 1.6, a);
+            }
+        }
+        "cadArcSCE" => {
+            pen.line_c(&[(10.0, 14.0), start], a);
+            pen.fcircle(start.0, start.1, 1.6, a);
+            pen.fcircle(10.0, 14.0, 1.2, a);
+        }
+        "cadArcSER" => {
+            pen.line_c(&[(10.0, 14.0), top], a);
+            pen.fcircle(start.0, start.1, 1.6, a);
+            pen.fcircle(end.0, end.1, 1.6, a);
+        }
+        _ => {
+            pen.line_c(&[(10.0, 14.0), start], a);
+            pen.fcircle(10.0, 14.0, 1.6, a);
         }
     }
 }

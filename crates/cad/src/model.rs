@@ -828,6 +828,11 @@ impl Entity {
 #[serde(default, rename_all = "camelCase")]
 pub struct Drawing {
     pub unit: Unit,
+    /// The unit plain numbers and length parameters mean in this drawing's expressions, when not
+    /// [`Drawing::unit`]: a drawing converted to millimetres from centimetres or metres
+    /// ([`Drawing::to_mm`]) keeps what its expressions say (`L/2 + 0.1` in metres).
+    #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+    pub expr_unit: Option<Unit>,
     /// The unit numbers typed in the editor are read in (the command line's points, distances
     /// and radii), converted to [`Drawing::unit`]; `None`: the drawing's unit. A value written
     /// with its unit (`2.5m`) is read in that.
@@ -893,6 +898,7 @@ impl Default for Drawing {
     fn default() -> Self {
         Drawing {
             unit: Unit::Mm,
+            expr_unit: None,
             input: None,
             scale: 1.0,
             layers: vec![Layer::default()],
@@ -1151,6 +1157,36 @@ impl Drawing {
         self.text_style_named(self.current_text_style.as_deref()).map_or(self.dim_style.text, |s| s.height)
     }
 
+    /// Converts the drawing to millimetres, the unit drawings are drawn in: every length (the
+    /// drawing keeps its real size), the underlay's offset; dimension styles showing the
+    /// drawing's unit keep showing the old one; expressions keep meaning the old unit
+    /// ([`Drawing::expr_unit`]). Nothing changes in a millimetre drawing.
+    pub fn to_mm(&mut self) {
+        let old = self.unit;
+        if old == Unit::Mm {
+            return;
+        }
+        let k = old.mm() / Unit::Mm.mm();
+        let shown = match old {
+            Unit::M => DimUnits::M,
+            _ => DimUnits::Cm,
+        };
+        for st in std::iter::once(&mut self.dim_style).chain(self.dim_styles.iter_mut().map(|n| &mut n.style)) {
+            if st.units == DimUnits::Drawing {
+                st.units = shown;
+            }
+        }
+        if let Some(u) = self.underlay.as_mut() {
+            u.dx *= k;
+            u.dy *= k;
+        }
+        let has_expr = self.nums_mut().iter().any(|(n, _)| n.expr.is_some());
+        if has_expr && self.expr_unit.is_none() {
+            self.expr_unit = Some(old);
+        }
+        self.set_unit(Unit::Mm, true);
+    }
+
     /// Changes the drawing's unit. With `convert` every length is converted (the drawing keeps its
     /// real size: 1000 mm becomes 1 m) and so is the scale's paper size; without, the numbers stay
     /// and mean the new unit (the drawing grows or shrinks). Expressions are left as they are:
@@ -1267,7 +1303,11 @@ impl Drawing {
     /// from a calculation). Returns the expressions that failed, with why; those keep their
     /// last value.
     pub fn resolve(&mut self, ws: &Worksheet) -> Vec<(String, String)> {
-        let unit_m = self.unit.mm() / 1000.0;
+        // Expressions count in their own unit when the drawing has one for them (converted from
+        // centimetres or metres), their lengths then brought to the drawing's unit.
+        let expr_unit = self.expr_unit.unwrap_or(self.unit);
+        let unit_m = expr_unit.mm() / 1000.0;
+        let to_drawing = expr_unit.mm() / self.unit.mm();
         let mut errors = Vec::new();
         // Coordinates are numbers in the drawing's unit, as in any CAD: a length parameter counts
         // in that unit (`L - 0.15` in a metre drawing), an angle in degrees stays as it is.
@@ -1297,7 +1337,10 @@ impl Drawing {
                 spent_out = true;
             }
             let value = result.map_err(|e| e.to_string()).and_then(|v| match v {
-                Value::Scalar(q) => convert(q, kind, unit_m),
+                Value::Scalar(q) => convert(q, kind, unit_m).map(|v| match kind {
+                    NumKind::Length => (v * to_drawing).clamp(-MAX_COORD, MAX_COORD),
+                    NumKind::Angle => v,
+                }),
                 Value::Vector(_) => Err("a coordinate is one value, not a vector".to_string()),
             });
             match value {

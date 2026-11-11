@@ -296,6 +296,15 @@ fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool
     out
 }
 
+/// A scale picked in the pane.
+#[derive(Clone, Copy)]
+enum ScaleChange {
+    /// `1:n`.
+    Fixed(f64),
+    /// Fitted to the maximum size.
+    Fitted,
+}
+
 /// The pane; returns the drawing to store when something changed.
 pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
     let mut out = None;
@@ -305,8 +314,23 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
             ui.label(RichText::new(tl!("No selection: click objects, or drag a window")).weak());
             let d = &ed.drawing;
             let mut input_unit: Option<&str> = None;
+            let mut scale_to: Option<ScaleChange> = None;
+            let error_key = egui::Id::unique("cad_drawing_info_error");
+            let named = d.id.clone().filter(|id| !id.strip_prefix('d').is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit())));
+            let mut rename: Option<String> = None;
             crate::rtl::grid(ui, egui::Grid::new("cad_drawing_info").num_columns(2).spacing(vec2(8.0, 3.0)), |ui| {
-                ui.label(tl!("Unit"));
+                // The drawing's name, a slug (ground-floor) the underlay list shows.
+                ui.label(tl!("Name")).on_hover_text(tl!("A short name for the drawing (letters, digits and hyphens), shown in the underlay list"));
+                let shown = named.clone().unwrap_or_default();
+                if let Some(t) = text_field(ui, ui.scope_id().with("cad_name_pane"), &shown, 150.0, &mut typing)
+                    && !t.trim().is_empty()
+                {
+                    rename = Some(t);
+                }
+                ui.end_row();
+                // The drawing's unit: drawings are drawn in millimetres; what is typed (Input
+                // unit) and how sizes are shown (the dimension styles) are the choices.
+                ui.label(tl!("Unit")).on_hover_text(tl!("What one unit of the coordinates measures"));
                 ui.label(d.unit.symbol());
                 ui.end_row();
                 // The unit typed values are read in (the command line's points and distances).
@@ -324,17 +348,70 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                     }
                 });
                 ui.end_row();
+                // The scale: typed (1:75, 2:1, 75) or picked from the standard scales at which
+                // the drawing fits (and Fitted to Frame with a maximum size).
                 ui.label(tl!("Scale"));
-                ui.label(strix_cad::scale_text(d.scale));
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 2.0;
+                    let fitted = d.fit.is_some_and(|f| !f.fixed);
+                    let shown = strix_cad::scale_text(d.scale);
+                    if let Some(t) = text_field(ui, ui.scope_id().with("cad_scale_pane"), &shown, 70.0, &mut typing) {
+                        match strix_cad::parse_scale(&t) {
+                            Some(n) => scale_to = Some(ScaleChange::Fixed(n)),
+                            None if t.trim() != shown => {
+                                ui.data_mut(|m| m.insert_temp(error_key, tl!("Type a scale such as 1:75 or 2:1").to_string()));
+                            }
+                            None => {}
+                        }
+                    }
+                    let tip = if fitted { tl!("Fitted to frame") } else { tl!("Type a scale such as 1:75 or 2:1, or pick one") };
+                    craft_ui::ComboBox::from_id_salt("cad_scale_pane_list")
+                        .selected_text("")
+                        .width(18.0)
+                        .show_ui(ui, |ui| {
+                            if d.fit.is_some() && ui.selectable_label(fitted, tl!("Fitted to Frame")).clicked() {
+                                scale_to = Some(ScaleChange::Fitted);
+                            }
+                            for n in d.fitting_scales(None) {
+                                if ui.selectable_label(!fitted && d.scale == n, strix_cad::scale_text(n)).clicked() {
+                                    scale_to = Some(ScaleChange::Fixed(n));
+                                }
+                            }
+                        })
+                        .response
+                        .on_hover_text(tip);
+                });
                 ui.end_row();
                 ui.label(tl!("Objects"));
                 ui.label(d.entities.len().to_string());
                 ui.end_row();
             });
+            if let Some(msg) = ui.data(|m| m.get_temp::<String>(error_key)) {
+                ui.label(RichText::new(msg).color(ui.visuals().error_fg_color));
+            }
+            if rename.is_some() {
+                ed.rename = rename;
+            }
             if let Some(word) = input_unit {
                 let mut d = ed.drawing.clone();
                 d.input = strix_cad::Unit::parse(word);
                 out = Some(d);
+            }
+            if let Some(change) = scale_to {
+                let mut d = ed.drawing.clone();
+                let done = match change {
+                    ScaleChange::Fixed(n) => d.set_fixed_scale(n, None),
+                    ScaleChange::Fitted => d.fit_scale(None),
+                };
+                match done {
+                    Ok(()) => {
+                        ui.data_mut(|m| m.remove::<String>(error_key));
+                        out = Some(d);
+                    }
+                    Err(e) => {
+                        ui.data_mut(|m| m.insert_temp(error_key, e));
+                    }
+                }
             }
         } else {
             out = objects(ed, ui, &mut typing);

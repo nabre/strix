@@ -42,6 +42,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("cad.drawings", "Drawings of the Document", "CAD Picture Format › Underlay", underlay::drawings).pure().params(
             r#"→ [{"index", "id", "name", "page", "current", "underlay"}]: the document's CAD drawings (body paragraphs, reading order), to pick an underlay from"#,
         ),
+        CommandSpec::new("cad.name", "Drawing Name", "CAD Picture Format › Underlay", underlay::name).when(selected).params(
+            r#"{"name"?: text} → {"name": slug|null}: names the selected drawing with a slug (lower case letters, digits and hyphens: "Ground Floor" is ground-floor), unique in the document, shown in the underlay list; the drawings that have it as their underlay follow the new name; {} reads it"#,
+        ),
         CommandSpec::new("cad.underlay", "Drawing Underlay", "CAD Picture Format › Underlay", underlay::underlay).when(selected).params(
             r#"{"source"?: n | id (another drawing: its number in cad.drawings or its id; taken by id, never copied), "inherit"?: true (default: its layers and styles merged in), "dx"?, "dy"? (drawing units), "fade"? (0–0.95), "show"?, "print"? (also on the page and in the PDF; default: only in the editor), "remove"?: true} → {"underlay", "inherited"}; refuses the drawing itself and two drawings taking each other; one level deep"#,
         ),

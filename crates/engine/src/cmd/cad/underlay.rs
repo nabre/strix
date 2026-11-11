@@ -33,8 +33,12 @@ impl CadEntry {
         Drawing::from_json(&self.source).ok().and_then(|d| d.id)
     }
 
-    /// Its name in a list: its alternative text, else "Drawing n".
+    /// Its name in a list: the name it was given ([`name`]), else its alternative text, else
+    /// "Drawing n".
     pub fn name(&self) -> String {
+        if let Some(id) = self.id().filter(|id| !is_auto_id(id)) {
+            return id;
+        }
         let alt = self.alt.trim();
         if alt.is_empty() { format!("Drawing {}", self.index) } else { alt.chars().take(80).collect() }
     }
@@ -68,6 +72,69 @@ fn find<'a>(list: &'a [CadEntry], v: &Value) -> Result<&'a CadEntry, CmdError> {
         _ => None,
     };
     found.ok_or_else(|| CmdError::Params("source: the number of another drawing of the document (cad.drawings), or its id".into()))
+}
+
+/// Longest drawing name, characters.
+const MAX_NAME: usize = 60;
+
+/// Whether `id` is one [`free_id`] gave (`d1`, `d2`, …) rather than a name typed.
+fn is_auto_id(id: &str) -> bool {
+    id.strip_prefix('d').is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// `text` as a slug: lower case letters and digits, anything else one hyphen, none at the ends;
+/// at most [`MAX_NAME`] characters.
+pub fn slug(text: &str) -> String {
+    let mut out = String::new();
+    for c in text.chars().flat_map(char::to_lowercase) {
+        if out.chars().count() >= MAX_NAME {
+            break;
+        }
+        if c.is_alphanumeric() {
+            out.push(c);
+        } else if !out.is_empty() && !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    out.trim_end_matches('-').to_string()
+}
+
+/// `cad.name`: names the selected drawing with a slug (its id, which underlays refer to: the
+/// drawings that have it as their underlay follow the new name); `{}` reads it.
+pub(super) fn name(s: &mut Session, v: &Value) -> CmdResult {
+    let (pos, mut d) = drawing_to_change(s)?;
+    let Some(typed) = v.get("name") else {
+        return Ok(json!({"name": d.id.clone().filter(|id| !is_auto_id(id))}));
+    };
+    let typed = typed.as_str().ok_or_else(|| CmdError::Params("name: text, such as \"ground-floor\"".into()))?;
+    let new = slug(typed);
+    if new.is_empty() {
+        return Err(CmdError::Params("name: give it at least a letter or a digit".into()));
+    }
+    if is_auto_id(&new) {
+        return Err(CmdError::Params(format!("name: \"{new}\" is kept for drawings without a name")));
+    }
+    let old = d.id.clone();
+    if old.as_deref() == Some(new.as_str()) {
+        return Ok(json!({"name": new}));
+    }
+    let list = entries(s);
+    if list.iter().any(|e| e.pos != pos && e.id().as_deref() == Some(new.as_str())) {
+        return Err(CmdError::Params(format!("another drawing of the document is already called \"{new}\"")));
+    }
+    // The drawings that have this one as their underlay follow the new name.
+    if let Some(old) = &old {
+        for e in list.iter().filter(|e| e.pos != pos) {
+            let Ok(mut other) = Drawing::from_json(&e.source) else { continue };
+            if let Some(u) = other.underlay.as_mut().filter(|u| &u.source == old) {
+                u.source = new.clone();
+                store(s, &e.pos, &other)?;
+            }
+        }
+    }
+    d.id = Some(new.clone());
+    store(s, &pos, &d)?;
+    Ok(json!({"name": new}))
 }
 
 /// A new id no drawing of `list` has, nor `taken`.
@@ -227,6 +294,28 @@ mod tests {
     fn current(s: &Session) -> Drawing {
         let (_, src) = selected_source(s).unwrap();
         Drawing::from_json(&src).unwrap()
+    }
+
+    #[test]
+    fn a_name_is_a_slug_underlays_follow_it() {
+        let mut s = two();
+        s.run("cad.underlay", &json!({"source": 1})).unwrap();
+        select(&mut s, 1);
+        assert_eq!(s.run("cad.name", &json!({})).unwrap()["name"], Value::Null);
+        assert_eq!(s.run("cad.name", &json!({"name": "  Pianta Piano Terra!"})).unwrap()["name"], json!("pianta-piano-terra"));
+        assert_eq!(current(&s).id.as_deref(), Some("pianta-piano-terra"));
+        let listed = s.run("cad.drawings", &json!({})).unwrap();
+        assert_eq!(listed[0]["name"], json!("pianta-piano-terra"));
+        // The second drawing's underlay follows the new name.
+        select(&mut s, 2);
+        assert_eq!(current(&s).underlay.map(|u| u.source).as_deref(), Some("pianta-piano-terra"));
+        // Taken, empty, kept for unnamed drawings, not text: refused.
+        assert!(s.run("cad.name", &json!({"name": "Pianta piano terra"})).is_err());
+        assert!(s.run("cad.name", &json!({"name": "--- !"})).is_err());
+        assert!(s.run("cad.name", &json!({"name": "d7"})).is_err());
+        assert!(s.run("cad.name", &json!({"name": 3})).is_err());
+        assert_eq!(s.run("cad.name", &json!({"name": "Sezione A-A"})).unwrap()["name"], json!("sezione-a-a"));
+        assert_eq!(slug(&"x".repeat(500)).chars().count(), MAX_NAME);
     }
 
     #[test]
