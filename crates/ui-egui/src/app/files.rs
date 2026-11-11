@@ -306,6 +306,7 @@ impl WordApp {
         let stem = unnamed.then(first).flatten().unwrap_or_else(|| self.title_stem());
         let native = match ext {
             Some(e) if wordcraft_engine::io::is_native(&e) => e,
+            Some(e) if wordcraft_engine::strix_objects::keeps_objects(&e) => e,
             Some(e) if wordcraft_engine::io::is_foreign_save(&e) && !wordcraft_engine::strix_objects::has_strix_objects(&self.session.doc) => e,
             Some(e) => wordcraft_engine::io::native_path(std::path::Path::new(&format!("x.{e}")))
                 .extension()

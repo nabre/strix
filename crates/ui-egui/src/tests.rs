@@ -4928,7 +4928,7 @@ fn web_downloads_that_drop_content_leave_the_document_unsaved() {
         a.execute("file.saveAs", json!({"path": name})).unwrap();
         assert!(!a.session.dirty, "{name}");
     }
-    for (name, calc) in [("novel.docx", true), ("novel.odt", true), ("novel.txt", true), ("novel.doc", false)] {
+    for (name, calc) in [("novel.odt", true), ("novel.txt", true), ("novel.doc", false)] {
         let mut a = typed();
         if calc {
             a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
@@ -4997,8 +4997,8 @@ fn host_saves_go_back_to_the_opened_file() {
 }
 
 /// A file opened from an editable format Strix saves (OpenDocument, Word) goes back under its
-/// own name while it has no Strix objects. One opened from a format Strix only reads (Markdown,
-/// Word 97–2003), or with Strix objects, is an import: Save hands it back as a Strix document of
+/// own name; OpenDocument only while it has no Strix objects. One opened from a format Strix only
+/// reads (Markdown, Word 97–2003), or from OpenDocument with Strix objects, is an import: Save hands it back as a Strix document of
 /// the same name, never over the opened file (#2445). The host page never had that name, so it's
 /// a new file: Save As.
 #[test]
@@ -5009,8 +5009,9 @@ fn host_save_of_an_imported_file_writes_a_strix_document() {
         ("memo.dotx", false, "memo.dotx", false),
         ("notes.md", false, "notes.xmath", true),
         ("report.odt", true, "report.xmath", true),
-        ("letter.docx", true, "letter.xmath", true),
-        ("memo.dotx", true, "memo.xmathm", true),
+        // Word documents keep Strix objects (docs/word-round-trip.md).
+        ("letter.docx", true, "letter.docx", false),
+        ("memo.dotx", true, "memo.dotx", false),
     ] {
         let (mut a, got) = host_app(false);
         host_open(&mut a, opened);
@@ -5827,9 +5828,9 @@ fn autosave_failures_are_reported_once() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Web Save of a Strix file downloads it under its own name, and so does a Word, OpenDocument or
-/// text file without Strix objects; with any (a calculation), as a Strix document (`.xmath`,
-/// `.xmathm` for a Word template) of the same name, and Save As to a Word format is refused.
+/// Web Save of a Strix or Word file downloads it under its own name, and so does an OpenDocument or
+/// text file without Strix objects; with any (a calculation), that one as a Strix document
+/// (`.xmath`) of the same name, and Save As to OpenDocument or RTF is refused.
 #[test]
 fn web_save_keeps_the_opened_strix_format() {
     let mut doc = wordcraft_doc::Document::new();
@@ -5864,18 +5865,19 @@ fn web_save_keeps_the_opened_strix_format() {
         assert_eq!(name, expect);
         assert!(wordcraft_engine::io::open_bytes(&name, &bytes).is_ok(), "{opened}");
     }
-    // With a calculation, Word formats would lose it: Save gives a Strix document, and Save As
-    // .docm or .docx is refused and downloads nothing.
+    // With a calculation, Word documents keep it (docs/word-round-trip.md) and go back under their
+    // own name; OpenDocument would lose it: Save gives a Strix document, and Save As .odt or .rtf
+    // is refused and downloads nothing.
     a.session.path = None;
     a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
-    for (opened, expect) in [("m.docm", "m.xmath"), ("t.DOTM", "t.xmathm"), ("t.dotx", "t.xmathm"), ("notes.odt", "notes.xmath")] {
+    for (opened, expect) in [("m.docm", "m.docm"), ("t.DOTM", "t.DOTM"), ("t.dotx", "t.dotx"), ("notes.odt", "notes.xmath")] {
         a.session.path = Some(opened.into());
         a.run("file.save", json!({})).unwrap();
         let (name, _) = got.borrow_mut().pop().unwrap();
         assert_eq!(name, expect, "{opened}");
     }
-    a.session.path = Some("m.docm".into());
-    for name in ["m.docm", "m.docx"] {
+    a.session.path = Some("notes.odt".into());
+    for name in ["notes.odt", "notes.rtf"] {
         assert!(a.run("file.saveAs", json!({"path": name})).is_err(), "{name}");
         assert!(got.borrow().is_empty(), "{name}: nothing downloaded");
     }

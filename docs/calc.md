@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-09 · **Change:** Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-11 · **Change:** calculations stay live in Word documents too (word-round-trip.md); previously: Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -30,8 +30,10 @@ the CLI and MCP get it too. While an equation is being edited, or the caret is i
 table, it waits until the caret leaves, like a spreadsheet: what is being typed is never
 rewritten under the caret. F9 and Update Fields recalculate on demand.
 
-Strix saves only `.xmath`/`.xmathm` (plus static PDF, PNG, LaTeX, HTML and Markdown exports): a
-`.docx` or any other editable format would lose the regions, so they are import-only.
+Strix saves calculations live in `.xmath`/`.xmathm` and in Word documents (`.docx`…), which
+carry them through Word ([word-round-trip.md](word-round-trip.md)); plus static PDF, PNG, LaTeX,
+HTML and Markdown exports. ODT, RTF, plain text and Word XML would lose the regions, so a
+document with them isn't saved to those.
 
 ## One `=` for everything
 

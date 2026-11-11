@@ -23,6 +23,12 @@ pub(super) struct Words {
     pub prompt: &'static str,
     pub data: &'static str,
     pub variant: &'static str,
+    /// The archive's document properties (docs/archive.md), as Word shows them.
+    pub grade: &'static str,
+    pub section: &'static str,
+    pub profession: &'static str,
+    pub duration: &'static str,
+    pub score: &'static str,
 }
 
 /// The words of language tag `lang` (`it-IT`, `fr`, `ita`, `gsw-CH`…), from its primary subtag
@@ -61,6 +67,11 @@ pub(super) const IT: Words = Words {
     prompt: "Domande (automatiche)",
     data: "Dati",
     variant: "variante",
+    grade: "Classe",
+    section: "Sezione",
+    profession: "Professione",
+    duration: "Durata (min)",
+    score: "Punteggio",
 };
 
 pub(super) const EN: Words = Words {
@@ -79,6 +90,11 @@ pub(super) const EN: Words = Words {
     prompt: "Questions (automatic)",
     data: "Data",
     variant: "variant",
+    grade: "Grade",
+    section: "Section",
+    profession: "Profession",
+    duration: "Duration (min)",
+    score: "Score",
 };
 
 const FR: Words = Words {
@@ -97,6 +113,11 @@ const FR: Words = Words {
     prompt: "Questions (automatiques)",
     data: "Données",
     variant: "variante",
+    grade: "Classe",
+    section: "Section",
+    profession: "Profession",
+    duration: "Durée (min)",
+    score: "Points",
 };
 
 const DE: Words = Words {
@@ -115,6 +136,11 @@ const DE: Words = Words {
     prompt: "Fragen (automatisch)",
     data: "Daten",
     variant: "Variante",
+    grade: "Klasse",
+    section: "Abteilung",
+    profession: "Beruf",
+    duration: "Dauer (min)",
+    score: "Punktzahl",
 };
 
 #[cfg(test)]
@@ -167,6 +193,11 @@ mod tests {
                 w.prompt,
                 w.data,
                 w.variant,
+                w.grade,
+                w.section,
+                w.profession,
+                w.duration,
+                w.score,
             ]
         };
         let shown = |w: &Words| [w.exercise, w.title_part, w.statement, w.questions, w.solution, w.prompt, w.title, w.text, w.question];

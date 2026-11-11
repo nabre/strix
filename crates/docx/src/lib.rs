@@ -17,6 +17,8 @@ mod fonts;
 mod package;
 mod read;
 mod smart_art;
+// Strix: its own custom XML part, carrying Strix objects through Word.
+pub mod strix_custom_xml;
 #[cfg(test)]
 mod test_log;
 mod units;

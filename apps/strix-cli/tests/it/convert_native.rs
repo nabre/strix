@@ -52,7 +52,7 @@ fn xmath_imports_word_and_writes_it_back_without_strix_objects() {
 /// A document with Strix objects converts to `.xmath` and to static exports (PDF), never to Word
 /// or another editable format: the error names the objects and proposes `.xmath`.
 #[test]
-fn a_document_with_strix_objects_never_converts_to_word() {
+fn a_document_with_strix_objects_converts_only_to_formats_that_keep_them() {
     let dir = std::env::temp_dir().join(format!("strix-cli-objects-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -63,7 +63,7 @@ fn a_document_with_strix_objects_never_converts_to_word() {
         .output()
         .unwrap();
     assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
-    for word in ["calc.docx", "calc.odt", "calc.rtf", "calc.txt"] {
+    for word in ["calc.odt", "calc.rtf", "calc.txt"] {
         let out = dir.join(word);
         let run = Command::new(env!("CARGO_BIN_EXE_strix-cli")).arg("convert").arg(&calc).arg(&out).output().unwrap();
         let err = String::from_utf8_lossy(&run.stderr);
@@ -72,6 +72,10 @@ fn a_document_with_strix_objects_never_converts_to_word() {
         assert!(!out.exists(), "{word} written");
     }
     convert(&calc, &dir.join("copy.xmath"));
+    // A Word document keeps the calculation live (docs/word-round-trip.md).
+    convert(&calc, &dir.join("calc.docx"));
+    let back = wordcraft_engine::io::open_path(&dir.join("calc.docx")).unwrap();
+    assert_eq!(wordcraft_engine::strix_objects::describe(&wordcraft_engine::strix_objects::strix_objects(&back)), "1 calculation");
     convert(&calc, &dir.join("calc.pdf"));
     assert!(std::fs::read(dir.join("calc.pdf")).unwrap().starts_with(b"%PDF"));
     let _ = std::fs::remove_dir_all(&dir);

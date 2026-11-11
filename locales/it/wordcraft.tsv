@@ -3018,7 +3018,7 @@ preview	Title	Esempio
 	1 CAD drawing	1 disegno CAD
 	{n} CAD drawings	{n} disegni CAD
 	graph paper	foglio a quadretti
-	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Word e gli altri formati modificabili li perderebbero, quindi si salva solo come documento Strix (.xmath). Le esportazioni in PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.
+	This document has Strix objects ({objects}). They stay live in a Strix document (.xmath) and in a Word document (.docx); OpenDocument, RTF, plain text and Word XML would lose them. PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Restano dinamici in un documento Strix (.xmath) e in un documento Word (.docx); OpenDocument, RTF, testo semplice e Word XML li perderebbero. Le esportazioni PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.
 	Auto orientation	Orientamento automatico
 	No Scaling	Nessun ridimensionamento
 	Pages in the range	Pagine nell'intervallo
@@ -3399,3 +3399,14 @@ paper	Envelope DL	Busta DL
 	The arc has no size	L'arco non ha dimensione
 	The start and end are the same point	L'inizio e la fine sono lo stesso punto
 	The three points are in line	I tre punti sono allineati
+	Default format saved.	Formato predefinito salvato.
+	Update automatically	Aggiorna automaticamente
+@plural	{n} font not installed|{n} fonts not installed	{n} carattere non installato|{n} caratteri non installati
+@plural	…and {n} more|…and {n} more	…e {n} altro|…e altri {n}
+@plural	{n} Strix object was changed in another program and is static for now.|{n} Strix objects were changed in another program and are static for now.	{n} oggetto Strix è stato modificato in un altro programma ed è statico per ora.|{n} oggetti Strix sono stati modificati in un altro programma e sono statici per ora.
+	Recalculate from Strix	Ricalcola da Strix
+	Make them live again from their Strix source: the changes made in the other program are replaced	Li rende di nuovo dinamici dalla loro sorgente Strix: le modifiche fatte nell'altro programma vengono sostituite
+	Keep Changes	Mantieni le modifiche
+	Keep what the other program shows: they stay static and lose their Strix source	Mantiene ciò che mostra l'altro programma: restano statici e perdono la loro sorgente Strix
+	Decide Later	Decidi dopo
+	Objects Changed in Another Program	Oggetti modificati in un altro programma

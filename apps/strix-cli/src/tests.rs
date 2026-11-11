@@ -462,11 +462,15 @@ fn script_with_a_bad_output_writes_no_output() {
     let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
     assert!(e.contains("only opens it"), "{e}");
     assert!(!dir.join("a.xmath").exists() && !dir.join("b.doc").exists());
-    // A document with Strix objects never goes to .docx: refused before anything is written.
-    let script = write_script(&dir, r#"{"commands":[{"command":"calc.insert","params":{"text":"x = 2"}}],"save":["a.xmath","b.docx"]}"#);
+    // A document with Strix objects never goes to a format that loses them (.odt): refused before
+    // anything is written. A Word document keeps them (docs/word-round-trip.md).
+    let script = write_script(&dir, r#"{"commands":[{"command":"calc.insert","params":{"text":"x = 2"}}],"save":["a.xmath","b.odt"]}"#);
     let e = run(&args(&["run", "--script", &script])).unwrap_err().to_string();
-    assert!(e.contains("b.docx") && e.contains("1 calculation") && e.contains(".xmath"), "{e}");
-    assert!(!dir.join("a.xmath").exists() && !dir.join("b.docx").exists());
+    assert!(e.contains("b.odt") && e.contains("1 calculation") && e.contains(".xmath"), "{e}");
+    assert!(!dir.join("a.xmath").exists() && !dir.join("b.odt").exists());
+    let script = write_script(&dir, r#"{"commands":[{"command":"calc.insert","params":{"text":"x = 2"}}],"save":["c.docx"]}"#);
+    run(&args(&["run", "--script", &script])).unwrap();
+    assert!(dir.join("c.docx").exists());
     // Without them, .docx is written as the reference word processor writes it.
     let script = write_script(&dir, r#"{"commands":["caret.docEnd"],"save":["a.xmath","b.docx"]}"#);
     run(&args(&["run", "--script", &script])).unwrap();

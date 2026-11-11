@@ -105,14 +105,14 @@ fn xmath_is_sniffed_like_a_word_package() {
     }
 }
 
-/// A document opened from a `.docx` that has Strix objects (here a calculation) isn't
-/// overwritten by a plain Save: the engine refuses with what to do instead (programmatic calls
+/// A document opened from an `.odt` that has Strix objects (here a calculation) isn't
+/// overwritten by a plain Save (a Word document would keep them: docs/word-round-trip.md): the engine refuses with what to do instead (programmatic calls
 /// never open dialogs), and Save As to a `.xmath` makes that its file.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn save_on_an_imported_docx_asks_for_save_as() {
+fn save_on_an_imported_odt_with_strix_objects_asks_for_save_as() {
     let dir = scratch("imported");
-    let docx = dir.join("report.docx");
+    let docx = dir.join("report.odt");
     io::save_path(&docx, &session("Imported text").doc).unwrap();
     let original = std::fs::read(&docx).unwrap();
     let mut s = session("");
@@ -122,7 +122,7 @@ fn save_on_an_imported_docx_asks_for_save_as() {
     let e = s.run("file.save", &json!({})).unwrap_err();
     assert!(matches!(e, CmdError::Failed(_)), "{e:?}");
     let msg = e.to_string();
-    assert!(msg.contains("report.docx") && msg.contains("file.saveAs") && msg.contains("report.xmath"), "{msg}");
+    assert!(msg.contains("report.odt") && msg.contains("file.saveAs") && msg.contains("report.xmath"), "{msg}");
     assert!(s.dirty, "nothing saved");
     assert_eq!(std::fs::read(&docx).unwrap(), original, "the imported file is untouched");
     assert!(s.ui_requests.iter().all(|q| q["open"] != "saveAs"), "no dialog asked for");

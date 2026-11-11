@@ -30,6 +30,7 @@ pub mod speech;
 pub mod strict;
 pub mod strix_objects;
 pub(crate) mod view;
+pub mod word_envelope;
 
 use std::collections::HashMap;
 
