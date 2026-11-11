@@ -775,12 +775,24 @@ fn caret_in_calc_table(s: &Session) -> bool {
 }
 
 /// The drawing whose source is `source` (the same `Arc`), resolved where it sits in the document,
-/// and rendered: for the drawing editor.
+/// and rendered, in its own unit.
 ///
 /// The ribbon asks for it every frame while a drawing is selected, so the answer is kept until
 /// something it reads changes (the calculations before the drawing, the exercises, the number
 /// format): working it out evaluates the document up to the drawing and renders it.
 pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad> {
+    resolved_cad_as(s, source, false)
+}
+
+/// [`resolved_cad`] in millimetres, the unit the drawing editor draws in: a drawing in
+/// centimetres or metres is converted ([`strix_cad::Drawing::to_mm`]: its real size, dimension
+/// texts and expressions kept) without changing the document, which takes the converted drawing
+/// with the editor's first change.
+pub(crate) fn resolved_cad_in_mm(s: &Session, source: &Arc<str>) -> Option<ResolvedCad> {
+    resolved_cad_as(s, source, true)
+}
+
+fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<ResolvedCad> {
     use std::hash::{Hash, Hasher};
     let mut found = items(&s.doc.body);
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
@@ -798,18 +810,38 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad
         .for_each(|t| t.hash(&mut h));
     (&zones, &seeds, format!("{opts:?}")).hash(&mut h);
     let key = h.finish();
-    if let Some(hit) = CAD_MEMO.with(|m| m.borrow().as_ref().filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
+    let slot = usize::from(in_mm);
+    if let Some(hit) = CAD_MEMO.with(|m| m.borrow().get(slot).and_then(Option::as_ref).filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
         return hit;
     }
-    let (_, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
+    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
     let resolved = match (found.last(), outcomes.into_iter().last()) {
-        (Some(Item::Cad { .. }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
+        (Some(Item::Cad { top, source }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
             let (d, names, screen) = *resolved;
-            Some(std::rc::Rc::new((d, screen.unwrap_or(r), names)))
+            if in_mm && d.unit != strix_cad::Unit::Mm {
+                // Worked out again from the source converted, in the worksheet it was resolved in.
+                let ws = match zones.get(*top).copied().flatten() {
+                    Some(e) => sheets.exercises.entry(e).or_insert_with(|| Worksheet::new(opts)),
+                    None => &mut sheets.main,
+                };
+                strix_cad::Drawing::from_json(source).ok().map(|mut d| {
+                    d.to_mm();
+                    d.resolve(ws);
+                    d.apply_fit(Some(ws));
+                    let r = if d.has_unprinted() { d.render_layers(Some(ws), true) } else { d.render(Some(ws)) };
+                    std::rc::Rc::new((d, r, names))
+                })
+            } else {
+                Some(std::rc::Rc::new((d, screen.unwrap_or(r), names)))
+            }
         }
         _ => None,
     };
-    CAD_MEMO.with(|m| *m.borrow_mut() = Some((key, resolved.clone())));
+    CAD_MEMO.with(|m| {
+        if let Some(cell) = m.borrow_mut().get_mut(slot) {
+            *cell = Some((key, resolved.clone()));
+        }
+    });
     resolved
 }
 
@@ -831,8 +863,9 @@ pub(crate) fn cad_errors(s: &Session, source: &Arc<str>) -> Option<Vec<(String, 
 pub(crate) type ResolvedCad = std::rc::Rc<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)>;
 
 thread_local! {
-    /// The last drawing [`resolved_cad`] worked out, by what it read.
-    static CAD_MEMO: std::cell::RefCell<Option<(u64, Option<ResolvedCad>)>> = const { std::cell::RefCell::new(None) };
+    /// The last drawing [`resolved_cad`] worked out, by what it read; then the last one
+    /// [`resolved_cad_in_mm`] did.
+    static CAD_MEMO: std::cell::RefCell<[Option<(u64, Option<ResolvedCad>)>; 2]> = const { std::cell::RefCell::new([None, None]) };
 }
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.

@@ -684,12 +684,9 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         space,
         underlay: None,
     });
-    // Drawings are drawn in millimetres: one in centimetres or metres is converted as it opens
-    // (its real size, dimension texts and expressions kept).
-    if let Some(mut d) = app.cad.as_ref().map(|e| e.drawing.clone()).filter(|d| d.unit != strix_cad::Unit::Mm) {
-        d.to_mm();
-        commit(app, &d);
-    }
+    // Drawings are drawn in millimetres: `cad::edited` gives one in centimetres or metres converted
+    // (its real size, dimension texts and expressions kept); the document takes it with the first
+    // change, so opening and closing a drawing changes nothing.
     refresh_underlay(app);
     Ok(())
 }
@@ -4949,20 +4946,28 @@ mod tests {
         assert!(!p.polyline && !p.line_tan);
     }
 
-    /// A drawing in metres is converted to millimetres when it opens in the editor, keeping its
-    /// size; the Units group only has the input unit.
+    /// A drawing in metres reaches the editor in millimetres, keeping its size; opening and
+    /// closing it changes nothing, the first edit stores it converted.
     #[test]
     fn a_drawing_opens_in_millimetres() {
         let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": ""})).unwrap();
         app.session.run("insert.cad", &json!({"drawing": {"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": [2, 0]}]}})).unwrap();
+        let before = app.session.doc.clone();
         app.run("ui.cadEdit", json!({})).unwrap();
         let d = &app.cad.as_ref().unwrap().drawing;
         assert_eq!(d.unit, strix_cad::Unit::Mm);
         let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
         assert!((b.0.value - 2000.0).abs() < 1e-9);
+        assert_eq!(app.session.doc, before, "opening the drawing changes nothing");
+        assert_eq!(app.session.run("cad.get", &json!({})).unwrap()["drawing"]["unit"], json!("m"));
+        app.run("ui.cadSelect", json!({"all": true})).unwrap();
+        app.run("ui.cadLayer", json!({"layer": "Walls"})).unwrap();
         let stored = app.session.run("cad.get", &json!({})).unwrap();
-        assert_eq!(stored["drawing"]["unit"], json!("mm"));
+        assert_eq!(stored["drawing"]["unit"], json!("mm"), "{stored}");
+        let d = &app.cad.as_ref().unwrap().drawing;
+        let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+        assert!((b.0.value - 2000.0).abs() < 1e-9);
     }
 
     /// The status line's snap menu turns every object snap on or off at once.
@@ -5051,11 +5056,13 @@ mod tests {
         assert!(app.run("ui.cadStyles", json!({"kind": "dim", "delete": "Standard"})).is_err());
         app.run("ui.cadStyles", json!({"kind": "dim", "rename": "Arrows", "to": "Arch"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.styles(strix_cad::StyleKind::Dim), vec!["Standard", "Arch"]);
-        // The drawing's unit: converted by default.
+        // The drawing's unit (for scripts): stored converted by default; the editor still draws
+        // in millimetres, at the same size.
         let before = app.cad.as_ref().unwrap().rendered.size;
         app.run("ui.cadUnit", json!({"unit": "cm"})).unwrap();
+        assert_eq!(app.session.run("cad.get", &json!({})).unwrap()["drawing"]["unit"], json!("cm"));
         let ed = app.cad.as_ref().unwrap();
-        assert_eq!(ed.drawing.unit, strix_cad::Unit::Cm);
+        assert_eq!(ed.drawing.unit, strix_cad::Unit::Mm);
         assert!((ed.rendered.size.0 - before.0).abs() < 1e-6, "the drawing keeps its size");
         assert!(app.run("ui.cadUnit", json!({"unit": "inch"})).is_err());
     }

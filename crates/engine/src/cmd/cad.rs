@@ -125,7 +125,9 @@ pub fn edited(s: &Session) -> Option<(wordcraft_doc::Pos, Drawing, Rendered, Vec
         return None;
     }
     let source = graphic.cad.clone()?;
-    let resolved = super::calc::resolved_cad(s, &source)?;
+    // In millimetres, the unit the editor draws in (a drawing in cm or m is converted, the
+    // document unchanged until the first edit).
+    let resolved = super::calc::resolved_cad_in_mm(s, &source)?;
     let (d, r, names) = &*resolved;
     Some((pos, d.clone(), r.clone(), names.clone()))
 }
@@ -663,6 +665,30 @@ mod tests {
         s.sel = on_drawing;
         assert_eq!(end(&s), 6.0);
         assert_eq!(edited(&s).map(|(_, d, ..)| d.entities.len()), Some(1));
+    }
+
+    /// The editor draws in millimetres: a metre drawing comes to it converted (same real size,
+    /// its expressions still in metres), and the document keeps it as it was until an edit.
+    #[test]
+    fn the_editor_gets_a_metre_drawing_in_millimetres_without_changing_the_document() {
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        let before = s.doc.clone();
+        let (_, d, ..) = edited(&s).unwrap();
+        assert_eq!((d.unit, d.expr_unit), (strix_cad::Unit::Mm, Some(strix_cad::Unit::M)));
+        let strix_cad::Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+        assert!((b.0.value - 4500.0).abs() < 1e-6, "{b:?}");
+        assert_eq!(s.doc, before, "asking for it changes nothing");
+        // The rest still sees the drawing in its own unit.
+        assert_eq!(edited_drawing(&s).map(|d| d.unit), Some(strix_cad::Unit::M));
+        // An edit stores the converted drawing.
+        s.run("cad.set", &json!({"drawing": serde_json::from_str::<Value>(&d.to_json()).unwrap()})).unwrap();
+        assert_eq!(edited_drawing(&s).map(|d| d.unit), Some(strix_cad::Unit::Mm));
+        let strix_cad::Kind::Line { b, .. } = &edited_drawing(&s).unwrap().entities[0].kind.clone() else { panic!() };
+        assert!((b.0.value - 4500.0).abs() < 1e-6, "{b:?}");
     }
 
     /// Drawing Scale: a fixed 1:n, or the largest standard scale that fits the space (by
