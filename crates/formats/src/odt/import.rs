@@ -50,13 +50,16 @@ impl Pictures {
             return None;
         }
         let f = z.by_name(name).ok()?;
-        if f.size() > room {
+        let declared = f.size();
+        if declared > room {
             return None;
         }
+        // Read no further than a byte past its declared size: one that inflates to more is refused
+        // at that byte and costs no more than it declared, so the pictures after it still fit.
         let mut out = Vec::new();
-        let read = f.take(room.saturating_add(1)).read_to_end(&mut out);
+        let read = f.take(declared.saturating_add(1)).read_to_end(&mut out);
         self.room = room.saturating_sub(out.len() as u64);
-        (read.is_ok() && out.len() as u64 <= room).then_some(out)
+        (read.is_ok() && out.len() as u64 <= declared).then_some(out)
     }
 }
 
