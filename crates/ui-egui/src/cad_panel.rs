@@ -305,7 +305,7 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
             ui.label(RichText::new(tl!("No selection: click objects, or drag a window")).weak());
             let d = &ed.drawing;
             let mut input_unit: Option<&str> = None;
-            egui::Grid::new("cad_drawing_info").num_columns(2).spacing(vec2(8.0, 3.0)).show(ui, |ui| {
+            crate::rtl::grid(ui, egui::Grid::new("cad_drawing_info").num_columns(2).spacing(vec2(8.0, 3.0)), |ui| {
                 ui.label(tl!("Unit"));
                 ui.label(d.unit.symbol());
                 ui.end_row();
@@ -408,7 +408,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
     let mut changed = false;
     // General.
     let ents: Vec<&strix_cad::Entity> = idx.iter().filter_map(|&i| ed.drawing.entities.get(i)).collect();
-    egui::Grid::new("cad_general").num_columns(2).spacing(vec2(8.0, 4.0)).show(ui, |ui| {
+    crate::rtl::grid(ui, egui::Grid::new("cad_general").num_columns(2).spacing(vec2(8.0, 4.0)), |ui| {
         ui.label(tl!("Layer"));
         let layer = common(ents.iter().map(|e| e.layer.clone()));
         let text = match &layer {
@@ -466,7 +466,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         }
         let id = ed.drawing.entities.get(i).map(|e| e.id.clone()).unwrap_or_default();
         let kind = ed.drawing.entities.get(i).map(|e| e.kind.clone());
-        egui::Grid::new("cad_geometry").num_columns(3).spacing(vec2(6.0, 4.0)).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("cad_geometry").num_columns(3).spacing(vec2(6.0, 4.0)), |ui| {
             for f in ed.drawing.fields(i, ed.vertex) {
                 // A dimension's scaled and annotative parts: marked in the sheet overlay's colours.
                 match kind.as_ref().and_then(|k| crate::cad_dim_parts::field_part(k, &f.key)) {
@@ -608,7 +608,7 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
         (name(a) != "0").cmp(&(name(b) != "0")).then_with(|| name(a).cmp(&name(b)))
     });
     egui::ScrollArea::vertical().id_salt("cad_layer_manager").auto_shrink([false, false]).show(ui, |ui| {
-        egui::Grid::new("cad_layer_grid").num_columns(11).striped(true).spacing(vec2(10.0, 3.0)).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("cad_layer_grid").num_columns(11).striped(true).spacing(vec2(10.0, 3.0)), |ui| {
             for h in ["Current", "Name", "Preview", "On", "Lock", "Print", "Colour", "Lineweight", "Linetype", "Objects", ""] {
                 ui.label(RichText::new(tl!(h)).weak().small());
             }

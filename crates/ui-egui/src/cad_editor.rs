@@ -3517,7 +3517,7 @@ pub(crate) const FIELD_W: f32 = 84.0;
 /// Labels and fields in two columns, rows three high as ribbon groups are: every label lines up
 /// with the others, every field starts at the same place.
 pub(crate) fn field_grid(ui: &mut Ui, id: &str, add: impl FnOnce(&mut Ui)) {
-    egui::Grid::new(id).num_columns(2).spacing(vec2(6.0, 3.0)).min_row_height(20.0).show(ui, add);
+    crate::rtl::grid(ui, egui::Grid::new(id).num_columns(2).spacing(vec2(6.0, 3.0)).min_row_height(20.0), add);
 }
 
 /// Buttons stacked three high in a group.

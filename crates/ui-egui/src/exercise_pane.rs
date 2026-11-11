@@ -164,7 +164,7 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
         crate::pane_kit::section(ui, "02", tl!("Data"));
         let rows = data["items"].as_array().map_or(0, Vec::len);
         let mut remove = None;
-        egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true), |ui| {
             for head in ["Symbol", "Description", "Value", "Unit", ""] {
                 ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
             }
@@ -377,7 +377,7 @@ fn numbering(app: &mut WordApp, ui: &mut Ui) {
     };
     crate::pane_kit::note(ui, tl!("For every exercise of the document: the label of each title and of the results summary."));
     ui.add_space(4.0);
-    egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
+    crate::rtl::grid(ui, egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]), |ui| {
         ui.label(tl!("Prefix"));
         ui.horizontal(|ui| {
             ui.scope(|ui| {
