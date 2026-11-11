@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-10 · **Change:** underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-11 · **Change:** drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -68,6 +68,14 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   1 m: the drawing keeps its size, on paper too), or with **Keep the numbers** they stay and mean
   the new unit. Expressions are left as written and worked out in the new unit. The input unit
   is beside it.
+- **Drawn in millimetres**: the editor works on a drawing in centimetres or metres converted to
+  millimetres (`Drawing::to_mm`: lengths and the underlay's offset converted, dimension styles
+  that showed the drawing's unit show the old one, expressions keep meaning the old unit through
+  `exprUnit`). Opening and closing such a drawing changes nothing: the document takes the
+  converted drawing with the first edit, and Undo brings the old one back. The page, the PDF,
+  `cad.get` and scripts see the drawing in the unit it is saved in. **Compatibility:** a
+  converted drawing with expressions needs a Strix that knows `exprUnit` (2026-11-11 or later);
+  an older one would read its expressions in millimetres (1000 times too small for metres).
 - **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
   linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
   in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
@@ -412,7 +420,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    (`Drawing::inherit`; there are no drawing-level hatch or strip settings to merge: those are
    each strip's own). **Import styles and layers only** (`cad.inherit {"source"}`) merges without
    an underlay, and `insert.cad {"underlay": n}` / `{"inherit": n}` starts a new drawing from
-   another. The underlay is a reference by the source's `id` (`d1`, `d2`…, given when first
+   another. A drawing can be given a **name**, a slug (`Pianta piano terra` → `pianta-piano-terra`;
+   Properties pane › Name, `cad.name {"name"}`, `ui.cadName` in the editor): it becomes the id,
+   must be unique in the document, is listed in the underlay menu in place of the alternative
+   text, and the drawings using it as their underlay follow the new name (one undo step).
+   The underlay is a reference by the source's `id` (`d1`, `d2`…, given when first
    needed), never a copy: later edits to the source show. It sits 1:1 in drawing units (converted
    to this drawing's unit) with an optional offset (`dx`, `dy`), a fade (`fade`, 0–0.95, 0.6 by
    default), Show (the button) and Remove; by default it shows only in the editor, and **Print
@@ -532,6 +544,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-11: drawing names as slugs (`cad.name`, `ui.cadName`, Properties › Name; underlays follow a rename); Arc split button with its ways (`arc`, `arc3p`, `arcSce`, `arcSer`; a typed radius for Start, End, Radius; the remembered way in the settings as `arcMode`), with a preview of the arc; Polyline in the Line split button (`picks.polyline`), Text out of the Draw group; drawings in millimetres: a drawing in centimetres or metres reaches the editor converted, and the document takes it with the first edit (`Drawing::to_mm`: lengths and the underlay's offset converted, dimension styles that showed the drawing's unit show the old one, expressions keep meaning the old unit through `exprUnit`), CAD Annotate › Units keeps only the input unit, the Properties pane shows the unit without a choice; the status line's Snap arrow menu (each object snap, `ui.cadToggle {"what": "snaps.on" | "snaps.off"}`) replaces the nine object snap icons; Properties with nothing selected: the scale typed or picked (standard scales that fit, Fitted to Frame); a new Offset icon (a rounded corner and its parallel copy).
 
 - 2026-11-10: underlays: another drawing of the document under this one, faded, locked and snapped to, by id (`cad.drawings`, `cad.underlay`, `underlay`), optionally printed; its layers and styles inherited (`cad.inherit`, `insert.cad {"underlay" | "inherit"}`); no self-reference, no pair, one level deep.
 

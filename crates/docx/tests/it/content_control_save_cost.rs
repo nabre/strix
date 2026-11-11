@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! What saving a document with many content controls costs (#13).
 //!
 //! A form-shaped document: a control per paragraph, inline, or a control around two paragraphs.
@@ -138,7 +137,7 @@ fn the_controls_are_written_where_they_were() {
 /// The names of the parts of a package, in the order they are in it.
 fn part_names(bytes: &[u8]) -> Vec<String> {
     let z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("zip");
-    z.file_names().map(|n| n.unwrap().to_string()).collect()
+    z.file_names().map(str::to_string).collect()
 }
 
 /// The body of the document part of a package.

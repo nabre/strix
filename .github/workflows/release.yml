@@ -313,6 +313,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -374,6 +377,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -461,6 +467,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: storytold/craft-common-actions/actions/install-linux-deps@main
         with:
           deb-arch: ${{ matrix.deb }}
@@ -509,6 +518,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -630,6 +642,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -669,6 +684,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - name: Build and package in a FreeBSD VM
         uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
         with:
@@ -684,7 +702,9 @@ jobs:
             set -eu
             . "$HOME/.cargo/env"
             git config --global --add safe.directory "*"
+            # The VM does not get GITHUB_ENV: craft-i18n (checked out above) is passed like craft-fonts.
             export CRAFT_FONTS_DIR="$PWD/craft-fonts" CRAFT_FONTS_REQUIRED=1 WORDCRAFT_VERSION="$VERSION"
+            export CRAFT_I18N_DIR="$PWD/craft-i18n" CRAFT_I18N_REQUIRED=1
             cargo build --release --locked -p strix -p strix-cli
             name="strix-$VERSION-freebsd-x86_64"
             mkdir -p "dist/release/$name/icons"

@@ -92,7 +92,7 @@ Dettagli: [graph-paper.md](graph-paper.md).
 Sotto c'è un word processor vero (Strix è un fork di WordCraft): barra multifunzione, stili,
 elenchi, tabelle, immagini e forme, intestazioni e piè di pagina, sezioni e colonne, note,
 citazioni e sommari, commenti e revisioni, ortografia e sillabazione, stampa unione e stampa.
-L'interfaccia segue la lingua del sistema (27 lingue, italiano compreso).
+L'interfaccia segue la lingua del sistema (italiano, inglese, tedesco o francese).
 
 ## File
 

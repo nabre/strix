@@ -91,8 +91,8 @@ kräftigeren Linie alle N Kästchen, scharf bei jedem Zoom und im PDF. Details: 
 Darunter steckt eine echte Textverarbeitung (Strix ist ein Fork von WordCraft): Menüband,
 Formatvorlagen, Listen, Tabellen, Bilder und Formen, Kopf- und Fußzeilen, Abschnitte und Spalten,
 Fußnoten, Zitate und Inhaltsverzeichnisse, Kommentare und Änderungsverfolgung, Rechtschreibung und
-Silbentrennung, Serienbriefe und Druck. Die Oberfläche folgt der Systemsprache (27 Sprachen,
-Deutsch eingeschlossen).
+Silbentrennung, Serienbriefe und Druck. Die Oberfläche folgt der Systemsprache (Deutsch,
+Englisch, Italienisch oder Französisch).
 
 ## Dateien
 

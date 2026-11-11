@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
-# Installing spelling dictionaries
+# Installing languages and spelling dictionaries
 
-> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-08 · **Change:** minor (Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692; previously minor: Spanish: `es_ES`, `es_MX`, `es_419` and `es_UY` with their fallbacks, #3360, #3553; previously trivial: every Hunspell language shows (no dictionary), not only Polish and Portuguese, and Indonesian is listed, #3150; previously trivial: ISO 8859-1 dictionaries are read, #2824)
+> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-10 · **Change:** trivial (European Portuguese reads and downloads `pt_PT`; previously minor: WordCraft 0.17.0 merged: proofing is craft-proof, and Language packs install a language's spelling and hyphenation from File › Options › Language; without a Dictionaries folder of your own, the folder Strix downloads dictionaries to is searched first; previously minor: Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692)
 
 English spelling works out of the box. Polish, Russian, Portuguese, Czech, Italian, Croatian,
 Turkish, Indonesian and Spanish spelling use a standard **Hunspell** dictionary (an `.aff` and a `.dic` file) that
@@ -12,7 +12,7 @@ language with **(no dictionary)**, for example *Português (Brasil) (no dictiona
 If a dictionary is installed but can't be read (an unsupported `SET` encoding, a file over the
 size limit, a parse error), the language isn't checked either, and the status bar shows
 **(dictionary unreadable)** instead. Its tooltip gives the `.dic` file and the reason, and
-**File › Options › Proofing** lists the same reason next to the file.
+**File › Options › Language** (Dictionary files) lists the same reason next to the file.
 
 The easiest way is to let Strix download it (next section). Installed by hand, a dictionary is
 read after a restart.
@@ -49,6 +49,7 @@ strix-cli run --cmd 'proof.downloadDictionary={"lang":"it-IT"}' --print
 |---|---|
 | `pl_PL` | GPL-2.0, LGPL-2.1, MPL-1.1, Apache-2.0 or CC-BY-4.0 |
 | `pt_BR` | LGPL-3.0 or MPL |
+| `pt_PT` | GPL-2.0, LGPL-2.1 or MPL-1.1 |
 | `it_IT` | GPL-3.0 |
 | `hr_HR` | GPL-2.0, LGPL-2.1 or MPL-1.1 |
 | `tr_TR` | MPL-2.0 |
@@ -59,6 +60,50 @@ strix-cli run --cmd 'proof.downloadDictionary={"lang":"it-IT"}' --print
 
 ## Installing by hand
 
+## Language packs
+
+The easiest way to proof another language is its **Language pack**: the language's spelling
+dictionary, hyphenation patterns and licence texts, installed and removed together. English is
+built in; every other language is a pack.
+
+> The current set of Language packs (language-packs-2) has 75 languages, among them Dutch,
+> German, Danish, Swedish, Norwegian, Hungarian, Estonian, Croatian, Persian and Esperanto.
+> Mongolian isn't a pack yet (its suggestions are too slow), nor is Thai (WordCraft can't yet
+> split Thai text, which has no spaces, into words). Basque,
+> Ukrainian and Uyghur aren't packs: their data's licence doesn't allow it, or isn't clear.
+
+- **File › Options › Language › Your languages** lists English, the languages of the open
+  document and every installed pack, each with where its proofing comes from (*Built in*,
+  *Installed*, *Your own dictionary*, *System dictionary*, *Grammar built in*, *Not available yet*).
+  **Install** gets a document language's pack; **Remove** takes an installed one out; **Set as
+  default** makes it the language of new blank documents (the open document is left as it is).
+  **Add a language…** opens a list of the other packs: type *dutch*, *nederlands* or *nl* to
+  search, see each pack's size, licence and a link to where it comes from, and click **Install**.
+- When a document has text in a language whose pack isn't installed, a bar under the ribbon says
+  *Dutch proofing isn't installed.* with an **Install** button showing the download size. ✕ hides
+  it for that document. Once WordCraft has the list of packs, the bar shows only for a language
+  that has a pack. Before the list has been fetched (a fresh install, or the list of an older
+  WordCraft), it can't know, so it shows for a language that has no dictionary, with **Install**
+  alone: clicking it gets the list, then the pack if there is one (if not, the bar goes). With
+  downloading on, WordCraft fetches a missing or out-of-date list by itself once. Choosing a
+  language with nothing selected counts too.
+- Installing needs **downloading** on: the same single setting as WordCraft's font downloads
+  (the font store). Clicking Add a language…, Install or Refresh turns it on; nothing is
+  downloaded before. Each pack is checked against the sha256 in WordCraft's pinned list before it
+  is used.
+- Text in that language is checked and hyphenated as soon as the pack is installed: no restart.
+- **Help › About › Language data** shows the full licence text of the built-in English data and
+  of every installed pack.
+- Packs live in the font store's folder, under `language-packs/<language>/`, so every Craft app
+  uses the same ones.
+- Agents and scripts use the commands `proof.packs`, `proof.installPack {"locale": "nl"}` and
+  `proof.removePack {"locale": "nl"}` (see [MCP](mcp.md#language-packs)). They install only while
+  downloading is on; only you can turn it on, with your own click in the app.
+- The web version has no Language packs; it proofs English.
+
+A dictionary you install yourself (below) still wins: WordCraft looks in the dictionaries folder,
+then the installed pack, then the system's dictionaries.
+
 ## Which files each language needs
 
 Strix looks for the first of these file names (each name means a `<name>.aff` and
@@ -68,7 +113,8 @@ Strix looks for the first of these file names (each name means a `<name>.aff` an
 |---|---|---|
 | Polish | `pl_PL`, `pl-PL`, `pl` | SJP.PL |
 | Russian | `ru_RU`, `ru-RU`, `ru` | LibreOffice `dict-ru` |
-| Portuguese (Brazil and Portugal) | `pt_BR`, `pt-BR`, `pt` | VERO (LibreOffice `dict-pt-BR`) |
+| Portuguese (Brazil) | `pt_BR`, `pt-BR`, `pt` | VERO (LibreOffice `dict-pt-BR`) |
+| Portuguese (Portugal) | `pt_PT`, `pt-PT`, `pt` | LibreOffice `dict-pt-PT` (Natura, Universidade do Minho) |
 | Czech | `cs_CZ`, `cs-CZ`, `cs` | LibreOffice `dict-cs` |
 | Italian | `it_IT`, `it_CH`, `it-IT`, `it` | LibreOffice `dict-it` |
 | Croatian | `hr_HR`, `hr-HR`, `hr` | LibreOffice `dict-hr` |
@@ -79,8 +125,8 @@ Strix looks for the first of these file names (each name means a `<name>.aff` an
 | Spanish (Latin America, and the other Spanish regions of the Americas) | `es_419`, `es-419`, `es_ANY`, `es`, `es_US`, `es_MX`, `es_AR`, `es-AR` | LibreOffice `dict-es` (RLA-ES) |
 | Spanish (Uruguay) | `es_UY`, `es-UY`, `es_AR`, `es-AR`, `es_419`, `es-419`, `es_ANY`, `es` | LibreOffice `dict-es` (RLA-ES) |
 
-Every Portuguese region uses the same `pt_BR` dictionary, so text marked *Português (Portugal)*
-is checked with it too.
+European Portuguese spells differently: text marked *Português (Portugal)* uses `pt_PT` (or a
+`pt-pt` Language pack), and Brazilian Portuguese and the other regions `pt_BR`.
 
 Spanish has a dictionary per variety: text marked *Español (España)* uses `es_ES`, *Español
 (México)* `es_MX`, *Español (Uruguay)* `es_UY`, and *Español (Latinoamérica)* and the other
@@ -96,18 +142,28 @@ Turkish `tr_TR` dictionaries ISO 8859-9).
 
 The first folder holding a matching pair wins:
 
-1. The folder set in **File › Options › Proofing › Dictionaries folder**. This is the easiest
+1. The folder set in **File › Options › Language › Dictionaries folder**. This is the easiest
    way on every system, and it works for an app started from the Start menu, Finder or the Dock.
-   The same pane lists the dictionary file each language found.
-2. The folder in the `WORDCRAFT_DICTIONARIES` environment variable.
-3. The folder Strix downloads dictionaries to (above).
+   Your languages marks each language it supplies *Your own dictionary*, and the **Dictionary
+   files** list under it shows the file each language found. Without a folder of your own, the
+   folder Strix downloads dictionaries to (above) is searched here instead.
+2. The folder in the `WORDCRAFT_DICTIONARIES` environment variable, and WordCraft's own
+   `dictionaries` folder (the first row of each system below; proofing is WordCraft's
+   `craft-proof`, so a dictionary an installed WordCraft uses is found too).
+3. An installed [Language pack](#language-packs) for the language.
 4. The system's usual places:
 
 | System | Folders |
 |---|---|
-| Windows | `%LOCALAPPDATA%\Strix\dictionaries`, `%LOCALAPPDATA%\hunspell`, `%APPDATA%\Strix\dictionaries`, `%APPDATA%\hunspell`, LibreOffice's `share\extensions\dict-*` under `Program Files` (on any drive) |
-| macOS | `~/Library/Spelling`, `/Library/Spelling`, `/opt/homebrew/share/hunspell`, `/usr/local/share/hunspell`, `/Applications/LibreOffice.app/Contents/Resources/extensions/dict-*` |
-| Linux and BSD | `~/.local/share/hunspell`, `/usr/share/hunspell`, `/usr/share/myspell`, `/usr/share/myspell/dicts`, `/usr/local/share/hunspell`, `/usr/local/share/myspell`, LibreOffice's `share/extensions/dict-*` under `/usr/lib/libreoffice` or `/opt/libreoffice` |
+| Windows | `%LOCALAPPDATA%\WordCraft\dictionaries`, `%LOCALAPPDATA%\hunspell`, `%APPDATA%\WordCraft\dictionaries`, `%APPDATA%\hunspell`, LibreOffice's `share\extensions\dict-*` under `Program Files` (on any drive) |
+| macOS | `~/Library/Application Support/WordCraft/dictionaries`, `~/Library/Spelling`, `/Library/Spelling`, `/opt/homebrew/share/hunspell`, `/usr/local/share/hunspell`, `/Applications/LibreOffice.app/Contents/Resources/extensions/dict-*` |
+| Linux and BSD | `$XDG_DATA_HOME/wordcraft/dictionaries` (default `~/.local/share/wordcraft/dictionaries`), `~/.local/share/hunspell`, `/usr/share/hunspell`, `/usr/share/myspell`, `/usr/share/myspell/dicts`, `/usr/local/share/hunspell`, `/usr/local/share/myspell`, LibreOffice's `share/extensions/dict-*` under `/usr/lib/libreoffice` or `/opt/libreoffice` |
+
+The Flatpak runs in a sandbox: its `$XDG_DATA_HOME` is
+`~/.var/app/io.github.nabre.strix/data`, so its own folder is
+`~/.var/app/io.github.nabre.strix/data/wordcraft/dictionaries`, and it can't see the host's
+`/usr/share/hunspell` or `~/.local/share/hunspell` (the paths above are for the other builds).
+Put dictionaries in that folder.
 
 The web version can't read these folders, so these languages aren't spell-checked there.
 
@@ -168,7 +224,7 @@ from the LibreOffice repository (for example `it_IT/it_IT.aff`; the Spanish ones
 
 - Restart Strix. The status bar no longer says **(no dictionary)**, and a misspelled word
   such as `impramir` is underlined, with `imprimir` among its suggestions.
-- **File › Options › Proofing** lists the file each language found.
+- **File › Options › Language** (Dictionary files) lists the file each language found.
 - From the command line:
 
   ```sh
@@ -185,8 +241,17 @@ Never commit dictionary files to this repository: they stay on the user's system
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-10 | trivial | European Portuguese has its own dictionary, `pt_PT`, which Strix downloads too (craft-proof reads it for *Português (Portugal)*; before, `pt_BR` served every region) |
+| 2026-11-10 | minor | WordCraft 0.17.0 merged into Strix: proofing is craft-proof; Strix's downloaded dictionaries are searched as the Dictionaries folder when you haven't set one, and downloads go to whichever folder that is |
+| 2026-11-03 | trivial | Language packs (CP4.3): the missing-pack bar offers a language before the list is fetched and gets the list, then the pack, on Install; a missing or stale list is fetched once while downloading is on; the caret's typing language counts |
+| 2026-11-03 | trivial | Language packs: install from Your languages or Add a language… in Options › Language; the Dictionaries folder is in Options › Language, not Proofing |
+| 2026-11-03 | trivial | Language packs: language-packs-2 is published and pinned (75 languages, adding the compounding languages); Mongolian and Thai aren't packs yet, and why |
+| 2026-11-02 | trivial | Language packs: language-packs-1 is published and pinned (61 languages); which languages aren't packs yet and why (CP4.4) |
+| 2026-11-02 | trivial | The Flatpak's own dictionaries folder (`~/.var/app/io.github.nabre.strix/data/wordcraft/dictionaries`); the host's folders are outside its sandbox |
+| 2026-11-01 | minor | Language packs (CP4.3): installing a language from File › Options › Language or the missing-pack bar, the download consent, About › Language data, the commands; an installed pack is searched after the dictionaries folders and before the system's |
 | 2026-10-22 | minor | Spanish (#3360, #3553): the file names for Spain, Mexico, Latin America and Uruguay and their fallbacks |
 | 2026-10-22 | trivial | Italian, Croatian, Turkish, Russian, Czech and Indonesian without a dictionary now show **(no dictionary)** (or **(dictionary unreadable)**) too, as this page already said; before, only Polish and Portuguese did. Indonesian is listed with its file names (#3150) |
+| 2026-11-01 | trivial | WordCraft's own `dictionaries` folder under the user's application data is searched on macOS (`~/Library/Application Support/WordCraft/dictionaries`) and Linux/BSD (`$XDG_DATA_HOME/wordcraft/dictionaries`) too, before the system folders, as it was on Windows (craft-proof; ported from storytold/craft-libs#31 by brzuchal) |
 | 2026-10-23 | trivial | ISO 8859-9 (`SET ISO8859-9`) dictionaries are read, so an older Turkish `tr_TR` loads without converting it to UTF-8; the Turkish dictionary is read through the same size-capped reader and `SET` decoding as the others (#3692) |
 | 2026-10-18 | trivial | ISO 8859-1 (`SET ISO8859-1`) dictionaries are read, so the original VERO `pt_BR` works without converting it to UTF-8 (#2824) |
 | 2026-10-18 | minor | An installed dictionary that can't be read shows **(dictionary unreadable)** in the status bar, with the file and reason in its tooltip and in File › Options › Proofing (#2830) |

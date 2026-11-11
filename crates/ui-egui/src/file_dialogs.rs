@@ -56,12 +56,16 @@ const DOCUMENTS: &[&str] = &[
     "doc",
     "dot",
     "odt",
+    "ott",
+    "fodt",
     "rtf",
     "txt",
     "md",
     "markdown",
     "html",
     "htm",
+    "mht",
+    "mhtml",
     "tex",
     "latex",
     "ltx",
@@ -223,12 +227,12 @@ impl WordApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn file_browser_open(&self) -> bool {
+    pub(crate) fn file_browser_open(&self) -> bool {
         self.file_browser.open.is_some()
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn file_browser_open(&self) -> bool {
+    pub(crate) fn file_browser_open(&self) -> bool {
         false
     }
 
@@ -408,7 +412,7 @@ impl WordApp {
                     self.run("file.saveAs", json!({"path": path}))
                 };
                 if r.is_ok() {
-                    self.status(crate::i18n::fmt(tl!("Exported {path}"), &[("path", &path)]));
+                    self.status(crate::i18n::fmt(tl!("Exported {path}"), &[("path", &crate::i18n::isolate_path(&path))]));
                 }
                 r
             }
@@ -418,7 +422,7 @@ impl WordApp {
                 params["path"] = json!(path);
                 let r = self.run("file.printPdf", params);
                 if r.is_ok() {
-                    self.status(crate::i18n::fmt(tl!("Exported {path}"), &[("path", &path)]));
+                    self.status(crate::i18n::fmt(tl!("Exported {path}"), &[("path", &crate::i18n::isolate_path(&path))]));
                 }
                 r
             }
@@ -464,7 +468,7 @@ impl WordApp {
                         if !self.safely_saved(saved) || document != self.session.document_id() {
                             return Ok(json!({"done": false}));
                         }
-                        self.execute_user(&then, params).map(|r| json!({"done": true, "result": r}))
+                        self.execute_held_back(&then, params).map(|r| json!({"done": true, "result": r}))
                     }
                 }
             }

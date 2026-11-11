@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Settings a save used to drop: `word/settings.xml` is merged into the file's original, so
 //! settings the model doesn't hold (compatibility options, rsids, document variables, proofing
 //! state, "remove personal information"…) survive, and owned ones follow the model. Hand-written
@@ -27,7 +26,7 @@ fn unzip(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
         let mut f = z.by_index(i).unwrap();
         let mut b = Vec::new();
         f.read_to_end(&mut b).unwrap();
-        assert!(out.insert(f.name().unwrap().to_string(), b).is_none(), "duplicate part {}", f.name().unwrap());
+        assert!(out.insert(f.name().to_string(), b).is_none(), "duplicate part {}", f.name());
     }
     out
 }

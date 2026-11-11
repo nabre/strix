@@ -83,5 +83,6 @@ impl AutoSaveBlock {
 /// document was opened from (#2376). AutoSave writes only Strix's own files.
 pub fn keeps_everything(name: &str) -> bool {
     let ext = std::path::Path::new(name).extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
-    wordcraft_engine::io::is_native(&ext) || matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "rtf" | "json" | "xml")
+    wordcraft_engine::io::is_native(&ext)
+        || matches!(ext.as_str(), "docx" | "docm" | "dotx" | "dotm" | "odt" | "ott" | "fodt" | "rtf" | "json" | "xml")
 }

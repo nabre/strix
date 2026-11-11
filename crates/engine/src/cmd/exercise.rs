@@ -34,6 +34,7 @@ use wordcraft_doc::styles::{Style, StyleKind};
 use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
+use words::Words;
 
 mod breaks;
 mod delete;
@@ -44,6 +45,7 @@ mod scores;
 mod series;
 mod show;
 mod structure;
+mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub(crate) use language::follow_language;
@@ -148,28 +150,6 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-/// Words of the generated parts, in the document's language (Italian, English, French, German or
-/// Spanish; English for the others).
-struct Words {
-    exercise: &'static str,
-    /// The scores table's total and its default criterion.
-    total: &'static str,
-    points: &'static str,
-    solution: &'static str,
-    results: &'static str,
-    title: &'static str,
-    text: &'static str,
-    question: &'static str,
-    no_result: &'static str,
-    /// Titles of the controls, shown on their frames.
-    title_part: &'static str,
-    statement: &'static str,
-    questions: &'static str,
-    prompt: &'static str,
-    data: &'static str,
-    variant: &'static str,
-}
-
 /// The language exercise words are written in: the one at the caret, resolved through the styles
 /// and the document default — the language the status bar shows and the dictionary checks with —
 /// else the editing language (a new document's).
@@ -178,124 +158,41 @@ fn words_lang(s: &Session) -> String {
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props()).lang.or_else(|| crate::cmd::default_lang(s)).unwrap_or_default()
 }
 
-/// The words of the language exercises are inserted in: the caret's ([`words_lang`]).
+/// The words for a language without its own: the document's (its default language's), else the
+/// editing language's (a new document's, from the interface), else English.
+fn fallback_words(s: &Session) -> &'static Words {
+    crate::cmd::doc_lang(&s.doc)
+        .as_deref()
+        .and_then(words::lookup)
+        .or_else(|| s.editing_lang.as_deref().and_then(words::lookup))
+        .unwrap_or(&words::EN)
+}
+
+/// The words of the language exercises are inserted in: the caret's ([`words_lang`]); for a
+/// language without its own words, those the document's exercises already use, else
+/// [`fallback_words`].
 fn words(s: &Session) -> &'static Words {
-    words_for(&words_lang(s))
+    words::lookup(&words_lang(s)).unwrap_or_else(|| {
+        let layout = scan(s);
+        (0..layout.exercises.len()).find_map(|e| language::present(s, &layout, e)).unwrap_or_else(|| fallback_words(s))
+    })
+}
+
+/// The words of exercise `e`: its language's ([`language::lang_at`] its title); for a language
+/// without its own words, those it already has, so they stay as they are; else
+/// [`fallback_words`].
+fn exercise_words(s: &Session, layout: &Layout, e: usize) -> &'static Words {
+    let lang = layout.exercises.get(e).map(|x| language::lang_at(s, x.start)).unwrap_or_default();
+    words::lookup(&lang).or_else(|| language::present(s, layout, e)).unwrap_or_else(|| fallback_words(s))
 }
 
 /// The words of the document's exercises, for the parts generated for all of them (the results
-/// summary, the data, the numbering's default prefix): the first exercise's language, else the
-/// caret's.
+/// summary, the data, the numbering's default prefix, the scores table): the first exercise's
+/// ([`exercise_words`]), else the caret's.
 fn doc_words(s: &Session) -> &'static Words {
-    scan(s).exercises.first().map_or_else(|| words(s), |e| words_for(&language::lang_at(s, e.start)))
+    let layout = scan(s);
+    if layout.exercises.is_empty() { words(s) } else { exercise_words(s, &layout, 0) }
 }
-
-/// The exercise words of language tag `lang` (`it-IT`, `fr`…); English for the languages without
-/// their own.
-fn words_for(lang: &str) -> &'static Words {
-    let lang = lang.to_ascii_lowercase();
-    let primary = lang.split(['-', '_']).next().unwrap_or_default();
-    match primary {
-        "it" => &IT,
-        "fr" => &FR,
-        "de" => &DE,
-        "es" => &ES,
-        _ => &EN,
-    }
-}
-
-/// Every language's words: a generated text is a default (one to translate) when one of them has it.
-const ALL_WORDS: [&Words; 5] = [&IT, &EN, &FR, &DE, &ES];
-
-const IT: Words = Words {
-    exercise: "Esercizio",
-    total: "Totale",
-    points: "Punti",
-    solution: "Risoluzione",
-    results: "Riepilogo dei risultati",
-    title: "Titolo dell'esercizio",
-    text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
-    question: "Scrivi qui la domanda.",
-    no_result: "risultato non indicato",
-    title_part: "Titolo",
-    statement: "Testo",
-    questions: "Domande",
-    prompt: "Domande (automatiche)",
-    data: "Dati",
-    variant: "variante",
-};
-
-const EN: Words = Words {
-    exercise: "Exercise",
-    total: "Total",
-    points: "Points",
-    solution: "Solution",
-    results: "Results",
-    title: "Exercise title",
-    text: "Write the exercise here: data, figures, tables.",
-    question: "Write the question here.",
-    no_result: "no result marked",
-    title_part: "Title",
-    statement: "Statement",
-    questions: "Questions",
-    prompt: "Questions (automatic)",
-    data: "Data",
-    variant: "variant",
-};
-
-const FR: Words = Words {
-    exercise: "Exercice",
-    total: "Total",
-    points: "Points",
-    solution: "Solution",
-    results: "Récapitulatif des résultats",
-    title: "Titre de l'exercice",
-    text: "Écrivez ici l'énoncé de l'exercice : données, figures, tableaux.",
-    question: "Écrivez ici la question.",
-    no_result: "résultat non indiqué",
-    title_part: "Titre",
-    statement: "Énoncé",
-    questions: "Questions",
-    prompt: "Questions (automatiques)",
-    data: "Données",
-    variant: "variante",
-};
-
-const DE: Words = Words {
-    exercise: "Aufgabe",
-    total: "Summe",
-    points: "Punkte",
-    solution: "Lösung",
-    results: "Ergebnisübersicht",
-    title: "Titel der Aufgabe",
-    text: "Schreiben Sie hier die Aufgabe: Daten, Abbildungen, Tabellen.",
-    question: "Schreiben Sie hier die Frage.",
-    no_result: "kein Ergebnis angegeben",
-    title_part: "Titel",
-    statement: "Aufgabenstellung",
-    questions: "Fragen",
-    prompt: "Fragen (automatisch)",
-    data: "Daten",
-    variant: "Variante",
-};
-
-const ES: Words = Words {
-    exercise: "Ejercicio",
-    total: "Total",
-    points: "Puntos",
-    solution: "Solución",
-    results: "Resumen de resultados",
-    title: "Título del ejercicio",
-    text: "Escribe aquí el enunciado del ejercicio: datos, figuras, tablas.",
-    question: "Escribe aquí la pregunta.",
-    no_result: "resultado no indicado",
-    title_part: "Título",
-    statement: "Enunciado",
-    questions: "Preguntas",
-    prompt: "Preguntas (automáticas)",
-    data: "Datos",
-    variant: "variante",
-};
 
 /// Adds the exercise styles the document lacks.
 fn ensure_styles(s: &mut Session) {
@@ -359,14 +256,14 @@ fn ensure_styles(s: &mut Session) {
     ];
     for st in wanted {
         if s.doc.styles.get(&st.id).is_none() {
-            s.doc.styles.styles.push(st);
+            std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(st);
         }
     }
     // The title numbers itself (Esercizio 1., Esercizio 2. …): one list in the style, so every
     // exercise of the document counts on, also in documents made before it was numbered.
     if s.doc.styles.get(STYLE_TITLE).is_some_and(|st| st.para.numbering.is_none())
         && let Ok(num) = add_title_list(s)
-        && let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE)
+        && let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE)
     {
         st.para.numbering = Some(NumRef { num, level: 0 });
     }
@@ -386,7 +283,7 @@ fn add_title_list(s: &mut Session) -> Result<u32, CmdError> {
         l.tab = None;
         l.suffix = LevelSuffix::Space;
     }
-    s.doc.numbering.try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering).try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn control(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
@@ -455,7 +352,9 @@ fn add_question_list(s: &mut Session) -> Result<u32, CmdError> {
             l.tab = None;
         }
     }
-    s.doc.numbering.try_add_levels(Some("Exercise questions".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering)
+        .try_add_levels(Some("Exercise questions".into()), levels)
+        .map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
@@ -1598,12 +1497,12 @@ pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
     let front: Vec<Arc<Block>> = scan(&own).front.and_then(|(a, b)| own.doc.body.get(a..=b)).map(<[Arc<Block>]>::to_vec).unwrap_or_default();
     let mut s = Session::new(doc);
     // The file's styles, each list a style numbers with still the one this document has.
-    s.doc.styles.default_chr = own.doc.styles.default_chr.clone();
-    s.doc.styles.default_para = own.doc.styles.default_para.clone();
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr = own.doc.styles.default_chr.clone();
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_para = own.doc.styles.default_para.clone();
     for st in &own.doc.styles.styles {
         let mut st = st.clone();
         st.para.numbering = s.doc.styles.get(&st.id).and_then(|x| x.para.numbering);
-        s.doc.styles.upsert(st);
+        std::sync::Arc::make_mut(&mut s.doc.styles).upsert(st);
     }
     // Its own frontispiece, in place of any.
     if let Some((from, to)) = scan(&s).front
@@ -1789,7 +1688,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -1935,7 +1834,7 @@ mod tests {
         let mut s = session();
         s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
         // Numbering taken away (a document from before): the next insert puts it back.
-        if let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
+        if let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
             st.para.numbering = None;
         }
         // The caret still in the first exercise's title: the second goes after the first.
@@ -2242,9 +2141,9 @@ mod tests {
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
         // Italian as it opens (the words come from the preferences, else the document's language).
-        doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut doc.styles).default_chr.lang = Some("it-IT".into());
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(title(&s), "Ponte");
         let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
@@ -2282,7 +2181,7 @@ mod tests {
         }
         assert_eq!(p.objects.len(), 1);
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
         assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));

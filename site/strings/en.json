@@ -29,7 +29,7 @@
   "stat2Text": "SI and engineering units, checked on every step",
   "stat3Title": "Live",
   "stat3Text": "results, tables, exercises and drawings recalculate after each edit",
-  "stat4Title": "27",
+  "stat4Title": "4",
   "stat4Text": "interface languages, on five platforms from one Rust code base",
 
   "howEyebrow": "How it works",
@@ -89,7 +89,7 @@
   "f8Text": "Saves <code>.xmath</code>, and DOCX, ODT, RTF back when a document has no Strix objects; opens DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX; exports PDF, PNG, LaTeX, HTML, Markdown.",
   "f9Kicker": "Everywhere",
   "f9Title": "Native on every desktop, and in the browser",
-  "f9Text": "Windows, macOS, Linux and FreeBSD as native apps, and the same app compiled to WebAssembly. The interface follows the system’s language (27 languages) and its light or dark theme.",
+  "f9Text": "Windows, macOS, Linux and FreeBSD as native apps, and the same app compiled to WebAssembly. The interface follows the system’s language (English, Italian, German or French) and its light or dark theme.",
   "plannedKicker": "Planned",
   "plannedTitle": "Next on the roadmap",
   "plannedText": "Variables pane, unit picker, <code>°C</code>/<code>°F</code>, user functions <code>f(x) = …</code>, matrices, systems of equations, plots; CAD modify tools, hatches, angular dimensions and constraints.",

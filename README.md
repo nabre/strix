@@ -179,7 +179,7 @@ see [License and credits](#license-and-credits)), so the report around a calcula
 document: a familiar ribbon interface, styles, headings, lists, tables, equations, pictures and
 shapes, headers and footers, sections and columns, footnotes, citations and tables of contents,
 comments and track changes, spelling and hyphenation, mail merge and printing. The interface
-follows the operating system's language (27 languages, Italian included; File › Options ›
+follows the operating system's language (English, Italian, German or French; File › Options ›
 Interface language picks one by hand). Measured parity: [ROADMAP.md](ROADMAP.md).
 
 ## Files
@@ -259,6 +259,7 @@ Command line (`cargo run --release -p strix-cli -- …`, or the built `strix-cli
 ```sh
 strix-cli convert report.docx report.xmath        # import a Word document
 strix-cli convert problem.xmath problem.pdf       # static export: pdf, png, tex, html, md
+strix-cli convert problem.xmath problem.pdf --strict  # exit 3, no file, if a character or picture would be left out
 strix-cli run --template sample \
   --cmd 'calc.insert={"text":"L = 4.5 m"}' --save beam.xmath
 strix-cli commands                                # every command id

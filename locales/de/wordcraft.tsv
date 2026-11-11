@@ -2751,3 +2751,151 @@ paper	Envelope DL	Umschlag DL
 	Graph\nPaper	Millimeter-\npapier
 	New\nCalculation	Neue\nBerechnung
 	About Strix Writer	Über Strix Writer
+
+# 2026-11-11: strings from the upstream merge and Strix's Teaching, scores, update and CAD panes.
+	Add Blank Paragraphs Between	Leere Absätze dazwischen hinzufügen
+	Insert Blank Paragraphs Between	Leere Absätze dazwischen einfügen
+	Add a language…	Sprache hinzufügen…
+	An installed Language pack is used after this folder.	Ein installiertes Sprachpaket wird nach diesem Ordner verwendet.
+	Applies the next time Strix starts.	Gilt ab dem nächsten Start von Strix.
+	Arrange All	Alle anordnen
+	Bright Green	Hellgrün
+	Built in	Integriert
+	Convert Indents to Spaces	Einzüge in Leerzeichen umwandeln
+	Convert Line Breaks to Paragraphs	Zeilenumbrüche in Absätze umwandeln
+	Convert Spaces to Indentation	Leerzeichen in Einzug umwandeln
+	Corporate Author	Körperschaft als Autor
+	Dark Blue	Dunkelblau
+	Dark Red	Dunkelrot
+	Dark Yellow	Dunkelgelb
+	Delete Blank Paragraphs	Leere Absätze löschen
+	Delete Blank Paragraphs in the Whole Document	Leere Absätze im ganzen Dokument löschen
+	Delete Previous Sentence	Vorherigen Satz löschen
+	Dictionary files	Wörterbuchdateien
+	Display server:	Displayserver:
+	Document background	Dokumenthintergrund
+	Drawing Name	Name der Zeichnung
+	Emphasis Mark	Betonungszeichen
+	English, the languages of this document and every installed Language pack. Language packs add spelling dictionaries and hyphenation.	Englisch, die Sprachen dieses Dokuments und jedes installierte Sprachpaket. Sprachpakete fügen Rechtschreibwörterbücher und Silbentrennung hinzu.
+	Flat OpenDocument Text (*.fodt)	Flaches OpenDocument-Textdokument (*.fodt)
+	Gray-25%	Grau 25 %
+	Gray-50%	Grau 50 %
+	Header & Footer Options	Optionen für Kopf- und Fußzeile
+	Ignore Once	Einmal ignorieren
+	Indent Leading Spaces	Führende Leerzeichen einrücken
+	Indents to Leading Spaces	Einzüge in führende Leerzeichen
+	Install Language Pack	Sprachpaket installieren
+	Inverse	Invertiert
+	Item Color	Elementfarbe
+	Join Lines	Zeilen verbinden
+	Language Packs	Sprachpakete
+	Language data	Sprachdaten
+	Language packs aren't available in the browser	Sprachpakete sind im Browser nicht verfügbar
+	Language packs need the font store folder, and there is none on this computer.	Sprachpakete benötigen den Ordner des Schriftenspeichers, und auf diesem Computer gibt es keinen.
+	Linux display server	Linux-Displayserver
+	Macro name:	Makroname:
+	Missing Fonts	Fehlende Schriftarten
+	More options	Weitere Optionen
+	Not in Dictionary	Nicht im Wörterbuch
+	OpenDocument Text Template (*.ott)	OpenDocument-Textvorlage (*.ott)
+	Paragraph\nTools	Absatz-\nwerkzeuge
+	Paragraph Tools	Absatzwerkzeuge
+	Record…	Aufzeichnen…
+	Remove Extra Spaces	Überzählige Leerzeichen entfernen
+	Remove Extra Spaces in the Whole Document	Überzählige Leerzeichen im ganzen Dokument entfernen
+	Remove Language Pack	Sprachpaket entfernen
+	Remove Leading Spaces	Führende Leerzeichen entfernen
+	Remove Leading Spaces in the Whole Document	Führende Leerzeichen im ganzen Dokument entfernen
+	Remove Line Breaks	Zeilenumbrüche entfernen
+	Run	Ausführen
+	Scores Table	Punktetabelle
+	Screen Paper Color	Bildschirm-Papierfarbe
+	Screen only. Document backgrounds, printing and exports keep their colours. Dark page and explicit Read Mode colours take precedence.	Nur auf dem Bildschirm. Dokumenthintergründe, Druck und Exporte behalten ihre Farben. Die dunkle Seite und ausdrücklich gewählte Lesemodus-Farben haben Vorrang.
+	Screen paper color:	Bildschirm-Papierfarbe:
+	Select Canvas Member	Element der Zeichenfläche auswählen
+	Separate Paragraphs	Absätze trennen
+	Sepia	Sepia
+	Set as Default Language	Als Standardsprache festlegen
+	Set the colors in the Text Pane to use custom colors.	Legen Sie die Farben im Textbereich fest, um eigene Farben zu verwenden.
+	Shape color	Formfarbe
+	Shown in substitute fonts. Click for details.	In Ersatzschriftarten angezeigt. Für Details klicken.
+	Split Lines into Paragraphs	Zeilen in Absätze aufteilen
+	Status bar	Statusleiste
+	Status bar count:	Zählung in der Statusleiste:
+	Strict Export Report	Bericht zum strikten Export
+	Suggestions	Vorschläge
+	Synchronous Scrolling	Synchrones Scrollen
+	The spelling and hyphenation data Strix uses, and their licences.	Die Rechtschreib- und Silbentrennungsdaten, die Strix verwendet, und ihre Lizenzen.
+	There are no macros yet. Record one to add it here.	Es gibt noch keine Makros. Zeichnen Sie eins auf, um es hier hinzuzufügen.
+	Turquoise	Türkis
+	View Side by Side	Nebeneinander anzeigen
+	You can also right-click the count in the status bar to change it.	Sie können auch mit der rechten Maustaste auf die Zählung in der Statusleiste klicken, um sie zu ändern.
+	Your languages	Ihre Sprachen
+	a shape inside a drawing canvas is placed by the canvas	eine Form in einer Zeichenfläche wird von der Zeichenfläche platziert
+	only the desktop app has several windows	nur die Desktop-App hat mehrere Fenster
+	turn on View Side by Side first	schalten Sie zuerst Nebeneinander anzeigen ein
+	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} ist auf diesem Computer nicht installiert, daher wird der Text in {shown} angezeigt. Zeilenumbrüche und Seitenzahl können von dem Computer abweichen, auf dem das Dokument erstellt wurde. Wenn Sie die Schriftdatei haben, fügen Sie sie mit Schriftart hinzufügen… am Ende dieser Liste hinzu.
+	{language} (default)	{language} (Standard)
+	{n} KB	{n} KB
+	A newer version is downloaded in the background and installed, without any question, the next time Strix Writer starts.	Eine neuere Version wird im Hintergrund heruntergeladen und beim nächsten Start von Strix Writer ohne Rückfrage installiert.
+	Add Criterion	Kriterium hinzufügen
+	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Ein Kriterium zur Punktetabelle hinzufügen: zwei Spalten, eine leer und eine für die Punkte (den Namen in die Kopfzeile schreiben)
+	Always Calculate	Immer berechnen
+	Calculate Table	Tabelle berechnen
+	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Wählen, was die Übung zeigt (jede Übung einer Serie): ausgeblendete Teile bleiben als ausgeblendeter Text im Dokument
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Daten und Varianten, Seitenumbrüche, Nummerierung, angezeigte Teile und Rasterpapier im Bereich Übungseigenschaften
+	Download updates automatically	Updates automatisch herunterladen
+	Drawing Space	Zeichenbereich
+	Drawing Underlay	Unterlage der Zeichnung
+	Drawings of the Document	Zeichnungen des Dokuments
+	Exercise Graph Paper	Rasterpapier der Übung
+	Frontispiece	Deckblatt
+	Inherit Layers and Styles	Ebenen und Stile übernehmen
+	Number Display	Zahlendarstellung
+	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Eigene Seiten vor den Übungen (Titel, Klasse, Datum, Anweisungen), beendet durch einen Deckblattumbruch
+	Parts Shown	Angezeigte Teile
+	Remove Criterion	Kriterium entfernen
+	Remove a criterion and its points from the scores table	Ein Kriterium und seine Punkte aus der Punktetabelle entfernen
+	Rounding	Rundung
+	Scores	Punkte
+	Scores\nTable	Punkte-\ntabelle
+	Show the substitution steps of every calculation: the formula with its values, then the result	Die Rechenschritte jeder Berechnung anzeigen: die Formel mit ihren Werten, dann das Ergebnis
+	Strix Writer looks for a newer version when it starts and once a day.	Strix Writer sucht beim Start und einmal täglich nach einer neueren Version.
+	Strix Writer {version}	Strix Writer {version}
+	Teaching	Unterricht
+	Teal	Blaugrün
+	To the End of the Column	Bis zum Ende der Spalte
+	Underlay	Unterlage
+	All on	Alle ein
+	All off	Alle aus
+	Arc, 3 points	Bogen, 3 Punkte
+	Arc 3 points: start point	Bogen 3 Punkte: Startpunkt
+	Arc 3 points: a point on the arc	Bogen 3 Punkte: ein Punkt auf dem Bogen
+	Arc 3 points: end point	Bogen 3 Punkte: Endpunkt
+	Arc: centre (or a3p, sce, ser)	Bogen: Mittelpunkt (oder a3p, sce, ser)
+	Arc: end point	Bogen: Endpunkt
+	Arc: radius (a point or a number)	Bogen: Radius (ein Punkt oder eine Zahl)
+	Arc: start, a point on it, end	Bogen: Start, ein Punkt darauf, Ende
+	Arc, start centre end	Bogen, Start Mittelpunkt Ende
+	Arc: start, centre, end (counter-clockwise)	Bogen: Start, Mittelpunkt, Ende (gegen den Uhrzeigersinn)
+	Arc, start end radius	Bogen, Start Ende Radius
+	Arc: start, end, radius	Bogen: Start, Ende, Radius
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Ein kurzer Name für die Zeichnung (Buchstaben, Ziffern und Bindestriche), in der Liste der Unterlagen angezeigt
+	Centre, Start, End	Mittelpunkt, Start, Ende
+	Start, Centre, End	Start, Mittelpunkt, Ende
+	Start, End, Radius	Start, Ende, Radius
+	The arc has no size	Der Bogen hat keine Größe
+	The start and end are the same point	Start und Ende sind derselbe Punkt
+	The three points are in line	Die drei Punkte liegen auf einer Geraden
+	3 Points	Drei Punkte
+	Arc: centre	Bogen: Mittelpunkt
+	Arc: start point	Bogen: Startpunkt
+	Arc: centre, start, end (counter-clockwise)	Bogen: Mittelpunkt, Start, Ende (gegen den Uhrzeigersinn)
+	Arc: end point (counter-clockwise)	Bogen: Endpunkt (gegen den Uhrzeigersinn)
+	Fitted to frame	An Rahmen angepasst
+	Polyline: points, Enter to end, c to close	Polylinie: Punkte, Eingabe zum Beenden, c zum Schließen
+	Snap	Fang
+	Tangent Line	Tangente
+	Type a scale such as 1:75 or 2:1	Geben Sie einen Maßstab wie 1:75 oder 2:1 ein
+	Type a scale such as 1:75 or 2:1, or pick one	Geben Sie einen Maßstab wie 1:75 oder 2:1 ein oder wählen Sie einen aus
+	What one unit of the coordinates measures	Was eine Einheit der Koordinaten misst

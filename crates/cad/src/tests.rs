@@ -1676,3 +1676,37 @@ fn saved_outputs_stay_light() {
     let small = Drawing::from_json(r#"{"entities": [{"type": "circle", "c": [0, 0], "r": 5}]}"#).unwrap().render(None);
     assert!(matches!(small.lightened(), std::borrow::Cow::Borrowed(_)));
 }
+
+/// A metre drawing converted to millimetres keeps its real size, its dimension texts (still in
+/// metres) and what its expressions mean (`L` and plain numbers in metres).
+#[test]
+fn a_drawing_converts_to_millimetres() {
+    let ws = sheet(&["L = 4.5 m"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit": "m", "scale": 50, "underlay": {"source": "d1", "dx": 2},
+            "entities": [{"type": "line", "a": [0, 0], "b": ["L/2 + 1", 0]}, {"type": "circle", "c": [1, 1], "r": 0.5},
+            {"type": "dim", "a": [0, 0], "b": [2, 0]}]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    let before = d.render(Some(&ws)).size;
+    let label = d.dim_label(&d.dim_style.clone(), None, 2.0, Some(&ws));
+    d.to_mm();
+    assert_eq!((d.unit, d.expr_unit), (Unit::Mm, Some(Unit::M)));
+    assert_eq!(d.dim_style.units, crate::DimUnits::M);
+    assert!(d.resolve(&ws).is_empty());
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert!(approx(b.0.value, 3250.0), "{b:?}");
+    let Kind::Circle { c, r } = &d.entities[1].kind else { panic!() };
+    assert!(approx(c.0.value, 1000.0) && approx(r.value, 500.0));
+    assert!(approx(d.underlay.as_ref().unwrap().dx, 2000.0));
+    let after = d.render(Some(&ws)).size;
+    assert!(approx(before.0, after.0) && approx(before.1, after.1), "{before:?} {after:?}");
+    assert_eq!(d.dim_label(&d.dim_style.clone(), None, 2000.0, Some(&ws)), label);
+    // Read back from its JSON, it stays the same; a millimetre drawing is left alone.
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert_eq!(back.expr_unit, Some(Unit::M));
+    let mut mm = Drawing::default();
+    mm.to_mm();
+    assert_eq!(mm, Drawing::default());
+}

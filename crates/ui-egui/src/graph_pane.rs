@@ -220,7 +220,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
     {
         preview(ui, g);
         ui.add_space(8.0);
-        egui::Grid::new("graph_props").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("graph_props").num_columns(2).spacing([8.0, 6.0]), |ui| {
             ui.label(tl!("Placement"));
             let current = g["placement"].as_str().unwrap_or("pageEnd");
             let label = PLACEMENTS.iter().find(|(k, _)| *k == current).map_or("", |(_, l)| l);
@@ -266,7 +266,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
         });
         ui.add_space(10.0);
         ui.label(RichText::new(tl!("Grid lines")).strong());
-        egui::Grid::new("graph_lines").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("graph_lines").num_columns(2).spacing([8.0, 6.0]), |ui| {
             ui.label(tl!("Style"));
             if let Some(s) = style_combo(ui, "line", g["style"].as_str().unwrap_or("solid")) {
                 change = Some(json!({"style": s}));
@@ -285,7 +285,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
         });
         ui.add_space(10.0);
         ui.label(RichText::new(tl!("Outer frame")).strong());
-        egui::Grid::new("graph_frame").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("graph_frame").num_columns(2).spacing([8.0, 6.0]), |ui| {
             ui.label(tl!("Weight"));
             ui.horizontal(|ui| {
                 if let Some(v) = num_field(ui, "frameWidth", g["frameWidth"].as_f64().unwrap_or(0.4), 0.1..=6.0, " pt", 2) {
@@ -300,7 +300,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
         });
         ui.add_space(10.0);
         ui.label(RichText::new(tl!("Heavier lines")).strong());
-        egui::Grid::new("graph_major").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new("graph_major").num_columns(2).spacing([8.0, 6.0]), |ui| {
             ui.label(tl!("Every"));
             ui.horizontal(|ui| {
                 if let Some(v) = num_field(ui, "every", g["majorEvery"].as_f64().unwrap_or(0.0), 0.0..=100.0, "", 0) {

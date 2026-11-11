@@ -49,7 +49,7 @@ impl WordApp {
         if !go {
             return Ok(json!({"done": false}));
         }
-        self.execute_user(&then, params).map(|r| json!({"done": true, "result": r}))
+        self.execute_held_back(&then, params).map(|r| json!({"done": true, "result": r}))
     }
 
     /// Save before New/Open/Close (and the mailings that replace the document): true once the
@@ -77,6 +77,15 @@ impl WordApp {
     pub(crate) fn save_unconfirmed(&self) -> bool {
         let document = self.session.document_id();
         self.saves_in_flight.iter().any(|s| s.marked_saved && s.document == document)
+    }
+
+    /// Whether the shown document has work that isn't saved yet: changes that aren't written
+    /// to a file, or a save that hasn't come back. The Save Changes prompt appears for a
+    /// command that would replace the document; a programmatic call (control channel, MCP
+    /// bridge), which never prompts, refuses the command instead — so both paths guard the
+    /// same work (#1268, #3274).
+    pub(crate) fn document_unsaved(&self) -> bool {
+        self.document_unsaved_by_id(self.session.document_id())
     }
 
     /// The document's name as the Save Changes prompt shows it: its file's name, else its title.
@@ -142,7 +151,11 @@ impl WordApp {
             match outcome {
                 // Only when nothing changed since and no later save of it is still unconfirmed.
                 async_saves::SaveOutcome::Saved if !self.session.dirty && self.session.rev() == wait.rev && !self.save_unconfirmed() => {
-                    if let Err(e) = self.execute_user(&wait.then, wait.params) {
+                    // A failed open was already reported by name in `execute_user`.
+                    let is_open = wait.then == "file.open";
+                    if let Err(e) = self.execute_held_back(&wait.then, wait.params)
+                        && !is_open
+                    {
                         self.status(e);
                     }
                 }
@@ -283,9 +296,14 @@ impl WordApp {
     /// The name Save suggests: a Strix file keeps its own extension, and so does a document
     /// opened from another editable format Strix saves (.docx, .odt…) while it has no Strix
     /// objects; anything else (a new document, one opened from a format Strix only reads, one
-    /// with Strix objects) becomes a Strix document, `.xmath` (`.xmathm` for a Word template).
+    /// with Strix objects) becomes a Strix document, `.xmath` (`.xmathm` for a Word template). A
+    /// document never saved and without a title of its own is named after its first words, as
+    /// Word suggests them (#5793), instead of `Document1`.
     pub(crate) fn default_save_name(&self) -> String {
         let ext = self.session.path.as_ref().and_then(|p| p.extension()).map(|e| e.to_string_lossy().to_string());
+        let unnamed = self.session.path.is_none() && self.session.file_name.is_none() && self.session.doc.core.title.trim().is_empty();
+        let first = || self.session.doc.body.iter().filter_map(|b| b.as_para()).map(|p| p.plain_text()).find_map(|t| suggested_stem(&t));
+        let stem = unnamed.then(first).flatten().unwrap_or_else(|| self.title_stem());
         let native = match ext {
             Some(e) if wordcraft_engine::io::is_native(&e) => e,
             Some(e) if wordcraft_engine::io::is_foreign_save(&e) && !wordcraft_engine::strix_objects::has_strix_objects(&self.session.doc) => e,
@@ -294,7 +312,7 @@ impl WordApp {
                 .map_or_else(|| wordcraft_engine::io::NATIVE_DOC_EXT.to_string(), |e| e.to_string_lossy().into_owned()),
             None => wordcraft_engine::io::NATIVE_DOC_EXT.to_string(),
         };
-        format!("{}.{native}", self.title_stem())
+        format!("{stem}.{native}")
     }
 
     /// Say how the print job went, once, in the window showing the printed document.
@@ -331,7 +349,7 @@ impl WordApp {
             let lp = path.to_ascii_lowercase();
             let img = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".wmf", ".emf"].iter().any(|e| lp.ends_with(e));
             let sheet = wordcraft_engine::cmd::mailings::is_spreadsheet_name(&lp);
-            let _ = if img {
+            let opened = if img {
                 self.caret_after_placed_picture(placed_picture);
                 let r = self.run("insert.picture", json!({"path": path}));
                 placed_picture = Self::placed_in_text(&r);
@@ -344,6 +362,11 @@ impl WordApp {
             } else {
                 self.open_file(&path, None)
             };
+            if let Err(e) = opened {
+                self.report_open_failure(&path, &e);
+                // Backstage hides the status bar; leave it so the error shows.
+                self.ui.backstage = false;
+            }
         }
         if self.session.document_id() != before {
             self.autosave_path = None;
@@ -448,4 +471,34 @@ impl WordApp {
             }
         }
     }
+}
+
+/// The most characters a name taken from the text keeps ([`suggested_stem`]).
+const SUGGESTED_MAX: usize = 50;
+
+/// A file name from a paragraph's text (#5793): up to its first sentence or clause end
+/// (`.`, `!`, `?`, `;`, `:` and their full-width forms) or line break, without the characters a
+/// file name can't hold (`\ / : * ? " < > |` and controls), white space collapsed, at most
+/// [`SUGGESTED_MAX`] characters cut at a word's end, and no dot or space at either end (Windows
+/// drops them). `None` when nothing is left, so the next paragraph, or `Document1`, is used.
+pub(crate) fn suggested_stem(text: &str) -> Option<String> {
+    let end = |c: char| matches!(c, '.' | '!' | '?' | ';' | ':' | '\n' | '\r' | '\u{0B}' | '\u{2029}' | '。' | '！' | '？' | '；' | '：');
+    let head = text.split(end).next().unwrap_or("");
+    let kept: String = head.chars().map(|c| if c.is_control() || matches!(c, '\\' | '/' | '*' | '"' | '<' | '>' | '|') { ' ' } else { c }).collect();
+    let mut words = String::new();
+    for w in kept.split_whitespace() {
+        let next = if words.is_empty() { w.chars().count() } else { words.chars().count() + 1 + w.chars().count() };
+        if next > SUGGESTED_MAX {
+            if words.is_empty() {
+                words = w.chars().take(SUGGESTED_MAX).collect();
+            }
+            break;
+        }
+        if !words.is_empty() {
+            words.push(' ');
+        }
+        words.push_str(w);
+    }
+    let words = words.trim_matches(|c: char| c == '.' || c.is_whitespace()).to_string();
+    (!words.is_empty()).then_some(words)
 }

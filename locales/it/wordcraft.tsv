@@ -2948,7 +2948,7 @@ preview	Title	Esempio
 	Light orange	Arancione chiaro
 	Light grey	Grigio chiaro
 	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Metti il cursore in un foglio a quadretti (o in una pagina con lo sfondo a quadretti) per vederne le proprietà.
-	A grid from the cursor to the end of the page	Una quadrettatura dal cursore alla fine della pagina
+	A grid from the cursor to the end of the page	Una griglia dal cursore alla fine della pagina
 	Placement	Posizione
 	Square size	Interasse
 	Grid lines	Linee
@@ -3121,8 +3121,8 @@ paper	Envelope DL	Busta DL
 	Exercise Info	Informazioni sull'esercizio
 	File type	Tipo di file
 	Folder path	Percorso della cartella
-	Graph Paper Pane	Riquadro Carta millimetrata
-	Graph Paper at Cursor	Carta millimetrata al cursore
+	Graph Paper Pane	Riquadro Foglio a quadretti
+	Graph Paper at Cursor	Foglio a quadretti al cursore
 	Imported 1 source	1 fonte importata
 	Imported {n} sources	{n} fonti importate
 	Local recovery is unavailable or still loading.	Il recupero locale non è disponibile o è ancora in caricamento.
@@ -3169,7 +3169,7 @@ paper	Envelope DL	Busta DL
 	You have version {version}.	Hai la versione {version}.
 	an exercise goes in the body, outside tables	un esercizio va nel corpo del testo, fuori dalle tabelle
 	installed	installato
-	no graph paper at the cursor	nessuna carta millimetrata al cursore
+	no graph paper at the cursor	nessun foglio a quadretti al cursore
 	not available: the cursor isn't in an exercise	non disponibile: il cursore non è in un esercizio
 	select a CAD drawing first	seleziona prima un disegno CAD
 	the cursor isn't in an exercise	il cursore non è in un esercizio
@@ -3181,11 +3181,11 @@ paper	Envelope DL	Busta DL
 	Parts Shown	Parti visibili
 	Frontispiece	Frontespizio
 	Solution	Risoluzione
-	Graph paper	Quadrettatura
-	Exercise Graph Paper	Quadrettatura dell'esercizio
+	Graph paper	Foglio a quadretti
+	Exercise Graph Paper	Foglio a quadretti dell'esercizio
 	The working under each question; hidden, it stays in the document	Il procedimento sotto ogni domanda; nascosto, resta nel documento
 	The exercise's lines in the results summary	Le righe dell'esercizio nel riepilogo dei risultati
-	Graph paper after the questions, before the solution	Quadrettatura dopo le domande, prima della risoluzione
+	Graph paper after the questions, before the solution	Foglio a quadretti dopo le domande, prima della risoluzione
 	A series: these settings are the same for every exercise, and a new exercise takes them.	Una serie: queste impostazioni valgono per tutti gli esercizi, e un esercizio nuovo le prende.
 	Hidden parts stay in the document as hidden text.	Le parti nascoste restano nel documento come testo nascosto.
 	Pages of your own before the exercises: title, class, date, instructions	Pagine tue prima degli esercizi: titolo, classe, data, istruzioni
@@ -3196,10 +3196,10 @@ paper	Envelope DL	Busta DL
 	Rounding	Arrotondamento
 	Show	Mostra
 	Results in the Summary	Risultati nel riepilogo
-	Graph Paper Before the Solution	Quadrettatura prima della risoluzione
+	Graph Paper Before the Solution	Foglio a quadretti prima della risoluzione
 	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Scegli cosa mostra l'esercizio (tutti gli esercizi in una serie): le parti nascoste restano nel documento come testo nascosto
 	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Pagine tue prima degli esercizi (titolo, classe, data, istruzioni), chiuse da un'interruzione di frontespizio
-	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e quadrettatura, nel riquadro Proprietà esercizio
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e foglio a quadretti, nel riquadro Proprietà esercizio
 	Show the substitution steps of every calculation: the formula with its values, then the result	Mostra i passaggi di ogni calcolo: la formula con i valori, poi il risultato
 	Series	Serie
 	For every exercise of the series: a new exercise takes these settings too.	Per tutti gli esercizi della serie: anche un esercizio nuovo prende queste impostazioni.
@@ -3240,7 +3240,7 @@ paper	Envelope DL	Busta DL
 	Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size	Cambiando unità le coordinate mantengono i numeri (il disegno si ingrandisce o si rimpicciolisce); disattivato, vengono convertite e il disegno mantiene le sue dimensioni
 	Marks	Terminali
 	Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them.	Tutti gli esercizi della serie hanno le stesse impostazioni, quelle del primo esercizio: una modifica vale per tutti e un esercizio nuovo le prende.
-	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e quadrettatura sono della serie: vedi la scheda Serie.
+	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e foglio a quadretti sono della serie: vedi la scheda Serie.
 	Select Exercise	Seleziona esercizio
 	The whole exercise goes: its statement, questions and solution (Undo brings it back)	Se ne va l'intero esercizio: testo, domande e risoluzione (Annulla lo riporta)
 	Strix Writer {version}	Strix Writer {version}
@@ -3292,3 +3292,110 @@ paper	Envelope DL	Busta DL
 	Remove a criterion and its points from the scores table	Rimuovi una voce e i suoi punti dalla tabella dei punteggi
 	This section's first page has a header and footer of its own	La prima pagina di questa sezione ha intestazione e piè di pagina propri
 	Even pages have a header and footer of their own (the whole document)	Le pagine pari hanno intestazione e piè di pagina propri (tutto il documento)
+
+# 2026-11-11: strings from the upstream merge and Strix's Teaching, scores, update and CAD panes.
+	Add Blank Paragraphs Between	Aggiungi paragrafi vuoti intermedi
+	Insert Blank Paragraphs Between	Inserisci paragrafi vuoti intermedi
+	Add a language…	Aggiungi una lingua…
+	An installed Language pack is used after this folder.	Un pacchetto lingua installato viene usato dopo questa cartella.
+	Applies the next time Strix starts.	Si applica al prossimo avvio di Strix.
+	Arrange All	Disponi tutto
+	Bright Green	Verde brillante
+	Built in	Integrato
+	Convert Indents to Spaces	Converti rientri in spazi
+	Convert Line Breaks to Paragraphs	Converti interruzioni di riga in paragrafi
+	Convert Spaces to Indentation	Converti spazi in rientro
+	Corporate Author	Autore collettivo
+	Dark Blue	Blu scuro
+	Dark Red	Rosso scuro
+	Dark Yellow	Giallo scuro
+	Delete Blank Paragraphs	Elimina paragrafi vuoti
+	Delete Blank Paragraphs in the Whole Document	Elimina paragrafi vuoti in tutto il documento
+	Delete Previous Sentence	Elimina frase precedente
+	Dictionary files	File dei dizionari
+	Display server:	Server grafico:
+	Document background	Sfondo del documento
+	Drawing Name	Nome del disegno
+	Emphasis Mark	Segno di enfasi
+	English, the languages of this document and every installed Language pack. Language packs add spelling dictionaries and hyphenation.	L'inglese, le lingue di questo documento e ogni pacchetto lingua installato. I pacchetti lingua aggiungono dizionari ortografici e sillabazione.
+	Flat OpenDocument Text (*.fodt)	Testo OpenDocument piatto (*.fodt)
+	Gray-25%	Grigio 25%
+	Gray-50%	Grigio 50%
+	Header & Footer Options	Opzioni intestazione e piè di pagina
+	Ignore Once	Ignora una volta
+	Indent Leading Spaces	Rientra gli spazi iniziali
+	Indents to Leading Spaces	Rientri in spazi iniziali
+	Install Language Pack	Installa pacchetto lingua
+	Inverse	Inverso
+	Item Color	Colore elemento
+	Join Lines	Unisci righe
+	Language Packs	Pacchetti lingua
+	Language data	Dati linguistici
+	Language packs aren't available in the browser	I pacchetti lingua non sono disponibili nel browser
+	Language packs need the font store folder, and there is none on this computer.	I pacchetti lingua richiedono la cartella dell'archivio dei caratteri, che su questo computer non c'è.
+	Linux display server	Server grafico di Linux
+	Macro name:	Nome macro:
+	Missing Fonts	Caratteri mancanti
+	More options	Altre opzioni
+	Not in Dictionary	Non nel dizionario
+	OpenDocument Text Template (*.ott)	Modello di testo OpenDocument (*.ott)
+	Paragraph\nTools	Strumenti\nparagrafo
+	Paragraph Tools	Strumenti paragrafo
+	Record…	Registra…
+	Remove Extra Spaces	Rimuovi spazi in eccesso
+	Remove Extra Spaces in the Whole Document	Rimuovi spazi in eccesso in tutto il documento
+	Remove Language Pack	Rimuovi pacchetto lingua
+	Remove Leading Spaces	Rimuovi spazi iniziali
+	Remove Leading Spaces in the Whole Document	Rimuovi spazi iniziali in tutto il documento
+	Remove Line Breaks	Rimuovi interruzioni di riga
+	Run	Esegui
+	Scores Table	Tabella punteggi
+	Screen Paper Color	Colore carta a schermo
+	Screen only. Document backgrounds, printing and exports keep their colours. Dark page and explicit Read Mode colours take precedence.	Solo a schermo. Sfondi del documento, stampa ed esportazioni mantengono i loro colori. La pagina scura e i colori scelti per la Modalità di lettura hanno la precedenza.
+	Screen paper color:	Colore carta a schermo:
+	Select Canvas Member	Seleziona elemento dell'area di disegno
+	Separate Paragraphs	Separa paragrafi
+	Sepia	Seppia
+	Set as Default Language	Imposta come lingua predefinita
+	Set the colors in the Text Pane to use custom colors.	Imposta i colori nel Riquadro di testo per usare colori personalizzati.
+	Shape color	Colore forma
+	Shown in substitute fonts. Click for details.	Mostrato con caratteri sostitutivi. Fai clic per i dettagli.
+	Split Lines into Paragraphs	Dividi le righe in paragrafi
+	Status bar	Barra di stato
+	Status bar count:	Conteggio nella barra di stato:
+	Strict Export Report	Rapporto di esportazione rigorosa
+	Suggestions	Suggerimenti
+	Synchronous Scrolling	Scorrimento sincrono
+	The spelling and hyphenation data Strix uses, and their licences.	I dati di ortografia e sillabazione usati da Strix e le loro licenze.
+	There are no macros yet. Record one to add it here.	Non ci sono ancora macro. Registrane una per aggiungerla qui.
+	Turquoise	Turchese
+	View Side by Side	Affianca
+	You can also right-click the count in the status bar to change it.	Puoi anche fare clic destro sul conteggio nella barra di stato per cambiarlo.
+	Your languages	Le tue lingue
+	a shape inside a drawing canvas is placed by the canvas	una forma dentro un'area di disegno è posizionata dall'area
+	only the desktop app has several windows	solo l'app desktop ha più finestre
+	turn on View Side by Side first	attiva prima Affianca
+	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} non è installato su questo computer, quindi il suo testo è mostrato in {shown}. Le interruzioni di riga e il numero di pagine possono essere diversi da quelli del computer dove il documento è stato creato. Se hai il file del carattere, aggiungilo con Aggiungi carattere… in fondo a questo elenco.
+	{language} (default)	{language} (predefinita)
+	{n} KB	{n} KB
+	All on	Tutti attivi
+	All off	Tutti disattivi
+	Arc, 3 points	Arco, 3 punti
+	Arc 3 points: start point	Arco 3 punti: punto iniziale
+	Arc 3 points: a point on the arc	Arco 3 punti: un punto dell'arco
+	Arc 3 points: end point	Arco 3 punti: punto finale
+	Arc: centre (or a3p, sce, ser)	Arco: centro (oppure a3p, sce, ser)
+	Arc: end point	Arco: punto finale
+	Arc: radius (a point or a number)	Arco: raggio (un punto o un numero)
+	Arc: start, a point on it, end	Arco: inizio, un punto dell'arco, fine
+	Arc, start centre end	Arco, inizio centro fine
+	Arc: start, centre, end (counter-clockwise)	Arco: inizio, centro, fine (antiorario)
+	Arc, start end radius	Arco, inizio fine raggio
+	Arc: start, end, radius	Arco: inizio, fine, raggio
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Un nome breve per il disegno (lettere, cifre e trattini), mostrato nell'elenco dei sottomano
+	Centre, Start, End	Centro, inizio, fine
+	Start, Centre, End	Inizio, centro, fine
+	Start, End, Radius	Inizio, fine, raggio
+	The arc has no size	L'arco non ha dimensione
+	The start and end are the same point	L'inizio e la fine sono lo stesso punto
+	The three points are in line	I tre punti sono allineati

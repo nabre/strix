@@ -324,7 +324,7 @@ pub(super) fn symbols_group(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
             items.truncate(30);
-            egui::Grid::new("syms").show(ui, |ui| {
+            crate::rtl::grid(ui, egui::Grid::new("syms"), |ui| {
                 for (i, (c, font)) in items.iter().enumerate() {
                     let b = ui.button(egui::RichText::new(c).size(16.0));
                     let b = if font.is_empty() { b } else { b.on_hover_text(font) };

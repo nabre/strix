@@ -28,7 +28,7 @@ pub fn caret_lang(s: &Session) -> Option<String> {
 pub fn source_for(lang: Option<&str>) -> Result<&'static strix_dictionaries::Source, CmdError> {
     strix_dictionaries::source_for(lang).ok_or_else(|| {
         let shown = lang.filter(|l| !l.is_empty()).unwrap_or("en-US");
-        if wordcraft_proof::has_dictionary(lang) && wordcraft_proof::downloads::hunspell_name(lang).is_none() {
+        if wordcraft_proof::has_dictionary(lang) && strix_dictionaries::downloads::hunspell_name(lang).is_none() {
             CmdError::Failed(format!("{shown}: spelling needs no dictionary to download"))
         } else {
             CmdError::Failed(format!("{shown}: Strix has no spelling dictionary to download for this language"))
@@ -38,9 +38,9 @@ pub fn source_for(lang: Option<&str>) -> Result<&'static strix_dictionaries::Sou
 
 /// Download `src` into the user's dictionaries folder and read the dictionaries again. Blocks.
 pub fn download(src: &strix_dictionaries::Source) -> Result<std::path::PathBuf, CmdError> {
-    let dir = wordcraft_proof::downloads::user_dictionaries_dir().ok_or_else(|| CmdError::Failed("no folder to save dictionaries in".into()))?;
+    let dir = strix_dictionaries::downloads::download_dir().ok_or_else(|| CmdError::Failed("no folder to save dictionaries in".into()))?;
     let file = fetch(src, &dir).map_err(CmdError::Failed)?;
-    wordcraft_proof::downloads::reload_dictionaries();
+    strix_dictionaries::downloads::reload_dictionaries();
     Ok(file)
 }
 
@@ -99,7 +99,7 @@ mod tests {
         assert!(e.contains("no spelling dictionary"), "{e}");
         // The caret's language (the status bar's): Italian here. Tests never download, so the
         // answer is the download's error unless it is installed already.
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(super::caret_lang(&s).as_deref(), Some("it-IT"));
         assert_eq!(super::source_for(Some("it-IT")).map(|x| x.name).ok(), Some("it_IT"));
         match s.run("proof.downloadDictionary", &json!({})) {

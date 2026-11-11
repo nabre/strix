@@ -238,6 +238,28 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed
 }
 
+/// The document's language changed: every criterion `rename` gives a new name (a default one, in
+/// another language) takes it, and the tables are rebuilt with the new words. Whether anything
+/// changed.
+pub(super) fn follow_language(s: &mut Session, rename: impl Fn(&str) -> Option<&'static str>) -> bool {
+    let mut changed = false;
+    for i in tables(s) {
+        let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { continue };
+        let mut m = read(t);
+        for c in &mut m.criteria {
+            if let Some(new) = rename(c) {
+                *c = new.to_string();
+            }
+        }
+        changed |= put(s, i, &m);
+    }
+    if changed {
+        s.touch();
+        s.clamp_selection();
+    }
+    changed
+}
+
 /// The scores table the caret is in, else the document's first.
 fn target(s: &Session) -> Option<usize> {
     let all = tables(s);
@@ -423,7 +445,7 @@ mod tests {
     fn a_scores_table_gathers_the_exercises_and_adds_up() {
         let mut s = Session::new(Document::new());
         run(&mut s, "document.setText", json!({"text": "Verifica"}));
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         run(&mut s, "caret.docEnd", json!({}));
         run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
         // One exercise, one criterion: no totals.

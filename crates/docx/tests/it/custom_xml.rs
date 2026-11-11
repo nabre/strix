@@ -1,4 +1,3 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Original synthetic custom XML stores, written from the public OOXML package contract.
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read, Write};
@@ -50,7 +49,7 @@ fn unzip(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
     let mut parts = BTreeMap::new();
     for i in 0..z.len() {
         let mut f = z.by_index(i).unwrap();
-        let name = f.name().unwrap().to_string();
+        let name = f.name().to_string();
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes).unwrap();
         assert!(parts.insert(name, bytes).is_none(), "duplicate ZIP entry");

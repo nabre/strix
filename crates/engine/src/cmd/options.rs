@@ -235,7 +235,7 @@ pub fn current(s: &Session) -> Value {
         "userTemplatesFolder": pr.user_templates_folder,
         "dictionaries": wordcraft_proof::installed_dictionaries()
             .into_iter()
-            .map(|(lang, dic)| json!({"language": lang.code(), "file": dic.map(|d| d.to_string_lossy().into_owned())}))
+            .map(|(lang, dic)| json!({"language": lang.tag(), "file": dic.map(|d| d.to_string_lossy().into_owned())}))
             .collect::<Vec<_>>(),
     })
 }
@@ -272,7 +272,8 @@ fn folder_setting(key: &str, f: &str, local_only: bool) -> Result<Option<String>
 }
 
 /// Search `folder` for Hunspell dictionaries before the system locations, from now on (the saved
-/// setting, applied when the app starts and when it changes).
+/// setting, applied when the app starts and when it changes). Without one, Strix's own folder of
+/// downloaded dictionaries (`strix_dictionaries::downloads`).
 pub fn use_dictionaries_folder(folder: Option<&str>) {
-    wordcraft_proof::set_dictionaries_folder(folder.map(std::path::PathBuf::from));
+    strix_dictionaries::downloads::use_folder(folder);
 }

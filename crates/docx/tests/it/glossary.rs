@@ -1,10 +1,10 @@
-// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The glossary document (ECMA-376 §17.12: building blocks, Quick Parts, AutoText): kept byte
 //! for byte while unchanged, read into `Document::glossary`, and written from the model once
 //! edited. Hand-written fixtures (from the spec), no files produced by Word.
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 use wordcraft_doc::{Block, BuildingBlock, CharProps, Document, Paragraph, para_block};
 
@@ -30,7 +30,7 @@ fn unzip(bytes: &[u8]) -> BTreeMap<String, Vec<u8>> {
         let mut f = z.by_index(i).unwrap();
         let mut b = Vec::new();
         f.read_to_end(&mut b).unwrap();
-        assert!(out.insert(f.name().unwrap().to_string(), b).is_none(), "duplicate part {}", f.name().unwrap());
+        assert!(out.insert(f.name().to_string(), b).is_none(), "duplicate part {}", f.name());
     }
     out
 }
@@ -192,7 +192,7 @@ fn glossary_entries_are_read_into_the_model() {
 fn edited_glossary_is_written_from_the_model() {
     let mut doc = wordcraft_docx::read(&with_glossary()).unwrap();
     doc.glossary[0].name = "Sign-off".into();
-    let num = doc.numbering.add_list(wordcraft_doc::ListKind::Bullet);
+    let num = Arc::make_mut(&mut doc.numbering).add_list(wordcraft_doc::ListKind::Bullet);
     let mut listed = Paragraph::with_text("Second line", CharProps::default());
     listed.props.numbering = Some(wordcraft_doc::props::NumRef { num, level: 0 });
     doc.glossary.push(BuildingBlock {
@@ -559,4 +559,24 @@ fn a_private_save_keeps_character_references_in_attribute_values_as_written() {
     assert!(!g.contains("Quill Ramsey") && g.contains(r#"w:val="line1&#10;line2&#9;end""#), "{g}");
     let again = wordcraft_docx::read(&saved).unwrap();
     assert_eq!(again.glossary.first().map(|e| e.description.as_str()), Some(before.as_str()));
+}
+
+/// A picture in a building block that names a part the package lacks is recorded against the
+/// glossary part, not the main document (#6005).
+#[test]
+fn a_missing_picture_in_a_building_block_names_the_glossary_part() {
+    let drawing = r#"<w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="254000" cy="254000"/><wp:docPr id="1" name="P"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="p"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdPic"/></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="254000" cy="254000"/></a:xfrm><a:prstGeom prst="rect"/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"#;
+    let part =
+        format!(r#"<w:docPart><w:docPartPr><w:name w:val="Logo"/></w:docPartPr><w:docPartBody><w:p>{drawing}</w:p></w:docPartBody></w:docPart>"#);
+    let bytes = package(
+        &[("rId7", GLOSSARY_REL, "glossary/document.xml")],
+        &[
+            ("[Content_Types].xml", content_types(&[("/word/glossary/document.xml", GLOSSARY_CT)])),
+            ("word/glossary/document.xml", glossary_xml(&part)),
+            ("word/glossary/_rels/document.xml.rels", rels(&[("rIdPic", &format!("{REL}/image"), "media/gone.png")])),
+        ],
+    );
+    let d = wordcraft_docx::read(&bytes).unwrap();
+    let stories: Vec<&str> = d.missing_pictures.list.iter().map(|m| m.story.as_str()).collect();
+    assert_eq!(stories, ["word/glossary/document.xml"], "{:?}", d.missing_pictures.list);
 }

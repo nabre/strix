@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix architecture
 
-> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (a push to `main` skips the checks a PR already passed on the same code; previously minor: each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
+> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (WordCraft 0.17.0 merged: proofing is the external `craft-proof` (storytold/craft-libs) instead of `crates/proof`; previously minor: a push to `main` skips the checks a PR already passed on the same code; previously minor: each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
 
 How Strix is built today (origin/main `40c5d51`). The longer design notes in
 `plan/architecture.md` are gitignored and local to the original author's machine; this file is the
@@ -21,7 +21,7 @@ winit or rfd.
 | L1 | `calc` | | Live calculations with units: calc regions, calculated tables (header formulas, ordinal column, total row, index row) |
 | L1 | `cad` | | 2D drafting model (drawing units, scale, layers, entities, dimensions, levels), editing kernel, rendering to a neutral item list and SVG; builds on `calc` |
 | L1 | `metafile` | | WMF/EMF reader into a neutral vector model |
-| L1 | `proof` | 3.8k | Proofing per language (`ProofLang` from a run's `w:lang`): English (public-domain word list) and Polish (installed Hunspell dictionary through a Hunspell-style affix engine) spelling and suggestions, rule-based grammar for both, hyphenation dictionary and Liang patterns (English, Polish) |
+| L1 (external) | [`craft-proof`](https://github.com/storytold/craft-libs/tree/main/crates/proof) (package alias `wordcraft-proof`) | — | Proofing moved to craft-libs (CP1, 2026-11): fifteen spelling dictionaries: English (US, GB, CA), Polish, Portuguese, Italian, Croatian, Turkish, Russian, Czech, Indonesian and Spanish (Spain, Mexico, Latin America, Uruguay); language modules provide spelling, suggestions and grammar, while Bulgarian and German have hyphenation only. Its word lists and patterns are craft-i18n's `language-data/`, embedded from `CRAFT_I18N_DIR` at the commit in `craft-i18n.rev` (CI and releases set `CRAFT_I18N_REQUIRED=1`); without them English spelling falls back to an installed Hunspell English or craft-proof's built-in Moby list, and pattern hyphenation is off (Bulgarian, Turkish and Russian hyphenate by rule) |
 | L2 | `layout` | 9.6k | Shaping runs, line breaking, tabs, lists, tables (row splitting, floating tables), pagination, headers/footers, notes, floating objects and wrap, math layout, fields, hit testing; produces a display list |
 | L2 | `docx` | 8.4k | OOXML WordprocessingML reader and writer (Transitional and Strict namespaces, `.docx/.docm/.dotx/.dotm`), OMML, custom properties, VBA parts preserved |
 | L2 | `docbin` | 4.4k | Word 97-2003 `.doc` reader ([MS-DOC]: FIB, piece table, FKPs, SPRMs, stylesheet, lists, tables, notes, pictures) over a CFB container |
@@ -57,8 +57,9 @@ winit or rfd.
 
 - 821 `#[test]` functions and 10 property-test blocks: model, layout, DOCX round-trip and hostile
   input, `.doc`, formats, typing parity (`engine/src/tests/typing.rs`), bidi, i18n catalogs, UI
-  interaction (egui_kittest), MCP acceptance; `hostile_params_never_panic` runs every command with
-  junk params.
+  interaction (egui_kittest), MCP acceptance; `hostile_file_params_never_panic` runs `file.*`,
+  `insert.picture` and `insert.textFromFile` with junk params and unusable paths, held to a
+  temporary folder, and `hostile_params_never_panic` every other command with junk params.
 - `cargo xtask ci`: fmt, clippy `-D warnings`, tests, asset attribution, the GitHub workflows
   (`cargo xtask workflows`: outside actions pinned to one commit each, one craft-fonts commit
   everywhere), layering, wasm build.
@@ -78,6 +79,7 @@ winit or rfd.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-10 | minor | WordCraft 0.17.0 merged: `crates/proof` left the workspace for the external `craft-proof` (storytold/craft-libs, still named `wordcraft-proof`), its word lists and patterns from craft-i18n's `language-data/` (`CRAFT_I18N_DIR`); the file-command hostile-parameter test |
 | 2026-11-10 | minor | A push to `main` doesn't run again CI, Printing and Packaging lint when a PR already passed them on the same tree (`tested-tree.yml`) |
 | 2026-11-10 | minor | One release workflow: a version without a release on `main` is merged into `release`, built signed and published with every package |
 | 2026-11-10 | minor | Each check runs once across the workflows (release reads CI and the nightlies instead of running them again); `cargo xtask workflows` in `cargo xtask ci` |

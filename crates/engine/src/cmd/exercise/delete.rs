@@ -248,7 +248,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 

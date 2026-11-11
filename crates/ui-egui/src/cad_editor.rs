@@ -95,6 +95,66 @@ impl CircleMode {
     }
 }
 
+/// How an arc is drawn (the Arc button's ways). Arcs run counter-clockwise from their start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ArcMode {
+    /// Its centre, its start, a point in the direction of its end.
+    #[default]
+    CentreStartEnd,
+    /// Its start, a point it passes through, its end.
+    ThreePoints,
+    /// Its start, its centre, a point in the direction of its end.
+    StartCentreEnd,
+    /// Its start, its end, then the radius (a point that far from the end, or a number).
+    StartEndRadius,
+}
+
+impl ArcMode {
+    /// Every way, in the order the Arc button's menu lists them.
+    pub const ALL: [ArcMode; 4] = [ArcMode::ThreePoints, ArcMode::CentreStartEnd, ArcMode::StartCentreEnd, ArcMode::StartEndRadius];
+
+    /// Its `ui.cadTool` name ([`Tool::parse`] reads it back).
+    pub fn tool_param(self) -> &'static str {
+        match self {
+            ArcMode::CentreStartEnd => "arc",
+            ArcMode::ThreePoints => "arc3p",
+            ArcMode::StartCentreEnd => "arcSce",
+            ArcMode::StartEndRadius => "arcSer",
+        }
+    }
+
+    /// Its name in the Arc menu.
+    fn label(self) -> &'static str {
+        match self {
+            ArcMode::CentreStartEnd => "Centre, Start, End",
+            ArcMode::ThreePoints => "3 Points",
+            ArcMode::StartCentreEnd => "Start, Centre, End",
+            ArcMode::StartEndRadius => "Start, End, Radius",
+        }
+    }
+
+    /// What the Arc button's top part does in this way (its tooltip).
+    fn tip(self) -> &'static str {
+        match self {
+            ArcMode::CentreStartEnd => "Arc: centre, start, end (counter-clockwise)",
+            ArcMode::ThreePoints => "Arc: start, a point on it, end",
+            ArcMode::StartCentreEnd => "Arc: start, centre, end (counter-clockwise)",
+            ArcMode::StartEndRadius => "Arc: start, end, radius",
+        }
+    }
+
+    /// Its icon (`icons.rs`).
+    fn icon(self) -> &'static str {
+        match self {
+            ArcMode::CentreStartEnd => "cadArc",
+            ArcMode::ThreePoints => "cadArc3P",
+            ArcMode::StartCentreEnd => "cadArcSCE",
+            ArcMode::StartEndRadius => "cadArcSER",
+        }
+    }
+}
+
 /// The sheet the drawing is drawn on: paper white in both themes, like the page. Line samples
 /// in the panes are drawn on it too, so a dark line reads in the dark theme.
 pub(crate) const SHEET: Color32 = Color32::WHITE;
@@ -109,7 +169,7 @@ pub enum Tool {
     Polyline,
     Rect,
     Circle(CircleMode),
-    Arc,
+    Arc(ArcMode),
     Point,
     Text,
     Dim(Orient),
@@ -192,7 +252,10 @@ impl Tool {
             "circle3p" | "3p" => Tool::Circle(CircleMode::ThreePoints),
             "circleTtr" | "ttr" => Tool::Circle(CircleMode::TanTanRadius),
             "circleTtt" | "ttt" => Tool::Circle(CircleMode::TanTanTan),
-            "arc" | "a" | "arco" => Tool::Arc,
+            "arc" | "a" | "arco" => Tool::Arc(ArcMode::CentreStartEnd),
+            "arc3p" | "a3p" => Tool::Arc(ArcMode::ThreePoints),
+            "arcSce" | "arcsce" | "sce" => Tool::Arc(ArcMode::StartCentreEnd),
+            "arcSer" | "arcser" | "ser" => Tool::Arc(ArcMode::StartEndRadius),
             "point" | "po" | "punto" => Tool::Point,
             "text" | "t" | "testo" => Tool::Text,
             "dim" | "dimAligned" | "quota" => Tool::Dim(Orient::Aligned),
@@ -252,9 +315,18 @@ impl Tool {
             (Tool::Circle(CircleMode::TanTanTan), 0) => "Tan, tan, tan: pick the first object",
             (Tool::Circle(CircleMode::TanTanTan), 1) => "Tan, tan, tan: pick the second object",
             (Tool::Circle(CircleMode::TanTanTan), _) => "Tan, tan, tan: pick the third object",
-            (Tool::Arc, 0) => "Arc: centre",
-            (Tool::Arc, 1) => "Arc: start point",
-            (Tool::Arc, _) => "Arc: end point (counter-clockwise)",
+            (Tool::Arc(ArcMode::CentreStartEnd), 0) => "Arc: centre (or a3p, sce, ser)",
+            (Tool::Arc(ArcMode::CentreStartEnd), 1) => "Arc: start point",
+            (Tool::Arc(ArcMode::CentreStartEnd), _) => "Arc: end point (counter-clockwise)",
+            (Tool::Arc(ArcMode::ThreePoints), 0) => "Arc 3 points: start point",
+            (Tool::Arc(ArcMode::ThreePoints), 1) => "Arc 3 points: a point on the arc",
+            (Tool::Arc(ArcMode::ThreePoints), _) => "Arc 3 points: end point",
+            (Tool::Arc(ArcMode::StartCentreEnd), 0) => "Arc: start point",
+            (Tool::Arc(ArcMode::StartCentreEnd), 1) => "Arc: centre",
+            (Tool::Arc(ArcMode::StartCentreEnd), _) => "Arc: end point (counter-clockwise)",
+            (Tool::Arc(ArcMode::StartEndRadius), 0) => "Arc: start point",
+            (Tool::Arc(ArcMode::StartEndRadius), 1) => "Arc: end point",
+            (Tool::Arc(ArcMode::StartEndRadius), _) => "Arc: radius (a point or a number)",
             (Tool::Point, _) => "Point: location",
             (Tool::Text, 0) => "Text: position",
             (Tool::Text, _) => "Text: type the text and press Enter",
@@ -333,7 +405,7 @@ pub struct CadEditor {
     /// The drawing point at the centre of the view, and screen points per drawing unit.
     center: Pt,
     zoom: f64,
-    fitted: bool,
+    pub(crate) fitted: bool,
     /// The tab shown before the editor opened.
     pub prev_tab: Option<String>,
     /// The selection of the last command (`P`), and the steps of this one (`U`).
@@ -362,6 +434,8 @@ pub struct CadEditor {
     pub last_tool: Option<Tool>,
     /// The way the last circle was started: the Circle button's top part starts it again.
     pub circle_mode: CircleMode,
+    /// The way the last arc was started: the Arc button's top part starts it again.
+    pub arc_mode: ArcMode,
     /// The paired buttons' last commands.
     pub picks: Picks,
     /// What the Properties pane works on.
@@ -383,6 +457,8 @@ pub struct CadEditor {
     menu_point: bool,
     /// A field of the Properties pane has the keyboard: the editor's keys stay out of it.
     pub(crate) panel_typing: bool,
+    /// A name typed in the Properties pane, given after the frame (`cad.name`).
+    pub(crate) rename: Option<String>,
     /// The distance Offset uses (drawing units; a number typed changes it).
     pub offset_dist: f64,
     /// Fillet's radius and Chamfer's distance (drawing units; a number typed changes them).
@@ -410,6 +486,8 @@ pub struct CadEditor {
 #[serde(default, rename_all = "camelCase")]
 pub struct Picks {
     pub line_tan: bool,
+    /// Polyline on the Line button (it beats Tangent Line when on).
+    pub polyline: bool,
     pub extend: bool,
     pub chamfer: bool,
     pub polar: bool,
@@ -421,7 +499,11 @@ impl Picks {
     /// Remembers `tool` when it is one of a pair.
     fn note(&mut self, tool: Tool) {
         match tool {
-            Tool::Line | Tool::LineTan => self.line_tan = tool == Tool::LineTan,
+            Tool::Line | Tool::LineTan => {
+                self.line_tan = tool == Tool::LineTan;
+                self.polyline = false;
+            }
+            Tool::Polyline => self.polyline = true,
             Tool::Trim | Tool::Extend => self.extend = tool == Tool::Extend,
             Tool::Fillet | Tool::Chamfer => self.chamfer = tool == Tool::Chamfer,
             Tool::ArrayRect | Tool::ArrayPolar => self.polar = tool == Tool::ArrayPolar,
@@ -453,6 +535,8 @@ pub struct CadSettings {
     pub array_count: usize,
     /// The Circle button's way (the last one chosen).
     pub circle_mode: CircleMode,
+    /// The Arc button's way (the last one chosen).
+    pub arc_mode: ArcMode,
     /// The paired buttons' commands (the last ones chosen).
     pub picks: Picks,
 }
@@ -503,6 +587,7 @@ impl Default for CadSettings {
             array_rows: 2,
             array_count: 6,
             circle_mode: CircleMode::Radius,
+            arc_mode: ArcMode::default(),
             picks: Picks::default(),
         }
     }
@@ -527,6 +612,7 @@ impl CadEditor {
             array_rows: self.array_rows,
             array_count: self.array_count,
             circle_mode: self.circle_mode,
+            arc_mode: self.arc_mode,
             picks: self.picks,
         }
     }
@@ -574,6 +660,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         snap_once: None,
         last_tool: None,
         circle_mode: kept.circle_mode,
+        arc_mode: kept.arc_mode,
         picks: kept.picks,
         focus: Focus::default(),
         panel: kept.panel,
@@ -591,11 +678,15 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         menu_at: None,
         menu_point: false,
         panel_typing: false,
+        rename: None,
         chain_base: None,
         style_dialog: None,
         space,
         underlay: None,
     });
+    // Drawings are drawn in millimetres: `cad::edited` gives one in centimetres or metres converted
+    // (its real size, dimension texts and expressions kept); the document takes it with the first
+    // change, so opening and closing a drawing changes nothing.
     refresh_underlay(app);
     Ok(())
 }
@@ -697,7 +788,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 .get("tool")
                 .and_then(serde_json::Value::as_str)
                 .and_then(Tool::parse)
-                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, dimContinue, dimBaseline, level, strip, slope, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
+                .ok_or("tool: select, line, lineTan, polyline, rect, circle, circleDiameter, circle2p, circle3p, circleTtr, circleTtt, arc, arc3p, arcSce, arcSer, point, text, dimAligned, dimHorizontal, dimVertical, dimAngular, dimContinue, dimBaseline, level, strip, slope, hatch, move, copy, scale, rotate, mirror, offset, trim, extend, fillet, chamfer, explode, join, matchProp, stretch, arrayRect, arrayPolar")?;
             if let Some(ed) = app.cad.as_mut() {
                 ed.set_tool(tool);
                 if let Some(d) = immediate(ed) {
@@ -705,7 +796,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 }
             }
             // The Circle button's way, as its top part would start it.
-            return Ok(json!({"circle": app.cad.as_ref().map_or(app.cad_settings.circle_mode, |e| e.circle_mode).tool_param()}));
+            let (circle, arc) = app.cad.as_ref().map_or((app.cad_settings.circle_mode, app.cad_settings.arc_mode), |e| (e.circle_mode, e.arc_mode));
+            return Ok(json!({"circle": circle.tool_param(), "arc": arc.tool_param()}));
         }
         "ui.cadToggle" => {
             let what = p.get("what").and_then(serde_json::Value::as_str).unwrap_or_default();
@@ -729,9 +821,23 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "snap.perpendicular" => s.perpendicular = !s.perpendicular,
                     "snap.tangent" => s.tangent = !s.tangent,
                     "snap.nearest" => s.nearest = !s.nearest,
+                    "snaps.on" | "snaps.off" => {
+                        let on = what == "snaps.on";
+                        *s = Snaps {
+                            end: on,
+                            mid: on,
+                            center: on,
+                            node: on,
+                            quadrant: on,
+                            intersection: on,
+                            perpendicular: on,
+                            tangent: on,
+                            nearest: on,
+                        };
+                    }
                     _ => {
                         return Err(
-                            "what: snap, ortho, grid, frame, props, layers or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
+                            "what: snap, ortho, grid, frame, props, layers, snaps.on, snaps.off or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
                                 .into(),
                         );
                     }
@@ -989,12 +1095,16 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             commit(app, &d);
             return Ok(json!({"flipped": n}));
         }
-        "ui.cadUnderlay" | "ui.cadInherit" => {
+        "ui.cadUnderlay" | "ui.cadInherit" | "ui.cadName" => {
             // The drawing's underlay (`cad.underlay`'s params) or its inherited layers and styles
             // (`cad.inherit`'s), on the drawing open in the editor; the underlay read again.
             let Some(pos) = app.cad.as_ref().map(|e| e.pos.clone()) else { return Ok(json!({})) };
             select_drawing(app, &pos);
-            let engine = if id == "ui.cadUnderlay" { "cad.underlay" } else { "cad.inherit" };
+            let engine = match id {
+                "ui.cadUnderlay" => "cad.underlay",
+                "ui.cadName" => "cad.name",
+                _ => "cad.inherit",
+            };
             let out = app.run(engine, p.clone());
             reload(app);
             return out;
@@ -1235,6 +1345,9 @@ impl CadEditor {
         }
         if let Tool::Circle(mode) = tool {
             self.circle_mode = mode;
+        }
+        if let Tool::Arc(mode) = tool {
+            self.arc_mode = mode;
         }
         self.picks.note(tool);
         if tool != Tool::Select {
@@ -1559,6 +1672,8 @@ enum Act {
     Option(SelectOption),
     SnapOnce(Option<SnapKind>),
     Toggle(&'static str),
+    /// Every object snap on or off.
+    AllSnaps(bool),
     Fit,
     Undo,
     Redo,
@@ -1581,7 +1696,10 @@ fn tool_name(tool: Tool) -> &'static str {
         Tool::Circle(CircleMode::ThreePoints) => "Circle, 3 points",
         Tool::Circle(CircleMode::TanTanRadius) => "Circle, tan tan radius",
         Tool::Circle(CircleMode::TanTanTan) => "Circle, tan tan tan",
-        Tool::Arc => "Arc",
+        Tool::Arc(ArcMode::CentreStartEnd) => "Arc",
+        Tool::Arc(ArcMode::ThreePoints) => "Arc, 3 points",
+        Tool::Arc(ArcMode::StartCentreEnd) => "Arc, start centre end",
+        Tool::Arc(ArcMode::StartEndRadius) => "Arc, start end radius",
         Tool::Point => "Point",
         Tool::Text => "Text",
         Tool::Dim(Orient::Aligned) => "Aligned dimension",
@@ -1804,6 +1922,9 @@ fn apply(app: &mut WordApp, a: Act) {
         Act::Close => close(app),
         Act::Toggle(what) => {
             let _ = app.run("ui.cadToggle", json!({"what": what}));
+        }
+        Act::AllSnaps(on) => {
+            let _ = app.run("ui.cadToggle", json!({"what": if on { "snaps.on" } else { "snaps.off" }}));
         }
         other => {
             let Some(ed) = app.cad.as_mut() else { return };
@@ -2035,6 +2156,12 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     if let Some(a) = act {
         apply(app, a);
     }
+    if let Some(name) = app.cad.as_mut().and_then(|e| e.rename.take())
+        && let Err(e) = app.run("ui.cadName", json!({"name": name}))
+        && let Some(ed) = app.cad.as_mut()
+    {
+        ed.message = e;
+    }
     if close_now {
         close(app);
     }
@@ -2203,6 +2330,39 @@ pub(crate) fn snap_on(s: &Snaps, what: &str) -> bool {
     }
 }
 
+/// The object snaps menu of the status line's Snap arrow: Snap itself, each object snap on or
+/// off (with its icon), all on or all off.
+fn snap_menu(ed: &CadEditor, ui: &mut Ui) -> Option<Act> {
+    let mut out = None;
+    ui.set_min_width(200.0);
+    let mut snap = ed.snap;
+    if ui.checkbox(&mut snap, tl!("Snap")).clicked() {
+        out = Some(Act::Toggle("snap"));
+    }
+    ui.separator();
+    for (icon, what, name) in SNAP_BUTTONS {
+        ui.horizontal(|ui| {
+            let t = crate::theme::Tokens::get(ui.ctx());
+            let (r, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
+            crate::icons::paint(ui.painter(), r, icon, t.icon, t.accent);
+            let mut on = snap_on(&ed.snaps, what);
+            if ui.checkbox(&mut on, tl!(name)).clicked() {
+                out = Some(Act::Toggle(what));
+            }
+        });
+    }
+    ui.separator();
+    ui.horizontal(|ui| {
+        if ui.button(tl!("All on")).clicked() {
+            out = Some(Act::AllSnaps(true));
+        }
+        if ui.button(tl!("All off")).clicked() {
+            out = Some(Act::AllSnaps(false));
+        }
+    });
+    out
+}
+
 /// A toggle in the status line (`on`: Some), or a button (None): its icon, filled with the
 /// selection colour when on, its name (and state) in the tooltip. Returns whether it was clicked.
 fn snap_button(ui: &mut Ui, icon: &str, name: &str, on: Option<bool>) -> bool {
@@ -2226,9 +2386,9 @@ fn snap_button(ui: &mut Ui, icon: &str, name: &str, on: Option<bool>) -> bool {
 }
 
 /// The status line: the prompt, then the pointer's coordinates or, with a base point, its
-/// distance, angle, Δx and Δy; the Snap, Grid and Ortho flags, layer and unit; the object snaps
-/// and the drawing aids (Snap, Grid, Ortho) as icon toggles, and Zoom Fit. Returns what a click
-/// there asks for.
+/// distance, angle, Δx and Δy; layer and unit; the drawing aids (Snap, Grid, Ortho) as icon
+/// toggles, Snap's arrow with the object snaps (to save room), and Zoom Fit. Returns what a
+/// click there asks for.
 fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>) -> Option<Act> {
     let mut clicked = None;
     let mut prompt = if ed.message.is_empty() { ed.prompt() } else { tl!(&ed.message).to_string() };
@@ -2259,13 +2419,16 @@ fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>
                 clicked = Some(Act::Fit);
             }
             ui.add_space(6.0);
-            for (icon, what, name) in SNAP_BUTTONS.iter().rev() {
-                if snap_button(ui, icon, name, Some(snap_on(&ed.snaps, what))) {
-                    clicked = Some(Act::Toggle(what));
-                }
-            }
-            ui.add_space(6.0);
             for (icon, what, name) in AID_BUTTONS.iter().rev() {
+                // Snap's arrow, at its right: a menu of the object snaps, each on or off.
+                if *what == "snap" {
+                    let r = ui.menu_button(egui::RichText::new("▾").size(15.0), |ui| {
+                        if let Some(a) = snap_menu(ed, ui) {
+                            clicked = Some(a);
+                        }
+                    });
+                    r.response.on_hover_text(tl!("Object snap settings"));
+                }
                 if snap_button(ui, icon, name, Some(toggle_on(ed, what))) {
                     clicked = Some(Act::Toggle(what));
                 }
@@ -2632,6 +2795,27 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
                 match circle_of(&ed.drawing, mode, &pts) {
                     Ok(Some((c, r))) => {
                         painter.circle_stroke(view.to_screen(c), (r * ed.zoom) as f32, band);
+                    }
+                    _ => {
+                        painter.line_segment([a, s], band);
+                    }
+                }
+            }
+            // The arc the next click would make.
+            Tool::Arc(mode) => {
+                let mut pts = ed.points.clone();
+                pts.push(p);
+                match arc_of(mode, &pts) {
+                    Ok(Some((c, r, start, end))) => {
+                        let sweep = (end - start).rem_euclid(360.0);
+                        let steps = 48usize;
+                        let line: Vec<Pos2> = (0..=steps)
+                            .map(|i| {
+                                let a = (start + sweep * i as f64 / steps as f64).to_radians();
+                                view.to_screen(Pt::new(c.x + r * a.cos(), c.y + r * a.sin()))
+                            })
+                            .collect();
+                        painter.add(Shape::line(line, band));
                     }
                     _ => {
                         painter.line_segment([a, s], band);
@@ -3112,9 +3296,15 @@ fn picked_path(ed: &CadEditor, p: Pt) -> Option<usize> {
     ed.drawing.nearest_path(p).filter(|&(_, d)| d <= tol).map(|(i, _)| i)
 }
 
-/// The next input is a size (a circle's radius or diameter): a number typed is that distance.
+/// The next input is a size (a circle's radius or diameter, an arc's radius): a number typed is
+/// that distance.
 fn takes_size(ed: &CadEditor) -> bool {
-    matches!((ed.tool, ed.points.len()), (Tool::Circle(CircleMode::Radius | CircleMode::Diameter), 1) | (Tool::Circle(CircleMode::TanTanRadius), 2))
+    matches!(
+        (ed.tool, ed.points.len()),
+        (Tool::Circle(CircleMode::Radius | CircleMode::Diameter), 1)
+            | (Tool::Circle(CircleMode::TanTanRadius), 2)
+            | (Tool::Arc(ArcMode::StartEndRadius), 2)
+    )
 }
 
 /// The curve picked by a click at `p` for a tangent (the nearest one shown).
@@ -3143,6 +3333,42 @@ fn circle_of(d: &Drawing, mode: CircleMode, pts: &[Pt]) -> Result<Option<(Pt, f6
     };
     match made {
         Some((_, r)) if !(r > kernel::RESOLUTION && r.is_finite()) => Err("The circle has no size"),
+        other => Ok(other),
+    }
+}
+
+/// The arc `pts` make in `mode` (counter-clockwise from `start` to `end`, degrees): None while
+/// a point is missing; an error when the points make none.
+fn arc_of(mode: ArcMode, pts: &[Pt]) -> Result<Option<(Pt, f64, f64, f64)>, &'static str> {
+    let angle = |c: Pt, q: Pt| (q.y - c.y).atan2(q.x - c.x).to_degrees();
+    let made = match (mode, pts) {
+        (ArcMode::CentreStartEnd, [c, s, e, ..]) => Some((*c, s.minus(*c).len(), angle(*c, *s), angle(*c, *e))),
+        (ArcMode::StartCentreEnd, [s, c, e, ..]) => Some((*c, s.minus(*c).len(), angle(*c, *s), angle(*c, *e))),
+        (ArcMode::ThreePoints, [a, b, e, ..]) => {
+            let (c, r) = kernel::circle_3p(*a, *b, *e).ok_or("The three points are in line")?;
+            // Counter-clockwise from the start, the arc meets the middle point first when the
+            // three turn left; else it runs from the end round to the start.
+            let left = (b.x - a.x) * (e.y - a.y) - (b.y - a.y) * (e.x - a.x) > 0.0;
+            if left { Some((c, r, angle(c, *a), angle(c, *e))) } else { Some((c, r, angle(c, *e), angle(c, *a))) }
+        }
+        (ArcMode::StartEndRadius, [s, e, q, ..]) => {
+            let chord = e.minus(*s);
+            let d = chord.len();
+            if d <= kernel::RESOLUTION {
+                return Err("The start and end are the same point");
+            }
+            // The radius at least half the chord (a half circle); the centre at the chord's
+            // left, so the arc turns counter-clockwise the short way round.
+            let r = q.minus(*e).len().max(d / 2.0);
+            let h = (r * r - d * d / 4.0).max(0.0).sqrt();
+            let m = Pt::new((s.x + e.x) / 2.0, (s.y + e.y) / 2.0);
+            let c = Pt::new(m.x - chord.y / d * h, m.y + chord.x / d * h);
+            Some((c, r, angle(c, *s), angle(c, *e)))
+        }
+        _ => None,
+    };
+    match made {
+        Some((_, r, ..)) if !(r > kernel::RESOLUTION && r.is_finite()) => Err("The arc has no size"),
         other => Ok(other),
     }
 }
@@ -3242,13 +3468,18 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                 None
             }
         },
-        Tool::Arc if n >= 3 => {
-            let c = pts[0];
-            let r = pts[1].minus(c).len();
-            let angle = |q: Pt| (q.y - c.y).atan2(q.x - c.x).to_degrees();
-            done(ed);
-            with(ed, Entity::new(Kind::Arc { c: pt(c), r: Num::new(r), start: Num::new(angle(pts[1])), end: Num::new(angle(pts[2])) }))
-        }
+        Tool::Arc(mode) => match arc_of(mode, &pts) {
+            Ok(None) => None,
+            Ok(Some((c, r, start, end))) => {
+                done(ed);
+                with(ed, Entity::new(Kind::Arc { c: pt(c), r: Num::new(r), start: Num::new(start), end: Num::new(end) }))
+            }
+            Err(e) => {
+                done(ed);
+                ed.message = e.into();
+                None
+            }
+        },
         Tool::Point => {
             done(ed);
             with(ed, Entity::new(Kind::Point { p: pt(p) }))
@@ -3517,7 +3748,7 @@ pub(crate) const FIELD_W: f32 = 84.0;
 /// Labels and fields in two columns, rows three high as ribbon groups are: every label lines up
 /// with the others, every field starts at the same place.
 pub(crate) fn field_grid(ui: &mut Ui, id: &str, add: impl FnOnce(&mut Ui)) {
-    egui::Grid::new(id).num_columns(2).spacing(vec2(6.0, 3.0)).min_row_height(20.0).show(ui, add);
+    crate::rtl::grid(ui, egui::Grid::new(id).num_columns(2).spacing(vec2(6.0, 3.0)).min_row_height(20.0), add);
 }
 
 /// Buttons stacked three high in a group.
@@ -3536,6 +3767,7 @@ fn tool_of(app: &WordApp) -> Tool {
 type Paired = (&'static str, &'static str, &'static str, Tool);
 
 const LINE: Paired = ("cadLine", "Line: two points, then more to go on", "line", Tool::Line);
+const POLYLINE: Paired = ("cadPolyline", "Polyline: points, Enter to end, c to close", "polyline", Tool::Polyline);
 const LINE_TAN: Paired =
     ("cadLineTan", "Tangent Line: a line touching two circles or arcs; pick each near where it should touch", "lineTan", Tool::LineTan);
 const TRIM: [Paired; 2] = [
@@ -3582,9 +3814,15 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
     let t = |name: &str| json!({"tool": name});
     let picks = app.cad.as_ref().map_or(app.cad_settings.picks, |e| e.picks);
     group(ui, "Draw", None, app, |ui, app| {
-        // Line and Tangent Line: one split button, as Circle. The top part starts the one chosen
-        // last; the bottom part lists both.
-        let (icon, tip, name, _) = if picks.line_tan { LINE_TAN } else { LINE };
+        // Line, Tangent Line and Polyline: one split button, as Circle. The top part starts the
+        // one chosen last; the bottom part lists all three.
+        let (icon, tip, name, _) = if picks.polyline {
+            POLYLINE
+        } else if picks.line_tan {
+            LINE_TAN
+        } else {
+            LINE
+        };
         crate::widgets::big_split(
             ui,
             app,
@@ -3592,10 +3830,10 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 icon,
                 label: "Line",
                 tip,
-                action: crate::widgets::ButtonAction::new("ui.cadTool", t(name), matches!(tool, Tool::Line | Tool::LineTan)),
+                action: crate::widgets::ButtonAction::new("ui.cadTool", t(name), matches!(tool, Tool::Line | Tool::LineTan | Tool::Polyline)),
             },
             |ui, app| {
-                for ((icon, _, name, _), label) in [(LINE, "Line"), (LINE_TAN, "Tangent Line")] {
+                for ((icon, _, name, _), label) in [(LINE, "Line"), (LINE_TAN, "Tangent Line"), (POLYLINE, "Polyline")] {
                     if crate::widgets::icon_menu_item(ui, icon, tl!(label), "", 200.0).clicked() {
                         let _ = app.run("ui.cadTool", t(name));
                         ui.close();
@@ -3624,15 +3862,27 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 }
             },
         );
+        // Arc: a split button like Circle, its ways in the menu.
+        let arc = app.cad.as_ref().map_or(app.cad_settings.arc_mode, |e| e.arc_mode);
+        crate::widgets::big_split(
+            ui,
+            app,
+            crate::widgets::BigSplit {
+                icon: arc.icon(),
+                label: "Arc",
+                tip: arc.tip(),
+                action: crate::widgets::ButtonAction::new("ui.cadTool", t(arc.tool_param()), matches!(tool, Tool::Arc(_))),
+            },
+            |ui, app| {
+                for m in ArcMode::ALL {
+                    if crate::widgets::icon_menu_item(ui, m.icon(), tl!(m.label()), "", 200.0).clicked() {
+                        let _ = app.run("ui.cadTool", t(m.tool_param()));
+                        ui.close();
+                    }
+                }
+            },
+        );
         stack(ui, &mut |ui| {
-            small(
-                ui,
-                app,
-                "cadPolyline",
-                Some("Polyline"),
-                "Polyline: points, Enter to end, c to close",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("polyline"), tool == Tool::Polyline),
-            );
             small(
                 ui,
                 app,
@@ -3641,25 +3891,7 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
                 "Rectangle by two corners",
                 crate::widgets::ButtonAction::new("ui.cadTool", t("rect"), tool == Tool::Rect),
             );
-            small(
-                ui,
-                app,
-                "cadArc",
-                Some("Arc"),
-                "Arc: centre, start, end (counter-clockwise)",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("arc"), tool == Tool::Arc),
-            );
-        });
-        stack(ui, &mut |ui| {
             small(ui, app, "cadPoint", Some("Point"), "Point", crate::widgets::ButtonAction::new("ui.cadTool", t("point"), tool == Tool::Point));
-            small(
-                ui,
-                app,
-                "cadText",
-                Some("Text"),
-                "Text: a position, then type it",
-                crate::widgets::ButtonAction::new("ui.cadTool", t("text"), tool == Tool::Text),
-            );
         });
     });
     group(ui, "Modify", None, app, |ui, app| {
@@ -3976,47 +4208,25 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
     layers_group(app, ui);
 }
 
-/// The drawing's unit (what one coordinate measures), converting the drawing or keeping its
-/// numbers, and the unit typed values are read in.
+/// The unit typed values are read in (drawings are drawn in millimetres).
 fn units_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::group;
     let Some((unit, input)) = app.cad.as_ref().map(|e| (e.drawing.unit, e.drawing.input)) else { return };
-    let keep_key = egui::Id::unique("cad_unit_keep_numbers");
-    let mut keep = ui.data(|d| d.get_temp::<bool>(keep_key)).unwrap_or(false);
     group(ui, "Units", None, app, |ui, app| {
-        ui.vertical(|ui| {
-            field_grid(ui, "cad_units", |ui| {
-                ui.label(tl!("Drawing unit")).on_hover_text(tl!("What one unit of the coordinates measures"));
-                craft_ui::ComboBox::from_id_salt("cad_drawing_unit").selected_text(unit.symbol()).width(FIELD_W).show_ui(ui, |ui| {
-                    for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
-                        if ui.selectable_label(u == unit, u.symbol()).clicked()
-                            && u != unit
-                            && let Err(e) = app.run("ui.cadUnit", json!({"unit": u.symbol(), "convert": !keep}))
-                        {
-                            app.status(e);
-                        }
+        field_grid(ui, "cad_units", |ui| {
+            ui.label(tl!("Input unit"));
+            let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
+            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
+                for (u, word) in
+                    [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
+                {
+                    let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
+                    if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
+                        let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
                     }
-                });
-                ui.end_row();
-                ui.label(tl!("Input unit"));
-                let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
-                craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
-                    for (u, word) in [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")] {
-                        let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                        if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
-                            let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
-                        }
-                    }
-                });
-                ui.end_row();
+                }
             });
-            if ui
-                .checkbox(&mut keep, tl!("Keep the numbers"))
-                .on_hover_text(tl!("Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size"))
-                .changed()
-            {
-                ui.data_mut(|d| d.insert_temp(keep_key, keep));
-            }
+            ui.end_row();
         });
     });
 }
@@ -4506,6 +4716,7 @@ mod tests {
             "ui.cadTextShift",
             "ui.cadUnderlay",
             "ui.cadInherit",
+            "ui.cadName",
             "ui.cadFlip",
             "ui.cadScale",
             "ui.cadStyleDialog",
@@ -4652,6 +4863,136 @@ mod tests {
         assert_eq!(app.cad.as_ref().unwrap().circle_mode, CircleMode::TanTanRadius);
     }
 
+    /// The Arc ways, through the same steps as clicks: each makes the arc its points say,
+    /// counter-clockwise; a typed radius finishes Start, End, Radius; points that make no arc
+    /// leave a message.
+    #[test]
+    fn arc_ways() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let arc = |d: &Drawing| match &d.entities.last().unwrap().kind {
+            Kind::Arc { c, r, start, end } => (c.pt(), r.value, start.value, end.value),
+            k => panic!("{k:?}"),
+        };
+        let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        let ed = app.cad.as_mut().unwrap();
+        // 3 points over the top (start at the right): centre 0,0, 0° to 180°.
+        ed.set_tool(Tool::parse("arc3p").unwrap());
+        for p in [Pt::new(10.0, 0.0), Pt::new(0.0, 10.0)] {
+            assert!(feed(ed, p, None).is_none());
+        }
+        let (c, r, s, e) = arc(&feed(ed, Pt::new(-10.0, 0.0), None).expect("3 points"));
+        assert!(near(c.x, 0.0) && near(c.y, 0.0) && near(r, 10.0) && near(s, 0.0) && near(e, 180.0), "{c:?} {r} {s} {e}");
+        // The same points the other way round: still the arc over the top.
+        ed.set_tool(Tool::parse("arc3p").unwrap());
+        for p in [Pt::new(-10.0, 0.0), Pt::new(0.0, 10.0)] {
+            feed(ed, p, None);
+        }
+        let (_, _, s, e) = arc(&feed(ed, Pt::new(10.0, 0.0), None).expect("3 points"));
+        assert!(near(s, 0.0) && near(e, 180.0), "{s} {e}");
+        // Start, centre, end.
+        ed.set_tool(Tool::parse("arcSce").unwrap());
+        for p in [Pt::new(0.0, 5.0), Pt::new(0.0, 0.0)] {
+            feed(ed, p, None);
+        }
+        let (c, r, s, e) = arc(&feed(ed, Pt::new(-3.0, 0.0), None).expect("start centre end"));
+        assert!(near(c.x, 0.0) && near(r, 5.0) && near(s, 90.0) && near(e, 180.0), "{c:?} {r} {s} {e}");
+        // Start, end, radius typed: the short way round, the centre at the chord's left.
+        ed.set_tool(Tool::parse("arcSer").unwrap());
+        for p in [Pt::new(10.0, 0.0), Pt::new(-10.0, 0.0)] {
+            feed(ed, p, None);
+        }
+        assert!(takes_size(ed));
+        let (c, r, s, e) = arc(&feed(ed, Pt::new(-10.0 + 10.0, 0.0), None).expect("radius"));
+        assert!(near(c.x, 0.0) && near(c.y, 0.0) && near(r, 10.0) && near(s, 0.0) && near(e, 180.0), "{c:?} {r} {s} {e}");
+        // Three points in line, start and end the same: no arc, a message.
+        ed.set_tool(Tool::parse("arc3p").unwrap());
+        for p in [Pt::new(0.0, 0.0), Pt::new(1.0, 0.0)] {
+            feed(ed, p, None);
+        }
+        assert!(feed(ed, Pt::new(2.0, 0.0), None).is_none() && !ed.message.is_empty());
+        assert!(arc_of(ArcMode::StartEndRadius, &[Pt::new(1.0, 1.0), Pt::new(1.0, 1.0), Pt::new(5.0, 1.0)]).is_err());
+        assert!(arc_of(ArcMode::CentreStartEnd, &[Pt::new(1.0, 1.0), Pt::new(1.0, 1.0), Pt::new(5.0, 1.0)]).is_err());
+    }
+
+    /// Every Arc way reads back from its `ui.cadTool` name, has an icon, a menu name and a
+    /// tooltip of its own; the Arc button remembers the way chosen last, as Circle does.
+    #[test]
+    fn arc_ways_name_themselves_and_are_remembered() {
+        let mut seen = std::collections::HashSet::new();
+        for m in ArcMode::ALL {
+            assert_eq!(Tool::parse(m.tool_param()), Some(Tool::Arc(m)), "{m:?}");
+            assert!(seen.insert(m.icon()) && seen.insert(m.label()) && seen.insert(m.tip()), "{m:?}");
+            assert!(m.tip().starts_with("Arc: "));
+        }
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        assert_eq!(app.run("ui.cadTool", json!({"tool": "arcSer"})).unwrap()["arc"], "arcSer");
+        assert_eq!(app.run("ui.cadTool", json!({"tool": "line"})).unwrap()["arc"], "arcSer");
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!(app.cad_settings.arc_mode, ArcMode::StartEndRadius);
+    }
+
+    /// The Line button's top part: Line, Tangent Line or Polyline, whichever was chosen last.
+    #[test]
+    fn the_line_button_remembers_polyline() {
+        let mut p = Picks::default();
+        p.note(Tool::Polyline);
+        assert!(p.polyline);
+        p.note(Tool::LineTan);
+        assert!(!p.polyline && p.line_tan);
+        p.note(Tool::Polyline);
+        p.note(Tool::Line);
+        assert!(!p.polyline && !p.line_tan);
+    }
+
+    /// A drawing in metres reaches the editor in millimetres, keeping its size; opening and
+    /// closing it changes nothing, the first edit stores it converted.
+    #[test]
+    fn a_drawing_opens_in_millimetres() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.session.run("document.setText", &json!({"text": ""})).unwrap();
+        app.session.run("insert.cad", &json!({"drawing": {"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": [2, 0]}]}})).unwrap();
+        let before = app.session.doc.clone();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let d = &app.cad.as_ref().unwrap().drawing;
+        assert_eq!(d.unit, strix_cad::Unit::Mm);
+        let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+        assert!((b.0.value - 2000.0).abs() < 1e-9);
+        assert_eq!(app.session.doc, before, "opening the drawing changes nothing");
+        assert_eq!(app.session.run("cad.get", &json!({})).unwrap()["drawing"]["unit"], json!("m"));
+        app.run("ui.cadSelect", json!({"all": true})).unwrap();
+        app.run("ui.cadLayer", json!({"layer": "Walls"})).unwrap();
+        let stored = app.session.run("cad.get", &json!({})).unwrap();
+        assert_eq!(stored["drawing"]["unit"], json!("mm"), "{stored}");
+        let d = &app.cad.as_ref().unwrap().drawing;
+        let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+        assert!((b.0.value - 2000.0).abs() < 1e-9);
+    }
+
+    /// The status line's snap menu turns every object snap on or off at once.
+    #[test]
+    fn all_snaps_on_and_off() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        app.run("ui.cadToggle", json!({"what": "snaps.off"})).unwrap();
+        let s = app.cad.as_ref().unwrap().snaps;
+        assert!(SNAP_BUTTONS.iter().all(|(_, w, _)| !snap_on(&s, w)));
+        app.run("ui.cadToggle", json!({"what": "snaps.on"})).unwrap();
+        let s = app.cad.as_ref().unwrap().snaps;
+        assert!(SNAP_BUTTONS.iter().all(|(_, w, _)| snap_on(&s, w)));
+    }
+
+    /// A name typed for the drawing becomes its slug; the underlay list shows it.
+    #[test]
+    fn the_drawing_takes_a_name() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        assert_eq!(app.run("ui.cadName", json!({"name": "Pianta piano terra"})).unwrap()["name"], "pianta-piano-terra");
+        assert_eq!(app.cad.as_ref().unwrap().drawing.id.as_deref(), Some("pianta-piano-terra"));
+        assert!(app.run("ui.cadName", json!({"name": "  "})).is_err());
+    }
+
     /// The angular dimension measures the side its arc is placed in; the annotation style is
     /// one undo step and clamps what it is given.
     #[test]
@@ -4715,11 +5056,13 @@ mod tests {
         assert!(app.run("ui.cadStyles", json!({"kind": "dim", "delete": "Standard"})).is_err());
         app.run("ui.cadStyles", json!({"kind": "dim", "rename": "Arrows", "to": "Arch"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.styles(strix_cad::StyleKind::Dim), vec!["Standard", "Arch"]);
-        // The drawing's unit: converted by default.
+        // The drawing's unit (for scripts): stored converted by default; the editor still draws
+        // in millimetres, at the same size.
         let before = app.cad.as_ref().unwrap().rendered.size;
         app.run("ui.cadUnit", json!({"unit": "cm"})).unwrap();
+        assert_eq!(app.session.run("cad.get", &json!({})).unwrap()["drawing"]["unit"], json!("cm"));
         let ed = app.cad.as_ref().unwrap();
-        assert_eq!(ed.drawing.unit, strix_cad::Unit::Cm);
+        assert_eq!(ed.drawing.unit, strix_cad::Unit::Mm);
         assert!((ed.rendered.size.0 - before.0).abs() < 1e-6, "the drawing keeps its size");
         assert!(app.run("ui.cadUnit", json!({"unit": "inch"})).is_err());
     }
