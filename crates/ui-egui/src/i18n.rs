@@ -320,7 +320,7 @@ fn detect_system_lang() -> Lang {
         return l;
     }
     let tags: Vec<String> = sys_locale::get_locales().take(16).collect();
-    first_supported(tags.iter().map(String::as_str)).unwrap_or(Lang::EN)
+    crate::interface_languages::first_offered(tags.iter().map(String::as_str)).unwrap_or(Lang::EN)
 }
 
 /// The system region (#838): it picks the paper File › New starts on, the default measurement

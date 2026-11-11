@@ -29,7 +29,7 @@
   "stat2Text": "SI e tecniche, controllate a ogni passaggio",
   "stat3Title": "Dal vivo",
   "stat3Text": "risultati, tabelle, esercizi e disegni si ricalcolano dopo ogni modifica",
-  "stat4Title": "27",
+  "stat4Title": "4",
   "stat4Text": "lingue dell’interfaccia, su cinque piattaforme da un’unica base di codice Rust",
 
   "howEyebrow": "Come funziona",
@@ -89,7 +89,7 @@
   "f8Text": "Salva <code>.xmath</code>, e DOCX, ODT, RTF nel loro formato quando il documento non ha oggetti Strix; apre DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX; esporta PDF, PNG, LaTeX, HTML, Markdown.",
   "f9Kicker": "Ovunque",
   "f9Title": "Nativo su ogni desktop, e nel browser",
-  "f9Text": "Windows, macOS, Linux e FreeBSD come app native, e la stessa app compilata in WebAssembly. L’interfaccia segue la lingua del sistema (27 lingue) e il suo tema chiaro o scuro.",
+  "f9Text": "Windows, macOS, Linux e FreeBSD come app native, e la stessa app compilata in WebAssembly. L’interfaccia segue la lingua del sistema (italiano, inglese, tedesco o francese) e il suo tema chiaro o scuro.",
   "plannedKicker": "Pianificato",
   "plannedTitle": "I prossimi passi",
   "plannedText": "Pannello Variabili, selettore di unità, <code>°C</code>/<code>°F</code>, funzioni utente <code>f(x) = …</code>, matrici, sistemi di equazioni, grafici; per il CAD strumenti di modifica, tratteggi, quote angolari e vincoli.",

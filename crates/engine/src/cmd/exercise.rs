@@ -34,6 +34,7 @@ use wordcraft_doc::styles::{Style, StyleKind};
 use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
+use words::Words;
 
 mod breaks;
 mod delete;
@@ -44,6 +45,7 @@ mod scores;
 mod series;
 mod show;
 mod structure;
+mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub(crate) use language::follow_language;
@@ -148,28 +150,6 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-/// Words of the generated parts, in the document's language (Italian, English, French, German or
-/// Spanish; English for the others).
-struct Words {
-    exercise: &'static str,
-    /// The scores table's total and its default criterion.
-    total: &'static str,
-    points: &'static str,
-    solution: &'static str,
-    results: &'static str,
-    title: &'static str,
-    text: &'static str,
-    question: &'static str,
-    no_result: &'static str,
-    /// Titles of the controls, shown on their frames.
-    title_part: &'static str,
-    statement: &'static str,
-    questions: &'static str,
-    prompt: &'static str,
-    data: &'static str,
-    variant: &'static str,
-}
-
 /// The language exercise words are written in: the one at the caret, resolved through the styles
 /// and the document default — the language the status bar shows and the dictionary checks with —
 /// else the editing language (a new document's).
@@ -178,124 +158,41 @@ fn words_lang(s: &Session) -> String {
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props()).lang.or_else(|| crate::cmd::default_lang(s)).unwrap_or_default()
 }
 
-/// The words of the language exercises are inserted in: the caret's ([`words_lang`]).
+/// The words for a language without its own: the document's (its default language's), else the
+/// editing language's (a new document's, from the interface), else English.
+fn fallback_words(s: &Session) -> &'static Words {
+    crate::cmd::doc_lang(&s.doc)
+        .as_deref()
+        .and_then(words::lookup)
+        .or_else(|| s.editing_lang.as_deref().and_then(words::lookup))
+        .unwrap_or(&words::EN)
+}
+
+/// The words of the language exercises are inserted in: the caret's ([`words_lang`]); for a
+/// language without its own words, those the document's exercises already use, else
+/// [`fallback_words`].
 fn words(s: &Session) -> &'static Words {
-    words_for(&words_lang(s))
+    words::lookup(&words_lang(s)).unwrap_or_else(|| {
+        let layout = scan(s);
+        (0..layout.exercises.len()).find_map(|e| language::present(s, &layout, e)).unwrap_or_else(|| fallback_words(s))
+    })
+}
+
+/// The words of exercise `e`: its language's ([`language::lang_at`] its title); for a language
+/// without its own words, those it already has, so they stay as they are; else
+/// [`fallback_words`].
+fn exercise_words(s: &Session, layout: &Layout, e: usize) -> &'static Words {
+    let lang = layout.exercises.get(e).map(|x| language::lang_at(s, x.start)).unwrap_or_default();
+    words::lookup(&lang).or_else(|| language::present(s, layout, e)).unwrap_or_else(|| fallback_words(s))
 }
 
 /// The words of the document's exercises, for the parts generated for all of them (the results
-/// summary, the data, the numbering's default prefix): the first exercise's language, else the
-/// caret's.
+/// summary, the data, the numbering's default prefix, the scores table): the first exercise's
+/// ([`exercise_words`]), else the caret's.
 fn doc_words(s: &Session) -> &'static Words {
-    scan(s).exercises.first().map_or_else(|| words(s), |e| words_for(&language::lang_at(s, e.start)))
+    let layout = scan(s);
+    if layout.exercises.is_empty() { words(s) } else { exercise_words(s, &layout, 0) }
 }
-
-/// The exercise words of language tag `lang` (`it-IT`, `fr`…); English for the languages without
-/// their own.
-fn words_for(lang: &str) -> &'static Words {
-    let lang = lang.to_ascii_lowercase();
-    let primary = lang.split(['-', '_']).next().unwrap_or_default();
-    match primary {
-        "it" => &IT,
-        "fr" => &FR,
-        "de" => &DE,
-        "es" => &ES,
-        _ => &EN,
-    }
-}
-
-/// Every language's words: a generated text is a default (one to translate) when one of them has it.
-const ALL_WORDS: [&Words; 5] = [&IT, &EN, &FR, &DE, &ES];
-
-const IT: Words = Words {
-    exercise: "Esercizio",
-    total: "Totale",
-    points: "Punti",
-    solution: "Risoluzione",
-    results: "Riepilogo dei risultati",
-    title: "Titolo dell'esercizio",
-    text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
-    question: "Scrivi qui la domanda.",
-    no_result: "risultato non indicato",
-    title_part: "Titolo",
-    statement: "Testo",
-    questions: "Domande",
-    prompt: "Domande (automatiche)",
-    data: "Dati",
-    variant: "variante",
-};
-
-const EN: Words = Words {
-    exercise: "Exercise",
-    total: "Total",
-    points: "Points",
-    solution: "Solution",
-    results: "Results",
-    title: "Exercise title",
-    text: "Write the exercise here: data, figures, tables.",
-    question: "Write the question here.",
-    no_result: "no result marked",
-    title_part: "Title",
-    statement: "Statement",
-    questions: "Questions",
-    prompt: "Questions (automatic)",
-    data: "Data",
-    variant: "variant",
-};
-
-const FR: Words = Words {
-    exercise: "Exercice",
-    total: "Total",
-    points: "Points",
-    solution: "Solution",
-    results: "Récapitulatif des résultats",
-    title: "Titre de l'exercice",
-    text: "Écrivez ici l'énoncé de l'exercice : données, figures, tableaux.",
-    question: "Écrivez ici la question.",
-    no_result: "résultat non indiqué",
-    title_part: "Titre",
-    statement: "Énoncé",
-    questions: "Questions",
-    prompt: "Questions (automatiques)",
-    data: "Données",
-    variant: "variante",
-};
-
-const DE: Words = Words {
-    exercise: "Aufgabe",
-    total: "Summe",
-    points: "Punkte",
-    solution: "Lösung",
-    results: "Ergebnisübersicht",
-    title: "Titel der Aufgabe",
-    text: "Schreiben Sie hier die Aufgabe: Daten, Abbildungen, Tabellen.",
-    question: "Schreiben Sie hier die Frage.",
-    no_result: "kein Ergebnis angegeben",
-    title_part: "Titel",
-    statement: "Aufgabenstellung",
-    questions: "Fragen",
-    prompt: "Fragen (automatisch)",
-    data: "Daten",
-    variant: "Variante",
-};
-
-const ES: Words = Words {
-    exercise: "Ejercicio",
-    total: "Total",
-    points: "Puntos",
-    solution: "Solución",
-    results: "Resumen de resultados",
-    title: "Título del ejercicio",
-    text: "Escribe aquí el enunciado del ejercicio: datos, figuras, tablas.",
-    question: "Escribe aquí la pregunta.",
-    no_result: "resultado no indicado",
-    title_part: "Título",
-    statement: "Enunciado",
-    questions: "Preguntas",
-    prompt: "Preguntas (automáticas)",
-    data: "Datos",
-    variant: "variante",
-};
 
 /// Adds the exercise styles the document lacks.
 fn ensure_styles(s: &mut Session) {

@@ -60,6 +60,7 @@ pub mod i18n;
 pub mod ibeam;
 pub mod icons;
 pub mod ink;
+pub mod interface_languages;
 pub mod keys;
 pub mod keytips;
 pub(crate) mod language_packs;

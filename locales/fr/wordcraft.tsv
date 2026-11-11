@@ -2785,3 +2785,118 @@ paper	Envelope DL	Enveloppe DL
 	Calculated\nTable	Tableau\ncalculé
 	Graph\nPaper	Papier\nmillimétré
 	New\nCalculation	Nouveau\ncalcul
+
+# 2026-11-11: strings from the upstream merge and Strix's Teaching, scores, update and CAD panes.
+	Add Blank Paragraphs Between	Ajouter des paragraphes vides intercalés
+	Insert Blank Paragraphs Between	Insérer des paragraphes vides intercalés
+	Add a language…	Ajouter une langue…
+	An installed Language pack is used after this folder.	Un module linguistique installé est utilisé après ce dossier.
+	Applies the next time Strix starts.	S’applique au prochain démarrage de Strix.
+	Arrange All	Réorganiser tout
+	Bright Green	Vert vif
+	Built in	Intégré
+	Convert Indents to Spaces	Convertir les retraits en espaces
+	Convert Line Breaks to Paragraphs	Convertir les sauts de ligne en paragraphes
+	Convert Spaces to Indentation	Convertir les espaces en retrait
+	Corporate Author	Auteur collectif
+	Dark Blue	Bleu foncé
+	Dark Red	Rouge foncé
+	Dark Yellow	Jaune foncé
+	Delete Blank Paragraphs	Supprimer les paragraphes vides
+	Delete Blank Paragraphs in the Whole Document	Supprimer les paragraphes vides dans tout le document
+	Delete Previous Sentence	Supprimer la phrase précédente
+	Dictionary files	Fichiers de dictionnaire
+	Display server:	Serveur d’affichage :
+	Document background	Arrière-plan du document
+	Drawing Name	Nom du dessin
+	Emphasis Mark	Signe d’accentuation
+	English, the languages of this document and every installed Language pack. Language packs add spelling dictionaries and hyphenation.	L’anglais, les langues de ce document et chaque module linguistique installé. Les modules linguistiques ajoutent des dictionnaires orthographiques et la césure.
+	Flat OpenDocument Text (*.fodt)	Texte OpenDocument plat (*.fodt)
+	Gray-25%	Gris 25 %
+	Gray-50%	Gris 50 %
+	Header & Footer Options	Options d’en-tête et de pied de page
+	Ignore Once	Ignorer une fois
+	Indent Leading Spaces	Mettre en retrait les espaces de début
+	Indents to Leading Spaces	Retraits en espaces de début
+	Install Language Pack	Installer le module linguistique
+	Inverse	Inversé
+	Item Color	Couleur de l’élément
+	Join Lines	Joindre les lignes
+	Language Packs	Modules linguistiques
+	Language data	Données linguistiques
+	Language packs aren't available in the browser	Les modules linguistiques ne sont pas disponibles dans le navigateur
+	Language packs need the font store folder, and there is none on this computer.	Les modules linguistiques ont besoin du dossier de la réserve de polices, et cet ordinateur n’en a pas.
+	Linux display server	Serveur d’affichage Linux
+	Macro name:	Nom de la macro :
+	Missing Fonts	Polices manquantes
+	More options	Plus d’options
+	Not in Dictionary	Absent du dictionnaire
+	OpenDocument Text Template (*.ott)	Modèle de texte OpenDocument (*.ott)
+	Paragraph\nTools	Outils de\nparagraphe
+	Paragraph Tools	Outils de paragraphe
+	Record…	Enregistrer…
+	Remove Extra Spaces	Supprimer les espaces superflus
+	Remove Extra Spaces in the Whole Document	Supprimer les espaces superflus dans tout le document
+	Remove Language Pack	Supprimer le module linguistique
+	Remove Leading Spaces	Supprimer les espaces de début
+	Remove Leading Spaces in the Whole Document	Supprimer les espaces de début dans tout le document
+	Remove Line Breaks	Supprimer les sauts de ligne
+	Run	Exécuter
+	Scores Table	Tableau des points
+	Screen Paper Color	Couleur du papier à l’écran
+	Screen only. Document backgrounds, printing and exports keep their colours. Dark page and explicit Read Mode colours take precedence.	À l’écran seulement. Les arrière-plans du document, l’impression et les exportations gardent leurs couleurs. La page sombre et les couleurs choisies pour le Mode Lecture sont prioritaires.
+	Screen paper color:	Couleur du papier à l’écran :
+	Select Canvas Member	Sélectionner un élément de la zone de dessin
+	Separate Paragraphs	Séparer les paragraphes
+	Sepia	Sépia
+	Set as Default Language	Définir comme langue par défaut
+	Set the colors in the Text Pane to use custom colors.	Définissez les couleurs du Volet Texte pour utiliser des couleurs personnalisées.
+	Shape color	Couleur de la forme
+	Shown in substitute fonts. Click for details.	Affiché avec des polices de substitution. Cliquez pour les détails.
+	Split Lines into Paragraphs	Scinder les lignes en paragraphes
+	Status bar	Barre d’état
+	Status bar count:	Comptage dans la barre d’état :
+	Strict Export Report	Rapport d’exportation stricte
+	Suggestions	Suggestions
+	Synchronous Scrolling	Défilement synchrone
+	The spelling and hyphenation data Strix uses, and their licences.	Les données d’orthographe et de césure qu’utilise Strix, et leurs licences.
+	There are no macros yet. Record one to add it here.	Il n’y a pas encore de macro. Enregistrez-en une pour l’ajouter ici.
+	Turquoise	Turquoise
+	View Side by Side	Afficher côte à côte
+	You can also right-click the count in the status bar to change it.	Vous pouvez aussi cliquer avec le bouton droit sur le comptage dans la barre d’état pour le modifier.
+	Your languages	Vos langues
+	a shape inside a drawing canvas is placed by the canvas	une forme dans une zone de dessin est placée par la zone
+	only the desktop app has several windows	seule l’application de bureau a plusieurs fenêtres
+	turn on View Side by Side first	activez d’abord Afficher côte à côte
+	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} n’est pas installée sur cet ordinateur : son texte est donc affiché en {shown}. Les sauts de ligne et le nombre de pages peuvent différer de ceux de l’ordinateur où le document a été créé. Si vous avez le fichier de la police, ajoutez-le avec Ajouter une police… à la fin de cette liste.
+	{language} (default)	{language} (par défaut)
+	{n} KB	{n} Ko
+	A newer version is downloaded in the background and installed, without any question, the next time Strix Writer starts.	Une version plus récente est téléchargée en arrière-plan et installée, sans aucune question, au prochain démarrage de Strix Writer.
+	Add Criterion	Ajouter un critère
+	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Ajouter un critère au tableau des points : deux colonnes, l’une laissée vide et l’autre pour les points (tapez son nom dans l’en-tête)
+	Always Calculate	Toujours calculer
+	Calculate Table	Calculer le tableau
+	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Choisir ce que montre l’exercice (tous les exercices d’une série) : les parties masquées restent dans le document comme texte masqué
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Données et variantes, sauts de page, numérotation, parties affichées et papier millimétré, dans le volet Propriétés de l’exercice
+	Download updates automatically	Télécharger les mises à jour automatiquement
+	Drawing Space	Espace du dessin
+	Drawing Underlay	Sous-couche du dessin
+	Drawings of the Document	Dessins du document
+	Exercise Graph Paper	Papier millimétré de l’exercice
+	Frontispiece	Page de garde
+	Inherit Layers and Styles	Hériter des calques et des styles
+	Number Display	Affichage des nombres
+	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Vos propres pages avant les exercices (titre, classe, date, consignes), terminées par un saut de page de garde
+	Parts Shown	Parties affichées
+	Remove Criterion	Supprimer le critère
+	Remove a criterion and its points from the scores table	Supprimer un critère et ses points du tableau des points
+	Rounding	Arrondi
+	Scores	Points
+	Scores\nTable	Tableau\ndes points
+	Show the substitution steps of every calculation: the formula with its values, then the result	Afficher les étapes de chaque calcul : la formule avec ses valeurs, puis le résultat
+	Strix Writer looks for a newer version when it starts and once a day.	Strix Writer recherche une version plus récente au démarrage et une fois par jour.
+	Strix Writer {version}	Strix Writer {version}
+	Teaching	Enseignement
+	Teal	Bleu canard
+	To the End of the Column	Jusqu’à la fin de la colonne
+	Underlay	Sous-couche

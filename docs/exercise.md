@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-10 · **Change:** a scores table (`exercise.scores`); the Teaching tab; the frontispiece is ended by a Frontispiece Break (no control or placeholder); in a master document the series' settings, numbering and styles stay the master's and the files keep their own; hidden parts start no page; previously: numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** stage 1 done: structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-11 · **Change:** the generated words in English, Italian, German and French only (Spanish dropped), a language without its own keeps the exercise's words instead of turning English, three-letter tags and Swiss German recognised, the scores table's default criterion follows the language; previously: a scores table (`exercise.scores`); the Teaching tab; the frontispiece is ended by a Frontispiece Break (no control or placeholder); in a master document the series' settings, numbering and styles stay the master's and the files keep their own; hidden parts start no page; previously: numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
 
 An **exercise** (Teaching › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -36,12 +36,18 @@ are never repeated. `exercise.insert` takes nested questions as `{"text", "level
 ### Language
 
 The generated words are in the language of the text, the one its spelling dictionary checks
-with: Italian, English, French, German or Spanish (English for the others). A new exercise takes
-the caret's. To change it afterwards, set the language from the status bar or Review › Language
+with: English, Italian, German (Swiss German `gsw` too) or French, the languages Strix's interface
+is offered in (`crates/engine/src/cmd/exercise/words.rs`). Tags are read by their language, two
+or three letters (`it-CH`, `ita`, `ger`). A language without its own words (Spanish, Latin,
+Romansh…) keeps the words the exercise already has: an Italian exercise whose text is set to
+Latin stays Italian, and a new exercise there takes the document's exercises' words (else the
+document's language's, else the interface's, else English). A new
+exercise takes the caret's language. To change it afterwards, set the language from the status bar or Review › Language
 › Set Proofing Language (on a selection, or as the document's default): every exercise whose
 title is now in another language rewrites the words Strix wrote for it (the frames' titles, the
-placeholders still shown, the *Solution* heading), and the default numbering prefix and the
-results summary follow the first exercise. Only default words change: your title, statement,
+placeholders still shown, the *Solution* heading), and the default numbering prefix, the
+results summary and the scores table (its header and the default *Points* criterion) follow the
+first exercise. Only default words change: your title, statement,
 questions, working and a prefix of your own stay as written. One undo step takes it back.
 
 ## Numbering
@@ -302,6 +308,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
 
 ## Revision history
 
+- 2026-11-11: the generated words in the interface's four languages (English, Italian, German, French; Spanish dropped); three-letter tags and Swiss German recognised; a language without its own words (Spanish, Latin, Romansh…) keeps the exercise's words instead of turning them English; the scores table's default criterion follows the language.
 - 2026-11-10: the scores table (`exercise.scores`): the exercises' rows by themselves, two columns per criterion, a Total column with more than one criterion and a Total row with more than one exercise; the Teaching tab gathers exercises, scores and graph paper.
 - 2026-11-10: the frontispiece is free text ended by a Frontispiece Break (a marked next-page section break), no control or placeholder; older frontispieces converted. In a master the series' settings, numbering and styles are the master's (kept on reopening), a subdocument's frontispiece is left out, and the files written back keep their own formatting and frontispiece. A hidden solution starts no page.
 - 2026-11-10: editing keeps the structure: placeholders come back when a part is emptied over several paragraphs, Backspace/Delete never join two parts nor eat a placeholder, removed questions leave no blank line; exercises in a master document follow the master (styles and lists brought in, one results summary, the series' settings, written back to the files).

@@ -487,7 +487,7 @@ fn report_catalog_gaps(mut keys: std::collections::BTreeSet<String>) {
     // A pattern of placeholders and figures only (`{paper}   {width} × {height}`) has nothing to
     // translate: its placeholder names aren't words the interface shows.
     let words = |s: &str| english_words(&s.split('{').map(|p| p.split_once('}').map_or(p, |(_, rest)| rest)).collect::<String>());
-    for lang in super::Lang::all().filter(|l| *l != super::Lang::EN) {
+    for lang in super::Lang::all().filter(|l| *l != super::Lang::EN && crate::interface_languages::offered(*l)) {
         let reported = keys.iter().filter(|s| words(s) && !numbered(s) && !same(s) && !script_error(s));
         let (kept, missing): (Vec<&String>, Vec<&String>) = reported.filter(|s| super::tr(lang, s) == s.as_str()).partition(|s| super::has(lang, s));
         if !missing.is_empty() {

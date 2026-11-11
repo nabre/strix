@@ -856,7 +856,7 @@ fn language_picker(app: &mut WordApp, ui: &mut Ui) {
             if ui.selectable_label(app.ui.language == AUTO, auto_label.as_str()).clicked() {
                 let _ = app.run("ui.language", json!({"value": AUTO}));
             }
-            for lang in Lang::for_picker() {
+            for lang in crate::interface_languages::picker() {
                 if ui.selectable_label(app.ui.language == lang.code(), lang.name()).clicked() {
                     let _ = app.run("ui.language", json!({"value": lang.code()}));
                 }
