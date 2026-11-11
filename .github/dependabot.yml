@@ -47,6 +47,16 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "hayro-*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Kept at upstream's major versions since the v0.17.0 merge (zip 3, cfb 0.15,
+      # brotli-decompressor 5, getrandom 0.3): they move when upstream moves.
+      - dependency-name: "zip"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "cfb"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "brotli-decompressor"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "getrandom"
+        update-types: ["version-update:semver-major"]
 
   # Maintain GitHub Actions workflows
   - package-ecosystem: "github-actions"
