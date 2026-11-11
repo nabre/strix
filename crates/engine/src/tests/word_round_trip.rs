@@ -280,7 +280,7 @@ fn saving_with_pending_objects_starts_clean() {
     assert!(eqs.iter().any(|(t, calc)| t.contains("10") && !calc), "{eqs:?}");
 }
 
-/// The status line says so when a document opens with objects changed elsewhere.
+/// `file.open` says how many objects changed elsewhere wait for a decision.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn opening_says_how_many_objects_wait() {
@@ -292,8 +292,8 @@ fn opening_says_how_many_objects_wait() {
     let path = dir.join("beam.docx");
     std::fs::write(&path, as_word_saves(&bytes, &|x| x.replacen("=9\u{2009}<", "=10\u{2009}<", 1))).unwrap();
     let mut s2 = Session::new(Document::from_text(""));
-    s2.run("file.open", &json!({"path": path.to_string_lossy()})).unwrap();
-    assert!(s2.status.contains("1 Strix object") && s2.status.contains("another program"), "{}", s2.status);
+    let r = s2.run("file.open", &json!({"path": path.to_string_lossy()})).unwrap();
+    assert_eq!(r["externalEdits"], 1, "{r}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

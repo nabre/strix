@@ -278,10 +278,12 @@ fn open(s: &mut Session, v: &Value) -> CmdResult {
     // A master document shows its subdocuments as their files are now.
     super::master::after_open(s);
     // Strix objects changed in Word since Strix saved the file (docs/word-round-trip.md).
-    super::external_edits::after_open(s);
-    Ok(
-        json!({"path": path, "paragraphs": s.doc.paragraph_count(), "words": s.doc.word_count(), "encrypted": encrypted, "alreadyOpen": false, "id": s.document_id()}),
-    )
+    let external = super::external_edits::after_open(s);
+    let mut r = json!({"path": path, "paragraphs": s.doc.paragraph_count(), "words": s.doc.word_count(), "encrypted": encrypted, "alreadyOpen": false, "id": s.document_id()});
+    if external > 0 {
+        r["externalEdits"] = json!(external);
+    }
+    Ok(r)
 }
 
 /// The document the file at `path` holds (or its bytes, base64 in `data`, with `path` only

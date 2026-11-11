@@ -43,13 +43,8 @@ fn run(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"pending": list(s), "resolved": resolved}))
 }
 
-/// After a document is opened: say on the status line how many Strix objects were changed in
-/// another program, if any.
-pub(crate) fn after_open(s: &mut Session) {
-    let n = pending(&s.doc).len();
-    if n > 0 {
-        s.status = format!(
-            "{n} Strix object(s) were changed in another program and are static for now: recalculate them from Strix or keep the changes (file.externalEdits)"
-        );
-    }
+/// After a document is opened: how many Strix objects were changed in another program (0 when
+/// none), for `file.open`'s result. The app shows a bar for them (`ui-egui/src/external_edits.rs`).
+pub(crate) fn after_open(s: &Session) -> usize {
+    pending(&s.doc).len()
 }

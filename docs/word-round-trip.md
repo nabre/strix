@@ -44,7 +44,7 @@ untouched.
 
 ## Objects changed in another program
 
-When objects are pending, the status line says how many, and a bar under the ribbon offers:
+When objects are pending, `file.open` says how many (`"externalEdits": n` in its result), and in the app a bar under the ribbon offers:
 
 - **Recalculate from Strix**: the objects are live again from their Strix source. The change
   made in Word is replaced (a typed-over result is recomputed, a picture redrawn from the CAD
