@@ -702,7 +702,9 @@ jobs:
             set -eu
             . "$HOME/.cargo/env"
             git config --global --add safe.directory "*"
+            # The VM does not get GITHUB_ENV: craft-i18n (checked out above) is passed like craft-fonts.
             export CRAFT_FONTS_DIR="$PWD/craft-fonts" CRAFT_FONTS_REQUIRED=1 WORDCRAFT_VERSION="$VERSION"
+            export CRAFT_I18N_DIR="$PWD/craft-i18n" CRAFT_I18N_REQUIRED=1
             cargo build --release --locked -p strix -p strix-cli
             name="strix-$VERSION-freebsd-x86_64"
             mkdir -p "dist/release/$name/icons"
