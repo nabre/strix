@@ -27,6 +27,8 @@ pub(crate) struct Key {
     pub(crate) sref: u64,
     /// The word being typed in this paragraph, left without a spelling squiggle.
     pub(crate) typing: Option<(usize, usize)>,
+    /// Hidden text shown in this paragraph alone ([`crate::LayoutOptions::reveal_hidden`]).
+    pub(crate) reveal: bool,
 }
 
 /// Memoised paragraph layouts.

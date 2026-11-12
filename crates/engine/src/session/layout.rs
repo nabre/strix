@@ -26,7 +26,7 @@ impl Session {
         let hide_deleted = !self.view.show_markup;
         let deleted = (hide_deleted, self.prefs.markup.hidden_deletions(), self.revisions_in_balloons());
         let outline = (mode == ViewMode::Outline).then(|| self.view.outline.view());
-        let shown = (self.view.marks || self.prefs.marks.hidden, self.view.field_codes);
+        let shown = (self.view.marks || self.prefs.marks.hidden, self.view.field_codes, crate::cmd::calc::revealed_header(self));
         // A dictionary or Language pack installed, removed or edited (in this document's window or
         // any other) proofs it again, open or parked.
         let rev = (self.rev, wordcraft_proof::dictionary_generation());
@@ -69,6 +69,7 @@ impl Session {
             numeral: self.view.numeral.resolve(SYSTEM_LOCALE.get().map(String::as_str)),
             comment_balloons: false,
             field_codes: shown.1,
+            reveal_hidden: shown.2,
             outline: outline.clone(),
             proof: wordcraft_layout::ProofOptions { grammar: self.prefs.mark_grammar, spelling: self.prefs.spelling() },
             typing_word: typing,

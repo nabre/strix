@@ -680,6 +680,47 @@ fn a_calculated_table_fills_formula_columns_and_totals() {
 }
 
 #[test]
+fn a_table_formula_needs_no_name_and_takes_its_unit_at_the_end() {
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("γ = 1.35");
+    // A formula with a name and its unit after it; one without a name, spreadsheet style.
+    let rows = table(&[
+        &["Beam", "L [m]", "q [kN/m]", "M = γ*q*L^2/8 [kN·m]", "= q*L/2 [kN]", "= q*L", "= M/L [kN]"],
+        &["B1", "4.5", "12", "", "", "", ""],
+        &["B2", "6000 mm", "10", "", "", "", ""],
+        &["Total", "", "", "Σ =", "Σ =", "Σ =", ""],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let at = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone());
+    assert_eq!(at(1, 3).as_deref(), Some("41.006"));
+    assert_eq!(at(2, 3).as_deref(), Some("60.75"));
+    assert_eq!(at(1, 4).as_deref(), Some("27"));
+    assert_eq!(at(2, 4).as_deref(), Some("30"));
+    assert_eq!(at(1, 5).as_deref(), Some("54 kN"));
+    assert_eq!(at(3, 3).as_deref(), Some("Σ = 101.756"));
+    assert_eq!(at(3, 4).as_deref(), Some("Σ = 57"));
+    assert_eq!(at(3, 5).as_deref(), Some("Σ = 114 kN"));
+    assert_eq!(at(1, 6).as_deref(), Some("9.113"));
+    // Unnamed columns are not defined after the table; named ones are.
+    assert_eq!(r.columns, vec!["L", "q", "M"]);
+    // Only the leading `=` makes a formula without a name.
+    assert_eq!(ws.eval_table(&table(&[&["a", "a*2 ="], &["1", "x"]])).updates, vec![]);
+    // An index written against its column stays an index, not a unit.
+    let rows = table(&[&["x [m]", "d = x[i+1] - x [m]"], &["1", ""], &["3", ""], &["6", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates.iter().map(|u| u.2.as_str()).collect::<Vec<_>>(), vec!["2", "3", "-5"]);
+    // Written against the formula, as an equation's linear text has it, it is still a unit.
+    let r = ws.eval_table(&table(&[&["L [m]", "q [kN/m]", "= q*L[kN]", "= 2*q*L/2[kN]"], &["2", "3", "", ""]]));
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates.iter().map(|u| u.2.as_str()).collect::<Vec<_>>(), vec!["6", "6"]);
+    // One unit per column.
+    let r = ws.eval_table(&table(&[&["a [m]", "b [m] = 2*a [mm]"], &["1", ""]]));
+    assert!(matches!(r.errors.first(), Some((0, 1, CalcError::BadDefinition(_)))));
+}
+
+#[test]
 fn table_errors_stay_in_their_cells() {
     let mut ws = Worksheet::new(Options::default());
     let rows = table(&[&["a [m]", "b [s]", "c = a + b", "d [kg] = a*2"], &["1", "2", "", ""], &["", "3", "", ""], &["Σ =", "", "", ""]]);
