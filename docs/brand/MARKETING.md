@@ -6,7 +6,7 @@
 > [Atollo](https://github.com/nabre/atollo/blob/main/docs/brand/MARKETING.md), di cui Strix
 > condivide tavolozza e regole di tono.
 >
-> **Ultimo aggiornamento:** 2026-11-12 · **Modifica:** riposizionamento sul docente (esercizi di
+> **Ultimo aggiornamento:** 2026-11-12 · **Modifica:** in italiano «momenti di valutazione», mai «verifica» (decisione del proprietario: sito, README, tagline); prima: riposizionamento sul docente (esercizi di
 > calcolo, risposta multipla, verifiche, punteggi, griglia dei voti pianificata): direttive,
 > categoria, definizione canonica, pilastri, «Come funziona», persone, tagline, descrizione del
 > repository, pitch, video e canali.
@@ -15,7 +15,7 @@
 
 ## 1. Direttive per chi scrive
 
-1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor delle verifiche e
+1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor dei momenti di valutazione e
    degli esercizi** (EN: *test and exercise editor for teachers*). Il racconto segue sempre la
    giornata del docente, in quest'ordine: **esercizi di calcolo**, **domande a risposta multipla**,
    **momenti di valutazione** (compiti, verifiche), **punteggi** e **griglia per l'assegnazione dei
@@ -41,7 +41,7 @@
 6. **Parità multilingua: `EN`, `IT`, `FR`, `DE`.** Ogni testo per il pubblico (sito, README,
    tagline) esiste nelle quattro lingue, con le stesse chiavi. L'inglese è la lingua di
    riferimento; l'app stessa parla 27 lingue. Nei termini scolastici si usa la parola del paese
-   (IT *verifica*, FR *évaluation*, DE *Klassenarbeit*, EN *test*), non una traduzione letterale.
+   (IT *momenti di valutazione*, mai *verifica*, FR *évaluation*, DE *Klassenarbeit*, EN *test*), non una traduzione letterale.
 7. **Colori solo dalla tavolozza Atollo** (sezione 6), gli stessi di `theme::Tokens` nell'app.
 
 ---
@@ -55,7 +55,7 @@
 | **Nome** | **Strix Writer** (dal 2026-11-08). Nome completo nei titoli, negli installer, negli store, sul sito e alla prima menzione; nel testo corrente basta **Strix**, sempre con la S maiuscola. Mai "STRIX" nel testo corrente: solo nel wordmark, che resta STRIX |
 | **Binari** | `strix` (app desktop), `strix-cli` (riga di comando e server MCP), `strix-web` (browser) |
 | **Pubblico** | **il docente** (scuola secondaria, ITS, università: materie con calcolo, ma non solo) |
-| **Categoria** | **Test and exercise editor for teachers** · *Editor di verifiche ed esercizi per il docente* |
+| **Categoria** | **Test and exercise editor for teachers** · *Editor di momenti di valutazione ed esercizi per il docente* |
 | **Formato nativo** | `.xmath` (documento), `.xmathm` (modello); DOCX, ODT, RTF si risalvano nel loro formato solo se il documento non ha oggetti Strix |
 | **Piattaforme** | Windows (x64, x86, ARM64), macOS (universal), Linux (x86_64, aarch64, riscv64), FreeBSD, web (WebAssembly) |
 | **Linguaggio** | Rust puro, nessun `unsafe`, nessun panic nel codice di produzione |
@@ -75,11 +75,11 @@
   > up by criterion by itself; a grading grid that turns points into marks is planned. Native on
   > Windows, macOS, Linux and BSD, and in the browser.
 * **Italiano:**
-  > **Strix Writer — Verifiche ed esercizi per il docente.**
-  > Un editor open source, scritto in Rust, per preparare le verifiche. Gli esercizi di calcolo
+  > **Strix Writer — Momenti di valutazione ed esercizi per il docente.**
+  > Un editor open source, scritto in Rust, per preparare i momenti di valutazione. Gli esercizi di calcolo
   > tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni fila di banchi; le
   > domande a risposta multipla, vero/falso e aperte portano il loro punteggio; un file per
-  > esercizio fa l'archivio, e da lì si compone la verifica, con o senza soluzioni. La tabella dei
+  > esercizio fa l'archivio, e da lì si compone il momento di valutazione, con o senza soluzioni. La tabella dei
   > punteggi somma da sola i punti per criterio; la griglia che trasforma i punti in voti è
   > pianificata. Nativo su Windows, macOS, Linux e BSD, e nel browser.
 * **Français :**
@@ -265,7 +265,7 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
   le soluzioni; tenere allineati testo, soluzione e risultati; impaginare la versione con e senza
   soluzioni; sommare i punti e convertirli in voti a fine correzione; rifare la verifica in
   formato DSA.
-* **Hook:** *"Scrivi la verifica. Soluzioni e punteggi li tiene Strix."* · *"Un esercizio, tante
+* **Hook:** *"Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix."* · *"Un esercizio, tante
   varianti, nessuna soluzione da rifare."*
 * **Da mostrare, in quest'ordine:** un esercizio di calcolo con dati in due varianti (A e B) che
   ricalcolano la soluzione; una domanda a risposta multipla con la casella giusta spuntata che
@@ -303,9 +303,9 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 | Formato | EN | IT | FR | DE |
 | :--- | :--- | :--- | :--- | :--- |
-| **Categoria** | Tests and exercises for teachers | Verifiche ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
-| **Hero** | Write the test. Strix keeps the solutions and the scores. | Scrivi la verifica. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
-| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, verifiche e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
+| **Categoria** | Tests and exercises for teachers | Momenti di valutazione ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
+| **Hero** | Write the test. Strix keeps the solutions and the scores. | Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
+| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, momenti di valutazione e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
 | **Fiducia** | Open source. No account. No telemetry. Never crashes by design. | Open source. Nessun account. Nessuna telemetria. Progettato per non andare in crash. | Open source. Sans compte. Sans télémétrie. Conçu pour ne jamais planter. | Open Source. Kein Konto. Keine Telemetrie. Absturzfrei konstruiert. |
 
 ### 9.2 Descrizione del repository GitHub (≤ 350 caratteri)
@@ -345,12 +345,12 @@ gh repo edit nabre/strix \
 > in the browser. MIT or Apache-2.0.
 
 **IT:**
-> **Strix Writer** è un editor open source per preparare le verifiche, scritto interamente in
+> **Strix Writer** è un editor open source per preparare i momenti di valutazione, scritto interamente in
 > Rust. Gli esercizi di calcolo tengono vivi dati, soluzione e risultati: le equazioni nella
 > pagina calcolano, con le unità, e le varianti A, B, C danno a ogni fila di banchi i suoi numeri
 > senza rifare una sola soluzione. Le domande a risposta multipla, vero/falso e aperte portano il
 > loro punteggio, e le risposte giuste si nascondono con la soluzione. Un file per esercizio fa
-> l'archivio; un documento master ne compone la verifica, con il suo frontespizio, la sua
+> l'archivio; un documento master ne compone il momento di valutazione, con il suo frontespizio, la sua
 > numerazione e la formattazione DSA, con o senza soluzioni, senza mai toccare l'archivio. La
 > tabella dei punteggi somma i punti per criterio mentre scrivi; la griglia dai punti ai voti è
 > pianificata. Salva file `.xmath` che altri programmi aprono con gli ultimi valori calcolati,
@@ -429,7 +429,7 @@ animatori digitali, corsi di formazione, dipartimenti di matematica e di discipl
   that adds itself up. Strix: an open-source editor for teachers' tests. Windows, macOS, Linux,
   BSD, web. https://nabre.github.io/strix/*
 * IT: *Un esercizio, varianti A e B, soluzioni ricalcolate, risposta multipla, tabella dei
-  punteggi che somma da sola. Strix: editor open source per le verifiche. Windows, macOS, Linux,
+  punteggi che somma da sola. Strix: editor open source per i momenti di valutazione. Windows, macOS, Linux,
   BSD, web. https://nabre.github.io/strix/it/*
 
 ### 10.3 Note di rilascio (modello)
