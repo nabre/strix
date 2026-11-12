@@ -6,16 +6,17 @@
 <h1 align="center">Strix Writer</h1>
 
 <p align="center">
-  <b>WYSIWYG math for engineers: type an equation in the page, and it calculates.</b>
+  <b>Tests and exercises for teachers: write the test, Strix keeps the solutions and the scores.</b>
 </p>
 
 <p align="center">
-  Strix Writer (Strix for short) is an open-source document editor, written in pure Rust, for working out math and
-  engineering problems. You write the problem as you would on paper (text, tables, equations,
-  drawings), and the equations are live: they carry units, solve for what is unknown, check
-  limits, and update as soon as an input changes. Exercises keep a locked structure with a
-  results summary, and CAD drawings follow the calculations. It runs natively on Windows, macOS,
-  Linux and BSD, and in the browser via WebAssembly.
+  Strix Writer (Strix for short) is an open-source editor, written in pure Rust, for preparing
+  tests. Calculation exercises keep their data, solution and results live, with variants A, B, C
+  for each row of desks; multiple-choice, true/false and open questions carry their points; one
+  file per exercise makes an archive, and a test is put together from it, with or without the
+  solutions. A scores table adds the points up by criterion by itself; a grading grid that turns
+  points into marks is planned. Underneath, the equations in the page calculate, with units. It
+  runs natively on Windows, macOS, Linux and BSD, and in the browser via WebAssembly.
 </p>
 
 <p align="center">
@@ -35,12 +36,15 @@
 <p align="center">English · <a href="docs/README.it.md">Italiano</a> · <a href="docs/README.fr.md">Français</a> · <a href="docs/README.de.md">Deutsch</a></p>
 
 <p align="center">
-  <img src="docs/brand/social.png" alt="Strix Writer: type the equation, it calculates. A beam calculation with units, a solved result and a stress check." width="100%">
+  <img src="docs/brand/social.png" alt="Strix Writer: a worked exercise where the equations calculate, with units, a solved result and a check." width="100%">
 </p>
 
 <p align="center">
+  <a href="#calculation-exercises">Exercises</a> ·
+  <a href="#multiple-choice-and-open-questions">Multiple choice</a> ·
+  <a href="#from-the-archive-to-the-test">Tests</a> ·
+  <a href="#scores-and-grading">Scores</a> ·
   <a href="#wysiwyg-math">WYSIWYG math</a> ·
-  <a href="#exercises">Exercises</a> ·
   <a href="#cad-drawings-driven-by-the-calculations">CAD drawings</a> ·
   <a href="#a-full-document-editor-underneath">Document editor</a> ·
   <a href="#files">Files</a> ·
@@ -50,9 +54,78 @@
   <a href="#license-and-credits">License</a>
 </p>
 
-> **Status: alpha.** The document editor Strix is built on is mature; the calculation engine,
-> exercises and CAD are new and moving fast. Keep a copy of important documents, and
+> **Status: alpha.** The document editor Strix is built on is mature; the exercises, the
+> calculation engine and CAD are new and moving fast. Keep a copy of important documents, and
 > [tell us what breaks](https://github.com/nabre/strix/issues).
+
+## Calculation exercises
+
+**Teaching › Exercise › New Exercise** inserts a worked problem with a structure that editing can't break:
+
+- a title, the **statement** (free content: text, figures, tables, equations, drawings), the
+  **data** (symbol, description, value, unit) and the **questions**, lettered and nested up to
+  three levels (a), a.1), a.1.1)), with notes between them;
+- the **solution**, where each question is repeated as a read-only line with room to work it out
+  under it; the working stays with its question when the questions change;
+- one **results summary** at the end of the document: an equation marked as the result of a
+  question (Result Of) is listed with its calculated value (`a) M = 30.375 kN·m`).
+
+The solution is a live calculation (see [WYSIWYG math](#wysiwyg-math)): the data can have
+**variants** A, B, C…, and choosing one recalculates the data, the solution and the summary, so
+each row of desks gets its own numbers and no solution is redone by hand. Each exercise is a
+**sandbox**: two exercises can both define `L`. Graph paper can follow the questions, as in an
+exercise book, and a [CAD drawing](#cad-drawings-driven-by-the-calculations) in the statement
+follows the data.
+
+## Multiple choice and open questions
+
+An exercise can also be a quiz (`exercise.insert {"kind"}`):
+
+| Kind | What the student gets |
+|---|---|
+| **Problem** | statement, data, questions and the solution worked under each question |
+| **Open answer** | each question followed by an answer space of a height in cm, squared or blank |
+| **Multiple choice** | each question followed by its options A), B), C)… with check boxes; more than one can be correct |
+| **True/False** | a multiple choice with two options |
+
+The correct answers are ticked in the exercise and **hide with the solution**: the boxes go
+empty and the answer spaces keep their height, so the student's copy is laid out exactly like the
+teacher's. Each question has its **points**, shown after it and added up in the scores table. A
+quiz needs no statement, and a lone question has no letter.
+
+## From the archive to the test
+
+- **One file per exercise** makes an archive. Each file carries its **archive properties**
+  (grade, section, subject, teacher, duration and the score), saved so that Word shows them too
+  ([docs/archive.md](docs/archive.md)).
+- A **master document** puts a test together from those files: its own numbering, frontispiece
+  (cover page), page breaks and parts shown (with or without the solutions and the results);
+  another master can lay out the same series another way. **None of it changes the files**
+  ([docs/master-documents.md](docs/master-documents.md)).
+- **DSA formatting** (Design › Document Formatting › DSA) lays the same test out for students
+  with specific learning difficulties: Reading, Writing, Maths and memory, combinable, the page
+  always white ([docs/dsa.md](docs/dsa.md)).
+- **PDF** export for printing; LaTeX, HTML and Markdown copies too.
+
+## Scores and grading
+
+A **scores table** (Teaching › Scores › Scores Table) lists the points of each exercise, to hand
+out with the test:
+
+| Exercise | IMP | | MOD | | CAL/RIS | | Total | |
+|---|---|---|---|---|---|---|---|---|
+| 1 | | 2 | | 2 | | 1 | | 5 |
+| 2 | | 2 | | 2 | | 1 | | 5 |
+| Total | | 4 | | 4 | | 2 | | 10 |
+
+- one **row per exercise**, gathered by itself (a new exercise adds its row);
+- each **criterion** (IMP, MOD, CAL/RIS…, named as you like) has two columns: the points given on
+  the sheet and the points the exercise is worth;
+- **totals** across and down follow as points are typed; the grand total is the document's
+  **Score** property.
+
+*Planned:* a **grading grid** that turns points into marks (thresholds, scale, rounding).
+Details: [docs/exercise.md](docs/exercise.md).
 
 ## WYSIWYG math
 
@@ -111,26 +184,10 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a is
 - **Errors never stop the sheet.** A failing statement shows `⚠` and its message; later items
   still calculate.
 
-Everything is on the **Math** tab: New Calculation, Calculate (also the `=` button beside an
-equation), Recalculate, Calculated Table, number format, Exercise and CAD Drawing. Design and
+The calculation tools are on the **Math** tab: New Calculation, Calculate (also the `=` button
+beside an equation), Recalculate, Calculated Table, number format and CAD Drawing; exercises,
+scores and graph paper are on the **Teaching** tab. Design and
 details: [docs/calc.md](docs/calc.md).
-
-## Exercises
-
-**Math › Exercise** inserts a worked problem with a structure that editing can't break:
-
-- a title, the **statement** (free content: text, figures, tables, equations, drawings), the
-  **data** generated from the Exercise Properties pane, and the **questions**, lettered and
-  nested up to three levels (a), a.1), a.1.1)), with notes between them;
-- the **solution**, where each question is repeated as a read-only line with room to work it out
-  under it; the working stays with its question when the questions change;
-- one **results summary** at the end of the document for all exercises: an equation marked as
-  the result of a question (Result Of) is listed with its calculated value (`a) M = 30.375 kN·m`).
-
-Each exercise is a **calculation sandbox**: what it defines stays inside, so two exercises can
-both define `L`. In the Exercise Properties pane the data (symbol, description, value, unit) can
-have **variants** A, B, C…; choosing one recalculates the data, results and summary. Details:
-[docs/exercise.md](docs/exercise.md).
 
 ## CAD drawings driven by the calculations
 
@@ -207,9 +264,10 @@ values as ordinary equations, tables and pictures.
 Everything Strix does is a **command** in one registry, with an id, parameters and a ribbon
 location. The ribbon, keyboard shortcuts, command search, the command line, the control channel
 and the MCP server all dispatch the same commands, and programmatic calls never open dialogs.
-The calculation, exercise and drawing commands include `calc.insert`, `calc.recalculate`,
-`calc.variables`, `calc.options`, `calc.steps`, `table.calc`, `exercise.insert`,
-`exercise.setData`, `equation.answer`, `insert.cad`, `cad.get`, `cad.set` and `cad.add`.
+The teaching, calculation and drawing commands include `exercise.insert`, `exercise.questions`,
+`exercise.setData`, `exercise.variant`, `exercise.show`, `exercise.scores`, `archive.properties`,
+`design.dsa`, `equation.answer`, `calc.insert`, `calc.recalculate`, `table.calc`, `insert.cad` and
+`cad.set`, so an agent can prepare a whole test with its variants.
 
 ```sh
 claude mcp add strix -- strix-cli mcp                      # headless documents
@@ -297,16 +355,19 @@ Done:
 3. **Ranges, vectors, Σ/∏.**
 4. **Calculated tables.**
 5. **Exercises**: locked structure, sandbox, repeated questions, results summary, data and
-   variants.
-6. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
+   variants; open-answer, multiple-choice and true/false questions with points.
+6. **Tests**: master documents that assemble a test from an archive of one file per exercise,
+   frontispiece, parts shown, archive properties, DSA formatting; the scores table.
+7. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
    exact snaps and grips.
 
 Planned:
 
 - Calculations: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, matrices,
   systems of equations across regions, plots; number format per document.
+- Grading: a **grading grid** that turns points into marks (thresholds, scale, rounding).
 - Exercises: a results table per exercise and checks against expected values; a summary per
-  variant.
+  variant; an Archive pane and a search across the archive's files.
 - CAD: the modify tools, layers, hatches, angular dimensions, constraints and driving dimensions.
 
 Progress log: [ROADMAP.md](ROADMAP.md).

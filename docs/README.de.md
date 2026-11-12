@@ -5,16 +5,17 @@
 <h1 align="center">Strix</h1>
 
 <p align="center">
-  <b>WYSIWYG-Mathematik für Ingenieure: Gleichung auf die Seite tippen, und sie rechnet.</b>
+  <b>Klassenarbeiten und Übungen für Lehrkräfte: Schreib die Klassenarbeit, Lösungen und Punkte führt Strix.</b>
 </p>
 
 <p align="center">
-  Strix ist ein quelloffener Dokumenteditor, komplett in Rust geschrieben, um Mathematik- und
-  Ingenieuraufgaben zu lösen. Du schreibst die Aufgabe wie auf Papier (Text, Tabellen,
-  Gleichungen, Zeichnungen), und die Gleichungen leben: Sie tragen Einheiten, lösen nach der
-  Unbekannten auf, prüfen Grenzwerte und rechnen neu, sobald sich ein Wert ändert. Übungen behalten
-  eine gesperrte Struktur mit Ergebnisübersicht, und CAD-Zeichnungen folgen den Berechnungen. Nativ
-  unter Windows, macOS, Linux und BSD, und im Browser per WebAssembly.
+  Strix ist ein quelloffener Editor, komplett in Rust geschrieben, um Klassenarbeiten
+  vorzubereiten. Rechenaufgaben halten Angaben, Lösung und Ergebnisse lebendig, mit Varianten A,
+  B, C für jede Bankreihe; Multiple-Choice-, Richtig/Falsch- und offene Fragen tragen ihre Punkte;
+  eine Datei pro Aufgabe ergibt eine Sammlung, aus der die Klassenarbeit entsteht, mit oder ohne
+  Lösungen. Eine Punktetabelle summiert selbst nach Kriterien; ein Notenschlüssel, der Punkte in
+  Noten umrechnet, ist geplant. Darunter rechnen die Gleichungen auf der Seite, mit Einheiten.
+  Nativ unter Windows, macOS, Linux und BSD, und im Browser per WebAssembly.
 </p>
 
 <p align="center">
@@ -30,6 +31,50 @@
 > und CAD sind neu und entwickeln sich schnell. Bewahre eine Kopie wichtiger Dokumente auf und
 > [sag uns, was nicht funktioniert](https://github.com/nabre/strix/issues). Das englische README
 > ist die vollständige Referenz.
+
+## Rechenaufgaben
+
+**Unterricht › Übung › Neue Übung** fügt eine gelöste Aufgabe ein, deren Struktur beim Bearbeiten
+nicht zerbricht: Titel, Aufgabentext, **Angaben** (Symbol, Beschreibung, Wert, Einheit), Fragen
+mit Buchstaben auf drei Ebenen (a), a.1), a.1.1)); die **Lösung** wiederholt jede Frage
+schreibgeschützt mit Platz für den Lösungsweg; eine **Ergebnisübersicht** am Dokumentende.
+
+Die Lösung ist eine lebendige Berechnung (siehe [WYSIWYG-Mathematik](#wysiwyg-mathematik)): Die
+Angaben können **Varianten** A, B, C… haben, und die Wahl einer Variante berechnet Angaben, Lösung
+und Übersicht neu; jede Bankreihe bekommt ihre eigenen Zahlen, keine Lösung wird von Hand neu
+gerechnet. Jede Übung ist eine **Sandbox** (zwei Übungen können beide `L` definieren); nach den
+Fragen kann Karopapier folgen, und eine CAD-Zeichnung im Aufgabentext folgt den Angaben.
+
+## Multiple Choice und offene Fragen
+
+Eine Übung kann auch ein Quiz sein: **offene Antwort** (ein Antwortfeld mit Höhe in cm, kariert
+oder leer), **Multiple Choice** (Optionen A), B), C)… mit Kästchen, auch mehrere richtig) und
+**Richtig/Falsch**. Die richtigen Antworten werden in der Übung angekreuzt und **mit der Lösung
+ausgeblendet**: Die Kästchen bleiben leer, die Felder behalten ihre Höhe, so ist die Kopie der
+Schüler genauso gesetzt wie die der Lehrkraft. Jede Frage hat ihre **Punkte**, daneben angezeigt
+und in der Punktetabelle summiert.
+
+## Von der Aufgabensammlung zur Klassenarbeit
+
+- **Eine Datei pro Aufgabe** ergibt eine Sammlung; jede Datei trägt ihre **Archiveigenschaften**
+  (Klasse, Zug, Fach, Lehrkraft, Dauer, Punktzahl), auch in Word sichtbar
+  ([archive.md](archive.md)).
+- Ein **Masterdokument** stellt daraus die Klassenarbeit zusammen, mit eigener Nummerierung,
+  Deckblatt, Seitenumbrüchen und gezeigten Teilen (mit oder ohne Lösungen und Ergebnisse);
+  **die Dateien der Sammlung ändern sich nie** ([master-documents.md](master-documents.md)).
+- Die **DSA-Formatierung** (Lernschwierigkeiten: Lesen, Schreiben, Rechnen und Gedächtnis,
+  kombinierbar, Seite immer weiß) passt dieselbe Klassenarbeit an ([dsa.md](dsa.md)).
+- **PDF**-Export zum Drucken.
+
+## Punkte und Noten
+
+Die **Punktetabelle** (Unterricht › Punkte › Punktetabelle) hat eine Zeile pro Übung und zwei
+Spalten pro Kriterium (die auf dem Blatt vergebenen Punkte und die, die die Übung wert ist); die
+**Summen** je Zeile und Spalte folgen beim Tippen, und die Gesamtsumme ist die Eigenschaft
+**Punktzahl** der Datei.
+
+*Geplant:* ein **Notenschlüssel**, der Punkte in Noten umrechnet (Schwellen, Skala, Rundung).
+Details (auf Englisch): [exercise.md](exercise.md).
 
 ## WYSIWYG-Mathematik
 
@@ -62,15 +107,7 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a is
   `mean =`, `min =`, `max =`), **Summen, Bereiche und Vektoren**, **Zahlenformat**.
 - **Fehler halten das Blatt nicht an**: Eine fehlerhafte Anweisung zeigt `⚠` und ihre Meldung.
 
-Alles liegt im Reiter **Math**. Details (auf Englisch): [calc.md](calc.md).
-
-## Übungen
-
-**Math › New Exercise** (Oberfläche noch nicht übersetzt) fügt eine gelöste Aufgabe ein, deren Struktur beim Bearbeiten nicht zerbricht:
-Titel, Aufgabentext, Daten, Fragen mit Buchstaben auf drei Ebenen; die Lösung wiederholt jede Frage
-schreibgeschützt mit Platz für den Lösungsweg; eine **Ergebnisübersicht** am Dokumentende. Jede
-Übung ist eine **Rechen-Sandbox** (zwei Übungen können beide `L` definieren), und die Daten können
-**Varianten** A, B, C… haben, die alles neu berechnen. Details: [exercise.md](exercise.md).
+Das Rechnen liegt im Reiter **Math**; Übungen, Punkte und Karopapier im Reiter **Unterricht**. Details (auf Englisch): [calc.md](calc.md).
 
 ## CAD-Zeichnungen, die den Berechnungen folgen
 

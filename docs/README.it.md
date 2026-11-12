@@ -5,16 +5,17 @@
 <h1 align="center">Strix</h1>
 
 <p align="center">
-  <b>Matematica WYSIWYG per l'ingegneria: scrivi l'equazione nella pagina, e calcola.</b>
+  <b>Verifiche ed esercizi per il docente: scrivi la verifica, soluzioni e punteggi li tiene Strix.</b>
 </p>
 
 <p align="center">
-  Strix è un editor di documenti open source, scritto interamente in Rust, per risolvere problemi
-  di matematica e di ingegneria. Scrivi il problema come su carta (testo, tabelle, equazioni,
-  disegni) e le equazioni sono vive: portano le unità di misura, ricavano l'incognita, verificano
-  i limiti e si aggiornano appena cambia un dato. Gli esercizi hanno una struttura bloccata con il
-  riepilogo dei risultati, e i disegni CAD seguono i calcoli. Gira in modo nativo su Windows,
-  macOS, Linux e BSD, e nel browser con WebAssembly.
+  Strix è un editor open source, scritto interamente in Rust, per preparare le verifiche. Gli
+  esercizi di calcolo tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni
+  fila di banchi; le domande a risposta multipla, vero/falso e aperte portano il loro punteggio;
+  un file per esercizio fa l'archivio, e da lì si compone la verifica, con o senza soluzioni. La
+  tabella dei punteggi somma da sola i punti per criterio; la griglia che trasforma i punti in
+  voti è pianificata. Sotto, le equazioni nella pagina calcolano, con le unità di misura. Gira in
+  modo nativo su Windows, macOS, Linux e BSD, e nel browser con WebAssembly.
 </p>
 
 <p align="center">
@@ -30,6 +31,51 @@
 > gli esercizi e il CAD sono nuovi e cambiano in fretta. Tieni una copia dei documenti importanti e
 > [segnalaci cosa non va](https://github.com/nabre/strix/issues). Il README in inglese è il
 > riferimento completo.
+
+## Esercizi di calcolo
+
+**Didattica › Esercizio › Nuovo esercizio** inserisce un problema svolto con una struttura che le
+modifiche non rompono: titolo, testo, **dati** (simbolo, descrizione, valore, unità), domande con
+lettere annidate su tre livelli (a), a.1), a.1.1)); la **soluzione** ripete ogni domanda in sola
+lettura con lo spazio per lo svolgimento; un **riepilogo dei risultati** a fine documento.
+
+La soluzione è un calcolo vivo (vedi [Matematica WYSIWYG](#matematica-wysiwyg)): i dati possono
+avere **varianti** A, B, C… e sceglierne una ricalcola dati, soluzione e riepilogo, così ogni fila
+di banchi ha i suoi numeri e nessuna soluzione si rifà a mano. Ogni esercizio è una **sandbox**
+(due esercizi possono definire entrambi `L`); dopo le domande può seguire la carta a quadretti, e
+un disegno CAD nel testo segue i dati.
+
+## Risposta multipla e risposta aperta
+
+Un esercizio può essere anche un quiz: **risposta aperta** (uno spazio di altezza data in cm, a
+quadretti o bianco), **risposta multipla** (opzioni A), B), C)… con le caselle, anche più risposte
+giuste) e **vero/falso**. Le risposte giuste si spuntano nell'esercizio e **si nascondono con la
+soluzione**: le caselle restano vuote e gli spazi mantengono l'altezza, così la copia dello
+studente è impaginata come quella del docente. Ogni domanda ha i suoi **punti**, mostrati accanto
+e sommati nella tabella dei punteggi.
+
+## Dall'archivio alla verifica
+
+- **Un file per esercizio** fa l'archivio; ogni file porta le sue **proprietà d'archivio**
+  (classe, sezione, materia, docente, durata, punteggio), visibili anche in Word
+  ([archive.md](archive.md)).
+- Un **documento master** compone la verifica da quei file, con la sua numerazione, il
+  frontespizio, i salti di pagina e le parti mostrate (con o senza soluzioni e risultati);
+  **i file dell'archivio non cambiano mai** ([master-documents.md](master-documents.md)).
+- La **formattazione DSA** (Design › Formattazione documento › DSA) impagina la stessa
+  verifica per gli studenti con DSA: Lettura, Scrittura, Calcolo e memoria, combinabili, pagina
+  sempre bianca ([dsa.md](dsa.md)).
+- Esportazione in **PDF** per la stampa.
+
+## Punteggi e voti
+
+La **tabella dei punteggi** (Didattica › Punteggi › Tabella punteggi) ha una riga per esercizio e
+due colonne per criterio (IMP, MOD, CAL/RIS…: i punti assegnati sul foglio e quelli che
+l'esercizio vale); i **totali** per riga e per colonna seguono mentre scrivi, e il totale
+generale è la proprietà **Punteggio** del file.
+
+*Pianificato:* una **griglia per l'assegnazione dei voti** che trasforma i punti in voti (soglie,
+scala, arrotondamento). Dettagli (in inglese): [exercise.md](exercise.md).
 
 ## Matematica WYSIWYG
 
@@ -62,15 +108,7 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a è
   `mean =`, `min =`, `max =`), **sommatorie, intervalli e vettori**, **formato numerico**.
 - **Gli errori non fermano il foglio**: un'istruzione che non torna mostra `⚠` e il messaggio.
 
-Tutto è nella scheda **Matematica**. Dettagli (in inglese): [calc.md](calc.md).
-
-## Esercizi
-
-**Matematica › Nuovo esercizio** inserisce un problema svolto con una struttura che le modifiche non
-rompono: titolo, testo, dati, domande con lettere annidate su tre livelli; la soluzione ripete ogni
-domanda in sola lettura con lo spazio per lo svolgimento; un **riepilogo dei risultati** a fine
-documento. Ogni esercizio è una **sandbox di calcolo** (due esercizi possono definire entrambi `L`)
-e i dati possono avere **varianti** A, B, C… che ricalcolano tutto. Dettagli: [exercise.md](exercise.md).
+Il calcolo è nella scheda **Matematica**; esercizi, punteggi e carta a quadretti nella scheda **Didattica**. Dettagli (in inglese): [calc.md](calc.md).
 
 ## Disegni CAD guidati dai calcoli
 
