@@ -110,6 +110,20 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
         // A lone exercise has no number.
         let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
         ui.label(egui::RichText::new(title).size(15.0).strong());
+        // An open-answer or multiple-choice exercise: its questions instead of data and variants.
+        if let Some(st) = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().filter(|st| st["kind"] != "problem") {
+            crate::pane_kit::section(ui, "01", tl!("Questions"));
+            crate::exercise_quiz::questions(app, ui, ex, &st);
+            if lone {
+                crate::pane_kit::section(ui, "02", tl!("Page Breaks"));
+                page_breaks(app, ui);
+                crate::pane_kit::section(ui, "03", tl!("Parts Shown"));
+                parts(app, ui, ex);
+                crate::pane_kit::section(ui, "04", tl!("Frontispiece"));
+                frontispiece(app, ui);
+            }
+            return;
+        }
         // Variants: the active one is the one the exercise is calculated with.
         crate::pane_kit::section(ui, "01", tl!("Variants"));
         ui.horizontal_wrapped(|ui| {

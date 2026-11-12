@@ -8,7 +8,7 @@ use wordcraft_doc::control::ControlRange;
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef};
 
-use super::{TAG_QUESTIONS, TAG_TEXT, TAG_TITLE};
+use super::{TAG_ITEM, TAG_QUESTIONS, TAG_TEXT, TAG_TITLE};
 use crate::{CmdError, Selection, Session};
 
 /// Bytes of the control start markers a paragraph begins with.
@@ -59,7 +59,10 @@ fn locked_edge(ranges: &[ControlRange], s: &Session, story: StoryRef, path: &wor
 pub(crate) fn keeps_edge(s: &Session, f: &Pos, back: bool) -> bool {
     let Some(p) = s.doc.para_at(f) else { return false };
     // A placeholder showing is no text: Backspace or Delete in it takes nothing away.
-    if s.doc.control_at(f).is_some_and(|r| r.control.showing_placeholder && [TAG_TEXT, TAG_QUESTIONS, TAG_TITLE].contains(&r.control.tag.as_str())) {
+    if s.doc
+        .control_at(f)
+        .is_some_and(|r| r.control.showing_placeholder && [TAG_TEXT, TAG_QUESTIONS, TAG_TITLE, TAG_ITEM].contains(&r.control.tag.as_str()))
+    {
         return true;
     }
     let ranges = s.doc.control_ranges(f.story);

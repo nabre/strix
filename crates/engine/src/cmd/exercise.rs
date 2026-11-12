@@ -41,6 +41,7 @@ mod breaks;
 mod delete;
 mod dsa;
 mod front;
+mod items;
 mod language;
 mod numbering;
 mod scores;
@@ -50,6 +51,7 @@ mod structure;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
+pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
 pub(crate) use language::follow_language;
 pub(crate) use show::grid_follows;
 pub(crate) use structure::{collapse_empty_part, keeps_edge};
@@ -104,10 +106,13 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"title"?: string, "text"?: string, "questions"?: [string]} → inserts an exercise after the paragraph at the caret: title, statement, questions, solution; the results summary goes (or stays) at the end of the document"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse", "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..]}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+        CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question of an open-answer or multiple-choice exercise; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "open"|"choice", "points", "height"?, "grid"?, "spacing"?, "choices"?, "correct"?}], "total": points | null}"#),
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
-            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
@@ -256,6 +261,13 @@ fn ensure_styles(s: &mut Session) {
             CharProps { bold: Some(true), size: Some(20.0), ..Default::default() },
         ),
         para_style(
+            items::STYLE_ANSWER,
+            "Exercise Answer",
+            ParaProps { space_after: Some(6.0), ..Default::default() },
+            CharProps { color: Some(wordcraft_doc::props::TextColor::Rgb(wordcraft_doc::props::Rgb(0x1F, 0x4E, 0x9A))), ..Default::default() },
+        ),
+        para_style(items::STYLE_CHOICE, "Exercise Option", ParaProps { space_after: Some(2.0), ..Default::default() }, CharProps::default()),
+        para_style(
             STYLE_RESULT,
             "Exercise Result",
             ParaProps { space_after: Some(2.0), ..Default::default() },
@@ -370,6 +382,10 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Disabled("an exercise goes in the body, outside tables".into()));
     }
     ensure_styles(s);
+    if let Some(kind) = p::str(v, "kind").filter(|k| *k != "problem") {
+        let blocks = items::exercise_blocks(s, v, kind)?;
+        return place(s, blocks);
+    }
     let w = words(s);
     let title = p::str(v, "title").map(str::to_string);
     let text = p::str(v, "text").map(str::to_string);
@@ -434,6 +450,12 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, w.prompt, ControlLock::SdtContentLocked)], 1, None));
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
+    place(s, blocks)
+}
+
+/// The blocks of a new exercise put after the paragraph at the caret (never inside another
+/// exercise or the results summary), the caret in its title.
+fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     let top = s.sel.focus.path.0.first().map_or(0, |&t| t as usize);
     let mut at = top.saturating_add(1).min(s.doc.body.len());
     // Never inside another exercise: after it (the caret in one), or before the results
@@ -501,6 +523,8 @@ struct Question {
 
 #[derive(Debug, Default)]
 struct Exercise {
+    /// Problem, open answer or multiple choice (docs/exercise.md, Kinds of exercise).
+    kind: items::Kind,
     title: String,
     questions: Vec<Question>,
     /// Questions counted per level so far, for the labels.
@@ -619,6 +643,7 @@ fn scan(s: &Session) -> Layout {
                                 data: read_data(control),
                                 breaks: breaks::read(control),
                                 show: show::read(control),
+                                kind: items::read_kind(control),
                                 start: i,
                                 ..Exercise::default()
                             });
@@ -692,11 +717,16 @@ fn scan(s: &Session) -> Layout {
                 grow(&mut e.question_blocks);
                 if tags.iter().any(|(t, ph)| t == TAG_QUESTIONS && *ph) {
                     e.no_questions = true;
-                } else if p.props.style.as_deref() == Some(STYLE_QUESTION) && e.questions.len() < MAX_QUESTIONS && !plain(p).is_empty() {
+                } else if p.props.style.as_deref() == Some(STYLE_QUESTION)
+                    && e.questions.len() < MAX_QUESTIONS
+                    && !has(items::TAG_ANSWER)
+                    && let Some(text) = items::question_text(p).or_else(|| Some(plain(p)).filter(|t| !t.is_empty()))
+                {
                     // Only question paragraphs count; notes and other content sit between them.
+                    // A quiz's question is its item control, empty while its placeholder shows.
                     let level = p.props.numbering.map_or(0, |n| n.level).min(MAX_LEVEL);
                     let label = e.next_label(level);
-                    e.questions.push(Question { text: plain(p).chars().take(MAX_TEXT).collect(), level, label });
+                    e.questions.push(Question { text: text.chars().take(MAX_TEXT).collect(), level, label });
                 }
             }
             (Part::Questions, _) => grow(&mut e.question_blocks),
@@ -959,6 +989,8 @@ pub(crate) fn signature(s: &Session) -> u64 {
     layout.results.is_some().hash(&mut h);
     // Points typed in a scores table change its totals.
     scores::fingerprint(s).hash(&mut h);
+    // Boxes ticked and the settings of the quizzes' questions.
+    items::fingerprint(s).hash(&mut h);
     h.finish()
 }
 
@@ -980,6 +1012,9 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
     let ex = exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into()))?;
     let layout = scan(s);
     let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+    if e.kind.quiz() {
+        return items::add_question(s, ex, v);
+    }
     let (_, last) = e.question_blocks.ok_or_else(|| CmdError::Failed("the exercise has no questions part".into()))?;
     if e.questions.len() >= MAX_QUESTIONS {
         return Err(CmdError::Failed(format!("an exercise holds at most {MAX_QUESTIONS} questions")));
@@ -1453,6 +1488,12 @@ fn capitalized(t: &str) -> String {
 }
 
 /// The first block of the results summary, when the document has one.
+/// A control of an exercise that never shows a placeholder when emptied: an answer (an empty
+/// space prints empty), the points, an option's box.
+pub(crate) fn no_placeholder(tag: &str) -> bool {
+    [TAG_ANSWER, TAG_POINTS, TAG_BOX].contains(&tag)
+}
+
 pub(crate) fn results_start(s: &Session) -> Option<usize> {
     scan(s).results.map(|(from, _)| from)
 }
@@ -1613,6 +1654,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= numbering::apply_single(s, &layout);
     // Hidden solutions stay hidden (their repeated questions were rebuilt).
     changed |= show::apply(s, &layout);
+    // Quizzes: points, answer spaces, boxes, answers shown or hidden, a lone question unlettered.
+    changed |= items::update(s);
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
@@ -1628,7 +1671,14 @@ pub(crate) fn update(s: &mut Session) -> bool {
     // exercise has no label, so only its variant heads it (when it has several).
     let labels = numbering::current(s);
     let lone = layout.exercises.len() == 1;
+    let mut any = false;
     for (n, e) in layout.exercises.iter().enumerate() {
+        // A quiz gives its multiple choices' correct options; open answers give nothing.
+        let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n));
+        if quiz.as_ref().is_some_and(Vec::is_empty) {
+            continue;
+        }
+        any = true;
         let variant = (e.data.variants.len() > 1).then(|| e.data.variants.get(e.data.active)).flatten();
         let head = match (lone, variant) {
             (false, None) => Some(labels.label(n)),
@@ -1640,12 +1690,31 @@ pub(crate) fn update(s: &mut Session) -> bool {
         if let Some(head) = head {
             lines.push((STYLE_RESULT, head, hide));
         }
+        if let Some(quiz) = quiz {
+            lines.extend(quiz.into_iter().map(|l| (STYLE_RESULT, l, hide)));
+            continue;
+        }
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
             // Only the question's letter and its result: the question itself is above, in the exercise.
             lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
         }
+    }
+    // Only open answers: nothing to sum up, no summary.
+    if !any {
+        if let Some((from, to)) = layout.results
+            && s.doc.body.get(from..=to).is_some()
+        {
+            s.doc.body.drain(from..=to);
+            s.doc.ensure_nonempty();
+            changed = true;
+        }
+        if changed {
+            s.touch();
+            s.clamp_selection();
+        }
+        return changed;
     }
     let ctl = layout
         .results

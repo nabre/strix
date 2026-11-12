@@ -407,7 +407,7 @@ pub fn restore_placeholder(s: &mut Session) -> Result<(), CmdError> {
     super::exercise::collapse_empty_part(s)?;
     let at = s.sel.focus.clone();
     let Some(r) = s.doc.control_at(&at) else { return Ok(()) };
-    if !r.is_empty() || r.control.showing_placeholder {
+    if !r.is_empty() || r.control.showing_placeholder || super::exercise::no_placeholder(&r.control.tag) {
         return Ok(());
     }
     let text = r.control.placeholder_shown().to_string();

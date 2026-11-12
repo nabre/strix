@@ -29,6 +29,13 @@ pub(super) struct Words {
     pub profession: &'static str,
     pub duration: &'static str,
     pub score: &'static str,
+    /// Quizzes (docs/exercise.md, Kinds): the answer control's title, the points after a
+    /// question (one point, several), the options of a true/false question.
+    pub answer: &'static str,
+    pub point: &'static str,
+    pub points_word: &'static str,
+    pub true_word: &'static str,
+    pub false_word: &'static str,
 }
 
 /// The words of language tag `lang` (`it-IT`, `fr`, `ita`, `gsw-CH`…), from its primary subtag
@@ -72,6 +79,11 @@ pub(super) const IT: Words = Words {
     profession: "Professione",
     duration: "Durata (min)",
     score: "Punteggio",
+    answer: "Risposta",
+    point: "punto",
+    points_word: "punti",
+    true_word: "Vero",
+    false_word: "Falso",
 };
 
 pub(super) const EN: Words = Words {
@@ -95,6 +107,11 @@ pub(super) const EN: Words = Words {
     profession: "Profession",
     duration: "Duration (min)",
     score: "Score",
+    answer: "Answer",
+    point: "point",
+    points_word: "points",
+    true_word: "True",
+    false_word: "False",
 };
 
 const FR: Words = Words {
@@ -118,6 +135,11 @@ const FR: Words = Words {
     profession: "Profession",
     duration: "Durée (min)",
     score: "Points",
+    answer: "Réponse",
+    point: "point",
+    points_word: "points",
+    true_word: "Vrai",
+    false_word: "Faux",
 };
 
 const DE: Words = Words {
@@ -141,6 +163,11 @@ const DE: Words = Words {
     profession: "Beruf",
     duration: "Dauer (min)",
     score: "Punktzahl",
+    answer: "Antwort",
+    point: "Punkt",
+    points_word: "Punkte",
+    true_word: "Wahr",
+    false_word: "Falsch",
 };
 
 #[cfg(test)]
@@ -176,7 +203,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| {
+        let fields = |w: &Words| -> [&str; 25] {
             [
                 w.exercise,
                 w.total,
@@ -198,6 +225,11 @@ mod tests {
                 w.profession,
                 w.duration,
                 w.score,
+                w.answer,
+                w.point,
+                w.points_word,
+                w.true_word,
+                w.false_word,
             ]
         };
         let shown = |w: &Words| [w.exercise, w.title_part, w.statement, w.questions, w.solution, w.prompt, w.title, w.text, w.question];

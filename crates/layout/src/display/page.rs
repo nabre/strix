@@ -474,6 +474,10 @@ pub fn grid_sheet_draws(
     let edge = |i: usize, n: usize, first: usize, last: usize| (i == 0 && on_frame(first)) || (i + 1 == n && on_frame(last));
     for major in [false, true] {
         let line = if major { g.major } else { g.line };
+        // A grid with no lines (a blank block) draws nothing; its frame neither.
+        if g.line.style == wordcraft_doc::graph_paper::GridLineStyle::None {
+            return;
+        }
         let mut segs = Vec::new();
         for (i, (at, m)) in vs.iter().enumerate() {
             if *m == major && !edge(i, vs.len(), 0, 2) {
