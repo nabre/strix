@@ -65,6 +65,9 @@ pub struct Rendered {
     pub origin: (f64, f64),
     /// Paper mm per drawing unit (`unit_mm / N` at `1:N`).
     pub scale: f64,
+    /// The free texts as drawn: each text entity's id and its text with its placeholders filled
+    /// (what an editor measures to grip it at its real size, [`crate::TextWidths`]).
+    pub texts: Vec<(String, String)>,
 }
 
 /// The largest gap between a drawn chord and its curve, paper mm.
@@ -132,6 +135,7 @@ impl Drawing {
         // The boundary points hatches and strips may still work on, drawn or not: an `along`
         // hatch, or one too fine for its budget, costs its boundary without drawing much.
         let mut work_left = MAX_HATCH_WORK_POINTS;
+        let mut texts = Vec::new();
         for e in &self.entities {
             let layer = self.layer(&e.layer);
             if !layer.visible || !(layer.print || screen) {
@@ -184,10 +188,12 @@ impl Drawing {
                 }
                 Kind::Text { p, value, height, angle, align } => {
                     let p = p.pt();
+                    // Texts take placeholders too (`{{L:both}}`).
+                    let text = crate::model::fill(value, ws);
+                    texts.push((e.id.clone(), text.clone()));
                     prims.push(Prim::Text {
                         at: (p.x * k, p.y * k),
-                        // Texts take placeholders too (`{{L:both}}`).
-                        text: crate::model::fill(value, ws),
+                        text,
                         height: *height,
                         angle: *angle,
                         anchor: match align {
@@ -234,6 +240,7 @@ impl Drawing {
         }
         let mut r = place(prims, self.padding);
         r.scale = k;
+        r.texts = texts;
         r
     }
 
@@ -873,7 +880,7 @@ fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
         }
     }
     if !x0.is_finite() {
-        return Rendered { prims, size: (10.0, 10.0), origin: (0.0, 10.0), scale: 1.0 };
+        return Rendered { prims, size: (10.0, 10.0), origin: (0.0, 10.0), scale: 1.0, texts: Vec::new() };
     }
     let (ox, oy) = (x0 - pad.left, y1 + pad.top);
     let map = |(x, y): (f64, f64)| (x - ox, oy - y);
@@ -885,5 +892,5 @@ fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
         }
     }
     let size = ((x1 - x0 + pad.left + pad.right).clamp(1.0, 5000.0), (y1 - y0 + pad.top + pad.bottom).clamp(1.0, 5000.0));
-    Rendered { prims, size, origin: (ox, oy), scale: 1.0 }
+    Rendered { prims, size, origin: (ox, oy), scale: 1.0, texts: Vec::new() }
 }

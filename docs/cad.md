@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-11 · **Change:** drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-12 · **Change:** texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -223,7 +223,14 @@ page, the PDF and the editor all draw these primitives.
   turned by a quarter turn becomes the other, by any other angle aligned.
 - **Picked where drawn**: a dimension's text is picked on the side it is drawn (above the line as
   read, whichever way it runs); dragging a dimension line between its two points leaves it at the
-  farther one. An entity on an unknown layer is drawn and picked as layer `0`'s.
+  farther one. An entity on an unknown layer is drawn and picked as layer `0`'s. A **text** is
+  picked anywhere in its box (`Drawing::text_box`, turned with the text; a window takes it only
+  whole): its width as the editor measured it in the font it draws it in, its placeholders
+  filled (`Rendered::texts` gives each text as shown, `Drawing::text_widths` keeps the measures,
+  never saved), else (headless: CLI, MCP) estimated from the characters, a placeholder counted as
+  what it shows; a
+  line's, arc's or polyline's **arrowheads** anywhere inside them, a hatch anywhere inside its
+  outer boundary.
 - **One set of limits**: text heights 0.5–50 mm on reading, in Properties and in the style; ids
   and the references to them (`along`, `boundary`) are cut at 64 characters alike. A steep
   dimension with its style's aligned texts off keeps its second text under the first. A level
@@ -317,7 +324,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    `@dx,dy` is from where it was), Esc puts it back; dragging a grip places it where released.
    Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
-   an arc bends through the point), point and text position, dimension ends and line (distance).
+   an arc bends through the point), point and text position (and a text's four box corners, which
+   move it), dimension ends and line (distance). A selected hatch (a solid fill too) or strip
+   shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
+   reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
+   its boundaries along.
    A dragged coordinate keeps its expression; a degenerate result is refused.
    **Frame** (Picture › Frame, on by default; turned off it stays off for the next drawing
    while the program runs): the picture's edge with the area outside it shaded light grey.
@@ -544,6 +555,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-12: texts picked anywhere in their box, with a grip at each corner (`Grip::Corner`), the box measured by the editor in the text's own font (`Rendered::texts`, `TextWidths`); arrowheads picked inside; a selected hatch shows its boundaries' grips (a strip its path's), and a hatch moved, turned or copied on its own takes its boundaries along.
 
 - 2026-11-11: drawing names as slugs (`cad.name`, `ui.cadName`, Properties › Name; underlays follow a rename); Arc split button with its ways (`arc`, `arc3p`, `arcSce`, `arcSer`; a typed radius for Start, End, Radius; the remembered way in the settings as `arcMode`), with a preview of the arc; Polyline in the Line split button (`picks.polyline`), Text out of the Draw group; drawings in millimetres: a drawing in centimetres or metres reaches the editor converted, and the document takes it with the first edit (`Drawing::to_mm`: lengths and the underlay's offset converted, dimension styles that showed the drawing's unit show the old one, expressions keep meaning the old unit through `exprUnit`), CAD Annotate › Units keeps only the input unit, the Properties pane shows the unit without a choice; the status line's Snap arrow menu (each object snap, `ui.cadToggle {"what": "snaps.on" | "snaps.off"}`) replaces the nine object snap icons; Properties with nothing selected: the scale typed or picked (standard scales that fit, Fitted to Frame); a new Offset icon (a rounded corner and its parallel copy).
 

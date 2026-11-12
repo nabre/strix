@@ -1646,11 +1646,14 @@ fn shown_grips(ed: &CadEditor, view: View) -> Vec<(usize, Grip, Pt, Pos2)> {
     if ed.tool != Tool::Select || !ed.points.is_empty() || ed.selection.len() > MAX_GRIPPED {
         return Vec::new();
     }
-    ed.selection
-        .iter()
-        .flat_map(|&i| ed.drawing.grips(i).into_iter().map(move |(g, p)| (i, g, p)))
-        .map(|(i, g, p)| (i, g, p, view.to_screen(p)))
-        .collect()
+    // A hatch's boundaries' grips with its own (a solid fill is reshaped by them), each once.
+    let mut out: Vec<(usize, Grip, Pt, Pos2)> = Vec::new();
+    for (i, g, p) in ed.selection.iter().flat_map(|&i| ed.drawing.grip_targets(i)) {
+        if !out.iter().any(|o| o.0 == i && o.1 == g) {
+            out.push((i, g, p, view.to_screen(p)));
+        }
+    }
+    out
 }
 
 fn rgb(c: [u8; 3]) -> Color32 {
@@ -2015,6 +2018,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
         painter.rect_filled(rect, 0.0, SHEET);
+        measure_texts(ed, &painter);
         // Fit the drawing on first show (and on Zoom Fit).
         if !ed.fitted {
             fit(ed, rect);
@@ -3097,6 +3101,31 @@ fn text_job(text: &str, size: f32, color: Color32, unit: Color32, look: &strix_c
         job.append(&p.text, 0.0, format);
     }
     job
+}
+
+/// The size texts are measured at, px: large enough for their widths to be the font's own.
+const MEASURE_PX: f32 = 100.0;
+
+/// Measures the drawing's texts as they are drawn (filled, in their font, bold and italic), so
+/// they are picked and gripped at their real size ([`strix_cad::TextWidths`]). The layouts are
+/// cached by egui: a frame measures again only what changed.
+fn measure_texts(ed: &mut CadEditor, painter: &egui::Painter) {
+    if ed.rendered.texts.is_empty() {
+        return;
+    }
+    let texts: std::collections::HashMap<&str, &Entity> =
+        ed.drawing.entities.iter().filter(|e| matches!(e.kind, Kind::Text { .. })).map(|e| (e.id.as_str(), e)).collect();
+    let mut measured = Vec::new();
+    for (id, shown) in ed.rendered.texts.iter().take(strix_cad::MAX_ENTITIES) {
+        let Some(e) = texts.get(id.as_str()) else { continue };
+        let Kind::Text { value, .. } = &e.kind else { continue };
+        let look = ed.drawing.text_look(e.style.as_deref());
+        let galley = painter.layout_job(text_job(shown, MEASURE_PX, Color32::BLACK, Color32::BLACK, &look));
+        measured.push((id.clone(), value.clone(), f64::from(galley.size().x / MEASURE_PX)));
+    }
+    for (id, value, ems) in measured {
+        ed.drawing.text_widths.set(&id, &value, ems);
+    }
 }
 
 /// The editor's two panes.
@@ -5532,6 +5561,35 @@ mod max_size_kittest {
         h.run_steps(2);
         h.key_press(egui::Key::Enter);
         h.run_steps(4);
+    }
+
+    /// The owner: a text was only taken at its insertion point. The editor measures each text
+    /// with the font it draws it in, so its box (picked inside, gripped at its corners) is the
+    /// text's real size, its placeholders filled.
+    #[test]
+    fn texts_are_measured_as_drawn() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.session.run("document.setText", &json!({"text": ""})).unwrap();
+        let drawing = json!({"unit": "mm", "scale": 1, "entities": [
+            {"id": "a", "type": "text", "p": [0, 0], "value": "iiii", "height": 5},
+            {"id": "b", "type": "text", "p": [0, 20], "value": "MMMM", "height": 5}]});
+        app.session.run("insert.cad", &json!({"drawing": drawing})).unwrap();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_accessibility_check(false).with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(2);
+        let d = &h.state().cad.as_ref().unwrap().drawing;
+        let (a, b) = (d.text_widths.get("a", "iiii").unwrap(), d.text_widths.get("b", "MMMM").unwrap());
+        assert!(a > 0.0 && b > a * 2.0, "narrow and wide letters measured apart: {a} {b}");
+        let e = d.entities.iter().find(|e| e.id == "b").unwrap();
+        let corners = d.text_box(e).unwrap();
+        assert!((corners[1].x - b * 5.0 / 0.7).abs() < 1e-6, "the box is the measured width: {corners:?}");
     }
 
     /// The owner: in CAD Output the maximum size's fields couldn't be changed. A typed value was

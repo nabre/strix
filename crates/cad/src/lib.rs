@@ -24,6 +24,7 @@ mod input;
 pub mod kernel;
 mod model;
 mod modify;
+mod pick;
 mod props;
 mod render;
 mod rework;
@@ -44,6 +45,8 @@ mod tests_dims;
 #[cfg(test)]
 mod tests_fuzz;
 #[cfg(test)]
+mod tests_pick;
+#[cfg(test)]
 mod tests_rework;
 #[cfg(test)]
 mod tests_styles;
@@ -59,6 +62,7 @@ pub use model::{
     Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
 };
 pub use modify::Affine;
+pub use pick::TextWidths;
 pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, SCALE_RANGE, parse_scale, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
