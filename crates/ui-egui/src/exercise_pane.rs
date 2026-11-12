@@ -1,4 +1,4 @@
-//! The Exercise Properties pane (Math › Exercise › Properties, docs/exercise.md): the initial data
+//! The Exercise Properties pane (Teaching › Exercise › Properties, docs/exercise.md): the initial data
 //! and the variants of the exercise at the caret. Every change goes through `exercise.setData` or
 //! `exercise.variant`, so it is undoable and recalculates like any edit.
 
@@ -164,7 +164,7 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
         crate::pane_kit::section(ui, "02", tl!("Data"));
         let rows = data["items"].as_array().map_or(0, Vec::len);
         let mut remove = None;
-        egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true).show(ui, |ui| {
+        crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true), |ui| {
             for head in ["Symbol", "Description", "Value", "Unit", ""] {
                 ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
             }
@@ -303,13 +303,16 @@ fn frontispiece(app: &mut WordApp, ui: &mut Ui) {
     let mut on = f["on"].as_bool().unwrap_or(false);
     if ui
         .checkbox(&mut on, tl!("Frontispiece"))
-        .on_hover_text(tl!("A first page of your own before the exercises: title, class, date, instructions"))
+        .on_hover_text(tl!("Pages of your own before the exercises: title, class, date, instructions"))
         .changed()
         && let Err(e) = app.run("exercise.frontispiece", json!({"on": on}))
     {
         app.status(e);
     }
-    crate::pane_kit::note(ui, tl!("The first exercise starts a new page; a page break inside the frontispiece gives it more pages."));
+    crate::pane_kit::note(
+        ui,
+        tl!("Everything before the Frontispiece Break is the frontispiece: write there, as many pages as you need. Show/Hide ¶ shows the break."),
+    );
 }
 
 /// The lone exercise's page breaks (`exercise.pageBreaks`): before its solution and before the
@@ -355,13 +358,18 @@ fn set_breaks(app: &mut WordApp, params: Value) {
 const FORMATS: [(&str, &str); 5] =
     [("decimal", "1, 2, 3"), ("upperLetter", "A, B, C"), ("lowerLetter", "a, b, c"), ("upperRoman", "I, II, III"), ("lowerRoman", "i, ii, iii")];
 
-/// Exercise numbering, a document setting (`exercise.numbering`): the prefix, number format and
-/// first number of every exercise's label, in the titles and the results summary.
+/// The separators offered after an exercise's number (`exercise.numbering`'s ids) and their names.
+const SEPARATORS: [(&str, &str); 5] =
+    [(".", "Period (1.)"), (":", "Colon (1:)"), ("-", "Dash (1 -)"), (")", "Parenthesis (1))"), (" ", "Space (1 Title)")];
+
+/// Exercise numbering, a document setting (`exercise.numbering`): the prefix, number format,
+/// separator and first number of every exercise's label, in the titles and the results summary.
 fn numbering(app: &mut WordApp, ui: &mut Ui) {
     let Ok(n) = app.session.run("exercise.numbering", &json!({})) else { return };
     let prefix = n["prefix"].as_str().unwrap_or_default().to_string();
     let format = n["format"].as_str().unwrap_or("decimal").to_string();
     let start = n["start"].as_u64().unwrap_or(1);
+    let separator = n["separator"].as_str().unwrap_or(".").to_string();
     let set = |app: &mut WordApp, params: Value| {
         if let Err(e) = app.run("exercise.numbering", params) {
             app.status(e);
@@ -369,7 +377,7 @@ fn numbering(app: &mut WordApp, ui: &mut Ui) {
     };
     crate::pane_kit::note(ui, tl!("For every exercise of the document: the label of each title and of the results summary."));
     ui.add_space(4.0);
-    egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
+    crate::rtl::grid(ui, egui::Grid::new("exercise_numbering").num_columns(2).spacing([6.0, 4.0]), |ui| {
         ui.label(tl!("Prefix"));
         ui.horizontal(|ui| {
             ui.scope(|ui| {
@@ -394,6 +402,16 @@ fn numbering(app: &mut WordApp, ui: &mut Ui) {
             for (id, label) in FORMATS {
                 if ui.selectable_label(id == format, label).clicked() && id != format {
                     set(app, json!({"format": id}));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Separator"));
+        let shown = SEPARATORS.iter().find(|(id, _)| *id == separator).map_or(separator.clone(), |(_, l)| tl!(l).to_string());
+        craft_ui::ComboBox::from_id_salt("exercise_numbering_separator").selected_text(shown).show_ui(ui, |ui| {
+            for (id, label) in SEPARATORS {
+                if ui.selectable_label(id == separator, tl!(label)).clicked() && id != separator {
+                    set(app, json!({"separator": id}));
                 }
             }
         });

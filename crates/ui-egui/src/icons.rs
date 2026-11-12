@@ -264,6 +264,12 @@ fn paint_clipboard_to_insert(pen: &Pen, name: &str) -> bool {
             pen.fcircle(16.5, 13.5, 1.6, a);
             pen.frect(2.0, 16.5, 18.0, 19.0, yellow);
         }
+        // The Shading buttons draw the last colour as their own bar, so this has no bar of its own.
+        "shadingNoBar" => {
+            pen.fill(&[(4.0, 9.0), (10.0, 3.0), (16.0, 9.0), (10.0, 15.0)], Color32::TRANSPARENT);
+            pen.closed(&[(4.0, 9.0), (10.0, 3.0), (16.0, 9.0), (10.0, 15.0)], c);
+            pen.fcircle(16.5, 13.5, 1.6, a);
+        }
         "borders" => {
             for y in [3.0, 10.0, 17.0] {
                 for x in [3.0, 6.5, 10.0, 13.5, 17.0] {
@@ -1124,9 +1130,25 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(15.0, 14.0), (12.0, 11.5)], a);
             pen.line_c(&[(5.0, 14.0), (8.0, 11.5)], a);
         }
-        "sideBySide" | "syncScroll" | "switchWindows" => {
+        "sideBySide" => {
             pen.rect(2.0, 4.0, 9.5, 16.0, c);
             pen.rect(10.5, 4.0, 18.0, 16.0, a);
+        }
+        "syncScroll" => {
+            // Two windows side by side, both scrolling down.
+            pen.rect(2.0, 3.0, 9.5, 17.0, c);
+            pen.rect(10.5, 3.0, 18.0, 17.0, c);
+            for x in [5.75, 14.25] {
+                pen.line_c(&[(x, 6.0), (x, 12.0)], a);
+                pen.fill(&[(x - 2.0, 11.0), (x + 2.0, 11.0), (x, 14.0)], a);
+            }
+        }
+        "switchWindows" => {
+            // A window behind another, with a title bar each.
+            pen.rect(2.5, 7.0, 13.0, 17.5, c);
+            pen.line_c(&[(2.5, 9.5), (13.0, 9.5)], c);
+            pen.rect(7.0, 2.5, 17.5, 13.0, a);
+            pen.line_c(&[(7.0, 5.0), (17.5, 5.0)], a);
         }
         "macros" => {
             pen.rect(3.0, 3.0, 17.0, 17.0, c);
@@ -1322,10 +1344,8 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.fcircle(5.97, 10.06, 1.4, a);
             pen.fcircle(14.03, 10.06, 1.4, a);
         }
-        "cadArc" => {
-            pen.line_c(&[(3.5, 14.0), (5.0, 8.0), (10.0, 5.0), (15.0, 8.0), (16.5, 14.0)], c);
-            pen.fcircle(10.0, 14.0, 1.2, a);
-        }
+        // Arc, by its ways.
+        "cadArc" | "cadArc3P" | "cadArcSCE" | "cadArcSER" => arc_icon(pen, name),
         "cadPoint" => {
             pen.fcircle(10.0, 10.0, 2.2, a);
             pen.line_c(&[(4.0, 10.0), (7.0, 10.0)], c);
@@ -1434,9 +1454,13 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.closed(&[(8.0, 5.0), (8.0, 15.0), (3.0, 15.0)], c);
             pen.closed(&[(12.0, 5.0), (12.0, 15.0), (17.0, 15.0)], c);
         }
+        // Offset: a rounded corner and its copy at a distance, parallel all along (the arc
+        // round the same centre), the distance between them marked with an arrow.
         "cadOffset" => {
-            pen.line_c(&[(3.0, 15.0), (8.0, 6.0), (17.0, 6.0)], c);
-            pen.line_c(&[(3.0, 18.0), (9.5, 9.5), (17.0, 9.5)], a);
+            pen.line_c(&[(9.0, 18.0), (9.0, 13.0), (9.3, 11.5), (10.2, 10.2), (11.5, 9.3), (13.0, 9.0), (18.0, 9.0)], c);
+            pen.line_c(&[(3.0, 18.0), (3.0, 13.0), (3.8, 9.2), (5.9, 5.9), (9.2, 3.8), (13.0, 3.0), (18.0, 3.0)], a);
+            pen.line_c(&[(16.0, 9.0), (16.0, 6.5)], a);
+            pen.fill(&[(16.0, 4.0), (14.4, 6.6), (17.6, 6.6)], a);
         }
         // Trim (a cutting edge, the line kept up to it, the piece cut away dashed), extend (a
         // line running on to a boundary), fillet (a corner rounded), chamfer (a corner cut).
@@ -1521,6 +1545,35 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
             for x in [3.0, 6.5, 10.0, 13.5] {
                 pen.line_c(&[(x, 8.0), (x + 3.5, 13.0)], a);
+            }
+        }
+        // Underlay: a sheet behind (dimmed), a sheet in front drawn over it.
+        "cadUnderlay" => {
+            pen.rect(2.0, 2.0, 13.0, 13.0, c.gamma_multiply(0.45));
+            pen.line_c(&[(4.0, 10.0), (9.0, 5.0)], c.gamma_multiply(0.45));
+            pen.rect(7.0, 7.0, 18.0, 18.0, c);
+            pen.line_c(&[(9.0, 15.0), (14.0, 10.0)], a);
+        }
+        // Slope ticks (a cut's crest): a line with ticks square to it on one side, long and
+        // short in turn.
+        "cadSlope" => {
+            pen.line_c(&[(2.0, 6.0), (18.0, 6.0)], c);
+            for (i, x) in [3.0, 6.5, 10.0, 13.5, 17.0].into_iter().enumerate() {
+                let len = if i % 2 == 0 { 9.0 } else { 4.5 };
+                pen.line_c(&[(x, 7.0), (x, 7.0 + len)], a);
+            }
+        }
+        // Flip a strip to the other side: a line, slanted strokes above it, an arrow round to
+        // the side below.
+        "cadStripFlip" => {
+            pen.line_c(&[(2.0, 10.0), (13.0, 10.0)], c);
+            for x in [3.0, 6.5, 10.0] {
+                pen.line_c(&[(x, 9.0), (x + 2.5, 5.0)], c);
+            }
+            pen.line_c(&[(15.5, 5.0), (17.5, 8.0), (17.5, 12.0), (15.5, 15.0)], a);
+            pen.line_c(&[(13.5, 13.5), (15.5, 15.0), (17.5, 13.0)], a);
+            for x in [3.0, 6.5, 10.0] {
+                pen.line_c(&[(x, 11.0), (x + 2.5, 15.0)], a);
             }
         }
         // Layers: three sheets stacked, the top one in the accent.
@@ -2018,6 +2071,12 @@ fn paint_file_and_tools(pen: &Pen, name: &str) -> bool {
             pen.rect(5.0, 11.0, 15.0, 15.0, c);
             pen.line_c(&[(10.0, 15.0), (10.0, 18.5)], a);
         }
+        // A warning triangle: a document font that isn't installed (shown in another font).
+        "fontMissing" => {
+            pen.fill(&[(10.0, 2.5), (18.5, 17.5), (1.5, 17.5)], Color32::from_rgb(0xE0, 0x7B, 0x1F));
+            pen.line_c(&[(10.0, 7.5), (10.0, 12.5)], Color32::WHITE);
+            pen.fcircle(10.0, 15.0, 1.0, Color32::WHITE);
+        }
         "designMode" => {
             pen.line(&[(4.0, 16.0), (16.0, 16.0), (4.0, 4.0), (4.0, 16.0)]);
             pen.line_c(&[(4.0, 12.0), (8.0, 16.0)], a);
@@ -2154,6 +2213,40 @@ pub fn library(p: &Painter, r: Rect, icon: &wordcraft_render::icon_lib::Icon, c:
     }
 }
 
+/// The Arc button's icons: the same arc (round 10, 14) with the points each way asks for.
+fn arc_icon(pen: &Pen, name: &str) {
+    let (c, a) = (pen.c, pen.a);
+    let arc: Vec<(f32, f32)> = (0..=10)
+        .map(|i| {
+            let t = (20.0 + 14.0 * i as f32).to_radians();
+            (10.0 + 7.0 * t.cos(), 14.0 - 7.0 * t.sin())
+        })
+        .collect();
+    pen.line_c(&arc, c);
+    let (start, end, top) = ((16.6, 11.6), (3.4, 11.6), (10.0, 7.0));
+    match name {
+        "cadArc3P" => {
+            for (x, y) in [start, top, end] {
+                pen.fcircle(x, y, 1.6, a);
+            }
+        }
+        "cadArcSCE" => {
+            pen.line_c(&[(10.0, 14.0), start], a);
+            pen.fcircle(start.0, start.1, 1.6, a);
+            pen.fcircle(10.0, 14.0, 1.2, a);
+        }
+        "cadArcSER" => {
+            pen.line_c(&[(10.0, 14.0), top], a);
+            pen.fcircle(start.0, start.1, 1.6, a);
+            pen.fcircle(end.0, end.1, 1.6, a);
+        }
+        _ => {
+            pen.line_c(&[(10.0, 14.0), start], a);
+            pen.fcircle(10.0, 14.0, 1.6, a);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2174,5 +2267,12 @@ mod tests {
     fn no_colour_highlight_icon_has_no_yellow_bar() {
         assert!(has_default_highlight_bar("highlight"));
         assert!(!has_default_highlight_bar("highlightNoColor"));
+    }
+
+    /// #4412: the Shading buttons paint the last colour as their bar, so their icon has none of its own.
+    #[test]
+    fn the_shading_button_icon_has_no_bar_of_its_own() {
+        assert!(has_default_highlight_bar("shading"));
+        assert!(!has_default_highlight_bar("shadingNoBar"));
     }
 }

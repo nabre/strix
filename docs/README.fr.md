@@ -94,7 +94,7 @@ trait plus fort tous les N carreaux, net à tout zoom et en PDF. Détails : [gra
 Dessous, un vrai traitement de texte (Strix est un fork de WordCraft) : ruban, styles, listes,
 tableaux, images et formes, en-têtes et pieds de page, sections et colonnes, notes, citations et
 tables des matières, commentaires et suivi des modifications, orthographe et césure, publipostage
-et impression. L'interface suit la langue du système (27 langues, dont le français).
+et impression. L'interface suit la langue du système (français, anglais, italien ou allemand).
 
 ## Fichiers
 

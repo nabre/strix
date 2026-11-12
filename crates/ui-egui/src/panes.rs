@@ -28,8 +28,12 @@ mod state;
 #[cfg(test)]
 pub(crate) use comments::comment_draft;
 use comments::comments;
-pub(crate) use comments::{CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, has_comment_drafts, reply_editor};
+pub(crate) use comments::{
+    COMMENT_ROWS, CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, has_comment_drafts, reply_editor,
+};
 use host::Content;
+#[cfg(test)]
+pub(crate) use host::apply;
 pub use host::show;
 pub(crate) use host::{dock_command, overlay_open};
 pub(crate) use inspector::describe_props;
@@ -57,8 +61,9 @@ pub enum Pane {
     AltText,
     FormatShape,
     RestrictEditing,
+    Proofing,
     Comments,
-    /// Math › Exercise › Properties: the data and variants of the exercise at the caret.
+    /// Teaching › Exercise › Properties: the data and variants of the exercise at the caret.
     Exercise,
     /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
     GraphPaper,
@@ -78,6 +83,7 @@ impl Pane {
             Self::AltText => "Alt Text",
             Self::FormatShape => "Format Shape",
             Self::RestrictEditing => "Restrict Editing",
+            Self::Proofing => "Proofing",
             Self::Comments => "Comments",
             Self::Exercise => "Exercise Properties",
             Self::GraphPaper => "Graph Paper",
@@ -96,6 +102,7 @@ impl Pane {
             Self::AltText => (Edge::End, 260.0),
             Self::FormatShape => (Edge::End, 280.0),
             Self::RestrictEditing => (Edge::End, 270.0),
+            Self::Proofing => (Edge::End, 400.0),
             Self::Comments => (Edge::End, 290.0),
             Self::Exercise => (Edge::End, 320.0),
             Self::GraphPaper => (Edge::End, 300.0),
@@ -116,6 +123,7 @@ impl Pane {
             Self::AltText => "altText",
             Self::FormatShape => "formatShape",
             Self::RestrictEditing => "restrictEditing",
+            Self::Proofing => "proofing",
             Self::Comments => "comments",
             Self::Exercise => "exercise",
             Self::GraphPaper => "graphPaper",
@@ -123,7 +131,7 @@ impl Pane {
         }
     }
 
-    const ALL: [Self; 13] = [
+    const ALL: [Self; 14] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -133,6 +141,7 @@ impl Pane {
         Self::AltText,
         Self::FormatShape,
         Self::RestrictEditing,
+        Self::Proofing,
         Self::Comments,
         Self::Exercise,
         Self::GraphPaper,
@@ -158,7 +167,7 @@ impl Pane {
             Self::Exercise => Some("view.exercisePane"),
             Self::GraphPaper => Some("view.graphPaperPane"),
             Self::Subdocuments => Some("view.subdocumentsPane"),
-            Self::RestrictEditing => None,
+            Self::RestrictEditing | Self::Proofing => None,
         }
     }
 }
@@ -170,7 +179,7 @@ impl PaneContent<Pane> for Content<'_> {
 
     fn body(&mut self, ui: &mut Ui, pane: &Pane) {
         let app = &mut *self.app;
-        match pane {
+        crate::rtl::root(ui, |ui| match pane {
             Pane::SmartArtText => crate::dialogs_smart_art::text_pane(app, ui),
             Pane::Navigation => nav(app, ui),
             Pane::Clipboard => clipboard(app, ui),
@@ -182,11 +191,12 @@ impl PaneContent<Pane> for Content<'_> {
                 egui::ScrollArea::vertical().show(ui, |ui| crate::format_shape::pane(app, ui));
             }
             Pane::RestrictEditing => crate::dialogs_review::restrict_pane(app, ui),
+            Pane::Proofing => crate::proofing_pane::show(app, ui),
             Pane::Comments => comments(app, ui),
             Pane::Exercise => crate::exercise_pane::pane(app, ui),
             Pane::GraphPaper => crate::graph_pane::pane(app, ui),
             Pane::Subdocuments => crate::subdocument_pane::pane(app, ui),
-        }
+        })
     }
 
     fn default_state(&self, pane: &Pane) -> PaneState {
@@ -199,6 +209,8 @@ mod tests;
 
 #[cfg(test)]
 mod navigation_tests {
+    use std::sync::Arc;
+
     use super::*;
 
     /// Numbered headings are listed with the number they show, and numbered body paragraphs in
@@ -208,7 +220,7 @@ mod navigation_tests {
         use wordcraft_doc::props::NumRef;
         use wordcraft_doc::{CharProps, ListKind, Paragraph, para_block};
         let mut doc = Document::new();
-        let num = doc.numbering.add_list(ListKind::Legal);
+        let num = Arc::make_mut(&mut doc.numbering).add_list(ListKind::Legal);
         let para = |text: &str, style: &str, level: Option<u8>| {
             let mut p = Paragraph::with_text(text, CharProps::default()).styled(style);
             p.props.numbering = level.map(|level| NumRef { num, level });

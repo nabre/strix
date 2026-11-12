@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-09 · **Change:** new
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-11 · **Change:** DSA formatting stays in the master; a known gap noted (series-setting changes rewrite the files); previously: the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -21,7 +21,15 @@ Outlining › Master Document (in Outline view):
 | — | `master.saveSubdocuments {"force"?}` | writes the edited subdocuments now |
 | — | `master.subdocuments` | lists them: path, file found, edited, conflict |
 
-Without `path`, the commands act on the subdocument at the caret (Insert and Create ask for a file).
+Without `path`, the commands act on the subdocument at the caret, or on the only one when the
+document has one (Insert and Create ask for a file; an error after picking it, such as a file
+that can't be read, shows on the status bar). Insert with the caret in an exercise or another
+block content control puts the subdocument just after it.
+
+With Show/Hide ¶ on (`view.marks`), every subdocument is marked on the page, wherever the caret
+is, like the other formatting marks: a light frame around it,
+a bar in the left margin along it, and a tab above it with its file's name (the full path in its
+tooltip). A click on the tab puts the caret in it, so Unlink, Reload and Open act on that one.
 
 The **Subdocuments** pane (the Subdocuments button, `view.subdocumentsPane`) lists the linked
 files, each on a card with its folder, its first words and its state: *in step*, *edited* (saved
@@ -36,8 +44,11 @@ Save or Reload all of them.
   accident (only its content is edited); Unlink removes it.
 - **Saving** the master as its own file (`.xmath`, or another editable format; not a static
   export) first writes every subdocument edited in the master back to its file, in that file's
-  format, with the master's styles, lists and notes and the file's own document properties. A
-  subdocument not edited isn't rewritten. The save's result lists them under `subdocuments`.
+  format, with the file's own styles and document defaults, its exercises' numbering and series'
+  settings and its frontispiece kept as they were (the formatting is the master's only inside the
+  master), and the file's own document properties. A subdocument not edited isn't rewritten:
+  changing a style, a list or the exercises' settings in the master is no edit of the files.
+  The save's result lists them under `subdocuments`.
 - **Opening** the master reloads every subdocument from its file: a chapter edited on its own
   shows up in the book. A missing file leaves the master's copy (the master's file always keeps
   one, so it opens and prints anywhere); the next save writes it back.
@@ -51,12 +62,35 @@ Save or Reload all of them.
   is opened as a master itself. A document can't be its own subdocument, nor link the same file
   twice.
 
+- A subdocument brings the **styles, lists and pictures** its content uses, as Text from File
+  does: a style the master has keeps the master's definition (the master rules, as a style
+  update), one it lacks comes in, and numbered paragraphs count with the lists brought over.
+- It goes in an empty paragraph at the caret; a paragraph after it is added only when nothing
+  follows, so two subdocuments inserted one after the other leave no blank line between them.
+- **Exercises** in subdocuments are one series of the master (docs/exercise.md, In a master
+  document): one results summary at the end of the master, the master's series' settings on all
+  (kept when it reopens), the master's own frontispiece (a subdocument's is left out); the files
+  keep theirs, each getting its own summary again.
+
 ## Limits
 
 - Not on the web: subdocuments are files on disk, which the browser version can't read back or write, so Insert and Create are greyed out there (with that reason); a master made on the desktop still opens and shows its saved copies.
 - Section breaks inside a subdocument are kept as in Text from File; headers and footers come
   from the master.
+- A change to the exercises' series settings in the master (page breaks, parts shown, graph
+  paper; DSA formatting changes some of them) marks the subdocuments edited, so saving writes
+  their files again: with their own settings and formatting, but needlessly. Styles and numbering
+  don't.
+- DSA formatting ([dsa.md](dsa.md)) stays in the master: a file written back keeps its own styles.
 
 ## Revision history
+
+- 2026-11-11: DSA formatting stays in the master; known gap: series-setting changes rewrite the files.
+
+- 2026-11-10: the master's styles, numbering and series' settings stay in the master (no edit of the files, kept on reopening); a file written back keeps its own formatting and frontispiece; a subdocument's frontispiece is left out of the master.
+
+- 2026-11-10: subdocuments marked on the page (frame, margin bar, file tab) with Show/Hide ¶ on; Insert in an exercise goes after it; Unlink and Open act on a lone subdocument; style and numbering changes made in the master are written to the files; an error after the file dialog is shown.
+
+- 2026-11-10: styles and lists of a subdocument come with it; exercises follow the master; no blank paragraph between subdocuments.
 
 - 2026-11-09: first version; the Subdocuments pane.

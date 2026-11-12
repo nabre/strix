@@ -1,6 +1,7 @@
 //! Strix objects (`strix_objects`): a document saves back to the editable format it came from
-//! (.docx, .odt, .rtf…) like in the reference word processor, unless it has calculations,
-//! calculated tables, exercises, CAD drawings or graph paper, which only `.xmath` keeps live.
+//! (.docx, .odt, .rtf…) like in the reference word processor. Calculations, calculated tables,
+//! exercises, CAD drawings and graph paper stay live only in `.xmath` and in Word packages
+//! (`word_envelope`), so a document with them saves only to those.
 
 use serde_json::json;
 use wordcraft_doc::StoryRef;
@@ -96,13 +97,14 @@ fn objects_outside_the_body_text_are_found() {
 #[test]
 fn check_save_refuses_lossy_formats_and_allows_the_rest() {
     let s = with_calculations();
-    for lossy in ["a.docx", "a.DOCM", "a.dotx", "a.dotm", "a.odt", "a.rtf", "a.txt", "a.xml", "docx"] {
+    for lossy in ["a.odt", "a.rtf", "a.txt", "a.xml", "odt"] {
         let e = check_save(lossy, &s.doc).unwrap_err();
         assert!(e.contains("3 calculations, 1 CAD drawing") && e.contains(".xmath"), "{lossy}: {e}");
     }
-    assert!(check_save("/d/report.docx", &s.doc).unwrap_err().contains("report.xmath"));
-    // Strix's own formats and the static exports stay allowed: exports are copies, not saves.
-    for ok in ["a.xmath", "a.xmathm", "a.pdf", "a.png", "a.tex", "a.html", "a.md"] {
+    assert!(check_save("/d/report.odt", &s.doc).unwrap_err().contains("report.xmath"));
+    // Strix's own formats, the Word packages (they carry the objects through Word) and the static
+    // exports stay allowed: exports are copies, not saves.
+    for ok in ["a.xmath", "a.xmathm", "a.docx", "a.DOCM", "a.dotx", "a.dotm", "docx", "a.pdf", "a.png", "a.tex", "a.html", "a.md"] {
         check_save(ok, &s.doc).unwrap();
     }
     // A format Strix only reads is refused whatever the document holds.
@@ -111,7 +113,7 @@ fn check_save_refuses_lossy_formats_and_allows_the_rest() {
         check_save(ok, &session("x").doc).unwrap();
     }
     let p = std::path::Path::new;
-    assert!(saves_in_place(p("/d/a.xmath"), &s.doc) && !saves_in_place(p("/d/a.docx"), &s.doc));
+    assert!(saves_in_place(p("/d/a.xmath"), &s.doc) && saves_in_place(p("/d/a.docx"), &s.doc) && !saves_in_place(p("/d/a.odt"), &s.doc));
     assert!(saves_in_place(p("/d/a.docx"), &session("x").doc) && !saves_in_place(p("/d/a.doc"), &session("x").doc));
     assert!(!saves_in_place(p("/d/a.pdf"), &session("x").doc));
 }
@@ -149,13 +151,14 @@ fn a_docx_without_strix_objects_saves_back_to_docx() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// With Strix objects, Save and Save As to an editable foreign format are refused with the
-/// objects named and `.xmath` proposed, writing nothing; `.xmath` and static exports still work.
+/// With Strix objects, Save and Save As to an editable format that would lose them (ODT, RTF,
+/// text, Word XML) are refused with the objects named and `.xmath` proposed, writing nothing; a
+/// Word document saves in place and keeps them; `.xmath` and static exports still work.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn a_document_with_strix_objects_never_saves_to_a_lossy_format() {
     let dir = scratch("lossy");
-    let path = dir.join("beam.docx");
+    let path = dir.join("beam.odt");
     let mut s = session("Beam");
     s.run("file.saveAs", &json!({"path": path.to_string_lossy()})).unwrap();
     let saved = std::fs::read(&path).unwrap();
@@ -166,9 +169,9 @@ fn a_document_with_strix_objects_never_saves_to_a_lossy_format() {
 
     let e = s.run("file.save", &json!({})).unwrap_err().to_string();
     assert!(e.contains("1 calculation, 1 CAD drawing") && e.contains("beam.xmath"), "{e}");
-    assert_eq!(std::fs::read(&path).unwrap(), saved, "the .docx is untouched");
+    assert_eq!(std::fs::read(&path).unwrap(), saved, "the .odt is untouched");
     assert!(s.dirty, "nothing saved");
-    for lossy in ["beam.odt", "beam.rtf", "beam.txt", "beam.xml", "beam.docm"] {
+    for lossy in ["beam.rtf", "beam.txt", "beam.xml"] {
         let e = s.run("file.saveAs", &json!({"path": dir.join(lossy).to_string_lossy()})).unwrap_err().to_string();
         assert!(e.contains("Strix objects") && e.contains(".xmath"), "{lossy}: {e}");
         assert!(!dir.join(lossy).exists(), "{lossy} written");
@@ -181,6 +184,16 @@ fn a_document_with_strix_objects_never_saves_to_a_lossy_format() {
         assert!(dir.join(copy).is_file(), "{copy}");
         assert!(s.dirty, "{copy} is a copy");
     }
+    // A Word document keeps the objects and becomes the document's file; Save writes it in place.
+    let word = dir.join("beam.docx");
+    s.run("file.saveAs", &json!({"path": word.to_string_lossy()})).unwrap();
+    assert_eq!(s.path.as_deref(), Some(word.as_path()));
+    assert!(!s.dirty);
+    s.run("caret.docEnd", &json!({})).unwrap();
+    s.run("text.insert", &json!({"text": " "})).unwrap();
+    s.run("file.save", &json!({})).unwrap();
+    assert!(!s.dirty, "saved in place");
+    assert_eq!(describe(&strix_objects(&io::open_path(&word).unwrap())), "1 calculation, 1 CAD drawing");
     // Saving as .xmath keeps everything and makes it the document's file.
     let native = dir.join("beam.xmath");
     s.run("file.saveAs", &json!({"path": native.to_string_lossy()})).unwrap();

@@ -144,9 +144,17 @@ fn target(s: &Session, v: &Value) -> Result<Sub, CmdError> {
             .ok_or_else(|| CmdError::Params(format!("no subdocument links {path}")));
     }
     let at = &s.sel.focus;
-    subs.into_iter()
-        .find(|x| x.range.contains(at))
-        .ok_or_else(|| CmdError::Failed("the caret isn't in a subdocument: put it in one, or name it with `path`".into()))
+    // The one at the caret; with the caret elsewhere, the document's only one.
+    let lone = subs.len() == 1;
+    let mut subs = subs.into_iter();
+    let found = if lone { subs.next() } else { subs.find(|x| x.range.contains(at)) };
+    found.ok_or_else(|| CmdError::Failed("the cursor isn't in a subdocument: click in one (its frame names its file), or name it with `path`".into()))
+}
+
+/// The file a subdocument's control links, from its tag; `None` for any other control. The
+/// interface frames subdocuments with it.
+pub fn linked_file(tag: &str) -> Option<PathBuf> {
+    Link::parse(tag).map(|l| l.path)
 }
 
 fn absolute(path: &Path) -> PathBuf {
@@ -178,6 +186,13 @@ struct Synced {
     content: u64,
 }
 
+/// Whether a subdocument has changes to write: never synced, or its content (hash `content`)
+/// differs from what the master showed when it was last read or written. The master's styles,
+/// numbering and series' settings are the master's: changing them is no edit of the files.
+fn edited(last: Option<Synced>, content: u64) -> bool {
+    last.is_none_or(|l| l.content != content)
+}
+
 /// By (document id, subdocument file).
 static SYNC: Mutex<Option<HashMap<(u64, PathBuf), Synced>>> = Mutex::new(None);
 
@@ -189,6 +204,14 @@ fn synced(id: u64, path: &Path) -> Option<Synced> {
 fn set_synced(id: u64, path: &Path, v: Synced) {
     if let Ok(mut map) = SYNC.lock() {
         map.get_or_insert_with(HashMap::new).insert((id, path.to_path_buf()), v);
+    }
+}
+
+/// The subdocument of file `path` as the master shows it now is what the file holds (read from
+/// it, `disk` the hash of its bytes, or just written).
+fn record(s: &Session, path: &Path, disk: u64) {
+    if let Some(x) = subdocuments(&s.doc).into_iter().find(|x| x.link.path == path) {
+        set_synced(s.document_id(), path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)) });
     }
 }
 
@@ -220,14 +243,15 @@ fn read_capped(path: &str, _max: u64, _what: &str) -> Result<Vec<u8>, String> {
     Err(format!("{path}: subdocuments are not available on the web"))
 }
 
-/// A subdocument file's content, as the master shows it, and the hash of its bytes.
-fn load(path: &Path) -> Result<(Fragment, u64), String> {
+/// A subdocument file's content as the master shows it, and the hash of its bytes. The master
+/// rules, as when a style is updated: the styles, lists and pictures the content uses come with it
+/// (a style the master has keeps the master's look), and what is the master's to make, the
+/// exercises' one results summary, is left out (the master builds its own for every exercise).
+fn load(s: &mut Session, path: &Path) -> Result<(Fragment, u64), String> {
     let name = path.to_string_lossy();
     let bytes = read_capped(&name, MAX_FILE, "subdocument")?;
-    let doc = crate::io::open_bytes(&name, &bytes)?;
-    let mut frag = doc.body_fragment();
-    super::paste::unlink_sections(&mut frag.blocks);
-    Ok((frag, hash(&bytes)))
+    let doc = super::exercise::without_results(crate::io::open_bytes(&name, &bytes)?);
+    Ok((super::paste::adopt(s, doc), hash(&bytes)))
 }
 
 /// The file a subdocument with content `frag` saves as: the master with only that content, the
@@ -262,7 +286,15 @@ fn write(master: &Document, frag: &Fragment, path: &Path) -> Result<u64, String>
         return Err(format!("{name}: a subdocument is saved to a document format (.xmath, .docx, .odt, .rtf…), not an export"));
     }
     let old = if path.exists() { read_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok() } else { None };
+    // What is the file's own comes back (styles, numbering, the series' settings, its
+    // frontispiece), and opened alone it is complete: its exercises get their own results
+    // summary back.
     let doc = subdocument_file(master, frag, old.as_ref());
+    let doc = match old.as_ref() {
+        Some(old) => super::exercise::keep_own(doc, old),
+        None => doc,
+    };
+    let doc = super::exercise::with_results(doc);
     crate::strix_objects::check_save(&name, &doc)?;
     let bytes = crate::io::save_bytes(&name, &doc)?;
     crate::io::write_file(&name, &bytes)?;
@@ -325,18 +357,51 @@ fn place(s: &mut Session, at: &Pos, frag: Fragment, link: &Link) -> Result<(), C
 }
 
 /// An empty top-level body paragraph at the caret (after the caret's paragraph when it has text
-/// before the caret), with a paragraph after it.
+/// before the caret), with a paragraph after it when nothing follows. In or after the exercises'
+/// results summary (the caret at the end of the document), the place is before the summary, which
+/// stays last.
 fn empty_paragraph_here(s: &mut Session) -> Result<Pos, CmdError> {
     let at = delete_selection(s)?;
+    if at.story == StoryRef::Body
+        && let Some(first) = super::exercise::results_start(s)
+        && at.path.0.first().is_some_and(|&t| t as usize >= first)
+    {
+        // An empty paragraph just before it (the one after the subdocument before) takes it.
+        let before = first.checked_sub(1).filter(|&i| {
+            matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.text.is_empty() && p.objects.is_empty() && p.section.is_none())
+                && s.doc.control_at(&Pos::new(StoryRef::Body, wordcraft_doc::Path::top(i), 0)).is_none()
+        });
+        let at = match before {
+            Some(i) => i,
+            None => {
+                s.doc.body.insert(first, std::sync::Arc::new(Block::Para(Paragraph::new())));
+                s.touch();
+                first
+            }
+        };
+        return Ok(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(at), 0));
+    }
     if at.story != StoryRef::Body || at.path.depth() != 0 {
         return Err(CmdError::Failed("a subdocument goes in the main text, outside tables and text boxes".into()));
     }
+    // In an exercise, another subdocument or any block content control: just after it (its
+    // outermost one), as the caret is usually in one in a document of exercises.
+    let at = match s.doc.control_ranges(StoryRef::Body).into_iter().find(|r| r.depth == 0 && r.contains(&at)) {
+        Some(r) if r.end.path.depth() == 0 => {
+            let len = s.doc.para(StoryRef::Body, &r.end.path).map_or(0, Paragraph::len);
+            Pos::new(StoryRef::Body, r.end.path.clone(), len)
+        }
+        _ => at,
+    };
     if s.doc.control_at(&at).is_some() {
         return Err(CmdError::Failed("a subdocument can't go inside a content control or another subdocument".into()));
     }
     let len = s.doc.para_at(&at).map_or(0, Paragraph::len);
     let at = if at.off > 0 { s.doc.split_paragraph(&Pos { off: len, ..at })? } else { at };
-    s.doc.split_paragraph(&at)?;
+    let last = at.path.0.first().is_none_or(|&t| t as usize + 1 >= s.doc.body.len());
+    if last || s.doc.para_at(&at).is_some_and(|p| !p.is_empty()) {
+        s.doc.split_paragraph(&at)?;
+    }
     Ok(Pos { off: 0, ..at })
 }
 
@@ -363,14 +428,15 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     };
     let path = absolute(Path::new(path));
     check_link(s, &path)?;
-    let (frag, disk) = load(&path).map_err(CmdError::Failed)?;
-    let content = content_hash(&frag);
+    // The master's series stays the master's, whatever the file's exercises have.
+    let series = super::exercise::series_settings(s);
     let at = empty_paragraph_here(s)?;
+    let (frag, disk) = load(s, &path).map_err(CmdError::Failed)?;
     let link = Link { path: path.clone(), conflict: false };
     place(s, &at, frag, &link)?;
+    super::exercise::impose_series(s, series.as_ref());
     // What the master shows after it went in, which is what later saves compare with.
-    let shown = subdocuments(&s.doc).into_iter().find(|x| x.link == link).map_or(content, |x| content_hash(&self::content(&s.doc, &x.range)));
-    set_synced(s.document_id(), &path, Synced { disk, content: shown });
+    record(s, &path, disk);
     let mut r = sel_result(s)?;
     if let Some(o) = r.as_object_mut() {
         o.insert("subdocument".into(), json!(path));
@@ -409,9 +475,8 @@ fn create(s: &mut Session, v: &Value) -> CmdResult {
     let at = Pos { off: 0, ..at };
     let link = Link { path: path.clone(), conflict: false };
     place(s, &at, frag, &link)?;
-    if let Some(x) = subdocuments(&s.doc).into_iter().find(|x| x.link == link) {
-        set_synced(s.document_id(), &path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)) });
-    }
+    super::exercise::update(s);
+    record(s, &path, disk);
     let mut r = sel_result(s)?;
     if let Some(o) = r.as_object_mut() {
         o.insert("subdocument".into(), json!(path));
@@ -459,34 +524,41 @@ fn replace(s: &mut Session, sub: &Sub, frag: Fragment) -> Result<(), CmdError> {
     place(s, &at, frag, &link)
 }
 
-/// Reload `sub` from its file; `Ok(false)` when the file can't be read (the master keeps its copy).
-fn reload(s: &mut Session, sub: &Sub) -> Result<Result<(), String>, CmdError> {
+/// Reload `sub` from its file: the hash of its bytes, or why it can't be read (the master keeps
+/// its copy). The caller [`record`]s it once the master's series is back on it.
+fn reload(s: &mut Session, sub: &Sub) -> Result<Result<u64, String>, CmdError> {
     let file = resolve(s, &sub.link);
-    let (frag, disk) = match load(&file) {
+    let (frag, disk) = match load(s, &file) {
         Ok(x) => x,
         Err(e) => return Ok(Err(e)),
     };
     let caret = s.sel.clone();
     replace(s, sub, frag)?;
-    if let Some(x) = subdocuments(&s.doc).into_iter().find(|x| x.link.path == sub.link.path) {
-        set_synced(s.document_id(), &sub.link.path, Synced { disk, content: content_hash(&content(&s.doc, &x.range)) });
-    }
     s.sel = caret;
     s.clamp_selection();
-    Ok(Ok(()))
+    Ok(Ok(disk))
 }
 
 fn refresh(s: &mut Session, v: &Value) -> CmdResult {
     let only = p::str(v, "path").map(|_| target(s, v)).transpose()?.map(|x| x.link.path);
     let (mut reloaded, mut failed) = (Vec::new(), Vec::new());
+    let series = super::exercise::series_settings(s);
+    let mut read = Vec::new();
     let paths: Vec<PathBuf> = subdocuments(&s.doc).into_iter().map(|x| x.link.path).filter(|p| only.as_ref().is_none_or(|o| o == p)).collect();
     for path in paths {
         // Positions move as content is replaced: find it again each time.
         let Some(sub) = subdocuments(&s.doc).into_iter().find(|x| x.link.path == path) else { continue };
         match reload(s, &sub)? {
-            Ok(()) => reloaded.push(json!(path)),
+            Ok(disk) => {
+                reloaded.push(json!(path));
+                read.push((path, disk));
+            }
             Err(e) => failed.push(json!({"path": path, "error": e})),
         }
+    }
+    super::exercise::impose_series(s, series.as_ref());
+    for (path, disk) in read {
+        record(s, &path, disk);
     }
     Ok(json!({"reloaded": reloaded, "failed": failed}))
 }
@@ -502,7 +574,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
         let now = content_hash(&frag);
         let disk_now = read_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
         let last = synced(id, &sub.link.path);
-        let edited = last.is_none_or(|l| l.content != now) || sub.link.conflict;
+        let edited = edited(last, now) || sub.link.conflict;
         let changed_on_disk = match (last, disk_now) {
             (Some(l), Some(d)) => l.disk != d,
             (None, Some(_)) => sub.link.conflict,
@@ -560,7 +632,7 @@ fn list(s: &mut Session, _: &Value) -> CmdResult {
                 "path": x.link.path,
                 "file": file,
                 "exists": file.exists(),
-                "edited": synced(id, &x.link.path).is_none_or(|l| l.content != now),
+                "edited": edited(synced(id, &x.link.path), now),
                 "conflict": x.link.conflict,
                 "start": super::pos_json(&x.range.start),
                 "text": s.doc.control_text(&x.range).split('\n').map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" · ").chars().take(120).collect::<String>(),
@@ -601,6 +673,10 @@ pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
         return None;
     }
     let id = s.document_id();
+    // The series' settings are the master's (its copy of the first exercise has them), not the
+    // first subdocument file's.
+    let series = super::exercise::series_settings(s);
+    let mut read = Vec::new();
     let (mut reloaded, mut missing, mut conflicts) = (Vec::new(), Vec::new(), Vec::new());
     for path in subs.into_iter().map(|x| x.link.path) {
         let Some(sub) = subdocuments(&s.doc).into_iter().find(|x| x.link.path == path) else { continue };
@@ -612,13 +688,21 @@ pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
         // nothing changed on disk since the master was saved).
         let now = content_hash(&content(&s.doc, &sub.range));
         match reload(s, &sub) {
-            Ok(Ok(())) => reloaded.push(json!(path)),
+            Ok(Ok(disk)) => {
+                reloaded.push(json!(path));
+                read.push((path, disk));
+            }
             Ok(Err(_)) | Err(_) => {
                 // Missing: a later save writes the master's copy back (creating the file).
                 set_synced(id, &path, Synced { disk: 0, content: now.wrapping_add(1) });
                 missing.push(json!(path));
             }
         }
+    }
+    // The exercises of every subdocument follow the master's series, numbering and summary.
+    super::exercise::impose_series(s, series.as_ref());
+    for (path, disk) in read {
+        record(s, &path, disk);
     }
     s.sel = Selection::caret(Pos::new(StoryRef::Body, wordcraft_doc::Path::top(0), 0));
     s.clamp_selection();

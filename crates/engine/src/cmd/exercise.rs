@@ -31,21 +31,28 @@ use wordcraft_doc::numbering::ListKind;
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::props::{CharProps, NumRef, ParaProps};
 use wordcraft_doc::styles::{Style, StyleKind};
-use wordcraft_doc::{Block, InlineObject, Paragraph, Run, StoryRef, para_block};
+use wordcraft_doc::{Block, Document, InlineObject, Paragraph, Run, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
+use words::Words;
 
+mod archive;
 mod breaks;
 mod delete;
+mod dsa;
 mod front;
 mod language;
 mod numbering;
+mod scores;
 mod series;
 mod show;
+mod structure;
+mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub(crate) use language::follow_language;
 pub(crate) use show::grid_follows;
+pub(crate) use structure::{collapse_empty_part, keeps_edge};
 
 pub const TAG_EXERCISE: &str = "strix:exercise";
 /// The title's own control: only the title paragraph, so its placeholder is only the title.
@@ -55,6 +62,8 @@ pub const TAG_QUESTIONS: &str = "strix:exercise.questions";
 pub const TAG_SOLUTION: &str = "strix:exercise.solution";
 pub const TAG_PROMPT: &str = "strix:exercise.prompt";
 pub const TAG_RESULTS: &str = "strix:results";
+/// The tag a master document's subdocuments start with (`cmd/master.rs`).
+const SUBDOC_TAG: &str = "strix-subdoc";
 pub const TAG_DATA: &str = "strix:exercise.data";
 /// The frontispiece of the series, at the start of the document.
 pub const TAG_FRONT: &str = "strix:frontispiece";
@@ -93,73 +102,60 @@ pub fn specs() -> Vec<CommandSpec> {
         }
     };
     vec![
-        CommandSpec::new("exercise.insert", "New Exercise", "Math › Exercise", insert)
+        CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
             .params(r#"{"title"?: string, "text"?: string, "questions"?: [string]} → inserts an exercise after the paragraph at the caret: title, statement, questions, solution; the results summary goes (or stays) at the end of the document"#),
-        CommandSpec::new("exercise.addQuestion", "Add Question", "Math › Exercise", add_question)
+        CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
-        CommandSpec::new("exercise.addNote", "Add Note", "Math › Exercise", add_note)
+        CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
-        CommandSpec::new("equation.answer", "Result Of", "Math › Exercise", answer)
+        CommandSpec::new("equation.answer", "Result Of", "Teaching › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
             .params(r#"{"question"?: n (1-based; 0 = none; default: the question it is worked under), "toggle"?: bool (a result is taken off)} → the equation at the caret is the result of that question of its exercise"#),
-        CommandSpec::new("exercise.info", "Exercise Info", "Math › Exercise", info)
+        CommandSpec::new("exercise.info", "Exercise Info", "Teaching › Exercise", info)
             .pure()
             .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
-        CommandSpec::new("exercise.data", "Exercise Data", "Math › Exercise", data_info)
+        CommandSpec::new("exercise.data", "Exercise Data", "Teaching › Exercise", data_info)
             .pure()
             .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n}, "errors": [string|null per item]}"#),
-        CommandSpec::new("exercise.setData", "Set Exercise Data", "Math › Exercise", set_data)
+        CommandSpec::new("exercise.setData", "Set Exercise Data", "Teaching › Exercise", set_data)
             .params(r#"{"exercise"?: n, "data": {"items": [...], "variants": [...], "active": n}} → stores the exercise's data and variants, then recalculates"#),
-        CommandSpec::new("exercise.variant", "Variant", "Math › Exercise", set_variant)
+        CommandSpec::new("exercise.variant", "Variant", "Teaching › Exercise", set_variant)
             .params(r#"{"exercise"?: n, "active": n (0-based)} → makes that variant the active one"#),
-        CommandSpec::new("exercise.delete", "Delete Exercise", "Math › Exercise", delete::delete)
+        CommandSpec::new("exercise.delete", "Delete Exercise", "Teaching › Exercise", delete::delete)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
-        CommandSpec::new("exercise.numbering", "Exercise Numbering", "Math › Exercise", numbering::command)
-            .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "default": bool, "example": "Esercizio 1"}"#),
-        CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Math › Exercise", breaks::command)
+        CommandSpec::new("exercise.numbering", "Exercise Numbering", "Teaching › Exercise", numbering::command)
+            .params(r#"{"prefix"?: string | null (null: the default, "Exercise" in the document's language; "": the number alone), "format"?: "decimal" | "upperLetter" | "lowerLetter" | "upperRoman" | "lowerRoman", "start"?: n (1–32767), "separator"?: "." | ":" | "-" | ")" | " " (after the number in the titles; " ": a space alone)} → the numbering of every exercise's label, a document setting (titles and results summary renumber at once); without params, the current one → {"prefix", "format", "start", "separator", "default": bool, "example": "Esercizio 1"}"#),
+        CommandSpec::new("exercise.pageBreaks", "Page Breaks", "Teaching › Exercise", breaks::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; a lone exercise is the target wherever the caret is), "beforeExercise"?: bool (a new page before each exercise another exercise comes before), "beforeSolution"?: bool (a new page before the solution), "beforeResults"?: bool (a new page before the results summary)} → changes those given; in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"exercise" (null in a series), "beforeExercise", "beforeSolution", "beforeResults", "exercises": [{"beforeExercise", "beforeSolution"}]}"#),
-        CommandSpec::new("exercise.show", "Parts Shown", "Math › Exercise", show::command)
+        CommandSpec::new("exercise.show", "Parts Shown", "Teaching › Exercise", show::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "solution"?: bool (the solution: heading, repeated questions, working), "results"?: bool (its lines in the results summary)} → shows or hides those parts (hidden text: nothing is lost); in a series (two or more exercises) every exercise has the same settings, the first one's, and a change applies to all; a new exercise takes the series' → {"series", "solution", "results", "grid", "exercises": [{"solution", "results", "grid"}]}"#),
-        CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Math › Exercise", show::grid_command)
+        CommandSpec::new("exercise.grid", "Exercise Graph Paper", "Teaching › Exercise", show::grid_command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
-        CommandSpec::new("exercise.frontispiece", "Frontispiece", "Math › Exercise", front::command)
+        CommandSpec::new("exercise.frontispiece", "Frontispiece", "Teaching › Exercise", front::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
-            .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: free content at the start of the document (title of the series, class, date…), which can't be deleted by accident; what follows it starts a new page, and a page break inside it gives it more pages → {"on": bool}"#),
-        CommandSpec::new("exercise.update", "Update Summary", "Math › Exercise", |s, _| {
+            .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: your own pages at the start of the document (title of the series, class, date…), as many as you like, ended by a Frontispiece Break (a next-page section break marked as the frontispiece's, shown with the formatting marks); added, it is an empty paragraph with the break and the caret in it; removed, everything before the break goes with it → {"on": bool}"#),
+        CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"on"?: bool (insert the scores table after the caret's paragraph, outside the exercises / remove it), "add"?: name | true (a criterion: two columns, one left empty and one for its points), "remove"?: n, "rename"?: n, "name"?: text, "exercise"?: n, "criterion"?: n, "points"?: number | null} → {"on", "criteria": [name], "points": [[number | null]] (per exercise, per criterion), "exercises"}; the rows are the document's exercises, a Total column with more than one criterion and a Total row with more than one exercise"#),
+        CommandSpec::new("design.dsa", "DSA", "Design › Document Formatting", dsa::command).params(
+            r#"{"reading"?: bool (dyslexia: 14 pt, wider letter spacing), "writing"?: bool (dysgraphia: 1 cm graph paper, room under each question), "math"?: bool (dyscalculia, working memory: the data framed), "none"?: true (all off)} → turns those versions on or off; they combine over a common base (13 pt, line spacing 1.5, left aligned, no italics, no hyphenation, each exercise on a new page). Formatting only (styles, hyphenation, the series' page breaks and graph paper), kept in the document so taking it off brings back its own; in a master document the files keep theirs. Without params, the versions on → {"reading", "writing", "math", "on"}"#,
+        ),
+        CommandSpec::new("archive.properties", "Archive Properties", "Teaching › Archive", archive::command).params(
+            r#"{"grade"?: 1–20, "section"?: text, "profession"?: text, "subject"?: text (the document's subject), "teacher"?: text (the document's author), "duration"?: minutes 1–600} → sets those given (null or empty text removes one) as document properties Word shows too: grade, section, profession, duration and score are custom properties named in the language of the document's exercises (Classe, Sezione, Professione, Durata (min), Punteggio); the score is the scores table's grand total, computed, never set; without params, reads them → {"grade", "section", "profession", "subject", "teacher", "duration", "score", "names": {…}}"#,
+        ),
+        CommandSpec::new("exercise.update", "Update Summary", "Teaching › Exercise", |s, _| {
             let changed = update(s);
             Ok(json!({"changed": changed}))
         })
         .params(r#"→ rebuilds the questions repeated in each solution and the results summary"#),
     ]
-}
-
-/// Words of the generated parts, in the document's language (Italian, English, French, German or
-/// Spanish; English for the others).
-struct Words {
-    exercise: &'static str,
-    solution: &'static str,
-    results: &'static str,
-    title: &'static str,
-    text: &'static str,
-    question: &'static str,
-    no_result: &'static str,
-    /// Titles of the controls, shown on their frames.
-    title_part: &'static str,
-    statement: &'static str,
-    questions: &'static str,
-    prompt: &'static str,
-    data: &'static str,
-    variant: &'static str,
-    /// The frontispiece's placeholder and frame title.
-    front: &'static str,
-    front_part: &'static str,
 }
 
 /// The language exercise words are written in: the one at the caret, resolved through the styles
@@ -170,124 +166,41 @@ fn words_lang(s: &Session) -> String {
     s.doc.styles.resolve_char(style.as_deref(), &s.typing_props()).lang.or_else(|| crate::cmd::default_lang(s)).unwrap_or_default()
 }
 
-/// The words of the language exercises are inserted in: the caret's ([`words_lang`]).
+/// The words for a language without its own: the document's (its default language's), else the
+/// editing language's (a new document's, from the interface), else English.
+fn fallback_words(s: &Session) -> &'static Words {
+    crate::cmd::doc_lang(&s.doc)
+        .as_deref()
+        .and_then(words::lookup)
+        .or_else(|| s.editing_lang.as_deref().and_then(words::lookup))
+        .unwrap_or(&words::EN)
+}
+
+/// The words of the language exercises are inserted in: the caret's ([`words_lang`]); for a
+/// language without its own words, those the document's exercises already use, else
+/// [`fallback_words`].
 fn words(s: &Session) -> &'static Words {
-    words_for(&words_lang(s))
+    words::lookup(&words_lang(s)).unwrap_or_else(|| {
+        let layout = scan(s);
+        (0..layout.exercises.len()).find_map(|e| language::present(s, &layout, e)).unwrap_or_else(|| fallback_words(s))
+    })
+}
+
+/// The words of exercise `e`: its language's ([`language::lang_at`] its title); for a language
+/// without its own words, those it already has, so they stay as they are; else
+/// [`fallback_words`].
+fn exercise_words(s: &Session, layout: &Layout, e: usize) -> &'static Words {
+    let lang = layout.exercises.get(e).map(|x| language::lang_at(s, x.start)).unwrap_or_default();
+    words::lookup(&lang).or_else(|| language::present(s, layout, e)).unwrap_or_else(|| fallback_words(s))
 }
 
 /// The words of the document's exercises, for the parts generated for all of them (the results
-/// summary, the data, the numbering's default prefix): the first exercise's language, else the
-/// caret's.
+/// summary, the data, the numbering's default prefix, the scores table): the first exercise's
+/// ([`exercise_words`]), else the caret's.
 fn doc_words(s: &Session) -> &'static Words {
-    scan(s).exercises.first().map_or_else(|| words(s), |e| words_for(&language::lang_at(s, e.start)))
+    let layout = scan(s);
+    if layout.exercises.is_empty() { words(s) } else { exercise_words(s, &layout, 0) }
 }
-
-/// The exercise words of language tag `lang` (`it-IT`, `fr`…); English for the languages without
-/// their own.
-fn words_for(lang: &str) -> &'static Words {
-    let lang = lang.to_ascii_lowercase();
-    let primary = lang.split(['-', '_']).next().unwrap_or_default();
-    match primary {
-        "it" => &IT,
-        "fr" => &FR,
-        "de" => &DE,
-        "es" => &ES,
-        _ => &EN,
-    }
-}
-
-/// Every language's words: a generated text is a default (one to translate) when one of them has it.
-const ALL_WORDS: [&Words; 5] = [&IT, &EN, &FR, &DE, &ES];
-
-const IT: Words = Words {
-    exercise: "Esercizio",
-    solution: "Risoluzione",
-    results: "Riepilogo dei risultati",
-    title: "Titolo dell'esercizio",
-    text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
-    question: "Scrivi qui la domanda.",
-    no_result: "risultato non indicato",
-    title_part: "Titolo",
-    statement: "Testo",
-    questions: "Domande",
-    prompt: "Domande (automatiche)",
-    data: "Dati",
-    variant: "variante",
-    front: "Frontespizio: titolo della serie, classe, data, istruzioni.",
-    front_part: "Frontespizio",
-};
-
-const EN: Words = Words {
-    exercise: "Exercise",
-    solution: "Solution",
-    results: "Results",
-    title: "Exercise title",
-    text: "Write the exercise here: data, figures, tables.",
-    question: "Write the question here.",
-    no_result: "no result marked",
-    title_part: "Title",
-    statement: "Statement",
-    questions: "Questions",
-    prompt: "Questions (automatic)",
-    data: "Data",
-    variant: "variant",
-    front: "Frontispiece: title of the series, class, date, instructions.",
-    front_part: "Frontispiece",
-};
-
-const FR: Words = Words {
-    exercise: "Exercice",
-    solution: "Solution",
-    results: "Récapitulatif des résultats",
-    title: "Titre de l'exercice",
-    text: "Écrivez ici l'énoncé de l'exercice : données, figures, tableaux.",
-    question: "Écrivez ici la question.",
-    no_result: "résultat non indiqué",
-    title_part: "Titre",
-    statement: "Énoncé",
-    questions: "Questions",
-    prompt: "Questions (automatiques)",
-    data: "Données",
-    variant: "variante",
-    front: "Page de titre : titre de la série, classe, date, consignes.",
-    front_part: "Page de titre",
-};
-
-const DE: Words = Words {
-    exercise: "Aufgabe",
-    solution: "Lösung",
-    results: "Ergebnisübersicht",
-    title: "Titel der Aufgabe",
-    text: "Schreiben Sie hier die Aufgabe: Daten, Abbildungen, Tabellen.",
-    question: "Schreiben Sie hier die Frage.",
-    no_result: "kein Ergebnis angegeben",
-    title_part: "Titel",
-    statement: "Aufgabenstellung",
-    questions: "Fragen",
-    prompt: "Fragen (automatisch)",
-    data: "Daten",
-    variant: "Variante",
-    front: "Titelblatt: Titel der Reihe, Klasse, Datum, Hinweise.",
-    front_part: "Titelblatt",
-};
-
-const ES: Words = Words {
-    exercise: "Ejercicio",
-    solution: "Solución",
-    results: "Resumen de resultados",
-    title: "Título del ejercicio",
-    text: "Escribe aquí el enunciado del ejercicio: datos, figuras, tablas.",
-    question: "Escribe aquí la pregunta.",
-    no_result: "resultado no indicado",
-    title_part: "Título",
-    statement: "Enunciado",
-    questions: "Preguntas",
-    prompt: "Preguntas (automáticas)",
-    data: "Datos",
-    variant: "variante",
-    front: "Portada: título de la serie, clase, fecha, instrucciones.",
-    front_part: "Portada",
-};
 
 /// Adds the exercise styles the document lacks.
 fn ensure_styles(s: &mut Session) {
@@ -351,14 +264,14 @@ fn ensure_styles(s: &mut Session) {
     ];
     for st in wanted {
         if s.doc.styles.get(&st.id).is_none() {
-            s.doc.styles.styles.push(st);
+            std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(st);
         }
     }
     // The title numbers itself (Esercizio 1., Esercizio 2. …): one list in the style, so every
     // exercise of the document counts on, also in documents made before it was numbered.
     if s.doc.styles.get(STYLE_TITLE).is_some_and(|st| st.para.numbering.is_none())
         && let Ok(num) = add_title_list(s)
-        && let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE)
+        && let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE)
     {
         st.para.numbering = Some(NumRef { num, level: 0 });
     }
@@ -378,7 +291,7 @@ fn add_title_list(s: &mut Session) -> Result<u32, CmdError> {
         l.tab = None;
         l.suffix = LevelSuffix::Space;
     }
-    s.doc.numbering.try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering).try_add_levels(Some("Exercise titles".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn control(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
@@ -447,7 +360,9 @@ fn add_question_list(s: &mut Session) -> Result<u32, CmdError> {
             l.tab = None;
         }
     }
-    s.doc.numbering.try_add_levels(Some("Exercise questions".into()), levels).map_err(|e| CmdError::Failed(e.to_string()))
+    std::sync::Arc::make_mut(&mut s.doc.numbering)
+        .try_add_levels(Some("Exercise questions".into()), levels)
+        .map_err(|e| CmdError::Failed(e.to_string()))
 }
 
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
@@ -620,21 +535,38 @@ struct Layout {
     /// Exercise and part of each top-level block.
     parts: Vec<(Option<usize>, Part)>,
     results: Option<(usize, usize)>,
-    /// First and last top-level block of the frontispiece.
+    /// First and last top-level block of the frontispiece: from the document's start to the
+    /// paragraph ending in its Frontispiece Break, before any exercise.
     front: Option<(usize, usize)>,
+    /// A frontispiece from before the break, in a control (`TAG_FRONT`): first and last block,
+    /// and whether it still shows its placeholder. [`front::migrate`] turns it into a break.
+    legacy_front: Option<(usize, usize, bool)>,
 }
 
 impl Layout {
-    /// Block `i` (inside the controls `tags`) belongs to the frontispiece when it is in its
-    /// control and in no exercise; the range grows over contiguous blocks only.
+    /// Block `i`, outside every control (`top`) and before any exercise, ending in the
+    /// Frontispiece Break ends the frontispiece (the first such one).
+    fn note_front_break(&mut self, i: usize, b: &Block, top: bool) {
+        if self.front.is_none()
+            && self.exercises.is_empty()
+            && top
+            && matches!(b, Block::Para(p) if p.section.as_ref().is_some_and(|sp| sp.frontispiece))
+        {
+            self.front = Some((0, i));
+        }
+    }
+
+    /// Block `i` (inside the controls `tags`) belongs to an old frontispiece control when it is
+    /// in it and in no exercise; the range grows over contiguous blocks only.
     fn note_front(&mut self, i: usize, tags: &[(String, bool)]) {
         let has = |t: &str| tags.iter().any(|(x, _)| x == t);
         if !has(TAG_FRONT) || has(TAG_EXERCISE) {
             return;
         }
-        match self.front {
-            None => self.front = Some((i, i)),
-            Some((a, b)) if b + 1 == i => self.front = Some((a, i)),
+        let placeholder = tags.iter().any(|(t, ph)| t == TAG_FRONT && *ph);
+        match self.legacy_front {
+            None => self.legacy_front = Some((i, i, placeholder)),
+            Some((a, b, ph)) if b + 1 == i => self.legacy_front = Some((a, i, ph || placeholder)),
             Some(_) => {}
         }
     }
@@ -708,7 +640,9 @@ fn scan(s: &Session) -> Layout {
         }
         let has = |t: &str| tags.iter().any(|(x, _)| x == t);
         let in_exercise = has(TAG_EXERCISE);
-        let part = if has(TAG_RESULTS) {
+        // A summary inside a subdocument (a master's copy from before subdocuments left theirs
+        // out) is not the document's: the master has its own at the end.
+        let part = if has(TAG_RESULTS) && !tags.iter().any(|(t, _)| t.starts_with(SUBDOC_TAG)) {
             Part::Results
         } else if !in_exercise {
             Part::Other
@@ -740,6 +674,7 @@ fn scan(s: &Session) -> Layout {
             grow(&mut out.results);
         }
         out.note_front(i, &tags);
+        out.note_front_break(i, b, stack.is_empty());
         let Some(e) = ex.and_then(|e| out.exercises.get_mut(e)) else { continue };
         if matches!(part, Part::Solution | Part::Prompt) {
             grow(&mut e.solution_blocks);
@@ -1022,6 +957,8 @@ pub(crate) fn signature(s: &Session) -> u64 {
         (&e.title, &e.questions, e.data.statements(), e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
+    // Points typed in a scores table change its totals.
+    scores::fingerprint(s).hash(&mut h);
     h.finish()
 }
 
@@ -1331,6 +1268,33 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
                         *at -= 1;
                     }
                 });
+                // Its working joins the question above: an empty paragraph meeting another
+                // empty one goes, so no blank line is left over (the one holding the
+                // solution's end stays).
+                let blank = |s: &Session, k: usize, markers: bool| {
+                    matches!(s.doc.body.get(k).map(|b| &**b), Some(Block::Para(p)) if p.text.chars().all(|c| c == OBJ)
+                        && (markers || p.objects.is_empty())
+                        && p.objects.iter().all(|o| matches!(o, InlineObject::ControlEnd))
+                        && p.props.style.as_deref().is_none_or(|st| st == "Normal"))
+                };
+                // The first question's working, with no question above, goes when empty too.
+                let heading =
+                    i > 0 && matches!(s.doc.body.get(i - 1).map(|b| &**b), Some(Block::Para(p)) if p.props.style.as_deref() == Some(STYLE_HEADING));
+                let gone = if i > 0 && blank(s, i - 1, false) && blank(s, i, true) {
+                    Some(i - 1)
+                } else if heading && blank(s, i, false) {
+                    Some(i)
+                } else {
+                    None
+                };
+                if let Some(g) = gone {
+                    s.doc.body.remove(g);
+                    inserts.iter_mut().for_each(|(at, _)| {
+                        if *at != usize::MAX && *at > g {
+                            *at -= 1;
+                        }
+                    });
+                }
             }
         }
     }
@@ -1392,6 +1356,27 @@ fn opener(s: &Session, i: usize, tag: &str) -> Option<ContentControl> {
 /// the exercise, so it was refused and the title couldn't be edited. Their title paragraph gets
 /// its own control, showing the placeholder; the exercise control stops showing one. Returns
 /// whether anything changed.
+/// The title's paragraph style can't be changed: it is what numbers the title and what marks it
+/// as the exercise's title. A paragraph holding a title control that another style reached (Apply
+/// Style, the Styles pane, Clear Formatting, Format Painter, a paste) takes Exercise Title back;
+/// change the Exercise Title style itself to restyle every title. Whether anything changed.
+fn title_styles(s: &mut Session) -> bool {
+    let mut changed = false;
+    for block in s.doc.body.iter_mut() {
+        let Block::Para(p) = &**block else { continue };
+        if p.props.style.as_deref() == Some(STYLE_TITLE)
+            || !p.objects.iter().any(|o| matches!(o, InlineObject::ControlStart { control } if control.tag == TAG_TITLE))
+        {
+            continue;
+        }
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        p.props.style = Some(STYLE_TITLE.into());
+        p.touch();
+        changed = true;
+    }
+    changed
+}
+
 fn title_controls(s: &mut Session) -> bool {
     let w = doc_words(s);
     let mut changed = false;
@@ -1467,13 +1452,109 @@ fn capitalized(t: &str) -> String {
     c.next().map_or_else(String::new, |f| f.to_uppercase().chain(c).collect())
 }
 
+/// The first block of the results summary, when the document has one.
+pub(crate) fn results_start(s: &Session) -> Option<usize> {
+    scan(s).results.map(|(from, _)| from)
+}
+
+/// `doc` without its results summary and its frontispiece: a subdocument's content as a master
+/// shows it (the master makes one summary for all its exercises, and has its own frontispiece).
+pub(crate) fn without_results(doc: Document) -> Document {
+    let mut s = Session::new(doc);
+    front::migrate(&mut s);
+    if let Some((from, to)) = scan(&s).results
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+    }
+    if let Some((from, to)) = scan(&s).front
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+    }
+    s.doc.ensure_nonempty();
+    s.doc
+}
+
+/// The series' settings of a document (its first exercise's), to keep over a change that brings
+/// in other exercises (a master reloading its subdocuments).
+pub(crate) use series::Settings as SeriesSettings;
+
+pub(crate) fn series_settings(s: &Session) -> Option<SeriesSettings> {
+    series::settings(s)
+}
+
+/// Every exercise takes `set` (when there is one), then the automatic parts are rebuilt.
+pub(crate) fn impose_series(s: &mut Session, set: Option<&SeriesSettings>) -> bool {
+    match set {
+        Some(set) => series::impose(s, set),
+        None => update(s),
+    }
+}
+
+/// A subdocument's file `doc`, written from a master, given back what is the file's own and not
+/// the master's (docs/master-documents.md): its styles and document defaults, the exercises'
+/// numbering, the series' settings (page breaks, parts shown, graph paper) and its frontispiece,
+/// all as in `old`, the file as it was. The content edited in the master stays.
+pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
+    let mut own = Session::new(old.clone());
+    front::migrate(&mut own);
+    let had_exercises = !scan(&own).exercises.is_empty();
+    let set = series::settings(&own);
+    let numbering = numbering::current(&own);
+    let front: Vec<Arc<Block>> = scan(&own).front.and_then(|(a, b)| own.doc.body.get(a..=b)).map(<[Arc<Block>]>::to_vec).unwrap_or_default();
+    let mut s = Session::new(doc);
+    // The master's DSA formatting stays in the master.
+    dsa::leave_out(&mut s.doc, &own.doc);
+    // The file's styles, each list a style numbers with still the one this document has.
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr = own.doc.styles.default_chr.clone();
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_para = own.doc.styles.default_para.clone();
+    for st in &own.doc.styles.styles {
+        let mut st = st.clone();
+        st.para.numbering = s.doc.styles.get(&st.id).and_then(|x| x.para.numbering);
+        std::sync::Arc::make_mut(&mut s.doc.styles).upsert(st);
+    }
+    // Its own frontispiece, in place of any.
+    if let Some((from, to)) = scan(&s).front
+        && s.doc.body.get(from..=to).is_some()
+    {
+        s.doc.body.drain(from..=to);
+    }
+    for (k, b) in front.into_iter().enumerate() {
+        s.doc.body.insert(k, b);
+    }
+    if had_exercises {
+        let numbering::Numbering { prefix, format, start, separator } = numbering;
+        let _ =
+            numbering::set(&mut s, numbering::Change { prefix: Some(prefix), format: Some(format), start: Some(start), separator: Some(separator) });
+    }
+    impose_series(&mut s, set.as_ref());
+    s.doc.ensure_nonempty();
+    s.doc
+}
+
+/// `doc` with its automatic parts up to date, its results summary included: a subdocument's
+/// file, written from a master, opened alone.
+pub(crate) fn with_results(doc: Document) -> Document {
+    let mut s = Session::new(doc);
+    update(&mut s);
+    s.doc
+}
+
 /// Rebuilds the automatic parts: the questions repeated in each solution and the results summary
 /// (moved to, or created at, the end of the document). Returns whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
-    let mut changed = title_controls(s);
+    // A frontispiece in a control (documents from before the Frontispiece Break) becomes one.
+    let mut changed = front::migrate(s);
+    changed |= title_controls(s);
+    changed |= title_styles(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
+    // The scores tables: one row per exercise, the totals.
+    changed |= scores::update(s);
+    // The archive's Score property: the scores table's grand total.
+    changed |= archive::sync_score(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.
@@ -1619,7 +1700,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -1665,6 +1746,41 @@ mod tests {
             assert_eq!(scan(&s).exercises.len(), 1, "{command}");
             assert!(texts(&s).contains(&"Poi".to_string()), "{command}");
         }
+    }
+
+    /// The owner: the paragraph style of the title can't be changed. Another style applied to it
+    /// (Apply Style, Normal, a heading) gives Exercise Title back at once, so the title keeps its
+    /// number and stays the exercise's title; its text is still free.
+    #[test]
+    fn the_title_style_cannot_be_changed() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Due", "questions": ["q"]})).unwrap();
+        let styles = |s: &Session| -> Vec<Option<String>> {
+            texts(s)
+                .iter()
+                .zip(s.doc.body.iter())
+                .filter(|(t, _)| *t == "Uno" || *t == "Due")
+                .map(|(_, b)| match &**b {
+                    Block::Para(p) => p.props.style.clone(),
+                    Block::Table(_) => None,
+                })
+                .collect()
+        };
+        for style in ["Normal", "Heading1", "ExerciseQuestion"] {
+            s.run("select.text", &json!({"text": "Uno"})).unwrap();
+            s.run("para.style", &json!({"style": style})).unwrap();
+            assert_eq!(styles(&s), [Some(STYLE_TITLE.to_string()), Some(STYLE_TITLE.to_string())], "{style}");
+            let e = scan(&s);
+            assert_eq!(e.exercises.len(), 2, "{style}");
+            assert_eq!(e.exercises.iter().map(|e| e.questions.len()).collect::<Vec<_>>(), [1, 1], "{style}");
+        }
+        // Over both titles at once (and the text between): both keep it.
+        s.run("select.all", &json!({})).unwrap();
+        s.run("para.style", &json!({"style": "Normal"})).unwrap();
+        assert_eq!(styles(&s), [Some(STYLE_TITLE.to_string()), Some(STYLE_TITLE.to_string())]);
+        assert_eq!(scan(&s).exercises.len(), 2);
     }
 
     /// An exercise number past what the platform counts never wraps onto another exercise.
@@ -1730,7 +1846,7 @@ mod tests {
         let mut s = session();
         s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
         // Numbering taken away (a document from before): the next insert puts it back.
-        if let Some(st) = s.doc.styles.styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
+        if let Some(st) = std::sync::Arc::make_mut(&mut s.doc.styles).styles.iter_mut().find(|st| st.id == STYLE_TITLE) {
             st.para.numbering = None;
         }
         // The caret still in the first exercise's title: the second goes after the first.
@@ -2037,9 +2153,9 @@ mod tests {
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
         // Italian as it opens (the words come from the preferences, else the document's language).
-        doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut doc.styles).default_chr.lang = Some("it-IT".into());
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert_eq!(title(&s), "Ponte");
         let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.props.style.as_deref() == Some(STYLE_TITLE))).unwrap();
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
@@ -2077,7 +2193,7 @@ mod tests {
         }
         assert_eq!(p.objects.len(), 1);
         let mut s = Session::new(doc);
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         assert!(opener(&s, at, TAG_TITLE).is_some_and(|c| c.showing_placeholder));
         assert!(opener(&s, at, TAG_EXERCISE).is_some_and(|c| !c.showing_placeholder));
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), OBJ.len_utf8()));
@@ -2135,5 +2251,56 @@ mod tests {
         let _ = s.run("equation.answer", &json!({"question": u64::MAX}));
         let _ = s.run("exercise.update", &json!({}));
         let _ = s.run("exercise.info", &json!({}));
+    }
+
+    /// The owner: the placeholders of the statement and of the questions "don't always work",
+    /// and the structure must hold. Deleting a selection that empties a part (also of extra
+    /// empty paragraphs) brings its placeholder back; Backspace at the start of an empty part
+    /// never joins it to the part before (the statement used to end up in the title); questions
+    /// removed leave no blank line behind in the solution.
+    #[test]
+    fn placeholders_come_back_and_parts_never_join() {
+        fn part(s: &Session, tag: &str) -> (bool, String) {
+            let ranges = s.doc.control_ranges(StoryRef::Body);
+            let r = ranges.iter().find(|r| r.control.tag == tag).unwrap();
+            (r.control.showing_placeholder, s.doc.control_text(r))
+        }
+        for (tag, shown) in [(TAG_TEXT, "Scrivi qui il testo dell'esercizio: dati, figure, tabelle."), (TAG_QUESTIONS, "Scrivi qui la domanda.")] {
+            let mut s = session();
+            s.run("exercise.insert", &json!({})).unwrap();
+            let fresh = texts(&s);
+            let ranges = s.doc.control_ranges(StoryRef::Body);
+            let start = ranges.iter().find(|r| r.control.tag == tag).unwrap().content_start();
+            s.sel = crate::Selection::caret(start);
+            s.run("text.insert", &json!({"text": "Due"})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+            s.run("text.insert", &json!({"text": "Tre"})).unwrap();
+            assert_eq!(part(&s, tag), (false, "Due\nTre".to_string()), "{tag}");
+            s.run("select.text", &json!({"text": "Due"})).unwrap();
+            s.run("text.delete", &json!({})).unwrap();
+            s.run("select.text", &json!({"text": "Tre"})).unwrap();
+            s.run("text.delete", &json!({})).unwrap();
+            assert_eq!(part(&s, tag), (true, shown.to_string()), "{tag}: the placeholder is back");
+            for _ in 0..3 {
+                s.run("text.backspace", &json!({})).unwrap();
+            }
+            for _ in 0..2 {
+                s.run("text.delete", &json!({})).unwrap();
+            }
+            assert_eq!(part(&s, tag), (true, shown.to_string()), "{tag}");
+            assert_eq!(texts(&s), fresh, "{tag}: nothing joined, no blank line left");
+            assert_eq!(scan(&s).exercises.len(), 1);
+        }
+        // Delete at the end of the title, Backspace at the start of the questions: refused edges.
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Uno", "text": "Dati", "questions": ["Trova x"]})).unwrap();
+        let fresh = texts(&s);
+        s.run("select.text", &json!({"text": "Uno"})).unwrap();
+        s.run("caret.end", &json!({})).unwrap();
+        s.run("text.delete", &json!({})).unwrap();
+        s.run("select.text", &json!({"text": "Trova"})).unwrap();
+        s.run("caret.home", &json!({})).unwrap();
+        s.run("text.backspace", &json!({})).unwrap();
+        assert_eq!(texts(&s), fresh);
     }
 }

@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 wordcraft-proof = { workspace = true }
+wordcraft-control-key = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # The same ureq build craft-update already uses (no new crates): rustls with ring, the OS's

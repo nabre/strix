@@ -248,14 +248,14 @@ fn imported_docx_without_strix_objects_saves_in_place() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Save on a document opened from a .docx that has Strix objects asks where through Save As
+/// Save on a document opened from an .odt that has Strix objects asks where through Save As
 /// with a `.xmath` of the same name proposed, says why (the objects, listed), and offers only
-/// Strix's own formats and the exports; the .docx is never written over. Once saved as a Strix
+/// Strix's own formats, Word documents and the exports; the .odt is never written over. Once saved as a Strix
 /// document, Save writes it in place without asking.
 #[test]
-fn imported_docx_with_strix_objects_save_proposes_xmath() {
-    let dir = scratch("imported-docx-objects");
-    let original = dir.join("report.docx");
+fn imported_odt_with_strix_objects_save_proposes_xmath() {
+    let dir = scratch("imported-odt-objects");
+    let original = dir.join("report.odt");
     wordcraft_engine::io::save_path(&original, &wordcraft_doc::Document::from_text("Quarterly report")).unwrap();
     let bytes = std::fs::read(&original).unwrap();
     let (mut a, shown) = async_app();
@@ -277,7 +277,7 @@ fn imported_docx_with_strix_objects_save_proposes_xmath() {
     answer(&shown, Some(&native.to_string_lossy()));
     assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], true);
     assert_eq!(a.session.path.as_deref(), Some(native.as_path()));
-    assert_eq!(std::fs::read(&original).unwrap(), bytes, "the .docx is untouched");
+    assert_eq!(std::fs::read(&original).unwrap(), bytes, "the .odt is untouched");
     a.run("text.insert", json!({"text": "Again "})).unwrap();
     assert_eq!(a.run("file.save", json!({})).unwrap()["saved"], true);
     assert!(shown.borrow().is_empty(), "no second dialog");
@@ -286,6 +286,25 @@ fn imported_docx_with_strix_objects_save_proposes_xmath() {
     a.run("file.saveAs", json!({})).unwrap();
     assert!(matches!(&shown.borrow()[0].0, FileDialogRequest::Save { name, native_only: Some(_), .. } if name == "report.xmath"));
     answer(&shown, None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A document opened from a .docx keeps its Strix objects there (docs/word-round-trip.md): Save
+/// writes the .docx in place without asking, and the objects come back live.
+#[test]
+fn imported_docx_with_strix_objects_saves_in_place() {
+    let dir = scratch("imported-docx-objects");
+    let original = dir.join("report.docx");
+    wordcraft_engine::io::save_path(&original, &wordcraft_doc::Document::from_text("Quarterly report")).unwrap();
+    let (mut a, shown) = async_app();
+    a.run("file.open", json!({"path": original.to_string_lossy()})).unwrap();
+    a.run("caret.docEnd", json!({})).unwrap();
+    a.run("calc.insert", json!({"text": "x = 2"})).unwrap();
+    assert_eq!(a.run("file.save", json!({})).unwrap()["saved"], true);
+    assert!(shown.borrow().is_empty(), "no dialog");
+    assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
+    let back = wordcraft_engine::io::open_path(&original).unwrap();
+    assert_eq!(wordcraft_engine::strix_objects::describe(&wordcraft_engine::strix_objects::strix_objects(&back)), "1 calculation");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -405,7 +424,8 @@ fn save_as_answer_arriving_later_is_saved() {
     typed(&mut a);
     a.save_as_dialog();
     assert!(a.file_dialog_open());
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "Document1.xmath".into(), dir: None, native_only: None });
+    // A new document is offered its first words as its name, as in Word (#5793).
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: format!("{UNSAVED}.xmath"), dir: None, native_only: None });
     let ctx = egui::Context::default();
     let frame = |a: &mut WordApp| ctx.run_ui(egui::RawInput::default(), |ui| a.logic(ui.ctx())).drop_without_applying_deltas();
     frame(&mut a);

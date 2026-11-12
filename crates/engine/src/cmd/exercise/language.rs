@@ -2,17 +2,19 @@
 //! language of an exercise (the one its title is in, the language its dictionary checks with),
 //! the words Strix wrote for it change language too: the titles on the parts' frames, the
 //! placeholders still shown, the solution's heading, the numbering's prefix while it is the
-//! default one, and the results summary. A word is translated only while it is one of the
-//! defaults ([`ALL_WORDS`]): whatever the user wrote stays as written.
+//! default one, the results summary and the scores table's default criterion. A word is translated
+//! only while it is one of the defaults ([`ALL_WORDS`]): whatever the user wrote stays as written.
+//! A language without its own words (Latin, Romansh…) leaves the words as they are.
 
 use std::sync::Arc;
 
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::{Block, InlineObject, Paragraph};
 
+use super::words::ALL_WORDS;
 use super::{
-    ALL_WORDS, Part, TAG_DATA, TAG_EXERCISE, TAG_PROMPT, TAG_QUESTIONS, TAG_RESULTS, TAG_SOLUTION, TAG_TEXT, TAG_TITLE, Words, numbering, scan,
-    update, words_for, words_lang,
+    Layout, Part, TAG_DATA, TAG_EXERCISE, TAG_PROMPT, TAG_QUESTIONS, TAG_RESULTS, TAG_SOLUTION, TAG_TEXT, TAG_TITLE, Words, exercise_words,
+    numbering, scan, scores, update, words_lang,
 };
 use crate::Session;
 
@@ -49,6 +51,31 @@ fn placeholder_field(tag: &str) -> Option<Field> {
         TAG_QUESTIONS => |w| w.question,
         _ => return None,
     })
+}
+
+/// The language exercise `e`'s words are in now: the one whose frame titles and placeholders it
+/// shows most of (none when it shows none of any).
+pub(super) fn present(s: &Session, layout: &Layout, e: usize) -> Option<&'static Words> {
+    let mut score = [0usize; ALL_WORDS.len()];
+    for (block, &(ex, _)) in s.doc.body.iter().zip(&layout.parts) {
+        let Block::Para(p) = &**block else { continue };
+        if ex != Some(e) {
+            continue;
+        }
+        for o in &p.objects {
+            let InlineObject::ControlStart { control } = o else { continue };
+            let (title, placeholder) = (title_field(&control.tag), placeholder_field(&control.tag));
+            for (k, w) in ALL_WORDS.iter().enumerate() {
+                let hits = usize::from(title.is_some_and(|f| f(w) == control.title))
+                    + usize::from(placeholder.is_some_and(|f| f(w) == control.placeholder_text));
+                if let Some(n) = score.get_mut(k) {
+                    *n = n.saturating_add(hits);
+                }
+            }
+        }
+    }
+    let best = score.iter().copied().max().filter(|&m| m > 0)?;
+    score.iter().position(|&n| n == best).and_then(|k| ALL_WORDS.get(k).copied())
 }
 
 /// `to`'s word for `field` when `old` is some language's word for it and not already `to`'s.
@@ -105,13 +132,16 @@ fn translate(p: &Paragraph, part: Part, to: &Words) -> Option<Paragraph> {
     changed.then_some(out)
 }
 
-/// Puts every exercise's default words in its language, then the numbering's default prefix and
-/// the results summary in the first exercise's. Returns whether anything changed.
+/// Puts every exercise's default words in its language, then the numbering's default prefix, the
+/// results summary and the scores table's default criterion in the first exercise's. Returns
+/// whether anything changed.
 pub(crate) fn follow_language(s: &mut Session) -> bool {
     let layout = scan(s);
-    let Some(first) = layout.exercises.first() else { return false };
-    let doc_words = words_for(&lang_at(s, first.start));
-    let ex_words: Vec<&'static Words> = layout.exercises.iter().map(|e| words_for(&lang_at(s, e.start))).collect();
+    if layout.exercises.is_empty() {
+        return false;
+    }
+    let ex_words: Vec<&'static Words> = (0..layout.exercises.len()).map(|e| exercise_words(s, &layout, e)).collect();
+    let Some(&doc_words) = ex_words.first() else { return false };
     let mut changed = false;
     for (i, block) in s.doc.body.iter_mut().enumerate() {
         let Some(&(ex, part)) = layout.parts.get(i) else { break };
@@ -132,8 +162,9 @@ pub(crate) fn follow_language(s: &mut Session) -> bool {
     let prefix = numbering::current(s).prefix;
     if let Some(new) = swap(&prefix, |w| w.exercise, doc_words) {
         // `set` rebuilds the summary too.
-        changed |= numbering::set(s, Some(new.to_string()), None, None).is_ok();
+        changed |= numbering::set(s, numbering::Change { prefix: Some(new.to_string()), ..Default::default() }).is_ok();
     }
+    changed |= scores::follow_language(s, |old| swap(old, |w| w.points, doc_words));
     changed |= update(s);
     s.clamp_selection();
     changed
@@ -149,7 +180,7 @@ mod tests {
     fn session(lang: &str) -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some(lang.into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some(lang.into());
         s
     }
 
@@ -216,11 +247,65 @@ mod tests {
         assert!(t.contains(&"Titre de l'exercice".to_string()) && t.contains(&"Récapitulatif des résultats".to_string()), "{t:?}");
         assert_eq!(s.run("exercise.numbering", &json!({})).unwrap()["example"], json!("Exercice 1"));
 
-        // A language without its own words is English; one undo step takes the change back.
+        // A language without its own words keeps the ones there; one undo step takes a change back.
         s.run("review.language", &json!({"lang": "pl-PL", "default": true})).unwrap();
-        assert!(texts(&s).contains(&"Exercise title".to_string()));
+        assert!(texts(&s).contains(&"Titre de l'exercice".to_string()), "{:?}", texts(&s));
+        s.run("review.language", &json!({"lang": "de-DE", "default": true})).unwrap();
+        assert!(texts(&s).contains(&"Titel der Aufgabe".to_string()), "{:?}", texts(&s));
         s.run("edit.undo", &json!({})).unwrap();
         assert!(texts(&s).contains(&"Titre de l'exercice".to_string()), "{:?}", texts(&s));
+    }
+
+    /// The owner: a Latin (or Romansh, Spanish…) text has no words of its own, so the exercise keeps
+    /// the ones it has instead of turning English; a new exercise there takes them too.
+    #[test]
+    fn a_language_without_words_keeps_them() {
+        let mut s = session("it-IT");
+        s.run("exercise.insert", &json!({})).unwrap();
+        for lang in ["la", "rm-CH", "es-ES"] {
+            s.run("review.language", &json!({"lang": lang, "default": true})).unwrap();
+            let t = texts(&s);
+            assert!(t.contains(&"Titolo dell'esercizio".to_string()) && t.contains(&"Riepilogo dei risultati".to_string()), "{lang}: {t:?}");
+            assert!(titles(&s).contains(&"Esercizio".to_string()), "{lang}");
+        }
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({})).unwrap();
+        assert_eq!(texts(&s).iter().filter(|t| *t == "Titolo dell'esercizio").count(), 2, "{:?}", texts(&s));
+        assert_eq!(s.run("exercise.numbering", &json!({})).unwrap()["example"], json!("Esercizio 1"));
+
+        // Swiss German and three-letter tags are recognised.
+        s.run("review.language", &json!({"lang": "gsw-CH", "default": true})).unwrap();
+        assert!(texts(&s).contains(&"Titel der Aufgabe".to_string()), "{:?}", texts(&s));
+        s.run("review.language", &json!({"lang": "ita", "default": true})).unwrap();
+        assert!(texts(&s).contains(&"Titolo dell'esercizio".to_string()), "{:?}", texts(&s));
+    }
+
+    /// The scores table's default criterion and its header follow the language; a criterion the
+    /// user named stays.
+    #[test]
+    fn scores_table_follows_the_language() {
+        let mut s = session("it-IT");
+        s.run("exercise.insert", &json!({})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.scores", &json!({"on": true})).unwrap();
+        s.run("exercise.scores", &json!({"add": "Ordine"})).unwrap();
+        assert_eq!(s.run("exercise.scores", &json!({})).unwrap()["criteria"], json!(["Punti", "Ordine"]));
+        s.run("review.language", &json!({"lang": "de-DE", "default": true})).unwrap();
+        assert_eq!(s.run("exercise.scores", &json!({})).unwrap()["criteria"], json!(["Punkte", "Ordine"]));
+        let header: Vec<String> = s
+            .doc
+            .body
+            .iter()
+            .find_map(|b| match &**b {
+                Block::Table(t) => {
+                    t.rows.first().map(|r| r.cells.iter().map(|c| c.blocks.iter().filter_map(|b| b.as_para()).map(plain).collect()).collect())
+                }
+                Block::Para(_) => None,
+            })
+            .unwrap_or_default();
+        assert_eq!(header.first().map(String::as_str), Some("Aufgabe"), "{header:?}");
+        s.run("review.language", &json!({"lang": "la", "default": true})).unwrap();
+        assert_eq!(s.run("exercise.scores", &json!({})).unwrap()["criteria"], json!(["Punkte", "Ordine"]));
     }
 
     /// What the user wrote stays as written: their title, statement, questions and own prefix.

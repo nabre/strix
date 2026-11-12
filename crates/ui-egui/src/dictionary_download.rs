@@ -109,7 +109,7 @@ mod tests {
     fn app(lang: &str) -> WordApp {
         let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
         app.session.run("document.setText", &json!({"text": "Testo"})).unwrap();
-        app.session.doc.styles.default_chr.lang = Some(lang.into());
+        std::sync::Arc::make_mut(&mut app.session.doc.styles).default_chr.lang = Some(lang.into());
         app
     }
 

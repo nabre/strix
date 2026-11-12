@@ -3,14 +3,26 @@
 # branch: the `release` environment gives its signing secrets to that branch alone, and SignPath
 # signs only requests from the Release workflow on `release` (docs/code-signing.md).
 #
-# - Push to main: when the version in Cargo.toml ([workspace.package] version) has no published
-#   GitHub Release `vX.Y.Z`, job "Promote main to release" merges this commit into `release` and
-#   starts this workflow there. Otherwise nothing runs past "Version".
-# - Push to release (by that job, or by hand: merge main into release): when the version has no
-#   release, every platform's packages are built, and the release is published with all of them,
-#   SHA256SUMS.txt and generated notes; then the site (site.yml) is redeployed so its download
-#   links and web app move to it.
-# - Run by hand on any other branch: every package built as a dry run, nothing published.
+# Step 3 of the release flow (docs/releasing.md, "The release flow"): a push to main whose version
+# has no release is merged into `release` by promote.yml, which starts this workflow there; the
+# site (site.yml) follows it.
+#
+# - Push to release (by promote.yml, or by hand: merge main into release): when the version in
+#   Cargo.toml ([workspace.package] version) has no published GitHub Release `vX.Y.Z`, every
+#   platform's packages are built, and the release is published with all of them, SHA256SUMS.txt
+#   and generated notes; then the site (site.yml) is redeployed so its download links and web app
+#   move to it. Otherwise nothing runs past "Version".
+# - Run by hand on any other branch but main: every package built as a dry run, nothing published.
+#   On main it does nothing: main is released through promote.yml.
+#
+# Its jobs run in five phases, numbered in their names so the graph and the job list read in order:
+#   1 Version: what this run does.
+#   2 Preflight, what decides for every platform: "Checks already run" (the released code's CI
+#     passed: fails the run otherwise, before any build) and "Signing" (what will be signed: a
+#     report that never fails the run).
+#   3 The builds, one per platform, all at once once both preflight jobs have ended.
+#   4 Flatpak and Arch Linux, made from the Linux tarballs.
+#   5 Publish, once every build has passed.
 #
 # Every platform builds whether or not the signing secrets are set: the "Signing" job reports what
 # is missing as warnings, never as a failure, and the macOS and Windows packaging scripts then sign
@@ -26,14 +38,14 @@ name: Release
 
 on:
   push:
-    branches: [main, release]
+    branches: [release]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One run at a time per branch, never cancelled: a push made while a release is building waits,
-# then finds the release published and stops at "Version".
+# One run at a time per branch, never cancelled: a push to release made while a release is building
+# (promote.yml merging a newer main) waits, then finds the release published and stops at "Version".
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -46,16 +58,15 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # What this run does, decided once; every other job follows its outputs.
+  # Phase 1. What this run does, decided once; every other job follows its outputs.
   # - version: Cargo.toml's [workspace.package] version; tag v<version>.
-  # - promote: on main, v<version> has no published release: bring main into release.
   # - build: on release, v<version> has no published release; on another branch (not main), a
   #   dry run.
   # - publish: on release only.
   # - sha: the commit built: this one, or the tag's when v<version> was tagged without a release
   #   (the release must hold what the tag names).
   version:
-    name: Version
+    name: 1 · Version
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -63,7 +74,6 @@ jobs:
       date: ${{ steps.v.outputs.date }}
       prerelease: ${{ steps.v.outputs.prerelease }}
       sha: ${{ steps.v.outputs.sha }}
-      promote: ${{ steps.v.outputs.promote }}
       build: ${{ steps.v.outputs.build }}
       publish: ${{ steps.v.outputs.publish }}
     steps:
@@ -84,19 +94,18 @@ jobs:
           prerelease=false
           case "$version" in *-*) prerelease=true ;; esac
           sha="$GITHUB_SHA"
-          promote=false
           build=false
           publish=false
           echo "### Release" >>"$GITHUB_STEP_SUMMARY"
           released=false
           [ "$(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null || true)" = false ] && released=true
           case "$GITHUB_REF" in
-            refs/heads/main | refs/heads/release)
+            refs/heads/main)
+              echo "main is released through Promote (promote.yml), which merges it into release and starts this workflow there: nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            refs/heads/release)
               if [ "$released" = true ]; then
                 echo "$tag is already released: nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"
-              elif [ "$GITHUB_REF" = refs/heads/main ]; then
-                promote=true
-                echo "$tag has no release: bringing ${sha:0:7} into the release branch, which builds and publishes it" | tee -a "$GITHUB_STEP_SUMMARY"
               elif tagged="$(gh api "repos/$repo/commits/$tag" --jq .sha 2>/dev/null)" && [ -n "$tagged" ]; then
                 # Tagged without a release: build what the tag names, if it carries this version.
                 at_tag="$(gh api "repos/$repo/contents/Cargo.toml?ref=$tagged" --jq .content | base64 -d | version_of)"
@@ -124,84 +133,32 @@ jobs:
             echo "date=$(date -u +%Y-%m-%d)"
             echo "prerelease=$prerelease"
             echo "sha=$sha"
-            echo "promote=$promote"
             echo "build=$build"
             echo "publish=$publish"
           } >>"$GITHUB_OUTPUT"
-
-  # Main has a version without a release: merge this commit into the release branch (created from
-  # it when missing) and start this workflow there, where the signed builds run. The run is started
-  # explicitly because a push made with a workflow token starts no workflow; a push made with
-  # RELEASE_PUSH_TOKEN starts it by itself, and is then not started again. GITHUB_TOKEN can't
-  # push a merge that changes .github/workflows/: set the secret RELEASE_PUSH_TOKEN (a fine-grained
-  # token with Contents and Workflows write on this repository) to cover that case too; without
-  # it, such a merge fails here and main is merged into release by hand.
-  promote:
-    name: Promote main to release
-    needs: [version]
-    if: needs.version.outputs.promote == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      # gh workflow run release.yml
-      actions: write
-    steps:
-      - name: Merge main into release
-        id: merge
+      # Where this run sits in the release flow: the diagram of docs/releasing.md, the jobs this run
+      # goes through marked.
+      - name: Show the release flow
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
-          # A ref created or moved with RELEASE_PUSH_TOKEN raises a `push` on release, which
-          # starts this workflow there by itself; one moved with GITHUB_TOKEN starts nothing.
-          PUSH_STARTS_RUN: ${{ secrets.RELEASE_PUSH_TOKEN != '' }}
-          SHA: ${{ github.sha }}
-          VERSION: ${{ needs.version.outputs.version }}
+          BUILD: ${{ steps.v.outputs.build }}
+          PUBLISH: ${{ steps.v.outputs.publish }}
         run: |
-          set -euo pipefail
-          repo="$GITHUB_REPOSITORY"
-          pushed=false
-          if ! gh api "repos/$repo/branches/release" --silent 2>/dev/null; then
-            gh api "repos/$repo/git/refs" -f ref=refs/heads/release -f sha="$SHA" --silent
-            pushed=true
-            echo "Created the release branch at ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            # 201: merged (a body); 204: release already holds this commit (no body); 409: conflict.
-            if ! out="$(gh api "repos/$repo/merges" -f base=release -f head="$SHA" \
-                -f commit_message="Release v$VERSION: merge main (${SHA:0:7}) into release" 2>&1)"; then
-              echo "::error::merging ${SHA:0:7} into release failed: $out (merge main into release by hand; a merge that changes .github/workflows/ needs the RELEASE_PUSH_TOKEN secret)"
-              exit 1
-            fi
-            if [ -n "$out" ]; then
-              pushed=true
-              echo "Merged ${SHA:0:7} into release" | tee -a "$GITHUB_STEP_SUMMARY"
-            else
-              echo "release already holds ${SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-          # Started here only when no push will start it: never two runs for one release.
-          start=true
-          [ "$pushed" = true ] && [ "$PUSH_STARTS_RUN" = true ] && start=false
-          echo "start=$start" >>"$GITHUB_OUTPUT"
-      - name: Start the release build on release
-        if: steps.merge.outputs.start == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref release
-          echo "Started Release on the release branch" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Release started by the push
-        if: steps.merge.outputs.start != 'true'
-        run: echo "The push to release (RELEASE_PUSH_TOKEN) starts Release there" | tee -a "$GITHUB_STEP_SUMMARY"
+          nodes=(version)
+          [ "$BUILD" = true ] && nodes+=(checks signing builds linuxpkgs)
+          [ "$PUBLISH" = true ] && nodes+=(publish)
+          bash .github/release-flow.sh "${nodes[@]}" >>"$GITHUB_STEP_SUMMARY"
 
-  # What other workflows already checked, read instead of run again. It runs beside the builds
-  # (no build waits for it) and only the publishing job needs it:
+  # Phase 2 (preflight). What other workflows already checked, read instead of run again. Every
+  # build waits for it, so a release whose code failed CI builds nothing:
   # - CI (ci.yml, `cargo xtask ci`) of the released code: the built commit's run or, when the
   #   release branch got main through a merge commit, the run of the main commit merged in (its
-  #   second parent). Waited for while it runs. Failed: nothing is published. Not found: a warning.
+  #   second parent). Waited for while it runs. Failed: this job fails, and nothing is built or
+  #   published. Not found: a warning. In a dry run (nothing published) it only reports: a failed
+  #   or unfinished CI is a warning, not waited for, and the packages are still built.
   # - The last completed nightly FreeBSD and Windows ARM64 runs on main: reported, a warning when
   #   one failed (they don't hold the release back).
   checks:
-    name: Checks already run
+    name: 2 · Checks already run
     needs: [version]
     if: needs.version.outputs.build == 'true'
     runs-on: ubuntu-latest
@@ -214,6 +171,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ needs.version.outputs.sha }}
+          PUBLISH: ${{ needs.version.outputs.publish }}
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
@@ -240,6 +198,11 @@ jobs:
             exit 0
           fi
           read -r id status url conclusion <<<"$run"
+          if [ "$status" != completed ] && [ "$PUBLISH" != true ]; then
+            echo "::warning::dry run: CI run $id for $checked is still running, not waited for: $url"
+            echo "- CI on $checked: still running, not waited for in a dry run ($url)" >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$status" != completed ]; then
             echo "CI run $id for $checked is still running: waiting for it"
             gh run watch "$id" --repo "$repo" --interval 60 >/dev/null || true
@@ -247,7 +210,11 @@ jobs:
           fi
           echo "- CI on $checked: $conclusion ($url)" >>"$GITHUB_STEP_SUMMARY"
           if [ "$conclusion" != success ]; then
-            echo "::error::CI (ci.yml) on $checked ended \"$conclusion\": $url (fix it on main: the next push to main brings the fix into release)"
+            if [ "$PUBLISH" != true ]; then
+              echo "::warning::dry run: CI (ci.yml) on $checked ended \"$conclusion\": $url (a release would stop here)"
+              exit 0
+            fi
+            echo "::error::CI (ci.yml) on $checked ended \"$conclusion\": $url (nothing is built or published; fix it on main: the next push to main brings the fix into release)"
             exit 1
           fi
       - name: Last nightly FreeBSD and Windows ARM64 runs
@@ -270,9 +237,11 @@ jobs:
             fi
           done
 
-  # Which signing secrets are set: a report, never a failure. Unsigned packages still ship.
+  # Phase 2 (preflight). Which signing secrets are set: a report, never a failure. Unsigned packages
+  # still ship. The builds wait for it but don't need it to pass: in a dry run the `release`
+  # environment refuses this job (and the macOS and Windows builds), and the other builds go on.
   signing:
-    name: Signing (check only)
+    name: 2 · Signing (check only)
     needs: [version]
     if: needs.version.outputs.build == 'true'
     runs-on: ubuntu-latest
@@ -321,10 +290,13 @@ jobs:
             note "Windows: unsigned (no WINDOWS_CERTIFICATE pair nor the six AZURE_* secrets): SmartScreen will warn users"
           fi
 
+  # Phase 3. One build per platform, all at once once the preflight has ended: macOS, Windows,
+  # Linux, Linux riscv64, Web and FreeBSD (the Linux tarballs then feed phase 4).
   macos:
-    name: macOS universal
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · macOS universal
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     # The standard (free) Apple silicon runner; it builds the x86_64 half too.
     runs-on: macos-latest
     timeout-minutes: 120
@@ -341,6 +313,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -374,9 +349,10 @@ jobs:
           if [ -n "${MACOS_KEYCHAIN:-}" ]; then security delete-keychain "$MACOS_KEYCHAIN" || true; fi
 
   windows:
-    name: Windows ${{ matrix.arch }}
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · Windows ${{ matrix.arch }}
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     runs-on: windows-latest
     timeout-minutes: 120
     environment: release
@@ -401,6 +377,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -464,9 +443,10 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux ${{ matrix.arch }}
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · Linux ${{ matrix.arch }}
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -487,6 +467,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: storytold/craft-common-actions/actions/install-linux-deps@main
         with:
           deb-arch: ${{ matrix.deb }}
@@ -516,9 +499,10 @@ jobs:
           if-no-files-found: error
 
   linux-riscv64:
-    name: Linux riscv64
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · Linux riscv64
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -534,6 +518,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -563,11 +550,13 @@ jobs:
           path: dist/release/*
           if-no-files-found: error
 
-  # The Flatpak bundle and the Arch package are made from the Linux tarball.
+  # Phase 4. The Flatpak bundle and the Arch package are made from the Linux tarball.
   flatpak:
-    name: Flatpak ${{ matrix.arch }}
+    name: 4 · Flatpak ${{ matrix.arch }}
     needs: [version, linux]
-    if: needs.version.outputs.build == 'true'
+    # The Linux builds passed. Written out: the implicit success() also looks at the jobs before
+    # them, and Signing fails in a dry run (the `release` environment refuses it).
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.linux.result == 'success' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
@@ -604,9 +593,11 @@ jobs:
           if-no-files-found: error
 
   arch:
-    name: Arch Linux ${{ matrix.arch }}
+    name: 4 · Arch Linux ${{ matrix.arch }}
     needs: [version, linux]
-    if: needs.version.outputs.build == 'true'
+    # The Linux builds passed. Written out: the implicit success() also looks at the jobs before
+    # them, and Signing fails in a dry run (the `release` environment refuses it).
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.linux.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -633,9 +624,10 @@ jobs:
           if-no-files-found: error
 
   web:
-    name: Web (wasm)
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · Web (wasm)
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -650,6 +642,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
           toolchain: stable
@@ -671,9 +666,10 @@ jobs:
 
   # FreeBSD x86_64 in a VM: the app and the CLI, in a tar.gz with the licences and icons.
   freebsd:
-    name: FreeBSD x86_64
-    needs: [version]
-    if: needs.version.outputs.build == 'true'
+    name: 3 · FreeBSD x86_64
+    needs: [version, checks, signing]
+    # After the preflight: the released code's CI passed (or a dry run), whatever Signing reported.
+    if: ${{ !cancelled() && needs.version.outputs.build == 'true' && needs.checks.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
@@ -688,6 +684,9 @@ jobs:
       - uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: ${{ env.CRAFT_FONTS_REF }}
+      # craft-proof's Language data (spelling lists, hyphenation patterns): craft-i18n at the commit in
+      # craft-i18n.rev (sets CRAFT_I18N_DIR and CRAFT_I18N_REQUIRED=1).
+      - uses: storytold/craft-common-actions/actions/checkout-craft-i18n@main
       - name: Build and package in a FreeBSD VM
         uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
         with:
@@ -703,7 +702,9 @@ jobs:
             set -eu
             . "$HOME/.cargo/env"
             git config --global --add safe.directory "*"
+            # The VM does not get GITHUB_ENV: craft-i18n (checked out above) is passed like craft-fonts.
             export CRAFT_FONTS_DIR="$PWD/craft-fonts" CRAFT_FONTS_REQUIRED=1 WORDCRAFT_VERSION="$VERSION"
+            export CRAFT_I18N_DIR="$PWD/craft-i18n" CRAFT_I18N_REQUIRED=1
             cargo build --release --locked -p strix -p strix-cli
             name="strix-$VERSION-freebsd-x86_64"
             mkdir -p "dist/release/$name/icons"
@@ -719,12 +720,12 @@ jobs:
           path: dist/release/*.tar.gz
           if-no-files-found: error
 
-  # The GitHub Release v<version>, published with every package and SHA256SUMS.txt once every
-  # build has passed and the released code's CI too (the signing report never holds it back).
+  # Phase 5. The GitHub Release v<version>, published with every package and SHA256SUMS.txt once
+  # every build has passed and the released code's CI too (the signing report never holds it back).
   # On the release branch only. Then the site is redeployed: a release published with GITHUB_TOKEN raises no
   # `release` event for site.yml, but a workflow_dispatch started here does run.
   release:
-    name: Publish GitHub Release
+    name: 5 · Publish GitHub Release
     needs: [checks, version, signing, macos, windows, linux, linux-riscv64, flatpak, arch, web, freebsd]
     if: "!cancelled() && needs.version.outputs.publish == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')"
     runs-on: ubuntu-latest

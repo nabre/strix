@@ -207,6 +207,13 @@ impl Updater {
         Self { version, ..Self::default() }
     }
 
+    /// A copy that must never replace itself (#5653): every check answers with `why` as its error,
+    /// so nothing is offered or installed and File › Info shows the reason.
+    pub fn refusing(mut self, why: String) -> Self {
+        self.source = Some(Arc::new(move || Err(why.clone())));
+        self
+    }
+
     #[cfg(test)]
     fn with_source(mut self, source: CheckSource) -> Self {
         self.source = Some(source);

@@ -1,2 +1,7 @@
 [alias]
 xtask = "run --package xtask --"
+
+# Incremental caches grew to ~28 GB per target dir (one per crate/feature/profile
+# combination); dependencies are unaffected, workspace crates rebuild a bit slower.
+[build]
+incremental = false

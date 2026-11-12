@@ -97,6 +97,29 @@ jobs:
         uses: storytold/craft-common-actions/actions/checkout-craft-fonts@main
         with:
           ref: b076417b5880bd4154bd22f00695b1d28c6bea83 # CRAFT_FONTS_REF in release.yml
+      # craft-proof's Language data (spelling lists, hyphenation patterns) at the tag's own
+      # craft-i18n.rev (checkout-craft-i18n would read main's, not web-src's). A tag from before
+      # craft-i18n has no such file and builds without it.
+      - name: Read the tag's craft-i18n.rev
+        id: i18n
+        if: steps.web.outputs.build == 'true'
+        run: |
+          set -euo pipefail
+          [ -f web-src/craft-i18n.rev ] || exit 0
+          rev=$(tr -d '[:space:]' <web-src/craft-i18n.rev)
+          [[ "$rev" =~ ^[0-9a-f]{40}$ ]] || { echo "::error file=craft-i18n.rev::not a commit SHA: $rev"; exit 1; }
+          echo "rev=$rev" >>"$GITHUB_OUTPUT"
+      - if: steps.i18n.outputs.rev != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: storytold/craft-i18n
+          ref: ${{ steps.i18n.outputs.rev }}
+          path: craft-i18n
+          persist-credentials: false
+      - if: steps.i18n.outputs.rev != ''
+        run: |
+          echo "CRAFT_I18N_DIR=$GITHUB_WORKSPACE/craft-i18n" >>"$GITHUB_ENV"
+          echo "CRAFT_I18N_REQUIRED=1" >>"$GITHUB_ENV"
       - if: steps.web.outputs.build == 'true'
         run: rustup target add wasm32-unknown-unknown
       - if: steps.web.outputs.build == 'true'

@@ -1,6 +1,6 @@
 //! Exercise numbering, a document setting (docs/exercise.md): the prefix of every exercise's
 //! label (by default "Exercise" in the document's language; any text, or none for the number
-//! alone), the number format and the first number. It is the list the Exercise Title style
+//! alone), the number format, the separator after the number and the first number. It is the list the Exercise Title style
 //! numbers with, so it is saved with the document and every title renumbers at once; the results
 //! summary heads each exercise with the same label.
 
@@ -16,6 +16,12 @@ use crate::{CmdError, CmdResult, Session};
 
 /// The formats offered: their OOXML names.
 pub const FORMATS: [&str; 5] = ["decimal", "upperLetter", "lowerLetter", "upperRoman", "lowerRoman"];
+/// The separators offered after the number (`Esercizio 1.`, `Esercizio 1:`, `Esercizio 1 -`,
+/// `Esercizio 1)`, or a space alone: `Esercizio 1 Title`) and how each is written in the list's
+/// level text after `%1`.
+pub const SEPARATORS: [(&str, &str); 5] = [(".", "."), (":", ":"), ("-", " -"), (")", ")"), (" ", "")];
+/// The default separator: a period.
+const DEFAULT_SEPARATOR: &str = ".";
 /// Longest prefix, in characters; largest first number (Word's).
 const MAX_PREFIX: usize = 40;
 const MAX_START: f64 = 32767.0;
@@ -26,14 +32,22 @@ pub(crate) struct Numbering {
     pub prefix: String,
     pub format: NumFormat,
     pub start: u32,
+    /// What follows the number in the titles (one of [`SEPARATORS`], or a level text's own).
+    pub separator: String,
 }
 
 impl Numbering {
-    /// The label of exercise `n` (0-based) without the title's final period: `Esercizio 1`, `B`.
+    /// The label of exercise `n` (0-based) without the title's separator: `Esercizio 1`, `B`.
     pub fn label(&self, n: usize) -> String {
         let n = u32::try_from(n).unwrap_or(u32::MAX).saturating_add(self.start);
         let number = self.format.format(n);
         if self.prefix.is_empty() { number } else { format!("{} {number}", self.prefix) }
+    }
+
+    /// The list level's text: `Esercizio %1.`, `%1)`, `Es. %1 -`.
+    fn level_text(&self) -> String {
+        let after = SEPARATORS.iter().find(|(id, _)| *id == self.separator).map_or(self.separator.as_str(), |(_, t)| t);
+        if self.prefix.is_empty() { format!("%1{after}") } else { format!("{} %1{after}", self.prefix) }
     }
 }
 
@@ -68,12 +82,14 @@ fn title_list(s: &Session) -> Option<u32> {
 
 /// The document's exercise numbering (the default one when it has no exercise styles yet).
 pub(crate) fn current(s: &Session) -> Numbering {
-    let default = Numbering { prefix: words(s).exercise.to_string(), format: NumFormat::Decimal, start: 1 };
+    let default = Numbering { prefix: words(s).exercise.to_string(), format: NumFormat::Decimal, start: 1, separator: DEFAULT_SEPARATOR.into() };
     let Some(num) = title_list(s) else { return default };
     let Some(level) = s.doc.numbering.level(num, 0) else { return default };
     let start = s.doc.numbering.num(num).and_then(|n| n.start_overrides.iter().find(|(l, _)| *l == 0).map(|(_, v)| *v)).unwrap_or(level.start);
-    let prefix = level.text.split_once("%1").map_or(level.text.as_str(), |(p, _)| p).trim().to_string();
-    Numbering { prefix, format: level.format, start }
+    let (prefix, after) = level.text.split_once("%1").unwrap_or((level.text.as_str(), DEFAULT_SEPARATOR));
+    let after = after.trim();
+    let separator = if after.is_empty() { " ".to_string() } else { after.to_string() };
+    Numbering { prefix: prefix.trim().to_string(), format: level.format, start, separator }
 }
 
 /// A prefix as kept: no control or object characters, no `%` (it would name a list level).
@@ -101,29 +117,50 @@ pub(super) fn command(s: &mut Session, v: &Value) -> CmdResult {
             None => return Err(CmdError::Params("start: a number from 1".into())),
         },
     };
-    if prefix.is_some() || format.is_some() || start.is_some() {
-        set(s, prefix, format, start)?;
+    let separator = match v.get("separator") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(t)) if SEPARATORS.iter().any(|(id, _)| id == t) => Some(t.clone()),
+        Some(_) => return Err(CmdError::Params(r#"separator: one of ".", ":", "-", ")", " ""#.into())),
+    };
+    if prefix.is_some() || format.is_some() || start.is_some() || separator.is_some() {
+        set(s, Change { prefix, format, start, separator })?;
     }
     let n = current(s);
     Ok(json!({
         "prefix": n.prefix,
         "format": n.format.ooxml(),
         "start": n.start,
+        "separator": n.separator,
         "default": n.prefix == super::doc_words(s).exercise,
         "example": n.label(0),
     }))
 }
 
-pub(super) fn set(s: &mut Session, prefix: Option<String>, format: Option<NumFormat>, start: Option<u32>) -> Result<(), CmdError> {
+/// The settings a change names; the others stay.
+#[derive(Debug, Default)]
+pub(super) struct Change {
+    pub prefix: Option<String>,
+    pub format: Option<NumFormat>,
+    pub start: Option<u32>,
+    pub separator: Option<String>,
+}
+
+pub(super) fn set(s: &mut Session, change: Change) -> Result<(), CmdError> {
+    let Change { prefix, format, start, separator } = change;
     ensure_styles(s);
     let num = title_list(s).ok_or_else(|| CmdError::Failed("the Exercise Title style has no numbering".into()))?;
     let was = current(s);
-    let want = Numbering { prefix: prefix.unwrap_or(was.prefix.clone()), format: format.unwrap_or(was.format), start: start.unwrap_or(was.start) };
+    let want = Numbering {
+        prefix: prefix.unwrap_or(was.prefix.clone()),
+        format: format.unwrap_or(was.format),
+        start: start.unwrap_or(was.start),
+        separator: separator.unwrap_or(was.separator.clone()),
+    };
     if want == was {
         return Ok(());
     }
-    let text = if want.prefix.is_empty() { "%1.".to_string() } else { format!("{} %1.", want.prefix) };
-    let numbering = &mut s.doc.numbering;
+    let text = want.level_text();
+    let numbering = std::sync::Arc::make_mut(&mut s.doc.numbering);
     let Some(n) = numbering.nums.iter_mut().find(|n| n.id == num) else { return Err(CmdError::Failed("the exercise list is missing".into())) };
     // The list's own level 0 and start would hide the definition's.
     n.level_overrides.retain(|(l, _)| *l != 0);
@@ -153,7 +190,7 @@ mod tests {
     fn session() -> Session {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         s
     }
 
@@ -207,7 +244,7 @@ mod tests {
     fn exercise_numbering_is_a_document_setting() {
         let mut s = two();
         let n = s.run("exercise.numbering", &json!({})).unwrap();
-        assert_eq!(n, json!({"prefix": "Esercizio", "format": "decimal", "start": 1, "default": true, "example": "Esercizio 1"}));
+        assert_eq!(n, json!({"prefix": "Esercizio", "format": "decimal", "start": 1, "separator": ".", "default": true, "example": "Esercizio 1"}));
         assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
         assert_eq!(summary(&s), ["Esercizio 1", "Esercizio 2"]);
         let n = s.run("exercise.numbering", &json!({"prefix": "Problema", "format": "upperLetter", "start": 3})).unwrap();
@@ -225,7 +262,7 @@ mod tests {
         // Saved with the document.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let mut back = Session::new(crate::io::open_bytes("e.xmath", &bytes).unwrap());
-        back.doc.styles.default_chr.lang = Some("it-IT".into());
+        std::sync::Arc::make_mut(&mut back.doc.styles).default_chr.lang = Some("it-IT".into());
         let n = back.run("exercise.numbering", &json!({})).unwrap();
         assert_eq!((n["prefix"].clone(), n["format"].clone(), n["start"].clone()), (json!(""), json!("lowerRoman"), json!(3)));
         assert_eq!(labels(&back), ["iii.", "iv."]);
@@ -261,7 +298,7 @@ mod tests {
     fn default_prefix_follows_the_document_language() {
         let mut s = Session::new(Document::new());
         s.run("document.setText", &json!({"text": "Intro"})).unwrap();
-        s.doc.styles.default_chr.lang = Some("en-US".into());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("en-US".into());
         s.prefs.default_language = Some("it-IT".into());
         let n = s.run("exercise.numbering", &json!({})).unwrap();
         assert_eq!((n["prefix"].clone(), n["default"].clone()), (json!("Exercise"), json!(true)));
@@ -303,10 +340,58 @@ mod tests {
         assert_eq!(labels(&s), ["Esercizio 1.", "Esercizio 2."]);
     }
 
+    /// The owner: besides the prefix, a separator after the number chosen from a list (`.`, `:`,
+    /// `-`, `)`, a space). The titles follow at once, the summary keeps the label alone, the file
+    /// keeps it, and changing the other settings leaves it as it is.
+    #[test]
+    fn the_separator_after_the_number_is_chosen() {
+        let mut s = two();
+        for (sep, want) in [
+            (":", ["Esercizio 1:", "Esercizio 2:"]),
+            ("-", ["Esercizio 1 -", "Esercizio 2 -"]),
+            (")", ["Esercizio 1)", "Esercizio 2)"]),
+            (" ", ["Esercizio 1", "Esercizio 2"]),
+        ] {
+            let n = s.run("exercise.numbering", &json!({"separator": sep})).unwrap();
+            assert_eq!(n["separator"], json!(sep));
+            assert_eq!(labels(&s), want, "{sep:?}");
+            assert_eq!(summary(&s), ["Esercizio 1", "Esercizio 2"], "{sep:?}");
+        }
+        // The other settings keep the separator; no prefix keeps it too.
+        s.run("exercise.numbering", &json!({"separator": ")"})).unwrap();
+        s.run("exercise.numbering", &json!({"prefix": "", "format": "lowerLetter"})).unwrap();
+        assert_eq!(labels(&s), ["a)", "b)"]);
+        s.run("exercise.numbering", &json!({"prefix": null})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio a)", "Esercizio b)"]);
+        // Saved with the document.
+        for name in ["e.xmath", "e.docx"] {
+            let bytes = crate::io::save_bytes(name, &s.doc).unwrap();
+            let mut back = Session::new(crate::io::open_bytes(name, &bytes).unwrap());
+            std::sync::Arc::make_mut(&mut back.doc.styles).default_chr.lang = Some("it-IT".into());
+            assert_eq!(back.run("exercise.numbering", &json!({})).unwrap()["separator"], json!(")"), "{name}");
+            assert_eq!(labels(&back), ["Esercizio a)", "Esercizio b)"], "{name}");
+        }
+        // One undo step brings the period back.
+        s.run("exercise.numbering", &json!({"separator": "."})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio a.", "Esercizio b."]);
+        s.run("edit.undo", &json!({})).unwrap();
+        assert_eq!(labels(&s), ["Esercizio a)", "Esercizio b)"]);
+    }
+
     #[test]
     fn hostile_params_never_panic() {
         let mut s = two();
-        for v in [json!({"format": "bullet"}), json!({"format": 3}), json!({"prefix": 5}), json!({"start": "x"}), json!({"start": [1]})] {
+        for v in [
+            json!({"format": "bullet"}),
+            json!({"format": 3}),
+            json!({"prefix": 5}),
+            json!({"start": "x"}),
+            json!({"start": [1]}),
+            json!({"separator": "%"}),
+            json!({"separator": ";"}),
+            json!({"separator": 1}),
+            json!({"separator": ""}),
+        ] {
             assert!(s.run("exercise.numbering", &v).is_err(), "{v}");
         }
         for (start, want) in [(json!(0), 1), (json!(-7), 1), (json!(1e12), 32767), (json!(2.6), 3), (json!(u64::MAX), 32767)] {

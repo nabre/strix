@@ -4,16 +4,59 @@
 The canonical recipe is [craftrules `release/playbook.md`](https://github.com/storytold/craftrules/blob/main/release/playbook.md);
 this file has the Strix specifics.
 
+## The release flow
+
+Four workflows follow each other; GitHub draws only the jobs of one run, so this diagram is printed
+in the summary of every Promote and Release run too, with what that run does marked
+(`.github/release-flow.sh` reads it from here: keep the node ids). Solid arrows: what waits for
+what. Dotted: results read or reported, which never start anything.
+
+```mermaid
+flowchart TD
+  pr["Pull request<br/>CI · Printing · Packaging lint<br/>a passed tree is recorded (tested-tree.yml)"]
+  nightly["Nightly on main<br/>FreeBSD · Windows ARM64"]
+  promote["Push to main: Promote (promote.yml)<br/>version without a release → merge main into release"]
+  subgraph rel["Release on the release branch (release.yml)"]
+    version["1 · Version<br/>what this run does"]
+    checks["2 · Checks already run<br/>the released code's CI passed?"]
+    signing["2 · Signing (check only)<br/>what will be signed, never blocks"]
+    builds["3 · Builds, all at once<br/>macOS · Windows x64/x86/arm64 · Linux x86_64/aarch64<br/>Linux riscv64 · Web · FreeBSD"]
+    linuxpkgs["4 · From the Linux tarballs<br/>Flatpak · Arch Linux"]
+    publish["5 · Publish GitHub Release<br/>every package + SHA256SUMS.txt"]
+  end
+  site["Site (site.yml)<br/>Build → Deploy to GitHub Pages"]
+  pr -- "merged" --> promote
+  promote -- "starts" --> version
+  version --> checks
+  version --> signing
+  checks -- "passed" --> builds
+  signing -- "ended, whatever it reports" --> builds
+  builds --> linuxpkgs
+  builds --> publish
+  linuxpkgs --> publish
+  publish -- "starts" --> site
+  pr -. "its CI result" .-> checks
+  nightly -. "reported only" .-> checks
+```
+
+The numbers are in the job names, so GitHub's graph and job list read in the same order. Phase 2
+(preflight) decides for every platform: no build starts before the released code's CI is known to
+have passed, so a failed CI costs no build minutes.
+
+## Steps
+
 1. Bump the version on `main`: `cargo xtask version set 0.2.0` (the one source of truth is
    `[workspace.package] version`; the app shows it in `--version` and About, with the commit from
    `WORDCRAFT_BUILD_SHA`).
-2. Merge it into `main`. `.github/workflows/release.yml` runs on every push to `main`; its
-   **Version** job checks whether `v<version>` is already a published GitHub Release. If it is,
-   nothing else runs. If it isn't, **Promote main to release** merges that commit into the
-   `release` branch and starts the workflow there (signed builds run only on `release`: the
-   `release` environment gives its signing secrets to that branch alone, and SignPath signs only
-   requests from it). Merging `main` into `release` by hand and pushing does the same. On
-   `release` the workflow builds every package:
+2. Merge it into `main`. `.github/workflows/promote.yml` runs on every push to `main`; its one
+   job, **Promote main to release**, checks whether `v<version>` is already a published GitHub
+   Release. If it is, it stops there. If it isn't, it merges that commit into the `release`
+   branch and starts the Release workflow (`.github/workflows/release.yml`) there (signed builds
+   run only on `release`: the `release` environment gives its signing secrets to that branch
+   alone, and SignPath signs only requests from it). Merging `main` into `release` by hand and
+   pushing does the same. Release doesn't run on `main` (run by hand there, it does nothing). On
+   `release`, after the preflight (**Checks already run** and **Signing**), it builds every
+   package:
 
 | Platform | Artifacts | Signing |
 |---|---|---|
@@ -64,8 +107,12 @@ Windows builds ship portable.
    The download links take the version of the latest *published* release
    (`cargo xtask site --version`), never Cargo.toml's.
 
-   A push to `main` made while a release is building waits for it (one run at a time, never
-   cancelled), then finds the release published and stops at **Version**.
+   A push to `main` made while a release is building is promoted too (the version has no
+   release yet): the Release run it starts on `release` waits for the one building (one run at
+   a time per branch, never cancelled), then finds the release published and stops at
+   **Version**.
+
+## How the pipeline is built
 
 `.github/workflows/release.yml` is Strix's own pipeline: it reuses the suite's composite actions
 (`storytold/craft-common-actions/actions/*`) but not its reusable release workflow, which requires
@@ -78,13 +125,16 @@ signing on the `release` branch (as here) and runs macOS on the paid `macos-15-x
   `AZURE_*` secrets Windows is unsigned (SmartScreen warns).
 - macOS builds on the standard `macos-latest` runner (Apple silicon, the x86_64 half too).
 - FreeBSD x86_64 builds in a VM (`vmactions/freebsd-vm`): the app and the CLI in a tar.gz.
-- The release waits for every build (not for signing) and for **Checks already run**.
+- Every build waits for the preflight: **Checks already run** must pass, **Signing** must only
+  have ended (in a dry run the `release` environment refuses it, and the builds go on). The
+  release waits for every build.
 - **Each check runs once.** The release doesn't run again what other workflows already checked;
-  **Checks already run** reads their results beside the builds (no build waits for it):
+  **Checks already run** reads their results before the builds start:
   - CI (`ci.yml`, `cargo xtask ci`) of the released code: the built commit's run or, when
     `release` got `main` through a merge commit, the run of the `main` commit merged in. Still
-    running: waited for. **Failed: nothing is published** (fix it on `main`: the next push
-    brings the fix into `release`). No run found: a warning.
+    running: waited for. **Failed: nothing is built or published** (fix it on `main`: the next
+    push brings the fix into `release`). No run found: a warning. In a dry run it only reports
+    (a failed or unfinished CI is a warning, not waited for) and the packages are still built.
   - The last completed nightly **FreeBSD** (`freebsd.yml`: build and tests in a VM) and **Windows
     ARM64** (`windows-arm64.yml`: the ARM64 MSI installed and run on an ARM64 runner) runs on
     `main`, reported in the summary, a warning when one failed. Start one by hand
@@ -113,5 +163,6 @@ Local packaging: `packaging/macos/package.sh --arch universal`, `packaging/windo
 `packaging/linux/package.sh` (then `packaging/linux/flatpak-bundle.sh` for the Flatpak), `packaging/web/package.sh`.
 
 Dry run: `gh workflow run release.yml --ref <branch>` on any branch but `main` and `release`
-builds the unsigned jobs (version, Linux, Linux riscv64, Flatpak, FreeBSD, web) and publishes
-nothing; the signing jobs are refused there by the `release` environment's branch rule.
+builds the unsigned jobs (version, Linux, Linux riscv64, Flatpak, Arch, FreeBSD, web) and
+publishes nothing; the signing jobs (Signing, macOS, Windows) are refused there by the `release`
+environment's branch rule, and the run ends "failure" for them alone.

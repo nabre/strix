@@ -357,11 +357,13 @@ impl Drawing {
         out.push(line(vec![fa.minus(dir.scale(over(m1))), fb.plus(dir.scale(over(m2)))]));
         self.mark(st, m1, fa, dir, color, width, out);
         self.mark(st, m2, fb, dir.scale(-1.0), color, width, out);
-        // Texts above and below the line's middle, kept readable (never upside down).
+        // Texts above and below the line's middle, kept readable (never upside down); moved by
+        // the entity's text shift (in scale), with a leader back to the line when off it.
+        let texts_from = out.len();
         let mid = fa.plus(fb).scale(0.5);
         let (angle, flipped) = readable(dir.y.atan2(dir.x).to_degrees());
         let up = if flipped { normal.scale(-1.0) } else { normal };
-        let label = self.dim_label(st.units, text.as_deref(), measured, ws);
+        let label = self.dim_label(st, text.as_deref(), measured, ws);
         if angle.abs() > 45.0 && !st.aligned {
             // With the style's aligned texts off, a steep dimension's text reads level, beside the
             // line on its outer side (by default it turns with the line, as below).
@@ -369,7 +371,7 @@ impl Drawing {
             let at = mid.plus(out_dir.scale(st.text_gap + st.ext_over));
             let anchor = if out_dir.x < 0.0 { Anchor::MiddleRight } else { Anchor::MiddleLeft };
             // A second text goes under the first, the pair centred on the line's middle.
-            let second = below.as_deref().filter(|b| !b.trim().is_empty()).map(|b| self.dim_label(st.units, Some(b), measured, ws));
+            let second = below.as_deref().filter(|b| !b.trim().is_empty()).map(|b| self.dim_label(st, Some(b), measured, ws));
             let half = if second.is_some() { st.text * 0.7 } else { 0.0 };
             out.push(Prim::Text { at: (at.x, at.y + half), text: label, height: st.text, angle: 0.0, anchor, color, look: look.clone() });
             if let Some(b) = second {
@@ -378,9 +380,49 @@ impl Drawing {
         } else {
             self.dim_text(st, (mid, up), angle, label, false, color, out);
             if let Some(b) = below.as_deref().filter(|b| !b.trim().is_empty()) {
-                self.dim_text(st, (mid, up), angle, self.dim_label(st.units, Some(b), measured, ws), true, color, out);
+                self.dim_text(st, (mid, up), angle, self.dim_label(st, Some(b), measured, ws), true, color, out);
             }
         }
+        if let Some(leader) = self.text_home(e, k).and_then(|home| shift_texts(e, k, out, texts_from, home, mid, st.text, line)) {
+            out.push(leader);
+        }
+    }
+
+    /// Where a dimension's (first) text or a level mark's text is anchored without a text shift,
+    /// paper mm (as the rendering places it, before the drawing is placed on its paper).
+    pub(crate) fn text_home(&self, e: &Entity, k: f64) -> Option<Pt> {
+        let st = self.dim_style_of(e);
+        match &e.kind {
+            Kind::Dim { .. } => {
+                let DimFrame { fa, fb, dir, normal, side, .. } = self.dim_frame(e, k)?;
+                let mid = fa.plus(fb).scale(0.5);
+                let (angle, flipped) = readable(dir.y.atan2(dir.x).to_degrees());
+                if angle.abs() > 45.0 && !st.aligned {
+                    return Some(mid.plus(normal.scale(side).scale(st.text_gap + st.ext_over)));
+                }
+                let up = if flipped { normal.scale(-1.0) } else { normal };
+                Some(mid.plus(up.scale(st.text_gap)))
+            }
+            Kind::Level { p, flip, left, .. } => {
+                let tip = p.pt().scale(k);
+                let (h, text_h) = (st.level_mark_height(), st.level_text_height());
+                let half = h / 3f64.sqrt();
+                let top = tip.y + if *flip { -h } else { h };
+                let out_x = if *left { -1.0 } else { 1.0 };
+                let at_y = if *flip { top - st.text_gap - text_h } else { top + st.text_gap };
+                Some(Pt::new(tip.x + out_x * (half + st.text_gap), at_y)).filter(|p| p.is_finite())
+            }
+            _ => None,
+        }
+    }
+
+    /// Where the text grip of a dimension or level mark is, drawing units: its text's anchor,
+    /// moved by its text shift.
+    pub fn text_grip(&self, e: &Entity) -> Option<Pt> {
+        let k = crate::edit::paper_per_unit(self);
+        let home = self.text_home(e, k)?.scale(1.0 / k);
+        let [dx, dy] = e.text_shift.unwrap_or_default();
+        Some(home.plus(Pt::new(dx, dy))).filter(|p| p.is_finite())
     }
 
     /// An angular dimension: an arc between the two rays with its end marks, extension lines
@@ -460,9 +502,11 @@ impl Drawing {
         if !tip.is_finite() {
             return;
         }
-        let label = self.level_label(text.as_deref(), p.1.value - datum.value, ws);
-        // The triangle: as tall as a text and a half, equilateral.
-        let h = (st.text * 1.2).max(1.0);
+        let label = self.level_label(text.as_deref(), p.1.value - datum.value, st.level_unit, ws);
+        // The level marks' own text height (else the dimension text's).
+        let text_h = st.level_text_height();
+        // The triangle: the style's height (automatic: a text and a fifth), equilateral.
+        let h = st.level_mark_height();
         let half = h / 3f64.sqrt();
         let up = if *flip { -1.0 } else { 1.0 };
         let out_x = if *left { -1.0 } else { 1.0 };
@@ -474,21 +518,50 @@ impl Drawing {
         out.push(path(vec![(tip.x, tip.y), (tip.x + out_x * half, top), (tip.x, top)], true, true));
         // The line under the text: past the triangle by the text's length (an estimate: about
         // 0.8 of the height per character, as the drawing's bounds estimate texts).
-        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * st.text * 0.8;
+        let texts_from = out.len();
+        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * text_h * 0.8;
         out.push(path(vec![(tip.x - out_x * half, top), (tip.x + out_x * reach, top)], false, false));
         let at_x = tip.x + out_x * (half + st.text_gap);
-        let at_y = if *flip { top - st.text_gap - st.text } else { top + st.text_gap };
+        let at_y = if *flip { top - st.text_gap - text_h } else { top + st.text_gap };
         let anchor = if *left { Anchor::BaselineRight } else { Anchor::BaselineLeft };
         out.push(Prim::Text {
             at: (at_x, at_y),
             text: label,
-            height: st.text,
+            height: text_h,
             angle: 0.0,
             anchor,
             color,
             look: self.text_look(st.text_style.as_deref()),
         });
+        let line =
+            |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
+        let anchor = Pt::new(tip.x + out_x * half, top);
+        if let Some(leader) = self.text_home(e, k).and_then(|home| shift_texts(e, k, out, texts_from, home, anchor, text_h, line)) {
+            out.push(leader);
+        }
     }
+}
+
+/// Moves the prims from `from` on (a dimension's or level mark's texts, and a level's line under
+/// its text) by entity `e`'s text shift (drawing units, `k` paper mm each); a text moved more
+/// than a text `height` from its `home` gets a leader from `anchor` (on the dimension line, the
+/// level mark's top) to it.
+#[allow(clippy::too_many_arguments)]
+fn shift_texts(e: &Entity, k: f64, out: &mut [Prim], from: usize, home: Pt, anchor: Pt, height: f64, line: impl Fn(Vec<Pt>) -> Prim) -> Option<Prim> {
+    let [dx, dy] = e.text_shift?;
+    let (sx, sy) = (dx * k, dy * k);
+    if !(sx.is_finite() && sy.is_finite()) || (sx == 0.0 && sy == 0.0) {
+        return None;
+    }
+    for p in out.get_mut(from..).unwrap_or_default() {
+        match p {
+            Prim::Text { at, .. } => *at = (at.0 + sx, at.1 + sy),
+            Prim::Path { pts, .. } => pts.iter_mut().for_each(|q| *q = (q.0 + sx, q.1 + sy)),
+            _ => {}
+        }
+    }
+    let to = home.plus(Pt::new(sx, sy));
+    (to.minus(home).len() > height).then(|| line(vec![anchor, to]))
 }
 
 /// A text direction `deg` (degrees counter-clockwise) turned to read as drafting reads it, never
@@ -646,6 +719,23 @@ pub fn scale_text(n: f64) -> String {
         s.trim_end_matches('0').trim_end_matches('.').to_string()
     };
     if n >= 1.0 || n <= 0.0 || !n.is_finite() { format!("1:{}", num(n)) } else { format!("{}:1", num(1.0 / n)) }
+}
+
+/// The smallest and largest `n` of a scale `1:n` (1000:1 to 1:1 000 000), as a saved drawing
+/// keeps them.
+pub const SCALE_RANGE: (f64, f64) = (1e-3, 1e6);
+
+/// A scale typed by hand: `1:75`, `1/75`, `75` (1:75), `2:1` (an enlargement), with spaces or a
+/// decimal comma; the `n` of `1:n`, within [`SCALE_RANGE`]. None for anything else (zero,
+/// negative, not a number).
+pub fn parse_scale(text: &str) -> Option<f64> {
+    let t: String = text.trim().chars().filter(|c| !c.is_whitespace()).take(64).collect::<String>().replace(',', ".");
+    let num = |s: &str| s.parse::<f64>().ok().filter(|v| v.is_finite() && *v > 0.0);
+    let n = match t.split_once([':', '/']) {
+        Some((a, b)) => num(b)? / num(a)?,
+        None => num(&t)?,
+    };
+    (n.is_finite() && n > 0.0).then(|| n.clamp(SCALE_RANGE.0, SCALE_RANGE.1))
 }
 
 impl Drawing {

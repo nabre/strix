@@ -29,7 +29,7 @@
   "stat2Text": "SI- und technische Einheiten, bei jedem Schritt geprüft",
   "stat3Title": "Live",
   "stat3Text": "Ergebnisse, Tabellen, Übungen und Zeichnungen rechnen nach jeder Änderung neu",
-  "stat4Title": "27",
+  "stat4Title": "4",
   "stat4Text": "Oberflächensprachen, auf fünf Plattformen aus einer Rust-Codebasis",
 
   "howEyebrow": "So funktioniert es",
@@ -89,7 +89,7 @@
   "f8Text": "Speichert <code>.xmath</code>, und DOCX, ODT, RTF zurück, solange das Dokument keine Strix-Objekte hat; öffnet DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX; exportiert PDF, PNG, LaTeX, HTML, Markdown.",
   "f9Kicker": "Überall",
   "f9Title": "Nativ auf jedem Desktop, und im Browser",
-  "f9Text": "Windows, macOS, Linux und FreeBSD als native Apps, und dieselbe App als WebAssembly. Die Oberfläche folgt der Systemsprache (27 Sprachen) und dem hellen oder dunklen Design.",
+  "f9Text": "Windows, macOS, Linux und FreeBSD als native Apps, und dieselbe App als WebAssembly. Die Oberfläche folgt der Systemsprache (Deutsch, Englisch, Italienisch oder Französisch) und dem hellen oder dunklen Design.",
   "plannedKicker": "Geplant",
   "plannedTitle": "Als Nächstes",
   "plannedText": "Variablenbereich, Einheitenauswahl, <code>°C</code>/<code>°F</code>, eigene Funktionen <code>f(x) = …</code>, Matrizen, Gleichungssysteme, Diagramme; für CAD Änderungswerkzeuge, Schraffuren, Winkelbemaßungen und Abhängigkeiten.",

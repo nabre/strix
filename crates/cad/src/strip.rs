@@ -142,8 +142,11 @@ impl Drawing {
     }
 
     fn strip_lines_of(&self, e: &Entity, shape: &StripShape) -> Vec<(Pt, Pt)> {
-        let Kind::Strip { pattern, angle, spacing, side, width, .. } = &e.kind else { return Vec::new() };
+        let Kind::Strip { pattern, angle, spacing, side, width, ratio, .. } = &e.kind else { return Vec::new() };
         let k = crate::edit::paper_per_unit(self);
+        if *pattern == Pattern::Slope {
+            return slope_ticks(shape, *side, width / k, ratio * width / k, spacing / k);
+        }
         // A conventional pattern fills the band like a hatch; Along draws across the path.
         if *pattern != Pattern::Along {
             let s = if *pattern == Pattern::Solid { crate::hatch::SOLID_SPACING } else { *spacing };
@@ -204,7 +207,55 @@ impl Drawing {
     }
 }
 
+/// Slope ticks along `shape`'s path (drawing units): square to each segment on `side`, `long`
+/// and `short` in turn (the first long), `step` apart, the spacing running on round corners. At
+/// most [`MAX_HATCH_LINES`]: a path too long for its spacing is ticked more sparsely.
+fn slope_ticks(shape: &StripShape, side: Side, long: f64, short: f64, step: f64) -> Vec<(Pt, Pt)> {
+    let towards = if side == Side::Left { 1.0 } else { -1.0 };
+    let path = &shape.path;
+    let n = path.len();
+    let segments = if shape.closed { n } else { n.saturating_sub(1) };
+    let total: f64 = (0..segments).filter_map(|i| Some(path.get((i + 1) % n)?.minus(*path.get(i)?).len())).sum();
+    let step = step.max(total / MAX_HATCH_LINES as f64);
+    if !(step.is_finite() && step > 0.0 && long.is_finite() && short.is_finite()) {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut t = 0.0;
+    for i in 0..segments {
+        let (Some(&a), Some(&b)) = (path.get(i), path.get((i + 1) % n)) else { continue };
+        let len = b.minus(a).len();
+        let u = b.minus(a).unit();
+        let normal = u.left().scale(towards);
+        while t <= len + 1e-9 && out.len() < MAX_HATCH_LINES {
+            let p = a.plus(u.scale(t));
+            let size = if out.len() % 2 == 0 { long } else { short };
+            out.push((p, p.plus(normal.scale(size))));
+            let next = t + step;
+            if next <= t {
+                return out;
+            }
+            t = next;
+        }
+        t -= len;
+    }
+    out
+}
+
 impl Drawing {
+    /// Puts the selected strips (hatched strips, slope ticks) on the other side of their path;
+    /// how many were flipped.
+    pub fn flip_strips(&mut self, indices: &[usize]) -> usize {
+        let mut n = 0;
+        for &i in indices {
+            if let Some(Entity { kind: Kind::Strip { side, .. }, .. }) = self.entities.get_mut(i) {
+                *side = if *side == Side::Left { Side::Right } else { Side::Left };
+                n += 1;
+            }
+        }
+        n
+    }
+
     /// The line, polyline, circle or arc nearest `p` (what a strip can follow), with its distance.
     pub fn nearest_path(&self, p: Pt) -> Option<(usize, f64)> {
         self.entities

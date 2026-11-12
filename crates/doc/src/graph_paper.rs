@@ -95,6 +95,9 @@ pub enum GridPlacement {
     /// A block from where it is in the text to the bottom of the page.
     #[default]
     PageEnd,
+    /// A block from where it is in the text to the bottom of its column; what follows starts in
+    /// the next column (on the next page after the last one).
+    ColumnEnd,
     /// The rest of this page, then whole pages until the next odd-numbered page starts.
     UntilOdd,
     /// The rest of this page, then whole pages until the next even-numbered page starts.
@@ -110,6 +113,7 @@ impl GridPlacement {
         match self {
             GridPlacement::Background => "background",
             GridPlacement::PageEnd => "pageEnd",
+            GridPlacement::ColumnEnd => "columnEnd",
             GridPlacement::UntilOdd => "untilOdd",
             GridPlacement::UntilEven => "untilEven",
             GridPlacement::Pages { .. } => "pages",
@@ -122,6 +126,7 @@ impl GridPlacement {
             match s {
                 "background" => GridPlacement::Background,
                 "pageEnd" | "fill" => GridPlacement::PageEnd,
+                "columnEnd" => GridPlacement::ColumnEnd,
                 "untilOdd" => GridPlacement::UntilOdd,
                 "untilEven" => GridPlacement::UntilEven,
                 "pages" => GridPlacement::Pages { pages },
@@ -215,23 +220,35 @@ impl GraphPaper {
     /// each with whether it is a major line. Lines sit on whole squares (`k * spacing`) that fit
     /// inside the area, the first on its edge; at most [`MAX_LINES`] each way.
     pub fn lines(&self, w: f32, h: f32) -> (Vec<(f32, bool)>, Vec<(f32, bool)>) {
+        (self.lines_along(0.0, w), self.lines_along(0.0, h))
+    }
+
+    /// The grid's lines along one side of an area `len` points long that starts `start` points
+    /// from the grid's origin (a part of a larger sheet: negative before it): offsets from the
+    /// area's start of the lines on whole squares from the origin that fall inside it, each with
+    /// whether it is a major line (squares 0, N, 2N … from the origin, either way); at most
+    /// [`MAX_LINES`].
+    pub fn lines_along(&self, start: f32, len: f32) -> Vec<(f32, bool)> {
         let g = self.sanitized();
-        let along = |len: f32| -> Vec<(f32, bool)> {
-            if !len.is_finite() || len < 0.0 {
-                return Vec::new();
+        if !len.is_finite() || len < 0.0 || !start.is_finite() {
+            return Vec::new();
+        }
+        // The first square line at or after the area's start (a hair before still counts).
+        let k0 = ((start - 0.01) / g.spacing).ceil().clamp(-1.0e9, 1.0e9) as i64;
+        let mut v = Vec::new();
+        for i in 0..MAX_LINES as i64 {
+            let k = k0.saturating_add(i);
+            let at = (k as f64 * f64::from(g.spacing) - f64::from(start)) as f32;
+            if at > len + 0.01 {
+                break;
             }
-            let mut v = Vec::new();
-            for k in 0..MAX_LINES {
-                let at = k as f32 * g.spacing;
-                if at > len + 0.01 {
-                    break;
-                }
-                let major = g.major_every > 0 && (k as u32).is_multiple_of(g.major_every);
-                v.push((at, major));
+            if at < -0.01 {
+                continue;
             }
-            v
-        };
-        (along(w), along(h))
+            let major = g.major_every > 0 && k.rem_euclid(i64::from(g.major_every)) == 0;
+            v.push((at.max(0.0), major));
+        }
+        v
     }
 
     /// The grid as one attribute value (`strix:graph` in `.xmath`, docs/graph-paper.md):
@@ -340,12 +357,26 @@ mod tests {
     }
 
     #[test]
+    fn lines_of_a_part_of_a_sheet_count_from_its_origin() {
+        let g = GraphPaper { spacing: 10.0, major_every: 3, ..GraphPaper::default() };
+        // 25 pt from the origin: the lines at 30, 40, 50, 60 of the sheet, 30 and 60 major.
+        let v = g.lines_along(25.0, 36.0);
+        assert_eq!(v.iter().map(|l| l.0).collect::<Vec<_>>(), vec![5.0, 15.0, 25.0, 35.0]);
+        assert_eq!(v.iter().map(|l| l.1).collect::<Vec<_>>(), vec![true, false, false, true]);
+        // Before the origin too: -30 is a major line.
+        let v = g.lines_along(-30.0, 10.0);
+        assert_eq!(v, vec![(0.0, true), (10.0, false)]);
+        assert!(g.lines_along(f32::NAN, 10.0).is_empty() && g.lines_along(f32::MAX, 10.0).len() <= MAX_LINES);
+    }
+
+    #[test]
     fn attribute_round_trips() {
         let cases = [
             GraphPaper::default(),
             GraphPaper { placement: GridPlacement::Background, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::UntilOdd, major_every: 5, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::UntilEven, ..GraphPaper::default() },
+            GraphPaper { placement: GridPlacement::ColumnEnd, ..GraphPaper::default() },
             GraphPaper { placement: GridPlacement::Pages { pages: 3 }, spacing: 4.0 * PT_PER_MM, ..GraphPaper::default() },
             GraphPaper {
                 placement: GridPlacement::Height { height: 80.0 },

@@ -2474,7 +2474,7 @@ preview	Title	Esempio
 	Add a note between the questions: free text that is not a question	Aggiungi una nota tra le domande: testo libero che non è una domanda
 	Delete Exercise	Elimina esercizio
 	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Elimina per intero l'esercizio al cursore, o gli esercizi selezionati: testo, domande e risoluzione vengono rimossi e i risultati escono dal riepilogo (Annulla lo ripristina)
-	The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Math › Exercise, or right-click it), or select all of it and press Delete.	Le parti di un esercizio non si possono eliminare una per una. Per eliminare l'intero esercizio usa Elimina esercizio (Matematica › Esercizio, o clic destro sull'esercizio), oppure selezionalo tutto e premi Canc.
+	The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Teaching › Exercise, or right-click it), or select all of it and press Delete.	Le parti di un esercizio non si possono eliminare una per una. Per eliminare l'intero esercizio usa Elimina esercizio (Didattica › Esercizio, o clic destro sull'esercizio), oppure selezionalo tutto e premi Canc.
 	Exercise Numbering	Numerazione esercizi
 	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Nomina e numera gli esercizi del documento: prefisso (Esercizio, un tuo testo o nessuno), formato del numero e numero iniziale, nel riquadro Proprietà esercizio
 	For every exercise of the document: the label of each title and of the results summary.	Per tutti gli esercizi del documento: l'etichetta di ogni titolo e del riepilogo dei risultati.
@@ -2781,6 +2781,44 @@ preview	Title	Esempio
 	Hatched strip	Fascia tratteggiata
 	Hatched strip: pick the line or polyline it follows	Fascia tratteggiata: scegli la linea o polilinea da seguire
 	Hatched strip: click on the side it goes	Fascia tratteggiata: fai clic sul lato in cui va
+	Explode: polylines into lines and arcs	Esplodi: le polilinee in linee e archi
+	Join: objects that meet end to end into a polyline	Unisci: gli oggetti che si toccano agli estremi in una polilinea
+	Snap: to the object snaps and the grid	Snap: agli snap ad oggetto e alla griglia
+	Ortho: lines level or plumb (F8)	Orto: linee orizzontali o verticali (F8)
+	on	attivo
+	off	disattivo
+	Styles	Stili
+	Dimension\nStyle	Stile\nquota
+	Level\nStyle	Stile quota\naltimetrica
+	Text\nStyle	Stile\ntesto
+	Dimension Style: marks, sizes, text and units of the dimensions	Stile quota: segni, misure, testo e unità delle quote
+	Level Style: text, triangle and unit of the level marks	Stile quota altimetrica: testo, triangolo e unità delle quote altimetriche
+	Text Style: font, height, bold and italic of the texts	Stile testo: carattere, altezza, grassetto e corsivo dei testi
+	Texts	Testi
+	Level Style	Stile quota altimetrica
+	Style	Stile
+	Name	Nome
+	Show the unit	Mostra l'unità
+	Sizes end with their unit (3.50 m); off, the number alone	Le misure finiscono con la loro unità (3,50 m); disattivato, solo il numero
+	Level marks take the dimension styles: these settings are the style's.	Le quote altimetriche usano gli stili quota: queste impostazioni sono dello stile.
+	Triangle height	Altezza del triangolo
+	0: the dimension text height	0: l'altezza del testo delle quote
+	0: automatic (a text and a fifth)	0: automatica (un testo e un quinto)
+	Elevations end with their unit (+3.00 m); off, the number alone	Le quote altimetriche finiscono con la loro unità (+3,00 m); disattivato, solo il numero
+	Slope\nTicks	Barbette
+	Slope ticks	Barbette
+	Slope ticks: pick the line or polyline of the crest	Barbette: scegli la linea o polilinea del ciglio
+	Slope ticks: click on the side the slope goes down	Barbette: fai clic sul lato verso cui scende la scarpata
+	Short ticks	Tratti corti
+	Flip Side	Ribalta
+	Flip the selected hatched strips and slope ticks to the other side of their line	Ribalta le fasce tratteggiate e le barbette selezionate sull'altro lato della loro linea
+	Type a scale such as 1:75 or 2:1	Scrivi una scala come 1:75 o 2:1
+	Fitted to frame	Adattata alla cornice
+	Type a scale such as 1:75 or 2:1, or pick one	Scrivi una scala come 1:75 o 2:1, o sceglila
+	Space here	Spazio qui
+	Where the drawing sits: its column's width, and the height down to the page's bottom margin. A guide, not a limit.	Dove si trova il disegno: la larghezza della sua colonna e l'altezza fino al margine inferiore della pagina. Una guida, non un limite.
+	Fit Here	Adatta qui
+	Make the space here the maximum size and fit the scale to it	Usa lo spazio qui come dimensione massima e adatta la scala
 	Side	Lato
 	Solid	Pieno
 	Cells as Equations	Celle come equazioni
@@ -2890,6 +2928,7 @@ preview	Title	Esempio
 	Graph\nPaper	Foglio a\nquadretti
 	Graph Paper	Foglio a quadretti
 	To the End of the Page	Fino alla fine della pagina
+	To the End of the Column	Fino in fondo alla colonna
 	Until the Next Odd Page	Fino alla prossima pagina dispari
 	Until the Next Even Page	Fino alla prossima pagina pari
 	For Two Pages	Per due pagine
@@ -2898,6 +2937,7 @@ preview	Title	Esempio
 	Remove Graph Paper	Rimuovi foglio a quadretti
 	Insert Graph Paper	Inserisci foglio a quadretti
 	To the end of the page	Fino alla fine della pagina
+	To the end of the column	Fino in fondo alla colonna
 	Page background	Sfondo della pagina
 	Until the next odd page	Fino alla prossima pagina dispari
 	Until the next even page	Fino alla prossima pagina pari
@@ -2908,7 +2948,7 @@ preview	Title	Esempio
 	Light orange	Arancione chiaro
 	Light grey	Grigio chiaro
 	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Metti il cursore in un foglio a quadretti (o in una pagina con lo sfondo a quadretti) per vederne le proprietà.
-	A grid from the cursor to the end of the page	Una quadrettatura dal cursore alla fine della pagina
+	A grid from the cursor to the end of the page	Una griglia dal cursore alla fine della pagina
 	Placement	Posizione
 	Square size	Interasse
 	Grid lines	Linee
@@ -2978,7 +3018,7 @@ preview	Title	Esempio
 	1 CAD drawing	1 disegno CAD
 	{n} CAD drawings	{n} disegni CAD
 	graph paper	foglio a quadretti
-	This document has Strix objects ({objects}). Word and the other editable formats would lose them, so it saves only as a Strix document (.xmath). PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Word e gli altri formati modificabili li perderebbero, quindi si salva solo come documento Strix (.xmath). Le esportazioni in PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.
+	This document has Strix objects ({objects}). They stay live in a Strix document (.xmath) and in a Word document (.docx); OpenDocument, RTF, plain text and Word XML would lose them. PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Questo documento contiene oggetti Strix ({objects}). Restano dinamici in un documento Strix (.xmath) e in un documento Word (.docx); OpenDocument, RTF, testo semplice e Word XML li perderebbero. Le esportazioni PDF, PNG, LaTeX, HTML e Markdown restano disponibili come copie statiche.
 	Auto orientation	Orientamento automatico
 	No Scaling	Nessun ridimensionamento
 	Pages in the range	Pagine nell'intervallo
@@ -3065,11 +3105,24 @@ paper	Envelope DL	Busta DL
 	Downloads the Hunspell dictionary {name} from LibreOffice's dictionaries ({source}), licensed {licence}, into your dictionaries folder, and checks spelling with it at once.	Scarica il dizionario Hunspell {name} dai dizionari di LibreOffice ({source}), con licenza {licence}, nella cartella dei dizionari e controlla subito l'ortografia con esso.
 	Drawing Padding	Margine del disegno
 	Drawing Scale	Scala del disegno
+	Drawing Space	Spazio del disegno
+	Underlay	Sottomano
+	Underlay: another drawing of the document under this one, faded and locked, to trace over (its objects snap)	Sottomano: un altro disegno del documento sotto questo, sbiadito e bloccato, da ricalcare (i suoi oggetti fanno da snap)
+	No other drawing in the document	Nessun altro disegno nel documento
+	page	pagina
+	Import styles and layers only	Importa solo stili e livelli
+	Fade	Sbiadimento
+	Print with the drawing	Stampa con il disegno
+	Remove Underlay	Rimuovi sottomano
+	The underlay's drawing is no longer in the document	Il disegno del sottomano non è più nel documento
+	Drawings of the Document	Disegni del documento
+	Drawing Underlay	Sottomano del disegno
+	Inherit Layers and Styles	Eredita livelli e stili
 	Exercise Info	Informazioni sull'esercizio
 	File type	Tipo di file
 	Folder path	Percorso della cartella
-	Graph Paper Pane	Riquadro Carta millimetrata
-	Graph Paper at Cursor	Carta millimetrata al cursore
+	Graph Paper Pane	Riquadro Foglio a quadretti
+	Graph Paper at Cursor	Foglio a quadretti al cursore
 	Imported 1 source	1 fonte importata
 	Imported {n} sources	{n} fonti importate
 	Local recovery is unavailable or still loading.	Il recupero locale non è disponibile o è ancora in caricamento.
@@ -3116,7 +3169,7 @@ paper	Envelope DL	Busta DL
 	You have version {version}.	Hai la versione {version}.
 	an exercise goes in the body, outside tables	un esercizio va nel corpo del testo, fuori dalle tabelle
 	installed	installato
-	no graph paper at the cursor	nessuna carta millimetrata al cursore
+	no graph paper at the cursor	nessun foglio a quadretti al cursore
 	not available: the cursor isn't in an exercise	non disponibile: il cursore non è in un esercizio
 	select a CAD drawing first	seleziona prima un disegno CAD
 	the cursor isn't in an exercise	il cursore non è in un esercizio
@@ -3128,25 +3181,25 @@ paper	Envelope DL	Busta DL
 	Parts Shown	Parti visibili
 	Frontispiece	Frontespizio
 	Solution	Risoluzione
-	Graph paper	Quadrettatura
-	Exercise Graph Paper	Quadrettatura dell'esercizio
+	Graph paper	Foglio a quadretti
+	Exercise Graph Paper	Foglio a quadretti dell'esercizio
 	The working under each question; hidden, it stays in the document	Il procedimento sotto ogni domanda; nascosto, resta nel documento
 	The exercise's lines in the results summary	Le righe dell'esercizio nel riepilogo dei risultati
-	Graph paper after the questions, before the solution	Quadrettatura dopo le domande, prima della risoluzione
+	Graph paper after the questions, before the solution	Foglio a quadretti dopo le domande, prima della risoluzione
 	A series: these settings are the same for every exercise, and a new exercise takes them.	Una serie: queste impostazioni valgono per tutti gli esercizi, e un esercizio nuovo le prende.
 	Hidden parts stay in the document as hidden text.	Le parti nascoste restano nel documento come testo nascosto.
-	A first page of your own before the exercises: title, class, date, instructions	Una prima pagina tua prima degli esercizi: titolo, classe, data, istruzioni
-	The first exercise starts a new page; a page break inside the frontispiece gives it more pages.	Il primo esercizio inizia su una pagina nuova; un'interruzione di pagina nel frontespizio gli dà altre pagine.
+	Pages of your own before the exercises: title, class, date, instructions	Pagine tue prima degli esercizi: titolo, classe, data, istruzioni
+	Everything before the Frontispiece Break is the frontispiece: write there, as many pages as you need. Show/Hide ¶ shows the break.	Tutto ciò che precede l'interruzione di frontespizio è il frontespizio: scrivi lì, per tutte le pagine che servono. Mostra/Nascondi ¶ mostra l'interruzione.
 	Always Calculate	Calcola sempre
 	Calculate Table	Calcola tabella
 	Number Display	Visualizzazione numeri
 	Rounding	Arrotondamento
 	Show	Mostra
 	Results in the Summary	Risultati nel riepilogo
-	Graph Paper Before the Solution	Quadrettatura prima della risoluzione
+	Graph Paper Before the Solution	Foglio a quadretti prima della risoluzione
 	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Scegli cosa mostra l'esercizio (tutti gli esercizi in una serie): le parti nascoste restano nel documento come testo nascosto
-	A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages	Una prima pagina tua prima degli esercizi (titolo, classe, data, istruzioni); un'interruzione di pagina al suo interno gli dà altre pagine
-	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e quadrettatura, nel riquadro Proprietà esercizio
+	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Pagine tue prima degli esercizi (titolo, classe, data, istruzioni), chiuse da un'interruzione di frontespizio
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Dati e varianti, interruzioni di pagina, numerazione, parti visibili e foglio a quadretti, nel riquadro Proprietà esercizio
 	Show the substitution steps of every calculation: the formula with its values, then the result	Mostra i passaggi di ogni calcolo: la formula con i valori, poi il risultato
 	Series	Serie
 	For every exercise of the series: a new exercise takes these settings too.	Per tutti gli esercizi della serie: anche un esercizio nuovo prende queste impostazioni.
@@ -3187,7 +3240,7 @@ paper	Envelope DL	Busta DL
 	Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size	Cambiando unità le coordinate mantengono i numeri (il disegno si ingrandisce o si rimpicciolisce); disattivato, vengono convertite e il disegno mantiene le sue dimensioni
 	Marks	Terminali
 	Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them.	Tutti gli esercizi della serie hanno le stesse impostazioni, quelle del primo esercizio: una modifica vale per tutti e un esercizio nuovo le prende.
-	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e quadrettatura sono della serie: vedi la scheda Serie.
+	Page breaks, parts shown and graph paper are the series': see the Series tab.	Interruzioni di pagina, parti visibili e foglio a quadretti sono della serie: vedi la scheda Serie.
 	Select Exercise	Seleziona esercizio
 	The whole exercise goes: its statement, questions and solution (Undo brings it back)	Se ne va l'intero esercizio: testo, domande e risoluzione (Annulla lo riporta)
 	Strix Writer {version}	Strix Writer {version}
@@ -3206,3 +3259,154 @@ paper	Envelope DL	Busta DL
 	{key} removed from {command}	{key} rimossa da {command}
 	Your shortcuts ({count})	Le tue scelte rapide ({count})
 	Collapse the Ribbon	Comprimi la barra multifunzione
+	Separator	Separatore
+	Period (1.)	Punto (1.)
+	Colon (1:)	Due punti (1:)
+	Dash (1 -)	Trattino (1 -)
+	Parenthesis (1))	Parentesi (1))
+	Space (1 Title)	Spazio (1 Titolo)
+	Subdocument	Sottodocumento
+	Click to put the cursor in it: Unlink, Reload and Open act on it.	Fai clic per mettervi il cursore: Scollega, Ricarica e Apri agiscono su di esso.
+	Teaching	Didattica
+	Go to Header	Vai all'intestazione
+	Go to Footer	Vai al piè di pagina
+	Edit this page's header	Modifica l'intestazione di questa pagina
+	Edit this page's footer	Modifica il piè di pagina di questa pagina
+	Previous	Precedente
+	Next	Successiva
+	The previous section's header or footer	L'intestazione o il piè di pagina della sezione precedente
+	The next section's header or footer	L'intestazione o il piè di pagina della sezione successiva
+	Link Header to Previous	Collega intestazione alla precedente
+	Link Footer to Previous	Collega piè di pagina al precedente
+	On: this section shows the previous section's header. Off: it has its own (a copy to change)	Attivo: questa sezione mostra l'intestazione della sezione precedente. Disattivo: ne ha una propria (una copia da modificare)
+	On: this section shows the previous section's footer. Off: it has its own (a copy to change)	Attivo: questa sezione mostra il piè di pagina della sezione precedente. Disattivo: ne ha uno proprio (una copia da modificare)
+	Section	Sezione
+	Close Header\nand Footer	Chiudi intestazione\ne piè di pagina
+	Options	Opzioni
+	Navigation	Spostamento
+	Scores	Punteggi
+	Scores\nTable	Tabella\npunteggi
+	Add Criterion	Aggiungi voce
+	Remove Criterion	Rimuovi voce
+	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Aggiungi una voce alla tabella dei punteggi: due colonne, una vuota e una per i punti (scrivine il nome nell'intestazione)
+	Remove a criterion and its points from the scores table	Rimuovi una voce e i suoi punti dalla tabella dei punteggi
+	This section's first page has a header and footer of its own	La prima pagina di questa sezione ha intestazione e piè di pagina propri
+	Even pages have a header and footer of their own (the whole document)	Le pagine pari hanno intestazione e piè di pagina propri (tutto il documento)
+
+# 2026-11-11: strings from the upstream merge and Strix's Teaching, scores, update and CAD panes.
+	Add Blank Paragraphs Between	Aggiungi paragrafi vuoti intermedi
+	Insert Blank Paragraphs Between	Inserisci paragrafi vuoti intermedi
+	Add a language…	Aggiungi una lingua…
+	An installed Language pack is used after this folder.	Un pacchetto lingua installato viene usato dopo questa cartella.
+	Applies the next time Strix starts.	Si applica al prossimo avvio di Strix.
+	Arrange All	Disponi tutto
+	Bright Green	Verde brillante
+	Built in	Integrato
+	Convert Indents to Spaces	Converti rientri in spazi
+	Convert Line Breaks to Paragraphs	Converti interruzioni di riga in paragrafi
+	Convert Spaces to Indentation	Converti spazi in rientro
+	Corporate Author	Autore collettivo
+	Dark Blue	Blu scuro
+	Dark Red	Rosso scuro
+	Dark Yellow	Giallo scuro
+	Delete Blank Paragraphs	Elimina paragrafi vuoti
+	Delete Blank Paragraphs in the Whole Document	Elimina paragrafi vuoti in tutto il documento
+	Delete Previous Sentence	Elimina frase precedente
+	Dictionary files	File dei dizionari
+	Display server:	Server grafico:
+	Document background	Sfondo del documento
+	Drawing Name	Nome del disegno
+	Emphasis Mark	Segno di enfasi
+	English, the languages of this document and every installed Language pack. Language packs add spelling dictionaries and hyphenation.	L'inglese, le lingue di questo documento e ogni pacchetto lingua installato. I pacchetti lingua aggiungono dizionari ortografici e sillabazione.
+	Flat OpenDocument Text (*.fodt)	Testo OpenDocument piatto (*.fodt)
+	Gray-25%	Grigio 25%
+	Gray-50%	Grigio 50%
+	Header & Footer Options	Opzioni intestazione e piè di pagina
+	Ignore Once	Ignora una volta
+	Indent Leading Spaces	Rientra gli spazi iniziali
+	Indents to Leading Spaces	Rientri in spazi iniziali
+	Install Language Pack	Installa pacchetto lingua
+	Inverse	Inverso
+	Item Color	Colore elemento
+	Join Lines	Unisci righe
+	Language Packs	Pacchetti lingua
+	Language data	Dati linguistici
+	Language packs aren't available in the browser	I pacchetti lingua non sono disponibili nel browser
+	Language packs need the font store folder, and there is none on this computer.	I pacchetti lingua richiedono la cartella dell'archivio dei caratteri, che su questo computer non c'è.
+	Linux display server	Server grafico di Linux
+	Macro name:	Nome macro:
+	Missing Fonts	Caratteri mancanti
+	More options	Altre opzioni
+	Not in Dictionary	Non nel dizionario
+	OpenDocument Text Template (*.ott)	Modello di testo OpenDocument (*.ott)
+	Paragraph\nTools	Strumenti\nparagrafo
+	Paragraph Tools	Strumenti paragrafo
+	Record…	Registra…
+	Remove Extra Spaces	Rimuovi spazi in eccesso
+	Remove Extra Spaces in the Whole Document	Rimuovi spazi in eccesso in tutto il documento
+	Remove Language Pack	Rimuovi pacchetto lingua
+	Remove Leading Spaces	Rimuovi spazi iniziali
+	Remove Leading Spaces in the Whole Document	Rimuovi spazi iniziali in tutto il documento
+	Remove Line Breaks	Rimuovi interruzioni di riga
+	Run	Esegui
+	Scores Table	Tabella punteggi
+	Screen Paper Color	Colore carta a schermo
+	Screen only. Document backgrounds, printing and exports keep their colours. Dark page and explicit Read Mode colours take precedence.	Solo a schermo. Sfondi del documento, stampa ed esportazioni mantengono i loro colori. La pagina scura e i colori scelti per la Modalità di lettura hanno la precedenza.
+	Screen paper color:	Colore carta a schermo:
+	Select Canvas Member	Seleziona elemento dell'area di disegno
+	Separate Paragraphs	Separa paragrafi
+	Sepia	Seppia
+	Set as Default Language	Imposta come lingua predefinita
+	Set the colors in the Text Pane to use custom colors.	Imposta i colori nel Riquadro di testo per usare colori personalizzati.
+	Shape color	Colore forma
+	Shown in substitute fonts. Click for details.	Mostrato con caratteri sostitutivi. Fai clic per i dettagli.
+	Split Lines into Paragraphs	Dividi le righe in paragrafi
+	Status bar	Barra di stato
+	Status bar count:	Conteggio nella barra di stato:
+	Strict Export Report	Rapporto di esportazione rigorosa
+	Suggestions	Suggerimenti
+	Synchronous Scrolling	Scorrimento sincrono
+	The spelling and hyphenation data Strix uses, and their licences.	I dati di ortografia e sillabazione usati da Strix e le loro licenze.
+	There are no macros yet. Record one to add it here.	Non ci sono ancora macro. Registrane una per aggiungerla qui.
+	Turquoise	Turchese
+	View Side by Side	Affianca
+	You can also right-click the count in the status bar to change it.	Puoi anche fare clic destro sul conteggio nella barra di stato per cambiarlo.
+	Your languages	Le tue lingue
+	a shape inside a drawing canvas is placed by the canvas	una forma dentro un'area di disegno è posizionata dall'area
+	only the desktop app has several windows	solo l'app desktop ha più finestre
+	turn on View Side by Side first	attiva prima Affianca
+	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} non è installato su questo computer, quindi il suo testo è mostrato in {shown}. Le interruzioni di riga e il numero di pagine possono essere diversi da quelli del computer dove il documento è stato creato. Se hai il file del carattere, aggiungilo con Aggiungi carattere… in fondo a questo elenco.
+	{language} (default)	{language} (predefinita)
+	{n} KB	{n} KB
+	All on	Tutti attivi
+	All off	Tutti disattivi
+	Arc, 3 points	Arco, 3 punti
+	Arc 3 points: start point	Arco 3 punti: punto iniziale
+	Arc 3 points: a point on the arc	Arco 3 punti: un punto dell'arco
+	Arc 3 points: end point	Arco 3 punti: punto finale
+	Arc: centre (or a3p, sce, ser)	Arco: centro (oppure a3p, sce, ser)
+	Arc: end point	Arco: punto finale
+	Arc: radius (a point or a number)	Arco: raggio (un punto o un numero)
+	Arc: start, a point on it, end	Arco: inizio, un punto dell'arco, fine
+	Arc, start centre end	Arco, inizio centro fine
+	Arc: start, centre, end (counter-clockwise)	Arco: inizio, centro, fine (antiorario)
+	Arc, start end radius	Arco, inizio fine raggio
+	Arc: start, end, radius	Arco: inizio, fine, raggio
+	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Un nome breve per il disegno (lettere, cifre e trattini), mostrato nell'elenco dei sottomano
+	Centre, Start, End	Centro, inizio, fine
+	Start, Centre, End	Inizio, centro, fine
+	Start, End, Radius	Inizio, fine, raggio
+	The arc has no size	L'arco non ha dimensione
+	The start and end are the same point	L'inizio e la fine sono lo stesso punto
+	The three points are in line	I tre punti sono allineati
+	Default format saved.	Formato predefinito salvato.
+	Update automatically	Aggiorna automaticamente
+@plural	{n} font not installed|{n} fonts not installed	{n} carattere non installato|{n} caratteri non installati
+@plural	…and {n} more|…and {n} more	…e {n} altro|…e altri {n}
+@plural	{n} Strix object was changed in another program and is static for now.|{n} Strix objects were changed in another program and are static for now.	{n} oggetto Strix è stato modificato in un altro programma ed è statico per ora.|{n} oggetti Strix sono stati modificati in un altro programma e sono statici per ora.
+	Recalculate from Strix	Ricalcola da Strix
+	Make them live again from their Strix source: the changes made in the other program are replaced	Li rende di nuovo dinamici dalla loro sorgente Strix: le modifiche fatte nell'altro programma vengono sostituite
+	Keep Changes	Mantieni le modifiche
+	Keep what the other program shows: they stay static and lose their Strix source	Mantiene ciò che mostra l'altro programma: restano statici e perdono la loro sorgente Strix
+	Decide Later	Decidi dopo
+	Objects Changed in Another Program	Oggetti modificati in un altro programma

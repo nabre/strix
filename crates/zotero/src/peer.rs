@@ -5,11 +5,10 @@
 //! - **Every system:** WordCraft only connects to this computer (a loopback address).
 //! - **Linux only:** the program listening there must not run as another user, from the
 //!   kernel's socket table (`/proc/net/tcp`): another account on a shared machine that took the
-//!   port while Zotero wasn't running is refused. A connection the program hasn't accepted yet
-//!   is judged by the socket listening on the port (see `Rows`). A listener the tables don't
-//!   show (WSL2 mirrored networking with Zotero on Windows, a local proxy) leaves only the
-//!   loopback rule, but only when the tables were read in full: a read error, or an open error
-//!   other than "not found" (e.g. a sandbox profile that denies `/proc/net/tcp`), refuses.
+//!   port while Zotero wasn't running is refused. A listener the tables don't show (WSL2
+//!   mirrored networking with Zotero on Windows, a local proxy) leaves only the loopback rule,
+//!   but only when the tables were read in full: a read error, or an open error other than
+//!   "not found" (e.g. a sandbox profile that denies `/proc/net/tcp`), refuses.
 //!
 //! On Windows, macOS and the BSDs there is **no same-user check**: the loopback rule is the
 //! only one, so any local account's listener on the port is taken for Zotero. Those systems have
@@ -77,39 +76,22 @@ fn scan_tables<R: std::io::Read>(
     Ok(rows)
 }
 
-/// The uids found for the two rows of one connection, and for the socket listening on the peer's
-/// port.
-///
-/// A connection the listening program hasn't accepted yet belongs to no process: the kernel
-/// prints its row with uid 0 and inode 0 until `accept` hands it over. `connect` returns before
-/// that, so a Zotero a moment slow to accept read as a program run by root. Such a row tells
-/// nothing about its owner; the listener's row does, as whoever owns the listener accepts it.
+/// The uids found for the two rows of one connection, and of the socket listening on the
+/// listener's address (which speaks for a connection it hasn't accepted yet).
 #[derive(Default)]
 struct Rows {
     ours: Option<u32>,
     theirs: Option<u32>,
-    /// The peer's row was there but not accepted yet (inode 0).
-    theirs_unaccepted: bool,
-    /// The socket listening on exactly the peer's address and port.
     listener: Option<u32>,
-    /// One listening on the peer's port on every address (0.0.0.0 or ::).
-    wildcard_listener: Option<u32>,
+    /// Listening rows on that address with different uids.
+    listeners_differ: bool,
 }
 
 impl Rows {
     fn done(&self) -> bool {
         self.ours.is_some() && self.theirs.is_some()
     }
-
-    /// The uid of the program at the other end: its socket's row, or the listener's while the
-    /// connection waits to be accepted.
-    fn peer_uid(&self) -> Option<u32> {
-        self.theirs.or_else(|| if self.theirs_unaccepted { self.listener.or(self.wildcard_listener) } else { None })
-    }
 }
-
-/// The kernel's state number for a listening socket in its socket tables.
-const TCP_LISTEN: &str = "0A";
 
 fn unreadable(e: &std::io::Error) -> ZoteroError {
     ZoteroError::Refused(format!("couldn't read the system's socket table ({e}), so the program on the Zotero port can't be checked"))
@@ -131,8 +113,6 @@ fn scan_table(mut table: impl std::io::BufRead, local: SocketAddr, peer: SocketA
             return Ok(());
         }
         let line = String::from_utf8_lossy(&line);
-        // sl, local_address, rem_address, st, tx_queue:rx_queue, tr:tm->when, retrnsmt, uid,
-        // timeout, inode.
         let mut f = line.split_whitespace();
         let (Some(l), Some(r), Some(state), Some(uid), Some(inode)) =
             (f.nth(1).and_then(parse_addr), f.next().and_then(parse_addr), f.next(), f.nth(3), f.nth(1))
@@ -140,25 +120,25 @@ fn scan_table(mut table: impl std::io::BufRead, local: SocketAddr, peer: SocketA
             continue;
         };
         let Ok(uid) = uid.parse::<u32>() else { continue };
-        // A socket no process holds yet (inode 0) has no owner to read.
-        let owned = inode != "0";
         let (l, r) = (key(l), key(r));
-        if l == local && r == peer {
-            if owned {
-                rows.ours = Some(uid);
-            }
-        } else if l == peer && r == local {
-            if owned {
-                rows.theirs = Some(uid);
-            } else {
-                rows.theirs_unaccepted = true;
-            }
-        } else if state == TCP_LISTEN && l.1 == peer.1 {
-            if l.0 == peer.0 {
+        // The listening socket (`0A`) on the listener's port, at its address or every address.
+        if state == "0A" {
+            if l.1 == peer.1 && (l.0 == peer.0 || l.0.is_unspecified()) {
+                rows.listeners_differ |= rows.listener.is_some_and(|u| u != uid);
                 rows.listener = Some(uid);
-            } else if l.0.is_unspecified() {
-                rows.wildcard_listener = Some(uid);
             }
+            continue;
+        }
+        // A row with no socket file (inode 0) belongs to no program: a connection still waiting
+        // to be accepted, or one that ended (TIME_WAIT). Its uid column reads 0 whoever
+        // listens, so it says nothing about the owner; the listening row speaks for it.
+        if inode == "0" {
+            continue;
+        }
+        if l == local && r == peer {
+            rows.ours = Some(uid);
+        } else if l == peer && r == local {
+            rows.theirs = Some(uid);
         }
         if rows.done() {
             return Ok(());
@@ -197,7 +177,10 @@ fn read_line_capped(r: &mut impl std::io::BufRead, out: &mut Vec<u8>) -> std::io
 /// `me` (this process's). When the listener isn't listed in a table that was read in full (WSL2,
 /// a proxy) or our uid is unknown, its owner is unknown and the loopback rule decides.
 fn decide(rows: &Rows, peer: SocketAddr, me: Option<u32>) -> Result<(), ZoteroError> {
-    match (rows.ours.or(me), rows.peer_uid()) {
+    if rows.listeners_differ && rows.theirs.is_none() {
+        return Err(ZoteroError::Refused(format!("more than one user listens on port {}, so the program there may not be your Zotero", peer.port())));
+    }
+    match (rows.ours.or(me), rows.theirs.or(rows.listener)) {
         (Some(a), Some(b)) if a == b => Ok(()),
         (Some(_), Some(b)) => {
             Err(ZoteroError::Refused(format!("the program on port {} runs as another user (uid {b}), so it isn't your Zotero", peer.port())))
@@ -257,17 +240,7 @@ mod tests {
 
     /// A socket table row for the connection from `l` to `r`, owned by `uid`.
     fn row(l: SocketAddr, r: SocketAddr, uid: u32) -> String {
-        row_in("01", l, r, uid, 12345)
-    }
-
-    /// A row in state `st` (`01` established, `0A` listening), with its socket's `inode` (0: no
-    /// process holds it yet).
-    fn row_in(st: &str, l: SocketAddr, r: SocketAddr, uid: u32, inode: u32) -> String {
-        format!(
-            "   0: {} {} {st} 00000000:00000000 00:00000000 00000000  {uid:>4}        0 {inode} 1 0000000000000000 20 4 30 10 -1\n",
-            hex(l),
-            hex(r)
-        )
+        format!("   0: {} {} 01 00000000:00000000 00:00000000 00000000  {uid:>4}        0 12345 1 0000000000000000 20 4 30 10 -1\n", hex(l), hex(r))
     }
 
     const HEADER: &str = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
@@ -300,6 +273,41 @@ mod tests {
         assert_eq!(same_owner(&junk, local, peer, None), Ok(()));
     }
 
+    /// A connection the listener hasn't accepted yet (or one that ended, TIME_WAIT) has no
+    /// socket file: its row reads uid 0 whoever listens. The listening row speaks for it, so a
+    /// busy Zotero isn't taken for another user's program, and another user's still is.
+    #[test]
+    fn an_unaccepted_connection_is_judged_by_its_listening_socket() {
+        let (local, peer) = addrs();
+        let unowned =
+            |l: SocketAddr, r: SocketAddr, state: &str| row(l, r, 0).replacen(" 01 ", &format!(" {state} "), 1).replacen(" 12345 ", " 0 ", 1);
+        let listening = |uid: u32, any: bool| {
+            let at: SocketAddr = if any { SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), peer.port()) } else { peer };
+            row(at, "0.0.0.0:0".parse().unwrap(), uid).replacen(" 01 ", " 0A ", 1)
+        };
+        for state in ["01", "06"] {
+            let mine = format!("{HEADER}{}{}{}", listening(1000, false), row(local, peer, 1000), unowned(peer, local, state));
+            assert_eq!(same_owner(&mine, local, peer, None), Ok(()), "{state}");
+            let mine_any = format!("{HEADER}{}{}{}", row(local, peer, 1000), unowned(peer, local, state), listening(1000, true));
+            assert_eq!(same_owner(&mine_any, local, peer, None), Ok(()), "{state}");
+            let other = format!("{HEADER}{}{}{}", row(local, peer, 1000), unowned(peer, local, state), listening(1001, false));
+            assert!(matches!(same_owner(&other, local, peer, None), Err(ZoteroError::Refused(e)) if e.contains("another user")), "{state}");
+            // No listening row: unknown, so the loopback rule decides.
+            let unlisted = format!("{HEADER}{}{}", row(local, peer, 1000), unowned(peer, local, state));
+            assert_eq!(same_owner(&unlisted, local, peer, None), Ok(()), "{state}");
+        }
+        // An accepted connection's own row wins over the listening row.
+        let accepted = format!("{HEADER}{}{}{}", listening(1000, false), row(local, peer, 1000), row(peer, local, 1001));
+        assert!(matches!(same_owner(&accepted, local, peer, None), Err(ZoteroError::Refused(e)) if e.contains("another user")));
+        // A listening row on another port is not the listener.
+        let elsewhere = row("127.0.0.1:9".parse().unwrap(), "0.0.0.0:0".parse().unwrap(), 1001).replacen(" 01 ", " 0A ", 1);
+        let table = format!("{HEADER}{elsewhere}{}{}", row(local, peer, 1000), unowned(peer, local, "01"));
+        assert_eq!(same_owner(&table, local, peer, None), Ok(()));
+        // Two users listening on the address: refused.
+        let both = format!("{HEADER}{}{}{}{}", listening(1000, false), listening(1001, true), row(local, peer, 1000), unowned(peer, local, "01"));
+        assert!(matches!(same_owner(&both, local, peer, None), Err(ZoteroError::Refused(_))));
+    }
+
     /// WSL2 mirrored networking (Zotero on Windows) or a local proxy: the listener
     /// isn't in our table, so the loopback rule decides, as on other systems.
     #[test]
@@ -325,36 +333,6 @@ mod tests {
         // Our socket's row is ours by definition and wins over the process uid.
         let both = format!("{HEADER}{}{}", row(local, peer, 1001), row(peer, local, 1001));
         assert_eq!(same_owner(&both, local, peer, Some(1000)), Ok(()));
-    }
-
-    /// A connection Zotero hasn't accepted yet reads as uid 0 with no inode (`connect` returns
-    /// before `accept`); the listening socket says who will accept it. This refused a genuine
-    /// Zotero that was a moment slow to accept, as "another user (uid 0)".
-    #[test]
-    fn a_connection_not_accepted_yet_is_judged_by_its_listener() {
-        let (local, peer) = addrs();
-        let any: SocketAddr = "0.0.0.0:0".parse().unwrap();
-        let waiting = row_in("01", peer, local, 0, 0);
-        let listener = |at: SocketAddr, uid| row_in("0A", at, any, uid, 777);
-        let table = |listeners: &str| format!("{HEADER}{listeners}{}{waiting}", row(local, peer, 1000));
-        // Our own listener, on the address or on every address.
-        assert_eq!(same_owner(&table(&listener(peer, 1000)), local, peer, None), Ok(()));
-        let everywhere = SocketAddr::new(any.ip(), peer.port());
-        assert_eq!(same_owner(&table(&listener(everywhere, 1000)), local, peer, None), Ok(()));
-        // Another user's listener, on the address or on every address, is refused all the same.
-        for at in [peer, everywhere] {
-            let r = same_owner(&table(&listener(at, 1001)), local, peer, None);
-            assert!(matches!(r, Err(ZoteroError::Refused(ref e)) if e.contains("another user")), "{at}: {r:?}");
-        }
-        // The listener on the exact address is the one that gets the connection.
-        let both = format!("{}{}", listener(everywhere, 1001), listener(peer, 1000));
-        assert_eq!(same_owner(&table(&both), local, peer, None), Ok(()));
-        // A listener on another port says nothing; with none listed the loopback rule decides.
-        let elsewhere = listener(SocketAddr::new(peer.ip(), peer.port() + 1), 1001);
-        assert_eq!(same_owner(&table(&elsewhere), local, peer, None), Ok(()));
-        // Our own socket's row without an owner doesn't count as ours either.
-        let unowned_ours = format!("{HEADER}{}{}", row_in("01", local, peer, 0, 0), row(peer, local, 1001));
-        assert_eq!(same_owner(&unowned_ours, local, peer, Some(1001)), Ok(()));
     }
 
     #[test]
@@ -490,8 +468,6 @@ mod tests {
     fn our_own_listener_passes_the_owner_check() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let stream = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
-        // Before the listener accepts, the kernel lists its side of the connection as uid 0.
-        assert_eq!(check(&stream), Ok(()));
         let _accepted = listener.accept().unwrap();
         assert_eq!(check(&stream), Ok(()));
     }

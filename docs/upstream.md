@@ -1,6 +1,6 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`).
+Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10, upstream main up to `a42c9eaa` the same day; up to v0.18.0 (`a8db235e`) on 2026-11-11.
 
 Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
 internal names (crates, Rust paths, types, environment variables) and is Strix only where users
@@ -17,6 +17,31 @@ those few rules, so a merge only conflicts where both sides really changed a lin
 > into `main` with `git merge -s ours`, `sync` `9724f15c` and merge that with `-s ours` too
 > (`main` already holds that snapshot, under the new names). From then on `sync` and `git merge`
 > work as below.
+>
+> **v0.17.0 merged by hand (2026-11-10).** Upstream `5574b326` (WordCraft v0.17.0) went into `main`
+> file by file, without a vendor commit: both snapshots (`9724f15c` and `5574b326`) were passed
+> through `cargo xtask upstream rebrand`, files Strix hadn't changed took upstream's version, the
+> others were merged three-way and by hand. So `main` already holds v0.17.0: when
+> `vendor/wordcraft` is re-created as above, also `sync` `5574b326c` and merge it with `git merge -s
+> ours`; the next real merge starts from there.
+>
+> **Up to `a42c9eaa` (2026-11-10).** The 17 upstream commits after v0.17.0 (to `a42c9eaa`: strict
+> PDF/PNG export, `--strict` on `convert` and `render`, ODT fixes for gap 19, RTF style-sheet
+> names, pasted CSS colours with alpha, the macOS title bar behind a modal dialog) went in as
+> upstream's diff `5574b326..a42c9eaa`, with `wordcraft-cli` → `strix-cli` applied to it; six
+> files Strix had changed were merged three-way. Upstream's `Cargo.toml` version (back to
+> 0.15.1) and Strix-owned files were left out. So `sync` `a42c9eaa` and merge it with `git merge
+> -s ours` too when `vendor/wordcraft` is re-created.
+>
+> **Up to v0.18.0 (2026-11-11).** The 26 upstream commits after `a42c9eaa` (to `a8db235e`,
+> WordCraft v0.18.0: the Date & Time dialog, page numbers that keep a header's content, Compare's
+> chunked alignment, equations' revision marks, line numbers in columns, native Wayland without
+> the X11 libraries, the fsync fallback on Apple, the ribbon's hover fades) went in the same way:
+> both snapshots passed through `cargo xtask upstream rebrand`, the 25 files Strix hadn't changed
+> took upstream's version, the 27 others were merged three-way (one conflict, `strix-cli`'s usage
+> text). Upstream's version bump (0.18.0), Strix-owned files (workflows' Harden-Runner steps,
+> parity docs) were left out; the Linux package recommendations were ported by hand. So `sync`
+> `a8db235e` and merge it with `git merge -s ours` too when `vendor/wordcraft` is re-created.
 
 ## How it works
 

@@ -1,4 +1,4 @@
-//! Strix's own ribbon groups and tabs: the Math tab, graph paper, CAD drawings and calculated
+//! Strix's own ribbon groups and tabs: the Math and Teaching tabs, the Header & Footer tab, graph paper, CAD drawings and calculated
 //! tables. Kept apart from the upstream tab files so upstream merges don't touch them
 //! (docs/upstream.md); the tab files only call in here.
 
@@ -8,121 +8,169 @@ use super::language::mi_check;
 use super::shape::alt_text_group;
 use super::{Ui, Value, WordApp, big, big_toggle, group, json, menu_button, mi, small};
 
-/// Insert › Pages › Graph Paper (docs/graph-paper.md).
-pub(super) fn graph_paper_button(ui: &mut Ui, app: &mut WordApp) {
-    menu_button(
-        ui,
-        app,
-        crate::widgets::MenuButtonOptions::new(
-            "graphPaper",
-            Some(
-                "Graph
-Paper",
-            ),
-            "Graph Paper",
-            true,
-            "graph.insert",
-        ),
-        graph_paper_menu,
-    );
-}
-
-/// Insert › Pages › Graph Paper (docs/graph-paper.md): the placements, then the pane.
-fn graph_paper_menu(ui: &mut Ui, app: &mut WordApp) {
-    mi_icon(ui, app, "graphPaper", "To the End of the Page", "graph.insert", json!({"placement": "pageEnd"}));
-    mi(ui, app, "Page Background", "graph.insert", json!({"placement": "background"}));
-    mi(ui, app, "Until the Next Odd Page", "graph.insert", json!({"placement": "untilOdd"}));
-    mi(ui, app, "Until the Next Even Page", "graph.insert", json!({"placement": "untilEven"}));
-    mi(ui, app, "For Two Pages", "graph.insert", json!({"placement": "pages", "pages": 2}));
-    mi(ui, app, "For a Height of 5 cm", "graph.insert", json!({"placement": "height", "height": 50}));
-    ui.separator();
-    let pane = app.session.view.graph_pane;
-    mi_check(ui, app, "Graph Paper Properties", pane, "view.graphPaperPane", json!({}));
-    mi(ui, app, "Remove Graph Paper", "graph.remove", json!({}));
-}
-
-/// Insert › Symbols: Equation and Symbol. The Math tab shows the same group.
-pub(super) fn symbols_group(app: &mut WordApp, ui: &mut Ui) {
-    group(ui, "Symbols", None, app, |ui, app| {
-        crate::equation_tab::insert_button(ui, app);
-        menu_button(ui, app, crate::widgets::MenuButtonOptions::new("symbol", Some("Symbol"), "Symbol", true, "insert.symbol"), |ui, app| {
-            // Recently used symbols first (their font on hover), then common ones.
-            let mut items: Vec<(String, String)> = app.ui.recent_symbols.iter().map(|r| (r.ch.clone(), r.font.clone())).collect();
-            for c in [
-                "©", "®", "™", "§", "¶", "€", "£", "¥", "°", "±", "≠", "≤", "≥", "÷", "×", "∞", "µ", "α", "β", "π", "Ω", "∑", "√", "→", "←", "✓",
-                "★", "♥", "—", "…",
-            ] {
-                if !items.iter().any(|(ch, f)| ch == c && f.is_empty()) {
-                    items.push((c.to_string(), String::new()));
-                }
-            }
-            items.truncate(30);
-            egui::Grid::new("syms").show(ui, |ui| {
-                for (i, (c, font)) in items.iter().enumerate() {
-                    let b = ui.button(egui::RichText::new(c).size(16.0));
-                    let b = if font.is_empty() { b } else { b.on_hover_text(font) };
-                    if b.clicked() {
-                        let params = if font.is_empty() { json!({"char": c}) } else { json!({"char": c, "font": font}) };
-                        if app.run("insert.symbol", params).is_ok() {
-                            crate::dialogs_insert::remember_symbol(app, c, font);
+/// The Teaching tab (Didattica): the objects for teaching, exercises and their series, the
+/// scores table and graph paper.
+pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
+    exercise_group(app, ui);
+    group(ui, "Scores", None, app, |ui, app| {
+        let st = app.session.run("exercise.scores", &json!({})).ok().unwrap_or_default();
+        let on = st["on"].as_bool().unwrap_or(false);
+        crate::widgets::big_checked(ui, app, "calcTotal", "Scores\nTable", "exercise.scores", json!({"on": !on}), on);
+        stack(ui, |ui| {
+            ui.add_enabled_ui(on, |ui| {
+                small(
+                    ui,
+                    app,
+                    "plus",
+                    Some("Add Criterion"),
+                    "Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)",
+                    crate::widgets::ButtonAction::new("exercise.scores", json!({"add": true}), false),
+                );
+                let criteria: Vec<String> =
+                    st["criteria"].as_array().map(|a| a.iter().filter_map(|c| c.as_str().map(str::to_string)).collect()).unwrap_or_default();
+                menu_button(
+                    ui,
+                    app,
+                    crate::widgets::MenuButtonOptions::new(
+                        "minus",
+                        Some("Remove Criterion"),
+                        "Remove a criterion and its points from the scores table",
+                        false,
+                        "exercise.scores",
+                    ),
+                    |ui, app| {
+                        for (k, c) in criteria.iter().enumerate() {
+                            let label = if c.is_empty() { format!("{}", k + 1) } else { c.clone() };
+                            mi(ui, app, &label, "exercise.scores", json!({"remove": k + 1}));
                         }
-                        ui.close();
-                    }
-                    if i % 6 == 5 {
-                        ui.end_row();
-                    }
-                }
+                    },
+                );
             });
-            ui.separator();
-            mi(ui, app, "More Symbols…", "ui.dialog", json!({"name": "symbol"}));
         });
+    });
+    group(ui, "Graph Paper", None, app, |ui, app| {
+        graph_paper_button(ui, app);
     });
 }
 
-/// Math: every calculation tool (docs/calc.md) in one place.
-pub(super) fn math(app: &mut WordApp, ui: &mut Ui) {
-    group(ui, "Calculation", None, app, |ui, app| {
-        big(
-            ui,
-            app,
-            "calculation",
-            "New
-Calculation",
-            "insert.equation",
-            json!({"calc": true}),
-            false,
-        );
+/// The Header & Footer tab, while a header or footer is edited (docs/headers-footers.md): go to
+/// the header or footer and between sections, Link to Previous for the header and the footer
+/// apart, Different First Page (the section's) and Different Odd & Even Pages, and Close.
+pub(super) fn header_footer(app: &mut WordApp, ui: &mut Ui) {
+    let st = app.session.run("hf.state", &json!({})).ok().unwrap_or_default();
+    let flag = |k: &str| st[k].as_bool().unwrap_or(false);
+    let editing = st["editing"].as_str().unwrap_or("").to_string();
+    let page = app.session.page_hint;
+    group(ui, "Navigation", None, app, |ui, app| {
         stack(ui, |ui| {
-            let info = app.session.run("equation.get", &json!({})).ok();
-            let calc = info.as_ref().and_then(|v| v.get("calc")).and_then(Value::as_bool).unwrap_or(false);
             small(
                 ui,
                 app,
-                "formula",
-                Some("Calculate"),
-                "Make the equation at the cursor a live calculation, or an ordinary one",
-                crate::widgets::ButtonAction::new("equation.calc", json!({}), calc),
+                "header",
+                Some("Go to Header"),
+                "Edit this page's header",
+                crate::widgets::ButtonAction::new("insert.editHeader", json!({"page": page}), editing == "header"),
             );
-            let by_default = app.session.prefs.calc_new_equations;
+            small(
+                ui,
+                app,
+                "footer",
+                Some("Go to Footer"),
+                "Edit this page's footer",
+                crate::widgets::ButtonAction::new("insert.editFooter", json!({"page": page}), editing == "footer"),
+            );
+        });
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "chevronUp",
+                Some("Previous"),
+                "The previous section's header or footer",
+                crate::widgets::ButtonAction::new("hf.previous", json!({}), false),
+            );
+            small(
+                ui,
+                app,
+                "chevronDown",
+                Some("Next"),
+                "The next section's header or footer",
+                crate::widgets::ButtonAction::new("hf.next", json!({}), false),
+            );
+        });
+        // The first section has none before it to link to.
+        let later = st["section"].as_u64().unwrap_or(1) > 1;
+        stack(ui, |ui| {
+            if !later {
+                ui.disable();
+            }
+            let (h, f) = (flag("headerLinked"), flag("footerLinked"));
+            small(
+                ui,
+                app,
+                "link",
+                Some("Link Header to Previous"),
+                "On: this section shows the previous section's header. Off: it has its own (a copy to change)",
+                crate::widgets::ButtonAction::new("layout.linkToPrevious", json!({"footer": false, "value": !h}), h),
+            );
+            small(
+                ui,
+                app,
+                "link",
+                Some("Link Footer to Previous"),
+                "On: this section shows the previous section's footer. Off: it has its own (a copy to change)",
+                crate::widgets::ButtonAction::new("layout.linkToPrevious", json!({"footer": true, "value": !f}), f),
+            );
+        });
+    });
+    group(ui, "Options", None, app, |ui, app| {
+        stack(ui, |ui| {
+            let (first, odd_even) = (flag("firstPage"), flag("oddEven"));
             small(
                 ui,
                 app,
                 "check",
-                Some("Always Calculate"),
-                "New equations are live calculations",
-                crate::widgets::ButtonAction::new("calc.newEquations", json!({}), by_default),
+                Some("Different First Page"),
+                "This section's first page has a header and footer of its own",
+                crate::widgets::ButtonAction::new("layout.differentFirstPage", json!({"value": !first}), first),
             );
             small(
                 ui,
                 app,
-                "equation",
-                Some("Recalculate"),
-                "Recalculate every calculation in the document (F9)",
-                crate::widgets::ButtonAction::new("calc.recalculate", json!({}), false),
+                "check",
+                Some("Different Odd & Even Pages"),
+                "Even pages have a header and footer of their own (the whole document)",
+                crate::widgets::ButtonAction::new("layout.differentOddEven", json!({"value": !odd_even}), odd_even),
             );
+            let section = format!("{} {} / {}", tl!("Section"), st["section"].as_u64().unwrap_or(1), st["sections"].as_u64().unwrap_or(1));
+            ui.label(egui::RichText::new(section).small());
         });
     });
-    symbols_group(app, ui);
+    group(ui, "Close", None, app, |ui, app| {
+        big(ui, app, "close", "Close Header\nand Footer", "insert.closeHeader", json!({}), false);
+    });
+}
+
+/// Editing a header or footer brings up the Header & Footer tab; leaving it goes back to the tab
+/// shown before (kept in the context's memory).
+pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
+    let id = egui::Id::unique("strix_hf_prev_tab");
+    let prev: Option<String> = ctx.data(|d| d.get_temp(id));
+    if super::tabs::is_editing_header_footer(&app.session) {
+        if prev.is_none() {
+            ctx.data_mut(|d| d.insert_temp(id, app.ui.tab.clone()));
+            app.ui.tab = "Header & Footer".into();
+        }
+    } else if let Some(prev) = prev {
+        ctx.data_mut(|d| d.remove_temp::<String>(id));
+        if app.ui.tab == "Header & Footer" {
+            app.ui.tab = prev;
+        }
+    }
+}
+
+/// Teaching › Exercise (docs/exercise.md).
+fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
         big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
         let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
@@ -191,7 +239,7 @@ Calculation",
                 app,
                 "coverPage",
                 Some("Frontispiece"),
-                "A first page of your own before the exercises (title, class, date, instructions); a page break inside it gives it more pages",
+                "Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break",
                 crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
             );
         });
@@ -224,6 +272,124 @@ Calculation",
             });
         });
     });
+}
+
+/// Insert › Pages › Graph Paper (docs/graph-paper.md).
+pub(super) fn graph_paper_button(ui: &mut Ui, app: &mut WordApp) {
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "graphPaper",
+            Some(
+                "Graph
+Paper",
+            ),
+            "Graph Paper",
+            true,
+            "graph.insert",
+        ),
+        graph_paper_menu,
+    );
+}
+
+/// Insert › Pages › Graph Paper (docs/graph-paper.md): the placements, then the pane.
+fn graph_paper_menu(ui: &mut Ui, app: &mut WordApp) {
+    mi_icon(ui, app, "graphPaper", "To the End of the Page", "graph.insert", json!({"placement": "pageEnd"}));
+    mi(ui, app, "To the End of the Column", "graph.insert", json!({"placement": "columnEnd"}));
+    mi(ui, app, "Page Background", "graph.insert", json!({"placement": "background"}));
+    mi(ui, app, "Until the Next Odd Page", "graph.insert", json!({"placement": "untilOdd"}));
+    mi(ui, app, "Until the Next Even Page", "graph.insert", json!({"placement": "untilEven"}));
+    mi(ui, app, "For Two Pages", "graph.insert", json!({"placement": "pages", "pages": 2}));
+    mi(ui, app, "For a Height of 5 cm", "graph.insert", json!({"placement": "height", "height": 50}));
+    ui.separator();
+    let pane = app.session.view.graph_pane;
+    mi_check(ui, app, "Graph Paper Properties", pane, "view.graphPaperPane", json!({}));
+    mi(ui, app, "Remove Graph Paper", "graph.remove", json!({}));
+}
+
+/// Insert › Symbols: Equation and Symbol. The Math tab shows the same group.
+pub(super) fn symbols_group(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Symbols", None, app, |ui, app| {
+        crate::equation_tab::insert_button(ui, app);
+        menu_button(ui, app, crate::widgets::MenuButtonOptions::new("symbol", Some("Symbol"), "Symbol", true, "insert.symbol"), |ui, app| {
+            // Recently used symbols first (their font on hover), then common ones.
+            let mut items: Vec<(String, String)> = app.ui.recent_symbols.iter().map(|r| (r.ch.clone(), r.font.clone())).collect();
+            for c in [
+                "©", "®", "™", "§", "¶", "€", "£", "¥", "°", "±", "≠", "≤", "≥", "÷", "×", "∞", "µ", "α", "β", "π", "Ω", "∑", "√", "→", "←", "✓",
+                "★", "♥", "—", "…",
+            ] {
+                if !items.iter().any(|(ch, f)| ch == c && f.is_empty()) {
+                    items.push((c.to_string(), String::new()));
+                }
+            }
+            items.truncate(30);
+            crate::rtl::grid(ui, egui::Grid::new("syms"), |ui| {
+                for (i, (c, font)) in items.iter().enumerate() {
+                    let b = ui.button(egui::RichText::new(c).size(16.0));
+                    let b = if font.is_empty() { b } else { b.on_hover_text(font) };
+                    if b.clicked() {
+                        let params = if font.is_empty() { json!({"char": c}) } else { json!({"char": c, "font": font}) };
+                        if app.run("insert.symbol", params).is_ok() {
+                            crate::dialogs_insert::remember_symbol(app, c, font);
+                        }
+                        ui.close();
+                    }
+                    if i % 6 == 5 {
+                        ui.end_row();
+                    }
+                }
+            });
+            ui.separator();
+            mi(ui, app, "More Symbols…", "ui.dialog", json!({"name": "symbol"}));
+        });
+    });
+}
+
+/// Math: every calculation tool (docs/calc.md) in one place.
+pub(super) fn math(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Calculation", None, app, |ui, app| {
+        big(
+            ui,
+            app,
+            "calculation",
+            "New
+Calculation",
+            "insert.equation",
+            json!({"calc": true}),
+            false,
+        );
+        stack(ui, |ui| {
+            let info = app.session.run("equation.get", &json!({})).ok();
+            let calc = info.as_ref().and_then(|v| v.get("calc")).and_then(Value::as_bool).unwrap_or(false);
+            small(
+                ui,
+                app,
+                "formula",
+                Some("Calculate"),
+                "Make the equation at the cursor a live calculation, or an ordinary one",
+                crate::widgets::ButtonAction::new("equation.calc", json!({}), calc),
+            );
+            let by_default = app.session.prefs.calc_new_equations;
+            small(
+                ui,
+                app,
+                "check",
+                Some("Always Calculate"),
+                "New equations are live calculations",
+                crate::widgets::ButtonAction::new("calc.newEquations", json!({}), by_default),
+            );
+            small(
+                ui,
+                app,
+                "equation",
+                Some("Recalculate"),
+                "Recalculate every calculation in the document (F9)",
+                crate::widgets::ButtonAction::new("calc.recalculate", json!({}), false),
+            );
+        });
+    });
+    symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {
         big(
             ui,
@@ -377,7 +543,8 @@ Page",
         );
         // What fits is judged on the drawing as drawn, its sizes worked out by the calculations.
         let drawn = wordcraft_engine::cmd::cad::edited_drawing(&app.session).unwrap_or_else(|| d.clone());
-        crate::cad_editor::scale_fields(ui, app, "cad_picture", &d, &drawn, "cad.scale");
+        let space = wordcraft_engine::cmd::cad::space_here(&mut app.session);
+        crate::cad_editor::scale_fields(ui, app, "cad_picture", (&d, &drawn), space, "cad.scale");
     });
     group(ui, "Picture", None, app, |ui, app| {
         crate::cad_editor::field_grid(ui, "cad_picture_grid", |ui| {
@@ -472,7 +639,7 @@ Table",
     stack(ui, |ui| calc_table_rows(ui, app));
 }
 
-/// Math › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
+/// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
 fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();

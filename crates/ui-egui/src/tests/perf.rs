@@ -102,16 +102,41 @@ fn big_table_scroll_bench() {
 /// per layout and only when it is on screen, and keeps textures only near the view.
 #[test]
 fn scrolling_a_big_table_fingerprints_only_pages_coming_into_view() {
+    // The layout cache is keyed by craft-proof's process-wide dictionary generation, which other
+    // tests in this binary move when they add a word or load a dictionary or Language pack: a run
+    // during which it moved lays the document out again for a reason that isn't scrolling, so it
+    // is run again (its numbers say nothing).
+    for _ in 0..3 {
+        let generation = wordcraft_engine::proof::dictionary_generation();
+        let run = scroll_big_table();
+        if wordcraft_engine::proof::dictionary_generation() == generation {
+            return run.check();
+        }
+    }
+    panic!("another test kept changing the dictionaries during three runs");
+}
+
+/// What [`scrolling_a_big_table_fingerprints_only_pages_coming_into_view`] measures in one run.
+struct BigTableScroll {
+    pages: usize,
+    first: usize,
+    idle: usize,
+    offset: f32,
+    same_layout: bool,
+    hashed: usize,
+    max_textures: usize,
+    textures: usize,
+}
+
+fn scroll_big_table() -> BigTableScroll {
     let mut h = harness(big_table_doc(600, 8));
     h.run_steps(4);
     let layout = h.state_mut().session.layout();
     let pages = layout.pages.len();
-    assert!(pages > 30, "the table runs over many pages ({pages})");
     let first = h.state().canvas.page_keys.hashed;
-    assert!(first > 0 && first < 6, "only the pages on screen are fingerprinted, not all {pages}: {first}");
     // Idle frames do no per-page work.
     h.run_steps(3);
-    assert_eq!(h.state().canvas.page_keys.hashed, first, "idle frames fingerprint nothing");
+    let idle = h.state().canvas.page_keys.hashed;
     // Scroll a long way down: each newly shown page is fingerprinted once.
     let mut max_textures = 0;
     for _ in 0..60 {
@@ -120,13 +145,31 @@ fn scrolling_a_big_table_fingerprints_only_pages_coming_into_view() {
         max_textures = max_textures.max(h.state().canvas.texture_count());
     }
     let offset = h.state().canvas.scroll_offset.y;
-    assert!(offset > 20_000.0, "scrolled through many pages: {offset}");
     let after = std::sync::Arc::clone(&h.state_mut().session.layout());
-    assert!(std::sync::Arc::ptr_eq(&layout, &after), "scrolling never lays the document out again");
-    let hashed = h.state().canvas.page_keys.hashed;
-    // 60 steps of 400 pt cross about 24'000 / 1'056 ≈ 23 pages (at 100%, 1.33 px a point).
-    assert!(hashed < pages && hashed <= first + 30, "pages fingerprinted: {hashed} of {pages}");
-    // Textures stay bounded to the pages near the view.
-    assert!(max_textures <= 12, "textures kept while scrolling: {max_textures}");
-    assert!(h.state().canvas.texture_count() >= 1, "the pages in view stay rendered");
+    BigTableScroll {
+        pages,
+        first,
+        idle,
+        offset,
+        same_layout: std::sync::Arc::ptr_eq(&layout, &after),
+        hashed: h.state().canvas.page_keys.hashed,
+        max_textures,
+        textures: h.state().canvas.texture_count(),
+    }
+}
+
+impl BigTableScroll {
+    fn check(&self) {
+        let BigTableScroll { pages, first, idle, offset, same_layout, hashed, max_textures, textures } = *self;
+        assert!(pages > 30, "the table runs over many pages ({pages})");
+        assert!(first > 0 && first < 6, "only the pages on screen are fingerprinted, not all {pages}: {first}");
+        assert_eq!(idle, first, "idle frames fingerprint nothing");
+        assert!(offset > 20_000.0, "scrolled through many pages: {offset}");
+        assert!(same_layout, "scrolling never lays the document out again");
+        // 60 steps of 400 pt cross about 24'000 / 1'056 ≈ 23 pages (at 100%, 1.33 px a point).
+        assert!(hashed < pages && hashed <= first + 30, "pages fingerprinted: {hashed} of {pages}");
+        // Textures stay bounded to the pages near the view.
+        assert!(max_textures <= 12, "textures kept while scrolling: {max_textures}");
+        assert!(textures >= 1, "the pages in view stay rendered");
+    }
 }

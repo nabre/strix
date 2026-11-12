@@ -42,6 +42,25 @@ impl WordApp {
     pub fn set_startup_update_check(&mut self, on: bool) {
         self.updates_rt.startup_check = on;
     }
+
+    /// Turns the self-update off for the rest of this process: nothing is offered or installed,
+    /// and File › Info says why. For a process that still carries another program's AppImage
+    /// variables, which the update would take for this copy's file and replace (#5653).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn disable_self_update(&mut self) {
+        let why = tl!("Updates are off in this window: Strix was started with another program's AppImage settings. Start Strix from its own menu entry to update it.")
+            .to_string();
+        let rt = &mut self.updates_rt;
+        rt.startup_check = false;
+        rt.updater = Updater::new(env!("CARGO_PKG_VERSION")).refusing(why);
+    }
+
+    /// The update chosen with Restart Now goes in once the exit is certain: call it before a path
+    /// that ends the process without dropping the app. Later calls do nothing.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_pending_update(&mut self) {
+        crate::strix_update::finish_at_exit();
+    }
 }
 
 /// Help › Check for Updates: opens File › Info, whose Updates section shows the check and what it

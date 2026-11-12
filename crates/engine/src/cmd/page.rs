@@ -62,10 +62,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("layout.textDirection", "Text Direction", "Layout › Page Setup", text_direction).params(
             r#"{"value"?: "horizontal|down|up"} (also lrTb|tbRl|btLr; down: rotate all text 90°, lines top to bottom stacking right to left; up: 270°; default: the next after the current). In a table cell it turns the selected cells, in a text box the box; anywhere else the section(s) of the selection"#,
         ),
-        CommandSpec::new("layout.differentFirstPage", "Different First Page", "Header & Footer › Options", |s, v| {
-            let on = p::bool(v, "value").unwrap_or(!sect(s).title_page);
-            with_sect(s, |x| x.title_page = on)
-        }),
+        CommandSpec::new("layout.differentFirstPage", "Different First Page", "Header & Footer › Options", super::hf_options::different_first),
         CommandSpec::new("layout.differentOddEven", "Different Odd & Even Pages", "Header & Footer › Options", |s, v| {
             s.doc.settings.even_odd_headers = p::bool(v, "value").unwrap_or(!s.doc.settings.even_odd_headers);
             sel_result(s)

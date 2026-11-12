@@ -572,6 +572,14 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let mut math_cells: Vec<(usize, Vec<Vec<(String, Vec<String>)>>)> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
+    // The drawings by id, resolved: the underlays printed with a drawing are drawn from them.
+    let by_id: std::collections::HashMap<String, &strix_cad::Drawing> = outcomes
+        .iter()
+        .filter_map(|o| match o {
+            Outcome::Cad(_, _, Some(r)) => r.0.id.clone().map(|id| (id, &r.0)),
+            _ => None,
+        })
+        .collect();
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
         match (item, outcome) {
             (Item::Equation { text: Some(text), full, .. }, Outcome::Equation(Some(r), found_units)) => {
@@ -620,6 +628,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 }
                 let fitted = resolved.as_deref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 let body_font = s.doc.settings.minor_font.clone();
+                let drawn = with_printed_underlay(drawn.clone(), resolved.as_deref().map(|r| &r.0), &by_id);
                 cads.push(drawn.as_ref().map(|r| {
                     let (w, h, items) = super::cad::items_of(r, unit, &body_font);
                     (w, h, items, r.clone(), unit, fitted.clone())
@@ -645,6 +654,19 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
         write_cells(s, *top, list);
     }
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
+}
+
+/// Drawing `d`'s rendering `drawn` with its underlay beneath, when the underlay prints and shows
+/// (its source found by id; one level deep, never itself).
+fn with_printed_underlay(
+    drawn: Option<strix_cad::Rendered>,
+    d: Option<&strix_cad::Drawing>,
+    by_id: &std::collections::HashMap<String, &strix_cad::Drawing>,
+) -> Option<strix_cad::Rendered> {
+    let (Some(r), Some(d)) = (drawn.as_ref(), d) else { return drawn };
+    let Some(u) = d.underlay.as_ref().filter(|u| u.print && u.show && d.id.as_ref() != Some(&u.source)) else { return drawn };
+    let Some(src) = by_id.get(&u.source) else { return drawn };
+    Some(r.clone().with_under(d.underlay_view(src).render(None)))
 }
 
 /// A hash of what the calculations read: every item's text, in order.
@@ -753,12 +775,24 @@ fn caret_in_calc_table(s: &Session) -> bool {
 }
 
 /// The drawing whose source is `source` (the same `Arc`), resolved where it sits in the document,
-/// and rendered: for the drawing editor.
+/// and rendered, in its own unit.
 ///
 /// The ribbon asks for it every frame while a drawing is selected, so the answer is kept until
 /// something it reads changes (the calculations before the drawing, the exercises, the number
 /// format): working it out evaluates the document up to the drawing and renders it.
 pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad> {
+    resolved_cad_as(s, source, false)
+}
+
+/// [`resolved_cad`] in millimetres, the unit the drawing editor draws in: a drawing in
+/// centimetres or metres is converted ([`strix_cad::Drawing::to_mm`]: its real size, dimension
+/// texts and expressions kept) without changing the document, which takes the converted drawing
+/// with the editor's first change.
+pub(crate) fn resolved_cad_in_mm(s: &Session, source: &Arc<str>) -> Option<ResolvedCad> {
+    resolved_cad_as(s, source, true)
+}
+
+fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<ResolvedCad> {
     use std::hash::{Hash, Hasher};
     let mut found = items(&s.doc.body);
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
@@ -776,18 +810,38 @@ pub(crate) fn resolved_cad(s: &Session, source: &Arc<str>) -> Option<ResolvedCad
         .for_each(|t| t.hash(&mut h));
     (&zones, &seeds, format!("{opts:?}")).hash(&mut h);
     let key = h.finish();
-    if let Some(hit) = CAD_MEMO.with(|m| m.borrow().as_ref().filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
+    let slot = usize::from(in_mm);
+    if let Some(hit) = CAD_MEMO.with(|m| m.borrow().get(slot).and_then(Option::as_ref).filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
         return hit;
     }
-    let (_, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
+    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds);
     let resolved = match (found.last(), outcomes.into_iter().last()) {
-        (Some(Item::Cad { .. }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
+        (Some(Item::Cad { top, source }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
             let (d, names, screen) = *resolved;
-            Some(std::rc::Rc::new((d, screen.unwrap_or(r), names)))
+            if in_mm && d.unit != strix_cad::Unit::Mm {
+                // Worked out again from the source converted, in the worksheet it was resolved in.
+                let ws = match zones.get(*top).copied().flatten() {
+                    Some(e) => sheets.exercises.entry(e).or_insert_with(|| Worksheet::new(opts)),
+                    None => &mut sheets.main,
+                };
+                strix_cad::Drawing::from_json(source).ok().map(|mut d| {
+                    d.to_mm();
+                    d.resolve(ws);
+                    d.apply_fit(Some(ws));
+                    let r = if d.has_unprinted() { d.render_layers(Some(ws), true) } else { d.render(Some(ws)) };
+                    std::rc::Rc::new((d, r, names))
+                })
+            } else {
+                Some(std::rc::Rc::new((d, screen.unwrap_or(r), names)))
+            }
         }
         _ => None,
     };
-    CAD_MEMO.with(|m| *m.borrow_mut() = Some((key, resolved.clone())));
+    CAD_MEMO.with(|m| {
+        if let Some(cell) = m.borrow_mut().get_mut(slot) {
+            *cell = Some((key, resolved.clone()));
+        }
+    });
     resolved
 }
 
@@ -809,8 +863,9 @@ pub(crate) fn cad_errors(s: &Session, source: &Arc<str>) -> Option<Vec<(String, 
 pub(crate) type ResolvedCad = std::rc::Rc<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)>;
 
 thread_local! {
-    /// The last drawing [`resolved_cad`] worked out, by what it read.
-    static CAD_MEMO: std::cell::RefCell<Option<(u64, Option<ResolvedCad>)>> = const { std::cell::RefCell::new(None) };
+    /// The last drawing [`resolved_cad`] worked out, by what it read; then the last one
+    /// [`resolved_cad_in_mm`] did.
+    static CAD_MEMO: std::cell::RefCell<[Option<(u64, Option<ResolvedCad>)>; 2]> = const { std::cell::RefCell::new([None, None]) };
 }
 
 /// Redraws the CAD drawings (in reading order) whose items changed; returns how many.
@@ -954,7 +1009,7 @@ pub(crate) fn unit_color_of(s: &Session) -> Rgb {
 
 pub(crate) fn unit_color(s: &mut Session) -> Rgb {
     if s.doc.styles.get(UNIT_STYLE).is_none() {
-        s.doc.styles.styles.push(wordcraft_doc::styles::Style {
+        std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(wordcraft_doc::styles::Style {
             id: UNIT_STYLE.into(),
             name: "Unit".into(),
             kind: wordcraft_doc::styles::StyleKind::Character,
@@ -2122,7 +2177,7 @@ mod tests {
         assert!(rows.iter().any(|(t, c)| t.contains('m') && !c), "the mass m is not a unit: {rows:?}");
         assert!(rows.iter().any(|(t, c)| t == "m" && *c), "the metre in the result is: {rows:?}");
         // The style's colour is the units' colour.
-        let st = s.doc.styles.get_mut(UNIT_STYLE).unwrap();
+        let st = std::sync::Arc::make_mut(&mut s.doc.styles).get_mut(UNIT_STYLE).unwrap();
         st.chr.color = Some(TextColor::Rgb(Rgb(200, 0, 0)));
         s.run("calc.recalculate", &json!({})).unwrap();
         let mut colors = Vec::new();
