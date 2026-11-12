@@ -2910,3 +2910,38 @@ paper	Envelope DL	Umschlag DL
 	Keep what the other program shows: they stay static and lose their Strix source	Behält, was das andere Programm zeigt: sie bleiben statisch und verlieren ihre Strix-Quelle
 	Decide Later	Später entscheiden
 	Objects Changed in Another Program	In einem anderen Programm geänderte Objekte
+	DSA	LRS
+	Reading (dyslexia)	Lesen (Legasthenie)
+	Writing (dysgraphia)	Schreiben (Dysgraphie)
+	Maths and Memory (dyscalculia)	Rechnen und Gedächtnis (Dyskalkulie)
+	No DSA Formatting	Keine LRS-Formatierung
+	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	LRS-Formatierung: die Arbeit für Schüler mit Lernstörungen gesetzt; die Fassungen lassen sich kombinieren
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Eine Aufgabe einfügen; das Menü bietet die Arten an: Problem, offene Antwort, Multiple Choice, wahr oder falsch
+	Problem (Statement, Questions, Solution)	Problem (Aufgabenstellung, Fragen, Lösung)
+	Open Answer	Offene Antwort
+	Multiple Choice	Multiple Choice
+	True or False	Wahr oder falsch
+	Question Settings	Frageneinstellungen
+	Questions	Fragen
+	Question	Frage
+	Points	Punkte
+	Correct	Richtig
+	Space (cm)	Platz (cm)
+	Squared	Kariert
+	Square (mm)	Kästchen (mm)
+	Total	Summe
+	Add a question like the last one	Eine Frage wie die letzte hinzufügen
+	Mark this option correct (more than one can be)	Diese Option als richtig markieren (mehrere sind möglich)
+	Graph paper in the answer space; off, the space is blank	Kariertes Papier im Antwortfeld; aus, bleibt das Feld leer
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Die Antworten werden mit der Lösung ein- oder ausgeblendet (Unterricht › Übung › Einblenden): ausgeblendet behält ein Antwortfeld seine Höhe und jedes Kästchen ist leer.
+	{font} (download)	{font} (herunterladen)
+	{font} (downloading…)	{font} (wird heruntergeladen…)
+	{font} (download failed: click to try again)	{font} (Download fehlgeschlagen: zum Wiederholen klicken)
+	letters told apart at a glance, for low vision and dyslexia	Buchstaben auf einen Blick unterscheidbar, bei Sehschwäche und Legasthenie
+	wide letters and spacing, for reading fluency	breite Buchstaben und Abstände, für flüssiges Lesen
+	Downloaded from Google Fonts (SIL Open Font License) on the first click	Beim ersten Klick von Google Fonts heruntergeladen (SIL Open Font License)
+	Downloading fonts isn't available here	Schriftarten können hier nicht heruntergeladen werden
+	Couldn't download the font: {error}	Die Schriftart konnte nicht heruntergeladen werden: {error}
+	Embed Fonts in the File	Schriftarten in der Datei einbetten
+	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Nur Sie können Downloads einschalten: Klicken Sie selbst auf die Schaltfläche. Agenten können installieren, sobald sie eingeschaltet sind.
+	Couldn't turn on downloading: {error}	Downloads konnten nicht eingeschaltet werden: {error}

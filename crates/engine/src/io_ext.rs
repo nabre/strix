@@ -58,7 +58,7 @@ pub fn save(ext: &str, doc: &Document, opts: &crate::io::ExportOptions) -> Optio
     if let Some(flavor) = wordcraft_docx::Flavor::from_ext(ext) {
         // A Word package carries its Strix objects in a form Word keeps (`word_envelope`).
         if !crate::io::is_native(ext) {
-            return Some(wordcraft_docx::write_as(&crate::word_envelope::wrap(doc), flavor).map_err(|e| e.to_string()));
+            return Some(wordcraft_docx::write_as(&crate::font_embed::embed(crate::word_envelope::wrap(doc)), flavor).map_err(|e| e.to_string()));
         }
         return Some(wordcraft_docx::write_as(doc, flavor).map_err(|e| e.to_string()));
     }

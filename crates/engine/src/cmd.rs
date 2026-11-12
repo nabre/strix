@@ -23,6 +23,7 @@ pub mod file;
 pub mod find_pattern;
 pub mod fmt_revisions;
 pub mod font;
+pub mod font_store;
 pub mod format;
 pub mod graph;
 pub mod hf_options;
@@ -77,6 +78,7 @@ pub fn registry() -> Registry {
     v.extend(paste::specs());
     v.extend(format::specs());
     v.extend(font::specs());
+    v.extend(font_store::specs());
     v.extend(phonetic::specs());
     v.extend(para::specs());
     v.extend(lists::specs());

@@ -166,6 +166,10 @@ pub struct Settings {
     /// comments and tracked changes are saved without `w:date`.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub remove_date_time: bool,
+    /// Embed fonts in the file (`w:embedTrueTypeFonts`, §17.15.1.42): a save puts the fonts the
+    /// person added or downloaded, as the document uses them, in the package (Strix: docs/dsa.md).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub embed_fonts: bool,
     /// The document was opened from ODF: the standard's rules that differ from Word's apply as
     /// it is laid out.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -328,6 +332,7 @@ impl Default for Settings {
             zoom: None,
             remove_personal_info: false,
             remove_date_time: false,
+            embed_fonts: false,
             odf: None,
         }
     }

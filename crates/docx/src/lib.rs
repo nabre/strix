@@ -13,6 +13,7 @@ mod chart_spec;
 mod crypt;
 mod custom;
 mod flat;
+mod font_embed;
 mod fonts;
 mod package;
 mod read;
@@ -34,6 +35,7 @@ pub use crypt::{
     encrypt_with_spin_count, is_encrypted, protection_hash,
 };
 pub use flat::{XmlKind, sniff_xml, write as write_flat};
+pub use font_embed::{FaceSlot, FontToEmbed, embed_fonts, embeddable};
 pub use fonts::{EmbeddedFont, embedded_fonts};
 pub use read::{AltChunk, ChunkImporter, ReadOptions, read};
 pub use smart_art::smart_art_items;
