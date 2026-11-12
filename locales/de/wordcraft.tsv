@@ -2916,7 +2916,7 @@ paper	Envelope DL	Umschlag DL
 	Maths and Memory (dyscalculia)	Rechnen und Gedächtnis (Dyskalkulie)
 	No DSA Formatting	Keine LRS-Formatierung
 	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	LRS-Formatierung: die Arbeit für Schüler mit Lernstörungen gesetzt; die Fassungen lassen sich kombinieren
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Eine Aufgabe einfügen; das Menü bietet die Arten an: Problem, offene Antwort, Multiple Choice, wahr oder falsch
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Eine Aufgabe einfügen; das Menü bietet die Arten an: Problem, offene Antwort, Multiple Choice, wahr oder falsch, Berechnung, CAD-Zeichnung
 	Problem (Statement, Questions, Solution)	Problem (Aufgabenstellung, Fragen, Lösung)
 	Open Answer	Offene Antwort
 	Multiple Choice	Multiple Choice
@@ -2945,3 +2945,7 @@ paper	Envelope DL	Umschlag DL
 	Embed Fonts in the File	Schriftarten in der Datei einbetten
 	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Nur Sie können Downloads einschalten: Klicken Sie selbst auf die Schaltfläche. Agenten können installieren, sobald sie eingeschaltet sind.
 	Couldn't turn on downloading: {error}	Downloads konnten nicht eingeschaltet werden: {error}
+# Strix (2026-11-12): question modes (docs/question-modes.md).
+	CAD Drawing Question	Frage mit CAD-Zeichnung
+	Question Type	Fragetyp
+	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Der Aufgabe am Cursor eine Frage eines Typs hinzufügen: offene Antwort, Multiple Choice, wahr oder falsch, Berechnung, CAD-Zeichnung

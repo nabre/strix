@@ -2950,7 +2950,7 @@ paper	Envelope DL	Enveloppe DL
 	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
 	No DSA Formatting	Aucune mise en forme TSA
 	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
 	Multiple Choice	Choix multiple
@@ -2979,3 +2979,7 @@ paper	Envelope DL	Enveloppe DL
 	Embed Fonts in the File	Incorporer les polices dans le fichier
 	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu'ils sont activés.
 	Couldn't turn on downloading: {error}	Impossible d'activer les téléchargements : {error}
+# Strix (2026-11-12): question modes (docs/question-modes.md).
+	CAD Drawing Question	Question avec dessin CAO
+	Question Type	Type de question
+	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Ajouter à l'exercice au curseur une question d'un type : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
