@@ -48,6 +48,7 @@ pub mod documents;
 pub mod equation_tab;
 mod exercise_grip;
 pub mod exercise_pane;
+mod exercise_quiz;
 /// The built-in file browser, for desktops without a system file dialog (#576).
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_browser;

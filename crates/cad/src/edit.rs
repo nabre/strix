@@ -242,7 +242,7 @@ impl Drawing {
     /// Moves the entities at `indices` by `d` (drawing units). A coordinate written as an
     /// expression stays one: `L` becomes `L + 0.5`.
     pub fn translate(&mut self, indices: &[usize], d: Pt) {
-        for &i in indices {
+        for i in self.with_boundaries(indices) {
             if let Some(e) = self.entities.get_mut(i) {
                 move_kind(&mut e.kind, d);
             }
@@ -261,8 +261,9 @@ impl Drawing {
         let mut made = Vec::new();
         // Each copy's original id, and which group it is in.
         let mut origin: Vec<(String, usize)> = Vec::new();
+        let indices = self.with_boundaries(indices);
         for (g, &d) in offsets.iter().enumerate() {
-            for &i in indices {
+            for &i in &indices {
                 let Some(mut e) = self.entities.get(i).cloned() else { continue };
                 origin.push((e.id.clone(), g));
                 move_kind(&mut e.kind, d);
@@ -350,6 +351,8 @@ impl Drawing {
                 ring.extend(ring.first().copied());
                 vec![ring]
             }),
+            // A text is picked inside its box.
+            Kind::Text { .. } => self.text_box(e).map(|b| vec![vec![b[0], b[1], b[2], b[3], b[0]]]),
             // A hatch is picked inside its outer boundary.
             Kind::Hatch { .. } => self.hatch_loops(e).into_iter().next().map(|mut ring| {
                 ring.extend(ring.first().copied());
@@ -423,6 +426,8 @@ pub enum Grip {
     Segment(usize),
     /// A point's or text's position.
     Point,
+    /// A corner (0–3, counter-clockwise from the bottom left) of a text's box: moves the text.
+    Corner(u8),
     /// A dimension's line: changes its distance from the measured points.
     DimLine,
     /// A dimension's or level mark's text: moves it anywhere (its text shift).
@@ -502,7 +507,13 @@ impl Drawing {
                 }
                 out
             }
-            Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Point { p } => vec![(Grip::Point, p.pt())],
+            // Its position, and its box's corners: a text is taken wherever it shows.
+            Kind::Text { p, .. } => {
+                let mut out = vec![(Grip::Point, p.pt())];
+                out.extend(self.text_box(e).into_iter().flatten().zip(0u8..).map(|(q, k)| (Grip::Corner(k), q)));
+                out
+            }
             Kind::Level { p, .. } => {
                 let mut out = vec![(Grip::Point, p.pt())];
                 out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
@@ -648,7 +659,9 @@ impl Drawing {
                     }
                 }
             }
-            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) => shift_p(p, d),
+            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) | (Kind::Text { p, .. }, Grip::Corner(_)) => {
+                shift_p(p, d)
+            }
             (Kind::Dim { offset, offset_units, .. }, Grip::DimLine) => {
                 let (new_units, new_offset) =
                     if scaled { ((offset_at - *offset) / k, *offset) } else { (*offset_units, offset_at - *offset_units * k) };

@@ -172,7 +172,7 @@ pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
 /// Teaching › Exercise (docs/exercise.md).
 fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
-        big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
+        new_exercise(ui, app);
         let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
         stack(ui, |ui| {
             small(
@@ -639,6 +639,27 @@ Table",
     stack(ui, |ui| calc_table_rows(ui, app));
 }
 
+/// Teaching › Exercise › New Exercise: the top part inserts a problem, the menu one of the kinds
+/// (docs/exercise.md, Kinds of exercise).
+fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
+    crate::widgets::big_split(
+        ui,
+        app,
+        crate::widgets::BigSplit {
+            icon: "exercise",
+            label: "New Exercise",
+            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false",
+            action: crate::widgets::ButtonAction::new("exercise.insert", json!({}), false),
+        },
+        |ui, app| {
+            mi(ui, app, "Problem (Statement, Questions, Solution)", "exercise.insert", json!({"kind": "problem"}));
+            mi(ui, app, "Open Answer", "exercise.insert", json!({"kind": "open"}));
+            mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
+            mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
+        },
+    );
+}
+
 /// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
 fn show_menu(ui: &mut Ui, app: &mut WordApp) {
@@ -651,4 +672,142 @@ fn show_menu(ui: &mut Ui, app: &mut WordApp) {
         mi_check(ui, app, "Results in the Summary", results, "exercise.show", json!({"results": !results}));
         mi_check(ui, app, "Graph Paper Before the Solution", grid, "exercise.grid", json!({"on": !grid}));
     });
+}
+
+/// Design › Document Formatting › DSA (docs/dsa.md): the three versions of `design.dsa` as check
+/// boxes, which combine, and None to take them all off.
+pub(super) fn dsa_menu(ui: &mut Ui, app: &mut WordApp) {
+    stack(ui, |ui| {
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "accessibility",
+                Some("DSA"),
+                "DSA formatting: the test laid out for students with specific learning difficulties; the versions combine",
+                false,
+                "design.dsa",
+            ),
+            |ui, app| {
+                let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
+                for (label, key) in
+                    [("Reading (dyslexia)", "reading"), ("Writing (dysgraphia)", "writing"), ("Maths and Memory (dyscalculia)", "math")]
+                {
+                    let on = st[key].as_bool().unwrap_or(false);
+                    mi_check(ui, app, label, on, "design.dsa", json!({ key: !on }));
+                }
+                ui.separator();
+                mi(ui, app, "No DSA Formatting", "design.dsa", json!({"none": true}));
+            },
+        );
+    });
+}
+
+/// Design › Fonts: the typefaces Strix offers without bundling them (Atkinson Hyperlegible and
+/// Lexend, for DSA formatting: docs/dsa.md), heading and body alike. One not installed yet is
+/// downloaded from the font store on the click, which is the person's consent to downloading;
+/// the document takes it at once and shows it as soon as it arrives. Choosing one turns on
+/// Embed Fonts in the File (checked below the fonts), so Word shows it on another computer.
+pub(super) fn offered_fonts(ui: &mut Ui, app: &mut WordApp) {
+    use wordcraft_engine::cmd::font_store::{self, Job, OFFERED};
+    let ctx = ui.ctx().clone();
+    font_store::set_notify(std::sync::Arc::new(move || ctx.request_repaint()));
+    ui.separator();
+    for (family, why) in OFFERED {
+        let installed = font_store::installed(family);
+        let label = match (installed, font_store::job(family)) {
+            (true, _) => family.to_string(),
+            (false, Some(Job::Downloading)) => crate::i18n::fmt(tl!("{font} (downloading…)"), &[("font", family)]),
+            (false, Some(Job::Failed(_))) => crate::i18n::fmt(tl!("{font} (download failed: click to try again)"), &[("font", family)]),
+            (false, None) => crate::i18n::fmt(tl!("{font} (download)"), &[("font", family)]),
+        };
+        let tip = if installed {
+            tl!(why).to_string()
+        } else {
+            format!("{}\n{}", tl!(why), tl!("Downloaded from Google Fonts (SIL Open Font License) on the first click"))
+        };
+        if ui.button(label).on_hover_text(tip).clicked() {
+            if !installed {
+                download_font(app, ui.ctx(), family);
+            }
+            crate::widgets::run_from_ribbon(app, "design.themeFonts", json!({"heading": family, "body": family}));
+            // Another computer seldom has it: a Word document saved from here carries it.
+            if !app.session.doc.settings.embed_fonts {
+                crate::widgets::run_from_ribbon(app, "file.embedFonts", json!({"on": true}));
+            }
+            ui.close();
+        }
+    }
+    let on = app.session.doc.settings.embed_fonts;
+    mi_check(ui, app, "Embed Fonts in the File", on, "file.embedFonts", json!({"on": !on}));
+}
+
+/// Starts downloading `family`, turning downloading on for the person's own click (a click the
+/// control channel made leaves it off and says why).
+fn download_font(app: &mut WordApp, ctx: &egui::Context, family: &str) {
+    use wordcraft_engine::cmd::font_store;
+    let Some(backend) = wordcraft_engine::packs::backend() else {
+        app.status(tl!("Downloading fonts isn't available here").to_string());
+        return;
+    };
+    if !backend.network_on() {
+        if app.input_from_control(ctx) {
+            app.status(tl!("Only you can turn on downloading: click the button yourself. Agents can install once it is on.").to_string());
+            return;
+        }
+        if let Err(e) = backend.enable_network() {
+            app.status(crate::i18n::fmt(tl!("Couldn't turn on downloading: {error}"), &[("error", &e)]));
+            return;
+        }
+    }
+    if let Err(e) = font_store::start(family) {
+        app.status(crate::i18n::fmt(tl!("Couldn't download the font: {error}"), &[("error", &e)]));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::vec2;
+    use super::*;
+    use wordcraft_engine::Session;
+
+    /// Design › Document Formatting › DSA: ticking Reading in the menu turns that version on.
+    #[test]
+    fn the_dsa_menu_turns_a_version_on() {
+        use egui_kittest::kittest::Queryable;
+        let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1600.0, 400.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
+        h.run_steps(2);
+        h.get_by_label("DSA formatting: the test laid out for students with specific learning difficulties; the versions combine").click();
+        h.run_steps(2);
+        h.get_by_label("Reading (dyslexia)").click();
+        h.run_steps(2);
+        let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
+        assert_eq!(st["reading"], true, "{st}");
+        assert_eq!(st["writing"], false, "{st}");
+    }
+
+    /// Design › Fonts offers the DSA typefaces (to download when missing) and Embed Fonts in the
+    /// File, a document setting.
+    #[test]
+    fn the_fonts_menu_offers_the_dsa_fonts_and_embedding() {
+        use egui_kittest::kittest::Queryable;
+        let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1600.0, 900.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
+        h.run_steps(2);
+        h.get_by_label("Theme Fonts").click();
+        h.run_steps(2);
+        for (family, _) in wordcraft_engine::cmd::font_store::OFFERED {
+            assert!(h.query_by_label_contains(family).is_some(), "{family} offered");
+        }
+        h.get_by_label("Embed Fonts in the File").click();
+        h.run_steps(2);
+        assert!(h.state().session.doc.settings.embed_fonts);
+    }
 }

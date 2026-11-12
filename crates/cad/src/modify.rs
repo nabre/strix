@@ -103,6 +103,8 @@ impl Drawing {
     /// The entities at `indices` transformed by `t`. Sizes on paper stay; radii scale; a mirror
     /// turns arcs, polyline bulges and angular dimensions the other way.
     pub fn transform(&mut self, indices: &[usize], t: &Affine) {
+        let indices = self.with_boundaries(indices);
+        let indices = indices.as_slice();
         for &i in indices {
             let Some(e) = self.entities.get_mut(i) else { continue };
             match &mut e.kind {

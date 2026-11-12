@@ -59,6 +59,51 @@
   </div>
 </section>
 
+<!-- Exercises -->
+<section id="exercises">
+  <div class="wrap show flip">
+    <div>
+      <div class="eyebrow">{{exEyebrow}}</div>
+      <h2>{{exTitle}}</h2>
+      <p class="intro">{{exIntro}}</p>
+      <ul class="points">
+        <li>{{ex1}}</li>
+        <li>{{ex2}}</li>
+        <li>{{ex3}}</li>
+        <li>{{ex4}}</li>
+        <li>{{ex5}}</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-exercise-dark.png">
+        <img src="{{root}}assets/shots/{{lang}}/shot-exercise-light.png" alt="{{shotExerciseAlt}}" width="1100" height="960" loading="lazy">
+      </picture>
+    </figure>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{featEyebrow}}</div>
+    <h2>{{featTitle}}</h2>
+    <p class="intro muted">{{featIntro}}</p>
+    <div class="bento">
+      <article class="tile wide"><span class="tile-n">01 · {{f1Kicker}}</span><h3>{{f1Title}}</h3><p>{{f1Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">02 · {{f2Kicker}}</span><h3>{{f2Title}}</h3><p>{{f2Text}}</p></article>
+      <article class="tile"><span class="tile-n">03 · {{f3Kicker}}</span><h3>{{f3Title}}</h3><p>{{f3Text}}</p></article>
+      <article class="tile"><span class="tile-n">04 · {{f4Kicker}}</span><h3>{{f4Title}}</h3><p>{{f4Text}}</p></article>
+      <article class="tile"><span class="tile-n">05 · {{f5Kicker}}</span><h3>{{f5Title}}</h3><p>{{f5Text}}</p></article>
+      <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
+      <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
+      <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">09 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
+      <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
+    </div>
+  </div>
+</section>
+
 <!-- WYSIWYG math -->
 <section id="math">
   <div class="wrap show">
@@ -96,51 +141,6 @@
           <tfoot><tr><td>{{tableTotal}}</td><td></td><td></td><td class="calc">Σ = 101.756</td></tr></tfoot>
         </table>
       </div>
-    </figure>
-  </div>
-</section>
-
-<!-- Features -->
-<section id="features" class="band">
-  <div class="wrap">
-    <div class="eyebrow">{{featEyebrow}}</div>
-    <h2>{{featTitle}}</h2>
-    <p class="intro muted">{{featIntro}}</p>
-    <div class="bento">
-      <article class="tile wide"><span class="tile-n">01 · {{f1Kicker}}</span><h3>{{f1Title}}</h3><p>{{f1Text}}</p></article>
-      <article class="tile wide"><span class="tile-n">02 · {{f2Kicker}}</span><h3>{{f2Title}}</h3><p>{{f2Text}}</p></article>
-      <article class="tile"><span class="tile-n">03 · {{f3Kicker}}</span><h3>{{f3Title}}</h3><p>{{f3Text}}</p></article>
-      <article class="tile"><span class="tile-n">04 · {{f4Kicker}}</span><h3>{{f4Title}}</h3><p>{{f4Text}}</p></article>
-      <article class="tile"><span class="tile-n">05 · {{f5Kicker}}</span><h3>{{f5Title}}</h3><p>{{f5Text}}</p></article>
-      <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
-      <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
-      <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
-      <article class="tile wide"><span class="tile-n">09 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
-      <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
-    </div>
-  </div>
-</section>
-
-<!-- Exercises -->
-<section id="exercises">
-  <div class="wrap show flip">
-    <div>
-      <div class="eyebrow">{{exEyebrow}}</div>
-      <h2>{{exTitle}}</h2>
-      <p class="intro">{{exIntro}}</p>
-      <ul class="points">
-        <li>{{ex1}}</li>
-        <li>{{ex2}}</li>
-        <li>{{ex3}}</li>
-        <li>{{ex4}}</li>
-        <li>{{ex5}}</li>
-      </ul>
-    </div>
-    <figure class="shot">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-exercise-dark.png">
-        <img src="{{root}}assets/shots/{{lang}}/shot-exercise-light.png" alt="{{shotExerciseAlt}}" width="1100" height="960" loading="lazy">
-      </picture>
     </figure>
   </div>
 </section>

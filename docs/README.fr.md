@@ -5,17 +5,18 @@
 <h1 align="center">Strix</h1>
 
 <p align="center">
-  <b>Les maths WYSIWYG pour l'ingénierie : tapez l'équation dans la page, elle calcule.</b>
+  <b>Évaluations et exercices pour l'enseignant : écrivez l'évaluation, Strix tient le corrigé et les points.</b>
 </p>
 
 <p align="center">
-  Strix est un éditeur de documents open source, écrit entièrement en Rust, pour résoudre des
-  problèmes de mathématiques et d'ingénierie. Vous écrivez le problème comme sur papier (texte,
-  tableaux, équations, dessins) et les équations sont vivantes : elles portent leurs unités,
-  trouvent l'inconnue, vérifient les limites et se mettent à jour dès qu'une donnée change. Les
-  exercices gardent une structure verrouillée avec un récapitulatif des résultats, et les dessins
-  CAO suivent les calculs. Natif sur Windows, macOS, Linux et BSD, et dans le navigateur grâce à
-  WebAssembly.
+  Strix est un éditeur open source, écrit entièrement en Rust, pour préparer les évaluations.
+  Les exercices de calcul gardent leurs données, leur corrigé et leurs résultats vivants, avec
+  des variantes A, B, C pour chaque rangée ; les questions à choix multiples, vrai/faux et
+  ouvertes portent leurs points ; un fichier par exercice forme une banque, et l'évaluation se
+  compose à partir d'elle, avec ou sans corrigé. Un tableau des points fait seul les totaux par
+  critère ; une grille qui convertit les points en notes est prévue. Dessous, les équations de la
+  page calculent, avec leurs unités. Natif sur Windows, macOS, Linux et BSD, et dans le navigateur
+  grâce à WebAssembly.
 </p>
 
 <p align="center">
@@ -31,6 +32,51 @@
 > les exercices et la CAO sont récents et évoluent vite. Gardez une copie de vos documents
 > importants et [dites-nous ce qui casse](https://github.com/nabre/strix/issues). Le README anglais
 > est la référence complète.
+
+## Exercices de calcul
+
+**Enseignement › Exercice › Nouvel exercice** insère un problème corrigé dont la structure résiste
+aux modifications : titre, énoncé, **données** (symbole, description, valeur, unité), questions
+lettrées imbriquées sur trois niveaux (a), a.1), a.1.1)) ; le **corrigé** reprend chaque question
+en lecture seule avec la place pour le développement ; un **récapitulatif des résultats** en fin
+de document.
+
+Le corrigé est un calcul vivant (voir [Les maths WYSIWYG](#les-maths-wysiwyg)) : les données
+peuvent avoir des **variantes** A, B, C…, et en choisir une recalcule les données, le corrigé et
+le récapitulatif ; chaque rangée a ses propres valeurs et aucun corrigé n'est à refaire à la main.
+Chaque exercice est un **bac à sable** (deux exercices peuvent définir `L`) ; du papier quadrillé
+peut suivre les questions, et un dessin CAO dans l'énoncé suit les données.
+
+## QCM et questions ouvertes
+
+Un exercice peut aussi être un quiz : **réponse ouverte** (un espace d'une hauteur donnée en cm,
+quadrillé ou blanc), **choix multiple** (options A), B), C)… avec des cases, plusieurs bonnes
+réponses possibles) et **vrai/faux**. Les bonnes réponses sont cochées dans l'exercice et **se
+masquent avec le corrigé** : les cases restent vides et les espaces gardent leur hauteur, si bien
+que la copie de l'élève a la même mise en page que celle de l'enseignant. Chaque question a ses
+**points**, affichés à côté et additionnés dans le tableau des points.
+
+## De la banque d'exercices à l'évaluation
+
+- **Un fichier par exercice** forme une banque ; chaque fichier porte ses **propriétés
+  d'archive** (classe, section, matière, enseignant, durée, points), visibles aussi dans Word
+  ([archive.md](archive.md)).
+- Un **document maître** compose l'évaluation à partir de ces fichiers, avec sa numérotation, sa
+  page de garde, ses sauts de page et les parties affichées (avec ou sans corrigé et résultats) ;
+  **les fichiers de la banque ne changent jamais** ([master-documents.md](master-documents.md)).
+- La **mise en forme DSA** (troubles de l'apprentissage : lecture, écriture, calcul et mémoire,
+  combinables, page toujours blanche) adapte la même évaluation ([dsa.md](dsa.md)).
+- Export **PDF** pour l'impression.
+
+## Points et notes
+
+Le **tableau des points** (Enseignement › Points › Tableau des points) a une ligne par exercice et
+deux colonnes par critère (les points attribués sur la copie et ceux que vaut l'exercice) ; les
+**totaux** par ligne et par colonne suivent pendant la saisie, et le total général est la
+propriété **Points** du fichier.
+
+*Prévu :* une **grille de notation** qui convertit les points en notes (seuils, barème,
+arrondi). Détails (en anglais) : [exercise.md](exercise.md).
 
 ## Les maths WYSIWYG
 
@@ -63,16 +109,7 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a es
   `mean =`, `min =`, `max =`), **sommes, plages et vecteurs**, **format numérique**.
 - **Les erreurs n'arrêtent pas la feuille** : une instruction en échec affiche `⚠` et son message.
 
-Tout est dans l’onglet **Math**. Détails (en anglais) : [calc.md](calc.md).
-
-## Exercices
-
-**Math › New Exercise** (interface pas encore traduite) insère un problème corrigé dont la structure résiste aux modifications :
-titre, énoncé, données, questions lettrées imbriquées sur trois niveaux ; la solution reprend
-chaque question en lecture seule avec la place pour le développement ; un **récapitulatif des
-résultats** en fin de document. Chaque exercice est un **bac à sable de calcul** (deux exercices
-peuvent définir `L`) et les données peuvent avoir des **variantes** A, B, C… qui recalculent tout.
-Détails : [exercise.md](exercise.md).
+Le calcul est dans l’onglet **Math** ; exercices, points et papier quadrillé dans l’onglet **Enseignement**. Détails (en anglais) : [calc.md](calc.md).
 
 ## Des dessins CAO pilotés par les calculs
 

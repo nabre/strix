@@ -2944,3 +2944,38 @@ paper	Envelope DL	Enveloppe DL
 	Keep what the other program shows: they stay static and lose their Strix source	Conserve ce qu'affiche l'autre programme : ils restent statiques et perdent leur source Strix
 	Decide Later	Décider plus tard
 	Objects Changed in Another Program	Objets modifiés dans un autre programme
+	DSA	TSA
+	Reading (dyslexia)	Lecture (dyslexie)
+	Writing (dysgraphia)	Écriture (dysgraphie)
+	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
+	No DSA Formatting	Aucune mise en forme TSA
+	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux
+	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
+	Open Answer	Réponse ouverte
+	Multiple Choice	Choix multiple
+	True or False	Vrai ou faux
+	Question Settings	Paramètres de la question
+	Questions	Questions
+	Question	Question
+	Points	Points
+	Correct	Correctes
+	Space (cm)	Espace (cm)
+	Squared	Quadrillé
+	Square (mm)	Carreau (mm)
+	Total	Total
+	Add a question like the last one	Ajouter une question comme la dernière
+	Mark this option correct (more than one can be)	Marquer cette option comme correcte (plusieurs peuvent l'être)
+	Graph paper in the answer space; off, the space is blank	Papier quadrillé dans l'espace de réponse ; désactivé, l'espace est vierge
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Les réponses s'affichent ou se masquent avec la Solution (Enseignement › Exercice › Afficher) : masquées, un espace de réponse garde sa hauteur et chaque case est vide.
+	{font} (download)	{font} (télécharger)
+	{font} (downloading…)	{font} (téléchargement…)
+	{font} (download failed: click to try again)	{font} (échec du téléchargement : cliquez pour réessayer)
+	letters told apart at a glance, for low vision and dyslexia	des lettres qui se distinguent d'un coup d'œil, pour la basse vision et la dyslexie
+	wide letters and spacing, for reading fluency	des lettres et des espacements larges, pour la fluidité de lecture
+	Downloaded from Google Fonts (SIL Open Font License) on the first click	Téléchargé depuis Google Fonts (SIL Open Font License) au premier clic
+	Downloading fonts isn't available here	Le téléchargement de polices n'est pas disponible ici
+	Couldn't download the font: {error}	Impossible de télécharger la police : {error}
+	Embed Fonts in the File	Incorporer les polices dans le fichier
+	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu'ils sont activés.
+	Couldn't turn on downloading: {error}	Impossible d'activer les téléchargements : {error}

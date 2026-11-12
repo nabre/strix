@@ -3410,3 +3410,38 @@ paper	Envelope DL	Busta DL
 	Keep what the other program shows: they stay static and lose their Strix source	Mantiene ciò che mostra l'altro programma: restano statici e perdono la loro sorgente Strix
 	Decide Later	Decidi dopo
 	Objects Changed in Another Program	Oggetti modificati in un altro programma
+	DSA	DSA
+	Reading (dyslexia)	Lettura (dislessia)
+	Writing (dysgraphia)	Scrittura (disgrafia)
+	Maths and Memory (dyscalculia)	Calcolo e memoria (discalculia)
+	No DSA Formatting	Nessuna formattazione DSA
+	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Formattazione DSA: la verifica impaginata per studenti con disturbi specifici dell'apprendimento; le versioni si combinano
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Inserisci un esercizio; il menu offre i tipi: problema, risposta aperta, risposta multipla, vero o falso
+	Problem (Statement, Questions, Solution)	Problema (testo, domande, risoluzione)
+	Open Answer	Risposta aperta
+	Multiple Choice	Risposta multipla
+	True or False	Vero o falso
+	Question Settings	Impostazioni della domanda
+	Questions	Domande
+	Question	Domanda
+	Points	Punti
+	Correct	Corrette
+	Space (cm)	Spazio (cm)
+	Squared	A quadretti
+	Square (mm)	Quadretto (mm)
+	Total	Totale
+	Add a question like the last one	Aggiungi una domanda come l'ultima
+	Mark this option correct (more than one can be)	Segna questa opzione come corretta (possono esserlo più di una)
+	Graph paper in the answer space; off, the space is blank	Foglio a quadretti nello spazio della risposta; disattivato, lo spazio è bianco
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Le risposte si mostrano o si nascondono con la Risoluzione (Didattica › Esercizio › Mostra): nascoste, lo spazio della risposta mantiene la sua altezza e ogni casella è vuota.
+	{font} (download)	{font} (scarica)
+	{font} (downloading…)	{font} (download in corso…)
+	{font} (download failed: click to try again)	{font} (download non riuscito: fai clic per riprovare)
+	letters told apart at a glance, for low vision and dyslexia	lettere che si distinguono a colpo d'occhio, per ipovisione e dislessia
+	wide letters and spacing, for reading fluency	lettere e spaziatura ampie, per la fluidità di lettura
+	Downloaded from Google Fonts (SIL Open Font License) on the first click	Scaricato da Google Fonts (SIL Open Font License) al primo clic
+	Downloading fonts isn't available here	Qui non si possono scaricare caratteri
+	Couldn't download the font: {error}	Impossibile scaricare il carattere: {error}
+	Embed Fonts in the File	Incorpora i caratteri nel file
+	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Solo tu puoi attivare i download: fai clic tu sul pulsante. Gli agenti possono installare quando sono attivi.
+	Couldn't turn on downloading: {error}	Impossibile attivare i download: {error}

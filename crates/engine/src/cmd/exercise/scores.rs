@@ -47,7 +47,7 @@ fn number(t: &str) -> Option<f64> {
 
 /// `v` as the table shows it: whole numbers plain, others with up to two decimals, the decimal
 /// comma in the languages that write one.
-fn shown(v: f64, comma: bool) -> String {
+pub(super) fn shown(v: f64, comma: bool) -> String {
     let t = format!("{:.2}", v);
     let t = t.trim_end_matches('0').trim_end_matches('.').to_string();
     let t = if t == "-0" { "0".to_string() } else { t };
@@ -189,7 +189,7 @@ pub(super) fn fingerprint(s: &Session) -> Vec<Vec<Vec<(String, u32)>>> {
 }
 
 /// Whether the document writes numbers with a decimal comma.
-fn comma(s: &Session) -> bool {
+pub(super) fn comma(s: &Session) -> bool {
     !super::words_lang(s).starts_with("en")
 }
 
@@ -228,7 +228,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = false;
     for i in tables(s) {
         let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { continue };
-        let m = read(t);
+        let mut m = read(t);
+        quiz_points(s, &mut m);
         changed |= put(s, i, &m);
     }
     if changed {
@@ -236,6 +237,27 @@ pub(crate) fn update(s: &mut Session) -> bool {
         s.clamp_selection();
     }
     changed
+}
+
+/// A quiz's points (its questions' added up) are its row's points in the first criterion: they
+/// follow the questions, typing over them changes nothing.
+fn quiz_points(s: &Session, m: &mut Model) {
+    let layout = scan(s);
+    if m.criteria.is_empty() {
+        return;
+    }
+    for (e, ex) in layout.exercises.iter().enumerate().take(MAX_ROWS) {
+        if !ex.kind.quiz() {
+            continue;
+        }
+        let Some(total) = super::items::total(s, &layout, e) else { continue };
+        if m.points.len() <= e {
+            m.points.resize(e + 1, vec![None; m.criteria.len()]);
+        }
+        if let Some(c) = m.points.get_mut(e).and_then(|row| row.first_mut()) {
+            *c = Some(total);
+        }
+    }
 }
 
 /// The points the document's first scores table adds up to: every point typed in for its

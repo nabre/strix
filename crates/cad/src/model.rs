@@ -872,6 +872,10 @@ pub struct Drawing {
     /// ([`crate::Underlay`]): a reference by id, never a copy.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underlay: Option<crate::Underlay>,
+    /// Texts' widths as an editor measured them with its fonts ([`crate::TextWidths`]); never
+    /// saved, never compared.
+    #[serde(skip)]
+    pub text_widths: crate::TextWidths,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -912,6 +916,7 @@ impl Default for Drawing {
             fit: None,
             id: None,
             underlay: None,
+            text_widths: crate::TextWidths::default(),
         }
     }
 }

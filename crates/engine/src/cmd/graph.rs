@@ -21,7 +21,7 @@ use crate::{CmdError, CmdResult, CommandSpec, Selection, Session};
 /// The parameters every graph paper command takes (documented once).
 macro_rules! grid_params {
     () => {
-        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "columnEnd" (to the end of the column; what follows starts in the next column) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted", "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?, "followColumns"?: bool (ruled in each text column of the section, the space between them clear; default false: across the whole text width), "frameWidth"?: pt (0.1–6, the frame round the ruled area) | null (the frame weighs what the grid lines do: the default)"#
+        r#""placement"?: "background" (behind the text of the section's pages) | "pageEnd" (to the end of the page) | "columnEnd" (to the end of the column; what follows starts in the next column) | "untilOdd" | "untilEven" (the rest of the page and whole pages until the next odd / even page) | "pages" (for `pages` pages) | "height" (for `height` mm), "pages"?: 1–100, "height"?: mm, "spacing"?: mm (the side of a square, 1–100), "style"?: "solid|dashed|dotted|none" (none: no lines, a blank block), "color"?: "RRGGBB", "width"?: pt (0.1–6), "majorEvery"?: n (a heavier line every n squares, 0 = none, ≤ 100), "majorStyle"?, "majorColor"?, "majorWidth"?, "followColumns"?: bool (ruled in each text column of the section, the space between them clear; default false: across the whole text width), "frameWidth"?: pt (0.1–6, the frame round the ruled area) | null (the frame weighs what the grid lines do: the default)"#
     };
 }
 
@@ -76,8 +76,8 @@ fn num(v: &Value, k: &str) -> Result<Option<f32>, CmdError> {
 fn style(v: &Value, k: &str) -> Result<Option<GridLineStyle>, CmdError> {
     match v.get(k) {
         None | Some(Value::Null) => Ok(None),
-        Some(Value::String(t)) => GridLineStyle::parse(t).map(Some).ok_or_else(|| CmdError::Params(format!("`{k}`: solid, dashed or dotted"))),
-        Some(_) => Err(CmdError::Params(format!("`{k}`: solid, dashed or dotted"))),
+        Some(Value::String(t)) => GridLineStyle::parse(t).map(Some).ok_or_else(|| CmdError::Params(format!("`{k}`: solid, dashed, dotted or none"))),
+        Some(_) => Err(CmdError::Params(format!("`{k}`: solid, dashed, dotted or none"))),
     }
 }
 
