@@ -801,6 +801,10 @@ pub struct Entity {
     /// its place. The measured value never changes.
     #[serde(default, rename = "textShift", skip_serializing_if = "Option::is_none")]
     pub text_shift: Option<[f64; 2]>,
+    /// The group it belongs to (an array's items, made one object): picking one picks them all;
+    /// Explode ungroups them. `None`: on its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -819,7 +823,7 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, text_shift: None, kind }
+        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, text_shift: None, group: None, kind }
     }
 }
 
@@ -872,6 +876,12 @@ pub struct Drawing {
     /// ([`crate::Underlay`]): a reference by id, never a copy.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underlay: Option<crate::Underlay>,
+    /// The block definitions ([`crate::Block`]).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<crate::Block>,
+    /// The blocks' insertions: which group of entities is which block, inserted where.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub inserts: Vec<crate::Insert>,
     /// Texts' widths as an editor measured them with its fonts ([`crate::TextWidths`]); never
     /// saved, never compared.
     #[serde(skip)]
@@ -916,6 +926,8 @@ impl Default for Drawing {
             fit: None,
             id: None,
             underlay: None,
+            blocks: Vec::new(),
+            inserts: Vec::new(),
             text_widths: crate::TextWidths::default(),
         }
     }
@@ -1038,6 +1050,10 @@ impl Drawing {
             if let Some(s) = e.style.as_mut() {
                 cut(s);
             }
+            if let Some(g) = e.group.as_mut() {
+                cut(g);
+            }
+            e.group = e.group.take().filter(|g| !g.trim().is_empty());
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
@@ -1103,6 +1119,7 @@ impl Drawing {
         for (n, _) in self.nums_mut() {
             n.value = if n.value.is_finite() { n.value.clamp(-MAX_COORD, MAX_COORD) } else { 0.0 };
         }
+        self.sanitize_blocks();
     }
 
     /// Named styles: at most [`MAX_STYLES`] of each, names cut, unique, never empty or Standard;
@@ -1217,6 +1234,9 @@ impl Drawing {
                     _ => {}
                 }
             }
+            for r in &mut self.inserts {
+                r.at = r.at.map(|v| v * k);
+            }
         }
         self.unit = unit;
         if self.input == Some(unit) {
@@ -1261,7 +1281,7 @@ impl Drawing {
     }
 
     /// Every number of the drawing.
-    fn nums_mut(&mut self) -> Vec<(&mut Num, NumKind)> {
+    pub(crate) fn nums_mut(&mut self) -> Vec<(&mut Num, NumKind)> {
         let mut out = Vec::new();
         fn point<'a>(p: &'a mut P, out: &mut Vec<(&'a mut Num, NumKind)>) {
             let P(x, y) = p;
@@ -1450,7 +1470,7 @@ pub fn fill(text: &str, ws: Option<&Worksheet>) -> String {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum NumKind {
+pub(crate) enum NumKind {
     Length,
     Angle,
 }

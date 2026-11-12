@@ -1525,6 +1525,21 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
                 pen.fcircle(10.0 + 6.5 * t.cos(), 10.0 + 6.5 * t.sin(), 1.7, if k == 0 { a } else { c });
             }
         }
+        // Blocks: objects (a circle and a line) gathered in a frame with their base point;
+        // the frame placed by its base point at the end of an arrow.
+        "cadBlockCreate" => {
+            pen.rect(2.5, 2.5, 17.5, 17.5, a);
+            pen.circle(8.0, 8.0, 3.2, c);
+            pen.line_c(&[(6.0, 15.0), (15.0, 6.0)], c);
+            pen.fcircle(2.5, 17.5, 1.8, a);
+        }
+        "cadBlockInsert" => {
+            pen.rect(8.0, 2.5, 17.5, 12.0, c);
+            pen.circle(12.75, 7.25, 2.5, c);
+            pen.line_c(&[(2.5, 17.5), (7.0, 13.0)], a);
+            pen.line_c(&[(4.0, 13.0), (7.0, 13.0), (7.0, 16.0)], a);
+            pen.fcircle(8.0, 12.0, 1.6, a);
+        }
         "cadChamfer" => {
             pen.line_c(&[(3.0, 4.0), (3.0, 11.0)], c);
             pen.line_c(&[(3.0, 11.0), (9.0, 17.0)], a);

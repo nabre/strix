@@ -242,11 +242,13 @@ impl Drawing {
     /// Moves the entities at `indices` by `d` (drawing units). A coordinate written as an
     /// expression stays one: `L` becomes `L + 0.5`.
     pub fn translate(&mut self, indices: &[usize], d: Pt) {
-        for i in self.with_boundaries(indices) {
+        let all = self.with_boundaries(indices);
+        for &i in &all {
             if let Some(e) = self.entities.get_mut(i) {
                 move_kind(&mut e.kind, d);
             }
         }
+        self.inserts_follow(&all, &crate::Affine { m: [1.0, 0.0, d.x, 0.0, 1.0, d.y], scale: 1.0, mirror: false });
     }
 
     /// Copies the entities at `indices`, moved by `d`; returns the copies' indices.
@@ -296,6 +298,27 @@ impl Drawing {
                 }
             }
         }
+        // A copied group is a group of its own: each copy's members are one new group.
+        let mut taken: std::collections::HashSet<String> = self.entities.iter().filter_map(|e| e.group.clone()).collect();
+        let mut n = 1usize;
+        for list in &out {
+            let mut names: std::collections::HashMap<String, String> = Default::default();
+            for &i in list {
+                let Some(e) = self.entities.get_mut(i) else { continue };
+                let Some(old) = e.group.take() else { continue };
+                let new = names.entry(old).or_insert_with(|| {
+                    while taken.contains(&format!("g{n}")) {
+                        n += 1;
+                    }
+                    let name = format!("g{n}");
+                    taken.insert(name.clone());
+                    name
+                });
+                e.group = Some(new.clone());
+            }
+        }
+        // A copied block insertion is an insertion too.
+        self.inserts_copied(&renames, offsets);
         out
     }
 

@@ -124,6 +124,13 @@ impl Drawing {
 
     /// As [`Drawing::render`]; with `screen`, the layers not printed are drawn too (the editor).
     pub fn render_layers(&self, ws: Option<&Worksheet>, screen: bool) -> Rendered {
+        // Annotative blocks drawn for another scale (the scale just set, or one being tried to
+        // fit): drawn as they are at this one.
+        if self.annotative_stale() {
+            let mut d = self.clone();
+            d.sync_annotative();
+            return d.render_layers(ws, screen);
+        }
         // Drawing units to paper mm, y up (flipped and shifted once the bounds are known).
         let k = self.unit.mm() / self.scale.max(1e-9);
         // Curves are drawn with chords at most this far off them: 0.01 mm on paper.

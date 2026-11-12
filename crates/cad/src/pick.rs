@@ -7,9 +7,10 @@ use crate::geom::Pt;
 use crate::model::{Align, Drawing, Entity, Kind};
 
 /// A text's descent below its baseline and its ascent above it, as parts of its height (paper
-/// mm: the capitals' height; the font is `height / 0.7` big, as every output draws it).
-const DESCENT: f64 = 0.3;
-const ASCENT: f64 = 1.05;
+/// mm: the capitals' height; the font is `height / 0.7` big, as every output draws it), with a
+/// little room past the ascenders (k, /) and descenders (q, g) so the box clears the letters.
+const DESCENT: f64 = 0.38;
+const ASCENT: f64 = 1.15;
 
 /// About how wide a character is in a proportional sans font, in ems.
 fn char_em(c: char) -> f64 {
