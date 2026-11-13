@@ -96,7 +96,7 @@ hidden text and **its space keeps its height**; every box of a multiple choice i
 options are correct is kept). So one document gives the students' copy and the corrected one.
 
 **Points.** The points of an exercise's questions add up to the exercise's points (`exercise.questionPoints` sets or clears points on questions of both quizzes and problems, inserting `strix:exercise.points` at the end of a problem question when set); a **scores
-table** shows them in its first criterion, at once, for every exercise whose questions carry points (otherwise typed in). Even with a single exercise and a single criterion (`1×1`), the scores table keeps its Total row (`__ / Max`). The results summary lists, for each multiple choice, its letter and
+table** takes them as the exercise's row total, at once, for every exercise whose questions carry points (otherwise every criterion is typed in; see Scores table). Even with a single exercise and a single criterion (`1×1`), the scores table keeps its Total row (`__ / Max`). The results summary lists, for each multiple choice, its letter and
 the correct options (`a) A, C`); open answers give no line, and a document whose exercises are
 all open answers has no summary.
 
@@ -276,11 +276,30 @@ Table again (`"on": false`) removes it, in one undo step. Points can be set by s
 `exercise.scores {"exercise": 1, "criterion": 2, "points": 2}`. Word sees an ordinary table.
 Its grand total is the document's **Score** archive property ([archive.md](archive.md)).
 
+**Rows linked to the question points.** When an exercise's questions carry points, their sum is
+its row's total, and the criteria are its partials, which always add up to it: the partials
+typed in the criteria before the last are kept (each cut down to what is left of the total, never
+negative), the **last criterion takes what remains**. With one criterion it holds the whole total;
+a criterion added later starts at what is left (0 when the others already make the total);
+changing a question's points changes the last partial. The last criterion of a linked row is
+computed, so setting it by script is refused. Exercises whose questions carry no points keep
+every criterion as typed, as a plain grid.
+
+## Total score
+
+**Total Score** (Teaching › Scores, `exercise.totalScore {"on": true}`) adds, after the caret's
+paragraph, a right-aligned line where the student's score is written against the assessment's
+maximum: `Punteggio: .......... / 20 pt` (in the exercises' language). It is a locked inline control
+(`strix:scoreTotal`) kept up to date with the other automatic parts. The maximum is **computed**
+when the document has points — the scores table's grand total, else the exercises' question points
+added up — else the one **typed in** (`"points": 30`, kept on the control, `null` clears it), else
+dots to fill in by hand (`/ ..... pt`). Total Score again (`"on": false`) removes it.
+
 ## The Teaching tab
 
 The **Teaching** tab (Didattica) gathers what is for teaching: the Exercise group (New Exercise,
 questions and notes, Result Of, Show, Frontispiece, Properties, Delete Exercise), the Scores group
-(Scores Table, Add Criterion, Remove Criterion) and Graph Paper (also in Insert › Pages).
+(Scores Table, Add Criterion, Remove Criterion, Grading Scale, Total Score) and Graph Paper (also in Insert › Pages).
 
 ## Data and variants (Exercise Properties pane)
 

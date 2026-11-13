@@ -62,6 +62,7 @@ mod tests_phase3;
 mod tests_phase4;
 #[cfg(test)]
 mod tests_phase5;
+mod total_score;
 mod variants_gen;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
@@ -183,6 +184,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"on"?: bool (insert the scores table after the caret's paragraph, outside the exercises / remove it), "add"?: name | true (a criterion: two columns, one left empty and one for its points), "remove"?: n, "rename"?: n, "name"?: text, "exercise"?: n, "criterion"?: n, "points"?: number | null} → {"on", "criteria": [name], "points": [[number | null]] (per exercise, per criterion), "exercises"}; the rows are the document's exercises, a Total column with more than one criterion and a Total row with more than one exercise"#),
+        CommandSpec::new("exercise.totalScore", "Total Score", "Teaching › Scores", total_score::command)
+            .params(r#"{"on"?: bool (insert a right-aligned `Punteggio: .......... / 20 pt` line after the caret's paragraph, outside the exercises / remove it), "points"?: number | null (the maximum used when the document's points give none)} → {"on", "points" (the maximum shown), "computed" (the scores table's grand total, else the exercises' question points added up; null without points), "manual"}"#),
         CommandSpec::new("exercise.grading", "Grading Scale", "Teaching › Scores", grading::command)
             .params(r#"{"on"?: bool (insert or remove the strix:grading scale table), "preset"?: "it-10" | "ch-6" | "de-6" | "fr-20" | "percent" | "custom", "maxPoints"?: number | null (null = bound automatically to strix:scores grand total), "minGrade"?: number, "maxGrade"?: number, "passRatio"?: 0.05–0.95, "passGrade"?: number, "curve"?: "linear" | "piecewiseLinear", "step"?: 0.1 | 0.25 | 0.5 | 1.0, "pointsStep"?: number | null, "visibility"?: "teacher" | "both"} → {"on", "config", "maxPoints", "scale": [{"points", "grade", "passing"}]}"#),
         CommandSpec::new("exercise.check", "Check Assessment", "Teaching › Check", check::command)
@@ -1739,7 +1742,7 @@ fn capitalized(t: &str) -> String {
 /// A control of an exercise that never shows a placeholder when emptied: an answer (an empty
 /// space prints empty), the points, an option's box.
 pub(crate) fn no_placeholder(tag: &str) -> bool {
-    [TAG_ANSWER, TAG_POINTS, TAG_BOX, TAG_EXPR, TAG_RATIONALE].contains(&tag)
+    [TAG_ANSWER, TAG_POINTS, TAG_BOX, TAG_EXPR, TAG_RATIONALE, total_score::TAG_SCORE_TOTAL].contains(&tag)
 }
 
 pub(crate) fn results_start(s: &Session) -> Option<usize> {
@@ -1847,6 +1850,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= grading::update(s);
     // The archive's Score property: the scores table's grand total.
     changed |= archive::sync_score(s);
+    // The total score lines: the scores table's grand total or the question points.
+    changed |= total_score::update(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.

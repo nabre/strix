@@ -35,6 +35,8 @@ project owner; this section will list them once they are.
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-13: Calculation result lines for handwriting (`docs/question-modes.md`): a calculation question gets one result line per result (the values found in its space that the working doesn't use afterwards, e.g. `s` and `v`), right-aligned on the margin in tab columns so the `=` line up (label, name, a line to write on, unit), 1 cm apart for values handwritten 8 mm tall; the corrected copy writes the value on the line, underlined, in the answers' colour; the summary lists every result (`c) s = 20 m; v = 10 m/s`), `exercise.questions` adds `lines`; the sample test's quiz asks for two values.
+- 2026-11-13: Scores linked to question points and Total Score (`docs/exercise.md`): an exercise whose questions carry points makes its scores row's total, the criteria before the last keep the partials typed in (cut down to the total) and the last criterion takes the remainder, so the partials always add up; exercises without question points keep a plain typed grid. New `exercise.totalScore` (Teaching › Scores › Total Score, `strix:scoreTotal`): a right-aligned `Punteggio: .......... / 20 pt` line whose maximum is the scores table's grand total, else the question points added up, else one typed in.
 - 2026-11-13: Calculation result line labelled (`docs/question-modes.md`): under a calculation question's squared space the generated line now reads `Answer: s = ______ m` in the students' copy and `Answer: s = 20 m` in the corrected one (*Risposta*, *Réponse*, *Antwort* in the exercise's language), the value in the answers' colour, so it no longer looks like a stray repeat of the working's result; `exercise.questions` and the assessment pack still report the bare `s = 20 m`.
 - 2026-11-13: Question points on the right margin (`docs/exercise.md`): every scored question, in quizzes and problems, ends with a right-aligned positional tab and `.......... / 2 pt` (`P.` in German), the dots left for the score the student gets; documents with the older ` (2 punti)` suffix are rewritten on the next refresh.
 - 2026-11-13: Phase 5 laboratory and teaching work: measurement uncertainties with max/RSS propagation and metrological output (`docs/calc.md`); worked, cloze, table-fill and matching question modes (`docs/question-modes.md`); reversible direct DSA emphasis, tabular digits and guided problem results (`docs/dsa.md`); metadata-only exercise bank, ZIP import on desktop/web and clean master presentation overrides (`docs/archive.md`, `docs/master-documents.md`).
@@ -118,6 +120,8 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-13 | trivial | Progress log: calculation result lines, one per result, right-aligned for handwriting |
+| 2026-11-13 | minor | Scores rows linked to question points (last criterion balances the partials) and the Total Score line (`exercise.totalScore`) |
 | 2026-11-13 | trivial | Progress log: the calculation's result line labelled and coloured as the answer |
 | 2026-11-13 | minor | Question points right-aligned as `.......... / X pt` with room for the score obtained |
 | 2026-11-13 | minor | Phase 5: laboratory uncertainty, four STEM question modes, DSA direct emphasis and digits, exercise bank and master presentation isolation |
