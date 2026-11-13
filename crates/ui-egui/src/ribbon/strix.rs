@@ -49,6 +49,9 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
                     },
                 );
             });
+        });
+        // A stack holds three rows: the grading scale and the total score go in a second column.
+        stack(ui, |ui| {
             grading_scale_menu(ui, app);
             total_score_button(ui, app);
         });
