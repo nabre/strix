@@ -35,6 +35,7 @@ project owner; this section will list them once they are.
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-13: A value with a unit quotient keeps its number out of the fraction (`docs/calc.md`): `v = 90 km/h` reads `90 km/h`, the number times the unit's quotient, instead of `90 km` stacked over `h`.
 - 2026-11-13: Faster pull request checks: a draft PR runs no heavy checks until it is marked Ready for review, and a PR that changes only documentation (Markdown files other than `ATTRIBUTION.md`, which `cargo xtask assets` reads) skips CI, Printing, Packaging lint, FreeBSD and Windows ARM64, the run still ending "success" (`.github/workflows/pr-scope.yml`; the merge's push to `main` runs them, as nothing is recorded as tested); SonarCloud runs only on pushes to `main`, so it no longer takes a runner beside CI on every PR push (docs/releasing.md).
 - 2026-11-13: Calculation result lines for handwriting (`docs/question-modes.md`): a calculation question gets one result line per result (the values found in its space that the working doesn't use afterwards, e.g. `s` and `v`), right-aligned on the margin in tab columns so the `=` line up (label, name, a line to write on, unit), 1 cm apart for values handwritten 8 mm tall; the corrected copy writes the value on the line, underlined, in the answers' colour; the summary lists every result (`c) s = 20 m; v = 10 m/s`), `exercise.questions` adds `lines`; the sample test's quiz asks for two values.
 - 2026-11-13: Scores linked to question points and Total Score (`docs/exercise.md`): an exercise whose questions carry points makes its scores row's total, the criteria before the last keep the partials typed in (cut down to the total) and the last criterion takes the remainder, so the partials always add up; exercises without question points keep a plain typed grid. New `exercise.totalScore` (Teaching › Scores › Total Score, `strix:scoreTotal`): a right-aligned `Punteggio: .......... / 20 pt` line whose maximum is the scores table's grand total, else the question points added up, else one typed in.
@@ -121,6 +122,7 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-13 | trivial | Progress log: a value's number stays out of its unit's quotient (`90 km/h`) |
 | 2026-11-13 | trivial | Progress log: faster pull request checks (drafts and documentation-only PRs skipped, SonarCloud only on `main`) |
 | 2026-11-13 | trivial | Progress log: calculation result lines, one per result, right-aligned for handwriting |
 | 2026-11-13 | minor | Scores rows linked to question points (last criterion balances the partials) and the Total Score line (`exercise.totalScore`) |

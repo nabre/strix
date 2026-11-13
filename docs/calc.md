@@ -337,6 +337,8 @@ or `calc.layout`.
   `1000 kPa`.
 - In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
   linear fraction), while the formula's own fractions stay stacked.
+- A value's number stays out of its unit's quotient: `v = 90 km/h` reads `90 km/h`, the number
+  times the unit, never `90 km` stacked over `h`.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 

@@ -1867,6 +1867,41 @@ fn unit_arg(arg: &wordcraft_doc::math::Arg, units: &[String]) -> bool {
         })
 }
 
+/// When a fraction's numerator is a number then units (`90 km` of `90 km/h`), takes the number
+/// out of it (returned, without the space before the unit) and leaves the units alone in `num`.
+fn split_coefficient(num: &mut wordcraft_doc::math::Arg, units: &[String]) -> Option<String> {
+    use wordcraft_doc::math::MNode;
+    let MNode::Run(first) = num.first()? else { return None };
+    if first.nor {
+        return None;
+    }
+    let spaces = |c: char| c == ' ' || c == '\u{2009}';
+    let numeric = |c: char| c.is_ascii_digit() || matches!(c, '.' | ',' | '-' | '−' | '+');
+    let end = first.text.find(|c: char| !numeric(c)).unwrap_or(first.text.len());
+    let coefficient = first.text.get(..end)?;
+    if !coefficient.contains(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    let rest = first.text.get(end..)?.trim_start_matches(spaces);
+    let mut units_part = num.clone();
+    match rest.is_empty() {
+        true => {
+            units_part.remove(0);
+        }
+        false => {
+            if let Some(MNode::Run(r)) = units_part.first_mut() {
+                r.text = rest.to_string();
+            }
+        }
+    }
+    if !unit_arg(&units_part, units) {
+        return None;
+    }
+    let coefficient = coefficient.to_string();
+    *num = units_part;
+    Some(coefficient)
+}
+
 /// Splits the math runs so each unit is a run of its own, upright in `color`; runs that are no
 /// longer units lose that colour. Other formatting is kept.
 fn style_units(root: &mut wordcraft_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
@@ -1906,6 +1941,18 @@ fn style_parts(root: &mut wordcraft_doc::math::Arg, parts: &[&[String]], color: 
             }
             if prev.text.is_empty() {
                 out.pop();
+            }
+        }
+        // A value with a unit quotient (`90 km/h`) is read as `(90 km)/h`: the number is the
+        // coefficient of the unit, so it goes before the fraction, which keeps the unit alone.
+        if let MNode::Frac { kind, num, den } = &mut n
+            && *kind == wordcraft_doc::math::FracKind::Bar
+            && unit_arg(den, units)
+            && let Some(coefficient) = split_coefficient(num, units)
+        {
+            match out.last_mut() {
+                Some(MNode::Run(prev)) if !prev.nor && prev.color != Some(color) && prev.brk.is_none() => prev.text.push_str(&coefficient),
+                _ => out.push(MNode::Run(MRun { text: coefficient, ..MRun::default() })),
             }
         }
         // A unit with a quotient reads inline, as ISO 80000 writes it (`12 kN/m`, `9.81 m/s²`),
@@ -3264,6 +3311,26 @@ mod tests {
         assert!(text.contains("kN∕m"), "kN/m inline: {text}");
         assert!(text.contains(")/8") || text.contains("/8"), "L²/8 stacked: {text}");
         // Recalculated again, nothing changes.
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "{again}");
+        assert_eq!(maths(&s), all);
+    }
+
+    /// A value with a unit quotient (`v = 90 km/h`) keeps its number before the unit, which alone
+    /// is the fraction (`90 km∕h`, not `90 km` over `h`); a formula's fraction stays stacked.
+    #[test]
+    fn a_values_number_stays_out_of_its_units_quotient() {
+        let mut s = session();
+        for t in ["v_0 = 0 km/h", "v = 90 km/h", "t = 10 s", "a = (v - v_0)/t ="] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let all = maths(&s);
+        let lin = |m: &Math| to_linear(&m.nodes).replace(char::is_whitespace, "");
+        assert_eq!(lin(&all[0]), "v_0=0km∕h");
+        assert_eq!(lin(&all[1]), "v=90km∕h");
+        assert!(lin(&all[3]).starts_with("a=(v-v_0)/t"), "{}", lin(&all[3]));
         let again = s.run("calc.recalculate", &json!({})).unwrap();
         assert_eq!(again["changed"], 0, "{again}");
         assert_eq!(maths(&s), all);
