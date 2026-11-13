@@ -2949,3 +2949,62 @@ paper	Envelope DL	Umschlag DL
 	CAD Drawing Question	Frage mit CAD-Zeichnung
 	Question Type	Fragetyp
 	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Der Aufgabe am Cursor eine Frage eines Typs hinzufügen: offene Antwort, Multiple Choice, wahr oder falsch, Berechnung, CAD-Zeichnung
+# Strix (2026-11-13): CAD arrays from a base point to an end point, and blocks (docs/cad.md).
+	Array: base point	Reihe: Basispunkt
+	Array: end point (the far corner of the grid)	Reihe: Endpunkt (die gegenüberliegende Ecke des Rasters)
+	Array: end point (the items run along the line to it)	Reihe: Endpunkt (die Elemente laufen entlang der Linie bis dorthin)
+	F fit · I exact spacing · S spread · a number: the spacing · 4x3: columns x rows (1xN: along a line)	F bis zum Endpunkt · I genauer Abstand · S verteilt · eine Zahl: der Abstand · 4x3: Spalten x Zeilen (1xN: entlang einer Linie)
+	fit to the end point,	bis zum Endpunkt,
+	exact spacing	genauer Abstand
+	spread within	verteilt innerhalb
+	not set	nicht festgelegt
+	Type the spacing (a length), then the base point	Den Abstand eingeben (eine Länge), dann den Basispunkt
+	A spacing is more than 0	Ein Abstand ist größer als 0
+	Array made, one object:	Reihe erstellt, ein einziges Objekt:
+	spacing	Abstand
+	items	Elemente
+	Spacing	Abstand
+	Fit to the end point (the items typed, the last on the end point)	Bis zum Endpunkt (die eingegebenen Elemente, das letzte auf dem Endpunkt)
+	Exact spacing (as many as fit, the rest left over)	Genauer Abstand (so viele wie passen, der Rest bleibt übrig)
+	Spread evenly (within the spacing, the last on the end point)	Gleichmäßig verteilt (innerhalb des Abstands, das letzte auf dem Endpunkt)
+	Type the spacing first	Zuerst den Abstand eingeben
+	The end point is on the base point: the items would overlap	Der Endpunkt liegt auf dem Basispunkt: die Elemente würden sich überlagern
+	The end point is not a number	Der Endpunkt ist keine Zahl
+	The spacing is longer than from the base point to the end point: no copies	Der Abstand ist länger als vom Basispunkt zum Endpunkt: keine Kopien
+	Nothing to explode: select polylines, rectangles or arrays	Nichts zu zerlegen: Polylinien, Rechtecke oder Reihen auswählen
+	Array: base to end point (fit, exact spacing or spread), one object	Reihe: vom Basispunkt zum Endpunkt (bis zum Endpunkt, genauer Abstand oder verteilt), ein einziges Objekt
+	Block	Block
+	Create\nBlock	Block\nerstellen
+	Insert\nBlock	Block\neinfügen
+	Create Block	Block erstellen
+	Insert Block	Block einfügen
+	Create Block…	Block erstellen…
+	Insert Block…	Block einfügen…
+	No blocks yet: select objects and use Create Block	Noch keine Blöcke: Objekte auswählen und Block erstellen verwenden
+	Create Block: select the objects first	Block erstellen: zuerst die Objekte auswählen
+	base point (Esc cancels)	Basispunkt (Esc bricht ab)
+	insertion point (Esc cancels)	Einfügepunkt (Esc bricht ab)
+	scale	Maßstab
+	Block created:	Block erstellt:
+	Block inserted:	Block eingefügt:
+	Base point	Basispunkt
+	Pick it in the drawing	In der Zeichnung angeben
+	Centre of the selection	Mitte der Auswahl
+	Lower left corner of the selection	Linke untere Ecke der Auswahl
+	Annotative: the same size on paper at every scale	Beschriftungsabhängig: auf dem Papier in jedem Maßstab gleich groß
+	Drawn at the drawing's scale,	Im Maßstab der Zeichnung gezeichnet,
+	Inserted at another scale 1:N it is scaled N / (this N) about its insertion point, and again whenever the drawing's scale changes.	In einem anderen Maßstab 1:N eingefügt, wird er um seinen Einfügepunkt mit N / (dieses N) skaliert, und erneut bei jeder Änderung des Zeichnungsmaßstabs.
+	Plain: the same size in the drawing at every scale (inserted with scale 1).	Normal: in der Zeichnung in jedem Maßstab gleich groß (mit Faktor 1 eingefügt).
+	on paper at	auf dem Papier bei
+	Turn the selected objects into the block	Die ausgewählten Objekte in den Block umwandeln
+	There is already a block with this name	Es gibt bereits einen Block mit diesem Namen
+	annotative,	beschriftungsabhängig,
+	Annotative, drawn at	Beschriftungsabhängig, gezeichnet bei
+	; the drawing is at	; die Zeichnung ist bei
+	proposed scale	vorgeschlagener Faktor
+	It follows the drawing's scale from now on.	Ab jetzt folgt er dem Maßstab der Zeichnung.
+	Plain block: scale 1 keeps the size it was made with.	Normaler Block: Faktor 1 behält die Größe, mit der er erstellt wurde.
+	On paper:	Auf dem Papier:
+	Use the proposed scale	Den vorgeschlagenen Faktor verwenden
+	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	Der Faktor ist eine Zahl größer als 0 (oder ein Verhältnis, 1:2), der Winkel eine Zahl
+	Give the block a name	Dem Block einen Namen geben
