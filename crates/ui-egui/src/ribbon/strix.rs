@@ -9,9 +9,12 @@ use super::shape::alt_text_group;
 use super::{Ui, Value, WordApp, big, big_toggle, group, json, menu_button, mi, small};
 
 /// The Teaching tab (Didattica): the objects for teaching, exercises and their series, the
-/// scores table and graph paper.
+/// scores table, grading scale, assessment check & pack export, and graph paper.
 pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     exercise_group(app, ui);
+    group(ui, "Archive", None, app, |ui, app| {
+        big(ui, app, "folder", "Exercise\nBank", "view.archivePane", json!({}), false);
+    });
     group(ui, "Scores", None, app, |ui, app| {
         let st = app.session.run("exercise.scores", &json!({})).ok().unwrap_or_default();
         let on = st["on"].as_bool().unwrap_or(false);
@@ -47,10 +50,84 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
         });
+        // A stack holds three rows: the grading scale and the total score go in a second column.
+        stack(ui, |ui| {
+            grading_scale_menu(ui, app);
+            total_score_button(ui, app);
+        });
+    });
+    group(ui, "Assessment", None, app, |ui, app| {
+        let check_on = app.session.view.check_pane;
+        big_toggle(ui, app, "checkAssessment", "Check", "view.checkPane", check_on);
+        big(ui, app, "exportPack", "Export\nPack", "file.exportPack", json!({}), false);
     });
     group(ui, "Graph Paper", None, app, |ui, app| {
         graph_paper_button(ui, app);
     });
+}
+
+/// The assessment's total score line (`exercise.totalScore`): inserted at the caret, or removed.
+fn total_score_button(ui: &mut Ui, app: &mut WordApp) {
+    let on = app.session.run("exercise.totalScore", &json!({})).ok().and_then(|st| st["on"].as_bool()).unwrap_or(false);
+    small(
+        ui,
+        app,
+        "calcTotal",
+        Some(if on { "Remove Total Score" } else { "Total Score" }),
+        "A right-aligned line for the score obtained against the total: computed from the points, or typed in",
+        crate::widgets::ButtonAction::new("exercise.totalScore", json!({"on": !on}), false),
+    );
+}
+
+fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
+    let gst = app.session.run("exercise.grading", &json!({})).ok().unwrap_or_default();
+    let g_on = gst["on"].as_bool().unwrap_or(false);
+    let cfg = &gst["config"];
+    let preset = cfg["preset"].as_str().unwrap_or("it-10").to_string();
+    let curve = cfg["curve"].as_str().unwrap_or("linear").to_string();
+    let step = cfg["step"].as_f64().unwrap_or(0.5);
+    let vis = cfg["visibility"].as_str().unwrap_or("teacher").to_string();
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "gradingScale",
+            Some("Grading Scale"),
+            "Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)",
+            false,
+            "exercise.grading",
+        ),
+        |ui, app| {
+            mi_check(ui, app, "Show Grading Scale", g_on, "exercise.grading", json!({"on": !g_on}));
+            ui.separator();
+            for (id, lbl) in [
+                ("it-10", "Italy (1–10)"),
+                ("ch-6", "Switzerland (1–6)"),
+                ("de-6", "Germany (6–1)"),
+                ("fr-20", "France (0–20)"),
+                ("percent", "Percentage (0–100%)"),
+            ] {
+                mi_check(ui, app, lbl, g_on && preset == id, "exercise.grading", json!({"on": true, "preset": id}));
+            }
+            ui.separator();
+            mi_check(ui, app, "Linear Curve", curve == "linear", "exercise.grading", json!({"on": true, "curve": "linear"}));
+            mi_check(
+                ui,
+                app,
+                "Piecewise Curve (Pass Threshold)",
+                curve == "piecewiseLinear",
+                "exercise.grading",
+                json!({"on": true, "curve": "piecewiseLinear"}),
+            );
+            ui.separator();
+            for (st_val, st_lbl) in [(0.1, "Step 0.1"), (0.25, "Step 0.25"), (0.5, "Step 0.5"), (1.0, "Step 1.0")] {
+                mi_check(ui, app, st_lbl, (step - st_val).abs() < 1e-6, "exercise.grading", json!({"on": true, "step": st_val}));
+            }
+            ui.separator();
+            mi_check(ui, app, "Teacher Copy Only", vis == "teacher", "exercise.grading", json!({"on": true, "visibility": "teacher"}));
+            mi_check(ui, app, "Student and Teacher Copies", vis == "both", "exercise.grading", json!({"on": true, "visibility": "both"}));
+        },
+    );
 }
 
 /// The Header & Footer tab, while a header or footer is edited (docs/headers-footers.md): go to
@@ -172,7 +249,7 @@ pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
 /// Teaching › Exercise (docs/exercise.md).
 fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
-        big(ui, app, "exercise", "New\nExercise", "exercise.insert", json!({}), false);
+        new_exercise(ui, app);
         let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
         stack(ui, |ui| {
             small(
@@ -253,6 +330,7 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
                 crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
             );
+            question_type_menu(ui, app);
             // Only with the cursor in an exercise, or whole ones selected.
             let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
             ui.add_enabled_ui(targets, |ui| {
@@ -271,7 +349,36 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
         });
+        // A column of its own: a stack holds three small buttons.
+        stack(ui, |ui| inline_expr_menu(ui, app));
     });
+}
+
+fn inline_expr_menu(ui: &mut Ui, app: &mut WordApp) {
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "inlineExpr",
+            Some("Inline Expression"),
+            "Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)",
+            false,
+            "exercise.insertExpr",
+        ),
+        |ui, app| {
+            let id = egui::Id::unique("inline_expr_draft");
+            let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| "v * t -> m".into());
+            ui.set_min_width(200.0);
+            ui.label(egui::RichText::new(tl!("Parametric expression")).small().weak());
+            let edit = ui.text_edit_singleline(&mut text);
+            let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            ui.data_mut(|d| d.insert_temp(id, text.clone()));
+            if (enter || ui.button(tl!("Insert")).clicked()) && !text.trim().is_empty() {
+                let _ = app.run("exercise.insertExpr", json!({"expr": text.trim()}));
+                ui.close();
+            }
+        },
+    );
 }
 
 /// Insert › Pages › Graph Paper (docs/graph-paper.md).
@@ -388,6 +495,7 @@ Calculation",
                 crate::widgets::ButtonAction::new("calc.recalculate", json!({}), false),
             );
         });
+        big_toggle(ui, app, "variables", "Variables", "view.variablesPane", app.session.view.variables_pane);
     });
     symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {
@@ -414,9 +522,26 @@ Table",
             calc_table_tools(ui, app);
         });
         stack(ui, |ui| calc_table_rows(ui, app));
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "calcTable",
+                Some("Student Blanks"),
+                "Choose which calculated cells students complete",
+                false,
+                "exercise.tableFill",
+            ),
+            |ui, app| {
+                mi(ui, app, "Student Blank Cell", "exercise.tableFill", json!({"studentBlank":true}));
+                mi(ui, app, "Student Blank Column", "exercise.tableFill", json!({"studentBlank":true,"column":true}));
+                mi(ui, app, "Show Cell Value", "exercise.tableFill", json!({"studentBlank":false}));
+            },
+        );
     });
     group(ui, "Number Display", None, app, |ui, app| {
-        let digits = u64::from(app.session.prefs.calc_digits);
+        let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+        let digits = u64::from(eff.digits);
         stack(ui, |ui| {
             small(
                 ui,
@@ -434,14 +559,13 @@ Table",
                 "Show one digit less in results",
                 crate::widgets::ButtonAction::new("calc.options", json!({"digits": digits.saturating_sub(1)}), false),
             );
-            let steps = app.session.prefs.calc_steps;
             small(
                 ui,
                 app,
                 "steps",
                 Some("Show Steps"),
                 "Show the substitution steps of every calculation: the formula with its values, then the result",
-                crate::widgets::ButtonAction::new("calc.steps", json!({}), steps),
+                crate::widgets::ButtonAction::new("calc.steps", json!({}), eff.steps),
             );
         });
         stack(ui, |ui| {
@@ -450,13 +574,24 @@ Table",
                 app,
                 crate::widgets::MenuButtonOptions::new("numberFormat", Some("Rounding"), "How results are rounded", false, "calc.options"),
                 |ui, app| {
-                    let count = app.session.prefs.calc_count.clone();
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let count = wordcraft_engine::cmd::calc::count_name(eff.count);
                     mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
                     mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
                     mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
                     ui.separator();
-                    let zeros = app.session.prefs.calc_zeros;
+                    let zeros = eff.zeros;
                     mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
+                    ui.separator();
+                    mi_check(ui, app, "Maximum Uncertainty", eff.uncertainty.name() == "max", "calc.options", json!({"uncertainty": "max"}));
+                    mi_check(
+                        ui,
+                        app,
+                        "Uncertainty in Quadrature (GUM)",
+                        eff.uncertainty.name() == "rss",
+                        "calc.options",
+                        json!({"uncertainty": "rss"}),
+                    );
                 },
             );
             menu_button(
@@ -470,7 +605,8 @@ Table",
                     "calc.layout",
                 ),
                 |ui, app| {
-                    let lines = app.session.prefs.calc_layout == "lines";
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let lines = eff.layout.name() == "lines";
                     mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
                     mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
                 },
@@ -501,6 +637,9 @@ Drawing",
                 false,
             );
         });
+        big(ui, app, "plot", "Plot", "plot.insert", json!({"openPane": true}), false);
+        let plot_pane = app.session.view.plot_pane;
+        big_toggle(ui, app, "plotProperties", "Plot\nProperties", "view.plotPane", plot_pane);
     });
 }
 
@@ -639,6 +778,55 @@ Table",
     stack(ui, |ui| calc_table_rows(ui, app));
 }
 
+/// Teaching › Exercise › New Exercise: the top part inserts a problem, the menu one of the kinds
+/// (docs/exercise.md, Kinds of exercise).
+fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
+    crate::widgets::big_split(
+        ui,
+        app,
+        crate::widgets::BigSplit {
+            icon: "exercise",
+            label: "New Exercise",
+            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing",
+            action: crate::widgets::ButtonAction::new("exercise.insert", json!({}), false),
+        },
+        |ui, app| {
+            mi(ui, app, "Problem (Statement, Questions, Solution)", "exercise.insert", json!({"kind": "problem"}));
+            mi(ui, app, "Open Answer", "exercise.insert", json!({"kind": "open"}));
+            mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
+            mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
+            mi(ui, app, "Calculation", "exercise.insert", json!({"kind": "calc"}));
+            mi(ui, app, "Worked Example", "exercise.insert", json!({"kind": "worked"}));
+            mi(ui, app, "Inline Completion", "exercise.insert", json!({"kind": "cloze"}));
+            mi(ui, app, "Table to Complete", "exercise.insert", json!({"kind": "tableFill"}));
+            mi(ui, app, "Matching", "exercise.insert", json!({"kind": "matching"}));
+            mi(ui, app, "CAD Drawing Question", "exercise.insert", json!({"kind": "drawing"}));
+        },
+    );
+}
+
+/// Teaching › Exercise › Question Type: adds a question of a mode to the quiz at the cursor
+/// (docs/question-modes.md); one quiz mixes them.
+fn question_type_menu(ui: &mut Ui, app: &mut WordApp) {
+    let tip = "Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing";
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new("addQuestion", Some("Question Type"), tip, false, "exercise.addQuestion"),
+        |ui, app| {
+            mi(ui, app, "Open Answer", "exercise.addQuestion", json!({"type": "open"}));
+            mi(ui, app, "Multiple Choice", "exercise.addQuestion", json!({"type": "choice"}));
+            mi(ui, app, "True or False", "exercise.addQuestion", json!({"type": "trueFalse"}));
+            mi(ui, app, "Calculation", "exercise.addQuestion", json!({"type": "calc"}));
+            mi(ui, app, "CAD Drawing Question", "exercise.addQuestion", json!({"type": "drawing"}));
+            mi(ui, app, "Worked Example", "exercise.addQuestion", json!({"type": "worked"}));
+            mi(ui, app, "Inline Completion", "exercise.addQuestion", json!({"type": "cloze"}));
+            mi(ui, app, "Table to Complete", "exercise.addQuestion", json!({"type": "tableFill"}));
+            mi(ui, app, "Matching", "exercise.addQuestion", json!({"type": "matching"}));
+        },
+    );
+}
+
 /// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
 fn show_menu(ui: &mut Ui, app: &mut WordApp) {
@@ -651,4 +839,142 @@ fn show_menu(ui: &mut Ui, app: &mut WordApp) {
         mi_check(ui, app, "Results in the Summary", results, "exercise.show", json!({"results": !results}));
         mi_check(ui, app, "Graph Paper Before the Solution", grid, "exercise.grid", json!({"on": !grid}));
     });
+}
+
+/// Design › Document Formatting › DSA (docs/dsa.md): the three versions of `design.dsa` as check
+/// boxes, which combine, and None to take them all off.
+pub(super) fn dsa_menu(ui: &mut Ui, app: &mut WordApp) {
+    stack(ui, |ui| {
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "accessibility",
+                Some("DSA"),
+                "DSA formatting: the test laid out for students with specific learning difficulties; the versions combine",
+                false,
+                "design.dsa",
+            ),
+            |ui, app| {
+                let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
+                for (label, key) in
+                    [("Reading (dyslexia)", "reading"), ("Writing (dysgraphia)", "writing"), ("Maths and Memory (dyscalculia)", "math")]
+                {
+                    let on = st[key].as_bool().unwrap_or(false);
+                    mi_check(ui, app, label, on, "design.dsa", json!({ key: !on }));
+                }
+                ui.separator();
+                mi(ui, app, "No DSA Formatting", "design.dsa", json!({"none": true}));
+            },
+        );
+    });
+}
+
+/// Design › Fonts: the typefaces Strix offers without bundling them (Atkinson Hyperlegible and
+/// Lexend, for DSA formatting: docs/dsa.md), heading and body alike. One not installed yet is
+/// downloaded from the font store on the click, which is the person's consent to downloading;
+/// the document takes it at once and shows it as soon as it arrives. Choosing one turns on
+/// Embed Fonts in the File (checked below the fonts), so Word shows it on another computer.
+pub(super) fn offered_fonts(ui: &mut Ui, app: &mut WordApp) {
+    use wordcraft_engine::cmd::font_store::{self, Job, OFFERED};
+    let ctx = ui.ctx().clone();
+    font_store::set_notify(std::sync::Arc::new(move || ctx.request_repaint()));
+    ui.separator();
+    for (family, why) in OFFERED {
+        let installed = font_store::installed(family);
+        let label = match (installed, font_store::job(family)) {
+            (true, _) => family.to_string(),
+            (false, Some(Job::Downloading)) => crate::i18n::fmt(tl!("{font} (downloading…)"), &[("font", family)]),
+            (false, Some(Job::Failed(_))) => crate::i18n::fmt(tl!("{font} (download failed: click to try again)"), &[("font", family)]),
+            (false, None) => crate::i18n::fmt(tl!("{font} (download)"), &[("font", family)]),
+        };
+        let tip = if installed {
+            tl!(why).to_string()
+        } else {
+            format!("{}\n{}", tl!(why), tl!("Downloaded from Google Fonts (SIL Open Font License) on the first click"))
+        };
+        if ui.button(label).on_hover_text(tip).clicked() {
+            if !installed {
+                download_font(app, ui.ctx(), family);
+            }
+            crate::widgets::run_from_ribbon(app, "design.themeFonts", json!({"heading": family, "body": family}));
+            // Another computer seldom has it: a Word document saved from here carries it.
+            if !app.session.doc.settings.embed_fonts {
+                crate::widgets::run_from_ribbon(app, "file.embedFonts", json!({"on": true}));
+            }
+            ui.close();
+        }
+    }
+    let on = app.session.doc.settings.embed_fonts;
+    mi_check(ui, app, "Embed Fonts in the File", on, "file.embedFonts", json!({"on": !on}));
+}
+
+/// Starts downloading `family`, turning downloading on for the person's own click (a click the
+/// control channel made leaves it off and says why).
+fn download_font(app: &mut WordApp, ctx: &egui::Context, family: &str) {
+    use wordcraft_engine::cmd::font_store;
+    let Some(backend) = wordcraft_engine::packs::backend() else {
+        app.status(tl!("Downloading fonts isn't available here").to_string());
+        return;
+    };
+    if !backend.network_on() {
+        if app.input_from_control(ctx) {
+            app.status(tl!("Only you can turn on downloading: click the button yourself. Agents can install once it is on.").to_string());
+            return;
+        }
+        if let Err(e) = backend.enable_network() {
+            app.status(crate::i18n::fmt(tl!("Couldn't turn on downloading: {error}"), &[("error", &e)]));
+            return;
+        }
+    }
+    if let Err(e) = font_store::start(family) {
+        app.status(crate::i18n::fmt(tl!("Couldn't download the font: {error}"), &[("error", &e)]));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::vec2;
+    use super::*;
+    use wordcraft_engine::Session;
+
+    /// Design › Document Formatting › DSA: ticking Reading in the menu turns that version on.
+    #[test]
+    fn the_dsa_menu_turns_a_version_on() {
+        use egui_kittest::kittest::Queryable;
+        let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1600.0, 400.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
+        h.run_steps(2);
+        h.get_by_label("DSA formatting: the test laid out for students with specific learning difficulties; the versions combine").click();
+        h.run_steps(2);
+        h.get_by_label("Reading (dyslexia)").click();
+        h.run_steps(2);
+        let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
+        assert_eq!(st["reading"], true, "{st}");
+        assert_eq!(st["writing"], false, "{st}");
+    }
+
+    /// Design › Fonts offers the DSA typefaces (to download when missing) and Embed Fonts in the
+    /// File, a document setting.
+    #[test]
+    fn the_fonts_menu_offers_the_dsa_fonts_and_embedding() {
+        use egui_kittest::kittest::Queryable;
+        let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1600.0, 900.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
+        h.run_steps(2);
+        h.get_by_label("Theme Fonts").click();
+        h.run_steps(2);
+        for (family, _) in wordcraft_engine::cmd::font_store::OFFERED {
+            assert!(h.query_by_label_contains(family).is_some(), "{family} offered");
+        }
+        h.get_by_label("Embed Fonts in the File").click();
+        h.run_steps(2);
+        assert!(h.state().session.doc.settings.embed_fonts);
+    }
 }

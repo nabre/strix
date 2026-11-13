@@ -48,6 +48,9 @@ pub(super) fn settings_xml(doc: &Document, footnotes: bool, endnotes: bool, temp
     if s.page_color.is_some() || s.page_picture.is_some() {
         w.empty("w:displayBackgroundShape", &[]);
     }
+    if s.embed_fonts {
+        w.empty("w:embedTrueTypeFonts", &[]);
+    }
     if s.mirror_margins {
         w.empty("w:mirrorMargins", &[]);
     }
@@ -107,6 +110,11 @@ pub(super) fn settings_xml(doc: &Document, footnotes: bool, endnotes: bool, temp
     write_compatibility_settings(&mut w, doc);
     if let Some(m) = &s.math {
         math::math_pr(&mut w, m);
+    }
+    if let Some(raw) =
+        doc.passthrough.get("strix:calc.options").and_then(|b| std::str::from_utf8(b).ok()).filter(|s| !s.is_empty() && s.len() <= 4096)
+    {
+        w.empty("strix:calcOptions", &[("xmlns:strix", xml::STRIX_NS), ("strix:val", raw)]);
     }
     w.close("w:settings");
     w.into_bytes()

@@ -5,14 +5,23 @@
 > micro-testi dell'app **Strix**. Modello di riferimento: il manuale di
 > [Atollo](https://github.com/nabre/atollo/blob/main/docs/brand/MARKETING.md), di cui Strix
 > condivide tavolozza e regole di tono.
+>
+> **Ultimo aggiornamento:** 2026-11-12 · **Modifica:** in italiano «momenti di valutazione», mai «verifica» (decisione del proprietario: sito, README, tagline); prima: riposizionamento sul docente (esercizi di
+> calcolo, risposta multipla, verifiche, punteggi, griglia dei voti pianificata): direttive,
+> categoria, definizione canonica, pilastri, «Come funziona», persone, tagline, descrizione del
+> repository, pitch, video e canali.
 
 ---
 
 ## 1. Direttive per chi scrive
 
-1. **Categoria fissa.** Strix è un **editor di documenti con matematica WYSIWYG per l'ingegneria**
-   (EN: *WYSIWYG math document editor for engineering*). Non ridurlo a "calcolatrice",
-   "plugin", "clone di" o "alternativa a" un altro prodotto.
+1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor dei momenti di valutazione e
+   degli esercizi** (EN: *test and exercise editor for teachers*). Il racconto segue sempre la
+   giornata del docente, in quest'ordine: **esercizi di calcolo**, **domande a risposta multipla**,
+   **momenti di valutazione** (compiti in classe, prove), **punteggi** e **griglia per l'assegnazione dei
+   voti**. La matematica viva, il CAD, gli agenti e Rust sono i mezzi che lo rendono possibile, non
+   il titolo. Non ridurre Strix a "calcolatrice", "generatore di quiz", "plugin", "clone di" o
+   "alternativa a" un altro prodotto.
 2. **Nessun confronto con altri prodotti.** Niente tabelle "noi contro loro", niente "meglio di…",
    niente "come X ma…", niente "stile <prodotto>". Si dice cosa fa Strix, come lo fa e cosa
    garantisce. I nomi dei **formati** (DOCX, ODT, RTF, LaTeX, PDF…) si citano: sono formati, non
@@ -21,15 +30,19 @@
 3. **Mai materiale di altri vendor.** Nessuna icona, schermata, modello, font o immagine di
    Microsoft, Adobe, Avid, Autodesk (regola del repository, `CLAUDE.md`). Le schermate sono **solo
    di Strix**, fatte con `ui_shot` su documenti scritti da noi.
-4. **Tono: sobrio, ingegneristico, verificabile.** Niente "rivoluzionario", "magico", "il
-   migliore". Gli ingegneri si convincono con un calcolo che torna: `M = q·L²/8 = 30.375 kN·m`,
-   `σ ≤ f_yd ⇒ 30.375 MPa ≤ 355 MPa ✓`. Un esempio numerico vale più di un aggettivo.
+4. **Tono: concreto, da sala docenti, verificabile.** Niente "rivoluzionario", "magico", "il
+   migliore". Un docente si convince con un momento di valutazione pronto da stampare: l'esercizio con i dati
+   in due varianti, la risposta multipla con le caselle, la tabella dei punteggi che fa da sola i
+   totali. Un esempio concreto vale più di un aggettivo. Il lessico è quello della scuola
+   (momento di valutazione, compito, griglia, punteggio, voto, variante A/B, DSA), non quello del software.
 5. **Trasparenza sullo stato.** Strix è in **alpha**. Ciò che è pianificato si scrive "pianificato"
-   (sezione 8.4), mai al presente. I numeri si prendono dalle fonti (sezione 11), mai a memoria.
+   (sezione 9.4), mai al presente: oggi la **griglia dei voti** (dai punti al voto) è
+   **pianificata**. I numeri si prendono dalle fonti (sezione 11), mai a memoria.
 6. **Parità multilingua: `EN`, `IT`, `FR`, `DE`.** Ogni testo per il pubblico (sito, README,
    tagline) esiste nelle quattro lingue, con le stesse chiavi. L'inglese è la lingua di
-   riferimento; l'app stessa parla 27 lingue.
-7. **Colori solo dalla tavolozza Atollo** (sezione 5), gli stessi di `theme::Tokens` nell'app.
+   riferimento; l'app stessa parla 27 lingue. Nei termini scolastici si usa la parola del paese
+   (IT *momenti di valutazione*, mai *verifica*, FR *évaluation*, DE *Klassenarbeit*, EN *test*), non una traduzione letterale.
+7. **Colori solo dalla tavolozza Atollo** (sezione 6), gli stessi di `theme::Tokens` nell'app.
 
 ---
 
@@ -41,7 +54,8 @@
 | :--- | :--- |
 | **Nome** | **Strix Writer** (dal 2026-11-08). Nome completo nei titoli, negli installer, negli store, sul sito e alla prima menzione; nel testo corrente basta **Strix**, sempre con la S maiuscola. Mai "STRIX" nel testo corrente: solo nel wordmark, che resta STRIX |
 | **Binari** | `strix` (app desktop), `strix-cli` (riga di comando e server MCP), `strix-web` (browser) |
-| **Categoria** | **WYSIWYG math document editor for engineering** |
+| **Pubblico** | **il docente** (scuola secondaria, ITS, università: materie con calcolo, ma non solo) |
+| **Categoria** | **Test and exercise editor for teachers** · *Editor di momenti di valutazione ed esercizi per il docente* |
 | **Formato nativo** | `.xmath` (documento), `.xmathm` (modello); DOCX, ODT, RTF si risalvano nel loro formato solo se il documento non ha oggetti Strix |
 | **Piattaforme** | Windows (x64, x86, ARM64), macOS (universal), Linux (x86_64, aarch64, riscv64), FreeBSD, web (WebAssembly) |
 | **Linguaggio** | Rust puro, nessun `unsafe`, nessun panic nel codice di produzione |
@@ -53,37 +67,40 @@
 ### 2.2 Definizione canonica (base di ogni testo)
 
 * **English:**
-  > **Strix Writer — WYSIWYG math for engineers.**
-  > An open-source document editor, written in Rust, for working out math and engineering
-  > problems. The equations you type in the page are live: they carry units, solve for the
-  > unknown, check limits and update as soon as an input changes. Exercises keep a locked
-  > structure with a results summary, and CAD drawings follow the calculations. Native on
+  > **Strix Writer — tests and exercises for teachers.**
+  > An open-source editor, written in Rust, for preparing tests. Calculation exercises keep their
+  > data, solution and results live, with variants A, B, C for each row of desks; multiple-choice,
+  > true/false and open questions carry their points; one file per exercise makes an archive, and
+  > a test is put together from it, with or without the solutions. A scores table adds the points
+  > up by criterion by itself; a grading grid that turns points into marks is planned. Native on
   > Windows, macOS, Linux and BSD, and in the browser.
 * **Italiano:**
-  > **Strix Writer — Matematica WYSIWYG per l'ingegneria.**
-  > Un editor di documenti open source, scritto in Rust, per risolvere problemi di matematica e
-  > di ingegneria. Le equazioni che scrivi nella pagina sono vive: portano le unità di misura,
-  > ricavano l'incognita, verificano i limiti e si aggiornano appena cambia un dato. Gli esercizi
-  > hanno una struttura bloccata con il riepilogo dei risultati, e i disegni CAD seguono i calcoli.
-  > Nativo su Windows, macOS, Linux e BSD, e nel browser.
+  > **Strix Writer — Momenti di valutazione ed esercizi per il docente.**
+  > Un editor open source, scritto in Rust, per preparare i momenti di valutazione. Gli esercizi di calcolo
+  > tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni fila di banchi; le
+  > domande a risposta multipla, vero/falso e aperte portano il loro punteggio; un file per
+  > esercizio fa l'archivio, e da lì si compone il momento di valutazione, con o senza soluzioni. La tabella dei
+  > punteggi somma da sola i punti per criterio; la griglia che trasforma i punti in voti è
+  > pianificata. Nativo su Windows, macOS, Linux e BSD, e nel browser.
 * **Français :**
-  > **Strix Writer — Les maths WYSIWYG pour l'ingénierie.**
-  > Un éditeur de documents open source, écrit en Rust, pour résoudre des problèmes de
-  > mathématiques et d'ingénierie. Les équations que vous tapez dans la page sont vivantes :
-  > elles portent leurs unités, trouvent l'inconnue, vérifient les limites et se mettent à jour
-  > dès qu'une donnée change. Les exercices gardent une structure verrouillée avec un récapitulatif
-  > des résultats, et les dessins CAO suivent les calculs. Natif sur Windows, macOS, Linux et BSD,
-  > et dans le navigateur.
+  > **Strix Writer — Évaluations et exercices pour l'enseignant.**
+  > Un éditeur open source, écrit en Rust, pour préparer les évaluations. Les exercices de calcul
+  > gardent leurs données, leur corrigé et leurs résultats vivants, avec des variantes A, B, C pour
+  > chaque rangée ; les questions à choix multiples, vrai/faux et ouvertes portent leurs points ;
+  > un fichier par exercice forme une banque, et l'évaluation se compose à partir d'elle, avec ou
+  > sans corrigé. Un tableau des points fait seul les totaux par critère ; une grille qui
+  > convertit les points en notes est prévue. Natif sur Windows, macOS, Linux et BSD, et dans le
+  > navigateur.
 * **Deutsch:**
-  > **Strix Writer — WYSIWYG-Mathematik für Ingenieure.**
-  > Ein quelloffener Dokumenteditor in Rust, um Mathematik- und Ingenieuraufgaben zu lösen. Die
-  > Gleichungen, die du in die Seite schreibst, leben: Sie tragen Einheiten, lösen nach der
-  > Unbekannten auf, prüfen Grenzwerte und rechnen neu, sobald sich ein Wert ändert. Übungen
-  > behalten eine gesperrte Struktur mit Ergebnisübersicht, und CAD-Zeichnungen folgen den
-  > Berechnungen. Nativ unter Windows, macOS, Linux und BSD, und im Browser.
+  > **Strix Writer — Klassenarbeiten und Übungen für Lehrkräfte.**
+  > Ein quelloffener Editor in Rust, um Klassenarbeiten vorzubereiten. Rechenaufgaben halten
+  > Angaben, Lösung und Ergebnisse lebendig, mit Varianten A, B, C für jede Bankreihe;
+  > Multiple-Choice-, Richtig/Falsch- und offene Fragen tragen ihre Punkte; eine Datei pro Aufgabe
+  > ergibt eine Aufgabensammlung, aus der die Klassenarbeit entsteht, mit oder ohne Lösungen. Eine
+  > Punktetabelle summiert selbst nach Kriterien; ein Notenschlüssel, der Punkte in Noten umrechnet,
+  > ist geplant. Nativ unter Windows, macOS, Linux und BSD, und im Browser.
 
 ---
-
 ## 3. Narrativa: perché "Strix"
 
 **Strix** è il genere dei gufi (l'allocco, *Strix aluco*, è il più comune in Europa). Il gufo vede
@@ -107,47 +124,56 @@ ornitologico nell'interfaccia no.
 
 ## 4. Pilastri del valore (4 + 1 fondamento)
 
-Ogni presentazione completa si regge su questi cinque punti, in quest'ordine.
+Ogni presentazione completa si regge su questi cinque punti, in quest'ordine: è la giornata del
+docente, dalla preparazione al voto.
 
-1. **Matematica WYSIWYG viva** — il nucleo
-   * Nessun foglio separato, nessuna cella di codice, nessuna barra della formula: l'equazione
-     scritta con l'editor di equazioni *è* il calcolo, impaginata come matematica.
-   * **Un solo `=`** per tutto: definizione (`L = 4.5 m`), risultato (`M =`, o `M = kN·m` per
-     scegliere l'unità), formula con valore (`M = q·L²/8 =`), equazione da **risolvere** per la sua
-     unica incognita (`F = m·a`), **verifica** (`≤ ≥ < > ≠` con ✓/✗).
-   * **Unità ovunque**: SI con prefissi, unità tecniche (`kN`, `MPa`, `bar`, `kWh`…),
-     adimensionali conservate (`%`, `‰`, `°`, `rad`); errori dimensionali intercettati
-     (`2 m + 3 s`); unità di lavoro che seguono ciò che scrivi; suggerimento sulle maiuscole
-     ("forse kN?").
-   * **Passaggi della soluzione**, **tabelle calcolate** con colonne in unità e totali, **Σ/∏,
-     intervalli, vettori**, **formato numerico**. Un errore mostra `⚠` e il resto del foglio
-     continua a calcolare.
-2. **Esercizi con struttura bloccata**
-   * Titolo, testo, dati, domande annidate su tre livelli (a), a.1), a.1.1)), soluzione con ogni
-     domanda ripetuta in sola lettura, **riepilogo dei risultati** unico a fine documento.
-   * Ogni esercizio è una **sandbox di calcolo**: due esercizi possono definire entrambi `L`.
-   * **Varianti** A, B, C… dei dati: sceglierne una ricalcola tutto.
-3. **Disegni CAD guidati dai calcoli**
-   * Coordinate, raggi e angoli come **espressioni dei parametri** (`["L", 0]`, `L/2 + 0.3`):
-     cambi `L = 4.5 m` e la trave si ridisegna; le quote leggono `{{L}}`.
-   * Editor sul foglio del disegno con riga di comando (`@dx,dy`, `@d<a`), **snap esatti** sulle
-     curve vere (kernel geometrico verificato a 1e-9), grip che conservano le espressioni
-     (`L` → `L + 0.5`), pannello Proprietà e layer.
-   * Salvato come JSON nel `.xmath` con un'immagine SVG automatica: altri programmi lo mostrano.
-4. **Un documento vero, e pilotabile da agenti**
-   * Sotto c'è un editor completo: barra multifunzione, stili, elenchi, tabelle, note,
-     citazioni, sommari, commenti, revisioni, ortografia e sillabazione, stampa, carta a
-     quadretti, 27 lingue dell'interfaccia.
-   * **Tutto è un comando** con id e parametri: barra multifunzione, scorciatoie, ricerca dei
-     comandi, `strix-cli`, canale di controllo e **server MCP** usano lo stesso registro. Le
-     chiamate programmatiche non aprono mai finestre di dialogo.
-5. **Il fondamento: Rust, ovunque, senza crash**
-   * Una sola base di codice Rust per Windows, macOS, Linux, FreeBSD e il browser (WebAssembly).
+1. **Esercizi di calcolo** — il nucleo
+   * Didattica › Nuovo esercizio: titolo, testo, **dati** (simbolo, descrizione, valore, unità),
+     domande annidate su tre livelli (a), a.1), a.1.1)), **soluzione** con ogni domanda ripetuta e
+     lo spazio per svolgerla, **riepilogo dei risultati** unico a fine documento. La struttura
+     non si rompe modificando.
+   * **Varianti** A, B, C… dei dati: sceglierne una ricalcola dati, soluzione e riepilogo. Una
+     fila di banchi, una variante, nessuna soluzione da rifare a mano.
+   * Sotto c'è la **matematica viva**: l'equazione scritta nella pagina *è* il calcolo, con un
+     solo `=` (definisce `t = 10 s`, mostra `s = a·t²/2 =`, risolve `v² = 2·a·d`, verifica
+     `s ≤ 150 m ✓`), **unità** controllate a ogni passo, **passaggi della soluzione**, tabelle
+     calcolate. Ogni esercizio è una **sandbox**: due esercizi possono definire entrambi `t`.
+   * Disegni **CAD** che seguono i dati (cambi `b` e il triangolo si ridisegna) e **carta a quadretti**
+     dopo le domande, come sul quaderno.
+2. **Domande a risposta multipla, vero/falso e aperte**
+   * Tipi di esercizio: **problema**, **risposta aperta** (uno spazio di altezza data in cm, a
+     quadretti o bianco), **risposta multipla** (opzioni A), B), C)… con le caselle; più risposte
+     giuste ammesse) e **vero/falso**.
+   * Le risposte giuste si spuntano nell'esercizio e si **nascondono insieme alla soluzione**: lo
+     spazio resta, la pagina dello studente non cambia impaginazione.
+   * Ogni domanda ha i suoi **punti**, mostrati accanto e sommati nella tabella dei punteggi.
+3. **Momenti di valutazione: dall'archivio al compito in classe**
+   * **Un file per esercizio** è l'archivio, con le sue proprietà (classe, indirizzo, materia,
+     docente, durata, punteggio) leggibili anche da Word.
+   * Un **documento master** compone la serie da consegnare: numerazione, frontespizio, salti di
+     pagina, parti mostrate (con o senza soluzione e risultati) restano del master, i file
+     dell'archivio non cambiano mai.
+   * **Formattazione DSA** (Lettura, Scrittura, Calcolo e memoria, combinabili) applicata alla
+     stesso documento, pagina sempre bianca; esportazione in **PDF** per la stampa.
+4. **Punteggi e griglia dei voti**
+   * **Tabella dei punteggi** (Didattica › Punteggi): una riga per esercizio, una coppia di colonne
+     per criterio (IMP, MOD, CAL/RIS…: punti ottenuti e punti massimi), **totali** per riga e per
+     colonna che seguono mentre si scrive. Il totale è la proprietà **Punteggio** del file.
+   * **Griglia per l'assegnazione dei voti** (dai punti al voto, con soglie e arrotondamenti):
+     **pianificata**. Fino ad allora si scrive solo "pianificata".
+5. **Il fondamento: un documento vero, ovunque, senza crash**
+   * Sotto c'è un editor completo: barra multifunzione, stili, elenchi, tabelle, note, commenti,
+     revisioni, ortografia, stampa, 27 lingue dell'interfaccia; apre e risalva DOCX finché il
+     documento non ha oggetti Strix.
+   * Una sola base di codice Rust per Windows, macOS, Linux, FreeBSD e il browser (WebAssembly):
+     la versione web non richiede installazione sui PC del laboratorio.
    * **Mai un crash**: nessun `unwrap`, `expect` o `unsafe` nel codice di produzione; ogni comando
      è provato con parametri ostili; un panic sfuggito diventa un errore e il documento viene
      ripristinato.
    * **Privacy**: nessuna telemetria, nessun account, nessun controllo aggiornamenti; la rete si
      usa solo quando lo chiedi tu ([`docs/code-signing.md`](../code-signing.md), «Privacy»).
+   * **Tutto è un comando** con id e parametri (barra multifunzione, `strix-cli`, **server MCP**):
+     un agente AI può preparare un esercizio o un intero momento di valutazione.
 
 ---
 
@@ -158,13 +184,12 @@ Sono la sezione «Come funziona» del sito (`site/strings/*.json`, chiavi `a1…
 
 | Aspetto | Cosa dire | Fatti da citare |
 | :--- | :--- | :--- |
-| **La pagina è il foglio di calcolo** | Scrivi il problema come su carta; le equazioni calcolano dove sono. | Lettura in ordine di lettura, ricalcolo dopo ogni modifica (quando il cursore lascia l'equazione), su F9 e all'apertura. |
-| **Un `=` capisce cosa intendi** | Definisce, mostra, risolve o verifica a seconda di ciò che è già noto. | `L = 4.5 m`, `M = q·L²/8 =`, `F = m·a ⇒ a = 2.5 m/s²`, `σ ≤ f_yd ✓`. |
-| **Le unità sono controllate a ogni passo** | Quantità, non numeri: un errore di dimensione non passa mai in silenzio. | SI e tecniche con prefissi, adimensionali conservate, unità di lavoro, suggerimenti. |
-| **Tutto resta vivo, il file resta standard** | Risultati, tabelle, esercizi e disegni si aggiornano; il `.xmath` è un pacchetto OOXML che altri programmi aprono con gli ultimi valori calcolati. | Esporta copie statiche in PDF, PNG, LaTeX, HTML, Markdown; apre DOCX, DOC, ODT, RTF, HTML, Markdown, LaTeX, TXT e risalva DOCX, ODT, RTF, TXT finché il documento non ha oggetti Strix (calcoli, tabelle calcolate, esercizi, CAD, quadretti): con questi, `.xmath` è obbligatorio, così nulla di vivo va perso. |
+| **Ogni esercizio è un calcolo** | Dati, soluzione e risultati si calcolano nella pagina; cambi un dato e tutto segue. | Varianti A/B/C, un solo `=`, unità controllate, riepilogo dei risultati, sandbox per esercizio. |
+| **Ogni tipo di domanda** | Problemi, risposte aperte, risposta multipla e vero/falso nello stesso momento di valutazione, ciascuno col suo punteggio. | Caselle spuntate sulle risposte giuste, nascoste con la soluzione; spazio di risposta in cm, a quadretti o bianco. |
+| **Dall'archivio al momento di valutazione** | Un file per esercizio; il master compone il momento di valutazione e lo impagina a modo suo senza toccare l'archivio. | Frontespizio, numerazione, con o senza soluzioni, formattazione DSA, PDF; proprietà d'archivio leggibili da Word. |
+| **I punti si sommano da soli** | La tabella dei punteggi fa i totali per criterio ed esercizio mentre scrivi. | Criteri a due colonne (ottenuti/massimi), totale = proprietà Punteggio; griglia dei voti **pianificata**. |
 
 ---
-
 ## 6. Colori (tavolozza Atollo)
 
 Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
@@ -231,38 +256,44 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 ## 8. Messaggi per pubblico
 
-### Persona 1 — L'ingegnere che scrive relazioni di calcolo
+### Persona 1 — Il docente (pubblico principale)
 
-* **Dolore:** il calcolo vive in un foglio elettronico o in uno script, la relazione in un altro
-  file; ogni modifica di un dato significa ricopiare formule e numeri, e un'unità sbagliata passa
-  inosservata fino alla verifica.
-* **Hook:** *"Scrivi l'equazione. Calcola."* · *"La relazione è il calcolo."*
-* **Da mostrare:** la trave appoggiata (`L`, `q`, `M = q·L²/8 =`, `σ ≤ f_yd ✓`), i passaggi della
-  soluzione, la tabella calcolata con più travi, il disegno CAD che si ridisegna con `L`,
-  l'esportazione PDF.
+* **Chi è:** insegna matematica, fisica, materie tecniche (ma anche altre materie con domande a
+  risposta multipla) e prepara compiti e momenti di valutazione ogni settimana, spesso in più varianti e per
+  studenti con DSA.
+* **Dolore:** riscrivere lo stesso esercizio con dati diversi per ogni fila e ricalcolare a mano
+  le soluzioni; tenere allineati testo, soluzione e risultati; impaginare la versione con e senza
+  soluzioni; sommare i punti e convertirli in voti a fine correzione; rifare il compito in
+  formato DSA.
+* **Hook:** *"Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix."* · *"Un esercizio, tante
+  varianti, nessuna soluzione da rifare."*
+* **Da mostrare, in quest'ordine:** un esercizio di calcolo con dati in due varianti (A e B) che
+  ricalcolano la soluzione; una domanda a risposta multipla con la casella giusta spuntata che
+  sparisce nascondendo la soluzione; il master che compone il momento di valutazione dall'archivio con il
+  frontespizio; la tabella dei punteggi che fa i totali; la versione DSA; il PDF.
 
-### Persona 2 — Il docente
-
-* **Dolore:** preparare esercizi con dati diversi per ogni compito, tenere allineati testo,
-  soluzione e risultati, e impedire che la struttura si rompa modificando.
-* **Hook:** *"Un esercizio, tante varianti, nessuna soluzione da rifare."*
-* **Da mostrare:** Math › Esercizio, domande annidate, varianti A/B/C che ricalcolano tutto,
-  riepilogo dei risultati, carta a quadretti, esportazione LaTeX e PDF.
-
-### Persona 3 — Lo studente
+### Persona 2 — Lo studente
 
 * **Dolore:** risolvere problemi a mano con le unità, sbagliare una conversione, non capire dove.
 * **Hook:** *"Le unità non ti tradiscono più."*
 * **Da mostrare:** errore dimensionale intercettato, suggerimento "forse kN?", passaggi della
   soluzione, la versione web (niente installazione sul PC del laboratorio), gratis e open source.
 
+### Persona 3 — L'ingegnere e il tecnico
+
+* **Dolore:** il calcolo vive in un foglio elettronico, la relazione in un altro file; ogni
+  modifica di un dato significa ricopiare formule e numeri.
+* **Hook:** *"Scrivi l'equazione. Calcola."*
+* **Da mostrare:** la trave appoggiata (`L`, `q`, `M = q·L²/8 =`, `σ ≤ f_yd ✓`), la tabella
+  calcolata, il disegno CAD che si ridisegna con `L`.
+
 ### Persona 4 — Lo sviluppatore che lavora con agenti AI
 
 * **Dolore:** gli agenti producono numeri in chat, non documenti verificabili.
 * **Hook:** *"Ogni azione è un comando. Anche per il tuo agente."*
-* **Da mostrare:** `claude mcp add strix -- strix-cli mcp`, `calc.insert`, `batch`,
-  `render_page`, l'agente che scrive un esercizio e lo salva come `.xmath`; cartelle confinate
-  (`--automation-read-root`, `--automation-write-root`).
+* **Da mostrare:** `claude mcp add strix -- strix-cli mcp`, `exercise.insert`, `exercise.scores`,
+  `batch`, `render_page`: l'agente che prepara un momento di valutazione con varianti e la salva come `.xmath`;
+  cartelle confinate (`--automation-read-root`, `--automation-write-root`).
 
 ---
 
@@ -272,125 +303,135 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 | Formato | EN | IT | FR | DE |
 | :--- | :--- | :--- | :--- | :--- |
-| **Categoria** | WYSIWYG math for engineers | Matematica WYSIWYG per l'ingegneria | Les maths WYSIWYG pour l'ingénierie | WYSIWYG-Mathematik für Ingenieure |
-| **Hero** | Type the equation. It calculates. | Scrivi l'equazione. Calcola. | Tapez l'équation. Elle calcule. | Gleichung tippen. Sie rechnet. |
-| **Tecnica** | Units, solving, checks and drawings, live in the page. | Unità, soluzioni, verifiche e disegni, vivi nella pagina. | Unités, résolution, vérifications et dessins, vivants dans la page. | Einheiten, Lösen, Nachweise und Zeichnungen, live auf der Seite. |
+| **Categoria** | Tests and exercises for teachers | Momenti di valutazione ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
+| **Hero** | Write the test. Strix keeps the solutions and the scores. | Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
+| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, momenti di valutazione e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
 | **Fiducia** | Open source. No account. No telemetry. Never crashes by design. | Open source. Nessun account. Nessuna telemetria. Progettato per non andare in crash. | Open source. Sans compte. Sans télémétrie. Conçu pour ne jamais planter. | Open Source. Kein Konto. Keine Telemetrie. Absturzfrei konstruiert. |
 
 ### 9.2 Descrizione del repository GitHub (≤ 350 caratteri)
 
-> WYSIWYG math for engineers: an open-source Rust document editor where equations calculate live,
-> with units, solving, checks, exercises and CAD drawings driven by the results. Windows, macOS,
-> Linux, BSD and the web. Scriptable over CLI and MCP.
+> Tests and exercises for teachers: an open-source Rust editor for calculation exercises with
+> live solutions and variants, multiple-choice and open questions, tests assembled from an
+> archive, and scores tables that add up by themselves. Windows, macOS, Linux, BSD and the web.
 
 * **Homepage:** `https://nabre.github.io/strix/`
-* **Topics:** `rust`, `wysiwyg`, `math`, `engineering`, `calculation`, `units`,
-  `equation-editor`, `document-editor`, `engineering-calculations`, `cad`, `education`,
-  `exercises`, `mcp`, `egui`, `webassembly`, `cross-platform`, `open-source`
+* **Topics:** `education`, `teachers`, `teaching`, `exercises`, `tests`, `quiz`,
+  `multiple-choice`, `assessment`, `grading`, `math`, `wysiwyg`, `units`, `document-editor`,
+  `rust`, `mcp`, `webassembly`, `cross-platform`, `open-source`
 * **Social preview:** caricare `docs/brand/social.png` (Settings › General › Social preview).
 
 Comando (da eseguire a mano, lo decide il proprietario):
 
 ```sh
 gh repo edit nabre/strix \
-  --description "WYSIWYG math for engineers: an open-source Rust document editor where equations calculate live, with units, solving, checks, exercises and CAD drawings driven by the results." \
+  --description "Tests and exercises for teachers: an open-source Rust editor for calculation exercises with live solutions and variants, multiple-choice and open questions, tests assembled from an archive, and scores tables that add up by themselves." \
   --homepage https://nabre.github.io/strix/ \
-  --add-topic rust,wysiwyg,math,engineering,calculation,units,equation-editor,document-editor,engineering-calculations,cad,education,exercises,mcp,egui,webassembly,cross-platform,open-source
+  --add-topic education,teachers,teaching,exercises,tests,quiz,multiple-choice,assessment,grading,math,wysiwyg,units,document-editor,rust,mcp,webassembly,cross-platform,open-source
 ```
 
 ### 9.3 Elevator pitch (README, pagina "Informazioni", store)
 
 **EN:**
-> **Strix Writer** is an open-source document editor for math and engineering problems, written in pure
-> Rust. You write the problem as you would on paper (text, tables, equations, drawings), and the
-> equations are live: they carry units, solve for the unknown, check limits and update as soon as
-> an input changes. Exercises keep a locked structure with variants and a results summary; CAD
-> drawings take their coordinates from the calculations. It saves `.xmath` files that other
-> programs open with the last computed values (and DOCX, ODT or RTF back, for documents without
-> Strix objects), exports PDF, PNG, LaTeX, HTML and Markdown, and
-> every action is a command that a script or an AI agent can run over the CLI or MCP. Native on
-> Windows, macOS, Linux and FreeBSD, and in the browser. MIT or Apache-2.0.
+> **Strix Writer** is an open-source editor for preparing tests, written in pure Rust. Calculation
+> exercises keep their data, solution and results live: the equations in the page calculate,
+> with units, and variants A, B, C give each row of desks its own numbers without redoing a
+> single solution. Multiple-choice, true/false and open questions carry their points, and the
+> correct answers hide with the solution. One file per exercise makes an archive; a master
+> document puts a test together from it, with its own cover page, numbering and DSA formatting,
+> with or without the solutions, and never changes the archive. A scores table adds the points up
+> by criterion as you type; a grading grid from points to marks is planned. It saves `.xmath`
+> files that other programs open with the last computed values, exports PDF, and every action is
+> a command that a script or an AI agent can run. Native on Windows, macOS, Linux and FreeBSD, and
+> in the browser. MIT or Apache-2.0.
 
 **IT:**
-> **Strix Writer** è un editor di documenti open source per problemi di matematica e ingegneria, scritto
-> interamente in Rust. Scrivi il problema come su carta (testo, tabelle, equazioni, disegni) e le
-> equazioni sono vive: portano le unità, ricavano l'incognita, verificano i limiti e si aggiornano
-> appena cambia un dato. Gli esercizi hanno una struttura bloccata con varianti e riepilogo dei
-> risultati; i disegni CAD prendono le coordinate dai calcoli. Salva file `.xmath` che altri
-> programmi aprono con gli ultimi valori calcolati (e DOCX, ODT o RTF nel loro formato, per i
-> documenti senza oggetti Strix), esporta PDF, PNG, LaTeX, HTML e Markdown, e
-> ogni azione è un comando che uno script o un agente AI può eseguire da CLI o MCP. Nativo su
+> **Strix Writer** è un editor open source per preparare i momenti di valutazione, scritto interamente in
+> Rust. Gli esercizi di calcolo tengono vivi dati, soluzione e risultati: le equazioni nella
+> pagina calcolano, con le unità, e le varianti A, B, C danno a ogni fila di banchi i suoi numeri
+> senza rifare una sola soluzione. Le domande a risposta multipla, vero/falso e aperte portano il
+> loro punteggio, e le risposte giuste si nascondono con la soluzione. Un file per esercizio fa
+> l'archivio; un documento master ne compone il momento di valutazione, con il suo frontespizio, la sua
+> numerazione e la formattazione DSA, con o senza soluzioni, senza mai toccare l'archivio. La
+> tabella dei punteggi somma i punti per criterio mentre scrivi; la griglia dai punti ai voti è
+> pianificata. Salva file `.xmath` che altri programmi aprono con gli ultimi valori calcolati,
+> esporta in PDF, e ogni azione è un comando che uno script o un agente AI può eseguire. Nativo su
 > Windows, macOS, Linux e FreeBSD, e nel browser. MIT o Apache-2.0.
 
 ### 9.4 Pianificato (si scrive sempre "pianificato")
 
-Pannello Variabili, selettore di unità, `°C`/`°F`, funzioni utente `f(x) = …`, matrici, sistemi di
-equazioni, grafici; per il CAD offset, taglia, estendi, raccorda, specchia, quote angolari,
-tratteggi, vincoli e quote guidanti. Fonte: README, «Status and roadmap».
+**Griglia per l'assegnazione dei voti** (dai punti al voto: soglie, scala, arrotondamento, voto
+per studente); tabella dei risultati per esercizio e controllo dei valori attesi; riepilogo per
+variante; pannello Archivio e ricerca nell'archivio; per il calcolo pannello Variabili, selettore
+di unità, `°C`/`°F`, funzioni utente `f(x) = …`, matrici, sistemi, grafici; per il CAD gli
+strumenti di modifica, tratteggi, quote angolari e vincoli. Fonti: README («Status and
+roadmap»), `docs/exercise.md` e `docs/archive.md` («Next»).
 
 ---
 
 ## 10. Lancio e promozione ("mostra, non dire")
 
-### 10.1 Video di 40 secondi: *"Change one number"*
+### 10.1 Video di 40 secondi: *"One exercise, every row"*
 
-1. **0:00–0:10** Documento vuoto. Si scrive `L = 4.5 m`, `q = 12 kN/m`, `M = q·L²/8 =`: compare
-   `30.375 kN·m`.
-2. **0:10–0:20** `σ ≤ f_yd`: compare `✓`. Show Steps: la soluzione si dispone allineata a `=`.
-3. **0:20–0:32** Sotto, il disegno CAD della trave con la quota `L = 4.5 m`. Si cambia `L` in
-   `6 m`: momento, verifica (ora ✗ in arancio), quota e disegno cambiano insieme.
-4. **0:32–0:40** Wordmark su `#1F1F1F`, accento `#10B981`: *"Strix — Type the equation. It
-   calculates."* e l'indirizzo del sito.
+1. **0:00–0:10** Didattica › Nuovo esercizio: un'automobile che parte da ferma, dati `v = 90 km/h`,
+   `t = 10 s`, domanda a) «l'accelerazione»; nella soluzione `a = v/t =` mostra `2.5 m/s²`.
+2. **0:10–0:20** Variante B: `v = 72 km/h`. Soluzione (`a = 2 m/s²`) e riepilogo dei risultati
+   cambiano da soli.
+3. **0:20–0:30** Un esercizio a risposta multipla: la casella giusta è spuntata; Mostra › Soluzione
+   spento: le spunte spariscono, lo spazio resta.
+4. **0:30–0:36** La tabella dei punteggi in frontespizio: si scrivono i punti, i totali seguono.
+5. **0:36–0:40** Wordmark su `#1F1F1F`, accento `#10B981`: *"Strix — Write the test. Strix keeps
+   the solutions and the scores."* e l'indirizzo del sito.
 
 Registrazione: solo finestre di Strix (`ui_shot` o la finestra dell'app per id), mai il desktop.
 
 ### 10.2 Canali e testi pronti
 
-**Hacker News (`Show HN`)**
+**Scuole, università, ITS (canale principale)**
 
-* *Titolo:* `Show HN: Strix – A Rust document editor where the equations calculate, with units`
-* *Primo commento:*
-
-  > Hi HN, Strix is a document editor for working out engineering problems. You type an equation
-  > with the equation editor, and it is the calculation: `L = 4.5 m`, `M = q·L²/8 =` shows
-  > `30.375 kN·m`, `F = m·a` solves for the one unknown, `σ ≤ f_yd` shows ✓ or ✗. Units are
-  > checked on every step. Exercises have a locked structure with data variants, and CAD drawings
-  > take their coordinates from the calculation's parameters, so changing `L` redraws the beam.
-  >
-  > It is pure Rust (egui front end, vello_cpu rendering, krilla for PDF), one code base for
-  > Windows, macOS, Linux, FreeBSD and WebAssembly. Every action is a command in one registry,
-  > so the same ids run from the ribbon, the CLI, a local control channel and an MCP server.
-  > Production code has no unwrap/expect/unsafe, and every command is fuzzed with hostile
-  > parameters. It is a fork of the WordCraft word processor, which gives it a real document
-  > model underneath (styles, references, track changes, DOCX import).
-  >
-  > It's alpha. I'd love feedback on the `=` semantics and on which unit systems you need.
+Proposta: il docente prepara un esercizio per file, compone il momento di valutazione da un master, stampa la
+variante A e la variante B in PDF, la versione DSA dallo stesso documento, e la tabella dei
+punteggi è già pronta per la correzione. La versione web non richiede installazione sui PC del
+laboratorio. Gratis, open source, senza account. Luoghi: gruppi e forum di docenti per materia,
+animatori digitali, corsi di formazione, dipartimenti di matematica e di discipline tecniche.
 
 **Reddit**
 
-* `r/rust` — angolo tecnico: registro comandi, niente panic, wasm, egui. Titolo: *"Strix: a pure
-  Rust WYSIWYG math editor (egui + wasm) where equations calculate with units"*.
-* `r/engineering`, `r/StructuralEngineering`, `r/civilengineering`, `r/MechanicalEngineering` —
-  angolo pratico: la trave con la verifica e il disegno. Titolo: *"I built a free document editor
-  where the equations in your calc report calculate themselves (with units)"*. Una sola immagine:
-  la schermata hero.
-* `r/matheducation`, `r/Teachers` — gli esercizi con varianti.
-* `r/ClaudeAI`, `r/LocalLLaMA` — MCP: un agente scrive ed esegue un esercizio.
+* `r/Teachers`, `r/matheducation`, `r/physicsteachers`, `r/ScienceTeachers` — angolo pratico: un
+  compito con varianti e punteggi. Titolo: *"I built a free editor for tests: calculation
+  exercises with variants, multiple choice and a scores table that adds itself up"*. Una sola
+  immagine: il compito con la tabella dei punteggi.
+* `r/rust` — angolo tecnico: registro comandi, niente panic, wasm, egui.
+* `r/engineering`, `r/StructuralEngineering` — la trave con la verifica e il disegno.
+* `r/ClaudeAI`, `r/LocalLLaMA` — MCP: un agente prepara un compito con varianti.
+
+**Hacker News (`Show HN`)**
+
+* *Titolo:* `Show HN: Strix – A Rust editor for teachers' tests, where the exercises calculate`
+* *Primo commento:*
+
+  > Hi HN, Strix is an editor for preparing school tests. A calculation exercise has data,
+  > questions and a solution whose equations calculate, with units (`M = q·L²/8 =` shows
+  > `30.375 kN·m`), and variants A/B/C of the data recalculate the solution, so each row of desks
+  > gets its own numbers. Multiple-choice, true/false and open questions carry their points; a
+  > scores table adds them up by criterion. One file per exercise is the archive, and a master
+  > document assembles the test with or without solutions, without touching the files.
+  >
+  > It is pure Rust (egui front end, vello_cpu rendering, krilla for PDF), one code base for
+  > Windows, macOS, Linux, FreeBSD and WebAssembly. Every action is a command in one registry,
+  > so the same ids run from the ribbon, the CLI and an MCP server. Production code has no
+  > unwrap/expect/unsafe. It is a fork of the WordCraft word processor, which gives it a real
+  > document model underneath.
+  >
+  > It's alpha. I'd love feedback from teachers on what a grading grid should do.
 
 **Post breve (X, Mastodon, Bluesky, LinkedIn)**
 
-* EN: *Type `M = q·L²/8 =` and get `30.375 kN·m`. Change `L` and the result, the check and the
-  drawing follow. Strix: an open-source WYSIWYG math editor in Rust. Windows, macOS, Linux, BSD,
-  web. https://nabre.github.io/strix/*
-* IT: *Scrivi `M = q·L²/8 =` e ottieni `30.375 kN·m`. Cambi `L` e risultato, verifica e disegno
-  seguono. Strix: editor open source di matematica WYSIWYG in Rust. Windows, macOS, Linux, BSD,
-  web. https://nabre.github.io/strix/it/*
-
-**Scuole, università, ITS**
-
-Proposta: la versione web non richiede installazione sui PC del laboratorio; il docente prepara un
-esercizio con varianti, lo esporta in PDF per il compito e distribuisce il `.xmath` per la
-correzione. Gratis, open source, senza account.
+* EN: *One exercise, variants A and B, solutions recalculated, multiple choice, a scores table
+  that adds itself up. Strix: an open-source editor for teachers' tests. Windows, macOS, Linux,
+  BSD, web. https://nabre.github.io/strix/*
+* IT: *Un esercizio, varianti A e B, soluzioni ricalcolate, risposta multipla, tabella dei
+  punteggi che somma da sola. Strix: editor open source per i momenti di valutazione. Windows, macOS, Linux,
+  BSD, web. https://nabre.github.io/strix/it/*
 
 ### 10.3 Note di rilascio (modello)
 
@@ -425,7 +466,7 @@ https://github.com/nabre/strix/issues.
 | Sito: pubblicazione | `.github/workflows/site.yml` (GitHub Pages, con la build web dell'ultima release in `/app/`) |
 | README | `README.md` (EN), `docs/README.it.md`, `docs/README.fr.md`, `docs/README.de.md` |
 | Privacy e firma | `docs/code-signing.md` |
-| Numeri (comandi, test, righe) | `cargo xtask stats`, `ROADMAP.md` (Headline numbers) |
+| Numeri (comandi, test, righe) | `cargo xtask stats` |
 | Release e nomi dei file | `.github/workflows/release.yml`, `packaging/` |
 
 Quando cambia un fatto (piattaforme, formati, comandi, stato), si aggiornano insieme: questo

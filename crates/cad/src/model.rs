@@ -165,6 +165,10 @@ pub struct Layer {
     /// Drawn on the page and in the PDF; when off, only in the editor (construction lines).
     #[serde(skip_serializing_if = "is_true")]
     pub print: bool,
+    /// Solution-only layer: omitted on student copies (`Show = false`) while still counting in
+    /// the drawing's bounds and fitted scale so pagination never shifts.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub answer: bool,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -177,7 +181,7 @@ fn is_true(b: &bool) -> bool {
 
 impl Default for Layer {
     fn default() -> Self {
-        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true }
+        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true, answer: false }
     }
 }
 
@@ -503,6 +507,9 @@ impl DimStyle {
 }
 
 /// A name (a style's, a layer's) cut to 64 characters at a character boundary.
+/// Most levels of groups one entity is in ([`Entity::group`]).
+pub(crate) const MAX_GROUP_DEPTH: usize = 16;
+
 pub(crate) fn cut_name(name: &str) -> String {
     name.chars().take(64).collect()
 }
@@ -801,6 +808,15 @@ pub struct Entity {
     /// its place. The measured value never changes.
     #[serde(default, rename = "textShift", skip_serializing_if = "Option::is_none")]
     pub text_shift: Option<[f64; 2]>,
+    /// The groups it belongs to, outermost first, `/` between them (`g3/g1`: an array, `g3`,
+    /// of block insertions or arrays, one of them `g1`). Picking one picks its outermost group
+    /// whole; Explode takes that level apart. `None`: on its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    /// Solution-only object: omitted on student copies (`Show = false`) while still counting in
+    /// the drawing's bounds and fitted scale so pagination never shifts.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub answer: bool,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -819,7 +835,17 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, text_shift: None, kind }
+        Entity {
+            id: String::new(),
+            layer: layer0(),
+            stroke: Stroke::default(),
+            arrows: Ends::None,
+            style: None,
+            text_shift: None,
+            group: None,
+            answer: false,
+            kind,
+        }
     }
 }
 
@@ -872,6 +898,16 @@ pub struct Drawing {
     /// ([`crate::Underlay`]): a reference by id, never a copy.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underlay: Option<crate::Underlay>,
+    /// The block definitions ([`crate::Block`]).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<crate::Block>,
+    /// The blocks' insertions: which group of entities is which block, inserted where.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub inserts: Vec<crate::Insert>,
+    /// Texts' widths as an editor measured them with its fonts ([`crate::TextWidths`]); never
+    /// saved, never compared.
+    #[serde(skip)]
+    pub text_widths: crate::TextWidths,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -912,6 +948,9 @@ impl Default for Drawing {
             fit: None,
             id: None,
             underlay: None,
+            blocks: Vec::new(),
+            inserts: Vec::new(),
+            text_widths: crate::TextWidths::default(),
         }
     }
 }
@@ -1033,6 +1072,12 @@ impl Drawing {
             if let Some(s) = e.style.as_mut() {
                 cut(s);
             }
+            // A group path (`outer/inner`): each name cut, none empty, at most MAX_GROUP_DEPTH.
+            e.group = e.group.take().and_then(|g| {
+                let path: Vec<String> =
+                    g.split(crate::series::GROUP_SEP).map(|seg| cut_name(seg.trim())).filter(|seg| !seg.is_empty()).take(MAX_GROUP_DEPTH).collect();
+                (!path.is_empty()).then(|| path.join(&crate::series::GROUP_SEP.to_string()))
+            });
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
@@ -1098,6 +1143,7 @@ impl Drawing {
         for (n, _) in self.nums_mut() {
             n.value = if n.value.is_finite() { n.value.clamp(-MAX_COORD, MAX_COORD) } else { 0.0 };
         }
+        self.sanitize_blocks();
     }
 
     /// Named styles: at most [`MAX_STYLES`] of each, names cut, unique, never empty or Standard;
@@ -1212,6 +1258,9 @@ impl Drawing {
                     _ => {}
                 }
             }
+            for r in &mut self.inserts {
+                r.at = r.at.map(|v| v * k);
+            }
         }
         self.unit = unit;
         if self.input == Some(unit) {
@@ -1256,7 +1305,7 @@ impl Drawing {
     }
 
     /// Every number of the drawing.
-    fn nums_mut(&mut self) -> Vec<(&mut Num, NumKind)> {
+    pub(crate) fn nums_mut(&mut self) -> Vec<(&mut Num, NumKind)> {
         let mut out = Vec::new();
         fn point<'a>(p: &'a mut P, out: &mut Vec<(&'a mut Num, NumKind)>) {
             let P(x, y) = p;
@@ -1445,7 +1494,7 @@ pub fn fill(text: &str, ws: Option<&Worksheet>) -> String {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum NumKind {
+pub(crate) enum NumKind {
     Length,
     Angle,
 }

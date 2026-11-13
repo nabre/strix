@@ -53,7 +53,7 @@ pub(super) fn has_movable(s: &Session) -> Option<&'static str> {
     match selected(s) {
         // A CAD drawing is written back with its frame: it can be placed and wrapped (its size
         // is its scale's).
-        Some((_, InlineObject::Graphic { graphic, .. })) if graphic.kind == GraphicKind::Cad => has_object(s),
+        Some((_, InlineObject::Graphic { graphic, .. })) if matches!(graphic.kind, GraphicKind::Cad | GraphicKind::Plot) => has_object(s),
         Some((_, InlineObject::Graphic { .. })) => Some(FROZEN),
         _ => has_object(s),
     }

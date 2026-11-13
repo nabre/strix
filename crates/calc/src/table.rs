@@ -2,7 +2,8 @@
 //!
 //! The first row is the header. A header cell is a column name with an optional unit in square
 //! brackets or parentheses and an optional formula: `L [m]`, `q (kN/m)`, `M [kN·m] = q·L²/8`
-//! (`:=` works too).
+//! (`:=` works too). A formula needs no name and its unit may close it: `M = q·L²/8 [kN·m]`,
+//! `= q·L²/8 [kN·m]` (a column without a name is not defined after the table).
 //! Any other header (`Load case`, empty) makes a label column, which is never read.
 //!
 //! Every later row is a data row, unless one of its cells is a total: `Σ =`, `sum =`, `total =`,
@@ -64,6 +65,7 @@ fn name_part(text: &str) -> String {
 }
 
 /// A column's unit: the quantity of one unit and its text as written in the header.
+#[derive(Clone)]
 struct Unit {
     q: Quantity,
     text: String,
@@ -80,7 +82,7 @@ impl Column {
     fn name(&self) -> Option<&str> {
         match self {
             Column::Label => None,
-            Column::Input { name, .. } | Column::Formula { name, .. } => Some(name),
+            Column::Input { name, .. } | Column::Formula { name, .. } => Some(name.as_str()).filter(|n| !n.is_empty()),
         }
     }
 }
@@ -155,10 +157,12 @@ impl Worksheet {
         };
         // The grid evaluated is bounded, not just the cells read: columns × rows ≤ MAX_TABLE_CELLS.
         let header = header.get(..MAX_TABLE_COLS.min(header.len())).unwrap_or_default();
+        // The columns' names, so a trailing `[…]` that reads one is an index, not a unit.
+        let col_words: Vec<String> = header.iter().map(|t| t.trim().chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect()).collect();
         let columns: Vec<Column> = header
             .iter()
             .enumerate()
-            .map(|(c, text)| match self.header(text) {
+            .map(|(c, text)| match self.header(text, &col_words) {
                 Ok(col) => col,
                 Err(err) => {
                     out.errors.push((0, c, err));
@@ -252,6 +256,8 @@ impl Worksheet {
             for (c, col) in columns.iter().enumerate() {
                 let text = cell(r, c);
                 let named = col.name().filter(|_| label.get(c) == Some(&false)).map(str::to_string);
+                // A formula column without a name (`= q·L²/8`) still holds the row's value.
+                let valued = label.get(c) == Some(&false) && !matches!(col, Column::Label);
                 if is_statement(text) {
                     let row = row_values(&columns, &label, &values, r);
                     let result = self.statement_cell(text, &row);
@@ -264,7 +270,7 @@ impl Worksheet {
                     // A result, or the column's own name defined, is the column's value here;
                     // `x = 5 m` only defines `x`.
                     let own = result.name.is_none() || result.name == named;
-                    if named.is_some()
+                    if valued
                         && own
                         && let Some(q) = result.value.as_ref().and_then(Value::scalar)
                         && let Some(slot) = values.get_mut(c).and_then(|v| v.get_mut(r))
@@ -525,7 +531,7 @@ impl Worksheet {
     }
 
     /// Parses a header cell.
-    fn header(&self, text: &str) -> Result<Column, CalcError> {
+    fn header(&self, text: &str, names: &[String]) -> Result<Column, CalcError> {
         let text = text.trim();
         if text.is_empty() || text.chars().count() > MAX_INPUT_CHARS {
             return Ok(Column::Label);
@@ -533,7 +539,23 @@ impl Worksheet {
         let Ok(tokens) = lex(text, self.opts.decimal_comma) else {
             return Ok(Column::Label);
         };
+        // A unit may close a formula: `M = q·L²/8 [kN·m]`, `= q·L²/8 [kN·m]`.
+        let (tokens, end_unit) = self.trailing_unit(text, &tokens, names)?;
         let tok = |i: usize| tokens.get(i).map(|t| &t.tok);
+        let end_pos = tokens.last().map_or(0, |t| t.pos + 1);
+        // A formula needs no name: `= γ·q·L²/8` (spreadsheet style).
+        let anonymous = |body: &[Token]| -> Result<Column, CalcError> {
+            let expr = self.parse_expr(body, end_pos)?;
+            Ok(Column::Formula { name: String::new(), unit: end_unit.clone(), expr })
+        };
+        if matches!(tok(0), Some(Tok::Define | Tok::Equals)) {
+            // A bare `=` (being typed, or a header that is only that) is words, not an error.
+            let body = tokens.get(1..).unwrap_or_default();
+            if body.is_empty() && end_unit.is_none() {
+                return Ok(Column::Label);
+            }
+            return anonymous(body);
+        }
         let name = match tok(0) {
             Some(Tok::Ident(name)) if name.chars().next().is_some_and(char::is_alphabetic) && Func::from_name(name).is_none() => name.clone(),
             _ => return Ok(Column::Label),
@@ -546,10 +568,10 @@ impl Worksheet {
                 return Ok(Column::Label);
             };
             let inner = tokens.get(2..end).unwrap_or_default();
-            let end_pos = tokens.get(end).map_or(0, |t| t.pos);
+            let close_pos = tokens.get(end).map_or(0, |t| t.pos);
             // Round brackets that hold no unit are words (`Load (case A)`): a label column. A
             // unit in square brackets must be one (a typo there is reported).
-            let read = parse(inner, end_pos).and_then(|expr| eval_scalar(&expr, &self.scope, Names::UnitsOnly));
+            let read = parse(inner, close_pos).and_then(|expr| eval_scalar(&expr, &self.scope, Names::UnitsOnly));
             let q = match read {
                 Ok(q) => q,
                 Err(_) if *open == Tok::LParen => return Ok(Column::Label),
@@ -561,15 +583,67 @@ impl Worksheet {
             i = end + 1;
         }
         match tok(i) {
-            None => Ok(Column::Input { name, unit }),
+            None if end_unit.is_none() => Ok(Column::Input { name, unit }),
             Some(Tok::Define | Tok::Equals) => {
+                if unit.is_some() && end_unit.is_some() {
+                    return Err(CalcError::BadDefinition("a column has one unit: before the = or at the end".to_string()));
+                }
                 let body = tokens.get(i + 1..).unwrap_or_default();
-                let expr = self.parse_expr(body, text.chars().count())?;
-                Ok(Column::Formula { name, unit, expr })
+                let expr = self.parse_expr(body, end_pos)?;
+                Ok(Column::Formula { name, unit: unit.or(end_unit), expr })
             }
             Some(_) if unit.is_none() => Ok(Column::Label),
-            Some(_) => Err(CalcError::BadDefinition("a column header is a name, an optional [unit] and an optional = formula".to_string())),
+            _ => Err(CalcError::BadDefinition("a column header is a name, an optional [unit] and an optional = formula".to_string())),
         }
+    }
+
+    /// A unit in square brackets closing a header's formula (`= q·L²/8 [kN·m]`): the tokens
+    /// before it and the unit. Only after an `=`, and only when the brackets hold a unit and
+    /// are not an index: written against a name (`x[i+1]`), brackets that read a column (in
+    /// `names`), `i`, `n` or a parameter index it.
+    fn trailing_unit(&self, text: &str, tokens: &[Token], names: &[String]) -> Result<(Vec<Token>, Option<Unit>), CalcError> {
+        let keep = || Ok((tokens.to_vec(), None));
+        let Some((last, _)) = tokens.split_last() else { return keep() };
+        if last.tok != Tok::RBracket {
+            return keep();
+        }
+        let mut depth = 0usize;
+        let mut open = None;
+        for (k, t) in tokens.iter().enumerate().rev() {
+            match t.tok {
+                Tok::RBracket => depth = depth.saturating_add(1),
+                Tok::LBracket => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        open = Some(k);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(k) = open.filter(|&k| k > 0) else { return keep() };
+        let before = tokens.get(..k).unwrap_or_default();
+        if !before.iter().any(|t| matches!(t.tok, Tok::Define | Tok::Equals)) {
+            return keep();
+        }
+        let Some(lb) = tokens.get(k) else { return keep() };
+        let inner = tokens.get(k + 1..tokens.len() - 1).unwrap_or_default();
+        // Written against a name with a row's name inside, the brackets index it (`x[i+1]`); a
+        // built-up equation's linear text drops the space before a unit (`q·L[kN]`).
+        let indexable = matches!(before.last().map(|t| &t.tok), Some(Tok::Ident(_) | Tok::RParen | Tok::RBracket));
+        let spaced = text.get(..lb.byte).is_some_and(|t| t.ends_with(char::is_whitespace));
+        let reads_row = inner
+            .iter()
+            .any(|t| matches!(&t.tok, Tok::Ident(n) if n == "i" || n == "n" || names.iter().any(|c| c == n) || self.scope.get(n).is_some()));
+        if indexable && !spaced && reads_row {
+            return keep();
+        }
+        let Ok(q) = parse(inner, last.pos).and_then(|expr| eval_scalar(&expr, &self.scope, Names::UnitsOnly)) else {
+            return keep();
+        };
+        let raw = text.get(lb.byte + 1..last.byte).unwrap_or_default().trim();
+        Ok((before.to_vec(), Some(Unit { q, text: raw.to_string() })))
     }
 
     /// The value of an input cell in a column with `unit`.
@@ -649,7 +723,7 @@ fn temp_kind(e: &Expr, kinds: &[(String, Option<bool>)], depth: usize) -> Option
             (Some(false), None) => Some(false),
             _ => None,
         },
-        Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs | Func::Round, args) => {
+        Expr::Call(f, args) if f.is_rounding() || matches!(f, Func::Min | Func::Max | Func::Mean | Func::Abs) => {
             let mut found = None;
             for a in args.iter().take(1) {
                 found = kind(a);
@@ -727,6 +801,7 @@ fn walk_names(expr: &Expr, columns: &[&str], f: &mut dyn FnMut(&str, bool)) {
             walk_names(a, columns, f);
             walk_names(b, columns, f);
         }
+        Expr::Call(g, args) if g.is_rounding() => args.iter().take(2).for_each(|a| walk_names(a, columns, f)),
         Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk_names(a, columns, f)),
         Expr::Nary(n) => {
             for e in [&n.from, &n.to].into_iter().flatten() {

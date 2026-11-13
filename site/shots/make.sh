@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# The site's screenshots: real windows of Strix, rendered headless by the ui_shot example
-# (crates/ui-egui/examples/ui_shot.rs), in each language of the site and in both themes:
-#   site/shots/<lang>/shot-calc-{light,dark}.png      a beam calculation on the Math tab
-#   site/shots/<lang>/shot-exercise-{light,dark}.png  an exercise with its solution
+# The screenshots of the site and the READMEs: real windows of Strix, rendered headless by the
+# ui_shot example (crates/ui-egui/examples/ui_shot.rs), in each language and in both themes:
+#   site/shots/<lang>/shot-calc-{light,dark}.png      a car accelerating from rest, on the Math tab
+#   site/shots/<lang>/shot-exercise-{light,dark}.png  the same problem as an exercise: data in two
+#                                                     variants, questions, the worked solution
+#   site/shots/<lang>/shot-quiz-{light,dark}.png      a quiz: multiple choice, true/false and a
+#                                                     calculation question, with points
 # The documents are written here, by us. Usage, from the repository root:
 #   site/shots/make.sh [--no-build] [LANG...]
 # builds ui_shot in release mode first (unless --no-build) and makes every language (or the ones
@@ -57,11 +60,47 @@ proofed() {
   cmd caret.docStart '{}'
 }
 
-# lang | heading | lead | exercise title | statement | question 1 | question 2
-while IFS='|' read -r lang heading lead extitle extext q1 q2; do
+# A light and a dark picture of the document built so far, on the given ribbon tab.
+pictures() {
+  local tab="$1" name="$2" out="$3"
+  cmd view.zoom '{"value":115}'
+  cmd ui.tab "{\"tab\":\"$tab\"}"
+  cmd ui.theme '{"value":"light"}'
+  # A first picture warms the renderer up: the first one after a long script can time out.
+  echo '{"wait": 5000}'
+  printf '{"shot":"%s"}\n' "$(native "$TMP/warmup.png")"
+  echo '{"steps": 60}'
+  printf '{"shot":"%s"}\n' "$(native "$out/shot-$name-light.png")"
+  cmd ui.theme '{"value":"dark"}'
+  echo '{"steps": 60}'
+  printf '{"shot":"%s"}\n' "$(native "$out/shot-$name-dark.png")"
+}
+# Calculations one per paragraph, each shown as a display equation.
+calcs() {
+  local first=1 s
+  for s in "$@"; do
+    [[ $first == 1 ]] || cmd text.newParagraph '{}'
+    first=0
+    cmd calc.insert "{\"text\":\"$s\",\"display\":true}"
+  done
+}
+# The caret at the end of the paragraph after the n-th occurrence of a text: a question's working
+# space follows the question (repeated in a problem's solution, or the quiz question itself).
+after() {
+  cmd select.text "{\"text\":\"$1\",\"occurrence\":$2}"
+  cmd select.collapse '{"toEnd":true}'
+  cmd caret.paraDown '{}'
+  cmd caret.end '{}'
+}
+
+# lang | heading | lead | exercise title | statement | question a | question b | speed | time
+#      | quiz title | choice question | its four choices (;) | true/false question | calculation question
+#      | acceleration
+while IFS='|' read -r lang heading lead extitle extext qa qb dv dt qtitle qc choices qtf qcalc da; do
   [[ "$ONLY" == "  " || "$ONLY" == *" $lang "* ]] || continue
   out="$ROOT/site/shots/$lang"
   mkdir -p "$out"
+
   calc="$TMP/calc-$lang.jsonl"
   {
     echo '{"empty": true}'
@@ -73,55 +112,52 @@ while IFS='|' read -r lang heading lead extitle extext q1 q2; do
     cmd text.insert "{\"text\":\"$lead\"}"
     cmd text.newParagraph '{}'
     cmd calc.steps '{"value":true}'
-    # One calculation per paragraph, each shown as a display equation.
-    for s in 'L = 4.5 m' 'q = 12 kN/m' 'M = q·L^2/8 =' 'W = 1000 cm^3' 'f_yd = 355 MPa' 'σ = M/W =' 'σ ≤ f_yd'; do
-      cmd calc.insert "{\"text\":\"$s\"}"
-      cmd text.newParagraph '{}'
-    done
+    calcs 'm = 1200 kg' 'v_0 = 0 km/h' 'v = 90 km/h' 't = 10 s' 'a = (v - v_0)/t =' 'F = m·a =' \
+      's = a·t^2/2 =' 's ≤ 150 m' 'E_k = m·v^2/2 = kJ'
     cmd calc.recalculate '{}'
     proofed "$lang"
-    cmd view.zoom '{"value":115}'
-    cmd ui.tab '{"tab":"Math"}'
-    cmd ui.theme '{"value":"light"}'
-    # A first picture warms the renderer up: the first one after a long script can time out.
-    echo '{"wait": 5000}'
-    printf '{"shot":"%s"}
-' "$(native "$TMP/warmup.png")"
-    echo '{"steps": 60}'
-    printf '{"shot":"%s"}\n' "$(native "$out/shot-calc-light.png")"
-    cmd ui.theme '{"value":"dark"}'
-    echo '{"steps": 60}'
-    printf '{"shot":"%s"}\n' "$(native "$out/shot-calc-dark.png")"
+    pictures Math calc "$out"
   } > "$calc"
   shoot "$calc" "$out/shot-calc-light.png" "$out/shot-calc-dark.png"
 
   ex="$TMP/exercise-$lang.jsonl"
   {
-    # A narrower window and a closer zoom: the picture sits in half the page's width.
+    # A narrower window: the picture sits in half the page's width on the site.
     echo '{"empty": true, "width": 1100, "height": 960}'
     cmd ui.language "{\"value\":\"$lang\"}"
-    cmd view.zoom '{"value":150}'
-    cmd exercise.insert "{\"title\":\"$extitle\",\"text\":\"$extext\",\"questions\":[\"$q1\",\"$q2\"]}"
+    cmd exercise.insert "{\"title\":\"$extitle\",\"text\":\"$extext\",\"questions\":[\"$qa\",\"$qb\"]}"
+    cmd exercise.setData "{\"data\":{\"items\":[{\"symbol\":\"v\",\"description\":\"$dv\",\"unit\":\"km/h\",\"values\":[\"90\",\"72\"]},{\"symbol\":\"t\",\"description\":\"$dt\",\"unit\":\"s\",\"values\":[\"10\",\"10\"]}],\"variants\":[\"A\",\"B\"],\"active\":0}}"
+    after "$qa" 2
+    calcs 'a = v/t ='
+    cmd equation.answer '{"question":1}'
+    after "$qb" 2
+    calcs 's = a·t^2/2 ='
+    cmd equation.answer '{"question":2}'
     cmd calc.recalculate '{}'
     proofed "$lang"
-    cmd view.zoom '{"value":115}'
-    cmd ui.tab '{"tab":"Math"}'
-    cmd ui.theme '{"value":"light"}'
-    # A first picture warms the renderer up: the first one after a long script can time out.
-    echo '{"wait": 5000}'
-    printf '{"shot":"%s"}
-' "$(native "$TMP/warmup.png")"
-    echo '{"steps": 60}'
-    printf '{"shot":"%s"}\n' "$(native "$out/shot-exercise-light.png")"
-    cmd ui.theme '{"value":"dark"}'
-    echo '{"steps": 60}'
-    printf '{"shot":"%s"}\n' "$(native "$out/shot-exercise-dark.png")"
+    pictures Teaching exercise "$out"
   } > "$ex"
   shoot "$ex" "$out/shot-exercise-light.png" "$out/shot-exercise-dark.png"
+
+  quiz="$TMP/quiz-$lang.jsonl"
+  {
+    echo '{"empty": true, "width": 1100, "height": 960}'
+    cmd ui.language "{\"value\":\"$lang\"}"
+    IFS=';' read -r c1 c2 c3 c4 <<<"$choices"
+    cmd exercise.insert "{\"kind\":\"choice\",\"title\":\"$qtitle\",\"questions\":[{\"text\":\"$qc\",\"choices\":[\"$c1\",\"$c2\",\"$c3\",\"$c4\"],\"correct\":[\"A\",\"C\"],\"points\":1},{\"text\":\"$qtf\",\"type\":\"trueFalse\",\"correct\":1,\"points\":1},{\"text\":\"$qcalc\",\"type\":\"calc\",\"points\":2,\"height\":2.5}]}"
+    # The calculation question's data: the working is one equation, the result line under it.
+    cmd exercise.setData "{\"data\":{\"items\":[{\"symbol\":\"a\",\"description\":\"$da\",\"unit\":\"m/s²\",\"values\":[\"2.5\"]},{\"symbol\":\"t\",\"description\":\"$dt\",\"unit\":\"s\",\"values\":[\"4\"]}],\"variants\":[\"A\"],\"active\":0}}"
+    after "$qcalc" 1
+    calcs 's = a·t^2/2 ='
+    cmd calc.recalculate '{}'
+    proofed "$lang"
+    pictures Teaching quiz "$out"
+  } > "$quiz"
+  shoot "$quiz" "$out/shot-quiz-light.png" "$out/shot-quiz-dark.png"
   echo "site/shots/$lang: done"
 done <<'EOF'
-en|Simply supported beam|Span and uniform load, then the bending moment and the stress check.|Beam under a uniform load|A simply supported beam carries a uniform load q over its whole span L.|Find the maximum bending moment.|Check the stress against the design strength.
-it|Trave appoggiata|Luce e carico uniforme, poi il momento flettente e la verifica della tensione.|Trave con carico uniforme|Una trave appoggiata porta un carico uniforme q su tutta la luce L.|Calcola il momento flettente massimo.|Verifica la tensione rispetto alla resistenza di progetto.
-fr|Poutre sur deux appuis|Portée et charge uniforme, puis le moment fléchissant et la vérification de contrainte.|Poutre sous charge uniforme|Une poutre sur deux appuis porte une charge uniforme q sur toute sa portée L.|Calculer le moment fléchissant maximal.|Vérifier la contrainte par rapport à la résistance de calcul.
-de|Einfeldträger|Spannweite und Gleichlast, dann das Biegemoment und der Spannungsnachweis.|Träger unter Gleichlast|Ein Einfeldträger trägt eine Gleichlast q über die ganze Spannweite L.|Ermittle das größte Biegemoment.|Weise die Spannung gegen die Bemessungsfestigkeit nach.
+en|Uniformly accelerated motion|A car starts from rest and reaches 90 km/h in 10 s: its acceleration, the force, the distance and the energy.|Car accelerating from rest|A car starts from rest and reaches the speed v in the time t, with a constant acceleration.|Find the acceleration.|Find the distance travelled.|final speed|time|Motion and units|Which of these are base units of the SI?|kilogram (kg);newton (N);second (s);kilometre per hour (km/h)|Acceleration is measured in m/s².|A cart starts from rest with the acceleration a. How far does it travel in the time t?|acceleration
+it|Moto uniformemente accelerato|Un’automobile parte da ferma e raggiunge 90 km/h in 10 s: l’accelerazione, la forza, lo spazio percorso e l’energia.|Automobile che parte da ferma|Un’automobile parte da ferma e raggiunge la velocità v nel tempo t, con accelerazione costante.|Calcola l’accelerazione.|Calcola lo spazio percorso.|velocità finale|tempo|Moto e unità di misura|Quali di queste sono unità fondamentali del SI?|chilogrammo (kg);newton (N);secondo (s);chilometro orario (km/h)|L’accelerazione si misura in m/s².|Un carrello parte da fermo con accelerazione a. Quanto spazio percorre nel tempo t?|accelerazione
+fr|Mouvement uniformément accéléré|Une voiture démarre à l’arrêt et atteint 90 km/h en 10 s : son accélération, la force, la distance et l’énergie.|Voiture qui démarre à l’arrêt|Une voiture démarre à l’arrêt et atteint la vitesse v au bout du temps t, avec une accélération constante.|Calculer l’accélération.|Calculer la distance parcourue.|vitesse finale|durée|Mouvement et unités|Lesquelles sont des unités de base du SI ?|kilogramme (kg);newton (N);seconde (s);kilomètre par heure (km/h)|L’accélération se mesure en m/s².|Un chariot démarre à l’arrêt avec l’accélération a. Quelle distance parcourt-il pendant la durée t ?|accélération
+de|Gleichmäßig beschleunigte Bewegung|Ein Auto fährt aus dem Stand an und erreicht 90 km/h in 10 s: Beschleunigung, Kraft, Weg und Energie.|Auto, das aus dem Stand anfährt|Ein Auto fährt aus dem Stand an und erreicht die Geschwindigkeit v in der Zeit t, mit konstanter Beschleunigung.|Berechne die Beschleunigung.|Berechne den zurückgelegten Weg.|Endgeschwindigkeit|Zeit|Bewegung und Einheiten|Welche davon sind SI-Basiseinheiten?|Kilogramm (kg);Newton (N);Sekunde (s);Kilometer pro Stunde (km/h)|Die Beschleunigung wird in m/s² gemessen.|Ein Wagen fährt aus dem Stand mit der Beschleunigung a an. Welchen Weg legt er in der Zeit t zurück?|Beschleunigung
 EOF

@@ -40,6 +40,8 @@ pub mod rt {
     pub const IMAGE: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     /// A Strix CAD drawing's source part (`word/strix/cadN.json`).
     pub const STRIX_CAD: &str = "urn:io.github.nabre.strix:2026/relationships/cad";
+    /// A Strix plot's source part (`word/strix/plotN.json`).
+    pub const STRIX_PLOT: &str = "urn:io.github.nabre.strix:2026/relationships/plot";
     pub const HYPERLINK: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink";
     pub const VBA_PROJECT: &str = "http://schemas.microsoft.com/office/2006/relationships/vbaProject";
     pub const CHART: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart";

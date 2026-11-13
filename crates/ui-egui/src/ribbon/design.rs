@@ -45,6 +45,7 @@ pub(super) fn design(app: &mut WordApp, ui: &mut Ui) {
                     for (name, h, b, _) in wordcraft_engine::cmd::design::THEMES {
                         mi_text(ui, app, &format!("{}: {h} / {b}", tl!(name)), "design.themeFonts", json!({"heading": h, "body": b}));
                     }
+                    super::strix::offered_fonts(ui, app);
                 },
             );
         });
@@ -89,6 +90,7 @@ pub(super) fn design(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("design.setDefault", json!({}), false),
             );
         });
+        super::strix::dsa_menu(ui, app);
     });
     group(ui, "Page Background", None, app, |ui, app| {
         menu_button(

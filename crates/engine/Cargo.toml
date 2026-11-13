@@ -21,6 +21,7 @@ wordcraft-geom = { workspace = true, features = ["image"] }
 wordcraft-doc = { workspace = true }
 strix-calc = { workspace = true }
 strix-cad = { workspace = true }
+strix-plot = { workspace = true }
 wordcraft-fonts = { workspace = true }
 wordcraft-layout = { workspace = true }
 wordcraft-render = { workspace = true }
@@ -38,6 +39,7 @@ regex = { workspace = true }
 regex-automata = { workspace = true }
 image = { workspace = true }
 zeroize = { workspace = true }
+zip = { workspace = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 # The browser clock for `now_iso` (`SystemTime::now()` panics on wasm32-unknown-unknown).
@@ -63,5 +65,4 @@ rustix = { version = "1.1", default-features = false, features = ["std", "fs"] }
 [dev-dependencies]
 wordcraft-doc = { workspace = true, features = ["test-support"] }
 encoding_rs = { workspace = true }
-zip = { workspace = true }
 cfb = { workspace = true }

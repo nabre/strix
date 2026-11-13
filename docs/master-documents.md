@@ -94,3 +94,11 @@ Save or Reload all of them.
 - 2026-11-10: styles and lists of a subdocument come with it; exercises follow the master; no blank paragraph between subdocuments.
 
 - 2026-11-09: first version; the Subdocuments pane.
+
+### Presentation changes and clean linked files (Phase 5)
+
+Changing the master's Show, active variant, DSA, graph paper, page breaks or
+exercise numbering advances only the presentation baseline of linked files
+whose content was clean. Saving subdocuments leaves those files untouched;
+actual content edits remain dirty across later presentation changes and still
+write back. A file changed independently on disk retains its conflict check.

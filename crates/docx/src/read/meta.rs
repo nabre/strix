@@ -11,6 +11,7 @@ impl Reader<'_> {
         }
         let rels = self.pkg.rels(path);
         let s = &mut self.doc.settings;
+        let mut calc_opts: Option<String> = None;
         for k in root.els() {
             match k.name.as_str() {
                 // §17.15.1.6: the template, by a relationship (usually external) of the settings part.
@@ -24,6 +25,7 @@ impl Reader<'_> {
                 "w:linkStyles" => s.link_styles = on_off(k),
                 "w:removePersonalInformation" => s.remove_personal_info = on_off(k),
                 "w:removeDateAndTime" => s.remove_date_time = on_off(k),
+                "w:embedTrueTypeFonts" => s.embed_fonts = on_off(k),
                 "w:compat" => {
                     s.allow_space_of_same_style_in_table = k.child("w:allowSpaceOfSameStyleInTable").is_some_and(on_off);
                     // Only Word's own setting: another `w:uri` names a different application's.
@@ -91,8 +93,14 @@ impl Reader<'_> {
                     };
                     s.zoom = Some(Zoom { percent, fit }).filter(|z| z.percent != 100 || z.fit.is_some());
                 }
+                "strix:calcOptions" => {
+                    calc_opts = k.attr("strix:val").or_else(|| k.attr("val")).filter(|v| !v.is_empty() && v.len() <= 4096).map(str::to_string);
+                }
                 _ => {}
             }
+        }
+        if let Some(v) = calc_opts {
+            self.doc.passthrough.insert("strix:calc.options".into(), Arc::new(v.into_bytes()));
         }
         Ok(())
     }

@@ -38,8 +38,8 @@ use crate::package::{ContentTypes, EMBEDDED_PARTS, EmbeddedManifest, MAX_VBA_REL
 use crate::units::{flag, int, on_off, tw, u32_of};
 use crate::xml::El;
 pub(crate) use props::PropCtx;
-pub(crate) use story::CAD_URI;
 use story::StoryCtx;
+pub(crate) use story::{CAD_URI, PLOT_URI};
 
 mod meta;
 mod parts;

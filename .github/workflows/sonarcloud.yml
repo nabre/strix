@@ -1,10 +1,12 @@
 name: SonarCloud
 
+# Only on main: its analysis builds the code again, which on every PR push took a runner beside
+# CI and made the checks wait. Pull requests get no Sonar report; main's analysis
+# shows what a merge brought.
 on:
   push:
     branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ permissions:
 concurrency:
   group: sonarcloud-${{ github.ref }}
   # A push to main is the run that publishes coverage; superseded runs there would never finish.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: false
 
 jobs:
   sonarcloud:

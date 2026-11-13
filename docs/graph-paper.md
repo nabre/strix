@@ -1,6 +1,6 @@
 # Graph paper
 
-> **Status:** stage 1 done: model, the seven placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-10 · **Change:** new placement To the end of the column (`columnEnd`)
+> **Status:** stage 1 done: model, the seven placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-12 · **Change:** a `none` line style (no lines: a blank block, used by an exercise's blank answer space); previously: new placement To the end of the column (`columnEnd`)
 
 **Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper, `graph.insert`) is a square
 grid drawn behind the text, for working a problem by hand, sketching or writing on squares as
@@ -12,7 +12,7 @@ two kinds of line), so it stays sharp at any zoom, in print and in PDF.
 | Property | Parameter | Range (clamped) | Default |
 |---|---|---|---|
 | Side of a square (*interasse*) | `spacing` (mm) | 1–100 mm | 5 mm |
-| Line style | `style` | `solid`, `dashed`, `dotted` | solid |
+| Line style | `style` | `solid`, `dashed`, `dotted`, `none` (no lines: a blank block, an exercise's blank answer space) | solid |
 | Line colour | `color` (`RRGGBB`) | any | light blue `9FC5E8` |
 | Line weight | `width` (pt) | 0.1–6 pt | 0.4 pt |
 | A heavier line every N squares | `majorEvery` | 0 (none) – 100 | 0 |
@@ -136,6 +136,7 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 
 ## Revision history
 
+- 2026-11-12: line style `none` (`graph.set {"style": "none"}`): a block of the same size with no lines and no frame.
 - 2026-10-28: new: model, placements, rendering, commands, menu and pane, `.xmath` round trip.
 - 2026-10-29: the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight.
 - 2026-11-10: new placement *To the end of the column* (`columnEnd`): the rest of the block's column, the text after it in the next column.

@@ -17,6 +17,7 @@ const OWNED: &[&str] = &[
     "w:removePersonalInformation",
     "w:removeDateAndTime",
     "w:displayBackgroundShape",
+    "w:embedTrueTypeFonts",
     "w:mirrorMargins",
     "w:attachedTemplate",
     "w:linkStyles",
@@ -35,6 +36,7 @@ const OWNED: &[&str] = &[
     "w:footnotePr",
     "w:endnotePr",
     "m:mathPr",
+    "strix:calcOptions",
 ];
 
 /// Owned children whose original, when there is one, is kept as is.
@@ -140,6 +142,7 @@ const ORDER: &[&str] = &[
     "w:doNotEmbedSmartTags",
     "w:decimalSymbol",
     "w:listSeparator",
+    "strix:calcOptions",
 ];
 
 fn rank(name: &str) -> usize {

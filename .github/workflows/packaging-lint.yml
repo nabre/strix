@@ -1,7 +1,7 @@
 # Quick static checks for the release pipeline (seconds, no Rust build): workflow syntax,
 # packaging shell/PowerShell scripts, and the Linux desktop/AppStream/Flatpak metadata. On main and
 # PRs that change those files; release.yml doesn't run it again, nor does a push to main whose
-# code a PR already passed (tested-tree.yml).
+# code a PR already passed (tested-tree.yml), nor a draft PR (pr-scope.yml).
 name: Packaging lint
 
 on:
@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]
   pull_request:
+    # ready_for_review: a draft's checks run when it is marked ready (pr-scope.yml).
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: [".github/workflows/**", "packaging/**", "assets/app-icon/**"]
   workflow_dispatch:
 
@@ -30,15 +32,22 @@ jobs:
       workflow: packaging-lint.yml
       mode: check
 
+  # A draft PR: not run (pr-scope.yml).
+  scope:
+    uses: ./.github/workflows/pr-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   lint:
-    needs: [tested]
-    if: needs.tested.outputs.tested != 'true'
+    needs: [tested, scope]
+    if: needs.tested.outputs.tested != 'true' && needs.scope.outputs.run != 'false'
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/packaging-lint.yml@main
 
   windows-install-policy:
-    needs: [tested]
-    if: needs.tested.outputs.tested != 'true'
+    needs: [tested, scope]
+    if: needs.tested.outputs.tested != 'true' && needs.scope.outputs.run != 'false'
     timeout-minutes: 10
     name: Windows installation policy (no app build)
     runs-on: windows-latest

@@ -204,6 +204,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     if changed {
         s.touch();
         update(s);
+        crate::cmd::calc::recalculate_now(s);
         s.clamp_selection();
     }
     Ok(state(s))
@@ -244,6 +245,7 @@ pub(crate) fn grid_command(s: &mut Session, v: &Value) -> CmdResult {
     if changed {
         s.touch();
         update(s);
+        crate::cmd::calc::recalculate_now(s);
         s.clamp_selection();
     }
     Ok(state(s))

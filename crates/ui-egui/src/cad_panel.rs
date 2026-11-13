@@ -521,6 +521,17 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             changed = true;
         }
         ui.end_row();
+        if idx.len() > 1 {
+            ui.label(tl!("Solution only"));
+            let ans = common(ents.iter().map(|e| e.answer));
+            let mut on = ans == Some(Some(true));
+            let hint = if ans == Some(None) { tl!("Varies") } else { "" };
+            if ui.checkbox(&mut on, hint).changed() {
+                d.set_answer(&idx, on);
+                changed = true;
+            }
+            ui.end_row();
+        }
     });
     // Geometry of one object.
     if let [i] = idx.as_slice() {
@@ -685,8 +696,8 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
         (name(a) != "0").cmp(&(name(b) != "0")).then_with(|| name(a).cmp(&name(b)))
     });
     egui::ScrollArea::vertical().id_salt("cad_layer_manager").auto_shrink([false, false]).show(ui, |ui| {
-        crate::rtl::grid(ui, egui::Grid::new("cad_layer_grid").num_columns(11).striped(true).spacing(vec2(10.0, 3.0)), |ui| {
-            for h in ["Current", "Name", "Preview", "On", "Lock", "Print", "Colour", "Lineweight", "Linetype", "Objects", ""] {
+        crate::rtl::grid(ui, egui::Grid::new("cad_layer_grid").num_columns(12).striped(true).spacing(vec2(10.0, 3.0)), |ui| {
+            for h in ["Current", "Name", "Preview", "On", "Lock", "Print", "Answer", "Colour", "Lineweight", "Linetype", "Objects", ""] {
                 ui.label(RichText::new(tl!(h)).weak().small());
             }
             ui.end_row();
@@ -726,6 +737,7 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                     x.locked = v
                 });
                 flag(ui, l.print, ("print", "cadNoPrint"), "Printed: off, the layer shows only in the editor", &mut |x, v| x.print = v);
+                flag(ui, l.answer, ("check", "minus"), "Solution only: hidden when the exercise's solution is hidden", &mut |x, v| x.answer = v);
                 if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false, &mut typing)
                     && let Some(x) = d.layers.get_mut(li)
                 {

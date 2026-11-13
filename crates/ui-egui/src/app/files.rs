@@ -350,7 +350,9 @@ impl WordApp {
             let lp = path.to_ascii_lowercase();
             let img = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".wmf", ".emf"].iter().any(|e| lp.ends_with(e));
             let sheet = wordcraft_engine::cmd::mailings::is_spreadsheet_name(&lp);
-            let opened = if img {
+            let opened = if lp.ends_with(".zip") {
+                self.run("archive.importBundle", json!({"path": path}))
+            } else if img {
                 self.caret_after_placed_picture(placed_picture);
                 let r = self.run("insert.picture", json!({"path": path}));
                 placed_picture = Self::placed_in_text(&r);
@@ -453,7 +455,9 @@ impl WordApp {
             let list = lower.ends_with(".csv") || lower.ends_with(".tsv") || (lower.ends_with(".txt") && asked);
             let sheet = wordcraft_engine::cmd::mailings::is_spreadsheet_name(&lower);
             self.recipient_list_pending = asked && !list && !sheet;
-            let r = if sheet {
+            let r = if lower.ends_with(".zip") {
+                self.run("archive.importBundle", json!({"data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))
+            } else if sheet {
                 self.load_recipients(json!({"path": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))
             } else if wordcraft_fonts::is_font_file_name(&lower) {
                 self.run("font.add", json!({"name": name, "data": wordcraft_engine::cmd::insert::base64_encode(&bytes)}))

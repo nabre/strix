@@ -79,6 +79,8 @@ pub struct Prefs {
     /// Where results and steps go (`calc.layout`): `inline`, after `⇒` and `=` on the
     /// statement's line (the default), or `lines`, one line each under it, aligned at `=`.
     pub calc_layout: String,
+    /// Measurement uncertainty propagation: max or rss.
+    pub calc_uncertainty: String,
     /// In formulas, `^`, `_` and `/` make the superscript, subscript or fraction at once and the
     /// caret goes into the new box (`equation.quickKeys`). Off: they build up on Space, as in Word.
     pub math_quick_keys: bool,
@@ -93,6 +95,7 @@ impl Default for Prefs {
             calc_zeros: false,
             calc_steps: true,
             calc_layout: "inline".to_string(),
+            calc_uncertainty: "max".to_string(),
             math_quick_keys: true,
             paper_color: Default::default(),
             count_notes: true,

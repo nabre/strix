@@ -37,19 +37,40 @@ use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 use words::Words;
 
 mod archive;
+mod archive_bank;
 mod breaks;
+mod check;
 mod delete;
 mod dsa;
+mod dsa_runs;
+pub(crate) mod expr;
 mod front;
+pub(crate) mod grading;
+mod items;
+mod items_ext;
 mod language;
 mod numbering;
+mod pack;
 mod scores;
 mod series;
 mod show;
+pub(crate) mod stem_items;
 mod structure;
+#[cfg(test)]
+mod tests_phase3;
+#[cfg(test)]
+mod tests_phase4;
+#[cfg(test)]
+mod tests_phase5;
+mod total_score;
+mod variants_gen;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
+pub use expr::TAG_EXPR;
+pub use grading::TAG_GRADING;
+pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
+pub use items_ext::TAG_RATIONALE;
 pub(crate) use language::follow_language;
 pub(crate) use show::grid_follows;
 pub(crate) use structure::{collapse_empty_part, keeps_edge};
@@ -104,10 +125,19 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"title"?: string, "text"?: string, "questions"?: [string]} → inserts an exercise after the paragraph at the caret: title, statement, questions, solution; the results summary goes (or stays) at the end of the document"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+        CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
+        CommandSpec::new("exercise.questionMode", "Question Mode", "Teaching › Exercise", items::set_mode)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "type": "open" | "choice" | "trueFalse" | "calc" | "drawing"} → converts a quiz question's answer part in place while preserving its question paragraph, points, space settings, and existing working/options across compatible modes"#),
+        CommandSpec::new("exercise.questionPoints", "Question Points", "Teaching › Exercise", items::set_question_points)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points": number | null} → sets or clears the maximum points on a question of any exercise (problem or quiz), feeding the scores table's first criterion"#),
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
-            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
@@ -119,11 +149,21 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
         CommandSpec::new("exercise.data", "Exercise Data", "Teaching › Exercise", data_info)
             .pure()
-            .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n}, "errors": [string|null per item]}"#),
+            .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n, "duration"?: minutes}, "errors": [string|null per item], "variantErrors": {variantName: [string]}}"#),
         CommandSpec::new("exercise.setData", "Set Exercise Data", "Teaching › Exercise", set_data)
-            .params(r#"{"exercise"?: n, "data": {"items": [...], "variants": [...], "active": n}} → stores the exercise's data and variants, then recalculates"#),
+            .params(r#"{"exercise"?: n, "data"?: {"items": [...], "variants": [...], "active": n, "duration"?: minutes | null}, "duration"?: minutes | null} → stores the exercise's data and variants, then recalculates"#),
         CommandSpec::new("exercise.variant", "Variant", "Teaching › Exercise", set_variant)
             .params(r#"{"exercise"?: n, "active": n (0-based)} → makes that variant the active one"#),
+        CommandSpec::new("exercise.generateVariants", "Generate Variants", "Teaching › Exercise", variants_gen::command)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "count"?: 1–26 (default 4), "seed"?: u64, "domains"?: [{"symbol", "description"?, "unit"?, "values"?: [string], "min"?: number, "max"?: number, "step"?: number}], "constraints"?: {"maxDecimals"?: 0–9, "positiveResults"?: bool, "distinctFinalResults"?: bool, "extra"?: [string]}} → deterministically generates N validated variants within 5000 candidate evaluations"#),
+        CommandSpec::new("exercise.blank", "Inline Blank", "Teaching › Exercise", stem_items::blank)
+            .params(r#"{"expr": string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer"#),
+        CommandSpec::new("exercise.tableFill", "Student Blank Cell", "Teaching › Exercise", stem_items::table_fill)
+            .params(r#"{"studentBlank"?: bool, "column"?: bool} → mark the cell or column at the caret; the table remains calculated"#),
+        CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
+            .when(body)
+            .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),
         CommandSpec::new("exercise.delete", "Delete Exercise", "Teaching › Exercise", delete::delete)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
@@ -144,9 +184,25 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"on"?: bool (insert the scores table after the caret's paragraph, outside the exercises / remove it), "add"?: name | true (a criterion: two columns, one left empty and one for its points), "remove"?: n, "rename"?: n, "name"?: text, "exercise"?: n, "criterion"?: n, "points"?: number | null} → {"on", "criteria": [name], "points": [[number | null]] (per exercise, per criterion), "exercises"}; the rows are the document's exercises, a Total column with more than one criterion and a Total row with more than one exercise"#),
+        CommandSpec::new("exercise.totalScore", "Total Score", "Teaching › Scores", total_score::command)
+            .params(r#"{"on"?: bool (insert a right-aligned `Punteggio: .......... / 20 pt` line after the caret's paragraph, outside the exercises / remove it), "points"?: number | null (the maximum used when the document's points give none)} → {"on", "points" (the maximum shown), "computed" (the scores table's grand total, else the exercises' question points added up; null without points), "manual"}"#),
+        CommandSpec::new("exercise.grading", "Grading Scale", "Teaching › Scores", grading::command)
+            .params(r#"{"on"?: bool (insert or remove the strix:grading scale table), "preset"?: "it-10" | "ch-6" | "de-6" | "fr-20" | "percent" | "custom", "maxPoints"?: number | null (null = bound automatically to strix:scores grand total), "minGrade"?: number, "maxGrade"?: number, "passRatio"?: 0.05–0.95, "passGrade"?: number, "curve"?: "linear" | "piecewiseLinear", "step"?: 0.1 | 0.25 | 0.5 | 1.0, "pointsStep"?: number | null, "visibility"?: "teacher" | "both"} → {"on", "config", "maxPoints", "scale": [{"points", "grade", "passing"}]}"#),
+        CommandSpec::new("exercise.check", "Check Assessment", "Teaching › Check", check::command)
+            .pure()
+            .params(r#"→ {"ok": bool, "errors": n, "warnings": n, "infos": n, "issues": [{"kind": "error"|"warning"|"info", "code", "message", "exercise"?, "variant"?, "pos"}]}; inspects all variants A..Z, choices, subdocuments, scores, durations and laid-out answer heights without mutating the session"#),
+        CommandSpec::new("file.exportPack", "Export Assessment Pack", "Teaching › Export", pack::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"path"?: string (directory or .zip file path), "returnBytes"?: bool (returns base64 zip in zipBase64), "includeDsa"?: bool (default true), "includeTeacher"?: bool (default true)} → exports Student PDFs per variant, DSA Student PDFs, and Teacher Key PDF (with Grading Scale and Multi-Variant Synoptic Table)"#),
         CommandSpec::new("design.dsa", "DSA", "Design › Document Formatting", dsa::command).params(
             r#"{"reading"?: bool (dyslexia: 14 pt, wider letter spacing), "writing"?: bool (dysgraphia: 1 cm graph paper, room under each question), "math"?: bool (dyscalculia, working memory: the data framed), "none"?: true (all off)} → turns those versions on or off; they combine over a common base (13 pt, line spacing 1.5, left aligned, no italics, no hyphenation, each exercise on a new page). Formatting only (styles, hyphenation, the series' page breaks and graph paper), kept in the document so taking it off brings back its own; in a master document the files keep theirs. Without params, the versions on → {"reading", "writing", "math", "on"}"#,
         ),
+        CommandSpec::new("archive.scan", "Exercise Bank", "Teaching › Archive", archive_bank::scan).pure()
+            .params(r#"{"path": folder, "query"?: string, "subject"?, "grade"?, "tags"?} → {"entries", "errors", "truncated"}; reads only OOXML property parts (at most 1000 files)"#),
+        CommandSpec::new("archive.importBundle", "Import Exercise Bundle", "Teaching › Archive", archive_bank::bundle).pure()
+            .params(r#"{"data": base64 ZIP, "query"?: string} → {"entries": [{"name", "data", "properties"}], "errors"}; no filesystem extraction, available on the web"#),
+        CommandSpec::new("archive.insertCopy", "Insert Exercise Copy", "Teaching › Archive", archive_bank::insert)
+            .params(r#"{"path": file.docx, "data"?: base64} → inserts a standalone copy at the selection; use master.insertSubdocument to link a desktop file"#),
         CommandSpec::new("archive.properties", "Archive Properties", "Teaching › Archive", archive::command).params(
             r#"{"grade"?: 1–20, "section"?: text, "profession"?: text, "subject"?: text (the document's subject), "teacher"?: text (the document's author), "duration"?: minutes 1–600} → sets those given (null or empty text removes one) as document properties Word shows too: grade, section, profession, duration and score are custom properties named in the language of the document's exercises (Classe, Sezione, Professione, Durata (min), Punteggio); the score is the scores table's grand total, computed, never set; without params, reads them → {"grade", "section", "profession", "subject", "teacher", "duration", "score", "names": {…}}"#,
         ),
@@ -192,6 +248,11 @@ fn words(s: &Session) -> &'static Words {
 fn exercise_words(s: &Session, layout: &Layout, e: usize) -> &'static Words {
     let lang = layout.exercises.get(e).map(|x| language::lang_at(s, x.start)).unwrap_or_default();
     words::lookup(&lang).or_else(|| language::present(s, layout, e)).unwrap_or_else(|| fallback_words(s))
+}
+
+/// The "(numerical solution)" note for top-level block `top`, in that block's or the document's language.
+pub(super) fn numeric_note_at(s: &Session, top: usize) -> &'static str {
+    words::lookup(&language::lang_at(s, top)).unwrap_or_else(|| fallback_words(s)).numeric_solution
 }
 
 /// The words of the document's exercises, for the parts generated for all of them (the results
@@ -254,6 +315,19 @@ fn ensure_styles(s: &mut Session) {
             "Exercise Frontispiece",
             ParaProps { align: Some(wordcraft_doc::props::Align::Center), space_before: Some(72.0), space_after: Some(12.0), ..Default::default() },
             CharProps { bold: Some(true), size: Some(20.0), ..Default::default() },
+        ),
+        para_style(
+            items::STYLE_ANSWER,
+            "Exercise Answer",
+            ParaProps { space_after: Some(6.0), ..Default::default() },
+            CharProps { color: Some(items::ANSWER_COLOUR), ..Default::default() },
+        ),
+        para_style(items::STYLE_CHOICE, "Exercise Option", ParaProps { space_after: Some(2.0), ..Default::default() }, CharProps::default()),
+        para_style(
+            items::STYLE_LINE,
+            "Exercise Result Line",
+            ParaProps { space_before: Some(4.0), space_after: Some(6.0), ..Default::default() },
+            CharProps { no_proof: Some(true), ..Default::default() },
         ),
         para_style(
             STYLE_RESULT,
@@ -370,18 +444,39 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Disabled("an exercise goes in the body, outside tables".into()));
     }
     ensure_styles(s);
+    if let Some(kind) = p::str(v, "kind").filter(|k| *k != "problem") {
+        let (blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        let placed = place(s, blocks)?;
+        if drawings.is_empty() {
+            return Ok(placed);
+        }
+        // The drawing questions get their solution's drawing; the caret goes back to the title.
+        let caret = s.sel.clone();
+        let ex = exercise_at_caret(s).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+        items::add_drawings(s, ex, &drawings)?;
+        s.sel = caret;
+        s.touch();
+        update(s);
+        s.clamp_selection();
+        return super::sel_result(s);
+    }
     let w = words(s);
     let title = p::str(v, "title").map(str::to_string);
     let text = p::str(v, "text").map(str::to_string);
-    // Questions: strings, or {"text", "level"} for nested ones.
-    let questions: Vec<(String, u8)> = v
+    // Questions: strings, or {"text", "level", "points"} for nested / scored ones.
+    let comma = scores::comma(s);
+    let questions: Vec<(String, u8, Option<f64>)> = v
         .get("questions")
         .and_then(Value::as_array)
         .map(|a| {
             a.iter()
                 .filter_map(|q| match q {
-                    Value::String(t) => Some((t.clone(), 0)),
-                    Value::Object(_) => Some((p::str(q, "text")?.to_string(), p::u64(q, "level").map_or(0, |l| l.min(u64::from(MAX_LEVEL)) as u8))),
+                    Value::String(t) => Some((t.clone(), 0, None)),
+                    Value::Object(_) => Some((
+                        p::str(q, "text")?.to_string(),
+                        p::u64(q, "level").map_or(0, |l| l.min(u64::from(MAX_LEVEL)) as u8),
+                        q.get("points").and_then(Value::as_f64).filter(|n| n.is_finite()),
+                    )),
                     _ => None,
                 })
                 .take(MAX_QUESTIONS)
@@ -421,9 +516,13 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     } else {
         let n = questions.len();
         let mut opener = Some(qc);
-        for (i, (q, level)) in questions.iter().enumerate() {
+        for (i, (q, level, pts)) in questions.iter().enumerate() {
             let num = Some(NumRef { num: list, level: *level });
-            blocks.push(para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num));
+            let mut p = para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num);
+            if let Some(pts) = *pts {
+                items::set_problem_points_para(&mut p, Some(pts), w, comma);
+            }
+            blocks.push(p);
         }
     }
     if let Some(g) = grid {
@@ -434,6 +533,12 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, w.prompt, ControlLock::SdtContentLocked)], 1, None));
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
+    place(s, blocks)
+}
+
+/// The blocks of a new exercise put after the paragraph at the caret (never inside another
+/// exercise or the results summary), the caret in its title.
+fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     let top = s.sel.focus.path.0.first().map_or(0, |&t| t as usize);
     let mut at = top.saturating_add(1).min(s.doc.body.len());
     // Never inside another exercise: after it (the caret in one), or before the results
@@ -501,6 +606,8 @@ struct Question {
 
 #[derive(Debug, Default)]
 struct Exercise {
+    /// Problem, open answer or multiple choice (docs/exercise.md, Kinds of exercise).
+    kind: items::Kind,
     title: String,
     questions: Vec<Question>,
     /// Questions counted per level so far, for the labels.
@@ -619,6 +726,7 @@ fn scan(s: &Session) -> Layout {
                                 data: read_data(control),
                                 breaks: breaks::read(control),
                                 show: show::read(control),
+                                kind: items::read_kind(control),
                                 start: i,
                                 ..Exercise::default()
                             });
@@ -692,11 +800,16 @@ fn scan(s: &Session) -> Layout {
                 grow(&mut e.question_blocks);
                 if tags.iter().any(|(t, ph)| t == TAG_QUESTIONS && *ph) {
                     e.no_questions = true;
-                } else if p.props.style.as_deref() == Some(STYLE_QUESTION) && e.questions.len() < MAX_QUESTIONS && !plain(p).is_empty() {
+                } else if p.props.style.as_deref() == Some(STYLE_QUESTION)
+                    && e.questions.len() < MAX_QUESTIONS
+                    && !has(items::TAG_ANSWER)
+                    && let Some(text) = items::question_text(p).or_else(|| items::problem_question_text(p))
+                {
                     // Only question paragraphs count; notes and other content sit between them.
+                    // A quiz's question is its item control, empty while its placeholder shows.
                     let level = p.props.numbering.map_or(0, |n| n.level).min(MAX_LEVEL);
                     let label = e.next_label(level);
-                    e.questions.push(Question { text: plain(p).chars().take(MAX_TEXT).collect(), level, label });
+                    e.questions.push(Question { text: text.chars().take(MAX_TEXT).collect(), level, label });
                 }
             }
             (Part::Questions, _) => grow(&mut e.question_blocks),
@@ -719,8 +832,16 @@ fn scan(s: &Session) -> Layout {
     out
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
 /// The initial data of an exercise and its variants: each item has one value per variant.
-#[derive(Debug, Clone, Default, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ExerciseData {
     pub items: Vec<DataItem>,
@@ -728,6 +849,21 @@ pub struct ExerciseData {
     pub variants: Vec<String>,
     /// The active variant (0-based).
     pub active: usize,
+    /// Whether the generated `Data` block is shown in the exercise (`true` by default).
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub show_data: bool,
+    /// Per-exercise calculation and number-format overrides (`docs/calc.md`).
+    #[serde(default, skip_serializing_if = "super::calc::CalcOverrides::is_empty")]
+    pub calc: super::calc::CalcOverrides,
+    /// Estimated duration of this exercise in minutes (`1..=600`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration: Option<u32>,
+}
+
+impl Default for ExerciseData {
+    fn default() -> Self {
+        Self { items: Vec::new(), variants: Vec::new(), active: 0, show_data: true, calc: Default::default(), duration: None }
+    }
 }
 
 /// One datum: `L` "span" = 4.5 m.
@@ -766,6 +902,8 @@ impl ExerciseData {
             item.values.iter_mut().for_each(|v| *v = clip(v));
         }
         self.active = self.active.min(n.saturating_sub(1));
+        self.calc.sanitize();
+        self.duration = self.duration.filter(|&m| m >= 1).map(|m| m.min(600));
     }
 
     /// The definitions of the active variant: `L = 4.5 m`.
@@ -781,6 +919,9 @@ impl ExerciseData {
 
     /// The lines of the generated data part.
     fn lines(&self, w: &Words) -> Vec<(&'static str, String)> {
+        if !self.show_data {
+            return Vec::new();
+        }
         let statements: Vec<(String, String)> = self
             .items
             .iter()
@@ -823,7 +964,7 @@ fn read_data(ctl: &ContentControl) -> ExerciseData {
 fn write_data(ctl: &mut ContentControl, data: &ExerciseData) {
     let open = format!("<{DATA_EL}>");
     ctl.extra.retain(|x| !x.starts_with(&open));
-    if data.items.is_empty() {
+    if data.items.is_empty() && data.show_data && data.calc.is_empty() && data.duration.is_none() {
         return;
     }
     let json = serde_json::to_string(data).unwrap_or_default();
@@ -870,6 +1011,36 @@ pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String
     scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
 }
 
+/// Title, active variant name (when multi-variant), and jump position of each exercise's data/start.
+pub(crate) fn sandbox_meta(s: &Session) -> std::collections::BTreeMap<usize, (String, Option<String>, wordcraft_doc::Pos)> {
+    scan(s)
+        .exercises
+        .into_iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let variant = (e.data.variants.len() > 1).then(|| e.data.variants.get(e.data.active).cloned()).flatten();
+            let block = e.data_blocks.map_or(e.start, |(a, _)| a);
+            let pos = s.doc.clamp(&wordcraft_doc::Pos::body(block, 0));
+            (i, (e.title, variant, pos))
+        })
+        .collect()
+}
+
+/// Per-exercise calculation overrides, keyed by 0-based exercise index.
+pub(super) fn exercise_calc(s: &Session) -> std::collections::BTreeMap<usize, super::calc::CalcOverrides> {
+    scan(s).exercises.into_iter().enumerate().filter(|(_, e)| !e.data.calc.is_empty()).map(|(i, e)| (i, e.data.calc)).collect()
+}
+
+/// Updates the calculation overrides of the exercise named by `v` (or at the caret).
+pub(super) fn set_exercise_calc(s: &mut Session, v: &Value, f: impl FnOnce(&mut super::calc::CalcOverrides)) -> Result<usize, CmdError> {
+    let ex = target(s, v)?;
+    with_data(s, ex, |d| {
+        f(&mut d.calc);
+        d.calc.sanitize();
+    })?;
+    Ok(ex)
+}
+
 /// The exercise named by `exercise` (1-based) or holding the caret.
 fn target(s: &Session, v: &Value) -> Result<usize, CmdError> {
     match p::u64(v, "exercise") {
@@ -877,6 +1048,64 @@ fn target(s: &Session, v: &Value) -> Result<usize, CmdError> {
         Some(_) => Err(CmdError::Params("exercise: 1-based".into())),
         None => exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into())),
     }
+}
+
+fn variant_errors_map(s: &Session, layout: &Layout, ex: usize, e: &Exercise) -> serde_json::Map<String, Value> {
+    let mut map = serde_json::Map::new();
+    let v_count = e.data.variants.len();
+    if v_count == 0 {
+        return map;
+    }
+    for (vi, v_name) in e.data.variants.iter().enumerate() {
+        let mut errs: Vec<String> = Vec::new();
+        let mut z_opts = super::calc::options_now(s);
+        e.data.calc.apply_to(&mut z_opts);
+        let mut ws_check = strix_calc::Worksheet::new(z_opts);
+        let mut stmts = Vec::new();
+        for item in &e.data.items {
+            let val = item.values.get(vi).cloned().unwrap_or_default();
+            if item.symbol.is_empty() || val.is_empty() {
+                continue;
+            }
+            let stmt = format!("{} = {val} {}", item.symbol, item.unit).trim().to_string();
+            let r = ws_check.eval_statement(&stmt);
+            if r.error.is_none() && r.name.as_deref() != Some(item.symbol.as_str()) {
+                errs.push(format!("{} is not a name", item.symbol));
+            }
+            stmts.push(stmt);
+        }
+        let eval = super::calc::eval_exercise_variant(s, ex, &stmts);
+        for (_, msg) in eval.errors {
+            if !errs.contains(&msg) {
+                errs.push(msg);
+            }
+        }
+        // Also flag evaluated duplicate options in multiple-choice questions for this variant.
+        for (qi, it) in items::items(s, layout, ex).into_iter().enumerate() {
+            if it.settings.mode == items::Mode::Choice
+                && let Some((a, b)) = it.answer
+            {
+                let mut seen = std::collections::BTreeSet::new();
+                for bi in a..=b {
+                    if let Some(p) = s.doc.body.get(bi).and_then(|bl| bl.as_para())
+                        && p.props.style.as_deref() == Some(items::STYLE_CHOICE)
+                    {
+                        let rendered = expr::render_choice_with_sheet(p, &eval.ws);
+                        if !rendered.is_empty() && !seen.insert(rendered.clone()) {
+                            let msg = format!("question {}: duplicate option '{rendered}'", qi + 1);
+                            if !errs.contains(&msg) {
+                                errs.push(msg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !errs.is_empty() {
+            map.insert(v_name.clone(), json!(errs));
+        }
+    }
+    map
 }
 
 fn data_info(s: &mut Session, v: &Value) -> CmdResult {
@@ -902,7 +1131,8 @@ fn data_info(s: &mut Session, v: &Value) -> CmdResult {
             }
         })
         .collect();
-    Ok(json!({"exercise": ex + 1, "data": e.data, "errors": errors}))
+    let variant_errors = variant_errors_map(s, &layout, ex, e);
+    Ok(json!({"exercise": ex + 1, "data": e.data, "errors": errors, "variantErrors": variant_errors}))
 }
 
 /// Changes the data of exercise `ex` with `f`, then rebuilds and recalculates.
@@ -936,9 +1166,39 @@ fn with_data(s: &mut Session, ex: usize, f: impl FnOnce(&mut ExerciseData)) -> C
 
 fn set_data(s: &mut Session, v: &Value) -> CmdResult {
     let ex = target(s, v)?;
+    let top_duration = match v.get("duration") {
+        Some(Value::Null) => Some(None),
+        Some(x) => {
+            let n = x.as_u64().ok_or_else(|| CmdError::Params("duration: minutes 1–600 or null".into()))?;
+            if !(1..=600).contains(&n) {
+                return Err(CmdError::Params("duration: minutes 1–600".into()));
+            }
+            Some(Some(u32::try_from(n).unwrap_or(600)))
+        }
+        None => None,
+    };
+    if v.get("data").is_none()
+        && let Some(dur) = top_duration
+    {
+        return with_data(s, ex, |d| d.duration = dur);
+    }
+    let has_calc = v.get("data").and_then(|d| d.get("calc")).is_some();
+    let has_duration = v.get("data").and_then(|d| d.get("duration")).is_some();
     let new: ExerciseData =
         v.get("data").cloned().map(serde_json::from_value).transpose().map_err(|e| CmdError::Params(format!("data: {e}")))?.unwrap_or_default();
-    with_data(s, ex, |d| *d = new)
+    with_data(s, ex, |d| {
+        let keep_calc = d.calc.clone();
+        let keep_duration = d.duration;
+        *d = new;
+        if !has_calc {
+            d.calc = keep_calc;
+        }
+        if let Some(dur) = top_duration {
+            d.duration = dur;
+        } else if !has_duration {
+            d.duration = keep_duration;
+        }
+    })
 }
 
 fn set_variant(s: &mut Session, v: &Value) -> CmdResult {
@@ -954,11 +1214,14 @@ pub(crate) fn signature(s: &Session) -> u64 {
     let layout = scan(s);
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for e in &layout.exercises {
-        (&e.title, &e.questions, e.data.statements(), e.breaks, e.show, e.grid.is_some()).hash(&mut h);
+        (&e.title, &e.questions, e.data.statements(), e.data.show_data, &e.data.calc, e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
     // Points typed in a scores table change its totals.
     scores::fingerprint(s).hash(&mut h);
+    grading::fingerprint(s).hash(&mut h);
+    // Boxes ticked and the settings of the quizzes' questions.
+    items::fingerprint(s).hash(&mut h);
     h.finish()
 }
 
@@ -967,8 +1230,17 @@ pub(crate) fn zones(s: &Session) -> Vec<Option<usize>> {
     scan(s).parts.into_iter().map(|(e, _)| e).collect()
 }
 
+/// Exercises whose solution is hidden (`show.solution == false`), plus whether every exercise in
+/// the document hides its solution (for CAD drawings and plots outside any exercise).
+pub(crate) fn hidden_solutions(s: &Session) -> (std::collections::BTreeSet<usize>, bool) {
+    let layout = scan(s);
+    let hidden: std::collections::BTreeSet<usize> = layout.exercises.iter().enumerate().filter(|(_, e)| !e.show.solution).map(|(i, _)| i).collect();
+    let all_hidden = !layout.exercises.is_empty() && hidden.len() == layout.exercises.len();
+    (hidden, all_hidden)
+}
+
 /// The exercise holding the caret.
-fn exercise_at_caret(s: &Session) -> Option<usize> {
+pub(super) fn exercise_at_caret(s: &Session) -> Option<usize> {
     if s.sel.focus.story != StoryRef::Body {
         return None;
     }
@@ -980,6 +1252,9 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
     let ex = exercise_at_caret(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in an exercise".into()))?;
     let layout = scan(s);
     let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+    if e.kind.quiz() {
+        return items::add_question(s, ex, v);
+    }
     let (_, last) = e.question_blocks.ok_or_else(|| CmdError::Failed("the exercise has no questions part".into()))?;
     if e.questions.len() >= MAX_QUESTIONS {
         return Err(CmdError::Failed(format!("an exercise holds at most {MAX_QUESTIONS} questions")));
@@ -991,6 +1266,9 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         (None, Some(true)) => (last_level + 1).min(MAX_LEVEL),
         _ => 0,
     };
+    let pts = v.get("points").and_then(Value::as_f64).filter(|n| n.is_finite());
+    let w = exercise_words(s, &layout, ex);
+    let comma = scores::comma(s);
     let list = e_list(s, last);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
@@ -1010,14 +1288,22 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
             .collect();
         let ends = prev.objects.iter().filter(|o| matches!(o, InlineObject::ControlEnd)).count();
         let numbering = list.map(|num| NumRef { num, level });
-        *prev = para(STYLE_QUESTION, &text, opens, ends, numbering);
-        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
+        let mut p = para(STYLE_QUESTION, &text, opens, ends, numbering);
+        let caret = p.text.len() - OBJ.len_utf8() * ends;
+        if let Some(pts) = pts {
+            items::set_problem_points_para(&mut p, Some(pts), w, comma);
+        }
+        *prev = p;
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last), caret));
     } else {
         // The questions control's end moves to the new last question.
         take_last_end(prev)?;
         let numbering = list.map(|num| NumRef { num, level });
-        let new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
+        let mut new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
         let caret = new.text.len() - OBJ.len_utf8();
+        if let Some(pts) = pts {
+            items::set_problem_points_para(&mut new, Some(pts), w, comma);
+        }
         s.doc.body.insert(last + 1, para_block(new));
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     }
@@ -1453,6 +1739,12 @@ fn capitalized(t: &str) -> String {
 }
 
 /// The first block of the results summary, when the document has one.
+/// A control of an exercise that never shows a placeholder when emptied: an answer (an empty
+/// space prints empty), the points, an option's box.
+pub(crate) fn no_placeholder(tag: &str) -> bool {
+    [TAG_ANSWER, TAG_POINTS, TAG_BOX, TAG_EXPR, TAG_RATIONALE, total_score::TAG_SCORE_TOTAL].contains(&tag)
+}
+
 pub(crate) fn results_start(s: &Session) -> Option<usize> {
     scan(s).results.map(|(from, _)| from)
 }
@@ -1546,6 +1838,7 @@ pub(crate) fn with_results(doc: Document) -> Document {
 pub(crate) fn update(s: &mut Session) -> bool {
     // A frontispiece in a control (documents from before the Frontispiece Break) becomes one.
     let mut changed = front::migrate(s);
+    changed |= expr::convert_all_templates(s);
     changed |= title_controls(s);
     changed |= title_styles(s);
     placeholders(s);
@@ -1553,8 +1846,12 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= series::conform(s);
     // The scores tables: one row per exercise, the totals.
     changed |= scores::update(s);
+    // The grading scale tables: bound to scores/exercise totals and teacher/both visibility.
+    changed |= grading::update(s);
     // The archive's Score property: the scores table's grand total.
     changed |= archive::sync_score(s);
+    // The total score lines: the scores table's grand total or the question points.
+    changed |= total_score::update(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.
@@ -1595,7 +1892,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
                 changed |= replace(s, from, to, generated(ctl, &lines));
             }
             (None, false) => {
-                let Some((_, end)) = e.text_blocks else { continue };
+                // After the statement; a quiz without one, after the title.
+                let Some(end) = e.text_blocks.map(|(_, end)| end).or_else(|| e.kind.quiz().then_some(e.start)) else { continue };
                 let new = generated(control(TAG_DATA, w.data, ControlLock::SdtContentLocked), &lines);
                 let at = (end + 1).min(s.doc.body.len());
                 for (k, p) in new.into_iter().enumerate() {
@@ -1613,6 +1911,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= numbering::apply_single(s, &layout);
     // Hidden solutions stay hidden (their repeated questions were rebuilt).
     changed |= show::apply(s, &layout);
+    // Quizzes: points, answer spaces, boxes, answers shown or hidden, a lone question unlettered.
+    changed |= items::update(s);
     // The answers: the values of the result equations, by exercise and question.
     let layout = scan(s);
     let opts = super::calc::options_now(s);
@@ -1622,13 +1922,25 @@ pub(crate) fn update(s: &mut Session) -> bool {
             answers.entry((ex, question)).or_default().push(text);
         }
     }
+    // Calculation questions: their result lines.
+    changed |= items::result_lines(s, &layout, &answers);
+    changed |= stem_items::problem_guides(s, &answers);
+    stem_items::table_blanks(s);
+    let layout = scan(s);
     // Hidden results are hidden text in the summary; the heading too when every one is hidden.
     let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];
     // Each exercise by its label alone (`Esercizio 1`, as the document numbers them); a lone
     // exercise has no label, so only its variant heads it (when it has several).
     let labels = numbering::current(s);
     let lone = layout.exercises.len() == 1;
+    let mut any = false;
     for (n, e) in layout.exercises.iter().enumerate() {
+        // A quiz gives its multiple choices' correct options; open answers give nothing.
+        let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n, &answers, w.no_result));
+        if quiz.as_ref().is_some_and(Vec::is_empty) {
+            continue;
+        }
+        any = true;
         let variant = (e.data.variants.len() > 1).then(|| e.data.variants.get(e.data.active)).flatten();
         let head = match (lone, variant) {
             (false, None) => Some(labels.label(n)),
@@ -1640,12 +1952,31 @@ pub(crate) fn update(s: &mut Session) -> bool {
         if let Some(head) = head {
             lines.push((STYLE_RESULT, head, hide));
         }
+        if let Some(quiz) = quiz {
+            lines.extend(quiz.into_iter().map(|l| (STYLE_RESULT, l, hide)));
+            continue;
+        }
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
             // Only the question's letter and its result: the question itself is above, in the exercise.
             lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
         }
+    }
+    // Only open answers: nothing to sum up, no summary.
+    if !any {
+        if let Some((from, to)) = layout.results
+            && s.doc.body.get(from..=to).is_some()
+        {
+            s.doc.body.drain(from..=to);
+            s.doc.ensure_nonempty();
+            changed = true;
+        }
+        if changed {
+            s.touch();
+            s.clamp_selection();
+        }
+        return changed;
     }
     let ctl = layout
         .results

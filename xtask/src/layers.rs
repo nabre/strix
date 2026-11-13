@@ -39,6 +39,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("doc", Class::Layer(1)),
     ("calc", Class::Layer(1)),
     ("cad", Class::Layer(1)),
+    ("plot", Class::Layer(1)),
     ("fonts", Class::Layer(1)),
     ("metafile", Class::Layer(1)),
     ("layout", Class::Layer(2)),
@@ -61,8 +62,8 @@ pub const TABLE: &[(&str, Class)] = &[
 ];
 
 /// Explicit orderings *within* a layer (earlier may be used by later):
-/// `cad` evaluates its parameters with `calc`.
-pub const INTRA_LAYER_ORDER: &[&[&str]] = &[&["calc", "cad"]];
+/// `cad` and `plot` evaluate their parameters with `calc`.
+pub const INTRA_LAYER_ORDER: &[&[&str]] = &[&["calc", "cad"], &["calc", "plot"]];
 
 fn intra_layer_allowed(from: &str, to: &str) -> bool {
     let (from, to) = (short_name(from), short_name(to));

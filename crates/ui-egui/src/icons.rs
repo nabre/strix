@@ -1259,6 +1259,36 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.text(9.0, 9.0, 10.0, "x=", c, false);
             pen.line_c(&[(12.0, 15.0), (14.0, 17.0), (18.0, 12.0)], a);
         }
+        "inlineExpr" => {
+            pen.text(4.5, 10.0, 11.0, "{", a, true);
+            pen.text(10.0, 10.0, 9.5, "x", c, false);
+            pen.text(15.5, 10.0, 11.0, "}", a, true);
+        }
+        "gradingScale" => {
+            pen.rect(3.0, 2.5, 17.0, 17.5, c);
+            pen.line(&[(10.0, 2.5), (10.0, 17.5)]);
+            pen.line_c(&[(3.0, 6.5), (17.0, 6.5)], a);
+            pen.lines(4.8, 8.2, &[9.5, 12.5, 15.2]);
+            pen.lines(11.8, 15.2, &[9.5, 12.5, 15.2]);
+        }
+        "checkAssessment" => {
+            let green = Color32::from_rgb(0x2E, 0x8B, 0x57);
+            pen.page(3.5, 2.0, 15.0, 17.5);
+            pen.lines(5.5, 12.5, &[6.5, 9.5]);
+            pen.line_c(&[(9.5, 14.0), (12.0, 16.5), (17.5, 10.5)], green);
+        }
+        "exportPack" => {
+            pen.rect(2.5, 4.5, 11.5, 16.5, c);
+            pen.rect(5.0, 2.5, 14.0, 14.5, c);
+            pen.line_c(&[(10.5, 12.0), (18.0, 12.0)], a);
+            pen.line_c(&[(15.0, 9.0), (18.0, 12.0), (15.0, 15.0)], a);
+        }
+        "generateVariants" => {
+            pen.rect(2.5, 4.0, 9.5, 13.0, c);
+            pen.text(6.0, 8.5, 7.5, "A", c, true);
+            pen.rect(10.5, 7.0, 17.5, 16.0, a);
+            pen.text(14.0, 11.5, 7.5, "B", a, true);
+        }
         // A new calculation: an equals sign beside x.
         "calculation" => pen.text(10.0, 10.0, 12.0, "x=", a, false),
         // Steps: three aligned lines, the last one a result.
@@ -1525,6 +1555,21 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
                 pen.fcircle(10.0 + 6.5 * t.cos(), 10.0 + 6.5 * t.sin(), 1.7, if k == 0 { a } else { c });
             }
         }
+        // Blocks: objects (a circle and a line) gathered in a frame with their base point;
+        // the frame placed by its base point at the end of an arrow.
+        "cadBlockCreate" => {
+            pen.rect(2.5, 2.5, 17.5, 17.5, a);
+            pen.circle(8.0, 8.0, 3.2, c);
+            pen.line_c(&[(6.0, 15.0), (15.0, 6.0)], c);
+            pen.fcircle(2.5, 17.5, 1.8, a);
+        }
+        "cadBlockInsert" => {
+            pen.rect(8.0, 2.5, 17.5, 12.0, c);
+            pen.circle(12.75, 7.25, 2.5, c);
+            pen.line_c(&[(2.5, 17.5), (7.0, 13.0)], a);
+            pen.line_c(&[(4.0, 13.0), (7.0, 13.0), (7.0, 16.0)], a);
+            pen.fcircle(8.0, 12.0, 1.6, a);
+        }
         "cadChamfer" => {
             pen.line_c(&[(3.0, 4.0), (3.0, 11.0)], c);
             pen.line_c(&[(3.0, 11.0), (9.0, 17.0)], a);
@@ -1714,6 +1759,38 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.line(&[(16.0, 2.5), (16.0, 6.5)]);
             pen.line(&[(3.0, 5.0), (5.0, 3.0)]);
             pen.line(&[(15.0, 5.0), (17.0, 3.0)]);
+        }
+        // Student preview in the CAD editor: a frame with the base line solid and the solution trace dashed.
+        "studentPreview" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            pen.line_c(&[(5.5, 13.5), (14.5, 13.5)], c);
+            pen.line_c(&[(5.5, 13.5), (7.5, 10.5)], a);
+            pen.line_c(&[(9.0, 8.2), (10.5, 6.0)], a);
+            pen.line_c(&[(11.8, 8.2), (13.8, 12.0)], a);
+        }
+        // A scientific Cartesian plot: orthogonal axes with arrowheads and a smooth curve in accent.
+        "plot" => {
+            pen.line_c(&[(3.5, 16.5), (17.5, 16.5)], c);
+            pen.line_c(&[(4.5, 17.5), (4.5, 3.0)], c);
+            pen.line_c(&[(15.5, 15.0), (17.5, 16.5), (15.5, 18.0)], c);
+            pen.line_c(&[(3.0, 5.0), (4.5, 3.0), (6.0, 5.0)], c);
+            let curve: Vec<(f32, f32)> = (0..=16)
+                .map(|i| {
+                    let t = i as f32 / 16.0;
+                    let x = 5.0 + 11.5 * t;
+                    let y = 13.5 - 7.5 * (t * std::f32::consts::PI * 1.15).sin() - 2.0 * t;
+                    (x, y)
+                })
+                .collect();
+            pen.line_c(&curve, a);
+        }
+        // Plot properties: axes and curve above a small slider bar.
+        "plotProperties" => {
+            pen.line_c(&[(3.5, 13.5), (16.5, 13.5)], c);
+            pen.line_c(&[(4.5, 14.5), (4.5, 3.0)], c);
+            pen.line_c(&[(5.0, 12.0), (8.0, 6.5), (11.5, 9.5), (15.5, 4.5)], a);
+            pen.line(&[(3.0, 17.5), (17.0, 17.5)]);
+            pen.frect(10.5, 15.5, 12.5, 19.5, a);
         }
         "selectTable" => {
             pen.rect(3.0, 3.0, 17.0, 17.0, c);
@@ -1993,6 +2070,14 @@ fn paint_file_and_tools(pen: &Pen, name: &str) -> bool {
                 pen.rect(3.0, y - 1.5, 6.0, y + 1.5, if k == 0 { a } else { c });
                 pen.line_c(&[(8.5, y), (17.0, y)], c);
             }
+        }
+        // The Variables pane: `x =` over parameter rows.
+        "variables" => {
+            pen.rect(2.5, 2.5, 17.5, 17.5, c);
+            pen.text(6.2, 7.2, 8.5, "x", a, true);
+            pen.line_c(&[(9.8, 6.3), (14.8, 6.3)], c);
+            pen.line_c(&[(9.8, 8.3), (14.8, 8.3)], c);
+            pen.lines(4.8, 15.2, &[12.0, 14.8]);
         }
         "subdocInsert" | "subdocCreate" | "subdocUnlink" | "subdocRefresh" | "subdocOpen" => {
             pen.page(3.0, 2.0, 14.0, 17.0);

@@ -25,6 +25,7 @@ macro_rules! tl {
 
 pub mod a11y;
 pub mod a11y_pane;
+mod archive_pane;
 pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
@@ -35,6 +36,7 @@ mod cad_panel;
 mod cad_style_dialog;
 pub mod canvas;
 pub mod caret_glide;
+pub mod check_pane;
 pub mod chrome;
 pub mod colors;
 pub mod content_controls;
@@ -48,6 +50,7 @@ pub mod documents;
 pub mod equation_tab;
 mod exercise_grip;
 pub mod exercise_pane;
+mod exercise_quiz;
 /// The built-in file browser, for desktops without a system file dialog (#576).
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_browser;
@@ -71,6 +74,7 @@ pub mod options;
 pub mod pane_kit;
 pub mod panes;
 pub mod paste_picture;
+mod plot_pane;
 pub mod previews;
 pub mod print_page;
 pub mod printing;
@@ -92,6 +96,7 @@ pub mod table_resize;
 pub mod table_ruler;
 pub mod theme;
 pub mod updates_ui;
+pub mod variables_pane;
 pub mod widgets;
 pub mod window_close;
 pub mod window_geometry;

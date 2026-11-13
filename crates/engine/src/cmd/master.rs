@@ -215,6 +215,29 @@ fn record(s: &Session, path: &Path, disk: u64) {
     }
 }
 
+/// View changes in a master must not dirty its clean linked files. Keep their disk
+/// baseline, then advance only the presentation hash after the command succeeds.
+pub(crate) fn clean_before_view(s: &Session, command: &str) -> Vec<PathBuf> {
+    if !matches!(command, "exercise.show" | "exercise.variant" | "exercise.grid" | "exercise.pageBreaks" | "exercise.numbering" | "design.dsa") {
+        return Vec::new();
+    }
+    subdocuments(&s.doc)
+        .into_iter()
+        .filter_map(|sub| {
+            let last = synced(s.document_id(), &sub.link.path)?;
+            (!sub.link.conflict && !edited(Some(last), content_hash(&content(&s.doc, &sub.range)))).then_some(sub.link.path)
+        })
+        .collect()
+}
+
+pub(crate) fn keep_clean_after_view(s: &Session, clean: &[PathBuf]) {
+    for path in clean {
+        if let Some(last) = synced(s.document_id(), path) {
+            record(s, path, last.disk);
+        }
+    }
+}
+
 /// FNV-1a: stable across builds and platforms.
 fn hash(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))

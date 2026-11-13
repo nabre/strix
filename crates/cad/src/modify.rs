@@ -47,7 +47,7 @@ impl Affine {
     }
 
     /// The direction (degrees) a direction `deg` takes.
-    fn angle(&self, deg: f64) -> f64 {
+    pub(crate) fn angle(&self, deg: f64) -> f64 {
         let v = Pt::new(deg.to_radians().cos(), deg.to_radians().sin());
         let [a, b, _, d, e, _] = self.m;
         crate::kernel::deg(direction(Pt::new(a * v.x + b * v.y, d * v.x + e * v.y)))
@@ -103,6 +103,18 @@ impl Drawing {
     /// The entities at `indices` transformed by `t`. Sizes on paper stay; radii scale; a mirror
     /// turns arcs, polyline bulges and angular dimensions the other way.
     pub fn transform(&mut self, indices: &[usize], t: &Affine) {
+        let all = self.with_boundaries(indices);
+        self.transform_only(indices, t);
+        // A block's insertion moved whole: its insertion point follows.
+        self.inserts_follow(&all, t);
+        self.sanitize();
+    }
+
+    /// [`Drawing::transform`] without making the drawing safe after (a block's insertion
+    /// rescaled while the drawing is made safe).
+    pub(crate) fn transform_only(&mut self, indices: &[usize], t: &Affine) {
+        let indices = self.with_boundaries(indices);
+        let indices = indices.as_slice();
         for &i in indices {
             let Some(e) = self.entities.get_mut(i) else { continue };
             match &mut e.kind {
@@ -189,7 +201,6 @@ impl Drawing {
                 }
             }
         }
-        self.sanitize();
     }
 
     /// The entity at `i` offset by `dist` drawing units towards `side`: a line moved square to

@@ -15,6 +15,7 @@
 //! Hostile input never panics: sizes are clamped, counts capped, non-finite numbers rejected.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod blocks;
 mod dim_parts;
 mod dims;
 mod edit;
@@ -24,10 +25,12 @@ mod input;
 pub mod kernel;
 mod model;
 mod modify;
+mod pick;
 mod props;
 mod render;
 mod rework;
 mod select;
+mod series;
 mod spans;
 mod strip;
 mod styles;
@@ -38,18 +41,27 @@ mod underlay;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_answer;
+#[cfg(test)]
+mod tests_blocks;
+#[cfg(test)]
 mod tests_coherence;
 #[cfg(test)]
 mod tests_dims;
 #[cfg(test)]
 mod tests_fuzz;
 #[cfg(test)]
+mod tests_pick;
+#[cfg(test)]
 mod tests_rework;
+#[cfg(test)]
+mod tests_series;
 #[cfg(test)]
 mod tests_styles;
 #[cfg(test)]
 mod tests_underlay;
 
+pub use blocks::{Block, BlockInfo, Insert, MAX_BLOCKS};
 pub use dim_parts::DimParts;
 pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
@@ -59,10 +71,12 @@ pub use model::{
     Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
 };
 pub use modify::Affine;
+pub use pick::TextWidths;
 pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, SCALE_RANGE, parse_scale, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
+pub use series::{Series, Spacing, series_axis};
 pub use spans::{Span, SpanKind, spans};
 pub use strip::StripShape;
 pub use styles::StyleKind;

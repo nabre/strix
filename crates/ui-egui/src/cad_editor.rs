@@ -368,8 +368,9 @@ impl Tool {
             (Tool::Stretch, 1) => "Stretch: other corner (the points inside it move)",
             (Tool::Stretch, 2) => "Stretch: base point",
             (Tool::Stretch, _) => "Stretch: second point",
-            (Tool::ArrayRect, 0) => "Rectangular array: base point (type columns x rows, e.g. 4x3, to change the counts)",
-            (Tool::ArrayRect, _) => "Rectangular array: a point one column and one row away (the spacing)",
+            // The editor's own prompt says how it is spaced (`series::prompt`).
+            (Tool::ArrayRect, 0) => "Array: base point",
+            (Tool::ArrayRect, _) => "Array: end point (the far corner of the grid)",
             (Tool::ArrayPolar, _) => "Polar array: centre (type a number to change how many items)",
         }
     }
@@ -395,6 +396,8 @@ pub struct CadEditor {
     pub grid: bool,
     /// Show the picture's frame, the area outside it shaded.
     pub frame: bool,
+    /// Preview as on the student copy: solution-only layers and objects hidden.
+    pub student_preview: bool,
     /// The grip taken (AutoCAD's hot grip): entity, grip, where it was. The next point (a click,
     /// a typed point, the end of a drag) takes it there.
     pub grip: Option<(usize, Grip, Pt)>,
@@ -468,10 +471,16 @@ pub struct CadEditor {
     pub array_cols: usize,
     pub array_rows: usize,
     pub array_count: usize,
+    /// How a rectangular array is spaced between its base and end points, and the spacing
+    /// (drawing units; 0: not given yet).
+    pub array_spacing: strix_cad::Spacing,
+    pub array_pitch: f64,
     /// The linear dimension Continue and Baseline go on from.
     pub(crate) chain_base: Option<usize>,
     /// The style window open (Dimension, Level or Text Style).
     pub(crate) style_dialog: Option<crate::cad_style_dialog::StyleDialog>,
+    /// The block window open and the block point waited for (`blocks`).
+    pub(crate) block: blocks::BlockState,
     /// The space where the drawing sits (its column's width, down to the page's bottom), mm:
     /// a guide on the sheet and in the scale fields, not a limit.
     pub(crate) space: Option<strix_cad::Fit>,
@@ -533,6 +542,8 @@ pub struct CadSettings {
     pub array_cols: usize,
     pub array_rows: usize,
     pub array_count: usize,
+    pub array_spacing: strix_cad::Spacing,
+    pub array_pitch: f64,
     /// The Circle button's way (the last one chosen).
     pub circle_mode: CircleMode,
     /// The Arc button's way (the last one chosen).
@@ -555,6 +566,7 @@ impl CadSettings {
             array_cols: count(self.array_cols, 1, d.array_cols),
             array_rows: count(self.array_rows, 1, d.array_rows),
             array_count: count(self.array_count, 2, d.array_count),
+            array_pitch: size(self.array_pitch, 0.0, d.array_pitch),
             ..self
         }
     }
@@ -586,6 +598,8 @@ impl Default for CadSettings {
             array_cols: 3,
             array_rows: 2,
             array_count: 6,
+            array_spacing: strix_cad::Spacing::Fit,
+            array_pitch: 0.0,
             circle_mode: CircleMode::Radius,
             arc_mode: ArcMode::default(),
             picks: Picks::default(),
@@ -611,6 +625,8 @@ impl CadEditor {
             array_cols: self.array_cols,
             array_rows: self.array_rows,
             array_count: self.array_count,
+            array_spacing: self.array_spacing,
+            array_pitch: self.array_pitch,
             circle_mode: self.circle_mode,
             arc_mode: self.arc_mode,
             picks: self.picks,
@@ -638,6 +654,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         ortho: kept.ortho,
         grid: kept.grid,
         frame: kept.frame,
+        student_preview: false,
         grip: None,
         grip_drag: false,
         command: String::new(),
@@ -673,6 +690,8 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         array_cols: kept.array_cols,
         array_rows: kept.array_rows,
         array_count: kept.array_count,
+        array_spacing: kept.array_spacing,
+        array_pitch: kept.array_pitch,
         current_layer: "0".into(),
         vertex: 0,
         menu_at: None,
@@ -681,6 +700,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         rename: None,
         chain_base: None,
         style_dialog: None,
+        block: blocks::BlockState::default(),
         space,
         underlay: None,
     });
@@ -783,6 +803,8 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         return Err("no CAD drawing is open".into());
     }
     match id {
+        "ui.cadArrayMode" => return series::command(app, p),
+        "ui.cadBlock" => return blocks::command(app, p),
         "ui.cadTool" => {
             let tool = p
                 .get("tool")
@@ -808,6 +830,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "ortho" => ed.ortho = !ed.ortho,
                     "grid" => ed.grid = !ed.grid,
                     "frame" => ed.frame = !ed.frame,
+                    "student" => ed.student_preview = !ed.student_preview,
                     "props" => ed.panel = !ed.panel,
                     "layers" => ed.layers_panel = !ed.layers_panel,
                     "props.float" => ed.panel_float = !ed.panel_float,
@@ -837,7 +860,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     }
                     _ => {
                         return Err(
-                            "what: snap, ortho, grid, frame, props, layers, snaps.on, snaps.off or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
+                            "what: snap, ortho, grid, frame, student, props, layers, snaps.on, snaps.off or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
                                 .into(),
                         );
                     }
@@ -1313,11 +1336,14 @@ fn parse_dash(d: &str) -> Option<Dash> {
     })
 }
 
+mod blocks;
+mod series;
+
 impl CadEditor {
     /// A click picks objects: the selection prompt is up (no command, or a command asking for
     /// objects) and no point is being given.
     fn selecting(&self) -> bool {
-        (self.tool == Tool::Select || self.picking) && self.points.is_empty() && self.grip.is_none()
+        (self.tool == Tool::Select || self.picking) && self.points.is_empty() && self.grip.is_none() && self.block.pick.is_none()
     }
 
     /// Starts `tool`. With objects selected, Move and Copy take them (noun-verb); without, they
@@ -1360,6 +1386,8 @@ impl CadEditor {
 
     /// Adds the objects to the selection (or removes them); a click never replaces it.
     fn pick_into(&mut self, ids: Vec<usize>, remove: bool) {
+        // A group (an array) is one object: picking one of it picks it all.
+        let ids = self.drawing.with_groups(&ids);
         let mut ok: Vec<usize> = ids.into_iter().filter(|&i| self.drawing.selectable(i)).collect();
         ok.sort_unstable();
         ok.dedup();
@@ -1471,9 +1499,12 @@ impl CadEditor {
             let next_k = (k + 1) % list.len();
             let i = list.get(next_k).copied().unwrap_or(first);
             let mut next = self.selection.clone();
-            next.retain(|&s| s != last);
-            if !next.contains(&i) {
-                next.push(i);
+            let (gone, took) = (self.drawing.with_groups(&[last]), self.drawing.with_groups(&[i]));
+            next.retain(|s| !gone.contains(s));
+            for j in took {
+                if !next.contains(&j) {
+                    next.push(j);
+                }
             }
             self.step_to(next);
             self.found = format!("{} {} {} {} · {} {}", tl!("cycle:"), next_k + 1, tl!("of"), list.len(), self.selection.len(), tl!("selected"));
@@ -1490,7 +1521,7 @@ impl CadEditor {
     /// Esc: the innermost step first (a polygon, a window, Remove mode, a grip, the points, the
     /// command), then the selection. Returns a polyline in progress, kept.
     fn escape(&mut self) -> Option<Drawing> {
-        if self.poly.take().is_some() || self.win.take().is_some() {
+        if self.poly.take().is_some() || self.win.take().is_some() || self.block.pick.take().is_some() {
             return None;
         }
         if self.remove_mode {
@@ -1512,6 +1543,9 @@ impl CadEditor {
 
     /// The prompt at the command line.
     fn prompt(&self) -> String {
+        if let Some(p) = blocks::prompt(self) {
+            return p;
+        }
         if let Some((mode, _)) = &self.poly {
             let what = match mode {
                 SelectOption::Fence => tl!("Fence"),
@@ -1539,6 +1573,9 @@ impl CadEditor {
                 tl!("click on empty space for a window, drag for a lasso"),
                 tl!("All · F fence · WP/CP polygon · R remove · A add · P previous · U undo · Shift+Space cycle")
             );
+        }
+        if self.tool == Tool::ArrayRect {
+            return series::prompt(self);
         }
         tl!(self.tool.prompt(self.points.len())).to_string()
     }
@@ -1646,11 +1683,14 @@ fn shown_grips(ed: &CadEditor, view: View) -> Vec<(usize, Grip, Pt, Pos2)> {
     if ed.tool != Tool::Select || !ed.points.is_empty() || ed.selection.len() > MAX_GRIPPED {
         return Vec::new();
     }
-    ed.selection
-        .iter()
-        .flat_map(|&i| ed.drawing.grips(i).into_iter().map(move |(g, p)| (i, g, p)))
-        .map(|(i, g, p)| (i, g, p, view.to_screen(p)))
-        .collect()
+    // A hatch's boundaries' grips with its own (a solid fill is reshaped by them), each once.
+    let mut out: Vec<(usize, Grip, Pt, Pos2)> = Vec::new();
+    for (i, g, p) in ed.selection.iter().flat_map(|&i| ed.drawing.grip_targets(i)) {
+        if !out.iter().any(|o| o.0 == i && o.1 == g) {
+            out.push((i, g, p, view.to_screen(p)));
+        }
+    }
+    out
 }
 
 fn rgb(c: [u8; 3]) -> Color32 {
@@ -1680,6 +1720,8 @@ enum Act {
     Close,
     ClosePolyline,
     UndoVertex,
+    /// Create Block (false) or Insert Block (true).
+    Block(bool),
 }
 
 /// A command's name, for the menu's title and Repeat.
@@ -1858,6 +1900,10 @@ fn menu(ed: &CadEditor, ui: &mut Ui) -> Option<Act> {
             }
         });
         ui.separator();
+        item(ui, "Create Block…", "B", false, Act::Block(false));
+        if !ed.drawing.blocks.is_empty() {
+            item(ui, "Insert Block…", "I", false, Act::Block(true));
+        }
         item(ui, "Select Similar", "", false, Act::Similar);
         item(ui, "Deselect All", "Esc", false, Act::Deselect);
         item(ui, "Properties", "", ed.panel, Act::Toggle("props"));
@@ -1873,6 +1919,9 @@ fn menu(ed: &CadEditor, ui: &mut Ui) -> Option<Act> {
         ui.separator();
         item(ui, "Select All", "Ctrl+A", false, Act::Option(SelectOption::All));
         selection_items(ed, ui, &item);
+        if !ed.drawing.blocks.is_empty() {
+            item(ui, "Insert Block…", "I", false, Act::Block(true));
+        }
         ui.separator();
         item(ui, "Zoom Fit", "", false, Act::Fit);
         ui.menu_button(tl!("Object snap settings"), |ui| {
@@ -1944,6 +1993,7 @@ fn apply(app: &mut WordApp, a: Act) {
                 Act::UndoVertex => {
                     ed.points.pop();
                 }
+                Act::Block(insert) => blocks::open_dialog(ed, insert),
                 _ => {}
             }
         }
@@ -2015,6 +2065,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let (resp, painter) = ui.allocate_painter(sheet.size(), Sense::click_and_drag());
         let rect = resp.rect;
         painter.rect_filled(rect, 0.0, SHEET);
+        measure_texts(ed, &painter);
         // Fit the drawing on first show (and on Zoom Fit).
         if !ed.fitted {
             fit(ed, rect);
@@ -2068,6 +2119,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let s = view.to_screen(p);
             paint_cursor(ed, &painter, s, selecting, candidate.is_some() || hover_grip.is_some(), snapped, t.accent);
             paint_previews(ed, &painter, view, (p, s, h), t.accent);
+            blocks::paint_preview(ed, &painter, view, p, t.accent);
         }
         if hovering.is_some() && !panning {
             ui.ctx().set_cursor_icon(egui::CursorIcon::None);
@@ -2166,6 +2218,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         close(app);
     }
     crate::cad_style_dialog::show(app, ui.ctx());
+    blocks::show(app, ui.ctx());
 }
 
 /// The Properties pane and the Layer Manager: docked beside and under the `sheet` (in `full`),
@@ -2492,6 +2545,10 @@ fn run_typed(ed: &mut CadEditor, cursor: Option<Pt>, typing_text: bool) -> (Opti
             Some(o) => ed.run_option(o),
             None => ed.message = format!("{} {typed}", tl!("Unknown selection option:")),
         }
+    } else if blocks::typed(ed, typed) {
+        // B: Create Block, I: Insert Block (at the idle prompt).
+    } else if series::typed_option(ed, typed) {
+        // How a rectangular array is spaced (before the tools: S is not Stretch here).
     } else if let Some(tool) = Tool::parse(&typed.to_lowercase()).filter(|_| ed.points.is_empty() || ed.tool == Tool::Select) {
         ed.set_tool(tool);
     } else if let Some(o) = option.filter(|_| ed.tool == Tool::Select && ed.points.is_empty()) {
@@ -2506,6 +2563,8 @@ fn run_typed(ed: &mut CadEditor, cursor: Option<Pt>, typing_text: bool) -> (Opti
         ed.tool = Tool::Circle(CircleMode::Diameter);
     } else if typed_counts(ed, typed) {
         // Columns × rows for a rectangular array.
+    } else if series::typed_pitch(ed, typed) {
+        // The spacing of a rectangular array.
     } else if let Some(result) = typed_value(ed, typed) {
         finished = result;
     } else if let Some(v) = strix_cad::parse_length(typed, strix_cad::Units::of(&ed.drawing)).filter(|_| takes_size(ed))
@@ -2940,7 +2999,12 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
         paint_prims(r, ed.zoom, painter, view, unit);
     }
     // The drawing.
-    paint_prims(&ed.rendered, ed.zoom, painter, view, unit);
+    if ed.student_preview {
+        let student = ed.drawing.render_for(None, true, false);
+        paint_prims(&student, ed.zoom, painter, view, unit);
+    } else {
+        paint_prims(&ed.rendered, ed.zoom, painter, view, unit);
+    }
 }
 
 /// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
@@ -2978,7 +3042,12 @@ fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, un
                 // Turned about its anchor: counter-clockwise on paper is clockwise on the
                 // screen (y down).
                 let turn = if angle.is_finite() { -(angle.to_radians() as f32) } else { 0.0 };
-                let anchor_in = vec2(galley.size().x * align.x().to_factor(), galley.size().y * align.y().to_factor());
+                // A baseline anchor holds the text's baseline, as on the page, not its line's
+                // bottom (below the descenders), so it sits in its box.
+                let baseline = matches!(anchor, Anchor::BaselineLeft | Anchor::BaselineCenter | Anchor::BaselineRight)
+                    .then(|| galley_baseline(&galley))
+                    .flatten();
+                let anchor_in = vec2(galley.size().x * align.x().to_factor(), baseline.unwrap_or(galley.size().y * align.y().to_factor()));
                 let rot = egui::emath::Rot2::from_angle(turn);
                 painter.add(egui::epaint::TextShape::new(pos - rot * anchor_in, galley, rgb(*color)).with_angle(rot.angle()));
             }
@@ -3097,6 +3166,40 @@ fn text_job(text: &str, size: f32, color: Color32, unit: Color32, look: &strix_c
         job.append(&p.text, 0.0, format);
     }
     job
+}
+
+/// How far below the galley's top its first line's baseline is, px: the baseline of its
+/// largest characters (a subscript's drops below it).
+fn galley_baseline(galley: &egui::Galley) -> Option<f32> {
+    let row = galley.rows.first()?;
+    let glyph = row.row.glyphs.iter().filter(|g| g.font_height.is_finite()).max_by(|a, b| a.font_height.total_cmp(&b.font_height))?;
+    let y = row.pos.y + glyph.pos.y;
+    (y.is_finite() && y >= 0.0).then_some(y)
+}
+
+/// The size texts are measured at, px: large enough for their widths to be the font's own.
+const MEASURE_PX: f32 = 100.0;
+
+/// Measures the drawing's texts as they are drawn (filled, in their font, bold and italic), so
+/// they are picked and gripped at their real size ([`strix_cad::TextWidths`]). The layouts are
+/// cached by egui: a frame measures again only what changed.
+fn measure_texts(ed: &mut CadEditor, painter: &egui::Painter) {
+    if ed.rendered.texts.is_empty() {
+        return;
+    }
+    let texts: std::collections::HashMap<&str, &Entity> =
+        ed.drawing.entities.iter().filter(|e| matches!(e.kind, Kind::Text { .. })).map(|e| (e.id.as_str(), e)).collect();
+    let mut measured = Vec::new();
+    for (id, shown) in ed.rendered.texts.iter().take(strix_cad::MAX_ENTITIES) {
+        let Some(e) = texts.get(id.as_str()) else { continue };
+        let Kind::Text { value, .. } = &e.kind else { continue };
+        let look = ed.drawing.text_look(e.style.as_deref());
+        let galley = painter.layout_job(text_job(shown, MEASURE_PX, Color32::BLACK, Color32::BLACK, &look));
+        measured.push((id.clone(), value.clone(), f64::from(galley.size().x / MEASURE_PX)));
+    }
+    for (id, value, ems) in measured {
+        ed.drawing.text_widths.set(&id, &value, ems);
+    }
 }
 
 /// The editor's two panes.
@@ -3242,7 +3345,7 @@ fn immediate(ed: &mut CadEditor) -> Option<Drawing> {
     if tool == Tool::Explode {
         let made = d.explode(&selection);
         if made.is_empty() {
-            ed.message = "Nothing to explode: select polylines or rectangles".into();
+            ed.message = "Nothing to explode: select polylines, rectangles or arrays".into();
             return None;
         }
         ed.selection = made;
@@ -3417,6 +3520,9 @@ fn placed_angle(ed: &CadEditor, c: Pt, mut a: Pt, mut b: Pt, at: Pt) -> Result<K
 
 /// Takes point `p` for the current tool; returns the new drawing when an operation completes.
 fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
+    if let Some(made) = blocks::feed(ed, p) {
+        return made;
+    }
     ed.message.clear();
     ed.points.push(p);
     let n = ed.points.len();
@@ -3649,11 +3755,14 @@ fn feed_modify(ed: &mut CadEditor, p: Pt, pts: &[Pt]) -> Option<Drawing> {
             ed.picking = true;
             None
         }
+        Tool::ArrayRect if n == 1 && ed.array_spacing != strix_cad::Spacing::Fit && ed.array_pitch <= 0.0 => {
+            done(ed);
+            ed.message = "Type the spacing (a length), then the base point".into();
+            None
+        }
         Tool::ArrayRect if n >= 2 => {
             done(ed);
-            let d = pts[1].minus(pts[0]);
-            let (cols, rows, sel) = (ed.array_cols, ed.array_rows, ed.selection.clone());
-            edited(ed, |dr| dr.array_rect(&sel, cols, rows, d.x, d.y).map(|_| ()))
+            series::make(ed, pts[0], pts[1])
         }
         Tool::ArrayPolar => {
             done(ed);
@@ -3783,7 +3892,7 @@ const EXPLODE: [Paired; 2] = [
     ("cadJoin", "Join: objects that meet end to end into a polyline", "join", Tool::Join),
 ];
 const ARRAY: [Paired; 2] = [
-    ("cadArrayRect", "Array: rectangular, of the selection (type columns x rows)", "arrayRect", Tool::ArrayRect),
+    ("cadArrayRect", "Array: base to end point (fit, exact spacing or spread), one object", "arrayRect", Tool::ArrayRect),
     ("cadArrayPolar", "Polar Array: of the selection round a centre (type how many items)", "arrayPolar", Tool::ArrayPolar),
 ];
 
@@ -3802,6 +3911,9 @@ fn paired_split(ui: &mut Ui, app: &mut WordApp, tool: Tool, second: bool, [first
                     let _ = app.run("ui.cadTool", t(name));
                     ui.close();
                 }
+            }
+            if first_cmd.3 == Tool::ArrayRect {
+                series::menu_items(ui, app);
             }
         });
     });
@@ -4004,6 +4116,7 @@ fn home_tab(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
+    blocks::group(app, ui);
     underlay_group(app, ui);
     layers_group(app, ui);
 }
@@ -4087,13 +4200,15 @@ fn underlay_group(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
-/// Layers: the Layer Manager, Properties, the current layer.
+/// Layers: the Layer Manager, Properties, Student Preview, the current layer.
 fn layers_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::{big_checked, group};
-    let (panel, manager, layers, current) = app
+    let (panel, manager, student, layers, current) = app
         .cad
         .as_ref()
-        .map(|e| (e.panel, e.layers_panel, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone()))
+        .map(|e| {
+            (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone())
+        })
         .unwrap_or_default();
     let tool = tool_of(app);
     group(ui, "Layers", None, app, |ui, app| {
@@ -4102,6 +4217,8 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
             .on_hover_text(tl!("Match Properties: the source, then the objects that take its look"));
         big_checked(ui, app, "cadLayers", "Layer\nManager", "ui.cadToggle", json!({"what": "layers"}), manager);
         big_checked(ui, app, "properties", "Properties", "ui.cadToggle", json!({"what": "props"}), panel);
+        big_checked(ui, app, "studentPreview", "Student\nPreview", "ui.cadToggle", json!({"what": "student"}), student)
+            .on_hover_text(tl!("Student Preview: hide solution-only layers and objects as on the student copy"));
         ui.vertical(|ui| {
             ui.label(tl!("Current layer"));
             let mut pick = None;
@@ -5432,7 +5549,7 @@ mod tests {
         assert!(typed_counts(ed, "2x2"));
         assert_eq!((ed.array_cols, ed.array_rows), (2, 2));
         feed(ed, Pt::new(0.0, 0.0), None);
-        let d = feed(ed, Pt::new(0.0, 10.0), None).expect("rectangular array");
+        let d = feed(ed, Pt::new(10.0, 10.0), None).expect("rectangular array");
         assert_eq!(d.entities.len(), 5);
         ed.drawing = d;
         ed.selection = vec![1];
@@ -5443,6 +5560,74 @@ mod tests {
         assert!(typed_value(ed, "1.0").is_some() && ed.array_count == 4, "too few items: kept");
         app.run("ui.cadClose", json!({})).unwrap();
         assert_eq!((app.cad_settings.array_cols, app.cad_settings.array_count), (2, 4));
+    }
+
+    /// The owner: an array is one object, and its items end exactly at the end point, keep a
+    /// spacing exactly or are spread within one. F, I, S and a typed spacing at the command line,
+    /// the menu's command; a click on one item picks the whole array; Explode ungroups it.
+    #[test]
+    fn array_spacing_and_one_object_in_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.drawing = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[0,5]},{"type":"circle","c":[50,50],"r":1}]}"#).unwrap();
+        ed.zoom = 10.0;
+        let starts = |d: &Drawing| -> Vec<f64> {
+            let mut v: Vec<f64> = d.entities.iter().filter_map(|e| if let Kind::Line { a, .. } = &e.kind { Some(a.pt().x) } else { None }).collect();
+            v.sort_by(f64::total_cmp);
+            v
+        };
+        // Fit: five along a line, the last on the end point.
+        ed.selection = vec![0];
+        ed.set_tool(Tool::ArrayRect);
+        assert!(typed_counts(ed, "5x1"));
+        assert!(series::typed_option(ed, "f") && ed.array_spacing == strix_cad::Spacing::Fit);
+        feed(ed, Pt::new(0.0, 0.0), None);
+        let d = feed(ed, Pt::new(100.0, 0.0), None).expect("fit");
+        assert_eq!(starts(&d), vec![0.0, 25.0, 50.0, 75.0, 100.0]);
+        assert!(ed.message.contains('5'), "{}", ed.message);
+        // One object: a click on any item picks the five, not the circle.
+        ed.drawing = d;
+        ed.set_tool(Tool::Select);
+        ed.pick_into(vec![4], false);
+        assert_eq!(ed.selection.len(), 5);
+        assert!(!ed.selection.contains(&1));
+        // Explode: on their own again.
+        ed.set_tool(Tool::Explode);
+        let d = immediate(ed).expect("ungrouped");
+        assert!(d.entities.iter().all(|e| e.group.is_none()));
+        ed.drawing = d;
+        ed.clear_selection();
+        ed.pick_into(vec![4], false);
+        assert_eq!(ed.selection.len(), 1);
+        // A spacing typed (in the input unit): exact spacing, the rest left over.
+        let mut one = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[0,5]}]}"#).unwrap();
+        one.unit = strix_cad::Unit::Mm;
+        ed.drawing = one.clone();
+        ed.selection = vec![0];
+        ed.set_tool(Tool::ArrayRect);
+        assert!(series::typed_pitch(ed, "30"));
+        assert_eq!((ed.array_spacing, ed.array_pitch), (strix_cad::Spacing::Pitch, 30.0));
+        assert!(series::prompt(ed).contains("30"), "{}", series::prompt(ed));
+        feed(ed, Pt::new(0.0, 0.0), None);
+        let d = feed(ed, Pt::new(100.0, 0.0), None).expect("pitch");
+        assert_eq!(starts(&d), vec![0.0, 30.0, 60.0, 90.0]);
+        // Spread (S, not Stretch, at the array's prompt): four spaces of 25.
+        ed.drawing = one;
+        ed.selection = vec![0];
+        ed.set_tool(Tool::ArrayRect);
+        ed.command = "s".into();
+        run_typed(ed, None, false);
+        assert_eq!((ed.tool, ed.array_spacing), (Tool::ArrayRect, strix_cad::Spacing::Spread));
+        feed(ed, Pt::new(0.0, 0.0), None);
+        let d = feed(ed, Pt::new(100.0, 0.0), None).expect("spread");
+        assert_eq!(starts(&d), vec![0.0, 25.0, 50.0, 75.0, 100.0]);
+        // The menu's command, kept with the settings; junk refused.
+        assert!(app.run("ui.cadArrayMode", json!({"spacing": "fit", "pitch": 12.5})).is_ok());
+        assert!(app.run("ui.cadArrayMode", json!({"spacing": "zigzag"})).is_err());
+        assert!(app.run("ui.cadArrayMode", json!({"pitch": -1})).is_err());
+        app.run("ui.cadClose", json!({})).unwrap();
+        assert_eq!((app.cad_settings.array_spacing, app.cad_settings.array_pitch), (strix_cad::Spacing::Fit, 12.5));
     }
 
     /// CAD Output › Scale: a maximum size from the page, the scale fitted to it, a scale picked
@@ -5532,6 +5717,58 @@ mod max_size_kittest {
         h.run_steps(2);
         h.key_press(egui::Key::Enter);
         h.run_steps(4);
+    }
+
+    /// The owner: a text was only taken at its insertion point. The editor measures each text
+    /// with the font it draws it in, so its box (picked inside, gripped at its corners) is the
+    /// text's real size, its placeholders filled.
+    #[test]
+    fn texts_are_measured_as_drawn() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.session.run("document.setText", &json!({"text": ""})).unwrap();
+        let drawing = json!({"unit": "mm", "scale": 1, "entities": [
+            {"id": "a", "type": "text", "p": [0, 0], "value": "iiii", "height": 5},
+            {"id": "b", "type": "text", "p": [0, 20], "value": "MMMM", "height": 5}]});
+        app.session.run("insert.cad", &json!({"drawing": drawing})).unwrap();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_accessibility_check(false).with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(2);
+        let d = &h.state().cad.as_ref().unwrap().drawing;
+        let (a, b) = (d.text_widths.get("a", "iiii").unwrap(), d.text_widths.get("b", "MMMM").unwrap());
+        assert!(a > 0.0 && b > a * 2.0, "narrow and wide letters measured apart: {a} {b}");
+        let e = d.entities.iter().find(|e| e.id == "b").unwrap();
+        let corners = d.text_box(e).unwrap();
+        assert!((corners[1].x - b * 5.0 / 0.7).abs() < 1e-6, "the box is the measured width: {corners:?}");
+    }
+
+    /// The owner: a selected text's box was lower than its letters. The canvas drew a text's
+    /// line bottom (below the descenders) at its baseline; now its baseline is there, as on the
+    /// page, so the letters sit in the box: the baseline is well above the line's bottom.
+    #[test]
+    fn texts_are_drawn_on_their_baseline() {
+        let found = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let into = found.clone();
+        let mut h = egui_kittest::Harness::new_ui(move |ui| {
+            let look = strix_cad::TextLook::default();
+            for text in ["q = 12 kN/m", "Ag", "x_1"] {
+                let galley = ui.painter().layout_job(text_job(text, 100.0, Color32::BLACK, Color32::BLACK, &look));
+                into.borrow_mut().push((text, galley_baseline(&galley), galley.size().y));
+            }
+        });
+        h.run_steps(1);
+        let found = found.borrow();
+        assert!(!found.is_empty());
+        for &(text, base, bottom) in found.iter() {
+            let base = base.unwrap();
+            assert!(base > bottom * 0.5 && base < bottom - 10.0, "{text}: baseline {base} of {bottom}");
+        }
     }
 
     /// The owner: in CAD Output the maximum size's fields couldn't be changed. A typed value was

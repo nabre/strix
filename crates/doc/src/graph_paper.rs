@@ -36,6 +36,8 @@ pub enum GridLineStyle {
     Solid,
     Dashed,
     Dotted,
+    /// No line at all: a blank block of the same size (an exercise's blank answer space).
+    None,
 }
 
 impl GridLineStyle {
@@ -44,6 +46,7 @@ impl GridLineStyle {
             GridLineStyle::Solid => "solid",
             GridLineStyle::Dashed => "dashed",
             GridLineStyle::Dotted => "dotted",
+            GridLineStyle::None => "none",
         }
     }
     pub fn parse(s: &str) -> Option<GridLineStyle> {
@@ -51,13 +54,14 @@ impl GridLineStyle {
             "solid" | "single" => Some(GridLineStyle::Solid),
             "dashed" | "dash" => Some(GridLineStyle::Dashed),
             "dotted" | "dot" => Some(GridLineStyle::Dotted),
+            "none" => Some(GridLineStyle::None),
             _ => None,
         }
     }
     /// Dash and gap lengths in points for a line `width` wide; empty for a solid line.
     pub fn dashes(self, width: f32) -> Vec<f32> {
         match self {
-            GridLineStyle::Solid => Vec::new(),
+            GridLineStyle::Solid | GridLineStyle::None => Vec::new(),
             GridLineStyle::Dashed => vec![(width * 6.0).max(2.0), (width * 4.0).max(1.5)],
             GridLineStyle::Dotted => vec![width.max(0.3), (width * 3.0).max(1.2)],
         }

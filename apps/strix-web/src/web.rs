@@ -71,7 +71,7 @@ pub fn start() {
                     let region = wordcraft_ui_egui::i18n::system_region();
                     // In host mode the parent sends the document to edit; no sample meanwhile.
                     let sample = app_bridge.is_none() && query().contains("sample");
-                    let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
+                    let doc = if sample { wordcraft_engine::sample_test(&region) } else { wordcraft_engine::blank_document(&region) };
                     let mut session = Session::new(doc);
                     session.system_region = region;
                     let messages = Rc::new(RefCell::new(Vec::new()));
@@ -267,6 +267,8 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
             let ctx = ctx.clone();
             let dialog = if purpose == "picture" {
                 rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS)
+            } else if purpose == "archive" {
+                rfd::AsyncFileDialog::new().add_filter("Exercise bundles", &["zip"])
             } else if purpose == "font" {
                 rfd::AsyncFileDialog::new().add_filter("Fonts", wordcraft_fonts::FONT_FILE_EXTS)
             } else if purpose == "recipients" {

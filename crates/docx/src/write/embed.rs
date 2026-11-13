@@ -454,11 +454,35 @@ impl super::Writer<'_> {
     /// programs show it) whose properties carry the drawing's source part
     /// (`word/strix/cadN.json`), the one Strix edits.
     pub(super) fn cad_graphic(&mut self, source: &str, svg: Option<&str>, size: (f32, f32), rels: &mut PartRels) -> String {
-        let json = self.embeds.fresh("word/strix/cad", ".json");
+        self.strix_svg_graphic(("word/strix/cad", crate::package::rt::STRIX_CAD, crate::read::CAD_URI, "strix:cad", "CAD"), source, svg, size, rels)
+    }
+
+    /// The `a:graphic` of a Strix plot (`word/strix/plotN.json` + `word/media/plotN.svg`).
+    pub(super) fn plot_graphic(&mut self, source: &str, svg: Option<&str>, size: (f32, f32), rels: &mut PartRels) -> String {
+        self.strix_svg_graphic(
+            ("word/strix/plot", crate::package::rt::STRIX_PLOT, crate::read::PLOT_URI, "strix:plot", "Plot"),
+            source,
+            svg,
+            size,
+            rels,
+        )
+    }
+
+    fn strix_svg_graphic(
+        &mut self,
+        meta: (&str, &str, &str, &str, &str),
+        source: &str,
+        svg: Option<&str>,
+        size: (f32, f32),
+        rels: &mut PartRels,
+    ) -> String {
+        let (json_prefix, rel_type, ext_uri, tag_name, pic_name) = meta;
+        let media_prefix = if tag_name == "strix:plot" { "word/media/plot" } else { "word/media/cad" };
+        let json = self.embeds.fresh(json_prefix, ".json");
         self.embeds.parts.push((json.clone(), source.as_bytes().to_vec(), "application/json".to_string(), PartRels::default()));
-        let src_id = rels.add(crate::package::rt::STRIX_CAD, &relative(STORY_PART, &json), false);
+        let src_id = rels.add(rel_type, &relative(STORY_PART, &json), false);
         let pic_id = svg.map(|svg| {
-            let file = self.embeds.fresh("word/media/cad", ".svg");
+            let file = self.embeds.fresh(media_prefix, ".svg");
             self.embeds.parts.push((file.clone(), svg.as_bytes().to_vec(), "image/svg+xml".to_string(), PartRels::default()));
             rels.add(crate::package::rt::IMAGE, &relative(STORY_PART, &file), false)
         });
@@ -474,10 +498,10 @@ impl super::Writer<'_> {
             ],
         );
         w.open("pic:nvPicPr", &[]);
-        w.open("pic:cNvPr", &[("id", "0"), ("name", "CAD")]);
+        w.open("pic:cNvPr", &[("id", "0"), ("name", pic_name)]);
         w.open("a:extLst", &[]);
-        w.open("a:ext", &[("uri", crate::read::CAD_URI)]);
-        w.empty("strix:cad", &[("xmlns:strix", crate::xml::STRIX_NS), ("r:id", &src_id)]);
+        w.open("a:ext", &[("uri", ext_uri)]);
+        w.empty(tag_name, &[("xmlns:strix", crate::xml::STRIX_NS), ("r:id", &src_id)]);
         w.close("a:ext");
         w.close("a:extLst");
         w.close("pic:cNvPr");

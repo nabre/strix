@@ -5,10 +5,13 @@
 # the macOS and Windows hosts compile, without repeating what doesn't depend on the OS. A push to
 # main whose code a PR already passed doesn't run them again (tested-tree.yml). Workspace crates
 # that didn't change since main's last cached build aren't compiled again (job "native").
+# A draft PR, or one that changes only documentation, doesn't run them (pr-scope.yml).
 name: Printing
 
 on:
   pull_request:
+    # ready_for_review: a draft's checks run when it is marked ready (pr-scope.yml).
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'Cargo*'
       - 'apps/strix/**'
@@ -49,10 +52,17 @@ jobs:
       workflow: printing.yml
       mode: check
 
+  # A draft PR, or one that changes only documentation: not run (pr-scope.yml).
+  scope:
+    uses: ./.github/workflows/pr-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   native:
     name: Print (${{ matrix.os }})
-    needs: [tested]
-    if: needs.tested.outputs.tested != 'true'
+    needs: [tested, scope]
+    if: needs.tested.outputs.tested != 'true' && needs.scope.outputs.run != 'false'
     strategy:
       fail-fast: false
       matrix:

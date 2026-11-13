@@ -38,7 +38,9 @@ mod parser;
 mod quantity;
 mod solve;
 mod table;
+mod uncertainty;
 mod units;
+pub use uncertainty::UncertaintyMode;
 mod worksheet;
 
 #[cfg(test)]
@@ -49,8 +51,8 @@ pub use eval::{Scope, Value, Vector};
 pub use format::format_number;
 pub use quantity::{BASE_SYMBOLS, Dim, Quantity};
 pub use table::{CellNames, TableResult, ordinals};
-pub use units::{auto_unit, constant, display_unit, unit};
-pub use worksheet::{Count, Layout, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value};
+pub use units::{auto_unit, compatible_units, constant, display_unit, unit};
+pub use worksheet::{Count, Layout, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value, format_value_in};
 
 /// Longest statement accepted, in characters; longer text is a [`CalcError::TooLong`].
 pub const MAX_INPUT_CHARS: usize = 4096;

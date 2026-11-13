@@ -2412,6 +2412,7 @@ preview	Title	Titre
 	Pages in the range	Pages de la plage
 	Scale to paper size	Ajuster au format du papier
 	Calculation and exercise	Calcul et exercice
+	Sample test	Évaluation (exemple)
 paper	Letter	Lettre US
 paper	Legal	Légal US
 paper	Envelope #10	Enveloppe n° 10
@@ -2944,3 +2945,242 @@ paper	Envelope DL	Enveloppe DL
 	Keep what the other program shows: they stay static and lose their Strix source	Conserve ce qu'affiche l'autre programme : ils restent statiques et perdent leur source Strix
 	Decide Later	Décider plus tard
 	Objects Changed in Another Program	Objets modifiés dans un autre programme
+	DSA	TSA
+	Reading (dyslexia)	Lecture (dyslexie)
+	Writing (dysgraphia)	Écriture (dysgraphie)
+	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
+	No DSA Formatting	Aucune mise en forme TSA
+	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
+	Open Answer	Réponse ouverte
+	Multiple Choice	Choix multiple
+	True or False	Vrai ou faux
+	Question Settings	Paramètres de la question
+	Questions	Questions
+	Question	Question
+	Points	Points
+	Correct	Correctes
+	Space (cm)	Espace (cm)
+	Squared	Quadrillé
+	Square (mm)	Carreau (mm)
+	Total	Total
+	Add a question like the last one	Ajouter une question comme la dernière
+	Mark this option correct (more than one can be)	Marquer cette option comme correcte (plusieurs peuvent l'être)
+	Graph paper in the answer space; off, the space is blank	Papier quadrillé dans l'espace de réponse ; désactivé, l'espace est vierge
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Les réponses s'affichent ou se masquent avec la Solution (Enseignement › Exercice › Afficher) : masquées, un espace de réponse garde sa hauteur et chaque case est vide.
+	{font} (download)	{font} (télécharger)
+	{font} (downloading…)	{font} (téléchargement…)
+	{font} (download failed: click to try again)	{font} (échec du téléchargement : cliquez pour réessayer)
+	letters told apart at a glance, for low vision and dyslexia	des lettres qui se distinguent d'un coup d'œil, pour la basse vision et la dyslexie
+	wide letters and spacing, for reading fluency	des lettres et des espacements larges, pour la fluidité de lecture
+	Downloaded from Google Fonts (SIL Open Font License) on the first click	Téléchargé depuis Google Fonts (SIL Open Font License) au premier clic
+	Downloading fonts isn't available here	Le téléchargement de polices n'est pas disponible ici
+	Couldn't download the font: {error}	Impossible de télécharger la police : {error}
+	Embed Fonts in the File	Incorporer les polices dans le fichier
+	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu'ils sont activés.
+	Couldn't turn on downloading: {error}	Impossible d'activer les téléchargements : {error}
+# Strix (2026-11-12): question modes (docs/question-modes.md).
+	CAD Drawing Question	Question avec dessin CAO
+	Question Type	Type de question
+	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Ajouter à l'exercice au curseur une question d'un type : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+# Strix (2026-11-13): CAD arrays from a base point to an end point, and blocks (docs/cad.md).
+	Array: base point	Réseau : point de base
+	Array: end point (the far corner of the grid)	Réseau : point final (le coin opposé de la grille)
+	Array: end point (the items run along the line to it)	Réseau : point final (les éléments suivent la ligne jusqu'à lui)
+	F fit · I exact spacing · S spread · a number: the spacing · 4x3: columns x rows (1xN: along a line)	F jusqu'au point final · I entraxe exact · S réparti · un nombre : l'entraxe · 4x3 : colonnes x lignes (1xN : le long d'une ligne)
+	fit to the end point,	jusqu'au point final,
+	exact spacing	entraxe exact
+	spread within	réparti dans
+	not set	non défini
+	Type the spacing (a length), then the base point	Tapez l'entraxe (une longueur), puis le point de base
+	A spacing is more than 0	Un entraxe est supérieur à 0
+	Array made, one object:	Réseau créé, un seul objet :
+	spacing	entraxe
+	items	éléments
+	Spacing	Espacement
+	Fit to the end point (the items typed, the last on the end point)	Jusqu'au point final (les éléments tapés, le dernier sur le point final)
+	Exact spacing (as many as fit, the rest left over)	Entraxe exact (autant qu'il en tient, le reste en surplus)
+	Spread evenly (within the spacing, the last on the end point)	Réparti régulièrement (dans l'entraxe, le dernier sur le point final)
+	Type the spacing first	Tapez d'abord l'entraxe
+	The end point is on the base point: the items would overlap	Le point final est sur le point de base : les éléments se superposeraient
+	The end point is not a number	Le point final n'est pas un nombre
+	The spacing is longer than from the base point to the end point: no copies	L'entraxe est plus long que la distance du point de base au point final : aucune copie
+	Nothing to explode: select polylines, rectangles or arrays	Rien à décomposer : sélectionnez des polylignes, des rectangles ou des réseaux
+	Array: base to end point (fit, exact spacing or spread), one object	Réseau : du point de base au point final (jusqu'au point final, entraxe exact ou réparti), un seul objet
+	Block	Bloc
+	Create\nBlock	Créer\nun bloc
+	Insert\nBlock	Insérer\nun bloc
+	Create Block	Créer un bloc
+	Insert Block	Insérer un bloc
+	Create Block…	Créer un bloc…
+	Insert Block…	Insérer un bloc…
+	No blocks yet: select objects and use Create Block	Pas encore de bloc : sélectionnez des objets et utilisez Créer un bloc
+	Create Block: select the objects first	Créer un bloc : sélectionnez d'abord les objets
+	base point (Esc cancels)	point de base (Échap annule)
+	insertion point (Esc cancels)	point d'insertion (Échap annule)
+	scale	échelle
+	Block created:	Bloc créé :
+	Block inserted:	Bloc inséré :
+	Base point	Point de base
+	Pick it in the drawing	Indiquez-le dans le dessin
+	Centre of the selection	Centre de la sélection
+	Lower left corner of the selection	Coin inférieur gauche de la sélection
+	Annotative: the same size on paper at every scale	Annotatif : même taille sur le papier à toutes les échelles
+	Drawn at the drawing's scale,	Dessiné à l'échelle du dessin,
+	Inserted at another scale 1:N it is scaled N / (this N) about its insertion point, and again whenever the drawing's scale changes.	Inséré à une autre échelle 1:N, il est mis à l'échelle N / (ce N) autour de son point d'insertion, et de nouveau à chaque changement d'échelle du dessin.
+	Plain: the same size in the drawing at every scale (inserted with scale 1).	Normal : même taille dans le dessin à toutes les échelles (inséré avec le facteur 1).
+	on paper at	sur le papier à
+	Turn the selected objects into the block	Transformer les objets sélectionnés en bloc
+	There is already a block with this name	Il existe déjà un bloc portant ce nom
+	annotative,	annotatif,
+	Annotative, drawn at	Annotatif, dessiné à
+	; the drawing is at	; le dessin est à
+	proposed scale	échelle proposée
+	It follows the drawing's scale from now on.	Il suit désormais l'échelle du dessin.
+	Plain block: scale 1 keeps the size it was made with.	Bloc normal : le facteur 1 garde la taille avec laquelle il a été créé.
+	On paper:	Sur le papier :
+	Use the proposed scale	Utiliser l'échelle proposée
+	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
+	Give the block a name	Donnez un nom au bloc
+	Variants & Data	Variantes et données
+	Show data in exercise	Afficher les données dans l'exercice
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Affiche le bloc Données dans l'exercice ; désactivé, les valeurs restent uniquement dans l'espace de calcul
+	Question Mode	Mode de la question
+	Question Points	Points de la question
+	Mode	Mode
+	Go to working	Aller à la résolution
+	Put the cursor in this calculation's working space	Place le curseur dans l'espace de résolution de ce calcul
+	Open in CAD editor	Ouvrir dans l'éditeur CAO
+	Select this question's solution drawing and open it in the CAD editor	Sélectionne le dessin de corrigé de cette question et l'ouvre dans l'éditeur CAO
+	No result equation yet	Aucune équation de résultat
+	write a question first	écrivez d'abord une question
+# Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
+	Variables Pane	Volet Variables
+	Filter variables…	Filtrer les variables…
+	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Aucune variable définie pour le moment. Insérez un calcul dynamique (par exemple L = 4.5 m) ou des données d’exercice pour les inspecter ici.
+	Exercise {n}	Exercice {n}
+	Variant {v}	Variante {v}
+	No matching variables.	Aucune variable correspondante.
+	Go to definition	Aller à la définition
+	Defined:	Définie :
+	Archive	Archive
+	Archive Properties	Propriétés de l’archive
+	Download Font	Télécharger la police
+	downloading fonts isn't available in the browser	le téléchargement de polices n’est pas disponible dans le navigateur
+# Strix (2026-11-13): Phase 3 grading scale, parametric expressions, variant generator, pre-flight check & assessment pack.
+	Assessment Check	Contrôle d’évaluation
+	Assessment Check Pane	Volet Contrôle d’évaluation
+	Check Assessment	Contrôler l’évaluation
+	Export Assessment Pack	Exporter le pack d’évaluation
+	Export Assessment Pack…	Exporter le pack d’évaluation…
+	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Exporte les PDF élève pour chaque variante, les copies aménagées et le corrigé enseignant avec tableau synoptique
+	All checks passed across every variant.	Tous les contrôles sont validés pour chaque variante.
+	Errors	Erreurs
+	Warnings	Avertissements
+	Info	Info
+	Error	Erreur
+	Warning	Avertissement
+	Duration (min)	Durée (min)
+	Generate Variants…	Générer des variantes…
+	Generate Variants	Générer des variantes
+	Variants to generate	Variantes à générer
+	Max result decimals	Décimales max. du résultat
+	Extra constraints	Contraintes supplémentaires
+	Positive final results	Résultats finaux positifs
+	Distinct results across variants	Résultats distincts entre variantes
+	Min	Min
+	Max	Max
+	Step	Pas
+	Deterministically generate clean, constraint-checked variants across the specified domains	Génère de façon déterministe des variantes vérifiées sur les domaines indiqués
+	Shuffle options per variant	Mélanger les options par variante
+	Keep variant A in canonical order and deterministically permute options in variants B, C…	Conserve la variante A dans l’ordre canonique et permute de façon déterministe les options dans les variantes B, C…
+	Rationales	Justifications
+	Teacher notes per option	Notes enseignant par option
+	Tolerance	Tolérance
+	Assessment	Évaluation
+	Export\nPack	Exporter\nle pack
+	Grading Scale	Barème de notes
+	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Insérer ou configurer le tableau de conversion points-note (1–10, 1–6, 6–1, 0–20, %)
+	Show Grading Scale	Afficher le barème de notes
+	Italy (1–10)	Italie (1–10)
+	Switzerland (1–6)	Suisse (1–6)
+	Germany (6–1)	Allemagne (6–1)
+	France (0–20)	France (0–20)
+	Percentage (0–100%)	Pourcentage (0–100 %)
+	Linear Curve	Courbe linéaire
+	Piecewise Curve (Pass Threshold)	Courbe par morceaux (seuil de réussite)
+	Step 0.1	Pas 0,1
+	Step 0.25	Pas 0,25
+	Step 0.5	Pas 0,5
+	Step 1.0	Pas 1,0
+	Teacher Copy Only	Copie enseignant uniquement
+	Student and Teacher Copies	Copies élève et enseignant
+	Inline Expression	Expression en ligne
+	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Insérer une expression paramétrique en ligne évaluée dans l’espace de l’exercice (p. ex. v * t -> m)
+	Parametric expression	Expression paramétrique
+	ZIP Archive	Archive ZIP
+	Exercise Bank	Banque d’exercices
+	Exercise\nBank	Banque\nd’exercices
+	Topics / Tags	Thèmes / Étiquettes
+	Scan Folder	Analyser le dossier
+	Import Exercise Bundle…	Importer un lot d’exercices…
+	Exercise bundles	Lots d’exercices
+	Insert Copy	Insérer une copie
+	Link Subdocument	Lier un sous-document
+	Maximum Uncertainty	Incertitude maximale
+	Uncertainty in Quadrature (GUM)	Incertitude en quadrature (GUM)
+	Worked Example	Exemple résolu
+	Inline Completion	Texte à trous
+	Table to Complete	Tableau à compléter
+	Matching	Appariement
+	Inline Blank	Lacune dans le texte
+	Student Blank Cell	Cellule à compléter
+	Grade	Niveau
+	Profession	Filière
+	Teacher	Enseignant
+	Pairs (left = right)	Paires (gauche = droite)
+	Student Blanks	Lacunes pour les élèves
+	Choose which calculated cells students complete	Choisir les cellules calculées à compléter
+	Student Blank Column	Colonne à compléter
+	Show Cell Value	Afficher la valeur de la cellule
+	School Subject	Matière
+	Score	Points
+# Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
+	Plot	Graphique
+	Plot Properties	Propriétés du graphique
+	Plot\nProperties	Propriétés\ndu graphique
+	Plot Properties Pane	Volet Propriétés du graphique
+	Insert Plot	Insérer un graphique
+	1 plot	1 graphique
+	{n} plots	{n} graphiques
+	Solution only	Solution seule
+	Answer	Corrigé
+	Student\nPreview	Aperçu\nélève
+	Student Preview: hide solution-only layers and objects as on the student copy	Aperçu élève : masque les calques et objets réservés au corrigé comme sur la copie élève
+	Solution only: hidden when the exercise's solution is hidden	Solution seule : masqué lorsque le corrigé de l’exercice est masqué
+	Select a plot in the document to edit its axes, functions and experimental data.	Sélectionnez un graphique dans le document pour modifier ses axes, fonctions et données expérimentales.
+	Axes & Frame	Axes et cadre
+	X range	Intervalle X
+	Y range	Intervalle Y
+	X axis	Axe X
+	Y axis	Axe Y
+	Minor grid	Grille secondaire
+	Student blank grid (solution only)	Repère vierge élève (solution seule)
+	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Sur la copie élève, trace uniquement le repère et la grille pour que les élèves tracent la courbe à la main
+	Series	Séries
+	Parametric	Paramétrique
+	Data	Données
+	Roots	Racines
+	Extrema	Extrema
+	Tangent at	Tangente en
+	Linear	Linéaire
+	Quadratic	Quadratique
+	Analysis	Analyse
+	Import Exercise Bundle	Importer un lot d’exercices
+	Insert Exercise Copy	Insérer une copie d’exercice
+	Plot Source	Source du graphique
+	Pre-flight Check Pane	Volet Contrôle préalable
+	Section	Section
+	Set Plot	Définir le graphique
+	select a plot first	sélectionnez d’abord un graphique

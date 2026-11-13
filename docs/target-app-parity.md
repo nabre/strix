@@ -3,6 +3,11 @@
 
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-19 · **Change:** trivial (Insert Table of Figures lists any caption label, #3013; previously trivial: Performance row: typing no longer starts render threads on every repaint, #3027; previously trivial: shapes inserted in a row are all kept, #2019; previously trivial: East Asian typography: `w:eastAsianLayout` kept on save, not laid out; previously trivial: Ink to Shape recognises arrows; previously trivial: Windows Magnifier follows the caret onto a new line, #1119; previously trivial: table border drags with Ctrl and Alt, from the left edge and of selected cells, #711; previously trivial: table column and row markers on the rulers, #700; previously trivial: table borders and the resize handle drag on the page, #217; previously trivial: all 12 bibliography styles, #383; previously trivial: formatting revisions landed, #41; previously trivial: Draw Table and Eraser landed, #303; previously minor: readiness table with hours per audience; full number back to the additive weighted sum, 60%; mainstream and essentials numbers added; alpha gate checked; previously major: full re-measure against Word for Mac 16.113.4; replaces the parity tables that lived in ROADMAP.md) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
 
+> **Snapshot at the fork.** This assessment of the document editor against Microsoft Word was
+> taken when Strix forked WordCraft and is no longer kept up to date here: the editor's plan is
+> WordCraft's ([roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md)). Strix's own
+> features are in [`ROADMAP.md`](../ROADMAP.md).
+
 The authoritative assessment of how close Strix is to Microsoft Word. [`ROADMAP.md`](../ROADMAP.md)
 summarizes it; [`gaps.md`](gaps.md) itemizes every shortfall; the deep checklists are
 [`file-format-parity.md`](file-format-parity.md), [`layout-parity.md`](layout-parity.md),
@@ -26,7 +31,7 @@ The generated ribbon checklist is [`parity-checklist.md`](parity-checklist.md).
 | Tests | 852 `#[test]` functions + 10 `proptest!` blocks | measured (source count) |
 | Code | ~88,700 lines of Rust in 15 crates, 3 apps and xtask | measured (`wc -l`) |
 
-**Stage: alpha.** All six core workflows pass the [alpha gate](roadmap.md#alpha-gate-core-workflows); see [`ROADMAP.md`](../ROADMAP.md) for why it isn't beta, and the distance.
+**Stage: alpha.** All six core workflows passed the alpha gate at the fork (2026-10-10); the editor's stage and distance to beta are now tracked in the [WordCraft roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
 ## What we measured against
 

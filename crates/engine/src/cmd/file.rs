@@ -219,14 +219,16 @@ fn privacy(s: &Session) -> Value {
 /// Open a new document beside the open ones and make it active: a blank one in the saved
 /// proofing language, or the requested template.
 fn new(s: &mut Session, v: &Value) -> CmdResult {
-    let doc = match p::str(v, "template").unwrap_or("blank") {
+    let mut doc = match p::str(v, "template").unwrap_or("blank") {
         "calc" => crate::sample_calc::calc_exercise(s.blank_document())?,
+        "test" => crate::sample_calc::teaching_sample(s.blank_document())?,
         "sample" => crate::sample::sample_document(),
         "letter" => crate::sample::letter(),
         "resume" => crate::sample::resume(),
         "report" => crate::sample::report(),
         _ => normal_document(s),
     };
+    super::calc::stamp_new_document(&mut doc, &s.prefs);
     s.add_document(doc);
     sel_result(s)
 }

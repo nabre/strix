@@ -177,7 +177,8 @@ fn edges(pts: &[Pt], closed: bool) -> Vec<(Pt, Pt)> {
 fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
     let exact = curves(e);
     if !exact.is_empty() {
-        return exact.iter().map(|c| c.distance(p)).fold(f64::INFINITY, f64::min);
+        // Its arrowheads are picked inside too.
+        return exact.iter().map(|c| c.distance(p)).fold(d.arrowhead_distance(e, p), f64::min);
     }
     d.shape(e)
         .iter()
@@ -191,7 +192,7 @@ fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
 }
 
 /// Distance from `p` to segment `a`–`b`.
-fn seg_dist(p: Pt, a: Pt, b: Pt) -> f64 {
+pub(crate) fn seg_dist(p: Pt, a: Pt, b: Pt) -> f64 {
     let ab = b.minus(a);
     let l2 = ab.x * ab.x + ab.y * ab.y;
     if l2 == 0.0 {
@@ -385,6 +386,15 @@ impl Drawing {
                 if let Some(d) = edit.dash {
                     e.stroke.dash = d;
                 }
+            }
+        }
+    }
+
+    /// Marks or clears `answer` (solution-only) on the entities at `indices`.
+    pub fn set_answer(&mut self, indices: &[usize], answer: bool) {
+        for &i in indices {
+            if let Some(e) = self.entities.get_mut(i) {
+                e.answer = answer;
             }
         }
     }

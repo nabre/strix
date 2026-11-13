@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-11 · **Change:** drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-12 · **Change:** the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -223,7 +223,14 @@ page, the PDF and the editor all draw these primitives.
   turned by a quarter turn becomes the other, by any other angle aligned.
 - **Picked where drawn**: a dimension's text is picked on the side it is drawn (above the line as
   read, whichever way it runs); dragging a dimension line between its two points leaves it at the
-  farther one. An entity on an unknown layer is drawn and picked as layer `0`'s.
+  farther one. An entity on an unknown layer is drawn and picked as layer `0`'s. A **text** is
+  picked anywhere in its box (`Drawing::text_box`, turned with the text; a window takes it only
+  whole): its width as the editor measured it in the font it draws it in, its placeholders
+  filled (`Rendered::texts` gives each text as shown, `Drawing::text_widths` keeps the measures,
+  never saved), else (headless: CLI, MCP) estimated from the characters, a placeholder counted as
+  what it shows; a
+  line's, arc's or polyline's **arrowheads** anywhere inside them, a hatch anywhere inside its
+  outer boundary.
 - **One set of limits**: text heights 0.5–50 mm on reading, in Properties and in the style; ids
   and the references to them (`along`, `boundary`) are cut at 64 characters alike. A steep
   dimension with its style's aligned texts off keeps its second text under the first. A level
@@ -284,6 +291,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   does not is refused. A smaller maximum size the picked scale no longer meets goes back to the
   fitted one. Without a maximum size every standard scale is offered. Old drawings with a `fit`
   read as fitted.
+- **Completion drawings (`answer` on layers and entities, `F6`)**: any layer (`layer.answer: true`,
+  the **Answer** column in the Layer Manager) or individual entity (`entity.answer: true`,
+  **Solution only** in Properties) can be marked as belonging to the solution. Bounds and `Fit`
+  scales are always computed over the **entire** drawing (`Drawing::render_for(ws, screen,
+  show_answers)`), while hiding an exercise's solution (`exercise.show {"solution": false}`) omits
+  `answer` primitives and keeps the exact same frame `(width, height)`, origin and scale — leaving
+  students the calibrated base geometry to complete by hand without shifting pagination. In the CAD
+  editor, **Student Preview** (`Layers › Student Preview`, `ui.cadToggle {"what": "student"}`)
+  previews the student sheet live.
 - **Commands**: `cad.scale` (`{"scale": n}` or `{"fit": true | false | {"width", "height"}}`),
   `cad.padding`, `insert.cad`, `cad.get` (source and failing expressions of the selected
   drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
@@ -317,7 +333,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    `@dx,dy` is from where it was), Esc puts it back; dragging a grip places it where released.
    Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
-   an arc bends through the point), point and text position, dimension ends and line (distance).
+   an arc bends through the point), point and text position (and a text's four box corners, which
+   move it), dimension ends and line (distance). A selected hatch (a solid fill too) or strip
+   shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
+   reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
+   its boundaries along.
    A dragged coordinate keeps its expression; a degenerate result is refused.
    **Frame** (Picture › Frame, on by default; turned off it stays off for the next drawing
    while the program runs): the picture's edge with the area outside it shaded light grey.
@@ -503,9 +523,51 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    crossing window, a base point and a second point: points of lines, polylines and dimensions
    inside the window move (as Move moves them: `L` becomes `L + 5`), circles, points and texts
    move with their centre or point, an arc moves when it is inside whole. The rectangular array
-   copies the selection in columns × rows (typed `4x3`, kept) a base point and a spacing point
-   apart; the polar array copies it round a centre, the number of items typed (kept), each turned
-   as it goes; at most `MAX_ARRAY` (1000) items and the drawing's entity limit.
+   (Serie; `Drawing::array_series`, `Series::plan`, `crates/cad/src/series.rs`) copies the
+   selection from a base point to an end point: a single row or column (`1x5`, `5x1`) runs along
+   the line between them in any direction, more of each make a grid with the end point its far
+   corner (columns along x, rows along y). It is spaced one of three ways (`Spacing`, typed `F`,
+   `I`, `S` at the base point, or the array button's menu, `ui.cadArrayMode {"spacing": "fit" |
+   "pitch" | "spread", "pitch"}`, kept in the settings as `arraySpacing`, `arrayPitch`): **fit**
+   (the default) the counts typed (`4x3`, kept), the last item exactly on the end point; **exact
+   spacing** (interasse rigoroso) the spacing typed (a length, `25` or `2.5cm`; typing one at
+   the base point switches Fit to it) kept exactly, as many items as fit, the rest left over past
+   the last; **spread** (spalmato) as few items as keep the spacing at most the one typed,
+   spread evenly so the last is on the end point (100 within 30: four spaces of 25). The command
+   line says what it came to (`5 items · spacing 25 mm`). The polar array copies it round a
+   centre, the number of items typed (kept), each turned as it goes; at most `MAX_ARRAY` (1000)
+   items and the drawing's entity limit.
+   **Arrays are one object**: an array's originals and copies are one group (`Entity::group`,
+   saved as `"group": "g1"`), a pseudo-block: a click, a window or any selection that takes one
+   item takes them all (`Drawing::with_groups`), so they move, copy, rotate and delete together;
+   a copy of an array is a group of its own; an array of part of a group makes a new group of
+   what it copies. Groups nest: an array of arrays or of block insertions wraps them, and an
+   entity's group is a path, outermost first (`"group": "g3/g1"`, at most 16 levels); picking
+   goes by the outermost. Explode takes the outermost group apart, one level
+   (`Drawing::ungroup`): the arrays and insertions inside stay whole, the items of a plain
+   array are on their own again, unexploded (a polyline among them explodes with a second
+   Explode); a block insertion taken apart loses its record.
+   **Blocks** (`crates/cad/src/blocks.rs`, editor `cad_editor/blocks.rs`; CAD Drawing › Block ›
+   Create Block / Insert Block, the selection's context menu, `B` and `I` at the idle prompt;
+   `ui.cadBlock {"action": "create" | "insert" | "delete" | "list" | "dialog"}`): Create Block
+   asks for a name, whether the block is **annotative**, the base point (picked in the drawing,
+   or the selection's centre or lower left corner) and whether the selected objects become an
+   insertion of it (on by default). The definition (`Drawing::blocks`: name, objects round the
+   base point with their expressions worked out, unit, and `scale`, the drawing's `1:N₀` when it
+   was made, the CAD drawing format's) is saved with the drawing. An insertion is stored expanded,
+   its objects one group (picked whole, moved, copied, rotated, scaled, mirrored like an array;
+   Explode makes them plain objects), with a record (`Drawing::inserts`: group, block, insertion
+   point, factor, angle, `drawnAt`) that follows Move, Copy, Rotate, Scale and Mirror. A plain
+   block keeps its size in the drawing (scale 1 proposed). An **annotative** block keeps its size
+   on paper: Insert Block proposes the scale `N / N₀` (drawing at 1:100, block drawn at 1:50:
+   2), shows the size it will print at, and lets it be changed; the insertion is scaled about its
+   insertion point. When the drawing's scale changes (picked, typed or fitted to its maximum
+   size) every annotative insertion is scaled again about its insertion point
+   (`Drawing::sync_annotative`, run when the drawing is made safe and, for a scale only being
+   tried, when it is drawn), so it prints the same size. Insert Block draws the block dashed at
+   the pointer until the click. At most `MAX_BLOCKS` (256) blocks, holding the drawing's entity
+   limit together; nested blocks are kept as their objects; an array of insertions is a plain
+   group.
    **Line samples** in the panes and menus (linetype, lineweight, a layer's preview) are drawn on
    the sheet's white, as on paper, so a black line reads in the dark theme too.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
@@ -544,6 +606,12 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
+
+- 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
+- 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
+- 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.
+
+- 2026-11-12: texts picked anywhere in their box, with a grip at each corner (`Grip::Corner`), the box measured by the editor in the text's own font (`Rendered::texts`, `TextWidths`); arrowheads picked inside; a selected hatch shows its boundaries' grips (a strip its path's), and a hatch moved, turned or copied on its own takes its boundaries along.
 
 - 2026-11-11: drawing names as slugs (`cad.name`, `ui.cadName`, Properties › Name; underlays follow a rename); Arc split button with its ways (`arc`, `arc3p`, `arcSce`, `arcSer`; a typed radius for Start, End, Radius; the remembered way in the settings as `arcMode`), with a preview of the arc; Polyline in the Line split button (`picks.polyline`), Text out of the Draw group; drawings in millimetres: a drawing in centimetres or metres reaches the editor converted, and the document takes it with the first edit (`Drawing::to_mm`: lengths and the underlay's offset converted, dimension styles that showed the drawing's unit show the old one, expressions keep meaning the old unit through `exprUnit`), CAD Annotate › Units keeps only the input unit, the Properties pane shows the unit without a choice; the status line's Snap arrow menu (each object snap, `ui.cadToggle {"what": "snaps.on" | "snaps.off"}`) replaces the nine object snap icons; Properties with nothing selected: the scale typed or picked (standard scales that fit, Fitted to Frame); a new Offset icon (a rounded corner and its parallel copy).
 

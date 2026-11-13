@@ -61,9 +61,13 @@ pub enum Source {
         answer: u32,
         #[serde(default)]
         stepped: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        opts: Option<String>,
     },
     /// A calculated table (`TableProps`' calc settings).
     Table {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        blanks: Vec<(usize, usize)>,
         #[serde(default)]
         names: Option<String>,
         #[serde(default)]
@@ -82,17 +86,28 @@ pub enum Source {
         #[serde(default)]
         h: f32,
     },
+    /// A mathematical or experimental plot: its `strix-plot` JSON and SVG fingerprint.
+    Plot {
+        json: String,
+        #[serde(default)]
+        svg: u64,
+        #[serde(default)]
+        w: f32,
+        #[serde(default)]
+        h: f32,
+    },
     /// Graph paper in the text flow (`ParaProps::graph`, its attribute form).
     GraphParagraph { graph: String },
 }
 
 impl Source {
-    /// A stable id for scripts (`calculation`, `calculatedTable`, `cadDrawing`, `graphPaper`).
+    /// A stable id for scripts (`calculation`, `calculatedTable`, `cadDrawing`, `plot`, `graphPaper`).
     pub fn kind_id(&self) -> &'static str {
         match self {
             Source::Equation { .. } => "calculation",
             Source::Table { .. } => "calculatedTable",
             Source::Cad { .. } => "cadDrawing",
+            Source::Plot { .. } => "plot",
             Source::GraphParagraph { .. } => "graphPaper",
         }
     }
@@ -126,6 +141,15 @@ struct ExerciseEntry {
     extra: Vec<String>,
 }
 
+/// Any other `strix:*` content control's `<strix:...>` extra elements, by tag and 0-based index
+/// among controls of that tag in document order.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+struct ControlEntry {
+    tag: String,
+    n: usize,
+    extra: Vec<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 struct Manifest {
     #[serde(default)]
@@ -136,11 +160,22 @@ struct Manifest {
     sections: Vec<SectionEntry>,
     #[serde(default)]
     exercises: Vec<ExerciseEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    controls: Vec<ControlEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    calc: Option<crate::cmd::calc::CalcOverrides>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    dsa_styles: Vec<wordcraft_doc::styles::Style>,
 }
 
 impl Manifest {
     fn is_empty(&self) -> bool {
-        self.objects.is_empty() && self.sections.is_empty() && self.exercises.is_empty()
+        self.objects.is_empty()
+            && self.sections.is_empty()
+            && self.exercises.is_empty()
+            && self.controls.is_empty()
+            && self.calc.is_none()
+            && self.dsa_styles.is_empty()
     }
 }
 
@@ -219,22 +254,31 @@ fn table_fp(t: &wordcraft_doc::table::Table) -> u64 {
 // Which objects
 
 fn is_strix_equation(o: &InlineObject) -> bool {
-    matches!(o, InlineObject::Equation { math, .. } if math.calc || math.answer > 0 || math.stepped)
+    matches!(o, InlineObject::Equation { math, .. } if math.calc || math.answer > 0 || math.stepped || math.calc_opts.is_some())
 }
 
 fn is_cad(o: &InlineObject) -> bool {
     matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Cad && graphic.cad.is_some())
 }
 
+fn is_plot(o: &InlineObject) -> bool {
+    matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Plot && graphic.plot.is_some())
+}
+
 /// The source and fingerprint of an inline Strix object, `None` for any other object.
 fn inline_entry(o: &InlineObject) -> Option<(Source, u64)> {
     match o {
-        InlineObject::Equation { linear, math, .. } if is_strix_equation(o) => {
-            Some((Source::Equation { calc: math.calc, answer: math.answer, stepped: math.stepped }, text_fp(&equation_text(linear, math))))
-        }
+        InlineObject::Equation { linear, math, .. } if is_strix_equation(o) => Some((
+            Source::Equation { calc: math.calc, answer: math.answer, stepped: math.stepped, opts: math.calc_opts.clone() },
+            text_fp(&equation_text(linear, math)),
+        )),
         InlineObject::Graphic { w, h, graphic, .. } if is_cad(o) => {
             let svg = graphic.svg.as_deref().map_or(0, |s| hash(s.as_bytes()));
             Some((Source::Cad { json: graphic.cad.as_deref().unwrap_or("").to_string(), svg, w: *w, h: *h }, 0))
+        }
+        InlineObject::Graphic { w, h, graphic, .. } if is_plot(o) => {
+            let svg = graphic.svg.as_deref().map_or(0, |s| hash(s.as_bytes()));
+            Some((Source::Plot { json: graphic.plot.as_deref().unwrap_or("").to_string(), svg, w: *w, h: *h }, 0))
         }
         _ => None,
     }
@@ -263,10 +307,13 @@ pub fn wrap(doc: &Document) -> Document {
     let mut d = doc.clone();
     strip_wrappers(&mut d);
     d.passthrough.remove(PENDING);
-    if !crate::strix_objects::has_strix_objects(&d) {
+    let has_objects = crate::strix_objects::has_strix_objects(&d);
+    let doc_calc = crate::cmd::calc::doc_overrides(&d);
+    let dsa_styles: Vec<_> = d.styles.styles.iter().filter(|st| st.id.starts_with("StrixDsa")).cloned().collect();
+    if dsa_styles.is_empty() && !has_objects && !doc_calc.as_ref().is_some_and(|c| !c.matches_default_options()) {
         return d;
     }
-    let mut m = Manifest { version: VERSION, ..Default::default() };
+    let mut m = Manifest { version: VERSION, calc: doc_calc.filter(|c| !c.is_empty()), dsa_styles, ..Default::default() };
     let mut next = 1u32;
     for_stories(&mut d, &mut |bl| wrap_blocks(bl, &mut m, &mut next, 0));
     sections(&d, &mut |n, sp| {
@@ -282,6 +329,14 @@ pub fn wrap(doc: &Document) -> Document {
             m.exercises.push(ExerciseEntry { n, extra });
         }
         n += 1;
+    });
+    let mut tag_counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    other_strix_controls(&d, &mut |c| {
+        let idx = *tag_counts.entry(c.tag.clone()).and_modify(|k| *k += 1).or_insert(0);
+        let extra: Vec<String> = c.extra.iter().filter(|x| x.starts_with(EXERCISE_EXTRA)).cloned().collect();
+        if !extra.is_empty() && m.controls.len() < MAX_ENTRIES {
+            m.controls.push(ControlEntry { tag: c.tag.clone(), n: idx, extra });
+        }
     });
     if !m.is_empty() {
         wordcraft_docx::strix_custom_xml::add(&mut d, PART, manifest_xml(&m));
@@ -309,8 +364,17 @@ fn wrap_blocks(bl: &mut Blocks, m: &mut Manifest, next: &mut u32, depth: usize) 
             Block::Table(t) => {
                 if t.props.calc && m.objects.len() < MAX_ENTRIES {
                     let id = take_id(next);
-                    let source =
-                        Source::Table { names: t.props.calc_names.map(|n| n.name().to_string()), math: t.props.calc_math, index: t.props.calc_index };
+                    let source = Source::Table {
+                        blanks: t
+                            .rows
+                            .iter()
+                            .enumerate()
+                            .flat_map(|(r, row)| row.cells.iter().enumerate().filter_map(move |(c, cell)| cell.props.student_blank.then_some((r, c))))
+                            .collect(),
+                        names: t.props.calc_names.map(|n| n.name().to_string()),
+                        math: t.props.calc_math,
+                        index: t.props.calc_index,
+                    };
                     m.objects.push(Entry { id, fp: table_fp(t), source });
                     // Innermost: it opens last and closes first, inside any control already here.
                     t.controls.open.push(wrapper(id));
@@ -336,7 +400,7 @@ fn holds_strix(b: &Block, depth: usize) -> bool {
         return false;
     }
     match b {
-        Block::Para(p) => p.props.graph.is_some() || p.objects.iter().any(|o| is_strix_equation(o) || is_cad(o)),
+        Block::Para(p) => p.props.graph.is_some() || p.objects.iter().any(|o| is_strix_equation(o) || is_cad(o) || is_plot(o)),
         Block::Table(t) => t.props.calc || t.rows.iter().flat_map(|r| &r.cells).flat_map(|c| &c.blocks).any(|b| holds_strix(b, depth + 1)),
     }
 }
@@ -477,6 +541,87 @@ fn exercises_mut(d: &mut Document, f: &mut dyn FnMut(&mut ContentControl)) {
     }
 }
 
+fn is_other_strix_tag(tag: &str) -> bool {
+    tag.starts_with("strix:") && tag != TAG_EXERCISE && !tag.starts_with(TAG_PREFIX)
+}
+
+fn other_strix_controls(d: &Document, f: &mut dyn FnMut(&ContentControl)) {
+    fn walk(bl: &Blocks, f: &mut dyn FnMut(&ContentControl), depth: usize) {
+        if depth > MAX_DEPTH {
+            return;
+        }
+        for b in bl {
+            match &**b {
+                Block::Para(p) => {
+                    for o in &p.objects {
+                        if let InlineObject::ControlStart { control } = o
+                            && is_other_strix_tag(&control.tag)
+                        {
+                            f(control);
+                        }
+                    }
+                }
+                Block::Table(t) => {
+                    t.controls.open.iter().filter(|c| is_other_strix_tag(&c.tag)).for_each(&mut *f);
+                    for r in &t.rows {
+                        r.controls.open.iter().filter(|c| is_other_strix_tag(&c.tag)).for_each(&mut *f);
+                        for c in &r.cells {
+                            c.controls.open.iter().filter(|ctl| is_other_strix_tag(&ctl.tag)).for_each(&mut *f);
+                            walk(&c.blocks, f, depth + 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    walk(&d.body, f, 0);
+    for part in d.parts.values() {
+        walk(&part.blocks, f, 0);
+    }
+}
+
+fn other_strix_controls_mut(d: &mut Document, f: &mut dyn FnMut(&mut ContentControl)) {
+    fn walk(bl: &mut Blocks, f: &mut dyn FnMut(&mut ContentControl), depth: usize) {
+        if depth > MAX_DEPTH {
+            return;
+        }
+        for b in bl.iter_mut() {
+            let has = match &**b {
+                Block::Para(p) => p.objects.iter().any(|o| matches!(o, InlineObject::ControlStart { control } if is_other_strix_tag(&control.tag))),
+                Block::Table(_) => true,
+            };
+            if !has {
+                continue;
+            }
+            match Arc::make_mut(b) {
+                Block::Para(p) => {
+                    for o in p.objects.iter_mut() {
+                        if let InlineObject::ControlStart { control } = o
+                            && is_other_strix_tag(&control.tag)
+                        {
+                            f(control);
+                        }
+                    }
+                }
+                Block::Table(t) => {
+                    t.controls.open.iter_mut().filter(|c| is_other_strix_tag(&c.tag)).for_each(&mut *f);
+                    for r in &mut t.rows {
+                        r.controls.open.iter_mut().filter(|c| is_other_strix_tag(&c.tag)).for_each(&mut *f);
+                        for c in &mut r.cells {
+                            c.controls.open.iter_mut().filter(|ctl| is_other_strix_tag(&ctl.tag)).for_each(&mut *f);
+                            walk(&mut c.blocks, f, depth + 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    walk(&mut d.body, f, 0);
+    for part in d.parts.values_mut() {
+        walk(&mut part.blocks, f, 0);
+    }
+}
+
 /// The custom XML part: the manifest as JSON in one element.
 fn manifest_xml(m: &Manifest) -> Vec<u8> {
     let json = serde_json::to_string(m).unwrap_or_default();
@@ -516,6 +661,7 @@ fn parse_manifest(bytes: &[u8]) -> Option<Manifest> {
     m.objects.truncate(MAX_ENTRIES);
     m.sections.truncate(MAX_ENTRIES);
     m.exercises.truncate(MAX_ENTRIES);
+    m.controls.truncate(MAX_ENTRIES);
     Some(m)
 }
 
@@ -590,6 +736,27 @@ pub fn unwrap(doc: &mut Document) -> usize {
         }
         n += 1;
     });
+    if !m.controls.is_empty() {
+        let mut tag_counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+        other_strix_controls_mut(doc, &mut |c| {
+            let idx = *tag_counts.entry(c.tag.clone()).and_modify(|k| *k += 1).or_insert(0);
+            if !c.extra.iter().any(|x| x.starts_with(EXERCISE_EXTRA))
+                && let Some(e) = m.controls.iter().find(|e| e.tag == c.tag && e.n == idx)
+            {
+                c.extra.extend(e.extra.iter().cloned());
+            }
+        });
+    }
+    for style in m.dsa_styles.iter().take(MAX_ENTRIES).filter(|st| st.id.starts_with("StrixDsa")) {
+        if doc.styles.get(&style.id).is_none() {
+            Arc::make_mut(&mut doc.styles).styles.push(style.clone());
+        }
+    }
+    if let Some(calc) = &m.calc
+        && !doc.passthrough.contains_key(crate::cmd::calc::DOC_CALC_OPTIONS)
+    {
+        crate::cmd::calc::set_doc_overrides(doc, calc);
+    }
     let count = pending.len();
     if count > 0 {
         doc.passthrough.insert(PENDING.into(), Arc::new(serde_json::to_vec(&pending).unwrap_or_default()));
@@ -740,11 +907,16 @@ impl Unwrap<'_> {
         match self.verdict(entry.as_ref(), unchanged) {
             Verdict::Pending => return,
             Verdict::Restore => {
-                if let Some(Entry { source: Source::Table { names, math, index }, .. }) = &entry {
+                if let Some(Entry { source: Source::Table { names, math, index, blanks }, .. }) = &entry {
                     t.props.calc = true;
                     t.props.calc_names = names.as_deref().and_then(wordcraft_doc::props::CellNames::parse);
                     t.props.calc_math = *math;
                     t.props.calc_index = *index;
+                    for &(r, c) in blanks.iter().take(MAX_ENTRIES) {
+                        if let Some(cell) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)) {
+                            cell.props.student_blank = true;
+                        }
+                    }
                 }
             }
             Verdict::Unwrap => {}
@@ -834,6 +1006,20 @@ impl Unwrap<'_> {
                 }
                 _ => false,
             },
+            Source::Plot { json, svg, w, h } => match objects.as_slice() {
+                [InlineObject::Graphic { graphic, .. }] if graphic.kind == GraphicKind::Plot => graphic.plot.as_deref() == Some(json.as_str()),
+                [InlineObject::Image { media, w: iw, h: ih, crop, .. }] => {
+                    let bytes = self.media.get(media).map(|b| b.as_slice()).unwrap_or(&[]);
+                    let looks_svg = String::from_utf8_lossy(&bytes[..bytes.len().min(256)]).contains("<svg");
+                    if looks_svg {
+                        *svg == 0 || hash(bytes) == *svg
+                    } else {
+                        let ratio = |a: f32, b: f32| if b > 0.0 { a / b } else { 0.0 };
+                        crop.iter().all(|c| c.abs() < 1e-4) && (ratio(*iw, *ih) - ratio(*w, *h)).abs() < 0.02
+                    }
+                }
+                _ => false,
+            },
             // Graph paper shows nothing to edit.
             Source::GraphParagraph { .. } => true,
             Source::Table { .. } => true,
@@ -844,12 +1030,13 @@ impl Unwrap<'_> {
 /// Put an entry's source back on the objects inside its wrapper.
 fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
     match &e.source {
-        Source::Equation { calc, answer, stepped } => {
+        Source::Equation { calc, answer, stepped, opts } => {
             for &o in inner {
                 if let Some(InlineObject::Equation { math, .. }) = p.object_at_mut(o) {
                     math.calc = *calc;
                     math.answer = *answer;
                     math.stepped = *stepped;
+                    math.calc_opts.clone_from(opts);
                 }
             }
         }
@@ -864,6 +1051,21 @@ fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
                 };
                 if let Some((w, h, alt, float)) = frame {
                     let graphic = Arc::new(Graphic { kind: GraphicKind::Cad, w, h, cad: Some(json.as_str().into()), ..Default::default() });
+                    *obj = InlineObject::Graphic { w, h, alt, float, graphic };
+                }
+            }
+        }
+        Source::Plot { json, .. } => {
+            for &o in inner {
+                let Some(obj) = p.object_at_mut(o) else { continue };
+                let frame = match &*obj {
+                    InlineObject::Image { w, h, alt, float, .. } | InlineObject::Graphic { w, h, alt, float, .. } => {
+                        Some((*w, *h, alt.clone(), float.clone()))
+                    }
+                    _ => None,
+                };
+                if let Some((w, h, alt, float)) = frame {
+                    let graphic = Arc::new(Graphic { kind: GraphicKind::Plot, w, h, plot: Some(json.as_str().into()), ..Default::default() });
                     *obj = InlineObject::Graphic { w, h, alt, float, graphic };
                 }
             }

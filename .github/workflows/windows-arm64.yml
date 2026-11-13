@@ -12,6 +12,8 @@ on:
   schedule:
     - cron: "13 6 * * *"
   pull_request:
+    # ready_for_review: a draft's checks run when it is marked ready (pr-scope.yml).
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/windows-arm64.yml
       - packaging/windows/**
@@ -25,9 +27,18 @@ permissions:
   contents: read
 
 jobs:
+  # A draft PR: not run (pr-scope.yml).
+  scope:
+    uses: ./.github/workflows/pr-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   windows-arm64:
+    needs: [scope]
+    if: needs.scope.outputs.run != 'false'
     # Immutable supporting workflow revision until the new install contract lands upstream.
-    uses: storytold/craft-common-actions/.github/workflows/windows-arm64.yml@5d42870eadf0b5e62baf318a6dc47e2f373fcbfa
+    uses: storytold/craft-common-actions/.github/workflows/windows-arm64.yml@20ebee3cb1eef69f886b98d566aa07552ee0196f
     with:
       app-name: strix
       app-dir: Strix

@@ -8,6 +8,8 @@ name: FreeBSD
 # reports this workflow's last run on main (job "Checks already run").
 on:
   pull_request:
+    # ready_for_review: a draft's checks run when it is marked ready (pr-scope.yml).
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/freebsd.yml
       - packaging/env.sh
@@ -23,7 +25,16 @@ permissions:
   contents: read
 
 jobs:
+  # A draft PR: not run (pr-scope.yml).
+  scope:
+    uses: ./.github/workflows/pr-scope.yml
+    permissions:
+      contents: read
+      pull-requests: read
+
   freebsd:
+    needs: [scope]
+    if: needs.scope.outputs.run != 'false'
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/freebsd.yml@main
     with:

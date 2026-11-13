@@ -489,6 +489,12 @@ fn hostile_input_never_panics() {
         "y :=",
         "= kN*m",
         "= 1.2·10^9 m",
+        "±",
+        "+-",
+        "unc(",
+        "relunc(",
+        "measure(",
+        "2% cm",
     ];
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     for round in 0..4000 {
@@ -499,6 +505,7 @@ fn hostile_input_never_panics() {
             count: [Count::Auto, Count::Decimals, Count::Significant][round % 3],
             steps: round % 2 == 1,
             layout: if round % 4 < 2 { Layout::Inline } else { Layout::Lines },
+            uncertainty: crate::UncertaintyMode::Max,
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -589,9 +596,12 @@ fn the_one_unknown_is_isolated_and_assigned() {
     assert_eq!(last(&["y = 2", "exp(k) = y"]), "exp(k) = y ⇒ k = 0.693");
     assert_eq!(last(&["12 kN = q*3 m"]), "12 kN = q*3 m ⇒ q = 4 kN/m");
     assert_eq!(last(&["h = 2 m", "v = sqrt(2*g*h) = m/s"]), "v = sqrt(2*g*h) = 6.263 m/s");
-    // Several occurrences: solved numerically, with the unit found from the equation.
-    assert_eq!(last(&["x^2 + x = 6"]), "x^2 + x = 6 ⇒ x = 2");
-    assert_eq!(last(&["A = 6 m^2", "x^2 + x*1 m = A"]), "x^2 + x*1 m = A ⇒ x = 2 m");
+    // Several occurrences: degree 1–2 solved symbolically, higher degree numerically.
+    assert_eq!(last(&["x^2 + x = 6"]), "x^2 + x = 6 ⇒ x = [-3; 2]");
+    assert_eq!(last(&["x > 0", "x^2 + x = 6"]), "x^2 + x = 6 ⇒ x = 2");
+    assert_eq!(last(&["A = 6 m^2", "x > 0", "x^2 + x*1 m = A"]), "x^2 + x*1 m = A ⇒ x = 2 m");
+    assert_eq!(last(&["x^3 + x = 10"]), "x^3 + x = 10 ⇒ x = 2");
+    assert_eq!(last(&["V = 10 m^3", "x^3 + x*1 m^2 = V"]), "x^3 + x*1 m^2 = V ⇒ x = 2 m");
     assert!(matches!(last_error(&["x^2 + 1 = 0"]), CalcError::NoSolution(_)));
     // A name that is also a unit is unknown when it stands alone: `m = 3 kg` defines m.
     assert_eq!(last(&["m = 3 kg", "m ="]), "m = 3 kg");
@@ -677,6 +687,53 @@ fn a_calculated_table_fills_formula_columns_and_totals() {
     assert_eq!(r.columns, vec!["L", "q", "M"]);
     assert_eq!(ws.eval_statement("sum(M) = kN*m").display.as_deref(), Some("sum(M) = 101.756 kN·m"));
     assert_eq!(ws.eval_statement("L =").display.as_deref(), Some("L = [4.5; 6] m"));
+}
+
+#[test]
+fn a_table_formula_needs_no_name_and_takes_its_unit_at_the_end() {
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("γ = 1.35");
+    // A formula with a name and its unit after it; one without a name, spreadsheet style.
+    let rows = table(&[
+        &["Beam", "L [m]", "q [kN/m]", "M = γ*q*L^2/8 [kN·m]", "= q*L/2 [kN]", "= q*L", "= M/L [kN]"],
+        &["B1", "4.5", "12", "", "", "", ""],
+        &["B2", "6000 mm", "10", "", "", "", ""],
+        &["Total", "", "", "Σ =", "Σ =", "Σ =", ""],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let at = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone());
+    assert_eq!(at(1, 3).as_deref(), Some("41.006"));
+    assert_eq!(at(2, 3).as_deref(), Some("60.75"));
+    assert_eq!(at(1, 4).as_deref(), Some("27"));
+    assert_eq!(at(2, 4).as_deref(), Some("30"));
+    assert_eq!(at(1, 5).as_deref(), Some("54 kN"));
+    assert_eq!(at(3, 3).as_deref(), Some("Σ = 101.756"));
+    assert_eq!(at(3, 4).as_deref(), Some("Σ = 57"));
+    assert_eq!(at(3, 5).as_deref(), Some("Σ = 114 kN"));
+    assert_eq!(at(1, 6).as_deref(), Some("9.113"));
+    // Unnamed columns are not defined after the table; named ones are.
+    assert_eq!(r.columns, vec!["L", "q", "M"]);
+    // Only the leading `=` makes a formula without a name.
+    assert_eq!(ws.eval_table(&table(&[&["a", "a*2 ="], &["1", "x"]])).updates, vec![]);
+    // An index written against its column stays an index, not a unit.
+    let rows = table(&[&["x [m]", "d = x[i+1] - x [m]"], &["1", ""], &["3", ""], &["6", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates.iter().map(|u| u.2.as_str()).collect::<Vec<_>>(), vec!["2", "3", "-5"]);
+    // Written against the formula, as an equation's linear text has it, it is still a unit.
+    let r = ws.eval_table(&table(&[&["L [m]", "q [kN/m]", "= q*L[kN]", "= 2*q*L/2[kN]"], &["2", "3", "", ""]]));
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates.iter().map(|u| u.2.as_str()).collect::<Vec<_>>(), vec!["6", "6"]);
+    // One unit per column.
+    let r = ws.eval_table(&table(&[&["a [m]", "b [m] = 2*a [mm]"], &["1", ""]]));
+    assert!(matches!(r.errors.first(), Some((0, 1, CalcError::BadDefinition(_)))));
+    // A bare `=` (being typed) is a label column, not an error.
+    for bare in ["=", " = ", ":="] {
+        let r = ws.eval_table(&table(&[&["a [m]", bare], &["1", "x"]]));
+        assert_eq!(r.errors, vec![], "{bare:?}");
+        assert_eq!(r.updates, vec![], "{bare:?}");
+    }
 }
 
 #[test]
@@ -868,9 +925,10 @@ fn solutions_show_formula_substitution_and_result() {
     // Plain numbers in the substitution need no parentheses; negatives do.
     assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["= 2·(-3)", "= -6"]);
     // Solved numerically: the equation with the values, then the result, marked as numerical.
-    assert_eq!(steps(&["k = 6", "x^2 + x = k"]).unwrap(), ["x² + x = 6", "x = 2"]);
+    assert_eq!(steps(&["k = 10", "x^3 + x = k"]).unwrap(), ["x³ + x = 10", "x = 2"]);
     let opts = Options { steps: true, ..Options::default() };
-    assert!(evaluate(&["k = 6", "x^2 + x = k"], &opts).pop().unwrap().numeric);
+    assert!(evaluate(&["k = 10", "x^3 + x = k"], &opts).pop().unwrap().numeric);
+    assert!(!evaluate(&["k = 6", "x^2 + x = k"], &opts).pop().unwrap().numeric);
     assert!(!evaluate(&["F = 10 N", "m = 4 kg", "F = m·a"], &opts).pop().unwrap().numeric);
     // Data have no steps; a unit asked for is the result's (and, being a working unit, the substitution's).
     assert_eq!(steps(&["L = 4.5 m", "M = 2·L = mm"]).unwrap(), ["= 2·(4500 mm)", "= 9000 mm"]);
@@ -944,7 +1002,7 @@ fn inline_steps_chain_the_algebra() {
     assert_eq!(inline(&["1024 = 2^n"]), "1024 = 2^n ⇒ n = ln(1024)/ln(2) = 10");
     assert_eq!(inline(&["y = 2", "y = ln(x)"]), "y = ln(x) ⇒ x = exp(y) = exp(2) = 7.389");
     // Numerically: the equation with its values, then the result.
-    assert_eq!(inline(&["k = 6", "x^2 + x = k"]), "x^2 + x = k ⇒ x² + x = 6 ⇒ x = 2");
+    assert_eq!(inline(&["k = 10", "x^3 + x = k"]), "x^3 + x = k ⇒ x³ + x = 10 ⇒ x = 2");
     // Read back, the working is not read: the statement is solved again.
     assert_eq!(inline(&["m = 400 kg", "F = 2 kN", "F = m·a ⇒ a = F/m = (1 kN)/(400 kg) = 2.5 m/s²"]), "F = m·a ⇒ a = F/m = (2 kN)/(400 kg) = 5 m/s²");
     assert_eq!(
@@ -1447,8 +1505,25 @@ fn round_matches_the_number_format_and_keeps_units() {
     assert_eq!(last(&["round(1.005; 2) ="]), "round(1.005; 2) = 1.01");
     assert_eq!(last(&["round(2.675; 2) ="]), "round(2.675; 2) = 2.68");
     assert_eq!(last(&["round(2.345 m; 2) ="]), "round(2.345 m; 2) = 2.35 m");
+    assert_eq!(last(&["round(2.345 cm; 2) ="]), "round(2.345 cm; 2) = 2.35 cm");
+    assert_eq!(last(&["L = 2.345 km", "round(L; 1) ="]), "round(L; 1) = 2.3 km");
     assert_eq!(last(&["round(-2.5) ="]), "round(-2.5) = -3");
-    assert!(last_error(&["T = 20 °C", "round(T) ="]).to_string().contains("plain number"));
+    assert_eq!(last(&["round(30°; 0) ="]), "round(30°; 0) = 30°");
+    assert_eq!(last(&["α = 30.46°", "round(α; 1) ="]), "round(α; 1) = 30.5°");
+    assert_eq!(last(&["α = 0.5", "round(α; 1; °) ="]), "round(α; 1; °) = 28.6°");
+    assert_eq!(last(&["p = 15.6%", "round(p; 0) ="]), "round(p; 0) = 16 %");
+    assert_eq!(last(&["T = 20.4 °C", "round(T) ="]), "round(T) = 20 °C");
+    assert_eq!(last(&["round(20.6 °C; 0) ="]), "round(20.6 °C; 0) = 21 °C");
+    assert_eq!(last(&["T = 20 °C", "round(T; 0; °F) ="]), "round(T; 0; °F) = 68 °F");
+    assert_eq!(last(&["floor(2.9) ="]), "floor(2.9) = 2");
+    assert_eq!(last(&["floor(-2.1) ="]), "floor(-2.1) = -3");
+    assert_eq!(last(&["ceil(2.1) ="]), "ceil(2.1) = 3");
+    assert_eq!(last(&["ceil(-2.9) ="]), "ceil(-2.9) = -2");
+    assert_eq!(last(&["trunc(-2.9) ="]), "trunc(-2.9) = -2");
+    assert_eq!(last(&["floor(0.29; 2) ="]), "floor(0.29; 2) = 0.29");
+    assert_eq!(last(&["L = 2.39 m", "floor(L; 0; dm) ="]), "floor(L; 0; dm) = 23 dm");
+    assert_eq!(last(&["L = 2.31 m", "ceil(L; 0; dm) ="]), "ceil(L; 0; dm) = 24 dm");
+    assert_eq!(last(&["T = -2.3 °C", "trunc(T; 0) ="]), "trunc(T; 0) = -2 °C");
 }
 
 /// The prefix is chosen on the number as shown: never `1000 kPa`.
@@ -1535,4 +1610,119 @@ fn rounding_a_huge_number_keeps_it() {
     let r = run(&["x := round(1e300; 9)"]).pop().unwrap();
     assert_eq!(r.error, None);
     assert!(approx(r.value.unwrap().scalar().unwrap().value, 1e300));
+}
+
+#[test]
+fn m4_extended_si_prefixes_and_electromagnetism() {
+    // Anti-collision: T is Tesla, THz/TW are tera-; d is day, dm/dL/dB are deci-; pF is picofarad; Pa is pascal.
+    assert_eq!(last(&["B := 2 T", "Φ := B * 0.5 m² = Wb"]), "Φ := B * 0.5 m² = 1 Wb");
+    assert_eq!(last(&["1 THz = GHz"]), "1 THz = 1000 GHz");
+    assert_eq!(last(&["1 TW = GW"]), "1 TW = 1000 GW");
+    assert_eq!(last(&["1 PW = TW"]), "1 PW = 1000 TW");
+    assert_eq!(last(&["1 d = h"]), "1 d = 24 h");
+    assert_eq!(last(&["1 day = h"]), "1 day = 24 h");
+    assert_eq!(last(&["1 dm = cm"]), "1 dm = 10 cm");
+    assert_eq!(last(&["1 dam = m"]), "1 dam = 10 m");
+    assert_eq!(last(&["1 dL = mL"]), "1 dL = 100 mL");
+    assert_eq!(last(&["1000 pF = nF"]), "1000 pF = 1 nF");
+    assert_eq!(last(&["1000 fF = pF"]), "1000 fF = 1 pF");
+    assert_eq!(last(&["C := 10 µF", "U := 5 V", "Q := C * U = µC"]), "Q := C * U = 50 µC");
+    assert_eq!(last(&["L_ind := 20 mH", "dI := 2 A", "dt := 10 ms", "U_L := L_ind * dI / dt = V"]), "U_L := L_ind * dI / dt = 4 V");
+    assert_eq!(last(&["G := 1 / 50 Ω = mS"]), "G := 1 / 50 Ω = 20 mS");
+    assert_eq!(last(&["Φ_v := 600 lm", "A := 2 m²", "E_v := Φ_v / A = lx"]), "E_v := Φ_v / A = 300 lx");
+}
+
+#[test]
+fn m4_chemistry_topography_and_mechanics_units() {
+    assert_eq!(last(&["1 atm = Pa"]), "1 atm = 101325 Pa");
+    assert_eq!(last(&["760 torr = atm"]), "760 torr = 1 atm");
+    assert_eq!(last(&["760 mmHg = atm"]), "760 mmHg = 1 atm");
+    assert_eq!(last(&["1 kcal = J"]), "1 kcal = 4184 J");
+    assert_eq!(last(&["1 keV = eV"]), "1 keV = 1000 eV");
+    assert_eq!(last(&["m_C := 12 u", "m_O := 16 Da", "m_CO := m_C + m_O = Da"]), "m_CO := m_C + m_O = 28 Da");
+    assert_eq!(last(&["1 ha = m²"]), "1 ha = 10000 m²");
+    assert_eq!(last(&["1 ha = are"]), "1 ha = 100 are");
+    assert_eq!(last(&["100 gon = °"]), "100 gon = 90°");
+    assert_eq!(last(&["100 grad = °"]), "100 grad = 90°");
+    assert_eq!(last(&["60 arcmin = °"]), "60 arcmin = 1°");
+    assert_eq!(last(&["3600 arcsec = °"]), "3600 arcsec = 1°");
+    assert_eq!(last(&["1 yr = d"]), "1 yr = 365.25 d");
+    assert_eq!(last(&["60 rpm / (2*π) = Hz"]), "60 rpm / (2*π) = 1 Hz");
+    assert_eq!(last(&["60 rpm = rad/s"]), "60 rpm = 6.283 rad/s");
+    assert_eq!(last(&["1 kn * 1 h = km"]), "1 kn * 1 h = 1.852 km");
+    assert!(!crate::compatible_units(crate::units::unit("Pa").unwrap().dim).is_empty());
+}
+
+#[test]
+fn m5_stem_functions_and_unicode_superscripts() {
+    assert_eq!(last(&["2¹⁰ ="]), "2¹⁰ = 1024");
+    assert_eq!(last(&["5⁰ ="]), "5⁰ = 1");
+    assert_eq!(last(&["10⁺³ ="]), "10⁺³ = 1000");
+    assert_eq!(last(&["10⁻² ="]), "10⁻² = 0.01");
+    assert_eq!(last(&["v := 10 m·s⁻¹ = m/s"]), "v := 10 m·s⁻¹ = 10 m/s");
+    assert_eq!(last(&["g_0 := 9.81 m·s⁻² = m/s²"]), "g_0 := 9.81 m·s⁻² = 9.81 m/s²");
+    assert_eq!(last(&["cbrt(-27 m³) = m"]), "cbrt(-27 m³) = -3 m");
+    assert_eq!(last(&["root(16 m⁴; 4) = m"]), "root(16 m⁴; 4) = 2 m");
+    assert_eq!(last(&["root(-32 m⁵; 5) = m"]), "root(-32 m⁵; 5) = -2 m");
+    assert_eq!(last(&["log2(1024) ="]), "log2(1024) = 10");
+    assert_eq!(last(&["log(81; 3) ="]), "log(81; 3) = 4");
+    assert_eq!(last(&["atan2(3 m; 3 m) ="]), "atan2(3 m; 3 m) = 45°");
+    assert!(matches!(last_error(&["atan2(3 m; 3 s) ="]), CalcError::DimensionMismatch { .. }));
+    assert_eq!(last(&["asinh(sinh(1.5)) ="]), "asinh(sinh(1.5)) = 1.5");
+    assert_eq!(last(&["acosh(cosh(2)) ="]), "acosh(cosh(2)) = 2");
+    assert_eq!(last(&["atanh(tanh(0.5)) ="]), "atanh(tanh(0.5)) = 0.5");
+    assert_eq!(last(&["sign(-15 kN) ="]), "sign(-15 kN) = -1");
+    assert_eq!(last(&["mod(17 m; 5 m) = m"]), "mod(17 m; 5 m) = 2 m");
+    assert_eq!(last(&["mod(-3; 5) ="]), "mod(-3; 5) = 2");
+}
+
+#[test]
+fn m5_combinatorics_and_lab_statistics() {
+    assert_eq!(last(&["gcd(48; 18; 30) ="]), "gcd(48; 18; 30) = 6");
+    assert_eq!(last(&["mcd(48; 18) ="]), "mcd(48; 18) = 6");
+    assert_eq!(last(&["lcm(12; 18) ="]), "lcm(12; 18) = 36");
+    assert_eq!(last(&["mcm(4; 6; 10) ="]), "mcm(4; 6; 10) = 60");
+    assert_eq!(last(&["5! ="]), "5! = 120");
+    assert_eq!(last(&["fact(6) ="]), "fact(6) = 720");
+    assert_eq!(last(&["binom(10; 3) ="]), "binom(10; 3) = 120");
+    let b1000 = run(&["c := binom(1000; 500)"]).pop().unwrap();
+    assert_eq!(b1000.error, None);
+    assert!(b1000.value.unwrap().scalar().unwrap().value > 2.7e299);
+    assert_eq!(last(&["median([10; 2; 30; 4] cm) = cm"]), "median([10; 2; 30; 4] cm) = 7 cm");
+    assert_eq!(last(&["var([2; 4; 4; 4; 5; 5; 7; 9] m) = m²"]), "var([2; 4; 4; 4; 5; 5; 7; 9] m) = 4.571 m²");
+    assert_eq!(last(&["varp([2; 4; 4; 4; 5; 5; 7; 9] m) = m²"]), "varp([2; 4; 4; 4; 5; 5; 7; 9] m) = 4 m²");
+    assert_eq!(last(&["stdevp([2; 4; 4; 4; 5; 5; 7; 9] m) = m"]), "stdevp([2; 4; 4; 4; 5; 5; 7; 9] m) = 2 m");
+    assert_eq!(last(&["std([1; 3] s) = s"]), "std([1; 3] s) = 1.414 s");
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "v := slope(T; S) = m/s"]), "v := slope(T; S) = 3 m/s");
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "s_0 := intercept(T; S) = m"]), "s_0 := intercept(T; S) = 2 m");
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "r2(T; S) ="]), "r2(T; S) = 1");
+}
+
+#[test]
+fn m6_symbolic_polynomial_solver_abs_and_dim_inference() {
+    // Degree 1 with multiple occurrences of the unknown
+    assert_eq!(last(&["2*x + 3 m = x + 7 m"]), "2*x + 3 m = x + 7 m ⇒ x = 4 m");
+    let lin_steps = steps(&["2*x + 3 = x + 7"]).unwrap();
+    assert!(!lin_steps.is_empty() && lin_steps.last().unwrap() == "x = 4", "{lin_steps:?}");
+
+    // Degree 2 kinematics: s = v_0 * t + 1/2 * a * t^2 with and without physical constraint `t > 0`
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2"]), "s = v_0*t + 1/2*a*t^2 ⇒ t = [-3; 2] s");
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "t > 0", "s = v_0*t + 1/2*a*t^2"]), "s = v_0*t + 1/2*a*t^2 ⇒ t = 2 s");
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2; t > 0"]), "s = v_0*t + 1/2*a*t^2; t > 0 ⇒ t = 2 s");
+    let quad_steps = steps(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "t > 0", "s = v_0*t + 1/2*a*t^2"]).unwrap();
+    assert!(quad_steps.iter().any(|l| l.contains('±') && l.contains('√')), "{quad_steps:?}");
+    assert_eq!(quad_steps.last().map(String::as_str), Some("t = 2 s"));
+
+    // Dimensional homogeneity of B^2 - 4AC and explicit Δ < 0 error
+    assert!(matches!(last_error(&["x^2 + 2 m * x + 1 s = 0"]), CalcError::DimensionMismatch { .. }));
+    assert!(matches!(last_error(&["x^2 + 2*x + 5 = 0"]), CalcError::NoSolution(_)));
+
+    // Func::Abs ± branching
+    assert_eq!(last(&["abs(x - 3 m) = 5 m"]), "abs(x - 3 m) = 5 m ⇒ x = [-2; 8] m");
+    assert_eq!(last(&["abs(x - 3 m) = 5 m; x > 0"]), "abs(x - 3 m) = 5 m; x > 0 ⇒ x = 8 m");
+    assert!(matches!(last_error(&["abs(x - 3) = -1"]), CalcError::NoSolution(_)));
+
+    // Numeric fallback dimensional inference on generic powers x^k (`I = b*h^4/12 + ...`) and inverse dims
+    assert_eq!(last(&["J = 32 m^5", "b = 12 m", "J = b*h^4/12 + b*h^4/12"]), "J = b*h^4/12 + b*h^4/12 ⇒ h = 2 m");
+    assert_eq!(last(&["G_tot = 3 S", "R_1 = 0.5 Ω", "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2)"]), "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2) ⇒ R_2 = 1 Ω");
 }

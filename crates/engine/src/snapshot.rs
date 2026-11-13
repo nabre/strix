@@ -59,7 +59,7 @@ pub(super) type RunSnapshot = (Document, Selection, Vec<Arc<Undo>>, Vec<Arc<Undo
 /// A layout made and what it was made for: ((revision, proofing dictionaries' generation), width, read height, view, read line
 /// spacing, layout, proofing, outline, (deletions left out, deletions marked Hidden, body
 /// deletions in balloons), numeral display, the word being typed, (hidden text shown, field
-/// codes shown)).
+/// codes shown, the paragraph whose hidden text shows)).
 pub(super) type LayoutEntry = (
     (u64, u64),
     f32,
@@ -72,7 +72,7 @@ pub(super) type LayoutEntry = (
     (bool, wordcraft_layout::HideDeleted, bool),
     NumeralMode,
     Option<wordcraft_layout::TypingWord>,
-    (bool, bool),
+    (bool, bool, Option<u64>),
 );
 
 /// The layouts last made, newest first. Two, so two windows on one document with different

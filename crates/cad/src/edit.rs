@@ -242,11 +242,13 @@ impl Drawing {
     /// Moves the entities at `indices` by `d` (drawing units). A coordinate written as an
     /// expression stays one: `L` becomes `L + 0.5`.
     pub fn translate(&mut self, indices: &[usize], d: Pt) {
-        for &i in indices {
+        let all = self.with_boundaries(indices);
+        for &i in &all {
             if let Some(e) = self.entities.get_mut(i) {
                 move_kind(&mut e.kind, d);
             }
         }
+        self.inserts_follow(&all, &crate::Affine { m: [1.0, 0.0, d.x, 0.0, 1.0, d.y], scale: 1.0, mirror: false });
     }
 
     /// Copies the entities at `indices`, moved by `d`; returns the copies' indices.
@@ -261,8 +263,9 @@ impl Drawing {
         let mut made = Vec::new();
         // Each copy's original id, and which group it is in.
         let mut origin: Vec<(String, usize)> = Vec::new();
+        let indices = self.with_boundaries(indices);
         for (g, &d) in offsets.iter().enumerate() {
-            for &i in indices {
+            for &i in &indices {
                 let Some(mut e) = self.entities.get(i).cloned() else { continue };
                 origin.push((e.id.clone(), g));
                 move_kind(&mut e.kind, d);
@@ -295,6 +298,38 @@ impl Drawing {
                 }
             }
         }
+        // A copied group is a group of its own: in each copy, every group of its path (an array,
+        // a block insertion inside it) is a new one.
+        let mut taken: std::collections::HashSet<String> = self.entities.iter().flat_map(crate::series::group_path).map(str::to_string).collect();
+        let mut n = 1usize;
+        let mut group_names: Vec<std::collections::HashMap<String, String>> = Vec::with_capacity(out.len());
+        for list in &out {
+            let mut names: std::collections::HashMap<String, String> = Default::default();
+            for &i in list {
+                let Some(e) = self.entities.get_mut(i) else { continue };
+                let Some(old) = e.group.take() else { continue };
+                let path: Vec<String> = old
+                    .split(crate::series::GROUP_SEP)
+                    .map(|seg| {
+                        names
+                            .entry(seg.to_string())
+                            .or_insert_with(|| {
+                                while taken.contains(&format!("g{n}")) {
+                                    n += 1;
+                                }
+                                let name = format!("g{n}");
+                                taken.insert(name.clone());
+                                name
+                            })
+                            .clone()
+                    })
+                    .collect();
+                e.group = Some(path.join(&crate::series::GROUP_SEP.to_string()));
+            }
+            group_names.push(names);
+        }
+        // A copied block insertion is an insertion too.
+        self.inserts_copied(&group_names, offsets);
         out
     }
 
@@ -350,6 +385,8 @@ impl Drawing {
                 ring.extend(ring.first().copied());
                 vec![ring]
             }),
+            // A text is picked inside its box.
+            Kind::Text { .. } => self.text_box(e).map(|b| vec![vec![b[0], b[1], b[2], b[3], b[0]]]),
             // A hatch is picked inside its outer boundary.
             Kind::Hatch { .. } => self.hatch_loops(e).into_iter().next().map(|mut ring| {
                 ring.extend(ring.first().copied());
@@ -423,6 +460,8 @@ pub enum Grip {
     Segment(usize),
     /// A point's or text's position.
     Point,
+    /// A corner (0–3, counter-clockwise from the bottom left) of a text's box: moves the text.
+    Corner(u8),
     /// A dimension's line: changes its distance from the measured points.
     DimLine,
     /// A dimension's or level mark's text: moves it anywhere (its text shift).
@@ -502,7 +541,13 @@ impl Drawing {
                 }
                 out
             }
-            Kind::Point { p } | Kind::Text { p, .. } => vec![(Grip::Point, p.pt())],
+            Kind::Point { p } => vec![(Grip::Point, p.pt())],
+            // Its position, and its box's corners: a text is taken wherever it shows.
+            Kind::Text { p, .. } => {
+                let mut out = vec![(Grip::Point, p.pt())];
+                out.extend(self.text_box(e).into_iter().flatten().zip(0u8..).map(|(q, k)| (Grip::Corner(k), q)));
+                out
+            }
             Kind::Level { p, .. } => {
                 let mut out = vec![(Grip::Point, p.pt())];
                 out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
@@ -648,7 +693,9 @@ impl Drawing {
                     }
                 }
             }
-            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) => shift_p(p, d),
+            (Kind::Point { p } | Kind::Text { p, .. } | Kind::Level { p, .. }, Grip::Point) | (Kind::Text { p, .. }, Grip::Corner(_)) => {
+                shift_p(p, d)
+            }
             (Kind::Dim { offset, offset_units, .. }, Grip::DimLine) => {
                 let (new_units, new_offset) =
                     if scaled { ((offset_at - *offset) / k, *offset) } else { (*offset_units, offset_at - *offset_units * k) };

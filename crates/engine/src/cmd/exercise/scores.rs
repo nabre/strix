@@ -47,7 +47,7 @@ fn number(t: &str) -> Option<f64> {
 
 /// `v` as the table shows it: whole numbers plain, others with up to two decimals, the decimal
 /// comma in the languages that write one.
-fn shown(v: f64, comma: bool) -> String {
+pub(super) fn shown(v: f64, comma: bool) -> String {
     let t = format!("{:.2}", v);
     let t = t.trim_end_matches('0').trim_end_matches('.').to_string();
     let t = if t == "-0" { "0".to_string() } else { t };
@@ -77,6 +77,10 @@ fn tables(s: &Session) -> Vec<usize> {
     s.doc.body.iter().enumerate().filter(|(_, b)| matches!(&***b, Block::Table(t) if control_of(t).is_some())).map(|(i, _)| i).collect()
 }
 
+fn is_total_row(r: &Row) -> bool {
+    r.cells.first().and_then(|c| c.blocks.first()?.as_para()?.props.align) == Some(Align::Left)
+}
+
 /// What table `t` holds: the criteria (their number from the control, their names from the
 /// header row) and the points typed in each exercise's row.
 fn read(t: &Table) -> Model {
@@ -87,6 +91,7 @@ fn read(t: &Table) -> Model {
         .rows
         .iter()
         .skip(1)
+        .filter(|r| !is_total_row(r))
         .take(MAX_ROWS)
         .map(|r| (0..k).map(|c| r.cells.get(2 + 2 * c).map(cell_text).and_then(|t| number(&t))).collect())
         .collect();
@@ -111,7 +116,7 @@ fn cell(text: &str, align: Align, bold: bool, span: u32, width: f32) -> Cell {
 fn build(m: &Model, rows: usize, label: &dyn Fn(usize) -> String, total: &str, exercise: &str, width: f32, comma: bool) -> Table {
     let k = m.criteria.len().max(1);
     let across = k > 1;
-    let down = rows > 1;
+    let down = rows > 1 || (rows == 1 && !across);
     // Grid: the exercises' column, then two per criterion (and two for the total).
     let pairs = k + usize::from(across);
     let first = (width * 0.16).clamp(36.0, 120.0);
@@ -189,7 +194,7 @@ pub(super) fn fingerprint(s: &Session) -> Vec<Vec<Vec<(String, u32)>>> {
 }
 
 /// Whether the document writes numbers with a decimal comma.
-fn comma(s: &Session) -> bool {
+pub(super) fn comma(s: &Session) -> bool {
     !super::words_lang(s).starts_with("en")
 }
 
@@ -201,9 +206,10 @@ fn text_width(s: &Session, i: usize) -> f32 {
 /// Rebuild table `i` from `m` when it differs; whether it changed. Its control and its
 /// table-wide properties stay.
 fn put(s: &mut Session, i: usize, m: &Model) -> bool {
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let labels = numbering::current(s);
-    let label = |n: usize| labels.format.format(u32::try_from(n).unwrap_or(u32::MAX).saturating_add(labels.start));
+    let graded = super::stem_items::graded(s);
+    let label = |n: usize| labels.format.format(u32::try_from(graded.get(n).copied().unwrap_or(n)).unwrap_or(u32::MAX).saturating_add(labels.start));
     let w = doc_words(s);
     let width = text_width(s, i);
     let Some(Block::Table(old)) = s.doc.body.get(i).map(|b| &**b) else { return false };
@@ -228,7 +234,28 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut changed = false;
     for i in tables(s) {
         let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { continue };
-        let m = read(t);
+        let mut m = read(t);
+        let graded = super::stem_items::graded(s);
+        let old_rows: Vec<_> = t.rows.iter().skip(1).filter(|r| !is_total_row(r)).take(MAX_ROWS).collect();
+        // Removing or restoring a worked example must not move another exercise's
+        // manually assigned points onto a different row.
+        if graded.len() != old_rows.len() {
+            let numbering = numbering::current(s);
+            let old = m.points.clone();
+            m.points = graded
+                .iter()
+                .map(|&e| {
+                    let label = numbering.format.format(u32::try_from(e).unwrap_or(u32::MAX).saturating_add(numbering.start));
+                    old_rows
+                        .iter()
+                        .position(|row| row.cells.first().is_some_and(|c| cell_text(c) == label))
+                        .and_then(|r| old.get(r))
+                        .cloned()
+                        .unwrap_or_else(|| vec![None; m.criteria.len()])
+                })
+                .collect();
+        }
+        quiz_points(s, &mut m);
         changed |= put(s, i, &m);
     }
     if changed {
@@ -238,19 +265,89 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed
 }
 
+/// An exercise's question points (all questions' added up, in a quiz or a problem whose
+/// questions declare points) are its row's total: the partials typed in the criteria before the
+/// last are kept (each cut down to what is left of the total), the last criterion gets what
+/// remains, so the partials always add up to the exercise's points. With one criterion it holds
+/// the whole total. Rows of exercises without question points stay as typed.
+fn quiz_points(s: &Session, m: &mut Model) {
+    let layout = scan(s);
+    let k = m.criteria.len();
+    if k == 0 {
+        return;
+    }
+    for (r, e) in super::stem_items::graded(s).into_iter().take(MAX_ROWS).enumerate() {
+        let Some(total) = super::items::total(s, &layout, e) else { continue };
+        if m.points.len() <= r {
+            m.points.resize(r + 1, vec![None; k]);
+        }
+        if let Some(row) = m.points.get_mut(r) {
+            split(row, k, total);
+        }
+    }
+}
+
+/// Points rounded to hundredths (what the table shows), so a remainder never reads `0,30000004`.
+fn hundredths(v: f64) -> f64 {
+    (v * 100.0).round() / 100.0
+}
+
+/// `row` (`k` criteria) made to add up to `total`: each partial before the last kept within what
+/// is left (never negative), the last one the remainder.
+fn split(row: &mut Vec<Option<f64>>, k: usize, total: f64) {
+    row.resize(k, None);
+    let mut left = hundredths(total.max(0.0));
+    for c in row.iter_mut().take(k.saturating_sub(1)) {
+        if let Some(v) = c {
+            let kept = hundredths(v.max(0.0).min(left));
+            *c = Some(kept);
+            left = hundredths((left - kept).max(0.0));
+        }
+    }
+    if let Some(last) = row.last_mut() {
+        *last = Some(left);
+    }
+}
+
+/// Whether exercise `e`'s questions carry points (its scores row is then linked to them).
+fn linked(s: &Session, e: usize) -> bool {
+    super::items::total(s, &scan(s), e).is_some()
+}
+
 /// The points the document's first scores table adds up to: every point typed in for its
 /// exercises, across all criteria (the grand total); `None` without a scores table or with no
 /// points typed in. The archive's Score property follows it (`super::archive`).
 pub(crate) fn grand_total(s: &Session) -> Option<f64> {
     let i = tables(s).into_iter().next()?;
     let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { return None };
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let all: Vec<f64> = read(t).points.iter().take(rows).flatten().flatten().copied().collect();
     if all.is_empty() {
         return None;
     }
     let sum: f64 = all.iter().sum();
     sum.is_finite().then_some(sum)
+}
+
+/// First scores table block index and each exercise row's total points (`None` if no criterion has points on that row).
+pub(super) fn row_points(s: &Session) -> Option<(usize, Vec<Option<f64>>)> {
+    let i = tables(s).into_iter().next()?;
+    let Block::Table(t) = s.doc.body.get(i).map(|b| &**b)? else { return None };
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
+    let m = read(t);
+    let per_ex: Vec<Option<f64>> = (0..rows)
+        .map(|r| {
+            let vals: Vec<f64> = m.points.get(r).into_iter().flatten().flatten().copied().collect();
+            (!vals.is_empty()).then(|| vals.iter().sum::<f64>()).filter(|v| v.is_finite())
+        })
+        .collect();
+    let mut by_exercise = vec![None; scan(s).exercises.len()];
+    for (e, pts) in super::stem_items::graded(s).into_iter().zip(per_ex) {
+        if let Some(slot) = by_exercise.get_mut(e) {
+            *slot = pts;
+        }
+    }
+    Some((i, by_exercise))
 }
 
 /// The document's language changed: every criterion `rename` gives a new name (a default one, in
@@ -286,7 +383,7 @@ fn state(s: &Session) -> Value {
     let Some(i) = target(s) else { return json!({"on": false}) };
     let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { return json!({"on": false}) };
     let m = read(t);
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let points: Vec<Vec<Value>> =
         (0..rows).map(|r| (0..m.criteria.len()).map(|c| json!(m.points.get(r).and_then(|x| x.get(c)).copied().flatten())).collect()).collect();
     json!({"on": true, "criteria": m.criteria, "points": points, "exercises": rows})
@@ -380,9 +477,20 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
                     .ok_or_else(|| CmdError::Params("points: a number, or null".into()))?,
             ),
         };
-        let rows = scan(s).exercises.len().min(MAX_ROWS);
+        let ex = super::stem_items::graded(s)
+            .iter()
+            .position(|e| e.saturating_add(1) == ex)
+            .map(|r| r + 1)
+            .ok_or_else(|| CmdError::Params("exercise has no scores row".into()))?;
+        let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
         if ex > rows {
             return Err(CmdError::Params(format!("exercise: the document has {rows}")));
+        }
+        let graded = super::stem_items::graded(s);
+        if graded.get(ex - 1).is_some_and(|&e| linked(s, e)) && c == m.criteria.len() {
+            return Err(CmdError::Failed(
+                "this exercise's questions carry points: its last criterion is what is left of their total, set the criteria before it".into(),
+            ));
         }
         while m.points.len() < ex {
             m.points.push(vec![None; m.criteria.len()]);
@@ -394,6 +502,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
             }
         }
     }
+    quiz_points(s, &mut m);
     put(s, i, &m);
     s.touch();
     s.clamp_selection();
@@ -463,11 +572,11 @@ mod tests {
         std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         run(&mut s, "caret.docEnd", json!({}));
         run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
-        // One exercise, one criterion: no totals.
+        // One exercise, one criterion: Total summary row stays visible (__ / Max).
         run(&mut s, "caret.docStart", json!({}));
         let st = run(&mut s, "exercise.scores", json!({"on": true}));
         assert_eq!(st["criteria"], json!(["Punti"]), "{st}");
-        assert_eq!(grid(&s), vec![vec!["Esercizio", "Punti"], vec!["1", "", ""]]);
+        assert_eq!(grid(&s), vec![vec!["Esercizio", "Punti"], vec!["1", "", ""], vec!["Totale", "", ""]]);
         // Three more exercises: their rows come by themselves, with the Total row.
         for t in ["Due", "Tre", "Quattro"] {
             run(&mut s, "caret.docEnd", json!({}));
@@ -514,5 +623,44 @@ mod tests {
         assert!(grid(&s).is_empty());
         assert!(s.undo());
         assert!(!grid(&s).is_empty());
+    }
+
+    /// An exercise whose questions carry points is its row's total: the partials typed in the
+    /// criteria before the last are kept, the last one makes them add up to it; an exercise
+    /// without question points keeps the points typed in.
+    #[test]
+    fn question_points_are_the_row_total_and_the_last_criterion_balances_it() {
+        let mut s = Session::new(Document::new());
+        run(&mut s, "document.setText", json!({"text": "Verifica"}));
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Uno", "points": 4}, {"text": "Due", "points": 6}]}));
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"title": "Libero", "questions": ["q"]}));
+        run(&mut s, "caret.docStart", json!({}));
+        run(&mut s, "exercise.scores", json!({"on": true}));
+        // One criterion: it holds the whole total.
+        assert_eq!(grid(&s)[1], ["1", "", "10"]);
+        // Two more criteria: the first keeps the total, the new last ones get what is left.
+        run(&mut s, "exercise.scores", json!({"add": "MOD"}));
+        run(&mut s, "exercise.scores", json!({"add": "RIS"}));
+        // (MOD was the last criterion when it came: it got the remainder, 0.)
+        assert_eq!(grid(&s)[1], ["1", "", "10", "", "0", "", "0", "", "10"]);
+        // Partials typed in: the last criterion balances them.
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 1, "points": 3}));
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 2, "points": 2.5}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "2,5", "", "4,5", "", "10"]);
+        // The last criterion is computed, not set.
+        assert!(s.run("exercise.scores", &json!({"exercise": 1, "criterion": 3, "points": 1})).is_err());
+        // The question points change: the last partial takes the difference.
+        run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 2, "points": 3}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "2,5", "", "1,5", "", "7"]);
+        // Partials beyond the total are cut down to it, never negative.
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 2, "points": 9}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "4", "", "0", "", "7"]);
+        // An exercise without question points: every criterion typed in, as before.
+        run(&mut s, "exercise.scores", json!({"exercise": 2, "criterion": 3, "points": 2}));
+        assert_eq!(grid(&s)[2], ["2", "", "", "", "", "", "2", "", "2"]);
+        assert_eq!(grid(&s)[3][8], "9");
     }
 }

@@ -29,6 +29,21 @@ pub(super) struct Words {
     pub profession: &'static str,
     pub duration: &'static str,
     pub score: &'static str,
+    /// Quizzes (docs/exercise.md, Kinds): the answer control's title, the points' abbreviation
+    /// after a question (`….. / 2 pt`), the options of a true/false question.
+    pub answer: &'static str,
+    pub points_short: &'static str,
+    pub true_word: &'static str,
+    pub false_word: &'static str,
+    /// Note shown after an equation solved numerically (`cmd/calc.rs`).
+    pub numeric_solution: &'static str,
+    /// Grading scale table (`cmd/exercise/grading.rs`) and assessment pack (`cmd/exercise/pack.rs`).
+    pub grading_scale: &'static str,
+    pub grade_mark: &'static str,
+    pub pack_row_prefix: &'static str,
+    pub pack_teacher_name: &'static str,
+    pub synoptic_heading: &'static str,
+    pub question_col: &'static str,
 }
 
 /// The words of language tag `lang` (`it-IT`, `fr`, `ita`, `gsw-CH`…), from its primary subtag
@@ -72,6 +87,17 @@ pub(super) const IT: Words = Words {
     profession: "Professione",
     duration: "Durata (min)",
     score: "Punteggio",
+    answer: "Risposta",
+    points_short: "pt",
+    true_word: "Vero",
+    false_word: "Falso",
+    numeric_solution: "(soluzione numerica)",
+    grading_scale: "Griglia di valutazione",
+    grade_mark: "Voto",
+    pack_row_prefix: "Fila",
+    pack_teacher_name: "Correttore_Docente",
+    synoptic_heading: "Tabella sinottica multi-variante",
+    question_col: "Domanda",
 };
 
 pub(super) const EN: Words = Words {
@@ -95,6 +121,17 @@ pub(super) const EN: Words = Words {
     profession: "Profession",
     duration: "Duration (min)",
     score: "Score",
+    answer: "Answer",
+    points_short: "pt",
+    true_word: "True",
+    false_word: "False",
+    numeric_solution: "(numerical solution)",
+    grading_scale: "Grading scale",
+    grade_mark: "Grade",
+    pack_row_prefix: "Variant",
+    pack_teacher_name: "Teacher_Key",
+    synoptic_heading: "Multi-variant answer key",
+    question_col: "Question",
 };
 
 const FR: Words = Words {
@@ -118,6 +155,17 @@ const FR: Words = Words {
     profession: "Profession",
     duration: "Durée (min)",
     score: "Points",
+    answer: "Réponse",
+    points_short: "pt",
+    true_word: "Vrai",
+    false_word: "Faux",
+    numeric_solution: "(solution numérique)",
+    grading_scale: "Barème de notation",
+    grade_mark: "Note",
+    pack_row_prefix: "Sujet",
+    pack_teacher_name: "Corrige_Enseignant",
+    synoptic_heading: "Tableau synoptique des variantes",
+    question_col: "Question",
 };
 
 const DE: Words = Words {
@@ -141,6 +189,17 @@ const DE: Words = Words {
     profession: "Beruf",
     duration: "Dauer (min)",
     score: "Punktzahl",
+    answer: "Antwort",
+    points_short: "P.",
+    true_word: "Wahr",
+    false_word: "Falsch",
+    numeric_solution: "(numerische Lösung)",
+    grading_scale: "Notenskala",
+    grade_mark: "Note",
+    pack_row_prefix: "Variante",
+    pack_teacher_name: "Korrekturschluessel",
+    synoptic_heading: "Variantenübersicht",
+    question_col: "Frage",
 };
 
 #[cfg(test)]
@@ -176,7 +235,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| {
+        let fields = |w: &Words| -> [&str; 31] {
             [
                 w.exercise,
                 w.total,
@@ -198,6 +257,17 @@ mod tests {
                 w.profession,
                 w.duration,
                 w.score,
+                w.answer,
+                w.points_short,
+                w.true_word,
+                w.false_word,
+                w.numeric_solution,
+                w.grading_scale,
+                w.grade_mark,
+                w.pack_row_prefix,
+                w.pack_teacher_name,
+                w.synoptic_heading,
+                w.question_col,
             ]
         };
         let shown = |w: &Words| [w.exercise, w.title_part, w.statement, w.questions, w.solution, w.prompt, w.title, w.text, w.question];

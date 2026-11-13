@@ -82,6 +82,7 @@ pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'stati
         "picture" => &[("Pictures", PICTURES)],
         "font" => &[("Fonts", wordcraft_fonts::FONT_FILE_EXTS)],
         "sources" => &[("Word sources", &["xml"]), ("All files", &["*"])],
+        "archive" => &[("Exercise bundles", &["zip"])],
         "recipients" => &[("Recipient lists", wordcraft_engine::cmd::mailings::RECIPIENT_EXTENSIONS), ("All files", &["*"])],
         _ => &[
             ("Strix documents (*.xmath, *.xmathm)", NATIVE),
@@ -117,6 +118,7 @@ pub fn save_format_name(ext: &str) -> &'static str {
         "odt" => "OpenDocument Text",
         "tex" => "LaTeX",
         "png" => "PNG Image",
+        "zip" => "ZIP Archive",
         "json" => "JSON",
         "xml" => "XML",
         _ => "Other format",
@@ -135,6 +137,9 @@ pub fn save_exts(name: &str) -> Vec<String> {
 /// [`save_exts`]; `native_only` leaves out the editable formats that would lose Strix objects
 /// (.odt, .rtf…; Strix's own formats and Word documents keep them), for a document with some.
 pub fn save_exts_for(name: &str, native_only: bool) -> Vec<String> {
+    if name.to_ascii_lowercase().ends_with(".zip") {
+        return vec!["zip".to_string()];
+    }
     let saves: Vec<&str> = wordcraft_engine::io::SAVE_EXTS.iter().copied().filter(|e| !native_only || !crate::strix_save::loses_objects(e)).collect();
     let suggested = std::path::Path::new(name)
         .extension()

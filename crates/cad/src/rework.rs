@@ -62,8 +62,14 @@ fn ends(chain: &[Link]) -> Option<(Pt, Pt)> {
 impl Drawing {
     /// Explodes the polylines among `indices` into their lines and arcs (other objects stay as
     /// they are). A strip along an exploded polyline or a hatch bounded by it goes with it.
-    /// Returns the indices of the pieces.
+    /// Returns the indices of the pieces. A group (an array) among them comes apart first, one
+    /// level at a time: its members are on their own again, unexploded, and are what it returns.
     pub fn explode(&mut self, indices: &[usize]) -> Vec<usize> {
+        if self.any_grouped(indices) {
+            let members = self.with_groups(indices);
+            self.ungroup(&members);
+            return members;
+        }
         let mut sorted = indices.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
@@ -274,7 +280,7 @@ impl Drawing {
     }
 
     /// A rectangular array of the entities at `indices`: `cols` × `rows` items, `dx` and `dy`
-    /// apart (the originals are the first). Returns the copies' indices.
+    /// apart (the originals are the first), all one group. Returns the copies' indices.
     pub fn array_rect(&mut self, indices: &[usize], cols: usize, rows: usize, dx: f64, dy: f64) -> Result<Vec<usize>, String> {
         let items = cols.saturating_mul(rows);
         if cols == 0 || rows == 0 || items > MAX_ARRAY {
@@ -286,12 +292,15 @@ impl Drawing {
         self.room_for(indices.len(), items)?;
         // Every item but the first, which is the originals.
         let offsets: Vec<Pt> = (0..rows).flat_map(|r| (0..cols).map(move |c| Pt::new(dx * c as f64, dy * r as f64))).skip(1).collect();
-        Ok(self.copies(indices, &offsets).concat())
+        let copies = self.copies(indices, &offsets).concat();
+        // The originals and their copies: one object.
+        self.group_with(indices, &copies);
+        Ok(copies)
     }
 
     /// A polar array of the entities at `indices`: `count` items round `centre` over `fill`
     /// degrees (360: a whole turn, the items evenly spaced; less: the last at the end of it),
-    /// each turned as it goes round. Returns the copies' indices.
+    /// each turned as it goes round, all one group. Returns the copies' indices.
     pub fn array_polar(&mut self, indices: &[usize], centre: Pt, count: usize, fill: f64) -> Result<Vec<usize>, String> {
         if !(2..=MAX_ARRAY).contains(&count) {
             return Err(format!("A polar array has 2 to {MAX_ARRAY} items"));
@@ -305,11 +314,13 @@ impl Drawing {
         for (k, copies) in groups.iter().enumerate() {
             self.transform(copies, &Affine::rotation(centre, step * (k + 1) as f64));
         }
-        Ok(groups.concat())
+        let copies = groups.concat();
+        self.group_with(indices, &copies);
+        Ok(copies)
     }
 
     /// Whether `items` copies of `n` entities fit in the drawing.
-    fn room_for(&self, n: usize, items: usize) -> Result<(), String> {
+    pub(crate) fn room_for(&self, n: usize, items: usize) -> Result<(), String> {
         if n == 0 {
             return Err("Select the objects first".into());
         }

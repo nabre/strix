@@ -180,7 +180,7 @@ impl Rendered {
                 map_prim(p, |(x, y)| (x + dx, y + dy));
             }
         }
-        Rendered { prims, size: (x1 - x0, y1 - y0), origin: (self.origin.0 - dx, self.origin.1 + dy), scale: self.scale }
+        Rendered { prims, size: (x1 - x0, y1 - y0), origin: (self.origin.0 - dx, self.origin.1 + dy), scale: self.scale, texts: self.texts }
     }
 }
 
