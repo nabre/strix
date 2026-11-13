@@ -2951,15 +2951,15 @@ mod tests {
         // Prefs = 1 digit, Document = 2 digits, Exercise = 4 digits, Equation = 5 digits.
         s.run("calc.options", &json!({"digits": 1, "count": "decimals", "zeros": true, "scope": "prefs"})).unwrap();
         s.run("calc.options", &json!({"digits": 2, "count": "decimals", "zeros": true, "scope": "document"})).unwrap();
-        add(&mut s, "a = 1 / 8 =");
+        add(&mut s, "a = 1/8 =");
 
         // Insert a problem exercise and put two equations in its solution.
         s.run("exercise.insert", &json!({})).unwrap();
         s.run("calc.options", &json!({"digits": 4, "count": "decimals", "zeros": true, "scope": "exercise", "exercise": 1})).unwrap();
         let sol = s.doc.body.iter().position(|b| b.as_para().is_some_and(|p| p.props.style.as_deref() == Some("ExercisePrompt"))).unwrap() + 1;
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![sol as u32]), 0));
-        add(&mut s, "b = 1 / 8 =");
-        s.run("calc.insert", &json!({"text": "c = 1 / 8 ="})).unwrap();
+        add(&mut s, "b = 1/8 =");
+        s.run("calc.insert", &json!({"text": "c = 1/8 ="})).unwrap();
         // Caret right after `calc.insert` is adjacent to equation `c`: override at equation scope.
         s.run("calc.options", &json!({"digits": 5, "scope": "equation"})).unwrap();
 
@@ -2989,7 +2989,7 @@ mod tests {
         s.prefs.calc_zeros = true;
         s.run("file.new", &json!({})).unwrap();
         s.prefs.calc_digits = 0;
-        add(&mut s, "d = 1 / 8 =");
+        add(&mut s, "d = 1/8 =");
         let new_texts = texts(&s);
         assert!(new_texts.iter().any(|t| t == "d=1/8=0.125"), "new doc inherited 3 decimals from prefs at creation: {new_texts:?}");
     }

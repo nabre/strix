@@ -2075,7 +2075,7 @@ mod tests {
         run(
             &mut s,
             "exercise.setData",
-            json!({"data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["5"]}], "variants": ["A"], "active": 0}}),
+            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["5"]}], "variants": ["A"], "active": 0}}),
         );
         assert!(has_data_ctl(&s), "non-empty data on a quiz inserts TAG_DATA");
         let at = space(&s, 0);
@@ -2087,13 +2087,13 @@ mod tests {
         run(
             &mut s,
             "exercise.setData",
-            json!({"data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0, "showData": false}}),
+            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0, "showData": false}}),
         );
         assert!(!has_data_ctl(&s), "showData: false omits TAG_DATA");
         assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 14 cm");
 
         // Emptying items removes TAG_DATA cleanly.
-        run(&mut s, "exercise.setData", json!({"data": {"items": [], "variants": ["A"], "active": 0, "showData": true}}));
+        run(&mut s, "exercise.setData", json!({"exercise": 1, "data": {"items": [], "variants": ["A"], "active": 0, "showData": true}}));
         assert!(!has_data_ctl(&s));
     }
 
