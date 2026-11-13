@@ -22,7 +22,7 @@
   "ctaTryWeb": "Provalo nel browser",
   "ctaGitHub": "Sorgenti su GitHub",
   "heroNote": "Libero e open source (MIT o Apache-2.0) · Windows · macOS · Linux · FreeBSD · web · nessun account, nessuna telemetria",
-  "shotCalcAlt": "Strix con il calcolo di una trave: luce e carico con le unità, il momento flettente calcolato da q·L²/8, la tensione e la verifica della tensione con il segno di spunta",
+  "shotCalcAlt": "Strix con un calcolo di fisica: un’automobile che parte da ferma, l’accelerazione dalle velocità in km/h e dal tempo, la forza, lo spazio percorso con i passaggi e una verifica con il segno di spunta",
   "stat1Title": "4 tipi",
   "stat1Text": "di esercizio: problema, risposta aperta, risposta multipla, vero/falso",
   "stat2Title": "A, B, C",
@@ -102,7 +102,7 @@
   "ex3": "<b>Momenti di valutazione dall'archivio</b>: un documento master compone un file per esercizio, con frontespizio, numerazione e parti mostrate suoi, e lascia i file come sono.",
   "ex4": "<b>Una tabella dei punteggi</b> con una riga per esercizio e due colonne per criterio (punti assegnati, punti disponibili), con i totali per riga e per colonna.",
   "ex5": "<b>Formattazione DSA</b> della stessa prova (lettura, scrittura, calcolo e memoria) e PDF per la stampa. <i>Pianificato:</i> una griglia dai punti ai voti.",
-  "shotExerciseAlt": "Un esercizio di Strix: titolo, testo, dati, domande con lettere e la soluzione svolta sotto ogni domanda",
+  "shotExerciseAlt": "Un esercizio di Strix: un’automobile che parte da ferma, i dati in due varianti, domande con lettere e la soluzione svolta sotto ogni domanda",
 
   "cadEyebrow": "Disegni CAD",
   "cadTitle": "Disegni guidati dai calcoli",

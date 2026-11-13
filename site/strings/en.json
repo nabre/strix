@@ -22,7 +22,7 @@
   "ctaTryWeb": "Try it in the browser",
   "ctaGitHub": "Source on GitHub",
   "heroNote": "Free and open source (MIT or Apache-2.0) · Windows · macOS · Linux · FreeBSD · web · no account, no telemetry",
-  "shotCalcAlt": "Strix with a beam calculation: span and load with units, the bending moment computed from q·L²/8, the stress and a stress check with a tick",
+  "shotCalcAlt": "Strix with a physics calculation: a car accelerating from rest, its acceleration from the speeds in km/h and the time, the force, the distance with its solution steps and a check with a tick",
   "stat1Title": "4 kinds",
   "stat1Text": "of exercise: problem, open answer, multiple choice, true/false",
   "stat2Title": "A, B, C",
@@ -102,7 +102,7 @@
   "ex3": "<b>Tests from an archive</b>: a master document assembles one file per exercise, with its own cover page, numbering and parts shown, and leaves the files as they are.",
   "ex4": "<b>A scores table</b> with a row per exercise and two columns per criterion (points given, points available), totalled across and down.",
   "ex5": "<b>DSA formatting</b> of the same test (reading, writing, maths and memory) and PDF for printing. <i>Planned:</i> a grading grid from points to marks.",
-  "shotExerciseAlt": "A Strix exercise: title, statement, data, lettered questions and the solution worked under each question",
+  "shotExerciseAlt": "A Strix exercise: a car accelerating from rest, its data in two variants, lettered questions and the solution worked under each question",
 
   "cadEyebrow": "CAD drawings",
   "cadTitle": "Drawings driven by the calculations",

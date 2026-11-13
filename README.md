@@ -68,30 +68,49 @@
 - the **solution**, where each question is repeated as a read-only line with room to work it out
   under it; the working stays with its question when the questions change;
 - one **results summary** at the end of the document: an equation marked as the result of a
-  question (Result Of) is listed with its calculated value (`a) M = 30.375 kN·m`).
+  question (Result Of) is listed with its calculated value (`a) a = 2.5 m/s²`).
 
 The solution is a live calculation (see [WYSIWYG math](#wysiwyg-math)): the data can have
 **variants** A, B, C…, and choosing one recalculates the data, the solution and the summary, so
 each row of desks gets its own numbers and no solution is redone by hand. Each exercise is a
-**sandbox**: two exercises can both define `L`. Graph paper can follow the questions, as in an
+**sandbox**: two exercises can both define `t`. Graph paper can follow the questions, as in an
 exercise book, and a [CAD drawing](#cad-drawings-driven-by-the-calculations) in the statement
 follows the data.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/shots/en/shot-exercise-dark.png">
+    <img src="site/shots/en/shot-exercise-light.png" alt="An exercise in Strix: a car accelerating from rest, its data in two variants, the questions and the worked solution with live results." width="70%">
+  </picture>
+</p>
+
 ## Multiple choice and open questions
 
-An exercise can also be a quiz (`exercise.insert {"kind"}`):
+An exercise can also be a quiz (`exercise.insert {"kind"}`), where each question has its own
+mode, so one quiz mixes them ([docs/question-modes.md](docs/question-modes.md)):
 
-| Kind | What the student gets |
-|---|---|
-| **Problem** | statement, data, questions and the solution worked under each question |
-| **Open answer** | each question followed by an answer space of a height in cm, squared or blank |
-| **Multiple choice** | each question followed by its options A), B), C)… with check boxes; more than one can be correct |
-| **True/False** | a multiple choice with two options |
+| Mode | What the student gets | What the corrected copy shows |
+|---|---|---|
+| **Open answer** | an answer space of a height in cm, squared or blank | the answer written in the space |
+| **Multiple choice** | options A), B), C)… with empty check boxes | the correct boxes ticked (more than one can be) |
+| **True/False** | *True* and *False* with empty boxes | the right one ticked |
+| **Calculation** | a squared space for the working, then `s = ______ m` | the working as live equations and `s = 20 m` |
+| **CAD drawing** | a squared space to draw in | the solution's CAD drawing |
+
+A **problem** (statement, data, questions, the solution worked under each question) stays the
+kind for long multi-step exercises.
 
 The correct answers are ticked in the exercise and **hide with the solution**: the boxes go
 empty and the answer spaces keep their height, so the student's copy is laid out exactly like the
 teacher's. Each question has its **points**, shown after it and added up in the scores table. A
 quiz needs no statement, and a lone question has no letter.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/shots/en/shot-quiz-dark.png">
+    <img src="site/shots/en/shot-quiz-light.png" alt="A quiz in Strix: a multiple-choice question, a true/false question and a calculation question, with points and the correct answers ticked." width="70%">
+  </picture>
+</p>
 
 ## From the archive to the test
 
@@ -136,22 +155,29 @@ after each edit (waiting until the caret leaves the equation, so nothing is rewr
 type), on F9 and when the file opens.
 
 ```text
-L = 4.5 m                          defines L
-q = 12 kN/m                        units multiply and divide like numbers
-M = q·L²/8 =                       →  M = q·L²/8 = 30.375 kN·m
-W = 1000 cm³
-f_yd = 355 MPa
-σ = M/W =                          →  σ = M/W = 30.375 MPa
-σ ≤ f_yd                           →  σ ≤ f_yd ⇒ 30.375 MPa ≤ 355 MPa ✓
-m = 400 kg
-F = 1 kN
-F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a is the one unknown: solved)
+m = 1200 kg                        defines m
+v_0 = 0 km/h
+v = 90 km/h                        units convert by themselves: km/h, s, m/s
+t = 10 s
+a = (v − v_0)/t =                  →  a = (v − v₀)/t = 2.5 m/s²
+F = m·a =                          →  F = m·a = 3 kN
+s = a·t²/2 =                       →  s = a·t²/2 = 125 m
+s ≤ 150 m                          →  s ≤ 150 m ⇒ 125 m ≤ 150 m ✓
+E_k = m·v²/2 = kJ                  →  E_k = m·v²/2 = 375 kJ        (the unit chosen after =)
+v² = 2·a·d                         →  v² = 2·a·d ⇒ d = 125 m         (d is the one unknown: solved)
 ```
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/shots/en/shot-calc-dark.png">
+    <img src="site/shots/en/shot-calc-light.png" alt="Strix's Math tab: a car accelerating from rest, worked as live equations with units, solution steps and a check." width="100%">
+  </picture>
+</p>
+
 - **One `=` for everything.** Strix works out what a statement means from what is known so far:
-  a definition (`L = 4.5 m`), a result to show (`M =`, or `M = kN·m` to choose the unit), a
-  formula shown with its value (`M = q·L²/8 =`), an equation to **solve** for its one unknown
-  (`F = m·a`, `x² + x = 6`), or a **check** (`a + b = c`, and `≤ ≥ < > ≠` with ✓/✗). `:=` still
+  a definition (`t = 10 s`), a result to show (`a =`, or `E_k = kJ` to choose the unit), a
+  formula shown with its value (`s = a·t²/2 =`), an equation to **solve** for its one unknown
+  (`v² = 2·a·d`, `x² + x = 6`), or a **check** (`a + b = c`, and `≤ ≥ < > ≠` with ✓/✗). `:=` still
   defines explicitly.
 - **Solving.** The unknown is isolated symbolically when it appears once (through `+ − · /`,
   powers, roots, `exp ln log`, trigonometry and their inverses); otherwise it is found
@@ -159,22 +185,23 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a is
 - **Units everywhere.** SI base and derived units with prefixes, engineering units (`mm`, `kN`,
   `MPa`, `bar`, `kWh`, `t`, `h`…) and dimensionless ones kept through results (`%`, `‰`, `ppm`,
   `°`, `rad`, `gon`). Dimension errors (`2 m + 3 s`) are caught, never silently wrong. The
-  **working unit** follows what you write: after `b = 300 mm`, lengths show in mm. Units are
+  **working unit** follows what you write: after `b = 30 cm`, lengths show in cm. Units are
   typeset upright and coloured with the **Unit** character style, so they stand apart from
   symbols. A unit typed in the wrong case gets a hint ("did you mean kN?").
 - **Solution steps.** With Show Steps a formula or a solved equation shows the formula isolated
   for the unknown, the values substituted and the result, aligned at `=`, rebuilt on every
   recalculation.
 - **Calculated tables.** Turn on Calculated Table and an ordinary table becomes a calculation:
-  headers name columns with units and formulas (`L [m]`, `M [kN·m] = γ·q·L²/8`), cells may hold
+  headers name columns with units and formulas (`m [g]`, `ρ [g/cm³] = m/V`), cells may hold
   their own statements, `Σ =`, `mean =`, `min =`, `max =` total a column, and every complete
   column becomes a vector for the rest of the document.
 
-  | Beam | L [m] | q [kN/m] | M [kN·m] = γ·q·L²/8 |
+  | Trial | m [g] | V [cm³] | ρ [g/cm³] = m/V |
   |---|---|---|---|
-  | B1 | 4.5 | 12 | *41.006* |
-  | B2 | 6000 mm | 10 | *60.75* |
-  | Total | | | *Σ = 101.756* |
+  | 1 | 27.1 | 10 | *2.71* |
+  | 2 | 54 | 20 | *2.7* |
+  | 3 | 80.7 | 30 | *2.69* |
+  | Mean | | | *mean = 2.7* |
 
 - **Sums, ranges and vectors.** `∑_(i=1)^n▒i²`, `∏`, ranges `i = 1..5`, vectors
   `F = [1; 2; 3] kN` with indexing and element-wise arithmetic; `sum mean len min max`.
@@ -193,20 +220,21 @@ details: [docs/calc.md](docs/calc.md).
 
 **Insert › CAD Drawing** (or Math › Drawing) places a technical drawing in the text. Its
 coordinates, radii and angles can be numbers or **expressions of the calculation's parameters**
-(`["L", 0]`, `L/2 + 0.3`), evaluated where the drawing sits in the document:
+(`["b", 0]`, `b/2`), evaluated where the drawing sits in the document:
 
-- change `L = 4.5 m` above it and the beam **redraws**;
-- dimensions and texts recall parameters: `{{L}}` shows `4.5 m`, `{{L:both}}` shows
-  `L = 4.5 m` (units in the Unit style), `<>` the measured size; a parameter that isn't defined
-  there shows `[L?]` in red.
+- change `b = 6 cm` above it and the triangle **redraws**, so each variant of an exercise gets
+  its own figure;
+- dimensions and texts recall parameters: `{{b}}` shows `6 cm`, `{{b:both}}` shows
+  `b = 6 cm` (units in the Unit style), `<>` the measured size; a parameter that isn't defined
+  there shows `[b?]` in red.
 
 Double-click a drawing to edit it on its sheet, with a **CAD Drawing** tab and an AutoCAD-style
 command line (`x,y`, `@dx,dy`, `@d<a`, direct distances, tool aliases): line, circle, arc,
 polyline, rectangle, point, text, aligned / horizontal / vertical dimensions; select, move, copy,
 delete; ortho, grid, zoom. **Object snaps** are exact, computed on the true curves by a geometry
 kernel (endpoint, midpoint, centre, node, quadrant, intersection, perpendicular, tangent,
-nearest); **grips** reshape selected objects and keep a coordinate's expression (`L` becomes
-`L + 0.5`). Selection works as in AutoCAD: a click adds, Shift+click removes, a window, a
+nearest); **grips** reshape selected objects and keep a coordinate's expression (`b` becomes
+`b + 0.5`). Selection works as in AutoCAD: a click adds, Shift+click removes, a window, a
 crossing or a lasso, fences and polygons, Previous, Undo, cycling through overlapping objects; the
 **right button** opens a menu for what is under way (a command's options, the selected objects,
 the drawing), with a snap for the next point on Shift+right-click. A **Properties pane** shows the
@@ -237,7 +265,7 @@ document: a familiar ribbon interface, styles, headings, lists, tables, equation
 shapes, headers and footers, sections and columns, footnotes, citations and tables of contents,
 comments and track changes, spelling and hyphenation, mail merge and printing. The interface
 follows the operating system's language (English, Italian, German or French; File › Options ›
-Interface language picks one by hand). Measured parity: [ROADMAP.md](ROADMAP.md).
+Interface language picks one by hand). The editor's plan is WordCraft's: [WordCraft roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
 ## Files
 
@@ -295,8 +323,8 @@ single-file portable exe that keeps its settings in a `StrixData` folder beside 
 ARM64), macOS (universal DMG), Linux (AppImage, deb, rpm, Flatpak, Arch; x86_64 and aarch64, plus
 riscv64 deb/rpm/tar.gz), FreeBSD, and the web build as a static site you can host. The web build
 also runs on the website: [try it in the browser](https://nabre.github.io/strix/app/?sample). How the Windows builds are signed, who
-approves a release, what Strix sends over the network (nothing unless you ask) and how to
-uninstall: [Code signing policy](docs/code-signing.md).
+approves a release, what Strix sends over the network (only the check for a new release, at
+start and once a day: no telemetry, no account) and how to uninstall: [Code signing policy](docs/code-signing.md).
 
 ## Build and run
 
@@ -319,7 +347,7 @@ strix-cli convert report.docx report.xmath        # import a Word document
 strix-cli convert problem.xmath problem.pdf       # static export: pdf, png, tex, html, md
 strix-cli convert problem.xmath problem.pdf --strict  # exit 3, no file, if a character or picture would be left out
 strix-cli run --template sample \
-  --cmd 'calc.insert={"text":"L = 4.5 m"}' --save beam.xmath
+  --cmd 'calc.insert={"text":"t = 10 s"}' --save motion.xmath
 strix-cli commands                                # every command id
 ```
 
@@ -356,12 +384,14 @@ Done:
 4. **Calculated tables.**
 5. **Exercises**: locked structure, sandbox, repeated questions, results summary, data and
    variants; open-answer, multiple-choice and true/false questions with points.
-6. **Tests**: master documents that assemble a test from an archive of one file per exercise,
+6. **Question modes**: open, multiple choice, true/false, calculation and CAD drawing questions
+   mixed in one quiz, the students' and the corrected copy from one file.
+7. **Tests**: master documents that assemble a test from an archive of one file per exercise,
    frontispiece, parts shown, archive properties, DSA formatting; the scores table.
-7. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
+8. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
    exact snaps and grips.
 
-Planned:
+Next: being defined (see [ROADMAP.md](ROADMAP.md)). Noted so far:
 
 - Calculations: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, matrices,
   systems of equations across regions, plots; number format per document.
@@ -370,7 +400,8 @@ Planned:
   variant; an Archive pane and a search across the archive's files.
 - CAD: the modify tools, layers, hatches, angular dimensions, constraints and driving dimensions.
 
-Progress log: [ROADMAP.md](ROADMAP.md).
+Progress log: [ROADMAP.md](ROADMAP.md). The document editor's plan is
+[WordCraft's roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
 ## License and credits
 

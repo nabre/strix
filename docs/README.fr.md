@@ -39,22 +39,45 @@
 aux modifications : titre, énoncé, **données** (symbole, description, valeur, unité), questions
 lettrées imbriquées sur trois niveaux (a), a.1), a.1.1)) ; le **corrigé** reprend chaque question
 en lecture seule avec la place pour le développement ; un **récapitulatif des résultats** en fin
-de document.
+de document (`a) a = 2.5 m/s²`).
 
 Le corrigé est un calcul vivant (voir [Les maths WYSIWYG](#les-maths-wysiwyg)) : les données
 peuvent avoir des **variantes** A, B, C…, et en choisir une recalcule les données, le corrigé et
 le récapitulatif ; chaque rangée a ses propres valeurs et aucun corrigé n'est à refaire à la main.
-Chaque exercice est un **bac à sable** (deux exercices peuvent définir `L`) ; du papier quadrillé
+Chaque exercice est un **bac à sable** (deux exercices peuvent définir `t`) ; du papier quadrillé
 peut suivre les questions, et un dessin CAO dans l'énoncé suit les données.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../site/shots/fr/shot-exercise-dark.png">
+    <img src="../site/shots/fr/shot-exercise-light.png" alt="Un exercice dans Strix : une voiture qui démarre à l'arrêt, ses données en deux variantes, les questions et le corrigé avec les résultats calculés." width="70%">
+  </picture>
+</p>
 
 ## QCM et questions ouvertes
 
-Un exercice peut aussi être un quiz : **réponse ouverte** (un espace d'une hauteur donnée en cm,
-quadrillé ou blanc), **choix multiple** (options A), B), C)… avec des cases, plusieurs bonnes
-réponses possibles) et **vrai/faux**. Les bonnes réponses sont cochées dans l'exercice et **se
-masquent avec le corrigé** : les cases restent vides et les espaces gardent leur hauteur, si bien
-que la copie de l'élève a la même mise en page que celle de l'enseignant. Chaque question a ses
-**points**, affichés à côté et additionnés dans le tableau des points.
+Un exercice peut aussi être un quiz, et chaque question a son propre mode, si bien qu'un quiz les
+mélange ([question-modes.md](question-modes.md), en anglais) :
+
+| Mode | Copie de l'élève | Copie corrigée |
+|---|---|---|
+| **Réponse ouverte** | un espace d'une hauteur donnée en cm, quadrillé ou blanc | la réponse écrite dans l'espace |
+| **Choix multiple** | options A), B), C)… avec des cases vides | les bonnes cases cochées (plusieurs possibles) |
+| **Vrai/faux** | *Vrai* et *Faux* avec des cases vides | la bonne cochée |
+| **Calcul** | un espace quadrillé pour le développement, puis `s = ______ m` | le développement en équations vivantes et `s = 20 m` |
+| **Dessin CAO** | un espace quadrillé pour dessiner | le dessin CAO du corrigé |
+
+Les bonnes réponses **se masquent avec le corrigé** : les cases restent vides et les espaces
+gardent leur hauteur, si bien que la copie de l'élève a la même mise en page que celle de
+l'enseignant. Chaque question a ses **points**, affichés à côté et additionnés dans le tableau des
+points. Le **problème** (énoncé, données, questions, corrigé) reste le type des exercices longs.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../site/shots/fr/shot-quiz-dark.png">
+    <img src="../site/shots/fr/shot-quiz-light.png" alt="Un quiz dans Strix : une question à choix multiple, une vrai/faux et une de calcul, avec les points et les bonnes réponses cochées." width="70%">
+  </picture>
+</p>
 
 ## De la banque d'exercices à l'évaluation
 
@@ -86,18 +109,27 @@ Strix lit les équations calculées dans l'ordre de lecture et tient les résult
 chaque modification (en attendant que le curseur quitte l'équation), sur F9 et à l'ouverture.
 
 ```text
-L = 4.5 m                          définit L
-q = 12 kN/m                        les unités se multiplient et se divisent comme des nombres
-M = q·L²/8 =                       →  M = q·L²/8 = 30.375 kN·m
-W = 1000 cm³
-f_yd = 355 MPa
-σ = M/W =                          →  σ = M/W = 30.375 MPa
-σ ≤ f_yd                           →  σ ≤ f_yd ⇒ 30.375 MPa ≤ 355 MPa ✓
-F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a est l'unique inconnue : résolue)
+m = 1200 kg                        définit m
+v_0 = 0 km/h
+v = 90 km/h                        les unités se convertissent seules : km/h, s, m/s
+t = 10 s
+a = (v − v_0)/t =                  →  a = (v − v₀)/t = 2.5 m/s²
+F = m·a =                          →  F = m·a = 3 kN
+s = a·t²/2 =                       →  s = a·t²/2 = 125 m
+s ≤ 150 m                          →  s ≤ 150 m ⇒ 125 m ≤ 150 m ✓
+E_k = m·v²/2 = kJ                  →  E_k = m·v²/2 = 375 kJ        (l'unité choisie après =)
+v² = 2·a·d                         →  v² = 2·a·d ⇒ d = 125 m         (d est l'unique inconnue : résolue)
 ```
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../site/shots/fr/shot-calc-dark.png">
+    <img src="../site/shots/fr/shot-calc-light.png" alt="L'onglet Math de Strix : une voiture qui démarre à l'arrêt, résolue en équations vivantes avec unités, étapes et une vérification." width="100%">
+  </picture>
+</p>
+
 - **Un seul `=` pour tout** : définition, résultat à afficher (y compris dans l'unité choisie,
-  `M = kN·m`), formule avec sa valeur, équation à **résoudre** pour son unique inconnue, ou
+  `E_k = kJ`), formule avec sa valeur, équation à **résoudre** pour son unique inconnue, ou
   **vérification** (`≤ ≥ < > ≠` avec ✓/✗).
 - **Résolution** : l'inconnue est isolée symboliquement quand elle apparaît une fois, sinon
   trouvée numériquement.
@@ -105,8 +137,8 @@ F = m·a                            →  F = m·a ⇒ a = 2.5 m/s²        (a es
   unités sans dimension conservées (`%`, `‰`, `°`, `rad`). Les erreurs de dimension (`2 m + 3 s`)
   sont signalées, jamais calculées en silence. L'unité de travail suit ce que vous écrivez ; une
   unité mal capitalisée reçoit un indice (« vouliez-vous dire kN ? »).
-- **Étapes de la solution**, **tableaux calculés** (colonnes avec unités et formules, `Σ =`,
-  `mean =`, `min =`, `max =`), **sommes, plages et vecteurs**, **format numérique**.
+- **Étapes de la solution**, **tableaux calculés** (colonnes avec unités et formules, comme
+  `ρ [g/cm³] = m/V` pour les mesures de laboratoire, et `Σ =`, `mean =`, `min =`, `max =`), **sommes, plages et vecteurs**, **format numérique**.
 - **Les erreurs n'arrêtent pas la feuille** : une instruction en échec affiche `⚠` et son message.
 
 Le calcul est dans l’onglet **Math** ; exercices, points et papier quadrillé dans l’onglet **Enseignement**. Détails (en anglais) : [calc.md](calc.md).
@@ -114,8 +146,9 @@ Le calcul est dans l’onglet **Math** ; exercices, points et papier quadrillé 
 ## Des dessins CAO pilotés par les calculs
 
 **Insertion › CAD Drawing** place un dessin technique dans le texte. Coordonnées, rayons et angles
-peuvent être des **expressions des paramètres** (`["L", 0]`, `L/2 + 0.3`) : changez `L = 4.5 m` et
-la poutre se redessine ; les cotes rappellent les paramètres (`{{L}}` affiche `4.5 m`). L'éditeur
+peuvent être des **expressions des paramètres** (`["b", 0]`, `b/2`) : changez `b = 6 cm` et le
+triangle se redessine, chaque variante a donc sa figure ; les cotes rappellent les paramètres
+(`{{b}}` affiche `6 cm`). L'éditeur
 sur la feuille du dessin offre une ligne de commande pour les coordonnées, des **accrochages
 exacts** sur les vraies courbes, des poignées qui gardent les expressions, un volet Propriétés et
 des calques. Le dessin est enregistré en JSON dans le fichier `.xmath` avec une image SVG.
@@ -172,9 +205,10 @@ Installateurs et versions portables sont sur la [page des versions](https://gith
 et sur le [site](https://nabre.github.io/strix/fr/#download) : Windows (MSI, ZIP portable et exe portable, qui garde ses réglages dans un dossier
 `StrixData` à côté de lui ; x64,
 x86, ARM64), macOS (DMG universel), Linux (AppImage, deb, rpm, Flatpak, Arch ; x86_64 et aarch64,
-plus riscv64), FreeBSD et la version web. Les versions Windows ne sont pas encore signées.
-Confidentialité : Strix n'envoie rien de lui-même (ni télémétrie, ni compte, ni vérification des
-mises à jour) ; détails dans [code-signing.md](code-signing.md).
+plus riscv64), FreeBSD et la version web. La signature des versions Windows (SignPath
+Foundation) est en cours de mise en place. Confidentialité : Strix vérifie s'il existe une
+nouvelle version au démarrage et une fois par jour (Fichier › Informations), et rien d'autre : ni
+télémétrie, ni compte ; détails dans [code-signing.md](code-signing.md) et [updates.md](updates.md).
 
 ## Compiler et lancer
 
@@ -192,6 +226,15 @@ strix-cli convert probleme.xmath probleme.pdf     # export statique : pdf, png, 
 ```
 
 Web : `cd apps/strix-web && trunk serve`, puis ouvrir <http://127.0.0.1:8771/?sample>.
+
+## État et feuille de route
+
+Fait : calculs avec un seul `=` et des unités, tableaux calculés, exercices avec données et
+variantes, quiz avec les cinq modes de question, évaluations composées depuis la banque
+d'exercices par les documents maîtres, mise en forme DSA, tableau des points, papier quadrillé,
+dessins CAO paramétriques. Les prochaines fonctionnalités sont en cours de définition :
+[ROADMAP.md](../ROADMAP.md) (avec le journal des progrès). L'éditeur de documents suit la
+[feuille de route de WordCraft](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
 ## Licence et crédits
 
