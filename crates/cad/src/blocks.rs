@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::geom::Pt;
 use crate::model::{Drawing, Entity, Kind, Unit, cut_name};
 use crate::modify::Affine;
+use crate::series::{group_path, in_group};
 use crate::{MAX_COORD, MAX_ENTITIES};
 
 /// Most block definitions in one drawing.
@@ -124,8 +125,8 @@ impl Drawing {
 
     /// The scale an insertion of block `name` takes at this drawing's scale so that it is as
     /// large as it was made: on paper for an annotative block (`N / N₀`), in the drawing for a
-    /// plain one (1). A block made in another unit is converted besides. None without such a
-    /// block.
+    /// plain one (1); [`Drawing::insert_block`] converts a block made in another unit besides.
+    /// None without such a block.
     pub fn proposed_factor(&self, name: &str) -> Option<f64> {
         let b = self.block(name)?;
         let annotative = if b.annotative { self.scale / safe_scale(b.scale, 1.0) } else { 1.0 };
@@ -170,10 +171,11 @@ impl Drawing {
         (lo.x.is_finite() && hi.x.is_finite()).then_some((lo, hi))
     }
 
-    /// The insertion the entity at `i` belongs to.
+    /// The innermost insertion the entity at `i` belongs to.
     pub fn insert_of(&self, i: usize) -> Option<&Insert> {
-        let g = self.entities.get(i)?.group.as_deref()?;
-        self.inserts.iter().find(|r| r.group == g)
+        let e = self.entities.get(i)?;
+        let path: Vec<&str> = group_path(e).collect();
+        path.iter().rev().find_map(|g| self.inserts.iter().find(|r| r.group == *g))
     }
 
     /// `indices` with what they cannot do without: the hatches' boundaries, the members of their
@@ -290,7 +292,7 @@ impl Drawing {
         let t = then(&then(&Affine::scaling(origin, k), &Affine::rotation(origin, angle)), &translation(at));
         self.transform_only(&made, &t);
         self.group_with(&made, &[]);
-        let group = made.first().and_then(|&i| self.entities.get(i)).and_then(|e| e.group.clone()).unwrap_or_default();
+        let group = made.first().and_then(|&i| self.entities.get(i)).and_then(|e| group_path(e).next()).unwrap_or_default().to_string();
         self.inserts.push(Insert { group, block: b.name, at: [at.x, at.y], factor, angle, mirror: false, drawn_at: self.scale });
         self.sanitize();
         Ok(made)
@@ -315,8 +317,7 @@ impl Drawing {
         }
         let moved: std::collections::HashSet<usize> = indices.iter().copied().collect();
         for r in &mut self.inserts {
-            let mut members =
-                self.entities.iter().enumerate().filter(|(_, e)| e.group.as_deref() == Some(r.group.as_str())).map(|(i, _)| i).peekable();
+            let mut members = self.entities.iter().enumerate().filter(|(_, e)| in_group(e, &r.group)).map(|(i, _)| i).peekable();
             if members.peek().is_none() || !members.all(|i| moved.contains(&i)) {
                 continue;
             }
@@ -328,27 +329,22 @@ impl Drawing {
         }
     }
 
-    /// The insertions copied with their objects (`renames`: each copy's old ids to the new ones,
-    /// moved by the offset at the same place).
-    pub(crate) fn inserts_copied(&mut self, renames: &[std::collections::HashMap<String, String>], offsets: &[Pt]) {
+    /// The insertions copied with their objects: `names` are each copy's old group names to the
+    /// new ones, moved by the offset at the same place. An insertion is copied when all of its
+    /// objects were.
+    pub(crate) fn inserts_copied(&mut self, names: &[std::collections::HashMap<String, String>], offsets: &[Pt]) {
         if self.inserts.is_empty() {
             return;
         }
+        let count = |group: &str| self.entities.iter().filter(|e| in_group(e, group)).count();
         let mut made = Vec::new();
-        for (map, d) in renames.iter().zip(offsets) {
+        for (map, d) in names.iter().zip(offsets) {
             for r in &self.inserts {
-                let olds: Vec<&str> = self.entities.iter().filter(|e| e.group.as_deref() == Some(r.group.as_str())).map(|e| e.id.as_str()).collect();
-                if olds.is_empty() || !olds.iter().all(|id| map.contains_key(*id)) {
+                let Some(group) = map.get(&r.group).filter(|g| **g != r.group) else { continue };
+                if count(group) == 0 || count(group) != count(&r.group) {
                     continue;
                 }
-                let group = olds
-                    .first()
-                    .and_then(|id| map.get(*id))
-                    .and_then(|new| self.entities.iter().find(|e| &e.id == new))
-                    .and_then(|e| e.group.clone());
-                if let Some(group) = group.filter(|g| *g != r.group) {
-                    made.push(Insert { group, at: [r.at[0] + d.x, r.at[1] + d.y], ..r.clone() });
-                }
+                made.push(Insert { group: group.clone(), at: [r.at[0] + d.x, r.at[1] + d.y], ..r.clone() });
             }
         }
         self.inserts.extend(made);
@@ -374,8 +370,7 @@ impl Drawing {
             .collect();
         for (k, group, at, f) in records {
             if (f - 1.0).abs() > 1e-12 {
-                let members: Vec<usize> =
-                    self.entities.iter().enumerate().filter(|(_, e)| e.group.as_deref() == Some(group.as_str())).map(|(i, _)| i).collect();
+                let members: Vec<usize> = self.entities.iter().enumerate().filter(|(_, e)| in_group(e, &group)).map(|(i, _)| i).collect();
                 self.transform_only(&members, &Affine::scaling(at, f));
             }
             if let Some(r) = self.inserts.get_mut(k) {
@@ -411,7 +406,7 @@ impl Drawing {
             b.entities = def.entities;
             self.blocks.push(b);
         }
-        let groups: std::collections::HashSet<&str> = self.entities.iter().filter_map(|e| e.group.as_deref()).collect();
+        let groups: std::collections::HashSet<&str> = self.entities.iter().flat_map(group_path).collect();
         let names: std::collections::HashSet<&str> = self.blocks.iter().map(|b| b.name.as_str()).collect();
         let mut taken = std::collections::HashSet::new();
         let scale = self.scale;

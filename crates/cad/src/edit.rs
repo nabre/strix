@@ -298,27 +298,38 @@ impl Drawing {
                 }
             }
         }
-        // A copied group is a group of its own: each copy's members are one new group.
-        let mut taken: std::collections::HashSet<String> = self.entities.iter().filter_map(|e| e.group.clone()).collect();
+        // A copied group is a group of its own: in each copy, every group of its path (an array,
+        // a block insertion inside it) is a new one.
+        let mut taken: std::collections::HashSet<String> = self.entities.iter().flat_map(crate::series::group_path).map(str::to_string).collect();
         let mut n = 1usize;
+        let mut group_names: Vec<std::collections::HashMap<String, String>> = Vec::with_capacity(out.len());
         for list in &out {
             let mut names: std::collections::HashMap<String, String> = Default::default();
             for &i in list {
                 let Some(e) = self.entities.get_mut(i) else { continue };
                 let Some(old) = e.group.take() else { continue };
-                let new = names.entry(old).or_insert_with(|| {
-                    while taken.contains(&format!("g{n}")) {
-                        n += 1;
-                    }
-                    let name = format!("g{n}");
-                    taken.insert(name.clone());
-                    name
-                });
-                e.group = Some(new.clone());
+                let path: Vec<String> = old
+                    .split(crate::series::GROUP_SEP)
+                    .map(|seg| {
+                        names
+                            .entry(seg.to_string())
+                            .or_insert_with(|| {
+                                while taken.contains(&format!("g{n}")) {
+                                    n += 1;
+                                }
+                                let name = format!("g{n}");
+                                taken.insert(name.clone());
+                                name
+                            })
+                            .clone()
+                    })
+                    .collect();
+                e.group = Some(path.join(&crate::series::GROUP_SEP.to_string()));
             }
+            group_names.push(names);
         }
         // A copied block insertion is an insertion too.
-        self.inserts_copied(&renames, offsets);
+        self.inserts_copied(&group_names, offsets);
         out
     }
 

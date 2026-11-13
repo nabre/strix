@@ -31,6 +31,24 @@ impl Spacing {
     }
 }
 
+/// Between the names of a group path ([`crate::Entity::group`]): `outer/inner`.
+pub(crate) const GROUP_SEP: char = '/';
+
+/// The groups an entity is in, outermost first.
+pub(crate) fn group_path(e: &crate::Entity) -> impl Iterator<Item = &str> {
+    e.group.as_deref().into_iter().flat_map(|g| g.split(GROUP_SEP))
+}
+
+/// The outermost group an entity is in: the one picked, moved and exploded whole.
+pub(crate) fn outer_group(e: &crate::Entity) -> Option<&str> {
+    group_path(e).next()
+}
+
+/// Whether an entity is in group `name`, at any level.
+pub(crate) fn in_group(e: &crate::Entity, name: &str) -> bool {
+    group_path(e).any(|g| g == name)
+}
+
 /// Lengths shorter than this are no length (drawing units).
 const EPS: f64 = 1e-9;
 
@@ -145,21 +163,27 @@ impl Drawing {
     }
 
     /// Makes the entities at `indices` and `more` (and the hatches' boundaries) one group, a new
-    /// one: whatever groups they were in, they leave.
+    /// one, around the groups they are in: those stay inside it (an array of arrays, or of
+    /// blocks, keeps them; Explode takes one level apart at a time).
     pub(crate) fn group_with(&mut self, indices: &[usize], more: &[usize]) {
         let mut all = self.with_boundaries(indices);
         all.extend_from_slice(more);
+        let mut seen = std::collections::HashSet::new();
+        all.retain(|i| seen.insert(*i));
         let name = self.fresh_group();
         for i in all {
             if let Some(e) = self.entities.get_mut(i) {
-                e.group = Some(name.clone());
+                e.group = Some(match e.group.take() {
+                    Some(inner) => format!("{name}{GROUP_SEP}{inner}"),
+                    None => name.clone(),
+                });
             }
         }
     }
 
-    /// A group name no entity has: `g1`, `g2`…
-    fn fresh_group(&self) -> String {
-        let taken: std::collections::HashSet<&str> = self.entities.iter().filter_map(|e| e.group.as_deref()).collect();
+    /// A group name no entity's group path holds: `g1`, `g2`…
+    pub(crate) fn fresh_group(&self) -> String {
+        let taken: std::collections::HashSet<&str> = self.entities.iter().flat_map(group_path).collect();
         let mut n = 1usize;
         while taken.contains(format!("g{n}").as_str()) {
             n += 1;
@@ -167,29 +191,35 @@ impl Drawing {
         format!("g{n}")
     }
 
-    /// `indices` with the other members of their groups, each once, in order.
+    /// `indices` with the other members of their outermost groups, each once, in order.
     pub fn with_groups(&self, indices: &[usize]) -> Vec<usize> {
-        let groups: std::collections::HashSet<&str> = indices.iter().filter_map(|&i| self.entities.get(i)?.group.as_deref()).collect();
+        let groups: std::collections::HashSet<&str> = indices.iter().filter_map(|&i| outer_group(self.entities.get(i)?)).collect();
         let mut out: Vec<usize> = indices.iter().copied().filter(|&i| i < self.entities.len()).collect();
         if !groups.is_empty() {
-            out.extend(self.entities.iter().enumerate().filter(|(_, e)| e.group.as_deref().is_some_and(|g| groups.contains(g))).map(|(i, _)| i));
+            out.extend(self.entities.iter().enumerate().filter(|(_, e)| outer_group(e).is_some_and(|g| groups.contains(g))).map(|(i, _)| i));
         }
         let mut seen = std::collections::HashSet::new();
         out.retain(|i| seen.insert(*i));
         out
     }
 
-    /// Takes the entities at `indices` out of their groups (the whole groups: a group never
-    /// keeps a part); returns how many left one.
+    /// Takes the entities at `indices` out of their outermost groups (the whole groups: a group
+    /// never keeps a part), one level: the groups inside stay. A block insertion taken apart is
+    /// no longer one. Returns how many left a group.
     pub fn ungroup(&mut self, indices: &[usize]) -> usize {
         let all = self.with_groups(indices);
         let mut n = 0;
         for i in all {
             if let Some(e) = self.entities.get_mut(i)
-                && e.group.take().is_some()
+                && let Some(g) = e.group.take()
             {
+                e.group = g.split_once(GROUP_SEP).map(|(_, inner)| inner.to_string());
                 n += 1;
             }
+        }
+        if n > 0 && !self.inserts.is_empty() {
+            let groups: std::collections::HashSet<String> = self.entities.iter().flat_map(group_path).map(str::to_string).collect();
+            self.inserts.retain(|r| groups.contains(&r.group));
         }
         n
     }

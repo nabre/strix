@@ -532,8 +532,12 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    saved as `"group": "g1"`), a pseudo-block: a click, a window or any selection that takes one
    item takes them all (`Drawing::with_groups`), so they move, copy, rotate and delete together;
    a copy of an array is a group of its own; an array of part of a group makes a new group of
-   what it copies. Explode takes a group apart first, one level (`Drawing::ungroup`): its items
-   are on their own again, unexploded (a polyline among them explodes with a second Explode).
+   what it copies. Groups nest: an array of arrays or of block insertions wraps them, and an
+   entity's group is a path, outermost first (`"group": "g3/g1"`, at most 16 levels); picking
+   goes by the outermost. Explode takes the outermost group apart, one level
+   (`Drawing::ungroup`): the arrays and insertions inside stay whole, the items of a plain
+   array are on their own again, unexploded (a polyline among them explodes with a second
+   Explode); a block insertion taken apart loses its record.
    **Blocks** (`crates/cad/src/blocks.rs`, editor `cad_editor/blocks.rs`; CAD Drawing › Block ›
    Create Block / Insert Block, the selection's context menu, `B` and `I` at the idle prompt;
    `ui.cadBlock {"action": "create" | "insert" | "delete" | "list" | "dialog"}`): Create Block

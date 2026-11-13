@@ -116,3 +116,41 @@ fn arrays_are_one_group() {
     assert_eq!(j.entities[0].group.as_ref().map(|g| g.chars().count()), Some(64));
     assert!(j.entities[1].group.is_none());
 }
+
+/// An array of arrays keeps them: Explode takes one level apart at a time; a group path from a
+/// file is made safe.
+#[test]
+fn arrays_nest_and_explode_a_level_at_a_time() {
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"point","p":[0,0]}]}"#).unwrap();
+    let row = d.array_rect(&[0], 3, 1, 1.0, 0.0).unwrap();
+    let mut first: Vec<usize> = vec![0];
+    first.extend(&row);
+    let inner = d.entities[0].group.clone().unwrap();
+    d.array_rect(&first, 1, 2, 0.0, 5.0).unwrap();
+    assert_eq!(d.entities.len(), 6);
+    assert_eq!(d.with_groups(&[0]).len(), 6, "one object");
+    // Explode: two rows of three.
+    d.explode(&[0]);
+    let mut picked = d.with_groups(&[0]);
+    picked.sort_unstable();
+    assert_eq!(picked, first);
+    assert_eq!(d.entities[0].group.as_deref(), Some(inner.as_str()));
+    let other = d.with_groups(&[5]);
+    assert_eq!(other.len(), 3);
+    assert_ne!(d.entities[5].group.as_deref(), Some(inner.as_str()));
+    // Again: points on their own.
+    d.explode(&[0]);
+    assert_eq!(d.with_groups(&[0]), vec![0]);
+    // Saved and read back with its levels.
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert_eq!(back.with_groups(&[5]).len(), 3);
+    // Junk paths: empty names dropped, levels capped, nothing panics.
+    let deep = vec!["a"; 100].join("/");
+    let j = Drawing::from_json(&format!(
+        r#"{{"entities":[{{"type":"point","p":[0,0],"group":"//x// /y/"}},{{"type":"point","p":[0,0],"group":"{deep}"}},{{"type":"point","p":[0,0],"group":"/ /"}}]}}"#
+    ))
+    .unwrap();
+    assert_eq!(j.entities[0].group.as_deref(), Some("x/y"));
+    assert_eq!(j.entities[1].group.as_ref().map(|g| g.split('/').count()), Some(crate::model::MAX_GROUP_DEPTH));
+    assert!(j.entities[2].group.is_none());
+}

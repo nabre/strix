@@ -21,7 +21,7 @@ fn width(d: &Drawing, indices: &[usize]) -> f64 {
 }
 
 fn members(d: &Drawing, group: &str) -> Vec<usize> {
-    d.entities.iter().enumerate().filter(|(_, e)| e.group.as_deref() == Some(group)).map(|(i, _)| i).collect()
+    d.entities.iter().enumerate().filter(|(_, e)| crate::series::in_group(e, group)).map(|(i, _)| i).collect()
 }
 
 #[test]
@@ -138,4 +138,50 @@ fn hostile_blocks_never_panic() {
         let _ = d.render(None);
         let _ = d.to_json();
     }
+}
+
+/// An array of block insertions keeps them: one object, each item still an insertion that
+/// follows the scale; Explode takes the array apart first, then an insertion.
+#[test]
+fn an_array_of_insertions_keeps_them() {
+    let mut d = drawing();
+    let made = d.create_block("Tag", &[0], Pt::new(10.0, 10.0), true, true).unwrap();
+    let inner = d.entities[made[0]].group.clone().unwrap();
+    d.array_rect(&made, 3, 1, 10.0, 0.0).unwrap();
+    assert_eq!(d.inserts.len(), 3, "{:?}", d.inserts);
+    let ats: Vec<[f64; 2]> = d.inserts.iter().map(|r| r.at).collect();
+    assert_eq!(ats, vec![[10.0, 10.0], [20.0, 10.0], [30.0, 10.0]]);
+    // One object: picking an item picks the three insertions.
+    assert_eq!(d.with_groups(&[made[0]]).len(), 3);
+    d.sanitize();
+    assert_eq!(d.inserts.len(), 3, "kept once made safe");
+    // Each one rescaled about its own insertion point.
+    d.scale = 25.0;
+    d.sanitize();
+    for r in d.inserts.clone() {
+        let m = members(&d, &r.group);
+        assert!((width(&d, &m) - 1.0).abs() < 1e-9, "{}", width(&d, &m));
+        let (lo, _) = d.bounds_of(&m).unwrap();
+        assert!((lo.x - r.at[0]).abs() < 1e-9, "{lo:?} {:?}", r.at);
+    }
+    // Saved and read back.
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert_eq!(back.inserts, d.inserts);
+    // A polar array of an insertion keeps it too, turned with it.
+    let mut p = drawing();
+    let one = p.create_block("Tag", &[0], Pt::new(10.0, 10.0), false, true).unwrap();
+    p.array_polar(&one, Pt::new(0.0, 0.0), 4, 360.0).unwrap();
+    p.sanitize();
+    assert_eq!(p.inserts.len(), 4);
+    assert!(p.inserts.iter().any(|r| (r.angle - 90.0).abs() < 1e-9), "{:?}", p.inserts);
+    // Explode: the array goes, the insertions stay; again: the insertion goes.
+    let i = d.inserts.iter().position(|r| r.group == inner).unwrap();
+    let first = members(&d, &d.inserts[i].group.clone());
+    d.explode(&first);
+    d.sanitize();
+    assert_eq!(d.inserts.len(), 3);
+    assert_eq!(d.with_groups(&first).len(), first.len(), "the array is gone");
+    d.explode(&first);
+    assert_eq!(d.inserts.len(), 2, "the insertion is gone");
+    assert!(first.iter().all(|&k| d.entities[k].group.is_none()));
 }

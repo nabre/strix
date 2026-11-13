@@ -503,6 +503,9 @@ impl DimStyle {
 }
 
 /// A name (a style's, a layer's) cut to 64 characters at a character boundary.
+/// Most levels of groups one entity is in ([`Entity::group`]).
+pub(crate) const MAX_GROUP_DEPTH: usize = 16;
+
 pub(crate) fn cut_name(name: &str) -> String {
     name.chars().take(64).collect()
 }
@@ -801,8 +804,9 @@ pub struct Entity {
     /// its place. The measured value never changes.
     #[serde(default, rename = "textShift", skip_serializing_if = "Option::is_none")]
     pub text_shift: Option<[f64; 2]>,
-    /// The group it belongs to (an array's items, made one object): picking one picks them all;
-    /// Explode ungroups them. `None`: on its own.
+    /// The groups it belongs to, outermost first, `/` between them (`g3/g1`: an array, `g3`,
+    /// of block insertions or arrays, one of them `g1`). Picking one picks its outermost group
+    /// whole; Explode takes that level apart. `None`: on its own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
     #[serde(flatten)]
@@ -1050,10 +1054,12 @@ impl Drawing {
             if let Some(s) = e.style.as_mut() {
                 cut(s);
             }
-            if let Some(g) = e.group.as_mut() {
-                cut(g);
-            }
-            e.group = e.group.take().filter(|g| !g.trim().is_empty());
+            // A group path (`outer/inner`): each name cut, none empty, at most MAX_GROUP_DEPTH.
+            e.group = e.group.take().and_then(|g| {
+                let path: Vec<String> =
+                    g.split(crate::series::GROUP_SEP).map(|seg| cut_name(seg.trim())).filter(|seg| !seg.is_empty()).take(MAX_GROUP_DEPTH).collect();
+                (!path.is_empty()).then(|| path.join(&crate::series::GROUP_SEP.to_string()))
+            });
             if let Some(w) = e.stroke.width.as_mut() {
                 *w = clamp_paper(*w, 0.35);
             }
