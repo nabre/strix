@@ -1567,7 +1567,7 @@ pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
         None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
-    let (a, mut b) =
+    let (a, b) =
         it.answer.ok_or_else(|| CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()))?;
     let old_mode = it.settings.mode;
     let outer = outer_ends_after_answer(s, a, b);
@@ -1578,184 +1578,190 @@ pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
     let set = set.sanitized();
 
     match (old_mode == Mode::Choice, new_mode == Mode::Choice) {
-        (false, false) => {
-            if old_mode != new_mode {
-                let last_block = s.doc.body.get_mut(b).ok_or_else(|| CmdError::Failed("answer vanished".into()))?;
-                let Block::Para(last_p) = Arc::make_mut(last_block) else { return Err(CmdError::Failed("answer vanished".into())) };
-                for _ in 0..(1 + outer) {
-                    super::take_last_end(last_p)?;
-                }
-                for i in ((a + 1)..=b).rev() {
-                    if s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| span(p, TAG_LINE).is_some()) {
-                        s.doc.body.remove(i);
-                        b = b.saturating_sub(1);
-                    }
-                }
-                if new_mode != Mode::Calc {
-                    for i in a..=b {
-                        if let Some(block) = s.doc.body.get_mut(i)
-                            && matches!(&**block, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { math, .. } if math.answer != 0)))
-                            && let Block::Para(p) = Arc::make_mut(block)
-                        {
-                            for o in &mut p.objects {
-                                if let InlineObject::Equation { math, .. } = o {
-                                    math.answer = 0;
-                                    math.omml.clear();
-                                }
-                            }
-                            p.touch();
-                        }
-                    }
-                }
-                if let Some(first_block) = s.doc.body.get_mut(a)
-                    && let Block::Para(first_p) = Arc::make_mut(first_block)
-                    && let Some(at) = span_block(first_p, TAG_ANSWER)
-                    && let Some(c) = control_at_mut(first_p, at)
-                {
-                    write_answer(c, &set);
-                    first_p.touch();
-                }
-                if new_mode == Mode::Calc {
-                    let mut lp = result_line_para(BLANK);
-                    append_ends(&mut lp, outer);
-                    s.doc.body.insert(b + 1, para_block(lp));
-                } else if let Some(end_block) = s.doc.body.get_mut(b)
-                    && let Block::Para(end_p) = Arc::make_mut(end_block)
-                {
-                    append_ends(end_p, 1 + outer);
-                }
-            }
-        }
-        (true, true) => {
-            let cs = choices(s, (a, b));
-            if let Some(first_block) = s.doc.body.get_mut(a)
-                && let Block::Para(first_p) = Arc::make_mut(first_block)
-                && let Some(at) = span_block(first_p, TAG_ANSWER)
-                && let Some(c) = control_at_mut(first_p, at)
-            {
-                write_answer(c, &set);
-                first_p.touch();
-            }
-            if want_tf {
-                if cs.iter().all(|(t, _)| t.is_empty()) {
-                    let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
-                    write_answer(&mut answer_ctl, &set);
-                    let init =
-                        vec![(w.true_word.to_string(), cs.first().is_some_and(|c| c.1)), (w.false_word.to_string(), cs.get(1).is_some_and(|c| c.1))];
-                    let paras = build_choice_paras(s, answer_ctl, &init, outer);
-                    s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
-                } else if b > a + 1 {
-                    let mut drop_count = 0usize;
-                    for i in ((a + 2)..=b).rev() {
-                        let empty_opt = s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| choice_text(p).is_empty());
-                        if empty_opt {
-                            drop_count += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    if drop_count > 0 {
-                        if let Some(last_block) = s.doc.body.get_mut(b)
-                            && let Block::Para(last_p) = Arc::make_mut(last_block)
-                        {
-                            for _ in 0..(1 + outer) {
-                                super::take_last_end(last_p)?;
-                            }
-                        }
-                        s.doc.body.drain((b + 1 - drop_count)..=b);
-                        b -= drop_count;
-                        if let Some(end_block) = s.doc.body.get_mut(b)
-                            && let Block::Para(end_p) = Arc::make_mut(end_block)
-                        {
-                            append_ends(end_p, 1 + outer);
-                        }
-                    }
-                }
-            } else if cs.len() < 4 {
-                let num = s
-                    .doc
-                    .body
-                    .get(a)
-                    .and_then(|bl| bl.as_para())
-                    .and_then(|p| p.props.numbering)
-                    .or_else(|| add_choice_list(s).ok().map(|num| NumRef { num, level: 0 }));
-                if let Some(last_block) = s.doc.body.get_mut(b)
-                    && let Block::Para(last_p) = Arc::make_mut(last_block)
-                {
-                    for _ in 0..(1 + outer) {
-                        super::take_last_end(last_p)?;
-                    }
-                }
-                let need = 4 - cs.len();
-                let props = CharProps::default();
-                for k in 0..need {
-                    let ends = if k + 1 == need { 1 + outer } else { 0 };
-                    let mut p = para(STYLE_CHOICE, "", Vec::new(), ends, num);
-                    let _ = p.insert_object(0, InlineObject::ControlStart { control: Box::new(check_box(false, false)) }, &props);
-                    let _ = p.insert_text(OBJ.len_utf8(), &UNCHECKED.to_string(), &props);
-                    let end = OBJ.len_utf8() + UNCHECKED.len_utf8();
-                    let _ = p.insert_object(end, InlineObject::ControlEnd, &props);
-                    let _ = p.insert_text(end + OBJ.len_utf8(), " ", &props);
-                    s.doc.body.insert(b + 1 + k, para_block(p));
-                }
-            }
-        }
-        (false, true) => {
-            let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
-            write_answer(&mut answer_ctl, &set);
-            let init =
-                if want_tf { vec![(w.true_word.to_string(), false), (w.false_word.to_string(), false)] } else { vec![(String::new(), false); 4] };
-            let paras = build_choice_paras(s, answer_ctl, &init, outer);
-            s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
-        }
-        (true, false) => {
-            let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
-            write_answer(&mut answer_ctl, &set);
-            let mut paras = Vec::new();
-            if new_mode == Mode::Calc {
-                let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 0, None);
-                p.props.graph = Some(Arc::new(set.graph()));
-                let mut lp = result_line_para(BLANK);
-                append_ends(&mut lp, outer);
-                paras.push(p);
-                paras.push(lp);
-            } else {
-                let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 1 + outer, None);
-                p.props.graph = Some(Arc::new(set.graph()));
-                paras.push(p);
-            }
-            s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
-        }
+        (false, false) if old_mode != new_mode => convert_non_choice(s, (a, b), outer, new_mode, &set)?,
+        (false, false) => {}
+        (true, true) => convert_choice_submode(s, (a, b), outer, want_tf, &set, w)?,
+        (false, true) => convert_to_choice(s, (a, b), outer, want_tf, &set, w),
+        (true, false) => convert_from_choice(s, (a, b), outer, new_mode, &set, w),
     }
 
     s.touch();
     if new_mode == Mode::Drawing {
-        let layout2 = scan(s);
-        if let Some(it2) = items(s, &layout2, e).get(q)
-            && let Some((a2, b2)) = it2.answer
-        {
-            let has_cad = (a2..=b2).any(|i| {
-                s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| {
-                    p.objects
-                        .iter()
-                        .any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad))
-                })
-            });
-            if !has_cad {
-                let prev_sel = s.sel.clone();
-                s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a2), OBJ.len_utf8()));
-                super::super::cad::insert(s, &json!({}))?;
-                let height = f64::from(set.height) * 10.0 * 0.9;
-                let _ = super::super::cad::scale(s, &json!({"fit": {"height": height}}));
-                s.sel = prev_sel;
-            }
-        }
+        ensure_drawing_starter(s, e, q, set.height)?;
     }
     super::update(s);
     super::super::calc::recalculate_now(s);
     super::update(s);
     s.clamp_selection();
     Ok(state(s, e))
+}
+
+fn update_answer_tag(s: &mut Session, a: usize, set: &Answer) {
+    if let Some(first_block) = s.doc.body.get_mut(a)
+        && let Block::Para(first_p) = Arc::make_mut(first_block)
+        && let Some(at) = span_block(first_p, TAG_ANSWER)
+        && let Some(c) = control_at_mut(first_p, at)
+    {
+        write_answer(c, set);
+        first_p.touch();
+    }
+}
+
+fn strip_answer_ends(s: &mut Session, b: usize, outer: usize) -> Result<(), CmdError> {
+    let last_block = s.doc.body.get_mut(b).ok_or_else(|| CmdError::Failed("answer vanished".into()))?;
+    let Block::Para(last_p) = Arc::make_mut(last_block) else { return Err(CmdError::Failed("answer vanished".into())) };
+    for _ in 0..(1 + outer) {
+        super::take_last_end(last_p)?;
+    }
+    Ok(())
+}
+
+fn clear_equation_answer_marks(s: &mut Session, a: usize, b: usize) {
+    for i in a..=b {
+        if let Some(block) = s.doc.body.get_mut(i)
+            && matches!(&**block, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { math, .. } if math.answer != 0)))
+            && let Block::Para(p) = Arc::make_mut(block)
+        {
+            for o in &mut p.objects {
+                if let InlineObject::Equation { math, .. } = o {
+                    math.answer = 0;
+                    math.omml.clear();
+                }
+            }
+            p.touch();
+        }
+    }
+}
+
+fn convert_non_choice(s: &mut Session, (a, mut b): (usize, usize), outer: usize, new_mode: Mode, set: &Answer) -> Result<(), CmdError> {
+    strip_answer_ends(s, b, outer)?;
+    for i in ((a + 1)..=b).rev() {
+        if s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| span(p, TAG_LINE).is_some()) {
+            s.doc.body.remove(i);
+            b = b.saturating_sub(1);
+        }
+    }
+    if new_mode != Mode::Calc {
+        clear_equation_answer_marks(s, a, b);
+    }
+    update_answer_tag(s, a, set);
+    if new_mode == Mode::Calc {
+        let mut lp = result_line_para(BLANK);
+        append_ends(&mut lp, outer);
+        s.doc.body.insert(b + 1, para_block(lp));
+    } else if let Some(end_block) = s.doc.body.get_mut(b)
+        && let Block::Para(end_p) = Arc::make_mut(end_block)
+    {
+        append_ends(end_p, 1 + outer);
+    }
+    Ok(())
+}
+
+fn convert_choice_submode(
+    s: &mut Session,
+    (a, mut b): (usize, usize),
+    outer: usize,
+    want_tf: bool,
+    set: &Answer,
+    w: &'static super::words::Words,
+) -> Result<(), CmdError> {
+    let cs = choices(s, (a, b));
+    update_answer_tag(s, a, set);
+    if want_tf {
+        if cs.iter().all(|(t, _)| t.is_empty()) {
+            let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+            write_answer(&mut answer_ctl, set);
+            let init = vec![(w.true_word.to_string(), cs.first().is_some_and(|c| c.1)), (w.false_word.to_string(), cs.get(1).is_some_and(|c| c.1))];
+            let paras = build_choice_paras(s, answer_ctl, &init, outer);
+            s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+        } else if b > a + 1 {
+            let drop_count =
+                ((a + 2)..=b).rev().take_while(|&i| s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| choice_text(p).is_empty())).count();
+            if drop_count > 0 {
+                strip_answer_ends(s, b, outer)?;
+                s.doc.body.drain((b + 1 - drop_count)..=b);
+                b -= drop_count;
+                if let Some(end_block) = s.doc.body.get_mut(b)
+                    && let Block::Para(end_p) = Arc::make_mut(end_block)
+                {
+                    append_ends(end_p, 1 + outer);
+                }
+            }
+        }
+    } else if cs.len() < 4 {
+        let num = s
+            .doc
+            .body
+            .get(a)
+            .and_then(|bl| bl.as_para())
+            .and_then(|p| p.props.numbering)
+            .or_else(|| add_choice_list(s).ok().map(|num| NumRef { num, level: 0 }));
+        strip_answer_ends(s, b, outer)?;
+        let need = 4 - cs.len();
+        let props = CharProps::default();
+        for k in 0..need {
+            let ends = if k + 1 == need { 1 + outer } else { 0 };
+            let mut p = para(STYLE_CHOICE, "", Vec::new(), ends, num);
+            let _ = p.insert_object(0, InlineObject::ControlStart { control: Box::new(check_box(false, false)) }, &props);
+            let _ = p.insert_text(OBJ.len_utf8(), &UNCHECKED.to_string(), &props);
+            let end = OBJ.len_utf8() + UNCHECKED.len_utf8();
+            let _ = p.insert_object(end, InlineObject::ControlEnd, &props);
+            let _ = p.insert_text(end + OBJ.len_utf8(), " ", &props);
+            s.doc.body.insert(b + 1 + k, para_block(p));
+        }
+    }
+    Ok(())
+}
+
+fn convert_to_choice(s: &mut Session, (a, b): (usize, usize), outer: usize, want_tf: bool, set: &Answer, w: &'static super::words::Words) {
+    let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+    write_answer(&mut answer_ctl, set);
+    let init = if want_tf { vec![(w.true_word.to_string(), false), (w.false_word.to_string(), false)] } else { vec![(String::new(), false); 4] };
+    let paras = build_choice_paras(s, answer_ctl, &init, outer);
+    s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+}
+
+fn convert_from_choice(s: &mut Session, (a, b): (usize, usize), outer: usize, new_mode: Mode, set: &Answer, w: &'static super::words::Words) {
+    let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+    write_answer(&mut answer_ctl, set);
+    let mut paras = Vec::new();
+    if new_mode == Mode::Calc {
+        let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 0, None);
+        p.props.graph = Some(Arc::new(set.graph()));
+        let mut lp = result_line_para(BLANK);
+        append_ends(&mut lp, outer);
+        paras.push(p);
+        paras.push(lp);
+    } else {
+        let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 1 + outer, None);
+        p.props.graph = Some(Arc::new(set.graph()));
+        paras.push(p);
+    }
+    s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+}
+
+fn ensure_drawing_starter(s: &mut Session, e: usize, q: usize, height_cm: f32) -> Result<(), CmdError> {
+    let layout2 = scan(s);
+    if let Some(it2) = items(s, &layout2, e).get(q)
+        && let Some((a2, b2)) = it2.answer
+    {
+        let has_cad = (a2..=b2).any(|i| {
+            s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| {
+                p.objects
+                    .iter()
+                    .any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad))
+            })
+        });
+        if !has_cad {
+            let prev_sel = s.sel.clone();
+            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a2), OBJ.len_utf8()));
+            super::super::cad::insert(s, &json!({}))?;
+            let height = f64::from(height_cm) * 10.0 * 0.9;
+            let _ = super::super::cad::scale(s, &json!({"fit": {"height": height}}));
+            s.sel = prev_sel;
+        }
+    }
+    Ok(())
 }
 
 /// Offset of the start marker of the block control tagged `tag` in `p`.

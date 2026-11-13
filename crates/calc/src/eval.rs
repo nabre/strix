@@ -817,10 +817,10 @@ impl<'a> Ctx<'a> {
             let uq = self.scope.dimensionless_hint(x_expr).and_then(|h| unit(&h));
             return Ok((uq, None));
         }
-        if dim == TEMPERATURE_DIM {
-            if let Some(Temp::Absolute(h)) = self.scope.temp_kind(x_expr, 0) {
-                return Ok((unit(&h), affine(&h).map(|(_, o)| o)));
-            }
+        if dim == TEMPERATURE_DIM
+            && let Some(Temp::Absolute(h)) = self.scope.temp_kind(x_expr, 0)
+        {
+            return Ok((unit(&h), affine(&h).map(|(_, o)| o)));
         }
         if let Some(u_expr) = self.scope.direct_unit_expr(x_expr) {
             let mut uctx = Ctx::new(self.scope, Names::UnitsOnly, Vec::new()).with_steps(self.steps);
