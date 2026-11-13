@@ -53,6 +53,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::Comments, v.comments_pane),
         (Pane::Exercise, v.exercise_pane),
         (Pane::GraphPaper, v.graph_pane),
+        (Pane::Variables, v.variables_pane),
         (Pane::Subdocuments, v.subdocument_pane),
     ]
     .into_iter()

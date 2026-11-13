@@ -17,39 +17,6 @@
 
 ## 1. Miglioramenti alle funzionalità didattiche esistenti
 
-### [ ] `D1` — Dati iniziali (`strix:data`) e Varianti visibili nella UI dei Quiz (`calc` e `drawing`)
-* **Problema attuale:**
-  1. In `crates/engine/src/cmd/exercise.rs` (`ExerciseData`, `with_data`, `seeds`), dati e varianti sono già salvati su `<strix:data>` del controllo `TAG_EXERCISE` per qualsiasi tipo di esercizio. Tuttavia in `crates/ui-egui/src/exercise_pane.rs` (righe 114–126), quando `st["kind"] != "problem"`, il pannello disegna `Questions` ed esegue `return`, nascondendo `01 Variants` e `02 Data`.
-  2. In `crates/engine/src/cmd/exercise/items.rs` (`exercise_blocks`), i quiz non creano mai il blocco visivo `TAG_DATA`: se si impostano dati via CLI/MCP per un quiz `calc`/`drawing`, i calcoli funzionano ma lo studente non legge i dati nel documento.
-* **Specifica:**
-  * Quando `with_data` popola dati non vuoti su un quiz privo di `Part::Data`, `update(s)` inserisce automaticamente `TAG_DATA` subito dopo `TAG_TEXT` (o dopo `TAG_TITLE` se `TAG_TEXT` è assente) e prima di `TAG_QUESTIONS`; se i dati vengono svuotati su un quiz, rimuove `TAG_DATA`.
-  * Aggiungere `showData: bool` (default `true`) su `ExerciseData` per consentire anche l'uso di parametri "nascosti" interpolati direttamente nel testo.
-  * In `crates/ui-egui/src/exercise_pane.rs`, esporre `Variants` e `Data` anche per i quiz (espansi automaticamente se sono presenti quesiti `calc`/`drawing` o se `data.items` non è vuoto; collassabili altrimenti).
-
-### [ ] `D2` — Conversione modalità quesito in loco (`exercise.questionMode`) e controlli contestuali Quiz
-* **Problema attuale:**
-  * In `crates/engine/src/cmd/exercise/items.rs` non è possibile convertire una domanda esistente tra `open`, `choice`, `trueFalse`, `calc`, `drawing` senza eliminarla e ricrearla.
-  * In `crates/ui-egui/src/exercise_quiz.rs` (righe 51–103), i quesiti `calc` e `drawing` mostrano solo i controlli generici `Space (cm)` e `Squared`.
-* **Specifica:**
-  * Nuovo comando `exercise.questionMode`: `{"exercise"?: 1-based, "question": 1-based, "type": "open"|"choice"|"trueFalse"|"calc"|"drawing"}`.
-  * **Transizione conservativa:** il paragrafo domanda (`TAG_ITEM` + `TAG_POINTS`, formattazione e revisioni) resta intatto; muta solo `TAG_ANSWER`:
-    * `Open ↔ Calc`: preserva `height`, `grid`, `spacing` e tutte le equazioni/paragrafi già scritti nello spazio risposta; passando a `Calc` appende `result_line_para` (`TAG_LINE`) e ricalcola; tornando a `Open` rimuove solo `TAG_LINE`.
-    * `Choice ↔ TrueFalse`: da `trueFalse` a `choice` mantiene le 2 opzioni e ne aggiunge 2 vuote; da `choice` a `trueFalse` imposta `Vero / Falso` localizzati se le opzioni sono vuote.
-    * `* → Drawing`: preserva `height`/`grid`/`spacing` e inserisce lo starter CAD solo se in `TAG_ANSWER` non c'è già un `GraphicKind::Cad`.
-  * **UI in `exercise_quiz.rs`:**
-    * Menu a tendina per cambiare `Mode` sulla domanda selezionata;
-    * Per `calc`: anteprima live della riga risultato (`A = 15 cm²`) o dell'errore (`⚠`), più pulsante `Vai allo svolgimento`;
-    * Per `drawing`: scala corrente del disegno e pulsante `Apri nell'editor CAD`.
-
-### [ ] `D3` — Punteggi per sottodomanda nei Problemi (`a)`, `b)`, `c)`) e fix tabella `strix:scores` `1×1`
-* **Problema attuale:**
-  * Nei quiz i punti alimentano automaticamente il primo criterio di `strix:scores` (`crates/engine/src/cmd/exercise/scores.rs`, righe 243–259), mentre nei `problem` le domande `a)`, `b)` non possono dichiarare punti.
-  * In `scores.rs` (righe 112–113), quando `exercises == 1 && criteria == 1`, `across` e `down` sono entrambi `false`, omettendo la cella di riepilogo totale.
-* **Specifica:**
-  * Estendere `exercise.questionPoints` anche agli esercizi `problem`: quando `points: Some(p)` è impostato su una domanda `STYLE_QUESTION`, inserire a fine riga il controllo bloccato `TAG_POINTS` (` (2 punti)`); quando `points: None`, rimuoverlo lasciando il formato classico.
-  * Aggiornare `scores.rs` affinché, se almeno una domanda di un `problem` ha `TAG_POINTS`, la somma popoli automaticamente il primo criterio dell'esercizio.
-  * Nel caso `1 esercizio × 1 criterio`, mantenere visibile il riepilogo del totale massimo (`__ / Max`).
-
 ### [ ] `D4` — Validazione continua su *tutte* le varianti (`A..Z`)
 * **Problema attuale:** `data_info` (`crates/engine/src/cmd/exercise.rs`, righe 930–954) e il ricalcolo verificano solo la variante attiva (`e.data.active`), lasciando invisibili divisioni per zero, radici negative o disegni CAD degeneri nelle varianti inattive.
 * **Specifica:**
@@ -73,22 +40,6 @@
 ---
 
 ## 2. Miglioramenti al motore matematico (`strix-calc` e integrazione documento)
-
-### [ ] `M1` — Formato numerico e opzioni di calcolo salvate nel documento
-* **Problema attuale:** In `crates/engine/src/cmd/calc.rs` (righe 96–124), `calc_digits`, `calc_count`, `calc_zeros`, `calc_steps` e `calc_layout` vivono solo in `Prefs` (globali per utente) anziché nel documento.
-* **Specifica:**
-  * Introdurre una gerarchia di risoluzione `Equazione > Esercizio > Documento > Prefs`.
-  * Persistenza delle opzioni di documento in `customXml/strixObjects.xml` (senza sporcare `wordcraft_doc::Settings` upstream): i nuovi documenti ereditano da `Prefs`, i documenti aperti usano le proprie impostazioni salvate.
-
-### [ ] `M2` — Semantica unit-aware per `round()`, `floor()`, `ceil()`, `trunc()`
-* **Problema attuale:** In `crates/calc/src/eval.rs` (righe 575–585), `round(x; n)` arrotonda il valore SI coerente: `round(30°; 0)` arrotonda `0.5236 rad` a `1 rad` (`57.3°`) e rifiuta le temperature (`°C`, `°F`).
-* **Specifica:**
-  * Con 1 o 2 argomenti (`round(x; n)`), arrotondare rispetto all'unità di visualizzazione `hint_unit` se presente (incluse `°`, `%`, multipli `cm`/`km` e temperature affini `°C`/`°F`), riconvertendo poi in SI e mantenendo `hint_unit`.
-  * Supportare un 3° argomento unità opzionale `round(x; n; unità)` (es. `round(alpha; 1; °)`), applicando la stessa logica a `floor`, `ceil`, `trunc`.
-
-### [ ] `M3` — Localizzazione completa (`IT`, `EN`, `DE`, `FR`) delle note di calcolo
-* **Problema attuale:** `numeric_note` in `crates/engine/src/cmd/calc.rs` (righe 233–236) gestisce solo `it` ed `en`, ignorando `de` e `fr`.
-* **Specifica:** Spostare le stringhe in `crates/engine/src/cmd/exercise/words.rs` (`(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)`, `(solution numérique)`).
 
 ### [ ] `M4` — Estensione catalogo unità di misura e prefissi SI (`crates/calc/src/units.rs`)
 * **Prefissi SI completi:** aggiungere `P` ($10^{15}$), `T` ($10^{12}$), `da` ($10^1$), `d` ($10^{-1}$), `p` ($10^{-12}$), `f` ($10^{-15}$).
@@ -168,8 +119,7 @@
 
 ## Sequenza di implementazione suggerita
 
-1. **Fase 1 (Allineamento e fondamenta):** `D1`, `D2`, `D3`, `M1`, `M2`, `M3`
-2. **Fase 2 (Potenza matematica):** `M4`, `M5`, `M6`
-3. **Fase 3 (Valutazione, varianti e pre-flight):** `D4`, `F1`, `F2`, `F3`, `F9`, `F4`
-4. **Fase 4 (Grafica scientifica e CAD didattico):** `F6`, `F5`
-5. **Fase 5 (Laboratorio, nuovi quesiti, DSA e archivio):** `F7`, `F8`, `D5`, `D6`
+1. **Fase 2 (Potenza matematica):** `M4`, `M5`, `M6`
+2. **Fase 3 (Valutazione, varianti e pre-flight):** `D4`, `F1`, `F2`, `F3`, `F9`, `F4`
+3. **Fase 4 (Grafica scientifica e CAD didattico):** `F6`, `F5`
+4. **Fase 5 (Laboratorio, nuovi quesiti, DSA e archivio):** `F7`, `F8`, `D5`, `D6`

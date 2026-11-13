@@ -125,6 +125,33 @@ impl From<Quantity> for Value {
     }
 }
 
+/// Explicit physical domain constraint on an unknown (`t > 0`, `x ≥ 1 m`).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DomainConstraint {
+    pub var: String,
+    pub op: char,
+    pub bound: Quantity,
+}
+
+impl DomainConstraint {
+    pub(crate) fn accepts(&self, q: Quantity) -> Result<bool, CalcError> {
+        let b = if self.bound.value == 0.0 && self.bound.dim.is_dimensionless() {
+            0.0
+        } else {
+            q.same_dim(self.bound, "compare")?;
+            self.bound.value
+        };
+        let close = (q.value - b).abs() <= 1e-12 * q.value.abs().max(b.abs());
+        Ok(match self.op {
+            '≤' => q.value <= b || close,
+            '≥' => q.value >= b || close,
+            '<' => q.value < b && !close,
+            '>' => q.value > b && !close,
+            _ => !close,
+        })
+    }
+}
+
 /// The parameters defined so far in a worksheet, in definition order. Redefining a name updates
 /// its value in place (it keeps its original position).
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -140,6 +167,8 @@ pub struct Scope {
     pub(crate) working: Vec<(Dim, Quantity, String)>,
     /// The unit hint each parameter is shown in (`α = 30°` → `°`, `T = 20 °C` → `°C`).
     pub(crate) hints: Vec<(String, String)>,
+    /// Physical domain constraints declared before an equation (`t > 0`).
+    pub(crate) constraints: Vec<DomainConstraint>,
     /// Work done by every evaluation against this scope (one worksheet), capped by
     /// [`MAX_SHEET_STEPS`]: however many regions and cells a document has, recalculating it ends.
     spent: std::cell::Cell<usize>,
@@ -232,6 +261,18 @@ impl Scope {
         self.entries.is_empty()
     }
 
+    pub(crate) fn add_constraint(&mut self, c: DomainConstraint) {
+        if let Some(existing) = self.constraints.iter_mut().find(|e| e.var == c.var && e.op == c.op) {
+            *existing = c;
+        } else {
+            self.constraints.push(c);
+        }
+    }
+
+    pub(crate) fn constraints_for<'a>(&'a self, var: &'a str) -> impl Iterator<Item = &'a DomainConstraint> {
+        self.constraints.iter().filter(move |c| c.var == var)
+    }
+
     /// Whether `e` is an absolute temperature in `°C`/`°F` or a difference of them, from how it
     /// is written.
     pub(crate) fn temp_kind(&self, e: &Expr, depth: usize) -> Option<Temp> {
@@ -255,7 +296,10 @@ impl Scope {
             Expr::Index(a, _) => self.temp_kind(a, depth + 1),
             Expr::Vector(items) => self.common_temp(items, depth + 1),
             Expr::Call(f, args) if f.is_rounding() => self.rounding_temp(args, depth + 1),
-            Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs, args) => self.common_temp(args.get(..1).unwrap_or_default(), depth + 1),
+            Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Median | Func::Abs, args) => {
+                self.common_temp(args.get(..1).unwrap_or_default(), depth + 1)
+            }
+            Expr::Call(Func::Stdev | Func::Stdevp, args) => self.common_temp(args, depth + 1).map(|_| Temp::Difference),
             _ => None,
         }
     }
@@ -341,9 +385,11 @@ impl Scope {
             Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
             Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
             Expr::Bin(op @ (BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div), a, b) => self.dimless_bin(*op, a, b),
-            Expr::Call(Func::Asin | Func::Acos | Func::Atan, _) => Some("°".to_string()),
+            Expr::Call(Func::Asin | Func::Acos | Func::Atan | Func::Atan2, _) => Some("°".to_string()),
             Expr::Call(f, args) if f.is_rounding() => self.rounding_dimless(args),
-            Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Sum | Func::Mean, args) => self.common_dimless(args.get(..1).unwrap_or_default()),
+            Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Sum | Func::Mean | Func::Median | Func::Stdev | Func::Stdevp | Func::Mod, args) => {
+                self.common_dimless(args.get(..1).unwrap_or_default())
+            }
             Expr::Call(..) | Expr::Apply(..) => None,
             Expr::Vector(items) => self.common_dimless(items),
             Expr::Nary(n) if n.op == '∑' => self.dimensionless_hint(&n.body),
@@ -756,11 +802,223 @@ impl<'a> Ctx<'a> {
                 }
                 Ok(acc.into())
             }
+            Func::Median | Func::Var | Func::Varp | Func::Stdev | Func::Stdevp => self.eval_stats(func, args),
+            Func::Slope | Func::Intercept | Func::R2 => self.eval_regression(func, args),
+            Func::Gcd | Func::Lcm => self.eval_int_agg(func, args),
+            Func::Root => self.eval_root(args),
+            Func::Log if args.len() != 1 => self.eval_log_base(args),
+            Func::Atan2 | Func::Mod | Func::Binom => self.eval_binary_func(func, args),
             _ => {
                 let [x] = args else {
                     return Err(CalcError::Arity { function: function.to_string(), expected: "1 argument" });
                 };
                 self.map(x, |q| unary(func, q))
+            }
+        }
+    }
+
+    fn eval_stats(&mut self, func: Func, args: &[Value]) -> Result<Value, CalcError> {
+        let function = func.name();
+        let all: Vec<Quantity> = args.iter().flat_map(Value::quantities).collect();
+        self.charge(all.len())?;
+        let sample = matches!(func, Func::Var | Func::Stdev);
+        let min_len = if sample { 2 } else { 1 };
+        if all.len() < min_len {
+            let expected = if sample { "at least 2 values" } else { "at least 1 value" };
+            return Err(CalcError::Arity { function: function.to_string(), expected });
+        }
+        let first = all.first().copied().unwrap_or(Quantity::number(0.0));
+        for &q in all.iter().skip(1) {
+            first.same_dim(q, "compare")?;
+        }
+        if func == Func::Median {
+            let mut vals: Vec<f64> = all.iter().map(|q| q.value).collect();
+            vals.sort_by(f64::total_cmp);
+            let mid = vals.len() / 2;
+            let med = if vals.len() % 2 == 1 {
+                vals.get(mid).copied().unwrap_or(0.0)
+            } else {
+                0.5 * (vals.get(mid.saturating_sub(1)).copied().unwrap_or(0.0) + vals.get(mid).copied().unwrap_or(0.0))
+            };
+            return Ok(Quantity::new(finite(med)?, first.dim).into());
+        }
+        let n = all.len() as f64;
+        let mean = finite(all.iter().map(|q| q.value).sum::<f64>() / n)?;
+        let mut ss = 0.0;
+        for &q in &all {
+            let d = q.value - mean;
+            ss = finite(ss + d * d)?;
+        }
+        let denom = if sample { (all.len() - 1) as f64 } else { n };
+        let variance = finite(ss / denom)?;
+        match func {
+            Func::Var | Func::Varp => {
+                let dim = first.dim.try_mul(first.dim)?;
+                Ok(Quantity::new(variance, dim).into())
+            }
+            _ => Ok(Quantity::new(finite(variance.sqrt())?, first.dim).into()),
+        }
+    }
+
+    fn eval_regression(&mut self, func: Func, args: &[Value]) -> Result<Value, CalcError> {
+        let function = func.name();
+        let [vx, vy] = args else {
+            return Err(CalcError::Arity { function: function.to_string(), expected: "2 arguments" });
+        };
+        let (xs, ys) = (vx.quantities(), vy.quantities());
+        self.charge(xs.len().saturating_add(ys.len()))?;
+        if xs.len() != ys.len() {
+            return Err(CalcError::LengthMismatch { left: xs.len(), right: ys.len() });
+        }
+        if xs.len() < 2 {
+            return Err(CalcError::Arity { function: function.to_string(), expected: "at least 2 pairs" });
+        }
+        let (fx, fy) = (xs.first().copied().unwrap_or(Quantity::number(0.0)), ys.first().copied().unwrap_or(Quantity::number(0.0)));
+        for &q in xs.iter().skip(1) {
+            fx.same_dim(q, "compare")?;
+        }
+        for &q in ys.iter().skip(1) {
+            fy.same_dim(q, "compare")?;
+        }
+        let n = xs.len() as f64;
+        let mx = finite(xs.iter().map(|q| q.value).sum::<f64>() / n)?;
+        let my = finite(ys.iter().map(|q| q.value).sum::<f64>() / n)?;
+        let (mut sxx, mut syy, mut sxy) = (0.0, 0.0, 0.0);
+        for (qx, qy) in xs.iter().zip(&ys) {
+            let (dx, dy) = (qx.value - mx, qy.value - my);
+            sxx = finite(sxx + dx * dx)?;
+            syy = finite(syy + dy * dy)?;
+            sxy = finite(sxy + dx * dy)?;
+        }
+        if sxx == 0.0 {
+            return Err(CalcError::DivisionByZero);
+        }
+        let m = finite(sxy / sxx)?;
+        match func {
+            Func::Slope => Ok(Quantity::new(m, fy.dim.try_div(fx.dim)?).into()),
+            Func::Intercept => {
+                let _ = fy.dim.try_div(fx.dim)?;
+                Ok(Quantity::new(finite(my - m * mx)?, fy.dim).into())
+            }
+            _ => {
+                if syy == 0.0 {
+                    return Err(CalcError::DivisionByZero);
+                }
+                let r_sq = ((sxy / sxx) * (sxy / syy)).clamp(0.0, 1.0);
+                Ok(Quantity::number(finite(r_sq)?).into())
+            }
+        }
+    }
+
+    fn eval_int_agg(&mut self, func: Func, args: &[Value]) -> Result<Value, CalcError> {
+        let function = func.name();
+        let all: Vec<Quantity> = args.iter().flat_map(Value::quantities).collect();
+        self.charge(all.len())?;
+        if all.len() < 2 {
+            return Err(CalcError::Arity { function: function.to_string(), expected: "at least 2 values" });
+        }
+        let mut acc = u128::from(whole(*all.first().unwrap_or(&Quantity::number(0.0)), function)?.unsigned_abs());
+        for &q in all.iter().skip(1) {
+            let b = u128::from(whole(q, function)?.unsigned_abs());
+            acc = if func == Func::Gcd {
+                gcd_u128(acc, b)
+            } else if acc == 0 || b == 0 {
+                0
+            } else {
+                let g = gcd_u128(acc, b);
+                (acc / g).checked_mul(b).ok_or(CalcError::Overflow)?
+            };
+        }
+        Ok(Quantity::number(finite(acc as f64)?).into())
+    }
+
+    fn eval_root(&mut self, args: &[Value]) -> Result<Value, CalcError> {
+        let [x, n_val] = args else {
+            return Err(CalcError::Arity { function: "root".to_string(), expected: "2 arguments" });
+        };
+        let n = plain("root", n_val.expect_scalar()?)?;
+        if n == 0.0 {
+            return Err(domain("root"));
+        }
+        let whole_n = (n.fract() == 0.0 && n.abs() <= 1e9).then_some(n as i64);
+        self.map(x, |q| {
+            let dim = match whole_n {
+                Some(k) => q.dim.try_root(k)?,
+                None => q.dim.try_pow(1.0 / n)?,
+            };
+            if q.value == 0.0 && n < 0.0 {
+                return Err(CalcError::DivisionByZero);
+            }
+            let mag = if q.value < 0.0 {
+                let Some(k) = whole_n.filter(|k| k % 2 != 0) else {
+                    return Err(domain("root"));
+                };
+                -((-q.value).powf(1.0 / k as f64))
+            } else {
+                q.value.powf(1.0 / n)
+            };
+            Ok(Quantity::new(finite(mag)?, dim))
+        })
+    }
+
+    fn eval_log_base(&mut self, args: &[Value]) -> Result<Value, CalcError> {
+        let [x, b_val] = args else {
+            return Err(CalcError::Arity { function: "log".to_string(), expected: "1 or 2 arguments" });
+        };
+        let base = plain("log", b_val.expect_scalar()?)?;
+        if base <= 0.0 || base == 1.0 {
+            return Err(domain("log"));
+        }
+        self.map(x, |q| {
+            let v = plain("log", q)?;
+            if v <= 0.0 {
+                return Err(domain("log"));
+            }
+            Ok(Quantity::number(finite(v.log(base))?))
+        })
+    }
+
+    fn eval_binary_func(&mut self, func: Func, args: &[Value]) -> Result<Value, CalcError> {
+        let function = func.name();
+        let [a, b] = args else {
+            return Err(CalcError::Arity { function: function.to_string(), expected: "2 arguments" });
+        };
+        let step = |x: Quantity, y: Quantity| -> Result<Quantity, CalcError> {
+            match func {
+                Func::Atan2 => {
+                    x.same_dim(y, "compare")?;
+                    Ok(Quantity::number(finite(x.value.atan2(y.value))?))
+                }
+                Func::Mod => {
+                    x.same_dim(y, "subtract")?;
+                    if y.value == 0.0 {
+                        return Err(CalcError::DivisionByZero);
+                    }
+                    let q = (x.value / y.value).floor();
+                    Ok(Quantity::new(finite(x.value - y.value * q)?, x.dim))
+                }
+                _ => binom_qty(x, y),
+            }
+        };
+        match (a, b) {
+            (Value::Scalar(x), Value::Scalar(y)) => Ok(step(*x, *y)?.into()),
+            (Value::Vector(u), Value::Scalar(y)) => {
+                self.charge(u.len())?;
+                let items = u.iter().map(|x| step(x, *y)).collect::<Result<Vec<_>, _>>()?;
+                Ok(Value::Vector(Vector::from_quantities(&items)?))
+            }
+            (Value::Scalar(x), Value::Vector(v)) => {
+                self.charge(v.len())?;
+                let items = v.iter().map(|y| step(*x, y)).collect::<Result<Vec<_>, _>>()?;
+                Ok(Value::Vector(Vector::from_quantities(&items)?))
+            }
+            (Value::Vector(u), Value::Vector(v)) => {
+                if u.len() != v.len() {
+                    return Err(CalcError::LengthMismatch { left: u.len(), right: v.len() });
+                }
+                self.charge(u.len())?;
+                let items = u.iter().zip(v.iter()).map(|(x, y)| step(x, y)).collect::<Result<Vec<_>, _>>()?;
+                Ok(Value::Vector(Vector::from_quantities(&items)?))
             }
         }
     }
@@ -864,25 +1122,105 @@ fn unary(func: Func, x: Quantity) -> Result<Quantity, CalcError> {
     let function = func.name();
     match func {
         Func::Sqrt => x.try_pow(Quantity::number(0.5)),
+        Func::Cbrt => {
+            let dim = x.dim.try_root(3)?;
+            Ok(Quantity::new(finite(x.value.cbrt())?, dim))
+        }
         Func::Abs => Ok(Quantity::new(x.value.abs(), x.dim)),
+        Func::Sign => {
+            let s = if x.value > 0.0 {
+                1.0
+            } else if x.value < 0.0 {
+                -1.0
+            } else {
+                0.0
+            };
+            Ok(Quantity::number(s))
+        }
+        Func::Fact => {
+            let n = whole(x, function)?;
+            if n < 0 {
+                return Err(domain(function));
+            }
+            if n > 170 {
+                return Err(CalcError::Overflow);
+            }
+            let mut acc = 1.0f64;
+            for k in 2..=n {
+                acc = finite(acc * k as f64)?;
+            }
+            Ok(Quantity::number(acc))
+        }
         _ => {
             let v = plain(function, x)?;
             let out = match func {
                 Func::Exp => v.exp(),
-                Func::Ln | Func::Log if v <= 0.0 => return Err(domain(function)),
+                Func::Ln | Func::Log | Func::Log2 if v <= 0.0 => return Err(domain(function)),
                 Func::Ln => v.ln(),
                 Func::Log => v.log10(),
+                Func::Log2 => v.log2(),
                 Func::Sin => v.sin(),
                 Func::Cos => v.cos(),
                 Func::Tan => v.tan(),
                 Func::Asin | Func::Acos if !(-1.0..=1.0).contains(&v) => return Err(domain(function)),
                 Func::Asin => v.asin(),
                 Func::Acos => v.acos(),
+                Func::Atan => v.atan(),
+                Func::Sinh => v.sinh(),
+                Func::Cosh => v.cosh(),
+                Func::Tanh => v.tanh(),
+                Func::Asinh => v.asinh(),
+                Func::Acosh if v < 1.0 => return Err(domain(function)),
+                Func::Acosh => v.acosh(),
+                Func::Atanh if v <= -1.0 || v >= 1.0 => return Err(domain(function)),
+                Func::Atanh => v.atanh(),
                 _ => v.atan(),
             };
             Ok(Quantity::number(finite(out)?))
         }
     }
+}
+
+fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a
+}
+
+fn binom_qty(nq: Quantity, kq: Quantity) -> Result<Quantity, CalcError> {
+    let n = whole(nq, "binom")?;
+    let k = whole(kq, "binom")?;
+    if n < 0 || k < 0 {
+        return Err(domain("binom"));
+    }
+    if k > n {
+        return Ok(Quantity::number(0.0));
+    }
+    let k = k.min(n - k) as u64;
+    let n = n as u64;
+    if k > 1_030 {
+        return Err(CalcError::Overflow);
+    }
+    let mut exact = Some(1u128);
+    let mut approx = 1.0f64;
+    for i in 0..k {
+        let num = u128::from(n - i);
+        let den = u128::from(i + 1);
+        if let Some(acc) = exact {
+            let g = gcd_u128(num, den);
+            let (rn, rd) = (num / g, den / g);
+            let reduced_acc = acc / rd;
+            if let Some(next) = reduced_acc.checked_mul(rn) {
+                exact = Some(next);
+                approx = next as f64;
+                continue;
+            }
+            exact = None;
+        }
+        approx = finite(approx * (num as f64 / den as f64))?;
+    }
+    Ok(Quantity::number(finite(approx)?))
 }
 
 /// The value of a dimensionless argument, else an error naming `function`.

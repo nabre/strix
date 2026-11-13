@@ -389,6 +389,7 @@ Calculation",
                 crate::widgets::ButtonAction::new("calc.recalculate", json!({}), false),
             );
         });
+        big_toggle(ui, app, "variables", "Variables", "view.variablesPane", app.session.view.variables_pane);
     });
     symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {

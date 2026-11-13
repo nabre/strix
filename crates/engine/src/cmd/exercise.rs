@@ -962,6 +962,21 @@ pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String
     scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
 }
 
+/// Title, active variant name (when multi-variant), and jump position of each exercise's data/start.
+pub(crate) fn sandbox_meta(s: &Session) -> std::collections::BTreeMap<usize, (String, Option<String>, wordcraft_doc::Pos)> {
+    scan(s)
+        .exercises
+        .into_iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let variant = (e.data.variants.len() > 1).then(|| e.data.variants.get(e.data.active).cloned()).flatten();
+            let block = e.data_blocks.map_or(e.start, |(a, _)| a);
+            let pos = s.doc.clamp(&wordcraft_doc::Pos::body(block, 0));
+            (i, (e.title, variant, pos))
+        })
+        .collect()
+}
+
 /// Per-exercise calculation overrides, keyed by 0-based exercise index.
 pub(super) fn exercise_calc(s: &Session) -> std::collections::BTreeMap<usize, super::calc::CalcOverrides> {
     scan(s).exercises.into_iter().enumerate().filter(|(_, e)| !e.data.calc.is_empty()).map(|(i, e)| (i, e.data.calc)).collect()

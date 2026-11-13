@@ -67,6 +67,8 @@ pub enum Pane {
     Exercise,
     /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
     GraphPaper,
+    /// Math › Calculation › Variables: live parameters in the document and exercise sandboxes.
+    Variables,
     /// Outlining › Master Document: the master document's linked files.
     Subdocuments,
 }
@@ -87,6 +89,7 @@ impl Pane {
             Self::Comments => "Comments",
             Self::Exercise => "Exercise Properties",
             Self::GraphPaper => "Graph Paper",
+            Self::Variables => "Variables",
             Self::Subdocuments => "Subdocuments",
         }
     }
@@ -106,6 +109,7 @@ impl Pane {
             Self::Comments => (Edge::End, 290.0),
             Self::Exercise => (Edge::End, 320.0),
             Self::GraphPaper => (Edge::End, 300.0),
+            Self::Variables => (Edge::End, 310.0),
             Self::Subdocuments => (Edge::End, 300.0),
         };
         PaneState::docked(edge, width)
@@ -127,11 +131,12 @@ impl Pane {
             Self::Comments => "comments",
             Self::Exercise => "exercise",
             Self::GraphPaper => "graphPaper",
+            Self::Variables => "variables",
             Self::Subdocuments => "subdocuments",
         }
     }
 
-    const ALL: [Self; 14] = [
+    const ALL: [Self; 15] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -145,6 +150,7 @@ impl Pane {
         Self::Comments,
         Self::Exercise,
         Self::GraphPaper,
+        Self::Variables,
         Self::Subdocuments,
     ];
 
@@ -166,6 +172,7 @@ impl Pane {
             Self::Comments => Some("view.commentsPane"),
             Self::Exercise => Some("view.exercisePane"),
             Self::GraphPaper => Some("view.graphPaperPane"),
+            Self::Variables => Some("view.variablesPane"),
             Self::Subdocuments => Some("view.subdocumentsPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
@@ -195,6 +202,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Comments => comments(app, ui),
             Pane::Exercise => crate::exercise_pane::pane(app, ui),
             Pane::GraphPaper => crate::graph_pane::pane(app, ui),
+            Pane::Variables => crate::variables_pane::pane(app, ui),
             Pane::Subdocuments => crate::subdocument_pane::pane(app, ui),
         })
     }

@@ -62,6 +62,26 @@ impl Dim {
         Ok(Dim(out))
     }
 
+    /// Exact `n`-th root of a dimension (`n != 0`): every base exponent must be divisible by `n`.
+    pub fn try_root(self, n: i64) -> Result<Dim, CalcError> {
+        if n == 0 {
+            return Err(CalcError::Domain { function: "root".to_string() });
+        }
+        let mut out = [0i8; 7];
+        for (o, e) in out.iter_mut().zip(self.0) {
+            if e == 0 {
+                continue;
+            }
+            let wide = i64::from(e);
+            if wide % n != 0 {
+                return Err(CalcError::FractionalDimension { unit: dim_name(self) });
+            }
+            let q = wide / n;
+            *o = i8::try_from(q).map_err(|_| CalcError::DimensionOverflow)?;
+        }
+        Ok(Dim(out))
+    }
+
     fn combine(self, other: Dim, op: fn(i8, i8) -> Option<i8>) -> Result<Dim, CalcError> {
         let mut out = [0i8; 7];
         for ((o, a), b) in out.iter_mut().zip(self.0).zip(other.0) {

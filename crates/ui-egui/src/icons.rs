@@ -2009,6 +2009,14 @@ fn paint_file_and_tools(pen: &Pen, name: &str) -> bool {
                 pen.line_c(&[(8.5, y), (17.0, y)], c);
             }
         }
+        // The Variables pane: `x =` over parameter rows.
+        "variables" => {
+            pen.rect(2.5, 2.5, 17.5, 17.5, c);
+            pen.text(6.2, 7.2, 8.5, "x", a, true);
+            pen.line_c(&[(9.8, 6.3), (14.8, 6.3)], c);
+            pen.line_c(&[(9.8, 8.3), (14.8, 8.3)], c);
+            pen.lines(4.8, 15.2, &[12.0, 14.8]);
+        }
         "subdocInsert" | "subdocCreate" | "subdocUnlink" | "subdocRefresh" | "subdocOpen" => {
             pen.page(3.0, 2.0, 14.0, 17.0);
             pen.rect(6.0, 8.0, 14.0, 15.0, a);

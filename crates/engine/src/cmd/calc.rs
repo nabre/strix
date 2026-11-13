@@ -75,7 +75,7 @@ pub fn specs() -> Vec<CommandSpec> {
         .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
             .pure()
-            .params(r#"{"digits"?: n} → {"variables": [{"name", "value" (number in the unit shown, or an array), "text", "unit", "si" (SI magnitude, or an array), "region" (index of the defining item)}]}"#),
+            .params(r#"{"digits"?: n, "units"?: {"name" | "document:name" | "exercise:1:name": "unit"}} → {"variables": [{"name", "value", "text", "unit", "si", "shown", "region", "pos", "compatibleUnits", "selectedUnit", "convertedText", "converted"}], "exercises": [{"exercise": 1-based, "title", "variant", "variables": [...]}]}"#),
     ]
 }
 
@@ -2040,15 +2040,58 @@ fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
     toggle_table(s, &json!({"value": true}))
 }
 
-fn variables(s: &mut Session, v: &Value) -> CmdResult {
-    let opts = options(s, v);
-    let call_c = call_overrides(v);
-    let found = items(&s.doc.body);
-    let ex_calc = super::exercise::exercise_calc(s);
-    let (sheets, outcomes) = run_sheet(&found, &opts, &super::exercise::zones(s), &super::exercise::seeds(s), &ex_calc, &call_c);
-    let ws = &sheets.main;
+fn item_positions(blocks: &[Arc<Block>]) -> Vec<wordcraft_doc::Pos> {
+    use wordcraft_doc::{Path, Pos, StoryRef};
+    fn walk(b: &Block, path: &Path, depth: usize, out: &mut Vec<Pos>) {
+        if depth > MAX_DEPTH || out.len() >= MAX_REGIONS {
+            return;
+        }
+        match b {
+            Block::Para(p) => {
+                let offs = p.text.char_indices().filter(|(_, c)| *c == wordcraft_doc::para::OBJ).map(|(off, _)| off);
+                for (off, o) in offs.zip(&p.objects) {
+                    if out.len() >= MAX_REGIONS {
+                        return;
+                    }
+                    let is_cad = matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad);
+                    if is_cad || matches!(o, InlineObject::Equation { .. }) {
+                        out.push(Pos::new(StoryRef::Body, path.clone(), off));
+                    }
+                }
+            }
+            Block::Table(t) if depth == 0 && t.props.calc => {
+                let top = path.0.first().copied().unwrap_or(0);
+                out.push(Pos::new(StoryRef::Body, Path(vec![top, 0, 0, 0]), 0));
+            }
+            Block::Table(t) => {
+                for (r, row) in t.rows.iter().enumerate() {
+                    for (c, cell) in row.cells.iter().enumerate() {
+                        for (k, cb) in cell.blocks.iter().enumerate() {
+                            let mut next = path.0.clone();
+                            next.extend([r as u32, c as u32, k as u32]);
+                            walk(cb, &Path(next), depth + 1, out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for (i, b) in blocks.iter().enumerate() {
+        walk(b, &Path::top(i), 0, &mut out);
+    }
+    out
+}
+
+fn defined_regions(found: &[Item], outcomes: &[Outcome], zones: &[Option<usize>], target_zone: Option<usize>) -> Vec<(String, usize)> {
     let mut defined_at: Vec<(String, usize)> = Vec::new();
-    for (i, outcome) in outcomes.iter().enumerate() {
+    for (i, (item, outcome)) in found.iter().zip(outcomes).enumerate() {
+        let top = match item {
+            Item::Equation { top, .. } | Item::Table { top, .. } | Item::Cad { top, .. } => *top,
+        };
+        if zones.get(top).copied().flatten() != target_zone {
+            continue;
+        }
         let names: Vec<String> = match outcome {
             Outcome::Equation(Some(r), _, _) if r.error.is_none() => r.name.iter().cloned().collect(),
             Outcome::Table(t, _) => t.columns.clone(),
@@ -2059,25 +2102,121 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
             defined_at.push((name, i));
         }
     }
-    let list: Vec<Value> = ws
+    defined_at
+}
+
+#[allow(clippy::too_many_arguments)]
+fn variable_json(
+    doc: &wordcraft_doc::Document,
+    scope_key: &str,
+    name: &str,
+    value: &strix_calc::Value,
+    region: Option<usize>,
+    fallback_pos: Option<&wordcraft_doc::Pos>,
+    positions: &[wordcraft_doc::Pos],
+    opts: &Options,
+    unit_map: Option<&serde_json::Map<String, Value>>,
+) -> Value {
+    let pos = region.and_then(|idx| positions.get(idx)).or(fallback_pos).map(|p| super::pos_json(&doc.clamp(p)));
+    let compat = strix_calc::compatible_units(value.dim());
+    let shown = strix_calc::format_value(value, opts);
+    let requested = unit_map
+        .and_then(|m| m.get(&format!("{scope_key}:{name}")).or_else(|| m.get(name)))
+        .and_then(Value::as_str);
+    let converted_pair = requested.and_then(|u| strix_calc::format_value_in(value, u, opts).ok().map(|(num, full)| (u.trim().to_string(), num, full)));
+    match value.scalar() {
+        Some(q) => {
+            let (number, unit) = strix_calc::auto_unit(q.value, q.dim);
+            let text = strix_calc::format_number(number, opts);
+            let (sel_u, conv_text, conv) = converted_pair.unwrap_or_else(|| (unit.clone(), text.clone(), shown.clone()));
+            json!({
+                "name": name,
+                "value": number,
+                "text": text,
+                "unit": unit,
+                "si": q.value,
+                "shown": shown,
+                "region": region,
+                "pos": pos,
+                "compatibleUnits": compat,
+                "selectedUnit": sel_u,
+                "convertedText": conv_text,
+                "converted": conv
+            })
+        }
+        None => {
+            let si: Vec<f64> = value.quantities().iter().map(|q| q.value).collect();
+            let unit = strix_calc::display_unit(value.dim());
+            let (sel_u, conv_text, conv) = converted_pair.unwrap_or_else(|| (unit.clone(), shown.clone(), shown.clone()));
+            json!({
+                "name": name,
+                "value": si,
+                "text": shown,
+                "unit": unit,
+                "si": si,
+                "shown": shown,
+                "region": region,
+                "pos": pos,
+                "compatibleUnits": compat,
+                "selectedUnit": sel_u,
+                "convertedText": conv_text,
+                "converted": conv
+            })
+        }
+    }
+}
+
+fn variables(s: &mut Session, v: &Value) -> CmdResult {
+    let opts = options(s, v);
+    let call_c = call_overrides(v);
+    let unit_map = v.get("units").and_then(Value::as_object);
+    let found = items(&s.doc.body);
+    let positions = item_positions(&s.doc.body);
+    let zones = super::exercise::zones(s);
+    let ex_calc = super::exercise::exercise_calc(s);
+    let meta = super::exercise::sandbox_meta(s);
+    let (sheets, outcomes) = run_sheet(&found, &opts, &zones, &super::exercise::seeds(s), &ex_calc, &call_c);
+    let main_defined = defined_regions(&found, &outcomes, &zones, None);
+    let list: Vec<Value> = sheets
+        .main
         .scope()
         .iter()
         .map(|(name, value)| {
-            let region = defined_at.iter().find(|(n, _)| n == name).map(|(_, i)| *i);
-            let shown = strix_calc::format_value(value, &opts);
-            match value.scalar() {
-                Some(q) => {
-                    let (number, unit) = strix_calc::auto_unit(q.value, q.dim);
-                    json!({"name": name, "value": number, "text": strix_calc::format_number(number, &opts), "unit": unit, "si": q.value, "shown": shown, "region": region})
-                }
-                None => {
-                    let si: Vec<f64> = value.quantities().iter().map(|q| q.value).collect();
-                    json!({"name": name, "value": si, "text": shown, "unit": strix_calc::display_unit(value.dim()), "si": si, "shown": shown, "region": region})
-                }
-            }
+            let region = main_defined.iter().find(|(n, _)| n == name).map(|(_, i)| *i);
+            variable_json(&s.doc, "document", name, value, region, None, &positions, &opts, unit_map)
         })
         .collect();
-    Ok(json!({"variables": list}))
+    let exercises: Vec<Value> = sheets
+        .exercises
+        .iter()
+        .filter(|(_, ws)| ws.scope().iter().next().is_some())
+        .map(|(&ex, ws)| {
+            let mut z_opts = opts;
+            if let Some(c) = ex_calc.get(&ex) {
+                c.apply_to(&mut z_opts);
+            }
+            call_c.apply_to(&mut z_opts);
+            let ex_defined = defined_regions(&found, &outcomes, &zones, Some(ex));
+            let (title, variant, seed_pos) = meta.get(&ex).cloned().unwrap_or_else(|| (String::new(), None, wordcraft_doc::Pos::body(0, 0)));
+            let scope_key = format!("exercise:{}", ex + 1);
+            let vars: Vec<Value> = ws
+                .scope()
+                .iter()
+                .map(|(name, value)| {
+                    let region = ex_defined.iter().find(|(n, _)| n == name).map(|(_, i)| *i);
+                    let fallback = region.is_none().then_some(&seed_pos);
+                    variable_json(&s.doc, &scope_key, name, value, region, fallback, &positions, &z_opts, unit_map)
+                })
+                .collect();
+            json!({
+                "exercise": ex + 1,
+                "title": title,
+                "variant": variant,
+                "variables": vars
+            })
+        })
+        .collect();
+    Ok(json!({"variables": list, "exercises": exercises}))
 }
 
 #[cfg(test)]
@@ -2869,7 +3008,7 @@ mod tests {
     fn solved_equations_show_their_algebra() {
         let mut s = session();
         s.run("calc.layout", &json!({"value": "lines"})).unwrap();
-        for t in ["m = 400 kg", "F = 1 kN", "F = m·a", "k = 6", "x^2 + x = k"] {
+        for t in ["m = 400 kg", "F = 1 kN", "F = m·a", "k = 10", "x^3 + x = k"] {
             add(&mut s, t);
         }
         let all = maths(&s);
@@ -2884,16 +3023,45 @@ mod tests {
         assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
         // Inline: the note ends the line; read back, it is not part of the statement.
         s.run("calc.layout", &json!({"value": "inline"})).unwrap();
-        assert_eq!(texts(&s)[4], "x^2+x=k⇒x²+x=6⇒x=2");
+        assert_eq!(texts(&s)[4], "x^3+x=k⇒x³+x=10⇒x=2");
         assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
         let bytes = crate::io::save_bytes("n.xmath", &s.doc).unwrap();
         let opened = crate::io::open_bytes("n.xmath", &bytes).unwrap();
-        assert_eq!(regions(&opened.body)[4].1.as_deref().map(|t| t.replace(char::is_whitespace, "")).as_deref(), Some("x^2+x=k⇒x²+x=6⇒x=2"));
+        assert_eq!(regions(&opened.body)[4].1.as_deref().map(|t| t.replace(char::is_whitespace, "")).as_deref(), Some("x^3+x=k⇒x³+x=10⇒x=2"));
         // The layout is a preference, given by name.
         assert!(s.run("calc.layout", &json!({"value": "sideways"})).is_err());
         assert!(s.run("calc.options", &json!({"layout": 3})).is_ok());
         assert_eq!(s.run("calc.options", &json!({"layout": "lines"})).unwrap()["layout"], "lines");
         assert_eq!(s.prefs.calc_layout, "lines");
+    }
+
+    #[test]
+    fn variables_inspect_document_and_exercise_sandboxes_with_unit_conversion() {
+        let mut s = session();
+        add(&mut s, "L = 2.5 m");
+        s.run("exercise.insert", &json!({"title": "Trave", "questions": ["Momento"]})).unwrap();
+        s.run(
+            "exercise.setData",
+            &json!({"exercise": 1, "data": {"items": [{"symbol": "L", "unit": "m", "values": ["4.5", "6"]}], "variants": ["A", "B"], "active": 0}}),
+        )
+        .unwrap();
+        let out = s.run("calc.variables", &json!({"units": {"document:L": "cm", "exercise:1:L": "mm"}})).unwrap();
+        let doc_vars = out["variables"].as_array().unwrap();
+        assert_eq!(doc_vars.len(), 1);
+        assert_eq!(doc_vars[0]["name"], "L");
+        assert_eq!(doc_vars[0]["converted"], "250 cm");
+        assert!(doc_vars[0]["compatibleUnits"].as_array().unwrap().iter().any(|u| u == "mm"));
+        assert!(doc_vars[0]["pos"].is_object());
+        let ex_list = out["exercises"].as_array().unwrap();
+        assert_eq!(ex_list.len(), 1);
+        assert_eq!(ex_list[0]["exercise"], 1);
+        assert_eq!(ex_list[0]["variant"], "A");
+        assert_eq!(ex_list[0]["variables"][0]["converted"], "4500 mm");
+        assert!(ex_list[0]["variables"][0]["pos"].is_object());
+        assert_eq!(s.run("view.variablesPane", &json!({})).unwrap()["value"], true);
+        assert!(s.view.variables_pane);
+        assert_eq!(s.run("view.variablesPane", &json!({"value": false})).unwrap()["value"], false);
+        assert!(!s.view.variables_pane);
     }
 
     #[test]

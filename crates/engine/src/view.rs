@@ -55,6 +55,10 @@ pub struct ViewState {
     /// caret (docs/graph-paper.md).
     #[serde(default)]
     pub graph_pane: bool,
+    /// The Variables pane (Math › Calculation › Variables): all live calculation parameters in
+    /// the document and in exercise sandboxes, with unit conversion and jump links (docs/calc.md).
+    #[serde(default)]
+    pub variables_pane: bool,
     /// The Format Shape pane (Shape Fill › More Gradients…, a shape's Format Shape…): the
     /// selected shapes' fill.
     #[serde(default)]
@@ -209,6 +213,7 @@ impl Default for ViewState {
             exercise_pane: false,
             subdocument_pane: false,
             graph_pane: false,
+            variables_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,
