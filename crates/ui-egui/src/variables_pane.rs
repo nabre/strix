@@ -179,18 +179,8 @@ mod tests {
             )
             .unwrap();
         let app = WordApp::new(session, Services::default());
-        let mut fonts = false;
-        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(340.0, 600.0)).build_ui_state(
-            |ui, app: &mut WordApp| {
-                if !fonts {
-                    crate::theme::install_fonts(ui.ctx());
-                    fonts = true;
-                    return;
-                }
-                super::pane(app, ui);
-            },
-            app,
-        );
+        let mut h =
+            egui_kittest::Harness::builder().with_size(egui::vec2(340.0, 600.0)).build_ui_state(|ui, app: &mut WordApp| super::pane(app, ui), app);
         h.run_steps(4);
         assert!(h.query_by_label("L").is_some());
         assert!(h.query_by_label("q").is_some());
