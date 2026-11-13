@@ -76,6 +76,7 @@ content differently doesn't count as a change:
 | Calculation (also an answer or a stepped calculation) | the equation's linear text, without spaces, is the same |
 | Calculated table | the cells' text (equations as linear text), without spaces, is the same |
 | CAD drawing | Word kept the drawing as Strix wrote it; or the picture is Strix's SVG, byte for byte; or it is a picture Word made from it (its own rendering), not cropped, in the same proportions |
+| Scientific plot (`strix-plot`) | Word kept `word/strix/plotN.json` as Strix wrote it; or the picture is Strix's SVG, byte for byte; or it is Word's uncropped rasterised picture in the same proportions |
 | Graph paper | always (there is nothing to edit) |
 
 Limits: a picture Word made from the drawing and then replaced with *Change Picture* at the same
@@ -101,5 +102,7 @@ in Word, save, and open it in Strix: the bar asks.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-13 | minor | Live scientific and experimental plots (`strix-plot`, `word/strix/plotN.json` + SVG envelope) preserved across Word `.docx` round trips |
+| 2026-11-13 | minor | Inline parametric expressions (`strix:expr` formula), grading scale config (`strix:grading`), choice indices (`strix:choiceIdx`), `shuffleChoices` and option `strix:rationale` preserved across Word `.docx` round trips |
 | 2026-11-13 | minor | Document calculation options (`<strix:calcOptions>`) and per-equation overrides (`calcOpts`) preserved across Word round trips |
 | 2026-11-11 | major | First version: content-control wrappers and the Strix custom XML part in Word documents, live objects after Word saves, pending objects changed elsewhere (`file.externalEdits`, the bar under the ribbon), Word documents allowed for documents with Strix objects |

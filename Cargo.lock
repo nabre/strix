@@ -5384,6 +5384,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "strix-plot"
+version = "0.23.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strix-calc",
+]
+
+[[package]]
 name = "strix-web"
 version = "0.23.0"
 dependencies = [
@@ -7023,6 +7032,7 @@ dependencies = [
  "strix-cad",
  "strix-calc",
  "strix-dictionaries",
+ "strix-plot",
  "thiserror 2.0.21",
  "wordcraft-doc",
  "wordcraft-docbin",

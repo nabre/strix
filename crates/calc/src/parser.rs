@@ -27,6 +27,11 @@ use crate::{CalcError, MAX_DEPTH, MAX_NODES};
 /// A built-in function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Func {
+    Measure,
+    RelativeMeasure,
+    Val,
+    Unc,
+    Relunc,
     Sqrt,
     Cbrt,
     Root,
@@ -76,6 +81,11 @@ pub(crate) enum Func {
 impl Func {
     pub(crate) fn from_name(name: &str) -> Option<Func> {
         Some(match name {
+            "measure" => Func::Measure,
+            "relativeMeasure" => Func::RelativeMeasure,
+            "val" => Func::Val,
+            "unc" => Func::Unc,
+            "relunc" => Func::Relunc,
             "sqrt" => Func::Sqrt,
             "cbrt" => Func::Cbrt,
             "root" => Func::Root,
@@ -126,6 +136,11 @@ impl Func {
 
     pub(crate) fn name(self) -> &'static str {
         match self {
+            Func::Measure => "measure",
+            Func::RelativeMeasure => "relativeMeasure",
+            Func::Val => "val",
+            Func::Unc => "unc",
+            Func::Relunc => "relunc",
             Func::Sqrt => "sqrt",
             Func::Cbrt => "cbrt",
             Func::Root => "root",
@@ -240,12 +255,7 @@ pub(crate) fn parse_with(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str
 }
 
 /// [`parse_with`], also distinguishing defined vector parameters (`F = [1; 2; 3] kN` in `2 F =`).
-pub(crate) fn parse_env(
-    tokens: &[Token],
-    end_pos: usize,
-    is_func: &dyn Fn(&str) -> bool,
-    is_vec: &dyn Fn(&str) -> bool,
-) -> Result<Expr, CalcError> {
+pub(crate) fn parse_env(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool, is_vec: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
     let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec };
     let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
@@ -321,6 +331,30 @@ impl Parser<'_> {
     fn expr(&mut self) -> R<Expr> {
         let mut left = self.term()?;
         loop {
+            if matches!(self.peek(), Some(Tok::PlusMinus)) {
+                self.bump();
+                let mut right = self.term()?;
+                let mut func = Func::Measure;
+                // A trailing unit belongs to both sides: `12.4 ± 0.1 cm`.
+                if let Expr::Bin(BinOp::Mul, n, units) = &right
+                    && crate::format::is_units(units)
+                {
+                    let mut shared = (**units).clone();
+                    if let Some(u) = without_leading_percent(&shared) {
+                        right = self.bin(BinOp::Mul, (**n).clone(), Expr::Unit("%".into()))?;
+                        shared = u;
+                        func = Func::RelativeMeasure;
+                    }
+                    if crate::format::is_numeric(&left) {
+                        left = self.bin(BinOp::Mul, left, shared)?;
+                    }
+                }
+                if matches!(&right, Expr::Bin(BinOp::Mul, _, u) if matches!(&**u, Expr::Unit(name) if name == "%")) {
+                    func = Func::RelativeMeasure;
+                }
+                left = self.node(Expr::Call(func, vec![left, right]))?;
+                continue;
+            }
             let op = match self.peek() {
                 Some(Tok::Plus) => BinOp::Add,
                 Some(Tok::Minus) => BinOp::Sub,
@@ -663,5 +697,16 @@ impl Parser<'_> {
                 _ => return Err(CalcError::syntax(self.pos(), "expected an argument separator or )")),
             }
         }
+    }
+}
+
+/// A leading percent is a relative uncertainty marker, including in compound units
+/// such as `% kg/m³`; remove only that factor, retaining the physical unit.
+fn without_leading_percent(e: &Expr) -> Option<Expr> {
+    match e {
+        Expr::Unit(n) if n == "%" => Some(Expr::Num(1.0)),
+        Expr::Bin(BinOp::Mul, l, r) if matches!(&**l, Expr::Unit(n) if n == "%") => Some((**r).clone()),
+        Expr::Bin(op @ (BinOp::Mul | BinOp::Div), l, r) => without_leading_percent(l).map(|u| Expr::Bin(*op, Box::new(u), r.clone())),
+        _ => None,
     }
 }

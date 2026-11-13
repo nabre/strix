@@ -48,6 +48,8 @@ pub struct ResolvedChar {
     /// contextual).
     #[serde(default)]
     pub ligatures: Option<crate::props::Ligatures>,
+    #[serde(default)]
+    pub tabular_digits: bool,
     pub outline: bool,
     pub shadow: bool,
     pub emboss: bool,
@@ -102,6 +104,7 @@ impl ResolvedChar {
             kern: c.kern.filter(|k| k.is_finite()).unwrap_or(0.0).clamp(0.0, 1638.0),
             emphasis: c.emphasis.unwrap_or_default(),
             ligatures: c.ligatures,
+            tabular_digits: c.tabular_digits.unwrap_or(false),
             outline: c.outline.unwrap_or(false),
             shadow: c.shadow.unwrap_or(false),
             emboss: c.emboss.unwrap_or(false),

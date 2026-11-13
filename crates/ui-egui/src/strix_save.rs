@@ -27,6 +27,8 @@ pub(crate) fn objects_text(objects: &[StrixObjectCount]) -> String {
                 StrixObjectKind::ResultsSummary => tl!("{n} results summaries"),
                 StrixObjectKind::CadDrawing if one => tl!("1 CAD drawing"),
                 StrixObjectKind::CadDrawing => tl!("{n} CAD drawings"),
+                StrixObjectKind::Plot if one => tl!("1 plot"),
+                StrixObjectKind::Plot => tl!("{n} plots"),
                 StrixObjectKind::GraphPaper => tl!("graph paper"),
             };
             i18n::fmt(text, &[("n", &o.count.to_string())])

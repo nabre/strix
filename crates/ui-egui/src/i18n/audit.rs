@@ -165,6 +165,8 @@ impl<'a> Exempt<'a> {
             names.extend(c.categories.iter().cloned());
             names.extend(c.series.iter().map(|s| s.name.clone()));
         }
+        // The selected plot's labels and mathematical expressions (Plot Properties): document content.
+        names.extend(wordcraft_engine::cmd::plot::selected_plot_texts(&app.session));
         // About › Language data: the licences' own titles and texts, and the packs' names,
         // licences and sources (File › Options › Language), as their authors wrote them.
         for (title, text) in wordcraft_engine::packs::licence_texts() {

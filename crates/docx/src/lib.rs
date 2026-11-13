@@ -8,7 +8,9 @@
 //! error or a best-effort document, never a panic.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod archive_metadata;
 mod bibliography;
+pub use archive_metadata::read_archive_metadata;
 mod chart_spec;
 mod crypt;
 mod custom;

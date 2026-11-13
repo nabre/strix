@@ -55,6 +55,9 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::GraphPaper, v.graph_pane),
         (Pane::Variables, v.variables_pane),
         (Pane::Subdocuments, v.subdocument_pane),
+        (Pane::Check, v.check_pane),
+        (Pane::Archive, v.archive_pane),
+        (Pane::Plot, v.plot_pane),
     ]
     .into_iter()
     .filter_map(|(pane, shown)| shown.then_some(pane))

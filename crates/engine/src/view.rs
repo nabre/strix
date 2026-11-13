@@ -59,6 +59,16 @@ pub struct ViewState {
     /// the document and in exercise sandboxes, with unit conversion and jump links (docs/calc.md).
     #[serde(default)]
     pub variables_pane: bool,
+    /// The Pre-flight Check pane (Teaching › Check): diagnostic errors, warnings and infos across
+    /// all variants with jump links.
+    #[serde(default)]
+    pub check_pane: bool,
+    #[serde(default)]
+    pub archive_pane: bool,
+    /// The Plot Properties pane (Math › Graphics › Plot Properties): axes, series and teacher/student
+    /// options for the selected plot (`docs/plot.md`).
+    #[serde(default)]
+    pub plot_pane: bool,
     /// The Format Shape pane (Shape Fill › More Gradients…, a shape's Format Shape…): the
     /// selected shapes' fill.
     #[serde(default)]
@@ -214,6 +224,9 @@ impl Default for ViewState {
             subdocument_pane: false,
             graph_pane: false,
             variables_pane: false,
+            check_pane: false,
+            archive_pane: false,
+            plot_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,

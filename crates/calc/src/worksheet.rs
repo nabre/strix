@@ -27,6 +27,8 @@ pub struct Options {
     /// How a result and its steps are laid out: after `⇒` on the statement's line, or on lines
     /// of their own under it.
     pub layout: Layout,
+    /// How independent measurement uncertainties combine.
+    pub uncertainty: crate::UncertaintyMode,
 }
 
 /// How a statement's result and solution steps are laid out (`docs/calc.md`, Layout).
@@ -74,7 +76,15 @@ pub enum Count {
 
 impl Default for Options {
     fn default() -> Self {
-        Options { digits: 3, count: Count::Auto, zeros: false, decimal_comma: false, steps: false, layout: Layout::Inline }
+        Options {
+            digits: 3,
+            count: Count::Auto,
+            zeros: false,
+            decimal_comma: false,
+            steps: false,
+            layout: Layout::Inline,
+            uncertainty: crate::UncertaintyMode::Max,
+        }
     }
 }
 
@@ -178,11 +188,14 @@ pub fn evaluate(statements: &[&str], opts: &Options) -> Vec<RegionResult> {
 impl Worksheet {
     /// An empty worksheet.
     pub fn new(opts: Options) -> Self {
-        Worksheet { scope: Scope::new(), opts }
+        let mut scope = Scope::new();
+        scope.uncertainty = opts.uncertainty;
+        Worksheet { scope, opts }
     }
 
     /// Changes the evaluation and number-format options for subsequent statements.
     pub fn set_options(&mut self, opts: Options) {
+        self.scope.uncertainty = opts.uncertainty;
         self.opts = opts;
     }
 
@@ -199,12 +212,7 @@ impl Worksheet {
 
     /// Parses an expression where the user functions defined so far are calls (`f(3)`).
     pub(crate) fn parse_expr(&self, tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
-        parse_env(
-            tokens,
-            end_pos,
-            &|n| self.scope.function(n).is_some(),
-            &|n| matches!(self.scope.get(n), Some(Value::Vector(_))),
-        )
+        parse_env(tokens, end_pos, &|n| self.scope.function(n).is_some(), &|n| matches!(self.scope.get(n), Some(Value::Vector(_))))
     }
 
     /// `f(x) = body` or `g(a, b) := body`: a name, then a list of distinct plain names in
@@ -672,7 +680,12 @@ impl Worksheet {
     }
 
     /// Extracts trailing `; t > 0` / `, t > 0` domain constraints outside parentheses/brackets.
-    fn extract_inline_constraints<'a>(&self, text: &'a str, tokens: &'a [Token], len: usize) -> Option<(&'a str, &'a [Token], Vec<DomainConstraint>)> {
+    fn extract_inline_constraints<'a>(
+        &self,
+        text: &'a str,
+        tokens: &'a [Token],
+        len: usize,
+    ) -> Option<(&'a str, &'a [Token], Vec<DomainConstraint>)> {
         let seps = positions(tokens, |t| matches!(t, Tok::Sep));
         let &first_sep = seps.first()?;
         if first_sep == 0 {
@@ -778,18 +791,20 @@ impl Worksheet {
         };
         // A powered bare identifier (`V = d^3` with `V = 8 m³`) whose unit dimension (`d³` = `s³`)
         // differs from the known left side (`m³`) is an equation for that unknown, not a display unit.
-        let powered_unknown = parts.len() == 2 && !starts_with_number(last) && {
-            let end0 = parts.first().and_then(|r| tokens.get(r.end)).map_or(len, |t| t.pos);
-            match (self.parse_expr(part(0), end0).ok(), self.parse_expr(last, len).ok()) {
-                (Some(l), Some(r_expr @ Expr::Bin(BinOp::Pow, _, _))) if matches!(&r_expr, Expr::Bin(BinOp::Pow, b, _) if matches!(&**b, Expr::Name(n) if self.scope.get(n).is_none())) => {
-                    match (eval(&l, &self.scope, Names::Worksheet).ok(), eval(&r_expr, &self.scope, Names::UnitsOnly).ok()) {
-                        (Some(lv), Some(uv)) => lv.dim() != uv.dim(),
-                        _ => false,
+        let powered_unknown = parts.len() == 2
+            && !starts_with_number(last)
+            && {
+                let end0 = parts.first().and_then(|r| tokens.get(r.end)).map_or(len, |t| t.pos);
+                match (self.parse_expr(part(0), end0).ok(), self.parse_expr(last, len).ok()) {
+                    (Some(l), Some(r_expr @ Expr::Bin(BinOp::Pow, _, _))) if matches!(&r_expr, Expr::Bin(BinOp::Pow, b, _) if matches!(&**b, Expr::Name(n) if self.scope.get(n).is_none())) => {
+                        match (eval(&l, &self.scope, Names::Worksheet).ok(), eval(&r_expr, &self.scope, Names::UnitsOnly).ok()) {
+                            (Some(lv), Some(uv)) => lv.dim() != uv.dim(),
+                            _ => false,
+                        }
                     }
+                    _ => false,
                 }
-                _ => false,
-            }
-        };
+            };
         let shows = parts.len() >= 2 && units_only(last) && !parameter_alone && !powered_unknown;
         match parts.len() - usize::from(shows) {
             1 => {
@@ -1044,11 +1059,7 @@ impl Worksheet {
         free_names(lhs, &mut names);
         free_names(rhs, &mut names);
         let alone = |e: &Expr, n: &str| matches!(e, Expr::Name(m) if m == n);
-        names.retain(|n| {
-            self.scope.get(n).is_none()
-                && Func::from_name(n).is_none()
-                && (alone(lhs, n) || alone(rhs, n) || constant(n).is_none())
-        });
+        names.retain(|n| self.scope.get(n).is_none() && Func::from_name(n).is_none() && (alone(lhs, n) || alone(rhs, n) || constant(n).is_none()));
         names
     }
 
@@ -1326,9 +1337,10 @@ impl Worksheet {
         let term = |e: &Expr| Self::with_common_units(e, changed, names);
         let wrap = |e: &Expr| {
             let t = term(e);
-            if matches!(e, Expr::Num(v) if *v >= 0.0) || (matches!(e, Expr::Name(_)) && !t.starts_with('(') && !t.contains(' ')) {
-                t
-            } else if t.starts_with('(') && t.ends_with(')') {
+            if matches!(e, Expr::Num(v) if *v >= 0.0)
+                || (matches!(e, Expr::Name(_)) && !t.starts_with('(') && !t.contains(' '))
+                || (t.starts_with('(') && t.ends_with(')'))
+            {
                 t
             } else {
                 format!("({t})")
@@ -1343,11 +1355,7 @@ impl Worksheet {
             }
         };
         let b2 = if *b == Expr::Num(0.0) { "0".to_string() } else { format!("{}²", wrap(b)) };
-        let four_ac = if *a == Expr::Num(1.0) {
-            format!("4·{}", wrap(c))
-        } else {
-            format!("4·{}·{}", wrap(a), wrap(c))
-        };
+        let four_ac = if *a == Expr::Num(1.0) { format!("4·{}", wrap(c)) } else { format!("4·{}·{}", wrap(a), wrap(c)) };
         let denom = if *a == Expr::Num(1.0) { "2".to_string() } else { format!("(2·{})", wrap(a)) };
         format!("({neg_b} ± √({b2} - {four_ac}))/{denom}")
     }
@@ -1370,11 +1378,7 @@ impl Worksheet {
                 _ => false,
             };
             let dom_ok = match &v {
-                Value::Scalar(q) => self
-                    .scope
-                    .constraints_for(x)
-                    .chain(extra.iter().filter(|c| c.var == x))
-                    .all(|c| c.accepts(*q).unwrap_or(false)),
+                Value::Scalar(q) => self.scope.constraints_for(x).chain(extra.iter().filter(|c| c.var == x)).all(|c| c.accepts(*q).unwrap_or(false)),
                 Value::Vector(_) => true,
             };
             if eq_ok && dom_ok {
@@ -1705,15 +1709,14 @@ const SHOWN_HEAD: usize = 8;
 /// The numbers of `v` (already scaled to the display unit) as text: `12.5` or `[1; 2; 3]`.
 fn numbers_text(v: &Value, scale: f64, opts: &Options) -> String {
     match v {
-        Value::Scalar(q) => format_number(q.value * scale, opts),
+        Value::Scalar(q) => crate::uncertainty::format_measurement(q.value * scale, q.unc.map(|u| u * scale.abs()), opts),
         Value::Vector(vec) => {
             let n = vec.len();
             let shown: Vec<String> = vec
-                .values
                 .iter()
                 .enumerate()
                 .filter(|(i, _)| n <= SHOWN_ALL || *i < SHOWN_HEAD || *i + 1 == n)
-                .map(|(_, x)| format_number(x * scale, opts))
+                .map(|(_, q)| crate::uncertainty::format_measurement(q.value * scale, q.unc.map(|u| u * scale.abs()), opts))
                 .collect();
             let mut parts = shown;
             if n > SHOWN_ALL {
@@ -1753,10 +1756,12 @@ pub(crate) fn in_unit_text_as(v: &Value, u: Quantity, unit_text: &str, opts: &Op
     if let Some((_, offset)) = affine(unit_text).filter(|_| absolute && u.dim == v.dim()) {
         let shifted = |x: f64| finite(x - offset);
         let v = match v {
-            Value::Scalar(q) => Value::Scalar(Quantity::new(shifted(q.value)?, q.dim)),
-            Value::Vector(vec) => {
-                Value::Vector(crate::Vector { values: vec.values.iter().map(|&x| shifted(x)).collect::<Result<_, _>>()?, dim: vec.dim })
-            }
+            Value::Scalar(q) => Value::Scalar(Quantity { value: shifted(q.value)?, ..*q }),
+            Value::Vector(vec) => Value::Vector(crate::Vector {
+                values: vec.values.iter().map(|&x| shifted(x)).collect::<Result<_, _>>()?,
+                uncertainties: vec.uncertainties.clone(),
+                dim: vec.dim,
+            }),
         };
         return in_unit_text_as(&v, u, unit_text, opts, false);
     }
@@ -1798,8 +1803,8 @@ pub fn format_value_in(v: &Value, unit_text: &str, opts: &Options) -> Result<(St
     if !written_unit(&expr, 0) {
         return Err(CalcError::WrongUnit { result: dim_name(v.dim()), requested: trimmed.to_string() });
     }
-    let mut scope = Scope::new();
-    let u = eval_scalar(&expr, &mut scope, Names::UnitsOnly)?;
+    let scope = Scope::new();
+    let u = eval_scalar(&expr, &scope, Names::UnitsOnly)?;
     let number = in_unit_text(v, u, trimmed, opts)?;
     Ok((number.clone(), with_unit(&number, trimmed)))
 }
@@ -1853,6 +1858,18 @@ fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> 
                 let k = j + 3 + usize::from(matches!(tok(j + 3), Some(Tok::Minus | Tok::Plus)));
                 if matches!(tok(k), Some(Tok::Num(_))) {
                     j = k + 1;
+                }
+            }
+            if matches!(tok(j), Some(Tok::PlusMinus)) && matches!(tok(j + 1), Some(Tok::Num(_))) {
+                j += 2;
+                if matches!(tok(j), Some(Tok::Star))
+                    && matches!(tok(j + 1), Some(Tok::Num(v)) if *v == 10.0)
+                    && matches!(tok(j + 2), Some(Tok::Caret))
+                {
+                    let k = j + 3 + usize::from(matches!(tok(j + 3), Some(Tok::Minus | Tok::Plus)));
+                    if matches!(tok(k), Some(Tok::Num(_))) {
+                        j = k + 1;
+                    }
                 }
             }
             start = j;

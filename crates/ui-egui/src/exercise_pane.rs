@@ -99,6 +99,7 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
     let errors = info["errors"].as_array().cloned().unwrap_or_default();
+    let variant_errors = &info["variantErrors"];
     let variants: Vec<String> =
         data["variants"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
     let active = data["active"].as_u64().unwrap_or(0) as usize;
@@ -109,7 +110,21 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     {
         // A lone exercise has no number.
         let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
-        ui.label(egui::RichText::new(title).size(15.0).strong());
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new(title).size(15.0).strong());
+            ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
+                let dur = data["duration"].as_u64().map(|d| d.to_string()).unwrap_or_default();
+                ui.label(egui::RichText::new(tl!("Duration (min)")).small().weak());
+                ui.scope(|ui| {
+                    ui.set_width(48.0);
+                    if let Some(t) = draft_box(ui, ("exercise_duration", ex), &dur, true, false) {
+                        let parsed = t.trim().parse::<u32>().ok().filter(|&n| (1..=600).contains(&n));
+                        data["duration"] = parsed.map_or(Value::Null, |n| json!(n));
+                        save(app, &data);
+                    }
+                });
+            });
+        });
         if let Some(st) = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().filter(|st| st["kind"] != "problem") {
             crate::pane_kit::section(ui, "01", tl!("Questions"));
             crate::exercise_quiz::questions(app, ui, ex, &st);
@@ -120,7 +135,7 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
             egui::CollapsingHeader::new(tl!("Variants & Data")).id_salt(("quiz_variants_data", ex, needs_data)).default_open(needs_data).show(
                 ui,
                 |ui| {
-                    variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, "02", "03", &save);
+                    variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, variant_errors, "02", "03", &save);
                 },
             );
             if lone {
@@ -136,7 +151,7 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
             }
             return;
         }
-        variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, "01", "02", &save);
+        variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, variant_errors, "01", "02", &save);
         let q_st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok();
         let has_q = q_st.as_ref().and_then(|st| st["questions"].as_array()).is_some_and(|a| !a.is_empty());
         if let Some(st) = q_st.as_ref().filter(|_| has_q) {
@@ -167,6 +182,7 @@ fn variants_and_data(
     variants: &[String],
     active: usize,
     errors: &[Value],
+    variant_errors: &Value,
     sec_var: &str,
     sec_data: &str,
     save: &dyn Fn(&mut WordApp, &Value),
@@ -175,8 +191,20 @@ fn variants_and_data(
     crate::pane_kit::section(ui, sec_var, tl!("Variants"));
     ui.horizontal_wrapped(|ui| {
         for (k, name) in variants.iter().enumerate() {
-            if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked() && k != active
-            {
+            let v_errs: Vec<&str> =
+                variant_errors.get(name.as_str()).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            let has_err = !v_errs.is_empty();
+            let btn_text = if has_err {
+                egui::RichText::new(format!("{name} ⚠")).color(ui.visuals().error_fg_color)
+            } else {
+                egui::RichText::new(name.as_str())
+            };
+            let hover = if has_err {
+                format!("{}\n\n⚠ {}", tl!("Calculate the exercise with this variant"), v_errs.join("\n⚠ "))
+            } else {
+                tl!("Calculate the exercise with this variant").to_string()
+            };
+            if ui.selectable_label(k == active, btn_text).on_hover_text(hover).clicked() && k != active {
                 let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
             }
         }
@@ -302,12 +330,155 @@ fn variants_and_data(
         save(app, data);
     }
     ui.add_space(6.0);
+    variant_generator_ui(app, ui, ex, data);
+    ui.add_space(6.0);
     crate::pane_kit::note(
         ui,
         tl!(
             "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
         ),
     );
+}
+
+#[derive(Clone)]
+struct GenConfig {
+    count: u64,
+    max_decimals: String,
+    positive: bool,
+    distinct: bool,
+    extra: String,
+    domains: std::collections::BTreeMap<String, (String, String, String)>,
+}
+
+impl Default for GenConfig {
+    fn default() -> Self {
+        Self { count: 4, max_decimals: "2".into(), positive: true, distinct: true, extra: String::new(), domains: std::collections::BTreeMap::new() }
+    }
+}
+
+fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data: &Value) {
+    let items = data["items"].as_array().cloned().unwrap_or_default();
+    if items.is_empty() {
+        return;
+    }
+    egui::CollapsingHeader::new(tl!("Generate Variants…")).id_salt(("gen_variants_hdr", ex)).default_open(false).show(ui, |ui| {
+        let state_id = egui::Id::unique(("gen_variants_cfg", ex));
+        let mut cfg = ui.data(|d| d.get_temp::<GenConfig>(state_id)).unwrap_or_default();
+        crate::rtl::grid(ui, egui::Grid::new(("gen_variants_grid", ex)).num_columns(2).spacing([6.0, 4.0]), |ui| {
+            ui.label(tl!("Variants to generate"));
+            ui.scope(|ui| {
+                ui.set_width(52.0);
+                let cur = cfg.count.to_string();
+                if let Some(t) = draft_box(ui, ("gen_v_cnt", ex), &cur, true, false)
+                    && let Ok(n) = t.trim().parse::<u64>()
+                {
+                    cfg.count = n.clamp(1, MAX_VARIANTS as u64);
+                }
+            });
+            ui.end_row();
+            ui.label(tl!("Max result decimals"));
+            ui.scope(|ui| {
+                ui.set_width(52.0);
+                if let Some(t) = draft_box(ui, ("gen_v_dec", ex), &cfg.max_decimals, true, false) {
+                    cfg.max_decimals = t;
+                }
+            });
+            ui.end_row();
+            ui.label(tl!("Extra constraints"));
+            ui.scope(|ui| {
+                ui.set_width(140.0);
+                if let Some(t) = draft_box(ui, ("gen_v_ext", ex), &cfg.extra, true, false) {
+                    cfg.extra = t;
+                }
+            });
+            ui.end_row();
+        });
+        ui.checkbox(&mut cfg.positive, tl!("Positive final results"));
+        ui.checkbox(&mut cfg.distinct, tl!("Distinct results across variants"));
+        ui.add_space(4.0);
+        crate::rtl::grid(ui, egui::Grid::new(("gen_domains_grid", ex)).num_columns(4).spacing([4.0, 3.0]).striped(true), |ui| {
+            for head in ["Symbol", "Min", "Max", "Step"] {
+                ui.label(egui::RichText::new(tl!(head)).small().weak());
+            }
+            ui.end_row();
+            for (idx, it) in items.iter().enumerate() {
+                let sym = it["symbol"].as_str().unwrap_or_default().trim().to_string();
+                if sym.is_empty() {
+                    continue;
+                }
+                let entry = cfg.domains.entry(sym.clone()).or_insert_with(|| ("1".into(), "10".into(), "1".into())).clone();
+                let (mut mn, mut mx, mut stp) = entry;
+                ui.label(egui::RichText::new(&sym).monospace());
+                ui.scope(|ui| {
+                    ui.set_width(44.0);
+                    if let Some(t) = draft_box(ui, ("gen_dom_min", ex, idx), &mn, true, false) {
+                        mn = t;
+                    }
+                });
+                ui.scope(|ui| {
+                    ui.set_width(44.0);
+                    if let Some(t) = draft_box(ui, ("gen_dom_max", ex, idx), &mx, true, false) {
+                        mx = t;
+                    }
+                });
+                ui.scope(|ui| {
+                    ui.set_width(44.0);
+                    if let Some(t) = draft_box(ui, ("gen_dom_stp", ex, idx), &stp, true, false) {
+                        stp = t;
+                    }
+                });
+                cfg.domains.insert(sym, (mn, mx, stp));
+                ui.end_row();
+            }
+        });
+        ui.add_space(4.0);
+        let clicked = ui
+            .button(tl!("Generate Variants"))
+            .on_hover_text(tl!("Deterministically generate clean, constraint-checked variants across the specified domains"))
+            .clicked();
+        ui.data_mut(|d| d.insert_temp(state_id, cfg.clone()));
+        if clicked {
+            let mut dom_arr = Vec::new();
+            for it in &items {
+                let sym = it["symbol"].as_str().unwrap_or_default().trim();
+                if sym.is_empty() {
+                    continue;
+                }
+                if let Some((mn, mx, stp)) = cfg.domains.get(sym) {
+                    let parse_num = |s: &str| s.trim().replace(',', ".").parse::<f64>().ok();
+                    if let (Some(a), Some(b)) = (parse_num(mn), parse_num(mx)) {
+                        let s_val = parse_num(stp).unwrap_or(1.0);
+                        dom_arr.push(json!({
+                            "symbol": sym,
+                            "unit": it["unit"].as_str().unwrap_or_default(),
+                            "description": it["description"].as_str().unwrap_or_default(),
+                            "min": a,
+                            "max": b,
+                            "step": s_val,
+                        }));
+                    }
+                }
+            }
+            let extra_list: Vec<String> = cfg.extra.split([',', ';']).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect();
+            let mut constraints = json!({
+                "positiveResults": cfg.positive,
+                "distinctFinalResults": cfg.distinct,
+                "extra": extra_list,
+            });
+            if let Ok(md) = cfg.max_decimals.trim().parse::<u8>() {
+                constraints["maxDecimals"] = json!(md.min(9));
+            }
+            let _ = app.run(
+                "exercise.generateVariants",
+                json!({
+                    "exercise": ex,
+                    "count": cfg.count,
+                    "domains": dom_arr,
+                    "constraints": constraints,
+                }),
+            );
+        }
+    });
 }
 
 /// The parts shown and the graph paper (`exercise.show`, `exercise.grid`): of this exercise, or

@@ -206,9 +206,10 @@ fn text_width(s: &Session, i: usize) -> f32 {
 /// Rebuild table `i` from `m` when it differs; whether it changed. Its control and its
 /// table-wide properties stay.
 fn put(s: &mut Session, i: usize, m: &Model) -> bool {
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let labels = numbering::current(s);
-    let label = |n: usize| labels.format.format(u32::try_from(n).unwrap_or(u32::MAX).saturating_add(labels.start));
+    let graded = super::stem_items::graded(s);
+    let label = |n: usize| labels.format.format(u32::try_from(graded.get(n).copied().unwrap_or(n)).unwrap_or(u32::MAX).saturating_add(labels.start));
     let w = doc_words(s);
     let width = text_width(s, i);
     let Some(Block::Table(old)) = s.doc.body.get(i).map(|b| &**b) else { return false };
@@ -234,6 +235,26 @@ pub(crate) fn update(s: &mut Session) -> bool {
     for i in tables(s) {
         let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { continue };
         let mut m = read(t);
+        let graded = super::stem_items::graded(s);
+        let old_rows: Vec<_> = t.rows.iter().skip(1).filter(|r| !is_total_row(r)).take(MAX_ROWS).collect();
+        // Removing or restoring a worked example must not move another exercise's
+        // manually assigned points onto a different row.
+        if graded.len() != old_rows.len() {
+            let numbering = numbering::current(s);
+            let old = m.points.clone();
+            m.points = graded
+                .iter()
+                .map(|&e| {
+                    let label = numbering.format.format(u32::try_from(e).unwrap_or(u32::MAX).saturating_add(numbering.start));
+                    old_rows
+                        .iter()
+                        .position(|row| row.cells.first().is_some_and(|c| cell_text(c) == label))
+                        .and_then(|r| old.get(r))
+                        .cloned()
+                        .unwrap_or_else(|| vec![None; m.criteria.len()])
+                })
+                .collect();
+        }
         quiz_points(s, &mut m);
         changed |= put(s, i, &m);
     }
@@ -251,12 +272,12 @@ fn quiz_points(s: &Session, m: &mut Model) {
     if m.criteria.is_empty() {
         return;
     }
-    for e in 0..layout.exercises.len().min(MAX_ROWS) {
+    for (r, e) in super::stem_items::graded(s).into_iter().take(MAX_ROWS).enumerate() {
         let Some(total) = super::items::total(s, &layout, e) else { continue };
-        if m.points.len() <= e {
-            m.points.resize(e + 1, vec![None; m.criteria.len()]);
+        if m.points.len() <= r {
+            m.points.resize(r + 1, vec![None; m.criteria.len()]);
         }
-        if let Some(c) = m.points.get_mut(e).and_then(|row| row.first_mut()) {
+        if let Some(c) = m.points.get_mut(r).and_then(|row| row.first_mut()) {
             *c = Some(total);
         }
     }
@@ -268,13 +289,34 @@ fn quiz_points(s: &Session, m: &mut Model) {
 pub(crate) fn grand_total(s: &Session) -> Option<f64> {
     let i = tables(s).into_iter().next()?;
     let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { return None };
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let all: Vec<f64> = read(t).points.iter().take(rows).flatten().flatten().copied().collect();
     if all.is_empty() {
         return None;
     }
     let sum: f64 = all.iter().sum();
     sum.is_finite().then_some(sum)
+}
+
+/// First scores table block index and each exercise row's total points (`None` if no criterion has points on that row).
+pub(super) fn row_points(s: &Session) -> Option<(usize, Vec<Option<f64>>)> {
+    let i = tables(s).into_iter().next()?;
+    let Block::Table(t) = s.doc.body.get(i).map(|b| &**b)? else { return None };
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
+    let m = read(t);
+    let per_ex: Vec<Option<f64>> = (0..rows)
+        .map(|r| {
+            let vals: Vec<f64> = m.points.get(r).into_iter().flatten().flatten().copied().collect();
+            (!vals.is_empty()).then(|| vals.iter().sum::<f64>()).filter(|v| v.is_finite())
+        })
+        .collect();
+    let mut by_exercise = vec![None; scan(s).exercises.len()];
+    for (e, pts) in super::stem_items::graded(s).into_iter().zip(per_ex) {
+        if let Some(slot) = by_exercise.get_mut(e) {
+            *slot = pts;
+        }
+    }
+    Some((i, by_exercise))
 }
 
 /// The document's language changed: every criterion `rename` gives a new name (a default one, in
@@ -310,7 +352,7 @@ fn state(s: &Session) -> Value {
     let Some(i) = target(s) else { return json!({"on": false}) };
     let Some(Block::Table(t)) = s.doc.body.get(i).map(|b| &**b) else { return json!({"on": false}) };
     let m = read(t);
-    let rows = scan(s).exercises.len().min(MAX_ROWS);
+    let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
     let points: Vec<Vec<Value>> =
         (0..rows).map(|r| (0..m.criteria.len()).map(|c| json!(m.points.get(r).and_then(|x| x.get(c)).copied().flatten())).collect()).collect();
     json!({"on": true, "criteria": m.criteria, "points": points, "exercises": rows})
@@ -404,7 +446,12 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
                     .ok_or_else(|| CmdError::Params("points: a number, or null".into()))?,
             ),
         };
-        let rows = scan(s).exercises.len().min(MAX_ROWS);
+        let ex = super::stem_items::graded(s)
+            .iter()
+            .position(|e| e.saturating_add(1) == ex)
+            .map(|r| r + 1)
+            .ok_or_else(|| CmdError::Params("exercise has no scores row".into()))?;
+        let rows = super::stem_items::graded(s).len().min(MAX_ROWS);
         if ex > rows {
             return Err(CmdError::Params(format!("exercise: the document has {rows}")));
         }

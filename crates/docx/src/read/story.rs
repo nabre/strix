@@ -32,6 +32,8 @@ const INK_REL: &str = "http://schemas.openxmlformats.org/officeDocument/2006/rel
 const CHARTEX_URI: &str = "http://schemas.microsoft.com/office/drawing/2014/chartex";
 /// The `a:graphicData` URI of a Strix CAD drawing (`strix:cad`, its JSON source).
 pub(crate) const CAD_URI: &str = "urn:io.github.nabre.strix:cad";
+/// The `a:graphicData` URI of a Strix plot (`strix:plot`, its JSON source).
+pub(crate) const PLOT_URI: &str = "urn:io.github.nabre.strix:plot";
 /// Largest CAD source read, in bytes.
 pub(super) const MAX_CAD: usize = 8 << 20;
 

@@ -20,12 +20,16 @@ fn shown(v: f64) -> String {
 }
 
 /// Question modes offered in the per-question dropdown (`exercise.questionMode`).
-const QUESTION_MODES: [(&str, &str); 5] = [
+const QUESTION_MODES: [(&str, &str); 9] = [
     ("open", "Open Answer"),
     ("choice", "Multiple Choice"),
     ("trueFalse", "True or False"),
     ("calc", "Calculation"),
     ("drawing", "CAD Drawing Question"),
+    ("worked", "Worked Example"),
+    ("cloze", "Inline Completion"),
+    ("tableFill", "Table to Complete"),
+    ("matching", "Matching"),
 ];
 
 /// The questions of quiz `ex` (1-based) with their settings; `st` is `exercise.questions`' reply.
@@ -69,6 +73,25 @@ pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value) {
                 }
             });
             ui.end_row();
+            if q_type == "matching" {
+                ui.label(tl!("Pairs (left = right)"));
+                let current = q["pairs"]
+                    .as_array()
+                    .map(|pairs| {
+                        pairs
+                            .iter()
+                            .map(|p| format!("{} = {}", p[0].as_str().unwrap_or_default(), p[1].as_str().unwrap_or_default()))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    })
+                    .unwrap_or_default();
+                if let Some(text) = draft_box(ui, ("exercise_matching", ex, k), &current, true, true) {
+                    let pairs: Vec<_> =
+                        text.lines().take(26).filter_map(|line| line.split_once('=').map(|(a, b)| json!([a.trim(), b.trim()]))).collect();
+                    set(app, k, json!({"pairs":pairs}));
+                }
+                ui.end_row();
+            }
             if q_type == "choice" {
                 ui.label(tl!("Correct"));
                 let correct: Vec<String> =
@@ -90,6 +113,40 @@ pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value) {
                     }
                 });
                 ui.end_row();
+                ui.label("");
+                let mut shuf = q["shuffleChoices"].as_bool().unwrap_or(false);
+                if ui
+                    .checkbox(&mut shuf, tl!("Shuffle options per variant"))
+                    .on_hover_text(tl!("Keep variant A in canonical order and deterministically permute options in variants B, C…"))
+                    .changed()
+                {
+                    set(app, k, json!({"shuffleChoices": shuf}));
+                }
+                ui.end_row();
+                if n > 0 {
+                    ui.label(tl!("Rationales"));
+                    egui::CollapsingHeader::new(tl!("Teacher notes per option")).id_salt(("quiz_rationales", ex, k)).default_open(false).show(
+                        ui,
+                        |ui| {
+                            let rats: Vec<Option<String>> =
+                                q["rationales"].as_array().map(|a| a.iter().map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
+                            for j in 0..n.min(26) {
+                                let letter = char::from(b'A' + j as u8).to_string();
+                                let cur_rat = rats.get(j).and_then(Option::as_deref).unwrap_or_default().to_string();
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new(format!("{letter}:")).monospace());
+                                    if let Some(t) = draft_box(ui, ("quiz_rat_box", ex, k, j), &cur_rat, true, false) {
+                                        let mut next_rats: Vec<Value> =
+                                            (0..n).map(|idx| rats.get(idx).and_then(Option::as_deref).map_or(Value::Null, |s| json!(s))).collect();
+                                        next_rats[j] = if t.trim().is_empty() { Value::Null } else { json!(t.trim()) };
+                                        set(app, k, json!({"rationales": next_rats}));
+                                    }
+                                });
+                            }
+                        },
+                    );
+                    ui.end_row();
+                }
             } else {
                 if q_type == "calc" {
                     ui.label(tl!("Result"));
@@ -117,6 +174,16 @@ pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value) {
                         {
                             let _ = app.run("caret.set", json!({"pos": pos}));
                             app.canvas.want_focus = true;
+                        }
+                    });
+                    ui.end_row();
+                    ui.label(tl!("Tolerance"));
+                    let cur_tol = q["tolerance"].as_str().unwrap_or_default().to_string();
+                    ui.scope(|ui| {
+                        ui.set_width(90.0);
+                        if let Some(t) = draft_box(ui, ("exercise_quiz_tol", ex, k), &cur_tol, true, false) {
+                            let val = if t.trim().is_empty() { Value::Null } else { json!(t.trim()) };
+                            set(app, k, json!({"tolerance": val}));
                         }
                     });
                     ui.end_row();

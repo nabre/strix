@@ -291,6 +291,15 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
   does not is refused. A smaller maximum size the picked scale no longer meets goes back to the
   fitted one. Without a maximum size every standard scale is offered. Old drawings with a `fit`
   read as fitted.
+- **Completion drawings (`answer` on layers and entities, `F6`)**: any layer (`layer.answer: true`,
+  the **Answer** column in the Layer Manager) or individual entity (`entity.answer: true`,
+  **Solution only** in Properties) can be marked as belonging to the solution. Bounds and `Fit`
+  scales are always computed over the **entire** drawing (`Drawing::render_for(ws, screen,
+  show_answers)`), while hiding an exercise's solution (`exercise.show {"solution": false}`) omits
+  `answer` primitives and keeps the exact same frame `(width, height)`, origin and scale — leaving
+  students the calibrated base geometry to complete by hand without shifting pagination. In the CAD
+  editor, **Student Preview** (`Layers › Student Preview`, `ui.cadToggle {"what": "student"}`)
+  previews the student sheet live.
 - **Commands**: `cad.scale` (`{"scale": n}` or `{"fit": true | false | {"width", "height"}}`),
   `cad.padding`, `insert.cad`, `cad.get` (source and failing expressions of the selected
   drawing), `cad.set` (replace its source), `cad.add` (add an entity; returns its id).
@@ -598,6 +607,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
 - 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
 - 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.
 

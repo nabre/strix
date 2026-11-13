@@ -402,11 +402,7 @@ fn sub_coeff(a: Option<Coeff>, b: Option<Coeff>) -> Result<Option<Coeff>, CalcEr
 }
 
 fn poly_sub(a: &Poly, b: &Poly) -> Result<Poly, CalcError> {
-    Ok(Poly([
-        sub_coeff(a.0[0].clone(), b.0[0].clone())?,
-        sub_coeff(a.0[1].clone(), b.0[1].clone())?,
-        sub_coeff(a.0[2].clone(), b.0[2].clone())?,
-    ]))
+    Ok(Poly([sub_coeff(a.0[0].clone(), b.0[0].clone())?, sub_coeff(a.0[1].clone(), b.0[1].clone())?, sub_coeff(a.0[2].clone(), b.0[2].clone())?]))
 }
 
 fn poly_mul(a: &Poly, b: &Poly) -> Result<Option<Poly>, CalcError> {
@@ -505,13 +501,7 @@ fn poly_coeffs(expr: &Expr, x: &str, scope: &Scope, depth: usize) -> Result<Opti
     }
 }
 
-fn solve_poly(
-    lhs: &Expr,
-    rhs: &Expr,
-    x: &str,
-    scope: &Scope,
-    extra: &[DomainConstraint],
-) -> Option<Result<(Value, SymbolicKind), CalcError>> {
+fn solve_poly(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[DomainConstraint]) -> Option<Result<(Value, SymbolicKind), CalcError>> {
     let pl = match poly_coeffs(lhs, x, scope, 0) {
         Ok(Some(p)) => p,
         Ok(None) => return None,
@@ -542,13 +532,7 @@ fn solve_poly(
     Some(solve_quadratic_poly(p, x, scope, extra))
 }
 
-fn solve_linear_poly(
-    pl: &Poly,
-    pr: &Poly,
-    x: &str,
-    scope: &Scope,
-    extra: &[DomainConstraint],
-) -> Result<(Value, SymbolicKind), CalcError> {
+fn solve_linear_poly(pl: &Poly, pr: &Poly, x: &str, scope: &Scope, extra: &[DomainConstraint]) -> Result<(Value, SymbolicKind), CalcError> {
     let b_net = sub_coeff(pl.0[1].clone(), pr.0[1].clone())?;
     let c_rhs = sub_coeff(pr.0[0].clone(), pl.0[0].clone())?;
     let Some(b) = b_net.filter(|b| b.qty.value != 0.0) else {
@@ -576,12 +560,7 @@ fn solve_linear_poly(
     Ok((val, SymbolicKind::Isolated(form, steps)))
 }
 
-fn solve_quadratic_poly(
-    p: Poly,
-    x: &str,
-    scope: &Scope,
-    extra: &[DomainConstraint],
-) -> Result<(Value, SymbolicKind), CalcError> {
+fn solve_quadratic_poly(p: Poly, x: &str, scope: &Scope, extra: &[DomainConstraint]) -> Result<(Value, SymbolicKind), CalcError> {
     let [c_opt, b_opt, Some(a)] = p.0 else {
         return Err(CalcError::NoSolution(x.to_string()));
     };
@@ -616,12 +595,7 @@ fn solve_quadratic_poly(
         vec![Quantity::new(r1, dx), Quantity::new(r2, dx)]
     };
     let standard_lhs = build_standard_quadratic_lhs(x, &a.expr, b_opt.as_ref().map(|b| &b.expr), c_opt.as_ref().map(|c| &c.expr));
-    let plan = QuadraticPlan {
-        standard_lhs,
-        a: a.expr,
-        b: b_opt.map_or(Expr::Num(0.0), |b| b.expr),
-        c: c_opt.map_or(Expr::Num(0.0), |c| c.expr),
-    };
+    let plan = QuadraticPlan { standard_lhs, a: a.expr, b: b_opt.map_or(Expr::Num(0.0), |b| b.expr), c: c_opt.map_or(Expr::Num(0.0), |c| c.expr) };
     let value = pack_roots(roots, x, scope, extra)?;
     Ok((value, SymbolicKind::Quadratic(plan)))
 }
@@ -656,9 +630,8 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
         result
     };
     let eval_dim = |e: &Expr| -> Option<Dim> { ctx_eval(e, None).ok().map(|v| v.dim()) };
-    let eval_plain = |e: &Expr| -> Option<f64> {
-        ctx_eval(e, None).ok().and_then(|v| v.scalar()).filter(|q| q.dim.is_dimensionless()).map(|q| q.value)
-    };
+    let eval_plain =
+        |e: &Expr| -> Option<f64> { ctx_eval(e, None).ok().and_then(|v| v.scalar()).filter(|q| q.dim.is_dimensionless()).map(|q| q.value) };
     let mut dims = infer_unknown_dims(lhs, rhs, x, &eval_dim, &eval_plain);
     dims.push(Dim::NONE);
     for name in known.iter().filter(|n| *n != x) {
@@ -810,11 +783,7 @@ fn infer_unknown_dims(
                     && let (Some(t), Some(p)) = (target, eval_plain(exp))
                     && p != 0.0
                 {
-                    let tb = if p.fract() == 0.0 && p.abs() <= 127.0 {
-                        t.try_root(p as i64).ok()
-                    } else {
-                        t.try_pow(1.0 / p).ok()
-                    };
+                    let tb = if p.fract() == 0.0 && p.abs() <= 127.0 { t.try_root(p as i64).ok() } else { t.try_pow(1.0 / p).ok() };
                     if let Some(tb) = tb {
                         walk(base, Some(tb), x, eval_dim, eval_plain, out, push, depth + 1);
                         return;

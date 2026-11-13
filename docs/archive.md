@@ -68,3 +68,25 @@ document's is the whole test's. Saving a master writes no property of its into t
 - Teaching › Archive in the ribbon: a pane to fill the properties in.
 - Search a folder (`archive.scan`, `archive.query`): read only the properties part of each file,
   filter by them and by text, insert the chosen files into a master document.
+
+## Exercise bank (Phase 5)
+
+Teaching › Archive › Exercise Bank opens archive properties and a searchable
+bank in one pane. Topics / Tags uses the standard Word Keywords property;
+subject, grade, profession, section, duration and teacher remain editable, while
+score remains calculated.
+
+`archive.scan {"path":"folder","query":"...","tags":"..."}` reads only
+`docProps/core.xml` and `docProps/custom.xml` from `.docx` ZIPs, without opening
+body XML, pictures or fonts. Property names are recognised in the four exercise
+languages. A scan examines at most 1000 directory entries, each XML property
+part at most 256 KiB; errors are reported per file. The pane filters results
+locally and offers Insert Copy and, on desktop files, Link Subdocument.
+
+Import Exercise Bundle loads a ZIP on desktop or web (dropping a ZIP also
+works). `archive.importBundle {"data":"base64 ZIP"}` returns metadata and
+base64 data for each matching `.docx`; `archive.insertCopy {"path":"name.docx",
+"data":"..."}` inserts one without linking it. Nothing is extracted to disk.
+The bundle and cumulative expanded input are capped at 64 MiB, each document at
+32 MiB, with at most 1000 entries inspected. Entries that cannot be indexed
+produce diagnostics without discarding the others.

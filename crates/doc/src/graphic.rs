@@ -39,8 +39,11 @@ pub struct Graphic {
     /// A CAD drawing's source (the `strix-cad` JSON); the items are rendered from it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cad: Option<std::sync::Arc<str>>,
-    /// A CAD drawing's picture as SVG (what the items show), saved with the source so other
-    /// programs show the drawing too. Rebuilt with the items.
+    /// A Strix plot's source (the `strix-plot` JSON); the items are rendered from it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plot: Option<std::sync::Arc<str>>,
+    /// A CAD drawing's or plot's picture as SVG (what the items show), saved with the source so
+    /// other programs show it too. Rebuilt with the items.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub svg: Option<std::sync::Arc<str>>,
 }
@@ -93,6 +96,9 @@ pub enum GraphicKind {
     /// A Strix CAD drawing (docs/cad.md): [`Graphic::cad`] holds its source, the items are drawn
     /// from it by the engine.
     Cad,
+    /// A Strix mathematical/experimental plot: [`Graphic::plot`] holds its source, the items are
+    /// drawn from it by the engine.
+    Plot,
 }
 
 impl GraphicKind {
@@ -103,6 +109,7 @@ impl GraphicKind {
             GraphicKind::Diagram => "diagram",
             GraphicKind::Ink => "ink",
             GraphicKind::Cad => "drawing",
+            GraphicKind::Plot => "plot",
         }
     }
 }

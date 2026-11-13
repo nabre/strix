@@ -141,6 +141,13 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("view.variablesPane", "Variables Pane", "Math › Calculation", |s, v| toggle(s, v, |x| &mut x.variables_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),
+        CommandSpec::new("view.archivePane", "Exercise Bank", "Teaching › Archive", |s, v| toggle(s, v, |x| &mut x.archive_pane)).pure(),
+        CommandSpec::new("view.checkPane", "Pre-flight Check Pane", "Teaching › Check", |s, v| toggle(s, v, |x| &mut x.check_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
+        CommandSpec::new("view.plotPane", "Plot Properties", "Math › Graphics", |s, v| toggle(s, v, |x| &mut x.plot_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.altTextPane", "Alt Text Pane", "Review › Accessibility", |s, v| toggle(s, v, |x| &mut x.alt_text_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),

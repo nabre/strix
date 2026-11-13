@@ -54,12 +54,14 @@ impl Session {
     /// control channel). Mutating commands are undoable; a failed command leaves the document as
     /// it was; a panic inside a command becomes an error.
     pub fn run(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {
+        let clean_subdocuments = crate::cmd::master::clean_before_view(self, id);
         self.run_depth = self.run_depth.saturating_add(1);
         let result = self.run_command(id, params);
         self.run_depth = self.run_depth.saturating_sub(1);
         // A top-level command that changed what the calculations read recalculates them.
         if self.run_depth == 0 && result.is_ok() {
             crate::cmd::calc::auto_recalculate(self);
+            crate::cmd::master::keep_clean_after_view(self, &clean_subdocuments);
         }
         // Whatever put the caret in an equation (a click, an arrow key), a calculation's
         // solution steps never take it.

@@ -43,6 +43,7 @@ pub mod page;
 pub mod para;
 pub mod paste;
 pub mod phonetic;
+pub mod plot;
 pub mod protect;
 pub mod references;
 pub mod review;
@@ -90,6 +91,7 @@ pub fn registry() -> Registry {
     v.extend(calc::specs());
     v.extend(external_edits::specs());
     v.extend(cad::specs());
+    v.extend(plot::specs());
     v.extend(exercise::specs());
     v.extend(dictionaries::specs());
     v.extend(graph::specs());

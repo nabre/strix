@@ -125,7 +125,12 @@ fn shown(t: Option<&str>) -> Value {
     }
 }
 
-fn state(s: &Session) -> Value {
+/// The document's archive duration in minutes, if set.
+pub(super) fn duration_minutes(s: &Session) -> Option<u32> {
+    get(s, Field::Duration)?.trim().parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 1.0 && *v <= 600.0).map(|v| v.round() as u32)
+}
+
+pub(super) fn state(s: &Session) -> Value {
     let w = doc_words(s);
     let text = |t: &str| if t.is_empty() { Value::Null } else { json!(t) };
     json!({
@@ -134,6 +139,7 @@ fn state(s: &Session) -> Value {
         "profession": shown(get(s, Field::Profession)),
         "subject": text(&s.doc.core.subject),
         "teacher": text(&s.doc.core.creator),
+        "tags": text(&s.doc.core.keywords),
         "duration": shown(get(s, Field::Duration)),
         "score": shown(get(s, Field::Score)),
         "names": {
@@ -181,7 +187,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Params("`score` is computed: it is the scores table's total (Teaching › Scores)".into()));
     }
     if let Some(m) = v.as_object()
-        && let Some(k) = m.keys().find(|k| !matches!(k.as_str(), "grade" | "section" | "profession" | "subject" | "teacher" | "duration"))
+        && let Some(k) = m.keys().find(|k| !matches!(k.as_str(), "grade" | "section" | "profession" | "subject" | "teacher" | "duration" | "tags"))
     {
         return Err(CmdError::Params(format!("unknown property `{k}`")));
     }
@@ -192,6 +198,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let profession = text(v, "profession", MAX_SHORT)?;
     let subject = text(v, "subject", MAX_LONG)?;
     let teacher = text(v, "teacher", MAX_LONG)?;
+    let tags = text(v, "tags", MAX_LONG)?;
     let mut changed = false;
     for (f, n) in [(Field::Grade, grade), (Field::Duration, duration)] {
         if let Some(n) = n {
@@ -204,7 +211,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
             changed |= put(s, f, t.as_deref().map(|t| ("lpwstr", t)));
         }
     }
-    for (dst, t) in [(&mut s.doc.core.subject, subject), (&mut s.doc.core.creator, teacher)] {
+    for (dst, t) in [(&mut s.doc.core.subject, subject), (&mut s.doc.core.creator, teacher), (&mut s.doc.core.keywords, tags)] {
         if let Some(t) = t {
             let t = t.unwrap_or_default();
             if *dst != t {

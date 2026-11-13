@@ -315,6 +315,9 @@ pub enum VMerge {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CellProps {
+    /// Calculated cell left blank in the student copy; its value remains live.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub student_blank: bool,
     /// Preferred width, points.
     pub width: Option<f32>,
     /// Preferred width as a percentage of the table's (`w:tcW w:type="pct"`).

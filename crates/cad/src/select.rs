@@ -390,6 +390,15 @@ impl Drawing {
         }
     }
 
+    /// Marks or clears `answer` (solution-only) on the entities at `indices`.
+    pub fn set_answer(&mut self, indices: &[usize], answer: bool) {
+        for &i in indices {
+            if let Some(e) = self.entities.get_mut(i) {
+                e.answer = answer;
+            }
+        }
+    }
+
     /// The layer `name`, added with layer 0's stroke if missing.
     pub fn ensure_layer(&mut self, name: &str) -> Result<(), String> {
         let name = name.trim();

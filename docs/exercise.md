@@ -348,13 +348,18 @@ to the end.
 
 ## Next
 
-- A **grading grid** (Teaching › Scores): from the scores table's points to a mark, with
-  thresholds or a linear scale, the school's range (1–10, 1–6, 0–20…) and rounding; the mark per
-  student when the given points are typed in. It is the last step of the teaching pitch
-  (docs/brand/MARKETING.md), so it is written "planned" until it lands.
 - A results table per exercise (question, symbol, value, unit) and a check against expected
   values; a summary per variant; statement data recalled into the solution as values.
 - Solution steps (substitution, isolation lines) per result.
+
+## Grading scale (`strix:grading`), variant generator, pre-flight check & assessment pack
+
+- **Grading Scale** (`Teaching › Scores › Grading Scale`, `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, rounding step (`0.1`, `0.25`, `0.5`, `1.0`), and `visibility` (`"teacher"` or `"both"`).
+- **Continuous validation across all variants** (`exercise.data` `"variantErrors"`): evaluates every variant `A..Z` in memory (sandbox calculations, CAD `Drawing::resolve` and degenerate geometry, and duplicate evaluated multiple-choice options) without mutating the document, showing `⚠` badges and tooltips on variant buttons in Exercise Properties.
+- **Controlled variant generator** (`exercise.generateVariants`, Exercise Properties › *Generate Variants…*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
+- **Inline parametric expressions** (`exercise.insertExpr`, `strix:expr`, `{{expr}}` / `{{expr -> unit}}`): evaluated live in the exercise's sandbox (in statements, questions, and multiple-choice options) with units styled in `Unit`.
+- **Assessment pre-flight check** (`Teaching › Assessment › Check`, `view.checkPane`, `exercise.check`): pure diagnostic command inspecting all variants `A..Z`, choice keys and option collisions, linked subdocuments, unused initial data, missing solutions, score totals, laid-out answer heights, durations, and variant page counts, with click-to-jump positions.
+- **Assessment Pack batch export** (`Teaching › Assessment › Export Pack`, `file.exportPack`): exports in one step (folder or `.zip` on desktop, `.zip` download on `strix-web`) the Student PDF per variant (`Show = false`), the DSA Student PDF per variant (`design.dsa` active), and the Teacher Key PDF (`Show = true`, worked solutions, grading scale, and final **Multi-Variant Synoptic Table**).
 
 ## Templates
 
@@ -375,6 +380,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-13: Phase 3 — Grading Scale (`exercise.grading`, `strix:grading`), continuous validation across all variants (`variantErrors`), controlled variant generator (`exercise.generateVariants`), inline parametric expressions (`exercise.insertExpr`, `strix:expr`), pre-flight Assessment Check (`exercise.check`, `view.checkPane`), and Assessment Pack batch export (`file.exportPack`).
 - 2026-11-13: quizzes expose Variants & Data in Exercise Properties and insert/hide `strix:exercise.data` (`showData` toggle); `exercise.questionMode` converts quiz modes in place; `exercise.questionPoints` sets points on problem questions too, feeding the scores table's first criterion; a 1×1 scores table keeps its Total row.
 - 2026-11-13: "Sample test" template (`file.new {"template": "test"}`), second in the File › New gallery, and the document `--sample` and `?sample` open.
 - 2026-11-12: question modes: each quiz question has its mode (`"type"`), calculation and CAD drawing questions; a quiz's data part follows its title when it has no statement ([question-modes.md](question-modes.md)).

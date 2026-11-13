@@ -16,6 +16,7 @@ repository = "https://github.com/nabre/strix"
 wordcraft-geom = { path = "crates/geom" }
 strix-calc = { path = "crates/calc" }
 strix-cad = { path = "crates/cad" }
+strix-plot = { path = "crates/plot" }
 wordcraft-doc = { path = "crates/doc" }
 wordcraft-fonts = { path = "crates/fonts" }
 wordcraft-layout = { path = "crates/layout" }

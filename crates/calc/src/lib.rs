@@ -38,7 +38,9 @@ mod parser;
 mod quantity;
 mod solve;
 mod table;
+mod uncertainty;
 mod units;
+pub use uncertainty::UncertaintyMode;
 mod worksheet;
 
 #[cfg(test)]

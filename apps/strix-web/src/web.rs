@@ -267,6 +267,8 @@ fn services(inbox: Inbox, ctx: egui::Context, dirty: Rc<Cell<bool>>, saves: Asyn
             let ctx = ctx.clone();
             let dialog = if purpose == "picture" {
                 rfd::AsyncFileDialog::new().add_filter("Pictures", IMAGE_EXTS)
+            } else if purpose == "archive" {
+                rfd::AsyncFileDialog::new().add_filter("Exercise bundles", &["zip"])
             } else if purpose == "font" {
                 rfd::AsyncFileDialog::new().add_filter("Fonts", wordcraft_fonts::FONT_FILE_EXTS)
             } else if purpose == "recipients" {

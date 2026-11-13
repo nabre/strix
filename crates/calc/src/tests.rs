@@ -489,6 +489,12 @@ fn hostile_input_never_panics() {
         "y :=",
         "= kN*m",
         "= 1.2·10^9 m",
+        "±",
+        "+-",
+        "unc(",
+        "relunc(",
+        "measure(",
+        "2% cm",
     ];
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     for round in 0..4000 {
@@ -499,6 +505,7 @@ fn hostile_input_never_panics() {
             count: [Count::Auto, Count::Decimals, Count::Significant][round % 3],
             steps: round % 2 == 1,
             layout: if round % 4 < 2 { Layout::Inline } else { Layout::Lines },
+            uncertainty: crate::UncertaintyMode::Max,
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -1606,7 +1613,7 @@ fn rounding_a_huge_number_keeps_it() {
 }
 
 #[test]
-fn m4_extended_si_prefixes_and_units() {
+fn m4_extended_si_prefixes_and_electromagnetism() {
     // Anti-collision: T is Tesla, THz/TW are tera-; d is day, dm/dL/dB are deci-; pF is picofarad; Pa is pascal.
     assert_eq!(last(&["B := 2 T", "Φ := B * 0.5 m² = Wb"]), "Φ := B * 0.5 m² = 1 Wb");
     assert_eq!(last(&["1 THz = GHz"]), "1 THz = 1000 GHz");
@@ -1622,16 +1629,17 @@ fn m4_extended_si_prefixes_and_units() {
     assert_eq!(last(&["C := 10 µF", "U := 5 V", "Q := C * U = µC"]), "Q := C * U = 50 µC");
     assert_eq!(last(&["L_ind := 20 mH", "dI := 2 A", "dt := 10 ms", "U_L := L_ind * dI / dt = V"]), "U_L := L_ind * dI / dt = 4 V");
     assert_eq!(last(&["G := 1 / 50 Ω = mS"]), "G := 1 / 50 Ω = 20 mS");
-    // Photometry
     assert_eq!(last(&["Φ_v := 600 lm", "A := 2 m²", "E_v := Φ_v / A = lx"]), "E_v := Φ_v / A = 300 lx");
-    // Chemistry & Physics
+}
+
+#[test]
+fn m4_chemistry_topography_and_mechanics_units() {
     assert_eq!(last(&["1 atm = Pa"]), "1 atm = 101325 Pa");
     assert_eq!(last(&["760 torr = atm"]), "760 torr = 1 atm");
     assert_eq!(last(&["760 mmHg = atm"]), "760 mmHg = 1 atm");
     assert_eq!(last(&["1 kcal = J"]), "1 kcal = 4184 J");
     assert_eq!(last(&["1 keV = eV"]), "1 keV = 1000 eV");
     assert_eq!(last(&["m_C := 12 u", "m_O := 16 Da", "m_CO := m_C + m_O = Da"]), "m_CO := m_C + m_O = 28 Da");
-    // Topography, Agraria & Mechanics
     assert_eq!(last(&["1 ha = m²"]), "1 ha = 10000 m²");
     assert_eq!(last(&["1 ha = are"]), "1 ha = 100 are");
     assert_eq!(last(&["100 gon = °"]), "100 gon = 90°");
@@ -1646,15 +1654,13 @@ fn m4_extended_si_prefixes_and_units() {
 }
 
 #[test]
-fn m5_stem_functions_lab_statistics_and_unicode_superscripts() {
-    // Unicode superscripts (including multi-digit, zero, + and - signs)
+fn m5_stem_functions_and_unicode_superscripts() {
     assert_eq!(last(&["2¹⁰ ="]), "2¹⁰ = 1024");
     assert_eq!(last(&["5⁰ ="]), "5⁰ = 1");
     assert_eq!(last(&["10⁺³ ="]), "10⁺³ = 1000");
     assert_eq!(last(&["10⁻² ="]), "10⁻² = 0.01");
     assert_eq!(last(&["v := 10 m·s⁻¹ = m/s"]), "v := 10 m·s⁻¹ = 10 m/s");
     assert_eq!(last(&["g_0 := 9.81 m·s⁻² = m/s²"]), "g_0 := 9.81 m·s⁻² = 9.81 m/s²");
-    // Algebraic, roots, logs, atan2, hyperbolic, sign, mod
     assert_eq!(last(&["cbrt(-27 m³) = m"]), "cbrt(-27 m³) = -3 m");
     assert_eq!(last(&["root(16 m⁴; 4) = m"]), "root(16 m⁴; 4) = 2 m");
     assert_eq!(last(&["root(-32 m⁵; 5) = m"]), "root(-32 m⁵; 5) = -2 m");
@@ -1668,7 +1674,10 @@ fn m5_stem_functions_lab_statistics_and_unicode_superscripts() {
     assert_eq!(last(&["sign(-15 kN) ="]), "sign(-15 kN) = -1");
     assert_eq!(last(&["mod(17 m; 5 m) = m"]), "mod(17 m; 5 m) = 2 m");
     assert_eq!(last(&["mod(-3; 5) ="]), "mod(-3; 5) = 2");
-    // Combinatorics & integer arithmetic
+}
+
+#[test]
+fn m5_combinatorics_and_lab_statistics() {
     assert_eq!(last(&["gcd(48; 18; 30) ="]), "gcd(48; 18; 30) = 6");
     assert_eq!(last(&["mcd(48; 18) ="]), "mcd(48; 18) = 6");
     assert_eq!(last(&["lcm(12; 18) ="]), "lcm(12; 18) = 36");
@@ -1676,29 +1685,17 @@ fn m5_stem_functions_lab_statistics_and_unicode_superscripts() {
     assert_eq!(last(&["5! ="]), "5! = 120");
     assert_eq!(last(&["fact(6) ="]), "fact(6) = 720");
     assert_eq!(last(&["binom(10; 3) ="]), "binom(10; 3) = 120");
-    // binom up to n = 1000 without intermediate overflow
     let b1000 = run(&["c := binom(1000; 500)"]).pop().unwrap();
     assert_eq!(b1000.error, None);
     assert!(b1000.value.unwrap().scalar().unwrap().value > 2.7e299);
-    // Lab statistics & linear regression
     assert_eq!(last(&["median([10; 2; 30; 4] cm) = cm"]), "median([10; 2; 30; 4] cm) = 7 cm");
     assert_eq!(last(&["var([2; 4; 4; 4; 5; 5; 7; 9] m) = m²"]), "var([2; 4; 4; 4; 5; 5; 7; 9] m) = 4.571 m²");
     assert_eq!(last(&["varp([2; 4; 4; 4; 5; 5; 7; 9] m) = m²"]), "varp([2; 4; 4; 4; 5; 5; 7; 9] m) = 4 m²");
     assert_eq!(last(&["stdevp([2; 4; 4; 4; 5; 5; 7; 9] m) = m"]), "stdevp([2; 4; 4; 4; 5; 5; 7; 9] m) = 2 m");
     assert_eq!(last(&["std([1; 3] s) = s"]), "std([1; 3] s) = 1.414 s");
-    // Linear motion lab table: s = 2 m + (3 m/s)*t
-    assert_eq!(
-        last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "v := slope(T; S) = m/s"]),
-        "v := slope(T; S) = 3 m/s"
-    );
-    assert_eq!(
-        last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "s_0 := intercept(T; S) = m"]),
-        "s_0 := intercept(T; S) = 2 m"
-    );
-    assert_eq!(
-        last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "r2(T; S) ="]),
-        "r2(T; S) = 1"
-    );
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "v := slope(T; S) = m/s"]), "v := slope(T; S) = 3 m/s");
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "s_0 := intercept(T; S) = m"]), "s_0 := intercept(T; S) = 2 m");
+    assert_eq!(last(&["T := [0; 1; 2; 3] s", "S := [2; 5; 8; 11] m", "r2(T; S) ="]), "r2(T; S) = 1");
 }
 
 #[test]
@@ -1709,18 +1706,9 @@ fn m6_symbolic_polynomial_solver_abs_and_dim_inference() {
     assert!(!lin_steps.is_empty() && lin_steps.last().unwrap() == "x = 4", "{lin_steps:?}");
 
     // Degree 2 kinematics: s = v_0 * t + 1/2 * a * t^2 with and without physical constraint `t > 0`
-    assert_eq!(
-        last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2"]),
-        "s = v_0*t + 1/2*a*t^2 ⇒ t = [-3; 2] s"
-    );
-    assert_eq!(
-        last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "t > 0", "s = v_0*t + 1/2*a*t^2"]),
-        "s = v_0*t + 1/2*a*t^2 ⇒ t = 2 s"
-    );
-    assert_eq!(
-        last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2; t > 0"]),
-        "s = v_0*t + 1/2*a*t^2; t > 0 ⇒ t = 2 s"
-    );
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2"]), "s = v_0*t + 1/2*a*t^2 ⇒ t = [-3; 2] s");
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "t > 0", "s = v_0*t + 1/2*a*t^2"]), "s = v_0*t + 1/2*a*t^2 ⇒ t = 2 s");
+    assert_eq!(last(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "s = v_0*t + 1/2*a*t^2; t > 0"]), "s = v_0*t + 1/2*a*t^2; t > 0 ⇒ t = 2 s");
     let quad_steps = steps(&["s = 12 m", "v_0 = 2 m/s", "a = 4 m/s^2", "t > 0", "s = v_0*t + 1/2*a*t^2"]).unwrap();
     assert!(quad_steps.iter().any(|l| l.contains('±') && l.contains('√')), "{quad_steps:?}");
     assert_eq!(quad_steps.last().map(String::as_str), Some("t = 2 s"));
@@ -1735,12 +1723,6 @@ fn m6_symbolic_polynomial_solver_abs_and_dim_inference() {
     assert!(matches!(last_error(&["abs(x - 3) = -1"]), CalcError::NoSolution(_)));
 
     // Numeric fallback dimensional inference on generic powers x^k (`I = b*h^4/12 + ...`) and inverse dims
-    assert_eq!(
-        last(&["J = 32 m^5", "b = 12 m", "J = b*h^4/12 + b*h^4/12"]),
-        "J = b*h^4/12 + b*h^4/12 ⇒ h = 2 m"
-    );
-    assert_eq!(
-        last(&["G_tot = 3 S", "R_1 = 0.5 Ω", "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2)"]),
-        "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2) ⇒ R_2 = 1 Ω"
-    );
+    assert_eq!(last(&["J = 32 m^5", "b = 12 m", "J = b*h^4/12 + b*h^4/12"]), "J = b*h^4/12 + b*h^4/12 ⇒ h = 2 m");
+    assert_eq!(last(&["G_tot = 3 S", "R_1 = 0.5 Ω", "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2)"]), "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2) ⇒ R_2 = 1 Ω");
 }

@@ -119,10 +119,9 @@ fn variable_card(app: &mut WordApp, ui: &mut Ui, scope_key: &str, var: &Value, s
     let compat: Vec<&str> = var["compatibleUnits"].as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
     pane_kit::card(ui, |ui| {
         ui.horizontal(|ui| {
-            let label = ui.add(
-                egui::Label::new(RichText::new(name).font(pane_kit::mono(12.5)).strong().color(t.accent_text)).truncate().sense(egui::Sense::click()),
-            );
-            if label.on_hover_text(tl!("Go to definition")).clicked()
+            let jump =
+                ui.add(egui::Button::new(RichText::new(name).font(pane_kit::mono(12.5)).strong().color(t.accent_text)).frame(false).truncate());
+            if jump.on_hover_text(tl!("Go to definition")).clicked()
                 && let Some(pos) = var.get("pos").filter(|p| p.is_object())
             {
                 let _ = app.run("select.range", json!({"anchor": pos, "focus": pos}));
@@ -130,9 +129,9 @@ fn variable_card(app: &mut WordApp, ui: &mut Ui, scope_key: &str, var: &Value, s
             }
             ui.label(RichText::new("=").font(pane_kit::mono(11.5)).color(t.text_dim));
             if compat.len() > 1 {
-                ui.label(RichText::new(conv_text).font(pane_kit::mono(12.0)).color(t.text));
+                let val_label = ui.label(RichText::new(conv_text).font(pane_kit::mono(12.0)).color(t.text));
                 let display_u = if selected_unit.is_empty() { "—" } else { selected_unit };
-                craft_ui::ComboBox::from_id_salt(("var_unit", &full_key)).selected_text(display_u).width(78.0).show_ui(ui, |ui| {
+                let combo = craft_ui::ComboBox::from_id_salt(("var_unit", &full_key)).selected_text(display_u).width(78.0).show_ui(ui, |ui| {
                     if state.units.contains_key(&full_key) && ui.selectable_label(false, tl!("Auto")).clicked() {
                         state.units.remove(&full_key);
                     }
@@ -147,6 +146,7 @@ fn variable_card(app: &mut WordApp, ui: &mut Ui, scope_key: &str, var: &Value, s
                         }
                     }
                 });
+                combo.response.labelled_by(val_label.id);
             } else {
                 let text = var["converted"].as_str().unwrap_or(shown);
                 ui.label(RichText::new(text).font(pane_kit::mono(12.0)).color(t.text));
@@ -173,7 +173,10 @@ mod tests {
         session.run("text.newParagraph", &json!({})).unwrap();
         session.run("exercise.insert", &json!({"title": "Beam", "questions": ["Moment"]})).unwrap();
         session
-            .run("exercise.setData", &json!({"exercise": 1, "data": {"items": [{"symbol": "q", "unit": "kN/m", "values": ["12"]}], "variants": ["A"], "active": 0}}))
+            .run(
+                "exercise.setData",
+                &json!({"exercise": 1, "data": {"items": [{"symbol": "q", "unit": "kN/m", "values": ["12"]}], "variants": ["A"], "active": 0}}),
+            )
             .unwrap();
         let app = WordApp::new(session, Services::default());
         let mut fonts = false;

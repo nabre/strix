@@ -6,7 +6,7 @@
 
 ## Vincoli architetturali trasversali (validi per ogni punto)
 
-* **Separazione dei layer (`L0–L6`):** logica matematica e grafica pura in `L1` (`strix-calc`, `strix-cad`, nuovo `strix-plot`), orchestrazione e comandi in `L4` (`wordcraft-engine`), interfaccia sottile in `L6` (`wordcraft-ui-egui`), verificata da `cargo xtask layers`.
+* **Separazione dei layer (`L0–L6`):** logica matematica e grafica pura in `L1` (`strix-calc`, `strix-cad`, `strix-plot`), orchestrazione e comandi in `L4` (`wordcraft-engine`), interfaccia sottile in `L6` (`wordcraft-ui-egui`), verificata da `cargo xtask layers`.
 * **Standard *Never Crash*:** nessun `unwrap()`, `expect()`, `panic!`, `todo!`, `unreachable!`, `unsafe`; aritmetica saturante/controllata, limiti superiori espliciti su ogni collezione e iterazione, copertura in `crates/engine/src/tests.rs::hostile_params_never_panic`.
 * **Tutto è un comando (`CommandSpec`):** ogni funzione è invocabile in modo identico da Ribbon, ricerca comandi, CLI (`strix-cli`), canale di controllo e server MCP, senza mai aprire finestre modali nelle chiamate programmatiche.
 * **Compatibilità `.docx` e `wasm32`:** round-trip trasparente con Microsoft Word tramite content control `strix:*`, `customXml/strixObjects.xml` e `docProps/custom.xml`; zero dipendenze incompatibili con `strix-web` (`cargo xtask wasm`).
@@ -15,111 +15,16 @@
 
 ---
 
-## 1. Miglioramenti alle funzionalità didattiche esistenti
+## Coda di lavoro attiva
 
-### [ ] `D4` — Validazione continua su *tutte* le varianti (`A..Z`)
-* **Problema attuale:** `data_info` (`crates/engine/src/cmd/exercise.rs`, righe 930–954) e il ricalcolo verificano solo la variante attiva (`e.data.active`), lasciando invisibili divisioni per zero, radici negative o disegni CAD degeneri nelle varianti inattive.
-* **Specifica:**
-  * Al cambio di firma o equazioni di un esercizio con più varianti, eseguire in memoria (senza toccare DOM o layout) la sandbox `strix-calc` e `Drawing::resolve` di `strix-cad` per tutte le varianti `0..N`.
-  * Esporre gli errori per variante in `exercise.data` (`"variantErrors": {"B": [...], "D": [...]}`) e mostrare un badge `⚠` sui pulsanti variante `[ B ⚠ ]` in `exercise_pane.rs` con tooltip esplicativo.
+*(Tutte le voci pianificate — Fasi 1, 2, 3, 4 e 5: `D1`–`D6`, `M1`–`M6`, `F1`–`F9` — sono state completate, coperte da test e registrate in [`ROADMAP.md`](ROADMAP.md).)*
 
-### [ ] `D5` — Potenziamento Accessibilità DSA (`design.dsa`)
-* **Problema attuale:** In `crates/engine/src/cmd/exercise/dsa.rs` (`docs/dsa.md`), i run con corsivo diretto non vengono toccati, le cifre non attivano l'allineamento tabulare OpenType (`tnum`) per la discalculia e i *Problemi* non offrono una traccia del risultato atteso nella modalità *Maths and memory*.
-* **Specifica:**
-  * Propagare la feature OpenType `tnum` (cifre a larghezza fissa) nello shaper `crates/fonts` quando `design.dsa` è attivo.
-  * Quando `dsa.italic == false`, rimuovere in modo reversibile anche il corsivo diretto nei `Run` di testo discorsivo (registrando gli intervalli in `customXml/strixObjects.xml` per il ripristino esatto), preservando il corsivo matematico ISO 80000-2 sulle variabili a singola lettera nelle equazioni.
-  * Con *Maths and memory* attivo e `Show = false`, generare sotto lo spazio risposta delle domande dei *Problemi* la traccia guidata `simbolo = ____________ unità` ricavata dall'equazione marcata `Result`.
-
-### [ ] `D6` — UI Archivio Didattico (`Teaching › Archive`) e isolamento Documenti Master
-* **Problema attuale:** `archive.properties` (`crates/engine/src/cmd/exercise/archive.rs`) non ha interfaccia nella scheda `Teaching` (`crates/ui-egui/src/ribbon/strix.rs`), manca la ricerca su cartella e nei Master Document (`docs/master-documents.md`) cambiare impostazioni di vista/serie sporca i sottodocumenti riscrivendoli su disco.
-* **Specifica:**
-  * Aggiungere in `Teaching` l'editor delle proprietà d'archivio (*Materia*, *Classe*, *Indirizzo*, *Sezione*, *Durata*, nuovo campo *Argomenti/Tag*, più *Punteggio* calcolato) e il pannello `Banca Esercizi`.
-  * Comando `archive.scan`: legge dai `.docx` di una cartella solo `docProps/core.xml` e `docProps/custom.xml` nello ZIP (senza parsare `word/document.xml`), filtrando istantaneamente nelle 4 lingue; azioni `Inserisci copia` e `Collega sottodocumento`. Su `strix-web` (WASM), supporto a `archive.importBundle` da archivio `.zip`.
-  * Nei Master Document, separare `content_dirty` dagli override di vista/serie del master (`Show`, `design.dsa`, intestazione serie) così da non riscrivere mai su disco i sottodocumenti non modificati nel contenuto.
-
----
-
-## 2. Miglioramenti al motore matematico (`strix-calc` e integrazione documento)
-
-### [ ] `M4` — Estensione catalogo unità di misura e prefissi SI (`crates/calc/src/units.rs`)
-* **Prefissi SI completi:** aggiungere `P` ($10^{15}$), `T` ($10^{12}$), `da` ($10^1$), `d` ($10^{-1}$), `p` ($10^{-12}$), `f` ($10^{-15}$).
-  * *Regola anti-collisione:* match esatto su `UNITS` **prima** della decomposizione `prefisso + unità`, così `T` è Tesla mentre `THz`/`TW` sono tera-, `d` è giorno mentre `dm`/`dL`/`dB` sono deci-, e `pF` è picofarad senza collidere con `Pa`.
-* **Nuove unità da aggiungere:**
-  * *Elettromagnetismo:* `F` (farad), `H` (henry), `T` (tesla), `Wb` (weber), `S` (siemens);
-  * *Fotometria:* `lm` (lumen), `lx` (lux) sulla dimensione base `cd` già presente;
-  * *Chimica e Fisica:* `atm`, `torr`, `mmHg`, `eV`, `cal` (`kcal`), `Da` / `u` (massa atomica);
-  * *Topografia, Agraria e Meccanica:* `ha` (ettaro), `are` ($100\text{ m}^2$), `gon`/`grad` ($\pi/200\text{ rad}$), `arcmin`, `arcsec`, `d`/`day`, `yr`, `rpm` ($2\pi/60\text{ s}^{-1}$), `kn` (nodo).
-
-### [ ] `M5` — Libreria di funzioni STEM, statistica di laboratorio ed esponenti Unicode
-* **Nuove funzioni in `crates/calc/src/parser.rs` ed `eval.rs`:**
-  * *Algebriche/Trigonometriche:* `cbrt(x)`, `root(x; n)` (con divisione esatta degli esponenti `Dim`), `log2(x)`, `log(x; base)`, `atan2(y; x)` (richiede `Dim(y) == Dim(x)`), `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `floor`, `ceil`, `trunc`, `sign`, `mod(a; b)`.
-  * *Combinatoria e Aritmetica intera:* `gcd`/`mcd`, `lcm`/`mcm`, `fact(n)` + operatore postfisso `n!`, `binom(n; k)` (senza overflow intermedio fino a $n = 1000$).
-  * *Statistica e Regressione lineare per tabelle di laboratorio:* `median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope(X; Y)` (dimensione $D_Y / D_X$), `intercept(X; Y)` (dimensione $D_Y$), `r2(X; Y)`.
-* **Lexer Unicode (`crates/calc/src/lexer.rs`, righe 140–143):** leggere sequenze complete di apici Unicode `⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹` come `Tok::Sup(i32)` invece dei soli `¹²³`.
-
-### [ ] `M6` — Risolutore simbolico di 1°/2° grado, `abs`, inferenza dimensionale e pannello `Variables`
-* **Risolutore simbolico (`crates/calc/src/solve.rs`):**
-  * Estrattore polinomiale simbolico `poly_coeffs(expr, var)` fino al 2° grado per equazioni in cui l'incognita compare più volte (es. $2x + 3 = x + 7$ o $s = v_0 t + \frac{1}{2} a t^2$).
-  * Per il 2° grado: verifica omogeneità dimensionale di $B^2 - 4AC$, errore esplicito per $\Delta < 0$, generazione passaggi con formula risolutiva e calcolo di entrambe le radici $x_1, x_2$, più supporto a vincoli di dominio fisico espliciti (es. `t > 0`).
-  * Correggere `Func::Abs` in `isolate_steps` (oggi scartato silenziosamente) ramificando $\pm$ per $|u(x)| = c$.
-  * Nel fallback numerico, inferire algebricamente la dimensione dell'incognita per potenze generiche $x^k$ (es. `I = b * h^4 / 12`) e dimensioni inverse.
-* **UI `Calculations › Variables`:** pannello laterale collegato a `calc.variables` per ispezionare e raggiungere tutte le grandezze del foglio e delle sandbox esercizio, con selettore rapido di conversione unità.
-
----
-
-## 3. Nuove funzionalità STEM e didattiche
-
-### [ ] `F1` — Griglia di valutazione (`exercise.grading` / `strix:grading`) e tolleranze
-* Tabella automatica `strix:grading` agganciata al totale di `strix:scores` (`maxPoints: null` = automatico) con preset scolastici (`it-10`, `ch-6`, `de-6` con scala invertita, `fr-20`, `percent`, `custom`), soglia di sufficienza configurabile (`passRatio`, `passGrade`), curva `linear` o `piecewiseLinear` (spezzata a due pendenze), passo di arrotondamento (`0.1`, `0.25`, `0.5`, `1.0`) e visibilità `teacher` o `both`.
-* Tolleranza opzionale sui quesiti `calc` (`tolerance`: `"2%"` o `"0.1 cm"`), mostrata con l'intervallo accettabile nella riga risultato della copia docente.
-
-### [ ] `F2` — Opzioni e distrattori parametrici nei Quiz (`{{expr}}`) + rimescolamento per variante
-* Controllo inline `strix:expr` (`{{espressione}}`) valutato nella sandbox dell'esercizio con unità formattata nello stile `Unit`, utilizzabile sia nel testo sia nelle opzioni `A), B), C), D)` dei quiz (così risposta esatta e distrattori basati su errori tipici si aggiornano da soli in ogni variante).
-* Nota diagnostica opzionale `<strix:rationale>` sui distrattori, visibile nella sola copia docente.
-* Flag `shuffleChoices: bool` sulle domande `choice`: permutazione deterministica delle scelte guidata da hash `(exercise_idx, question_idx, variant_name)`, senza duplicare i dati.
-
-### [ ] `F3` — Generatore controllato di varianti (`exercise.generateVariants`)
-* Comando che genera $N$ varianti (`A, B, C…`) a partire da domini discreti o intervalli sui dati (`min`, `max`, `step` o lista valori) e vincoli sui risultati (`maxDecimals`, `positiveResults`, `distinctFinalResults`, predicati `extra` come `L > b`), verificando in memoria sandbox `strix-calc` e geometria `strix-cad` entro un budget deterministico limitato (`MAX_CANDIDATE_EVALS = 5_000`).
-
-### [ ] `F4` — Esportazione "Pacchetto Momento di Valutazione" (`file.exportPack`)
-* Esportazione batch in un clic (cartella su desktop o singolo `.zip` su desktop e `strix-web` WASM) che produce:
-  * PDF Studente per ciascuna variante (`Fila_A.pdf`, `Fila_B.pdf`… con `Show = false`);
-  * PDF Studente versione DSA (`design.dsa` attivo);
-  * PDF Correttore Docente (`Show = true`, svolgimenti, griglia voti e **Tabella Sinottica Multi-Variante** finale `Domanda | Fila A | Fila B | Fila C | Fila D`).
-
-### [ ] `F5` — Grafici matematici e sperimentali vivi (`crates/plot` — `strix-plot`, layer `L1`)
-* Nuovo crate `strix-plot` in `L1` integrato tramite `GraphicKind::Plot` (con SVG + `GraphicItem` vettoriali per `vello_cpu`, `krilla` PDF e Word round-trip).
-* Tracciamento adattivo di funzioni `y = f(x)` e curve parametriche dal `Worksheet` attivo con rilevamento discontinuità/asintoti verticali, punti notevoli (zeri, estremi, tangenti, area integrale $\int_a^b f(x)\,dx$).
-* Tracciamento serie sperimentali da `calc.table` con barre d'errore ($\pm \Delta x, \pm \Delta y$) e curva di regressione.
-* **Modalità duale Studente/Docente (`answer: bool`):** nella copia studente stampa il solo piano cartesiano quotato e grigliato con identico ingombro; nella copia docente sovrappone curve e punti.
-
-### [ ] `F6` — Disegno CAD "da completare" (`Layer.answer` ed `Entity.answer` in `strix-cad`)
-* Attributo booleano `answer` su `Layer` ed `Entity` in `crates/cad/src/model.rs`.
-* **Invarianza di impaginazione:** `bounds` e scala `Fit` sono sempre calcolati sull'intero disegno (incluse le entità `answer`), mentre il rendering con `Show = false` omette le primitive `answer`, lasciando allo studente la base geometrica in scala e lo spazio esatto per completare il disegno senza spostare i salti pagina.
-* Toggle rapido `Anteprima Studente` nella barra dell'editor CAD.
-
-### [ ] `F7` — Calcolo con incertezze e propagazione dell'errore (`±`) in `strix-calc`
-* Campo `unc: Option<f64>` su `Quantity`, sintassi infissa `±` / `+-` (assoluta `12.4 ± 0.1 cm` o relativa `12.4 ± 2% cm`) e funzioni `val(x)`, `unc(x)`, `relunc(x)`.
-* Due modalità didattiche selezionabili nelle opzioni di calcolo: **incertezze massime** (`max`) e **somma in quadratura / GUM** (`rss`).
-* Formattazione metrologica in `crates/calc/src/format.rs`: arrotondamento automatico di $\Delta x$ a 1–2 cifre significative e allineamento automatico dei decimali del valore centrale.
-
-### [ ] `F8` — Nuove modalità didattiche di quesito STEM (`worked`, `cloze`, `tableFill`, `matching`)
-* `worked` (*Esempio svolto*): visibile per intero anche nella copia studente, senza punti né riga in `strix:scores`.
-* `cloze` (*Completamento inline*): lacune `strix:blank` nel testo/formule sostituite da `________` (con eventuale unità) per lo studente e valorizzate (anche da `{{expr}}`) per il docente.
-* `tableFill` (*Tabella calcolata da completare*): celle/colonne di `calc.table` marcate `studentBlank: true`, vuote per lo studente e calcolate per il docente.
-* `matching` (*Abbinamento*): due colonne con rimescolamento deterministico per variante della colonna destra e caselle di associazione.
-
-### [ ] `F9` — Controllo "Pre-flight" del compito (`exercise.check`)
-* Comando puro diagnostico (per UI `Teaching › Check`, `exportPack` e agenti MCP) che ispeziona tutte le varianti `A..Z` segnalando con link `Pos` cliccabile:
-  * *Errori:* `CalcError` o errori CAD in qualsiasi variante, domande `choice` senza risposta corretta o con opzioni duplicate/collidenti dopo il calcolo, sottodocumenti mancanti;
-  * *Avvisi:* domande prive di `Result`/soluzione, dati iniziali inutilizzati (possibili refusi di simbolo), punti mancanti rispetto a `strix:scores`, spazio risposta inferiore all'altezza effettiva dello svolgimento;
-  * *Info:* confronto somma durate esercizi vs durata documento, differenze nel numero di pagine tra Fila A, B, C….
-
----
-
-## Sequenza di implementazione suggerita
-
-1. **Fase 2 (Potenza matematica):** `M4`, `M5`, `M6`
-2. **Fase 3 (Valutazione, varianti e pre-flight):** `D4`, `F1`, `F2`, `F3`, `F9`, `F4`
-3. **Fase 4 (Grafica scientifica e CAD didattico):** `F6`, `F5`
-4. **Fase 5 (Laboratorio, nuovi quesiti, DSA e archivio):** `F7`, `F8`, `D5`, `D6`
+<!-- Coordinamento per l'agente che mantiene TODO.md — Fase 5 (F7, F8, D5, D6):
+nel precedente passaggio di consegne l'agente della fase 5 aveva omesso la pulizia
+richiesta del TODO. Il file condiviso ora risulta già ripulito: non restano voci
+attive della fase 5 da rimuovere. Implementazione e progress log sono presenti;
+validazioni eseguite: 77 test di calcolo, 11 test d'integrazione della fase 5,
+Clippy mirato e controllo WASM. Il precedente tentativo di CI globale si era
+fermato alla formattazione dei grafici allora in lavorazione: consolidare il suo
+esito con le verifiche finali del lavoro parallelo.
+-->

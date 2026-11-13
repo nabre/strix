@@ -97,6 +97,7 @@ fn every_char_prop_round_trips() {
         position: Some(3.0),
         kern: Some(8.0),
         emphasis: Some(wordcraft_doc::props::EmphasisMark::Comma),
+        tabular_digits: Some(true),
         ligatures: Some(wordcraft_doc::props::Ligatures { standard: true, historical: true, ..Default::default() }),
         outline: Some(true),
         shadow: Some(true),

@@ -71,6 +71,11 @@ pub enum Pane {
     Variables,
     /// Outlining › Master Document: the master document's linked files.
     Subdocuments,
+    /// Teaching › Check: pre-flight inspection across all variants.
+    Check,
+    Archive,
+    /// Math › Drawing › Plot Properties: configure Cartesian plots, series and regressions.
+    Plot,
 }
 
 impl Pane {
@@ -91,6 +96,9 @@ impl Pane {
             Self::GraphPaper => "Graph Paper",
             Self::Variables => "Variables",
             Self::Subdocuments => "Subdocuments",
+            Self::Check => "Assessment Check",
+            Self::Archive => "Exercise Bank",
+            Self::Plot => "Plot Properties",
         }
     }
 
@@ -111,6 +119,9 @@ impl Pane {
             Self::GraphPaper => (Edge::End, 300.0),
             Self::Variables => (Edge::End, 310.0),
             Self::Subdocuments => (Edge::End, 300.0),
+            Self::Check => (Edge::End, 320.0),
+            Self::Archive => (Edge::End, 340.0),
+            Self::Plot => (Edge::End, 330.0),
         };
         PaneState::docked(edge, width)
     }
@@ -133,10 +144,13 @@ impl Pane {
             Self::GraphPaper => "graphPaper",
             Self::Variables => "variables",
             Self::Subdocuments => "subdocuments",
+            Self::Check => "check",
+            Self::Archive => "archive",
+            Self::Plot => "plot",
         }
     }
 
-    const ALL: [Self; 15] = [
+    const ALL: [Self; 18] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -152,6 +166,9 @@ impl Pane {
         Self::GraphPaper,
         Self::Variables,
         Self::Subdocuments,
+        Self::Check,
+        Self::Archive,
+        Self::Plot,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -174,6 +191,9 @@ impl Pane {
             Self::GraphPaper => Some("view.graphPaperPane"),
             Self::Variables => Some("view.variablesPane"),
             Self::Subdocuments => Some("view.subdocumentsPane"),
+            Self::Check => Some("view.checkPane"),
+            Self::Archive => Some("view.archivePane"),
+            Self::Plot => Some("view.plotPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
     }
@@ -204,6 +224,9 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::GraphPaper => crate::graph_pane::pane(app, ui),
             Pane::Variables => crate::variables_pane::pane(app, ui),
             Pane::Subdocuments => crate::subdocument_pane::pane(app, ui),
+            Pane::Check => crate::check_pane::pane(app, ui),
+            Pane::Archive => crate::archive_pane::pane(app, ui),
+            Pane::Plot => crate::plot_pane::pane(app, ui),
         })
     }
 

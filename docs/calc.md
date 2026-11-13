@@ -488,3 +488,30 @@ Edit Drawing, see `docs/cad.md`).
   calculated tables; number format (digits, auto/decimals/significant, zeros, half-away
   rounding); working units; comparisons with ✓/✗; unit hints; Math tab; `*` types `·`.
 - 2026-10-27: new (stage 1).
+
+## Laboratory measurements and uncertainty (Phase 5)
+
+A scalar measurement carries an absolute SI uncertainty: `L = 12.4 ± 0.1 cm`
+(`+-` also works), or `L = 12.4 ± 2% cm` for a relative uncertainty. A unit
+written after the uncertainty applies to both numbers. `val(L)` extracts the
+central value, `unc(L)` the absolute uncertainty with the same dimension, and
+`relunc(L)` its dimensionless relative uncertainty (`unc(L)/abs(val(L))`). The
+last is undefined at zero. Celsius/Fahrenheit uncertainties are differences,
+so no temperature offset is added to the uncertainty.
+
+Math › Results › Rounding offers Maximum Uncertainty and Uncertainty in
+Quadrature (GUM). The same setting is `calc.options {"uncertainty":"max"|"rss"}`,
+with the existing equation > exercise > document > preferences inheritance and
+Word round trip. Maximum propagation adds absolute derivative contributions;
+RSS combines them using `hypot`. This is first-order propagation with independent
+inputs; covariance and correlations between repeated uses of one measurement
+are not modelled. Arithmetic, powers, square/cube roots, absolute value,
+exponential/logarithmic and trigonometric/hyperbolic unary functions, sums and
+means retain uncertainty, including vector elements. Functions without a
+propagation rule return an error for uncertain inputs: use `val()` deliberately
+when only the central value is wanted.
+
+Results round uncertainty to two significant figures when its first digit is
+1 or 2, otherwise one; the central value uses the same decimal position.
+Unit conversion scales both the central value and uncertainty, including
+trailing zeros (`12.44 ± 0.12 cm` → `124.4 ± 1.2 mm`).

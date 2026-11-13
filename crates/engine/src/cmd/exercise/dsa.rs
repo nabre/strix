@@ -85,6 +85,10 @@ fn marker(s: &Session) -> Option<Marker> {
 }
 
 /// The versions on now.
+pub(super) fn math_enabled(s: &Session) -> bool {
+    current(s).math
+}
+
 fn current(s: &Session) -> Versions {
     marker(s).map(|m| m.on).unwrap_or_default()
 }
@@ -103,6 +107,7 @@ fn touched(st: &Style) -> bool {
 /// the settings to what the marker recorded; the hidden styles go. Whether anything changed.
 fn restore(s: &mut Session) -> Result<bool, CmdError> {
     let m = marker(s);
+    super::dsa_runs::restore(&mut s.doc);
     let sheet = Arc::make_mut(&mut s.doc.styles);
     let kept: Vec<Style> = sheet.styles.iter().filter(|st| st.id.starts_with(BASE)).cloned().collect();
     let had_marker = sheet.styles.iter().any(|st| st.id == MARKER);
@@ -160,6 +165,9 @@ fn apply(s: &mut Session, on: Versions) -> Result<(), CmdError> {
     let mut kept = Vec::new();
     for st in sheet.styles.iter_mut().filter(|st| touched(st)) {
         let before = (st.para.clone(), st.chr.clone());
+        if on.math {
+            st.chr.tabular_digits = Some(true);
+        }
         if st.chr.italic == Some(true) {
             // No italics: emphasis in bold.
             st.chr.italic = None;
@@ -193,6 +201,7 @@ fn apply(s: &mut Session, on: Versions) -> Result<(), CmdError> {
     sheet.styles.extend(kept);
     let name = serde_json::to_string(&m).map_err(|e| CmdError::Failed(e.to_string()))?;
     sheet.styles.push(hidden_style(MARKER.into(), format!("{MARKER_NAME}{name}"), StyleKind::Paragraph));
+    super::dsa_runs::apply(&mut s.doc, on.math);
     s.doc.settings.auto_hyphenation = false;
     if first.is_some() {
         super::breaks::command(s, &json!({"beforeExercise": true}))?;
@@ -207,6 +216,7 @@ fn apply(s: &mut Session, on: Versions) -> Result<(), CmdError> {
 /// stays the master's. A style the file doesn't have comes with the formatting it had before
 /// DSA formatting, and the hidden styles go (the file's own come back with its other styles).
 pub(super) fn leave_out(doc: &mut wordcraft_doc::Document, file: &wordcraft_doc::Document) {
+    super::dsa_runs::restore(doc);
     if !doc.styles.styles.iter().any(|st| st.id.starts_with(MARKER)) {
         return;
     }
@@ -408,9 +418,7 @@ mod tests {
         run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
         run(&mut s, "design.dsa", json!({"reading": true, "writing": true, "math": true}));
         assert_eq!(style(&s, "Normal").chr.size, Some(14.0));
-        // Saved, the files keep their own formatting. (A change to the series' settings in a
-        // master still makes it write the files again, with their own settings: a known gap of
-        // master documents, docs/master-documents.md.)
+        // Saved, clean linked files are left untouched and keep their own formatting.
         run(&mut s, "file.save", json!({}));
         assert_eq!(own(&a), before);
         // Text edited in the master goes back; the formatting doesn't.

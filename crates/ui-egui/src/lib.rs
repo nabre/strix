@@ -25,6 +25,7 @@ macro_rules! tl {
 
 pub mod a11y;
 pub mod a11y_pane;
+mod archive_pane;
 pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
@@ -35,6 +36,7 @@ mod cad_panel;
 mod cad_style_dialog;
 pub mod canvas;
 pub mod caret_glide;
+pub mod check_pane;
 pub mod chrome;
 pub mod colors;
 pub mod content_controls;
@@ -72,6 +74,7 @@ pub mod options;
 pub mod pane_kit;
 pub mod panes;
 pub mod paste_picture;
+mod plot_pane;
 pub mod previews;
 pub mod print_page;
 pub mod printing;

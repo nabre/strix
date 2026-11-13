@@ -3055,3 +3055,132 @@ paper	Envelope DL	Enveloppe DL
 	Select this question's solution drawing and open it in the CAD editor	Sélectionne le dessin de corrigé de cette question et l'ouvre dans l'éditeur CAO
 	No result equation yet	Aucune équation de résultat
 	write a question first	écrivez d'abord une question
+# Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
+	Variables Pane	Volet Variables
+	Filter variables…	Filtrer les variables…
+	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Aucune variable définie pour le moment. Insérez un calcul dynamique (par exemple L = 4.5 m) ou des données d’exercice pour les inspecter ici.
+	Exercise {n}	Exercice {n}
+	Variant {v}	Variante {v}
+	No matching variables.	Aucune variable correspondante.
+	Go to definition	Aller à la définition
+	Defined:	Définie :
+	Archive	Archive
+	Archive Properties	Propriétés de l’archive
+	Download Font	Télécharger la police
+	downloading fonts isn't available in the browser	le téléchargement de polices n’est pas disponible dans le navigateur
+# Strix (2026-11-13): Phase 3 grading scale, parametric expressions, variant generator, pre-flight check & assessment pack.
+	Assessment Check	Contrôle d’évaluation
+	Assessment Check Pane	Volet Contrôle d’évaluation
+	Check Assessment	Contrôler l’évaluation
+	Export Assessment Pack	Exporter le pack d’évaluation
+	Export Assessment Pack…	Exporter le pack d’évaluation…
+	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Exporte les PDF élève pour chaque variante, les copies aménagées et le corrigé enseignant avec tableau synoptique
+	All checks passed across every variant.	Tous les contrôles sont validés pour chaque variante.
+	Errors	Erreurs
+	Warnings	Avertissements
+	Info	Info
+	Error	Erreur
+	Warning	Avertissement
+	Duration (min)	Durée (min)
+	Generate Variants…	Générer des variantes…
+	Generate Variants	Générer des variantes
+	Variants to generate	Variantes à générer
+	Max result decimals	Décimales max. du résultat
+	Extra constraints	Contraintes supplémentaires
+	Positive final results	Résultats finaux positifs
+	Distinct results across variants	Résultats distincts entre variantes
+	Min	Min
+	Max	Max
+	Step	Pas
+	Deterministically generate clean, constraint-checked variants across the specified domains	Génère de façon déterministe des variantes vérifiées sur les domaines indiqués
+	Shuffle options per variant	Mélanger les options par variante
+	Keep variant A in canonical order and deterministically permute options in variants B, C…	Conserve la variante A dans l’ordre canonique et permute de façon déterministe les options dans les variantes B, C…
+	Rationales	Justifications
+	Teacher notes per option	Notes enseignant par option
+	Tolerance	Tolérance
+	Assessment	Évaluation
+	Export\nPack	Exporter\nle pack
+	Grading Scale	Barème de notes
+	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Insérer ou configurer le tableau de conversion points-note (1–10, 1–6, 6–1, 0–20, %)
+	Show Grading Scale	Afficher le barème de notes
+	Italy (1–10)	Italie (1–10)
+	Switzerland (1–6)	Suisse (1–6)
+	Germany (6–1)	Allemagne (6–1)
+	France (0–20)	France (0–20)
+	Percentage (0–100%)	Pourcentage (0–100 %)
+	Linear Curve	Courbe linéaire
+	Piecewise Curve (Pass Threshold)	Courbe par morceaux (seuil de réussite)
+	Step 0.1	Pas 0,1
+	Step 0.25	Pas 0,25
+	Step 0.5	Pas 0,5
+	Step 1.0	Pas 1,0
+	Teacher Copy Only	Copie enseignant uniquement
+	Student and Teacher Copies	Copies élève et enseignant
+	Inline Expression	Expression en ligne
+	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Insérer une expression paramétrique en ligne évaluée dans l’espace de l’exercice (p. ex. v * t -> m)
+	Parametric expression	Expression paramétrique
+	ZIP Archive	Archive ZIP
+	Exercise Bank	Banque d’exercices
+	Exercise\nBank	Banque\nd’exercices
+	Topics / Tags	Thèmes / Étiquettes
+	Scan Folder	Analyser le dossier
+	Import Exercise Bundle…	Importer un lot d’exercices…
+	Exercise bundles	Lots d’exercices
+	Insert Copy	Insérer une copie
+	Link Subdocument	Lier un sous-document
+	Maximum Uncertainty	Incertitude maximale
+	Uncertainty in Quadrature (GUM)	Incertitude en quadrature (GUM)
+	Worked Example	Exemple résolu
+	Inline Completion	Texte à trous
+	Table to Complete	Tableau à compléter
+	Matching	Appariement
+	Inline Blank	Lacune dans le texte
+	Student Blank Cell	Cellule à compléter
+	Grade	Niveau
+	Profession	Filière
+	Teacher	Enseignant
+	Pairs (left = right)	Paires (gauche = droite)
+	Student Blanks	Lacunes pour les élèves
+	Choose which calculated cells students complete	Choisir les cellules calculées à compléter
+	Student Blank Column	Colonne à compléter
+	Show Cell Value	Afficher la valeur de la cellule
+	School Subject	Matière
+	Score	Points
+# Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
+	Plot	Graphique
+	Plot Properties	Propriétés du graphique
+	Plot\nProperties	Propriétés\ndu graphique
+	Plot Properties Pane	Volet Propriétés du graphique
+	Insert Plot	Insérer un graphique
+	1 plot	1 graphique
+	{n} plots	{n} graphiques
+	Solution only	Solution seule
+	Answer	Corrigé
+	Student\nPreview	Aperçu\nélève
+	Student Preview: hide solution-only layers and objects as on the student copy	Aperçu élève : masque les calques et objets réservés au corrigé comme sur la copie élève
+	Solution only: hidden when the exercise's solution is hidden	Solution seule : masqué lorsque le corrigé de l’exercice est masqué
+	Select a plot in the document to edit its axes, functions and experimental data.	Sélectionnez un graphique dans le document pour modifier ses axes, fonctions et données expérimentales.
+	Axes & Frame	Axes et cadre
+	X range	Intervalle X
+	Y range	Intervalle Y
+	X axis	Axe X
+	Y axis	Axe Y
+	Minor grid	Grille secondaire
+	Student blank grid (solution only)	Repère vierge élève (solution seule)
+	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Sur la copie élève, trace uniquement le repère et la grille pour que les élèves tracent la courbe à la main
+	Series	Séries
+	Parametric	Paramétrique
+	Data	Données
+	Roots	Racines
+	Extrema	Extrema
+	Tangent at	Tangente en
+	Linear	Linéaire
+	Quadratic	Quadratique
+	Analysis	Analyse
+	Import Exercise Bundle	Importer un lot d’exercices
+	Insert Exercise Copy	Insérer une copie d’exercice
+	Plot Source	Source du graphique
+	Pre-flight Check Pane	Volet Contrôle préalable
+	Section	Section
+	Set Plot	Définir le graphique
+	select a plot first	sélectionnez d’abord un graphique

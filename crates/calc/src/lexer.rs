@@ -10,6 +10,7 @@ pub(crate) enum Tok {
     /// A name: parameter, constant, unit or function (also `°` and `%`).
     Ident(String),
     Plus,
+    PlusMinus,
     Minus,
     /// `*`, `·`, `×`, `⋅`, `∙`.
     Star,
@@ -60,6 +61,7 @@ pub(crate) fn describe(tok: &Tok) -> String {
     match tok {
         Tok::Num(_) => "number".to_string(),
         Tok::Ident(name) => name.clone(),
+        Tok::PlusMinus => "±".to_string(),
         Tok::Plus => "+".to_string(),
         Tok::Minus => "-".to_string(),
         Tok::Star => "·".to_string(),
@@ -139,6 +141,11 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '\u{2103}' => Tok::Ident("°C".to_string()),
             '\u{2109}' => Tok::Ident("°F".to_string()),
             '°' | '%' | '‰' => Tok::Ident(c.to_string()),
+            '+' if next == Some('-') => {
+                i += 1;
+                Tok::PlusMinus
+            }
+            '±' => Tok::PlusMinus,
             '+' => Tok::Plus,
             '-' | '\u{2212}' | '\u{2013}' => Tok::Minus,
             '*' | '·' | '×' | '\u{22C5}' | '\u{2219}' => Tok::Star,

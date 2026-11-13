@@ -102,35 +102,37 @@ pub struct Quantity {
     pub value: f64,
     /// Dimension.
     pub dim: Dim,
+    /// Absolute uncertainty in coherent SI units; `None` denotes an exact value.
+    pub unc: Option<f64>,
 }
 
 impl Quantity {
     /// A quantity from an SI magnitude and a dimension.
     pub const fn new(value: f64, dim: Dim) -> Self {
-        Quantity { value, dim }
+        Quantity { value, dim, unc: None }
     }
 
     /// A plain number.
     pub const fn number(value: f64) -> Self {
-        Quantity { value, dim: Dim::NONE }
+        Quantity { value, dim: Dim::NONE, unc: None }
     }
 
     /// Sum; the dimensions must be equal.
     pub fn try_add(self, other: Quantity) -> Result<Quantity, CalcError> {
         self.same_dim(other, "add")?;
-        Ok(Quantity::new(finite(self.value + other.value)?, self.dim))
+        self.propagated(other, finite(self.value + other.value)?, self.dim, 1.0, 1.0)
     }
 
     /// Difference; the dimensions must be equal.
     pub fn try_sub(self, other: Quantity) -> Result<Quantity, CalcError> {
         self.same_dim(other, "subtract")?;
-        Ok(Quantity::new(finite(self.value - other.value)?, self.dim))
+        self.propagated(other, finite(self.value - other.value)?, self.dim, 1.0, -1.0)
     }
 
     /// Product.
     pub fn try_mul(self, other: Quantity) -> Result<Quantity, CalcError> {
         let dim = self.dim.try_mul(other.dim)?;
-        Ok(Quantity::new(finite(self.value * other.value)?, dim))
+        self.propagated(other, finite(self.value * other.value)?, dim, other.value, self.value)
     }
 
     /// Quotient; dividing by zero is [`CalcError::DivisionByZero`].
@@ -139,7 +141,7 @@ impl Quantity {
             return Err(CalcError::DivisionByZero);
         }
         let dim = self.dim.try_div(other.dim)?;
-        Ok(Quantity::new(finite(self.value / other.value)?, dim))
+        self.propagated(other, finite(self.value / other.value)?, dim, 1.0 / other.value, -(self.value / other.value) / other.value)
     }
 
     /// Power. The exponent must be dimensionless; a base with a unit needs an exponent that
@@ -153,12 +155,47 @@ impl Quantity {
         if self.value == 0.0 && p < 0.0 {
             return Err(CalcError::DivisionByZero);
         }
-        Ok(Quantity::new(finite(self.value.powf(p))?, dim))
+        let value = finite(self.value.powf(p))?;
+        let dx = if p == 0.0 { 0.0 } else { p * self.value.powf(p - 1.0) };
+        let dp = if exponent.unc.is_some() {
+            if self.value <= 0.0 {
+                return Err(CalcError::Domain { function: "uncertain power".into() });
+            }
+            value * self.value.ln()
+        } else {
+            0.0
+        };
+        self.propagated(exponent, value, dim, dx, dp)
+    }
+
+    /// Attaches a finite, nonnegative absolute uncertainty in SI units.
+    pub fn with_uncertainty(mut self, uncertainty: f64) -> Result<Self, CalcError> {
+        finite(self.value)?;
+        finite(uncertainty)?;
+        if uncertainty < 0.0 {
+            return Err(CalcError::Domain { function: "uncertainty".into() });
+        }
+        self.unc = Some(uncertainty);
+        Ok(self)
+    }
+
+    fn propagated(self, other: Self, value: f64, dim: Dim, dx: f64, dy: f64) -> Result<Self, CalcError> {
+        let mut q = Self::new(value, dim);
+        if self.unc.is_some() || other.unc.is_some() {
+            let contribution = |u: Option<f64>, d: f64| -> Result<f64, CalcError> {
+                match u {
+                    Some(u) if u != 0.0 => finite((u * d).abs()),
+                    _ => Ok(0.0),
+                }
+            };
+            q.unc = Some(finite(contribution(self.unc, dx)? + contribution(other.unc, dy)?)?);
+        }
+        Ok(q)
     }
 
     /// The opposite quantity.
     pub fn negate(self) -> Quantity {
-        Quantity::new(-self.value, self.dim)
+        Quantity { value: -self.value, ..self }
     }
 
     /// Errors unless both quantities have the same dimension; `op` names the operation in the
