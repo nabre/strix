@@ -314,7 +314,6 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
             );
             question_type_menu(ui, app);
-            inline_expr_menu(ui, app);
             // Only with the cursor in an exercise, or whole ones selected.
             let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
             ui.add_enabled_ui(targets, |ui| {
@@ -333,6 +332,8 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
         });
+        // A column of its own: a stack holds three small buttons.
+        stack(ui, |ui| inline_expr_menu(ui, app));
     });
 }
 
