@@ -338,7 +338,9 @@ or `calc.layout`.
 - In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
   linear fraction), while the formula's own fractions stay stacked.
 - A value's number stays out of its unit's quotient: `v = 90 km/h` reads `90 km/h`, the number
-  times the unit, never `90 km` stacked over `h`.
+  times the unit, never `90 km` stacked over `h`. The number keeps the formatting it was typed
+  with, and only a well-formed one is taken out (`90`, `−9.81`, `2,5`; not `3-`); `1/s`, with no
+  unit over the bar, stays a fraction.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
 
