@@ -1867,6 +1867,62 @@ fn unit_arg(arg: &wordcraft_doc::math::Arg, units: &[String]) -> bool {
         })
 }
 
+/// When a fraction's numerator is a number then units (`90 km` of `90 km/h`), takes the number
+/// out of it and leaves the units alone in `num`. The number comes back as a run with the
+/// numerator's own formatting (size, font, colour, a line break before it), only its text cut
+/// down to the number; `unit_color` is dropped from it, as a number is never a unit.
+fn split_coefficient(num: &mut wordcraft_doc::math::Arg, units: &[String], unit_color: Rgb) -> Option<wordcraft_doc::math::MRun> {
+    use wordcraft_doc::math::MNode;
+    let MNode::Run(first) = num.first()? else { return None };
+    if first.nor {
+        return None;
+    }
+    let coefficient = leading_number(&first.text)?;
+    let spaces = |c: char| c == ' ' || c == '\u{2009}';
+    let rest = first.text.get(coefficient.len()..)?.trim_start_matches(spaces);
+    let mut units_part = num.clone();
+    match rest.is_empty() {
+        true => {
+            units_part.remove(0);
+        }
+        false => {
+            if let Some(MNode::Run(r)) = units_part.first_mut() {
+                r.text = rest.to_string();
+                // The break, if any, goes before the number, which now comes first.
+                r.brk = None;
+            }
+        }
+    }
+    if !unit_arg(&units_part, units) {
+        return None;
+    }
+    let mut run = first.clone();
+    run.text = coefficient.to_string();
+    if run.color == Some(unit_color) {
+        run.color = None;
+    }
+    *num = units_part;
+    Some(run)
+}
+
+/// The number `text` starts with, if it is a well-formed one: an optional sign, then digits that
+/// `.` or `,` may part (`90`, `−9.81`, `2,5`, `1.000,5`), ending on a digit. `None` for text that
+/// doesn't start with a number, or whose number runs on into more signs (`3-`, `1,,2`, `2.`).
+fn leading_number(text: &str) -> Option<&str> {
+    let sign = text.chars().next().filter(|c| matches!(c, '-' | '−' | '+')).map_or(0, char::len_utf8);
+    let body = text.get(sign..)?;
+    let end = body.find(|c: char| !(c.is_ascii_digit() || matches!(c, '.' | ',' | '-' | '−' | '+'))).unwrap_or(body.len());
+    let number = body.get(..end)?;
+    let well_formed = number.starts_with(|c: char| c.is_ascii_digit())
+        && number.ends_with(|c: char| c.is_ascii_digit())
+        && !number.contains(['-', '−', '+'])
+        && !number.contains("..")
+        && !number.contains(",,")
+        && !number.contains(".,")
+        && !number.contains(",.");
+    well_formed.then(|| text.get(..sign + end)).flatten()
+}
+
 /// Splits the math runs so each unit is a run of its own, upright in `color`; runs that are no
 /// longer units lose that colour. Other formatting is kept.
 fn style_units(root: &mut wordcraft_doc::math::Arg, units: &[String], color: Rgb, depth: usize) {
@@ -1906,6 +1962,24 @@ fn style_parts(root: &mut wordcraft_doc::math::Arg, parts: &[&[String]], color: 
             }
             if prev.text.is_empty() {
                 out.pop();
+            }
+        }
+        // A value with a unit quotient (`90 km/h`) is read as `(90 km)/h`: the number is the
+        // coefficient of the unit, so it goes before the fraction, which keeps the unit alone.
+        if let MNode::Frac { kind, num, den } = &mut n
+            && *kind == wordcraft_doc::math::FracKind::Bar
+            && unit_arg(den, units)
+            && let Some(coefficient) = split_coefficient(num, units, color)
+        {
+            // It joins the run before only when that run looks the same (`v = ` then `90`).
+            match out.last_mut() {
+                Some(MNode::Run(prev))
+                    if coefficient.brk.is_none()
+                        && MRun { text: String::new(), ..prev.clone() } == MRun { text: String::new(), ..coefficient.clone() } =>
+                {
+                    prev.text.push_str(&coefficient.text)
+                }
+                _ => out.push(MNode::Run(coefficient)),
             }
         }
         // A unit with a quotient reads inline, as ISO 80000 writes it (`12 kN/m`, `9.81 m/s²`),
@@ -3267,6 +3341,86 @@ mod tests {
         let again = s.run("calc.recalculate", &json!({})).unwrap();
         assert_eq!(again["changed"], 0, "{again}");
         assert_eq!(maths(&s), all);
+    }
+
+    /// A value with a unit quotient (`v = 90 km/h`) keeps its number before the unit, which alone
+    /// is the fraction (`90 km∕h`, not `90 km` over `h`); a formula's fraction stays stacked.
+    #[test]
+    fn a_values_number_stays_out_of_its_units_quotient() {
+        let mut s = session();
+        for t in ["v_0 = 0 km/h", "v = 90 km/h", "t = 10 s", "a = (v - v_0)/t ="] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let all = maths(&s);
+        let lin = |m: &Math| to_linear(&m.nodes);
+        // A thin space parts the number from its unit, as everywhere else in a value.
+        assert_eq!(lin(&all[0]), "v_0=0\u{2009}km∕h");
+        assert_eq!(lin(&all[1]), "v=90\u{2009}km∕h");
+        assert!(lin(&all[3]).starts_with("a=(v-v_0)/t"), "{}", lin(&all[3]));
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "{again}");
+        assert_eq!(maths(&s), all);
+    }
+
+    /// Only a well-formed number is taken out of a unit quotient: a sign at the start, digits
+    /// that `.` or `,` may part, ending on a digit.
+    #[test]
+    fn a_coefficient_is_a_well_formed_number() {
+        assert_eq!(leading_number("90 km"), Some("90"));
+        assert_eq!(leading_number("−9.81 m"), Some("−9.81"));
+        assert_eq!(leading_number("2,5 m"), Some("2,5"));
+        assert_eq!(leading_number("1.000,5 m"), Some("1.000,5"));
+        assert_eq!(leading_number("90"), Some("90"));
+        for junk in ["km", "", "-", "3- km", "1,,2 m", "2. m", ".5 m", "+-3 m", "1−2 m"] {
+            assert_eq!(leading_number(junk), None, "{junk:?}");
+        }
+    }
+
+    /// The number taken out of `90 km/h` keeps the numerator's formatting (size, font, colour, a
+    /// break before it), loses the units' colour, and the units left behind lose the break.
+    #[test]
+    fn a_coefficient_keeps_the_numerators_formatting() {
+        use wordcraft_doc::math::{MNode, MRun};
+        let units = vec!["km".to_string(), "h".to_string()];
+        let unit_color = Rgb(0x20, 0x60, 0xA0);
+        let red = Rgb(0xC0, 0, 0);
+        let styled =
+            MRun { text: "90 km".into(), size: Some(14.0), color: Some(red), font: Some("Cambria Math".into()), brk: Some(0), ..MRun::default() };
+        let mut num = vec![MNode::Run(styled.clone())];
+        let run = split_coefficient(&mut num, &units, unit_color).expect("a number then units");
+        assert_eq!(run, MRun { text: "90".into(), ..styled.clone() });
+        assert_eq!(num, vec![MNode::Run(MRun { text: "km".into(), brk: None, ..styled })]);
+        // A run in the units' colour gives a plain number.
+        let mut num = vec![MNode::Run(MRun { text: "3 km".into(), color: Some(unit_color), ..MRun::default() })];
+        assert_eq!(split_coefficient(&mut num, &units, unit_color).map(|r| r.color), Some(None));
+        // No units after the number, or something that isn't a unit: left alone.
+        for text in ["1", "2 x", "3- km"] {
+            let mut num = vec![MNode::Run(MRun::new(text))];
+            assert!(split_coefficient(&mut num, &units, unit_color).is_none(), "{text}");
+            assert_eq!(num, vec![MNode::Run(MRun::new(text))]);
+        }
+    }
+
+    /// More values with a unit quotient: decimal commas, negative numbers, a unit squared, a
+    /// value used in a formula; `1/s` alone (no unit on top) stays a fraction.
+    #[test]
+    fn values_with_unit_quotients_in_their_forms() {
+        let mut s = session();
+        for t in ["u = 2,5 m/s", "g = −9.81 m/s^2", "f = 1/s", "x = 3 m/s · 4 s ="] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        let all = maths(&s);
+        let lin: Vec<String> = all.iter().map(|m| to_linear(&m.nodes)).collect();
+        assert_eq!(lin[0], "u=2,5\u{2009}m∕s");
+        assert_eq!(lin[1], "g=−9.81\u{2009}m∕(s^2)");
+        assert_eq!(lin[2], "f=1/s", "no unit over the bar: the fraction stays stacked");
+        assert_eq!(lin[3], "x=3\u{2009}m∕s·4\u{2009}s=12\u{2009}m");
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "{again}");
     }
 
     /// The owner's beam, typed as in the app: with Show Steps every formula and check shows its
