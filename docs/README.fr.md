@@ -64,7 +64,7 @@ mélange ([question-modes.md](question-modes.md), en anglais) :
 | **Réponse ouverte** | un espace d'une hauteur donnée en cm, quadrillé ou blanc | la réponse écrite dans l'espace |
 | **Choix multiple** | options A), B), C)… avec des cases vides | les bonnes cases cochées (plusieurs possibles) |
 | **Vrai/faux** | *Vrai* et *Faux* avec des cases vides | la bonne cochée |
-| **Calcul** | un espace quadrillé pour le développement, puis `s = ______ m` | le développement en équations vivantes et `s = 20 m` |
+| **Calcul** | un espace quadrillé pour le développement, puis `Réponse : s = ______ m` | le développement en équations vivantes et `Réponse : s = 20 m` |
 | **Dessin CAO** | un espace quadrillé pour dessiner | le dessin CAO du corrigé |
 
 Les bonnes réponses **se masquent avec le corrigé** : les cases restent vides et les espaces

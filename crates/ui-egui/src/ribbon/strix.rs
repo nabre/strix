@@ -50,6 +50,7 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
             grading_scale_menu(ui, app);
+            total_score_button(ui, app);
         });
     });
     group(ui, "Assessment", None, app, |ui, app| {
@@ -60,6 +61,19 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Graph Paper", None, app, |ui, app| {
         graph_paper_button(ui, app);
     });
+}
+
+/// The assessment's total score line (`exercise.totalScore`): inserted at the caret, or removed.
+fn total_score_button(ui: &mut Ui, app: &mut WordApp) {
+    let on = app.session.run("exercise.totalScore", &json!({})).ok().and_then(|st| st["on"].as_bool()).unwrap_or(false);
+    small(
+        ui,
+        app,
+        "calcTotal",
+        Some(if on { "Remove Total Score" } else { "Total Score" }),
+        "A right-aligned line for the score obtained against the total: computed from the points, or typed in",
+        crate::widgets::ButtonAction::new("exercise.totalScore", json!({"on": !on}), false),
+    );
 }
 
 fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {

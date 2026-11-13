@@ -63,7 +63,7 @@ mischt ([question-modes.md](question-modes.md), auf Englisch):
 | **Offene Antwort** | ein Antwortfeld mit Höhe in cm, kariert oder leer | die Antwort im Feld |
 | **Multiple Choice** | Optionen A), B), C)… mit leeren Kästchen | die richtigen Kästchen angekreuzt (auch mehrere) |
 | **Richtig/Falsch** | *Richtig* und *Falsch* mit leeren Kästchen | das richtige angekreuzt |
-| **Rechnung** | ein kariertes Feld für den Lösungsweg, dann `s = ______ m` | der Lösungsweg als lebendige Gleichungen und `s = 20 m` |
+| **Rechnung** | ein kariertes Feld für den Lösungsweg, dann `Antwort: s = ______ m` | der Lösungsweg als lebendige Gleichungen und `Antwort: s = 20 m` |
 | **CAD-Zeichnung** | ein kariertes Feld zum Zeichnen | die CAD-Zeichnung der Lösung |
 
 Die richtigen Antworten werden **mit der Lösung ausgeblendet**: Die Kästchen bleiben leer, die

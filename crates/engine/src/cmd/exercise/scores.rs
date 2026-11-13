@@ -266,21 +266,52 @@ pub(crate) fn update(s: &mut Session) -> bool {
 }
 
 /// An exercise's question points (all questions' added up, in a quiz or a problem whose
-/// questions declare points) feed its row's points in the first criterion.
+/// questions declare points) are its row's total: the partials typed in the criteria before the
+/// last are kept (each cut down to what is left of the total), the last criterion gets what
+/// remains, so the partials always add up to the exercise's points. With one criterion it holds
+/// the whole total. Rows of exercises without question points stay as typed.
 fn quiz_points(s: &Session, m: &mut Model) {
     let layout = scan(s);
-    if m.criteria.is_empty() {
+    let k = m.criteria.len();
+    if k == 0 {
         return;
     }
     for (r, e) in super::stem_items::graded(s).into_iter().take(MAX_ROWS).enumerate() {
         let Some(total) = super::items::total(s, &layout, e) else { continue };
         if m.points.len() <= r {
-            m.points.resize(r + 1, vec![None; m.criteria.len()]);
+            m.points.resize(r + 1, vec![None; k]);
         }
-        if let Some(c) = m.points.get_mut(r).and_then(|row| row.first_mut()) {
-            *c = Some(total);
+        if let Some(row) = m.points.get_mut(r) {
+            split(row, k, total);
         }
     }
+}
+
+/// Points rounded to hundredths (what the table shows), so a remainder never reads `0,30000004`.
+fn hundredths(v: f64) -> f64 {
+    (v * 100.0).round() / 100.0
+}
+
+/// `row` (`k` criteria) made to add up to `total`: each partial before the last kept within what
+/// is left (never negative), the last one the remainder.
+fn split(row: &mut Vec<Option<f64>>, k: usize, total: f64) {
+    row.resize(k, None);
+    let mut left = hundredths(total.max(0.0));
+    for c in row.iter_mut().take(k.saturating_sub(1)) {
+        if let Some(v) = c {
+            let kept = hundredths(v.max(0.0).min(left));
+            *c = Some(kept);
+            left = hundredths((left - kept).max(0.0));
+        }
+    }
+    if let Some(last) = row.last_mut() {
+        *last = Some(left);
+    }
+}
+
+/// Whether exercise `e`'s questions carry points (its scores row is then linked to them).
+fn linked(s: &Session, e: usize) -> bool {
+    super::items::total(s, &scan(s), e).is_some()
 }
 
 /// The points the document's first scores table adds up to: every point typed in for its
@@ -455,6 +486,12 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         if ex > rows {
             return Err(CmdError::Params(format!("exercise: the document has {rows}")));
         }
+        let graded = super::stem_items::graded(s);
+        if graded.get(ex - 1).is_some_and(|&e| linked(s, e)) && c == m.criteria.len() {
+            return Err(CmdError::Failed(
+                "this exercise's questions carry points: its last criterion is what is left of their total, set the criteria before it".into(),
+            ));
+        }
         while m.points.len() < ex {
             m.points.push(vec![None; m.criteria.len()]);
         }
@@ -465,6 +502,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
             }
         }
     }
+    quiz_points(s, &mut m);
     put(s, i, &m);
     s.touch();
     s.clamp_selection();
@@ -585,5 +623,44 @@ mod tests {
         assert!(grid(&s).is_empty());
         assert!(s.undo());
         assert!(!grid(&s).is_empty());
+    }
+
+    /// An exercise whose questions carry points is its row's total: the partials typed in the
+    /// criteria before the last are kept, the last one makes them add up to it; an exercise
+    /// without question points keeps the points typed in.
+    #[test]
+    fn question_points_are_the_row_total_and_the_last_criterion_balances_it() {
+        let mut s = Session::new(Document::new());
+        run(&mut s, "document.setText", json!({"text": "Verifica"}));
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Uno", "points": 4}, {"text": "Due", "points": 6}]}));
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"title": "Libero", "questions": ["q"]}));
+        run(&mut s, "caret.docStart", json!({}));
+        run(&mut s, "exercise.scores", json!({"on": true}));
+        // One criterion: it holds the whole total.
+        assert_eq!(grid(&s)[1], ["1", "", "10"]);
+        // Two more criteria: the first keeps the total, the new last ones get what is left.
+        run(&mut s, "exercise.scores", json!({"add": "MOD"}));
+        run(&mut s, "exercise.scores", json!({"add": "RIS"}));
+        // (MOD was the last criterion when it came: it got the remainder, 0.)
+        assert_eq!(grid(&s)[1], ["1", "", "10", "", "0", "", "0", "", "10"]);
+        // Partials typed in: the last criterion balances them.
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 1, "points": 3}));
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 2, "points": 2.5}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "2,5", "", "4,5", "", "10"]);
+        // The last criterion is computed, not set.
+        assert!(s.run("exercise.scores", &json!({"exercise": 1, "criterion": 3, "points": 1})).is_err());
+        // The question points change: the last partial takes the difference.
+        run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 2, "points": 3}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "2,5", "", "1,5", "", "7"]);
+        // Partials beyond the total are cut down to it, never negative.
+        run(&mut s, "exercise.scores", json!({"exercise": 1, "criterion": 2, "points": 9}));
+        assert_eq!(grid(&s)[1], ["1", "", "3", "", "4", "", "0", "", "7"]);
+        // An exercise without question points: every criterion typed in, as before.
+        run(&mut s, "exercise.scores", json!({"exercise": 2, "criterion": 3, "points": 2}));
+        assert_eq!(grid(&s)[2], ["2", "", "", "", "", "", "2", "", "2"]);
+        assert_eq!(grid(&s)[3][8], "9");
     }
 }

@@ -219,13 +219,14 @@ fn phase5_worked_conversion_keeps_other_criterion_points() {
     run(&mut s, "caret.docStart", json!({}));
     run(&mut s, "exercise.scores", json!({"on":true}));
     run(&mut s, "exercise.scores", json!({"add":"Metodo"}));
-    run(&mut s, "exercise.scores", json!({"exercise":2,"criterion":2,"points":7}));
+    // The question points are the row's total: the first criterion is typed, the last balances it.
+    run(&mut s, "exercise.scores", json!({"exercise":2,"criterion":1,"points":1.5}));
     run(&mut s, "exercise.questionMode", json!({"exercise":1,"question":1,"type":"worked"}));
     let scores = run(&mut s, "exercise.scores", json!({}));
-    assert_eq!(scores["points"][0][1], 7.0);
+    assert_eq!(scores["points"][0], json!([1.5, 0.5]));
     run(&mut s, "exercise.questionMode", json!({"exercise":1,"question":1,"type":"open"}));
     let scores = run(&mut s, "exercise.scores", json!({}));
-    assert_eq!(scores["points"][1][1], 7.0);
+    assert_eq!(scores["points"][1], json!([1.5, 0.5]));
 }
 
 #[test]

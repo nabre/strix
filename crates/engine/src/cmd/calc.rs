@@ -472,7 +472,7 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// The linear text of an equation, as the calc engine reads it.
-fn equation_text(linear: &str, math: &Math) -> String {
+pub(crate) fn equation_text(linear: &str, math: &Math) -> String {
     // An equation showing its result and steps on lines of their own is rows aligned at `&`:
     // the statement is the first, the result the last (read for the unit it is in). Only arrays
     // Strix made are read so: an array the user wrote is the statement as a whole.
