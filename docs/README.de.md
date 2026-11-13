@@ -217,7 +217,7 @@ Du brauchst eine Rust-Toolchain (1.95 oder neuer); für den Web-Build zusätzlic
 ```sh
 git clone https://github.com/nabre/strix
 cd strix
-cargo run --release -p strix -- --sample          # die Desktop-App mit einem Beispieldokument
+cargo run --release -p strix -- --sample          # die Desktop-App mit der Beispiel-Klassenarbeit
 cargo xtask dev                                   # Debug-Build, bei jeder Änderung neu gebaut und neu gestartet (watchexec)
                                                   # ohne Bildschirm (Sandbox, SSH) oder --web: Web-Build auf http://127.0.0.1:8771/?sample
 cargo run --release -p strix -- aufgabe.xmath     # ein Strix-Dokument öffnen

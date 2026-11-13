@@ -133,12 +133,13 @@
       <p class="small muted cap">{{tableCaption}}</p>
       <div class="tscroll">
         <table class="ctable">
-          <thead><tr><th>{{tableBeam}}</th><th><span class="m"><var>L</var></span> [<span class="u">m</span>]</th><th><span class="m"><var>q</var></span> [<span class="u">kN/m</span>]</th><th><span class="m"><var>M</var></span> [<span class="u">kN·m</span>] = <span class="m"><var>γ</var>·<var>q</var>·<var>L</var>²/8</span></th></tr></thead>
+          <thead><tr><th>{{tableTrial}}</th><th><span class="m"><var>m</var></span> [<span class="u">g</span>]</th><th><span class="m"><var>V</var></span> [<span class="u">cm³</span>]</th><th><span class="m"><var>ρ</var></span> [<span class="u">g/cm³</span>] = <span class="m"><var>m</var>/<var>V</var></span></th></tr></thead>
           <tbody>
-            <tr><td>B1</td><td>4.5</td><td>12</td><td class="calc">41.006</td></tr>
-            <tr><td>B2</td><td>6000 <span class="u">mm</span></td><td>10</td><td class="calc">60.75</td></tr>
+            <tr><td>1</td><td>27.1</td><td>10</td><td class="calc">2.71</td></tr>
+            <tr><td>2</td><td>54</td><td>20</td><td class="calc">2.7</td></tr>
+            <tr><td>3</td><td>80.7</td><td>30</td><td class="calc">2.69</td></tr>
           </tbody>
-          <tfoot><tr><td>{{tableTotal}}</td><td></td><td></td><td class="calc">Σ = 101.756</td></tr></tfoot>
+          <tfoot><tr><td>{{tableMean}}</td><td></td><td></td><td class="calc">mean = 2.7</td></tr></tfoot>
         </table>
       </div>
     </figure>
@@ -162,34 +163,25 @@
     </div>
     <figure class="paper cad" aria-label="{{cadFigureLabel}}">
       <svg viewBox="0 0 560 270" role="img" aria-label="{{cadFigureLabel}}">
-        <g class="ld" stroke-width="1.6" fill="none">
-          <path d="M70 70H490"/>
-          <path d="M70 70V112M112 70V112M154 70V112M196 70V112M238 70V112M280 70V112M322 70V112M364 70V112M406 70V112M448 70V112M490 70V112"/>
-        </g>
-        <g class="ldt">
-          <path d="M70 120l-5-10h10zM112 120l-5-10h10zM154 120l-5-10h10zM196 120l-5-10h10zM238 120l-5-10h10zM280 120l-5-10h10zM322 120l-5-10h10zM364 120l-5-10h10zM406 120l-5-10h10zM448 120l-5-10h10zM490 120l-5-10h10z"/>
-          <text x="280" y="58" text-anchor="middle" class="svg-math" font-size="17"><tspan font-style="italic">q</tspan> = 12 <tspan class="dmu">kN/m</tspan></text>
-        </g>
-        <rect class="ln" x="70" y="122" width="420" height="16" fill="none" stroke-width="2"/>
-        <g class="ln" stroke-width="1.8" fill="none">
-          <path d="M70 138l-16 26h32z"/>
-          <path d="M46 164h48"/>
-          <path stroke-width="1" d="M50 164l-8 9M60 164l-8 9M70 164l-8 9M80 164l-8 9M90 164l-8 9"/>
-          <path d="M490 138l-16 26h32z"/>
-          <circle cx="480" cy="170" r="5"/><circle cx="500" cy="170" r="5"/>
-          <path d="M466 176h48"/>
-        </g>
+        <path class="ln" d="M160 210H400L160 30Z" fill="none" stroke-width="2.2" stroke-linejoin="round"/>
+        <g class="ln" stroke-width="1.2" fill="none"><path d="M160 196h14v14"/></g>
+        <circle class="ln" cx="167" cy="203" r="1.8"/>
         <g class="dm" stroke-width="1.2" fill="none">
-          <path d="M70 182V232M490 182V232"/>
-          <path d="M70 222H490"/>
-          <path d="M64 228l12-12M484 228l12-12" stroke-width="1.8"/>
+          <path d="M160 216V252M400 216V252"/>
+          <path d="M160 244H400"/>
+          <path d="M154 250l12-12M394 250l12-12" stroke-width="1.8"/>
+          <path d="M154 30H116M154 210H116"/>
+          <path d="M124 30V210"/>
+          <path d="M118 36l12-12M118 216l12-12" stroke-width="1.8"/>
         </g>
-        <text class="dmt svg-math" x="280" y="214" text-anchor="middle" font-size="18"><tspan font-style="italic">L</tspan> = 4.5 <tspan class="dmu">m</tspan></text>
+        <text class="dmt svg-math" x="280" y="236" text-anchor="middle" font-size="18"><tspan font-style="italic">b</tspan> = 8 <tspan class="dmu">cm</tspan></text>
+        <text class="dmt svg-math" x="114" y="120" text-anchor="middle" font-size="18" transform="rotate(-90 114 120)"><tspan font-style="italic">h</tspan> = 6 <tspan class="dmu">cm</tspan></text>
         <g class="grip" stroke-width="1.5">
-          <rect x="65" y="125" width="10" height="10"/><rect x="275" y="125" width="10" height="10"/><rect x="485" y="125" width="10" height="10"/>
+          <rect x="155" y="205" width="10" height="10"/><rect x="395" y="205" width="10" height="10"/><rect x="155" y="25" width="10" height="10"/>
         </g>
-        <g class="snap" stroke-width="1.6"><rect x="482" y="114" width="16" height="16"/></g>
-        <text x="70" y="258" font-size="10.5" class="dmt svg-mono">b = ["L", 0]</text>
+        <g class="snap" stroke-width="1.6"><rect x="392" y="202" width="16" height="16"/></g>
+        <text x="414" y="200" font-size="10.5" class="dmt svg-mono">["b", 0]</text>
+        <text x="172" y="34" font-size="10.5" class="dmt svg-mono">[0, "h"]</text>
       </svg>
       <figcaption class="small muted">{{cadCaption}}</figcaption>
     </figure>
@@ -217,9 +209,9 @@ claude mcp add strix-app -- strix-cli mcp --connect 127.0.0.1:7981</pre>
       <div>
         <h3>{{agCliTitle}}</h3>
 <pre>strix-cli convert problem.xmath problem.pdf
-strix-cli run --template sample \
-  --cmd 'calc.insert={"text":"L = 4.5 m"}' \
-  --save beam.xmath
+strix-cli run --template test \
+  --cmd 'exercise.variant={"exercise":1,"active":1}' \
+  --save test-b.xmath
 strix-cli commands</pre>
         <ul class="chips" aria-label="{{agCalcLabel}}">
           <li>calc.insert</li><li>calc.recalculate</li><li>calc.variables</li><li>calc.steps</li><li>table.calc</li><li>exercise.insert</li><li>equation.answer</li><li>insert.cad</li><li>cad.set</li>

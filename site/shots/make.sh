@@ -126,7 +126,7 @@ while IFS='|' read -r lang heading lead extitle extext qa qb dv dt qtitle qc cho
     echo '{"empty": true, "width": 1100, "height": 960}'
     cmd ui.language "{\"value\":\"$lang\"}"
     cmd exercise.insert "{\"title\":\"$extitle\",\"text\":\"$extext\",\"questions\":[\"$qa\",\"$qb\"]}"
-    cmd exercise.setData "{\"data\":{\"items\":[{\"symbol\":\"v\",\"description\":\"$dv\",\"unit\":\"km/h\",\"values\":[\"90\",\"72\"]},{\"symbol\":\"t\",\"description\":\"$dt\",\"unit\":\"s\",\"values\":[\"10\",\"8\"]}],\"variants\":[\"A\",\"B\"],\"active\":0}}"
+    cmd exercise.setData "{\"data\":{\"items\":[{\"symbol\":\"v\",\"description\":\"$dv\",\"unit\":\"km/h\",\"values\":[\"90\",\"72\"]},{\"symbol\":\"t\",\"description\":\"$dt\",\"unit\":\"s\",\"values\":[\"10\",\"10\"]}],\"variants\":[\"A\",\"B\"],\"active\":0}}"
     after "$qa" 2
     calcs 'a = v/t ='
     cmd equation.answer '{"question":1}'

@@ -135,10 +135,10 @@ docente, dalla preparazione al voto.
    * **Varianti** A, B, C… dei dati: sceglierne una ricalcola dati, soluzione e riepilogo. Una
      fila di banchi, una variante, nessuna soluzione da rifare a mano.
    * Sotto c'è la **matematica viva**: l'equazione scritta nella pagina *è* il calcolo, con un
-     solo `=` (definisce `L = 4.5 m`, mostra `M = q·L²/8 =`, risolve `F = m·a`, verifica
-     `σ ≤ f_yd ✓`), **unità** controllate a ogni passo, **passaggi della soluzione**, tabelle
-     calcolate. Ogni esercizio è una **sandbox**: due esercizi possono definire entrambi `L`.
-   * Disegni **CAD** che seguono i dati (cambi `L` e la trave si ridisegna) e **carta a quadretti**
+     solo `=` (definisce `t = 10 s`, mostra `s = a·t²/2 =`, risolve `v² = 2·a·d`, verifica
+     `s ≤ 150 m ✓`), **unità** controllate a ogni passo, **passaggi della soluzione**, tabelle
+     calcolate. Ogni esercizio è una **sandbox**: due esercizi possono definire entrambi `t`.
+   * Disegni **CAD** che seguono i dati (cambi `b` e il triangolo si ridisegna) e **carta a quadretti**
      dopo le domande, come sul quaderno.
 2. **Domande a risposta multipla, vero/falso e aperte**
    * Tipi di esercizio: **problema**, **risposta aperta** (uno spazio di altezza data in cm, a
@@ -372,9 +372,10 @@ roadmap»), `docs/exercise.md` e `docs/archive.md` («Next»).
 
 ### 10.1 Video di 40 secondi: *"One exercise, every row"*
 
-1. **0:00–0:10** Didattica › Nuovo esercizio: una trave, dati `L = 4.5 m`, `q = 12 kN/m`, domanda
-   a) «il momento massimo»; nella soluzione `M = q·L²/8 =` mostra `30.375 kN·m`.
-2. **0:10–0:20** Variante B: `L = 6 m`. Soluzione e riepilogo dei risultati cambiano da soli.
+1. **0:00–0:10** Didattica › Nuovo esercizio: un'automobile che parte da ferma, dati `v = 90 km/h`,
+   `t = 10 s`, domanda a) «l'accelerazione»; nella soluzione `a = v/t =` mostra `2.5 m/s²`.
+2. **0:10–0:20** Variante B: `v = 72 km/h`. Soluzione (`a = 2 m/s²`) e riepilogo dei risultati
+   cambiano da soli.
 3. **0:20–0:30** Un esercizio a risposta multipla: la casella giusta è spuntata; Mostra › Soluzione
    spento: le spunte spariscono, lo spazio resta.
 4. **0:30–0:36** La tabella dei punteggi in frontespizio: si scrivono i punti, i totali seguono.

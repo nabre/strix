@@ -357,16 +357,26 @@ to the end.
   values; a summary per variant; statement data recalled into the solution as values.
 - Solution steps (substitution, isolation lines) per result.
 
-## Template
+## Templates
 
-File › New offers **Calculation and exercise** right after Blank document (`file.new {"template": "calc"}`): live
+File › New offers **Sample test** right after Blank document (`file.new {"template": "test"}`):
+a test for a class (title, subtitle, instructions) with a scores table and three exercises with
+their solutions — a physics problem (a car accelerating from rest) and a geometry problem (a right
+triangle, with a CAD drawing sized by its legs) with data in two variants, and a quiz mixing a
+multiple choice, a true/false and a calculation question with points. It is also the document the
+desktop app's `--sample` and the web app's `?sample` (the website's "Try it in the browser") open
+(`wordcraft_engine::sample_test`). WordCraft's studio handbook stays in the gallery as
+"Studio handbook (sample)".
+
+Then **Calculation and exercise** (`file.new {"template": "calc"}`): live
 formulas (a rectangular section's area and moment of inertia), then a worked exercise (a simply
 supported beam) with data in two variants, a CAD drawing of the beam in its statement sized by the
 span `L`, two questions worked in the solution and the results summary. It is built by running the
-same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
+same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
 
+- 2026-11-13: "Sample test" template (`file.new {"template": "test"}`), second in the File › New gallery, and the document `--sample` and `?sample` open.
 - 2026-11-12: question modes: each quiz question has its mode (`"type"`), calculation and CAD drawing questions; a quiz's data part follows its title when it has no statement ([question-modes.md](question-modes.md)).
 - 2026-11-12: kinds of exercise: open answer (a space of a height in cm, squared or blank, the answer written in it) and multiple choice (options with a check box ticked on the correct ones, more than one allowed; True/False); a quiz's statement is optional, a lone question has no letter, each question has its points (shown after it, added up in the scores table), the answers hide with the Solution (the space keeps its height); `exercise.questions`; graph paper's `none` line style. The doc's duplicated second half removed.
 - 2026-11-11: the generated words in the interface's four languages (English, Italian, German, French; Spanish dropped); three-letter tags and Swiss German recognised; a language without its own words (Spanish, Latin, Romansh…) keeps the exercise's words instead of turning them English; the scores table's default criterion follows the language.
