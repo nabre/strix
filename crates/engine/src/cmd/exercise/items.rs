@@ -868,7 +868,9 @@ fn mark_result(s: &mut Session, (a, b): (usize, usize), n: u32) -> bool {
 
 /// What a calculation's result line says: the result's name, a blank and its unit while the
 /// answers are hidden (`A = ______ cm²`), the result when they show (`A = 15 cm²`). `found` is
-/// the result as the calculations show it (`A = 15 cm²`), `None` while there is none.
+/// the result as the calculations show it (`A = 15 cm²`), `None` while there is none. Hidden,
+/// the line never gives away the working: only a plain name before the first `=` is kept
+/// (`b·h = 15 cm²` gives `______ cm²`), and the unit is what follows the number after the last.
 fn line_text(found: Option<&str>, shown: bool) -> String {
     let Some(found) = found.map(str::trim).filter(|f| !f.is_empty()) else { return BLANK.to_string() };
     if shown {
@@ -877,13 +879,40 @@ fn line_text(found: Option<&str>, shown: bool) -> String {
     if found.starts_with('⚠') {
         return BLANK.to_string();
     }
-    let Some((name, value)) = found.rsplit_once(" = ") else { return BLANK.to_string() };
-    // The unit: what follows the number (`15 cm²` → `cm²`; `2.5` → none).
-    let unit = value.trim().split_once(char::is_whitespace).map(|(_, u)| u.trim()).filter(|u| !u.is_empty());
-    match unit {
-        Some(u) => format!("{name} = {BLANK} {u}"),
-        None => format!("{name} = {BLANK}"),
+    let (Some((name, _)), Some((_, value))) = (found.split_once(" = "), found.rsplit_once(" = ")) else { return BLANK.to_string() };
+    let name = name.trim();
+    let plain = name.chars().next().is_some_and(char::is_alphabetic) && name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '\'');
+    let unit = result_unit(value);
+    match (plain, unit) {
+        (true, Some(u)) => format!("{name} = {BLANK} {u}"),
+        (true, None) => format!("{name} = {BLANK}"),
+        (false, Some(u)) => format!("{BLANK} {u}"),
+        (false, None) => BLANK.to_string(),
     }
+}
+
+/// The unit of a value as shown (`15 cm²` → `cm²`, `1 500 kN·m` → `kN·m`, `1,5·10³ m` → `m`,
+/// `2.5` → none): what follows the number, its digit groups, sign and power of ten.
+fn result_unit(value: &str) -> Option<&str> {
+    let numeric = |c: char| {
+        c.is_ascii_digit()
+            || c.is_whitespace()
+            || matches!(c, '.' | ',' | '+' | '-' | '−' | '\u{2009}' | '\u{202F}' | '\u{00A0}' | '\'' | '·' | '×' | 'E' | 'e')
+            || "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻".contains(c)
+    };
+    // `e`/`E` only inside a number (`1.5e3`), never a unit's first letter.
+    let mut cut = 0;
+    let chars: Vec<(usize, char)> = value.char_indices().collect();
+    for (k, &(i, c)) in chars.iter().enumerate() {
+        let exp = matches!(c, 'e' | 'E' | '·' | '×');
+        let next_numeric = chars.get(k + 1).is_some_and(|&(_, n)| n.is_ascii_digit() || matches!(n, '+' | '-' | '−'));
+        if !numeric(c) || (exp && !next_numeric) {
+            break;
+        }
+        cut = i + c.len_utf8();
+    }
+    let unit = value.get(cut..)?.trim();
+    (cut > 0 && !unit.is_empty()).then_some(unit)
 }
 
 /// Every calculation's result line filled in from the results (`answers`: by exercise and
@@ -1412,6 +1441,15 @@ mod tests {
         assert_eq!(line_text(Some("⚠ unknown b"), false), BLANK);
         assert_eq!(line_text(None, true), BLANK);
         assert_eq!(line_text(Some("M = 30.375 kN·m"), true), "M = 30.375 kN·m");
+        // Hidden, the working never shows: a plain name alone, the unit after the number.
+        assert_eq!(line_text(Some("A = b·h = 15 cm²"), false), format!("A = {BLANK} cm²"));
+        assert_eq!(line_text(Some("b·h = 15 cm²"), false), format!("{BLANK} cm²"));
+        assert_eq!(line_text(Some("M_Ed = 1 500 kN·m"), false), format!("M_Ed = {BLANK} kN·m"));
+        assert_eq!(line_text(Some("M = 1\u{2009}500 kN·m"), false), format!("M = {BLANK} kN·m"));
+        assert_eq!(line_text(Some("F = 1,5·10³ N"), false), format!("F = {BLANK} N"));
+        assert_eq!(line_text(Some("x = -2.5e3 m"), false), format!("x = {BLANK} m"));
+        assert_eq!(line_text(Some("E = 210000 N/mm²"), false), format!("E = {BLANK} N/mm²"));
+        assert_eq!(line_text(Some("α = 30 °"), false), format!("α = {BLANK} °"));
     }
 
     #[test]
