@@ -356,7 +356,8 @@ fn parametric_fields(ui: &mut Ui, i: usize, s: &mut Value) -> bool {
         });
     }
     ui.horizontal(|ui| {
-        ui.label("t ∈");
+        // ASCII: the interface font (Inter) has no "∈" glyph.
+        ui.label("t =");
         let t0 = s["tMin"].as_f64().unwrap_or(0.0);
         let t1 = s["tMax"].as_f64().unwrap_or(std::f64::consts::TAU);
         if let Some(v) = num_drag(ui, ("t0", i), t0, -1e6..=1e6, "") {
