@@ -3043,6 +3043,7 @@ preview	Title	Esempio
 	Pages in the range	Pagine nell'intervallo
 	Scale to paper size	Adatta al formato carta
 	Calculation and exercise	Calcolo ed esercizio
+	Sample test	Momento di valutazione (esempio)
 paper	Letter	Lettera
 paper	Legal	Legale
 paper	Envelope #10	Busta n. 10
@@ -3503,3 +3504,142 @@ paper	Envelope DL	Busta DL
 	CAD Drawing Question	Domanda con disegno CAD
 	Question Type	Tipo di domanda
 	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Aggiungi all'esercizio al cursore una domanda di un tipo: risposta aperta, risposta multipla, vero o falso, calcolo, disegno CAD
+	Variants & Data	Varianti e dati
+	Show data in exercise	Mostra i dati nell'esercizio
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Stampa il blocco Dati nell'esercizio; disattivato, i valori restano solo nella sandbox di calcolo
+	Question Mode	Modalità della domanda
+	Question Points	Punti della domanda
+	Mode	Modalità
+	Go to working	Vai allo svolgimento
+	Put the cursor in this calculation's working space	Porta il cursore nello spazio di svolgimento di questo calcolo
+	Open in CAD editor	Apri nell'editor CAD
+	Select this question's solution drawing and open it in the CAD editor	Seleziona il disegno della risoluzione di questa domanda e aprilo nell'editor CAD
+	No result equation yet	Nessuna equazione risultato
+	write a question first	scrivi prima una domanda
+# Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
+	Variables Pane	Riquadro variabili
+	Filter variables…	Filtra variabili…
+	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Nessuna variabile definita. Inserisci un calcolo dinamico (per esempio L = 4.5 m) o i dati di un esercizio per esaminarli qui.
+	Exercise {n}	Esercizio {n}
+	Variant {v}	Variante {v}
+	No matching variables.	Nessuna variabile corrispondente.
+	Go to definition	Vai alla definizione
+	Defined:	Definita:
+	Archive	Archivio
+	Archive Properties	Proprietà dell'archivio
+	Download Font	Scarica carattere
+	downloading fonts isn't available in the browser	lo scaricamento dei caratteri non è disponibile nel browser
+# Strix (2026-11-13): Phase 3 grading scale, parametric expressions, variant generator, pre-flight check & assessment pack.
+	Assessment Check	Controllo momento di valutazione
+	Assessment Check Pane	Riquadro controllo momento di valutazione
+	Check Assessment	Controlla momento di valutazione
+	Export Assessment Pack	Esporta pacchetto momento di valutazione
+	Export Assessment Pack…	Esporta pacchetto momento di valutazione…
+	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Esporta i PDF allievo per ogni variante, le copie DSA e il correttore docente con tabella sinottica
+	All checks passed across every variant.	Tutti i controlli superati in ogni variante.
+	Errors	Errori
+	Warnings	Avvisi
+	Info	Info
+	Error	Errore
+	Warning	Avviso
+	Duration (min)	Durata (min)
+	Generate Variants…	Genera varianti…
+	Generate Variants	Genera varianti
+	Variants to generate	Varianti da generare
+	Max result decimals	Max decimali risultato
+	Extra constraints	Vincoli aggiuntivi
+	Positive final results	Risultati finali positivi
+	Distinct results across variants	Risultati distinti tra le varianti
+	Min	Min
+	Max	Max
+	Step	Passo
+	Deterministically generate clean, constraint-checked variants across the specified domains	Genera in modo deterministico varianti pulite e verificate sui domini indicati
+	Shuffle options per variant	Mescola opzioni per variante
+	Keep variant A in canonical order and deterministically permute options in variants B, C…	Mantiene la variante A nell'ordine canonico e permuta in modo deterministico le opzioni nelle varianti B, C…
+	Rationales	Motivazioni
+	Teacher notes per option	Note docente per opzione
+	Tolerance	Tolleranza
+	Assessment	Valutazione
+	Export\nPack	Esporta\npacchetto
+	Grading Scale	Scala di valutazione
+	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Inserisci o configura la tabella di conversione punti-voto (1–10, 1–6, 6–1, 0–20, %)
+	Show Grading Scale	Mostra scala di valutazione
+	Italy (1–10)	Italia (1–10)
+	Switzerland (1–6)	Svizzera (1–6)
+	Germany (6–1)	Germania (6–1)
+	France (0–20)	Francia (0–20)
+	Percentage (0–100%)	Percentuale (0–100%)
+	Linear Curve	Curva lineare
+	Piecewise Curve (Pass Threshold)	Curva spezzata (soglia di sufficienza)
+	Step 0.1	Passo 0,1
+	Step 0.25	Passo 0,25
+	Step 0.5	Passo 0,5
+	Step 1.0	Passo 1,0
+	Teacher Copy Only	Solo copia docente
+	Student and Teacher Copies	Copia allievo e docente
+	Inline Expression	Espressione in linea
+	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Inserisci un'espressione parametrica in linea valutata nella sandbox dell'esercizio (es. v * t -> m)
+	Parametric expression	Espressione parametrica
+	ZIP Archive	Archivio ZIP
+	Exercise Bank	Banca Esercizi
+	Exercise\nBank	Banca\nEsercizi
+	Topics / Tags	Argomenti / Tag
+	Scan Folder	Cerca nella cartella
+	Import Exercise Bundle…	Importa raccolta di esercizi…
+	Exercise bundles	Raccolte di esercizi
+	Insert Copy	Inserisci copia
+	Link Subdocument	Collega sottodocumento
+	Maximum Uncertainty	Incertezza massima
+	Uncertainty in Quadrature (GUM)	Incertezze in quadratura (GUM)
+	Worked Example	Esempio svolto
+	Inline Completion	Completamento in linea
+	Table to Complete	Tabella da completare
+	Matching	Abbinamento
+	Inline Blank	Lacuna in linea
+	Student Blank Cell	Cella da completare
+	Grade	Classe
+	Profession	Indirizzo
+	Teacher	Docente
+	Pairs (left = right)	Coppie (sinistra = destra)
+	Student Blanks	Lacune per gli allievi
+	Choose which calculated cells students complete	Scegli le celle calcolate da far completare agli allievi
+	Student Blank Column	Colonna da completare
+	Show Cell Value	Mostra il valore della cella
+	School Subject	Materia
+	Score	Punteggio
+# Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
+	Plot	Grafico
+	Plot Properties	Proprietà grafico
+	Plot\nProperties	Proprietà\ngrafico
+	Plot Properties Pane	Riquadro Proprietà grafico
+	Insert Plot	Inserisci grafico
+	1 plot	1 grafico
+	{n} plots	{n} grafici
+	Solution only	Solo soluzione
+	Answer	Soluzione
+	Student\nPreview	Anteprima\nStudente
+	Student Preview: hide solution-only layers and objects as on the student copy	Anteprima Studente: nasconde i layer e gli oggetti riservati alla soluzione come nella copia allievo
+	Solution only: hidden when the exercise's solution is hidden	Solo soluzione: nascosto quando la risoluzione dell'esercizio è nascosta
+	Select a plot in the document to edit its axes, functions and experimental data.	Seleziona un grafico nel documento per modificarne assi, funzioni e dati sperimentali.
+	Axes & Frame	Assi e riquadro
+	X range	Intervallo X
+	Y range	Intervallo Y
+	X axis	Asse X
+	Y axis	Asse Y
+	Minor grid	Griglia secondaria
+	Student blank grid (solution only)	Griglia muta allievo (solo soluzione)
+	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Nella copia allievo traccia solo la griglia e gli assi cartesiani così che gli allievi disegnino la curva a mano
+	Parametric	Parametrica
+	Roots	Zeri
+	Extrema	Estremi
+	Tangent at	Tangente in
+	Fit	Regressione
+	Linear	Lineare
+	Quadratic	Quadratica
+	Analysis	Analisi
+	Import Exercise Bundle	Importa pacchetto esercizi
+	Insert Exercise Copy	Inserisci copia esercizio
+	Plot Source	Sorgente grafico
+	Pre-flight Check Pane	Riquadro Controllo preliminare
+	Set Plot	Imposta grafico
+	select a plot first	seleziona prima un grafico

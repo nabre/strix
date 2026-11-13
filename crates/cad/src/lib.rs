@@ -41,6 +41,8 @@ mod underlay;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_answer;
+#[cfg(test)]
 mod tests_blocks;
 #[cfg(test)]
 mod tests_coherence;

@@ -79,3 +79,19 @@ file already embedded stay.
 ## Next
 
 - Maths and memory: the unit expected next to each answer; tabular figures.
+
+## Direct emphasis and mathematical digits (Phase 5)
+
+DSA formatting also converts directly italicised prose to bold, with a hidden
+character style retaining the original italic, bold, character style and digit
+settings. These markers follow runs through editing and splitting, and are
+backed up with the DSA styles in `customXml/strixObjects.xml`. Disabling DSA
+restores those direct properties after a Word round trip. Equation nodes keep
+their own mathematical italic formatting.
+
+Maths and memory requests OpenType tabular digits (`tnum`, with proportional
+digits disabled) through resolved character properties and font shaping. Word
+packages carry `w14:numSpacing`. When a problem's solution is hidden, a result
+marked for a question also supplies a guided `symbol = __________ unit` line
+before the solution, beneath its answer space. Removing Maths and memory removes
+these generated guides.

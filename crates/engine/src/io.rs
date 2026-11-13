@@ -736,7 +736,7 @@ pub fn read_regular_file_within(_path: &std::path::Path, _limit: u64) -> Option<
 /// checked before opening (a named pipe blocks in `open` until a writer appears) and the handle
 /// after (the path may have been swapped in between); anything but a regular file is "not a file".
 #[cfg(not(target_arch = "wasm32"))]
-fn open_regular_file(path: &std::path::Path) -> Result<(std::fs::File, std::fs::Metadata), String> {
+pub(crate) fn open_regular_file(path: &std::path::Path) -> Result<(std::fs::File, std::fs::Metadata), String> {
     let meta = std::fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
     if !meta.is_file() {
         return Err(format!("{}: not a file", path.display()));
@@ -898,6 +898,43 @@ fn only_case_differs(source: &std::path::Path, destination: &std::path::Path) ->
     }
     let dir = if dir.as_os_str().is_empty() { std::path::Path::new(".") } else { dir };
     std::fs::read_dir(dir).is_ok_and(|entries| entries.filter_map(Result::ok).all(|entry| entry.file_name() != to))
+}
+
+/// Whether `path` is a readable regular file inside the automation read root (always `true` on wasm).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn readable_file_exists(path: &std::path::Path) -> bool {
+    crate::file_access::check_read(&path.to_string_lossy()).is_ok() && open_regular_file(path).is_ok()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn readable_file_exists(_path: &std::path::Path) -> bool {
+    true
+}
+
+/// Write a batch of named files `(file_name, bytes)` into directory `dir`, creating `dir` if
+/// needed and checking both `dir` and every target file against the automation write root.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn write_pack_dir(dir: &str, files: &[(String, Vec<u8>)]) -> Result<Vec<String>, String> {
+    crate::file_access::check_write(dir)?;
+    let base = std::path::Path::new(dir);
+    std::fs::create_dir_all(base).map_err(|e| format!("{dir}: {e}"))?;
+    let mut written = Vec::with_capacity(files.len());
+    for (name, bytes) in files {
+        let safe: String = name.chars().filter(|c| !matches!(c, '/' | '\\' | '\0') && !c.is_control()).collect();
+        if safe.is_empty() || safe == "." || safe == ".." {
+            continue;
+        }
+        let target = base.join(&safe);
+        let target_str = target.to_string_lossy().into_owned();
+        write_file(&target_str, bytes)?;
+        written.push(target_str);
+    }
+    Ok(written)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn write_pack_dir(dir: &str, _files: &[(String, Vec<u8>)]) -> Result<Vec<String>, String> {
+    Err(format!("{dir}: folders are exported as a .zip download on the web"))
 }
 
 /// Write `bytes` to the file at `path`, inside the automation write root when there is one.

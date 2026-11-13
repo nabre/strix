@@ -626,7 +626,8 @@ fn main() -> eframe::Result {
             // The system region picks the new document's paper, the units and the decimal
             // separator (#838).
             let region = region::system();
-            let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
+            // The sample is Strix's sample test (docs/exercise.md, Templates).
+            let doc = if sample { wordcraft_engine::sample_test(&region) } else { wordcraft_engine::blank_document(&region) };
             let (file_dialog, dialogs) = file_dialogs::hook(&cc.egui_ctx);
             let mut session = Session::new(doc);
             session.system_region = region;

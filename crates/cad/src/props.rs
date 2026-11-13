@@ -210,6 +210,7 @@ impl Drawing {
         if matches!(e.kind, Kind::Line { .. } | Kind::Arc { .. } | Kind::Polyline { closed: false, .. }) {
             out.push(f("arrows", "Arrows", FieldKind::Choice(ENDS), e.arrows.name().into()));
         }
+        out.push(f("answer", "Solution only", FieldKind::Bool, e.answer.to_string()));
         out
     }
 
@@ -243,6 +244,10 @@ impl Drawing {
                 return Err(bad());
             }
             e.arrows = Ends::parse(text).ok_or("arrows: none, start, end or both")?;
+            return Ok(());
+        }
+        if key == "answer" {
+            e.answer = matches!(text.trim(), "true" | "1" | "yes");
             return Ok(());
         }
         match (&mut e.kind, key) {

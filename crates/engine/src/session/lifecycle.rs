@@ -38,6 +38,19 @@ impl Session {
         s
     }
 
+    /// Clones this session's document, preferences and registry into an isolated in-memory
+    /// session (`exercise.check`, `file.exportPack`) without side effects on open files or undo.
+    pub(crate) fn fork_in_memory(&self) -> Self {
+        let mut copy = Self::with_registry(self.doc.clone(), self.registry.clone());
+        copy.prefs = self.prefs.clone();
+        copy.editing_lang.clone_from(&self.editing_lang);
+        copy.author.clone_from(&self.author);
+        copy.initials.clone_from(&self.initials);
+        copy.path.clone_from(&self.path);
+        copy.file_name.clone_from(&self.file_name);
+        copy
+    }
+
     /// Initialise session defaults while sharing the immutable command registry with previews.
     pub(super) fn with_registry(doc: Document, registry: Arc<Registry>) -> Self {
         let DocState {

@@ -36,7 +36,7 @@
 <p align="center">English · <a href="docs/README.it.md">Italiano</a> · <a href="docs/README.fr.md">Français</a> · <a href="docs/README.de.md">Deutsch</a></p>
 
 <p align="center">
-  <img src="docs/brand/social.png" alt="Strix Writer: a worked exercise where the equations calculate, with units, a solved result and a check." width="100%">
+  <img src="docs/brand/social.png" alt="Strix Writer: write the test, Strix keeps the solutions and the scores. An exercise whose equations calculate, with units, and a check." width="100%">
 </p>
 
 <p align="center">
@@ -334,7 +334,7 @@ Requirements: a Rust toolchain (1.95 or later); for the web build,
 ```sh
 git clone https://github.com/nabre/strix
 cd strix
-cargo run --release -p strix -- --sample          # the desktop app with a sample document
+cargo run --release -p strix -- --sample          # the desktop app with the sample test
 cargo xtask dev                                   # debug build, rebuilt and restarted on every change (watchexec)
                                                   # no screen (sandbox, SSH) or --web: web build on http://127.0.0.1:8771/?sample
 cargo run --release -p strix -- problem.xmath     # open a Strix document
@@ -346,8 +346,8 @@ Command line (`cargo run --release -p strix-cli -- …`, or the built `strix-cli
 strix-cli convert report.docx report.xmath        # import a Word document
 strix-cli convert problem.xmath problem.pdf       # static export: pdf, png, tex, html, md
 strix-cli convert problem.xmath problem.pdf --strict  # exit 3, no file, if a character or picture would be left out
-strix-cli run --template sample \
-  --cmd 'calc.insert={"text":"t = 10 s"}' --save motion.xmath
+strix-cli run --template test \
+  --cmd 'exercise.variant={"exercise":1,"active":1}' --save test-b.xmath   # the sample test, variant B
 strix-cli commands                                # every command id
 ```
 

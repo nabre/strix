@@ -165,6 +165,10 @@ pub struct Layer {
     /// Drawn on the page and in the PDF; when off, only in the editor (construction lines).
     #[serde(skip_serializing_if = "is_true")]
     pub print: bool,
+    /// Solution-only layer: omitted on student copies (`Show = false`) while still counting in
+    /// the drawing's bounds and fitted scale so pagination never shifts.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub answer: bool,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -177,7 +181,7 @@ fn is_true(b: &bool) -> bool {
 
 impl Default for Layer {
     fn default() -> Self {
-        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true }
+        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true, answer: false }
     }
 }
 
@@ -809,6 +813,10 @@ pub struct Entity {
     /// whole; Explode takes that level apart. `None`: on its own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// Solution-only object: omitted on student copies (`Show = false`) while still counting in
+    /// the drawing's bounds and fitted scale so pagination never shifts.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub answer: bool,
     #[serde(flatten)]
     pub kind: Kind,
 }
@@ -827,7 +835,17 @@ fn is_plain(s: &Stroke) -> bool {
 
 impl Entity {
     pub fn new(kind: Kind) -> Entity {
-        Entity { id: String::new(), layer: layer0(), stroke: Stroke::default(), arrows: Ends::None, style: None, text_shift: None, group: None, kind }
+        Entity {
+            id: String::new(),
+            layer: layer0(),
+            stroke: Stroke::default(),
+            arrows: Ends::None,
+            style: None,
+            text_shift: None,
+            group: None,
+            answer: false,
+            kind,
+        }
     }
 }
 

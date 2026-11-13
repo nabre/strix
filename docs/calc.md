@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-12 · **Change:** a table column's formula needs no name (`= γ·q·L²/8 [kN·m]`, the `=` shown only while editing) and takes its unit at the end; the ordinal column is headed `i`; previously: calculations stay live in Word documents too (word-round-trip.md); previously: Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-13 · **Change:** Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -50,7 +50,8 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 | `A = 3 m · 5 m =` | `A` | define and show, from data | `A = 3 m · 5 m = 15 m²` |
 | `M =`, `M = kN·m` | none | show, in the unit asked for | `M = 30.375 kN·m` |
 | `F = m·a` | `a` | **solve** for the one unknown and define it | `F = m·a ⇒ a = 2.5 m/s²` (or under it: Result Layout) |
-| `x² + x = 6` | `x` | solve (numerically: it appears twice) | `x² + x = 6 ⇒ x = 2` |
+| `x² + x = 6` | `x` | **solve** symbolically (degree 1–2 polynomial) | `x² + x = 6 ⇒ x = 2` (or both roots / domain-filtered root) |
+| `x³ + x = 10` | `x` | solve numerically (higher degree / transcendental) | `x³ + x = 10 ⇒ x = 2 (numerical solution)` |
 | `a + b = c` | none | **check**: both sides must agree | as typed, or an error |
 | `σ ≤ f_yd` | none | check a comparison (`≤ ≥ < > ≠`) | `σ ≤ f_yd ⇒ 5.4 MPa ≤ 355 MPa ✓` |
 | `E = mc²` | `E`, `mc` | more than one unknown: an ordinary equation | as typed (reported) |
@@ -66,12 +67,17 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   as written (`kN·m`, `m/s²`, `1/min`) after `=` or a number sets one, not the `m·5 m` of
   `3 m·5 m`.
 - Solving: the unknown is **isolated** symbolically when it appears once (inverting `+ − · /`,
-  powers, `√`, `exp ln log`, `sin cos tan` and their inverses, principal values); the result is
-  kept only if it satisfies the equation. Otherwise it is found **numerically**: its unit is
-  tried from the equation's known values, every sign change on a logarithmic grid from 10⁻¹² to
-  10¹² (both signs) is refined by bisection (a sign change across a pole is dropped), and secant
-  steps catch roots that touch zero. The **smallest non-negative root** wins, else the negative
-  root closest to zero. No root: "no value of x solves the equation".
+  powers, `√`, `|u(x)| = c` via `±` branching, `exp ln log`, `sin cos tan` and their inverses,
+  principal values), or solved **symbolically as a degree 1–2 polynomial** (`poly_coeffs`) when it
+  appears multiple times (`2·x + 3 = x + 7`, `s = v_0·t + 1/2·a·t²`), checking dimensional
+  homogeneity of `B² − 4·A·C`, reporting `Δ < 0` explicitly, generating quadratic-formula steps,
+  computing both roots `x₁, x₂` and filtering by physical domain constraints (`t > 0`, standalone
+  or after `;`). Otherwise it is found **numerically**: its dimension is inferred algebraically
+  from powers `x^k` and inverse ratios across the equation (plus known quantities), every sign
+  change on a logarithmic grid from 10⁻¹² to 10¹² (both signs) is refined by bisection (a sign
+  change across a pole is dropped), and secant steps catch roots that touch zero. The **smallest
+  non-negative root** wins, else the negative root closest to zero. No root: "no value of x solves
+  the equation".
 - After `⇒` Strix writes the solved value (with Show Steps, the algebra first); on the next
   calculation that tail is replaced, and the unit of its last value, if changed, is kept
   (`⇒ a = mm/s²`).
@@ -209,11 +215,14 @@ Formula columns, units and totals work as in any calculated table, and the colum
 
 `strix-calc` (L1, pure Rust, no dependencies) holds a quantity as an `f64` SI magnitude plus a
 dimension vector over the 7 SI base dimensions. Units: SI base and derived (`m s kg A K mol cd N
-Pa J W C V Ω Hz`), prefixes (`n µ m c d k M G`) on the units that take them, common engineering
-units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles, `bar`, `kWh`), and
-dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`, and temperatures in `K`, `°C` and
-`°F` (see Temperatures). A unit typed in the wrong case gets a hint: "unknown name KN (did you
-mean kN?)".
+Pa J W C V Ω Hz F H T Wb S lm lx`), full SI prefixes (`f p n µ m c d da k M G T P`, with exact
+unit match before prefix splitting so `T` is tesla while `THz`/`TW` are tera-, `d` is day while
+`dm`/`dL`/`dB` are deci-, and `pF` is picofarad), chemistry and physics units (`atm torr mmHg eV
+cal Da u`), topography and mechanics units (`are ha gon/grad arcmin arcsec d/day yr rpm kn`),
+common engineering units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`, `°` for angles,
+`bar`, `kWh`), dimensionless units `%`, `‰`, `ppm`, `°`, `rad`, `gon`, `sr`, and temperatures in
+`K`, `°C` and `°F` (see Temperatures). A unit typed in the wrong case gets a hint: "unknown name
+KN (did you mean kN?)".
 
 ### Temperatures
 
@@ -262,13 +271,16 @@ pressure, energy, power and electrical units (`kN`, `MPa`, `kJ`), else base unit
 the dimension of energy and shows in `J` unless `N·m` is asked for.
 
 Precedence, loosest first: comparisons; `+ -`; explicit `* · × /` (left to right); unary minus;
-implicit multiplication; `^ ² ³` (right to left). So `12 kN/m` is (12·kN)/m and `2 kN/4 m^2` is
-500 Pa, while `1/2 m` is 1/(2 m). Typing `*` in an equation writes the multiplication dot `·`.
-Limits: 4096 characters, nesting depth 64, 512 terms.
+implicit multiplication; postfix `!` and `^` / Unicode superscripts `⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹` (right to left).
+So `12 kN/m` is (12·kN)/m and `2 kN/4 m^2` is 500 Pa, while `1/2 m` is 1/(2 m). Typing `*` in an
+equation writes the multiplication dot `·`. Limits: 4096 characters, nesting depth 64, 512 terms.
 
-Functions: `sqrt abs exp ln log sin cos tan asin acos atan min max round sum mean len`; `π`/`pi`,
-`e`, `g` (standard gravity) are predefined. Numbers: `1.5`, `1,5` when the document language uses
-decimal commas, `2e-3`.
+Functions: algebraic and trigonometric (`sqrt cbrt root(x; n) abs sign mod(a; b) exp ln log2
+log(x; base) sin cos tan asin acos atan atan2(y; x) sinh cosh tanh asinh acosh atanh min max
+round floor ceil trunc`), combinatorics and integer arithmetic (`gcd/mcd lcm/mcm fact/n!
+binom(n; k)`), and laboratory statistics and linear regression (`sum mean median var varp
+stdev/std stdevp len slope(X; Y) intercept(X; Y) r2(X; Y)`); `π`/`pi`, `e`, `g` (standard gravity)
+are predefined. Numbers: `1.5`, `1,5` when the document language uses decimal commas, `2e-3`.
 
 ### User functions
 
@@ -302,18 +314,25 @@ working unit written for the kind wins.
 
 ## Number format
 
-Set on the Math tab (Number Display: More/Fewer Digits, Rounding) or with `calc.options`; kept as
-a preference (`calc_digits`, `calc_count`, `calc_zeros`).
+Set on the Math tab (Number Display: More/Fewer Digits, Rounding, Scope) or with `calc.options`;
+resolved through the hierarchy **Equation > Exercise > Document > Preferences**. New documents
+inherit their document options from Preferences (`calc_digits`, `calc_count`, `calc_zeros`,
+`calc_steps`, `calc_layout`); opened `.xmath` and `.docx` documents use their own saved options
+(`customXml/strixObjects.xml` in Word packages). Pass `"scope": "equation" | "exercise" |
+"document" | "prefs"` (and `"reset": true` to clear an override) to `calc.options`, `calc.steps`
+or `calc.layout`.
 
 - **Digits** (default 3) with **Automatic** count: decimal places for |x| ≥ 1, significant
   digits below 1 (`30.375`, `0.0035`, `0.123`). **Decimal Places** always counts decimals
   (`0.0001` with 2 → `0`); **Significant Digits** counts significant digits (`1234.5` with 2 →
   `1200`).
 - Rounding is half away from zero on the shortest decimal form, capped at 15 significant digits
-  (`2.675` → `2.68` with 2 decimals). `round(x; n)` rounds the same way (`round(1.005; 2) =
-  1.01`) and keeps a quantity's unit, rounding its coherent SI value (`round(2.345 m; 2) =
-  2.35 m`); an absolute temperature must be a plain number. Known limit: a value in `°` or `%`
-  is rounded in radians or as a fraction.
+  (`2.675` → `2.68` with 2 decimals). `round(x; n)`, `floor(x; n)`, `ceil(x; n)` and `trunc(x; n)`
+  are **unit-aware**: with 1 or 2 arguments they round in the value's display or working unit
+  (including `°`, `%`, engineering/written multiples such as `cm` or `km`, and affine temperatures
+  `°C`/`°F`), then convert back to coherent SI while keeping the unit hint (`round(30°; 0) = 30°`,
+  `round(20.6 °C; 0) = 21 °C`); a 3rd unit argument `round(x; n; unit)` rounds in that explicit
+  unit (`round(alpha; 1; °)`).
 - The automatic prefix is chosen on the number as shown: `999999.9996 Pa` shows `1 MPa`, never
   `1000 kPa`.
 - In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
@@ -329,7 +348,7 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 |---|---|
 | a formula: `M = q·L²/8 =`, `M = q·L²/8`, `q·L²/8 =`, `A := …  =` | the values substituted (with their units, one unit per kind), the result |
 | solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
-| solved numerically: `x² + x = k` | the equation with its values (`x² + x = 6`), the result, and the note "(numerical solution)" ("(soluzione numerica)" in an Italian document) |
+| solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
 
 A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a parameter shown alone
@@ -392,7 +411,8 @@ spelled like a unit stays a parameter in its own part (`m` the mass in `F = m·a
 | `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`) |
 | `calc.tableInfo` | whether the table at the caret is calculated |
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
-| `calc.variables` | the parameters at the end of the document: name, value (or values), unit, where |
+| `calc.variables` | the parameters of the document and of each exercise sandbox, with jump positions and optional unit conversions (`{"units"?: {…}}`) |
+| `view.variablesPane` | open or close the **Variables** task pane (Math › Calculation › Variables) |
 | `calc.options` | number format: digits, count, trailing zeros (and `layout`) |
 | `calc.steps` | Show Steps: formulas, solved equations and checks show their working (a preference) |
 | `calc.layout` | Result Layout: `{"value"?: "inline" \| "lines"}` (default: toggle), a preference; recalculates |
@@ -419,10 +439,10 @@ Edit Drawing, see `docs/cad.md`).
 ## Stages
 
 1. **Scalar worksheet**: parser, units, evaluation, errors; commands; tests. *Done.*
-2. **One `=`**: unknown detection, symbolic isolation, numeric roots, checks and comparisons,
-   working units, number format, unit hints, `°C`/`°F`. *Done.* Still to do: Variables pane,
-   unit picker.
-3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`.** *Done.* Still to do: matrices.
+2. **One `=`**: unknown detection, symbolic isolation, degree 1–2 polynomial and `abs` solving,
+   numeric roots with dimensional inference, checks and comparisons, working units, number format,
+   unit hints, `°C`/`°F`, Variables pane and unit converter. *Done.*
+3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`, lab statistics and regression.** *Done.* Still to do: matrices.
 4. **Calculated tables.** *Done.*
 5. Solution steps (each isolation step, substitution, result; numeric solves marked) and the
    result layout (inline or line by line). *Done.* Still to do: systems of equations across
@@ -430,6 +450,9 @@ Edit Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-11-13: Phase 2 (`M4`–`M6`): full SI prefixes (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units (`F H T Wb S lm lx atm torr mmHg eV cal Da u are ha gon/grad arcmin arcsec d/day yr rpm kn`); STEM functions (`cbrt`, `root`, `log2`, `log(x; b)`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics/regression (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts (`⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹`); symbolic degree 1–2 polynomial solver with dimensional Δ check, physical domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables) with unit conversion selector and click-to-jump across document and exercise sandboxes.
+
+- 2026-11-13: calculation options (`digits`, `count`, `zeros`, `steps`, `layout`) resolve through `equation > exercise > document > prefs` and save in `.xmath` and `.docx` (`customXml/strixObjects.xml`); `round`, `floor`, `ceil` and `trunc` are unit-aware (display/working/affine units plus optional 3rd unit argument); `(numerical solution)` note in EN, IT, DE and FR.
 - 2026-11-12: calculated tables: a column formula needs no name (`= q·L²/8`, its `=` hidden except while the cell is edited) and its unit may close it (`M = q·L²/8 [kN·m]`); the ordinal column is headed `i`.
 - 2026-11-09: Math tab: Calculation (Always Calculate, was Calculate New Equations), Calculate Table (was Calculate This Table), Number Display (was Results; Rounding, was Number Format), smaller and in two columns.
 - 2026-11-09: units after numbers alone (`[4; 5; 6] m`, `10^3 m`) and after a written quantity
@@ -465,3 +488,30 @@ Edit Drawing, see `docs/cad.md`).
   calculated tables; number format (digits, auto/decimals/significant, zeros, half-away
   rounding); working units; comparisons with ✓/✗; unit hints; Math tab; `*` types `·`.
 - 2026-10-27: new (stage 1).
+
+## Laboratory measurements and uncertainty (Phase 5)
+
+A scalar measurement carries an absolute SI uncertainty: `L = 12.4 ± 0.1 cm`
+(`+-` also works), or `L = 12.4 ± 2% cm` for a relative uncertainty. A unit
+written after the uncertainty applies to both numbers. `val(L)` extracts the
+central value, `unc(L)` the absolute uncertainty with the same dimension, and
+`relunc(L)` its dimensionless relative uncertainty (`unc(L)/abs(val(L))`). The
+last is undefined at zero. Celsius/Fahrenheit uncertainties are differences,
+so no temperature offset is added to the uncertainty.
+
+Math › Results › Rounding offers Maximum Uncertainty and Uncertainty in
+Quadrature (GUM). The same setting is `calc.options {"uncertainty":"max"|"rss"}`,
+with the existing equation > exercise > document > preferences inheritance and
+Word round trip. Maximum propagation adds absolute derivative contributions;
+RSS combines them using `hypot`. This is first-order propagation with independent
+inputs; covariance and correlations between repeated uses of one measurement
+are not modelled. Arithmetic, powers, square/cube roots, absolute value,
+exponential/logarithmic and trigonometric/hyperbolic unary functions, sums and
+means retain uncertainty, including vector elements. Functions without a
+propagation rule return an error for uncertain inputs: use `val()` deliberately
+when only the central value is wanted.
+
+Results round uncertainty to two significant figures when its first digit is
+1 or 2, otherwise one; the central value uses the same decimal position.
+Unit conversion scales both the central value and uncertainty, including
+trailing zeros (`12.44 ± 0.12 cm` → `124.4 ± 1.2 mm`).

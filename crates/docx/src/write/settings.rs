@@ -111,6 +111,11 @@ pub(super) fn settings_xml(doc: &Document, footnotes: bool, endnotes: bool, temp
     if let Some(m) = &s.math {
         math::math_pr(&mut w, m);
     }
+    if let Some(raw) =
+        doc.passthrough.get("strix:calc.options").and_then(|b| std::str::from_utf8(b).ok()).filter(|s| !s.is_empty() && s.len() <= 4096)
+    {
+        w.empty("strix:calcOptions", &[("xmlns:strix", xml::STRIX_NS), ("strix:val", raw)]);
+    }
     w.close("w:settings");
     w.into_bytes()
 }

@@ -387,7 +387,12 @@ impl<'a> Builder<'a> {
             };
             let from = usize::from(rc.kerned());
             let to = if ligatures.is_some() { all.len() } else { 1 };
-            let features: &[wordcraft_fonts::Feature] = all.get(from..to).unwrap_or_default();
+            let mut features = all.get(from..to).unwrap_or_default().to_vec();
+            if rc.tabular_digits {
+                features.push(wordcraft_fonts::feature_value(b"tnum", 1));
+                features.push(wordcraft_fonts::feature_value(b"pnum", 0));
+            }
+            let features = features.as_slice();
             // Letters join across a change of font or direction inside the run too.
             let around = ShapeContext {
                 before: if a == 0 { around.before } else { text.get(..a).unwrap_or("") },

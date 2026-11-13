@@ -195,11 +195,14 @@ impl Writer<'_> {
                 None
             }
             (None, None, Some(src)) => self.embedded_tree(src, rels, ink.then_some((*gw, *gh, float, alt.as_str()))),
-            (None, None, None) => match graphic.cad.as_deref() {
-                // A CAD drawing: its source in a Strix `a:graphicData` (an extension
-                // Word passes over).
-                Some(source) if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad => {
+            (None, None, None) => match (graphic.kind, graphic.cad.as_deref(), graphic.plot.as_deref()) {
+                // A CAD drawing or Strix plot: its source in a Strix `a:ext` alongside its SVG picture.
+                (wordcraft_doc::graphic::GraphicKind::Cad, Some(source), _) => {
                     let xml = self.cad_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
+                    crate::xml::parse(xml.as_bytes()).ok()
+                }
+                (wordcraft_doc::graphic::GraphicKind::Plot, _, Some(source)) => {
+                    let xml = self.plot_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
                     crate::xml::parse(xml.as_bytes()).ok()
                 }
                 _ => None,
@@ -238,6 +241,7 @@ impl Writer<'_> {
                 wordcraft_doc::graphic::GraphicKind::Diagram => format!("Diagram {docpr}"),
                 wordcraft_doc::graphic::GraphicKind::Ink => format!("Ink {docpr}"),
                 wordcraft_doc::graphic::GraphicKind::Cad => format!("CAD Drawing {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Plot => format!("Plot {docpr}"),
             };
             let z = self.z;
             self.graphic_frame(

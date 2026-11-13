@@ -92,10 +92,8 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 - **Stage 4 — More closed modes**: fill in the blanks (*completamento*, blanks inline in the
   question's text), matching (*abbinamento*, two columns), ordering. Each keeps the two-copies
   rule and gives its line to the summary.
-- **Calculation**: a tolerance per result (± absolute or %) for the grading grid; changing an
-  existing question's mode (today: delete it and add one of the new mode); a result line per
-  result when the space holds several.
-- The **grading grid** (points → mark) closes the chain: docs/exercise.md, Next.
+- **Calculation**: a result line per result when the space holds several (tolerances `"2%"` / `"0.1 cm"` and in-place `exercise.questionMode` conversion are now supported).
+- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and Exercise Properties.
 
 ## Commands
 
@@ -103,8 +101,35 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 |---|---|
 | `exercise.insert` | `"kind": "open" \| "choice" \| "trueFalse" \| "calc" \| "drawing"` (the first questions' mode); per question `"type"` (its own mode) and, for a drawing, `"drawing"` (its CAD source) |
 | `exercise.addQuestion` | `"type"` (default: like the last question), `"drawing"` |
-| `exercise.questions` | reports each question's `"type"` and, for a calculation, its `"line"` as shown |
+| `exercise.questionMode` | `"type": "open" \| "choice" \| "trueFalse" \| "calc" \| "drawing"` — converts an existing quiz question's answer part in place while preserving its question paragraph, points, space settings, working equations and choice options |
+| `exercise.questionPoints` | `"points": number \| null` — sets or clears a question's points on both problems and quizzes |
+| `exercise.questions` | sets/reports `"type"`, `"points"`, `"tolerance"` (for `calc`, e.g. `"2%"` or `"0.1 cm"`, shown as an interval on the teacher copy), `"shuffleChoices"` and `"rationales"` (for `choice`), plus `"line"`, `"result"`, `"workingPos"`, `"scale"`, `"cadSelect"` |
 
 ## Revision history
 
+- 2026-11-13: calculation tolerances (`tolerance` in `exercise.questions`), parametric `{{expr}}` options (`strix:expr`), teacher-only option rationales (`strix:rationale`), and deterministic per-variant choice shuffling (`shuffleChoices`).
+- 2026-11-13: in-place mode conversion (`exercise.questionMode`), contextual Quiz controls (mode selector, live calculation preview and Go to Working, CAD scale and Edit Drawing), Variants & Data exposed for quizzes (`showData` toggle), and per-question points on problems (`exercise.questionPoints`).
 - 2026-11-12: new: question modes; a mode per question, mixed in one quiz; calculation questions (worked with the exercise's data and variants, result line with blank and unit, result in the summary) and CAD drawing questions (the solution's drawing in a squared space, hidden in the students' copy); a quiz's data part after its title when it has no statement.
+
+## Laboratory and completion questions (Phase 5)
+
+`exercise.insert {"kind": ...}` and a question's `"type"` also accept:
+
+- `worked`: an example whose working stays visible in the student copy. Its
+  points are always unset. An exercise containing only worked examples has no
+  row in the scores table.
+- `cloze`: inline completion. `{{expression}}` templates in the question become
+  `strix:blank` controls; the teacher sees their calculated values, the student
+  a blank retaining the unit. `exercise.blank {"expr":"rho -> kg/m³"}` inserts
+  a blank at the caret in ordinary text too. Values use the exercise's sandbox.
+- `tableFill`: an answer containing a calculated table to complete. In Table
+  Layout › Data › Student Blanks, mark a cell or column (`exercise.tableFill
+  {"studentBlank":true,"column":true}`). Student copies hide marked values;
+  calculations retain their inputs. Removing the flag restores visibility.
+- `matching`: two columns with association boxes. Pass `"pairs":[["mass","kg"],
+  ["time","s"]]` or edit Pairs in Exercise Properties. The right column uses a
+  deterministic permutation per exercise/question/variant. Only teacher copies
+  contain the association letters. Pairs and modes survive Word round trips.
+
+Each mode can coexist with existing question modes in one quiz; the Question
+Type menu and the per-question selector offer all of them.

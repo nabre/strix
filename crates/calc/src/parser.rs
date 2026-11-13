@@ -27,44 +27,108 @@ use crate::{CalcError, MAX_DEPTH, MAX_NODES};
 /// A built-in function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Func {
+    Measure,
+    RelativeMeasure,
+    Val,
+    Unc,
+    Relunc,
     Sqrt,
+    Cbrt,
+    Root,
     Abs,
+    Sign,
+    Mod,
     Exp,
     Ln,
     Log,
+    Log2,
     Sin,
     Cos,
     Tan,
     Asin,
     Acos,
     Atan,
+    Atan2,
+    Sinh,
+    Cosh,
+    Tanh,
+    Asinh,
+    Acosh,
+    Atanh,
+    Gcd,
+    Lcm,
+    Fact,
+    Binom,
     Min,
     Max,
     Round,
+    Floor,
+    Ceil,
+    Trunc,
     Sum,
     Mean,
+    Median,
+    Var,
+    Varp,
+    Stdev,
+    Stdevp,
+    Slope,
+    Intercept,
+    R2,
     Len,
 }
 
 impl Func {
     pub(crate) fn from_name(name: &str) -> Option<Func> {
         Some(match name {
+            "measure" => Func::Measure,
+            "relativeMeasure" => Func::RelativeMeasure,
+            "val" => Func::Val,
+            "unc" => Func::Unc,
+            "relunc" => Func::Relunc,
             "sqrt" => Func::Sqrt,
+            "cbrt" => Func::Cbrt,
+            "root" => Func::Root,
             "abs" => Func::Abs,
+            "sign" => Func::Sign,
+            "mod" => Func::Mod,
             "exp" => Func::Exp,
             "ln" => Func::Ln,
             "log" => Func::Log,
+            "log2" => Func::Log2,
             "sin" => Func::Sin,
             "cos" => Func::Cos,
             "tan" => Func::Tan,
             "asin" => Func::Asin,
             "acos" => Func::Acos,
             "atan" => Func::Atan,
+            "atan2" => Func::Atan2,
+            "sinh" => Func::Sinh,
+            "cosh" => Func::Cosh,
+            "tanh" => Func::Tanh,
+            "asinh" => Func::Asinh,
+            "acosh" => Func::Acosh,
+            "atanh" => Func::Atanh,
+            "gcd" | "mcd" => Func::Gcd,
+            "lcm" | "mcm" => Func::Lcm,
+            "fact" => Func::Fact,
+            "binom" => Func::Binom,
             "min" => Func::Min,
             "max" => Func::Max,
             "round" => Func::Round,
+            "floor" => Func::Floor,
+            "ceil" => Func::Ceil,
+            "trunc" => Func::Trunc,
             "sum" => Func::Sum,
             "mean" => Func::Mean,
+            "median" => Func::Median,
+            "var" => Func::Var,
+            "varp" => Func::Varp,
+            "stdev" | "std" => Func::Stdev,
+            "stdevp" => Func::Stdevp,
+            "slope" => Func::Slope,
+            "intercept" => Func::Intercept,
+            "r2" => Func::R2,
             "len" => Func::Len,
             _ => return None,
         })
@@ -72,24 +136,60 @@ impl Func {
 
     pub(crate) fn name(self) -> &'static str {
         match self {
+            Func::Measure => "measure",
+            Func::RelativeMeasure => "relativeMeasure",
+            Func::Val => "val",
+            Func::Unc => "unc",
+            Func::Relunc => "relunc",
             Func::Sqrt => "sqrt",
+            Func::Cbrt => "cbrt",
+            Func::Root => "root",
             Func::Abs => "abs",
+            Func::Sign => "sign",
+            Func::Mod => "mod",
             Func::Exp => "exp",
             Func::Ln => "ln",
             Func::Log => "log",
+            Func::Log2 => "log2",
             Func::Sin => "sin",
             Func::Cos => "cos",
             Func::Tan => "tan",
             Func::Asin => "asin",
             Func::Acos => "acos",
             Func::Atan => "atan",
+            Func::Atan2 => "atan2",
+            Func::Sinh => "sinh",
+            Func::Cosh => "cosh",
+            Func::Tanh => "tanh",
+            Func::Asinh => "asinh",
+            Func::Acosh => "acosh",
+            Func::Atanh => "atanh",
+            Func::Gcd => "gcd",
+            Func::Lcm => "lcm",
+            Func::Fact => "fact",
+            Func::Binom => "binom",
             Func::Min => "min",
             Func::Max => "max",
             Func::Round => "round",
+            Func::Floor => "floor",
+            Func::Ceil => "ceil",
+            Func::Trunc => "trunc",
             Func::Sum => "sum",
             Func::Mean => "mean",
+            Func::Median => "median",
+            Func::Var => "var",
+            Func::Varp => "varp",
+            Func::Stdev => "stdev",
+            Func::Stdevp => "stdevp",
+            Func::Slope => "slope",
+            Func::Intercept => "intercept",
+            Func::R2 => "r2",
             Func::Len => "len",
         }
+    }
+
+    pub(crate) fn is_rounding(self) -> bool {
+        matches!(self, Func::Round | Func::Floor | Func::Ceil | Func::Trunc)
     }
 }
 
@@ -145,13 +245,18 @@ pub(crate) struct Nary {
 /// Parses all of `tokens` as one expression. `end_pos` is the 0-based character position just
 /// after the tokens, for "expected a value" at the end.
 pub(crate) fn parse(tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
-    parse_with(tokens, end_pos, &|_| false)
+    parse_env(tokens, end_pos, &|_| false, &|_| false)
 }
 
 /// [`parse`], where a name `is_func` accepts followed by `(` is a call of that user function
 /// (`f(3)`), not a product (`a(b + c)`).
 pub(crate) fn parse_with(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
-    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func };
+    parse_env(tokens, end_pos, is_func, &|_| false)
+}
+
+/// [`parse_with`], also distinguishing defined vector parameters (`F = [1; 2; 3] kN` in `2 F =`).
+pub(crate) fn parse_env(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool, is_vec: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
+    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec };
     let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
         return Err(CalcError::syntax(token.pos, format!("unexpected {}", describe(&token.tok))));
@@ -168,6 +273,7 @@ struct Parser<'a> {
     nodes: usize,
     end_pos: usize,
     is_func: &'a dyn Fn(&str) -> bool,
+    is_vec: &'a dyn Fn(&str) -> bool,
 }
 
 impl Parser<'_> {
@@ -225,6 +331,30 @@ impl Parser<'_> {
     fn expr(&mut self) -> R<Expr> {
         let mut left = self.term()?;
         loop {
+            if matches!(self.peek(), Some(Tok::PlusMinus)) {
+                self.bump();
+                let mut right = self.term()?;
+                let mut func = Func::Measure;
+                // A trailing unit belongs to both sides: `12.4 ± 0.1 cm`.
+                if let Expr::Bin(BinOp::Mul, n, units) = &right
+                    && crate::format::is_units(units)
+                {
+                    let mut shared = (**units).clone();
+                    if let Some(u) = without_leading_percent(&shared) {
+                        right = self.bin(BinOp::Mul, (**n).clone(), Expr::Unit("%".into()))?;
+                        shared = u;
+                        func = Func::RelativeMeasure;
+                    }
+                    if crate::format::is_numeric(&left) {
+                        left = self.bin(BinOp::Mul, left, shared)?;
+                    }
+                }
+                if matches!(&right, Expr::Bin(BinOp::Mul, _, u) if matches!(&**u, Expr::Unit(name) if name == "%")) {
+                    func = Func::RelativeMeasure;
+                }
+                left = self.node(Expr::Call(func, vec![left, right]))?;
+                continue;
+            }
             let op = match self.peek() {
                 Some(Tok::Plus) => BinOp::Add,
                 Some(Tok::Minus) => BinOp::Sub,
@@ -286,14 +416,50 @@ impl Parser<'_> {
         Ok(left)
     }
 
-    /// True when token `i` is a unit name (and not a function call).
+    /// True when token `i` starts a unit factor (a unit name, or a parenthesised compound unit
+    /// like `(kg·°C)` or `(m²)`).
     fn unit_at(&self, i: usize) -> bool {
         match self.toks.get(i).map(|t| &t.tok) {
             Some(Tok::Ident(name)) => {
-                crate::units::unit(name).is_some() && !matches!(self.toks.get(i + 1).map(|t| &t.tok), Some(Tok::LParen) | Some(Tok::LBracket))
+                let next = self.toks.get(i + 1).map(|t| &t.tok);
+                let vec_alone = (self.is_vec)(name) && !matches!(next, Some(Tok::Slash | Tok::Caret | Tok::Sup(_)));
+                crate::units::unit(name).is_some() && !vec_alone && !matches!(next, Some(Tok::LParen) | Some(Tok::LBracket))
             }
+            Some(Tok::LParen) => self.paren_unit_at(i),
             _ => false,
         }
+    }
+
+    /// True when `(` at `start` encloses only units, `*`, `/`, powers and nested parentheses, with
+    /// at least one unit name (`(kg·°C)`, `(m²)`).
+    fn paren_unit_at(&self, start: usize) -> bool {
+        let mut depth = 0usize;
+        let mut has_unit = false;
+        let mut i = start;
+        while let Some(t) = self.toks.get(i) {
+            match &t.tok {
+                Tok::LParen => depth += 1,
+                Tok::RParen => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return has_unit;
+                    }
+                }
+                Tok::Ident(name) => {
+                    let next = self.toks.get(i + 1).map(|n| &n.tok);
+                    if crate::units::unit(name).is_none() || matches!(next, Some(Tok::LParen | Tok::LBracket)) {
+                        return false;
+                    }
+                    has_unit = true;
+                }
+                Tok::Star | Tok::Slash | Tok::Caret | Tok::Sup(_) => {}
+                Tok::Minus | Tok::Plus if i > start && matches!(self.toks.get(i - 1).map(|p| &p.tok), Some(Tok::Caret)) => {}
+                Tok::Num(_) if i > start && matches!(self.toks.get(i - 1).map(|p| &p.tok), Some(Tok::Caret | Tok::Minus | Tok::Plus)) => {}
+                _ => return false,
+            }
+            i += 1;
+        }
+        false
     }
 
     /// Units multiplied, divided and raised to powers: `kN·m`, `m/s²`, `kg m^-3`. Stops at
@@ -321,18 +487,34 @@ impl Parser<'_> {
         }
     }
 
-    /// One unit with its power: `m`, `m²`, `s^-2`.
+    fn sup_node(&mut self, n: i32) -> R<Expr> {
+        if n < 0 {
+            let inner = self.node(Expr::Num(f64::from(-n)))?;
+            self.node(Expr::Neg(Box::new(inner)))
+        } else {
+            self.node(Expr::Num(f64::from(n)))
+        }
+    }
+
+    /// One unit (or parenthesised unit group) with its power: `m`, `m²`, `s^-2`, `s⁻²`, `(kg·°C)`.
     fn unit_factor(&mut self) -> R<Expr> {
-        let Some(Tok::Ident(name)) = self.peek().cloned() else {
-            return Err(CalcError::syntax(self.pos(), "expected a unit"));
+        let mut e = if matches!(self.peek(), Some(Tok::LParen)) {
+            self.bump();
+            let inner = self.nested(Self::unit_chain)?;
+            self.expect(Tok::RParen, ")")?;
+            inner
+        } else {
+            let Some(Tok::Ident(name)) = self.peek().cloned() else {
+                return Err(CalcError::syntax(self.pos(), "expected a unit"));
+            };
+            self.bump();
+            self.node(Expr::Unit(name))?
         };
-        self.bump();
-        let mut e = self.node(Expr::Unit(name))?;
         loop {
             match self.peek() {
                 Some(&Tok::Sup(n)) => {
                     self.bump();
-                    let exponent = self.node(Expr::Num(f64::from(n)))?;
+                    let exponent = self.sup_node(n)?;
                     e = self.bin(BinOp::Pow, e, exponent)?;
                 }
                 Some(Tok::Caret) => {
@@ -376,8 +558,12 @@ impl Parser<'_> {
             match self.peek() {
                 Some(&Tok::Sup(n)) => {
                     self.bump();
-                    let exponent = self.node(Expr::Num(f64::from(n)))?;
+                    let exponent = self.sup_node(n)?;
                     expr = self.bin(BinOp::Pow, expr, exponent)?;
+                }
+                Some(Tok::Bang) => {
+                    self.bump();
+                    expr = self.node(Expr::Call(Func::Fact, vec![expr]))?;
                 }
                 Some(Tok::LBracket) => {
                     self.bump();
@@ -511,5 +697,16 @@ impl Parser<'_> {
                 _ => return Err(CalcError::syntax(self.pos(), "expected an argument separator or )")),
             }
         }
+    }
+}
+
+/// A leading percent is a relative uncertainty marker, including in compound units
+/// such as `% kg/m³`; remove only that factor, retaining the physical unit.
+fn without_leading_percent(e: &Expr) -> Option<Expr> {
+    match e {
+        Expr::Unit(n) if n == "%" => Some(Expr::Num(1.0)),
+        Expr::Bin(BinOp::Mul, l, r) if matches!(&**l, Expr::Unit(n) if n == "%") => Some((**r).clone()),
+        Expr::Bin(op @ (BinOp::Mul | BinOp::Div), l, r) => without_leading_percent(l).map(|u| Expr::Bin(*op, Box::new(u), r.clone())),
+        _ => None,
     }
 }

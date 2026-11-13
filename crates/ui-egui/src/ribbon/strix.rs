@@ -9,9 +9,12 @@ use super::shape::alt_text_group;
 use super::{Ui, Value, WordApp, big, big_toggle, group, json, menu_button, mi, small};
 
 /// The Teaching tab (Didattica): the objects for teaching, exercises and their series, the
-/// scores table and graph paper.
+/// scores table, grading scale, assessment check & pack export, and graph paper.
 pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     exercise_group(app, ui);
+    group(ui, "Archive", None, app, |ui, app| {
+        big(ui, app, "folder", "Exercise\nBank", "view.archivePane", json!({}), false);
+    });
     group(ui, "Scores", None, app, |ui, app| {
         let st = app.session.run("exercise.scores", &json!({})).ok().unwrap_or_default();
         let on = st["on"].as_bool().unwrap_or(false);
@@ -46,11 +49,68 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
                     },
                 );
             });
+            grading_scale_menu(ui, app);
         });
+    });
+    group(ui, "Assessment", None, app, |ui, app| {
+        let check_on = app.session.view.check_pane;
+        big_toggle(ui, app, "checkAssessment", "Check", "view.checkPane", check_on);
+        big(ui, app, "exportPack", "Export\nPack", "file.exportPack", json!({}), false);
     });
     group(ui, "Graph Paper", None, app, |ui, app| {
         graph_paper_button(ui, app);
     });
+}
+
+fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
+    let gst = app.session.run("exercise.grading", &json!({})).ok().unwrap_or_default();
+    let g_on = gst["on"].as_bool().unwrap_or(false);
+    let cfg = &gst["config"];
+    let preset = cfg["preset"].as_str().unwrap_or("it-10").to_string();
+    let curve = cfg["curve"].as_str().unwrap_or("linear").to_string();
+    let step = cfg["step"].as_f64().unwrap_or(0.5);
+    let vis = cfg["visibility"].as_str().unwrap_or("teacher").to_string();
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "gradingScale",
+            Some("Grading Scale"),
+            "Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)",
+            false,
+            "exercise.grading",
+        ),
+        |ui, app| {
+            mi_check(ui, app, "Show Grading Scale", g_on, "exercise.grading", json!({"on": !g_on}));
+            ui.separator();
+            for (id, lbl) in [
+                ("it-10", "Italy (1–10)"),
+                ("ch-6", "Switzerland (1–6)"),
+                ("de-6", "Germany (6–1)"),
+                ("fr-20", "France (0–20)"),
+                ("percent", "Percentage (0–100%)"),
+            ] {
+                mi_check(ui, app, lbl, g_on && preset == id, "exercise.grading", json!({"on": true, "preset": id}));
+            }
+            ui.separator();
+            mi_check(ui, app, "Linear Curve", curve == "linear", "exercise.grading", json!({"on": true, "curve": "linear"}));
+            mi_check(
+                ui,
+                app,
+                "Piecewise Curve (Pass Threshold)",
+                curve == "piecewiseLinear",
+                "exercise.grading",
+                json!({"on": true, "curve": "piecewiseLinear"}),
+            );
+            ui.separator();
+            for (st_val, st_lbl) in [(0.1, "Step 0.1"), (0.25, "Step 0.25"), (0.5, "Step 0.5"), (1.0, "Step 1.0")] {
+                mi_check(ui, app, st_lbl, (step - st_val).abs() < 1e-6, "exercise.grading", json!({"on": true, "step": st_val}));
+            }
+            ui.separator();
+            mi_check(ui, app, "Teacher Copy Only", vis == "teacher", "exercise.grading", json!({"on": true, "visibility": "teacher"}));
+            mi_check(ui, app, "Student and Teacher Copies", vis == "both", "exercise.grading", json!({"on": true, "visibility": "both"}));
+        },
+    );
 }
 
 /// The Header & Footer tab, while a header or footer is edited (docs/headers-footers.md): go to
@@ -272,7 +332,36 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
         });
+        // A column of its own: a stack holds three small buttons.
+        stack(ui, |ui| inline_expr_menu(ui, app));
     });
+}
+
+fn inline_expr_menu(ui: &mut Ui, app: &mut WordApp) {
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "inlineExpr",
+            Some("Inline Expression"),
+            "Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)",
+            false,
+            "exercise.insertExpr",
+        ),
+        |ui, app| {
+            let id = egui::Id::unique("inline_expr_draft");
+            let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| "v * t -> m".into());
+            ui.set_min_width(200.0);
+            ui.label(egui::RichText::new(tl!("Parametric expression")).small().weak());
+            let edit = ui.text_edit_singleline(&mut text);
+            let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            ui.data_mut(|d| d.insert_temp(id, text.clone()));
+            if (enter || ui.button(tl!("Insert")).clicked()) && !text.trim().is_empty() {
+                let _ = app.run("exercise.insertExpr", json!({"expr": text.trim()}));
+                ui.close();
+            }
+        },
+    );
 }
 
 /// Insert › Pages › Graph Paper (docs/graph-paper.md).
@@ -389,6 +478,7 @@ Calculation",
                 crate::widgets::ButtonAction::new("calc.recalculate", json!({}), false),
             );
         });
+        big_toggle(ui, app, "variables", "Variables", "view.variablesPane", app.session.view.variables_pane);
     });
     symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {
@@ -415,9 +505,26 @@ Table",
             calc_table_tools(ui, app);
         });
         stack(ui, |ui| calc_table_rows(ui, app));
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "calcTable",
+                Some("Student Blanks"),
+                "Choose which calculated cells students complete",
+                false,
+                "exercise.tableFill",
+            ),
+            |ui, app| {
+                mi(ui, app, "Student Blank Cell", "exercise.tableFill", json!({"studentBlank":true}));
+                mi(ui, app, "Student Blank Column", "exercise.tableFill", json!({"studentBlank":true,"column":true}));
+                mi(ui, app, "Show Cell Value", "exercise.tableFill", json!({"studentBlank":false}));
+            },
+        );
     });
     group(ui, "Number Display", None, app, |ui, app| {
-        let digits = u64::from(app.session.prefs.calc_digits);
+        let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+        let digits = u64::from(eff.digits);
         stack(ui, |ui| {
             small(
                 ui,
@@ -435,14 +542,13 @@ Table",
                 "Show one digit less in results",
                 crate::widgets::ButtonAction::new("calc.options", json!({"digits": digits.saturating_sub(1)}), false),
             );
-            let steps = app.session.prefs.calc_steps;
             small(
                 ui,
                 app,
                 "steps",
                 Some("Show Steps"),
                 "Show the substitution steps of every calculation: the formula with its values, then the result",
-                crate::widgets::ButtonAction::new("calc.steps", json!({}), steps),
+                crate::widgets::ButtonAction::new("calc.steps", json!({}), eff.steps),
             );
         });
         stack(ui, |ui| {
@@ -451,13 +557,24 @@ Table",
                 app,
                 crate::widgets::MenuButtonOptions::new("numberFormat", Some("Rounding"), "How results are rounded", false, "calc.options"),
                 |ui, app| {
-                    let count = app.session.prefs.calc_count.clone();
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let count = wordcraft_engine::cmd::calc::count_name(eff.count);
                     mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
                     mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
                     mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
                     ui.separator();
-                    let zeros = app.session.prefs.calc_zeros;
+                    let zeros = eff.zeros;
                     mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
+                    ui.separator();
+                    mi_check(ui, app, "Maximum Uncertainty", eff.uncertainty.name() == "max", "calc.options", json!({"uncertainty": "max"}));
+                    mi_check(
+                        ui,
+                        app,
+                        "Uncertainty in Quadrature (GUM)",
+                        eff.uncertainty.name() == "rss",
+                        "calc.options",
+                        json!({"uncertainty": "rss"}),
+                    );
                 },
             );
             menu_button(
@@ -471,7 +588,8 @@ Table",
                     "calc.layout",
                 ),
                 |ui, app| {
-                    let lines = app.session.prefs.calc_layout == "lines";
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let lines = eff.layout.name() == "lines";
                     mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
                     mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
                 },
@@ -502,6 +620,9 @@ Drawing",
                 false,
             );
         });
+        big(ui, app, "plot", "Plot", "plot.insert", json!({"openPane": true}), false);
+        let plot_pane = app.session.view.plot_pane;
+        big_toggle(ui, app, "plotProperties", "Plot\nProperties", "view.plotPane", plot_pane);
     });
 }
 
@@ -658,6 +779,10 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
             mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
             mi(ui, app, "Calculation", "exercise.insert", json!({"kind": "calc"}));
+            mi(ui, app, "Worked Example", "exercise.insert", json!({"kind": "worked"}));
+            mi(ui, app, "Inline Completion", "exercise.insert", json!({"kind": "cloze"}));
+            mi(ui, app, "Table to Complete", "exercise.insert", json!({"kind": "tableFill"}));
+            mi(ui, app, "Matching", "exercise.insert", json!({"kind": "matching"}));
             mi(ui, app, "CAD Drawing Question", "exercise.insert", json!({"kind": "drawing"}));
         },
     );
@@ -677,6 +802,10 @@ fn question_type_menu(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "True or False", "exercise.addQuestion", json!({"type": "trueFalse"}));
             mi(ui, app, "Calculation", "exercise.addQuestion", json!({"type": "calc"}));
             mi(ui, app, "CAD Drawing Question", "exercise.addQuestion", json!({"type": "drawing"}));
+            mi(ui, app, "Worked Example", "exercise.addQuestion", json!({"type": "worked"}));
+            mi(ui, app, "Inline Completion", "exercise.addQuestion", json!({"type": "cloze"}));
+            mi(ui, app, "Table to Complete", "exercise.addQuestion", json!({"type": "tableFill"}));
+            mi(ui, app, "Matching", "exercise.addQuestion", json!({"type": "matching"}));
         },
     );
 }

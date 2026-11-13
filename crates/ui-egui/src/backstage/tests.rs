@@ -344,7 +344,7 @@ fn recovery_restore_opens_beside_unsaved_work_without_autosave_permission() {
 #[test]
 fn template_search_matches_labels_case_insensitively() {
     let ids = |q: &str| matching_templates(q).into_iter().map(|(_, id)| id).collect::<Vec<_>>();
-    assert_eq!(ids(""), ["blank", "calc", "sample", "letter", "resume", "report"]);
+    assert_eq!(ids(""), ["blank", "test", "calc", "sample", "letter", "resume", "report"]);
     assert_eq!(ids("  LETTER "), ["letter"]);
     assert_eq!(ids("re"), ["resume", "report"]);
     assert_eq!(ids("résumé"), ["resume"]);

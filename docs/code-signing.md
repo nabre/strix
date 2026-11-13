@@ -44,10 +44,17 @@ changes reach Strix only through a reviewed merge of the `vendor/wordcraft` bran
 This program will not transfer any information to other networked systems unless specifically
 requested by the user or the person installing or operating it.
 
+The exception is the check for software updates described below.
+
 In detail:
 
 - Strix collects no telemetry, crash reports or usage data, and has no account.
-- The update check is turned off: Strix does not contact any server on its own.
+- **Software updates** are the one exception: the desktop app asks GitHub for the list of Strix's
+  releases (`https://api.github.com/repos/nabre/strix/releases`) when it starts and once a day
+  while it stays open, and downloads a newer release to install it at the next start
+  ([updates.md](updates.md)). The request names only the program
+  (`Strix/Update`): nothing about you, your computer or your documents. GitHub sees the usual
+  request data (address) under its own privacy policy.
 - The network features run only when you use them: opening a link you click; the control channel
   (`--control PORT`) and the MCP server (`strix-cli mcp`), which listen on `127.0.0.1` only and
   require a per-window key; the Zotero integration, which talks to the Zotero app on your own

@@ -29,6 +29,9 @@ impl WordApp {
     /// Close, Envelopes, Labels and Finish & Merge on a document with unsaved changes first ask
     /// Save / Don't Save / Cancel, and the command runs once that is answered (`ui.saveChanges`).
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        if id == "archive.importBundle" {
+            return crate::archive_pane::import(self, params);
+        }
         // Comment text still being typed is written first, so a save or export has it and a
         // close, New or Open counts it as a change (#1348). A draft the document refuses is not
         // part of it: saving and exporting go on without it (the refusal stays on the status
@@ -138,6 +141,28 @@ impl WordApp {
                 self.status(e.clone());
             }
             return r;
+        }
+        // Web: Assessment Pack export downloads a `.zip` archive.
+        if self.services.download.is_some() && id == "file.exportPack" && params.get("returnBytes").and_then(Value::as_bool) != Some(true) {
+            let mut p = params.clone();
+            p["returnBytes"] = json!(true);
+            let res = self.session.run("file.exportPack", &p).map_err(|e| e.to_string())?;
+            let b64 = res["zipBase64"].as_str().ok_or_else(|| "missing zipBase64".to_string())?;
+            let bytes = wordcraft_engine::cmd::insert::base64_decode(b64).ok_or_else(|| "bad zipBase64".to_string())?;
+            let raw_name =
+                params.get("path").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{}_pack.zip", self.title_stem()));
+            let name = if raw_name.to_ascii_lowercase().ends_with(".zip") { raw_name } else { format!("{raw_name}.zip") };
+            let delivered = match (&self.services.host_save, &self.services.download) {
+                (Some(host), _) => host(&name, &bytes, false),
+                (None, Some(download)) => download(&name, &bytes),
+                (None, None) => Ok(()),
+            };
+            if let Err(e) = delivered {
+                let msg = i18n::fmt(tl!("Couldn't download {name}: {error}"), &[("name", &name), ("error", &e)]);
+                self.status(msg.clone());
+                return Err(msg);
+            }
+            return Ok(json!({"downloaded": name, "bytes": bytes.len(), "files": res["files"]}));
         }
         // Web: saving and exporting become downloads.
         if self.services.download.is_some() && matches!(id, "file.save" | "file.saveAs" | "file.exportPdf" | "file.exportPng") {
@@ -380,6 +405,7 @@ impl WordApp {
                 | "file.saveTemplate"
                 | "file.exportPdf"
                 | "file.exportPng"
+                | "file.exportPack"
                 | "file.printPdf"
                 | "file.print"
                 | "file.printMarkup"
@@ -460,6 +486,14 @@ impl WordApp {
                 }
                 "exportPdf" => self.export_dialog("pdf"),
                 "exportPng" => self.export_dialog("png"),
+                "exportPack" => {
+                    let name = format!("{}_pack.zip", self.title_stem());
+                    let after = crate::file_dialogs::AfterPick::WithPath { command: "file.exportPack" };
+                    let req = crate::file_dialogs::FileDialogRequest::Save { name, dir: None, native_only: None };
+                    if let crate::file_dialogs::Asked::Done(Err(e)) = self.ask_file(req, after) {
+                        self.status(e);
+                    }
+                }
                 "insertPicture" => self.pick_picture(),
                 "insertSubdocument" => {
                     let after = crate::file_dialogs::AfterPick::WithPath { command: "master.insertSubdocument" };

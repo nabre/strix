@@ -2040,6 +2040,7 @@
 	Pages in the range	Seiten im Bereich
 	Scale to paper size	An Papierformat anpassen
 	Calculation and exercise	Berechnung und Übung
+	Sample test	Klassenarbeit (Beispiel)
 paper	Envelope #10	Umschlag #10
 paper	Envelope DL	Umschlag DL
 
@@ -3008,3 +3009,144 @@ paper	Envelope DL	Umschlag DL
 	Use the proposed scale	Den vorgeschlagenen Faktor verwenden
 	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	Der Faktor ist eine Zahl größer als 0 (oder ein Verhältnis, 1:2), der Winkel eine Zahl
 	Give the block a name	Dem Block einen Namen geben
+	Variants & Data	Varianten & Angaben
+	Show data in exercise	Angaben in der Aufgabe anzeigen
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Gibt den Block Angaben in der Aufgabe aus; deaktiviert bleiben die Werte nur in der Berechnungsumgebung
+	Question Mode	Fragemodus
+	Question Points	Fragepunkte
+	Mode	Modus
+	Go to working	Zum Lösungsweg
+	Put the cursor in this calculation's working space	Setzt den Cursor in den Lösungsbereich dieser Berechnung
+	Open in CAD editor	Im CAD-Editor öffnen
+	Select this question's solution drawing and open it in the CAD editor	Wählt die Lösungszeichnung dieser Frage aus und öffnet sie im CAD-Editor
+	No result equation yet	Noch keine Ergebnisgleichung
+	write a question first	schreibe zuerst eine Frage
+# Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
+	Variables Pane	Variablenbereich
+	Filter variables…	Variablen filtern…
+	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Noch keine Variablen definiert. Fügen Sie eine Live-Berechnung (z. B. L = 4.5 m) oder Übungsangaben ein, um sie hier zu prüfen.
+	Exercise {n}	Aufgabe {n}
+	Variant {v}	Variante {v}
+	No matching variables.	Keine passenden Variablen.
+	Go to definition	Zur Definition springen
+	Defined:	Definiert:
+	Archive	Archiv
+	Archive Properties	Archiveigenschaften
+	Download Font	Schriftart herunterladen
+	downloading fonts isn't available in the browser	Schriftarten können im Browser nicht heruntergeladen werden
+# Strix (2026-11-13): Phase 3 grading scale, parametric expressions, variant generator, pre-flight check & assessment pack.
+	Assessment Check	Prüfungskontrolle
+	Assessment Check Pane	Bereich Prüfungskontrolle
+	Check Assessment	Prüfung kontrollieren
+	Export Assessment Pack	Prüfungspaket exportieren
+	Export Assessment Pack…	Prüfungspaket exportieren…
+	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Exportiert Schüler-PDFs für jede Variante, Nachteilsausgleich-Kopien und den Lehrerschlüssel mit Übersichtstabelle
+	All checks passed across every variant.	Alle Prüfungen in jeder Variante bestanden.
+	Errors	Fehler
+	Warnings	Warnungen
+	Info	Info
+	Error	Fehler
+	Warning	Warnung
+	Duration (min)	Dauer (Min.)
+	Generate Variants…	Varianten generieren…
+	Generate Variants	Varianten generieren
+	Variants to generate	Zu generierende Varianten
+	Max result decimals	Max. Ergebnisdezimalstellen
+	Extra constraints	Zusätzliche Bedingungen
+	Positive final results	Positive Endergebnisse
+	Distinct results across variants	Unterschiedliche Ergebnisse je Variante
+	Min	Min
+	Max	Max
+	Step	Schritt
+	Deterministically generate clean, constraint-checked variants across the specified domains	Erzeugt deterministisch geprüfte Varianten über die angegebenen Wertebereiche
+	Shuffle options per variant	Optionen je Variante mischen
+	Keep variant A in canonical order and deterministically permute options in variants B, C…	Behält Variante A in der Grundreihenfolge und mischt deterministisch die Optionen in Varianten B, C…
+	Rationales	Begründungen
+	Teacher notes per option	Lehrerhinweise je Option
+	Tolerance	Toleranz
+	Assessment	Beurteilung
+	Export\nPack	Paket\nexportieren
+	Grading Scale	Notenskala
+	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Tabelle zur Umrechnung von Punkten in Noten einfügen oder einrichten (1–10, 1–6, 6–1, 0–20, %)
+	Show Grading Scale	Notenskala anzeigen
+	Italy (1–10)	Italien (1–10)
+	Switzerland (1–6)	Schweiz (1–6)
+	Germany (6–1)	Deutschland (6–1)
+	France (0–20)	Frankreich (0–20)
+	Percentage (0–100%)	Prozent (0–100 %)
+	Linear Curve	Lineare Kurve
+	Piecewise Curve (Pass Threshold)	Abschnittsweise Kurve (Bestehensgrenze)
+	Step 0.1	Schritt 0,1
+	Step 0.25	Schritt 0,25
+	Step 0.5	Schritt 0,5
+	Step 1.0	Schritt 1,0
+	Teacher Copy Only	Nur Lehrerausgabe
+	Student and Teacher Copies	Schüler- und Lehrerausgabe
+	Inline Expression	Inline-Ausdruck
+	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Parametrischen Ausdruck im Fließtext einfügen, berechnet in der Übungsumgebung (z. B. v * t -> m)
+	Parametric expression	Parametrischer Ausdruck
+	ZIP Archive	ZIP-Archiv
+	Exercise Bank	Aufgabenbank
+	Exercise\nBank	Aufgaben-\nbank
+	Topics / Tags	Themen / Schlagwörter
+	Scan Folder	Ordner durchsuchen
+	Import Exercise Bundle…	Aufgabensammlung importieren…
+	Exercise bundles	Aufgabensammlungen
+	Insert Copy	Kopie einfügen
+	Link Subdocument	Unterdokument verknüpfen
+	Maximum Uncertainty	Maximale Unsicherheit
+	Uncertainty in Quadrature (GUM)	Quadratische Unsicherheit (GUM)
+	Worked Example	Durchgerechnetes Beispiel
+	Inline Completion	Lückentext
+	Table to Complete	Tabelle zum Ausfüllen
+	Matching	Zuordnung
+	Inline Blank	Lücke im Text
+	Student Blank Cell	Zelle zum Ausfüllen
+	Grade	Klassenstufe
+	Profession	Fachrichtung
+	Teacher	Lehrperson
+	Pairs (left = right)	Paare (links = rechts)
+	Student Blanks	Lücken für Lernende
+	Choose which calculated cells students complete	Zu ergänzende berechnete Zellen auswählen
+	Student Blank Column	Spalte zum Ausfüllen
+	Show Cell Value	Zellwert anzeigen
+	School Subject	Fach
+	Score	Punktzahl
+# Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
+	Plot	Diagramm
+	Plot Properties	Diagrammeigenschaften
+	Plot\nProperties	Diagramm-\neigenschaften
+	Plot Properties Pane	Bereich Diagrammeigenschaften
+	Insert Plot	Diagramm einfügen
+	1 plot	1 Diagramm
+	{n} plots	{n} Diagramme
+	Solution only	Nur Lösung
+	Answer	Lösung
+	Student\nPreview	Schüler-\nvorschau
+	Student Preview: hide solution-only layers and objects as on the student copy	Schülervorschau: blendet Ebenen und Objekte der Lösung wie auf der Schülerausgabe aus
+	Solution only: hidden when the exercise's solution is hidden	Nur Lösung: ausgeblendet, wenn der Lösungsweg der Aufgabe ausgeblendet ist
+	Select a plot in the document to edit its axes, functions and experimental data.	Wählen Sie ein Diagramm im Dokument aus, um Achsen, Funktionen und Messdaten zu bearbeiten.
+	Axes & Frame	Achsen & Rahmen
+	X range	X-Bereich
+	Y range	Y-Bereich
+	X axis	X-Achse
+	Y axis	Y-Achse
+	Minor grid	Hilfsgitter
+	Student blank grid (solution only)	Leeres Schülergitter (nur Lösung)
+	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Zeichnet auf der Schülerausgabe nur das Koordinatengitter und die Achsen zum Einzeichnen von Hand
+	Series	Reihen
+	Parametric	Parametrisch
+	Data	Daten
+	Roots	Nullstellen
+	Extrema	Extrema
+	Tangent at	Tangente bei
+	Linear	Linear
+	Quadratic	Quadratisch
+	Analysis	Analyse
+	Import Exercise Bundle	Aufgabenpaket importieren
+	Insert Exercise Copy	Aufgabenkopie einfügen
+	Plot Source	Diagrammquelle
+	Pre-flight Check Pane	Bereich Vorabprüfung
+	Section	Abschnitt
+	Set Plot	Diagramm festlegen
+	select a plot first	wählen Sie zuerst ein Diagramm aus

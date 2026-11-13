@@ -165,6 +165,8 @@ impl<'a> Exempt<'a> {
             names.extend(c.categories.iter().cloned());
             names.extend(c.series.iter().map(|s| s.name.clone()));
         }
+        // The selected plot's labels and mathematical expressions (Plot Properties): document content.
+        names.extend(wordcraft_engine::cmd::plot::selected_plot_texts(&app.session));
         // About › Language data: the licences' own titles and texts, and the packs' names,
         // licences and sources (File › Options › Language), as their authors wrote them.
         for (title, text) in wordcraft_engine::packs::licence_texts() {
@@ -259,6 +261,9 @@ fn math_placeholders_are_exact_math_input_only() {
 /// starts a speech thread, and process-wide names other tests change are gathered every frame.
 #[test]
 fn untranslated_interface_text() {
+    // Keep pack names stable between painting a frame and checking its exemptions. Other tests
+    // replace the process-wide backend with temporary indexes (including author-supplied names).
+    let _packs = crate::language_packs::BACKEND_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     pseudo::set(true);
     let ctx = egui::Context::default();
     let mut app = fresh_app(&ctx);

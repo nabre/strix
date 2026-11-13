@@ -299,6 +299,9 @@ pub struct CharProps {
     /// contextual ligatures.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ligatures: Option<Ligatures>,
+    /// Fixed-width OpenType digits (`tnum`, OOXML `w14:numSpacing`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tabular_digits: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -513,7 +516,7 @@ impl CharProps {
     }
 
     fn minus_document_marks(&mut self, base: &CharProps) {
-        drop_same_fields!(self, base; link, ins, del, ligatures);
+        drop_same_fields!(self, base; link, ins, del, ligatures, tabular_digits);
     }
 
     /// Apply every `Some` field of `patch` on top of `self`.
@@ -544,7 +547,7 @@ impl CharProps {
     }
 
     fn overlay_document_marks(&mut self, patch: &CharProps) {
-        overlay_fields!(self, patch; link, ins, del, fmt_change, ligatures);
+        overlay_fields!(self, patch; link, ins, del, fmt_change, ligatures, tabular_digits);
     }
     pub fn overlaid(mut self, patch: &CharProps) -> CharProps {
         self.overlay(patch);

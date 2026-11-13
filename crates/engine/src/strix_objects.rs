@@ -18,7 +18,7 @@ use std::path::Path;
 use serde::Serialize;
 use wordcraft_doc::{Block, Document, InlineObject};
 
-use crate::cmd::exercise::{TAG_EXERCISE, TAG_RESULTS};
+use crate::cmd::exercise::{TAG_EXERCISE, TAG_EXPR, TAG_GRADING, TAG_RESULTS};
 
 /// How deep nested tables and groups are walked (hostile files): deeper than anything is
 /// read or calculated, so an object nested past the calculations' depth is still found and a
@@ -39,18 +39,21 @@ pub enum StrixObjectKind {
     ResultsSummary,
     /// A CAD drawing (its parametric source).
     CadDrawing,
+    /// A mathematical or experimental plot (its parametric source).
+    Plot,
     /// Graph paper behind a section's pages or in the text flow.
     GraphPaper,
 }
 
 impl StrixObjectKind {
     /// Every kind, in listing order.
-    pub const ALL: [StrixObjectKind; 6] = [
+    pub const ALL: [StrixObjectKind; 7] = [
         StrixObjectKind::Calculation,
         StrixObjectKind::CalculatedTable,
         StrixObjectKind::Exercise,
         StrixObjectKind::ResultsSummary,
         StrixObjectKind::CadDrawing,
+        StrixObjectKind::Plot,
         StrixObjectKind::GraphPaper,
     ];
 
@@ -62,6 +65,7 @@ impl StrixObjectKind {
             StrixObjectKind::Exercise => "exercise",
             StrixObjectKind::ResultsSummary => "resultsSummary",
             StrixObjectKind::CadDrawing => "cadDrawing",
+            StrixObjectKind::Plot => "plot",
             StrixObjectKind::GraphPaper => "graphPaper",
         }
     }
@@ -80,6 +84,8 @@ impl StrixObjectKind {
             StrixObjectKind::ResultsSummary => "results summaries",
             StrixObjectKind::CadDrawing if one => "CAD drawing",
             StrixObjectKind::CadDrawing => "CAD drawings",
+            StrixObjectKind::Plot if one => "plot",
+            StrixObjectKind::Plot => "plots",
             StrixObjectKind::GraphPaper => "graph paper",
         }
     }
@@ -152,6 +158,8 @@ fn control(tag: &str, add: &mut dyn FnMut(StrixObjectKind)) {
     match tag {
         TAG_EXERCISE => add(StrixObjectKind::Exercise),
         TAG_RESULTS => add(StrixObjectKind::ResultsSummary),
+        TAG_EXPR => add(StrixObjectKind::Calculation),
+        TAG_GRADING | "strix:scores" => add(StrixObjectKind::CalculatedTable),
         _ => {}
     }
 }
@@ -160,6 +168,7 @@ fn object(o: &InlineObject, add: &mut dyn FnMut(StrixObjectKind), depth: usize) 
     match o {
         InlineObject::Equation { math, .. } if math.calc => add(StrixObjectKind::Calculation),
         InlineObject::Graphic { graphic, .. } if graphic.cad.is_some() => add(StrixObjectKind::CadDrawing),
+        InlineObject::Graphic { graphic, .. } if graphic.plot.is_some() => add(StrixObjectKind::Plot),
         InlineObject::ControlStart { control: c } => control(&c.tag, add),
         InlineObject::Group { children, .. } if depth < MAX_DEPTH => {
             for c in children {

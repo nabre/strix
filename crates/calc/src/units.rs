@@ -25,6 +25,12 @@ const FREQUENCY: Dim = d(0, 0, -1, 0, 0, 0, 0);
 const CHARGE: Dim = d(0, 0, 1, 1, 0, 0, 0);
 const VOLTAGE: Dim = d(2, 1, -3, -1, 0, 0, 0);
 const RESISTANCE: Dim = d(2, 1, -3, -2, 0, 0, 0);
+const CAPACITANCE: Dim = d(-2, -1, 4, 2, 0, 0, 0);
+const INDUCTANCE: Dim = d(2, 1, -2, -2, 0, 0, 0);
+const MAG_FLUX: Dim = d(2, 1, -2, -1, 0, 0, 0);
+const MAG_FLUX_DENSITY: Dim = d(0, 1, -2, -1, 0, 0, 0);
+const CONDUCTANCE: Dim = d(-2, -1, 3, 2, 0, 0, 0);
+const ILLUMINANCE: Dim = d(-2, 0, 0, 0, 0, 0, 1);
 const VELOCITY: Dim = d(1, 0, -1, 0, 0, 0, 0);
 const ACCELERATION: Dim = d(1, 0, -2, 0, 0, 0, 0);
 
@@ -47,9 +53,14 @@ const UNITS: &[UnitDef] = &[
     u("g", 1e-3, MASS, true),
     u("kg", 1.0, MASS, false),
     u("t", 1e3, MASS, false),
+    u("Da", 1.660_539_066_60e-27, MASS, true),
+    u("u", 1.660_539_066_60e-27, MASS, false),
     u("s", 1.0, TIME, true),
     u("min", 60.0, TIME, false),
     u("h", 3600.0, TIME, false),
+    u("d", 86_400.0, TIME, false),
+    u("day", 86_400.0, TIME, false),
+    u("yr", 365.25 * 86_400.0, TIME, false),
     u("A", 1.0, CURRENT, true),
     u("K", 1.0, TEMPERATURE, false),
     // Degrees Celsius and Fahrenheit: as units (alone, or in `J/(kg·°C)`) the size of a degree;
@@ -60,33 +71,67 @@ const UNITS: &[UnitDef] = &[
     u("degF", 5.0 / 9.0, TEMPERATURE, false),
     u("mol", 1.0, AMOUNT, true),
     u("cd", 1.0, LUMINOUS, false),
+    u("lm", 1.0, LUMINOUS, true),
+    u("lx", 1.0, ILLUMINANCE, true),
     u("N", 1.0, FORCE, true),
     u("Pa", 1.0, PRESSURE, true),
     u("bar", 1e5, PRESSURE, true),
+    u("atm", 101_325.0, PRESSURE, false),
+    u("torr", 101_325.0 / 760.0, PRESSURE, true),
+    u("mmHg", 101_325.0 / 760.0, PRESSURE, false),
     u("J", 1.0, ENERGY, true),
     u("Wh", 3600.0, ENERGY, true),
+    u("eV", 1.602_176_634e-19, ENERGY, true),
+    u("cal", 4.184, ENERGY, true),
     u("W", 1.0, POWER, true),
     u("C", 1.0, CHARGE, true),
     u("V", 1.0, VOLTAGE, true),
     u("\u{3A9}", 1.0, RESISTANCE, true),  // Ω Greek capital omega
     u("\u{2126}", 1.0, RESISTANCE, true), // Ω ohm sign
     u("ohm", 1.0, RESISTANCE, true),
+    u("F", 1.0, CAPACITANCE, true),
+    u("H", 1.0, INDUCTANCE, true),
+    u("T", 1.0, MAG_FLUX_DENSITY, true),
+    u("Wb", 1.0, MAG_FLUX, true),
+    u("S", 1.0, CONDUCTANCE, true),
     u("Hz", 1.0, FREQUENCY, true),
+    u("rpm", 2.0 * std::f64::consts::PI / 60.0, FREQUENCY, false),
+    u("kn", 1852.0 / 3600.0, VELOCITY, false),
+    u("are", 100.0, AREA, false),
+    u("ha", 1e4, AREA, false),
     u("L", 1e-3, VOLUME, true),
     u("rad", 1.0, NONE, true),
     u("deg", std::f64::consts::PI / 180.0, NONE, false),
     u("°", std::f64::consts::PI / 180.0, NONE, false),
+    u("arcmin", std::f64::consts::PI / (180.0 * 60.0), NONE, false),
+    u("arcsec", std::f64::consts::PI / (180.0 * 3600.0), NONE, false),
     u("%", 0.01, NONE, false),
     u("‰", 0.001, NONE, false),
     u("ppm", 1e-6, NONE, false),
     u("gon", std::f64::consts::PI / 200.0, NONE, false),
+    u("grad", std::f64::consts::PI / 200.0, NONE, false),
     u("sr", 1.0, NONE, false),
 ];
 
 /// SI prefixes accepted on prefixable units. `µ` (micro sign), `μ` (Greek mu) and `u` all mean
-/// micro.
-const PREFIXES: &[(&str, f64)] =
-    &[("n", 1e-9), ("\u{B5}", 1e-6), ("\u{3BC}", 1e-6), ("u", 1e-6), ("m", 1e-3), ("c", 1e-2), ("d", 1e-1), ("k", 1e3), ("M", 1e6), ("G", 1e9)];
+/// micro; `"da"` precedes `"d"` so `dam` is decametres while `dm` is decimetres.
+const PREFIXES: &[(&str, f64)] = &[
+    ("f", 1e-15),
+    ("p", 1e-12),
+    ("n", 1e-9),
+    ("\u{B5}", 1e-6),
+    ("\u{3BC}", 1e-6),
+    ("u", 1e-6),
+    ("m", 1e-3),
+    ("c", 1e-2),
+    ("da", 1e1),
+    ("d", 1e-1),
+    ("k", 1e3),
+    ("M", 1e6),
+    ("G", 1e9),
+    ("T", 1e12),
+    ("P", 1e15),
+];
 
 /// The unit called `name` as a quantity (`unit("kN")` is 1000 N), or `None` if `name` is not a
 /// unit. Exact names are looked up first, then a prefix on a unit that accepts prefixes.
@@ -122,11 +167,14 @@ pub(crate) fn suggest(name: &str) -> Option<String> {
         return None;
     }
     let lower = name.to_lowercase();
-    let names = UNITS.iter().map(|d| d.name.to_string());
-    let prefixed = PREFIXES.iter().flat_map(|&(p, _)| UNITS.iter().filter(|d| d.prefixable).map(move |d| format!("{p}{}", d.name)));
-    let mut found: Vec<String> = names.chain(prefixed).filter(|n| n.to_lowercase() == lower && n != name).collect();
-    found.sort_by_key(|n| n.chars().filter(|c| c.is_uppercase()).count());
-    found.into_iter().next()
+    let names = UNITS.iter().map(|d| (false, d.name.to_string()));
+    let prefixed = PREFIXES
+        .iter()
+        .flat_map(|&(p, _)| UNITS.iter().filter(|d| d.prefixable).map(move |d| (p.chars().any(char::is_uppercase), format!("{p}{}", d.name))));
+    let mut found: Vec<(bool, String)> = names.chain(prefixed).filter(|(_, n)| n.to_lowercase() == lower && n != name).collect();
+    let mismatch = |cand: &str| cand.chars().zip(name.chars()).filter(|(a, b)| a != b).count();
+    found.sort_by_key(|(upper_prefix, n)| (*upper_prefix, mismatch(n), n.chars().filter(|c| c.is_uppercase()).count()));
+    found.into_iter().map(|(_, n)| n).next()
 }
 
 /// The predefined constant called `name`: `π`/`pi`, `e` and `g` (standard gravity,
@@ -152,6 +200,7 @@ const PREFERRED: &[(Dim, &str)] = &[
     (TEMPERATURE, "K"),
     (AMOUNT, "mol"),
     (LUMINOUS, "cd"),
+    (ILLUMINANCE, "lx"),
     (FORCE, "N"),
     (PRESSURE, "Pa"),
     (ENERGY, "J"),
@@ -161,6 +210,11 @@ const PREFERRED: &[(Dim, &str)] = &[
     (CHARGE, "C"),
     (VOLTAGE, "V"),
     (RESISTANCE, "Ω"),
+    (CAPACITANCE, "F"),
+    (INDUCTANCE, "H"),
+    (MAG_FLUX_DENSITY, "T"),
+    (MAG_FLUX, "Wb"),
+    (CONDUCTANCE, "S"),
     (VELOCITY, "m/s"),
     (ACCELERATION, "m/s²"),
 ];
@@ -190,7 +244,7 @@ pub fn display_unit(dim: Dim) -> String {
 
 /// Named units shown with an engineering prefix when no unit is asked for (`kN`, `MPa`, `kJ`).
 /// Lengths, masses, times and the base units stay unprefixed, as worksheets usually show them.
-const PREFIXED_DISPLAY: &[&str] = &["N", "Pa", "J", "W", "N/m", "Hz", "C", "V", "Ω"];
+const PREFIXED_DISPLAY: &[&str] = &["N", "Pa", "J", "W", "N/m", "Hz", "C", "V", "Ω", "F", "H", "T", "Wb", "S", "lx"];
 
 /// Engineering prefixes for [`auto_unit`]: power of ten and symbol.
 const ENGINEERING: &[(i32, &str)] = &[(-9, "n"), (-6, "µ"), (-3, "m"), (3, "k"), (6, "M"), (9, "G")];
@@ -229,4 +283,59 @@ pub(crate) fn power_text(base: &str, e: i64) -> String {
         3 => format!("{base}³"),
         _ => format!("{base}^{e}"),
     }
+}
+
+/// Common display units compatible with `dim` for interactive unit pickers (`Variables` pane).
+pub fn compatible_units(dim: Dim) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut push = |u: &str| {
+        if !out.iter().any(|x| x == u) {
+            out.push(u.to_string());
+        }
+    };
+    if dim.is_dimensionless() {
+        for u in ["", "%", "‰", "ppm", "°", "rad", "gon", "arcmin", "arcsec"] {
+            push(u);
+        }
+        return out;
+    }
+    if dim == TEMPERATURE {
+        for u in ["K", "°C", "°F"] {
+            push(u);
+        }
+        return out;
+    }
+    let curated: &[&str] = match dim {
+        LENGTH => &["nm", "µm", "mm", "cm", "dm", "m", "dam", "km"],
+        AREA => &["mm²", "cm²", "dm²", "m²", "are", "ha", "km²"],
+        VOLUME => &["mm³", "cm³", "mL", "dL", "L", "dm³", "m³"],
+        MASS => &["µg", "mg", "g", "kg", "t", "Da", "kDa", "u"],
+        TIME => &["ns", "µs", "ms", "s", "min", "h", "d", "yr"],
+        VELOCITY => &["mm/s", "cm/s", "m/s", "km/h", "kn"],
+        ACCELERATION => &["mm/s²", "cm/s²", "m/s²"],
+        FORCE => &["mN", "N", "kN", "MN"],
+        PRESSURE => &["Pa", "kPa", "MPa", "GPa", "bar", "mbar", "atm", "torr", "mmHg", "N/mm²"],
+        ENERGY => &["J", "kJ", "MJ", "Wh", "kWh", "cal", "kcal", "eV", "keV", "MeV", "N·m", "kN·m"],
+        POWER => &["mW", "W", "kW", "MW", "GW", "TW"],
+        LINE_LOAD => &["N/m", "kN/m", "MN/m"],
+        FREQUENCY => &["Hz", "kHz", "MHz", "GHz", "THz", "rpm", "1/s", "1/min"],
+        _ => &[],
+    };
+    for u in curated {
+        push(u);
+    }
+    let disp = display_unit(dim);
+    if !disp.is_empty() {
+        push(&disp);
+    }
+    for def in UNITS.iter().filter(|def| def.dim == dim && !matches!(def.name, "\u{2126}" | "ohm" | "degC" | "degF" | "day" | "grad")) {
+        if def.prefixable {
+            for p in ["p", "n", "µ", "m", "", "k", "M", "G", "T"] {
+                push(&format!("{p}{}", def.name));
+            }
+        } else {
+            push(def.name);
+        }
+    }
+    out
 }

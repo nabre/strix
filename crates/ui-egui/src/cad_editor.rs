@@ -396,6 +396,8 @@ pub struct CadEditor {
     pub grid: bool,
     /// Show the picture's frame, the area outside it shaded.
     pub frame: bool,
+    /// Preview as on the student copy: solution-only layers and objects hidden.
+    pub student_preview: bool,
     /// The grip taken (AutoCAD's hot grip): entity, grip, where it was. The next point (a click,
     /// a typed point, the end of a drag) takes it there.
     pub grip: Option<(usize, Grip, Pt)>,
@@ -652,6 +654,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         ortho: kept.ortho,
         grid: kept.grid,
         frame: kept.frame,
+        student_preview: false,
         grip: None,
         grip_drag: false,
         command: String::new(),
@@ -827,6 +830,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "ortho" => ed.ortho = !ed.ortho,
                     "grid" => ed.grid = !ed.grid,
                     "frame" => ed.frame = !ed.frame,
+                    "student" => ed.student_preview = !ed.student_preview,
                     "props" => ed.panel = !ed.panel,
                     "layers" => ed.layers_panel = !ed.layers_panel,
                     "props.float" => ed.panel_float = !ed.panel_float,
@@ -856,7 +860,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     }
                     _ => {
                         return Err(
-                            "what: snap, ortho, grid, frame, props, layers, snaps.on, snaps.off or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
+                            "what: snap, ortho, grid, frame, student, props, layers, snaps.on, snaps.off or snap.<end|mid|center|node|quadrant|intersection|perpendicular|tangent|nearest>"
                                 .into(),
                         );
                     }
@@ -2995,7 +2999,12 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
         paint_prims(r, ed.zoom, painter, view, unit);
     }
     // The drawing.
-    paint_prims(&ed.rendered, ed.zoom, painter, view, unit);
+    if ed.student_preview {
+        let student = ed.drawing.render_for(None, true, false);
+        paint_prims(&student, ed.zoom, painter, view, unit);
+    } else {
+        paint_prims(&ed.rendered, ed.zoom, painter, view, unit);
+    }
 }
 
 /// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
@@ -4191,13 +4200,15 @@ fn underlay_group(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
-/// Layers: the Layer Manager, Properties, the current layer.
+/// Layers: the Layer Manager, Properties, Student Preview, the current layer.
 fn layers_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::{big_checked, group};
-    let (panel, manager, layers, current) = app
+    let (panel, manager, student, layers, current) = app
         .cad
         .as_ref()
-        .map(|e| (e.panel, e.layers_panel, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone()))
+        .map(|e| {
+            (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone())
+        })
         .unwrap_or_default();
     let tool = tool_of(app);
     group(ui, "Layers", None, app, |ui, app| {
@@ -4206,6 +4217,8 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
             .on_hover_text(tl!("Match Properties: the source, then the objects that take its look"));
         big_checked(ui, app, "cadLayers", "Layer\nManager", "ui.cadToggle", json!({"what": "layers"}), manager);
         big_checked(ui, app, "properties", "Properties", "ui.cadToggle", json!({"what": "props"}), panel);
+        big_checked(ui, app, "studentPreview", "Student\nPreview", "ui.cadToggle", json!({"what": "student"}), student)
+            .on_hover_text(tl!("Student Preview: hide solution-only layers and objects as on the student copy"));
         ui.vertical(|ui| {
             ui.label(tl!("Current layer"));
             let mut pick = None;

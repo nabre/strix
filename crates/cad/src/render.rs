@@ -114,7 +114,7 @@ impl Drawing {
     /// The drawing as primitives in paper mm, as printed (the page, the PDF): layers that are
     /// hidden or not printed are left out. Dimension labels read parameters from `ws`.
     pub fn render(&self, ws: Option<&Worksheet>) -> Rendered {
-        self.render_layers(ws, false)
+        self.render_for(ws, false, true)
     }
 
     /// Whether some shown layer is not printed: the editor's sheet then differs from the page.
@@ -124,18 +124,27 @@ impl Drawing {
 
     /// As [`Drawing::render`]; with `screen`, the layers not printed are drawn too (the editor).
     pub fn render_layers(&self, ws: Option<&Worksheet>, screen: bool) -> Rendered {
+        self.render_for(ws, screen, true)
+    }
+
+    /// As [`Drawing::render_layers`]; with `!show_answers` (the students' copy when `Show` hides
+    /// solutions, or Student Preview in the CAD editor), entities and layers marked `answer` are
+    /// omitted from the drawn primitives while still counting in the drawing's bounds, `origin`
+    /// and `size` so pagination and base geometry never shift.
+    pub fn render_for(&self, ws: Option<&Worksheet>, screen: bool, show_answers: bool) -> Rendered {
         // Annotative blocks drawn for another scale (the scale just set, or one being tried to
         // fit): drawn as they are at this one.
         if self.annotative_stale() {
             let mut d = self.clone();
             d.sync_annotative();
-            return d.render_layers(ws, screen);
+            return d.render_for(ws, screen, show_answers);
         }
         // Drawing units to paper mm, y up (flipped and shifted once the bounds are known).
         let k = self.unit.mm() / self.scale.max(1e-9);
         // Curves are drawn with chords at most this far off them: 0.01 mm on paper.
         let chord = Some(CHORD_MM / k);
         let mut prims = Vec::new();
+        let mut keep_prims = Vec::new();
         // What the drawing may still draw, all its entities together (see `MAX_POINTS`).
         let mut points_left = MAX_POINTS;
         let mut hatch_left = MAX_HATCH_TOTAL;
@@ -143,11 +152,13 @@ impl Drawing {
         // hatch, or one too fine for its budget, costs its boundary without drawing much.
         let mut work_left = MAX_HATCH_WORK_POINTS;
         let mut texts = Vec::new();
+        let mut keep_texts = Vec::new();
         for e in &self.entities {
             let layer = self.layer(&e.layer);
             if !layer.visible || !(layer.print || screen) {
                 continue;
             }
+            let keep = show_answers || !(e.answer || layer.answer);
             let drawn = prims.len();
             let (color, width, dash) = self.stroke_of(e);
             let dash = dash.pattern().to_vec();
@@ -244,10 +255,18 @@ impl Drawing {
             }
             let spent: usize = prims.get(drawn..).unwrap_or_default().iter().map(Prim::point_count).sum();
             points_left = points_left.saturating_sub(spent);
+            if !show_answers {
+                keep_prims.resize(prims.len(), keep);
+                keep_texts.resize(texts.len(), keep);
+            }
         }
-        let mut r = place(prims, self.padding);
+        let mut r = place(prims, (!show_answers).then_some(&keep_prims), self.padding);
         r.scale = k;
-        r.texts = texts;
+        r.texts = if show_answers {
+            texts
+        } else {
+            texts.into_iter().enumerate().filter_map(|(i, t)| keep_texts.get(i).copied().unwrap_or(true).then_some(t)).collect()
+        };
         r
     }
 
@@ -851,7 +870,9 @@ impl Drawing {
 }
 
 /// Flips the y-up primitives to paper (y down) and moves them inside the padding.
-fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
+/// When `keep` is given, bounds and `origin` are still computed across all `prims` so the
+/// remaining primitives keep identical coordinates and paper size.
+fn place(prims: Vec<Prim>, keep: Option<&[bool]>, pad: crate::model::Padding) -> Rendered {
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     let mut grow = |x: f64, y: f64| {
         if x.is_finite() && y.is_finite() {
@@ -886,6 +907,10 @@ fn place(mut prims: Vec<Prim>, pad: crate::model::Padding) -> Rendered {
             }
         }
     }
+    let mut prims: Vec<Prim> = match keep {
+        None => prims,
+        Some(mask) => prims.into_iter().enumerate().filter_map(|(i, p)| mask.get(i).copied().unwrap_or(true).then_some(p)).collect(),
+    };
     if !x0.is_finite() {
         return Rendered { prims, size: (10.0, 10.0), origin: (0.0, 10.0), scale: 1.0, texts: Vec::new() };
     }

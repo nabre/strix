@@ -92,15 +92,14 @@ and keeps the question's settings (a `strix:answerSpace` element Word ignores):
 hidden text and **its space keeps its height**; every box of a multiple choice is empty (which
 options are correct is kept). So one document gives the students' copy and the corrected one.
 
-**Points.** The points of an exercise's questions add up to the exercise's points; a **scores
-table** shows them in its first criterion, at once, for every quiz with points (a problem's
-points are still typed in). The results summary lists, for each multiple choice, its letter and
+**Points.** The points of an exercise's questions add up to the exercise's points (`exercise.questionPoints` sets or clears points on questions of both quizzes and problems, inserting `strix:exercise.points` at the end of a problem question when set); a **scores
+table** shows them in its first criterion, at once, for every exercise whose questions carry points (otherwise typed in). Even with a single exercise and a single criterion (`1×1`), the scores table keeps its Total row (`__ / Max`). The results summary lists, for each multiple choice, its letter and
 the correct options (`a) A, C`); open answers give no line, and a document whose exercises are
 all open answers has no summary.
 
-`exercise.questions` reads a quiz's questions (text, kind, points, space, options and correct
+`exercise.questions` reads an exercise's questions (text, kind, points, space, calculation line, CAD scale, options and correct
 ones, the total) and changes one's settings: `{"question": 2, "points": 3, "height": 6, "grid":
-false}`. `exercise.addQuestion` adds a question like the last one (same kind of answer, points
+false}`. `exercise.questionMode` converts an existing quiz question's mode in place while preserving its question paragraph, points, space settings and working/options. `exercise.addQuestion` adds a question like the last one (same kind of answer, points
 and space), its settings and options given as in `exercise.insert`.
 
 ## Numbering
@@ -349,24 +348,41 @@ to the end.
 
 ## Next
 
-- A **grading grid** (Teaching › Scores): from the scores table's points to a mark, with
-  thresholds or a linear scale, the school's range (1–10, 1–6, 0–20…) and rounding; the mark per
-  student when the given points are typed in. It is the last step of the teaching pitch
-  (docs/brand/MARKETING.md), so it is written "planned" until it lands.
 - A results table per exercise (question, symbol, value, unit) and a check against expected
   values; a summary per variant; statement data recalled into the solution as values.
 - Solution steps (substitution, isolation lines) per result.
 
-## Template
+## Grading scale (`strix:grading`), variant generator, pre-flight check & assessment pack
 
-File › New offers **Calculation and exercise** right after Blank document (`file.new {"template": "calc"}`): live
+- **Grading Scale** (`Teaching › Scores › Grading Scale`, `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, rounding step (`0.1`, `0.25`, `0.5`, `1.0`), and `visibility` (`"teacher"` or `"both"`).
+- **Continuous validation across all variants** (`exercise.data` `"variantErrors"`): evaluates every variant `A..Z` in memory (sandbox calculations, CAD `Drawing::resolve` and degenerate geometry, and duplicate evaluated multiple-choice options) without mutating the document, showing `⚠` badges and tooltips on variant buttons in Exercise Properties.
+- **Controlled variant generator** (`exercise.generateVariants`, Exercise Properties › *Generate Variants…*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
+- **Inline parametric expressions** (`exercise.insertExpr`, `strix:expr`, `{{expr}}` / `{{expr -> unit}}`): evaluated live in the exercise's sandbox (in statements, questions, and multiple-choice options) with units styled in `Unit`.
+- **Assessment pre-flight check** (`Teaching › Assessment › Check`, `view.checkPane`, `exercise.check`): pure diagnostic command inspecting all variants `A..Z`, choice keys and option collisions, linked subdocuments, unused initial data, missing solutions, score totals, laid-out answer heights, durations, and variant page counts, with click-to-jump positions.
+- **Assessment Pack batch export** (`Teaching › Assessment › Export Pack`, `file.exportPack`): exports in one step (folder or `.zip` on desktop, `.zip` download on `strix-web`) the Student PDF per variant (`Show = false`), the DSA Student PDF per variant (`design.dsa` active), and the Teacher Key PDF (`Show = true`, worked solutions, grading scale, and final **Multi-Variant Synoptic Table**).
+
+## Templates
+
+File › New offers **Sample test** right after Blank document (`file.new {"template": "test"}`):
+a test for a class (title, subtitle, instructions) with a scores table and three exercises with
+their solutions — a physics problem (a car accelerating from rest) and a geometry problem (a right
+triangle, with a CAD drawing sized by its legs) with data in two variants, and a quiz mixing a
+multiple choice, a true/false and a calculation question with points. It is also the document the
+desktop app's `--sample` and the web app's `?sample` (the website's "Try it in the browser") open
+(`wordcraft_engine::sample_test`). WordCraft's studio handbook stays in the gallery as
+"Studio handbook (sample)".
+
+Then **Calculation and exercise** (`file.new {"template": "calc"}`): live
 formulas (a rectangular section's area and moment of inertia), then a worked exercise (a simply
 supported beam) with data in two variants, a CAD drawing of the beam in its statement sized by the
 span `L`, two questions worked in the solution and the results summary. It is built by running the
-same commands the ribbon runs (`crates/engine/src/sample_calc.rs`).
+same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
 
+- 2026-11-13: Phase 3 — Grading Scale (`exercise.grading`, `strix:grading`), continuous validation across all variants (`variantErrors`), controlled variant generator (`exercise.generateVariants`), inline parametric expressions (`exercise.insertExpr`, `strix:expr`), pre-flight Assessment Check (`exercise.check`, `view.checkPane`), and Assessment Pack batch export (`file.exportPack`).
+- 2026-11-13: quizzes expose Variants & Data in Exercise Properties and insert/hide `strix:exercise.data` (`showData` toggle); `exercise.questionMode` converts quiz modes in place; `exercise.questionPoints` sets points on problem questions too, feeding the scores table's first criterion; a 1×1 scores table keeps its Total row.
+- 2026-11-13: "Sample test" template (`file.new {"template": "test"}`), second in the File › New gallery, and the document `--sample` and `?sample` open.
 - 2026-11-12: question modes: each quiz question has its mode (`"type"`), calculation and CAD drawing questions; a quiz's data part follows its title when it has no statement ([question-modes.md](question-modes.md)).
 - 2026-11-12: kinds of exercise: open answer (a space of a height in cm, squared or blank, the answer written in it) and multiple choice (options with a check box ticked on the correct ones, more than one allowed; True/False); a quiz's statement is optional, a lone question has no letter, each question has its points (shown after it, added up in the scores table), the answers hide with the Solution (the space keeps its height); `exercise.questions`; graph paper's `none` line style. The doc's duplicated second half removed.
 - 2026-11-11: the generated words in the interface's four languages (English, Italian, German, French; Spanish dropped); three-letter tags and Swiss German recognised; a language without its own words (Spanish, Latin, Romansh…) keeps the exercise's words instead of turning them English; the scores table's default criterion follows the language.

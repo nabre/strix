@@ -10,14 +10,17 @@ pub(crate) enum Tok {
     /// A name: parameter, constant, unit or function (also `°` and `%`).
     Ident(String),
     Plus,
+    PlusMinus,
     Minus,
     /// `*`, `·`, `×`, `⋅`, `∙`.
     Star,
     /// `/`, `÷`, `∕`.
     Slash,
     Caret,
-    /// A superscript power `¹ ² ³`.
-    Sup(u8),
+    /// A superscript power `[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+`.
+    Sup(i32),
+    /// `!`: postfix factorial.
+    Bang,
     LParen,
     RParen,
     /// Function argument separator: `;`, and `,` unless decimal commas are on.
@@ -58,12 +61,14 @@ pub(crate) fn describe(tok: &Tok) -> String {
     match tok {
         Tok::Num(_) => "number".to_string(),
         Tok::Ident(name) => name.clone(),
+        Tok::PlusMinus => "±".to_string(),
         Tok::Plus => "+".to_string(),
         Tok::Minus => "-".to_string(),
         Tok::Star => "·".to_string(),
         Tok::Slash => "/".to_string(),
         Tok::Caret => "^".to_string(),
         Tok::Sup(n) => format!("^{n}"),
+        Tok::Bang => "!".to_string(),
         Tok::LParen => "(".to_string(),
         Tok::RParen => ")".to_string(),
         Tok::Sep => "an argument separator".to_string(),
@@ -136,14 +141,22 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '\u{2103}' => Tok::Ident("°C".to_string()),
             '\u{2109}' => Tok::Ident("°F".to_string()),
             '°' | '%' | '‰' => Tok::Ident(c.to_string()),
+            '+' if next == Some('-') => {
+                i += 1;
+                Tok::PlusMinus
+            }
+            '±' => Tok::PlusMinus,
             '+' => Tok::Plus,
             '-' | '\u{2212}' | '\u{2013}' => Tok::Minus,
             '*' | '·' | '×' | '\u{22C5}' | '\u{2219}' => Tok::Star,
             '/' | '÷' | '\u{2215}' => Tok::Slash,
             '^' => Tok::Caret,
-            '¹' => Tok::Sup(1),
-            '²' => Tok::Sup(2),
-            '³' => Tok::Sup(3),
+            c if sup_digit(c).is_some() || (matches!(c, '⁺' | '⁻') && next.and_then(sup_digit).is_some()) => {
+                let (tok, end) = superscript(&chars, i)?;
+                out.push(Token { tok, pos, byte });
+                i = end;
+                continue;
+            }
             // Word's invisible grouping brackets `〖…〗` group like parentheses.
             '(' | '〖' => Tok::LParen,
             ')' | '〗' => Tok::RParen,
@@ -168,6 +181,7 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                     _ => '≠',
                 })
             }
+            '!' => Tok::Bang,
             '<' | '>' | '≤' | '≥' | '≠' => Tok::Cmp(c),
             '⩽' => Tok::Cmp('≤'),
             '⩾' => Tok::Cmp('≥'),
@@ -222,4 +236,42 @@ fn number(chars: &[(usize, char)], start: usize, decimal_comma: bool) -> Result<
     }
     let value: f64 = text.parse().map_err(|_| CalcError::syntax(start, "malformed number"))?;
     Ok((Tok::Num(finite(value)?), i))
+}
+
+fn sup_digit(c: char) -> Option<i32> {
+    Some(match c {
+        '⁰' => 0,
+        '¹' => 1,
+        '²' => 2,
+        '³' => 3,
+        '⁴' => 4,
+        '⁵' => 5,
+        '⁶' => 6,
+        '⁷' => 7,
+        '⁸' => 8,
+        '⁹' => 9,
+        _ => return None,
+    })
+}
+
+fn superscript(chars: &[(usize, char)], start: usize) -> Result<(Tok, usize), CalcError> {
+    let ch = |i: usize| chars.get(i).map(|&(_, c)| c);
+    let mut i = start;
+    let sign = match ch(i) {
+        Some('⁺') => {
+            i += 1;
+            1i32
+        }
+        Some('⁻') => {
+            i += 1;
+            -1i32
+        }
+        _ => 1i32,
+    };
+    let mut acc = 0i32;
+    while let Some(d) = ch(i).and_then(sup_digit) {
+        acc = acc.checked_mul(10).and_then(|v| v.checked_add(d)).filter(|&v| v <= 1_000_000).ok_or(CalcError::Overflow)?;
+        i += 1;
+    }
+    Ok((Tok::Sup(sign * acc), i))
 }
