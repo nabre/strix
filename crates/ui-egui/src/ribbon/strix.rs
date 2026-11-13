@@ -253,6 +253,7 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
                 crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
             );
+            question_type_menu(ui, app);
             // Only with the cursor in an exercise, or whole ones selected.
             let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
             ui.add_enabled_ui(targets, |ui| {
@@ -648,7 +649,7 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
         crate::widgets::BigSplit {
             icon: "exercise",
             label: "New Exercise",
-            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false",
+            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing",
             action: crate::widgets::ButtonAction::new("exercise.insert", json!({}), false),
         },
         |ui, app| {
@@ -656,6 +657,26 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "Open Answer", "exercise.insert", json!({"kind": "open"}));
             mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
             mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
+            mi(ui, app, "Calculation", "exercise.insert", json!({"kind": "calc"}));
+            mi(ui, app, "CAD Drawing Question", "exercise.insert", json!({"kind": "drawing"}));
+        },
+    );
+}
+
+/// Teaching › Exercise › Question Type: adds a question of a mode to the quiz at the cursor
+/// (docs/question-modes.md); one quiz mixes them.
+fn question_type_menu(ui: &mut Ui, app: &mut WordApp) {
+    let tip = "Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing";
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new("addQuestion", Some("Question Type"), tip, false, "exercise.addQuestion"),
+        |ui, app| {
+            mi(ui, app, "Open Answer", "exercise.addQuestion", json!({"type": "open"}));
+            mi(ui, app, "Multiple Choice", "exercise.addQuestion", json!({"type": "choice"}));
+            mi(ui, app, "True or False", "exercise.addQuestion", json!({"type": "trueFalse"}));
+            mi(ui, app, "Calculation", "exercise.addQuestion", json!({"type": "calc"}));
+            mi(ui, app, "CAD Drawing Question", "exercise.addQuestion", json!({"type": "drawing"}));
         },
     );
 }

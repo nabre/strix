@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-11 · **Change:** calculations stay live in Word documents too (word-round-trip.md); previously: Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
+> **Status:** stages 1–4 done (worksheet with one `=`, solving for the unknown, Σ/∏, vectors, calculated tables, number format, working units, checks, `°C`/`°F`, user functions), solution steps and result layout; Variables pane and systems next · **Last updated:** 2026-11-12 · **Change:** a table column's formula needs no name (`= γ·q·L²/8 [kN·m]`, the `=` shown only while editing) and takes its unit at the end; the ordinal column is headed `i`; previously: calculations stay live in Word documents too (word-round-trip.md); previously: Math tab regrouped and renamed (Calculation, Always Calculate, Number Display, Rounding); previously: units after numbers alone and after a written quantity; a parameter alone after `=` is checked; `round` keeps units and rounds as results show; temperature differences in tables; units' quotients inline in equations
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -115,7 +115,14 @@ row above them, to write the columns' names and formulas in. A header cell is a 
 brackets or parentheses and an optional formula: `L [m]`, `q (kN/m)`, `M [kN·m] = γ·q·L²/8`.
 Any other header (`Beam`, `Load case`, empty) is a label column, never read; so is one whose
 round brackets hold words, not a unit (`Load (case A)`). A unit in square brackets must be one
-(`[kNN]` is reported). In a `[°C]`/`[°F]` column a formula that is a difference of
+(`[kNN]` is reported). A formula needs no name, and its unit can close it: `M = γ·q·L²/8 [kN·m]` and
+`= γ·q·L²/8 [kN·m]` (spreadsheet style) both compute the column. Spreadsheet style, the `=` is
+hidden text: the header shows `γ·q·L²/8 [kN·m]`, and the `=` appears only while the caret is in
+that cell (`LayoutOptions::reveal_hidden`); typing after it, the next calculation shows what was
+typed; a table that stops calculating shows the `=` again. A column without a name is not defined after the table and no formula can read it, but
+its totals work. A trailing `[…]` is a unit when it holds one and is not written against a
+name (`x[i+1]`, `x[m]` index a column; `x [m]` is a unit). A column has one unit: before the `=`
+or at the end, not both. In a `[°C]`/`[°F]` column a formula that is a difference of
 temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15), as statements do.
 
 | Beam | L [m] | q [kN/m] | M [kN·m] = γ·q·L²/8 |
@@ -162,7 +169,7 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   under a value or formula column sums its column (`Σ = 101.756`), a cell written there keeps
   its own text (`mean =`, `max =`, a label), label columns get nothing. It is not a data row.
 - **Ordinal column** (Table Layout › Data › Ordinal Column, Math › Tables; `table.calcIndex`,
-  saved as `strix:calcIndex="1"` on `w:tblPr`): a first column, column "0", headed `N.`, numbers
+  saved as `strix:calcIndex="1"` on `w:tblPr`): a first column, column "0", headed `i` (as `i` in a column formula), numbers
   the data rows with something in them 1, 2, 3… (not the header, a totals row or an empty row;
   `strix_calc::ordinals`). The calculations never read it: formulas, totals and a data table's
   row labels (the first column after it) see the table without it. Off, the column goes.
@@ -423,6 +430,7 @@ Edit Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-11-12: calculated tables: a column formula needs no name (`= q·L²/8`, its `=` hidden except while the cell is edited) and its unit may close it (`M = q·L²/8 [kN·m]`); the ordinal column is headed `i`.
 - 2026-11-09: Math tab: Calculation (Always Calculate, was Calculate New Equations), Calculate Table (was Calculate This Table), Number Display (was Results; Rounding, was Number Format), smaller and in two columns.
 - 2026-11-09: units after numbers alone (`[4; 5; 6] m`, `10^3 m`) and after a written quantity
   and `/` (`(12 kN)/m`) win over parameters; a parameter alone after `=` of the other side's

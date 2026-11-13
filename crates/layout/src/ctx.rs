@@ -87,6 +87,8 @@ struct ParaEnvInput<'a> {
     eq_number: u32,
     typing_word: Option<(usize, usize)>,
     fitted: &'a [(usize, f32)],
+    /// Hidden text shown in this paragraph ([`crate::LayoutOptions::reveal_hidden`]).
+    reveal: bool,
 }
 
 /// A header or footer (`story`) laid out for page `number` of a section (`sect`, `mirror`): its
@@ -269,7 +271,7 @@ impl Ctx<'_> {
         let typing = key.typing;
         let pl = Arc::new(para::layout_para(
             p,
-            &self.para_env(ParaEnvInput { width, label, table, exclusions, eq_number, typing_word: typing, fitted: &fitted }),
+            &self.para_env(ParaEnvInput { width, label, table, exclusions, eq_number, typing_word: typing, fitted: &fitted, reveal: key.reveal }),
         ));
         self.cache.paras.insert(key, pl.clone());
         pl
@@ -302,7 +304,16 @@ impl Ctx<'_> {
         self.cache.misses += 1;
         let pl = Arc::new(para::layout_para(
             p,
-            &self.para_env(ParaEnvInput { width, label, table: None, exclusions: &[], eq_number, typing_word: None, fitted: &[] }),
+            &self.para_env(ParaEnvInput {
+                width,
+                label,
+                table: None,
+                exclusions: &[],
+                eq_number,
+                typing_word: None,
+                fitted: &[],
+                reveal: key.reveal,
+            }),
         ));
         self.cache.paras.insert(key, pl.clone());
         Some(pl)
@@ -330,7 +341,16 @@ impl Ctx<'_> {
         let typing = key.typing;
         let m = measure(&para::layout_para(
             p,
-            &self.para_env(ParaEnvInput { width, label, table, exclusions: &[], eq_number, typing_word: typing, fitted: &fitted }),
+            &self.para_env(ParaEnvInput {
+                width,
+                label,
+                table,
+                exclusions: &[],
+                eq_number,
+                typing_word: typing,
+                fitted: &fitted,
+                reveal: key.reveal,
+            }),
         ));
         self.cache.measures.insert(key, m);
         m
@@ -415,6 +435,7 @@ impl Ctx<'_> {
             hide_deleted: self.hide_deleted,
             sref: if self.fields.styleref.is_some() && styleref::has_styleref(p) { self.fields.styleref_key(p) } else { 0 },
             typing: self.opts.typing_word.filter(|t| t.rev == p.rev).map(|t| (t.start, t.end)),
+            reveal: self.opts.reveal_hidden == Some(p.rev),
         };
         (key, eq_number)
     }
@@ -435,13 +456,13 @@ impl Ctx<'_> {
     }
 
     fn para_env<'b>(&'b self, input: ParaEnvInput<'b>) -> para::ParaEnv<'b> {
-        let ParaEnvInput { width, label, table, exclusions, eq_number, typing_word, fitted } = input;
+        let ParaEnvInput { width, label, table, exclusions, eq_number, typing_word, fitted, reveal } = input;
         para::ParaEnv {
             doc: self.doc,
             width,
             label,
             fields: &self.fields,
-            show_hidden: self.opts.show_hidden,
+            show_hidden: self.opts.show_hidden || reveal,
             field_codes: self.opts.field_codes,
             hide_deleted: self.hide_deleted,
             table,

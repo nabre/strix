@@ -72,7 +72,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"value"?: bool (default: toggle)} → {"math", "recalculated"}: the table at the caret (made calculated) shows every cell as an equation: names in italics, subscripts, units in the Unit style; off, the cells are text again"#),
         CommandSpec::new("table.calcIndex", "Ordinal Column", "Table Layout › Data", calc_index)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
-            .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "N.", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
+            .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "i", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
@@ -296,12 +296,133 @@ fn cell_text(blocks: &[Arc<Block>]) -> String {
 
 /// The linear text of a paragraph that is one equation and nothing else.
 fn cell_equation(p: &Paragraph) -> Option<String> {
+    let obj = wordcraft_doc::para::OBJ.to_string();
+    // A header formula written spreadsheet style keeps its `=` as text before the equation.
+    let lead = match p.text.trim() {
+        t if t == obj => "",
+        t if t == format!("={obj}") => "= ",
+        _ => return None,
+    };
     match p.objects.as_slice() {
-        [InlineObject::Equation { linear, math, .. }] if p.text.trim() == wordcraft_doc::para::OBJ.to_string() => {
-            Some(if math.nodes.is_empty() { linear.clone() } else { to_linear(&math.nodes) }.trim().to_string())
-        }
+        [InlineObject::Equation { linear, math, .. }] if math.nodes.is_empty() => Some(format!("{lead}{}", linear.trim())),
+        [InlineObject::Equation { math, .. }] => Some(format!("{lead}{}", formula_linear(&math.nodes, !lead.is_empty()).trim())),
         _ => None,
     }
+}
+
+/// An equation's linear text, a header formula's closing unit (`= q·L/2 [kN]`) set apart by a
+/// space: the linear format writes `L/2[kN]`, which reads back with the unit in the fraction.
+fn formula_linear(nodes: &[wordcraft_doc::math::MNode], header: bool) -> String {
+    use wordcraft_doc::math::MNode;
+    match nodes.split_last() {
+        Some((last @ MNode::Delim { beg: Some('['), .. }, rest)) if !rest.is_empty() && (header || to_linear(rest).contains('=')) => {
+            format!("{} {}", to_linear(rest), to_linear(std::slice::from_ref(last)))
+        }
+        _ => to_linear(nodes),
+    }
+}
+
+/// How many bytes of a header cell's text are the leading `=` of a formula written spreadsheet
+/// style (`= q·L²/8 [kN·m]`), with the spaces around it: hidden text, shown only while the cell
+/// is edited ([`revealed_header`]). 0 for any other header.
+fn formula_equals(text: &str) -> usize {
+    let rest = text.trim_start();
+    match rest.strip_prefix('=') {
+        // A formula after it: a bare `=` is a label and shows.
+        Some(after) if !after.starts_with('=') && !after.trim().is_empty() => text.len() - after.trim_start().len(),
+        _ => 0,
+    }
+}
+
+/// Hides the leading `=` of a header cell's formula written spreadsheet style and shows the rest
+/// (text typed after the `=` takes its formatting, hidden too). A header without one is left as
+/// it is (text hidden on purpose stays hidden), unless all of it is hidden: what was typed over
+/// a hidden `=`. Returns whether it changed.
+fn hide_formula_equals(p: &mut Paragraph) -> bool {
+    let cut = formula_equals(&p.text);
+    let hidden = |props: &wordcraft_doc::props::CharProps| props.hidden == Some(true);
+    if cut == 0 && (p.text.trim().is_empty() || !p.run_ranges().all(|(_, props)| hidden(props))) {
+        return false;
+    }
+    let right = p.run_ranges().all(|(r, props)| {
+        if r.end <= cut {
+            hidden(props)
+        } else if r.start >= cut {
+            !hidden(props)
+        } else {
+            false
+        }
+    });
+    if right {
+        return false;
+    }
+    let len = p.text.len();
+    let hide = p.format(0, cut, &|c| c.hidden = Some(true)).is_ok();
+    let show = p
+        .format(cut, len, &|c| {
+            if c.hidden == Some(true) {
+                c.hidden = None;
+            }
+        })
+        .is_ok();
+    hide || show
+}
+
+/// The header row of the calculated table at `top`, its formulas' `=` hidden
+/// ([`hide_formula_equals`]). Returns how many cells changed.
+fn hide_header_equals(s: &mut Session, top: usize) -> usize {
+    let Some(block) = s.doc.body.get_mut(top) else { return 0 };
+    let Block::Table(t) = &**block else { return 0 };
+    let Some(row) = t.rows.first() else { return 0 };
+    // Only what changes is touched (a stable table stays as it is).
+    let wrong: Vec<usize> = row
+        .cells
+        .iter()
+        .enumerate()
+        .filter(
+            |(_, c)| matches!(c.blocks.first().map(|b| &**b), Some(Block::Para(p)) if p.objects.is_empty() && hide_formula_equals(&mut p.clone())),
+        )
+        .map(|(k, _)| k)
+        .collect();
+    if wrong.is_empty() {
+        return 0;
+    }
+    let Block::Table(t) = Arc::make_mut(block) else { return 0 };
+    for k in &wrong {
+        if let Some(Block::Para(p)) = t.rows.first_mut().and_then(|r| r.cells.get_mut(*k)).and_then(|c| c.blocks.first_mut()).map(Arc::make_mut) {
+            hide_formula_equals(p);
+        }
+    }
+    wrong.len()
+}
+
+/// A table that stops calculating shows its header formulas' `=` again.
+fn show_header_equals(t: &mut Table) {
+    let Some(row) = t.rows.first_mut() else { return };
+    for cell in &mut row.cells {
+        if let Some(Block::Para(p)) = cell.blocks.first_mut().map(Arc::make_mut)
+            && formula_equals(&p.text) > 0
+        {
+            let len = p.text.len();
+            let _ = p.format(0, len, &|c| {
+                if c.hidden == Some(true) {
+                    c.hidden = None;
+                }
+            });
+        }
+    }
+}
+
+/// The paragraph of the calculated table's header cell the caret is in, when it holds hidden
+/// text (a formula's `=`, [`hide_formula_equals`]): by its revision, so the layout shows the `=`
+/// while the formula is edited.
+pub(crate) fn revealed_header(s: &Session) -> Option<u64> {
+    let (tp, row, _) = s.sel.focus.path.cell()?;
+    if row != 0 || !s.doc.table(s.sel.focus.story, &tp)?.props.calc {
+        return None;
+    }
+    let p = s.doc.para_at(&s.sel.focus)?;
+    p.run_ranges().any(|(_, props)| props.hidden == Some(true)).then_some(p.rev)
 }
 
 fn table_cells(t: &Table) -> Vec<Vec<String>> {
@@ -570,6 +691,7 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     let mut cads: Vec<Option<Redrawn>> = Vec::new();
     let mut cell_updates: Vec<(usize, Vec<(usize, usize, String)>)> = Vec::new();
     let mut math_cells: Vec<(usize, Vec<Vec<(String, Vec<String>)>>)> = Vec::new();
+    let mut plain_tables: Vec<usize> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
     // The drawings by id, resolved: the underlays printed with a drawing are drawn from them.
@@ -618,8 +740,11 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
                 }
                 if let Some(grid) = shown {
                     math_cells.push((*top, grid.clone()));
-                } else if !t.updates.is_empty() {
-                    cell_updates.push((*top, t.updates.clone()));
+                } else {
+                    plain_tables.push(*top);
+                    if !t.updates.is_empty() {
+                        cell_updates.push((*top, t.updates.clone()));
+                    }
                 }
             }
             (Item::Cad { .. }, Outcome::Cad(drawn, failed, resolved)) => {
@@ -652,6 +777,9 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
     }
     for (top, list) in &cell_updates {
         write_cells(s, *top, list);
+    }
+    for top in plain_tables {
+        changed += hide_header_equals(s, top);
     }
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
 }
@@ -1271,28 +1399,38 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
     let Some(block) = s.doc.body.get_mut(top) else { return 0 };
     let Block::Table(t) = Arc::make_mut(block) else { return 0 };
     let mut changed = 0;
-    for (row, texts) in t.rows.iter_mut().zip(grid) {
+    for (r, (row, texts)) in t.rows.iter_mut().zip(grid).enumerate() {
         for (cell, (text, units)) in row.cells.iter_mut().zip(texts) {
             let Some(first) = cell.blocks.first_mut() else { continue };
             let Block::Para(p) = &**first else { continue };
-            let props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
-            let mut nodes = parse_linear(text);
+            let mut props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+            props.hidden = None;
+            // A header formula written spreadsheet style (`= q·L²/8`): its `=` stays text,
+            // hidden, before the equation ([`hide_formula_equals`]).
+            let cut = if r == 0 { formula_equals(text) } else { 0 };
+            let body = text.get(cut..).unwrap_or(text);
+            let mut nodes = parse_linear(body);
             style_units(&mut nodes, units, color, 0);
             // A label (`Support`, `Beam 2`) stays words: no italics, no units.
-            let label = is_label(text);
+            let label = cut == 0 && is_label(text);
+            let lead_hidden = p.text.starts_with('=') && p.runs.first().is_some_and(|r| r.props.hidden == Some(true));
             let same = match p.objects.as_slice() {
-                [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes,
+                [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes && lead_hidden == (cut > 0),
                 [] => (text.is_empty() || label) && p.text.trim() == text.as_str(),
                 _ => false,
             };
             if same {
                 continue;
             }
-            let mut new = Paragraph::with_text(if label { text.as_str() } else { "" }, props.clone());
-            if !text.is_empty() && !label {
+            let lead = if cut > 0 { "=" } else { "" };
+            let mut new = Paragraph::with_text(if label { text.as_str() } else { lead }, props.clone());
+            if cut > 0 && new.format(0, lead.len(), &|c| c.hidden = Some(true)).is_err() {
+                continue;
+            }
+            if !body.is_empty() && !label {
                 let math = Math { nodes, ..Math::default() };
                 let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: false };
-                if new.insert_object(0, obj, &props).is_err() {
+                if new.insert_object(lead.len(), obj, &props).is_err() {
                     continue;
                 }
             }
@@ -1322,7 +1460,9 @@ fn unmath_cells(t: &mut Table) {
             let Some(first) = cell.blocks.first_mut() else { continue };
             let Block::Para(p) = &**first else { continue };
             let Some(text) = cell_equation(p) else { continue };
-            let props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+            // Not the hidden `=` of a header formula: the calculations hide it again.
+            let mut props = p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone());
+            props.hidden = None;
             // As typed: the thin space an equation sets before a unit is a plain space in text.
             let mut new = Paragraph::with_text(&text.replace('\u{2009}', " "), props);
             new.props = p.props.clone();
@@ -1410,6 +1550,9 @@ fn toggle_table(s: &mut Session, v: &Value) -> CmdResult {
     let on = p::bool(v, "value").unwrap_or(!t.props.calc);
     let was = t.props.calc;
     t.props.calc = on;
+    if !on && was {
+        show_header_equals(t);
+    }
     if on && !was {
         calc_header(s)?;
     }
@@ -1514,7 +1657,7 @@ fn calc_header(s: &mut Session) -> Result<(), CmdError> {
     Ok(())
 }
 
-/// The ordinal column (column "0") on or off: a first column headed "N." added, or removed.
+/// The ordinal column (column "0") on or off: a first column headed "i" added, or removed.
 fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let story = s.sel.focus.story;
@@ -1532,7 +1675,7 @@ fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
         } else if on {
             at_first_cell(s, "table.insertColumnLeft", 0, 1)?;
             let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
-            write_cell_text(s, story, &tp, 0, 0, "N.")?;
+            write_cell_text(s, story, &tp, 0, 0, "i")?;
             // Bold like the rest of the header.
             if let Some(Block::Para(p)) =
                 s.doc.table_mut(story, &tp)?.rows.first_mut().and_then(|r| r.cells.first_mut()).and_then(|c| c.blocks.first_mut()).map(Arc::make_mut)
@@ -1926,6 +2069,93 @@ mod tests {
         t.rows.iter().map(|r| r.cells.iter().map(|c| cell_text(&c.blocks)).collect()).collect()
     }
 
+    /// A header formula written spreadsheet style (`= q·L/2 [kN]`) computes its column; its `=`
+    /// is hidden text, shown while the caret is in that header cell (as text or as an equation),
+    /// and shown again when the table stops calculating.
+    #[test]
+    fn a_spreadsheet_style_header_hides_its_equals() {
+        use wordcraft_doc::{Path, Pos, StoryRef};
+        let mut s = session();
+        with_table(&mut s, &[&["L [m]", "q [kN/m]", "= q·L/2 [kN]"], &["4", "10", ""], &["2", "8", ""]]);
+        let at = |r: u32, c: u32| crate::Selection::caret(Pos::new(StoryRef::Body, Path(vec![0, r, c, 0]), 0));
+        s.sel = at(1, 0);
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s)[1][2], "20");
+        assert_eq!(grid(&s)[2][2], "8");
+        let header = |s: &Session| -> Paragraph {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            t.rows[0].cells[2].blocks.first().and_then(|b| b.as_para()).unwrap().clone()
+        };
+        let hidden =
+            |p: &Paragraph| -> String { p.run_ranges().filter(|(_, c)| c.hidden == Some(true)).map(|(r, _)| p.text[r].to_string()).collect() };
+        assert_eq!(hidden(&header(&s)), "= ", "only the `=` and its space are hidden");
+        assert_eq!(grid(&s)[0][2], "= q·L/2 [kN]", "the calculations still read it");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable");
+        // Shown while the caret is in that cell, not elsewhere.
+        assert!(revealed_header(&s).is_none());
+        s.sel = at(0, 2);
+        assert_eq!(revealed_header(&s), Some(header(&s).rev));
+        s.sel = at(0, 1);
+        assert!(revealed_header(&s).is_none());
+        // Text typed after the `=` takes its formatting: the next calculation shows it.
+        let block = s.doc.body.iter_mut().find(|b| matches!(&***b, Block::Table(_))).unwrap();
+        if let Block::Table(t) = Arc::make_mut(block)
+            && let Some(Block::Para(p)) = t.rows[0].cells[2].blocks.first_mut().map(Arc::make_mut)
+        {
+            let props = p.runs[0].props.clone();
+            p.insert_text(2, "2·", &props).unwrap();
+        }
+        s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(hidden(&header(&s)), "= ");
+        assert_eq!(grid(&s)[1][2], "40");
+        // As an equation: the `=` stays hidden text before it.
+        s.sel = at(1, 0);
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        let p = header(&s);
+        assert_eq!(hidden(&p), "=");
+        assert!(matches!(p.objects.as_slice(), [InlineObject::Equation { .. }]));
+        assert!(grid(&s)[0][2].starts_with("= 2·q·L"), "{:?}", grid(&s)[0][2]);
+        assert_eq!(grid(&s)[1][2], "40");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable as an equation");
+        s.run("table.mathCells", &json!({"value": false})).unwrap();
+        assert_eq!(hidden(&header(&s)), "= ");
+        // No longer calculated: the `=` shows.
+        s.run("table.calc", &json!({"value": false})).unwrap();
+        assert_eq!(hidden(&header(&s)), "");
+    }
+
+    /// A header without a spreadsheet-style formula keeps text hidden on purpose; a bare `=` is
+    /// a label and shows; a header all hidden (typed over a hidden `=`) shows again.
+    #[test]
+    fn header_hidden_text_is_left_alone() {
+        use wordcraft_doc::{Path, Pos, StoryRef};
+        let mut s = session();
+        with_table(&mut s, &[&["L [m]", "q note", "=", "x"], &["4", "", "", ""]]);
+        let cell = |s: &mut Session, c: usize| -> Paragraph {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            t.rows[0].cells[c].blocks.first().and_then(|b| b.as_para()).unwrap().clone()
+        };
+        let set = |s: &mut Session, c: usize, from: usize, to: usize| {
+            let block = s.doc.body.iter_mut().find(|b| matches!(&***b, Block::Table(_))).unwrap();
+            if let Block::Table(t) = Arc::make_mut(block)
+                && let Some(Block::Para(p)) = t.rows[0].cells[c].blocks.first_mut().map(Arc::make_mut)
+            {
+                p.format(from, to, &|c| c.hidden = Some(true)).unwrap();
+            }
+        };
+        // "note" hidden on purpose; the last header all hidden, as typed over a hidden `=`.
+        set(&mut s, 1, 2, 6);
+        set(&mut s, 3, 0, 1);
+        s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path(vec![0, 1, 0, 0]), 0));
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        let hidden =
+            |p: &Paragraph| -> String { p.run_ranges().filter(|(_, c)| c.hidden == Some(true)).map(|(r, _)| p.text[r].to_string()).collect() };
+        assert_eq!(hidden(&cell(&mut s, 1)), "note");
+        assert_eq!(hidden(&cell(&mut s, 2)), "", "a bare `=` shows");
+        assert_eq!(hidden(&cell(&mut s, 3)), "", "all hidden: shown again");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable");
+    }
+
     /// Turned calculated, a table's first row is its header (Header Row, repeated on each page);
     /// a table of numbers gets an empty header row above them.
     #[test]
@@ -1946,7 +2176,7 @@ mod tests {
         assert_eq!(grid(&s).len(), 3);
     }
 
-    /// The ordinal column (column "0"): headed "N.", it numbers the data rows 1, 2, 3 (not the
+    /// The ordinal column (column "0"): headed "i", it numbers the data rows 1, 2, 3 (not the
     /// header, a totals row or an empty row), the calculations never read it, and off it goes.
     /// The Total Row sums each column in the last row. Both are kept on save.
     #[test]
@@ -1958,7 +2188,7 @@ mod tests {
         assert_eq!(r["index"], true);
         let g = grid(&s);
         let col = |g: &Vec<Vec<String>>, c: usize| g.iter().map(|r| r[c].clone()).collect::<Vec<_>>();
-        assert_eq!(col(&g, 0), vec!["N.", "1", "", "2", ""]);
+        assert_eq!(col(&g, 0), vec!["i", "1", "", "2", ""]);
         let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
         assert!(matches!(&*t.rows[0].cells[0].blocks[0], Block::Para(p) if p.runs.iter().all(|r| r.props.bold == Some(true))));
         assert_eq!(col(&g, 3), vec!["M [m^2] = L^2", "4", "", "9", ""], "the formula sees L in its own column");
@@ -1968,7 +2198,7 @@ mod tests {
         s.run("calc.recalculate", &json!({})).unwrap();
         let g = grid(&s);
         assert_eq!(g[4], vec!["", "", "Σ = 5", "Σ = 13"], "{g:?}");
-        assert_eq!(col(&g, 0), vec!["N.", "1", "", "2", ""], "the total row has no number");
+        assert_eq!(col(&g, 0), vec!["i", "1", "", "2", ""], "the total row has no number");
         let info = s.run("calc.tableInfo", &json!({})).unwrap();
         assert_eq!((info["index"].as_bool(), info["total"].as_bool()), (Some(true), Some(true)));
         // Saved and opened again.
@@ -2370,10 +2600,10 @@ mod tests {
         s.run("table.calc", &json!({"value": false})).unwrap();
         s.run("table.calcIndex", &json!({})).unwrap();
         let header = table_texts(&s).first().cloned().unwrap_or_default();
-        assert_eq!(header.iter().filter(|c| *c == "N.").count(), 1, "{header:?}");
+        assert_eq!(header.iter().filter(|c| *c == "i").count(), 1, "{header:?}");
         // Off for good: the column goes, once.
         s.run("table.calcIndex", &json!({"value": false})).unwrap();
         let header = table_texts(&s).first().cloned().unwrap_or_default();
-        assert!(!header.iter().any(|c| c == "N."), "{header:?}");
+        assert!(!header.iter().any(|c| c == "i"), "{header:?}");
     }
 }

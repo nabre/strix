@@ -5,14 +5,14 @@
 <h1 align="center">Strix</h1>
 
 <p align="center">
-  <b>Verifiche ed esercizi per il docente: scrivi la verifica, soluzioni e punteggi li tiene Strix.</b>
+  <b>Momenti di valutazione ed esercizi per il docente: prepara i momenti di valutazione, soluzioni e punteggi li tiene Strix.</b>
 </p>
 
 <p align="center">
-  Strix è un editor open source, scritto interamente in Rust, per preparare le verifiche. Gli
+  Strix è un editor open source, scritto interamente in Rust, per preparare i momenti di valutazione. Gli
   esercizi di calcolo tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni
   fila di banchi; le domande a risposta multipla, vero/falso e aperte portano il loro punteggio;
-  un file per esercizio fa l'archivio, e da lì si compone la verifica, con o senza soluzioni. La
+  un file per esercizio fa l'archivio, e da lì si compone il momento di valutazione, con o senza soluzioni. La
   tabella dei punteggi somma da sola i punti per criterio; la griglia che trasforma i punti in
   voti è pianificata. Sotto, le equazioni nella pagina calcolano, con le unità di misura. Gira in
   modo nativo su Windows, macOS, Linux e BSD, e nel browser con WebAssembly.
@@ -54,16 +54,16 @@ soluzione**: le caselle restano vuote e gli spazi mantengono l'altezza, così la
 studente è impaginata come quella del docente. Ogni domanda ha i suoi **punti**, mostrati accanto
 e sommati nella tabella dei punteggi.
 
-## Dall'archivio alla verifica
+## Dall'archivio al momento di valutazione
 
 - **Un file per esercizio** fa l'archivio; ogni file porta le sue **proprietà d'archivio**
   (classe, sezione, materia, docente, durata, punteggio), visibili anche in Word
   ([archive.md](archive.md)).
-- Un **documento master** compone la verifica da quei file, con la sua numerazione, il
+- Un **documento master** compone il momento di valutazione da quei file, con la sua numerazione, il
   frontespizio, i salti di pagina e le parti mostrate (con o senza soluzioni e risultati);
   **i file dell'archivio non cambiano mai** ([master-documents.md](master-documents.md)).
 - La **formattazione DSA** (Design › Formattazione documento › DSA) impagina la stessa
-  verifica per gli studenti con DSA: Lettura, Scrittura, Calcolo e memoria, combinabili, pagina
+  prova per gli studenti con DSA: Lettura, Scrittura, Calcolo e memoria, combinabili, pagina
   sempre bianca ([dsa.md](dsa.md)).
 - Esportazione in **PDF** per la stampa.
 

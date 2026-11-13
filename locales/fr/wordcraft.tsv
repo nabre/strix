@@ -2950,7 +2950,7 @@ paper	Envelope DL	Enveloppe DL
 	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
 	No DSA Formatting	Aucune mise en forme TSA
 	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
 	Multiple Choice	Choix multiple
@@ -2979,3 +2979,66 @@ paper	Envelope DL	Enveloppe DL
 	Embed Fonts in the File	Incorporer les polices dans le fichier
 	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu'ils sont activés.
 	Couldn't turn on downloading: {error}	Impossible d'activer les téléchargements : {error}
+# Strix (2026-11-12): question modes (docs/question-modes.md).
+	CAD Drawing Question	Question avec dessin CAO
+	Question Type	Type de question
+	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Ajouter à l'exercice au curseur une question d'un type : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+# Strix (2026-11-13): CAD arrays from a base point to an end point, and blocks (docs/cad.md).
+	Array: base point	Réseau : point de base
+	Array: end point (the far corner of the grid)	Réseau : point final (le coin opposé de la grille)
+	Array: end point (the items run along the line to it)	Réseau : point final (les éléments suivent la ligne jusqu'à lui)
+	F fit · I exact spacing · S spread · a number: the spacing · 4x3: columns x rows (1xN: along a line)	F jusqu'au point final · I entraxe exact · S réparti · un nombre : l'entraxe · 4x3 : colonnes x lignes (1xN : le long d'une ligne)
+	fit to the end point,	jusqu'au point final,
+	exact spacing	entraxe exact
+	spread within	réparti dans
+	not set	non défini
+	Type the spacing (a length), then the base point	Tapez l'entraxe (une longueur), puis le point de base
+	A spacing is more than 0	Un entraxe est supérieur à 0
+	Array made, one object:	Réseau créé, un seul objet :
+	spacing	entraxe
+	items	éléments
+	Spacing	Espacement
+	Fit to the end point (the items typed, the last on the end point)	Jusqu'au point final (les éléments tapés, le dernier sur le point final)
+	Exact spacing (as many as fit, the rest left over)	Entraxe exact (autant qu'il en tient, le reste en surplus)
+	Spread evenly (within the spacing, the last on the end point)	Réparti régulièrement (dans l'entraxe, le dernier sur le point final)
+	Type the spacing first	Tapez d'abord l'entraxe
+	The end point is on the base point: the items would overlap	Le point final est sur le point de base : les éléments se superposeraient
+	The end point is not a number	Le point final n'est pas un nombre
+	The spacing is longer than from the base point to the end point: no copies	L'entraxe est plus long que la distance du point de base au point final : aucune copie
+	Nothing to explode: select polylines, rectangles or arrays	Rien à décomposer : sélectionnez des polylignes, des rectangles ou des réseaux
+	Array: base to end point (fit, exact spacing or spread), one object	Réseau : du point de base au point final (jusqu'au point final, entraxe exact ou réparti), un seul objet
+	Block	Bloc
+	Create\nBlock	Créer\nun bloc
+	Insert\nBlock	Insérer\nun bloc
+	Create Block	Créer un bloc
+	Insert Block	Insérer un bloc
+	Create Block…	Créer un bloc…
+	Insert Block…	Insérer un bloc…
+	No blocks yet: select objects and use Create Block	Pas encore de bloc : sélectionnez des objets et utilisez Créer un bloc
+	Create Block: select the objects first	Créer un bloc : sélectionnez d'abord les objets
+	base point (Esc cancels)	point de base (Échap annule)
+	insertion point (Esc cancels)	point d'insertion (Échap annule)
+	scale	échelle
+	Block created:	Bloc créé :
+	Block inserted:	Bloc inséré :
+	Base point	Point de base
+	Pick it in the drawing	Indiquez-le dans le dessin
+	Centre of the selection	Centre de la sélection
+	Lower left corner of the selection	Coin inférieur gauche de la sélection
+	Annotative: the same size on paper at every scale	Annotatif : même taille sur le papier à toutes les échelles
+	Drawn at the drawing's scale,	Dessiné à l'échelle du dessin,
+	Inserted at another scale 1:N it is scaled N / (this N) about its insertion point, and again whenever the drawing's scale changes.	Inséré à une autre échelle 1:N, il est mis à l'échelle N / (ce N) autour de son point d'insertion, et de nouveau à chaque changement d'échelle du dessin.
+	Plain: the same size in the drawing at every scale (inserted with scale 1).	Normal : même taille dans le dessin à toutes les échelles (inséré avec le facteur 1).
+	on paper at	sur le papier à
+	Turn the selected objects into the block	Transformer les objets sélectionnés en bloc
+	There is already a block with this name	Il existe déjà un bloc portant ce nom
+	annotative,	annotatif,
+	Annotative, drawn at	Annotatif, dessiné à
+	; the drawing is at	; le dessin est à
+	proposed scale	échelle proposée
+	It follows the drawing's scale from now on.	Il suit désormais l'échelle du dessin.
+	Plain block: scale 1 keeps the size it was made with.	Bloc normal : le facteur 1 garde la taille avec laquelle il a été créé.
+	On paper:	Sur le papier :
+	Use the proposed scale	Utiliser l'échelle proposée
+	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
+	Give the block a name	Donnez un nom au bloc

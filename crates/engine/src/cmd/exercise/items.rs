@@ -15,6 +15,16 @@
 //! inline control (`strix:exercise.item`, its placeholder shown until typed over) followed by the
 //! points (`strix:exercise.points`, generated: ` (2 punti)`).
 //!
+//! Each question has its own **mode** (docs/question-modes.md), kept in its settings, so one
+//! quiz can mix them:
+//!
+//! - **calculation**: an open answer whose space holds the worked calculation (equations of the
+//!   exercise's sandbox, so they follow its data and variants) and, under it, a generated
+//!   **result line** (`strix:exercise.resultLine`): `A = ______ cm²` while the answers are hidden,
+//!   `A = 15 cm²` when they show; the last equation in the space is the question's result;
+//! - **drawing**: an open answer whose space holds the solution's CAD drawing, hidden (and
+//!   taking no room) in the students' copy, so they draw on the squares.
+//!
 //! The exercise's Solution switch (`exercise.show`) shows or hides the answers: an open answer's
 //! text becomes hidden text (the space keeps its height), the boxes of a multiple choice are all
 //! empty. A lone question has no letter. The points of the questions add up to the exercise's
@@ -41,9 +51,12 @@ pub const TAG_POINTS: &str = "strix:exercise.points";
 pub const TAG_ANSWER: &str = "strix:exercise.answer";
 /// The check box at the start of each option.
 pub const TAG_BOX: &str = "strix:exercise.box";
+/// Under a calculation's space: the result to give, with its unit (generated).
+pub const TAG_LINE: &str = "strix:exercise.resultLine";
 
 pub(super) const STYLE_ANSWER: &str = "ExerciseAnswer";
 pub(super) const STYLE_CHOICE: &str = "ExerciseChoice";
+pub(super) const STYLE_LINE: &str = "ExerciseResultLine";
 
 const KIND_EL: &str = "strix:exerciseKind";
 const ANSWER_EL: &str = "strix:answerSpace";
@@ -58,6 +71,10 @@ const MIN_HEIGHT_CM: f32 = 0.5;
 const MAX_HEIGHT_CM: f32 = 25.0;
 const DEFAULT_HEIGHT_CM: f32 = 4.0;
 const DEFAULT_SPACING_MM: f32 = 5.0;
+/// A drawing's space is taller by default: the figure needs room.
+const DRAWING_HEIGHT_CM: f32 = 8.0;
+/// The blank where the student writes a calculation's value.
+const BLANK: &str = "______________";
 const CHECKED: char = '\u{2612}';
 const UNCHECKED: char = '\u{2610}';
 
@@ -85,7 +102,9 @@ impl Kind {
     fn parse(t: &str) -> Option<Kind> {
         Some(match t {
             "problem" => Kind::Problem,
-            "open" => Kind::Open,
+            // A quiz of calculations or drawings is an open-answer quiz whose questions start in
+            // that mode (each question keeps its own).
+            "open" | "calc" | "drawing" => Kind::Open,
             "choice" | "trueFalse" => Kind::Choice,
             _ => return None,
         })
@@ -116,12 +135,55 @@ fn write_kind(ctl: &mut ContentControl, k: Kind) {
     }
 }
 
+/// How a question is answered (docs/question-modes.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum Mode {
+    /// Written in a space, blank or squared.
+    #[default]
+    Open,
+    /// Options ticked (true/false is two options).
+    Choice,
+    /// Worked out in a squared space, the result given on a line with its unit.
+    Calc,
+    /// Drawn in a squared space; the solution is a CAD drawing.
+    Drawing,
+}
+
+impl Mode {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Mode::Open => "open",
+            Mode::Choice => "choice",
+            Mode::Calc => "calc",
+            Mode::Drawing => "drawing",
+        }
+    }
+
+    fn parse(t: &str) -> Option<Mode> {
+        Some(match t {
+            "open" => Mode::Open,
+            "choice" | "trueFalse" => Mode::Choice,
+            "calc" => Mode::Calc,
+            "drawing" => Mode::Drawing,
+            _ => return None,
+        })
+    }
+
+    /// The mode a new question of a quiz `kind_name` (`exercise.insert`'s) starts in.
+    fn of_kind(kind_name: &str) -> Mode {
+        Mode::parse(kind_name).unwrap_or_default()
+    }
+}
+
 /// The settings of one question, kept on its answer control.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub(crate) struct Answer {
-    /// Open answer (a space) or multiple choice (options).
+    /// Multiple choice (options); kept beside `mode` for files written before modes.
     pub choice: bool,
+    /// The question's mode; a file from before modes has `choice` alone.
+    pub mode: Mode,
     /// The question's maximum points.
     pub points: Option<f64>,
     /// The answer space's height, centimetres.
@@ -134,16 +196,25 @@ pub(crate) struct Answer {
 
 impl Default for Answer {
     fn default() -> Self {
-        Answer { choice: false, points: None, height: DEFAULT_HEIGHT_CM, grid: true, spacing: DEFAULT_SPACING_MM }
+        Answer { choice: false, mode: Mode::Open, points: None, height: DEFAULT_HEIGHT_CM, grid: true, spacing: DEFAULT_SPACING_MM }
     }
 }
 
 impl Answer {
+    /// Settings of a new question in `mode`.
+    fn of(mode: Mode) -> Answer {
+        let height = if mode == Mode::Drawing { DRAWING_HEIGHT_CM } else { DEFAULT_HEIGHT_CM };
+        Answer { choice: mode == Mode::Choice, mode, height, ..Answer::default() }
+    }
+
     fn sanitized(self) -> Answer {
         let d = Answer::default();
         let fin = |v: f32, d: f32| if v.is_finite() { v } else { d };
+        // `choice` and `mode` agree: a file from before modes says only `choice`.
+        let mode = if self.choice && self.mode == Mode::Open { Mode::Choice } else { self.mode };
         Answer {
-            choice: self.choice,
+            choice: mode == Mode::Choice,
+            mode,
             points: self.points.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_POINTS)),
             height: fin(self.height, d.height).clamp(MIN_HEIGHT_CM, MAX_HEIGHT_CM),
             grid: self.grid,
@@ -376,12 +447,29 @@ fn question_blocks(
             let _ = p.insert_text(end + OBJ.len_utf8(), " ", &props);
             out.push(p);
         }
+    } else if set.mode == Mode::Calc {
+        // The space for the working, then the result line, which closes the answer.
+        let mut p = para(STYLE_ANSWER, "", vec![answer], 0, None);
+        p.props.graph = Some(Arc::new(set.graph()));
+        out.push(p);
+        out.push(result_line_para(BLANK));
     } else {
         let mut p = para(STYLE_ANSWER, "", vec![answer], 1, None);
         p.props.graph = Some(Arc::new(set.graph()));
         out.push(p);
     }
     out
+}
+
+/// A calculation's result line: its generated text in a control that can't be edited or
+/// deleted, then the end of the answer control.
+fn result_line_para(text: &str) -> Paragraph {
+    let props = CharProps::default();
+    let mut p = para(STYLE_LINE, "", Vec::new(), 1, None);
+    let _ = p.insert_object(0, InlineObject::ControlStart { control: Box::new(inline(TAG_LINE, "", ControlLock::SdtContentLocked)) }, &props);
+    let _ = p.insert_text(OBJ.len_utf8(), text, &props);
+    let _ = p.insert_object(OBJ.len_utf8() + text.len(), InlineObject::ControlEnd, &props);
+    p
 }
 
 /// A list for one question's options: A), B), C)…
@@ -404,11 +492,18 @@ struct NewQuestion {
     text: Option<String>,
     set: Answer,
     choices: Vec<(String, bool)>,
+    /// A drawing's CAD source (`"drawing"`), or `None` for the starter drawing.
+    drawing: Option<Value>,
 }
 
-fn new_question(s: &Session, v: &Value, kind: Kind, true_false: bool) -> NewQuestion {
+/// A question as given: `mode` unless it names its own `"type"` (`open`, `choice`,
+/// `trueFalse`, `calc`, `drawing`).
+fn new_question(s: &Session, v: &Value, mode: Mode, true_false: bool) -> NewQuestion {
     let w = super::words(s);
-    let mut set = Answer { choice: kind == Kind::Choice, ..Answer::default() };
+    let ty = p::str(v, "type");
+    let mode = ty.and_then(Mode::parse).unwrap_or(mode);
+    let true_false = if ty.is_some() { ty == Some("trueFalse") } else { true_false };
+    let mut set = Answer::of(mode);
     apply_settings(&mut set, v);
     let correct: Vec<usize> = correct_list(v);
     let mut choices: Vec<(String, bool)> = match v.get("choices").and_then(Value::as_array) {
@@ -425,7 +520,8 @@ fn new_question(s: &Session, v: &Value, kind: Kind, true_false: bool) -> NewQues
     }
     .map(|t| clip_text(&t))
     .filter(|t| !t.is_empty());
-    NewQuestion { text, set: set.sanitized(), choices }
+    let drawing = v.get("drawing").filter(|d| d.is_object() || d.is_string()).cloned();
+    NewQuestion { text, set: set.sanitized(), choices, drawing }
 }
 
 /// A question's text as stored: no control or object characters, at most `MAX_TEXT` characters.
@@ -480,19 +576,20 @@ fn apply_settings(set: &mut Answer, v: &Value) {
 
 /// `exercise.insert` with a quiz kind: title, optional statement, then each question with its
 /// answer. Returns the blocks to insert, in order.
-pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Result<Vec<Paragraph>, CmdError> {
-    let kind = Kind::parse(kind_name).ok_or_else(|| CmdError::Params("kind: problem, open, choice or trueFalse".into()))?;
+pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Result<(Vec<Paragraph>, Vec<Option<Value>>), CmdError> {
+    let kind = Kind::parse(kind_name).ok_or_else(|| CmdError::Params("kind: problem, open, choice, trueFalse, calc or drawing".into()))?;
     let true_false = kind_name == "trueFalse";
+    let mode = Mode::of_kind(kind_name);
     let w = super::words(s);
     let title = p::str(v, "title").map(str::to_string);
     let text = p::str(v, "text").map(str::to_string);
     let mut questions: Vec<NewQuestion> = v
         .get("questions")
         .and_then(Value::as_array)
-        .map(|a| a.iter().take(MAX_QUESTIONS).map(|q| new_question(s, q, kind, true_false)).collect())
+        .map(|a| a.iter().take(MAX_QUESTIONS).map(|q| new_question(s, q, mode, true_false)).collect())
         .unwrap_or_default();
     if questions.is_empty() {
-        questions.push(new_question(s, &json!({}), kind, true_false));
+        questions.push(new_question(s, &json!({}), mode, true_false));
     }
     let mut exercise = control(TAG_EXERCISE, w.exercise, ControlLock::SdtLocked);
     write_kind(&mut exercise, kind);
@@ -540,7 +637,8 @@ pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Re
         }
         blocks.extend(new);
     }
-    Ok(blocks)
+    let drawings = questions.into_iter().filter(|q| q.set.mode == Mode::Drawing).map(|q| q.drawing).collect();
+    Ok((blocks, drawings))
 }
 
 /// `exercise.addQuestion` in a quiz: a question and its answer after the last answer.
@@ -553,15 +651,20 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
         return Err(CmdError::Failed(format!("an exercise holds at most {MAX_QUESTIONS} questions")));
     }
     // A new question is like the last one (its kind of answer, points, space).
-    let like = its.last().map(|i| i.settings).unwrap_or(Answer { choice: e.kind == Kind::Choice, ..Answer::default() });
-    let mut base = json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing});
+    let like = its.last().map(|i| i.settings).unwrap_or(Answer::of(if e.kind == Kind::Choice { Mode::Choice } else { Mode::Open }));
+    // Of another mode, the question takes that mode's space, not the last one's.
+    let other = p::str(v, "type").and_then(Mode::parse).is_some_and(|m| m != like.mode);
+    let mut base = if other {
+        json!({"points": like.points})
+    } else {
+        json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing})
+    };
     if let (Some(b), Some(o)) = (base.as_object_mut(), v.as_object()) {
         for (k, x) in o {
             b.insert(k.clone(), x.clone());
         }
     }
-    let kind = if like.choice { Kind::Choice } else { Kind::Open };
-    let q = new_question(s, &base, kind, false);
+    let q = new_question(s, &base, like.mode, false);
     let w = super::words(s);
     let num = super::e_list(s, last).map(|num| NumRef { num, level: 0 });
     let new = question_blocks(s, w, q.text.as_deref(), q.set, &q.choices, num);
@@ -587,12 +690,41 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
         }
         s.doc.body.insert(last + 1 + k, para_block(p));
     }
+    s.touch();
+    if q.set.mode == Mode::Drawing {
+        add_drawings(s, ex, &[q.drawing])?;
+    }
     // The caret in the new question's placeholder.
     s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(last + 1), OBJ.len_utf8()));
-    s.touch();
     super::update(s);
     s.clamp_selection();
     super::super::sel_result(s)
+}
+
+/// The solution's CAD drawing put in each new drawing question of exercise `ex` (the given
+/// source, or the starter drawing), fitted to the height of its space. `drawings` are the new
+/// drawing questions' sources, the last ones of the exercise, in order.
+pub(super) fn add_drawings(s: &mut Session, ex: usize, drawings: &[Option<Value>]) -> Result<(), CmdError> {
+    if drawings.is_empty() {
+        return Ok(());
+    }
+    let layout = scan(s);
+    let its: Vec<Item> = items(s, &layout, ex).into_iter().filter(|i| i.settings.mode == Mode::Drawing).collect();
+    let first = its.len().saturating_sub(drawings.len());
+    for (it, src) in its.iter().skip(first).zip(drawings) {
+        let Some((a, _)) = it.answer else { continue };
+        // In the space, after the answer control's start.
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a), OBJ.len_utf8()));
+        let v = match src {
+            Some(d) => json!({"drawing": d}),
+            None => json!({}),
+        };
+        super::super::cad::insert(s, &v)?;
+        // A little less than the space, so the drawing stays inside it.
+        let height = f64::from(it.settings.height) * 10.0 * 0.9;
+        let _ = super::super::cad::scale(s, &json!({"fit": {"height": height}}));
+    }
+    Ok(())
 }
 
 /// End markers at the end of `p` that close controls opened in an earlier paragraph.
@@ -667,7 +799,145 @@ pub(super) fn update(s: &mut Session) -> bool {
             let Some((a, b)) = it.answer else { continue };
             for i in a..=b {
                 let Some(block) = s.doc.body.get_mut(i) else { continue };
-                changed |= if it.settings.choice { choice_para(block, shown) } else { open_para(block, &it.settings, i == a, shown) };
+                changed |= match it.settings.mode {
+                    Mode::Choice => choice_para(block, shown),
+                    // The result line is filled in by `result_lines`, once calculated.
+                    Mode::Calc if matches!(&**block, Block::Para(p) if span(p, TAG_LINE).is_some()) => false,
+                    _ => open_para(block, &it.settings, i == a, shown),
+                };
+            }
+            if it.settings.mode == Mode::Calc {
+                changed |= mark_result(s, (a, b), u32::try_from(it_index(&its, it.question) + 1).unwrap_or(u32::MAX));
+            }
+        }
+    }
+    if changed {
+        s.touch();
+        s.clamp_selection();
+    }
+    changed
+}
+
+/// Index of the question whose paragraph is `question` among `its`.
+fn it_index(its: &[Item], question: usize) -> usize {
+    its.iter().position(|i| i.question == question).unwrap_or(0)
+}
+
+/// A calculation's result: the last equation written in its space is the result of question
+/// `n` (its value goes to the result line and the summary), the others are working.
+fn mark_result(s: &mut Session, (a, b): (usize, usize), n: u32) -> bool {
+    // The last equation of the space (not in the result line).
+    let mut last = None;
+    for i in a..=b {
+        let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
+        if span(p, TAG_LINE).is_some() {
+            continue;
+        }
+        for (k, o) in p.objects.iter().enumerate() {
+            if matches!(o, InlineObject::Equation { .. }) {
+                last = Some((i, k));
+            }
+        }
+    }
+    let mut changed = false;
+    for i in a..=b {
+        let Some(block) = s.doc.body.get_mut(i) else { continue };
+        let Block::Para(p) = &**block else { continue };
+        let wrong = p.objects.iter().enumerate().any(|(k, o)| {
+            let want = if last == Some((i, k)) { n } else { 0 };
+            matches!(o, InlineObject::Equation { math, .. } if math.answer != want)
+        });
+        if !wrong {
+            continue;
+        }
+        let Block::Para(p) = Arc::make_mut(block) else { continue };
+        for (k, o) in p.objects.iter_mut().enumerate() {
+            let want = if last == Some((i, k)) { n } else { 0 };
+            if let InlineObject::Equation { math, .. } = o
+                && math.answer != want
+            {
+                math.answer = want;
+                math.omml.clear();
+            }
+        }
+        p.touch();
+        changed = true;
+    }
+    changed
+}
+
+/// What a calculation's result line says: the result's name, a blank and its unit while the
+/// answers are hidden (`A = ______ cm²`), the result when they show (`A = 15 cm²`). `found` is
+/// the result as the calculations show it (`A = 15 cm²`), `None` while there is none. Hidden,
+/// the line never gives away the working: only a plain name before the first `=` is kept
+/// (`b·h = 15 cm²` gives `______ cm²`), and the unit is what follows the number after the last.
+fn line_text(found: Option<&str>, shown: bool) -> String {
+    let Some(found) = found.map(str::trim).filter(|f| !f.is_empty()) else { return BLANK.to_string() };
+    if shown {
+        return found.to_string();
+    }
+    if found.starts_with('⚠') {
+        return BLANK.to_string();
+    }
+    let (Some((name, _)), Some((_, value))) = (found.split_once(" = "), found.rsplit_once(" = ")) else { return BLANK.to_string() };
+    let name = name.trim();
+    let plain = name.chars().next().is_some_and(char::is_alphabetic) && name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '\'');
+    let unit = result_unit(value);
+    match (plain, unit) {
+        (true, Some(u)) => format!("{name} = {BLANK} {u}"),
+        (true, None) => format!("{name} = {BLANK}"),
+        (false, Some(u)) => format!("{BLANK} {u}"),
+        (false, None) => BLANK.to_string(),
+    }
+}
+
+/// The unit of a value as shown (`15 cm²` → `cm²`, `1 500 kN·m` → `kN·m`, `1,5·10³ m` → `m`,
+/// `2.5` → none): what follows the number, its digit groups, sign and power of ten.
+fn result_unit(value: &str) -> Option<&str> {
+    let numeric = |c: char| {
+        c.is_ascii_digit()
+            || c.is_whitespace()
+            || matches!(c, '.' | ',' | '+' | '-' | '−' | '\u{2009}' | '\u{202F}' | '\u{00A0}' | '\'' | '·' | '×' | 'E' | 'e')
+            || "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻".contains(c)
+    };
+    // `e`/`E` only inside a number (`1.5e3`), never a unit's first letter.
+    let mut cut = 0;
+    let chars: Vec<(usize, char)> = value.char_indices().collect();
+    for (k, &(i, c)) in chars.iter().enumerate() {
+        let exp = matches!(c, 'e' | 'E' | '·' | '×');
+        let next_numeric = chars.get(k + 1).is_some_and(|&(_, n)| n.is_ascii_digit() || matches!(n, '+' | '-' | '−'));
+        if !numeric(c) || (exp && !next_numeric) {
+            break;
+        }
+        cut = i + c.len_utf8();
+    }
+    let unit = value.get(cut..)?.trim();
+    (cut > 0 && !unit.is_empty()).then_some(unit)
+}
+
+/// Every calculation's result line filled in from the results (`answers`: by exercise and
+/// question, as the calculations show them); whether anything changed.
+pub(super) fn result_lines(s: &mut Session, layout: &Layout, answers: &std::collections::HashMap<(usize, u32), Vec<String>>) -> bool {
+    let mut changed = false;
+    for (e, ex) in layout.exercises.iter().enumerate() {
+        let its = items(s, layout, e);
+        for (k, it) in its.iter().enumerate() {
+            if it.settings.mode != Mode::Calc {
+                continue;
+            }
+            let Some((a, b)) = it.answer else { continue };
+            let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
+            let found = answers.get(&(e, n)).and_then(|v| v.last()).map(String::as_str);
+            let text = line_text(found, ex.show.solution);
+            for i in a..=b {
+                let Some(block) = s.doc.body.get_mut(i) else { continue };
+                let Block::Para(p) = &**block else { continue };
+                let Some(sp) = span(p, TAG_LINE) else { continue };
+                if p.text.get(sp.0 + OBJ.len_utf8()..sp.1) == Some(text.as_str()) {
+                    continue;
+                }
+                let Block::Para(p) = Arc::make_mut(block) else { continue };
+                changed |= set_content(p, sp, &text);
             }
         }
     }
@@ -792,18 +1062,33 @@ pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
 }
 
 /// What a quiz gives the results summary: for each multiple-choice question, its letter and the
-/// correct options (`b) A, C`); an open answer gives nothing.
-pub(super) fn summary_lines(s: &Session, layout: &Layout, e: usize) -> Vec<String> {
+/// correct options (`b) A, C`); for each calculation, its result (`c) A = 15 cm²`, from
+/// `answers`, or `none` when it has none); open answers and drawings give nothing.
+pub(super) fn summary_lines(
+    s: &Session,
+    layout: &Layout,
+    e: usize,
+    answers: &std::collections::HashMap<(usize, u32), Vec<String>>,
+    none: &str,
+) -> Vec<String> {
     let its = items(s, layout, e);
     let labels: Vec<String> = layout.exercises.get(e).map(|x| x.questions.iter().map(|q| q.label.clone()).collect()).unwrap_or_default();
     let lone = its.len() == 1;
     its.iter()
         .enumerate()
-        .filter(|(_, it)| it.settings.choice)
         .filter_map(|(k, it)| {
-            let right: Vec<String> = choices(s, it.answer?).iter().enumerate().filter(|(_, c)| c.1).map(|(j, _)| letter(j)).collect();
-            let right = if right.is_empty() { "—".to_string() } else { right.join(", ") };
-            Some(if lone { right } else { format!("{} {right}", labels.get(k).cloned().unwrap_or_default()) })
+            let shown = match it.settings.mode {
+                Mode::Choice => {
+                    let right: Vec<String> = choices(s, it.answer?).iter().enumerate().filter(|(_, c)| c.1).map(|(j, _)| letter(j)).collect();
+                    if right.is_empty() { "—".to_string() } else { right.join(", ") }
+                }
+                Mode::Calc => {
+                    let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
+                    answers.get(&(e, n)).and_then(|v| v.last()).cloned().unwrap_or_else(|| none.to_string())
+                }
+                Mode::Open | Mode::Drawing => return None,
+            };
+            Some(if lone { shown } else { format!("{} {shown}", labels.get(k).cloned().unwrap_or_default()) })
         })
         .collect()
 }
@@ -818,7 +1103,7 @@ pub(super) fn fingerprint(s: &Session) -> u64 {
             (matches!(r.control.kind, ControlKind::CheckBox { checked: true, .. }), is_correct(&r.control), &r.start.path.0).hash(&mut h);
         } else if r.control.tag == TAG_ANSWER {
             let a = read_answer(&r.control);
-            (a.choice, a.points.map(f64::to_bits), a.height.to_bits(), a.grid, a.spacing.to_bits(), &r.start.path.0, &r.end.path.0).hash(&mut h);
+            (a.mode, a.points.map(f64::to_bits), a.height.to_bits(), a.grid, a.spacing.to_bits(), &r.start.path.0, &r.end.path.0).hash(&mut h);
         }
     }
     h.finish()
@@ -840,7 +1125,7 @@ fn state(s: &Session, e: usize) -> Value {
             let mut v = json!({
                 "label": label,
                 "text": text,
-                "type": if it.settings.choice { "choice" } else { "open" },
+                "type": it.settings.mode.name(),
                 "points": it.settings.points,
             });
             if let Some(o) = v.as_object_mut() {
@@ -849,6 +1134,16 @@ fn state(s: &Session, e: usize) -> Value {
                     o.insert("choices".into(), json!(cs.iter().map(|c| c.0.clone()).collect::<Vec<_>>()));
                     o.insert("correct".into(), json!(cs.iter().enumerate().filter(|c| c.1.1).map(|(j, _)| letter(j)).collect::<Vec<_>>()));
                 } else {
+                    if it.settings.mode == Mode::Calc {
+                        let line = it.answer.and_then(|(a, b)| {
+                            (a..=b).find_map(|i| {
+                                let p = s.doc.body.get(i)?.as_para()?;
+                                let (x, y) = span(p, TAG_LINE)?;
+                                p.text.get(x + OBJ.len_utf8()..y).map(str::to_string)
+                            })
+                        });
+                        o.insert("line".into(), json!(line));
+                    }
                     o.insert("height".into(), json!((f64::from(it.settings.height) * 100.0).round() / 100.0));
                     o.insert("grid".into(), json!(it.settings.grid));
                     o.insert("spacing".into(), json!((f64::from(it.settings.spacing) * 100.0).round() / 100.0));
@@ -1080,6 +1375,130 @@ mod tests {
         assert!(texts(&s).iter().any(|x| x == "Leggi il brano."));
     }
 
+    /// The block of the `n`-th answer space (0-based) of the document.
+    fn space(s: &Session, n: usize) -> usize {
+        s.doc
+            .body
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| b.as_para().is_some_and(|p| p.props.graph.is_some() && p.props.style.as_deref() == Some(STYLE_ANSWER)))
+            .nth(n)
+            .map(|(i, _)| i)
+            .unwrap()
+    }
+
+    #[test]
+    fn a_calculation_gives_its_result_on_a_line_with_its_unit() {
+        let mut s = session();
+        run(&mut s, "exercise.insert", json!({"kind": "calc", "questions": [{"text": "Calcola l'area del rettangolo.", "points": 2}]}));
+        let data = json!({
+            "items": [
+                {"symbol": "b", "description": "base", "unit": "cm", "values": ["5", "6"]},
+                {"symbol": "h", "description": "altezza", "unit": "cm", "values": ["3", "4"]}
+            ],
+            "variants": ["A", "B"],
+            "active": 0
+        });
+        run(&mut s, "exercise.setData", json!({"data": data}));
+        let t = texts(&s);
+        assert!(t.contains(&"base: b = 5 cm".to_string()), "{t:?}");
+        // The working in the space: its last equation is the result.
+        let at = space(&s, 0);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::super::body_path(at), OBJ.len_utf8()));
+        // The unit asked for after `=` is the result's, and the line's.
+        run(&mut s, "calc.insert", json!({"text": "A = b·h = cm^2"}));
+        let t = texts(&s);
+        assert!(t.contains(&"A = 15 cm²".to_string()), "{t:?}");
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["kind"], "open");
+        assert_eq!(st["questions"][0]["type"], "calc", "{st}");
+        assert_eq!(st["questions"][0]["line"], "A = 15 cm²", "{st}");
+        assert_eq!(st["total"], json!(2.0));
+        // The summary gives the result.
+        assert!(t.iter().filter(|x| x.as_str() == "A = 15 cm²").count() >= 2, "{t:?}");
+        // The students' copy: the working hidden, the line with a blank and the unit.
+        run(&mut s, "exercise.show", json!({"solution": false}));
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][0]["line"], format!("A = {BLANK} cm²"), "{st}");
+        let p = s.doc.body.get(space(&s, 0)).and_then(|b| b.as_para()).unwrap();
+        assert!(p.runs.iter().all(|r| r.props.hidden == Some(true)), "the working is hidden");
+        // Variant B: the result follows.
+        run(&mut s, "exercise.show", json!({"solution": true}));
+        run(&mut s, "exercise.variant", json!({"exercise": 1, "active": 1}));
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][0]["line"], "A = 24 cm²", "{st}");
+        // Saved and opened again, the question keeps its mode.
+        let bytes = crate::io::save_bytes("c.xmath", &s.doc).unwrap();
+        let mut s2 = Session::new(crate::io::open_bytes("c.xmath", &bytes).unwrap());
+        let st = run(&mut s2, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][0]["type"], "calc", "{st}");
+    }
+
+    #[test]
+    fn line_texts() {
+        assert_eq!(line_text(Some("A = 15 cm²"), false), format!("A = {BLANK} cm²"));
+        assert_eq!(line_text(Some("x = 2.5"), false), format!("x = {BLANK}"));
+        assert_eq!(line_text(Some("⚠ unknown b"), false), BLANK);
+        assert_eq!(line_text(None, true), BLANK);
+        assert_eq!(line_text(Some("M = 30.375 kN·m"), true), "M = 30.375 kN·m");
+        // Hidden, the working never shows: a plain name alone, the unit after the number.
+        assert_eq!(line_text(Some("A = b·h = 15 cm²"), false), format!("A = {BLANK} cm²"));
+        assert_eq!(line_text(Some("b·h = 15 cm²"), false), format!("{BLANK} cm²"));
+        assert_eq!(line_text(Some("M_Ed = 1 500 kN·m"), false), format!("M_Ed = {BLANK} kN·m"));
+        assert_eq!(line_text(Some("M = 1\u{2009}500 kN·m"), false), format!("M = {BLANK} kN·m"));
+        assert_eq!(line_text(Some("F = 1,5·10³ N"), false), format!("F = {BLANK} N"));
+        assert_eq!(line_text(Some("x = -2.5e3 m"), false), format!("x = {BLANK} m"));
+        assert_eq!(line_text(Some("E = 210000 N/mm²"), false), format!("E = {BLANK} N/mm²"));
+        assert_eq!(line_text(Some("α = 30 °"), false), format!("α = {BLANK} °"));
+    }
+
+    #[test]
+    fn one_quiz_mixes_the_modes_and_a_drawing_hides_with_the_solution() {
+        let mut s = session();
+        run(
+            &mut s,
+            "exercise.insert",
+            json!({"kind": "open", "questions": [
+                {"text": "Che cos'è un rettangolo?", "points": 1},
+                {"text": "Un quadrato è un rettangolo.", "type": "trueFalse", "correct": 1, "points": 1},
+                {"text": "Calcola il perimetro.", "type": "calc", "points": 2},
+                {"text": "Disegna il rettangolo e quotalo.", "type": "drawing", "points": 3}
+            ]}),
+        );
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        let types: Vec<&str> = st["questions"].as_array().unwrap().iter().map(|q| q["type"].as_str().unwrap()).collect();
+        assert_eq!(types, ["open", "choice", "calc", "drawing"], "{st}");
+        assert_eq!(st["questions"][3]["height"], json!(8.0), "{st}");
+        assert_eq!(st["total"], json!(7.0));
+        // The drawing question holds the solution's CAD drawing in its space.
+        let has_cad = |s: &Session| {
+            let p = s.doc.body.get(space(s, 2)).and_then(|b| b.as_para()).unwrap();
+            p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad))
+        };
+        assert!(has_cad(&s));
+        // The students' copy: the drawing is hidden text (left out of the page), the space stays.
+        run(&mut s, "exercise.show", json!({"solution": false}));
+        let p = s.doc.body.get(space(&s, 2)).and_then(|b| b.as_para()).unwrap();
+        assert!(p.props.graph.is_some());
+        assert!(p.runs.iter().all(|r| r.props.hidden == Some(true)));
+        assert!(has_cad(&s));
+        // A question added in another mode takes that mode's space.
+        run(&mut s, "exercise.show", json!({"solution": true}));
+        run(&mut s, "exercise.addQuestion", json!({"type": "calc"}));
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][4]["type"], "calc", "{st}");
+        assert_eq!(st["questions"][4]["height"], json!(4.0), "{st}");
+        run(&mut s, "exercise.addQuestion", json!({"type": "drawing"}));
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][5]["type"], "drawing", "{st}");
+        let p = s.doc.body.get(space(&s, 4)).and_then(|b| b.as_para()).unwrap();
+        assert!(p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { .. })), "the added drawing question has its drawing");
+        // The summary: the true/false's answer and the calculations without a result.
+        let t = texts(&s);
+        assert!(t.contains(&"b) A".to_string()), "{t:?}");
+        assert!(t.contains(&"c) risultato non indicato".to_string()), "{t:?}");
+    }
+
     #[test]
     fn hostile_params_never_panic() {
         let mut s = session();
@@ -1100,6 +1519,8 @@ mod tests {
         }
         for v in [
             json!({"kind": "nope"}),
+            json!({"kind": "calc", "questions": [{"type": 7}, {"type": "drawing", "drawing": "{bad"}, {"type": "x", "drawing": {"bad": 1}}]}),
+            json!({"kind": "drawing", "questions": [{"height": 1e30}, {"drawing": null}]}),
             json!({"kind": "open", "questions": [1, null, {"height": "x"}]}),
             json!({"kind": "choice", "questions": [{"choices": [1, 2]}]}),
         ] {

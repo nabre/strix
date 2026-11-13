@@ -6,7 +6,7 @@
 > [Atollo](https://github.com/nabre/atollo/blob/main/docs/brand/MARKETING.md), di cui Strix
 > condivide tavolozza e regole di tono.
 >
-> **Ultimo aggiornamento:** 2026-11-12 · **Modifica:** riposizionamento sul docente (esercizi di
+> **Ultimo aggiornamento:** 2026-11-12 · **Modifica:** in italiano «momenti di valutazione», mai «verifica» (decisione del proprietario: sito, README, tagline); prima: riposizionamento sul docente (esercizi di
 > calcolo, risposta multipla, verifiche, punteggi, griglia dei voti pianificata): direttive,
 > categoria, definizione canonica, pilastri, «Come funziona», persone, tagline, descrizione del
 > repository, pitch, video e canali.
@@ -15,10 +15,10 @@
 
 ## 1. Direttive per chi scrive
 
-1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor delle verifiche e
+1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor dei momenti di valutazione e
    degli esercizi** (EN: *test and exercise editor for teachers*). Il racconto segue sempre la
    giornata del docente, in quest'ordine: **esercizi di calcolo**, **domande a risposta multipla**,
-   **momenti di valutazione** (compiti, verifiche), **punteggi** e **griglia per l'assegnazione dei
+   **momenti di valutazione** (compiti in classe, prove), **punteggi** e **griglia per l'assegnazione dei
    voti**. La matematica viva, il CAD, gli agenti e Rust sono i mezzi che lo rendono possibile, non
    il titolo. Non ridurre Strix a "calcolatrice", "generatore di quiz", "plugin", "clone di" o
    "alternativa a" un altro prodotto.
@@ -31,17 +31,17 @@
    Microsoft, Adobe, Avid, Autodesk (regola del repository, `CLAUDE.md`). Le schermate sono **solo
    di Strix**, fatte con `ui_shot` su documenti scritti da noi.
 4. **Tono: concreto, da sala docenti, verificabile.** Niente "rivoluzionario", "magico", "il
-   migliore". Un docente si convince con una verifica pronta da stampare: l'esercizio con i dati
+   migliore". Un docente si convince con un momento di valutazione pronto da stampare: l'esercizio con i dati
    in due varianti, la risposta multipla con le caselle, la tabella dei punteggi che fa da sola i
    totali. Un esempio concreto vale più di un aggettivo. Il lessico è quello della scuola
-   (verifica, compito, griglia, punteggio, voto, variante A/B, DSA), non quello del software.
+   (momento di valutazione, compito, griglia, punteggio, voto, variante A/B, DSA), non quello del software.
 5. **Trasparenza sullo stato.** Strix è in **alpha**. Ciò che è pianificato si scrive "pianificato"
    (sezione 9.4), mai al presente: oggi la **griglia dei voti** (dai punti al voto) è
    **pianificata**. I numeri si prendono dalle fonti (sezione 11), mai a memoria.
 6. **Parità multilingua: `EN`, `IT`, `FR`, `DE`.** Ogni testo per il pubblico (sito, README,
    tagline) esiste nelle quattro lingue, con le stesse chiavi. L'inglese è la lingua di
    riferimento; l'app stessa parla 27 lingue. Nei termini scolastici si usa la parola del paese
-   (IT *verifica*, FR *évaluation*, DE *Klassenarbeit*, EN *test*), non una traduzione letterale.
+   (IT *momenti di valutazione*, mai *verifica*, FR *évaluation*, DE *Klassenarbeit*, EN *test*), non una traduzione letterale.
 7. **Colori solo dalla tavolozza Atollo** (sezione 6), gli stessi di `theme::Tokens` nell'app.
 
 ---
@@ -55,7 +55,7 @@
 | **Nome** | **Strix Writer** (dal 2026-11-08). Nome completo nei titoli, negli installer, negli store, sul sito e alla prima menzione; nel testo corrente basta **Strix**, sempre con la S maiuscola. Mai "STRIX" nel testo corrente: solo nel wordmark, che resta STRIX |
 | **Binari** | `strix` (app desktop), `strix-cli` (riga di comando e server MCP), `strix-web` (browser) |
 | **Pubblico** | **il docente** (scuola secondaria, ITS, università: materie con calcolo, ma non solo) |
-| **Categoria** | **Test and exercise editor for teachers** · *Editor di verifiche ed esercizi per il docente* |
+| **Categoria** | **Test and exercise editor for teachers** · *Editor di momenti di valutazione ed esercizi per il docente* |
 | **Formato nativo** | `.xmath` (documento), `.xmathm` (modello); DOCX, ODT, RTF si risalvano nel loro formato solo se il documento non ha oggetti Strix |
 | **Piattaforme** | Windows (x64, x86, ARM64), macOS (universal), Linux (x86_64, aarch64, riscv64), FreeBSD, web (WebAssembly) |
 | **Linguaggio** | Rust puro, nessun `unsafe`, nessun panic nel codice di produzione |
@@ -75,11 +75,11 @@
   > up by criterion by itself; a grading grid that turns points into marks is planned. Native on
   > Windows, macOS, Linux and BSD, and in the browser.
 * **Italiano:**
-  > **Strix Writer — Verifiche ed esercizi per il docente.**
-  > Un editor open source, scritto in Rust, per preparare le verifiche. Gli esercizi di calcolo
+  > **Strix Writer — Momenti di valutazione ed esercizi per il docente.**
+  > Un editor open source, scritto in Rust, per preparare i momenti di valutazione. Gli esercizi di calcolo
   > tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni fila di banchi; le
   > domande a risposta multipla, vero/falso e aperte portano il loro punteggio; un file per
-  > esercizio fa l'archivio, e da lì si compone la verifica, con o senza soluzioni. La tabella dei
+  > esercizio fa l'archivio, e da lì si compone il momento di valutazione, con o senza soluzioni. La tabella dei
   > punteggi somma da sola i punti per criterio; la griglia che trasforma i punti in voti è
   > pianificata. Nativo su Windows, macOS, Linux e BSD, e nel browser.
 * **Français :**
@@ -147,14 +147,14 @@ docente, dalla preparazione al voto.
    * Le risposte giuste si spuntano nell'esercizio e si **nascondono insieme alla soluzione**: lo
      spazio resta, la pagina dello studente non cambia impaginazione.
    * Ogni domanda ha i suoi **punti**, mostrati accanto e sommati nella tabella dei punteggi.
-3. **Momenti di valutazione: dall'archivio alla verifica**
+3. **Momenti di valutazione: dall'archivio al compito in classe**
    * **Un file per esercizio** è l'archivio, con le sue proprietà (classe, indirizzo, materia,
      docente, durata, punteggio) leggibili anche da Word.
    * Un **documento master** compone la serie da consegnare: numerazione, frontespizio, salti di
      pagina, parti mostrate (con o senza soluzione e risultati) restano del master, i file
      dell'archivio non cambiano mai.
    * **Formattazione DSA** (Lettura, Scrittura, Calcolo e memoria, combinabili) applicata alla
-     stessa verifica, pagina sempre bianca; esportazione in **PDF** per la stampa.
+     stesso documento, pagina sempre bianca; esportazione in **PDF** per la stampa.
 4. **Punteggi e griglia dei voti**
    * **Tabella dei punteggi** (Didattica › Punteggi): una riga per esercizio, una coppia di colonne
      per criterio (IMP, MOD, CAL/RIS…: punti ottenuti e punti massimi), **totali** per riga e per
@@ -173,7 +173,7 @@ docente, dalla preparazione al voto.
    * **Privacy**: nessuna telemetria, nessun account, nessun controllo aggiornamenti; la rete si
      usa solo quando lo chiedi tu ([`docs/code-signing.md`](../code-signing.md), «Privacy»).
    * **Tutto è un comando** con id e parametri (barra multifunzione, `strix-cli`, **server MCP**):
-     un agente AI può preparare un esercizio o una verifica intera.
+     un agente AI può preparare un esercizio o un intero momento di valutazione.
 
 ---
 
@@ -185,8 +185,8 @@ Sono la sezione «Come funziona» del sito (`site/strings/*.json`, chiavi `a1…
 | Aspetto | Cosa dire | Fatti da citare |
 | :--- | :--- | :--- |
 | **Ogni esercizio è un calcolo** | Dati, soluzione e risultati si calcolano nella pagina; cambi un dato e tutto segue. | Varianti A/B/C, un solo `=`, unità controllate, riepilogo dei risultati, sandbox per esercizio. |
-| **Ogni tipo di domanda** | Problemi, risposte aperte, risposta multipla e vero/falso nella stessa verifica, ciascuno col suo punteggio. | Caselle spuntate sulle risposte giuste, nascoste con la soluzione; spazio di risposta in cm, a quadretti o bianco. |
-| **Dall'archivio alla verifica** | Un file per esercizio; il master compone la verifica e la impagina a modo suo senza toccare l'archivio. | Frontespizio, numerazione, con o senza soluzioni, formattazione DSA, PDF; proprietà d'archivio leggibili da Word. |
+| **Ogni tipo di domanda** | Problemi, risposte aperte, risposta multipla e vero/falso nello stesso momento di valutazione, ciascuno col suo punteggio. | Caselle spuntate sulle risposte giuste, nascoste con la soluzione; spazio di risposta in cm, a quadretti o bianco. |
+| **Dall'archivio al momento di valutazione** | Un file per esercizio; il master compone il momento di valutazione e lo impagina a modo suo senza toccare l'archivio. | Frontespizio, numerazione, con o senza soluzioni, formattazione DSA, PDF; proprietà d'archivio leggibili da Word. |
 | **I punti si sommano da soli** | La tabella dei punteggi fa i totali per criterio ed esercizio mentre scrivi. | Criteri a due colonne (ottenuti/massimi), totale = proprietà Punteggio; griglia dei voti **pianificata**. |
 
 ---
@@ -259,17 +259,17 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 ### Persona 1 — Il docente (pubblico principale)
 
 * **Chi è:** insegna matematica, fisica, materie tecniche (ma anche altre materie con domande a
-  risposta multipla) e prepara compiti e verifiche ogni settimana, spesso in più varianti e per
+  risposta multipla) e prepara compiti e momenti di valutazione ogni settimana, spesso in più varianti e per
   studenti con DSA.
 * **Dolore:** riscrivere lo stesso esercizio con dati diversi per ogni fila e ricalcolare a mano
   le soluzioni; tenere allineati testo, soluzione e risultati; impaginare la versione con e senza
-  soluzioni; sommare i punti e convertirli in voti a fine correzione; rifare la verifica in
+  soluzioni; sommare i punti e convertirli in voti a fine correzione; rifare il compito in
   formato DSA.
-* **Hook:** *"Scrivi la verifica. Soluzioni e punteggi li tiene Strix."* · *"Un esercizio, tante
+* **Hook:** *"Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix."* · *"Un esercizio, tante
   varianti, nessuna soluzione da rifare."*
 * **Da mostrare, in quest'ordine:** un esercizio di calcolo con dati in due varianti (A e B) che
   ricalcolano la soluzione; una domanda a risposta multipla con la casella giusta spuntata che
-  sparisce nascondendo la soluzione; il master che compone la verifica dall'archivio con il
+  sparisce nascondendo la soluzione; il master che compone il momento di valutazione dall'archivio con il
   frontespizio; la tabella dei punteggi che fa i totali; la versione DSA; il PDF.
 
 ### Persona 2 — Lo studente
@@ -292,7 +292,7 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 * **Dolore:** gli agenti producono numeri in chat, non documenti verificabili.
 * **Hook:** *"Ogni azione è un comando. Anche per il tuo agente."*
 * **Da mostrare:** `claude mcp add strix -- strix-cli mcp`, `exercise.insert`, `exercise.scores`,
-  `batch`, `render_page`: l'agente che prepara una verifica con varianti e la salva come `.xmath`;
+  `batch`, `render_page`: l'agente che prepara un momento di valutazione con varianti e la salva come `.xmath`;
   cartelle confinate (`--automation-read-root`, `--automation-write-root`).
 
 ---
@@ -303,9 +303,9 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 | Formato | EN | IT | FR | DE |
 | :--- | :--- | :--- | :--- | :--- |
-| **Categoria** | Tests and exercises for teachers | Verifiche ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
-| **Hero** | Write the test. Strix keeps the solutions and the scores. | Scrivi la verifica. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
-| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, verifiche e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
+| **Categoria** | Tests and exercises for teachers | Momenti di valutazione ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
+| **Hero** | Write the test. Strix keeps the solutions and the scores. | Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
+| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, momenti di valutazione e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
 | **Fiducia** | Open source. No account. No telemetry. Never crashes by design. | Open source. Nessun account. Nessuna telemetria. Progettato per non andare in crash. | Open source. Sans compte. Sans télémétrie. Conçu pour ne jamais planter. | Open Source. Kein Konto. Keine Telemetrie. Absturzfrei konstruiert. |
 
 ### 9.2 Descrizione del repository GitHub (≤ 350 caratteri)
@@ -345,12 +345,12 @@ gh repo edit nabre/strix \
 > in the browser. MIT or Apache-2.0.
 
 **IT:**
-> **Strix Writer** è un editor open source per preparare le verifiche, scritto interamente in
+> **Strix Writer** è un editor open source per preparare i momenti di valutazione, scritto interamente in
 > Rust. Gli esercizi di calcolo tengono vivi dati, soluzione e risultati: le equazioni nella
 > pagina calcolano, con le unità, e le varianti A, B, C danno a ogni fila di banchi i suoi numeri
 > senza rifare una sola soluzione. Le domande a risposta multipla, vero/falso e aperte portano il
 > loro punteggio, e le risposte giuste si nascondono con la soluzione. Un file per esercizio fa
-> l'archivio; un documento master ne compone la verifica, con il suo frontespizio, la sua
+> l'archivio; un documento master ne compone il momento di valutazione, con il suo frontespizio, la sua
 > numerazione e la formattazione DSA, con o senza soluzioni, senza mai toccare l'archivio. La
 > tabella dei punteggi somma i punti per criterio mentre scrivi; la griglia dai punti ai voti è
 > pianificata. Salva file `.xmath` che altri programmi aprono con gli ultimi valori calcolati,
@@ -387,21 +387,21 @@ Registrazione: solo finestre di Strix (`ui_shot` o la finestra dell'app per id),
 
 **Scuole, università, ITS (canale principale)**
 
-Proposta: il docente prepara un esercizio per file, compone la verifica da un master, stampa la
-variante A e la variante B in PDF, la versione DSA dalla stessa verifica, e la tabella dei
+Proposta: il docente prepara un esercizio per file, compone il momento di valutazione da un master, stampa la
+variante A e la variante B in PDF, la versione DSA dallo stesso documento, e la tabella dei
 punteggi è già pronta per la correzione. La versione web non richiede installazione sui PC del
 laboratorio. Gratis, open source, senza account. Luoghi: gruppi e forum di docenti per materia,
 animatori digitali, corsi di formazione, dipartimenti di matematica e di discipline tecniche.
 
 **Reddit**
 
-* `r/Teachers`, `r/matheducation`, `r/physicsteachers`, `r/ScienceTeachers` — angolo pratico: una
-  verifica con varianti e punteggi. Titolo: *"I built a free editor for tests: calculation
+* `r/Teachers`, `r/matheducation`, `r/physicsteachers`, `r/ScienceTeachers` — angolo pratico: un
+  compito con varianti e punteggi. Titolo: *"I built a free editor for tests: calculation
   exercises with variants, multiple choice and a scores table that adds itself up"*. Una sola
-  immagine: la verifica con la tabella dei punteggi.
+  immagine: il compito con la tabella dei punteggi.
 * `r/rust` — angolo tecnico: registro comandi, niente panic, wasm, egui.
 * `r/engineering`, `r/StructuralEngineering` — la trave con la verifica e il disegno.
-* `r/ClaudeAI`, `r/LocalLLaMA` — MCP: un agente prepara una verifica con varianti.
+* `r/ClaudeAI`, `r/LocalLLaMA` — MCP: un agente prepara un compito con varianti.
 
 **Hacker News (`Show HN`)**
 
@@ -429,7 +429,7 @@ animatori digitali, corsi di formazione, dipartimenti di matematica e di discipl
   that adds itself up. Strix: an open-source editor for teachers' tests. Windows, macOS, Linux,
   BSD, web. https://nabre.github.io/strix/*
 * IT: *Un esercizio, varianti A e B, soluzioni ricalcolate, risposta multipla, tabella dei
-  punteggi che somma da sola. Strix: editor open source per le verifiche. Windows, macOS, Linux,
+  punteggi che somma da sola. Strix: editor open source per i momenti di valutazione. Windows, macOS, Linux,
   BSD, web. https://nabre.github.io/strix/it/*
 
 ### 10.3 Note di rilascio (modello)

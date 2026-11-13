@@ -76,7 +76,7 @@ fn drawing_param(v: &Value, key: &str) -> Result<Option<Drawing>, CmdError> {
     }
 }
 
-fn insert(s: &mut Session, v: &Value) -> CmdResult {
+pub(crate) fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let given = drawing_param(v, "drawing")?;
     // The starter drawing is given the space where it goes once laid out (below).
     let is_starter = given.is_none();
@@ -309,7 +309,7 @@ fn padding(s: &mut Session, v: &Value) -> CmdResult {
     Ok(serde_json::to_value(d.padding).unwrap_or(Value::Null))
 }
 
-fn scale(s: &mut Session, v: &Value) -> CmdResult {
+pub(crate) fn scale(s: &mut Session, v: &Value) -> CmdResult {
     let (pos, mut d) = drawing_to_change(s)?;
     // The drawing with its sizes worked out by the calculations: what fits is judged on it.
     let resolved = edited(s).map_or_else(|| d.clone(), |(_, r, ..)| r);

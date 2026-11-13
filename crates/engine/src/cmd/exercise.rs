@@ -106,13 +106,13 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse", "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..]}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
-            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question of an open-answer or multiple-choice exercise; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "open"|"choice", "points", "height"?, "grid"?, "spacing"?, "choices"?, "correct"?}], "total": points | null}"#),
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question of an open-answer or multiple-choice exercise; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "line"? (a calculation's result line as shown), "choices"?, "correct"?}], "total": points | null}"#),
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
-            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+            .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
@@ -268,6 +268,12 @@ fn ensure_styles(s: &mut Session) {
         ),
         para_style(items::STYLE_CHOICE, "Exercise Option", ParaProps { space_after: Some(2.0), ..Default::default() }, CharProps::default()),
         para_style(
+            items::STYLE_LINE,
+            "Exercise Result Line",
+            ParaProps { space_before: Some(4.0), space_after: Some(6.0), ..Default::default() },
+            CharProps { no_proof: Some(true), ..Default::default() },
+        ),
+        para_style(
             STYLE_RESULT,
             "Exercise Result",
             ParaProps { space_after: Some(2.0), ..Default::default() },
@@ -383,8 +389,20 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     }
     ensure_styles(s);
     if let Some(kind) = p::str(v, "kind").filter(|k| *k != "problem") {
-        let blocks = items::exercise_blocks(s, v, kind)?;
-        return place(s, blocks);
+        let (blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        let placed = place(s, blocks)?;
+        if drawings.is_empty() {
+            return Ok(placed);
+        }
+        // The drawing questions get their solution's drawing; the caret goes back to the title.
+        let caret = s.sel.clone();
+        let ex = exercise_at_caret(s).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
+        items::add_drawings(s, ex, &drawings)?;
+        s.sel = caret;
+        s.touch();
+        update(s);
+        s.clamp_selection();
+        return super::sel_result(s);
     }
     let w = words(s);
     let title = p::str(v, "title").map(str::to_string);
@@ -1636,7 +1654,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
                 changed |= replace(s, from, to, generated(ctl, &lines));
             }
             (None, false) => {
-                let Some((_, end)) = e.text_blocks else { continue };
+                // After the statement; a quiz without one, after the title.
+                let Some(end) = e.text_blocks.map(|(_, end)| end).or_else(|| e.kind.quiz().then_some(e.start)) else { continue };
                 let new = generated(control(TAG_DATA, w.data, ControlLock::SdtContentLocked), &lines);
                 let at = (end + 1).min(s.doc.body.len());
                 for (k, p) in new.into_iter().enumerate() {
@@ -1665,6 +1684,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
             answers.entry((ex, question)).or_default().push(text);
         }
     }
+    // Calculation questions: their result lines.
+    changed |= items::result_lines(s, &layout, &answers);
     // Hidden results are hidden text in the summary; the heading too when every one is hidden.
     let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];
     // Each exercise by its label alone (`Esercizio 1`, as the document numbers them); a lone
@@ -1674,7 +1695,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let mut any = false;
     for (n, e) in layout.exercises.iter().enumerate() {
         // A quiz gives its multiple choices' correct options; open answers give nothing.
-        let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n));
+        let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n, &answers, w.no_result));
         if quiz.as_ref().is_some_and(Vec::is_empty) {
             continue;
         }

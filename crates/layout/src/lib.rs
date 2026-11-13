@@ -201,6 +201,9 @@ pub struct LayoutOptions {
     /// Transient read-only line-spacing override; ignored by print/export views.
     pub read_line_spacing: Option<f32>,
     pub show_hidden: bool,
+    /// A paragraph, by its revision ([`Paragraph::rev`]), whose hidden text shows anyway: the
+    /// header cell of a calculated table being edited, its formula's leading `=` (Strix).
+    pub reveal_hidden: Option<u64>,
     /// Final text ("No Markup"): tracked deletions take no space and draw nothing.
     pub hide_deleted: bool,
     /// Tracked deletions that take no space and draw nothing although markup is shown: those

@@ -1,6 +1,6 @@
 # CAD parity with the owner's prototype
 
-> **Status:** in progress · **Last updated:** 2026-11-10 · **Change:** underlays and inherited layers and styles; style windows, units in
+> **Status:** in progress · **Last updated:** 2026-11-12 · **Change:** arrays fit, at an exact spacing or spread between two points, and one object; previously: underlays and inherited layers and styles; style windows, units in
 > dimension and level texts, text grips, slope ticks and Flip Side, the space where a drawing
 > sits, typed scales, the drawing aids in the status line (no CAD View tab); previously: Circle
 > is a split button
@@ -43,7 +43,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 | Hatch: pick inside a region (islands), or selected closed outlines; sent to back | done (pick inside) |
 | Hatched strip along a line/polyline, then a conventional hatch fill with the same settings | done |
 | Dimensions: aligned, linear-auto, horizontal, vertical; angular; continue/chain; level; flip; group into levels; unlink; extension mode; mark style | partial (continue, baseline, level, flip done; linear-auto, unlink, extension mode to do) |
-| Copy, move, mirror, stretch, **scale** (owner), rotate; rectangular and polar arrays | done |
+| Copy, move, mirror, stretch, **scale** (owner), rotate; rectangular and polar arrays; arrays between a base and an end point (fit, exact spacing, spread), each array one object (a group) | done |
 | Offset (line, circle, arc, polyline; distance or through point) | done (distance) |
 | Fillet, chamfer, trim, extend, join, explode | done (fillet and chamfer of lines) |
 | Match properties; draw order | done |
@@ -89,6 +89,7 @@ carry its notice, `NOTICE` lists them). Status: **done**, **partial**, **todo**.
 
 ## Revision history
 
+- 2026-11-12: arrays between a base and an end point (fit, exact spacing, spread); arrays are one object (a group).
 - 2026-11-10: underlays (another drawing to trace over, by id) and inherited layers and styles.
 - 2026-11-10: style windows; Show the unit; text grips; slope ticks (barbette) and Flip Side; space where a drawing sits; typed scales; snaps and aids in the status line, no CAD View tab.
 - 2026-10-29: Circle split button.
