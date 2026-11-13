@@ -64,7 +64,7 @@ fn check_subdocuments(s: &Session, out: &mut Vec<CheckIssue>) {
             });
         }
         #[cfg(target_arch = "wasm32")]
-        let _ = path;
+        let _ = (path, &out);
     }
 }
 
