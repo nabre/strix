@@ -1,0 +1,62 @@
+# Whether a pull request needs the heavy checks now. The callers (CI, Printing, Packaging lint,
+# FreeBSD, Windows ARM64) skip their jobs when `run` is false; the run still ends "success", so a
+# required check never waits forever, and nothing is recorded as tested (tested-tree.yml).
+#
+# - A draft PR: not yet. Its pushes would be cancelled by the next one anyway; the checks run when
+#   it is marked "Ready for review" (the callers listen to `ready_for_review`).
+# - A PR that changes only documentation: Markdown files (`*.md` anywhere), except
+#   ATTRIBUTION.md, which `cargo xtask assets` reads. No test, build script or xtask check reads
+#   the others (a renamed file counts by its old name too, so a source file turned into Markdown
+#   still runs the checks).
+#
+# Any other event (push, nightly, by hand), an API error, or a list GitHub cuts off (3,000 files)
+# answers true: when in doubt the checks run.
+name: PR scope
+
+on:
+  workflow_call:
+    outputs:
+      run:
+        description: "false when the pull request is a draft or changes only documentation"
+        value: ${{ jobs.scope.outputs.run }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scope:
+    name: Checks needed?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run || 'true' }}
+    steps:
+      # An error here never skips the checks: `run` falls back to true.
+      - id: decide
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            if [ "$DRAFT" = true ]; then
+              run=false
+              echo "Draft pull request: the checks run when it is marked Ready for review" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              files="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files?per_page=100" \
+                --jq '.[] | .filename, (.previous_filename // empty)')"
+              count="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .changed_files)"
+              code="$(printf '%s\n' "$files" | grep -v -e '^$' | grep -v -E '\.md$' || true)"
+              attribution="$(printf '%s\n' "$files" | grep -x 'ATTRIBUTION.md' || true)"
+              if [ -n "$files" ] && [ -z "$code" ] && [ -z "$attribution" ] && [ "$count" -lt 3000 ]; then
+                run=false
+                echo "Only documentation changed (Markdown files): the checks are skipped" | tee -a "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+          fi
+          echo "run=$run" >>"$GITHUB_OUTPUT"

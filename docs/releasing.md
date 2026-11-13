@@ -146,8 +146,13 @@ signing on the `release` branch (as here) and runs macOS on the paid `macos-15-x
     didn't move meanwhile, skips its jobs and still ends "success", so **Checks already run**
     finds the CI passed. A fork's PR doesn't count; any doubt runs the checks. Because only runs
     on `main` save the dependency caches, CI and Printing also run nightly on `main`, skipped when
-    `main` has no new code since its last full run. SonarCloud still runs on both: its analysis
-    of `main` is a different report from the PR's.
+    `main` has no new code since its last full run.
+  - A draft PR, or one that changes only documentation (Markdown files other than
+    `ATTRIBUTION.md`), doesn't run CI, Printing, Packaging lint, FreeBSD or Windows ARM64
+    (`pr-scope.yml`): their jobs are skipped, the run still ends "success" and no tree is recorded,
+    so the push that merges it runs them. A draft's checks run when it is marked Ready for review.
+  - SonarCloud runs only on pushes to `main` (and by hand), not on pull requests: its analysis
+    builds the code again and took a runner beside CI on every PR push.
 - `cargo xtask workflows` (in `cargo xtask ci`) keeps the workflows in step: every action from
   outside the suite pinned to a full commit SHA, one commit per action, one craft-fonts commit
   in every workflow. The suite's own `storytold/…` actions follow `@main` on purpose.

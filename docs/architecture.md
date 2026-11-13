@@ -68,7 +68,8 @@ winit or rfd.
 - GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs,
   but a push to `main` whose exact code (git tree) a PR already passed skips it, as Printing and
   Packaging lint do (`tested-tree.yml`; a nightly run on `main` refreshes the dependency caches
-  when every push was skipped);
+  when every push was skipped); a draft PR, or one that changes only Markdown documentation,
+  skips them (`pr-scope.yml`), and SonarCloud runs only on `main`;
   packaging lint, and FreeBSD / Windows ARM64 on PRs that change their files and nightly on `main`;
   one release workflow: a push to `main` whose version has no GitHub Release merges it into
   `release`, where every package is built (signed) and the release published, reading those runs instead of running them again (the
@@ -79,6 +80,7 @@ winit or rfd.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-13 | minor | Draft PRs and documentation-only PRs skip the heavy checks (`pr-scope.yml`); SonarCloud only on `main` |
 | 2026-11-10 | minor | WordCraft 0.17.0 merged: `crates/proof` left the workspace for the external `craft-proof` (storytold/craft-libs, still named `wordcraft-proof`), its word lists and patterns from craft-i18n's `language-data/` (`CRAFT_I18N_DIR`); the file-command hostile-parameter test |
 | 2026-11-10 | minor | A push to `main` doesn't run again CI, Printing and Packaging lint when a PR already passed them on the same tree (`tested-tree.yml`) |
 | 2026-11-10 | minor | One release workflow: a version without a release on `main` is merged into `release`, built signed and published with every package |
