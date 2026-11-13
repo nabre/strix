@@ -36,6 +36,8 @@ pub(super) struct Words {
     pub points_word: &'static str,
     pub true_word: &'static str,
     pub false_word: &'static str,
+    /// Note shown after an equation solved numerically (`cmd/calc.rs`).
+    pub numeric_solution: &'static str,
 }
 
 /// The words of language tag `lang` (`it-IT`, `fr`, `ita`, `gsw-CH`…), from its primary subtag
@@ -84,6 +86,7 @@ pub(super) const IT: Words = Words {
     points_word: "punti",
     true_word: "Vero",
     false_word: "Falso",
+    numeric_solution: "(soluzione numerica)",
 };
 
 pub(super) const EN: Words = Words {
@@ -112,6 +115,7 @@ pub(super) const EN: Words = Words {
     points_word: "points",
     true_word: "True",
     false_word: "False",
+    numeric_solution: "(numerical solution)",
 };
 
 const FR: Words = Words {
@@ -140,6 +144,7 @@ const FR: Words = Words {
     points_word: "points",
     true_word: "Vrai",
     false_word: "Faux",
+    numeric_solution: "(solution numérique)",
 };
 
 const DE: Words = Words {
@@ -168,6 +173,7 @@ const DE: Words = Words {
     points_word: "Punkte",
     true_word: "Wahr",
     false_word: "Falsch",
+    numeric_solution: "(numerische Lösung)",
 };
 
 #[cfg(test)]
@@ -203,7 +209,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| -> [&str; 25] {
+        let fields = |w: &Words| -> [&str; 26] {
             [
                 w.exercise,
                 w.total,
@@ -230,6 +236,7 @@ mod tests {
                 w.points_word,
                 w.true_word,
                 w.false_word,
+                w.numeric_solution,
             ]
         };
         let shown = |w: &Words| [w.exercise, w.title_part, w.statement, w.questions, w.solution, w.prompt, w.title, w.text, w.question];

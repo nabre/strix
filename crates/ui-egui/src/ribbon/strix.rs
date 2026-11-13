@@ -417,7 +417,8 @@ Table",
         stack(ui, |ui| calc_table_rows(ui, app));
     });
     group(ui, "Number Display", None, app, |ui, app| {
-        let digits = u64::from(app.session.prefs.calc_digits);
+        let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+        let digits = u64::from(eff.digits);
         stack(ui, |ui| {
             small(
                 ui,
@@ -435,14 +436,13 @@ Table",
                 "Show one digit less in results",
                 crate::widgets::ButtonAction::new("calc.options", json!({"digits": digits.saturating_sub(1)}), false),
             );
-            let steps = app.session.prefs.calc_steps;
             small(
                 ui,
                 app,
                 "steps",
                 Some("Show Steps"),
                 "Show the substitution steps of every calculation: the formula with its values, then the result",
-                crate::widgets::ButtonAction::new("calc.steps", json!({}), steps),
+                crate::widgets::ButtonAction::new("calc.steps", json!({}), eff.steps),
             );
         });
         stack(ui, |ui| {
@@ -451,12 +451,13 @@ Table",
                 app,
                 crate::widgets::MenuButtonOptions::new("numberFormat", Some("Rounding"), "How results are rounded", false, "calc.options"),
                 |ui, app| {
-                    let count = app.session.prefs.calc_count.clone();
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let count = wordcraft_engine::cmd::calc::count_name(eff.count);
                     mi_check(ui, app, "Automatic (Decimals, Significant Below 1)", count == "auto", "calc.options", json!({"count": "auto"}));
                     mi_check(ui, app, "Decimal Places", count == "decimals", "calc.options", json!({"count": "decimals"}));
                     mi_check(ui, app, "Significant Digits", count == "significant", "calc.options", json!({"count": "significant"}));
                     ui.separator();
-                    let zeros = app.session.prefs.calc_zeros;
+                    let zeros = eff.zeros;
                     mi_check(ui, app, "Show Trailing Zeros", zeros, "calc.options", json!({"zeros": !zeros}));
                 },
             );
@@ -471,7 +472,8 @@ Table",
                     "calc.layout",
                 ),
                 |ui, app| {
-                    let lines = app.session.prefs.calc_layout == "lines";
+                    let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
+                    let lines = eff.layout.name() == "lines";
                     mi_check(ui, app, "Inline (⇒)", !lines, "calc.layout", json!({"value": "inline"}));
                     mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
                 },

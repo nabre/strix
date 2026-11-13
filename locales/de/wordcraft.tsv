@@ -2040,6 +2040,7 @@
 	Pages in the range	Seiten im Bereich
 	Scale to paper size	An Papierformat anpassen
 	Calculation and exercise	Berechnung und Übung
+	Sample test	Klassenarbeit (Beispiel)
 paper	Envelope #10	Umschlag #10
 paper	Envelope DL	Umschlag DL
 
@@ -3008,3 +3009,15 @@ paper	Envelope DL	Umschlag DL
 	Use the proposed scale	Den vorgeschlagenen Faktor verwenden
 	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	Der Faktor ist eine Zahl größer als 0 (oder ein Verhältnis, 1:2), der Winkel eine Zahl
 	Give the block a name	Dem Block einen Namen geben
+	Variants & Data	Varianten & Angaben
+	Show data in exercise	Angaben in der Aufgabe anzeigen
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Gibt den Block Angaben in der Aufgabe aus; deaktiviert bleiben die Werte nur in der Berechnungsumgebung
+	Question Mode	Fragemodus
+	Question Points	Fragepunkte
+	Mode	Modus
+	Go to working	Zum Lösungsweg
+	Put the cursor in this calculation's working space	Setzt den Cursor in den Lösungsbereich dieser Berechnung
+	Open in CAD editor	Im CAD-Editor öffnen
+	Select this question's solution drawing and open it in the CAD editor	Wählt die Lösungszeichnung dieser Frage aus und öffnet sie im CAD-Editor
+	No result equation yet	Noch keine Ergebnisgleichung
+	write a question first	schreibe zuerst eine Frage

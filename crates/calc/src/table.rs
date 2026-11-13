@@ -723,7 +723,7 @@ fn temp_kind(e: &Expr, kinds: &[(String, Option<bool>)], depth: usize) -> Option
             (Some(false), None) => Some(false),
             _ => None,
         },
-        Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs | Func::Round, args) => {
+        Expr::Call(f, args) if f.is_rounding() || matches!(f, Func::Min | Func::Max | Func::Mean | Func::Abs) => {
             let mut found = None;
             for a in args.iter().take(1) {
                 found = kind(a);
@@ -801,6 +801,7 @@ fn walk_names(expr: &Expr, columns: &[&str], f: &mut dyn FnMut(&str, bool)) {
             walk_names(a, columns, f);
             walk_names(b, columns, f);
         }
+        Expr::Call(g, args) if g.is_rounding() => args.iter().take(2).for_each(|a| walk_names(a, columns, f)),
         Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk_names(a, columns, f)),
         Expr::Nary(n) => {
             for e in [&n.from, &n.to].into_iter().flatten() {

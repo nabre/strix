@@ -61,6 +61,8 @@ pub enum Source {
         answer: u32,
         #[serde(default)]
         stepped: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        opts: Option<String>,
     },
     /// A calculated table (`TableProps`' calc settings).
     Table {
@@ -136,11 +138,13 @@ struct Manifest {
     sections: Vec<SectionEntry>,
     #[serde(default)]
     exercises: Vec<ExerciseEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    calc: Option<crate::cmd::calc::CalcOverrides>,
 }
 
 impl Manifest {
     fn is_empty(&self) -> bool {
-        self.objects.is_empty() && self.sections.is_empty() && self.exercises.is_empty()
+        self.objects.is_empty() && self.sections.is_empty() && self.exercises.is_empty() && self.calc.is_none()
     }
 }
 
@@ -219,7 +223,7 @@ fn table_fp(t: &wordcraft_doc::table::Table) -> u64 {
 // Which objects
 
 fn is_strix_equation(o: &InlineObject) -> bool {
-    matches!(o, InlineObject::Equation { math, .. } if math.calc || math.answer > 0 || math.stepped)
+    matches!(o, InlineObject::Equation { math, .. } if math.calc || math.answer > 0 || math.stepped || math.calc_opts.is_some())
 }
 
 fn is_cad(o: &InlineObject) -> bool {
@@ -229,9 +233,10 @@ fn is_cad(o: &InlineObject) -> bool {
 /// The source and fingerprint of an inline Strix object, `None` for any other object.
 fn inline_entry(o: &InlineObject) -> Option<(Source, u64)> {
     match o {
-        InlineObject::Equation { linear, math, .. } if is_strix_equation(o) => {
-            Some((Source::Equation { calc: math.calc, answer: math.answer, stepped: math.stepped }, text_fp(&equation_text(linear, math))))
-        }
+        InlineObject::Equation { linear, math, .. } if is_strix_equation(o) => Some((
+            Source::Equation { calc: math.calc, answer: math.answer, stepped: math.stepped, opts: math.calc_opts.clone() },
+            text_fp(&equation_text(linear, math)),
+        )),
         InlineObject::Graphic { w, h, graphic, .. } if is_cad(o) => {
             let svg = graphic.svg.as_deref().map_or(0, |s| hash(s.as_bytes()));
             Some((Source::Cad { json: graphic.cad.as_deref().unwrap_or("").to_string(), svg, w: *w, h: *h }, 0))
@@ -263,10 +268,12 @@ pub fn wrap(doc: &Document) -> Document {
     let mut d = doc.clone();
     strip_wrappers(&mut d);
     d.passthrough.remove(PENDING);
-    if !crate::strix_objects::has_strix_objects(&d) {
+    let has_objects = crate::strix_objects::has_strix_objects(&d);
+    let doc_calc = crate::cmd::calc::doc_overrides(&d);
+    if !has_objects && !doc_calc.as_ref().is_some_and(|c| !c.matches_default_options()) {
         return d;
     }
-    let mut m = Manifest { version: VERSION, ..Default::default() };
+    let mut m = Manifest { version: VERSION, calc: doc_calc.filter(|c| !c.is_empty()), ..Default::default() };
     let mut next = 1u32;
     for_stories(&mut d, &mut |bl| wrap_blocks(bl, &mut m, &mut next, 0));
     sections(&d, &mut |n, sp| {
@@ -590,6 +597,11 @@ pub fn unwrap(doc: &mut Document) -> usize {
         }
         n += 1;
     });
+    if let Some(calc) = &m.calc
+        && !doc.passthrough.contains_key(crate::cmd::calc::DOC_CALC_OPTIONS)
+    {
+        crate::cmd::calc::set_doc_overrides(doc, calc);
+    }
     let count = pending.len();
     if count > 0 {
         doc.passthrough.insert(PENDING.into(), Arc::new(serde_json::to_vec(&pending).unwrap_or_default()));
@@ -844,12 +856,13 @@ impl Unwrap<'_> {
 /// Put an entry's source back on the objects inside its wrapper.
 fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
     match &e.source {
-        Source::Equation { calc, answer, stepped } => {
+        Source::Equation { calc, answer, stepped, opts } => {
             for &o in inner {
                 if let Some(InlineObject::Equation { math, .. }) = p.object_at_mut(o) {
                     math.calc = *calc;
                     math.answer = *answer;
                     math.stepped = *stepped;
+                    math.calc_opts.clone_from(opts);
                 }
             }
         }

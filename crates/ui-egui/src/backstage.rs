@@ -357,8 +357,9 @@ fn template_tile(ui: &mut Ui, app: &mut WordApp, label: &str, template: &str) {
 }
 
 /// The built-in templates in gallery order: display label and the `file.new` template id.
-const TEMPLATES: [(&str, &str); 6] = [
+const TEMPLATES: [(&str, &str); 7] = [
     ("Blank document", "blank"),
+    ("Sample test", "test"),
     ("Calculation and exercise", "calc"),
     ("Studio handbook (sample)", "sample"),
     ("Letter", "letter"),
@@ -367,7 +368,7 @@ const TEMPLATES: [(&str, &str); 6] = [
 ];
 
 /// How many templates Home shows before "More templates" (the rest are on New).
-const HOME_TEMPLATES: usize = 4;
+const HOME_TEMPLATES: usize = 5;
 
 /// The templates whose English or translated label, or id, contains `query` (case-insensitive;
 /// the id lets "resume" find "Résumé"); all of them for an empty query.

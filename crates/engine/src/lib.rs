@@ -25,6 +25,7 @@ pub mod recovery;
 pub mod ribbon;
 pub mod sample;
 pub mod sample_calc;
+pub use sample_calc::sample_test;
 mod session;
 pub(crate) mod snapshot;
 pub mod speech;

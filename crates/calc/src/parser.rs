@@ -41,6 +41,9 @@ pub(crate) enum Func {
     Min,
     Max,
     Round,
+    Floor,
+    Ceil,
+    Trunc,
     Sum,
     Mean,
     Len,
@@ -63,6 +66,9 @@ impl Func {
             "min" => Func::Min,
             "max" => Func::Max,
             "round" => Func::Round,
+            "floor" => Func::Floor,
+            "ceil" => Func::Ceil,
+            "trunc" => Func::Trunc,
             "sum" => Func::Sum,
             "mean" => Func::Mean,
             "len" => Func::Len,
@@ -86,10 +92,17 @@ impl Func {
             Func::Min => "min",
             Func::Max => "max",
             Func::Round => "round",
+            Func::Floor => "floor",
+            Func::Ceil => "ceil",
+            Func::Trunc => "trunc",
             Func::Sum => "sum",
             Func::Mean => "mean",
             Func::Len => "len",
         }
+    }
+
+    pub(crate) fn is_rounding(self) -> bool {
+        matches!(self, Func::Round | Func::Floor | Func::Ceil | Func::Trunc)
     }
 }
 

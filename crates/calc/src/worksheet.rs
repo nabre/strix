@@ -1,6 +1,6 @@
 //! Statements and worksheet evaluation.
 
-use crate::eval::{Function, Names, Scope, Value, eval, eval_scalar};
+use crate::eval::{DIFFERENCE, Function, Names, Scope, Temp, Value, eval, eval_scalar};
 use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{BinOp, Expr, Func, parse, parse_with};
@@ -8,19 +8,6 @@ use crate::quantity::{Dim, Quantity, finite};
 use crate::solve::{free_names, isolate, isolate_steps, numeric};
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
-
-/// The hint of a temperature difference (`T₂ − T₁`): shown in kelvin, never with the offset of
-/// a `°C`/`°F` working unit.
-const DIFFERENCE: &str = "K";
-
-/// What a temperature expression is (`docs/calc.md`, Temperatures).
-#[derive(Debug, Clone, PartialEq)]
-enum Temp {
-    /// An absolute temperature written in `°C` or `°F` (the unit), or worked out from one.
-    Absolute(String),
-    /// A difference of absolute temperatures.
-    Difference,
-}
 
 /// Evaluation and number-format options (`docs/calc.md`, Number format).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,12 +163,6 @@ enum Line {
 pub struct Worksheet {
     pub(crate) scope: Scope,
     pub(crate) opts: Options,
-    /// Working units: the last unit written for each dimension (`b = 300 mm` makes lengths show
-    /// in mm), as its quantity and text.
-    working: Vec<(Dim, Quantity, String)>,
-    /// The dimensionless unit each parameter is shown in (`α = 30°` → `°`, `p = 15 %` → `%`):
-    /// plain numbers carry no unit, so the unit written for them is remembered by name.
-    hints: Vec<(String, String)>,
 }
 
 /// Evaluates `statements` in order with one shared scope (see [`Worksheet::eval_statement`]).
@@ -193,7 +174,12 @@ pub fn evaluate(statements: &[&str], opts: &Options) -> Vec<RegionResult> {
 impl Worksheet {
     /// An empty worksheet.
     pub fn new(opts: Options) -> Self {
-        Worksheet { scope: Scope::new(), opts, working: Vec::new(), hints: Vec::new() }
+        Worksheet { scope: Scope::new(), opts }
+    }
+
+    /// Changes the evaluation and number-format options for subsequent statements.
+    pub fn set_options(&mut self, opts: Options) {
+        self.opts = opts;
     }
 
     /// Evaluates an expression (`"L/2 + 10 mm"`) with the parameters defined so far, without
@@ -348,6 +334,12 @@ impl Worksheet {
                     stack.push(a);
                     stack.push(b);
                 }
+                Expr::Call(f, args) if f.is_rounding() => {
+                    stack.extend(args.iter().take(2));
+                    if let Some(u_expr) = args.get(2) {
+                        Self::collect_unit_names(u_expr, &mut out);
+                    }
+                }
                 Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => stack.extend(args.iter()),
                 Expr::Nary(n) => {
                     stack.extend([&n.from, &n.to].into_iter().flatten().map(|b| &**b));
@@ -358,113 +350,64 @@ impl Worksheet {
         out
     }
 
+    fn collect_unit_names(e: &Expr, out: &mut Vec<String>) {
+        let mut stack = vec![e];
+        while let Some(node) = stack.pop() {
+            match node {
+                Expr::Unit(n) | Expr::Name(n) if unit(n).is_some() => {
+                    if !out.contains(n) {
+                        out.push(n.clone());
+                    }
+                }
+                Expr::Bin(_, a, b) => {
+                    stack.push(a);
+                    stack.push(b);
+                }
+                Expr::Neg(a) => stack.push(a),
+                _ => {}
+            }
+        }
+    }
+
     /// The value of parameter `name` as results show it, number and unit apart:
     /// `("30.375", "kN·m")`.
     pub fn shown_parts(&self, name: &str) -> Option<(String, String)> {
         let v = self.scope.get(name)?;
-        let hint = self.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        let hint = self.scope.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
         Some(self.auto_hinted(v, hint))
     }
 
     /// The value of parameter `name` as results show it, with its unit: `30.375 kN·m`, `30°`.
     pub fn shown(&self, name: &str) -> Option<String> {
         let v = self.scope.get(name)?;
-        let hint = self.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        let hint = self.scope.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
         let (number, unit) = self.auto_hinted(v, hint);
         Some(with_unit(&number, &unit))
     }
 
     /// Sets (or, with `None`, clears) the dimensionless unit parameter `name` is shown in.
     pub(crate) fn set_hint(&mut self, name: &str, hint: Option<String>) {
-        self.hints.retain(|(n, _)| n != name);
+        self.scope.hints.retain(|(n, _)| n != name);
         if let Some(h) = hint {
-            self.hints.push((name.to_string(), h));
+            self.scope.hints.push((name.to_string(), h));
         }
     }
 
-    /// The dimensionless unit a plain-number result of `e` is shown in: `°` for `90° - α` with
-    /// `α` in degrees, `%` for `2·p`, `°` for `acos(…)`; `None` when the parts disagree or carry
-    /// none (`sin(α)`, `α/β`).
     /// The unit to show a value of `e` in: a dimensionless one it carries (`%`, `°`), else the
     /// unit composed from its factors when that reads better than a derived one (`kN·m` for
     /// `F·a` with `F` in kN and `a` in m, not `kJ`).
     pub(crate) fn hint(&self, e: &Expr) -> Option<String> {
-        self.dimensionless_hint(e).or_else(|| self.composed_unit(e)).or_else(|| match self.temp_kind(e, 0)? {
-            Temp::Absolute(u) => Some(u),
-            Temp::Difference => Some(DIFFERENCE.to_string()),
-        })
-    }
-
-    /// Whether `e` is an absolute temperature in `°C`/`°F` or a difference of them, from how it
-    /// is written: `20 °C` and a parameter defined so are absolute; absolute − absolute is a
-    /// difference; absolute ± a difference (or a value in K) stays absolute; a difference times
-    /// or over a number stays a difference; `min max mean abs round` keep the kind of their
-    /// arguments. Anything else (`T₁ + T₂`, a value in K) is a plain kelvin value.
-    fn temp_kind(&self, e: &Expr, depth: usize) -> Option<Temp> {
-        if depth > 64 {
-            return None;
-        }
-        let kind = |x: &Expr| self.temp_kind(x, depth + 1);
-        let affine_literal = |x: &Expr| match x {
-            Expr::Bin(BinOp::Mul, _, u) => match &**u {
-                Expr::Unit(n) => affine(n).map(|_| n.clone()),
-                Expr::Name(n) if self.scope.get(n).is_none() => affine(n).map(|_| n.clone()),
+        self.scope
+            .dimensionless_hint(e)
+            .or_else(|| self.composed_unit(e))
+            .or_else(|| match self.scope.temp_kind(e, 0)? {
+                Temp::Absolute(u) => Some(u),
+                Temp::Difference => Some(DIFFERENCE.to_string()),
+            })
+            .or_else(|| match e {
+                Expr::Call(f, args) if f.is_rounding() => args.get(2).map(render),
                 _ => None,
-            },
-            _ => None,
-        };
-        if let Some(u) = affine_literal(e) {
-            return Some(Temp::Absolute(u));
-        }
-        let common = |items: &[Expr]| {
-            let mut found: Option<Temp> = None;
-            for item in items {
-                match (kind(item), &found) {
-                    (Some(k), Some(f)) if k != *f => return None,
-                    (Some(k), None) => found = Some(k),
-                    (None, _) => return None,
-                    _ => {}
-                }
-            }
-            found
-        };
-        match e {
-            Expr::Name(n) => {
-                if self.scope.get(n).map(Value::dim) != Some(TEMPERATURE_DIM) {
-                    return None;
-                }
-                let (_, h) = self.hints.iter().find(|(m, _)| m == n)?;
-                if affine(h).is_some() { Some(Temp::Absolute(h.clone())) } else { (h == DIFFERENCE).then_some(Temp::Difference) }
-            }
-            Expr::Neg(a) => match **a {
-                _ if affine_literal(a).is_some() => kind(a),
-                _ => kind(a).filter(|k| *k == Temp::Difference),
-            },
-            Expr::Bin(BinOp::Sub, a, b) => match (kind(a), kind(b)) {
-                (Some(Temp::Absolute(_)), Some(Temp::Absolute(_))) => Some(Temp::Difference),
-                (Some(Temp::Absolute(u)), _) => Some(Temp::Absolute(u)),
-                (Some(Temp::Difference), _) | (None, Some(Temp::Difference)) => Some(Temp::Difference),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Add, a, b) => match (kind(a), kind(b)) {
-                (Some(Temp::Absolute(_)), Some(Temp::Absolute(_))) => None,
-                (Some(Temp::Absolute(u)), _) | (_, Some(Temp::Absolute(u))) => Some(Temp::Absolute(u)),
-                (Some(Temp::Difference), _) | (_, Some(Temp::Difference)) => Some(Temp::Difference),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Mul, a, b) => match (kind(a), kind(b)) {
-                (Some(Temp::Difference), None) | (None, Some(Temp::Difference)) => Some(Temp::Difference),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Div, a, b) => match (kind(a), kind(b)) {
-                (Some(Temp::Difference), None) => Some(Temp::Difference),
-                _ => None,
-            },
-            Expr::Index(a, _) => kind(a),
-            Expr::Vector(items) => common(items),
-            Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs | Func::Round, args) => common(args.get(..1).unwrap_or_default()),
-            _ => None,
-        }
+            })
     }
 
     /// The unit `e` is written in, composed from its factors' units with their powers: `kN·m`
@@ -551,57 +494,12 @@ impl Worksheet {
                 }
                 _ => None,
             },
-            Expr::Call(Func::Abs | Func::Round | Func::Min | Func::Max, args) => self.unit_powers(args.first()?, units, depth + 1),
+            Expr::Call(f, args) if f.is_rounding() => match args.get(2) {
+                Some(u_expr) => self.unit_powers(u_expr, true, depth + 1),
+                None => self.unit_powers(args.first()?, units, depth + 1),
+            },
+            Expr::Call(Func::Abs | Func::Min | Func::Max, args) => self.unit_powers(args.first()?, units, depth + 1),
             _ => None,
-        }
-    }
-
-    fn dimensionless_hint(&self, e: &Expr) -> Option<String> {
-        use crate::parser::BinOp;
-        let common = |items: &[Expr]| {
-            let mut found: Option<String> = None;
-            for item in items {
-                match (self.dimensionless_hint(item), &found) {
-                    (Some(h), Some(f)) if h != *f => return None,
-                    (Some(h), None) => found = Some(h),
-                    _ => {}
-                }
-            }
-            found
-        };
-        match e {
-            Expr::Num(_) | Expr::Range(..) => None,
-            Expr::Unit(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
-            // Only a dimensionless hint carries over (a composed unit is worked out anew).
-            Expr::Name(n)
-                if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n).filter(|(_, h)| unit(h).is_some_and(|q| q.dim.is_dimensionless())) =>
-            {
-                Some(h.clone())
-            }
-            Expr::Name(n) if self.scope.get(n).is_some() => None,
-            Expr::Name(n) if constant(n).is_some() => None,
-            Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
-            Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
-            Expr::Bin(BinOp::Add | BinOp::Sub, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
-                (Some(x), Some(y)) if x == y => Some(x),
-                (Some(x), None) | (None, Some(x)) => Some(x),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Mul, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
-                (Some(x), None) | (None, Some(x)) => Some(x),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Div, a, b) => match (self.dimensionless_hint(a), self.dimensionless_hint(b)) {
-                (Some(x), None) => Some(x),
-                _ => None,
-            },
-            Expr::Bin(BinOp::Pow, ..) => None,
-            Expr::Call(Func::Asin | Func::Acos | Func::Atan, _) => Some("°".to_string()),
-            Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Round | Func::Sum | Func::Mean, args) => common(args.get(..1).unwrap_or_default()),
-            Expr::Call(..) | Expr::Apply(..) => None,
-            Expr::Vector(items) => common(items),
-            Expr::Nary(n) if n.op == '∑' => self.dimensionless_hint(&n.body),
-            Expr::Nary(_) => None,
         }
     }
 
@@ -613,7 +511,7 @@ impl Worksheet {
 
     /// The working unit for `dim`: the last unit written for it.
     pub fn working_unit(&self, dim: Dim) -> Option<&str> {
-        self.working.iter().find(|(d, _, _)| *d == dim).map(|(_, _, t)| t.as_str())
+        self.scope.working.iter().find(|(d, _, _)| *d == dim).map(|(_, _, t)| t.as_str())
     }
 
     /// Remembers the unit written in `tokens` (`4.5 m`, `= kN·m`), if any, as the working unit
@@ -633,8 +531,8 @@ impl Worksheet {
     }
 
     pub(crate) fn remember(&mut self, q: Quantity, text: String) {
-        self.working.retain(|(d, _, _)| *d != q.dim);
-        self.working.push((q.dim, q, text));
+        self.scope.working.retain(|(d, _, _)| *d != q.dim);
+        self.scope.working.push((q.dim, q, text));
     }
 
     /// The parameters defined so far.
@@ -1188,6 +1086,7 @@ impl Worksheet {
                 self.unit_atoms(r, skip, out, depth + 1);
             }
             Expr::Neg(e) => self.unit_atoms(e, skip, out, depth + 1),
+            Expr::Call(f, args) if f.is_rounding() => args.iter().take(1).for_each(|a| self.unit_atoms(a, skip, out, depth + 1)),
             Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| self.unit_atoms(a, skip, out, depth + 1)),
             _ => {}
         }
@@ -1391,7 +1290,25 @@ impl Worksheet {
     fn show(&self, left_text: &str, expr: &[Token], expr_end: usize, rhs: &[Token], len: usize) -> (Option<Value>, String, Option<CalcError>) {
         let parsed = self.parse_expr(expr, expr_end);
         let hint = parsed.as_ref().ok().and_then(|e| self.hint(e));
+        let explicit_unit = if rhs.is_empty() {
+            parsed.as_ref().ok().and_then(|e| match e {
+                Expr::Call(f, args) if f.is_rounding() => {
+                    args.get(2).cloned().or_else(|| args.first().and_then(|x| self.scope.direct_unit_expr(x)).cloned())
+                }
+                _ => None,
+            })
+        } else {
+            None
+        };
         let value = parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet));
+        if let Some(u_expr) = explicit_unit {
+            let unit_text = render(&u_expr);
+            let shown = value.clone().and_then(|v| self.in_unit(&v, Some(&u_expr), &unit_text, hint.as_deref()));
+            return match shown {
+                Ok((number, unit)) => (value.ok(), format!("{left_text} = {}", with_unit(&number, &unit)), None),
+                Err(err) => (value.ok(), format!("{left_text} = ⚠"), Some(err)),
+            };
+        }
         self.show_value(left_text, value, rhs, len, hint)
     }
 
@@ -1432,7 +1349,7 @@ impl Worksheet {
         // A temperature: absolute ones in the working unit (with the °C/°F offset) or in the unit
         // they were written in; differences and kelvin values never take an offset by themselves.
         if v.dim() == TEMPERATURE_DIM {
-            let working = self.working.iter().find(|(d, _, _)| *d == v.dim());
+            let working = self.scope.working.iter().find(|(d, _, _)| *d == v.dim());
             if let Some(h) = hint
                 && affine(h).is_some()
             {
@@ -1449,7 +1366,7 @@ impl Worksheet {
             }
             return self.auto(v);
         }
-        // A composed unit (`kN·m`), unless a working unit was written for the kind.
+        // A composed unit (`kN·m`) or an explicit rounding unit, unless a working unit was written.
         if !v.dim().is_dimensionless()
             && self.working_unit(v.dim()).is_none()
             && let Some(h) = hint
@@ -1465,7 +1382,7 @@ impl Worksheet {
     /// the automatic one.
     pub(crate) fn auto(&self, v: &Value) -> (String, String) {
         // A °C/°F working unit shows absolute temperatures only (see `auto_hinted`).
-        if let Some((_, q, text)) = self.working.iter().find(|(d, _, _)| *d == v.dim())
+        if let Some((_, q, text)) = self.scope.working.iter().find(|(d, _, _)| *d == v.dim())
             && affine(text).is_none()
             && let Ok(number) = in_unit_text(v, *q, text, &self.opts)
         {

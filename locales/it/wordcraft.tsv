@@ -3043,6 +3043,7 @@ preview	Title	Esempio
 	Pages in the range	Pagine nell'intervallo
 	Scale to paper size	Adatta al formato carta
 	Calculation and exercise	Calcolo ed esercizio
+	Sample test	Momento di valutazione (esempio)
 paper	Letter	Lettera
 paper	Legal	Legale
 paper	Envelope #10	Busta n. 10
@@ -3503,3 +3504,15 @@ paper	Envelope DL	Busta DL
 	CAD Drawing Question	Domanda con disegno CAD
 	Question Type	Tipo di domanda
 	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Aggiungi all'esercizio al cursore una domanda di un tipo: risposta aperta, risposta multipla, vero o falso, calcolo, disegno CAD
+	Variants & Data	Varianti e dati
+	Show data in exercise	Mostra i dati nell'esercizio
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Stampa il blocco Dati nell'esercizio; disattivato, i valori restano solo nella sandbox di calcolo
+	Question Mode	Modalità della domanda
+	Question Points	Punti della domanda
+	Mode	Modalità
+	Go to working	Vai allo svolgimento
+	Put the cursor in this calculation's working space	Porta il cursore nello spazio di svolgimento di questo calcolo
+	Open in CAD editor	Apri nell'editor CAD
+	Select this question's solution drawing and open it in the CAD editor	Seleziona il disegno della risoluzione di questa domanda e aprilo nell'editor CAD
+	No result equation yet	Nessuna equazione risultato
+	write a question first	scrivi prima una domanda

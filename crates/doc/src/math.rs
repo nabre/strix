@@ -51,6 +51,10 @@ pub struct Math {
     /// user wrote is never read this way.
     #[serde(default, skip_serializing_if = "is_default")]
     pub stepped: bool,
+    /// Per-equation calculation and number-format overrides (JSON, `docs/calc.md`). Saved as
+    /// `strix:calcOpts` on `m:oMath`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calc_opts: Option<String>,
 }
 
 fn is_default<T: Default + PartialEq>(v: &T) -> bool {
@@ -65,7 +69,7 @@ impl Math {
     /// Rough heap bytes a clone copies: every node, its argument lists and its run text.
     /// Iterative, so it costs at most the size of the structure.
     pub(crate) fn heap_bytes(&self) -> usize {
-        let mut n = self.omml.len();
+        let mut n = self.omml.len().saturating_add(self.calc_opts.as_ref().map_or(0, String::len));
         let mut todo: Vec<&MNode> = self.nodes.iter().collect();
         while let Some(node) = todo.pop() {
             n = n.saturating_add(std::mem::size_of::<MNode>());

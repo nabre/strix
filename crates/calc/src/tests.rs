@@ -1494,8 +1494,25 @@ fn round_matches_the_number_format_and_keeps_units() {
     assert_eq!(last(&["round(1.005; 2) ="]), "round(1.005; 2) = 1.01");
     assert_eq!(last(&["round(2.675; 2) ="]), "round(2.675; 2) = 2.68");
     assert_eq!(last(&["round(2.345 m; 2) ="]), "round(2.345 m; 2) = 2.35 m");
+    assert_eq!(last(&["round(2.345 cm; 2) ="]), "round(2.345 cm; 2) = 2.35 cm");
+    assert_eq!(last(&["L = 2.345 km", "round(L; 1) ="]), "round(L; 1) = 2.3 km");
     assert_eq!(last(&["round(-2.5) ="]), "round(-2.5) = -3");
-    assert!(last_error(&["T = 20 °C", "round(T) ="]).to_string().contains("plain number"));
+    assert_eq!(last(&["round(30°; 0) ="]), "round(30°; 0) = 30°");
+    assert_eq!(last(&["α = 30.46°", "round(α; 1) ="]), "round(α; 1) = 30.5°");
+    assert_eq!(last(&["α = 0.5", "round(α; 1; °) ="]), "round(α; 1; °) = 28.6°");
+    assert_eq!(last(&["p = 15.6%", "round(p; 0) ="]), "round(p; 0) = 16 %");
+    assert_eq!(last(&["T = 20.4 °C", "round(T) ="]), "round(T) = 20 °C");
+    assert_eq!(last(&["round(20.6 °C; 0) ="]), "round(20.6 °C; 0) = 21 °C");
+    assert_eq!(last(&["T = 20 °C", "round(T; 0; °F) ="]), "round(T; 0; °F) = 68 °F");
+    assert_eq!(last(&["floor(2.9) ="]), "floor(2.9) = 2");
+    assert_eq!(last(&["floor(-2.1) ="]), "floor(-2.1) = -3");
+    assert_eq!(last(&["ceil(2.1) ="]), "ceil(2.1) = 3");
+    assert_eq!(last(&["ceil(-2.9) ="]), "ceil(-2.9) = -2");
+    assert_eq!(last(&["trunc(-2.9) ="]), "trunc(-2.9) = -2");
+    assert_eq!(last(&["floor(0.29; 2) ="]), "floor(0.29; 2) = 0.29");
+    assert_eq!(last(&["L = 2.39 m", "floor(L; 0; dm) ="]), "floor(L; 0; dm) = 23 dm");
+    assert_eq!(last(&["L = 2.31 m", "ceil(L; 0; dm) ="]), "ceil(L; 0; dm) = 24 dm");
+    assert_eq!(last(&["T = -2.3 °C", "trunc(T; 0) ="]), "trunc(T; 0) = -2 °C");
 }
 
 /// The prefix is chosen on the number as shown: never `1000 kPa`.

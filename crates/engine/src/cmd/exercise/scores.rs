@@ -77,6 +77,10 @@ fn tables(s: &Session) -> Vec<usize> {
     s.doc.body.iter().enumerate().filter(|(_, b)| matches!(&***b, Block::Table(t) if control_of(t).is_some())).map(|(i, _)| i).collect()
 }
 
+fn is_total_row(r: &Row) -> bool {
+    r.cells.first().and_then(|c| c.blocks.first()?.as_para()?.props.align) == Some(Align::Left)
+}
+
 /// What table `t` holds: the criteria (their number from the control, their names from the
 /// header row) and the points typed in each exercise's row.
 fn read(t: &Table) -> Model {
@@ -87,6 +91,7 @@ fn read(t: &Table) -> Model {
         .rows
         .iter()
         .skip(1)
+        .filter(|r| !is_total_row(r))
         .take(MAX_ROWS)
         .map(|r| (0..k).map(|c| r.cells.get(2 + 2 * c).map(cell_text).and_then(|t| number(&t))).collect())
         .collect();
@@ -111,7 +116,7 @@ fn cell(text: &str, align: Align, bold: bool, span: u32, width: f32) -> Cell {
 fn build(m: &Model, rows: usize, label: &dyn Fn(usize) -> String, total: &str, exercise: &str, width: f32, comma: bool) -> Table {
     let k = m.criteria.len().max(1);
     let across = k > 1;
-    let down = rows > 1;
+    let down = rows > 1 || (rows == 1 && !across);
     // Grid: the exercises' column, then two per criterion (and two for the total).
     let pairs = k + usize::from(across);
     let first = (width * 0.16).clamp(36.0, 120.0);
@@ -239,17 +244,14 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed
 }
 
-/// A quiz's points (its questions' added up) are its row's points in the first criterion: they
-/// follow the questions, typing over them changes nothing.
+/// An exercise's question points (all questions' added up, in a quiz or a problem whose
+/// questions declare points) feed its row's points in the first criterion.
 fn quiz_points(s: &Session, m: &mut Model) {
     let layout = scan(s);
     if m.criteria.is_empty() {
         return;
     }
-    for (e, ex) in layout.exercises.iter().enumerate().take(MAX_ROWS) {
-        if !ex.kind.quiz() {
-            continue;
-        }
+    for e in 0..layout.exercises.len().min(MAX_ROWS) {
         let Some(total) = super::items::total(s, &layout, e) else { continue };
         if m.points.len() <= e {
             m.points.resize(e + 1, vec![None; m.criteria.len()]);
@@ -485,11 +487,11 @@ mod tests {
         std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
         run(&mut s, "caret.docEnd", json!({}));
         run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
-        // One exercise, one criterion: no totals.
+        // One exercise, one criterion: Total summary row stays visible (__ / Max).
         run(&mut s, "caret.docStart", json!({}));
         let st = run(&mut s, "exercise.scores", json!({"on": true}));
         assert_eq!(st["criteria"], json!(["Punti"]), "{st}");
-        assert_eq!(grid(&s), vec![vec!["Esercizio", "Punti"], vec!["1", "", ""]]);
+        assert_eq!(grid(&s), vec![vec!["Esercizio", "Punti"], vec!["1", "", ""], vec!["Totale", "", ""]]);
         // Three more exercises: their rows come by themselves, with the Total row.
         for t in ["Due", "Tre", "Quattro"] {
             run(&mut s, "caret.docEnd", json!({}));

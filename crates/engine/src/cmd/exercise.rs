@@ -109,7 +109,13 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
-            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question of an open-answer or multiple-choice exercise; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "line"? (a calculation's result line as shown), "choices"?, "correct"?}], "total": points | null}"#),
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "choices"?, "correct"?}], "total": points | null}"#),
+        CommandSpec::new("exercise.questionMode", "Question Mode", "Teaching › Exercise", items::set_mode)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "type": "open" | "choice" | "trueFalse" | "calc" | "drawing"} → converts a quiz question's answer part in place while preserving its question paragraph, points, space settings, and existing working/options across compatible modes"#),
+        CommandSpec::new("exercise.questionPoints", "Question Points", "Teaching › Exercise", items::set_question_points)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points": number | null} → sets or clears the maximum points on a question of any exercise (problem or quiz), feeding the scores table's first criterion"#),
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
@@ -197,6 +203,11 @@ fn words(s: &Session) -> &'static Words {
 fn exercise_words(s: &Session, layout: &Layout, e: usize) -> &'static Words {
     let lang = layout.exercises.get(e).map(|x| language::lang_at(s, x.start)).unwrap_or_default();
     words::lookup(&lang).or_else(|| language::present(s, layout, e)).unwrap_or_else(|| fallback_words(s))
+}
+
+/// The "(numerical solution)" note for top-level block `top`, in that block's or the document's language.
+pub(super) fn numeric_note_at(s: &Session, top: usize) -> &'static str {
+    words::lookup(&language::lang_at(s, top)).unwrap_or_else(|| fallback_words(s)).numeric_solution
 }
 
 /// The words of the document's exercises, for the parts generated for all of them (the results
@@ -407,15 +418,20 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let w = words(s);
     let title = p::str(v, "title").map(str::to_string);
     let text = p::str(v, "text").map(str::to_string);
-    // Questions: strings, or {"text", "level"} for nested ones.
-    let questions: Vec<(String, u8)> = v
+    // Questions: strings, or {"text", "level", "points"} for nested / scored ones.
+    let comma = scores::comma(s);
+    let questions: Vec<(String, u8, Option<f64>)> = v
         .get("questions")
         .and_then(Value::as_array)
         .map(|a| {
             a.iter()
                 .filter_map(|q| match q {
-                    Value::String(t) => Some((t.clone(), 0)),
-                    Value::Object(_) => Some((p::str(q, "text")?.to_string(), p::u64(q, "level").map_or(0, |l| l.min(u64::from(MAX_LEVEL)) as u8))),
+                    Value::String(t) => Some((t.clone(), 0, None)),
+                    Value::Object(_) => Some((
+                        p::str(q, "text")?.to_string(),
+                        p::u64(q, "level").map_or(0, |l| l.min(u64::from(MAX_LEVEL)) as u8),
+                        q.get("points").and_then(Value::as_f64).filter(|n| n.is_finite()),
+                    )),
                     _ => None,
                 })
                 .take(MAX_QUESTIONS)
@@ -455,9 +471,13 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     } else {
         let n = questions.len();
         let mut opener = Some(qc);
-        for (i, (q, level)) in questions.iter().enumerate() {
+        for (i, (q, level, pts)) in questions.iter().enumerate() {
             let num = Some(NumRef { num: list, level: *level });
-            blocks.push(para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num));
+            let mut p = para(STYLE_QUESTION, q, opener.take().into_iter().collect(), usize::from(i + 1 == n), num);
+            if let Some(pts) = *pts {
+                items::set_problem_points_para(&mut p, Some(pts), w, comma);
+            }
+            blocks.push(p);
         }
     }
     if let Some(g) = grid {
@@ -738,7 +758,7 @@ fn scan(s: &Session) -> Layout {
                 } else if p.props.style.as_deref() == Some(STYLE_QUESTION)
                     && e.questions.len() < MAX_QUESTIONS
                     && !has(items::TAG_ANSWER)
-                    && let Some(text) = items::question_text(p).or_else(|| Some(plain(p)).filter(|t| !t.is_empty()))
+                    && let Some(text) = items::question_text(p).or_else(|| items::problem_question_text(p))
                 {
                     // Only question paragraphs count; notes and other content sit between them.
                     // A quiz's question is its item control, empty while its placeholder shows.
@@ -767,8 +787,16 @@ fn scan(s: &Session) -> Layout {
     out
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
 /// The initial data of an exercise and its variants: each item has one value per variant.
-#[derive(Debug, Clone, Default, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ExerciseData {
     pub items: Vec<DataItem>,
@@ -776,6 +804,18 @@ pub struct ExerciseData {
     pub variants: Vec<String>,
     /// The active variant (0-based).
     pub active: usize,
+    /// Whether the generated `Data` block is shown in the exercise (`true` by default).
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub show_data: bool,
+    /// Per-exercise calculation and number-format overrides (`docs/calc.md`).
+    #[serde(default, skip_serializing_if = "super::calc::CalcOverrides::is_empty")]
+    pub calc: super::calc::CalcOverrides,
+}
+
+impl Default for ExerciseData {
+    fn default() -> Self {
+        Self { items: Vec::new(), variants: Vec::new(), active: 0, show_data: true, calc: Default::default() }
+    }
 }
 
 /// One datum: `L` "span" = 4.5 m.
@@ -814,6 +854,7 @@ impl ExerciseData {
             item.values.iter_mut().for_each(|v| *v = clip(v));
         }
         self.active = self.active.min(n.saturating_sub(1));
+        self.calc.sanitize();
     }
 
     /// The definitions of the active variant: `L = 4.5 m`.
@@ -829,6 +870,9 @@ impl ExerciseData {
 
     /// The lines of the generated data part.
     fn lines(&self, w: &Words) -> Vec<(&'static str, String)> {
+        if !self.show_data {
+            return Vec::new();
+        }
         let statements: Vec<(String, String)> = self
             .items
             .iter()
@@ -871,7 +915,7 @@ fn read_data(ctl: &ContentControl) -> ExerciseData {
 fn write_data(ctl: &mut ContentControl, data: &ExerciseData) {
     let open = format!("<{DATA_EL}>");
     ctl.extra.retain(|x| !x.starts_with(&open));
-    if data.items.is_empty() {
+    if data.items.is_empty() && data.show_data && data.calc.is_empty() {
         return;
     }
     let json = serde_json::to_string(data).unwrap_or_default();
@@ -916,6 +960,21 @@ fn generated(ctl: ContentControl, lines: &[(&'static str, String)]) -> Vec<Parag
 /// The definitions each exercise's sandbox starts with (its data, active variant).
 pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String>> {
     scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
+}
+
+/// Per-exercise calculation overrides, keyed by 0-based exercise index.
+pub(super) fn exercise_calc(s: &Session) -> std::collections::BTreeMap<usize, super::calc::CalcOverrides> {
+    scan(s).exercises.into_iter().enumerate().filter(|(_, e)| !e.data.calc.is_empty()).map(|(i, e)| (i, e.data.calc)).collect()
+}
+
+/// Updates the calculation overrides of the exercise named by `v` (or at the caret).
+pub(super) fn set_exercise_calc(s: &mut Session, v: &Value, f: impl FnOnce(&mut super::calc::CalcOverrides)) -> Result<usize, CmdError> {
+    let ex = target(s, v)?;
+    with_data(s, ex, |d| {
+        f(&mut d.calc);
+        d.calc.sanitize();
+    })?;
+    Ok(ex)
 }
 
 /// The exercise named by `exercise` (1-based) or holding the caret.
@@ -984,9 +1043,16 @@ fn with_data(s: &mut Session, ex: usize, f: impl FnOnce(&mut ExerciseData)) -> C
 
 fn set_data(s: &mut Session, v: &Value) -> CmdResult {
     let ex = target(s, v)?;
+    let has_calc = v.get("data").and_then(|d| d.get("calc")).is_some();
     let new: ExerciseData =
         v.get("data").cloned().map(serde_json::from_value).transpose().map_err(|e| CmdError::Params(format!("data: {e}")))?.unwrap_or_default();
-    with_data(s, ex, |d| *d = new)
+    with_data(s, ex, |d| {
+        let keep_calc = d.calc.clone();
+        *d = new;
+        if !has_calc {
+            d.calc = keep_calc;
+        }
+    })
 }
 
 fn set_variant(s: &mut Session, v: &Value) -> CmdResult {
@@ -1002,7 +1068,7 @@ pub(crate) fn signature(s: &Session) -> u64 {
     let layout = scan(s);
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for e in &layout.exercises {
-        (&e.title, &e.questions, e.data.statements(), e.breaks, e.show, e.grid.is_some()).hash(&mut h);
+        (&e.title, &e.questions, e.data.statements(), e.data.show_data, &e.data.calc, e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
     // Points typed in a scores table change its totals.
@@ -1018,7 +1084,7 @@ pub(crate) fn zones(s: &Session) -> Vec<Option<usize>> {
 }
 
 /// The exercise holding the caret.
-fn exercise_at_caret(s: &Session) -> Option<usize> {
+pub(super) fn exercise_at_caret(s: &Session) -> Option<usize> {
     if s.sel.focus.story != StoryRef::Body {
         return None;
     }
@@ -1044,6 +1110,9 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
         (None, Some(true)) => (last_level + 1).min(MAX_LEVEL),
         _ => 0,
     };
+    let pts = v.get("points").and_then(Value::as_f64).filter(|n| n.is_finite());
+    let w = exercise_words(s, &layout, ex);
+    let comma = scores::comma(s);
     let list = e_list(s, last);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
@@ -1063,14 +1132,22 @@ fn add_question(s: &mut Session, v: &Value) -> CmdResult {
             .collect();
         let ends = prev.objects.iter().filter(|o| matches!(o, InlineObject::ControlEnd)).count();
         let numbering = list.map(|num| NumRef { num, level });
-        *prev = para(STYLE_QUESTION, &text, opens, ends, numbering);
-        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last), prev.text.len() - OBJ.len_utf8() * ends));
+        let mut p = para(STYLE_QUESTION, &text, opens, ends, numbering);
+        let caret = p.text.len() - OBJ.len_utf8() * ends;
+        if let Some(pts) = pts {
+            items::set_problem_points_para(&mut p, Some(pts), w, comma);
+        }
+        *prev = p;
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last), caret));
     } else {
         // The questions control's end moves to the new last question.
         take_last_end(prev)?;
         let numbering = list.map(|num| NumRef { num, level });
-        let new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
+        let mut new = para(STYLE_QUESTION, &text, Vec::new(), 1, numbering);
         let caret = new.text.len() - OBJ.len_utf8();
+        if let Some(pts) = pts {
+            items::set_problem_points_para(&mut new, Some(pts), w, comma);
+        }
         s.doc.body.insert(last + 1, para_block(new));
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     }

@@ -60,6 +60,7 @@ pub(super) const STYLE_LINE: &str = "ExerciseResultLine";
 
 const KIND_EL: &str = "strix:exerciseKind";
 const ANSWER_EL: &str = "strix:answerSpace";
+const POINTS_EL: &str = "strix:points";
 const CORRECT_EL: &str = "<strix:correct/>";
 /// On a box last written with the answers shown: only then is its state a click to take.
 const SHOWN_EL: &str = "<strix:shown/>";
@@ -182,6 +183,9 @@ impl Mode {
 pub(crate) struct Answer {
     /// Multiple choice (options); kept beside `mode` for files written before modes.
     pub choice: bool,
+    /// True/false two-option variant of `Mode::Choice`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub true_false: bool,
     /// The question's mode; a file from before modes has `choice` alone.
     pub mode: Mode,
     /// The question's maximum points.
@@ -196,7 +200,15 @@ pub(crate) struct Answer {
 
 impl Default for Answer {
     fn default() -> Self {
-        Answer { choice: false, mode: Mode::Open, points: None, height: DEFAULT_HEIGHT_CM, grid: true, spacing: DEFAULT_SPACING_MM }
+        Answer {
+            choice: false,
+            true_false: false,
+            mode: Mode::Open,
+            points: None,
+            height: DEFAULT_HEIGHT_CM,
+            grid: true,
+            spacing: DEFAULT_SPACING_MM,
+        }
     }
 }
 
@@ -214,6 +226,7 @@ impl Answer {
         let mode = if self.choice && self.mode == Mode::Open { Mode::Choice } else { self.mode };
         Answer {
             choice: mode == Mode::Choice,
+            true_false: mode == Mode::Choice && self.true_false,
             mode,
             points: self.points.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_POINTS)),
             height: fin(self.height, d.height).clamp(MIN_HEIGHT_CM, MAX_HEIGHT_CM),
@@ -276,6 +289,106 @@ fn check_box(correct: bool, checked: bool) -> ContentControl {
 
 fn is_correct(c: &ContentControl) -> bool {
     c.extra.iter().any(|x| x == CORRECT_EL)
+}
+
+fn read_points_ctl(ctl: &ContentControl) -> Option<f64> {
+    let open = format!("<{POINTS_EL} ");
+    let el = ctl.extra.iter().find(|x| x.starts_with(&open))?;
+    let (_, rest) = el.split_once("val=\"")?;
+    let (raw, _) = rest.split_once('"')?;
+    raw.parse::<f64>().ok().filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_POINTS))
+}
+
+fn write_points_ctl(ctl: &mut ContentControl, pts: Option<f64>) {
+    let open = format!("<{POINTS_EL} ");
+    ctl.extra.retain(|x| !x.starts_with(&open));
+    if let Some(v) = pts.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_POINTS)) {
+        ctl.extra.push(format!("<{POINTS_EL} val=\"{v}\"/>"));
+    }
+}
+
+/// The points stored on a problem question's inline `TAG_POINTS` control (`None` if absent).
+fn problem_para_points(p: &Paragraph) -> Option<f64> {
+    let (at, _) = span(p, TAG_POINTS)?;
+    match p.object_at(at) {
+        Some(InlineObject::ControlStart { control }) => read_points_ctl(control),
+        _ => None,
+    }
+}
+
+/// Number of `ControlEnd` markers at the very end of `p` that close block-level controls
+/// (either opened before `p` or opened as `block == true` at the start of `p`, such as `TAG_QUESTIONS`).
+fn trailing_block_ends(p: &Paragraph) -> usize {
+    let mut stack: Vec<(usize, bool)> = Vec::new();
+    let mut block_ends: Vec<usize> = Vec::new();
+    for (at, o) in p.objects_with_offsets() {
+        match o {
+            InlineObject::ControlStart { control } => stack.push((at, control.block)),
+            InlineObject::ControlEnd => match stack.pop() {
+                Some((_, false)) => {}
+                Some((_, true)) | None => block_ends.push(at),
+            },
+            _ => {}
+        }
+    }
+    let mut count = 0usize;
+    let mut cursor = p.text.len();
+    for &at in block_ends.iter().rev() {
+        if at + OBJ.len_utf8() == cursor {
+            count += 1;
+            cursor = at;
+        } else {
+            break;
+        }
+    }
+    count
+}
+
+/// Sets (`Some(v)`) or removes (`None`) the locked `TAG_POINTS` suffix at the end of a problem's
+/// `STYLE_QUESTION` paragraph `p`, keeping any trailing block `ControlEnd` (`TAG_QUESTIONS`) last.
+pub(super) fn set_problem_points_para(p: &mut Paragraph, pts: Option<f64>, w: &super::Words, comma: bool) -> bool {
+    let pts = pts.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, MAX_POINTS));
+    match (span(p, TAG_POINTS), pts) {
+        (None, None) => false,
+        (Some((a, b)), None) => {
+            if p.delete(a, b + OBJ.len_utf8()).is_ok() {
+                p.touch();
+                true
+            } else {
+                false
+            }
+        }
+        (Some((a, b)), Some(v)) => {
+            let text = points_text(Some(v), w, comma);
+            let mut changed = false;
+            if let Some(ctl) = control_at_mut(p, a)
+                && read_points_ctl(ctl) != Some(v)
+            {
+                write_points_ctl(ctl, Some(v));
+                changed = true;
+            }
+            changed |= set_content(p, (a, b), &text);
+            if changed {
+                p.touch();
+            }
+            changed
+        }
+        (None, Some(v)) => {
+            let at = p.text.len().saturating_sub(trailing_block_ends(p) * OBJ.len_utf8());
+            let props = if at > 0 { p.props_of_char(at.saturating_sub(1)).clone() } else { CharProps::default() };
+            let mut ctl = inline(TAG_POINTS, w.points, ControlLock::SdtContentLocked);
+            write_points_ctl(&mut ctl, Some(v));
+            let text = points_text(Some(v), w, comma);
+            if p.insert_object(at, InlineObject::ControlStart { control: Box::new(ctl) }, &props).is_err() {
+                return false;
+            }
+            let inner = at + OBJ.len_utf8();
+            let _ = p.insert_text(inner, &text, &props);
+            let _ = p.insert_object(inner + text.len(), InlineObject::ControlEnd, &props);
+            p.touch();
+            true
+        }
+    }
 }
 
 /// The points as the question shows them: ` (2 punti)`, ` (1 punto)`, ` (1,5 punti)`; nothing
@@ -352,6 +465,20 @@ pub(super) fn question_text(p: &Paragraph) -> Option<String> {
     }
     let t = p.text.get(a + OBJ.len_utf8()..b).unwrap_or_default();
     Some(t.chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string())
+}
+
+/// Plain text of a problem's question paragraph, omitting any inline `TAG_POINTS` control suffix.
+pub(super) fn problem_question_text(p: &Paragraph) -> Option<String> {
+    let raw = match span(p, TAG_POINTS) {
+        Some((a, b)) => {
+            let head = p.text.get(..a).unwrap_or_default();
+            let tail = p.text.get((b + OBJ.len_utf8()).min(p.text.len())..).unwrap_or_default();
+            format!("{head}{tail}")
+        }
+        None => p.text.clone(),
+    };
+    let text = raw.chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string();
+    (!text.is_empty()).then_some(text)
 }
 
 /// One question of a quiz: its paragraph and the blocks of its answer.
@@ -503,12 +630,14 @@ fn new_question(s: &Session, v: &Value, mode: Mode, true_false: bool) -> NewQues
     let ty = p::str(v, "type");
     let mode = ty.and_then(Mode::parse).unwrap_or(mode);
     let true_false = if ty.is_some() { ty == Some("trueFalse") } else { true_false };
+    let is_tf = true_false || p::bool(v, "trueFalse") == Some(true);
     let mut set = Answer::of(mode);
+    set.true_false = mode == Mode::Choice && is_tf;
     apply_settings(&mut set, v);
     let correct: Vec<usize> = correct_list(v);
     let mut choices: Vec<(String, bool)> = match v.get("choices").and_then(Value::as_array) {
         Some(a) => a.iter().take(MAX_CHOICES).map(|c| (c.as_str().map(clip_text).unwrap_or_default(), false)).collect(),
-        None if true_false || p::bool(v, "trueFalse") == Some(true) => vec![(w.true_word.into(), false), (w.false_word.into(), false)],
+        None if is_tf => vec![(w.true_word.into(), false), (w.false_word.into(), false)],
         None => vec![(String::new(), false); 4],
     };
     for (k, c) in choices.iter_mut().enumerate() {
@@ -754,7 +883,23 @@ pub(super) fn update(s: &mut Session) -> bool {
     let mut changed = false;
     for (e, ex) in layout.exercises.iter().enumerate() {
         let its = items(s, &layout, e);
-        if its.is_empty() || !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
+        if its.is_empty() {
+            continue;
+        }
+        if !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
+            // Problem exercises: keep any inline `TAG_POINTS` suffixes localised.
+            for it in &its {
+                let Some(block) = s.doc.body.get_mut(it.question) else { continue };
+                let Block::Para(p) = &**block else { continue };
+                let Some(pts) = problem_para_points(p) else { continue };
+                let text = points_text(Some(pts), w, comma);
+                if span(p, TAG_POINTS).is_some_and(|sp| p.text.get(sp.0 + OBJ.len_utf8()..sp.1) != Some(text.as_str())) {
+                    let Block::Para(p) = Arc::make_mut(block) else { continue };
+                    if let Some(sp) = span(p, TAG_POINTS) {
+                        changed |= set_content(p, sp, &text);
+                    }
+                }
+            }
             continue;
         }
         let shown = ex.show.solution;
@@ -1057,7 +1202,15 @@ fn letter(k: usize) -> String {
 
 /// The exercise's maximum points: its questions' added up (`None` when none has points).
 pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
-    let pts: Vec<f64> = items(s, layout, e).iter().filter_map(|i| i.settings.points).collect();
+    let ex = layout.exercises.get(e)?;
+    let its = items(s, layout, e);
+    let pts: Vec<f64> = if ex.kind.quiz() || its.iter().any(|i| i.answer.is_some()) {
+        its.iter().filter_map(|i| i.settings.points).collect()
+    } else if ex.no_questions {
+        Vec::new()
+    } else {
+        its.iter().filter_map(|i| s.doc.body.get(i.question)?.as_para().and_then(problem_para_points)).collect()
+    };
     (!pts.is_empty()).then(|| pts.iter().sum()).filter(|v: &f64| v.is_finite())
 }
 
@@ -1103,17 +1256,59 @@ pub(super) fn fingerprint(s: &Session) -> u64 {
             (matches!(r.control.kind, ControlKind::CheckBox { checked: true, .. }), is_correct(&r.control), &r.start.path.0).hash(&mut h);
         } else if r.control.tag == TAG_ANSWER {
             let a = read_answer(&r.control);
-            (a.mode, a.points.map(f64::to_bits), a.height.to_bits(), a.grid, a.spacing.to_bits(), &r.start.path.0, &r.end.path.0).hash(&mut h);
+            (a.mode, a.true_false, a.points.map(f64::to_bits), a.height.to_bits(), a.grid, a.spacing.to_bits(), &r.start.path.0, &r.end.path.0)
+                .hash(&mut h);
+        } else if r.control.tag == TAG_POINTS {
+            (read_points_ctl(&r.control).map(f64::to_bits), &r.start.path.0).hash(&mut h);
         }
     }
     h.finish()
 }
 
-/// The quiz questions of an exercise as `exercise.questions` reports them.
+fn is_tf_choices(cs: &[(String, bool)]) -> bool {
+    cs.len() == 2
+        && super::words::ALL_WORDS.iter().any(|w| {
+            cs[0].0.eq_ignore_ascii_case(w.true_word) && cs[1].0.eq_ignore_ascii_case(w.false_word)
+                || cs[0].0.eq_ignore_ascii_case(w.false_word) && cs[1].0.eq_ignore_ascii_case(w.true_word)
+        })
+}
+
+/// The questions of an exercise as `exercise.questions` reports them.
 fn state(s: &Session, e: usize) -> Value {
     let layout = scan(s);
     let Some(ex) = layout.exercises.get(e) else { return Value::Null };
     let its = items(s, &layout, e);
+    if !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
+        let list: Vec<Value> = if ex.no_questions {
+            Vec::new()
+        } else {
+            its.iter()
+                .enumerate()
+                .map(|(k, it)| {
+                    let p = s.doc.body.get(it.question).and_then(|b| b.as_para());
+                    let text = p.and_then(problem_question_text).unwrap_or_default();
+                    let pts = p.and_then(problem_para_points);
+                    let label = ex.questions.get(k).map(|q| q.label.clone()).unwrap_or_default();
+                    json!({
+                        "label": label,
+                        "text": text,
+                        "type": "problem",
+                        "points": pts,
+                    })
+                })
+                .collect()
+        };
+        return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e)});
+    }
+    let calc_opts = super::super::calc::options_now(s);
+    let mut calc_answers: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
+    if its.iter().any(|it| it.settings.mode == Mode::Calc) {
+        for (top, qn, text) in super::super::calc::answers(s, &calc_opts) {
+            if layout.parts.get(top).and_then(|(x, _)| *x) == Some(e) {
+                calc_answers.insert(qn, text);
+            }
+        }
+    }
     let lone = its.len() == 1;
     let list: Vec<Value> = its
         .iter()
@@ -1131,6 +1326,7 @@ fn state(s: &Session, e: usize) -> Value {
             if let Some(o) = v.as_object_mut() {
                 if it.settings.choice {
                     let cs = it.answer.map(|r| choices(s, r)).unwrap_or_default();
+                    o.insert("trueFalse".into(), json!(it.settings.true_false || is_tf_choices(&cs)));
                     o.insert("choices".into(), json!(cs.iter().map(|c| c.0.clone()).collect::<Vec<_>>()));
                     o.insert("correct".into(), json!(cs.iter().enumerate().filter(|c| c.1.1).map(|(j, _)| letter(j)).collect::<Vec<_>>()));
                 } else {
@@ -1142,7 +1338,36 @@ fn state(s: &Session, e: usize) -> Value {
                                 p.text.get(x + OBJ.len_utf8()..y).map(str::to_string)
                             })
                         });
+                        let qn = u32::try_from(k + 1).unwrap_or(u32::MAX);
                         o.insert("line".into(), json!(line));
+                        o.insert("result".into(), json!(calc_answers.get(&qn)));
+                        if let Some((a, _)) = it.answer {
+                            let pos = wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a), OBJ.len_utf8());
+                            o.insert("workingPos".into(), json!(pos));
+                        }
+                    } else if it.settings.mode == Mode::Drawing
+                        && let Some((a, b)) = it.answer
+                    {
+                        let found_cad = (a..=b).find_map(|i| {
+                            let p = s.doc.body.get(i)?.as_para()?;
+                            p.objects_with_offsets().find_map(|(off, obj)| match obj {
+                                InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad => {
+                                    Some((i, off, graphic.cad.clone().unwrap_or_else(|| Arc::from(""))))
+                                }
+                                _ => None,
+                            })
+                        });
+                        if let Some((pi, off, src)) = found_cad {
+                            let scale = super::super::calc::resolved_cad(s, &src)
+                                .map(|r| r.0.scale)
+                                .or_else(|| strix_cad::Drawing::from_json(&src).ok().map(|d| d.scale))
+                                .map(strix_cad::scale_text);
+                            let path = super::body_path(pi);
+                            let start = wordcraft_doc::Pos::new(StoryRef::Body, path.clone(), off);
+                            let end = wordcraft_doc::Pos::new(StoryRef::Body, path, off + OBJ.len_utf8());
+                            o.insert("scale".into(), json!(scale));
+                            o.insert("cadSelect".into(), json!({"anchor": start, "focus": end}));
+                        }
                     }
                     o.insert("height".into(), json!((f64::from(it.settings.height) * 100.0).round() / 100.0));
                     o.insert("grid".into(), json!(it.settings.grid));
@@ -1164,14 +1389,40 @@ fn question_at_caret(s: &Session, layout: &Layout, e: usize) -> Option<usize> {
     items(s, layout, e).iter().rposition(|it| it.question <= top)
 }
 
-/// `exercise.questions`: reads a quiz's questions, or changes one's settings (points, space,
+fn parse_points_value(v: &Value) -> Result<Option<f64>, CmdError> {
+    match v.get("points") {
+        Some(Value::Null) => Ok(None),
+        Some(x) => x
+            .as_f64()
+            .or_else(|| x.as_str().and_then(|t| t.trim().replace(',', ".").parse().ok()))
+            .filter(|n| n.is_finite())
+            .map(|n| Some(n.clamp(0.0, MAX_POINTS)))
+            .ok_or_else(|| CmdError::Params("points: a number, or null".into())),
+        None => Err(CmdError::Params("points: a number, or null".into())),
+    }
+}
+
+/// `exercise.questionPoints`: sets or removes `points` on a question of any exercise (`problem` or quiz).
+pub(super) fn set_question_points(s: &mut Session, v: &Value) -> CmdResult {
+    let _ = parse_points_value(v)?;
+    let mut only_points = json!({"points": v.get("points").cloned().unwrap_or(Value::Null)});
+    if let Some(o) = only_points.as_object_mut() {
+        if let Some(ex) = v.get("exercise") {
+            o.insert("exercise".into(), ex.clone());
+        }
+        if let Some(q) = v.get("question") {
+            o.insert("question".into(), q.clone());
+        }
+    }
+    command(s, &only_points)
+}
+
+/// `exercise.questions`: reads an exercise's questions, or changes one's settings (points, space,
 /// correct options).
 pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let e = super::target(s, v)?;
     let layout = scan(s);
-    if layout.exercises.get(e).is_none() {
-        return Err(CmdError::Params("no such exercise".into()));
-    }
+    let ex = layout.exercises.get(e).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
     let changes = ["points", "height", "grid", "spacing", "correct"].iter().any(|k| v.get(*k).is_some());
     if !changes {
         return Ok(state(s, e));
@@ -1183,8 +1434,26 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
-    let (a, b) =
-        it.answer.ok_or_else(|| CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()))?;
+    let Some((a, b)) = it.answer else {
+        let answer_only = ["height", "grid", "spacing", "correct"].iter().any(|k| v.get(*k).is_some());
+        if answer_only {
+            return Err(CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()));
+        }
+        if ex.no_questions {
+            return Err(CmdError::Disabled("write a question first".into()));
+        }
+        let pts = parse_points_value(v)?;
+        let w = super::exercise_words(s, &layout, e);
+        let comma = super::scores::comma(s);
+        let q_idx = it.question;
+        let block = s.doc.body.get_mut(q_idx).ok_or_else(|| CmdError::Failed("question vanished".into()))?;
+        let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("question vanished".into())) };
+        set_problem_points_para(p, pts, w, comma);
+        s.touch();
+        super::update(s);
+        s.clamp_selection();
+        return Ok(state(s, e));
+    };
     let mut set = it.settings;
     apply_settings(&mut set, v);
     let set = set.sanitized();
@@ -1223,6 +1492,267 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         }
     }
     s.touch();
+    super::update(s);
+    s.clamp_selection();
+    Ok(state(s, e))
+}
+
+fn outer_ends_after_answer(s: &Session, a: usize, b: usize) -> usize {
+    let mut open = 0usize;
+    let mut outer = 0usize;
+    for i in a..=b {
+        if let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) {
+            for (_, o) in p.objects_with_offsets() {
+                match o {
+                    InlineObject::ControlStart { .. } => open += 1,
+                    InlineObject::ControlEnd if open > 0 => open -= 1,
+                    InlineObject::ControlEnd => outer += 1,
+                    _ => {}
+                }
+            }
+        }
+    }
+    outer
+}
+
+fn append_ends(p: &mut Paragraph, ends: usize) {
+    let props = CharProps::default();
+    for _ in 0..ends {
+        let at = p.text.len();
+        let _ = p.insert_object(at, InlineObject::ControlEnd, &props);
+    }
+    if ends > 0 {
+        p.touch();
+    }
+}
+
+fn build_choice_paras(s: &mut Session, answer: ContentControl, choices: &[(String, bool)], outer: usize) -> Vec<Paragraph> {
+    let list = add_choice_list(s).ok();
+    let n = choices.len().max(1);
+    let mut opener = Some(answer);
+    let props = CharProps::default();
+    let mut out = Vec::with_capacity(n);
+    for k in 0..n {
+        let (text, correct) = choices.get(k).cloned().unwrap_or_default();
+        let ends = if k + 1 == n { 1 + outer } else { 0 };
+        let mut p = para(STYLE_CHOICE, &text, opener.take().into_iter().collect(), ends, list.map(|num| NumRef { num, level: 0 }));
+        let lead = if k == 0 { OBJ.len_utf8() } else { 0 };
+        let _ = p.insert_object(lead, InlineObject::ControlStart { control: Box::new(check_box(correct, correct)) }, &props);
+        let _ = p.insert_text(lead + OBJ.len_utf8(), &UNCHECKED.to_string(), &props);
+        let end = lead + OBJ.len_utf8() + UNCHECKED.len_utf8();
+        let _ = p.insert_object(end, InlineObject::ControlEnd, &props);
+        let _ = p.insert_text(end + OBJ.len_utf8(), " ", &props);
+        out.push(p);
+    }
+    out
+}
+
+/// `exercise.questionMode`: converts an existing quiz question in place between `open`, `choice`,
+/// `trueFalse`, `calc`, and `drawing`, keeping its question paragraph (`TAG_ITEM` + `TAG_POINTS`)
+/// untouched and preserving existing working/options across compatible modes.
+pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
+    let ty = p::str(v, "type").ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc or drawing".into()))?;
+    let new_mode = Mode::parse(ty).ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc or drawing".into()))?;
+    let want_tf = ty == "trueFalse";
+    let e = super::target(s, v)?;
+    let layout = scan(s);
+    if layout.exercises.get(e).is_none() {
+        return Err(CmdError::Params("no such exercise".into()));
+    }
+    let w = super::exercise_words(s, &layout, e);
+    let its = items(s, &layout, e);
+    let q = match p::u64(v, "question") {
+        Some(n) if n >= 1 => usize::try_from(n - 1).unwrap_or(usize::MAX),
+        Some(_) => return Err(CmdError::Params("question: 1-based".into())),
+        None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
+    };
+    let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
+    let (a, mut b) =
+        it.answer.ok_or_else(|| CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()))?;
+    let old_mode = it.settings.mode;
+    let outer = outer_ends_after_answer(s, a, b);
+    let mut set = it.settings;
+    set.mode = new_mode;
+    set.choice = new_mode == Mode::Choice;
+    set.true_false = new_mode == Mode::Choice && want_tf;
+    let set = set.sanitized();
+
+    match (old_mode == Mode::Choice, new_mode == Mode::Choice) {
+        (false, false) => {
+            if old_mode != new_mode {
+                let last_block = s.doc.body.get_mut(b).ok_or_else(|| CmdError::Failed("answer vanished".into()))?;
+                let Block::Para(last_p) = Arc::make_mut(last_block) else { return Err(CmdError::Failed("answer vanished".into())) };
+                for _ in 0..(1 + outer) {
+                    super::take_last_end(last_p)?;
+                }
+                for i in ((a + 1)..=b).rev() {
+                    if s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| span(p, TAG_LINE).is_some()) {
+                        s.doc.body.remove(i);
+                        b = b.saturating_sub(1);
+                    }
+                }
+                if new_mode != Mode::Calc {
+                    for i in a..=b {
+                        if let Some(block) = s.doc.body.get_mut(i)
+                            && matches!(&**block, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { math, .. } if math.answer != 0)))
+                            && let Block::Para(p) = Arc::make_mut(block)
+                        {
+                            for o in &mut p.objects {
+                                if let InlineObject::Equation { math, .. } = o {
+                                    math.answer = 0;
+                                    math.omml.clear();
+                                }
+                            }
+                            p.touch();
+                        }
+                    }
+                }
+                if let Some(first_block) = s.doc.body.get_mut(a)
+                    && let Block::Para(first_p) = Arc::make_mut(first_block)
+                    && let Some(at) = span_block(first_p, TAG_ANSWER)
+                    && let Some(c) = control_at_mut(first_p, at)
+                {
+                    write_answer(c, &set);
+                    first_p.touch();
+                }
+                if new_mode == Mode::Calc {
+                    let mut lp = result_line_para(BLANK);
+                    append_ends(&mut lp, outer);
+                    s.doc.body.insert(b + 1, para_block(lp));
+                } else if let Some(end_block) = s.doc.body.get_mut(b)
+                    && let Block::Para(end_p) = Arc::make_mut(end_block)
+                {
+                    append_ends(end_p, 1 + outer);
+                }
+            }
+        }
+        (true, true) => {
+            let cs = choices(s, (a, b));
+            if let Some(first_block) = s.doc.body.get_mut(a)
+                && let Block::Para(first_p) = Arc::make_mut(first_block)
+                && let Some(at) = span_block(first_p, TAG_ANSWER)
+                && let Some(c) = control_at_mut(first_p, at)
+            {
+                write_answer(c, &set);
+                first_p.touch();
+            }
+            if want_tf {
+                if cs.iter().all(|(t, _)| t.is_empty()) {
+                    let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+                    write_answer(&mut answer_ctl, &set);
+                    let init =
+                        vec![(w.true_word.to_string(), cs.first().is_some_and(|c| c.1)), (w.false_word.to_string(), cs.get(1).is_some_and(|c| c.1))];
+                    let paras = build_choice_paras(s, answer_ctl, &init, outer);
+                    s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+                } else if b > a + 1 {
+                    let mut drop_count = 0usize;
+                    for i in ((a + 2)..=b).rev() {
+                        let empty_opt = s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| choice_text(p).is_empty());
+                        if empty_opt {
+                            drop_count += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if drop_count > 0 {
+                        if let Some(last_block) = s.doc.body.get_mut(b)
+                            && let Block::Para(last_p) = Arc::make_mut(last_block)
+                        {
+                            for _ in 0..(1 + outer) {
+                                super::take_last_end(last_p)?;
+                            }
+                        }
+                        s.doc.body.drain((b + 1 - drop_count)..=b);
+                        b -= drop_count;
+                        if let Some(end_block) = s.doc.body.get_mut(b)
+                            && let Block::Para(end_p) = Arc::make_mut(end_block)
+                        {
+                            append_ends(end_p, 1 + outer);
+                        }
+                    }
+                }
+            } else if cs.len() < 4 {
+                let num = s
+                    .doc
+                    .body
+                    .get(a)
+                    .and_then(|bl| bl.as_para())
+                    .and_then(|p| p.props.numbering)
+                    .or_else(|| add_choice_list(s).ok().map(|num| NumRef { num, level: 0 }));
+                if let Some(last_block) = s.doc.body.get_mut(b)
+                    && let Block::Para(last_p) = Arc::make_mut(last_block)
+                {
+                    for _ in 0..(1 + outer) {
+                        super::take_last_end(last_p)?;
+                    }
+                }
+                let need = 4 - cs.len();
+                let props = CharProps::default();
+                for k in 0..need {
+                    let ends = if k + 1 == need { 1 + outer } else { 0 };
+                    let mut p = para(STYLE_CHOICE, "", Vec::new(), ends, num);
+                    let _ = p.insert_object(0, InlineObject::ControlStart { control: Box::new(check_box(false, false)) }, &props);
+                    let _ = p.insert_text(OBJ.len_utf8(), &UNCHECKED.to_string(), &props);
+                    let end = OBJ.len_utf8() + UNCHECKED.len_utf8();
+                    let _ = p.insert_object(end, InlineObject::ControlEnd, &props);
+                    let _ = p.insert_text(end + OBJ.len_utf8(), " ", &props);
+                    s.doc.body.insert(b + 1 + k, para_block(p));
+                }
+            }
+        }
+        (false, true) => {
+            let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+            write_answer(&mut answer_ctl, &set);
+            let init =
+                if want_tf { vec![(w.true_word.to_string(), false), (w.false_word.to_string(), false)] } else { vec![(String::new(), false); 4] };
+            let paras = build_choice_paras(s, answer_ctl, &init, outer);
+            s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+        }
+        (true, false) => {
+            let mut answer_ctl = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
+            write_answer(&mut answer_ctl, &set);
+            let mut paras = Vec::new();
+            if new_mode == Mode::Calc {
+                let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 0, None);
+                p.props.graph = Some(Arc::new(set.graph()));
+                let mut lp = result_line_para(BLANK);
+                append_ends(&mut lp, outer);
+                paras.push(p);
+                paras.push(lp);
+            } else {
+                let mut p = para(STYLE_ANSWER, "", vec![answer_ctl], 1 + outer, None);
+                p.props.graph = Some(Arc::new(set.graph()));
+                paras.push(p);
+            }
+            s.doc.body.splice(a..=b, paras.into_iter().map(para_block));
+        }
+    }
+
+    s.touch();
+    if new_mode == Mode::Drawing {
+        let layout2 = scan(s);
+        if let Some(it2) = items(s, &layout2, e).get(q)
+            && let Some((a2, b2)) = it2.answer
+        {
+            let has_cad = (a2..=b2).any(|i| {
+                s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| {
+                    p.objects
+                        .iter()
+                        .any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == wordcraft_doc::graphic::GraphicKind::Cad))
+                })
+            });
+            if !has_cad {
+                let prev_sel = s.sel.clone();
+                s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a2), OBJ.len_utf8()));
+                super::super::cad::insert(s, &json!({}))?;
+                let height = f64::from(set.height) * 10.0 * 0.9;
+                let _ = super::super::cad::scale(s, &json!({"fit": {"height": height}}));
+                s.sel = prev_sel;
+            }
+        }
+    }
+    super::update(s);
+    super::super::calc::recalculate_now(s);
     super::update(s);
     s.clamp_selection();
     Ok(state(s, e))
@@ -1527,5 +2057,124 @@ mod tests {
             let _ = s.run("exercise.insert", &v);
         }
         let _ = s.run("exercise.addQuestion", &json!({"choices": "x", "correct": {}}));
+    }
+
+    #[test]
+    fn quiz_data_block_inserts_removes_and_respects_show_data() {
+        let mut s = session();
+        run(&mut s, "exercise.insert", json!({"kind": "calc", "questions": [{"text": "Calcola A.", "points": 2}]}));
+        let has_data_ctl = |s: &Session| s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == super::super::TAG_DATA);
+        assert!(!has_data_ctl(&s));
+
+        run(
+            &mut s,
+            "exercise.setData",
+            json!({"data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["5"]}], "variants": ["A"], "active": 0}}),
+        );
+        assert!(has_data_ctl(&s), "non-empty data on a quiz inserts TAG_DATA");
+        let at = space(&s, 0);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::super::body_path(at), OBJ.len_utf8()));
+        run(&mut s, "calc.insert", json!({"text": "A = 2 * b = cm"}));
+        assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 10 cm");
+
+        // `showData: false` hides the visual TAG_DATA block while keeping `b` live in the sandbox!
+        run(
+            &mut s,
+            "exercise.setData",
+            json!({"data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0, "showData": false}}),
+        );
+        assert!(!has_data_ctl(&s), "showData: false omits TAG_DATA");
+        assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 14 cm");
+
+        // Emptying items removes TAG_DATA cleanly.
+        run(&mut s, "exercise.setData", json!({"data": {"items": [], "variants": ["A"], "active": 0, "showData": true}}));
+        assert!(!has_data_ctl(&s));
+    }
+
+    #[test]
+    fn question_mode_converts_in_place_preserving_working_and_options() {
+        let mut s = session();
+        run(
+            &mut s,
+            "exercise.insert",
+            json!({"kind": "open", "questions": [
+                {"text": "Calcola la forza.", "points": 3, "height": 5, "grid": false},
+                {"text": "Il rame conduce?", "type": "trueFalse", "correct": 1, "points": 1}
+            ]}),
+        );
+        // Write an equation in question 1's open space, then convert Open -> Calc -> Open -> Drawing.
+        let at = space(&s, 0);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::super::body_path(at), OBJ.len_utf8()));
+        run(&mut s, "calc.insert", json!({"text": "F = 12 N + 8 N = N"}));
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "calc"}));
+        assert_eq!(st["questions"][0]["type"], "calc");
+        assert_eq!(st["questions"][0]["height"], 5.0);
+        assert_eq!(st["questions"][0]["grid"], false);
+        assert_eq!(st["questions"][0]["points"], 3.0);
+        assert_eq!(st["questions"][0]["line"], "F = 20 N");
+        assert_eq!(st["questions"][0]["result"], "F = 20 N");
+
+        // Convert Calc -> Open: TAG_LINE disappears, equation and question text stay intact.
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "open"}));
+        assert_eq!(st["questions"][0]["type"], "open");
+        assert!(texts(&s).iter().any(|t| t.contains("Calcola la forza. (3 punti)")));
+        assert!(!s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == TAG_LINE));
+        // Convert back to Calc: existing equation recalculates the result line again!
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "calc"}));
+        assert_eq!(st["questions"][0]["line"], "F = 20 N");
+
+        // Convert Open/Calc -> Drawing: inserts starter CAD once and reports its scale.
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "drawing"}));
+        assert_eq!(st["questions"][0]["type"], "drawing");
+        assert!(st["questions"][0]["scale"].as_str().is_some(), "{st}");
+        assert!(st["questions"][0]["cadSelect"].is_object(), "{st}");
+
+        // Convert TrueFalse -> Choice on question 2: keeps Vero/Falso and adds 2 blank options.
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 2, "type": "choice"}));
+        assert_eq!(st["questions"][1]["trueFalse"], false);
+        assert_eq!(st["questions"][1]["choices"], json!(["Vero", "Falso", "", ""]));
+        assert_eq!(st["questions"][1]["correct"], json!(["A"]));
+
+        // Convert Choice -> TrueFalse: drops the 2 trailing empty options, keeping Vero/Falso.
+        let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 2, "type": "trueFalse"}));
+        assert_eq!(st["questions"][1]["trueFalse"], true);
+        assert_eq!(st["questions"][1]["choices"], json!(["Vero", "Falso"]));
+    }
+
+    #[test]
+    fn problem_question_points_feed_scores_and_one_by_one_shows_total() {
+        let mut s = session();
+        run(&mut s, "document.setText", json!({"text": "Momento di valutazione"}));
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"title": "Cinematica", "questions": ["Calcola la velocità.", "Calcola lo spazio."]}));
+        run(&mut s, "caret.docStart", json!({}));
+        run(&mut s, "exercise.scores", json!({"on": true}));
+
+        // Assign points to subquestions a) and b) of the problem.
+        let st = run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 1, "points": 2}));
+        assert_eq!(st["total"], 2.0);
+        let st = run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 2, "points": 3.5}));
+        assert_eq!(st["total"], 5.5);
+
+        // Question paragraphs show `(2 punti)` and `(3,5 punti)`, while repeated prompts in the solution do NOT.
+        let all = texts(&s);
+        assert!(all.iter().any(|t| t == "Calcola la velocità. (2 punti)"), "{all:?}");
+        assert!(all.iter().any(|t| t == "Calcola lo spazio. (3,5 punti)"), "{all:?}");
+        assert!(all.iter().any(|t| t == "a) Calcola la velocità."), "{all:?}");
+        assert!(!all.iter().any(|t| t == "a) Calcola la velocità. (2 punti)"), "prompts omit points suffix: {all:?}");
+
+        // 1 exercise x 1 criterion scores table gets the sum (5,5) AND shows the Total summary row!
+        let sc = run(&mut s, "exercise.scores", json!({}));
+        assert_eq!(sc["points"], json!([[5.5]]));
+        let tbl = s.doc.body.iter().find_map(|b| b.as_table()).unwrap();
+        let rows: Vec<Vec<String>> =
+            tbl.rows.iter().map(|r| r.cells.iter().map(|c| super::super::plain(c.blocks[0].as_para().unwrap())).collect()).collect();
+        assert_eq!(rows, vec![vec!["Esercizio", "Punti"], vec!["1", "", "5,5"], vec!["Totale", "", "5,5"]]);
+
+        // Clearing points removes TAG_POINTS cleanly, leaving the classic format.
+        run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 1, "points": null}));
+        run(&mut s, "exercise.questionPoints", json!({"exercise": 1, "question": 2, "points": null}));
+        assert!(texts(&s).iter().any(|t| t == "Calcola la velocità."));
+        assert!(!s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == TAG_POINTS));
     }
 }

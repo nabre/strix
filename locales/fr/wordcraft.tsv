@@ -2412,6 +2412,7 @@ preview	Title	Titre
 	Pages in the range	Pages de la plage
 	Scale to paper size	Ajuster au format du papier
 	Calculation and exercise	Calcul et exercice
+	Sample test	Évaluation (exemple)
 paper	Letter	Lettre US
 paper	Legal	Légal US
 paper	Envelope #10	Enveloppe n° 10
@@ -3042,3 +3043,15 @@ paper	Envelope DL	Enveloppe DL
 	Use the proposed scale	Utiliser l'échelle proposée
 	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
 	Give the block a name	Donnez un nom au bloc
+	Variants & Data	Variantes et données
+	Show data in exercise	Afficher les données dans l'exercice
+	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Affiche le bloc Données dans l'exercice ; désactivé, les valeurs restent uniquement dans l'espace de calcul
+	Question Mode	Mode de la question
+	Question Points	Points de la question
+	Mode	Mode
+	Go to working	Aller à la résolution
+	Put the cursor in this calculation's working space	Place le curseur dans l'espace de résolution de ce calcul
+	Open in CAD editor	Ouvrir dans l'éditeur CAO
+	Select this question's solution drawing and open it in the CAD editor	Sélectionne le dessin de corrigé de cette question et l'ouvre dans l'éditeur CAO
+	No result equation yet	Aucune équation de résultat
+	write a question first	écrivez d'abord une question

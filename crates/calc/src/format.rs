@@ -69,19 +69,77 @@ fn decimal_digits(v: f64) -> (bool, Vec<u8>, i32) {
     (v < 0.0, ds, exp)
 }
 
-/// `v` rounded to `places` decimals (negative: to tens, hundreds…) the way results are shown:
-/// half away from zero on its shortest decimal form, so `round(1.005; 2)` is 1.01 as `1.005`
-/// shown with two decimals is.
-pub(crate) fn round_decimal(v: f64, places: i32) -> f64 {
-    if !v.is_finite() {
+/// Direction in which [`step_decimal`] rounds the shortest decimal digits of a number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RoundMode {
+    HalfAwayFromZero,
+    Floor,
+    Ceil,
+    Trunc,
+}
+
+/// `v` rounded to `places` decimals (negative: to tens, hundreds…) using `mode` on its shortest
+/// decimal form (capped at 15 significant digits), so `round(1.005; 2)` is `1.01` and
+/// `floor(0.29; 2)` stays `0.29` without binary floating-point drift.
+pub(crate) fn step_decimal(v: f64, places: i32, mode: RoundMode) -> f64 {
+    if !v.is_finite() || v == 0.0 {
         return v;
     }
     let (negative, mut ds, mut exp) = decimal_digits(v);
-    round_at(&mut ds, &mut exp, -places);
+    let unit = -places;
+    let keep = i64::from(exp) - i64::from(unit) + 1;
+    if keep >= ds.len() as i64 {
+        return v;
+    }
+    let up = match mode {
+        RoundMode::HalfAwayFromZero => keep >= 0 && ds.get(keep as usize).is_some_and(|&d| d >= 5),
+        RoundMode::Trunc => false,
+        RoundMode::Floor => negative,
+        RoundMode::Ceil => !negative,
+    };
+    if keep <= 0 {
+        if up {
+            ds = vec![1];
+            exp = unit;
+        } else {
+            return 0.0;
+        }
+    } else {
+        let keep = keep as usize;
+        ds.truncate(keep);
+        if up {
+            let mut i = keep;
+            loop {
+                if i == 0 {
+                    ds.insert(0, 1);
+                    exp += 1;
+                    break;
+                }
+                i -= 1;
+                if let Some(d) = ds.get_mut(i) {
+                    if *d == 9 {
+                        *d = 0;
+                    } else {
+                        *d += 1;
+                        break;
+                    }
+                }
+            }
+        }
+        if ds.is_empty() || ds.iter().all(|&d| d == 0) {
+            return 0.0;
+        }
+    }
     let digits: String = ds.iter().map(|d| char::from(b'0' + d)).collect();
     let shift = i64::from(exp) - (ds.len() as i64 - 1);
-    let r: f64 = format!("{digits}e{shift}").parse().unwrap_or(v);
-    if negative { -r } else { r }
+    let r: f64 = format!("{digits}e{shift}").parse().unwrap_or(v.abs());
+    if r == 0.0 {
+        0.0
+    } else if negative {
+        -r
+    } else {
+        r
+    }
 }
 
 /// Rounds the digits (first at 10^exp) half away from zero to the power of ten `unit`.
@@ -175,7 +233,8 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
         Expr::Unit(name) => name.clone(),
         Expr::Neg(inner) => format!("-{}", wrap(inner, is_sum(inner))),
         Expr::Call(func, args) => {
-            let args: Vec<String> = args.iter().map(render).collect();
+            let args: Vec<String> =
+                args.iter().enumerate().map(|(i, a)| if func.is_rounding() && i == 2 { crate::format::render(a) } else { render(a) }).collect();
             match (func, args.as_slice()) {
                 (Func::Sqrt, [a]) => format!("√({a})"),
                 _ => format!("{}({})", func.name(), args.join("; ")),

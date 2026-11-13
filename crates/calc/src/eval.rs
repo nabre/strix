@@ -2,8 +2,21 @@
 
 use crate::parser::{BinOp, Expr, Func, Nary};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::units::{affine, constant, dim_name, unit};
+use crate::units::{TEMPERATURE_DIM, affine, constant, dim_name, unit};
 use crate::{CalcError, MAX_CALL_DEPTH, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
+
+/// The hint of a temperature difference (`T₂ − T₁`): shown in kelvin, never with the offset of
+/// a `°C`/`°F` working unit.
+pub(crate) const DIFFERENCE: &str = "K";
+
+/// What a temperature expression is (`docs/calc.md`, Temperatures).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Temp {
+    /// An absolute temperature written in `°C` or `°F` (the unit), or worked out from one.
+    Absolute(String),
+    /// A difference of absolute temperatures.
+    Difference,
+}
 
 /// Deepest nesting of evaluations, counting into function bodies: one expression nests at most
 /// [`MAX_NODES`](crate::MAX_NODES) deep, so this only stops functions calling each other with
@@ -122,6 +135,11 @@ pub struct Scope {
     index: std::collections::HashMap<String, usize>,
     /// User functions, in definition order.
     funcs: Vec<Function>,
+    /// Working units: the last unit written for each dimension (`b = 300 mm` makes lengths show
+    /// in mm), as its quantity and text.
+    pub(crate) working: Vec<(Dim, Quantity, String)>,
+    /// The unit hint each parameter is shown in (`α = 30°` → `°`, `T = 20 °C` → `°C`).
+    pub(crate) hints: Vec<(String, String)>,
     /// Work done by every evaluation against this scope (one worksheet), capped by
     /// [`MAX_SHEET_STEPS`]: however many regions and cells a document has, recalculating it ends.
     spent: std::cell::Cell<usize>,
@@ -212,6 +230,180 @@ impl Scope {
     /// True when nothing is defined.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// Whether `e` is an absolute temperature in `°C`/`°F` or a difference of them, from how it
+    /// is written.
+    pub(crate) fn temp_kind(&self, e: &Expr, depth: usize) -> Option<Temp> {
+        if depth > 64 {
+            return None;
+        }
+        if let Some(u) = self.affine_literal(e) {
+            return Some(Temp::Absolute(u));
+        }
+        match e {
+            Expr::Name(n) => {
+                if self.get(n).map(Value::dim) != Some(TEMPERATURE_DIM) {
+                    return None;
+                }
+                let (_, h) = self.hints.iter().find(|(m, _)| m == n)?;
+                if affine(h).is_some() { Some(Temp::Absolute(h.clone())) } else { (h == DIFFERENCE).then_some(Temp::Difference) }
+            }
+            Expr::Neg(a) if self.affine_literal(a).is_some() => self.temp_kind(a, depth + 1),
+            Expr::Neg(a) => self.temp_kind(a, depth + 1).filter(|k| *k == Temp::Difference),
+            Expr::Bin(op, a, b) => self.temp_bin(*op, a, b, depth + 1),
+            Expr::Index(a, _) => self.temp_kind(a, depth + 1),
+            Expr::Vector(items) => self.common_temp(items, depth + 1),
+            Expr::Call(f, args) if f.is_rounding() => self.rounding_temp(args, depth + 1),
+            Expr::Call(Func::Min | Func::Max | Func::Mean | Func::Abs, args) => self.common_temp(args.get(..1).unwrap_or_default(), depth + 1),
+            _ => None,
+        }
+    }
+
+    fn affine_literal(&self, x: &Expr) -> Option<String> {
+        match x {
+            Expr::Bin(BinOp::Mul, _, u) => match &**u {
+                Expr::Unit(n) => affine(n).map(|_| n.clone()),
+                Expr::Name(n) if self.get(n).is_none() => affine(n).map(|_| n.clone()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn temp_bin(&self, op: BinOp, a: &Expr, b: &Expr, depth: usize) -> Option<Temp> {
+        let (ka, kb) = (self.temp_kind(a, depth), self.temp_kind(b, depth));
+        match op {
+            BinOp::Sub => match (ka, kb) {
+                (Some(Temp::Absolute(_)), Some(Temp::Absolute(_))) => Some(Temp::Difference),
+                (Some(Temp::Absolute(u)), _) => Some(Temp::Absolute(u)),
+                (Some(Temp::Difference), _) | (None, Some(Temp::Difference)) => Some(Temp::Difference),
+                _ => None,
+            },
+            BinOp::Add => match (ka, kb) {
+                (Some(Temp::Absolute(_)), Some(Temp::Absolute(_))) => None,
+                (Some(Temp::Absolute(u)), _) | (_, Some(Temp::Absolute(u))) => Some(Temp::Absolute(u)),
+                (Some(Temp::Difference), _) | (_, Some(Temp::Difference)) => Some(Temp::Difference),
+                _ => None,
+            },
+            BinOp::Mul => match (ka, kb) {
+                (Some(Temp::Difference), None) | (None, Some(Temp::Difference)) => Some(Temp::Difference),
+                _ => None,
+            },
+            BinOp::Div => match (ka, kb) {
+                (Some(Temp::Difference), None) => Some(Temp::Difference),
+                _ => None,
+            },
+            BinOp::Pow => None,
+        }
+    }
+
+    fn common_temp(&self, items: &[Expr], depth: usize) -> Option<Temp> {
+        let mut found: Option<Temp> = None;
+        for item in items {
+            match (self.temp_kind(item, depth), &found) {
+                (Some(k), Some(f)) if k != *f => return None,
+                (Some(k), None) => found = Some(k),
+                (None, _) => return None,
+                _ => {}
+            }
+        }
+        found
+    }
+
+    fn rounding_temp(&self, args: &[Expr], depth: usize) -> Option<Temp> {
+        if let Some(u_expr) = args.get(2) {
+            let u_text = crate::format::render(u_expr);
+            if affine(&u_text).is_some() {
+                return match self.temp_kind(args.first()?, depth) {
+                    Some(Temp::Difference) => Some(Temp::Difference),
+                    _ => Some(Temp::Absolute(u_text)),
+                };
+            }
+            if u_text == DIFFERENCE {
+                return None;
+            }
+        }
+        self.common_temp(args.get(..1).unwrap_or_default(), depth)
+    }
+
+    /// The dimensionless unit a plain-number result of `e` is shown in (`°`, `%`, `‰`, `gon`).
+    pub(crate) fn dimensionless_hint(&self, e: &Expr) -> Option<String> {
+        match e {
+            Expr::Num(_) | Expr::Range(..) | Expr::Bin(BinOp::Pow, ..) => None,
+            Expr::Unit(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
+            Expr::Name(n)
+                if let Some((_, h)) = self.hints.iter().find(|(m, _)| m == n).filter(|(_, h)| unit(h).is_some_and(|q| q.dim.is_dimensionless())) =>
+            {
+                Some(h.clone())
+            }
+            Expr::Name(n) if self.get(n).is_some() || constant(n).is_some() => None,
+            Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
+            Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
+            Expr::Bin(op @ (BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div), a, b) => self.dimless_bin(*op, a, b),
+            Expr::Call(Func::Asin | Func::Acos | Func::Atan, _) => Some("°".to_string()),
+            Expr::Call(f, args) if f.is_rounding() => self.rounding_dimless(args),
+            Expr::Call(Func::Min | Func::Max | Func::Abs | Func::Sum | Func::Mean, args) => self.common_dimless(args.get(..1).unwrap_or_default()),
+            Expr::Call(..) | Expr::Apply(..) => None,
+            Expr::Vector(items) => self.common_dimless(items),
+            Expr::Nary(n) if n.op == '∑' => self.dimensionless_hint(&n.body),
+            Expr::Nary(_) => None,
+        }
+    }
+
+    fn dimless_bin(&self, op: BinOp, a: &Expr, b: &Expr) -> Option<String> {
+        match (op, self.dimensionless_hint(a), self.dimensionless_hint(b)) {
+            (BinOp::Add | BinOp::Sub, Some(x), Some(y)) if x == y => Some(x),
+            (BinOp::Add | BinOp::Sub, Some(x), None) | (BinOp::Add | BinOp::Sub, None, Some(x)) => Some(x),
+            (BinOp::Mul, Some(x), None) | (BinOp::Mul, None, Some(x)) => Some(x),
+            (BinOp::Div, Some(x), None) => Some(x),
+            _ => None,
+        }
+    }
+
+    fn common_dimless(&self, items: &[Expr]) -> Option<String> {
+        let mut found: Option<String> = None;
+        for item in items {
+            match (self.dimensionless_hint(item), &found) {
+                (Some(h), Some(f)) if h != *f => return None,
+                (Some(h), None) => found = Some(h),
+                _ => {}
+            }
+        }
+        found
+    }
+
+    fn rounding_dimless(&self, args: &[Expr]) -> Option<String> {
+        if let Some(u_expr) = args.get(2) {
+            let u_text = crate::format::render(u_expr);
+            if unit(&u_text).is_some_and(|q| q.dim.is_dimensionless()) {
+                return Some(u_text);
+            }
+            if eval_scalar(u_expr, self, Names::UnitsOnly).is_ok_and(|q| q.dim.is_dimensionless()) {
+                return Some(u_text);
+            }
+            return None;
+        }
+        self.common_dimless(args.get(..1).unwrap_or_default())
+    }
+
+    /// Direct written unit expression on a literal quantity (`2.34 cm`, `-5 km`, `[1; 2] mm`).
+    pub(crate) fn direct_unit_expr<'e>(&self, e: &'e Expr) -> Option<&'e Expr> {
+        match e {
+            Expr::Neg(inner) => self.direct_unit_expr(inner),
+            Expr::Bin(BinOp::Mul, _, u) if Self::is_unit_tree(u, self) => Some(u),
+            _ => None,
+        }
+    }
+
+    fn is_unit_tree(e: &Expr, scope: &Scope) -> bool {
+        match e {
+            Expr::Unit(_) => true,
+            Expr::Name(n) => scope.get(n).is_none() && constant(n).is_none() && unit(n).is_some(),
+            Expr::Bin(BinOp::Mul | BinOp::Div, l, r) => Self::is_unit_tree(l, scope) && Self::is_unit_tree(r, scope),
+            Expr::Bin(BinOp::Pow, base, _) => Self::is_unit_tree(base, scope),
+            _ => false,
+        }
     }
 }
 
@@ -317,6 +509,7 @@ impl<'a> Ctx<'a> {
                 let b = self.eval(right)?;
                 self.binary(*op, a, b)
             }
+            Expr::Call(func, args) if func.is_rounding() => self.eval_rounding(*func, args),
             Expr::Call(func, args) => {
                 let values = args.iter().map(|a| self.eval(a)).collect::<Result<Vec<_>, _>>()?;
                 self.call(*func, &values)
@@ -563,26 +756,6 @@ impl<'a> Ctx<'a> {
                 }
                 Ok(acc.into())
             }
-            Func::Round => {
-                let (x, digits) = match args {
-                    [x] => (x, 0.0),
-                    [x, n] => {
-                        let n = plain(function, n.expect_scalar()?)?;
-                        (x, n.round().clamp(-15.0, 15.0))
-                    }
-                    _ => return Err(CalcError::Arity { function: function.to_string(), expected: "1 or 2 arguments" }),
-                };
-                // A quantity with a unit is rounded in coherent SI and keeps its unit
-                // (`round(2.345 m; 2) = 2.35 m`); a temperature's kelvins aren't what was written,
-                // so it must be a plain number.
-                let places = digits as i32;
-                self.map(x, |q| {
-                    if q.dim.exponents().get(4).copied().unwrap_or(0) != 0 {
-                        plain(function, q)?;
-                    }
-                    Ok(Quantity::new(finite(crate::format::round_decimal(q.value, places))?, q.dim))
-                })
-            }
             _ => {
                 let [x] = args else {
                     return Err(CalcError::Arity { function: function.to_string(), expected: "1 argument" });
@@ -590,6 +763,76 @@ impl<'a> Ctx<'a> {
                 self.map(x, |q| unary(func, q))
             }
         }
+    }
+
+    fn eval_rounding(&mut self, func: Func, args: &[Expr]) -> Result<Value, CalcError> {
+        let function = func.name();
+        let (x_expr, places, unit_arg) = match args {
+            [x] => (x, 0, None),
+            [x, n] => {
+                let n = plain(function, self.eval(n)?.expect_scalar()?)?;
+                (x, n.round().clamp(-15.0, 15.0) as i32, None)
+            }
+            [x, n, u] => {
+                let n = plain(function, self.eval(n)?.expect_scalar()?)?;
+                (x, n.round().clamp(-15.0, 15.0) as i32, Some(u))
+            }
+            _ => return Err(CalcError::Arity { function: function.to_string(), expected: "1 to 3 arguments" }),
+        };
+        let x_val = self.eval(x_expr)?;
+        let (uq, affine_offset) = self.rounding_unit(x_expr, &x_val, unit_arg)?;
+        let mode = match func {
+            Func::Floor => crate::format::RoundMode::Floor,
+            Func::Ceil => crate::format::RoundMode::Ceil,
+            Func::Trunc => crate::format::RoundMode::Trunc,
+            _ => crate::format::RoundMode::HalfAwayFromZero,
+        };
+        self.map(&x_val, |q| {
+            let v = match (uq, affine_offset) {
+                (Some(u), Some(off)) => crate::format::step_decimal((q.value - off) / u.value, places, mode) * u.value + off,
+                (Some(u), None) => crate::format::step_decimal(q.value / u.value, places, mode) * u.value,
+                (None, _) => crate::format::step_decimal(q.value, places, mode),
+            };
+            Ok(Quantity::new(finite(v)?, q.dim))
+        })
+    }
+
+    fn rounding_unit(&mut self, x_expr: &Expr, x_val: &Value, unit_arg: Option<&Expr>) -> Result<(Option<Quantity>, Option<f64>), CalcError> {
+        if let Some(u_expr) = unit_arg {
+            let u_text = crate::format::render(u_expr);
+            let mut uctx = Ctx::new(self.scope, Names::UnitsOnly, Vec::new()).with_steps(self.steps);
+            let uq = uctx.eval(u_expr)?.expect_scalar()?;
+            self.steps = uctx.steps();
+            if uq.dim != x_val.dim() {
+                return Err(CalcError::WrongUnit { result: dim_name(x_val.dim()), requested: u_text });
+            }
+            if uq.value == 0.0 {
+                return Err(CalcError::DivisionByZero);
+            }
+            let off = affine(&u_text).filter(|_| self.scope.temp_kind(x_expr, 0) != Some(Temp::Difference)).map(|(_, o)| o);
+            return Ok((Some(uq), off));
+        }
+        let dim = x_val.dim();
+        if dim.is_dimensionless() {
+            let uq = self.scope.dimensionless_hint(x_expr).and_then(|h| unit(&h));
+            return Ok((uq, None));
+        }
+        if dim == TEMPERATURE_DIM {
+            if let Some(Temp::Absolute(h)) = self.scope.temp_kind(x_expr, 0) {
+                return Ok((unit(&h), affine(&h).map(|(_, o)| o)));
+            }
+        }
+        if let Some(u_expr) = self.scope.direct_unit_expr(x_expr) {
+            let mut uctx = Ctx::new(self.scope, Names::UnitsOnly, Vec::new()).with_steps(self.steps);
+            if let Ok(uq) = uctx.eval(u_expr).and_then(|v| v.expect_scalar()) {
+                self.steps = uctx.steps();
+                if uq.dim == dim && uq.value > 0.0 {
+                    return Ok((Some(uq), None));
+                }
+            }
+        }
+        let working = self.scope.working.iter().find(|(d, _, t)| *d == dim && affine(t).is_none()).map(|(_, q, _)| *q);
+        Ok((working, None))
     }
 
     /// `f` applied to a scalar, or to each element of a vector.

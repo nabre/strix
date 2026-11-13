@@ -110,161 +110,204 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
         // A lone exercise has no number.
         let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
         ui.label(egui::RichText::new(title).size(15.0).strong());
-        // An open-answer or multiple-choice exercise: its questions instead of data and variants.
         if let Some(st) = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().filter(|st| st["kind"] != "problem") {
             crate::pane_kit::section(ui, "01", tl!("Questions"));
             crate::exercise_quiz::questions(app, ui, ex, &st);
+            let needs_data = st["questions"].as_array().is_some_and(|qs| qs.iter().any(|q| matches!(q["type"].as_str(), Some("calc" | "drawing"))))
+                || data["items"].as_array().is_some_and(|a| !a.is_empty())
+                || variants.len() > 1;
+            ui.add_space(6.0);
+            egui::CollapsingHeader::new(tl!("Variants & Data")).id_salt(("quiz_variants_data", ex, needs_data)).default_open(needs_data).show(
+                ui,
+                |ui| {
+                    variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, "02", "03", &save);
+                },
+            );
             if lone {
-                crate::pane_kit::section(ui, "02", tl!("Page Breaks"));
+                crate::pane_kit::section(ui, "04", tl!("Page Breaks"));
                 page_breaks(app, ui);
-                crate::pane_kit::section(ui, "03", tl!("Parts Shown"));
+                crate::pane_kit::section(ui, "05", tl!("Parts Shown"));
                 parts(app, ui, ex);
-                crate::pane_kit::section(ui, "04", tl!("Frontispiece"));
+                crate::pane_kit::section(ui, "06", tl!("Frontispiece"));
                 frontispiece(app, ui);
+            } else {
+                ui.add_space(6.0);
+                crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
             }
             return;
         }
-        // Variants: the active one is the one the exercise is calculated with.
-        crate::pane_kit::section(ui, "01", tl!("Variants"));
-        ui.horizontal_wrapped(|ui| {
-            for (k, name) in variants.iter().enumerate() {
-                if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked()
-                    && k != active
-                {
-                    let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
-                }
-            }
-            let can_add = variants.len() < MAX_VARIANTS;
-            if ui.add_enabled(can_add, egui::Button::new("+")).on_hover_text(tl!("Add a variant: a copy of the active one's values")).clicked() {
-                // The first letter no variant has yet (after A, B removed: A again, not B twice).
-                let taken = |c: &String| variants.iter().any(|v| v == c) || (variants.is_empty() && c == "A");
-                let next = (b'A'..=b'Z').map(|b| char::from(b).to_string()).find(|c| !taken(c)).unwrap_or_else(|| format!("{}", variants.len() + 1));
-                if let Some(names) = data["variants"].as_array_mut() {
-                    names.push(json!(next));
-                } else {
-                    data["variants"] = json!(["A", next]);
-                }
-                if let Some(items) = data["items"].as_array_mut() {
-                    for item in items {
-                        let copy = item["values"].get(active).cloned().unwrap_or(json!(""));
-                        if let Some(values) = item["values"].as_array_mut() {
-                            values.push(copy);
-                        }
-                    }
-                }
-                data["active"] = json!(variants.len().max(1));
-                save(app, &data);
-            }
-            if ui.add_enabled(variants.len() > 1, egui::Button::new("−")).on_hover_text(tl!("Remove the active variant")).clicked() {
-                if let Some(names) = data["variants"].as_array_mut()
-                    && active < names.len()
-                {
-                    names.remove(active);
-                }
-                if let Some(items) = data["items"].as_array_mut() {
-                    for item in items {
-                        if let Some(values) = item["values"].as_array_mut()
-                            && active < values.len()
-                        {
-                            values.remove(active);
-                        }
-                    }
-                }
-                data["active"] = json!(active.saturating_sub(1));
-                save(app, &data);
-            }
-        });
-        // Data: symbol, description, value in the active variant, unit.
-        crate::pane_kit::section(ui, "02", tl!("Data"));
-        let rows = data["items"].as_array().map_or(0, Vec::len);
-        let mut remove = None;
-        crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true), |ui| {
-            for head in ["Symbol", "Description", "Value", "Unit", ""] {
-                ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
-            }
-            ui.end_row();
-            for row in 0..rows {
-                let field = |data: &Value, key: &str| data["items"][row][key].as_str().unwrap_or_default().to_string();
-                let value = data["items"][row]["values"][active].as_str().unwrap_or_default().to_string();
-                let mut changed: Option<(&str, String)> = None;
-                for (key, width, current) in [("symbol", 40.0, field(&data, "symbol")), ("description", 90.0, field(&data, "description"))] {
-                    ui.scope(|ui| {
-                        ui.set_width(width);
-                        if let Some(t) = draft_box(ui, ("exercise_data", ex, row, key), &current, true, false) {
-                            changed = Some((key, t));
-                        }
-                    });
-                }
-                ui.scope(|ui| {
-                    ui.set_width(56.0);
-                    if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "value", active), &value, true, false) {
-                        changed = Some(("value", t));
-                    }
-                });
-                ui.scope(|ui| {
-                    ui.set_width(58.0);
-                    if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "unit"), &field(&data, "unit"), true, false) {
-                        changed = Some(("unit", t));
-                    }
-                });
-                if ui.small_button("×").on_hover_text(tl!("Remove this datum")).clicked() {
-                    remove = Some(row);
-                }
-                ui.end_row();
-                if let Some(error) = errors.get(row).and_then(Value::as_str) {
-                    ui.label("");
-                    ui.colored_label(ui.visuals().error_fg_color, egui::RichText::new(error).small());
-                    ui.end_row();
-                }
-                if let Some((key, text)) = changed {
-                    if key == "value" {
-                        data["items"][row]["values"][active] = json!(text);
-                    } else {
-                        data["items"][row][key] = json!(text);
-                    }
-                    save(app, &data);
-                }
-            }
-        });
-        if let Some(row) = remove
-            && let Some(items) = data["items"].as_array_mut()
-            && row < items.len()
-        {
-            items.remove(row);
-            save(app, &data);
+        variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, "01", "02", &save);
+        let q_st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok();
+        let has_q = q_st.as_ref().and_then(|st| st["questions"].as_array()).is_some_and(|a| !a.is_empty());
+        if let Some(st) = q_st.as_ref().filter(|_| has_q) {
+            crate::pane_kit::section(ui, "03", tl!("Questions"));
+            crate::exercise_quiz::problem_questions(app, ui, ex, st);
         }
-        ui.add_space(6.0);
-        if ui.button(tl!("Add Datum")).on_hover_text(tl!("Add an initial datum: a symbol with its value in every variant")).clicked() {
-            let n = variants.len().max(1);
-            let item = json!({"symbol": "", "description": "", "unit": "", "values": vec![""; n]});
-            match data["items"].as_array_mut() {
-                Some(items) => items.push(item),
-                None => data["items"] = json!([item]),
-            }
-            if data["variants"].as_array().is_none_or(Vec::is_empty) {
-                data["variants"] = json!(["A"]);
-            }
-            save(app, &data);
-        }
-        ui.add_space(6.0);
-        crate::pane_kit::note(
-            ui,
-            tl!(
-                "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
-            ),
-        );
         if lone {
-            crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
+            let (s1, s2, s3) = if has_q { ("04", "05", "06") } else { ("03", "04", "05") };
+            crate::pane_kit::section(ui, s1, tl!("Page Breaks"));
             page_breaks(app, ui);
-            crate::pane_kit::section(ui, "04", tl!("Parts Shown"));
+            crate::pane_kit::section(ui, s2, tl!("Parts Shown"));
             parts(app, ui, ex);
-            crate::pane_kit::section(ui, "05", tl!("Frontispiece"));
+            crate::pane_kit::section(ui, s3, tl!("Frontispiece"));
             frontispiece(app, ui);
         } else {
             ui.add_space(6.0);
             crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn variants_and_data(
+    app: &mut WordApp,
+    ui: &mut Ui,
+    ex: u64,
+    data: &mut Value,
+    variants: &[String],
+    active: usize,
+    errors: &[Value],
+    sec_var: &str,
+    sec_data: &str,
+    save: &dyn Fn(&mut WordApp, &Value),
+) {
+    // Variants: the active one is the one the exercise is calculated with.
+    crate::pane_kit::section(ui, sec_var, tl!("Variants"));
+    ui.horizontal_wrapped(|ui| {
+        for (k, name) in variants.iter().enumerate() {
+            if ui.selectable_label(k == active, name.as_str()).on_hover_text(tl!("Calculate the exercise with this variant")).clicked() && k != active
+            {
+                let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
+            }
+        }
+        let can_add = variants.len() < MAX_VARIANTS;
+        if ui.add_enabled(can_add, egui::Button::new("+")).on_hover_text(tl!("Add a variant: a copy of the active one's values")).clicked() {
+            // The first letter no variant has yet (after A, B removed: A again, not B twice).
+            let taken = |c: &String| variants.iter().any(|v| v == c) || (variants.is_empty() && c == "A");
+            let next = (b'A'..=b'Z').map(|b| char::from(b).to_string()).find(|c| !taken(c)).unwrap_or_else(|| format!("{}", variants.len() + 1));
+            if let Some(names) = data["variants"].as_array_mut() {
+                names.push(json!(next));
+            } else {
+                data["variants"] = json!(["A", next]);
+            }
+            if let Some(items) = data["items"].as_array_mut() {
+                for item in items {
+                    let copy = item["values"].get(active).cloned().unwrap_or(json!(""));
+                    if let Some(values) = item["values"].as_array_mut() {
+                        values.push(copy);
+                    }
+                }
+            }
+            data["active"] = json!(variants.len().max(1));
+            save(app, data);
+        }
+        if ui.add_enabled(variants.len() > 1, egui::Button::new("−")).on_hover_text(tl!("Remove the active variant")).clicked() {
+            if let Some(names) = data["variants"].as_array_mut()
+                && active < names.len()
+            {
+                names.remove(active);
+            }
+            if let Some(items) = data["items"].as_array_mut() {
+                for item in items {
+                    if let Some(values) = item["values"].as_array_mut()
+                        && active < values.len()
+                    {
+                        values.remove(active);
+                    }
+                }
+            }
+            data["active"] = json!(active.saturating_sub(1));
+            save(app, data);
+        }
+    });
+    // Data: symbol, description, value in the active variant, unit.
+    crate::pane_kit::section(ui, sec_data, tl!("Data"));
+    let mut show_data = data["showData"].as_bool().unwrap_or(true);
+    if ui
+        .checkbox(&mut show_data, tl!("Show data in exercise"))
+        .on_hover_text(tl!("Print the Data block in the exercise; off, the values stay in the calculation sandbox only"))
+        .changed()
+    {
+        data["showData"] = json!(show_data);
+        save(app, data);
+    }
+    let rows = data["items"].as_array().map_or(0, Vec::len);
+    let mut remove = None;
+    crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true), |ui| {
+        for head in ["Symbol", "Description", "Value", "Unit", ""] {
+            ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
+        }
+        ui.end_row();
+        for row in 0..rows {
+            let field = |data: &Value, key: &str| data["items"][row][key].as_str().unwrap_or_default().to_string();
+            let value = data["items"][row]["values"][active].as_str().unwrap_or_default().to_string();
+            let mut changed: Option<(&str, String)> = None;
+            for (key, width, current) in [("symbol", 40.0, field(data, "symbol")), ("description", 90.0, field(data, "description"))] {
+                ui.scope(|ui| {
+                    ui.set_width(width);
+                    if let Some(t) = draft_box(ui, ("exercise_data", ex, row, key), &current, true, false) {
+                        changed = Some((key, t));
+                    }
+                });
+            }
+            ui.scope(|ui| {
+                ui.set_width(56.0);
+                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "value", active), &value, true, false) {
+                    changed = Some(("value", t));
+                }
+            });
+            ui.scope(|ui| {
+                ui.set_width(58.0);
+                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "unit"), &field(data, "unit"), true, false) {
+                    changed = Some(("unit", t));
+                }
+            });
+            if ui.small_button("×").on_hover_text(tl!("Remove this datum")).clicked() {
+                remove = Some(row);
+            }
+            ui.end_row();
+            if let Some(error) = errors.get(row).and_then(Value::as_str) {
+                ui.label("");
+                ui.colored_label(ui.visuals().error_fg_color, egui::RichText::new(error).small());
+                ui.end_row();
+            }
+            if let Some((key, text)) = changed {
+                if key == "value" {
+                    data["items"][row]["values"][active] = json!(text);
+                } else {
+                    data["items"][row][key] = json!(text);
+                }
+                save(app, data);
+            }
+        }
+    });
+    if let Some(row) = remove
+        && let Some(items) = data["items"].as_array_mut()
+        && row < items.len()
+    {
+        items.remove(row);
+        save(app, data);
+    }
+    ui.add_space(6.0);
+    if ui.button(tl!("Add Datum")).on_hover_text(tl!("Add an initial datum: a symbol with its value in every variant")).clicked() {
+        let n = variants.len().max(1);
+        let item = json!({"symbol": "", "description": "", "unit": "", "values": vec![""; n]});
+        match data["items"].as_array_mut() {
+            Some(items) => items.push(item),
+            None => data["items"] = json!([item]),
+        }
+        if data["variants"].as_array().is_none_or(Vec::is_empty) {
+            data["variants"] = json!(["A"]);
+        }
+        save(app, data);
+    }
+    ui.add_space(6.0);
+    crate::pane_kit::note(
+        ui,
+        tl!(
+            "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
+        ),
+    );
 }
 
 /// The parts shown and the graph paper (`exercise.show`, `exercise.grid`): of this exercise, or
