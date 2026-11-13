@@ -55,22 +55,27 @@ equations** (docs/calc.md) of the exercise's sandbox, so they use the exercise's
 follow its **variants**: variant A gives `A = 15 cm²`, variant B `A = 24 cm²`, with nothing redone
 by hand. The data part of a quiz goes after its statement, or after its title when it has none.
 
-- The **last equation in the space is the result** (marked as the question's result, like
-  Result Of in a problem); the ones before it are working, shown with their steps
+- The **results** are the values found in the space that the working doesn't use afterwards:
+  `s = a·t^2/2 =` and `v = a·t =` are two results, while in `d = b + h =`, `P = 2·d =` only `P`
+  is (`d` is working). Each is marked as the question's result (like Result Of in a problem);
+  with none such, the last equation is the result. The working is shown with its steps
   (substitution, isolation: Math › Show Steps).
-- Under the space a **result line** (`strix:exercise.resultLine`, generated, can't be edited or
-  deleted), labelled with the exercise language's word for the answer (*Risposta*, *Answer*,
-  *Réponse*…) so it reads as the answer to give, never as a stray copy of the result: while the
-  answers are hidden, the result's name, a blank and its **unit** (`Risposta: A = ______ cm²`),
-  so the student knows what is asked and in which unit (it also serves the DSA *Calcolo e
-  memoria* formatting); when they show, the result (`Risposta: A = 15 cm²`), its value in the
-  answers' colour like the working above it. With no result yet it is a blank. Commands report
-  the line without its label (`exercise.questions` → `"line": "A = 15 cm²"`).
+- Under the space, **one result line per result** (`strix:exercise.resultLine`, generated,
+  can't be edited or deleted), right-aligned on the margin in columns so the lines of one
+  question line up: the label (*Risposta:*, *Answer:*, *Réponse:*, in the exercise's language,
+  on the first line only), the name with its `=`, a line to write on, the **unit**. In the
+  students' copy the line is blank (`Risposta:  s = ________ m`), so the student knows what is
+  asked and in which unit (it also serves the DSA *Calcolo e memoria* formatting); in the
+  corrected copy the value is written on it, underlined, in the answers' colour
+  (`s = 20 ____ m`). The lines are 1 cm apart (exact line spacing), room for a value
+  **handwritten 8 mm tall**. With no result yet there is one blank line. Commands report each
+  line without label and tabs (`exercise.questions` → `"line": "s = 20 m"`, `"lines": ["s = 20 m",
+  "v = 10 m/s"]`).
 - The unit is the result's: ask for it after `=` as in any calculation (`A = b·h = cm^2`),
   otherwise the working unit (`m²`) is used.
 - Hidden, the working is hidden text and the space keeps its height: the students' copy is laid
   out like the corrected one.
-- The results summary lists the result (`c) A = 15 cm²`), or *risultato non indicato*.
+- The results summary lists the results (`c) s = 20 m; v = 10 m/s`), or *risultato non indicato*.
 
 ### CAD drawing
 
@@ -95,7 +100,6 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 - **Stage 4 — More closed modes**: fill in the blanks (*completamento*, blanks inline in the
   question's text), matching (*abbinamento*, two columns), ordering. Each keeps the two-copies
   rule and gives its line to the summary.
-- **Calculation**: a result line per result when the space holds several (tolerances `"2%"` / `"0.1 cm"` and in-place `exercise.questionMode` conversion are now supported).
 - **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and Exercise Properties.
 
 ## Commands
@@ -110,6 +114,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 
 ## Revision history
 
+- 2026-11-13: one result line per result (the values the working doesn't use afterwards), right-aligned in columns that line up at the `=`, 1 cm apart for handwriting 8 mm tall; the corrected copy writes the value on the line, underlined.
 - 2026-11-13: the calculation's result line is labelled (*Risposta: s = 20 m*) and its value is in the answers' colour once given, so in the corrected copy it no longer looks like a stray repeat of the working's result.
 - 2026-11-13: calculation tolerances (`tolerance` in `exercise.questions`), parametric `{{expr}}` options (`strix:expr`), teacher-only option rationales (`strix:rationale`), and deterministic per-variant choice shuffling (`shuffleChoices`).
 - 2026-11-13: in-place mode conversion (`exercise.questionMode`), contextual Quiz controls (mode selector, live calculation preview and Go to Working, CAD scale and Edit Drawing), Variants & Data exposed for quizzes (`showData` toggle), and per-question points on problems (`exercise.questionPoints`).

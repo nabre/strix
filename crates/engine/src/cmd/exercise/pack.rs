@@ -11,12 +11,11 @@ use std::io::{Cursor, Write};
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use wordcraft_doc::para::OBJ;
 use wordcraft_doc::props::{Align, CellProps, CharProps, ParaProps};
 use wordcraft_doc::table::{Cell, Row, Table};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
-use super::items::{Mode, TAG_LINE, choices, items, span};
+use super::items::{Mode, choices, items};
 use super::{STYLE_HEADING, doc_words, numbering, plain, scan};
 use crate::{CmdError, CmdResult, Session, p};
 
@@ -111,13 +110,7 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                         if letters.is_empty() { "—".to_string() } else { letters.join(", ") }
                     }
                     Mode::Calc => {
-                        let line = it.answer.and_then(|(a, b)| {
-                            (a..=b).find_map(|bi| {
-                                let p = sess.doc.body.get(bi)?.as_para()?;
-                                let (x, y) = span(p, TAG_LINE)?;
-                                p.text.get(x + OBJ.len_utf8()..y).map(|t| super::items::line_value(t).to_string())
-                            })
-                        });
+                        let line = it.answer.map(|r| super::items::line_values(sess, r).join("; ")).filter(|l| !l.is_empty());
                         line.unwrap_or_else(|| {
                             let qn = u32::try_from(q_idx + 1).unwrap_or(u32::MAX);
                             calc_map.get(&(e_idx, qn)).and_then(|v| v.last()).cloned().unwrap_or_else(|| "—".into())
