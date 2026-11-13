@@ -549,7 +549,12 @@ impl Worksheet {
             Ok(Column::Formula { name: String::new(), unit: end_unit.clone(), expr })
         };
         if matches!(tok(0), Some(Tok::Define | Tok::Equals)) {
-            return anonymous(tokens.get(1..).unwrap_or_default());
+            // A bare `=` (being typed, or a header that is only that) is words, not an error.
+            let body = tokens.get(1..).unwrap_or_default();
+            if body.is_empty() && end_unit.is_none() {
+                return Ok(Column::Label);
+            }
+            return anonymous(body);
         }
         let name = match tok(0) {
             Some(Tok::Ident(name)) if name.chars().next().is_some_and(char::is_alphabetic) && Func::from_name(name).is_none() => name.clone(),

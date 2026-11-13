@@ -718,6 +718,12 @@ fn a_table_formula_needs_no_name_and_takes_its_unit_at_the_end() {
     // One unit per column.
     let r = ws.eval_table(&table(&[&["a [m]", "b [m] = 2*a [mm]"], &["1", ""]]));
     assert!(matches!(r.errors.first(), Some((0, 1, CalcError::BadDefinition(_)))));
+    // A bare `=` (being typed) is a label column, not an error.
+    for bare in ["=", " = ", ":="] {
+        let r = ws.eval_table(&table(&[&["a [m]", bare], &["1", "x"]]));
+        assert_eq!(r.errors, vec![], "{bare:?}");
+        assert_eq!(r.updates, vec![], "{bare:?}");
+    }
 }
 
 #[test]

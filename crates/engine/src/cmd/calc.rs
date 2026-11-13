@@ -328,16 +328,22 @@ fn formula_linear(nodes: &[wordcraft_doc::math::MNode], header: bool) -> String 
 fn formula_equals(text: &str) -> usize {
     let rest = text.trim_start();
     match rest.strip_prefix('=') {
-        Some(after) if !after.starts_with('=') => text.len() - after.trim_start().len(),
+        // A formula after it: a bare `=` is a label and shows.
+        Some(after) if !after.starts_with('=') && !after.trim().is_empty() => text.len() - after.trim_start().len(),
         _ => 0,
     }
 }
 
 /// Hides the leading `=` of a header cell's formula written spreadsheet style and shows the rest
-/// (text typed after the `=` takes its formatting, hidden too). Returns whether it changed.
+/// (text typed after the `=` takes its formatting, hidden too). A header without one is left as
+/// it is (text hidden on purpose stays hidden), unless all of it is hidden: what was typed over
+/// a hidden `=`. Returns whether it changed.
 fn hide_formula_equals(p: &mut Paragraph) -> bool {
     let cut = formula_equals(&p.text);
     let hidden = |props: &wordcraft_doc::props::CharProps| props.hidden == Some(true);
+    if cut == 0 && (p.text.trim().is_empty() || !p.run_ranges().all(|(_, props)| hidden(props))) {
+        return false;
+    }
     let right = p.run_ranges().all(|(r, props)| {
         if r.end <= cut {
             hidden(props)
@@ -2116,6 +2122,38 @@ mod tests {
         // No longer calculated: the `=` shows.
         s.run("table.calc", &json!({"value": false})).unwrap();
         assert_eq!(hidden(&header(&s)), "");
+    }
+
+    /// A header without a spreadsheet-style formula keeps text hidden on purpose; a bare `=` is
+    /// a label and shows; a header all hidden (typed over a hidden `=`) shows again.
+    #[test]
+    fn header_hidden_text_is_left_alone() {
+        use wordcraft_doc::{Path, Pos, StoryRef};
+        let mut s = session();
+        with_table(&mut s, &[&["L [m]", "q note", "=", "x"], &["4", "", "", ""]]);
+        let cell = |s: &mut Session, c: usize| -> Paragraph {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            t.rows[0].cells[c].blocks.first().and_then(|b| b.as_para()).unwrap().clone()
+        };
+        let set = |s: &mut Session, c: usize, from: usize, to: usize| {
+            let block = s.doc.body.iter_mut().find(|b| matches!(&***b, Block::Table(_))).unwrap();
+            if let Block::Table(t) = Arc::make_mut(block)
+                && let Some(Block::Para(p)) = t.rows[0].cells[c].blocks.first_mut().map(Arc::make_mut)
+            {
+                p.format(from, to, &|c| c.hidden = Some(true)).unwrap();
+            }
+        };
+        // "note" hidden on purpose; the last header all hidden, as typed over a hidden `=`.
+        set(&mut s, 1, 2, 6);
+        set(&mut s, 3, 0, 1);
+        s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path(vec![0, 1, 0, 0]), 0));
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        let hidden =
+            |p: &Paragraph| -> String { p.run_ranges().filter(|(_, c)| c.hidden == Some(true)).map(|(r, _)| p.text[r].to_string()).collect() };
+        assert_eq!(hidden(&cell(&mut s, 1)), "note");
+        assert_eq!(hidden(&cell(&mut s, 2)), "", "a bare `=` shows");
+        assert_eq!(hidden(&cell(&mut s, 3)), "", "all hidden: shown again");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable");
     }
 
     /// Turned calculated, a table's first row is its header (Header Row, repeated on each page);
