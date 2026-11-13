@@ -22,7 +22,7 @@
   "ctaTryWeb": "Essayer dans le navigateur",
   "ctaGitHub": "Sources sur GitHub",
   "heroNote": "Libre et open source (MIT ou Apache-2.0) · Windows · macOS · Linux · FreeBSD · web · sans compte, sans télémétrie",
-  "shotCalcAlt": "Strix avec le calcul d’une poutre : portée et charge avec leurs unités, le moment fléchissant calculé par q·L²/8, la contrainte et une vérification de contrainte cochée",
+  "shotCalcAlt": "Strix avec un calcul de physique : une voiture qui démarre à l’arrêt, son accélération à partir des vitesses en km/h et du temps, la force, la distance avec ses étapes et une vérification cochée",
   "stat1Title": "4 types",
   "stat1Text": "d'exercice : problème, réponse ouverte, choix multiple, vrai/faux",
   "stat2Title": "A, B, C",
@@ -102,7 +102,7 @@
   "ex3": "<b>Évaluations tirées d'une banque</b> : un document maître assemble un fichier par exercice, avec sa page de garde, sa numérotation et ses parties affichées, et laisse les fichiers tels quels.",
   "ex4": "<b>Un tableau des points</b> avec une ligne par exercice et deux colonnes par critère (points attribués, points possibles), totalisé en ligne et en colonne.",
   "ex5": "<b>Mise en forme DSA</b> de la même évaluation (lecture, écriture, calcul et mémoire) et PDF pour l'impression. <i>Prévu :</i> une grille des points aux notes.",
-  "shotExerciseAlt": "Un exercice Strix : titre, énoncé, données, questions lettrées et la solution développée sous chaque question",
+  "shotExerciseAlt": "Un exercice Strix : une voiture qui démarre à l’arrêt, ses données en deux variantes, des questions lettrées et la solution développée sous chaque question",
 
   "cadEyebrow": "Dessins CAO",
   "cadTitle": "Des dessins pilotés par les calculs",

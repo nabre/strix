@@ -22,7 +22,7 @@
   "ctaTryWeb": "Im Browser ausprobieren",
   "ctaGitHub": "Quellcode auf GitHub",
   "heroNote": "Frei und quelloffen (MIT oder Apache-2.0) · Windows · macOS · Linux · FreeBSD · Web · kein Konto, keine Telemetrie",
-  "shotCalcAlt": "Strix mit einer Trägerberechnung: Spannweite und Last mit Einheiten, das Biegemoment aus q·L²/8, die Spannung und ein Spannungsnachweis mit Häkchen",
+  "shotCalcAlt": "Strix mit einer Physikrechnung: ein Auto, das aus dem Stand anfährt, die Beschleunigung aus den Geschwindigkeiten in km/h und der Zeit, die Kraft, der Weg mit Lösungsschritten und ein Nachweis mit Häkchen",
   "stat1Title": "4 Arten",
   "stat1Text": "von Aufgaben: Rechenaufgabe, offene Antwort, Multiple Choice, Richtig/Falsch",
   "stat2Title": "A, B, C",
@@ -102,7 +102,7 @@
   "ex3": "<b>Klassenarbeiten aus einer Sammlung</b>: Ein Masterdokument fügt eine Datei pro Aufgabe zusammen, mit eigenem Deckblatt, eigener Nummerierung und gezeigten Teilen, und lässt die Dateien, wie sie sind.",
   "ex4": "<b>Eine Punktetabelle</b> mit einer Zeile pro Übung und zwei Spalten pro Kriterium (vergebene und mögliche Punkte), summiert je Zeile und Spalte.",
   "ex5": "<b>DSA-Formatierung</b> derselben Klassenarbeit (Lesen, Schreiben, Rechnen und Gedächtnis) und PDF zum Drucken. <i>Geplant:</i> ein Notenschlüssel von Punkten zu Noten.",
-  "shotExerciseAlt": "Eine Strix-Übung: Titel, Aufgabentext, Daten, Fragen mit Buchstaben und die Lösung unter jeder Frage",
+  "shotExerciseAlt": "Eine Strix-Übung: ein Auto, das aus dem Stand anfährt, die Angaben in zwei Varianten, Fragen mit Buchstaben und die Lösung unter jeder Frage",
 
   "cadEyebrow": "CAD-Zeichnungen",
   "cadTitle": "Zeichnungen, die den Berechnungen folgen",
