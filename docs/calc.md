@@ -302,18 +302,25 @@ working unit written for the kind wins.
 
 ## Number format
 
-Set on the Math tab (Number Display: More/Fewer Digits, Rounding) or with `calc.options`; kept as
-a preference (`calc_digits`, `calc_count`, `calc_zeros`).
+Set on the Math tab (Number Display: More/Fewer Digits, Rounding, Scope) or with `calc.options`;
+resolved through the hierarchy **Equation > Exercise > Document > Preferences**. New documents
+inherit their document options from Preferences (`calc_digits`, `calc_count`, `calc_zeros`,
+`calc_steps`, `calc_layout`); opened `.xmath` and `.docx` documents use their own saved options
+(`customXml/strixObjects.xml` in Word packages). Pass `"scope": "equation" | "exercise" |
+"document" | "prefs"` (and `"reset": true` to clear an override) to `calc.options`, `calc.steps`
+or `calc.layout`.
 
 - **Digits** (default 3) with **Automatic** count: decimal places for |x| ≥ 1, significant
   digits below 1 (`30.375`, `0.0035`, `0.123`). **Decimal Places** always counts decimals
   (`0.0001` with 2 → `0`); **Significant Digits** counts significant digits (`1234.5` with 2 →
   `1200`).
 - Rounding is half away from zero on the shortest decimal form, capped at 15 significant digits
-  (`2.675` → `2.68` with 2 decimals). `round(x; n)` rounds the same way (`round(1.005; 2) =
-  1.01`) and keeps a quantity's unit, rounding its coherent SI value (`round(2.345 m; 2) =
-  2.35 m`); an absolute temperature must be a plain number. Known limit: a value in `°` or `%`
-  is rounded in radians or as a fraction.
+  (`2.675` → `2.68` with 2 decimals). `round(x; n)`, `floor(x; n)`, `ceil(x; n)` and `trunc(x; n)`
+  are **unit-aware**: with 1 or 2 arguments they round in the value's display or working unit
+  (including `°`, `%`, engineering/written multiples such as `cm` or `km`, and affine temperatures
+  `°C`/`°F`), then convert back to coherent SI while keeping the unit hint (`round(30°; 0) = 30°`,
+  `round(20.6 °C; 0) = 21 °C`); a 3rd unit argument `round(x; n; unit)` rounds in that explicit
+  unit (`round(alpha; 1; °)`).
 - The automatic prefix is chosen on the number as shown: `999999.9996 Pa` shows `1 MPa`, never
   `1000 kPa`.
 - In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
@@ -329,7 +336,7 @@ a preference (`calc_digits`, `calc_count`, `calc_zeros`).
 |---|---|
 | a formula: `M = q·L²/8 =`, `M = q·L²/8`, `q·L²/8 =`, `A := …  =` | the values substituted (with their units, one unit per kind), the result |
 | solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
-| solved numerically: `x² + x = k` | the equation with its values (`x² + x = 6`), the result, and the note "(numerical solution)" ("(soluzione numerica)" in an Italian document) |
+| solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
 
 A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a parameter shown alone
@@ -430,6 +437,7 @@ Edit Drawing, see `docs/cad.md`).
 
 ## Revision history
 
+- 2026-11-13: calculation options (`digits`, `count`, `zeros`, `steps`, `layout`) resolve through `equation > exercise > document > prefs` and save in `.xmath` and `.docx` (`customXml/strixObjects.xml`); `round`, `floor`, `ceil` and `trunc` are unit-aware (display/working/affine units plus optional 3rd unit argument); `(numerical solution)` note in EN, IT, DE and FR.
 - 2026-11-12: calculated tables: a column formula needs no name (`= q·L²/8`, its `=` hidden except while the cell is edited) and its unit may close it (`M = q·L²/8 [kN·m]`); the ordinal column is headed `i`.
 - 2026-11-09: Math tab: Calculation (Always Calculate, was Calculate New Equations), Calculate Table (was Calculate This Table), Number Display (was Results; Rounding, was Number Format), smaller and in two columns.
 - 2026-11-09: units after numbers alone (`[4; 5; 6] m`, `10^3 m`) and after a written quantity

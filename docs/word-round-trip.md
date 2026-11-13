@@ -17,8 +17,8 @@ keeps when it saves:
   locked against deletion (not against editing). Exercises already are content controls.
 - **A custom XML part** (`customXml/strixObjects.xml`, namespace
   `urn:io.github.nabre.strix:objects:2026`; Word may rename it `customXml/itemN.xml`). For each
-  object N: its source (the equation's flags, the table's calc settings, the drawing's JSON, the
-  graph paper's settings) and a fingerprint of what it showed; then each section's graph paper
+  object N: its source (the equation's flags and per-equation `calcOpts`, the table's calc settings, the drawing's JSON, the
+  graph paper's settings) and a fingerprint of what it showed; then the document's calculation options (`<strix:calcOptions>`), each section's graph paper
   and frontispiece, and each exercise's data, by their place in the document.
 
 `.xmath` files are written without any of this: they are Strix's own and nobody else saves them.
@@ -101,4 +101,5 @@ in Word, save, and open it in Strix: the bar asks.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-13 | minor | Document calculation options (`<strix:calcOptions>`) and per-equation overrides (`calcOpts`) preserved across Word round trips |
 | 2026-11-11 | major | First version: content-control wrappers and the Strix custom XML part in Word documents, live objects after Word saves, pending objects changed elsewhere (`file.externalEdits`, the bar under the ribbon), Word documents allowed for documents with Strix objects |

@@ -103,8 +103,11 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 |---|---|
 | `exercise.insert` | `"kind": "open" \| "choice" \| "trueFalse" \| "calc" \| "drawing"` (the first questions' mode); per question `"type"` (its own mode) and, for a drawing, `"drawing"` (its CAD source) |
 | `exercise.addQuestion` | `"type"` (default: like the last question), `"drawing"` |
-| `exercise.questions` | reports each question's `"type"` and, for a calculation, its `"line"` as shown |
+| `exercise.questionMode` | `"type": "open" \| "choice" \| "trueFalse" \| "calc" \| "drawing"` — converts an existing quiz question's answer part in place while preserving its question paragraph, points, space settings, working equations and choice options |
+| `exercise.questionPoints` | `"points": number \| null` — sets or clears a question's points on both problems and quizzes |
+| `exercise.questions` | reports each question's `"type"`, `"points"`, and contextual fields (`"line"`, `"result"`, `"workingPos"` for `calc`; `"scale"`, `"cadSelect"` for `drawing`) |
 
 ## Revision history
 
+- 2026-11-13: in-place mode conversion (`exercise.questionMode`), contextual Quiz controls (mode selector, live calculation preview and Go to Working, CAD scale and Edit Drawing), Variants & Data exposed for quizzes (`showData` toggle), and per-question points on problems (`exercise.questionPoints`).
 - 2026-11-12: new: question modes; a mode per question, mixed in one quiz; calculation questions (worked with the exercise's data and variants, result line with blank and unit, result in the summary) and CAD drawing questions (the solution's drawing in a squared space, hidden in the students' copy); a quiz's data part after its title when it has no statement.

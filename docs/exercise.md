@@ -92,15 +92,14 @@ and keeps the question's settings (a `strix:answerSpace` element Word ignores):
 hidden text and **its space keeps its height**; every box of a multiple choice is empty (which
 options are correct is kept). So one document gives the students' copy and the corrected one.
 
-**Points.** The points of an exercise's questions add up to the exercise's points; a **scores
-table** shows them in its first criterion, at once, for every quiz with points (a problem's
-points are still typed in). The results summary lists, for each multiple choice, its letter and
+**Points.** The points of an exercise's questions add up to the exercise's points (`exercise.questionPoints` sets or clears points on questions of both quizzes and problems, inserting `strix:exercise.points` at the end of a problem question when set); a **scores
+table** shows them in its first criterion, at once, for every exercise whose questions carry points (otherwise typed in). Even with a single exercise and a single criterion (`1×1`), the scores table keeps its Total row (`__ / Max`). The results summary lists, for each multiple choice, its letter and
 the correct options (`a) A, C`); open answers give no line, and a document whose exercises are
 all open answers has no summary.
 
-`exercise.questions` reads a quiz's questions (text, kind, points, space, options and correct
+`exercise.questions` reads an exercise's questions (text, kind, points, space, calculation line, CAD scale, options and correct
 ones, the total) and changes one's settings: `{"question": 2, "points": 3, "height": 6, "grid":
-false}`. `exercise.addQuestion` adds a question like the last one (same kind of answer, points
+false}`. `exercise.questionMode` converts an existing quiz question's mode in place while preserving its question paragraph, points, space settings and working/options. `exercise.addQuestion` adds a question like the last one (same kind of answer, points
 and space), its settings and options given as in `exercise.insert`.
 
 ## Numbering
@@ -376,6 +375,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-13: quizzes expose Variants & Data in Exercise Properties and insert/hide `strix:exercise.data` (`showData` toggle); `exercise.questionMode` converts quiz modes in place; `exercise.questionPoints` sets points on problem questions too, feeding the scores table's first criterion; a 1×1 scores table keeps its Total row.
 - 2026-11-13: "Sample test" template (`file.new {"template": "test"}`), second in the File › New gallery, and the document `--sample` and `?sample` open.
 - 2026-11-12: question modes: each quiz question has its mode (`"type"`), calculation and CAD drawing questions; a quiz's data part follows its title when it has no statement ([question-modes.md](question-modes.md)).
 - 2026-11-12: kinds of exercise: open answer (a space of a height in cm, squared or blank, the answer written in it) and multiple choice (options with a check box ticked on the correct ones, more than one allowed; True/False); a quiz's statement is optional, a lone question has no letter, each question has its points (shown after it, added up in the scores table), the answers hide with the Solution (the space keeps its height); `exercise.questions`; graph paper's `none` line style. The doc's duplicated second half removed.
