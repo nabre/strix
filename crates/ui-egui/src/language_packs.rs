@@ -22,6 +22,10 @@ const MISSING_REFRESH_SECS: f64 = 1.0;
 /// Most characters of a language's name the bar shows (an index may name it at any length).
 const MAX_BAR_NAME: usize = 40;
 
+/// Tests that replace the process-wide pack backend and audits that read it take turns.
+#[cfg(test)]
+pub(crate) static BACKEND_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Text from the pack index as shown: without control, bidi and other format characters (the
 /// index isn't ours to trust), and at most `max` characters.
 pub(crate) fn shown(text: &str, max: usize) -> String {
@@ -888,6 +892,7 @@ pub(crate) fn about_tab(ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
+    use super::BACKEND_LOCK;
     use std::sync::atomic::Ordering;
 
     use serde_json::{Value, json};
@@ -956,9 +961,6 @@ mod tests {
         assert_eq!(super::language_of("pt-pt", ""), "Portuguese (Portugal)");
         assert_eq!(super::language_of("ja", "日本語"), "Japanese");
     }
-
-    /// Tests that set the process-wide pack backend take turns.
-    static BACKEND_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     /// Every locale of the published index (`language-packs-2/index.json`), with its own name.
     const INDEX_LOCALES: [(&str, &str); 75] = [

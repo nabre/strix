@@ -259,6 +259,9 @@ fn math_placeholders_are_exact_math_input_only() {
 /// starts a speech thread, and process-wide names other tests change are gathered every frame.
 #[test]
 fn untranslated_interface_text() {
+    // Keep pack names stable between painting a frame and checking its exemptions. Other tests
+    // replace the process-wide backend with temporary indexes (including author-supplied names).
+    let _packs = crate::language_packs::BACKEND_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     pseudo::set(true);
     let ctx = egui::Context::default();
     let mut app = fresh_app(&ctx);
