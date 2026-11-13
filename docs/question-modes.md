@@ -1,7 +1,7 @@
 # Question modes
 
 > **Status:** stage 1 done: a mode per question (open, multiple choice, true/false, calculation,
-> CAD drawing), mixed in one quiz; stages 2–4 planned · **Last updated:** 2026-11-12 · **Change:**
+> CAD drawing), mixed in one quiz; stages 2–4 planned · **Last updated:** 2026-11-13 · **Change:**
 > new: the teaching side structured as question modes; calculation (worked in a squared space,
 > result line `A = ______ cm²` from the exercise's data and variants) and CAD drawing (the
 > solution's drawing hidden in the students' copy) questions.
@@ -32,7 +32,7 @@ a master document).
 | **Open answer** | `open` | a space (cm), squared or blank | the answer written in the space | — |
 | **Multiple choice** | `choice` | options A), B)… with empty boxes | the correct boxes ticked (more than one may be) | `b) A, C` |
 | **True or false** | `trueFalse` | *Vero* / *Falso* with empty boxes | the right one ticked | `c) A` |
-| **Calculation** | `calc` | a squared space for the working, then `A = ______ cm²` | the working (live equations) and `A = 15 cm²` | `d) A = 15 cm²` |
+| **Calculation** | `calc` | a squared space for the working, then `Answer: A = ______ cm²` | the working (live equations) and `Answer: A = 15 cm²` | `d) A = 15 cm²` |
 | **CAD drawing** | `drawing` | a squared space (8 cm) to draw in | the solution's CAD drawing in the space | — |
 
 A **problem** (statement, data, questions, a worked solution after them) stays the exercise kind
@@ -59,10 +59,13 @@ by hand. The data part of a quiz goes after its statement, or after its title wh
   Result Of in a problem); the ones before it are working, shown with their steps
   (substitution, isolation: Math › Show Steps).
 - Under the space a **result line** (`strix:exercise.resultLine`, generated, can't be edited or
-  deleted): while the answers are hidden, the result's name, a blank and its **unit**
-  (`A = ______ cm²`), so the student knows what is asked and in which unit (it also serves the
-  DSA *Calcolo e memoria* formatting); when they show, the result (`A = 15 cm²`). With no
-  result yet it is a blank.
+  deleted), labelled with the exercise language's word for the answer (*Risposta*, *Answer*,
+  *Réponse*…) so it reads as the answer to give, never as a stray copy of the result: while the
+  answers are hidden, the result's name, a blank and its **unit** (`Risposta: A = ______ cm²`),
+  so the student knows what is asked and in which unit (it also serves the DSA *Calcolo e
+  memoria* formatting); when they show, the result (`Risposta: A = 15 cm²`), its value in the
+  answers' colour like the working above it. With no result yet it is a blank. Commands report
+  the line without its label (`exercise.questions` → `"line": "A = 15 cm²"`).
 - The unit is the result's: ask for it after `=` as in any calculation (`A = b·h = cm^2`),
   otherwise the working unit (`m²`) is used.
 - Hidden, the working is hidden text and the space keeps its height: the students' copy is laid
@@ -107,6 +110,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 
 ## Revision history
 
+- 2026-11-13: the calculation's result line is labelled (*Risposta: s = 20 m*) and its value is in the answers' colour once given, so in the corrected copy it no longer looks like a stray repeat of the working's result.
 - 2026-11-13: calculation tolerances (`tolerance` in `exercise.questions`), parametric `{{expr}}` options (`strix:expr`), teacher-only option rationales (`strix:rationale`), and deterministic per-variant choice shuffling (`shuffleChoices`).
 - 2026-11-13: in-place mode conversion (`exercise.questionMode`), contextual Quiz controls (mode selector, live calculation preview and Go to Working, CAD scale and Edit Drawing), Variants & Data exposed for quizzes (`showData` toggle), and per-question points on problems (`exercise.questionPoints`).
 - 2026-11-12: new: question modes; a mode per question, mixed in one quiz; calculation questions (worked with the exercise's data and variants, result line with blank and unit, result in the summary) and CAD drawing questions (the solution's drawing in a squared space, hidden in the students' copy); a quiz's data part after its title when it has no statement.

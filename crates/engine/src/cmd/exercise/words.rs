@@ -29,11 +29,10 @@ pub(super) struct Words {
     pub profession: &'static str,
     pub duration: &'static str,
     pub score: &'static str,
-    /// Quizzes (docs/exercise.md, Kinds): the answer control's title, the points after a
-    /// question (one point, several), the options of a true/false question.
+    /// Quizzes (docs/exercise.md, Kinds): the answer control's title, the points' abbreviation
+    /// after a question (`….. / 2 pt`), the options of a true/false question.
     pub answer: &'static str,
-    pub point: &'static str,
-    pub points_word: &'static str,
+    pub points_short: &'static str,
     pub true_word: &'static str,
     pub false_word: &'static str,
     /// Note shown after an equation solved numerically (`cmd/calc.rs`).
@@ -89,8 +88,7 @@ pub(super) const IT: Words = Words {
     duration: "Durata (min)",
     score: "Punteggio",
     answer: "Risposta",
-    point: "punto",
-    points_word: "punti",
+    points_short: "pt",
     true_word: "Vero",
     false_word: "Falso",
     numeric_solution: "(soluzione numerica)",
@@ -124,8 +122,7 @@ pub(super) const EN: Words = Words {
     duration: "Duration (min)",
     score: "Score",
     answer: "Answer",
-    point: "point",
-    points_word: "points",
+    points_short: "pt",
     true_word: "True",
     false_word: "False",
     numeric_solution: "(numerical solution)",
@@ -159,8 +156,7 @@ const FR: Words = Words {
     duration: "Durée (min)",
     score: "Points",
     answer: "Réponse",
-    point: "point",
-    points_word: "points",
+    points_short: "pt",
     true_word: "Vrai",
     false_word: "Faux",
     numeric_solution: "(solution numérique)",
@@ -194,8 +190,7 @@ const DE: Words = Words {
     duration: "Dauer (min)",
     score: "Punktzahl",
     answer: "Antwort",
-    point: "Punkt",
-    points_word: "Punkte",
+    points_short: "P.",
     true_word: "Wahr",
     false_word: "Falsch",
     numeric_solution: "(numerische Lösung)",
@@ -240,7 +235,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| -> [&str; 32] {
+        let fields = |w: &Words| -> [&str; 31] {
             [
                 w.exercise,
                 w.total,
@@ -263,8 +258,7 @@ mod tests {
                 w.duration,
                 w.score,
                 w.answer,
-                w.point,
-                w.points_word,
+                w.points_short,
                 w.true_word,
                 w.false_word,
                 w.numeric_solution,

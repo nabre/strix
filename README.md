@@ -94,7 +94,7 @@ mode, so one quiz mixes them ([docs/question-modes.md](docs/question-modes.md)):
 | **Open answer** | an answer space of a height in cm, squared or blank | the answer written in the space |
 | **Multiple choice** | options A), B), C)… with empty check boxes | the correct boxes ticked (more than one can be) |
 | **True/False** | *True* and *False* with empty boxes | the right one ticked |
-| **Calculation** | a squared space for the working, then `s = ______ m` | the working as live equations and `s = 20 m` |
+| **Calculation** | a squared space for the working, then `Answer: s = ______ m` | the working as live equations and `Answer: s = 20 m` |
 | **CAD drawing** | a squared space to draw in | the solution's CAD drawing |
 
 A **problem** (statement, data, questions, the solution worked under each question) stays the

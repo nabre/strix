@@ -63,7 +63,7 @@ Un esercizio può essere anche un quiz, e ogni domanda ha la sua modalità, cos�
 | **Risposta aperta** | uno spazio di altezza data in cm, a quadretti o bianco | la risposta scritta nello spazio |
 | **Risposta multipla** | opzioni A), B), C)… con le caselle vuote | le caselle giuste spuntate (anche più di una) |
 | **Vero/falso** | *Vero* e *Falso* con le caselle vuote | quella giusta spuntata |
-| **Calcolo** | uno spazio a quadretti per lo svolgimento, poi `s = ______ m` | lo svolgimento con le equazioni vive e `s = 20 m` |
+| **Calcolo** | uno spazio a quadretti per lo svolgimento, poi `Risposta: s = ______ m` | lo svolgimento con le equazioni vive e `Risposta: s = 20 m` |
 | **Disegno CAD** | uno spazio a quadretti per disegnare | il disegno CAD della soluzione |
 
 Le risposte giuste **si nascondono con la soluzione**: le caselle restano vuote e gli spazi

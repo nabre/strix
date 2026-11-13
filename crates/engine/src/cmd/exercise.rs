@@ -317,7 +317,7 @@ fn ensure_styles(s: &mut Session) {
             items::STYLE_ANSWER,
             "Exercise Answer",
             ParaProps { space_after: Some(6.0), ..Default::default() },
-            CharProps { color: Some(wordcraft_doc::props::TextColor::Rgb(wordcraft_doc::props::Rgb(0x1F, 0x4E, 0x9A))), ..Default::default() },
+            CharProps { color: Some(items::ANSWER_COLOUR), ..Default::default() },
         ),
         para_style(items::STYLE_CHOICE, "Exercise Option", ParaProps { space_after: Some(2.0), ..Default::default() }, CharProps::default()),
         para_style(

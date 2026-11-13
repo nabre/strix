@@ -115,7 +115,7 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                             (a..=b).find_map(|bi| {
                                 let p = sess.doc.body.get(bi)?.as_para()?;
                                 let (x, y) = span(p, TAG_LINE)?;
-                                p.text.get(x + OBJ.len_utf8()..y).map(str::to_string)
+                                p.text.get(x + OBJ.len_utf8()..y).map(|t| super::items::line_value(t).to_string())
                             })
                         });
                         line.unwrap_or_else(|| {

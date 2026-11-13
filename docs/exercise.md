@@ -72,7 +72,10 @@ answers are in the exercise, next to their questions.
 
 Each question is a paragraph in the Exercise Question style: its text in an inline control
 (`strix:exercise.item`, with a placeholder until typed over), then its **points**, generated
-(` (2 punti)`, ` (1 punto)`, ` (1,5 punti)`, in the exercise's language; nothing without points).
+on the right margin (a right-aligned positional tab, whatever the question's indent), with dots
+left for the score the student gets: `.......... / 2 pt`, `.......... / 1,5 pt` (`P.` in German;
+nothing without points). Documents written with the older ` (2 punti)` form are brought to this
+one the next time the exercises are refreshed.
 After it comes its **answer** (`strix:exercise.answer`), a block control that can't be deleted
 and keeps the question's settings (a `strix:answerSpace` element Word ignores):
 

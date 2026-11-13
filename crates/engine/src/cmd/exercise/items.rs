@@ -13,7 +13,8 @@
 //! The answer control keeps the question's settings (a `strix:answerSpace` element Word ignores):
 //! its maximum points, the space's height, squares and their size. The question's text is in an
 //! inline control (`strix:exercise.item`, its placeholder shown until typed over) followed by the
-//! points (`strix:exercise.points`, generated: ` (2 punti)`).
+//! points (`strix:exercise.points`, generated: a right-aligned positional tab, then
+//! `.......... / 2 pt`, the dots left for the score the student gets).
 //!
 //! Each question has its own **mode** (docs/question-modes.md), kept in its settings, so one
 //! quiz can mix them:
@@ -36,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
 use wordcraft_doc::graph_paper::{GraphPaper, GridLineStyle, GridPlacement, PT_PER_MM};
-use wordcraft_doc::para::OBJ;
+use wordcraft_doc::para::{OBJ, PTabAlign, PTabBase};
 use wordcraft_doc::props::{CharProps, NumRef};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
@@ -76,6 +77,10 @@ const DEFAULT_SPACING_MM: f32 = 5.0;
 const DRAWING_HEIGHT_CM: f32 = 8.0;
 /// The blank where the student writes a calculation's value.
 const BLANK: &str = "______________";
+/// Between a result line's label (the words' `answer`) and its value.
+const LABEL_SEP: &str = ": ";
+/// The colour of the answers (the Exercise Answer style's).
+pub(super) const ANSWER_COLOUR: wordcraft_doc::props::TextColor = wordcraft_doc::props::TextColor::Rgb(wordcraft_doc::props::Rgb(0x1F, 0x4E, 0x9A));
 const CHECKED: char = '\u{2612}';
 const UNCHECKED: char = '\u{2610}';
 
@@ -394,7 +399,7 @@ pub(super) fn set_problem_points_para(p: &mut Paragraph, pts: Option<f64>, w: &s
                 write_points_ctl(ctl, Some(v));
                 changed = true;
             }
-            changed |= set_content(p, (a, b), &text);
+            changed |= set_points_content(p, (a, b), &text);
             if changed {
                 p.touch();
             }
@@ -410,24 +415,64 @@ pub(super) fn set_problem_points_para(p: &mut Paragraph, pts: Option<f64>, w: &s
                 return false;
             }
             let inner = at + OBJ.len_utf8();
-            let _ = p.insert_text(inner, &text, &props);
-            let _ = p.insert_object(inner + text.len(), InlineObject::ControlEnd, &props);
+            let _ = p.insert_object(inner, InlineObject::ControlEnd, &props);
+            set_points_content(p, (at, inner), &text);
             p.touch();
             true
         }
     }
 }
 
-/// The points as the question shows them: ` (2 punti)`, ` (1 punto)`, ` (1,5 punti)`; nothing
-/// without points.
+/// The dots left for the score the student gets, before the maximum points.
+const SCORE_DOTS: &str = "..........";
+
+/// The points as the question shows them after its right-aligned tab: `.......... / 2 pt`,
+/// `.......... / 1,5 pt`; nothing without points.
 fn points_text(points: Option<f64>, w: &super::Words, comma: bool) -> String {
     match points {
-        Some(v) => {
-            let word = if (v - 1.0).abs() < f64::EPSILON { w.point } else { w.points_word };
-            format!(" ({} {word})", super::scores::shown(v, comma))
-        }
+        Some(v) => format!("{SCORE_DOTS} / {} {}", super::scores::shown(v, comma), w.points_short),
         None => String::new(),
     }
+}
+
+/// The positional tab that sends the points to the right margin, whatever the question's indent.
+fn points_tab() -> InlineObject {
+    InlineObject::PositionalTab { align: PTabAlign::Right, relative_to: PTabBase::Margin, leader: Default::default() }
+}
+
+/// Whether the points control spanning `a..b` (markers) already shows `text`: after the
+/// right-aligned positional tab, or empty when `text` is.
+fn points_shown(p: &Paragraph, (a, b): (usize, usize), text: &str) -> bool {
+    let from = a + OBJ.len_utf8();
+    if text.is_empty() {
+        return b == from;
+    }
+    let tab =
+        from < b && matches!(p.object_at(from), Some(InlineObject::PositionalTab { align: PTabAlign::Right, relative_to: PTabBase::Margin, .. }));
+    tab && p.text.get(from + OBJ.len_utf8()..b) == Some(text)
+}
+
+/// Fills the points control spanning `a..b` (markers) with the right-aligned positional tab and
+/// `text` (nothing when `text` is empty); whether it changed.
+fn set_points_content(p: &mut Paragraph, (a, b): (usize, usize), text: &str) -> bool {
+    if points_shown(p, (a, b), text) {
+        return false;
+    }
+    let from = a + OBJ.len_utf8();
+    let props = p.props_of_char(a).clone();
+    if b > from && p.delete(from, b).is_err() {
+        return false;
+    }
+    if !text.is_empty() {
+        if p.insert_object(from, points_tab(), &props).is_err() {
+            return false;
+        }
+        if p.insert_text(from + OBJ.len_utf8(), text, &props).is_err() {
+            return false;
+        }
+    }
+    p.touch();
+    true
 }
 
 /// Byte ranges of the first inline control tagged `tag` in `p`: its start marker and its end
@@ -579,10 +624,9 @@ fn question_blocks(
     let mut pts_ctl = inline(TAG_POINTS, w.points, ControlLock::SdtContentLocked);
     write_points_ctl(&mut pts_ctl, set.points);
     let _ = q.insert_object(at, InlineObject::ControlStart { control: Box::new(pts_ctl) }, &props);
-    at = q.text.len();
-    let _ = q.insert_text(at, &points_text(set.points, w, comma), &props);
-    at = q.text.len();
-    let _ = q.insert_object(at, InlineObject::ControlEnd, &props);
+    let inner = q.text.len();
+    let _ = q.insert_object(inner, InlineObject::ControlEnd, &props);
+    set_points_content(&mut q, (at, inner), &points_text(set.points, w, comma));
     let mut answer = control(TAG_ANSWER, w.answer, ControlLock::SdtLocked);
     write_answer(&mut answer, set);
     if set.mode == Mode::Cloze {
@@ -967,10 +1011,10 @@ pub(super) fn update(s: &mut Session) -> bool {
                 let Block::Para(p) = &**block else { continue };
                 let Some(pts) = problem_para_points(p) else { continue };
                 let text = points_text(Some(pts), w, comma);
-                if span(p, TAG_POINTS).is_some_and(|sp| p.text.get(sp.0 + OBJ.len_utf8()..sp.1) != Some(text.as_str())) {
+                if span(p, TAG_POINTS).is_some_and(|sp| !points_shown(p, sp, &text)) {
                     let Block::Para(p) = Arc::make_mut(block) else { continue };
                     if let Some(sp) = span(p, TAG_POINTS) {
-                        changed |= set_content(p, sp, &text);
+                        changed |= set_points_content(p, sp, &text);
                     }
                 }
             }
@@ -1002,14 +1046,14 @@ pub(super) fn update(s: &mut Session) -> bool {
                     _ => None,
                 };
                 let text = points_text(it.settings.points, w, comma);
-                let needs_points = span(p, TAG_POINTS).is_some_and(|sp| p.text.get(sp.0 + OBJ.len_utf8()..sp.1) != Some(text.as_str()));
+                let needs_points = span(p, TAG_POINTS).is_some_and(|sp| !points_shown(p, sp, &text));
                 if new_num.is_some() || needs_points {
                     let Block::Para(p) = Arc::make_mut(block) else { continue };
                     if let Some(n) = new_num {
                         p.props.numbering = n;
                     }
                     if let Some(sp) = span(p, TAG_POINTS) {
-                        set_content(p, sp, &text);
+                        set_points_content(p, sp, &text);
                     }
                     p.touch();
                     changed = true;
@@ -1176,6 +1220,7 @@ pub(super) fn result_lines(s: &mut Session, layout: &Layout, answers: &std::coll
     for (e, ex) in layout.exercises.iter().enumerate() {
         let mut ex_opts = base_opts;
         ex.data.calc.apply_to(&mut ex_opts);
+        let label = super::exercise_words(s, layout, e).answer;
         let its = items(s, layout, e);
         for (k, it) in its.iter().enumerate() {
             if it.settings.mode != Mode::Calc {
@@ -1185,15 +1230,26 @@ pub(super) fn result_lines(s: &mut Session, layout: &Layout, answers: &std::coll
             let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
             let found = answers.get(&(e, n)).and_then(|v| v.last()).map(String::as_str);
             let text = line_text(found, ex.show.solution, it.settings.tolerance.as_deref(), &ex_opts);
+            // Labelled, so it reads as the answer to give, not a stray line; the value in the
+            // answers' colour once given, like the working above it.
+            let content = format!("{label}{LABEL_SEP}{text}");
+            let value_at = label.len() + LABEL_SEP.len();
+            let colour = (ex.show.solution && text != BLANK).then_some(ANSWER_COLOUR);
             for i in a..=b {
                 let Some(block) = s.doc.body.get_mut(i) else { continue };
                 let Block::Para(p) = &**block else { continue };
                 let Some(sp) = span(p, TAG_LINE) else { continue };
-                if p.text.get(sp.0 + OBJ.len_utf8()..sp.1) == Some(text.as_str()) {
+                let from = sp.0 + OBJ.len_utf8();
+                if p.text.get(from..sp.1) == Some(content.as_str()) && line_coloured(p, from, sp.1, from + value_at, colour) {
                     continue;
                 }
                 let Block::Para(p) = Arc::make_mut(block) else { continue };
-                changed |= set_content(p, sp, &text);
+                set_content(p, sp, &content);
+                let end = from + content.len();
+                let _ = p.format(from, from + value_at, &|c| c.color = None);
+                let _ = p.format(from + value_at, end, &|c| c.color = colour);
+                p.touch();
+                changed = true;
             }
         }
     }
@@ -1202,6 +1258,25 @@ pub(super) fn result_lines(s: &mut Session, layout: &Layout, answers: &std::coll
         s.clamp_selection();
     }
     changed
+}
+
+/// Whether a result line's content (`from..end`) has its label uncoloured and its value (from
+/// `value_at`) in `colour`.
+fn line_coloured(p: &Paragraph, from: usize, end: usize, value_at: usize, colour: Option<wordcraft_doc::props::TextColor>) -> bool {
+    p.run_ranges().all(|(r, props)| {
+        if r.end <= from || r.start >= end {
+            return true;
+        }
+        let label_ok = r.start >= value_at || props.color.is_none();
+        let value_ok = r.end <= value_at || props.color == colour;
+        label_ok && value_ok
+    })
+}
+
+/// A result line's value without its label (`Answer: A = 15 cm²` → `A = 15 cm²`); a line made
+/// before it had one is all value.
+pub(super) fn line_value(content: &str) -> &str {
+    content.split_once(LABEL_SEP).map_or(content, |(_, v)| v)
 }
 
 /// One paragraph of an open answer: the first holds the space (its graph paper as the settings
@@ -1504,7 +1579,7 @@ fn state(s: &Session, e: usize) -> Value {
                             (a..=b).find_map(|i| {
                                 let p = s.doc.body.get(i)?.as_para()?;
                                 let (x, y) = span(p, TAG_LINE)?;
-                                p.text.get(x + OBJ.len_utf8()..y).map(str::to_string)
+                                p.text.get(x + OBJ.len_utf8()..y).map(|t| line_value(t).to_string())
                             })
                         });
                         let qn = u32::try_from(k + 1).unwrap_or(u32::MAX);
@@ -2031,7 +2106,7 @@ mod tests {
             json!({"kind": "open", "questions": [{"text": "Definisci il momento flettente.", "points": 2, "height": 3, "grid": false}]}),
         );
         let t = texts(&s);
-        assert!(t.iter().any(|x| x == "Definisci il momento flettente. (2 punti)"), "{t:?}");
+        assert!(t.iter().any(|x| x == "Definisci il momento flettente........... / 2 pt"), "{t:?}");
         // No statement, no solution, no results summary.
         assert!(!t.iter().any(|x| x.contains("Scrivi qui il testo")), "{t:?}");
         assert!(!t.iter().any(|x| x.contains("Risoluzione") || x.contains("Riepilogo")), "{t:?}");
@@ -2081,8 +2156,8 @@ mod tests {
         let t = texts(&s);
         assert!(t.iter().any(|x| x == "☒ Cerniera"), "{t:?}");
         assert!(t.iter().any(|x| x == "☐ Forza"), "{t:?}");
-        assert!(t.iter().any(|x| x == "Quali sono vincoli? (1 punto)"), "{t:?}");
-        assert!(t.iter().any(|x| x == "L'acciaio è duttile? (0,5 punti)"), "{t:?}");
+        assert!(t.iter().any(|x| x == "Quali sono vincoli?.......... / 1 pt"), "{t:?}");
+        assert!(t.iter().any(|x| x == "L'acciaio è duttile?.......... / 0,5 pt"), "{t:?}");
         assert!(t.iter().any(|x| x == "a) A, C"), "{t:?}");
         assert!(t.iter().any(|x| x == "b) A"), "{t:?}");
         // The student's copy: every box empty, the marks kept.
@@ -2181,12 +2256,25 @@ mod tests {
         assert_eq!(st["questions"][0]["type"], "calc", "{st}");
         assert_eq!(st["questions"][0]["line"], "A = 15 cm²", "{st}");
         assert_eq!(st["total"], json!(2.0));
-        // The summary gives the result.
-        assert!(t.iter().filter(|x| x.as_str() == "A = 15 cm²").count() >= 2, "{t:?}");
-        // The students' copy: the working hidden, the line with a blank and the unit.
+        // The line is labelled as the answer, its value in the answers' colour; the summary
+        // gives the result.
+        let line_para = |s: &Session| s.doc.body.iter().filter_map(|b| b.as_para()).find(|p| span(p, TAG_LINE).is_some()).cloned().unwrap();
+        let label = super::super::exercise_words(&s, &super::super::scan(&s), 0).answer;
+        let line = line_para(&s);
+        assert_eq!(line.plain_text(), format!("{label}: A = 15 cm²"));
+        let (a, b) = span(&line, TAG_LINE).unwrap();
+        let value_at = a + OBJ.len_utf8() + label.len() + 2;
+        assert_eq!(line.props_of_char(value_at).color, Some(ANSWER_COLOUR));
+        assert_eq!(line.props_of_char(a + OBJ.len_utf8()).color, None);
+        assert!(value_at < b);
+        assert!(t.iter().any(|x| x.as_str() == "A = 15 cm²"), "{t:?}");
+        // The students' copy: the working hidden, the line with a blank and the unit, in black.
         run(&mut s, "exercise.show", json!({"solution": false}));
         let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
         assert_eq!(st["questions"][0]["line"], format!("A = {BLANK} cm²"), "{st}");
+        let line = line_para(&s);
+        assert_eq!(line.plain_text(), format!("{label}: A = {BLANK} cm²"));
+        assert!(line.runs.iter().all(|r| r.props.color.is_none()), "the blank is not coloured");
         let p = s.doc.body.get(space(&s, 0)).and_then(|b| b.as_para()).unwrap();
         assert!(p.runs.iter().all(|r| r.props.hidden == Some(true)), "the working is hidden");
         // Variant B: the result follows.
@@ -2355,7 +2443,7 @@ mod tests {
         // Convert Calc -> Open: TAG_LINE disappears, equation and question text stay intact.
         let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "open"}));
         assert_eq!(st["questions"][0]["type"], "open");
-        assert!(texts(&s).iter().any(|t| t.contains("Calcola la forza. (3 punti)")));
+        assert!(texts(&s).iter().any(|t| t.contains("Calcola la forza........... / 3 pt")));
         assert!(!s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == TAG_LINE));
         // Convert back to Calc: existing equation recalculates the result line again!
         let st = run(&mut s, "exercise.questionMode", json!({"exercise": 1, "question": 1, "type": "calc"}));
@@ -2396,10 +2484,10 @@ mod tests {
 
         // Question paragraphs show `(2 punti)` and `(3,5 punti)`, while repeated prompts in the solution do NOT.
         let all = texts(&s);
-        assert!(all.iter().any(|t| t == "Calcola la velocità. (2 punti)"), "{all:?}");
-        assert!(all.iter().any(|t| t == "Calcola lo spazio. (3,5 punti)"), "{all:?}");
+        assert!(all.iter().any(|t| t == "Calcola la velocità........... / 2 pt"), "{all:?}");
+        assert!(all.iter().any(|t| t == "Calcola lo spazio........... / 3,5 pt"), "{all:?}");
         assert!(all.iter().any(|t| t == "a) Calcola la velocità."), "{all:?}");
-        assert!(!all.iter().any(|t| t == "a) Calcola la velocità. (2 punti)"), "prompts omit points suffix: {all:?}");
+        assert!(!all.iter().any(|t| t == "a) Calcola la velocità........... / 2 pt"), "prompts omit points suffix: {all:?}");
 
         // 1 exercise x 1 criterion scores table gets the sum (5,5) AND shows the Total summary row!
         let sc = run(&mut s, "exercise.scores", json!({}));

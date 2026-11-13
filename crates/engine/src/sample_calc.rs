@@ -351,6 +351,9 @@ mod tests {
         ] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
         }
+        // The calculation question's result line says it is the answer, not a stray result.
+        assert!(t.iter().any(|x| x == "Answer: s = 20 m"), "{t:?}");
+        assert!(!t.iter().any(|x| x == "s = 20 m"), "{t:?}");
         // The scores table: a row per exercise.
         assert!(t.iter().any(|x| x == "<table>"), "{t:?}");
         let mut s = Session::new(d);
