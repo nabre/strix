@@ -465,7 +465,7 @@ https://github.com/nabre/strix/issues.
 | Sito: pubblicazione | `.github/workflows/site.yml` (GitHub Pages, con la build web dell'ultima release in `/app/`) |
 | README | `README.md` (EN), `docs/README.it.md`, `docs/README.fr.md`, `docs/README.de.md` |
 | Privacy e firma | `docs/code-signing.md` |
-| Numeri (comandi, test, righe) | `cargo xtask stats`, `ROADMAP.md` (Headline numbers) |
+| Numeri (comandi, test, righe) | `cargo xtask stats` |
 | Release e nomi dei file | `.github/workflows/release.yml`, `packaging/` |
 
 Quando cambia un fatto (piattaforme, formati, comandi, stato), si aggiornano insieme: questo
