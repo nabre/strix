@@ -30,20 +30,10 @@ fn properties<R: Read + std::io::Seek>(reader: R) -> Result<Value, String> {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn scan(_: &mut Session, v: &Value) -> CmdResult {
     let path = p::req_str(v, "path")?;
-    crate::file_access::check_read(path).map_err(CmdError::Failed)?;
-    let dir = std::fs::read_dir(path).map_err(|e| CmdError::Failed(e.to_string()))?;
-    let mut files = Vec::new();
-    let mut truncated = false;
-    for (index, entry) in dir.take(MAX_FILES + 1).enumerate() {
-        let entry = entry.map_err(|e| CmdError::Failed(e.to_string()))?;
-        if index >= MAX_FILES {
-            truncated = true;
-            break;
-        }
-        if entry.file_type().is_ok_and(|t| t.is_file()) && entry.path().extension().is_some_and(|e| e.eq_ignore_ascii_case("docx")) {
-            files.push(entry.path());
-        }
-    }
+    // Through `io::list_dir`, which checks the automation read root for the folder and each entry.
+    let (listing, truncated) = crate::io::list_dir(std::path::Path::new(path), MAX_FILES).map_err(CmdError::Failed)?;
+    let mut files: Vec<_> =
+        listing.into_iter().filter(|e| !e.dir && e.path.extension().is_some_and(|x| x.eq_ignore_ascii_case("docx"))).map(|e| e.path).collect();
     files.sort();
     let (mut entries, mut errors) = (Vec::new(), Vec::new());
     for path in files {
