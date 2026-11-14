@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-14 · **Change:** Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-14 · **Change:** unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -96,6 +96,14 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   other side's kind**: with `A = 0.5 m²`, `b·h = A` checks against `A` (not "in amperes"), and
   with `N = 12 kN`, `F_1 + F_2 = N` is a check. A parameter of another kind leaves the request
   alone (`m := 3`, `1 km = m` shows metres).
+- **The unknown alone on the right** of a formula is solved like one on the left: with `h` and
+  `r` defined, `h·r = A` shows `h·r = A ⇒ A = 1.5 m²`; with Show Steps the formula is turned
+  round first, as an isolation step, then substituted:
+  `h·r = A ⇒ A = h·r = (2 m)·(0.75 m) = 1.5 m²` (on lines: `A = h·r`, `A = (2 m)·(0.75 m)`,
+  `A = 1.5 m²`). A name spelled like a unit (`A`, `S`) is that unknown when the formula is of
+  another kind (an area is not amperes); with a formula of the unit's kind (`h·r = cm²`), data
+  (`1 = kN`) or a parameter alone (`L = s`) before `=` it is still a unit to show the result in.
+  Data written the other way round (`0.75 m = r`) simply define.
 
 ## Sums, products, ranges and vectors
 
@@ -315,10 +323,30 @@ equation writes the multiplication dot `·`. Limits: 4096 characters, nesting de
 
 Functions: algebraic and trigonometric (`sqrt cbrt root(x; n) abs sign mod(a; b) exp ln log2
 log(x; base) sin cos tan asin acos atan atan2(y; x) sinh cosh tanh asinh acosh atanh min max
-round floor ceil trunc`), combinatorics and integer arithmetic (`gcd/mcd lcm/mcm fact/n!
+round floor ceil trunc`; see *Inverse functions* below), combinatorics and integer arithmetic (`gcd/mcd lcm/mcm fact/n!
 binom(n; k)`), and laboratory statistics and linear regression (`sum mean median var varp
 stdev/std stdevp len slope(X; Y) intercept(X; Y) r2(X; Y)`); `π`/`pi`, `e`, `g` (standard gravity)
 are predefined. Numbers: `1.5`, `1,5` when the document language uses decimal commas, `2e-3`.
+
+### Inverse functions
+
+The inverse trigonometric and hyperbolic functions are `asin acos atan asinh acosh atanh`;
+`arcsin arccos arctan` and `arsinh arcosh artanh` (or `arcsinh arccosh arctanh`) are the same
+functions. They may also be written with the power on the function's name, as on paper and in a
+built-up equation: `sin⁻¹(x)`, `sin^-1(x)`, `sin^(-1)(x)`, and `sin^(−1)⁡(x)` or `sin^(−1)⁡x`
+(Word's function application, U+2061, before the argument), likewise `cos⁻¹ tan⁻¹ sinh⁻¹ cosh⁻¹
+tanh⁻¹`. So `α = sin⁻¹((R − r)/(R + r))` with `R = 3 m`, `r = 1 m` gives `α = 30°`. Angles come
+out in degrees, like every angle a calculation shows (`asin(0.5) = 30°`); the hyperbolic inverses
+give plain numbers.
+
+Steps and solutions always write the inverse by its name, `asin acos atan asinh acosh atanh`:
+`α = sin⁻¹((R − r)/(R + r)) = asin(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
+`y = sin(α)` gives `α = asin(y)`.
+
+A positive whole power on the name is a power of the result: `sin²(x)` is `sin(x)²`
+(`cos²(x) + sin²(x) = 1`). Other powers on a name are errors (`sin^-2(x)`: write `(sin(x))^-2`),
+as is `⁻¹` on a function without an inverse here (`ln⁻¹`: write `exp`). Anywhere else `⁻¹` is a
+power: `x⁻¹`, `x^-1`, `sin(x)^-1`, `60 min^-1`.
 
 ### User functions
 
@@ -442,6 +470,40 @@ units are upright, in the Unit style, after a thin space (`30.375 MPa ≤ 355 MP
 spelled like a unit stays a parameter in its own part (`m` the mass in `F = m·a`, the metre in
 `2.5 m/s²`).
 
+## Data shown as values
+
+In an exercise, a datum the reader only ever sees as a value is written as that value where a
+calculation reads it. Say the statement reads "Calculate the water section when its height is
+2 m", the `2 m` being an inline value `{{h}}` (docs/exercise.md), while the data part declares
+`r = 0.75 m`. Then `A = h·r` shows
+
+`A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²`
+
+— `h` replaced by its value in the statement itself (and in every line of its working: the
+isolation steps of `h·r = A` read `A = (2 m)·r`), `r` substituted in the usual step. With Show
+Steps off the statement still reads `A = (2 m)·r`.
+
+**The rule.** A datum of the exercise (a row of its Data) is shown as a value when its title,
+statement or questions show its value — an inline value recalling it shown as Value and Unit or
+Number Only (`{{h}}`, `{{h -> cm}}`), or a drawing there whose annotation shows its value
+(`{{h}}`, `{{h:value}}`), so the data part has no line for it — and **never its symbol**: no
+inline value shown as Symbol = Value (`h = 2 m`), no annotation `{{h:both}}` or `{{h:symbol}}`.
+A datum listed in the data part, recalled with its symbol anywhere, or not shown at all keeps
+its symbol (`r` above). Recalls in the solution don't count. Parameters defined by calculations
+(and everything outside exercises) are always written by name.
+
+Where it is replaced: wherever a name is read as that parameter; not alone on a side (`h =`
+shows `h`), not what `:=` defines, not a unit after a number (`3 h` is hours), not inside a
+function definition `f(x) = …`.
+
+**The statement stays `A = h·r`.** What the equation shows is Strix's working; the statement as
+typed is kept with it (`strix:calcOpts`, keys `source` and `written`: the statement and a
+fingerprint of the equation as written) and read instead of the equation's text as long as the
+equation is exactly as Strix wrote it. So another variant, or a changed datum, is worked out
+again from `h` (`A = (3 m)·r` for `h = 3 m`). Once the equation is edited by hand it is read as it
+now stands (a `(2 m)` left in it stays a number). The source travels with the equation through
+`.xmath` and Word documents; a statement longer than 1024 characters is shown as typed.
+
 ## Commands (engine, `cmd/calc.rs`)
 
 | Id | Does |
@@ -492,6 +554,8 @@ Edit Drawing, see `docs/cad.md`).
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-14: the unknown alone on the right of a formula is solved (`h·r = A ⇒ A = h·r = … = 1.5 m²`, also when it is spelled like a unit of another kind); inverse functions written `sin⁻¹`, `sin^-1`, `sin^(−1)⁡x` (built up) or `arcsin`…, shown as `asin`… in the steps, `sin²(x)` a power of the result, Word's function application `sin⁡x` read; data shown only as values in an exercise's text written as their values in its calculations (`A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²`), the typed statement kept as the source.
 
 - 2026-11-14: calculated tables: rows by subscript (`y_(i+1)`, `y_(i-1)`, `y_1`, `y_n`, `y_i`; columns named `y_i`), never wrapping round, `–` where there is no such row; the total row shows `Σ` in its first column and the sums alone; Column Total (`table.calcTotal`) per column; in Cells as Equations the whole cell is its equation's place; the Calculated Table style (heavier header bottom and total top edges).
 

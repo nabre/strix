@@ -16,6 +16,8 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod values;
+
 /// Deepest table nesting searched for regions.
 const MAX_DEPTH: usize = 16;
 /// Most regions evaluated in one document; later equations are left as they are.
@@ -300,14 +302,15 @@ fn apply_scoped_change(
             let Some(InlineObject::Equation { math, .. }) = para.object_at_mut(at.off) else {
                 return Err(CmdError::Failed("no equation there".into()));
             };
-            if reset {
-                math.calc_opts = None;
-            } else {
-                let mut c = parse_eq_overrides(math.calc_opts.as_deref()).unwrap_or_default();
+            // The statement a calculation shows data as values from stays with it.
+            let old = math.calc_opts.take();
+            if !reset {
+                let mut c = parse_eq_overrides(old.as_deref()).unwrap_or_default();
                 mutate(&mut c, current);
                 c.sanitize();
                 math.calc_opts = (!c.is_empty()).then(|| serde_json::to_string(&c).unwrap_or_default());
             }
+            math.calc_opts = values::keep_source(old.as_deref(), math.calc_opts.take());
             math.omml.clear();
             para.touch();
             Ok("equation")
@@ -804,7 +807,8 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                         out.push(Item::Equation {
                             top,
                             // A unit written inline (`kN∕m`, see `style_parts`) reads as typed.
-                            text: math.calc.then(|| equation_text(linear, math).replace('∕', "/")),
+                            // Data shown as values: the statement as typed, while Strix's writing stands.
+                            text: math.calc.then(|| values::source(linear, math).unwrap_or_else(|| equation_text(linear, math).replace('∕', "/"))),
                             answer: math.answer,
                             full: equation_full(linear, math),
                             opts: math.calc_opts.clone(),
@@ -879,10 +883,20 @@ enum Outcome {
 struct Sheets {
     main: Worksheet,
     exercises: std::collections::BTreeMap<usize, Worksheet>,
+    /// The drawings with an id as another drawing's underlay shows them: worked out, their
+    /// labels written out with their worksheet ([`strix_cad::Drawing::freeze_labels`]).
+    cads: CadsById,
 }
+
+/// The drawings worked out, by id: the sources of the underlays printed with other drawings.
+type CadsById = std::collections::HashMap<String, Arc<strix_cad::Drawing>>;
 
 /// Evaluates the items in order, each in its zone's worksheet (`zones`: the exercise of each
 /// top-level block, `None` outside exercises). One step budget covers them all.
+///
+/// A drawing whose underlay prints with it is given the underlay's source worked out
+/// ([`strix_cad::UnderSource`]) before its scale is fitted, so the underlay counts in its size;
+/// a source later in the document is worked out by a second pass, only then.
 #[allow(clippy::too_many_arguments)]
 fn run_sheet(
     found: &[Item],
@@ -893,6 +907,35 @@ fn run_sheet(
     call_opts: &CalcOverrides,
     hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
 ) -> (Sheets, Vec<Outcome>) {
+    let first = run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &CadsById::new());
+    let all = first.0.cads.clone();
+    // An underlay printed whose source came after its drawing: worked out again with it.
+    let forward = first.1.iter().any(|o| match o {
+        Outcome::Cad(_, _, Some(r)) => {
+            let d = &r.0;
+            d.under_source.0.is_none()
+                && d.underlay.as_ref().is_some_and(|u| u.print && u.show && d.id.as_ref() != Some(&u.source) && all.contains_key(&u.source))
+        }
+        _ => false,
+    });
+    if forward { run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &all) } else { first }
+}
+
+/// [`run_sheet`] with the drawings of an earlier pass (`prior`) for underlays whose source comes
+/// later.
+#[allow(clippy::too_many_arguments)]
+fn run_sheet_with(
+    found: &[Item],
+    opts: &Options,
+    zones: &[Option<usize>],
+    seeds: &std::collections::BTreeMap<usize, Vec<String>>,
+    ex_calc: &std::collections::BTreeMap<usize, CalcOverrides>,
+    call_opts: &CalcOverrides,
+    hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
+    prior: &CadsById,
+) -> (Sheets, Vec<Outcome>) {
+    // The drawings worked out so far in this pass.
+    let mut done = CadsById::new();
     let zone_options = |ex: Option<usize>| -> Options {
         let mut o = *opts;
         if let Some(e) = ex
@@ -904,7 +947,7 @@ fn run_sheet(
         o
     };
     let main_opts = zone_options(None);
-    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default() };
+    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default(), cads: CadsById::new() };
     // Each exercise's sandbox starts with its data (the active variant's values).
     // The data count against the same step budget as everything else.
     let mut spent = 0usize;
@@ -981,8 +1024,19 @@ fn run_sheet(
                 Item::Cad { source, .. } => match strix_cad::Drawing::from_json(source) {
                     Ok(mut d) => {
                         let errors = d.resolve(ws);
+                        // The underlay printed with it counts in its size.
+                        if let Some(u) = d.underlay.as_ref().filter(|u| u.print && u.show && d.id.as_ref() != Some(&u.source)) {
+                            d.under_source = strix_cad::UnderSource(done.get(&u.source).or_else(|| prior.get(&u.source)).cloned());
+                        }
                         // Fitted to its space: the scale follows the sizes just worked out.
                         d.apply_fit(Some(ws));
+                        if let Some(id) = d.id.clone() {
+                            // As an underlay shows it: its parameters' values and settings with it.
+                            let mut plain = d.clone();
+                            plain.under_source = strix_cad::UnderSource::default();
+                            plain.freeze_labels(Some(ws));
+                            done.insert(id, Arc::new(plain));
+                        }
                         let rendered = d.render_for(Some(ws), false, show_sol);
                         // The editor's sheet shows the layers not printed too.
                         let screen = d.has_unprinted().then(|| d.render_for(Some(ws), true, true));
@@ -1005,6 +1059,7 @@ fn run_sheet(
             outcome
         })
         .collect();
+    sheets.cads = done;
     (sheets, outcomes)
 }
 
@@ -1162,6 +1217,9 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     let ex_calc = super::exercise::exercise_calc(s);
     let hidden = super::exercise::hidden_solutions(s);
     let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, call_opts, Some(&hidden));
+    // Exercise data the reader only sees as values are written as values (docs/calc.md).
+    let value_only = super::exercise::value_only(s);
+    let mut sources: Vec<Option<String>> = Vec::new();
     let mut updates: Vec<Option<(String, Option<&'static str>)>> = Vec::new();
     // The Unit style is added only to a document that has something to style: recalculating a
     // document with no calculation leaves it as it was.
@@ -1176,17 +1234,16 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     let mut plain_tables: Vec<usize> = Vec::new();
     let mut errors = Vec::new();
     let (mut calc_regions, mut tables) = (0usize, 0usize);
-    // The drawings by id, resolved: the underlays printed with a drawing are drawn from them.
-    let by_id: std::collections::HashMap<String, &strix_cad::Drawing> = outcomes
-        .iter()
-        .filter_map(|o| match o {
-            Outcome::Cad(_, _, Some(r)) => r.0.id.clone().map(|id| (id, &r.0)),
-            _ => None,
-        })
-        .collect();
     for (i, (item, outcome)) in found.iter().zip(&outcomes).enumerate() {
         match (item, outcome) {
             (Item::Equation { top, text: Some(text), full, .. }, Outcome::Equation(Some(r), found_units, _)) => {
+                let valued =
+                    values::zone(*top, &zones, &sheets.exercises, &value_only).and_then(|(ws, names)| values::shown_as_values(r, text, ws, names));
+                sources.push(valued.as_ref().map(|_| text.clone()));
+                let (r, found_units) = match &valued {
+                    Some((r, u)) => (r, u),
+                    None => (r, found_units),
+                };
                 units.push(found_units.clone());
                 if r.kind != RegionKind::NotCalc {
                     calc_regions += 1;
@@ -1211,6 +1268,7 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
             }
             (Item::Equation { .. }, _) => {
                 updates.push(None);
+                sources.push(None);
                 stepped.push(false);
                 units.push(Vec::new());
             }
@@ -1235,7 +1293,11 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
                 }
                 let fitted = resolved.as_deref().filter(|(d, ..)| d.fit.is_some()).map(|(d, ..)| d.to_json());
                 let body_font = s.doc.settings.minor_font.clone();
-                let drawn = with_printed_underlay(drawn.clone(), resolved.as_deref().map(|r| &r.0), &by_id);
+                // With the underlay printed beneath it (its size already counted in the scale).
+                let drawn = match (drawn, resolved.as_deref()) {
+                    (Some(r), Some((d, ..))) => Some(d.with_printed_underlay(r.clone())),
+                    (drawn, _) => drawn.clone(),
+                };
                 cads.push(drawn.as_ref().map(|r| {
                     let (w, h, items) = super::cad::items_of(r, unit, &body_font);
                     (w, h, items, r.clone(), unit, fitted.clone())
@@ -1261,6 +1323,7 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
         })
         .collect();
     let restyled = write_back(s, &equations, &updates, &stepped, &units, unit);
+    values::stamp(s, &sources);
     changed += restyled + redraw(s, &cads) + redraw_plots(s, &plots);
     for (top, grid) in &math_cells {
         changed += write_math_cells(s, *top, grid, unit);
@@ -1276,19 +1339,6 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     changed += usize::from(converted_templates) + expr_changed;
     errors.extend(expr_errors);
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
-}
-
-/// Drawing `d`'s rendering `drawn` with its underlay beneath, when the underlay prints and shows
-/// (its source found by id; one level deep, never itself).
-fn with_printed_underlay(
-    drawn: Option<strix_cad::Rendered>,
-    d: Option<&strix_cad::Drawing>,
-    by_id: &std::collections::HashMap<String, &strix_cad::Drawing>,
-) -> Option<strix_cad::Rendered> {
-    let (Some(r), Some(d)) = (drawn.as_ref(), d) else { return drawn };
-    let Some(u) = d.underlay.as_ref().filter(|u| u.print && u.show && d.id.as_ref() != Some(&u.source)) else { return drawn };
-    let Some(src) = by_id.get(&u.source) else { return drawn };
-    Some(r.clone().with_under(d.underlay_view(src).render(None)))
 }
 
 /// A hash of what the calculations read: every item's text, in order.
@@ -1608,12 +1658,48 @@ pub(crate) fn resolved_cad_in_mm(s: &Session, source: &Arc<str>) -> Option<Resol
     resolved_cad_as(s, source, true)
 }
 
+/// Where in `found` the source of the underlay printed with the drawing at `at` (source
+/// `source`) is, when it comes after it. Read only when the drawing's text says an underlay
+/// prints (the ribbon asks every frame).
+fn printed_underlay_at(found: &[Item], at: usize, source: &str) -> Option<usize> {
+    if !(source.contains("\"underlay\"") && source.contains("\"print\"")) {
+        return None;
+    }
+    let d = strix_cad::Drawing::from_json(source).ok()?;
+    let u = d.underlay.as_ref().filter(|u| u.print && u.show && d.id.as_ref() != Some(&u.source))?;
+    let id_text = serde_json::to_string(&u.source).ok()?;
+    found.iter().enumerate().skip(at.saturating_add(1)).find_map(|(i, item)| match item {
+        Item::Cad { source: src, .. } if src.contains(id_text.as_str()) => {
+            strix_cad::Drawing::from_json(src).ok().filter(|o| o.id.as_ref() == Some(&u.source)).map(|_| i)
+        }
+        _ => None,
+    })
+}
+
+/// The drawing whose source is `source` as another drawing's underlay shows it: worked out where
+/// it sits, its labels written out there (its parameters' values, number format and dimension
+/// styles go with it).
+pub(crate) fn underlay_source(s: &Session, source: &Arc<str>) -> Option<Arc<strix_cad::Drawing>> {
+    let mut found = items(&s.doc.body);
+    let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
+    found.truncate(at + 1);
+    let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
+    let (sheets, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let id = match outcomes.into_iter().nth(at) {
+        Some(Outcome::Cad(_, _, Some(r))) => r.0.id.clone()?,
+        _ => return None,
+    };
+    sheets.cads.get(&id).cloned()
+}
+
 fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<ResolvedCad> {
     use std::hash::{Hash, Hasher};
     let mut found = items(&s.doc.body);
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
-    // What comes after the drawing does not change it.
-    found.truncate(at + 1);
+    // What comes after the drawing does not change it, except the source of an underlay printed
+    // with it (its size counts in the drawing's).
+    let upto = printed_underlay_at(&found, at, source).unwrap_or(at);
+    found.truncate(upto.max(at) + 1);
     let opts = options_now(s);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -1631,7 +1717,7 @@ fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<Resolv
         return hit;
     }
     let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
-    let resolved = match (found.last(), outcomes.into_iter().last()) {
+    let resolved = match (found.get(at), outcomes.into_iter().nth(at)) {
         (Some(Item::Cad { top, source }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
             let (d, names, screen) = *resolved;
             if in_mm && d.unit != strix_cad::Unit::Mm {
@@ -1640,9 +1726,11 @@ fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<Resolv
                     Some(e) => sheets.exercises.entry(e).or_insert_with(|| Worksheet::new(opts)),
                     None => &mut sheets.main,
                 };
+                let under = d.under_source.clone();
                 strix_cad::Drawing::from_json(source).ok().map(|mut d| {
                     d.to_mm();
                     d.resolve(ws);
+                    d.under_source = under;
                     d.apply_fit(Some(ws));
                     let r = if d.has_unprinted() { d.render_layers(Some(ws), true) } else { d.render(Some(ws)) };
                     std::rc::Rc::new((d, r, names))

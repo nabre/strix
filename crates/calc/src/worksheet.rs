@@ -9,6 +9,8 @@ use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, isolate, is
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
+mod values;
+
 /// Evaluation and number-format options (`docs/calc.md`, Number format).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
@@ -802,6 +804,17 @@ impl Worksheet {
                             _ => false,
                         }
                     }
+                    // `h·r = A` with `h·r` an area: `A` is the unknown, not "in amperes". A
+                    // parameter alone (`L = s`) or data (`1 = kN`) before `=` still ask for a unit.
+                    (Some(l), Some(r_expr))
+                        if matches!(&r_expr, Expr::Name(n) if self.scope.get(n).is_none() && self.reads_parameter(&l, n))
+                            && !matches!(l, Expr::Name(_)) =>
+                    {
+                        match (eval(&l, &self.scope, Names::Worksheet).ok(), eval(&r_expr, &self.scope, Names::UnitsOnly).ok()) {
+                            (Some(lv), Some(uv)) => lv.dim() != uv.dim(),
+                            _ => false,
+                        }
+                    }
                     _ => false,
                 }
             };
@@ -958,6 +971,13 @@ impl Worksheet {
         let shown = self.shown(name)?;
         let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
         Some(if bare { shown } else { format!("({shown})") })
+    }
+
+    /// True when `expr` reads a parameter other than `x` (`h·r`, not `3 m·5 m`).
+    fn reads_parameter(&self, expr: &Expr, x: &str) -> bool {
+        let mut names = Vec::new();
+        free_names(expr, &mut names);
+        names.iter().any(|n| n != x && self.scope.get(n).is_some())
     }
 
     /// True when `left = right` (both parsed) has an unknown name.
@@ -1122,8 +1142,14 @@ impl Worksheet {
                 RegionResult { kind: RegionKind::Check, name: None, value, display, error: check.err().or(shown_err), steps: None, numeric: false }
             }
             [x] => {
-                let alone = matches!(&lhs, Expr::Name(n) if n == x) || matches!(&rhs, Expr::Name(n) if n == x);
-                let (value, solution) = self.solve_for(&lhs, &rhs, x, extra);
+                // `h·r = A`: the unknown alone on the right of a formula is solved like `A = h·r`,
+                // the formula turned round first (`A = h·r`), as an isolation step.
+                let flipped = matches!(&rhs, Expr::Name(n) if n == x) && !matches!(&lhs, Expr::Name(n) if n == x) && self.reads_parameter(&lhs, x);
+                let alone = matches!(&lhs, Expr::Name(n) if n == x) || (matches!(&rhs, Expr::Name(n) if n == x) && !flipped);
+                let (value, solution) = match self.solve_for(&lhs, &rhs, x, extra) {
+                    (value, Solution::Direct(f)) if flipped => (value, Solution::Isolated(f.clone(), vec![(Expr::Name(x.clone()), f)])),
+                    other => other,
+                };
                 let kind = if alone { RegionKind::Definition } else { RegionKind::Solved };
                 // The unknown's unit, when it is a plain number: from the side it equals, or from
                 // its isolated form.
@@ -1685,7 +1711,7 @@ impl Worksheet {
 
 /// Indices of the tokens outside any brackets that match `pred` (all of them when the brackets
 /// don't balance, so `(2 =` is still an evaluation with a syntax error).
-fn positions(tokens: &[Token], pred: impl Fn(&Tok) -> bool) -> Vec<usize> {
+pub(crate) fn positions(tokens: &[Token], pred: impl Fn(&Tok) -> bool) -> Vec<usize> {
     let mut depth = 0usize;
     let mut out = Vec::new();
     for (i, t) in tokens.iter().enumerate() {

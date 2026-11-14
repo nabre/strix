@@ -1032,6 +1032,11 @@ pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String
     scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
 }
 
+/// For each exercise (0-based), the data its text shows only as values ([`shown::value_only`]).
+pub(crate) fn value_only(s: &Session) -> std::collections::BTreeMap<usize, std::collections::BTreeSet<String>> {
+    shown::value_only(s, &scan(s))
+}
+
 /// Title, active variant name (when multi-variant), and jump position of each exercise's data/start.
 pub(crate) fn sandbox_meta(s: &Session) -> std::collections::BTreeMap<usize, (String, Option<String>, wordcraft_doc::Pos)> {
     scan(s)
@@ -1258,6 +1263,15 @@ pub(crate) fn hidden_solutions(s: &Session) -> (std::collections::BTreeSet<usize
     let hidden: std::collections::BTreeSet<usize> = layout.exercises.iter().enumerate().filter(|(_, e)| !e.show.solution).map(|(i, _)| i).collect();
     let all_hidden = !layout.exercises.is_empty() && hidden.len() == layout.exercises.len();
     (hidden, all_hidden)
+}
+
+/// What the Exercise and Series ribbon tabs need, in one scan: whether the caret is in an
+/// exercise, and how many exercises the document has.
+pub fn context(s: &Session) -> (bool, usize) {
+    let layout = scan(s);
+    let here = s.sel.focus.story == StoryRef::Body
+        && s.sel.focus.path.0.first().and_then(|&top| layout.parts.get(top as usize)).is_some_and(|(e, _)| e.is_some());
+    (here, layout.exercises.len())
 }
 
 /// The exercise holding the caret.
