@@ -217,7 +217,8 @@ impl Drawing {
                 ) => {
                     (*w, *p, *a, *s, *r) = (*width, *pattern, *angle, *spacing, *ratio);
                 }
-                (Kind::Dim { mark, .. }, Kind::Dim { mark: m, .. }) | (Kind::Angle { mark, .. }, Kind::Angle { mark: m, .. }) => *m = *mark,
+                (Kind::Dim { mark, mark_end, .. }, Kind::Dim { mark: m, mark_end: me, .. })
+                | (Kind::Angle { mark, mark_end, .. }, Kind::Angle { mark: m, mark_end: me, .. }) => (*m, *me) = (*mark, *mark_end),
                 _ => {}
             }
         }

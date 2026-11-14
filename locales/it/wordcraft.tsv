@@ -3698,3 +3698,9 @@ paper	Envelope DL	Busta DL
 	Grading Scale Properties	Proprietà scala di valutazione
 	Title Line	Riga del titolo
 	The result line is generated from the working: write the working in the space above it.	La riga del risultato è generata dallo svolgimento: scrivi lo svolgimento nello spazio sopra.
+	Inline Value	Valore in linea
+	Value and Unit	Valore e unità
+	Symbol = Value	Simbolo = valore
+	Number Only	Solo il numero
+	Delete Value	Elimina valore
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Cosa mostra il valore: un dato (R), un calcolo (2*R) o una conversione (R -> cm). Invio lo applica.

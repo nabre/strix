@@ -3205,3 +3205,9 @@ paper	Envelope DL	Umschlag DL
 	Grading Scale Properties	Eigenschaften der Notenskala
 	Title Line	Titelzeile
 	The result line is generated from the working: write the working in the space above it.	Die Ergebniszeile wird aus dem Rechenweg erzeugt: Schreiben Sie den Rechenweg in den Bereich darüber.
+	Inline Value	Wert im Text
+	Value and Unit	Wert und Einheit
+	Symbol = Value	Symbol = Wert
+	Number Only	Nur die Zahl
+	Delete Value	Wert löschen
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Was der Wert zeigt: eine Angabe (R), eine Rechnung (2*R) oder eine Umrechnung (R -> cm). Eingabe übernimmt sie.

@@ -315,10 +315,12 @@ mod tests {
         let t = texts(&d);
         // The formulas are live: their values are worked out.
         assert!(t.iter().any(|x| x.starts_with("A=b·h=") && x.ends_with("0.15\u{2009}m²")), "{t:?}");
-        // The exercise: data, questions, worked solution and the results summary.
-        for want in ["Simply supported beam", "Data (variant A)", "span: L = 4.5 m", "a) R = 27 kN", "b) M = 30.375 kN·m"] {
+        // The exercise: questions, worked solution and the results summary.
+        for want in ["Simply supported beam", "a) R = 27 kN", "b) M = 30.375 kN·m"] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
         }
+        // The drawing in the statement shows both data (L and q): no data part repeats them.
+        assert!(!t.iter().any(|x| x.starts_with("Data") || x == "span: L = 4.5 m"), "{t:?}");
         // The statement holds the drawing, sized by the data: its span dimension reads 4.5.
         let statement = t.iter().position(|x| x.starts_with("A beam of span L")).unwrap();
         let Block::Para(p) = &*d.body[statement + 1] else { panic!("no drawing paragraph") };

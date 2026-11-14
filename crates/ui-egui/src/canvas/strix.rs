@@ -56,3 +56,44 @@ pub(super) fn paint_calc_button(painter: &Painter, button: Rect, in_calc: bool, 
     let ink = if in_calc { t.on_accent } else { t.equation_box };
     painter.text(button.center(), egui::Align2::CENTER_CENTER, "=", regular(12.0), ink);
 }
+
+/// Right-click on an exercise's inline value (`{{R}}` in its text): the expression it shows
+/// (Enter applies), how it is shown, and Delete Value (docs/exercise.md, Inline values).
+pub(super) fn inline_value_menu(app: &mut WordApp, ui: &mut egui::Ui) {
+    let Some(info) = wordcraft_engine::cmd::exercise::inline_value_at(&app.session) else { return };
+    ui.separator();
+    ui.label(egui::RichText::new(tl!("Inline Value")).small().weak());
+    let expr = info["expr"].as_str().unwrap_or_default().to_string();
+    // The draft is kept while the menu is open, for the value it was started on.
+    let id = ui.scope_id().with("inline_value_expr");
+    let mut draft = ui.data(|d| d.get_temp::<(String, String)>(id)).filter(|(of, _)| *of == expr).map_or_else(|| expr.clone(), |(_, d)| d);
+    let edit = ui.add(egui::TextEdit::singleline(&mut draft).desired_width(200.0).hint_text(tl!("Expression")));
+    let edit = edit.on_hover_text(tl!("What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it."));
+    ui.data_mut(|d| d.insert_temp(id, (expr.clone(), draft.clone())));
+    let wanted = draft.trim().to_string();
+    if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) && !wanted.is_empty() && wanted != expr {
+        if let Err(e) = app.run("exercise.inlineValue", json!({"expr": wanted})) {
+            app.status(e);
+        }
+        ui.close();
+    }
+    if !info["blank"].as_bool().unwrap_or(false) {
+        let show = info["show"].as_str().unwrap_or("value");
+        for (mode, label) in [("value", "Value and Unit"), ("both", "Symbol = Value"), ("number", "Number Only")] {
+            if ui.selectable_label(show == mode, tl!(label)).clicked() {
+                if mode != show
+                    && let Err(e) = app.run("exercise.inlineValue", json!({"show": mode}))
+                {
+                    app.status(e);
+                }
+                ui.close();
+            }
+        }
+    }
+    if ui.button(tl!("Delete Value")).clicked() {
+        if let Err(e) = app.run("exercise.inlineValue", json!({"remove": true})) {
+            app.status(e);
+        }
+        ui.close();
+    }
+}

@@ -83,6 +83,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     d.add(Entity::new(Kind::Dim {
@@ -94,6 +95,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: Some("L = {{L}}".into()),
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     d.add(Entity::new(Kind::Dim {
@@ -105,6 +107,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: Some("<> mm".into()),
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(Some(&ws));
@@ -849,6 +852,7 @@ fn dimension_style_marks_texts_below_and_angles() {
         text: None,
         below: Some("L".into()),
         mark: Some(Mark::Arrow),
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(None);
@@ -873,13 +877,22 @@ fn dimension_style_marks_texts_below_and_angles() {
         r_paper: 0.0,
         text: Some("<>°".into()),
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(None);
     assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { text, .. } if text == "90°")), "{:?}", r.prims);
     // Hostile radius: nothing drawn, no panic.
-    d.entities[0].kind =
-        Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, r_paper: 0.0, text: None, mark: None };
+    d.entities[0].kind = Kind::Angle {
+        c: P::new(0.0, 0.0),
+        a: P::new(0.0, 0.0),
+        b: P::new(0.0, 0.0),
+        r: f64::NAN,
+        r_paper: 0.0,
+        text: None,
+        mark: None,
+        mark_end: None,
+    };
     d.sanitize();
     let _ = d.render(None);
 }
@@ -1146,6 +1159,7 @@ fn dimensions_are_picked_where_they_are_drawn() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     assert_eq!(d.hits(Pt::new(50.0, 8.0), 0.5), [0], "on the dimension line");
@@ -1315,6 +1329,62 @@ fn trim_takes_away_the_piece_picked() {
     assert!(approx(bulges[0], -(std::f64::consts::FRAC_PI_8).tan()), "{bulges:?}");
     // No object there: an error, never a panic.
     assert!(d.trim(99, Pt::new(0.0, 0.0)).is_err());
+}
+
+/// Trim's preview: the piece a click would take away, as the editor highlights it — the middle
+/// of a line between its crossings, a whole object nothing crosses, a circle's side round the
+/// seam, a closed square's side; an error where Trim refuses.
+#[test]
+fn trim_preview_is_the_piece_taken_away() {
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[3,-1],"b":[3,1]},
+            {"type":"line","a":[6,-1],"b":[6,1]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(d.trim_preview(0, Pt::new(4.5, 0.0)).unwrap(), vec![Pt::new(3.0, 0.0), Pt::new(6.0, 0.0)]);
+    assert_eq!(d.trim_preview(0, Pt::new(1.0, 0.0)).unwrap(), vec![Pt::new(0.0, 0.0), Pt::new(3.0, 0.0)]);
+    assert_eq!(d.trim_preview(0, Pt::new(8.0, 0.0)).unwrap(), vec![Pt::new(6.0, 0.0), Pt::new(10.0, 0.0)]);
+    // The lower half of a circle cut by a line: from 180° round to 360°, every point below.
+    let c = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[-10,0],"b":[10,0]}]}"#).unwrap();
+    let lower = c.trim_preview(0, Pt::new(0.0, -5.0)).unwrap();
+    assert!(lower.len() > 8);
+    assert!(lower.first().unwrap().minus(Pt::new(-5.0, 0.0)).len() < 1e-9 && lower.last().unwrap().minus(Pt::new(5.0, 0.0)).len() < 1e-9);
+    assert!(lower.iter().all(|p| p.y <= 1e-9 && (p.len() - 5.0).abs() < 1e-9), "{lower:?}");
+    // The upper half, across the seam at 0°.
+    let upper = c.trim_preview(0, Pt::new(0.0, 5.0)).unwrap();
+    assert!(upper.iter().all(|p| p.y >= -1e-9), "{upper:?}");
+    // A closed square cut by a line: the right side picked, from the bottom cut round to the top.
+    let sq = Drawing::from_json(
+        r#"{"entities":[{"type":"polyline","pts":[[0,0],[10,0],[10,10],[0,10]],"closed":true},{"type":"line","a":[5,-1],"b":[5,11]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(sq.trim_preview(0, Pt::new(10.0, 5.0)).unwrap(), vec![Pt::new(5.0, 0.0), Pt::new(10.0, 0.0), Pt::new(10.0, 10.0), Pt::new(5.0, 10.0)]);
+    // Nothing crossing: the whole object.
+    let lone = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[4,0]}]}"#).unwrap();
+    assert_eq!(lone.trim_preview(0, Pt::new(1.0, 0.0)).unwrap(), vec![Pt::new(0.0, 0.0), Pt::new(4.0, 0.0)]);
+    // Where Trim refuses, so does the preview.
+    let t = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[0,0],"b":[10,0]}]}"#).unwrap();
+    assert!(t.trim_preview(0, Pt::new(0.0, 5.0)).is_err());
+    assert!(d.trim_preview(99, Pt::new(0.0, 0.0)).is_err());
+}
+
+/// Extend's preview: the stretch a click would add, from the end nearer the pick to the first
+/// object ahead; an error where Extend refuses.
+#[test]
+fn extend_preview_is_the_stretch_added() {
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[2,0],"b":[5,0]},{"type":"line","a":[8,-1],"b":[8,1]},{"type":"line","a":[0,-1],"b":[0,1]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(d.extend_preview(0, Pt::new(4.5, 0.0)).unwrap(), vec![Pt::new(5.0, 0.0), Pt::new(8.0, 0.0)]);
+    assert_eq!(d.extend_preview(0, Pt::new(2.5, 0.0)).unwrap(), vec![Pt::new(2.0, 0.0), Pt::new(0.0, 0.0)]);
+    let mut e = d.clone();
+    e.extend(0, Pt::new(4.5, 0.0)).unwrap();
+    assert!(matches!(&e.entities[0].kind, Kind::Line { b, .. } if b.pt() == Pt::new(8.0, 0.0)));
+    // Nothing ahead: an error, as Extend.
+    let lone = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[4,0]}]}"#).unwrap();
+    assert!(lone.extend_preview(0, Pt::new(3.0, 0.0)).is_err());
+    assert!(d.extend_preview(99, Pt::new(0.0, 0.0)).is_err());
 }
 
 /// Extend: the end nearer the pick runs to the first object ahead; an arc goes round its circle;

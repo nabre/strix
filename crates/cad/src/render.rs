@@ -370,7 +370,7 @@ impl Drawing {
     }
 
     fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
-        let Kind::Dim { text, below, mark, .. } = &e.kind else { return };
+        let Kind::Dim { text, below, mark, mark_end, .. } = &e.kind else { return };
         let st = self.dim_style_of(e);
         let look = self.text_look(st.text_style.as_deref());
         let Some(DimFrame { a, b, fa, fb, dir, normal, side }) = self.dim_frame(e, k) else { return };
@@ -385,7 +385,7 @@ impl Drawing {
         }
         // The end marks, each pointing at its end: the style's start and end marks, or the
         // dimension's own at both. Past a tick or a dot the line runs on beyond the extension line.
-        let (m1, m2) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+        let (m1, m2) = crate::model::dim_marks(st, *mark, *mark_end);
         let over = |m: Mark| if matches!(m, Mark::Tick | Mark::Dot) { st.line_over } else { 0.0 };
         out.push(line(vec![fa.minus(dir.scale(over(m1))), fb.plus(dir.scale(over(m2)))]));
         self.mark(st, m1, fa, dir, color, width, out);
@@ -462,7 +462,7 @@ impl Drawing {
     /// from the rays' ends to the arc when it is beyond them, and the angle just outside the
     /// arc's middle. A zero angle draws nothing (not a full circle).
     fn angular(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
-        let Kind::Angle { c, a, b, r, r_paper, text, mark } = &e.kind else { return };
+        let Kind::Angle { c, a, b, r, r_paper, text, mark, mark_end } = &e.kind else { return };
         let st = self.dim_style_of(e);
         let look = self.text_look(st.text_style.as_deref());
         let (c, a, b) = (c.pt().scale(k), a.pt().scale(k), b.pt().scale(k));
@@ -497,7 +497,7 @@ impl Drawing {
         }
         // The marks point along the arc, into each end.
         let (pa, pb) = (c.plus(ua.scale(r)), c.plus(ub.scale(r)));
-        let (m1, m2) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+        let (m1, m2) = crate::model::dim_marks(st, *mark, *mark_end);
         self.mark(st, m1, pa, ua.left(), color, width, out);
         self.mark(st, m2, pb, ub.left().scale(-1.0), color, width, out);
         // The label reads level just outside the arc's middle, anchored on the side facing it.

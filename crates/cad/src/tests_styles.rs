@@ -12,6 +12,7 @@ fn dim() -> Entity {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     })
 }
 
@@ -47,6 +48,18 @@ fn a_dimension_style_has_a_start_and_an_end_mark_and_a_mark_width() {
         *mark = Some(Mark::Arrow);
     }
     assert_eq!(filled(&d.render(None)), 2);
+    // Its own end mark differs from its start's: a tick at the start, an arrow only at the end;
+    // set from the Properties pane, read back as written.
+    d.set_field(0, 0, "mark", "tick").unwrap();
+    d.set_field(0, 0, "markEnd", "arrow").unwrap();
+    assert_eq!(filled(&d.render(None)), 1);
+    assert!(d.fields(0, 0).iter().any(|f| f.key == "markEnd" && f.text == "arrow"));
+    let back = Drawing::from_json(&d.to_json()).unwrap();
+    assert!(matches!(back.entities[0].kind, Kind::Dim { mark: Some(Mark::Tick), mark_end: Some(Mark::Arrow), .. }));
+    // "As the start" again: the start's mark at both ends.
+    d.set_field(0, 0, "markEnd", "asStart").unwrap();
+    assert_eq!(filled(&d.render(None)), 0);
+    assert!(d.set_field(0, 0, "markEnd", "sparkles").is_err());
     // A width from a file is kept within reason.
     let wild = Drawing::from_json(r#"{"dimStyle": {"markWidth": 1e9, "markEnd": "sparkles"}}"#).unwrap();
     assert_eq!((wild.dim_style.mark_width, wild.dim_style.mark_end), (2.0, None));

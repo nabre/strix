@@ -199,6 +199,7 @@ mod tests {
             text: None,
             below: None,
             mark: None,
+            mark_end: None,
         };
         let color = |kind: &Kind, key: &str| field_part(kind, key).map(|(c, _)| c);
         assert_eq!((color(&dim, "offsetUnits"), color(&dim, "offset")), (Some(SCALED), Some(ANNOTATIVE)));

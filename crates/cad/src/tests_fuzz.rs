@@ -89,8 +89,16 @@ fn random_edits_keep_the_drawing_whole() {
                 9 => drop(d.stretch(r.p(), r.p(), r.p())),
                 10 => drop(d.array_rect(&sel, r.u(5), r.u(5), r.f(), r.f())),
                 11 => drop(d.array_polar(&sel, r.p(), r.u(8), r.f())),
-                12 => drop(d.trim(i, r.p())),
-                13 => drop(d.extend(i, r.p())),
+                12 => {
+                    let pick = r.p();
+                    drop(d.trim_preview(i, pick));
+                    drop(d.trim(i, pick))
+                }
+                13 => {
+                    let pick = r.p();
+                    drop(d.extend_preview(i, pick));
+                    drop(d.extend(i, pick))
+                }
                 14 => drop(d.fillet(i, r.p(), r.u(len), r.p(), r.f())),
                 15 => drop(d.chamfer(i, r.p(), r.u(len), r.p(), r.f(), r.f())),
                 16 => {

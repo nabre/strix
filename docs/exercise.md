@@ -349,6 +349,26 @@ Data and variants are kept on the exercise control, in a `strix:exerciseData` el
 properties (JSON) that Word ignores; `exercise.data`, `exercise.setData` and `exercise.variant`
 read and change them.
 
+## Inline values
+
+`{{R}}` typed in an exercise's text (or `{{R -> cm}}`, `{{2*R}}`) becomes an **inline value**
+(`strix:expr`): the expression evaluated in the exercise's sandbox, its unit in the Unit style,
+recalculated with the variant. Its text is never typed into, but it is deleted whole: Backspace
+just after it, Delete just before it, either key inside it, or a selection ending inside it
+takes all of it (Undo brings it back). Values saved before they could be deleted are unlocked
+when the document is recalculated.
+
+Right-click on a value: **Inline Value** shows its expression (edit it, Enter applies), how it is
+shown — **Value and Unit** (`1.5 m`), **Symbol = Value** (`R = 1.5 m`, the symbol in italics) or
+**Number Only** (`1.5`) — and **Delete Value**. Scripts use `exercise.inlineValue`; the way it is
+shown is kept on the control (`strix:exprShow`, absent for the value and unit).
+
+**Data already shown are not listed again**: a datum whose value the exercise's title,
+statement or questions show — an inline value recalling it (`{{R}}`, `{{R -> cm}}`, in any of
+the three ways) or a drawing there whose annotation recalls it (`{{R}}`, `{{R:value}}`,
+`{{R:both}}`; not `{{R:symbol}}`) — has no line in the data part, and a data part left empty is
+removed. A recall in the solution doesn't count. Deleting the value brings the line back.
+
 ## A sandbox
 
 Each exercise is evaluated in a worksheet of its own: parameters, working units and results
@@ -399,6 +419,7 @@ to the end.
 | `exercise.data` | the data and variants of an exercise, with per-item errors |
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
+| `exercise.inlineValue` | the inline value at the caret (`{"expr", "show", "shown", "blank"}`); change it with `{"expr"?, "show"?: "value" \| "both" \| "number"}`, delete it with `{"remove": true}` |
 | `view.exercisePane` | show or hide the Exercise Properties pane |
 
 ## Next
@@ -436,6 +457,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-14: inline values deleted whole with Backspace or Delete (they were locked against deletion), edited and shown three ways from the context menu (`exercise.inlineValue`, `strix:exprShow`); data the title, statement, questions or a drawing there already show have no line in the data part.
 - 2026-11-14: Exercise Properties reorganised (General, compact question list with one question's settings at a time, folded Variants & Data and Layout, Delete and the Series tab's exercise list); Grading Scale Properties pane (`view.gradingPane`); title line holding the statement next to the number (`exercise.titleLine`); typing beside a field goes into it, the result line takes none; pasted exercises never nest; Inline Expression off the ribbon.
 
 - 2026-11-13: Phase 3 — Grading Scale (`exercise.grading`, `strix:grading`), continuous validation across all variants (`variantErrors`), controlled variant generator (`exercise.generateVariants`), inline parametric expressions (`exercise.insertExpr`, `strix:expr`), pre-flight Assessment Check (`exercise.check`, `view.checkPane`), and Assessment Pack batch export (`file.exportPack`).

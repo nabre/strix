@@ -62,7 +62,7 @@ impl Drawing {
     /// A copy of dimension `base` measuring from `from` to `p`, its line on the base's line moved
     /// `shift` paper mm further out.
     fn chained(&self, base: &Entity, from: crate::model::P, p: Pt, shift: f64) -> Option<Entity> {
-        let Kind::Dim { orient, mark, offset_units, .. } = &base.kind else { return None };
+        let Kind::Dim { orient, mark, mark_end, offset_units, .. } = &base.kind else { return None };
         let k = paper_per_unit(self);
         let frame = self.dim_frame(base, k)?;
         let a = from.pt();
@@ -84,6 +84,7 @@ impl Drawing {
             text: None,
             below: None,
             mark: *mark,
+            mark_end: *mark_end,
         };
         Some(e)
     }

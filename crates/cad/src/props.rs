@@ -92,6 +92,8 @@ fn parse_f64(text: &str) -> Result<f64, String> {
 /// The orientations, end marks (`style`: the drawing's) and alignments a field offers.
 pub const ORIENTS: &[&str] = &["aligned", "horizontal", "vertical"];
 pub const MARKS: &[&str] = &["style", "tick", "arrow", "dot", "none"];
+/// A dimension's end mark: `asStart`, as its start.
+pub const END_MARKS: &[&str] = &["asStart", "tick", "arrow", "dot", "none"];
 pub const ALIGNS: &[&str] = &["left", "center", "right"];
 pub const SIDES: &[&str] = &["left", "right"];
 /// The arrowheads an open line, arc or polyline may carry.
@@ -100,6 +102,17 @@ pub const PATTERNS: &[&str] = &["lines", "cross", "steel", "dashed", "solid", "a
 
 fn mark_text(m: Option<Mark>) -> String {
     m.map_or("style", Mark::name).into()
+}
+
+fn end_mark_text(m: Option<Mark>) -> String {
+    m.map_or("asStart", Mark::name).into()
+}
+
+fn parse_end_mark(text: &str) -> Result<Option<Mark>, String> {
+    match text.trim() {
+        "asStart" | "" => Ok(None),
+        t => Mark::parse(t).map(Some).ok_or_else(|| "markEnd: asStart, tick, arrow, dot or none".into()),
+    }
 }
 
 fn parse_mark(text: &str) -> Result<Option<Mark>, String> {
@@ -166,7 +179,7 @@ impl Drawing {
                 out.push(f("rotation", "Rotation", FieldKind::Derived, number(*angle)));
                 out.push(f("align", "Alignment", FieldKind::Choice(ALIGNS), align.name().into()));
             }
-            Kind::Dim { a, b, offset, offset_units, orient, text, below, mark } => {
+            Kind::Dim { a, b, offset, offset_units, orient, text, below, mark, mark_end } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 out.push(f("below", "Text below", FieldKind::Text, below.clone().unwrap_or_default()));
                 point(&mut out, a, ("ax", "Start X"), ("ay", "Start Y"));
@@ -179,7 +192,8 @@ impl Drawing {
                     Orient::Vertical => "vertical",
                 };
                 out.push(f("orient", "Orientation", FieldKind::Choice(ORIENTS), o.into()));
-                out.push(f("mark", "Marks", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("mark", "Start mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("markEnd", "End mark", FieldKind::Choice(END_MARKS), end_mark_text(*mark_end)));
             }
             Kind::Strip { width, side, pattern, angle, spacing, ratio, .. } => {
                 out.push(f("width", "Width", FieldKind::Paper, number(*width)));
@@ -200,7 +214,7 @@ impl Drawing {
                 out.push(f("spacing", "Spacing", FieldKind::Paper, number(*spacing)));
                 out.push(f("islands", "Islands", FieldKind::Derived, boundary.len().saturating_sub(1).to_string()));
             }
-            Kind::Angle { c, a, b, r, r_paper, text, mark } => {
+            Kind::Angle { c, a, b, r, r_paper, text, mark, mark_end } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 point(&mut out, c, ("cx", "Vertex X"), ("cy", "Vertex Y"));
                 point(&mut out, a, ("ax", "First ray X"), ("ay", "First ray Y"));
@@ -209,7 +223,8 @@ impl Drawing {
                 out.push(f("radiusPaper", "Annotative radius", FieldKind::Paper, number(*r_paper)));
                 let (ua, ub) = (a.pt().minus(c.pt()), b.pt().minus(c.pt()));
                 out.push(f("angle", "Angle", FieldKind::Derived, number(crate::kernel::deg(crate::kernel::angle_ccw(ua, ub)))));
-                out.push(f("mark", "Marks", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("mark", "Start mark", FieldKind::Choice(MARKS), mark_text(*mark)));
+                out.push(f("markEnd", "End mark", FieldKind::Choice(END_MARKS), end_mark_text(*mark_end)));
             }
             Kind::Level { p, datum, text, flip, left } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
@@ -387,6 +402,7 @@ impl Drawing {
                     .ok_or("pattern: lines, cross, steel, dashed or solid")?
             }
             (Kind::Dim { mark, .. } | Kind::Angle { mark, .. }, "mark") => *mark = parse_mark(text)?,
+            (Kind::Dim { mark_end, .. } | Kind::Angle { mark_end, .. }, "markEnd") => *mark_end = parse_end_mark(text)?,
             (Kind::Dim { offset, .. }, "offset") => *offset = parse_f64(text)?.clamp(-500.0, 500.0),
             (Kind::Dim { offset_units, .. }, "offsetUnits") => *offset_units = parse_f64(text)?,
             (Kind::Angle { r, r_paper, .. }, "radiusPaper") => {
