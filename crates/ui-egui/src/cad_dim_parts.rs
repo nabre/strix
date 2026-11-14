@@ -69,7 +69,7 @@ fn phantom(painter: &egui::Painter, points: &[Pos2], stroke: Stroke) {
 pub(crate) fn field_part(kind: &Kind, key: &str) -> Option<(Color32, &'static str)> {
     match (kind, key) {
         (Kind::Dim { .. }, "offsetUnits") | (Kind::Angle { .. }, "radius") => {
-            Some((SCALED, "In the drawing's units: it follows the drawing's size and scale (scaled)"))
+            Some((SCALED, "In the drawing: it follows the drawing's size and scale (scaled)"))
         }
         (Kind::Dim { .. }, "offset") | (Kind::Angle { .. }, "radiusPaper") => {
             Some((ANNOTATIVE, "On paper, mm: the same in print at any scale (annotative)"))
@@ -78,11 +78,11 @@ pub(crate) fn field_part(kind: &Kind, key: &str) -> Option<(Color32, &'static st
     }
 }
 
-/// The two stretches' labels: the scaled size in the drawing's `unit`, the annotative in mm.
-pub(crate) fn labels(parts: &DimParts, unit: &str) -> (String, String) {
+/// The two stretches' labels: the scaled size in the input unit, the annotative in mm.
+pub(crate) fn labels(parts: &DimParts, units: strix_cad::Units) -> (String, String) {
     let size = |v: f64, unit: &str| format!("{} {unit}", strix_cad::num_text(&Num::new(v)));
     (
-        crate::i18n::fmt(tl!("scaled {size}"), &[("size", &size(parts.scaled_size, unit))]),
+        crate::i18n::fmt(tl!("scaled {size}"), &[("size", &size(units.shown(parts.scaled_size), units.input.symbol()))]),
         crate::i18n::fmt(tl!("annotative {size}"), &[("size", &size(parts.annotative_size, "mm"))]),
     )
 }
@@ -119,8 +119,8 @@ fn anchor(side: Vec2) -> Align2 {
     Align2([x, y])
 }
 
-/// Draws a dimension's parts (drawing points through `to_screen`); `unit` is the drawing's.
-pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, parts: &DimParts, unit: &str) {
+/// Draws a dimension's parts (drawing points through `to_screen`); sizes in `units`' input unit.
+pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, parts: &DimParts, units: strix_cad::Units) {
     // The reference at the scaled distance, a dash and two dots: a line a little past the
     // extension lines, an arc or a square, or a ring on the vertex when there is no scaled part.
     let reference: Vec<Pos2> = parts.reference.iter().map(|&p| to_screen(p)).collect();
@@ -153,7 +153,7 @@ pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, par
     }
     // Their sizes: the scaled one on one side, the annotative on the other, on a light ground
     // so they read over the drawing.
-    let (scaled, annotative) = labels(parts, unit);
+    let (scaled, annotative) = labels(parts, units);
     for ((text, color), ((a, b), side)) in [(scaled, SCALED), (annotative, ANNOTATIVE)].into_iter().zip(stretches.iter().zip([-side, side])) {
         let galley = painter.layout_no_wrap(text, FontId::proportional(11.0), color);
         let at = a.lerp(*b, 0.5) + side * LABEL_GAP;
@@ -187,7 +187,7 @@ mod tests {
     }
 
     /// The Properties pane colours the same two numbers as the overlay; the labels give the
-    /// scaled size in the drawing's unit and the annotative one in paper mm.
+    /// scaled size in the input unit and the annotative one in paper mm.
     #[test]
     fn fields_and_labels_match_the_overlay() {
         let dim = Kind::Dim {
@@ -212,8 +212,8 @@ mod tests {
             scaled_size: 50.0,
             annotative_size: 4.0,
         };
-        let (s, a) = labels(&parts, "cm");
-        assert!(s.contains("50 cm") && a.contains("4 mm"), "{s} / {a}");
+        let (s, a) = labels(&parts, strix_cad::Units { drawing: strix_cad::Unit::Mm, input: strix_cad::Unit::Cm });
+        assert!(s.contains("5 cm") && a.contains("4 mm"), "{s} / {a}");
     }
 
     /// The reference is a dash and two dots: a long dash, a gap, a dot, a gap, a dot, a gap, and

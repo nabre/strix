@@ -449,6 +449,34 @@ fn typed_values_in_the_input_unit() {
     assert!(Drawing::from_json(r#"{"input":"inch"}"#).is_ok_and(|d| d.input.is_none()), "an unknown unit is the drawing's");
 }
 
+/// The Properties pane's fields in the input unit: the drawing's own unit (mm) is internal. A
+/// drawing in mm typed in m shows a 2500 mm line as 2.5 and reads `3` as 3000 mm; a value with
+/// its own unit wins; expressions, angles and paper sizes are kept as they are.
+#[test]
+fn fields_in_the_input_unit() {
+    let mut d = Drawing::from_json(
+        r#"{"unit":"mm","input":"m","entities":[{"type":"line","a":[0,0],"b":[2500,0]},{"type":"text","p":[0,0],"value":"A","height":3.5}]}"#,
+    )
+    .unwrap();
+    let text = |d: &Drawing, i: usize, key: &str| d.fields_typed(i, 0).into_iter().find(|f| f.key == key).map(|f| f.text).unwrap();
+    assert_eq!((text(&d, 0, "bx"), text(&d, 0, "length"), text(&d, 0, "angle")), ("2.5".into(), "2.5".into(), "0".into()));
+    assert_eq!(text(&d, 1, "height"), "3.5", "paper mm stay mm");
+    d.set_field_typed(0, 0, "bx", "3").unwrap();
+    assert_eq!(text(&d, 0, "bx"), "3");
+    assert_eq!(d.fields(0, 0).into_iter().find(|f| f.key == "bx").unwrap().text, "3000", "stored in mm");
+    d.set_field_typed(0, 0, "length", "30cm").unwrap();
+    assert_eq!(text(&d, 0, "length"), "0.3");
+    d.set_field_typed(0, 0, "angle", "90").unwrap();
+    assert!(text(&d, 0, "by").starts_with("0.3"), "an angle is no length");
+    d.set_field_typed(0, 0, "ax", "L/2").unwrap();
+    assert_eq!(text(&d, 0, "ax"), "L/2", "an expression is kept as typed");
+    d.set_field_typed(1, 0, "height", "5").unwrap();
+    assert_eq!(text(&d, 1, "height"), "5");
+    // With no input unit of its own the drawing's is used: nothing changes.
+    d.input = None;
+    assert_eq!(text(&d, 0, "bx"), d.fields(0, 0).into_iter().find(|f| f.key == "bx").unwrap().text);
+}
+
 fn near(p: Pt, x: f64, y: f64) -> bool {
     (p.x - x).abs() < 1e-9 && (p.y - y).abs() < 1e-9
 }

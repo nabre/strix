@@ -46,6 +46,19 @@ pub fn num_text(n: &Num) -> String {
     }
 }
 
+impl Field {
+    /// Whether the field is a length of the drawing (a coordinate, a radius, a line's length):
+    /// shown and typed in the input unit by [`Drawing::fields_typed`] and
+    /// [`Drawing::set_field_typed`].
+    pub fn is_length(&self) -> bool {
+        match self.kind {
+            FieldKind::Length => true,
+            FieldKind::Derived => matches!(self.key.as_str(), "length" | "diameter" | "offsetUnits" | "radius"),
+            _ => false,
+        }
+    }
+}
+
 fn number(v: f64) -> String {
     let v = crate::kernel::canon(v);
     let s = format!("{v:.6}");
@@ -232,7 +245,33 @@ impl Drawing {
         std::iter::once(crate::model::STANDARD).chain(named).collect()
     }
 
-    /// Sets field `key` of entity `i` (a polyline's vertex `vertex`) from `text`.
+    /// [`Drawing::fields`] as the user sees them: lengths in the input unit (the drawing's own
+    /// unit is an internal convention). Expressions are shown as typed.
+    pub fn fields_typed(&self, i: usize, vertex: usize) -> Vec<Field> {
+        let units = crate::Units::of(self);
+        let mut out = self.fields(i, vertex);
+        for fd in &mut out {
+            if fd.is_length()
+                && let Ok(v) = fd.text.parse::<f64>()
+            {
+                fd.text = number(units.shown(v));
+            }
+        }
+        out
+    }
+
+    /// [`Drawing::set_field`] with what the user typed: a length field reads a number in the
+    /// input unit, or with its own unit (`2.5m`, `30 cm`); an expression is kept as typed.
+    pub fn set_field_typed(&mut self, i: usize, vertex: usize, key: &str, text: &str) -> Result<(), String> {
+        let length = self.fields(i, vertex).iter().any(|fd| fd.key == key && fd.is_length());
+        match crate::parse_length(text, crate::Units::of(self)).filter(|_| length) {
+            Some(v) => self.set_field(i, vertex, key, &number(v)),
+            None => self.set_field(i, vertex, key, text),
+        }
+    }
+
+    /// Sets field `key` of entity `i` (a polyline's vertex `vertex`) from `text` (lengths in
+    /// drawing units).
     pub fn set_field(&mut self, i: usize, vertex: usize, key: &str, text: &str) -> Result<(), String> {
         if key == "style" {
             return self.set_style(&[i], text);

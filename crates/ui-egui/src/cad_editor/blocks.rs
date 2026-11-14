@@ -383,14 +383,15 @@ fn create_body(
     ui.label(egui::RichText::new(note).small().weak());
     if let Some((lo, hi)) = bounds {
         let k = d.unit.mm() / d.scale.max(1e-9);
+        let units = strix_cad::Units::of(d);
         let (w, h) = (hi.x - lo.x, hi.y - lo.y);
         ui.label(
             egui::RichText::new(format!(
                 "{} {} × {} {} · {} {scale}: {} × {} mm",
                 tl!("Size:"),
-                shown(w),
-                shown(h),
-                d.unit.symbol(),
+                shown(units.shown(w)),
+                shown(units.shown(h)),
+                units.input.symbol(),
                 tl!("on paper at"),
                 shown(w * k),
                 shown(h * k),
