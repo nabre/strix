@@ -2117,6 +2117,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let (snapped, p) = pointer_point(ed, view, h, free, base);
             cursor = Some(p);
             let s = view.to_screen(p);
+            paint_pick_preview(ed, &painter, view, p, t.accent);
             paint_cursor(ed, &painter, s, selecting, candidate.is_some() || hover_grip.is_some(), snapped, t.accent);
             paint_previews(ed, &painter, view, (p, s, h), t.accent);
             blocks::paint_preview(ed, &painter, view, p, t.accent);
@@ -2272,6 +2273,91 @@ fn paint_candidate(ed: &CadEditor, painter: &egui::Painter, view: View, e: &Enti
             painter.circle_filled(*only, 6.0, halo);
         } else {
             painter.add(Shape::line(screen, Stroke::new(7.0, halo)));
+        }
+    }
+}
+
+/// The object-picking tools, before the click at `p`: Trim's piece to take away (red), Extend's
+/// stretch to add, the object Offset, Fillet, Chamfer or Match Properties would take (haloed,
+/// with the first pick kept haloed) and the result Offset, Fillet or Chamfer would make (dashed).
+fn paint_pick_preview(ed: &CadEditor, painter: &egui::Painter, view: View, p: Pt, accent: Color32) {
+    let screen = |line: &[Pt]| -> Vec<Pos2> { line.iter().map(|&q| view.to_screen(q)).collect() };
+    let halo = |i: usize| {
+        if let Some(e) = ed.drawing.entities.get(i) {
+            paint_candidate(ed, painter, view, e, false);
+        }
+    };
+    let pts = ed.points.as_slice();
+    match ed.tool {
+        Tool::Trim => {
+            let Some(line) = picked_path(ed, p).and_then(|i| ed.drawing.trim_preview(i, p).ok()) else { return };
+            let line = screen(&line);
+            if line.len() > 1 {
+                let red = Color32::from_rgb(0xE1, 0x1D, 0x48);
+                painter.add(Shape::line(line.clone(), Stroke::new(7.0, Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 90))));
+                painter.extend(Shape::dashed_line(&line, Stroke::new(1.5, red), 5.0, 3.0));
+            }
+        }
+        Tool::Extend => {
+            let Some(i) = picked_path(ed, p) else { return };
+            halo(i);
+            if let Ok(line) = ed.drawing.extend_preview(i, p) {
+                let line = screen(&line);
+                if line.len() > 1 {
+                    painter.add(Shape::line(line.clone(), Stroke::new(7.0, accent.gamma_multiply(0.35))));
+                    painter.extend(Shape::dashed_line(&line, Stroke::new(1.5, accent), 5.0, 3.0));
+                }
+            }
+        }
+        Tool::Offset => match pts {
+            [] => picked_path(ed, p).into_iter().for_each(halo),
+            [first, ..] => {
+                let Some((i, _)) = ed.drawing.nearest_path(*first) else { return };
+                halo(i);
+                if let Some(e) = ed.drawing.offset_entity(i, ed.offset_dist, p) {
+                    paint_ghost_entity(ed, painter, view, &e, accent);
+                }
+            }
+        },
+        Tool::Fillet | Tool::Chamfer => match pts {
+            [] => picked_path(ed, p).into_iter().for_each(halo),
+            [first, ..] => {
+                let Some(i) = picked_path(ed, *first) else { return };
+                halo(i);
+                let Some(j) = picked_path(ed, p) else { return };
+                halo(j);
+                let mut ghost = ed.drawing.clone();
+                let made = if ed.tool == Tool::Fillet {
+                    ghost.fillet(i, *first, j, p, ed.fillet_radius)
+                } else {
+                    ghost.chamfer(i, *first, j, p, ed.chamfer_dist, ed.chamfer_dist)
+                };
+                if made.is_ok() {
+                    // What the edit changed or made, as it would become.
+                    for e in ghost.entities.iter().filter(|g| !ed.drawing.entities.iter().any(|o| o == *g)) {
+                        paint_ghost_entity(ed, painter, view, e, accent);
+                    }
+                }
+            }
+        },
+        Tool::MatchProp => {
+            let tol = 8.0 / ed.zoom.max(1e-9);
+            let source = pts.first().and_then(|&q| ed.drawing.hit(q, tol));
+            source.into_iter().for_each(halo);
+            if let Some(i) = ed.drawing.hit(p, tol).filter(|&i| ed.drawing.selectable(i) && Some(i) != source) {
+                halo(i);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// An object as an edit would make it: dashed in the accent colour.
+fn paint_ghost_entity(ed: &CadEditor, painter: &egui::Painter, view: View, e: &Entity, accent: Color32) {
+    for line in ed.drawing.shape(e) {
+        let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+        if screen.len() > 1 {
+            painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
         }
     }
 }
@@ -3506,7 +3592,7 @@ fn placed_dim(ed: &CadEditor, orient: Orient, a: Pt, b: Pt, at: Pt) -> Kind {
     let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
     let (offset, offset_units) = if ed.drawing.current_dim().scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
-    Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }
+    Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None, mark_end: None }
 }
 
 /// The angle at `c` between the rays to `a` and `b`, on the side its arc is placed in (through
@@ -3523,7 +3609,7 @@ fn placed_angle(ed: &CadEditor, c: Pt, mut a: Pt, mut b: Pt, at: Pt) -> Result<K
     }
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
     let (r, r_paper) = if ed.drawing.current_dim().scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
-    Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None })
+    Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None, mark_end: None })
 }
 
 /// Takes point `p` for the current tool; returns the new drawing when an operation completes.
@@ -4208,16 +4294,26 @@ fn underlay_group(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// The layer the ribbon's layer box shows: the current layer with nothing selected, the
+/// selection's layer when all of it is on one, blank when it spans several.
+fn layer_shown(ed: &CadEditor) -> String {
+    let mut layers = ed.selection.iter().filter_map(|&i| ed.drawing.entities.get(i)).map(|e| e.layer.as_str());
+    match layers.next() {
+        None => ed.current_layer.clone(),
+        Some(first) if layers.all(|l| l == first) => first.to_string(),
+        Some(_) => String::new(),
+    }
+}
+
 /// Layers: the Layer Manager, Properties, Student Preview, the current layer.
 fn layers_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::{big_checked, group};
     let (panel, manager, student, layers, current) = app
         .cad
         .as_ref()
-        .map(|e| {
-            (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone())
-        })
+        .map(|e| (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), layer_shown(e)))
         .unwrap_or_default();
+    let selected = app.cad.as_ref().is_some_and(|e| !e.selection.is_empty());
     let tool = tool_of(app);
     group(ui, "Layers", None, app, |ui, app| {
         // Match Properties, large, beside the Layer Manager: both are about how objects look.
@@ -4228,7 +4324,9 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
         big_checked(ui, app, "studentPreview", "Student\nPreview", "ui.cadToggle", json!({"what": "student"}), student)
             .on_hover_text(tl!("Student Preview: hide solution-only layers and objects as on the student copy"));
         ui.vertical(|ui| {
-            ui.label(tl!("Current layer"));
+            // Nothing selected: the current layer, which a pick changes. A selection: its layer
+            // (blank when it spans several), and a pick moves every selected object to it.
+            ui.label(if selected { tl!("Layer") } else { tl!("Current layer") });
             let mut pick = None;
             craft_ui::ComboBox::from_id_salt("cad_current_layer").selected_text(&current).width(120.0).show_ui(ui, |ui| {
                 for name in &layers {
@@ -4238,7 +4336,7 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
                 }
             });
             if let Some(name) = pick {
-                let _ = app.run("ui.cadCurrentLayer", json!({"layer": name}));
+                let _ = app.run(if selected { "ui.cadLayer" } else { "ui.cadCurrentLayer" }, json!({"layer": name}));
             }
         });
     });
@@ -4788,6 +4886,15 @@ mod tests {
         // Layers: move the selection to a new one; the current layer takes new objects.
         app.run("ui.cadLayer", json!({"layer": "Axes"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.entities[last].layer, "Axes");
+        // The ribbon's layer box: the selection's layer, blank across several, else the current.
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(layer_shown(ed), "Axes");
+        ed.selection = (0..ed.drawing.entities.len()).collect();
+        assert!(ed.drawing.entities.iter().any(|e| e.layer != "Axes"));
+        assert_eq!(layer_shown(ed), "");
+        ed.selection.clear();
+        assert_eq!(layer_shown(ed), ed.current_layer);
+        ed.selection = vec![last];
         app.run("ui.cadCurrentLayer", json!({"layer": "Hidden lines"})).unwrap();
         let ed = app.cad.as_mut().unwrap();
         ed.tool = Tool::Point;

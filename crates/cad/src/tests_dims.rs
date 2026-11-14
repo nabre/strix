@@ -20,6 +20,7 @@ fn a_right_angle_is_drawn_as_a_square() {
             r_paper: 0.0,
             text: text.map(Into::into),
             mark: None,
+            mark_end: None,
         }))
         .unwrap();
         d.render(None)
@@ -64,7 +65,7 @@ fn continued_and_baseline_dimensions() {
         Kind::Dim { b, offset, orient, mark, .. } => {
             let mut b = b;
             b.0.value = 100.0;
-            Kind::Dim { a: P::new(0.0, 0.0), b, offset, offset_units: 0.0, orient, text: None, below: None, mark }
+            Kind::Dim { a: P::new(0.0, 0.0), b, offset, offset_units: 0.0, orient, text: None, below: None, mark, mark_end: None }
         }
         other => other,
     };
@@ -97,6 +98,7 @@ fn continued_and_baseline_dimensions() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let e = d.dim_baseline(0, Pt::new(80.0, 0.0)).unwrap();
@@ -261,32 +263,28 @@ fn scaled_and_annotative_parts() {
 }
 
 /// The reference between the two parts has its own grip, in the middle of the stretches: dragging
-/// it moves the boundary, the dimension line (arc) staying where it is.
+/// it changes the scaled part; the annotative part keeps its value, the dimension line (arc)
+/// following.
 #[test]
-fn the_reference_grip_moves_the_boundary_between_the_parts() {
+fn the_reference_grip_moves_the_scaled_part_and_keeps_the_annotative() {
     let mut d = Drawing::from_json(SCALED_AND_PAPER).unwrap();
     let reference = |d: &Drawing, i: usize| d.grips(i).into_iter().find(|(g, _)| *g == Grip::Reference).unwrap().1;
     // 500 units up, in the middle of the dimension.
     assert!(reference(&d, 0).minus(Pt::new(500.0, 500.0)).len() < 1e-9, "{:?}", reference(&d, 0));
-    // Down to 300 units: the 200 units left go on paper (4 mm at 1:50), the line stays at 14 mm.
+    // Down to 300 units: still 4 mm on paper, the line at 300/50 + 4 = 10 mm.
     assert!(d.move_grip(0, Grip::Reference, Pt::new(123.0, 300.0)));
     assert!(
-        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 8.0).abs() < 1e-9 && (offset_units - 300.0).abs() < 1e-9)
+        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 4.0).abs() < 1e-9 && (offset_units - 300.0).abs() < 1e-9)
     );
-    assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
-    // Past the line the paper part goes negative; it never passes 500 mm.
-    assert!(d.move_grip(0, Grip::Reference, Pt::new(500.0, 1e6)));
-    assert!(matches!(d.entities[0].kind, Kind::Dim { offset, .. } if offset == -500.0));
-    assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
-    // The angle: 250 units along the bisector of an arc 400 units out.
+    assert!((line(&d) - 10.0).abs() < 1e-9, "{}", line(&d));
+    // The angle: 250 units along the bisector, 3 mm on paper.
     let (s, c) = std::f64::consts::FRAC_PI_4.sin_cos();
     assert!(reference(&d, 1).minus(Pt::new(250.0 * c, 250.0 * s)).len() < 1e-9);
     assert!(d.move_grip(1, Grip::Reference, Pt::new(100.0 * c, 100.0 * s)));
-    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 100.0).abs() < 1e-9 && (r_paper - 6.0).abs() < 1e-9));
-    // Past the arc it stops on it: no negative paper part for an angle.
-    assert!(d.move_grip(1, Grip::Reference, Pt::new(1000.0, 1000.0)));
-    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 400.0).abs() < 1e-9 && r_paper.abs() < 1e-9));
-    assert!((arc_reach(&d) - 8.0).abs() < 0.02, "{}", arc_reach(&d));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 100.0).abs() < 1e-9 && (r_paper - 3.0).abs() < 1e-9));
+    // Behind the vertex the scaled radius stops at 0; the paper part stays.
+    assert!(d.move_grip(1, Grip::Reference, Pt::new(-100.0, -100.0)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 0.0 && (r_paper - 3.0).abs() < 1e-9));
     // Hostile points change nothing.
     assert!(!d.move_grip(0, Grip::Reference, Pt::new(f64::NAN, 0.0)));
     assert!(!d.move_grip(2, Grip::Reference, Pt::new(0.0, 0.0)));
@@ -499,6 +497,7 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
             text: None,
             below: None,
             mark: None,
+            mark_end: None,
         }))
         .unwrap();
         let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
@@ -538,6 +537,7 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let p = d.dim_parts(&d.entities[0]).unwrap();
@@ -552,7 +552,17 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
 fn an_angle_has_a_scaled_and_an_annotative_radius() {
     let angle = |b: P, r: f64, r_paper: f64, text: Option<&str>| {
         let mut d = Drawing { scale: 10.0, ..Drawing::default() };
-        d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b, r, r_paper, text: text.map(Into::into), mark: None })).unwrap();
+        d.add(Entity::new(Kind::Angle {
+            c: P::new(0.0, 0.0),
+            a: P::new(10.0, 0.0),
+            b,
+            r,
+            r_paper,
+            text: text.map(Into::into),
+            mark: None,
+            mark_end: None,
+        }))
+        .unwrap();
         d.add(Entity::new(Kind::Line { a: P::new(0.0, 0.0), b: P::new(1.0, 1.0) })).unwrap();
         let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
         (d, grip)

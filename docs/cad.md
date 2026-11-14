@@ -60,7 +60,8 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   start), a **mark width** (`markWidth` mm, 0 or absent: automatic — a tick about 2.8× the line,
   an arrowhead as thin), and may name the **text style** of its texts (`textStyle`: their font,
   bold and italic; the height stays the style's `text`). A dimension's own `mark` (Properties ›
-  Marks) puts that mark at both ends. Renaming or deleting a style carries along the objects,
+  Start mark) puts that mark at both ends, unless its own `markEnd` (Properties › End mark; "As
+  the start" clears it) gives the end another. Renaming or deleting a style carries along the objects,
   current styles and dimension styles that name it (deleted: they take Standard). The ribbon:
   the style list (choosing one with objects selected gives it to them, as a CAD's list does),
   its name to rename it, New (a copy of it, made current), Delete; then the current style's
@@ -82,7 +83,7 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   converted drawing with expressions needs a Strix that knows `exprUnit` (2026-11-11 or later);
   an older one would read its expressions in millimetres (1000 times too small for metres).
 - **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
-  linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
+  linear dimensions show their size (`<>`) — in the input unit (`drawing`, the default; the drawing's own unit when it sets none), all
   in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
   two decimals from 1 m up (`2.45`, `3.00`), centimetres below (`30`, `30.5`), rounded to the
   centimetre before choosing (99.996 cm reads `1.00`). Numbers follow the document's number
@@ -341,8 +342,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    an arc bends through the point), point and text position (and a text's four box corners, which
    move it), dimension ends and line (distance), and the blue reference between a dimension's
    (or angle's) scaled and annotative parts, in the middle of the stretches (`Grip::Reference`):
-   dragging it moves the boundary, the dimension line or arc staying put (the annotative part
-   within ±500 mm, never negative for an angle). A selected hatch (a solid fill too) or strip
+   dragging it changes the scaled part, the annotative part keeping its value and the dimension
+   line or arc following (an angle's scaled radius never negative). A selected hatch (a solid fill too) or strip
    shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
    reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
    its boundaries along.
@@ -513,7 +514,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    becomes an arc (it needs two crossings), a closed polyline an open one, arcs of polylines keep
    their bulges in proportion; an object nothing crosses goes. Extend runs the end nearer the pick
    to the first object ahead: a line along itself, an arc round its circle, a polyline's end
-   segment (straight or arc). Both go on for the next pick. Fillet joins two lines with an arc of
+   segment (straight or arc). Both go on for the next pick. Before the click the editor shows
+   what it would do (`Drawing::trim_preview`, `extend_preview`): Trim the piece it would take
+   away, red; Extend the stretch it would add. Offset, Fillet, Chamfer and Match Properties halo
+   the object under the pointer (and the first one picked), and Offset, Fillet and Chamfer show
+   their result dashed. Fillet joins two lines with an arc of
    the radius typed (0, the default, makes the corner), Chamfer with a bevel the distance typed
    from the corner (equal on both); the parts picked are kept, each line trimmed or extended to
    the arc or bevel, which takes the first line's layer and stroke; the size is kept while the
@@ -618,6 +623,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-14: Trim and Extend show what they would take away or add before the click, Offset, Fillet, Chamfer and Match Properties halo the objects (with the result dashed); a dimension's own end mark (`markEnd`); dimension styles' first unit is the input unit; the ribbon's layer box shows the selection's layer (blank across several) and moves the selection to the layer chosen; the reference grip keeps the annotative part (the line follows).
 - 2026-11-14: the input unit is the only unit shown: the Properties pane (coordinates, radii, lengths, scaled distances), `ui.cadProps`, the status line, the dimension overlay and a new block's size show and read lengths in it (`Drawing::fields_typed`, `set_field_typed`); the drawing's own unit (mm) is no longer shown (the Unit rows of the Properties pane and the Picture tab are gone, Input unit offers mm, cm, m).
 - 2026-11-14: a grip on the reference between a dimension's scaled and annotative parts (`Grip::Reference`, the line or arc staying put); the editor draws lines at their paper width at the zoom (it showed every lineweight about the same).
 - 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.

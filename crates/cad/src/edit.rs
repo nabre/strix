@@ -721,47 +721,39 @@ impl Drawing {
     }
 
     /// Dimension (or angle) `i`'s reference, the boundary between its scaled and annotative
-    /// parts, taken to `to`: the scaled part becomes the distance (radius) up to it and the
-    /// annotative part the rest, so the dimension line (arc) stays put. The annotative part keeps
-    /// within its range (±500 paper mm, never negative for an angle), the scaled part takes the
-    /// difference.
+    /// parts, taken to `to`: the scaled part becomes the distance (radius) up to it, the
+    /// annotative part keeps its value and the dimension line (arc) follows (an angle's scaled
+    /// radius never negative).
     fn move_reference(&mut self, i: usize, to: Pt) -> bool {
-        let k = paper_per_unit(self);
         let Some(e) = self.entities.get(i) else { return false };
         let Some(parts) = self.dim_parts(e) else { return false };
         let Some(e) = self.entities.get_mut(i) else { return false };
         match &mut e.kind {
-            Kind::Dim { a, b, offset, offset_units, orient, .. } => {
+            Kind::Dim { a, b, offset_units, orient, .. } => {
                 let n = dim_dir(a.pt(), b.pt(), *orient).left();
                 let level = |q: Pt| q.x * n.x + q.y * n.y;
-                let total = *offset / k + *offset_units;
-                // The distance from where it starts (the farther measured point), which the
-                // whole distance keeps.
-                let units = (level(to) - level(parts.scaled[0])).clamp(total - 500.0 / k, total + 500.0 / k);
-                let paper = (total - units) * k;
-                if !(units.is_finite() && paper.is_finite()) {
+                // The scaled part runs from where it starts (the farther measured point) to the
+                // pointer; the annotative part keeps its value, the dimension line following.
+                let units = level(to) - level(parts.scaled[0]);
+                if !units.is_finite() {
                     return false;
                 }
                 *offset_units = units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
-                *offset = paper.clamp(-500.0, 500.0);
             }
             Kind::Angle { r, r_paper, .. } => {
-                // Along the stretches (an angle's bisector, a square's diagonal): `full` reaches
-                // the arc, `reach` drawing units from the vertex.
+                // Along the stretches (an angle's bisector, a square's diagonal), from the
+                // vertex: the scaled radius to the pointer, the annotative one kept.
                 let (c, full) = (parts.scaled[0], parts.annotative[1].minus(parts.scaled[0]));
-                let reach = r.max(0.0) + r_paper.max(0.0) / k;
-                let len2 = full.x * full.x + full.y * full.y;
-                if len2 <= crate::kernel::RESOLUTION * crate::kernel::RESOLUTION || reach <= crate::kernel::RESOLUTION {
+                let len = full.len();
+                if len <= crate::kernel::RESOLUTION {
                     return false;
                 }
                 let v = to.minus(c);
-                let nr = (reach * (v.x * full.x + v.y * full.y) / len2).clamp((reach - 500.0 / k).max(0.0), reach);
-                let np = (reach - nr) * k;
-                if !(nr.is_finite() && np.is_finite()) {
+                let nr = ((v.x * full.x + v.y * full.y) / len).clamp(0.0, crate::MAX_COORD);
+                if !nr.is_finite() || (nr <= crate::kernel::RESOLUTION && *r_paper <= 0.0) {
                     return false;
                 }
                 *r = nr;
-                *r_paper = np.clamp(0.0, 500.0);
             }
             _ => return false,
         }

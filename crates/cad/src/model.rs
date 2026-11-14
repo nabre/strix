@@ -290,11 +290,18 @@ fn is_no_ends(e: &Ends) -> bool {
     *e == Ends::None
 }
 
+/// A dimension's start and end marks: its own (`mark`; the end's `mark_end`, else the start's)
+/// over the style's.
+pub(crate) fn dim_marks(st: &DimStyle, mark: Option<Mark>, mark_end: Option<Mark>) -> (Mark, Mark) {
+    let (start, end) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+    (start, mark_end.unwrap_or(end))
+}
+
 /// How linear dimensions show their size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DimUnits {
-    /// In the drawing's unit.
+    /// In the input unit (the drawing's own when it sets none); saved as `drawing`.
     #[default]
     Drawing,
     /// All in metres, centimetres or millimetres.
@@ -308,7 +315,7 @@ pub enum DimUnits {
 
 impl DimUnits {
     pub const ALL: [(DimUnits, &'static str, &'static str); 5] = [
-        (DimUnits::Drawing, "drawing", "Drawing unit"),
+        (DimUnits::Drawing, "drawing", "Input unit"),
         (DimUnits::M, "m", "Metres"),
         (DimUnits::Cm, "cm", "Centimetres"),
         (DimUnits::Mm, "mm", "Millimetres"),
@@ -321,7 +328,7 @@ impl DimUnits {
 
     /// Its label (English; the UI translates it).
     pub fn label(self) -> &'static str {
-        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("Drawing unit", |(.., l)| l)
+        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("Input unit", |(.., l)| l)
     }
 
     pub fn parse(s: &str) -> Option<DimUnits> {
@@ -625,6 +632,9 @@ pub enum Kind {
         below: Option<String>,
         #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
+        /// The mark at the end, when it differs from the start's; `None`: the start's.
+        #[serde(default, rename = "markEnd", deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+        mark_end: Option<Mark>,
     },
     /// A hatched strip along the line or polyline with id `along` (it follows it), `width` paper
     /// mm wide on its `side`, filled with `pattern`: lines at `angle` degrees to the line,
@@ -671,6 +681,9 @@ pub enum Kind {
         text: Option<String>,
         #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
+        /// The mark at the end, when it differs from the start's; `None`: the start's.
+        #[serde(default, rename = "markEnd", deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+        mark_end: Option<Mark>,
     },
     /// A level (elevation) mark at `p`: a triangle with its tip on the level, a line along it and
     /// the elevation over it: `p`'s height above `datum` (drawing units; the ±0.00 level) in
@@ -1424,14 +1437,15 @@ impl Drawing {
     }
 
     /// A linear dimension's label: `text` (else `<>`) with `<>` the size `measured` (drawing
-    /// units) in the style's units ([`DimUnits`]), in the document's number style, followed by
-    /// its unit when the style shows it.
+    /// units) in the style's units ([`DimUnits`]; the first, the input unit), in the document's
+    /// number style, followed by its unit when the style shows it.
     pub fn dim_label(&self, st: &DimStyle, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
         let mm = measured * self.unit.mm();
         let units = st.units;
+        let input = crate::Units::of(self);
         let symbol = match units {
-            DimUnits::Drawing => self.unit.symbol(),
+            DimUnits::Drawing => input.input.symbol(),
             DimUnits::M => "m",
             DimUnits::Cm => "cm",
             DimUnits::Mm => "mm",
@@ -1439,7 +1453,7 @@ impl Drawing {
             DimUnits::Sia => "cm",
         };
         let size = match units {
-            DimUnits::Drawing => strix_calc::format_number(measured, &opts),
+            DimUnits::Drawing => strix_calc::format_number(input.shown(measured), &opts),
             DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
             DimUnits::Cm => strix_calc::format_number(mm / 10.0, &opts),
             DimUnits::Mm => strix_calc::format_number(mm, &opts),
