@@ -1,5 +1,7 @@
 # Code signing policy
 
+Strix Writer's code signing policy.
+
 Status: Windows signing through SignPath Foundation is being set up (application pending,
 2026-10-28). Until it is approved, Windows releases are unsigned and SmartScreen warns on first
 run.
@@ -16,8 +18,11 @@ Actions [Release workflow](../.github/workflows/release.yml) on the `release` br
 - the installers `strix-<version>-windows-<arch>.msi` (one dual-scope package per architecture);
 - the single-file portable app `strix-<version>-windows-<arch>-portable.exe` (`strix.exe` renamed).
 
-Every signed file carries the product name **Strix** and the release's version (Windows
-VERSIONINFO, set by `apps/strix/build.rs` and `apps/strix-cli/build.rs`). Third-party open-source
+The project is **Strix Writer**. Every signed file carries that product name and the release's
+version: the programs' Windows VERSIONINFO (set by `apps/strix/build.rs` and
+`apps/strix-cli/build.rs`) and the installers' ProductName and ProductVersion
+(`packaging/windows/strix.wxs`; an installer's version is numeric, so a pre-release's installer
+carries `X.Y.Z` without its `-…` part). SignPath refuses a file whose name or version differs. Third-party open-source
 programs and libraries are never signed with Strix's certificate. The signing configuration is in
 [`.signpath/artifact-configuration.xml`](../.signpath/artifact-configuration.xml).
 
