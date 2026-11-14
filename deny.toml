@@ -1,0 +1,64 @@
+# cargo-deny (https://embarkstudios.github.io/cargo-deny/): what every dependency in Cargo.lock
+# must satisfy before Strix ships it. Checked by .github/workflows/deny.yml; locally:
+# `cargo deny check` (install with `cargo install cargo-deny --locked`).
+#
+# - licenses: only permissive licenses compatible with Strix's MIT OR Apache-2.0. A crate offering
+#   a choice (e.g. `Apache-2.0 OR GPL-2.0-only`) passes on its permissive option; a crate whose only
+#   licenses are copyleft (GPL, LGPL, AGPL) fails the check.
+# - sources: crates.io and the suite's own git repositories (storytold) only.
+# - advisories: RustSec security advisories and yanked versions.
+# - bans: nothing banned yet; duplicate versions are allowed (git pins of craft-libs).
+#
+# The allow list matches the licenses actually in Cargo.lock (2026-11-14); add a license only after
+# checking it is permissive and needs nothing beyond the notice Strix's NOTICE already gives.
+
+[graph]
+all-features = false
+
+[licenses]
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "CC0-1.0",
+    # Mozilla Root CA list as data (webpki-roots, webpki-root-certs).
+    "CDLA-Permissive-2.0",
+    # File-level copyleft: Strix doesn't modify these crates (`colored`); their source stays on
+    # crates.io.
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+# Fonts are licensed separately and only where egui bundles its default fonts; any other crate
+# bringing OFL or Ubuntu Font Licence material must be looked at first (CLAUDE.md: fonts).
+exceptions = [
+    { crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] },
+]
+
+[licenses.private]
+# The workspace's own crates are MIT OR Apache-2.0 (Cargo.toml) and aren't published.
+ignore = true
+
+[advisories]
+yanked = "deny"
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+[sources.allow-org]
+# craft-libs, craft-print's winprint and the patched egui/winit forks.
+github = ["storytold"]
