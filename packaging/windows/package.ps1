@@ -207,7 +207,15 @@ Copy-Item -Force (Join-Path $Stage 'strix.exe') $PortableExe
 
 # Smoke-test the CLI when this machine can run it. An ARM64 build made on an x64 runner can't run
 # here; .github/workflows/windows-arm64.yml installs and runs it on ARM64 instead.
-$HostArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+# Windows PowerShell 5.1 (.NET Framework) has no RuntimeInformation.OSArchitecture: fall back to the
+# environment (PROCESSOR_ARCHITEW6432 is the OS's when this is a 32-bit process on a 64-bit one).
+$OsArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+if ($null -ne $OsArch) {
+  $HostArch = $OsArch.ToString().ToLowerInvariant()
+} else {
+  $HostArch = "$(if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE })".ToLowerInvariant()
+  if ($HostArch -eq 'amd64') { $HostArch = 'x64' }
+}
 if ($Arch -ne 'arm64' -or $HostArch -eq 'arm64') {
   Invoke-Native 'strix-cli --version' { & (Join-Path $Stage 'strix-cli.exe') --version }
 } else {
