@@ -647,7 +647,7 @@ fn trpr_inner(w: &mut W, r: &RowProps) {
 
 /// `w:tcPr`, with a tracked change last as for [`tblpr`].
 pub fn tcpr(w: &mut W, c: &CellProps, change: Option<&ChangeAttrs>) {
-    w.open("w:tcPr", &[]);
+    w.open("w:tcPr", if c.calc_no_total { &[("strix:noTotal", "1")] } else { &[] });
     tcpr_inner(w, c);
     if let (Some(a), Some(ch)) = (change, &c.fmt_change) {
         change_el(w, "w:tcPrChange", "w:tcPr", a, |w| tcpr_inner(w, &ch.old));

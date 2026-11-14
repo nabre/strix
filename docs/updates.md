@@ -46,6 +46,17 @@ come from `craft_update` (storytold/craft-libs), shared with the Craft apps.
     while documents hold unsaved work: it asks to save or close them first.
   - **Download** everywhere else: the package for this platform (the `.dmg` on macOS, the
     FreeBSD tarball…) opens in the browser, or the release page when there is none.
+- **Check for updates automatically** (on by default) turns the check at start and the daily
+  checks off; Strix then asks GitHub only on **Check for Updates** (or Help › Check for Updates),
+  and before any check the section says so. The choice is kept in `strix-update-settings.json`
+  (`check`). Until it is chosen there, the installation decides: a `strix-updates.ini` beside the
+  program with `[Updates]` `Check=0` turns it off, and that "off" is then saved as the user's
+  choice, so an update that drops the file doesn't turn the checks back on. The Windows installer
+  writes the file (and `Software\Strix\UpdateCheck`, which the next installer reads to keep the
+  choice) when its **Privacy** page's checkbox is cleared or `UPDATECHECK=0` is given to msiexec
+  (`packaging/windows/privacy.wxi`). SignPath Foundation's conditions ask for this: software
+  that sends data to a system the user didn't name shows its privacy policy when installed and
+  lets it be turned off there ([code-signing.md](code-signing.md)).
 - **Check for Updates** (disabled while a check runs or an update is installing or waiting for
   the restart) checks at once.
 - **Download updates automatically** (checkbox, on by default; not shown on copies that can't

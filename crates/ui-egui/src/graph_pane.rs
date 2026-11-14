@@ -44,7 +44,7 @@ fn color32(c: [u8; 3]) -> Color32 {
 
 /// A number field applied when it is let go: a drag shows its value as it goes and is applied
 /// when it ends; typing is applied with Enter or on leaving the field.
-fn num_field(ui: &mut Ui, key: &str, current: f64, range: std::ops::RangeInclusive<f64>, suffix: &str, decimals: usize) -> Option<f64> {
+pub(crate) fn num_field(ui: &mut Ui, key: &str, current: f64, range: std::ops::RangeInclusive<f64>, suffix: &str, decimals: usize) -> Option<f64> {
     let id = ui.scope_id().with(("graph_num", key));
     let mut v = ui.data(|d| d.get_temp::<f64>(id)).unwrap_or(current);
     let speed = if decimals == 0 { 0.1 } else { 0.05 };

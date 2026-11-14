@@ -74,6 +74,9 @@ pub enum Source {
         math: bool,
         #[serde(default)]
         index: bool,
+        /// The header row's columns not summed in the total row (`CellProps::calc_no_total`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        no_total: Vec<usize>,
     },
     /// A CAD drawing: its `strix-cad` JSON, and what its picture was (`svg`: a fingerprint of the
     /// SVG written; `w`, `h`: its size in points).
@@ -374,6 +377,11 @@ fn wrap_blocks(bl: &mut Blocks, m: &mut Manifest, next: &mut u32, depth: usize) 
                         names: t.props.calc_names.map(|n| n.name().to_string()),
                         math: t.props.calc_math,
                         index: t.props.calc_index,
+                        no_total: t
+                            .rows
+                            .first()
+                            .map(|row| row.cells.iter().enumerate().filter(|(_, c)| c.props.calc_no_total).map(|(c, _)| c).collect())
+                            .unwrap_or_default(),
                     };
                     m.objects.push(Entry { id, fp: table_fp(t), source });
                     // Innermost: it opens last and closes first, inside any control already here.
@@ -907,11 +915,16 @@ impl Unwrap<'_> {
         match self.verdict(entry.as_ref(), unchanged) {
             Verdict::Pending => return,
             Verdict::Restore => {
-                if let Some(Entry { source: Source::Table { names, math, index, blanks }, .. }) = &entry {
+                if let Some(Entry { source: Source::Table { names, math, index, blanks, no_total }, .. }) = &entry {
                     t.props.calc = true;
                     t.props.calc_names = names.as_deref().and_then(wordcraft_doc::props::CellNames::parse);
                     t.props.calc_math = *math;
                     t.props.calc_index = *index;
+                    for &c in no_total.iter().take(MAX_ENTRIES) {
+                        if let Some(cell) = t.rows.first_mut().and_then(|row| row.cells.get_mut(c)) {
+                            cell.props.calc_no_total = true;
+                        }
+                    }
                     for &(r, c) in blanks.iter().take(MAX_ENTRIES) {
                         if let Some(cell) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)) {
                             cell.props.student_blank = true;

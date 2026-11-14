@@ -140,7 +140,7 @@
   "dlWebNote": "La même application compilée en WebAssembly : rien à installer. Le ZIP est un site statique à héberger vous-même.",
   "dlWebZip": "Site statique (ZIP)",
   "dlAllFiles": "Tous les fichiers et sommes de contrôle :",
-  "dlSigning": "Signature du code et confidentialité",
+  "dlSigning": "Signature du code et confidentialité (Code signing policy)",
   "dlPickEyebrow": "Quel téléchargement ?",
   "dlPickTitle": "Choisissez votre système ci-dessous",
   "dlPickText": "Toutes les versions sont ci-dessous, par système. Vous hésitez ? La version navigateur fonctionne partout, sans rien installer.",
@@ -203,6 +203,6 @@
   "footerNavLabel": "Liens",
   "footerReleases": "Versions",
   "footerRoadmap": "Feuille de route",
-  "footerPrivacy": "Confidentialité et signature",
+  "footerPrivacy": "Code signing policy",
   "footerIssues": "Signaler un problème"
 }

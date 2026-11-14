@@ -1726,3 +1726,62 @@ fn m6_symbolic_polynomial_solver_abs_and_dim_inference() {
     assert_eq!(last(&["J = 32 m^5", "b = 12 m", "J = b*h^4/12 + b*h^4/12"]), "J = b*h^4/12 + b*h^4/12 ⇒ h = 2 m");
     assert_eq!(last(&["G_tot = 3 S", "R_1 = 0.5 Ω", "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2)"]), "G_tot = 1/R_1 + 1/(2*R_2) + 1/(2*R_2) ⇒ R_2 = 1 Ω");
 }
+
+/// Rows read with a subscript, as an equation writes them: `y_(i+1)` is column `y` (or `y_i`, a
+/// column named for its rows) in the next data row, never wrapping round: in the last row there
+/// is no next row, so the cell shows `–` (no error), and what reads it finds no data either.
+#[test]
+fn table_rows_are_read_by_subscript() {
+    let rows = table(&[&["x_i", "y_i", "= x_i·y_(i+1)"], &["1", "3", ""], &["2", "4", ""], &["3", "5", ""], &["Σ =", "Σ =", "Σ ="]]);
+    let mut ws = Worksheet::new(Options::default());
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone()).unwrap_or_default();
+    assert_eq!((cell(1, 2), cell(2, 2), cell(3, 2)), ("4".to_string(), "10".to_string(), "–".to_string()));
+    // The totals sum what is there.
+    assert_eq!((cell(4, 0), cell(4, 2)), ("Σ = 6".to_string(), "Σ = 14".to_string()));
+    // A column with a cell that found no data is not a vector after the table.
+    assert_eq!(r.columns, vec!["x_i", "y_i"]);
+
+    // Bare column names, the row before, a fixed row, the last row and the row's own value.
+    let rows = table(&[
+        &["x", "p = x_(i-1)", "f = x_1", "l = x_n", "s = x_i + p", "q = p·2"],
+        &["2", "", "", "", "", ""],
+        &["5", "", "", "", "", ""],
+        &["7", "", "", "", "", ""],
+    ]);
+    let r = Worksheet::new(Options::default()).eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone()).unwrap_or_default();
+    assert_eq!((cell(1, 1), cell(2, 1), cell(3, 1)), ("–".to_string(), "2".to_string(), "5".to_string()));
+    assert_eq!((cell(1, 2), cell(3, 2)), ("2".to_string(), "2".to_string()));
+    assert_eq!((cell(1, 3), cell(2, 3)), ("7".to_string(), "7".to_string()));
+    // No data in this row's `p`: `s` and `q` find none either.
+    assert_eq!((cell(1, 4), cell(2, 4)), ("–".to_string(), "7".to_string()));
+    assert_eq!((cell(1, 5), cell(3, 5)), ("–".to_string(), "10".to_string()));
+    // A column read by subscript from a cell that found no data finds none either.
+    let rows = table(&[&["x", "p = x_(i+1)", "q = p_(i-1)"], &["1", "", ""], &["2", "", ""]]);
+    let r = Worksheet::new(Options::default()).eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone()).unwrap_or_default();
+    assert_eq!((cell(1, 2), cell(2, 2)), ("–".to_string(), "2".to_string()));
+
+    // A parameter or a column of that very name stays itself; `x[i+1]` still wraps round.
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("x_1 = 100");
+    let rows = table(&[&["x", "a = x_1", "b = x[i+1]"], &["1", "", ""], &["2", "", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    let cell = |row: usize, col: usize| r.updates.iter().find(|u| u.0 == row && u.1 == col).map(|u| u.2.clone()).unwrap_or_default();
+    assert_eq!((cell(2, 1), cell(2, 2)), ("100".to_string(), "1".to_string()));
+
+    // A dash in an input cell is no value: the row is skipped like an empty one.
+    let rows = table(&[&["x", "d = 2·x"], &["–", ""], &["3", ""]]);
+    let r = Worksheet::new(Options::default()).eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates, vec![(2, 1, "6".to_string())]);
+    for text in ["", "-", "–", "—", "−", " – "] {
+        assert!(crate::table::is_blank(text), "{text:?}");
+    }
+    assert!(!crate::table::is_blank("-3"));
+}

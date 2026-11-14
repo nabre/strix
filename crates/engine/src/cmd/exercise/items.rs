@@ -1714,6 +1714,8 @@ fn state(s: &Session, e: usize) -> Value {
     let layout = scan(s);
     let Some(ex) = layout.exercises.get(e) else { return Value::Null };
     let its = items(s, &layout, e);
+    // The question the caret is in (1-based), for the pane to open.
+    let current = (super::exercise_at_caret(s) == Some(e)).then(|| question_at_caret(s, &layout, e)).flatten().map(|q| q + 1);
     if !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
         let list: Vec<Value> = if ex.no_questions {
             Vec::new()
@@ -1734,7 +1736,7 @@ fn state(s: &Session, e: usize) -> Value {
                 })
                 .collect()
         };
-        return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e)});
+        return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e), "current": current});
     }
     let calc_opts = super::super::calc::options_now(s);
     let mut calc_answers: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
@@ -1815,7 +1817,7 @@ fn state(s: &Session, e: usize) -> Value {
             v
         })
         .collect();
-    json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e)})
+    json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e), "current": current})
 }
 
 /// The question at the caret (0-based) in exercise `e`, by the paragraph it is in or the answer.

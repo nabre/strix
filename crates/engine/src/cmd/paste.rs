@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Paste Special: paste the clipboard in a chosen format (formatted, RTF, HTML, picture,
 //! unformatted), and the formatted content Paste and Merge Formatting take from other programs.
 //!
@@ -340,6 +341,8 @@ pub fn merge_formatting(s: &Session, frag: &mut Fragment) {
 /// Replace the selection with `frag`, marking it as an insertion under Track Changes.
 pub fn insert(s: &mut Session, mut frag: Fragment) -> Result<(), CmdError> {
     super::controls::prepare_edit(s)?;
+    // An exercise never goes inside another one: after it (docs/exercise.md, Structure).
+    super::exercise::outside_for(s, &frag.blocks);
     let at = delete_selection(s)?;
     let track = s.doc.settings.track_changes;
     let mut rid = None;

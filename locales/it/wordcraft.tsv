@@ -3014,7 +3014,9 @@ preview	Title	Esempio
 	a radius is more than 0	un raggio è maggiore di 0
 	Ordinal Column	Colonna ordinale
 	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Una prima colonna, la colonna 0, che numera le righe di dati 1, 2, 3… (i calcoli non la leggono mai)
-	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	L'ultima riga somma ogni colonna (Σ =); una cella scritta lì mantiene il suo testo (mean =, max =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	L'ultima riga somma ogni colonna (Σ nella prima colonna, le somme sotto le loro colonne); una cella scritta lì mantiene il suo testo (mean =, max =)
+	Column Total	Totale colonna
+	Sum the column at the cursor in the total row, or leave its cell there empty	Somma nella riga totale la colonna in cui si trova il cursore, oppure lascia vuota la sua cella
 	Dimension units	Unità delle quote
 	Drawing unit	Unità del disegno
 	Metres	Metri
@@ -3232,6 +3234,9 @@ paper	Envelope DL	Busta DL
 	downloaded	scaricato
 	Don't Restart	Non riavviare
 	Download updates automatically	Scarica automaticamente gli aggiornamenti
+	Check for updates automatically	Verifica automaticamente gli aggiornamenti
+	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	All'avvio e una volta al giorno, Strix Writer chiede a GitHub l'elenco delle sue versioni. Non viene inviato nulla su di te, sul tuo computer o sui tuoi documenti.
+	Strix Writer looks for a newer version only when you choose Check for Updates.	Strix Writer cerca una versione più recente solo quando scegli Verifica aggiornamenti.
 	Downloading in the background…	Download in background in corso…
 	It will be installed when you restart Strix Writer.	Verrà installato al prossimo riavvio di Strix Writer.
 	Strix Writer restarts in the new version as soon as it closes.	Strix Writer si riavvierà nella nuova versione non appena si chiude.
@@ -3643,3 +3648,53 @@ paper	Envelope DL	Busta DL
 	Pre-flight Check Pane	Riquadro Controllo preliminare
 	Set Plot	Imposta grafico
 	select a plot first	seleziona prima un grafico
+	Add a question at the end of the exercise	Aggiungi una domanda alla fine dell'esercizio
+	Answer Space	Spazio per la risposta
+	A problem's questions are answered in its solution.	Le domande di un problema si risolvono nella sua soluzione.
+	A row every	Una riga ogni
+	Correct Options	Opzioni corrette
+	Curve	Curva
+	Custom	Personalizzata
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Elimina l'intero esercizio: testo, domande e soluzione (Annulla lo ripristina)
+	Duration	Durata
+	Exercises	Esercizi
+	Fixed maximum	Massimo fisso
+	From the document's points ({points})	Dai punti del documento ({points})
+	General	Generale
+	Grades rounded to	Voti arrotondati a
+	Hidden now: the solutions are hidden (student copy).	Ora nascosta: le soluzioni sono nascoste (copia allievo).
+	Highest grade	Voto massimo
+	How far an answer may be from the result and still be right: 2% or 0.1 cm	Quanto una risposta può scostarsi dal risultato ed essere giusta: 2% o 0,1 cm
+	Insert Grading Scale	Inserisci scala di valutazione
+	Layout	Impaginazione
+	Like the last one	Come l'ultima
+	Lowest grade	Voto minimo
+	No question yet: write one in the exercise, or add one.	Ancora nessuna domanda: scrivila nell'esercizio o aggiungila.
+	Off: the table chooses the step so it stays short	Disattivato: la tabella sceglie il passo per restare corta
+	One pair per line: left = right	Una coppia per riga: sinistra = destra
+	Pairs	Coppie
+	Pass grade	Voto di sufficienza
+	Pass Mark	Sufficienza
+	Pass threshold	Soglia di sufficienza
+	Piecewise (pass threshold)	A tratti (soglia di sufficienza)
+	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	A tratti: la soglia di sufficienza dei punti dà il voto di sufficienza e i voti crescono in modo uniforme sotto e sopra di essa. Lineare: il voto segue i punti in modo uniforme.
+	Preset	Predefinito
+	Preview	Anteprima
+	Put the cursor in this exercise's title	Porta il cursore nel titolo di questo esercizio
+	(question not written yet)	(domanda non ancora scritta)
+	Remove Grading Scale	Rimuovi scala di valutazione
+	Result	Risultato
+	Shown In	Mostrata in
+	Show this question's settings	Mostra le impostazioni di questa domanda
+	Student and teacher copies	Copia allievo e docente
+	Take the grading scale table out of the document (Undo brings it back)	Togli la tabella della scala di valutazione dal documento (Annulla la ripristina)
+	Teacher copy only	Solo copia docente
+	Text next to the number (no title)	Testo accanto al numero (senza titolo)
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Il documento non ha una scala di valutazione. Inseriscila: converte i punti ottenuti in un voto.
+	The most points this question gives; empty: not scored	I punti massimi di questa domanda; vuoto: senza punteggio
+	The scores table's grand total, else the questions' points added up	Il totale della tabella punteggi, altrimenti la somma dei punti delle domande
+	Type	Tipo
+	Write the options in the exercise: each line under the question is one.	Scrivi le opzioni nell'esercizio: ogni riga sotto la domanda è un'opzione.
+	Grading Scale Properties	Proprietà scala di valutazione
+	Title Line	Riga del titolo
+	The result line is generated from the working: write the working in the space above it.	La riga del risultato è generata dallo svolgimento: scrivi lo svolgimento nello spazio sopra.

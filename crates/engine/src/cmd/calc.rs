@@ -60,6 +60,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("table.calcIndex", "Ordinal Column", "Table Layout › Data", calc_index)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "i", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
+        CommandSpec::new("table.calcTotal", "Column Total", "Table Layout › Data", calc_total)
+            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .params(r#"{"value"?: bool (default: toggle)} → {"total": bool, "recalculated"}: the column at the caret is summed in the total row of its table (made calculated); on, the table gets its total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
@@ -69,10 +72,11 @@ pub fn specs() -> Vec<CommandSpec> {
             let math = table.is_some_and(|t| t.props.calc_math);
             let index = table.is_some_and(|t| t.props.calc_index);
             let total = table.is_some_and(|t| t.props.look.total_row);
-            Ok(json!({"calc": calc, "names": names, "math": math, "index": index, "total": total}))
+            let column_total = column_header(s).is_some_and(|(_, c)| !c.props.calc_no_total);
+            Ok(json!({"calc": calc, "names": names, "math": math, "index": index, "total": total, "columnTotal": column_total}))
         })
         .pure()
-        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row)"#),
+        .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool, "columnTotal": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row), whether the caret's column is summed there (table.calcTotal)"#),
         CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
             .pure()
             .params(r#"{"digits"?: n, "units"?: {"name" | "document:name" | "exercise:1:name": "unit"}} → {"variables": [{"name", "value", "text", "unit", "si", "shown", "region", "pos", "compatibleUnits", "selectedUnit", "convertedText", "converted"}], "exercises": [{"exercise": 1-based, "title", "variant", "variables": [...]}]}"#),
@@ -580,8 +584,17 @@ enum Item {
     /// A calculated table (top-level block `top`): its cells' text, row by row, and how its
     /// cells are named when it is a data table.
     /// `index`: its first column is the ordinal column, written here and never read. `total`:
-    /// its last row is the totals row (Table Design › Total Row).
-    Table { top: usize, cells: Vec<Vec<String>>, names: Option<wordcraft_doc::props::CellNames>, math: bool, index: bool, total: bool },
+    /// its last row is the totals row (Table Design › Total Row); `no_total`: the columns it
+    /// doesn't sum (`CellProps::calc_no_total` on their header cells).
+    Table {
+        top: usize,
+        cells: Vec<Vec<String>>,
+        names: Option<wordcraft_doc::props::CellNames>,
+        math: bool,
+        index: bool,
+        total: bool,
+        no_total: Vec<bool>,
+    },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
     /// A mathematical/experimental plot (`docs/plot.md`) in top-level block `top`: its source.
@@ -806,6 +819,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                 math: t.props.calc_math,
                 index: t.props.calc_index,
                 total: t.props.look.total_row,
+                no_total: t.rows.first().map(|row| row.cells.iter().map(|c| c.props.calc_no_total).collect()).unwrap_or_default(),
             }),
             Block::Table(t) => {
                 for row in &t.rows {
@@ -938,43 +952,8 @@ fn run_sheet(
                     Outcome::Equation(Some(r), units, shown)
                 }
                 Item::Equation { text: None, .. } => Outcome::Equation(None, Vec::new(), None),
-                Item::Table { cells, names, math, index, total, .. } => {
-                    // The ordinal column is not read: the calculations see the table without it.
-                    let mut read: Vec<Vec<String>> =
-                        if *index { cells.iter().map(|row| row.iter().skip(1).cloned().collect()).collect() } else { cells.clone() };
-                    // The total row: each empty cell sums its column (`Σ =`; label columns have
-                    // none). A cell written there keeps its own text (`mean =`, a label).
-                    if *total
-                        && read.len() >= 2
-                        && let Some(last) = read.last_mut()
-                    {
-                        for cell in last.iter_mut().filter(|t| t.trim().is_empty()) {
-                            *cell = "Σ =".to_string();
-                        }
-                    }
-                    let read = &read;
-                    let mut result = ws.eval_table_named(
-                        read,
-                        names.map(|n| match n {
-                            wordcraft_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
-                            wordcraft_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
-                        }),
-                    );
-                    if *index {
-                        for u in &mut result.updates {
-                            u.1 += 1;
-                        }
-                        for e in &mut result.errors {
-                            e.1 += 1;
-                        }
-                        // Each data row's ordinal number; other rows' are cleared (not the header).
-                        for (r, n) in strix_calc::ordinals(read).into_iter().enumerate().skip(1) {
-                            let want = n.map(|n| n.to_string()).unwrap_or_default();
-                            if cells.get(r).and_then(|row| row.first()).map_or("", |t| t.trim()) != want {
-                                result.updates.push((r, 0, want));
-                            }
-                        }
-                    }
+                Item::Table { cells, names, math, index, total, no_total, .. } => {
+                    let result = eval_calc_table(ws, cells, *names, *index, *total, no_total);
                     // Shown as equations: every cell's final text, and the units in it to style.
                     let shown = math.then(|| {
                         let mut grid = cells.clone();
@@ -1027,6 +1006,141 @@ fn run_sheet(
         })
         .collect();
     (sheets, outcomes)
+}
+
+/// The sign the total row shows in its first column: the row's label (`docs/calc.md`).
+const TOTAL_SIGN: &str = "Σ";
+
+/// A total row's cell left from an earlier calculation, which the next one writes over: empty,
+/// a sum (`7`, `12 kN`, `Σ = 7`, `Σ`), no value (`–`) or an error (`⚠`). Anything else (`mean =`,
+/// a label) is the user's and stays.
+fn stale_total(text: &str) -> bool {
+    let t = text.trim();
+    strix_calc::is_blank(t)
+        || t == "⚠"
+        || t == TOTAL_SIGN
+        || t == "∑"
+        || t.strip_prefix(TOTAL_SIGN).or_else(|| t.strip_prefix('∑')).is_some_and(|rest| rest.trim_start().starts_with('='))
+        || (t.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '−' | '+' | '.')) && !t.contains('='))
+}
+
+/// Whether the table at the caret is calculated and has its total row (`None`: not calculated).
+pub(crate) fn caret_total_row(s: &Session) -> Option<bool> {
+    let (tp, _, _) = s.sel.focus.path.cell()?;
+    s.doc.table(s.sel.focus.story, &tp).filter(|t| t.props.calc).map(|t| t.props.look.total_row)
+}
+
+/// After Table Style Options: a calculated table whose total row was turned on or off is worked
+/// out at once, though the caret is in it (it waits for the caret to leave only while typing).
+pub(crate) fn total_row_changed(s: &mut Session, before: Option<bool>) {
+    if before.is_some() && caret_total_row(s) != before {
+        let opts = options_now(s);
+        recalculate(s, &opts);
+    }
+}
+
+/// A calculated table's total row turned off: what the calculations wrote in its last row (the
+/// sums, `Σ`, `–`, `⚠`) goes, so it doesn't stay behind as a row of data; text written there
+/// stays. Its cells keep their look.
+pub(crate) fn clear_total_row(t: &mut Table) {
+    if !t.props.calc || t.rows.len() < 2 {
+        return;
+    }
+    let Some(row) = t.rows.last_mut() else { return };
+    for cell in &mut row.cells {
+        let text = cell_text(&cell.blocks);
+        if text.trim().is_empty() || !stale_total(&text) {
+            continue;
+        }
+        let Some(first) = cell.blocks.first_mut() else { continue };
+        let Block::Para(p) = &**first else { continue };
+        let mut new = Paragraph::with_text("", p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone()));
+        new.props = p.props.clone();
+        new.mark = p.mark.clone();
+        *Arc::make_mut(first) = Block::Para(new);
+    }
+}
+
+/// Evaluates calculated table `cells` (row by row, as the document holds them) in `ws`: the
+/// ordinal column (`index`, column 0) is not read and gets the data rows' numbers; with `total`
+/// the last row is the total row: each column's cell shows its sum alone (`7`), the first
+/// column's cell `Σ` (or `Σ = 7` when that column is summed itself), and the columns in
+/// `no_total` (by the table's columns) nothing. A cell written there keeps its own text
+/// (`mean =`, a label). Returns the result in the table's own columns.
+fn eval_calc_table(
+    ws: &mut Worksheet,
+    cells: &[Vec<String>],
+    names: Option<wordcraft_doc::props::CellNames>,
+    index: bool,
+    total: bool,
+    no_total: &[bool],
+) -> TableResult {
+    let skip = usize::from(index);
+    // The ordinal column is not read: the calculations see the table without it.
+    let mut read: Vec<Vec<String>> = cells.iter().map(|row| row.iter().skip(skip).cloned().collect()).collect();
+    // The total row: every cell left from an earlier calculation sums its column (label columns
+    // get none), even a column not summed: the row is then never a data row.
+    let last = read.len().saturating_sub(1);
+    let total = total && read.len() >= 2;
+    let mut sums: Vec<bool> = Vec::new();
+    if total && let Some(row) = read.last_mut() {
+        for cell in row.iter_mut() {
+            let stale = stale_total(cell);
+            if stale {
+                *cell = "Σ =".to_string();
+            }
+            sums.push(stale);
+        }
+    }
+    let mut result = ws.eval_table_named(
+        &read,
+        names.map(|n| match n {
+            wordcraft_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
+            wordcraft_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
+        }),
+    );
+    if total {
+        let summed = |c: usize| no_total.get(c + skip) != Some(&true);
+        // A column not summed reports no error there.
+        result.errors.retain(|(r, c, _)| *r != last || sums.get(*c) != Some(&true) || summed(*c));
+        let mut updates: Vec<(usize, usize, String)> =
+            result.updates.iter().filter(|u| u.0 != last || sums.get(u.1) != Some(&true)).cloned().collect();
+        for (c, _) in sums.iter().enumerate().filter(|(_, s)| **s) {
+            let first = c == 0 && !index;
+            let worked = result.updates.iter().find(|u| u.0 == last && u.1 == c).map(|u| u.2.as_str());
+            let want = match worked {
+                Some(text) if summed(c) && first => text.to_string(),
+                Some(text) if summed(c) => text.strip_prefix("Σ =").map_or(text, str::trim).to_string(),
+                _ if first => TOTAL_SIGN.to_string(),
+                _ => String::new(),
+            };
+            if cells.get(last).and_then(|row| row.get(c + skip)).map_or("", |t| t.trim()) != want {
+                updates.push((last, c, want));
+            }
+        }
+        result.updates = updates;
+    }
+    if index {
+        for u in &mut result.updates {
+            u.1 += 1;
+        }
+        for e in &mut result.errors {
+            e.1 += 1;
+        }
+        // Each data row's ordinal number; the total row's cell is its sign; other rows' are
+        // cleared (not the header).
+        for (r, n) in strix_calc::ordinals(&read).into_iter().enumerate().skip(1) {
+            let want = match n {
+                Some(n) => n.to_string(),
+                None if total && r == last => TOTAL_SIGN.to_string(),
+                None => String::new(),
+            };
+            if cells.get(r).and_then(|row| row.first()).map_or("", |t| t.trim()) != want {
+                result.updates.push((r, 0, want));
+            }
+        }
+    }
+    result
 }
 
 fn recalculate_with(s: &mut Session, v: &Value) -> Value {
@@ -1377,24 +1491,8 @@ fn eval_variant_item(
             answers.entry(*answer).or_default().push((full.clone(), None));
         }
         Item::Equation { text: None, .. } => {}
-        Item::Table { cells, names, index, total, .. } => {
-            let mut read: Vec<Vec<String>> =
-                if *index { cells.iter().map(|row| row.iter().skip(1).cloned().collect()).collect() } else { cells.clone() };
-            if *total
-                && read.len() >= 2
-                && let Some(last) = read.last_mut()
-            {
-                for cell in last.iter_mut().filter(|t| t.trim().is_empty()) {
-                    *cell = "Σ =".to_string();
-                }
-            }
-            let res = ws.eval_table_named(
-                &read,
-                names.map(|n| match n {
-                    wordcraft_doc::props::CellNames::ColumnRow => strix_calc::CellNames::ColumnRow,
-                    wordcraft_doc::props::CellNames::RowColumn => strix_calc::CellNames::RowColumn,
-                }),
-            );
+        Item::Table { cells, names, index, total, no_total, .. } => {
+            let res = eval_calc_table(ws, cells, *names, *index, *total, no_total);
             for (r, c, e) in res.errors {
                 errors.push((top, format!("table ({r},{c}): {e}")));
             }
@@ -2125,8 +2223,9 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
             let body = text.get(cut..).unwrap_or(text);
             let mut nodes = parse_linear(body);
             style_units(&mut nodes, units, color, 0);
-            // A label (`Support`, `Beam 2`) stays words: no italics, no units.
-            let label = cut == 0 && is_label(text);
+            // A label (`Support`, `Beam 2`) stays words: no italics, no units; so do the total
+            // row's sign and a cell that found no data.
+            let label = cut == 0 && (is_label(text) || text.trim() == TOTAL_SIGN || (!text.trim().is_empty() && strix_calc::is_blank(text)));
             let lead_hidden = p.text.starts_with('=') && p.runs.first().is_some_and(|r| r.props.hidden == Some(true));
             let same = match p.objects.as_slice() {
                 [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes && lead_hidden == (cut > 0),
@@ -2351,6 +2450,7 @@ fn calc_header(s: &mut Session) -> Result<(), CmdError> {
     if values {
         at_first_cell(s, "table.insertRowAbove", 1, 0)?;
     }
+    calc_style(s)?;
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let t = s.doc.table_mut(story, &tp)?;
     t.props.look.header_row = true;
@@ -2368,6 +2468,111 @@ fn calc_header(s: &mut Session) -> Result<(), CmdError> {
             }
         }
     }
+    Ok(())
+}
+
+/// What a cell of a table shown as equations holds where the caret is, for typing straight into
+/// its equation: the whole cell is the equation's place (`docs/calc.md`, Cells as equations).
+#[derive(Clone, Debug, PartialEq)]
+pub enum MathCell {
+    /// An empty cell: its paragraph's start, where an equation goes.
+    Empty(wordcraft_doc::Pos),
+    /// A cell that is one equation: the equation object (a header formula's hidden `=` before
+    /// it).
+    Equation(wordcraft_doc::Pos),
+}
+
+/// The cell of a table shown as equations (top-level, calculated) that `pos` is in, when it is
+/// empty or one equation and `pos` is in its first paragraph; `None` for any other place.
+pub fn math_cell_at(s: &Session, pos: &wordcraft_doc::Pos) -> Option<MathCell> {
+    let (tp, _, _) = pos.path.cell()?;
+    let t = s.doc.table(pos.story, &tp)?;
+    // Only top-level body tables are calculated, and only a cell's first paragraph is read.
+    if pos.story != wordcraft_doc::StoryRef::Body
+        || tp.0.len() != 1
+        || !(t.props.calc && t.props.calc_math)
+        || pos.path.0.get(3) != Some(&0)
+        || pos.path.0.len() != 4
+    {
+        return None;
+    }
+    let p = s.doc.para_at(pos)?;
+    let obj = wordcraft_doc::para::OBJ;
+    let at = |off: usize| wordcraft_doc::Pos { off, ..pos.clone() };
+    match p.objects.as_slice() {
+        [] if p.text.trim().is_empty() => Some(MathCell::Empty(at(0))),
+        [InlineObject::Equation { .. }] if p.text == obj.to_string() || p.text == format!("={obj}") => {
+            p.text.find(obj).map(|off| MathCell::Equation(at(off)))
+        }
+        _ => None,
+    }
+}
+
+/// Typing in a cell of a table shown as equations types in its equation: an empty cell gets one
+/// first (one undo step with what is typed), a cell that is one equation is edited at its end.
+/// `None` when `id`/`v` is not plain typing there (the command then runs as usual).
+pub(crate) fn type_in_math_cell(s: &mut Session, id: &str, v: &Value) -> Option<Result<Value, CmdError>> {
+    if id != "text.insert" || s.math.is_some() || !s.sel.is_collapsed() || p::bool(v, "raw") == Some(true) || p::bool(v, "paragraphs") == Some(true) {
+        return None;
+    }
+    let text = p::str(v, "text")?.to_string();
+    if text.is_empty() || text.contains(['\n', '\r', '\t', '\u{b}', '\u{c}']) {
+        return None;
+    }
+    let cell = math_cell_at(s, &s.sel.focus.clone())?;
+    let opened = match cell {
+        MathCell::Empty(at) => {
+            s.sel = crate::Selection::caret(at);
+            s.run("insert.equation", &json!({"linear": "", "display": false, "calc": false, "edit": true}))
+        }
+        MathCell::Equation(at) => {
+            s.sel = crate::Selection::caret(at);
+            s.run("equation.edit", &json!({}))
+        }
+    };
+    if let Err(e) = opened {
+        return Some(Err(e));
+    }
+    s.join_next_undo();
+    Some(s.run("equation.type", &json!({"text": text})))
+}
+
+/// The table style a calculated table takes when it has the default look (Table Grid): a grid of
+/// thin lines, the header row's bottom edge and the total row's top edge drawn heavier, so the
+/// names and formulas stand apart from the values and the totals from the rows they sum.
+pub const CALC_TABLE_STYLE: &str = "Calculated Table";
+
+/// Gives the table at the caret [`CALC_TABLE_STYLE`] (added to the document's styles the first
+/// time) when it has no style or Table Grid; a style the user chose stays.
+fn calc_style(s: &mut Session) -> Result<(), CmdError> {
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let story = s.sel.focus.story;
+    let current = s.doc.table(story, &tp).and_then(|t| t.props.style.clone());
+    let grid = super::table_style::table_style_id(s, "TableGrid");
+    if current.is_some() && current != grid {
+        return Ok(());
+    }
+    let id = match super::table_style::table_style_id(s, CALC_TABLE_STYLE) {
+        Some(id) => id,
+        None => {
+            let edge = |edges: &str| json!({"edges": edges, "style": "single", "width": 1.5});
+            let made = s
+                .run(
+                    "table.newStyle",
+                    &json!({
+                        "name": CALC_TABLE_STYLE,
+                        "apply": false,
+                        "wholeTable": {"borders": {"edges": "all", "style": "single", "width": 0.5}},
+                        "headerRow": {"bold": true, "borders": edge("bottom")},
+                        "totalRow": {"borders": edge("top")},
+                    }),
+                )
+                .map_err(|e| CmdError::Failed(e.to_string()))?;
+            made.get("id").and_then(Value::as_str).map(str::to_string).ok_or_else(|| CmdError::Failed("no table style".into()))?
+        }
+    };
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    s.doc.table_mut(story, &tp)?.props.style = Some(id);
     Ok(())
 }
 
@@ -2406,6 +2611,38 @@ fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
     }
     let report = recalculate(s, &options(s, v));
     Ok(json!({"index": on, "recalculated": report}))
+}
+
+/// The header cell of the column the caret is in (by grid column, so merged cells line up), and
+/// its index in the header row.
+fn column_header(s: &Session) -> Option<(usize, &wordcraft_doc::table::Cell)> {
+    let (tp, row, col) = s.sel.focus.path.cell()?;
+    let t = s.doc.table(s.sel.focus.story, &tp)?;
+    let h = t.cell_at_grid(0, t.grid_col(row, col))?;
+    Some((h, t.rows.first()?.cells.get(h)?))
+}
+
+/// The column at the caret summed in the total row or not (`CellProps::calc_no_total` on its
+/// header cell). Summing a column turns the total row on; the table is made calculated.
+fn calc_total(s: &mut Session, v: &Value) -> CmdResult {
+    let (h, cell) = column_header(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let on = p::bool(v, "value").unwrap_or(cell.props.calc_no_total);
+    let calc = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc);
+    if !calc {
+        toggle_table(s, &json!({"value": true}))?;
+    }
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    // Making it calculated may have put a header row above: the column's header is found again.
+    let h = column_header(s).map_or(h, |(h, _)| h);
+    let t = s.doc.table_mut(s.sel.focus.story, &tp)?;
+    let cell = t.rows.first_mut().and_then(|r| r.cells.get_mut(h)).ok_or_else(|| CmdError::Failed("no header cell".into()))?;
+    cell.props.calc_no_total = !on;
+    if on {
+        t.props.look.total_row = true;
+    }
+    super::table::touch_cells(s, &tp)?;
+    let report = recalculate(s, &options(s, v));
+    Ok(json!({"total": on, "recalculated": report}))
 }
 
 /// Sets the text of cell (`row`, `col`) of the table at `tp`: its first paragraph, its look kept.
@@ -3051,14 +3288,37 @@ mod tests {
         assert!(matches!(&*t.rows[0].cells[0].blocks[0], Block::Para(p) if p.runs.iter().all(|r| r.props.bold == Some(true))));
         assert_eq!(col(&g, 3), vec!["M [m^2] = L^2", "4", "", "9", ""], "the formula sees L in its own column");
         assert_eq!(s.sel.focus.path.0, vec![0, 3, 2, 0], "the caret moved right with its cell");
-        // The Total Row: the last row sums each column (the label and ordinal columns have none).
+        // The Total Row: the last row sums each column (the label and ordinal columns have none);
+        // the sign is in the first column only, the sums alone under their columns.
         s.run("table.look", &json!({"totalRow": true})).unwrap();
         s.run("calc.recalculate", &json!({})).unwrap();
         let g = grid(&s);
-        assert_eq!(g[4], vec!["", "", "Σ = 5", "Σ = 13"], "{g:?}");
-        assert_eq!(col(&g, 0), vec!["i", "1", "", "2", ""], "the total row has no number");
+        assert_eq!(g[4], vec!["Σ", "", "5", "13"], "{g:?}");
+        assert_eq!(col(&g, 0), vec!["i", "1", "", "2", "Σ"], "the total row has the sign, no number");
         let info = s.run("calc.tableInfo", &json!({})).unwrap();
-        assert_eq!((info["index"].as_bool(), info["total"].as_bool()), (Some(true), Some(true)));
+        assert_eq!((info["index"].as_bool(), info["total"].as_bool(), info["columnTotal"].as_bool()), (Some(true), Some(true), Some(true)));
+        // Stable: recalculating again changes nothing.
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
+        // Column by column: L not summed leaves its cell empty; summed again it comes back.
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 2, 0]), 0));
+        assert_eq!(s.run("table.calcTotal", &json!({})).unwrap()["total"], false);
+        assert_eq!(grid(&s)[4], vec!["Σ", "", "", "13"]);
+        assert_eq!(s.run("calc.tableInfo", &json!({})).unwrap()["columnTotal"], false);
+        // A total written in a column's cell (`max =`) stays the user's.
+        let bytes = crate::io::save_bytes("d.docx", &s.doc).unwrap();
+        let back = crate::io::open_bytes("d.docx", &bytes).unwrap();
+        let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        assert!(t.rows[0].cells[2].props.calc_no_total && !t.rows[0].cells[3].props.calc_no_total, "kept in a .docx");
+        s.run("table.calcTotal", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s)[4], vec!["Σ", "", "5", "13"]);
+        // The total row off: its sums go with it (they would be read as a row of data), and on
+        // again they come back.
+        s.run("table.look", &json!({"totalRow": false})).unwrap();
+        let g = grid(&s);
+        assert_eq!(g[4], vec!["", "", "", ""], "{g:?}");
+        assert_eq!(col(&g, 3), vec!["M [m^2] = L^2", "4", "", "9", ""]);
+        s.run("table.look", &json!({"totalRow": true})).unwrap();
+        assert_eq!(grid(&s)[4], vec!["Σ", "", "5", "13"]);
         // Saved and opened again.
         let bytes = crate::io::save_bytes("d.xmath", &s.doc).unwrap();
         let back = crate::io::open_bytes("d.xmath", &bytes).unwrap();
@@ -3068,7 +3328,7 @@ mod tests {
         s.run("table.calcIndex", &json!({"value": false})).unwrap();
         let g = grid(&s);
         assert_eq!(g[0], vec!["Beam", "L [m]", "M [m^2] = L^2"]);
-        assert_eq!(s.sel.focus.path.0, vec![0, 3, 1, 0]);
+        assert_eq!(s.sel.focus.path.0, vec![0, 1, 1, 0], "the caret moved left with its cell");
     }
 
     /// A data table: its values are parameters `F_A` (or `A_F`) for what follows; kept on save.
@@ -3080,7 +3340,7 @@ mod tests {
         assert_eq!(r["names"], "columnRow");
         assert_eq!(
             s.run("calc.tableInfo", &json!({})).unwrap(),
-            json!({"calc": true, "names": "columnRow", "math": false, "index": false, "total": false})
+            json!({"calc": true, "names": "columnRow", "math": false, "index": false, "total": false, "columnTotal": true})
         );
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(
             wordcraft_doc::StoryRef::Body,
@@ -3140,6 +3400,98 @@ mod tests {
         let t = table(&s);
         assert!(t.rows.iter().flat_map(|r| &r.cells).all(|c| matches!(c.blocks.first().map(|b| &**b), Some(Block::Para(p)) if p.objects.is_empty())));
         assert_eq!(table_texts(&s)[2][1], "12 kN");
+    }
+
+    /// A table shown as equations reads rows by subscript (`y_(i+1)`: `–` where there is no next
+    /// row), its total row has the sign in the first column only and the sums alone, and the
+    /// whole of a cell is its equation's place: typing in an empty cell or beside a cell's
+    /// equation types in an equation, one undo step.
+    #[test]
+    fn a_table_of_equations_reads_rows_by_subscript_and_types_in_its_cells() {
+        let mut s = session();
+        with_table(&mut s, &[&["x_i", "y_i", "= x_i·y_(i+1)"], &["3", "3", ""], &["4", "4", ""], &["", "", ""], &["", "", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 0, 0]), 0));
+        s.run("table.calcIndex", &json!({"value": true})).unwrap();
+        s.run("table.look", &json!({"totalRow": true})).unwrap();
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        let t = table_texts(&s);
+        assert_eq!(t[1], vec!["1", "3", "3", "12"], "{t:?}");
+        assert_eq!(t[2], vec!["2", "4", "4", "–"], "no row 3 to read: {t:?}");
+        assert_eq!(t[4], vec!["Σ", "7", "7", "12"], "the sign in the first column, the sums alone: {t:?}");
+        let report = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(report["errors"], json!([]), "{report}");
+        assert_eq!(report["changed"], 0, "stable: {report}");
+        // The sign and the dash are words, not equations.
+        let cell = |s: &Session, r: usize, c: usize| -> Paragraph {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            match t.rows[r].cells[c].blocks.first().map(|b| (**b).clone()) {
+                Some(Block::Para(p)) => p,
+                _ => Paragraph::new(),
+            }
+        };
+        assert!(cell(&s, 4, 0).objects.is_empty() && cell(&s, 2, 3).objects.is_empty());
+        assert!(cell(&s, 4, 2).objects.len() == 1, "a sum is an equation");
+
+        // Typing in the empty cell of row 3 types in an equation there.
+        let at = |r: u32, c: u32, off: usize| {
+            crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, r, c, 0]), off))
+        };
+        s.sel = at(3, 1, 0);
+        assert!(matches!(math_cell_at(&s, &s.sel.focus.clone()), Some(MathCell::Empty(_))));
+        s.run("text.insert", &json!({"text": "5"})).unwrap();
+        assert!(s.math.is_some(), "editing the cell's equation");
+        assert_eq!(cell(&s, 3, 1).objects.len(), 1);
+        assert_eq!(cell_equation(&cell(&s, 3, 1)).as_deref(), Some("5"));
+        // One undo step takes the equation and what was typed.
+        s.run("edit.undo", &json!({})).unwrap();
+        assert!(cell(&s, 3, 1).objects.is_empty() && cell(&s, 3, 1).text.is_empty());
+        // Beside a cell's equation (after it), typing goes on in the equation.
+        s.math = None;
+        s.sel = at(1, 1, wordcraft_doc::para::OBJ.len_utf8());
+        assert!(matches!(math_cell_at(&s, &s.sel.focus.clone()), Some(MathCell::Equation(_))));
+        s.run("text.insert", &json!({"text": "0"})).unwrap();
+        assert_eq!(cell_equation(&cell(&s, 1, 1)).as_deref(), Some("30"));
+        // Leaving the cell recalculates: x₁ = 30.
+        s.run("equation.exit", &json!({})).unwrap();
+        s.sel = at(3, 2, 0);
+        s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(table_texts(&s)[1][3], "120", "30 · 4");
+        // Not a table of equations: typing is typing.
+        s.run("table.mathCells", &json!({"value": false})).unwrap();
+        s.sel = at(3, 1, 0);
+        assert_eq!(math_cell_at(&s, &s.sel.focus.clone()), None);
+        s.run("text.insert", &json!({"text": "6"})).unwrap();
+        assert!(s.math.is_none() && cell(&s, 3, 1).objects.is_empty());
+    }
+
+    /// A calculated table with the default look takes the Calculated Table style: the header's
+    /// bottom edge and the total row's top edge heavier than the grid; a style chosen stays.
+    #[test]
+    fn a_calculated_table_takes_its_style() {
+        let mut s = session();
+        s.run("calc.insertTable", &json!({"rows": 3, "cols": 2})).unwrap();
+        let style = |s: &Session| s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { t.props.style.clone() } else { None });
+        let id = style(&s).unwrap();
+        let st = s.doc.styles.table_style(&id).unwrap();
+        let part = |p: wordcraft_doc::styles::TablePart| st.part(p).borders;
+        let head = part(wordcraft_doc::styles::TablePart::FirstRow).and_then(|b| b.bottom).unwrap();
+        let foot = part(wordcraft_doc::styles::TablePart::LastRow).and_then(|b| b.top).unwrap();
+        let grid = part(wordcraft_doc::styles::TablePart::WholeTable).and_then(|b| b.between).unwrap();
+        assert!(head.width > grid.width && foot.width > grid.width, "{head:?} {foot:?} {grid:?}");
+        assert_eq!(s.doc.styles.get(&id).map(|x| x.name.as_str()), Some(CALC_TABLE_STYLE));
+        // A second table reuses it; a table with a style of its own keeps it.
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(
+            wordcraft_doc::StoryRef::Body,
+            wordcraft_doc::Path(vec![s.doc.body.len() as u32 - 1]),
+            0,
+        ));
+        s.run("insert.table", &json!({"rows": 2, "cols": 2})).unwrap();
+        s.run("table.newStyle", &json!({"name": "Mine"})).unwrap();
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        let mine = crate::cmd::table_style::table_style_id(&s, "Mine");
+        let styles: Vec<Option<String>> =
+            s.doc.body.iter().filter_map(|b| if let Block::Table(t) = &**b { Some(t.props.style.clone()) } else { None }).collect();
+        assert_eq!(styles, vec![Some(id), mine]);
     }
 
     fn table_texts(s: &Session) -> Vec<Vec<String>> {

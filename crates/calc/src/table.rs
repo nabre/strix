@@ -35,6 +35,19 @@ use crate::{CalcError, MAX_INPUT_CHARS, MAX_VALUES};
 const MAX_TABLE_COLS: usize = 64;
 /// Most cells (columns × rows) of a calculated table that are evaluated.
 const MAX_TABLE_CELLS: usize = 100_000;
+/// The prefix the table gives a column's name read by row with a subscript (`y_(i+1)` becomes
+/// `#y[i+1]`): no name typed can start with it, and the evaluator reads it without wrapping
+/// round ([`CalcError::NoRow`]).
+pub(crate) const ROW_SUBSCRIPT: char = '#';
+/// What a formula cell shows when the data it reads isn't there: `y_(i+1)` in the last row, or a
+/// value worked out from such a cell.
+pub(crate) const NO_VALUE: &str = "–";
+
+/// Whether a cell holds no value: empty, or a dash standing for none (`–`, as a formula that
+/// finds no data shows, `-`, `—`; `−` is how an equation writes a lone dash).
+pub fn is_blank(text: &str) -> bool {
+    matches!(text.trim(), "" | "-" | "–" | "—" | "−")
+}
 
 /// The outcome of evaluating a calculated table.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -197,7 +210,7 @@ impl Worksheet {
         let is_input = |c: usize| matches!(columns.get(c), Some(Column::Input { .. })) && label.get(c) == Some(&false);
         // A row is skipped when all its input cells are empty.
         let active: Vec<bool> = (0..body.len())
-            .map(|r| data_row.get(r) == Some(&true) && (0..columns.len()).any(|c| is_input(c) && !cell(r, c).is_empty() && !is_statement(cell(r, c))))
+            .map(|r| data_row.get(r) == Some(&true) && (0..columns.len()).any(|c| is_input(c) && !is_blank(cell(r, c)) && !is_statement(cell(r, c))))
             .collect();
 
         // Columns in a dimensionless unit (`p [%]`) show formulas of them in it.
@@ -248,6 +261,9 @@ impl Worksheet {
         // row's place among them (1, 2, 3…), `n` how many there are.
         let indexed: Vec<bool> = columns.iter().map(|col| matches!(col, Column::Formula { expr, .. } if indexes(expr, &col_names))).collect();
         let order: Vec<usize> = (0..body.len()).filter(|&r| active.get(r) == Some(&true)).collect();
+        // The formula cells that found no data (`–`), by column then row: what reads them finds
+        // none either.
+        let mut dashed: Vec<Vec<bool>> = vec![vec![false; body.len()]; columns.len()];
         let mut steps = 0usize;
         for r in 0..body.len() {
             if data_row.get(r) != Some(&true) {
@@ -293,15 +309,19 @@ impl Worksheet {
                         locals.push((name.to_string(), Value::Scalar(Quantity::number(v as f64))));
                     }
                 }
-                let missing = used.iter().find(|u| {
+                let missing = used.iter().find_map(|u| {
                     columns
                         .iter()
                         .enumerate()
-                        .any(|(k, other)| other.name() == Some(u.as_str()) && label.get(k) == Some(&false) && !locals.iter().any(|(n, _)| n == *u))
+                        .find(|(k, other)| other.name() == Some(u.as_str()) && label.get(*k) == Some(&false) && !locals.iter().any(|(n, _)| n == u))
                 });
                 let row_work = order.len().saturating_mul(col_names.len());
                 let result = match missing {
-                    Some(name) => Err(CalcError::MissingValue(name.clone())),
+                    // A value in this row that found no data: this cell finds none either.
+                    Some((k, _)) if dashed.get(k).and_then(|d| d.get(r)) == Some(&true) => {
+                        Err(CalcError::NoRow { name: columns.get(k).and_then(Column::name).unwrap_or_default().to_string(), row: 0 })
+                    }
+                    Some((_, other)) => Err(CalcError::MissingValue(other.name().unwrap_or_default().to_string())),
                     // Past the budget an indexed formula isn't even set up: copying the columns
                     // for every cell of a long table would take minutes before it fails.
                     None if indexed.get(c) == Some(&true) && steps.saturating_add(row_work) > crate::MAX_STEPS => {
@@ -310,21 +330,32 @@ impl Worksheet {
                     }
                     None => {
                         // Indexing by row reads the columns over the data rows (counted as work).
-                        let by_row = if indexed.get(c) == Some(&true) {
+                        let (by_row, no_data) = if indexed.get(c) == Some(&true) {
                             steps = steps.saturating_add(row_work);
-                            columns
-                                .iter()
-                                .enumerate()
-                                .filter(|(k, _)| label.get(*k) == Some(&false))
-                                .filter_map(|(k, col)| {
+                            let named = || {
+                                columns
+                                    .iter()
+                                    .enumerate()
+                                    .filter(|(k, _)| label.get(*k) == Some(&false))
+                                    .filter_map(|(k, col)| Some((k, col.name()?)))
+                            };
+                            let by_row = named()
+                                .filter_map(|(k, name)| {
                                     let v = values.get(k)?;
-                                    Some((col.name()?.to_string(), order.iter().map(|&row| v.get(row).copied().flatten()).collect()))
+                                    Some((name.to_string(), order.iter().map(|&row| v.get(row).copied().flatten()).collect()))
                                 })
-                                .collect()
+                                .collect();
+                            let no_data = named()
+                                .filter_map(|(k, name)| {
+                                    let d = dashed.get(k)?;
+                                    d.iter().any(|x| *x).then(|| (name.to_string(), order.iter().map(|&row| d.get(row) == Some(&true)).collect()))
+                                })
+                                .collect();
+                            (by_row, no_data)
                         } else {
-                            Vec::new()
+                            (Vec::new(), Vec::new())
                         };
-                        let mut ctx = Ctx::new(&self.scope, Names::Worksheet, locals).with_steps(steps).with_columns(by_row);
+                        let mut ctx = Ctx::new(&self.scope, Names::Worksheet, locals).with_steps(steps).with_columns(by_row).with_no_data(no_data);
                         let value = ctx.eval(expr).and_then(|v| v.expect_scalar());
                         steps = ctx.steps();
                         value
@@ -337,6 +368,14 @@ impl Worksheet {
                             *slot = Some(q);
                         }
                         shown
+                    }
+                    // The data the formula reads isn't there (`y_(i+1)` in the last row): no value,
+                    // and no mistake either.
+                    Err(CalcError::NoRow { .. }) => {
+                        if let Some(d) = dashed.get_mut(c).and_then(|d| d.get_mut(r)) {
+                            *d = true;
+                        }
+                        NO_VALUE.to_string()
                     }
                     Err(err) => {
                         out.errors.push((r + 1, c, err));
@@ -412,7 +451,7 @@ impl Worksheet {
             let mut errors = Vec::new();
             for r in (0..body.len()).filter(|&r| data_row.get(r) == Some(&true)) {
                 let text = cell(r, c);
-                if text.is_empty() || is_statement(text) {
+                if is_blank(text) || is_statement(text) {
                     continue;
                 }
                 match self.input_cell(text, unit.as_ref()) {
@@ -545,7 +584,7 @@ impl Worksheet {
         let end_pos = tokens.last().map_or(0, |t| t.pos + 1);
         // A formula needs no name: `= γ·q·L²/8` (spreadsheet style).
         let anonymous = |body: &[Token]| -> Result<Column, CalcError> {
-            let expr = self.parse_expr(body, end_pos)?;
+            let expr = self.parse_expr(&self.row_subscripts(body, names, 0), end_pos)?;
             Ok(Column::Formula { name: String::new(), unit: end_unit.clone(), expr })
         };
         if matches!(tok(0), Some(Tok::Define | Tok::Equals)) {
@@ -589,12 +628,90 @@ impl Worksheet {
                     return Err(CalcError::BadDefinition("a column has one unit: before the = or at the end".to_string()));
                 }
                 let body = tokens.get(i + 1..).unwrap_or_default();
-                let expr = self.parse_expr(body, end_pos)?;
+                let expr = self.parse_expr(&self.row_subscripts(body, names, 0), end_pos)?;
                 Ok(Column::Formula { name, unit: unit.or(end_unit), expr })
             }
             Some(_) if unit.is_none() => Ok(Column::Label),
             _ => Err(CalcError::BadDefinition("a column header is a name, an optional [unit] and an optional = formula".to_string())),
         }
+    }
+
+    /// A formula's columns read by row with a subscript, as an equation writes them: `y_(i+1)`
+    /// (the next row), `y_(i-1)`, `y_1`, `y_n` read column `y` — or `y_i`, a column named for
+    /// its rows — in that data row, never wrapping round (a row that isn't there shows `–`);
+    /// `y_i` is the row's own value. Rewritten to an index the evaluator reads that way
+    /// ([`ROW_SUBSCRIPT`]). A name that is itself a column or a parameter (`F_1`) stays.
+    fn row_subscripts(&self, tokens: &[Token], names: &[String], depth: usize) -> Vec<Token> {
+        let column = |base: &str| -> Option<String> {
+            if base.is_empty() {
+                return None;
+            }
+            let rows = format!("{base}_i");
+            names.iter().find(|n| n.as_str() == base || **n == rows).cloned()
+        };
+        let mut out: Vec<Token> = Vec::with_capacity(tokens.len());
+        let mut k = 0usize;
+        while let Some(t) = tokens.get(k) {
+            k += 1;
+            let Tok::Ident(name) = &t.tok else {
+                out.push(t.clone());
+                continue;
+            };
+            let at = |tok: Tok| Token { tok, pos: t.pos, byte: t.byte };
+            let own = names.iter().any(|n| n == name) || self.scope.get(name).is_some();
+            // `y_(i+1)`: the lexer reads `y_`, then the bracket.
+            if let Some(base) = name.strip_suffix('_')
+                && let Some(col) = column(base)
+                && depth < crate::MAX_DEPTH
+                && tokens.get(k).is_some_and(|n| n.tok == Tok::LParen)
+            {
+                let mut level = 0usize;
+                let close = tokens.iter().enumerate().skip(k).find_map(|(j, n)| {
+                    match n.tok {
+                        Tok::LParen => level += 1,
+                        Tok::RParen => {
+                            level = level.saturating_sub(1);
+                            if level == 0 {
+                                return Some(j);
+                            }
+                        }
+                        _ => {}
+                    }
+                    None
+                });
+                if let Some(close) = close {
+                    let inner = tokens.get(k + 1..close).unwrap_or_default();
+                    out.push(at(Tok::Ident(format!("{ROW_SUBSCRIPT}{col}"))));
+                    out.push(Token { tok: Tok::LBracket, ..tokens.get(k).cloned().unwrap_or_else(|| at(Tok::LBracket)) });
+                    out.extend(self.row_subscripts(inner, names, depth + 1));
+                    out.push(Token { tok: Tok::RBracket, ..tokens.get(close).cloned().unwrap_or_else(|| at(Tok::RBracket)) });
+                    k = close + 1;
+                    continue;
+                }
+            }
+            // `y_i`, `y_n`, `y_1`.
+            if !own
+                && let Some((base, sub)) = name.rsplit_once('_')
+                && let Some(col) = column(base)
+            {
+                // The row's own value (column `y` written `y_i`; a column named `y_i` is `own`).
+                if sub == "i" {
+                    out.push(at(Tok::Ident(col)));
+                    continue;
+                }
+                let index = match sub {
+                    "n" => Some(Tok::Ident("n".to_string())),
+                    d if !d.is_empty() && d.len() <= 6 && d.chars().all(|c| c.is_ascii_digit()) => d.parse::<f64>().ok().map(Tok::Num),
+                    _ => None,
+                };
+                if let Some(index) = index {
+                    out.extend([at(Tok::Ident(format!("{ROW_SUBSCRIPT}{col}"))), at(Tok::LBracket), at(index), at(Tok::RBracket)]);
+                    continue;
+                }
+            }
+            out.push(t.clone());
+        }
+        out
     }
 
     /// A unit in square brackets closing a header's formula (`= q·L²/8 [kN·m]`): the tokens
@@ -791,7 +908,7 @@ fn walk_names(expr: &Expr, columns: &[&str], f: &mut dyn FnMut(&str, bool)) {
         Expr::Name(n) => f(n, false),
         Expr::Index(base, index) => {
             match &**base {
-                Expr::Name(n) if columns.contains(&n.as_str()) => f(n, true),
+                Expr::Name(n) if columns.contains(&n.as_str()) || n.strip_prefix(ROW_SUBSCRIPT).is_some_and(|c| columns.contains(&c)) => f(n, true),
                 other => walk_names(other, columns, f),
             }
             walk_names(index, columns, f);

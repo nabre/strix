@@ -65,6 +65,10 @@ pub struct ViewState {
     pub check_pane: bool,
     #[serde(default)]
     pub archive_pane: bool,
+    /// The Grading Scale pane (Teaching › Scores › Grading Scale › Properties): the properties of
+    /// the points-to-grade table (docs/exercise.md).
+    #[serde(default)]
+    pub grading_pane: bool,
     /// The Plot Properties pane (Math › Graphics › Plot Properties): axes, series and teacher/student
     /// options for the selected plot (`docs/plot.md`).
     #[serde(default)]
@@ -227,6 +231,7 @@ impl Default for ViewState {
             check_pane: false,
             archive_pane: false,
             plot_pane: false,
+            grading_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,

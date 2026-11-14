@@ -290,6 +290,16 @@ fn handle_primary_press(
         app.session.page_hint = page;
         return true;
     }
+    // Strix: in a calculated table shown as equations the whole cell is its equation's place.
+    if !mods.shift
+        && let Some(pos) = layout.hit(page, x, y, story)
+        && let Some(wordcraft_engine::cmd::calc::MathCell::Equation(at)) = wordcraft_engine::cmd::calc::math_cell_at(&app.session, &pos)
+    {
+        app.session.sel = wordcraft_engine::Selection::caret(at);
+        let _ = app.run("equation.edit", json!({}));
+        app.session.page_hint = page;
+        return true;
+    }
     if app.session.math.is_some() {
         let _ = app.run("equation.exit", json!({}));
     }

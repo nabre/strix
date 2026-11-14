@@ -46,6 +46,7 @@ mod dsa_runs;
 pub(crate) mod expr;
 mod front;
 pub(crate) mod grading;
+mod guard;
 mod items;
 mod items_ext;
 mod language;
@@ -62,6 +63,7 @@ mod tests_phase3;
 mod tests_phase4;
 #[cfg(test)]
 mod tests_phase5;
+mod title_line;
 mod total_score;
 mod variants_gen;
 mod words;
@@ -69,6 +71,7 @@ pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub use expr::TAG_EXPR;
 pub use grading::TAG_GRADING;
+pub(crate) use guard::{outside_for, typing_target};
 pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
 pub use items_ext::TAG_RATIONALE;
 pub(crate) use language::follow_language;
@@ -125,7 +128,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "titleLine"?: "title" | "statement" (as exercise.titleLine), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
@@ -146,7 +149,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"question"?: n (1-based; 0 = none; default: the question it is worked under), "toggle"?: bool (a result is taken off)} → the equation at the caret is the result of that question of its exercise"#),
         CommandSpec::new("exercise.info", "Exercise Info", "Teaching › Exercise", info)
             .pure()
-            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
+            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n, "list": [{"label", "title", "kind", "pos"}] (every exercise)}"#),
         CommandSpec::new("exercise.data", "Exercise Data", "Teaching › Exercise", data_info)
             .pure()
             .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n, "duration"?: minutes}, "errors": [string|null per item], "variantErrors": {variantName: [string]}}"#),
@@ -164,6 +167,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
             .when(body)
             .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),
+        CommandSpec::new("exercise.titleLine", "Title Line", "Teaching › Exercise", title_line::command)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "line"?: "title" (a bold title after the number) | "statement" (no title: the statement or question written right after the number, in the body text's weight)} → {"exercise", "line"}"#),
         CommandSpec::new("exercise.delete", "Delete Exercise", "Teaching › Exercise", delete::delete)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
@@ -445,7 +451,10 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     }
     ensure_styles(s);
     if let Some(kind) = p::str(v, "kind").filter(|k| *k != "problem") {
-        let (blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        let (mut blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        if let Some(first) = blocks.first_mut() {
+            title_line::on_insert(s, first, v);
+        }
         let placed = place(s, blocks)?;
         if drawings.is_empty() {
             return Ok(placed);
@@ -533,6 +542,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, w.prompt, ControlLock::SdtContentLocked)], 1, None));
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
+    if let Some(first) = blocks.first_mut() {
+        title_line::on_insert(s, first, v);
+    }
     place(s, blocks)
 }
 
@@ -1413,7 +1425,28 @@ fn info(s: &mut Session, _: &Value) -> CmdResult {
         "levels": e.map(|e| e.questions.iter().map(|q| q.level).collect::<Vec<_>>()).unwrap_or_default(),
         "answer": answer,
         "exercises": layout.exercises.len(),
+        "list": list_of(s, &layout),
     }))
+}
+
+/// Every exercise of the document, for the pane's list: its label (`Esercizio 2`, none for a
+/// lone one), title (or statement), kind and where its title starts.
+fn list_of(s: &Session, layout: &Layout) -> Vec<Value> {
+    let numbering = numbering::current(s);
+    let lone = layout.exercises.len() == 1;
+    layout
+        .exercises
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            json!({
+                "label": if lone { String::new() } else { numbering.label(i) },
+                "title": e.title,
+                "kind": e.kind.name(),
+                "pos": s.doc.clamp(&wordcraft_doc::Pos::body(e.start, 2 * OBJ.len_utf8())),
+            })
+        })
+        .collect()
 }
 
 /// The repeated question `q`: its own read-only control, indented like its list.
@@ -1721,11 +1754,17 @@ fn placeholders(s: &mut Session) {
             continue;
         }
         let Block::Para(p) = Arc::make_mut(block) else { continue };
+        // A title line holding the statement has the statement's placeholder.
+        let line = title_line::of_para(p);
         for o in &mut p.objects {
             if let InlineObject::ControlStart { control } = o
                 && control.placeholder_text.is_empty()
                 && let Some(text) = wanted(&control.tag)
             {
+                let text = match line {
+                    Some((kind, line)) if control.tag == TAG_TITLE => title_line::placeholder(w, line, kind),
+                    _ => text,
+                };
                 control.placeholder_text = text.to_string();
             }
         }

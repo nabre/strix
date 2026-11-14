@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-13 · **Change:** Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-14 · **Change:** Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -170,10 +170,34 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   then `x_G = sum(s)/sum(a) =` gives 2 m. A column may read its own earlier rows (`c = c[i-1] +
   x`); a row not worked out yet is an error in that cell. A column only read by index does not
   hold a row back when its own cell is empty.
+- **Rows by subscript**, as an equation writes them: `y_(i+1)` is column `y` in the next data
+  row, `y_(i-1)` the one before, `y_1` the first, `y_n` the last, and `y_i` the row's own value.
+  A column may be named for its rows, `y_i`: `y_(i+1)` reads it too. A subscript never wraps
+  round: where the row isn't there (`y_(i+1)` in the last row, `y_(i-1)` in the first) the cell
+  shows `–` — no data, not an error — and what reads that cell shows `–` too. The totals sum the
+  values there are; a column with a `–` is not a vector after the table. A parameter or column
+  of that very name (`F_1` defined before the table) stays itself, and `x[i+1]` keeps wrapping
+  round (Gauss).
+
+  | i | x_i | y_i | x_i·y_(i+1) |
+  |---|---|---|---|
+  | 1 | 3 | 3 | *12* |
+  | 2 | 4 | 4 | *–* |
+  | Σ | *7* | *7* | *12* |
+
+- A dash in an input cell (`-`, `–`, `—`) is no value, like an empty cell.
 - **Total Row** (Table Design › Table Style Options › Total Row, also Table Layout › Data and
-  Math › Tables; `table.look {"totalRow"}`): the last row is the totals row; each empty cell
-  under a value or formula column sums its column (`Σ = 101.756`), a cell written there keeps
-  its own text (`mean =`, `max =`, a label), label columns get nothing. It is not a data row.
+  Math › Tables; `table.look {"totalRow"}`): the last row is the totals row. Its first column
+  shows the sign `Σ` (the ordinal column's cell, or a label column's; when the first column is
+  summed itself, `Σ = 7`), and each value or formula column's cell shows its sum alone (`7`, in
+  the column's unit). A cell written there keeps its own text (`mean =`, `max =`, a label);
+  what an earlier calculation left (a number, `Σ = …`, `–`, `⚠`) is written over. It is not a
+  data row. Turning it on or off works the table out at once; off, what the calculations wrote
+  in that row goes with it (it would otherwise be read as a row of data).
+- **Column Total** (Table Layout › Data and Math › Tables; `table.calcTotal {"value"?}`): the
+  column at the caret is summed in the total row or not; not summed, its cell there stays empty.
+  Summing a column turns the total row on. Saved on the column's header cell
+  (`strix:noTotal="1"` on its `w:tcPr`).
 - **Ordinal column** (Table Layout › Data › Ordinal Column, Math › Tables; `table.calcIndex`,
   saved as `strix:calcIndex="1"` on `w:tblPr`): a first column, column "0", headed `i` (as `i` in a column formula), numbers
   the data rows with something in them 1, 2, 3… (not the header, a totals row or an empty row;
@@ -191,6 +215,20 @@ Unit style, the values the table works out written into them. A label (`Support`
 words with no digit, `=`, brackets or subscripts) stays plain text; single letters (`A`) are
 symbols; units are styled only where a quantity or a column's unit is (`12 kN`, `F [kN]`). Turned
 off, the cells are text again. Saved as `strix:calcMath` on `w:tblPr`.
+
+The whole of a cell is its equation's place: a click anywhere in a cell that is an equation
+edits that equation, and typing in a cell — empty, or with the caret beside its equation (after
+Tab or the arrow keys) — types in its equation (an empty cell gets one first, one undo step with
+what is typed). The table's sign `Σ` and a `–` stay words.
+
+### Style
+
+A table that becomes calculated with the default look (no style, or Table Grid) takes the
+**Calculated Table** style, added to the document's styles the first time: a grid of thin lines,
+the header row bold with a heavier bottom edge (1.5 pt) and the total row with a heavier top
+edge (1.5 pt), so names and formulas stand apart from the values and the totals from the rows
+they sum. A style the table already has stays; the style can be changed like any other (Table
+Design › Table Styles).
 
 ### Data tables
 
@@ -413,7 +451,8 @@ spelled like a unit stays a parameter in its own part (`m` the mass in `F = m·a
 | `calc.newEquations` | preference: new equations are regions (default on) |
 | `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`) |
 | `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`) |
-| `calc.tableInfo` | whether the table at the caret is calculated |
+| `calc.tableInfo` | whether the table at the caret is calculated, and its options (`columnTotal`: the caret's column is summed) |
+| `table.calcTotal` | Column Total: the column at the caret is summed in the total row or not (`{"value"?: bool}`) |
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
 | `calc.variables` | the parameters of the document and of each exercise sandbox, with jump positions and optional unit conversions (`{"units"?: {…}}`) |
 | `view.variablesPane` | open or close the **Variables** task pane (Math › Calculation › Variables) |
@@ -453,6 +492,8 @@ Edit Drawing, see `docs/cad.md`).
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-14: calculated tables: rows by subscript (`y_(i+1)`, `y_(i-1)`, `y_1`, `y_n`, `y_i`; columns named `y_i`), never wrapping round, `–` where there is no such row; the total row shows `Σ` in its first column and the sums alone; Column Total (`table.calcTotal`) per column; in Cells as Equations the whole cell is its equation's place; the Calculated Table style (heavier header bottom and total top edges).
 
 - 2026-11-13: Phase 2 (`M4`–`M6`): full SI prefixes (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units (`F H T Wb S lm lx atm torr mmHg eV cal Da u are ha gon/grad arcmin arcsec d/day yr rpm kn`); STEM functions (`cbrt`, `root`, `log2`, `log(x; b)`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics/regression (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts (`⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹`); symbolic degree 1–2 polynomial solver with dimensional Δ check, physical domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables) with unit conversion selector and click-to-jump across document and exercise sandboxes.
 

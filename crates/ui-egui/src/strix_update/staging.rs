@@ -26,7 +26,7 @@ const STAGED: &str = "strix: staged for the next start";
 /// The record's file name, in Strix's update data folder.
 const RECORD: &str = "strix-staged-update.json";
 
-/// The file that turns the automatic download off.
+/// The update preferences: the automatic download, and the automatic check.
 const SETTINGS: &str = "strix-update-settings.json";
 
 /// A downloaded, verified package waiting for the next start.
@@ -47,18 +47,50 @@ impl Staged {
 /// The update preferences Strix keeps beside its update data.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Settings {
+    #[serde(default = "on")]
     auto_download: bool,
+    /// Whether Strix looks for updates by itself (at start and once a day); unset: as the
+    /// installation says (`strix-updates.ini`, see `super::installed_check`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    check: Option<bool>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self { auto_download: true, check: None }
+    }
+}
+
+fn on() -> bool {
+    true
+}
+
+fn settings(data: &Path) -> Settings {
+    std::fs::read_to_string(data.join(SETTINGS)).ok().and_then(|t| serde_json::from_str::<Settings>(&t).ok()).unwrap_or_default()
+}
+
+fn save_settings(data: &Path, settings: &Settings) -> Result<(), String> {
+    std::fs::create_dir_all(data).map_err(|e| format!("couldn't create {} ({e})", data.display()))?;
+    let text = serde_json::to_string(settings).map_err(|e| e.to_string())?;
+    craft_update::paths::write_atomic(&data.join(SETTINGS), text.as_bytes())
 }
 
 /// Whether a newer release is downloaded as soon as it is found (on unless turned off).
 pub(super) fn auto_download(data: &Path) -> bool {
-    std::fs::read_to_string(data.join(SETTINGS)).ok().and_then(|t| serde_json::from_str::<Settings>(&t).ok()).is_none_or(|s| s.auto_download)
+    settings(data).auto_download
 }
 
 pub(super) fn set_auto_download(data: &Path, on: bool) -> Result<(), String> {
-    std::fs::create_dir_all(data).map_err(|e| format!("couldn't create {} ({e})", data.display()))?;
-    let text = serde_json::to_string(&Settings { auto_download: on }).map_err(|e| e.to_string())?;
-    craft_update::paths::write_atomic(&data.join(SETTINGS), text.as_bytes())
+    save_settings(data, &Settings { auto_download: on, ..settings(data) })
+}
+
+/// Whether Strix looks for updates by itself, when the user chose (unset otherwise).
+pub(super) fn automatic_check(data: &Path) -> Option<bool> {
+    settings(data).check
+}
+
+pub(super) fn set_automatic_check(data: &Path, on: bool) -> Result<(), String> {
+    save_settings(data, &Settings { check: Some(on), ..settings(data) })
 }
 
 /// Whether this installation is replaced at start without any question.
@@ -404,6 +436,17 @@ mod tests {
         assert!(!auto_download(&paths.data));
         set_auto_download(&paths.data, true).unwrap();
         assert!(auto_download(&paths.data));
+        // The automatic check: unset until chosen, and kept apart from the download setting.
+        assert_eq!(automatic_check(&paths.data), None);
+        set_automatic_check(&paths.data, false).unwrap();
+        assert_eq!(automatic_check(&paths.data), Some(false));
+        assert!(auto_download(&paths.data));
+        set_auto_download(&paths.data, false).unwrap();
+        assert_eq!(automatic_check(&paths.data), Some(false));
+        // A settings file from before the automatic check reads as before.
+        std::fs::write(paths.data.join(SETTINGS), r#"{"auto_download":false}"#).unwrap();
+        assert!(!auto_download(&paths.data));
+        assert_eq!(automatic_check(&paths.data), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

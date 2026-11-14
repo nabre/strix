@@ -140,7 +140,7 @@
   "dlWebNote": "Dieselbe App als WebAssembly: nichts zu installieren. Das ZIP ist eine statische Website zum Selbsthosten.",
   "dlWebZip": "Statische Website (ZIP)",
   "dlAllFiles": "Alle Dateien und Prüfsummen:",
-  "dlSigning": "Code-Signierung und Datenschutz",
+  "dlSigning": "Code-Signierung und Datenschutz (Code signing policy)",
   "dlPickEyebrow": "Welcher Download?",
   "dlPickTitle": "Wählen Sie unten Ihr System",
   "dlPickText": "Alle Builds stehen unten, nach System geordnet. Unsicher? Die Browser-Version läuft überall, ohne Installation.",
@@ -203,6 +203,6 @@
   "footerNavLabel": "Links",
   "footerReleases": "Versionen",
   "footerRoadmap": "Roadmap",
-  "footerPrivacy": "Datenschutz und Signierung",
+  "footerPrivacy": "Code signing policy",
   "footerIssues": "Problem melden"
 }

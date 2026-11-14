@@ -74,27 +74,90 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The series' settings, the same for every exercise: numbering, parts shown, page breaks and
-/// the frontispiece. They show wherever the cursor is.
+/// the frontispiece; first, every exercise with a way to go to it or delete it. They show
+/// wherever the cursor is.
 fn series_tab(app: &mut WordApp, ui: &mut Ui) {
-    crate::pane_kit::note(
-        ui,
-        tl!(
-            "Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them."
-        ),
-    );
-    crate::pane_kit::section(ui, "01", tl!("Numbering"));
+    crate::pane_kit::section(ui, "01", tl!("Exercises"));
+    exercise_list(app, ui);
+    crate::pane_kit::section(ui, "02", tl!("Numbering"));
     numbering(app, ui);
-    crate::pane_kit::section(ui, "02", tl!("Parts Shown"));
-    parts(app, ui, 0);
-    crate::pane_kit::section(ui, "03", tl!("Page Breaks"));
-    series_breaks(app, ui);
-    crate::pane_kit::section(ui, "04", tl!("Frontispiece"));
-    frontispiece(app, ui);
+    egui::CollapsingHeader::new(tl!("Layout")).id_salt("series_layout").default_open(false).show(ui, |ui| {
+        crate::pane_kit::note(
+            ui,
+            tl!(
+                "Every exercise of the series has the same settings, the first exercise's: a change applies to all of them, and a new exercise takes them."
+            ),
+        );
+        sub_heading(ui, tl!("Parts Shown"));
+        parts(app, ui, 0);
+        sub_heading(ui, tl!("Page Breaks"));
+        series_breaks(app, ui);
+        sub_heading(ui, tl!("Frontispiece"));
+        frontispiece(app, ui);
+    });
 }
 
-/// The exercise at the caret (`info`, from `exercise.data`): its variants and data.
-/// `lone`: the document's only exercise, so the settings a series would rule (page breaks, parts
-/// shown, frontispiece) follow here.
+/// A heading inside a collapsed group.
+fn sub_heading(ui: &mut Ui, text: &str) {
+    let t = crate::theme::Tokens::get(ui.ctx());
+    ui.add_space(8.0);
+    ui.label(egui::RichText::new(text.to_uppercase()).font(crate::pane_kit::mono(10.0)).color(t.text_dim));
+    ui.add_space(2.0);
+}
+
+/// Every exercise of the document: its label and title, Go To and Delete (one at a time, whole,
+/// Undo brings it back).
+fn exercise_list(app: &mut WordApp, ui: &mut Ui) {
+    let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
+    let here = info["exercise"].as_u64();
+    let list = info["list"].as_array().cloned().unwrap_or_default();
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let mut delete = None;
+    for (k, e) in list.iter().enumerate() {
+        let n = k as u64 + 1;
+        let label = e["label"].as_str().unwrap_or_default();
+        let title: String = e["title"].as_str().unwrap_or_default().chars().take(40).collect();
+        let fill = if here == Some(n) { t.accent.gamma_multiply(0.18) } else { egui::Color32::TRANSPARENT };
+        egui::Frame::new().fill(fill).corner_radius(egui::CornerRadius::same(4)).inner_margin(egui::Margin::symmetric(6, 3)).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(label).strong());
+                ui.add(egui::Label::new(title).truncate());
+                ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
+                    if ui
+                        .small_button("🗑")
+                        .on_hover_text(tl!("Delete this exercise whole: its statement, questions and solution (Undo brings it back)"))
+                        .clicked()
+                    {
+                        delete = Some(n);
+                    }
+                    if ui.small_button(tl!("Go to")).on_hover_text(tl!("Put the cursor in this exercise's title")).clicked() {
+                        let _ = app.run("caret.set", json!({"pos": e["pos"]}));
+                        app.canvas.want_focus = true;
+                    }
+                });
+            });
+        });
+    }
+    if let Some(n) = delete
+        && let Err(e) = app.run("exercise.delete", json!({"exercise": n}))
+    {
+        app.status(e);
+    }
+}
+
+/// The kind of an exercise, as its badge names it.
+fn kind_name(kind: &str) -> &'static str {
+    match kind {
+        "open" => "Open Answer",
+        "choice" => "Multiple Choice",
+        _ => "Problem",
+    }
+}
+
+/// The exercise at the caret (`info`, from `exercise.data`): what its first line holds, its
+/// duration, its questions, its variants and data, and (`lone`: the document's only exercise,
+/// so what a series would rule follows here) its layout.
 fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
@@ -106,71 +169,99 @@ fn exercise_tab(app: &mut WordApp, ui: &mut Ui, info: &Value, lone: bool) {
     let save = |app: &mut WordApp, data: &Value| {
         let _ = app.run("exercise.setData", json!({"exercise": ex, "data": data}));
     };
+    let q_st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok();
+    let kind = q_st.as_ref().and_then(|st| st["kind"].as_str()).unwrap_or("problem").to_string();
+    let quiz = kind != "problem";
 
-    {
-        // A lone exercise has no number.
-        let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
-        ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new(title).size(15.0).strong());
-            ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
-                let dur = data["duration"].as_u64().map(|d| d.to_string()).unwrap_or_default();
-                ui.label(egui::RichText::new(tl!("Duration (min)")).small().weak());
-                ui.scope(|ui| {
-                    ui.set_width(48.0);
-                    if let Some(t) = draft_box(ui, ("exercise_duration", ex), &dur, true, false) {
-                        let parsed = t.trim().parse::<u32>().ok().filter(|&n| (1..=600).contains(&n));
-                        data["duration"] = parsed.map_or(Value::Null, |n| json!(n));
-                        save(app, &data);
-                    }
-                });
-            });
-        });
-        if let Some(st) = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().filter(|st| st["kind"] != "problem") {
-            crate::pane_kit::section(ui, "01", tl!("Questions"));
-            crate::exercise_quiz::questions(app, ui, ex, &st);
-            let needs_data = st["questions"].as_array().is_some_and(|qs| qs.iter().any(|q| matches!(q["type"].as_str(), Some("calc" | "drawing"))))
-                || data["items"].as_array().is_some_and(|a| !a.is_empty())
-                || variants.len() > 1;
-            ui.add_space(6.0);
-            egui::CollapsingHeader::new(tl!("Variants & Data")).id_salt(("quiz_variants_data", ex, needs_data)).default_open(needs_data).show(
-                ui,
-                |ui| {
-                    variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, variant_errors, "02", "03", &save);
-                },
-            );
-            if lone {
-                crate::pane_kit::section(ui, "04", tl!("Page Breaks"));
-                page_breaks(app, ui);
-                crate::pane_kit::section(ui, "05", tl!("Parts Shown"));
-                parts(app, ui, ex);
-                crate::pane_kit::section(ui, "06", tl!("Frontispiece"));
-                frontispiece(app, ui);
-            } else {
-                ui.add_space(6.0);
-                crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
-            }
-            return;
-        }
-        variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, variant_errors, "01", "02", &save);
-        let q_st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok();
-        let has_q = q_st.as_ref().and_then(|st| st["questions"].as_array()).is_some_and(|a| !a.is_empty());
-        if let Some(st) = q_st.as_ref().filter(|_| has_q) {
-            crate::pane_kit::section(ui, "03", tl!("Questions"));
-            crate::exercise_quiz::problem_questions(app, ui, ex, st);
-        }
-        if lone {
-            let (s1, s2, s3) = if has_q { ("04", "05", "06") } else { ("03", "04", "05") };
-            crate::pane_kit::section(ui, s1, tl!("Page Breaks"));
-            page_breaks(app, ui);
-            crate::pane_kit::section(ui, s2, tl!("Parts Shown"));
-            parts(app, ui, ex);
-            crate::pane_kit::section(ui, s3, tl!("Frontispiece"));
-            frontispiece(app, ui);
-        } else {
-            ui.add_space(6.0);
-            crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
-        }
+    header(app, ui, ex, lone, &kind);
+    crate::pane_kit::section(ui, "01", tl!("General"));
+    general(app, ui, ex, &mut data, &save);
+
+    crate::pane_kit::section(ui, "02", tl!("Questions"));
+    if let Some(st) = q_st.as_ref() {
+        crate::exercise_quiz::questions(app, ui, ex, st, quiz);
     }
+
+    ui.add_space(8.0);
+    let needs_data = !quiz
+        || q_st
+            .as_ref()
+            .and_then(|st| st["questions"].as_array())
+            .is_some_and(|qs| qs.iter().any(|q| matches!(q["type"].as_str(), Some("calc" | "drawing"))))
+        || data["items"].as_array().is_some_and(|a| !a.is_empty())
+        || variants.len() > 1;
+    egui::CollapsingHeader::new(tl!("Variants & Data")).id_salt(("exercise_variants_data", ex, needs_data)).default_open(needs_data).show(ui, |ui| {
+        variants_and_data(app, ui, ex, &mut data, &variants, active, &errors, variant_errors, "", "", &save);
+    });
+    if lone {
+        egui::CollapsingHeader::new(tl!("Layout")).id_salt(("exercise_layout", ex)).default_open(false).show(ui, |ui| {
+            sub_heading(ui, tl!("Parts Shown"));
+            parts(app, ui, ex);
+            sub_heading(ui, tl!("Page Breaks"));
+            page_breaks(app, ui);
+            sub_heading(ui, tl!("Frontispiece"));
+            frontispiece(app, ui);
+        });
+    } else {
+        ui.add_space(6.0);
+        crate::pane_kit::note(ui, tl!("Page breaks, parts shown and graph paper are the series': see the Series tab."));
+    }
+}
+
+/// The exercise's name and kind, with Delete.
+fn header(app: &mut WordApp, ui: &mut Ui, ex: u64, lone: bool, kind: &str) {
+    // A lone exercise has no number.
+    let title = if lone { tl!("Exercise").to_string() } else { format!("{} {ex}", tl!("Exercise")) };
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(title).size(15.0).strong());
+        crate::pane_kit::badge(ui, tl!(kind_name(kind)), crate::pane_kit::Status::Changed);
+        ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
+            if ui
+                .button(tl!("Delete"))
+                .on_hover_text(tl!("Delete this exercise whole: its statement, questions and solution (Undo brings it back)"))
+                .clicked()
+                && let Err(e) = app.run("exercise.delete", json!({"exercise": ex}))
+            {
+                app.status(e);
+            }
+        });
+    });
+}
+
+/// What the first line holds after the number, and the duration.
+fn general(app: &mut WordApp, ui: &mut Ui, ex: u64, data: &mut Value, save: &dyn Fn(&mut WordApp, &Value)) {
+    let line = app.session.run("exercise.titleLine", &json!({"exercise": ex})).ok().and_then(|v| v["line"].as_str().map(str::to_string));
+    crate::rtl::grid(ui, egui::Grid::new(("exercise_general", ex)).num_columns(2).spacing([8.0, 6.0]), |ui| {
+        ui.label(tl!("First line"));
+        let line = line.unwrap_or_else(|| "title".into());
+        let names = [("title", tl!("Title")), ("statement", tl!("Text next to the number (no title)"))];
+        let shown = names.iter().find(|(id, _)| *id == line).map_or("", |(_, l)| l).to_string();
+        craft_ui::ComboBox::from_id_salt(("exercise_title_line", ex)).selected_text(shown).width(ui.available_width().min(220.0)).show_ui(ui, |ui| {
+            for (id, label) in names {
+                if ui.selectable_label(id == line, label).clicked()
+                    && id != line
+                    && let Err(e) = app.run("exercise.titleLine", json!({"exercise": ex, "line": id}))
+                {
+                    app.status(e);
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(tl!("Duration"));
+        ui.horizontal(|ui| {
+            let dur = data["duration"].as_u64().map(|d| d.to_string()).unwrap_or_default();
+            ui.scope(|ui| {
+                ui.set_width(48.0);
+                if let Some(t) = draft_box(ui, ("exercise_duration", ex), &dur, true, false) {
+                    let parsed = t.trim().parse::<u32>().ok().filter(|&n| (1..=600).contains(&n));
+                    data["duration"] = parsed.map_or(Value::Null, |n| json!(n));
+                    save(app, data);
+                }
+            });
+            ui.label("min");
+        });
+        ui.end_row();
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -188,7 +279,8 @@ fn variants_and_data(
     save: &dyn Fn(&mut WordApp, &Value),
 ) {
     // Variants: the active one is the one the exercise is calculated with.
-    crate::pane_kit::section(ui, sec_var, tl!("Variants"));
+    let _ = (sec_var, sec_data);
+    sub_heading(ui, tl!("Variants"));
     ui.horizontal_wrapped(|ui| {
         for (k, name) in variants.iter().enumerate() {
             let v_errs: Vec<&str> =
@@ -249,7 +341,7 @@ fn variants_and_data(
         }
     });
     // Data: symbol, description, value in the active variant, unit.
-    crate::pane_kit::section(ui, sec_data, tl!("Data"));
+    sub_heading(ui, tl!("Data"));
     let mut show_data = data["showData"].as_bool().unwrap_or(true);
     if ui
         .checkbox(&mut show_data, tl!("Show data in exercise"))

@@ -58,6 +58,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::Check, v.check_pane),
         (Pane::Archive, v.archive_pane),
         (Pane::Plot, v.plot_pane),
+        (Pane::Grading, v.grading_pane),
     ]
     .into_iter()
     .filter_map(|(pane, shown)| shown.then_some(pane))

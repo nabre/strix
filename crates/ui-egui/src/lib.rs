@@ -57,6 +57,7 @@ pub mod file_browser;
 pub mod file_dialogs;
 pub mod format_shape;
 pub mod frame;
+mod grading_pane;
 pub mod graph_pane;
 pub mod guides;
 pub mod i18n;

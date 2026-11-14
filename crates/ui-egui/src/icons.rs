@@ -1416,6 +1416,14 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(2.0, 12.0), (18.0, 12.0)], c);
             pen.text(10.0, 14.5, 6.5, "Σ", a, false);
         }
+        // Column Total: a table with one column picked out, a sum sign at its foot.
+        "calcColumnTotal" => {
+            pen.line_c(&[(2.0, 3.0), (18.0, 3.0), (18.0, 17.0), (2.0, 17.0), (2.0, 3.0)], c);
+            pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
+            pen.line_c(&[(7.5, 3.0), (7.5, 17.0)], c);
+            pen.line_c(&[(12.5, 3.0), (12.5, 17.0), (18.0, 17.0), (18.0, 3.0), (12.5, 3.0)], a);
+            pen.text(15.25, 14.0, 6.0, "Σ", a, false);
+        }
         // A level mark: the triangle on its tip, half filled, the line and a value over it.
         "cadLevel" => {
             pen.line_c(&[(2.0, 16.0), (10.0, 16.0)], c);

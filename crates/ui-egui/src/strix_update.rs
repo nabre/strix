@@ -2,7 +2,9 @@
 //! shown in one place: the **Updates** section of File › Info ([`Updater::panel`]). Strix asks
 //! GitHub for the newest published release of nabre/strix when it starts, again every day while it
 //! stays open (an hour after a check that failed, such as one made offline), and on Help › Check
-//! for Updates, which opens File › Info. No window ever pops up for it.
+//! for Updates, which opens File › Info. No window ever pops up for it. The automatic checks (at
+//! start and daily) can be turned off in File › Info, or when Strix is installed
+//! ([`installed_check`]); Check for Updates still asks when the user chooses it.
 //!
 //! Installations Strix can replace safely update themselves (the Windows Installer package
 //! installed per user, the AppImage, the .deb/.rpm packages, a tar.gz unpacked in the home folder
@@ -48,6 +50,10 @@ const RECHECK: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// … and this long after one that failed (offline, GitHub unreachable).
 const RETRY: Duration = Duration::from_secs(60 * 60);
+
+/// The file beside the program that an installation leaves to turn the automatic checks off
+/// (the Windows installer's option, `packaging/windows/privacy.wxi`): `[Updates]` `Check=0`.
+const INSTALLED_POLICY: &str = "strix-updates.ini";
 
 /// What the last finished check came to, for File › Info.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -167,6 +173,8 @@ pub struct Updater {
     stager: Option<StageSource>,
     /// Whether a newer release downloads by itself; read from the settings when first needed.
     auto_download: Option<bool>,
+    /// Whether Strix looks for updates by itself (at start and daily); read when first needed.
+    automatic: Option<bool>,
     /// The download ahead of time under way, for the release with this tag.
     stage: Option<(String, Receiver<Result<bool, String>>)>,
     stop: Arc<Stop>,
@@ -218,6 +226,47 @@ impl Updater {
     fn with_source(mut self, source: CheckSource) -> Self {
         self.source = Some(source);
         self
+    }
+
+    #[cfg(test)]
+    fn with_automatic(mut self, on: bool) -> Self {
+        self.automatic = Some(on);
+        self
+    }
+
+    /// Whether Strix looks for updates by itself: the user's choice in File › Info, else the
+    /// installation's ([`installed_check`]), else on. The installation's "off" is kept as the
+    /// user's own choice the first time it is read, so it outlives an update that drops the file.
+    fn automatic(&mut self) -> bool {
+        *self.automatic.get_or_insert_with(|| {
+            // Tests never read or write the user's settings.
+            if cfg!(test) {
+                return true;
+            }
+            let Ok(paths) = Paths::for_app(&STRIX) else { return installed_check() };
+            if let Some(on) = staging::automatic_check(&paths.data) {
+                return on;
+            }
+            let on = installed_check();
+            if !on && let Err(e) = staging::set_automatic_check(&paths.data, false) {
+                log::warn!("Strix update: couldn't save the automatic check setting: {e}");
+            }
+            on
+        })
+    }
+
+    /// The panel's checkbox. On checks at once when nothing was checked yet.
+    fn set_automatic(&mut self, ctx: &egui::Context, on: bool) {
+        self.automatic = Some(on);
+        if !cfg!(test)
+            && let Ok(paths) = Paths::for_app(&STRIX)
+            && let Err(e) = staging::set_automatic_check(&paths.data, on)
+        {
+            log::warn!("Strix update: couldn't save the automatic check setting: {e}");
+        }
+        if on && self.last.is_none() {
+            self.check_now(ctx);
+        }
     }
 
     #[cfg(test)]
@@ -340,9 +389,11 @@ impl Updater {
         }
     }
 
-    /// The check at start, once; the daily checks follow from [`Self::tick`].
+    /// The check at start, once, unless the automatic checks are off; the daily checks follow
+    /// from [`Self::tick`].
     pub fn check_at_start(&mut self, ctx: &egui::Context) {
-        if !std::mem::replace(&mut self.started, true) {
+        if !self.started && self.automatic() {
+            self.started = true;
             self.begin(ctx);
         }
     }
@@ -427,7 +478,8 @@ impl Updater {
     /// Picks up a finished check, download or installation, and starts the daily check when it is
     /// due; call once per frame.
     pub fn tick(&mut self, ctx: &egui::Context) {
-        if self.started && self.check.is_none() && self.due(Instant::now()) {
+        let automatic = self.started && self.automatic();
+        if automatic && self.check.is_none() && self.due(Instant::now()) {
             self.begin(ctx);
         }
         if let Some(rx) = &self.check {
@@ -442,7 +494,7 @@ impl Updater {
                     self.finish_check(ctx, Err("the update check stopped unexpectedly".into()));
                 }
             }
-        } else if self.started {
+        } else if automatic {
             // Wake up for the next daily check even when nothing else repaints.
             ctx.request_repaint_after(RETRY);
         }
@@ -509,6 +561,8 @@ impl Updater {
         let mut check = false;
         let auto_before = self.auto_download();
         let mut auto = auto_before;
+        let automatic_before = self.automatic();
+        let mut automatic = automatic_before;
         let restart_pending = self.restart;
         let installed = self.installed;
         let busy = self.busy();
@@ -632,7 +686,8 @@ impl Updater {
                     ui.label(tl!("You have the newest version."));
                     pane_kit::note(ui, &crate::i18n::fmt(tl!("Last checked: {time}"), &[("time", &when(*at, now))]));
                 }
-                None => pane_kit::note(ui, tl!("Strix Writer looks for a newer version when it starts and once a day.")),
+                None if automatic_before => pane_kit::note(ui, tl!("Strix Writer looks for a newer version when it starts and once a day.")),
+                None => pane_kit::note(ui, tl!("Strix Writer looks for a newer version only when you choose Check for Updates.")),
             }
         }
 
@@ -642,6 +697,9 @@ impl Updater {
                 check = true;
             }
         });
+        ui.checkbox(&mut automatic, tl!("Check for updates automatically")).on_hover_text(tl!(
+            "When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent."
+        ));
         // Only copies that replace themselves download ahead; elsewhere the setting does nothing.
         if self.self_updating != Some(false) {
             ui.checkbox(&mut auto, tl!("Download updates automatically")).on_hover_text(tl!(
@@ -658,6 +716,9 @@ impl Updater {
             } else if let Some(offer) = &mut self.offer {
                 offer.message = Some(tl!("Save or close your documents first: updating restarts Strix Writer.").to_string());
             }
+        }
+        if automatic != automatic_before {
+            self.set_automatic(ui.ctx(), automatic);
         }
         if auto != auto_before {
             self.set_auto_download(ui.ctx(), auto);
@@ -716,6 +777,30 @@ pub fn finish_at_exit() {
 }
 
 /// The newest release newer than `version`, and how it would get here (runs on its thread).
+/// Whether this installation leaves the automatic checks on: off when `strix-updates.ini` beside
+/// the program says `Check=0` in its `[Updates]` section (the installer's option).
+fn installed_check() -> bool {
+    let policy = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join(INSTALLED_POLICY)));
+    policy.and_then(|p| std::fs::read_to_string(p).ok()).is_none_or(|text| policy_allows_check(&text))
+}
+
+/// Reads an installation's `strix-updates.ini`: `Check=0` (or `false`, `no`, `off`) in `[Updates]`
+/// turns the automatic checks off; anything else leaves them on.
+fn policy_allows_check(text: &str) -> bool {
+    let mut section = String::new();
+    for line in text.lines().map(str::trim) {
+        if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
+            section = name.trim().to_ascii_lowercase();
+        } else if section == "updates"
+            && let Some((key, value)) = line.split_once('=')
+            && key.trim().eq_ignore_ascii_case("check")
+        {
+            return !matches!(value.trim().to_ascii_lowercase().as_str(), "0" | "false" | "no" | "off");
+        }
+    }
+    true
+}
+
 fn find(version: &str) -> Found {
     let http = Http::new("Strix/Update")?;
     let Some(release) = check_for_update(&STRIX, &http, version)? else { return Ok(None) };
@@ -810,6 +895,47 @@ mod tests {
             u.tick(ctx);
             std::thread::sleep(Duration::from_millis(5));
         }
+    }
+
+    #[test]
+    fn the_automatic_checks_can_be_off_while_check_for_updates_still_asks() {
+        let ctx = egui::Context::default();
+        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = asked.clone();
+        let mut u = Updater::new("0.18.0")
+            .with_source(Arc::new(move || {
+                count.fetch_add(1, Ordering::SeqCst);
+                Ok(None)
+            }))
+            .with_automatic(false);
+        u.check_at_start(&ctx);
+        u.tick(&ctx);
+        assert!(!u.checking(), "no check at start when the automatic checks are off");
+        assert_eq!(asked.load(Ordering::SeqCst), 0);
+        u.check_now(&ctx);
+        settle(&mut u, &ctx);
+        assert_eq!(u.outcome(), Some(&Outcome::UpToDate));
+        assert_eq!(asked.load(Ordering::SeqCst), 1);
+        // A day later nothing is checked by itself.
+        u.last = Some((Instant::now() - RECHECK - Duration::from_secs(1), 0, Outcome::UpToDate));
+        u.tick(&ctx);
+        assert!(!u.checking());
+        // Turned on: the daily check is due again.
+        u.set_automatic(&ctx, true);
+        u.tick(&ctx);
+        assert!(u.checking());
+        settle(&mut u, &ctx);
+        assert_eq!(asked.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn an_installations_policy_file_turns_the_automatic_checks_off() {
+        assert!(policy_allows_check(""));
+        assert!(policy_allows_check("[Updates]\nCheck=1\n"));
+        assert!(!policy_allows_check("[Updates]\r\nCheck=0\r\n"));
+        assert!(!policy_allows_check("; set by the installer\n[ updates ]\n check = off \n"));
+        assert!(policy_allows_check("[Other]\nCheck=0\n"), "only the [Updates] section counts");
+        assert!(policy_allows_check("Check=0\n"), "outside any section");
     }
 
     #[test]
@@ -911,6 +1037,10 @@ mod tests {
         let mut u = Updater::new("0.21.0").with_stager(counting(&Arc::default(), Ok(true)), true);
         let texts = drawn(&mut u);
         assert!(has(&texts, "once a day") && has(&texts, "Check for Updates"), "{texts:?}");
+        assert!(has(&texts, "Check for updates automatically"), "{texts:?}");
+        u.automatic = Some(false);
+        assert!(has(&drawn(&mut u), "only when you choose Check for Updates"));
+        u.automatic = Some(true);
         u.last = Some((Instant::now(), unix_now(), Outcome::UpToDate));
         assert!(has(&drawn(&mut u), "You have the newest version."));
         u.last = Some((Instant::now(), unix_now(), Outcome::Failed("offline".into())));
