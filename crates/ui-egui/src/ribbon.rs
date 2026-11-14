@@ -15,6 +15,7 @@ mod charts;
 mod common;
 mod design;
 mod draw;
+mod exercise;
 mod home;
 mod insert;
 mod language;
@@ -105,6 +106,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     }
     // Editing a header or footer brings up the Header & Footer tab; leaving it goes back.
     strix::follow_header_footer(app, ui.ctx());
+    // Exercise Properties brings up the Exercise or Series tab.
+    exercise::follow(app);
     // The CAD editor brings up the CAD Drawing tab; closing it goes back.
     if let Some(ed) = app.cad.as_mut()
         && ed.prev_tab.is_none()
@@ -470,6 +473,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Math" => strix::math(app, ui),
                         "Teaching" => strix::teaching(app, ui),
                         "Header & Footer" => strix::header_footer(app, ui),
+                        exercise::EXERCISE_TAB => exercise::exercise_tab(app, ui),
+                        exercise::SERIES_TAB => exercise::series_tab(app, ui),
                         "Draw" => draw(app, ui),
                         "Design" => design(app, ui),
                         "Layout" => layout(app, ui),

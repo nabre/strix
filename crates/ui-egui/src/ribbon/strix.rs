@@ -230,70 +230,27 @@ pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
     }
 }
 
-/// Teaching › Exercise (docs/exercise.md).
+/// Teaching › Exercise (docs/exercise.md): a new exercise and the frontispiece; what an exercise
+/// and a series have is on the contextual Exercise and Series tabs, which Exercise Tools brings up.
 fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
         new_exercise(ui, app);
-        let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
         stack(ui, |ui| {
-            small(
-                ui,
-                app,
-                "addQuestion",
-                Some("Add Question"),
-                "Add a question at the end of the exercise at the cursor",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({}), false),
-            );
-            small(
-                ui,
-                app,
-                "addSubQuestion",
-                Some("Add Sub-question"),
-                "Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({"sub": true}), false),
-            );
-            small(
-                ui,
-                app,
-                "addNote",
-                Some("Add Note"),
-                "Add a note between the questions: free text that is not a question",
-                crate::widgets::ButtonAction::new("exercise.addNote", json!({}), false),
-            );
-        });
-        stack(ui, |ui| {
-            let strings = |key: &str| -> Vec<String> {
-                info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
-            };
-            let (questions, labels) = (strings("questions"), strings("labels"));
-            let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
-            let current = info["answer"].as_u64().unwrap_or(0);
-            menu_button(
-                ui,
-                app,
-                crate::widgets::MenuButtonOptions::new(
-                    "resultOf",
-                    Some("Result Of"),
-                    "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
-                    false,
-                    "equation.answer",
-                ),
-                |ui, app| {
-                    for (k, q) in questions.iter().enumerate() {
-                        let n = k as u64 + 1;
-                        let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
-                        let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
-                        let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
-                        if resp.clicked() {
-                            let _ = app.run("equation.answer", json!({"question": n}));
-                            ui.close();
-                        }
-                    }
-                    ui.separator();
-                    mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
-                },
-            );
-            show_menu(ui, app);
+            let (here, count) = wordcraft_engine::cmd::exercise::context(&app.session);
+            let any = here || count > 0;
+            ui.add_enabled_ui(any, |ui| {
+                if !any {
+                    ui.multiply_opacity(0.4);
+                }
+                small(
+                    ui,
+                    app,
+                    "exerciseProperties",
+                    Some("Exercise Tools"),
+                    "The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab",
+                    crate::widgets::ButtonAction::new("view.exercisePane", json!({"value": true}), false),
+                );
+            });
             let front = app.session.run("exercise.frontispiece", &json!({})).ok().is_some_and(|v| v["on"].as_bool().unwrap_or(false));
             small(
                 ui,
@@ -304,36 +261,43 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
             );
         });
-        stack(ui, |ui| {
-            let pane = app.session.view.exercise_pane;
-            small(
-                ui,
-                app,
-                "exerciseProperties",
-                Some("Properties"),
-                "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
-                crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
-            );
-            question_type_menu(ui, app);
-            // Only with the cursor in an exercise, or whole ones selected.
-            let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
-            ui.add_enabled_ui(targets, |ui| {
-                // Drawn greyed out like a disabled command: the command itself stays on for
-                // scripts naming an exercise.
-                if !targets {
-                    ui.multiply_opacity(0.4);
-                }
-                small(
-                    ui,
-                    app,
-                    "deleteTable",
-                    Some("Delete Exercise"),
-                    "Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)",
-                    crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
-                );
-            });
-        });
     });
+}
+
+/// Exercise › Questions › Result Of: marks the equation at the cursor as a question's result.
+pub(super) fn result_of_menu(ui: &mut Ui, app: &mut WordApp) {
+    let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
+    let strings = |key: &str| -> Vec<String> {
+        info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
+    };
+    let (questions, labels) = (strings("questions"), strings("labels"));
+    let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
+    let current = info["answer"].as_u64().unwrap_or(0);
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "resultOf",
+            Some("Result Of"),
+            "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
+            false,
+            "equation.answer",
+        ),
+        |ui, app| {
+            for (k, q) in questions.iter().enumerate() {
+                let n = k as u64 + 1;
+                let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
+                let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
+                let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
+                if resp.clicked() {
+                    let _ = app.run("equation.answer", json!({"question": n}));
+                    ui.close();
+                }
+            }
+            ui.separator();
+            mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
+        },
+    );
 }
 
 /// Insert › Pages › Graph Paper (docs/graph-paper.md).
@@ -765,31 +729,9 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
     );
 }
 
-/// Teaching › Exercise › Question Type: adds a question of a mode to the quiz at the cursor
-/// (docs/question-modes.md); one quiz mixes them.
-fn question_type_menu(ui: &mut Ui, app: &mut WordApp) {
-    let tip = "Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing";
-    menu_button(
-        ui,
-        app,
-        crate::widgets::MenuButtonOptions::new("addQuestion", Some("Question Type"), tip, false, "exercise.addQuestion"),
-        |ui, app| {
-            mi(ui, app, "Open Answer", "exercise.addQuestion", json!({"type": "open"}));
-            mi(ui, app, "Multiple Choice", "exercise.addQuestion", json!({"type": "choice"}));
-            mi(ui, app, "True or False", "exercise.addQuestion", json!({"type": "trueFalse"}));
-            mi(ui, app, "Calculation", "exercise.addQuestion", json!({"type": "calc"}));
-            mi(ui, app, "CAD Drawing Question", "exercise.addQuestion", json!({"type": "drawing"}));
-            mi(ui, app, "Worked Example", "exercise.addQuestion", json!({"type": "worked"}));
-            mi(ui, app, "Inline Completion", "exercise.addQuestion", json!({"type": "cloze"}));
-            mi(ui, app, "Table to Complete", "exercise.addQuestion", json!({"type": "tableFill"}));
-            mi(ui, app, "Matching", "exercise.addQuestion", json!({"type": "matching"}));
-        },
-    );
-}
-
 /// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
-fn show_menu(ui: &mut Ui, app: &mut WordApp) {
+pub(super) fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();
     let flag = |k: &str| st[k].as_bool().unwrap_or(true);
     let (solution, results, grid) = (flag("solution"), flag("results"), !st["grid"].is_null());

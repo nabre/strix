@@ -34,7 +34,7 @@ pub const TABS: [&str; 15] = [
     "Help",
 ];
 /// Tabs that come up with the selection; custom tabs can't take their names.
-pub const CONTEXTUAL_TABS: [&str; 10] = [
+pub const CONTEXTUAL_TABS: [&str; 12] = [
     "Header & Footer",
     "Table Design",
     "Table Layout",
@@ -45,6 +45,8 @@ pub const CONTEXTUAL_TABS: [&str; 10] = [
     "SmartArt Design",
     "CAD Drawing",
     "CAD Picture Format",
+    "Exercise",
+    "Series",
 ];
 /// The Quick Access Toolbar's commands until the user changes them.
 pub const DEFAULT_QAT: [&str; 3] = ["file.save", "edit.undo", "edit.redo"];

@@ -63,8 +63,6 @@ pub enum Pane {
     RestrictEditing,
     Proofing,
     Comments,
-    /// Teaching › Exercise › Properties: the data and variants of the exercise at the caret.
-    Exercise,
     /// Insert › Pages › Graph Paper › Properties: the graph paper at the caret.
     GraphPaper,
     /// Math › Calculation › Variables: live parameters in the document and exercise sandboxes.
@@ -78,6 +76,8 @@ pub enum Pane {
     Plot,
     /// Teaching › Scores › Grading Scale › Properties: the points-to-grade table.
     Grading,
+    /// Review › Proofing › Thesaurus: synonyms of the word at the caret, by meaning.
+    Thesaurus,
 }
 
 impl Pane {
@@ -94,7 +94,6 @@ impl Pane {
             Self::RestrictEditing => "Restrict Editing",
             Self::Proofing => "Proofing",
             Self::Comments => "Comments",
-            Self::Exercise => "Exercise Properties",
             Self::GraphPaper => "Graph Paper",
             Self::Variables => "Variables",
             Self::Subdocuments => "Subdocuments",
@@ -102,6 +101,7 @@ impl Pane {
             Self::Archive => "Exercise Bank",
             Self::Plot => "Plot Properties",
             Self::Grading => "Grading Scale",
+            Self::Thesaurus => "Thesaurus",
         }
     }
 
@@ -118,7 +118,6 @@ impl Pane {
             Self::RestrictEditing => (Edge::End, 270.0),
             Self::Proofing => (Edge::End, 400.0),
             Self::Comments => (Edge::End, 290.0),
-            Self::Exercise => (Edge::End, 320.0),
             Self::GraphPaper => (Edge::End, 300.0),
             Self::Variables => (Edge::End, 310.0),
             Self::Subdocuments => (Edge::End, 300.0),
@@ -126,6 +125,7 @@ impl Pane {
             Self::Archive => (Edge::End, 340.0),
             Self::Plot => (Edge::End, 330.0),
             Self::Grading => (Edge::End, 300.0),
+            Self::Thesaurus => (Edge::End, 280.0),
         };
         PaneState::docked(edge, width)
     }
@@ -144,7 +144,6 @@ impl Pane {
             Self::RestrictEditing => "restrictEditing",
             Self::Proofing => "proofing",
             Self::Comments => "comments",
-            Self::Exercise => "exercise",
             Self::GraphPaper => "graphPaper",
             Self::Variables => "variables",
             Self::Subdocuments => "subdocuments",
@@ -152,6 +151,7 @@ impl Pane {
             Self::Archive => "archive",
             Self::Plot => "plot",
             Self::Grading => "grading",
+            Self::Thesaurus => "thesaurus",
         }
     }
 
@@ -167,7 +167,6 @@ impl Pane {
         Self::RestrictEditing,
         Self::Proofing,
         Self::Comments,
-        Self::Exercise,
         Self::GraphPaper,
         Self::Variables,
         Self::Subdocuments,
@@ -175,6 +174,7 @@ impl Pane {
         Self::Archive,
         Self::Plot,
         Self::Grading,
+        Self::Thesaurus,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -193,7 +193,6 @@ impl Pane {
             Self::AltText => Some("view.altTextPane"),
             Self::FormatShape => Some("view.formatShapePane"),
             Self::Comments => Some("view.commentsPane"),
-            Self::Exercise => Some("view.exercisePane"),
             Self::GraphPaper => Some("view.graphPaperPane"),
             Self::Variables => Some("view.variablesPane"),
             Self::Subdocuments => Some("view.subdocumentsPane"),
@@ -201,6 +200,7 @@ impl Pane {
             Self::Archive => Some("view.archivePane"),
             Self::Plot => Some("view.plotPane"),
             Self::Grading => Some("view.gradingPane"),
+            Self::Thesaurus => Some("view.thesaurusPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
     }
@@ -227,7 +227,6 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::RestrictEditing => crate::dialogs_review::restrict_pane(app, ui),
             Pane::Proofing => crate::proofing_pane::show(app, ui),
             Pane::Comments => comments(app, ui),
-            Pane::Exercise => crate::exercise_pane::pane(app, ui),
             Pane::GraphPaper => crate::graph_pane::pane(app, ui),
             Pane::Variables => crate::variables_pane::pane(app, ui),
             Pane::Subdocuments => crate::subdocument_pane::pane(app, ui),
@@ -235,6 +234,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Archive => crate::archive_pane::pane(app, ui),
             Pane::Plot => crate::plot_pane::pane(app, ui),
             Pane::Grading => crate::grading_pane::pane(app, ui),
+            Pane::Thesaurus => crate::thesaurus_pane::pane(app, ui),
         })
     }
 

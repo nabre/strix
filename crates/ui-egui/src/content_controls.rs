@@ -90,7 +90,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
     };
     // The exercise the caret is in shows its frame and tab too (docs/exercise.md).
     if !app.session.view.design_mode {
-        shown.extend(crate::exercise_pane::enclosing_exercise(app, current.as_ref()));
+        shown.extend(crate::exercise_panels::enclosing_exercise(app, current.as_ref()));
     }
     // Check boxes are clickable wherever they are, framed or not.
     let all = if app.session.view.design_mode { shown.clone() } else { app.session.doc.control_ranges(story) };
