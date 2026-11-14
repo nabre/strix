@@ -60,6 +60,7 @@ mod floats;
 mod flow;
 mod graph;
 mod headers;
+mod hidden;
 mod missing;
 mod notes;
 mod page;

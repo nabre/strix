@@ -92,6 +92,9 @@ pub struct ParaLayout {
     /// Byte ranges of the text laid out as nothing ([`left_out`]): hidden text that is not shown,
     /// tracked deletions in the final text. Resolved as laid out, table formatting included.
     pub left_out: Vec<std::ops::Range<usize>>,
+    /// Laid out as nothing: its text and mark are left out (hidden, not shown, or deleted in the
+    /// final text). It takes no room, so it never moves to another page or column.
+    pub gone: bool,
     /// The text drawn by clusters that stand for an object (field results, note numbers,
     /// equations) rather than for the paragraph's own text, by cluster index, sorted, with each of
     /// the cluster's glyphs' byte range in that text (a ligature's glyph spans its letters).

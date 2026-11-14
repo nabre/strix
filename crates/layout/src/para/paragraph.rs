@@ -708,6 +708,7 @@ pub fn layout_para(p: &Paragraph, env: &ParaEnv) -> ParaLayout {
         displays,
         ptabs,
         left_out: Vec::new(),
+        gone: false,
         enclosures,
         auto_space,
     };
@@ -782,6 +783,7 @@ fn collapse(pl: &mut ParaLayout) {
         l.baseline = 0.0;
     }
     pl.height = 0.0;
+    pl.gone = true;
     pl.rp.space_before = 0.0;
     pl.rp.space_after = 0.0;
     pl.label = None;
