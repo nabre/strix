@@ -54,6 +54,12 @@ impl Session {
     /// control channel). Mutating commands are undoable; a failed command leaves the document as
     /// it was; a panic inside a command becomes an error.
     pub fn run(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {
+        // Strix: typing in a calculated table shown as equations types in the cell's equation.
+        if self.run_depth == 0
+            && let Some(typed) = crate::cmd::calc::type_in_math_cell(self, id, params)
+        {
+            return typed;
+        }
         let clean_subdocuments = crate::cmd::master::clean_before_view(self, id);
         self.run_depth = self.run_depth.saturating_add(1);
         let result = self.run_command(id, params);

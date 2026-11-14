@@ -78,15 +78,24 @@ pub fn specs() -> Vec<CommandSpec> {
         .params(r#"{"style": string}"#)),
         t(CommandSpec::new("table.look", "Table Style Options", "Table Design › Table Style Options", |s, v| {
             let set = |k: &str, cur: bool| p::bool(v, k).unwrap_or(cur);
-            with_table(s, |t| {
+            let total_before = crate::cmd::calc::caret_total_row(s);
+            let done = with_table(s, |t| {
                 let l = &mut t.props.look;
                 l.header_row = set("headerRow", l.header_row);
+                let total_was = l.total_row;
                 l.total_row = set("totalRow", l.total_row);
+                // Strix: a calculated table's sums go with its total row.
+                if total_was && !t.props.look.total_row {
+                    crate::cmd::calc::clear_total_row(t);
+                }
+                let l = &mut t.props.look;
                 l.banded_rows = set("bandedRows", l.banded_rows);
                 l.first_column = set("firstColumn", l.first_column);
                 l.last_column = set("lastColumn", l.last_column);
                 l.banded_columns = set("bandedColumns", l.banded_columns);
-            })
+            });
+            crate::cmd::calc::total_row_changed(s, total_before);
+            done
         })
         .params(
             r#"{"headerRow"?: bool, "totalRow"?: bool, "bandedRows"?: bool, "firstColumn"?: bool, "lastColumn"?: bool, "bandedColumns"?: bool}"#,

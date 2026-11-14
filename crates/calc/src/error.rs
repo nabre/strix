@@ -139,6 +139,14 @@ pub enum CalcError {
     },
     /// A table cell that is empty where a formula needs its value.
     MissingValue(String),
+    /// A table column read by row with a subscript (`y_(i+1)`) before its first or after its
+    /// last data row: the table shows `–` in the cell, not an error.
+    NoRow {
+        /// The column.
+        name: String,
+        /// The row asked for (1-based).
+        row: i64,
+    },
     /// No value of the unknown satisfies the equation (or none was found).
     NoSolution(String),
     /// An equation with more than one unknown: it cannot be solved, so it is left as written.
@@ -197,6 +205,7 @@ impl fmt::Display for CalcError {
             CalcError::IndexOutOfRange { index, len } => write!(f, "index {index} is outside 1..{len}"),
             CalcError::NotWhole { what } => write!(f, "{what} must be a whole number"),
             CalcError::MissingValue(name) => write!(f, "{name} has no value in this row"),
+            CalcError::NoRow { name, row } => write!(f, "{name} has no row {row}"),
             CalcError::NoSolution(name) => write!(f, "no value of {name} solves the equation"),
             CalcError::Underdetermined(names) => write!(f, "more than one unknown ({}): give values to all but one", names.join(", ")),
             CalcError::CheckFailed(text) => write!(f, "the check fails: {text}"),

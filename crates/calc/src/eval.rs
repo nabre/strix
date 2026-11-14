@@ -508,11 +508,20 @@ pub(crate) struct Ctx<'a> {
     /// In a calculated table's row: its columns' values over the data rows, so `x[k]` reaches
     /// column `x` in data row `k` (cyclic: row `n + 1` is row 1, row 0 is row `n`).
     columns: Vec<(String, Vec<Option<Quantity>>)>,
+    /// In a calculated table's row: the cells of its columns that found no data (`–`), by
+    /// column and data row; read with a subscript (`y_(i+1)`) they find none either.
+    no_data: Vec<(String, Vec<bool>)>,
 }
 
 impl<'a> Ctx<'a> {
     pub(crate) fn new(scope: &'a Scope, names: Names, locals: Vec<(String, Value)>) -> Self {
-        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0, columns: Vec::new() }
+        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0, columns: Vec::new(), no_data: Vec::new() }
+    }
+
+    /// In a calculated table's row: the cells that found no data, by column and data row.
+    pub(crate) fn with_no_data(mut self, no_data: Vec<(String, Vec<bool>)>) -> Self {
+        self.no_data = no_data;
+        self
     }
 
     /// In a calculated table's row: the table's columns, which `x[k]` indexes by row.
@@ -610,6 +619,27 @@ impl<'a> Ctx<'a> {
                     }
                 }
                 Ok(Value::Vector(Vector::from_quantities(&all)?))
+            }
+            // A table column read by row with a subscript (`y_(i+1)`, rewritten by the table to
+            // `ROW_SUBSCRIPT` + the column's name): not cyclic, a row that isn't there is
+            // `NoRow` (the cell shows `–`).
+            Expr::Index(base, index)
+                if let Expr::Name(name) = &**base
+                    && let Some(col) = name.strip_prefix(crate::table::ROW_SUBSCRIPT) =>
+            {
+                let k = whole(self.eval(index)?.expect_scalar()?, "a row")?;
+                let Some((_, column)) = self.columns.iter().find(|(n, _)| n == col) else {
+                    return Err(CalcError::MissingValue(col.to_string()));
+                };
+                let row = usize::try_from(k).ok().and_then(|k| k.checked_sub(1)).filter(|&r| r < column.len());
+                let Some(row) = row else {
+                    return Err(CalcError::NoRow { name: col.to_string(), row: k });
+                };
+                if let Some(q) = column.get(row).copied().flatten() {
+                    return Ok(Value::Scalar(q));
+                }
+                let none = self.no_data.iter().find(|(n, _)| n == col).and_then(|(_, d)| d.get(row)) == Some(&true);
+                Err(if none { CalcError::NoRow { name: col.to_string(), row: k } } else { CalcError::MissingValue(format!("{col}_{k}")) })
             }
             // A table column indexed by row (`x[i+1]`): cyclic over the data rows.
             Expr::Index(base, index)
