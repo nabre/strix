@@ -140,7 +140,7 @@
   "dlWebNote": "The same app compiled to WebAssembly: nothing to install. The ZIP is a static site you can host yourself.",
   "dlWebZip": "Static site (ZIP)",
   "dlAllFiles": "All files and checksums:",
-  "dlSigning": "Code signing and privacy policy",
+  "dlSigning": "Code signing policy",
   "dlPickEyebrow": "Which download?",
   "dlPickTitle": "Choose your system below",
   "dlPickText": "Every build is listed below, grouped by system. Not sure which? The browser version runs anywhere, with nothing to install.",
@@ -203,6 +203,6 @@
   "footerNavLabel": "Links",
   "footerReleases": "Releases",
   "footerRoadmap": "Roadmap",
-  "footerPrivacy": "Privacy and signing",
+  "footerPrivacy": "Code signing policy",
   "footerIssues": "Report a problem"
 }

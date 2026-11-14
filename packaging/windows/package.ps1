@@ -133,6 +133,8 @@ function ConvertTo-RtfText([string] $Text) {
 }
 $paragraphs = [System.Collections.Generic.List[string]]::new()
 $paragraphs.Add('\b Strix\b0')
+# The privacy statement first: what Strix sends over the network (docs/code-signing.md, Privacy).
+$paragraphs.Add((ConvertTo-RtfText 'Privacy: Strix collects no telemetry, crash reports or usage data. It asks GitHub for the list of its releases when it starts and once a day, to find updates; nothing about you, your computer or your documents is sent. The installer's Privacy page lets you turn this off; File, Info, Updates changes it later. Privacy and code signing policy: https://github.com/nabre/strix/blob/main/docs/code-signing.md'))
 $paragraphs.Add((ConvertTo-RtfText 'Strix is dual-licensed under the MIT License or the Apache License, Version 2.0, at your option. Both license texts follow. Bundled fonts and other third-party material keep their own open licenses, listed in NOTICE and ATTRIBUTION.md at https://github.com/nabre/strix.'))
 foreach ($file in 'LICENSE-MIT', 'LICENSE-APACHE') {
   $title = $true  # each file opens with its license's name: show it bold

@@ -140,7 +140,7 @@
   "dlWebNote": "La stessa app compilata in WebAssembly: niente da installare. Lo ZIP è un sito statico che puoi ospitare tu.",
   "dlWebZip": "Sito statico (ZIP)",
   "dlAllFiles": "Tutti i file e i checksum:",
-  "dlSigning": "Firma del codice e privacy",
+  "dlSigning": "Firma del codice e privacy (Code signing policy)",
   "dlPickEyebrow": "Quale scaricare?",
   "dlPickTitle": "Scegli il tuo sistema qui sotto",
   "dlPickText": "Tutte le build sono qui sotto, divise per sistema. Non sai quale? La versione per browser funziona ovunque, senza installare nulla.",
@@ -203,6 +203,6 @@
   "footerNavLabel": "Collegamenti",
   "footerReleases": "Versioni",
   "footerRoadmap": "Roadmap",
-  "footerPrivacy": "Privacy e firma",
+  "footerPrivacy": "Code signing policy",
   "footerIssues": "Segnala un problema"
 }

@@ -762,8 +762,11 @@ jobs:
           fi
           flags=(--latest)
           [ "$PRERELEASE" = true ] && flags=(--prerelease --latest=false)
+          # Every release page names the code signing policy (SignPath Foundation's conditions);
+          # gh puts the generated notes after it.
+          policy="**Code signing policy**: which files are signed, by whom, and what Strix sends over the network: https://github.com/nabre/strix/blob/main/docs/code-signing.md"
           gh release create "$tag" ./* --repo "$repo" --target "$SHA" \
-            --title "Strix $tag" --generate-notes "${flags[@]}"
+            --title "Strix $tag" --notes "$policy" --generate-notes "${flags[@]}"
           echo "Published $(gh release view "$tag" --repo "$repo" --json url --jq .url)" | tee -a "$GITHUB_STEP_SUMMARY"
       # The site's download links and its web app (app/) come from the latest release.
       - name: Redeploy the site
