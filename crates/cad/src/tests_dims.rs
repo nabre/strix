@@ -588,3 +588,47 @@ fn an_angle_has_a_scaled_and_an_annotative_radius() {
     let (d, _) = angle(P::new(20.0, 0.0), 5.0, 3.0, None);
     assert!(d.dim_parts(&d.entities[0]).is_none());
 }
+
+/// A length parameter in a dimension's text is written as the dimension style writes sizes:
+/// its units (SIA: cm below 1 m, m to the centimetre from 1 m), number format and unit shown,
+/// like the measured `<>`; `{{L:both}}` too; other parameters as everywhere else.
+#[test]
+fn dimension_parameters_follow_the_dimension_style() {
+    let mut ws = strix_calc::Worksheet::new(strix_calc::Options { decimal_comma: true, ..strix_calc::Options::default() });
+    ws.eval_statement("L = 4.5 m");
+    ws.eval_statement("s = 45 cm");
+    ws.eval_statement("n = 3");
+    let d = Drawing::from_json(r#"{"unit":"m","dimStyle":{"units":"sia","showUnit":true},"entities":[]}"#).unwrap();
+    let st = d.dim_style.clone();
+    let plain = |t: String| {
+        t.chars()
+            .filter(|c| !matches!(*c, crate::MATH_START | crate::MATH_END | crate::UNIT_START | crate::UNIT_END | crate::SYM_START | crate::SYM_END))
+            .collect::<String>()
+    };
+    assert_eq!(plain(d.dim_label(&st, Some("{{L}}"), 1.0, Some(&ws))), "4,50 m");
+    assert_eq!(plain(d.dim_label(&st, Some("{{s}}"), 1.0, Some(&ws))), "45 cm");
+    assert_eq!(plain(d.dim_label(&st, Some("{{L:both}}"), 1.0, Some(&ws))), "L = 4,50 m");
+    assert_eq!(plain(d.dim_label(&st, Some("{{L:symbol}}"), 1.0, Some(&ws))), "L");
+    assert_eq!(plain(d.dim_label(&st, Some("{{n}} × <>"), 1.0, Some(&ws))), "3 × 1,00 m");
+    // Millimetres, no unit shown.
+    let d = Drawing::from_json(r#"{"unit":"m","dimStyle":{"units":"mm"},"entities":[]}"#).unwrap();
+    assert_eq!(plain(d.dim_label(&d.dim_style.clone(), Some("{{L}}"), 1.0, Some(&ws))), "4500");
+}
+
+/// The Dimension line snap: a point near another dimension's line (drawn at the drawing's
+/// scale, its paper offset included) takes the line, carried on past its ends too.
+#[test]
+fn the_dimension_line_snap_takes_another_dimensions_line() {
+    // 1:100 in mm: the 8 mm paper offset is 800 drawing units above the measured points.
+    let d = Drawing::from_json(r#"{"scale":100,"entities":[{"type":"dim","a":[0,0],"b":[1000,0],"offset":8,"orient":"horizontal"}]}"#).unwrap();
+    let on = Snaps { end: false, mid: false, nearest: false, ..Snaps::default() };
+    let got = d.snap(Pt::new(1500.0, 790.0), 20.0, None, &on);
+    let (q, k) = got.expect("on the line carried on");
+    assert_eq!(k, SnapKind::DimLine);
+    assert!((q.y - 800.0).abs() < 1e-6 && (q.x - 1500.0).abs() < 1e-6, "{q:?}");
+    // Its end, preferred when near.
+    let (q, _) = d.snap(Pt::new(1003.0, 805.0), 20.0, None, &on).unwrap();
+    assert!((q.x - 1000.0).abs() < 1e-6 && (q.y - 800.0).abs() < 1e-6, "{q:?}");
+    // Off: nothing.
+    assert!(d.snap(Pt::new(1500.0, 790.0), 20.0, None, &Snaps { dim_line: false, ..on }).is_none());
+}

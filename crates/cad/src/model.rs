@@ -169,6 +169,12 @@ pub struct Layer {
     /// the drawing's bounds and fitted scale so pagination never shifts.
     #[serde(default, skip_serializing_if = "is_false")]
     pub answer: bool,
+    /// The drawing it was inherited from (its id), with an underlay or Import styles and layers:
+    /// the layer is named `source/name`, shown nested under its drawing in the Layer Manager,
+    /// never renamed and removed only when empty ([`Drawing::inherit`]). `None`: the drawing's
+    /// own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -181,7 +187,17 @@ fn is_true(b: &bool) -> bool {
 
 impl Default for Layer {
     fn default() -> Self {
-        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true, answer: false }
+        Layer {
+            name: "0".to_string(),
+            color: [0, 0, 0],
+            width: 0.35,
+            dash: Dash::Solid,
+            visible: true,
+            locked: false,
+            print: true,
+            answer: false,
+            from: None,
+        }
     }
 }
 
@@ -921,6 +937,11 @@ pub struct Drawing {
     /// saved, never compared.
     #[serde(skip)]
     pub text_widths: crate::TextWidths,
+    /// The underlay's source drawing as the document worked it out ([`crate::UnderSource`]),
+    /// so the printed underlay counts in the picture's size and the fitted scale; never saved,
+    /// never compared.
+    #[serde(skip)]
+    pub under_source: crate::UnderSource,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -964,6 +985,7 @@ impl Default for Drawing {
             blocks: Vec::new(),
             inserts: Vec::new(),
             text_widths: crate::TextWidths::default(),
+            under_source: crate::UnderSource::default(),
         }
     }
 }
@@ -1068,6 +1090,7 @@ impl Drawing {
         for l in &mut self.layers {
             cut(&mut l.name);
             l.width = clamp_paper(l.width, 0.35);
+            l.from = l.from.take().map(|n| cut_name(&n)).filter(|n| !n.trim().is_empty());
         }
         self.entities.truncate(MAX_ENTITIES);
         let mut seen = std::collections::HashSet::new();
@@ -1440,8 +1463,16 @@ impl Drawing {
     /// units) in the style's units ([`DimUnits`]; the first, the input unit), in the document's
     /// number style, followed by its unit when the style shows it.
     pub fn dim_label(&self, st: &DimStyle, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+        let size = self.dim_size(st, measured * self.unit.mm(), ws);
+        let text = text.unwrap_or("<>").replace("<>", &size);
+        fill(&self.dim_params(st, &text, ws), ws)
+    }
+
+    /// A length of `mm` millimetres written as dimension style `st` writes sizes: in its units
+    /// ([`DimUnits`]; the first, the input unit), in the document's number style, followed by
+    /// its unit when the style shows it.
+    fn dim_size(&self, st: &DimStyle, mm: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
-        let mm = measured * self.unit.mm();
         let units = st.units;
         let input = crate::Units::of(self);
         let symbol = match units {
@@ -1453,7 +1484,7 @@ impl Drawing {
             DimUnits::Sia => "cm",
         };
         let size = match units {
-            DimUnits::Drawing => strix_calc::format_number(input.shown(measured), &opts),
+            DimUnits::Drawing => strix_calc::format_number(input.shown(mm / self.unit.mm()), &opts),
             DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
             DimUnits::Cm => strix_calc::format_number(mm / 10.0, &opts),
             DimUnits::Mm => strix_calc::format_number(mm, &opts),
@@ -1464,8 +1495,38 @@ impl Drawing {
             }
             DimUnits::Sia => strix_calc::format_number(mm / 10.0, &opts),
         };
-        let size = if st.show_unit { format!("{size} {}{symbol}{}", crate::UNIT_START, crate::UNIT_END) } else { size };
-        fill(&text.unwrap_or("<>").replace("<>", &size), ws)
+        if st.show_unit { format!("{size} {}{symbol}{}", crate::UNIT_START, crate::UNIT_END) } else { size }
+    }
+
+    /// A dimension's text with the length parameters it shows (`{{L}}`, `{{L:value}}`,
+    /// `{{L:both}}`) written as the dimension style writes sizes, like its measured `<>`; other
+    /// placeholders are left to [`fill`].
+    fn dim_params(&self, st: &DimStyle, text: &str, ws: Option<&Worksheet>) -> String {
+        let Some(w) = ws else { return text.to_string() };
+        let length = strix_calc::Dim::new([1, 0, 0, 0, 0, 0, 0]);
+        let (m0, m1, s0, s1) = (crate::MATH_START, crate::MATH_END, crate::SYM_START, crate::SYM_END);
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text;
+        for _ in 0..64 {
+            let Some(i) = rest.find("{{") else { break };
+            let Some(j) = rest.get(i..).and_then(|r| r.find("}}")).map(|j| i + j) else { break };
+            let whole = rest.get(i..j + 2).unwrap_or_default();
+            out.push_str(rest.get(..i).unwrap_or_default());
+            let inner = rest.get(i + 2..j).unwrap_or_default().trim();
+            let (name, mode) = inner.split_once(':').map_or((inner, "value"), |(n, m)| (n.trim(), m.trim()));
+            let q = match w.scope().get(name) {
+                Some(Value::Scalar(q)) if q.dim == length && q.value.is_finite() => Some(*q),
+                _ => None,
+            };
+            match (q, mode) {
+                (Some(q), "value") => out.push_str(&format!("{m0}{}{m1}", self.dim_size(st, q.value * 1000.0, ws))),
+                (Some(q), "both") => out.push_str(&format!("{m0}{s0}{name}{s1} = {}{m1}", self.dim_size(st, q.value * 1000.0, ws))),
+                _ => out.push_str(whole),
+            }
+            rest = rest.get(j + 2..).unwrap_or_default();
+        }
+        out.push_str(rest);
+        out
     }
 
     pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {

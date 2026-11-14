@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-14 · **Change:** every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-14 · **Change:** the underlay printed with a drawing counts in its fitted scale, its picture and Zoom Fit, and shows its source's parameters' values and settings; the underlay's layers and all its styles (its Standard dimension style too) nested under the source's name, its layers not printed with an underlay that is not, removed only when empty; length parameters in dimension texts written as the dimension style writes sizes, a `{x}` button beside annotation texts; the Dimension line object snap; a right angle picked anywhere in its square; the style windows keep the keyboard and line up; previously: every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -128,7 +128,13 @@ Annotations recall parameters (as the prototype's dimension texts did): in a dim
 and in a free text, `{{L}}` or `{{L:value}}` is the value of parameter `L` as calculations show
 it (`4.5 m`), `{{L:symbol}}` its symbol (`L`), `{{L:both}}` both (`L = 4.5 m`); `<>` is a
 dimension's measured size, and a dimension without text shows it. A parameter not defined where
-the drawing sits shows `[L?]` in red. A parameter is **set as the equations set it** (in
+the drawing sits shows `[L?]` in red. In a **dimension**, a length parameter (`{{L}}`,
+`{{L:both}}`) is written as the dimension style writes sizes, like the measured `<>`: its units
+(SIA: `4.50 m`, `45 cm`), the number format, the unit shown or not; other parameters (a count, an
+angle) as everywhere else. A dimension's text may be a symbol or a short formula alone
+(`{{L:symbol}}`, `{{L:symbol}}/2`). Beside every annotation text in the Properties pane a
+**`{x}`** button writes in what it can show: the measured size (`<>`, dimensions) and each
+parameter defined before the drawing as Value, Symbol or Symbol = value. A parameter is **set as the equations set it** (in
 dimensions, angles, level marks and texts; on the page, in the PDF, the SVG picture and the
 editor): its symbol in italics with its subscript smaller and lowered (`F_k` as 𝐹ₖ), the value
 upright with its unit in the Unit style, in the equations' font; the text around it keeps the
@@ -330,8 +336,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    is one `cad.set` (an undo step); the editor reads the drawing back after Undo or a
    recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`).
    **Object snaps** (exact, from the kernel; AutoCAD's markers and names): Endpoint, Midpoint,
-   Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point, Nearest
-   (only when nothing else); the nearest wins, ties to that order; each toggles with its icon in
+   Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point,
+   **Dimension line** (`dimLine`: another dimension's line where it is drawn now, its paper
+   offset included, carried on past its ends, and its ends — a new dimension's line, placed with a
+   click or its grip, lines up with it), Nearest (only when nothing else); the nearest wins, ties to that order; each toggles with its icon in
    the status line (`ui.cadToggle {"what": "snap.<kind>"}`); Ortho holds a point only when no object snap does.
    The status line shows distance, angle, Δx and Δy from the last point.
    **Grips** (AutoCAD and Allplan): the selected objects (up to 50) show square grips; a click
@@ -461,6 +469,26 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    hold it. A drawing never takes itself, two drawings never take each other, and an underlay's
    own underlay is never drawn (one level deep); at most 5000 of its objects are drawn and snapped
    to. A source deleted or unreadable shows nothing and says so on the status bar.
+   An underlay **printed** with the drawing is part of its picture everywhere a size is worked
+   out: with a maximum size the fitted scale makes room for every object of both (the scales
+   offered and a scale typed by hand too: `Drawing::fits_at` measures
+   `Drawing::with_printed_underlay`), the page and the PDF show both within the frame, and the
+   editor's Zoom Fit takes both in. The document hands the drawing its underlay's source worked
+   out (`Drawing::under_source`, never saved; a source later in the document is worked out by a
+   second pass, only then); an underlay shown only in the editor counts for none of these.
+   The underlay shows its source **as it is where it sits**: its texts' parameters, dimension,
+   angle and level labels written out with the source's worksheet (`Drawing::freeze_labels`: the
+   values, the number format, the source's dimension styles and units), so they never read
+   `[L?]` or this drawing's values.
+   **Its layers and styles** come nested under the source's name (`pianta/Walls`,
+   `pianta/Standard` for its Standard dimension style, `pianta/Notes`; `Layer::from` marks the
+   layers; layers the source itself inherited keep their names): they never meet the drawing's
+   own, follow a rename of the source (`cad.name`), and the Layer Manager lists them under a row
+   with the drawing's name. They are not locked: the drawing draws on them and uses their styles
+   like its own. An inherited layer is never renamed and is removed only when no object is on it;
+   with an underlay that does not print they come set not to print, and Print with the drawing
+   switches them along (`Drawing::print_layers_from`). Import styles and layers only nests them
+   the same way.
    **Space here**: a drawing knows the space where it sits — its column's width and the height
    from its top down to the page's bottom margin (`cad.space`, from the layout) — a guide, not a
    limit: a new drawing takes it as its maximum size (the scale fitted to it), Maximum size and
@@ -478,7 +506,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    the angle (`<>°`) just outside the arc's middle, along the arc. A **right angle** (90° to a millionth
    of a degree: exact and parametric drawings) without a text of its own is drawn as the
    right-angle symbol instead: a square of side `r` on the vertex with a dot in it, no arc, no
-   marks, no "90°"; a text of its own (`<>°`) keeps the arc. **Continue** and **Baseline**
+   marks, no "90°"; a text of its own (`<>°`) keeps the arc. The square is picked anywhere
+   inside with one click. **Continue** and **Baseline**
    (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_continue`,
    `dim_baseline`): from the one linear dimension selected, else the newest, each click adds a
    dimension of the same orientation and look — Continue from the last one's second point, its
@@ -623,6 +652,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-14: the printed underlay counts in the fitted scale, the scales offered, the page picture and Zoom Fit (`Drawing::under_source`, `with_printed_underlay`; a later source by a second pass); the underlay shows its source's labels as they read there (`freeze_labels`); inherited layers and all styles nested under the source's name (`Layer::from`), following its rename, never renamed, removed only when empty, not printed with an underlay that is not (`print_layers_from`), listed under the drawing's name in the Layer Manager; length parameters in dimensions follow the dimension style (`dim_params`); `{x}` parameter menu beside annotation texts; Dimension line snap (`SnapKind::DimLine`, `snap.dimLine`); right angles picked in their square; the style windows keep the keyboard (the command line no longer takes the focus under them) and line up their fields.
 - 2026-11-14: Trim and Extend show what they would take away or add before the click, Offset, Fillet, Chamfer and Match Properties halo the objects (with the result dashed); a dimension's own end mark (`markEnd`); dimension styles' first unit is the input unit; the ribbon's layer box shows the selection's layer (blank across several) and moves the selection to the layer chosen; the reference grip keeps the annotative part (the line follows).
 - 2026-11-14: the input unit is the only unit shown: the Properties pane (coordinates, radii, lengths, scaled distances), `ui.cadProps`, the status line, the dimension overlay and a new block's size show and read lengths in it (`Drawing::fields_typed`, `set_field_typed`); the drawing's own unit (mm) is no longer shown (the Unit rows of the Properties pane and the Picture tab are gone, Input unit offers mm, cm, m).
 - 2026-11-14: a grip on the reference between a dimension's scaled and annotative parts (`Grip::Reference`, the line or arc staying put); the editor draws lines at their paper width at the zoom (it showed every lineweight about the same).

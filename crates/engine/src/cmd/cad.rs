@@ -614,7 +614,7 @@ mod tests {
         let mut s = session();
         s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
         s.run("text.insert", &json!({"text": " "})).unwrap();
-        let beam = json!({"unit": "m", "scale": 50, "entities": [
+        let beam = json!({"unit": "m", "scale": 50, "dimStyle": {"showUnit": true}, "entities": [
             {"type": "line", "a": [0, 0], "b": ["L", 0]},
             {"type": "dim", "a": [0, 0], "b": ["L", 0], "offset": -8, "text": "L = {{L}}"}
         ]});
@@ -867,7 +867,7 @@ mod tests {
         let mut s = session();
         s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
         s.run("text.insert", &json!({"text": " "})).unwrap();
-        let beam = json!({"unit": "m", "entities": [{"type": "dim", "a": [0, 0], "b": [5, 0], "text": "{{L}}"}]});
+        let beam = json!({"unit": "m", "dimStyle": {"showUnit": true}, "entities": [{"type": "dim", "a": [0, 0], "b": [5, 0], "text": "{{L}}"}]});
         s.run("insert.cad", &json!({"drawing": beam})).unwrap();
         assert_eq!(texts(&drawing(&s).unwrap().2), ["4.5 m"]);
         // The equation goes (the first paragraph's text and objects).

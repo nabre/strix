@@ -175,6 +175,14 @@ fn edges(pts: &[Pt], closed: bool) -> Vec<(Pt, Pt)> {
 /// How far `p` is from entity `e`: from its exact curves when it has some, else from its
 /// outline (a point, a text's position, a dimension's lines).
 fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
+    // A right angle is taken anywhere in its square, with one click.
+    if let Some(sq) = d.right_angle_square(e) {
+        if point_in_polygon(p, &sq) {
+            return 0.0;
+        }
+        let edges = [(sq[0], sq[1]), (sq[1], sq[2]), (sq[2], sq[3]), (sq[3], sq[0])];
+        return edges.iter().map(|&(a, b)| seg_dist(p, a, b)).fold(f64::INFINITY, f64::min);
+    }
     let exact = curves(e);
     if !exact.is_empty() {
         // Its arrowheads are picked inside too.
@@ -432,6 +440,9 @@ impl Drawing {
         if from == to {
             return Ok(());
         }
+        if self.layers.iter().any(|l| l.name == from && l.from.is_some()) {
+            return Err(format!("layer {from} comes from another drawing: its name is that drawing's"));
+        }
         if self.layers.iter().any(|l| l.name == to) {
             return Err(format!("there is already a layer {to}"));
         }
@@ -443,10 +454,14 @@ impl Drawing {
         Ok(())
     }
 
-    /// Removes layer `name` (not `0`); its entities go to layer `0`.
+    /// Removes layer `name` (not `0`; one inherited from another drawing only when no object is
+    /// on it); its entities go to layer `0`.
     pub fn remove_layer(&mut self, name: &str) -> Result<(), String> {
         if name == "0" {
             return Err("layer 0 cannot be removed".into());
+        }
+        if !self.can_remove_layer(name) {
+            return Err(format!("layer {name} comes from another drawing: it can be removed only when no object is on it"));
         }
         let before = self.layers.len();
         self.layers.retain(|l| l.name != name);
@@ -457,6 +472,12 @@ impl Drawing {
             e.layer = "0".into();
         }
         Ok(())
+    }
+
+    /// Whether layer `name` can be removed: not `0`, and one inherited from another drawing only
+    /// when no object is on it.
+    pub fn can_remove_layer(&self, name: &str) -> bool {
+        name != "0" && !(self.layers.iter().any(|l| l.name == name && l.from.is_some()) && self.entities.iter().any(|e| e.layer == name))
     }
 
     /// The stroke entity `i` is drawn with (its own, else its layer's).

@@ -116,7 +116,9 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         .iter()
         .filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.chars().filter(|&c| !is_marker(c)).collect::<String>()) } else { None })
         .collect();
-    assert_eq!(texts, ["4500", "L = 4.5 m", "30 mm"]);
+    // A length parameter in a dimension is written as the style writes sizes (millimetres, no
+    // unit shown, by default), like the measured size.
+    assert_eq!(texts, ["4500", "L = 4500", "30 mm"]);
     // The unit of a parameter is marked for the Unit style.
     assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = {MATH_START}4.5 {UNIT_START}m{UNIT_END}{MATH_END}"));
     assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), format!("{MISSING_START}[nope?]{MISSING_END}"));
@@ -272,7 +274,7 @@ fn texts_take_placeholders_too() {
 fn svg_is_the_drawing_as_seen() {
     let ws = sheet(&["L = 4.5 m"]);
     let d = Drawing::from_json(
-        r#"{"unit": "m", "scale": 50, "layers": [{"name": "0"}, {"name": "h", "dash": "dashed", "color": [255, 0, 0]}],
+        r#"{"unit": "m", "scale": 50, "dimStyle": {"showUnit": true}, "layers": [{"name": "0"}, {"name": "h", "dash": "dashed", "color": [255, 0, 0]}],
             "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0], "layer": "h"},
                          {"type": "dim", "a": [0, 0], "b": ["L", 0], "offset": 8, "text": "L = {{L}} & {{x}}"},
                          {"type": "text", "p": [1, 1], "value": "<a>", "angle": 30}]}"#,
