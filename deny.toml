@@ -6,7 +6,8 @@
 #   a choice (e.g. `Apache-2.0 OR GPL-2.0-only`) passes on its permissive option; a crate whose only
 #   licenses are copyleft (GPL, LGPL, AGPL) fails the check.
 # - sources: crates.io and the suite's own git repositories (storytold) only.
-# - advisories: RustSec security advisories and yanked versions.
+# - advisories: RustSec security advisories and yanked versions (an advisory that doesn't reach
+#   Strix goes in `ignore` below with its reason).
 # - bans: nothing banned yet; duplicate versions are allowed (git pins of craft-libs).
 #
 # The allow list matches the licenses actually in Cargo.lock (2026-11-14); add a license only after
@@ -49,6 +50,24 @@ ignore = true
 
 [advisories]
 yanked = "deny"
+# Every ignored advisory says why it doesn't reach Strix; drop the line when the dependency moves on.
+ignore = [
+    # zip 3: all four are in `ZipArchive::extract` / `ZipStreamReader::extract`, which write an
+    # archive's entries to disk. Strix only reads entries into memory and writes archives
+    # (ZipArchive::by_name, ZipWriter); no code calls `extract`. Fixed in zip 9 (a major upgrade).
+    { id = "RUSTSEC-2026-0367", reason = "zip extract() only; Strix never extracts archives to disk" },
+    { id = "RUSTSEC-2026-0368", reason = "zip extract() only; Strix never extracts archives to disk" },
+    { id = "RUSTSEC-2026-0369", reason = "zip extract() only; Strix never extracts archives to disk" },
+    { id = "RUSTSEC-2026-0429", reason = "zip extract() only; Strix never extracts archives to disk" },
+    # Unmaintained, no fixed release: Linux accessibility (AT-SPI over D-Bus) through eframe's
+    # accesskit and zbus 5; they go when egui moves to zbus 6.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, via eframe/accesskit/zbus 5; no fixed release" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained, via eframe/accesskit/zbus 5; no fixed release" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained, via eframe/accesskit/zbus 5; no fixed release" },
+    # Unmaintained proc macro, build time only: winprint (craft-print, Windows printing) through
+    # fmt-derive; to be replaced in storytold/winprint.rs.
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: unmaintained, build-time macro via winprint's fmt-derive" },
+]
 
 [bans]
 multiple-versions = "allow"

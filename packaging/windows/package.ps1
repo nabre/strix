@@ -209,7 +209,8 @@ Copy-Item -Force (Join-Path $Stage 'strix.exe') $PortableExe
 # here; .github/workflows/windows-arm64.yml installs and runs it on ARM64 instead.
 # Windows PowerShell 5.1 (.NET Framework) has no RuntimeInformation.OSArchitecture: fall back to the
 # environment (PROCESSOR_ARCHITEW6432 is the OS's when this is a 32-bit process on a 64-bit one).
-$OsArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+# An older .NET Framework doesn't know the type at all: that's an error, caught to the same fallback.
+try { $OsArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture } catch { $OsArch = $null }
 if ($null -ne $OsArch) {
   $HostArch = $OsArch.ToString().ToLowerInvariant()
 } else {
