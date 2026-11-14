@@ -164,7 +164,9 @@ The packaging scripts must keep their executable bit in git (`git update-index -
 a checkout made on Windows drops it, and the jobs then fail with "Permission denied" (first
 release, 0.12.0).
 
-Local packaging: `packaging/macos/package.sh --arch universal`, `packaging/windows/package.ps1`,
+Local packaging: `packaging/macos/package.sh --arch universal`, `packaging/windows/package.ps1`
+(or double-click `packaging\windows\package.bat`: x64 by default, `-Arch x86|arm64` and `-SkipBuild`
+passed through; the packages land in `dist\release`, or `%DIST%`, and the folder opens),
 `packaging/linux/package.sh` (then `packaging/linux/flatpak-bundle.sh` for the Flatpak), `packaging/web/package.sh`.
 
 Dry run: `gh workflow run release.yml --ref <branch>` on any branch but `main` and `release`

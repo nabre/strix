@@ -1,1 +1,2 @@
 craft-i18n.rev text eol=lf
+*.bat text eol=crlf
