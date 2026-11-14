@@ -3704,3 +3704,54 @@ paper	Envelope DL	Busta DL
 	Number Only	Solo il numero
 	Delete Value	Elimina valore
 	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Cosa mostra il valore: un dato (R), un calcolo (2*R) o una conversione (R -> cm). Invio lo applica.
+	Layers of another drawing (its underlay or imported): usable like the drawing's own	Livelli di un altro disegno (il sottomano o importati): si usano come quelli del disegno
+	A layer of another drawing can be deleted only when no object is on it	Un livello di un altro disegno si elimina solo quando non ha oggetti
+	Measured size	Misura rilevata
+	No parameters are defined before the drawing	Nessun parametro definito prima del disegno
+	Symbol = value	Simbolo = valore
+	Insert a parameter of the calculations: its value, its symbol or both	Inserisci un parametro dei calcoli: il valore, il simbolo o entrambi
+	Exercise Tools	Strumenti esercizio
+	The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab	La scheda Esercizio (domande, varianti e dati, impaginazione) con il cursore in un esercizio, altrimenti la scheda Serie
+	Question\nSettings	Impostazioni\ndomande
+	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…	Ogni domanda con tipo e punti, e le impostazioni di quella scelta: spazio per la risposta, opzioni corrette, tolleranza…
+	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Aggiungi una domanda alla fine dell'esercizio; il menu offre i tipi: risposta aperta, scelta multipla, vero o falso, calcolo, disegno CAD…
+	First Line	Prima riga
+	What the exercise's first line holds after the number: a title, or the statement's text	Cosa contiene la prima riga dell'esercizio dopo il numero: un titolo o il testo
+	Problem	Problema
+	Add Variant	Aggiungi variante
+	Remove Variant	Rimuovi variante
+	The initial data: symbol, description, value in the active variant and unit, and whether the exercise shows them	I dati iniziali: simbolo, descrizione, valore nella variante attiva e unità, e se l'esercizio li mostra
+	Generate\nVariants	Genera\nvarianti
+	Generate clean variants from each datum's range, checked against the constraints on the results (add data first)	Genera varianti pulite dall'intervallo di ogni dato, verificate con i vincoli sui risultati (prima aggiungi i dati)
+	The graph paper after the questions, before the solution: its squares, lines and colour (Show › Graph Paper Before the Solution adds it)	Il foglio a quadretti dopo le domande, prima della risoluzione: quadretti, righe e colore (Mostra › Foglio a quadretti prima della risoluzione lo aggiunge)
+	Where the exercises start a new page	Dove gli esercizi iniziano una nuova pagina
+	Series\nSettings	Impostazioni\nserie
+	Page breaks, parts shown, graph paper and numbering are the series': they are in the Series tab	Interruzioni di pagina, parti visibili, foglio a quadretti e numerazione sono della serie: si trovano nella scheda Serie
+	Select the whole exercise: its statement, questions and solution	Seleziona tutto l'esercizio: testo, domande e risoluzione
+	Go To\nExercise	Vai\nall'esercizio
+	Put the cursor in an exercise's title	Porta il cursore nel titolo di un esercizio
+	Previous Exercise	Esercizio precedente
+	Next Exercise	Esercizio successivo
+	Put the cursor in the previous exercise's title	Porta il cursore nel titolo dell'esercizio precedente
+	Put the cursor in the next exercise's title	Porta il cursore nel titolo dell'esercizio successivo
+	Delete an exercise whole: its statement, questions and solution (Undo brings it back)	Elimina un esercizio intero: testo, domande e risoluzione (Annulla lo ripristina)
+	Dimension line	Linea di quota
+	Download Thesaurus	Scarica dizionario dei sinonimi
+	Thesaurus Pane	Riquadro Sinonimi
+	Download the {name} thesaurus	Scarica il dizionario dei sinonimi {name}
+	Downloading the {name} thesaurus…	Download del dizionario dei sinonimi {name} in corso…
+	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Scarica il dizionario dei sinonimi {name} dai dizionari di LibreOffice ({source}), con licenza {licence}, insieme ai file che ne indicano la licenza, nella cartella dei dizionari. Il riquadro Sinonimi e il menu Sinonimi lo usano subito.
+	The {name} thesaurus is installed: synonyms in {language} come from it now.	Il dizionario dei sinonimi {name} è installato: ora i sinonimi in {language} vengono da lì.
+	The {name} thesaurus couldn't be downloaded: {reason}	Impossibile scaricare il dizionario dei sinonimi {name}: {reason}
+	Search for a word	Cerca una parola
+	Look up	Cerca
+	Put the insertion point in a word, or type one above, to see its synonyms.	Metti il punto di inserimento in una parola, o scrivine una qui sopra, per vederne i sinonimi.
+	No synonyms found for “{word}”.	Nessun sinonimo trovato per “{word}”.
+	Showing “{entry}”.	Viene mostrato “{entry}”.
+	Look up this word	Cerca questa parola
+	Replace the word at the insertion point with this one	Sostituisci con questa la parola al punto di inserimento
+	From the {name} thesaurus.	Dal dizionario dei sinonimi {name}.
+	From Strix's short built-in list.	Dal breve elenco integrato di Strix.
+	The thesaurus couldn't be read: {reason}	Impossibile leggere il dizionario dei sinonimi: {reason}
+	No thesaurus for {language} is installed yet.	Non è ancora installato un dizionario dei sinonimi per {language}.
+	Add a variant: a copy of the active one's values (add data first)	Aggiungi una variante: una copia dei valori di quella attiva (prima aggiungi i dati)
