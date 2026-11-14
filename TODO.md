@@ -17,26 +17,7 @@
 
 ## Coda di lavoro attiva
 
-*(Tutte le voci pianificate — Fasi 1, 2, 3, 4 e 5: `D1`–`D6`, `M1`–`M6`, `F1`–`F9` — sono state completate, coperte da test e registrate in [`ROADMAP.md`](ROADMAP.md).)*
-
-### Fase 6 — Thesaurus scaricabili (`LO1`)
-
-Oggi `review.thesaurus` (`crates/engine/src/cmd/review/proofing.rs`, file upstream) è una lista fissa di ~30 parole inglesi. Il [repository dei dizionari di LibreOffice](https://github.com/LibreOffice/dictionaries), già usato da `crates/dictionaries` alla revisione fissa `REVISION`, contiene un thesaurus per quasi tutte le lingue di correzione, nel formato di testo MyThes (`th_*.dat`).
-
-**Regole specifiche:**
-* **Solo dati, scaricati su richiesta:** i file restano opere separate con la loro licenza (anche GPL/LGPL), scritta in un file accanto a quello scaricato; mai nel binario né nel repository (nessuna riga in `ATTRIBUTION.md`, che vale per i file del repo).
-* **Clean room:** lettore scritto in Rust dalla descrizione del formato, mai dal codice di MyThes o LibreOffice. Formato: prima riga = codifica (`UTF-8`, `ISO8859-1`, `KOI8-R`…); poi righe `parola|n` seguite da `n` righe `(categoria)|sinonimo|sinonimo…`.
-* **Input ostile:** limite di dimensione prima di leggere, lunghezza di riga e numero di voci limitati, `n` dichiarato non fidato, `get()` e slicing a confini di carattere, nessun panic.
-* **Wasm:** download solo nelle build native; sul web il comando ripiega sulla lista interna.
-* **Mergeabilità:** logica in file Strix (`crates/dictionaries/src/mythes.rs`, `crates/engine/src/cmd/thesaurus.rs`); in `proofing.rs` solo la riga che li chiama.
-
-| Id | Compito | Fatto quando |
-|---|---|---|
-| `LO1.1` | `Source` acquisisce un `kind` (ortografia / thesaurus); righe thesaurus con la licenza letta dal README della cartella a `REVISION`: `it_IT/th_it_IT_v2.dat` (GPL-3.0), `es/th_es_v2.dat` (LGPL-2.1), `pt_PT/th_pt_PT.dat` (CC-BY-3.0), `pl_PL/th_pl_PL_v2.dat` (GPL/LGPL/MPL/Apache-2.0/CC-SA), `ru_RU/th_ru_RU_M_aot_and_v2.dat` (LGPL-2.1), `id/th_id_ID_v2.dat` (LGPL-2.1). `pt_BR`, `cs_CZ` ed `en` solo dopo aver confermato la licenza; se resta dubbia la lingua resta fuori | test: ogni riga ha licenza non vuota e pagina a `REVISION` |
-| `LO1.2` | Lettore MyThes limitato (`mythes.rs`): codifiche UTF-8 e ISO-8859-x/KOI8-R, indice in memoria, ricerca per parola (minuscole, forma esatta poi forma base) | legge file reali; file vuoti, troncati, enormi, con `n` falso o codifica ignota danno errore, mai panic |
-| `LO1.3` | `review.thesaurus` usa il thesaurus scaricato della lingua della parola (lingua del run, poi del documento), la lista interna come ripiego; risposta invariata (`word`, `synonyms`) più `meanings` per categoria | test engine con un piccolo thesaurus sintetico nostro; `hostile_params_never_panic` verde |
-| `LO1.4` | Download offerto accanto a quello del dizionario (menu lingua della barra di stato, File › Opzioni › Lingua) e nel riquadro Thesaurus quando manca; file di licenza scritto accanto | screenshot `ui_shot`; testi in inglese, tedesco, francese, italiano |
-| `LO1.5` | Documentazione (`docs/architecture.md` riga `dictionaries`, documento della funzione), progress log e revisione in `ROADMAP.md`; `cargo xtask ci` e `cargo xtask unused` | voce rimossa da questo file |
+*(Tutte le voci pianificate — Fasi 1–6: `D1`–`D6`, `M1`–`M6`, `F1`–`F9`, `LO1` — sono state completate, coperte da test e registrate in [`ROADMAP.md`](ROADMAP.md).)*
 
 ### Fase 7 — Proposte a WordCraft (`LO4`, issue su storytold/wordcraft)
 

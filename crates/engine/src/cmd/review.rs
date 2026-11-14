@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! Review tab: comments, track changes, word count, spelling (via the proofing hook).
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -137,7 +138,7 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!({"value": s.view.proofing}))
         })
         .pure(),
-        CommandSpec::new("review.thesaurus", "Thesaurus", "Review › Proofing", thesaurus).key("Shift+F7").pure(),
+        CommandSpec::new("review.thesaurus", "Thesaurus", "Review › Proofing", thesaurus).key("Shift+F7").pure().params(super::thesaurus::PARAMS),
     ]
 }
 

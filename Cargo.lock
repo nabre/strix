@@ -5379,6 +5379,7 @@ name = "strix-dictionaries"
 version = "0.24.0"
 dependencies = [
  "craft-proof",
+ "encoding_rs",
  "ureq",
  "wordcraft-control-key",
 ]

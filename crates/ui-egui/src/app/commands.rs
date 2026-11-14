@@ -96,6 +96,10 @@ impl WordApp {
             self.spelling_review = Some(crate::proofing_pane::SpellingForm::new(self, v.clone()));
         }
         let r = system_clipboard::explain(self, id, r);
+        // Strix: Review › Thesaurus (Shift+F7) shows the synonyms in the Thesaurus pane.
+        if id == "review.thesaurus" && r.is_ok() {
+            self.session.view.thesaurus_pane = true;
+        }
         // Check Accessibility shows its findings in the Accessibility pane, kept up to date there.
         if id == "file.accessibility" && r.is_ok() {
             self.session.view.accessibility_pane = true;
