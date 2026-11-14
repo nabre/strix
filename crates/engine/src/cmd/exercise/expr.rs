@@ -13,6 +13,11 @@ use crate::{CmdError, CmdResult, Session, p};
 
 pub const TAG_EXPR: &str = "strix:expr";
 const EL: &str = "strix:expr";
+/// How a value is shown (`both`: `R = 1.5 m`, `number`: `1.5`); absent, the value with its unit.
+const EL_SHOW: &str = "strix:exprShow";
+/// The ways an inline value can be shown: the value with its unit (`1.5 m`), the expression and
+/// the value (`R = 1.5 m`), the number alone (`1.5`).
+pub const SHOW_MODES: [&str; 3] = ["value", "both", "number"];
 const MAX_EXPR_CHARS: usize = 200;
 const MAX_EXPRS_PER_PARA: usize = 64;
 
@@ -47,12 +52,36 @@ pub(crate) fn write_formula(ctl: &mut ContentControl, formula: &str) {
     }
 }
 
+/// How the value of a `strix:expr` control is shown: one of [`SHOW_MODES`].
+pub(crate) fn read_show(ctl: &ContentControl) -> &'static str {
+    let open = format!("<{EL_SHOW}>");
+    let close = format!("</{EL_SHOW}>");
+    let raw = ctl.extra.iter().find_map(|x| x.strip_prefix(&open)?.strip_suffix(&close)).unwrap_or_default();
+    SHOW_MODES.into_iter().find(|m| *m == raw.trim()).unwrap_or("value")
+}
+
+/// Sets how the value of a `strix:expr` control is shown (`value`, the default, is not stored).
+fn write_show(ctl: &mut ContentControl, show: &str) {
+    let open = format!("<{EL_SHOW}>");
+    ctl.extra.retain(|x| !x.starts_with(&open));
+    if let Some(m) = SHOW_MODES.into_iter().find(|m| *m == show && *m != "value") {
+        ctl.extra.push(format!("{open}{m}</{EL_SHOW}>"));
+    }
+}
+
+/// The expression a formula shows, without its target unit (`R -> cm` → `R`): a datum's symbol
+/// when the formula recalls one.
+pub(crate) fn shown_expr(formula: &str) -> &str {
+    split_target_unit(formula).0
+}
+
 pub(crate) fn make_control(formula: &str) -> ContentControl {
     let mut ctl = ContentControl::new(ControlKind::RichText);
     ctl.tag = TAG_EXPR.into();
     ctl.title = clean_expr(formula);
     ctl.block = false;
-    ctl.lock = ControlLock::SdtContentLocked;
+    // Its text is the value, never typed into; the value itself can be deleted.
+    ctl.lock = ControlLock::ContentLocked;
     write_formula(&mut ctl, formula);
     ctl
 }
@@ -345,14 +374,19 @@ fn apply_block(
     match &**block {
         Block::Para(p) => {
             let planned = plan_para_updates(p, top, ws, teacher, errors);
-            if planned.is_empty() {
+            let relock = has_old_lock(p);
+            if planned.is_empty() && !relock {
                 return;
             }
             let Block::Para(p) = Arc::make_mut(block) else { return };
-            for (idx, shown) in planned.into_iter().rev() {
+            if relock {
+                unlock_values(p);
+                *updates += 1;
+            }
+            for (idx, (prefix, shown)) in planned.into_iter().rev() {
                 let spans = expr_spans(p);
                 if let Some(&(a, b)) = spans.get(idx)
-                    && write_shown_in_span(p, (a, b), &shown)
+                    && write_shown_in_span(p, (a, b), &prefix, &shown)
                 {
                     *updates += 1;
                 }
@@ -371,7 +405,48 @@ fn apply_block(
     }
 }
 
-fn plan_para_updates(p: &Paragraph, top: usize, ws: &strix_calc::Worksheet, teacher: bool, errors: &mut Vec<Value>) -> Vec<(usize, String)> {
+/// Values inserted before they could be deleted (locked against deletion too).
+fn has_old_lock(p: &Paragraph) -> bool {
+    expr_spans(p)
+        .into_iter()
+        .any(|(a, _)| matches!(p.object_at(a), Some(InlineObject::ControlStart { control }) if control.lock == ControlLock::SdtContentLocked))
+}
+
+/// Lets the values of `p` be deleted (their text still can't be typed into).
+fn unlock_values(p: &mut Paragraph) {
+    for (a, _) in expr_spans(p) {
+        if let Some(InlineObject::ControlStart { control }) = p.object_at_mut(a)
+            && control.lock == ControlLock::SdtContentLocked
+        {
+            control.lock = ControlLock::ContentLocked;
+        }
+    }
+    p.touch();
+}
+
+/// What a value control shows for the evaluated `value`: the text before the value (the
+/// expression and ` = ` when shown both ways) and the value (without its unit for `number`).
+fn shown_parts(control: &ContentControl, formula: &str, value: String) -> (String, String) {
+    if value.starts_with('⚠') || control.tag != TAG_EXPR {
+        return (String::new(), value);
+    }
+    match read_show(control) {
+        "both" => (format!("{} = ", shown_expr(formula)), value),
+        "number" => {
+            let (num, unit) = split_number_and_unit(&value);
+            if unit.is_empty() { (String::new(), value) } else { (String::new(), num.trim_end().to_string()) }
+        }
+        _ => (String::new(), value),
+    }
+}
+
+fn plan_para_updates(
+    p: &Paragraph,
+    top: usize,
+    ws: &strix_calc::Worksheet,
+    teacher: bool,
+    errors: &mut Vec<Value>,
+) -> Vec<(usize, (String, String))> {
     let mut out = Vec::new();
     for (idx, (a, b)) in expr_spans(p).into_iter().enumerate() {
         let Some(InlineObject::ControlStart { control }) = p.object_at(a) else { continue };
@@ -387,27 +462,42 @@ fn plan_para_updates(p: &Paragraph, top: usize, ws: &strix_calc::Worksheet, teac
             let unit = split_number_and_unit(&desired).1.trim();
             desired = if unit.is_empty() { "____________".into() } else { format!("____________ {unit}") };
         }
+        let (prefix, desired) = shown_parts(control, &formula, desired);
         let current = p.text.get(a + OBJ.len_utf8()..b).unwrap_or_default();
         let (_, unit_part) = split_number_and_unit(&desired);
         let unit_styled = unit_part.is_empty() || {
-            let unit_start = a + OBJ.len_utf8() + desired.len() - unit_part.len();
+            let unit_start = a + OBJ.len_utf8() + prefix.len() + desired.len() - unit_part.len();
             p.props_of_char(unit_start).style.as_deref() == Some(super::super::calc::UNIT_STYLE)
         };
-        if current != desired || !unit_styled {
-            out.push((idx, desired));
+        if current.strip_prefix(prefix.as_str()) != Some(desired.as_str()) || !unit_styled {
+            out.push((idx, (prefix, desired)));
         }
     }
     out
 }
 
-fn write_shown_in_span(p: &mut Paragraph, (a, b): (usize, usize), shown: &str) -> bool {
-    let from = a + OBJ.len_utf8();
+fn write_shown_in_span(p: &mut Paragraph, (a, b): (usize, usize), prefix: &str, shown: &str) -> bool {
+    let mut from = a + OBJ.len_utf8();
     let mut base = p.props_of_char(a).clone();
     if base.style.as_deref() == Some(super::super::calc::UNIT_STYLE) {
         base.style = None;
     }
     if b > from && p.delete(from, b).is_err() {
         return false;
+    }
+    if !prefix.is_empty() {
+        // A symbol (`R`, `F_k`) in italics, as the equations set it; ` = ` upright.
+        let expr = prefix.strip_suffix(" = ").unwrap_or(prefix);
+        let symbol = expr.chars().next().is_some_and(char::is_alphabetic) && expr.chars().all(|c| c.is_alphanumeric() || c == '_');
+        let expr_props = CharProps { italic: if symbol { Some(true) } else { base.italic }, ..base.clone() };
+        if p.insert_text(from, expr, &expr_props).is_err() {
+            return false;
+        }
+        let rest = prefix.get(expr.len()..).unwrap_or_default();
+        if !rest.is_empty() && p.insert_text(from + expr.len(), rest, &base).is_err() {
+            return false;
+        }
+        from += prefix.len();
     }
     let (num_part, unit_part) = split_number_and_unit(shown);
     if !num_part.is_empty() && p.insert_text(from, num_part, &base).is_err() {
@@ -434,7 +524,8 @@ pub(crate) fn render_choice_with_sheet(p: &Paragraph, ws: &strix_calc::Worksheet
             && let Some(formula) = read_formula(control)
             && let Ok(shown) = eval_in_sheet(ws, &formula)
         {
-            let _ = write_shown_in_span(&mut clone, (a, b), &shown);
+            let (prefix, shown) = shown_parts(control, &formula, shown);
+            let _ = write_shown_in_span(&mut clone, (a, b), &prefix, &shown);
         }
     }
     super::items::choice_text(&clone)
@@ -481,6 +572,128 @@ fn hash_block(b: &Block, top: usize, depth: usize, h: &mut impl std::hash::Hashe
             }
         }
     }
+}
+
+/// The value control (`strix:expr` or `strix:blank`) of `p` holding or touching byte `off`:
+/// its start and end markers.
+fn span_at(p: &Paragraph, off: usize) -> Option<(usize, usize)> {
+    expr_spans(p).into_iter().find(|&(a, b)| (a..=b + OBJ.len_utf8()).contains(&off))
+}
+
+/// Before Backspace (`back`) or Delete: a caret just after (Backspace) or just before (Delete) an
+/// inline value, or inside it, and a selection ending inside one, take the whole value, so the
+/// key deletes it whole instead of being refused (its text is never typed into).
+pub(crate) fn take_whole(s: &mut Session, back: bool) {
+    let w = OBJ.len_utf8();
+    let (x, y) = s.sel.ordered();
+    let collapsed = s.sel.is_collapsed();
+    let Some(px) = s.doc.para_at(&x) else { return };
+    let mut nx = x.clone();
+    let mut ny = y.clone();
+    if collapsed {
+        let hit = expr_spans(px).into_iter().find(|&(a, b)| if back { a < x.off && x.off <= b + w } else { a <= x.off && x.off <= b });
+        let Some((a, b)) = hit else { return };
+        nx.off = a;
+        ny.off = b + w;
+    } else {
+        if let Some((a, _)) = expr_spans(px).into_iter().find(|&(a, b)| a < x.off && x.off <= b) {
+            nx.off = a;
+        }
+        if let Some(py) = s.doc.para_at(&y)
+            && let Some((_, b)) = expr_spans(py).into_iter().find(|&(a, b)| a < y.off && y.off <= b)
+        {
+            ny.off = b + w;
+        }
+        if nx == x && ny == y {
+            return;
+        }
+    }
+    // Values from before they could be deleted.
+    for pos in [&nx, &ny] {
+        if let Ok(p) = s.doc.para_mut(pos.story, &pos.path)
+            && has_old_lock(p)
+        {
+            unlock_values(p);
+        }
+    }
+    let forward = (&s.sel.anchor.path, s.sel.anchor.off) <= (&s.sel.focus.path, s.sel.focus.off);
+    s.sel = if forward || collapsed { crate::Selection { anchor: nx, focus: ny } } else { crate::Selection { anchor: ny, focus: nx } };
+}
+
+/// `exercise.inlineValue`: the inline value at the caret — its expression and how it is shown —
+/// changed with `expr` and `show` (`value`: `1.5 m`, `both`: `R = 1.5 m`, `number`: `1.5`), or
+/// deleted with `remove`.
+pub(crate) fn inline_value_command(s: &mut Session, v: &Value) -> CmdResult {
+    let focus = s.sel.focus.clone();
+    let no_value = || CmdError::Disabled("no inline value at the caret".into());
+    if focus.story != StoryRef::Body {
+        return Err(no_value());
+    }
+    let (a, b) = s.doc.para(focus.story, &focus.path).and_then(|p| span_at(p, focus.off)).ok_or_else(no_value)?;
+    let expr = p::str(v, "expr").map(clean_expr);
+    if expr.as_deref() == Some("") {
+        return Err(CmdError::Params("expr: non-empty expression required".into()));
+    }
+    let show = p::str(v, "show");
+    if let Some(m) = show
+        && !SHOW_MODES.contains(&m)
+    {
+        return Err(CmdError::Params("show: value, both or number".into()));
+    }
+    let remove = p::bool(v, "remove") == Some(true);
+    let mut changed = false;
+    {
+        let para = s.doc.para_mut(focus.story, &focus.path).map_err(|e| CmdError::Failed(e.to_string()))?;
+        if remove {
+            para.delete(a, b + OBJ.len_utf8()).map_err(|e| CmdError::Failed(e.to_string()))?;
+            para.touch();
+            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(focus.story, focus.path.clone(), a));
+            changed = true;
+        } else if let Some(InlineObject::ControlStart { control }) = para.object_at_mut(a) {
+            if let Some(f) = expr.as_deref().filter(|f| read_formula(control).as_deref() != Some(*f)) {
+                control.title = f.to_string();
+                write_formula(control, f);
+                changed = true;
+            }
+            if let Some(m) = show.filter(|m| *m != read_show(control)) {
+                write_show(control, m);
+                changed = true;
+            }
+            if changed {
+                para.touch();
+            }
+        }
+    }
+    if changed {
+        s.touch();
+        let opts = super::super::calc::options_now(s);
+        super::super::calc::recalculate(s, &opts);
+        super::update(s);
+        s.clamp_selection();
+    }
+    if remove {
+        return Ok(json!({"removed": true}));
+    }
+    let para = s.doc.para(focus.story, &focus.path).ok_or_else(no_value)?;
+    let (a, b) = expr_spans(para).into_iter().find(|&(x, _)| x == a).ok_or_else(no_value)?;
+    describe(para, (a, b)).ok_or_else(no_value)
+}
+
+fn describe(para: &Paragraph, (a, b): (usize, usize)) -> Option<Value> {
+    let Some(InlineObject::ControlStart { control }) = para.object_at(a) else { return None };
+    let shown: String = para.text.get(a + OBJ.len_utf8()..b).unwrap_or_default().chars().filter(|&c| c != OBJ).collect();
+    Some(json!({"expr": read_formula(control), "show": read_show(control), "shown": shown, "blank": control.tag != TAG_EXPR}))
+}
+
+/// The inline value at the caret, as `exercise.inlineValue` describes it (`expr`, `show`,
+/// `shown`, `blank`), without changing anything: the context menu asks every frame.
+pub fn inline_value_at(s: &Session) -> Option<Value> {
+    let f = &s.sel.focus;
+    if f.story != StoryRef::Body {
+        return None;
+    }
+    let para = s.doc.para(f.story, &f.path)?;
+    span_at(para, f.off).and_then(|span| describe(para, span))
 }
 
 /// `exercise.insertExpr`: inserts a live inline `strix:expr` control at the caret (or updates one

@@ -136,6 +136,7 @@ pub(super) fn context_menu(app: &mut WordApp, ui: &mut Ui) {
         item(ui, app, tl!("Update Field"), "references.updateToc", json!({}));
         item(ui, app, tl!("Remove Table of Contents"), "references.removeToc", json!({}));
     }
+    super::strix::inline_value_menu(app, ui);
     // In an exercise, or over whole ones: the way to delete it whole (docs/exercise.md).
     if !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty() {
         ui.separator();

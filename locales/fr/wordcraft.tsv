@@ -3238,3 +3238,9 @@ paper	Envelope DL	Enveloppe DL
 	Grading Scale Properties	Propriétés du barème
 	Title Line	Ligne de titre
 	The result line is generated from the working: write the working in the space above it.	La ligne de résultat est générée à partir du calcul : écrivez le calcul dans l'espace au-dessus.
+	Inline Value	Valeur dans le texte
+	Value and Unit	Valeur et unité
+	Symbol = Value	Symbole = valeur
+	Number Only	Nombre seul
+	Delete Value	Supprimer la valeur
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Ce que montre la valeur : une donnée (R), un calcul (2*R) ou une conversion (R -> cm). Entrée l'applique.

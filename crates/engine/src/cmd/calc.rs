@@ -1575,6 +1575,17 @@ pub(crate) fn exercise_formula_texts(s: &Session, ex: usize) -> Vec<String> {
     out
 }
 
+/// Every drawing's source, with the top-level block holding it.
+pub(crate) fn cad_sources(s: &Session) -> Vec<(usize, Arc<str>)> {
+    items(&s.doc.body)
+        .into_iter()
+        .filter_map(|i| match i {
+            Item::Cad { top, source } => Some((top, source)),
+            _ => None,
+        })
+        .collect()
+}
+
 fn caret_in_calc_table(s: &Session) -> bool {
     s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
 }

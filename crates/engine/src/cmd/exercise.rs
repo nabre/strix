@@ -55,8 +55,11 @@ mod pack;
 mod scores;
 mod series;
 mod show;
+mod shown;
 pub(crate) mod stem_items;
 mod structure;
+#[cfg(test)]
+mod tests_expr;
 #[cfg(test)]
 mod tests_phase3;
 #[cfg(test)]
@@ -69,7 +72,7 @@ mod variants_gen;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
-pub use expr::TAG_EXPR;
+pub use expr::{SHOW_MODES, TAG_EXPR, inline_value_at};
 pub use grading::TAG_GRADING;
 pub(crate) use guard::{outside_for, typing_target};
 pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
@@ -167,6 +170,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
             .when(body)
             .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),
+        CommandSpec::new("exercise.inlineValue", "Inline Value", "Teaching › Exercise", expr::inline_value_command)
+            .when(|s| if expr::inline_value_at(s).is_some() { None } else { Some("no inline value at the caret") })
+            .params(r#"{"expr"?: string (e.g. "R -> cm"), "show"?: "value" (1.5 m) | "both" (R = 1.5 m) | "number" (1.5), "remove"?: bool} → the inline value at the caret ({"expr", "show", "shown", "blank"}), changed or deleted"#),
         CommandSpec::new("exercise.titleLine", "Title Line", "Teaching › Exercise", title_line::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "line"?: "title" (a bold title after the number) | "statement" (no title: the statement or question written right after the number, in the body text's weight)} → {"exercise", "line"}"#),
@@ -930,13 +936,16 @@ impl ExerciseData {
     }
 
     /// The lines of the generated data part.
-    fn lines(&self, w: &Words) -> Vec<(&'static str, String)> {
+    /// A datum the exercise already shows (`shown`: in its statement, questions or a drawing
+    /// there) has no line.
+    fn lines(&self, w: &Words, shown: Option<&std::collections::BTreeSet<String>>) -> Vec<(&'static str, String)> {
         if !self.show_data {
             return Vec::new();
         }
         let statements: Vec<(String, String)> = self
             .items
             .iter()
+            .filter(|i| !shown.is_some_and(|set| set.contains(i.symbol.trim())))
             .filter_map(|i| {
                 let value = i.values.get(self.active).filter(|v| !v.is_empty())?;
                 // The unit follows a marker: it is set in the Unit style.
@@ -1915,8 +1924,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
     if layout.exercises.iter().any(|e| !e.data.items.is_empty()) {
         super::calc::unit_color(s);
     }
-    for e in layout.exercises.iter().rev() {
-        let lines = e.data.lines(w);
+    let shown = shown::shown(s, &layout);
+    for (k, e) in layout.exercises.iter().enumerate().rev() {
+        let lines = e.data.lines(w, shown.get(k));
         match (e.data_blocks, lines.is_empty()) {
             (Some((from, to)), true) => {
                 // Only blocks that are the generated data part are removed.
