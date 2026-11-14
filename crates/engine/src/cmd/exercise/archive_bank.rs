@@ -116,6 +116,8 @@ pub(crate) fn insert(s: &mut Session, v: &Value) -> CmdResult {
     };
     let mut frag = crate::cmd::paste::adopt(s, doc);
     crate::cmd::paste::unlink_sections(&mut frag.blocks);
+    // Never inside another exercise: right after it.
+    super::outside_for(s, &frag.blocks);
     let at = crate::cmd::delete_selection(s)?;
     let end = s.doc.insert_fragment(&at, &frag)?;
     s.sel = crate::Selection::caret(end);

@@ -76,6 +76,8 @@ pub enum Pane {
     Archive,
     /// Math › Drawing › Plot Properties: configure Cartesian plots, series and regressions.
     Plot,
+    /// Teaching › Scores › Grading Scale › Properties: the points-to-grade table.
+    Grading,
 }
 
 impl Pane {
@@ -99,6 +101,7 @@ impl Pane {
             Self::Check => "Assessment Check",
             Self::Archive => "Exercise Bank",
             Self::Plot => "Plot Properties",
+            Self::Grading => "Grading Scale",
         }
     }
 
@@ -122,6 +125,7 @@ impl Pane {
             Self::Check => (Edge::End, 320.0),
             Self::Archive => (Edge::End, 340.0),
             Self::Plot => (Edge::End, 330.0),
+            Self::Grading => (Edge::End, 300.0),
         };
         PaneState::docked(edge, width)
     }
@@ -147,10 +151,11 @@ impl Pane {
             Self::Check => "check",
             Self::Archive => "archive",
             Self::Plot => "plot",
+            Self::Grading => "grading",
         }
     }
 
-    const ALL: [Self; 18] = [
+    const ALL: [Self; 19] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -169,6 +174,7 @@ impl Pane {
         Self::Check,
         Self::Archive,
         Self::Plot,
+        Self::Grading,
     ];
 
     fn from_key(key: &str) -> Option<Self> {
@@ -194,6 +200,7 @@ impl Pane {
             Self::Check => Some("view.checkPane"),
             Self::Archive => Some("view.archivePane"),
             Self::Plot => Some("view.plotPane"),
+            Self::Grading => Some("view.gradingPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
     }
@@ -227,6 +234,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Check => crate::check_pane::pane(app, ui),
             Pane::Archive => crate::archive_pane::pane(app, ui),
             Pane::Plot => crate::plot_pane::pane(app, ui),
+            Pane::Grading => crate::grading_pane::pane(app, ui),
         })
     }
 

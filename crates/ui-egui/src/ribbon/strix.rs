@@ -80,13 +80,11 @@ fn total_score_button(ui: &mut Ui, app: &mut WordApp) {
 }
 
 fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
+    // `exercise.grading` reads the scale's settings at the top level of its reply.
     let gst = app.session.run("exercise.grading", &json!({})).ok().unwrap_or_default();
     let g_on = gst["on"].as_bool().unwrap_or(false);
-    let cfg = &gst["config"];
-    let preset = cfg["preset"].as_str().unwrap_or("it-10").to_string();
-    let curve = cfg["curve"].as_str().unwrap_or("linear").to_string();
-    let step = cfg["step"].as_f64().unwrap_or(0.5);
-    let vis = cfg["visibility"].as_str().unwrap_or("teacher").to_string();
+    let preset = gst["preset"].as_str().unwrap_or("it-10").to_string();
+    let pane = app.session.view.grading_pane;
     menu_button(
         ui,
         app,
@@ -110,22 +108,8 @@ fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
                 mi_check(ui, app, lbl, g_on && preset == id, "exercise.grading", json!({"on": true, "preset": id}));
             }
             ui.separator();
-            mi_check(ui, app, "Linear Curve", curve == "linear", "exercise.grading", json!({"on": true, "curve": "linear"}));
-            mi_check(
-                ui,
-                app,
-                "Piecewise Curve (Pass Threshold)",
-                curve == "piecewiseLinear",
-                "exercise.grading",
-                json!({"on": true, "curve": "piecewiseLinear"}),
-            );
-            ui.separator();
-            for (st_val, st_lbl) in [(0.1, "Step 0.1"), (0.25, "Step 0.25"), (0.5, "Step 0.5"), (1.0, "Step 1.0")] {
-                mi_check(ui, app, st_lbl, (step - st_val).abs() < 1e-6, "exercise.grading", json!({"on": true, "step": st_val}));
-            }
-            ui.separator();
-            mi_check(ui, app, "Teacher Copy Only", vis == "teacher", "exercise.grading", json!({"on": true, "visibility": "teacher"}));
-            mi_check(ui, app, "Student and Teacher Copies", vis == "both", "exercise.grading", json!({"on": true, "visibility": "both"}));
+            // Every property (grades, pass mark, maximum points, rounding, who sees it) in the pane.
+            mi_check(ui, app, "Grading Scale Properties", pane, "view.gradingPane", json!({}));
         },
     );
 }
@@ -349,36 +333,7 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 );
             });
         });
-        // A column of its own: a stack holds three small buttons.
-        stack(ui, |ui| inline_expr_menu(ui, app));
     });
-}
-
-fn inline_expr_menu(ui: &mut Ui, app: &mut WordApp) {
-    menu_button(
-        ui,
-        app,
-        crate::widgets::MenuButtonOptions::new(
-            "inlineExpr",
-            Some("Inline Expression"),
-            "Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)",
-            false,
-            "exercise.insertExpr",
-        ),
-        |ui, app| {
-            let id = egui::Id::unique("inline_expr_draft");
-            let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| "v * t -> m".into());
-            ui.set_min_width(200.0);
-            ui.label(egui::RichText::new(tl!("Parametric expression")).small().weak());
-            let edit = ui.text_edit_singleline(&mut text);
-            let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            ui.data_mut(|d| d.insert_temp(id, text.clone()));
-            if (enter || ui.button(tl!("Insert")).clicked()) && !text.trim().is_empty() {
-                let _ = app.run("exercise.insertExpr", json!({"expr": text.trim()}));
-                ui.close();
-            }
-        },
-    );
 }
 
 /// Insert › Pages › Graph Paper (docs/graph-paper.md).
@@ -708,7 +663,7 @@ Page",
 fn calc_table_rows(ui: &mut Ui, app: &mut WordApp) {
     let info = app.session.run("calc.tableInfo", &json!({})).ok();
     let flag = |k: &str| info.as_ref().and_then(|v| v.get(k).and_then(Value::as_bool)).unwrap_or(false);
-    let (index, total) = (flag("index"), flag("total"));
+    let (index, total, column_total) = (flag("index"), flag("total"), flag("columnTotal"));
     small(
         ui,
         app,
@@ -722,8 +677,16 @@ fn calc_table_rows(ui: &mut Ui, app: &mut WordApp) {
         app,
         "calcTotal",
         Some("Total Row"),
-        "The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)",
+        "The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)",
         crate::widgets::ButtonAction::new("table.look", json!({"totalRow": !total}), total),
+    );
+    small(
+        ui,
+        app,
+        "calcColumnTotal",
+        Some("Column Total"),
+        "Sum the column at the cursor in the total row, or leave its cell there empty",
+        crate::widgets::ButtonAction::new("table.calcTotal", json!({}), total && column_total),
     );
 }
 

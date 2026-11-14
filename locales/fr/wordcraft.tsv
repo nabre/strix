@@ -2698,7 +2698,9 @@ paper	Envelope DL	Enveloppe DL
 	That would make the object degenerate	Cela rendrait l’objet dégénéré
 	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Les données sont les premiers paramètres des calculs de l’exercice : la solution les utilise par symbole. Changer de variante recalcule l’exercice.
 	The document has no subdocuments.	Le document n’a aucun sous-document.
-	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ =) ; une cellule écrite là garde son propre texte (moyenne =, max =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ dans la première colonne, les sommes sous leurs colonnes) ; une cellule écrite là garde son propre texte (moyenne =, max =)
+	Column Total	Total de la colonne
+	Sum the column at the cursor in the total row, or leave its cell there empty	Additionner la colonne du curseur dans la ligne des totaux, ou laisser sa cellule vide
 	The layer of the selected objects becomes the current layer	Le calque des objets sélectionnés devient le calque courant
 	The number must be a divisor of {max}.	Le nombre doit être un diviseur de {max}.
 	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Le dictionnaire orthographique pour {language} n’a pas pu être lu, l’orthographe n’est donc pas vérifiée. Fichier : {file}. Raison : {reason}
@@ -2880,6 +2882,9 @@ paper	Envelope DL	Enveloppe DL
 	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Choisir ce que montre l’exercice (tous les exercices d’une série) : les parties masquées restent dans le document comme texte masqué
 	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Données et variantes, sauts de page, numérotation, parties affichées et papier millimétré, dans le volet Propriétés de l’exercice
 	Download updates automatically	Télécharger les mises à jour automatiquement
+	Check for updates automatically	Rechercher automatiquement les mises à jour
+	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	Au démarrage puis une fois par jour, Strix Writer demande à GitHub la liste de ses versions. Rien sur vous, votre ordinateur ou vos documents n'est envoyé.
+	Strix Writer looks for a newer version only when you choose Check for Updates.	Strix Writer ne recherche une version plus récente que lorsque vous choisissez Rechercher des mises à jour.
 	Drawing Space	Espace du dessin
 	Drawing Underlay	Sous-couche du dessin
 	Drawings of the Document	Dessins du document
@@ -3184,3 +3189,52 @@ paper	Envelope DL	Enveloppe DL
 	Section	Section
 	Set Plot	Définir le graphique
 	select a plot first	sélectionnez d’abord un graphique
+	Add a question at the end of the exercise	Ajouter une question à la fin de l'exercice
+	Answer Space	Espace de réponse
+	A problem's questions are answered in its solution.	Les questions d'un problème trouvent leur réponse dans sa solution.
+	A row every	Une ligne tous les
+	Correct Options	Options correctes
+	Curve	Courbe
+	Custom	Personnalisé
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Supprimer tout l'exercice : énoncé, questions et solution (Annuler le rétablit)
+	Duration	Durée
+	Exercises	Exercices
+	Fixed maximum	Maximum fixe
+	From the document's points ({points})	D'après les points du document ({points})
+	General	Général
+	Grades rounded to	Notes arrondies à
+	Hidden now: the solutions are hidden (student copy).	Masquée pour l'instant : les solutions sont masquées (copie élève).
+	Highest grade	Note la plus haute
+	How far an answer may be from the result and still be right: 2% or 0.1 cm	De combien une réponse peut s'écarter du résultat et rester juste : 2% ou 0,1 cm
+	Insert Grading Scale	Insérer le barème
+	Like the last one	Comme la dernière
+	Lowest grade	Note la plus basse
+	No question yet: write one in the exercise, or add one.	Aucune question pour l'instant : écrivez-en une dans l'exercice ou ajoutez-en une.
+	Off: the table chooses the step so it stays short	Désactivé : le tableau choisit le pas pour rester court
+	One pair per line: left = right	Une paire par ligne : gauche = droite
+	Pairs	Paires
+	Pass grade	Note de réussite
+	Pass Mark	Seuil de réussite
+	Pass threshold	Seuil de réussite
+	Piecewise (pass threshold)	Par morceaux (seuil de réussite)
+	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	Par morceaux : le seuil de réussite des points donne la note de réussite, et les notes montent régulièrement en dessous et au-dessus. Linéaire : la note suit les points régulièrement.
+	Preset	Préréglage
+	Preview	Aperçu
+	Put the cursor in this exercise's title	Placer le curseur dans le titre de cet exercice
+	(question not written yet)	(question pas encore écrite)
+	Remove Grading Scale	Supprimer le barème
+	Result	Résultat
+	Shown In	Affiché dans
+	Show this question's settings	Afficher les réglages de cette question
+	Student and teacher copies	Copies élève et enseignant
+	Take the grading scale table out of the document (Undo brings it back)	Retirer le barème du document (Annuler le rétablit)
+	Teacher copy only	Copie enseignant seulement
+	Text next to the number (no title)	Texte à côté du numéro (sans titre)
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Le document n'a pas de barème. Insérez-en un : il convertit les points obtenus en note.
+	The most points this question gives; empty: not scored	Le maximum de points de cette question ; vide : sans points
+	The scores table's grand total, else the questions' points added up	Le total du tableau des points, sinon la somme des points des questions
+	Type	Type
+	Write the options in the exercise: each line under the question is one.	Écrivez les options dans l'exercice : chaque ligne sous la question en est une.
+	Grading Scale Properties	Propriétés du barème
+	Title Line	Ligne de titre
+	The result line is generated from the working: write the working in the space above it.	La ligne de résultat est générée à partir du calcul : écrivez le calcul dans l'espace au-dessus.

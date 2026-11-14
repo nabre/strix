@@ -29,6 +29,25 @@ of everything (deleting a selection, Cut, Backspace, also over several paragraph
 paragraph again and shows its placeholder; typing over it replaces it. A question removed leaves
 no blank line behind in the solution.
 
+**Typing stays in the fields.** A caret beside a field (before a question's text, between it and
+its points, after the points, before the title, before an option's box) types into the nearest
+field, so no text lands outside one; a calculation's result line is generated whole and takes no
+typing (`cmd/exercise/guard.rs`).
+
+**Exercises never nest.** A new exercise goes after the exercise at the cursor (before the
+results summary); pasting or inserting content that holds an exercise (Paste, Exercise Bank ›
+Insert Copy) with the cursor in an exercise puts it on a new paragraph right after that exercise.
+
+### Title line
+
+The first line holds, after the number, either a **title** (bold, the default) or the
+**statement itself, with no title** (`exercise.titleLine {"line": "statement"}`, Exercise
+Properties › General › First line, or `exercise.insert {"titleLine": "statement"}`): the text
+written right after *Esercizio 1.* in the body text's weight and size (`Esercizio 1.` Calcola la
+velocità media…), its placeholder the question's (*Scrivi qui la domanda.*) in a quiz, the
+statement's in a problem. The number keeps the title's look. Kept on the title control
+(`<strix:titleLine val="statement"/>`, Word ignores it); switching back to a title keeps the text.
+
 Only paragraphs in the Exercise Question style are questions: the repeated questions and the
 summary use their labels (`a.1) …`), indented by level; notes and other content between them
 are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
@@ -218,6 +237,9 @@ The parts can't be deleted one by one, so an exercise goes **whole**:
   All) takes the exercise with its control markers. Click the exercise's **Esercizio** tab (at
   the right above the title, shown with the cursor anywhere in the exercise) to select all of it.
 
+- **Exercise Properties**: **Delete** next to the exercise's name, and in a series the Series
+  tab lists every exercise with **Go to** and a bin to delete that one.
+
 The exercise goes in one undo step; an empty paragraph stays where it was (with Delete
 Exercise), text sharing its first or last paragraph stays, and a deletion starting at the
 title's paragraph leaves the next paragraph as it was (no exercise style left behind). The
@@ -300,10 +322,21 @@ dots to fill in by hand (`/ ..... pt`). Total Score again (`"on": false`) remove
 The **Teaching** tab (Didattica) gathers what is for teaching: the Exercise group (New Exercise,
 questions and notes, Result Of, Show, Frontispiece, Properties, Delete Exercise), the Scores group
 (Scores Table, Add Criterion, Remove Criterion, Grading Scale, Total Score) and Graph Paper (also in Insert › Pages).
+Inline Expression is no longer on the ribbon (`exercise.insertExpr` stays for scripts and
+`{{expr}}` templates).
 
 ## Data and variants (Exercise Properties pane)
 
-Teaching › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret:
+Teaching › Exercise › Properties opens the **Exercise Properties** pane for the exercise at the caret.
+It reads top to bottom: the exercise's name and kind with **Delete**; **General** (first line:
+title or text next to the number; duration); **Questions**, a compact list (label, text, type,
+points) with the settings of **one question at a time** under it — the one the cursor is in,
+until another row is clicked: its type and points, then what its type has (answer space height,
+squared, square size; correct options as check boxes with their text, shuffling, teacher notes;
+a calculation's result, Go to working and tolerance; a drawing's scale and Open in CAD editor;
+matching pairs) — and **+ Add Question** with the type to add; then **Variants & Data** and
+**Layout** (parts shown, page breaks, frontispiece) folded. In a series the **Series** tab lists
+the exercises (Go to, delete), the numbering, and the series' layout, folded.
 
 - **Data**: rows of symbol, description, value and unit (`L`, luce, 4.5, m). They are the first
   parameters of the exercise's sandbox, so the solution uses `L` without defining it; each row
@@ -376,6 +409,7 @@ to the end.
 
 ## Grading scale (`strix:grading`), variant generator, pre-flight check & assessment pack
 
+- **Grading Scale Properties** (`Teaching › Scores › Grading Scale › Grading Scale Properties`, `view.gradingPane`): a pane with every property — preset, lowest and highest grade, rounding of grades, curve, pass threshold (%) and pass grade, maximum points from the document's points or fixed, a row every n points, who sees it — and a preview of the scale (pass grades green); Insert or Remove the table. Each change is one `exercise.grading`.
 - **Grading Scale** (`Teaching › Scores › Grading Scale`, `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, rounding step (`0.1`, `0.25`, `0.5`, `1.0`), and `visibility` (`"teacher"` or `"both"`).
 - **Continuous validation across all variants** (`exercise.data` `"variantErrors"`): evaluates every variant `A..Z` in memory (sandbox calculations, CAD `Drawing::resolve` and degenerate geometry, and duplicate evaluated multiple-choice options) without mutating the document, showing `⚠` badges and tooltips on variant buttons in Exercise Properties.
 - **Controlled variant generator** (`exercise.generateVariants`, Exercise Properties › *Generate Variants…*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
@@ -401,6 +435,8 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
+
+- 2026-11-14: Exercise Properties reorganised (General, compact question list with one question's settings at a time, folded Variants & Data and Layout, Delete and the Series tab's exercise list); Grading Scale Properties pane (`view.gradingPane`); title line holding the statement next to the number (`exercise.titleLine`); typing beside a field goes into it, the result line takes none; pasted exercises never nest; Inline Expression off the ribbon.
 
 - 2026-11-13: Phase 3 — Grading Scale (`exercise.grading`, `strix:grading`), continuous validation across all variants (`variantErrors`), controlled variant generator (`exercise.generateVariants`), inline parametric expressions (`exercise.insertExpr`, `strix:expr`), pre-flight Assessment Check (`exercise.check`, `view.checkPane`), and Assessment Pack batch export (`file.exportPack`).
 - 2026-11-13: quizzes expose Variants & Data in Exercise Properties and insert/hide `strix:exercise.data` (`showData` toggle); `exercise.questionMode` converts quiz modes in place; `exercise.questionPoints` sets points on problem questions too, feeding the scores table's first criterion; a 1×1 scores table keeps its Total row.
