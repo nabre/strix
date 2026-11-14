@@ -649,9 +649,6 @@ Page",
                 let _ = app.run("cad.padding", json!({"value": v}));
             }
             ui.end_row();
-            ui.label(tl!("Unit"));
-            ui.label(d.unit.symbol());
-            ui.end_row();
         });
     });
     alt_text_group(ui, app);

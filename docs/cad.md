@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-12 · **Change:** the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-14 · **Change:** every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -34,12 +34,17 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
 - **Input unit** (`input`: `mm`, `cm` or `m`; Properties with nothing selected › Input unit,
-  `ui.cadInputUnit`): the unit numbers typed in the editor are read in — the command line's
-  points (`x,y`, `@dx,dy`, `@d<a`, direct distances), radii and diameters, and the Offset,
-  Fillet and Chamfer distances — converted to the drawing's unit (`unit`); left out, the
-  drawing's own. A value written with its unit is read in that (`2.5m`, `@300mm<45`,
-  `120cm;2m`; `strix_cad::parse_point_in`, `parse_length`). Angles, factors and counts are not
-  lengths. The status bar shows it (`Unit: mm · input m`).
+  CAD Annotate › Units, `ui.cadInputUnit`): the one unit the user sees. The drawing's own unit
+  (millimetres in the editor) is an internal convention, never shown: every length is shown and
+  typed in the input unit — the command line's points (`x,y`, `@dx,dy`, `@d<a`, direct
+  distances), radii and diameters, the Offset, Fillet and Chamfer distances, the Properties
+  pane's coordinates, radii, lengths, diameters and scaled distances (`Drawing::fields_typed`,
+  `set_field_typed`; `ui.cadProps` the same), the status line's coordinates and distances, the
+  dimension overlay's scaled size and a new block's size — converted to and from the drawing's
+  unit (`unit`); left out, the drawing's own. A value written with its unit is read in that
+  (`2.5m`, `@300mm<45`, `120cm;2m`; `strix_cad::parse_point_in`, `parse_length`). Expressions
+  (`L/2`) are kept as written. Angles, factors, counts and paper sizes (mm) are not lengths. The
+  status line shows it (`Unit: m`).
 - **Dimension style defaults** (ISO 129 / ISO 128 practice): text 2.5 mm, thin lines 0.18 mm
   (`lineWidth`; a dimension's own stroke width wins), ticks 3 mm drawn heavier (about 0.5 mm),
   extension lines from 1 mm off the object to 2 mm past the dimension line, and with ticks or
@@ -90,7 +95,7 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   `offsetUnits` / `rPaper` out). Scale multiplies the scaled parts only. The style's **Scaled
   distances** (`dimStyle.scaled`, off by default) says which part a click or a grip places: on
   paper, or in the drawing; the other part is kept. Properties shows both, as **Scaled
-  distance** (drawing units) and **Annotative distance** (paper mm) — an angle's **Scaled
+  distance** (input unit) and **Annotative distance** (paper mm) — an angle's **Scaled
   radius** and **Annotative radius** — each marked with its overlay colour and explained on
   hover.
 - **The parts on screen** (editor only: never printed, exported or in the SVG picture): for the
@@ -334,7 +339,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
    an arc bends through the point), point and text position (and a text's four box corners, which
-   move it), dimension ends and line (distance). A selected hatch (a solid fill too) or strip
+   move it), dimension ends and line (distance), and the blue reference between a dimension's
+   (or angle's) scaled and annotative parts, in the middle of the stretches (`Grip::Reference`):
+   dragging it moves the boundary, the dimension line or arc staying put (the annotative part
+   within ±500 mm, never negative for an angle). A selected hatch (a solid fill too) or strip
    shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
    reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
    its boundaries along.
@@ -568,6 +576,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    the pointer until the click. At most `MAX_BLOCKS` (256) blocks, holding the drawing's entity
    limit together; nested blocks are kept as their objects; an array of insertions is a plain
    group.
+   **Lineweights on screen**: the sheet draws every line at its width on paper at the current
+   zoom (`stroke_px`: a 0.5 mm line is twice a 0.25 mm one, as it prints), a 0.5 pt hairline at
+   the thinnest.
    **Line samples** in the panes and menus (linetype, lineweight, a layer's preview) are drawn on
    the sheet's white, as on paper, so a black line reads in the dark theme too.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
@@ -607,6 +618,8 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-14: the input unit is the only unit shown: the Properties pane (coordinates, radii, lengths, scaled distances), `ui.cadProps`, the status line, the dimension overlay and a new block's size show and read lengths in it (`Drawing::fields_typed`, `set_field_typed`); the drawing's own unit (mm) is no longer shown (the Unit rows of the Properties pane and the Picture tab are gone, Input unit offers mm, cm, m).
+- 2026-11-14: a grip on the reference between a dimension's scaled and annotative parts (`Grip::Reference`, the line or arc staying put); the editor draws lines at their paper width at the zoom (it showed every lineweight about the same).
 - 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
 - 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
 - 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.

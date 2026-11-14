@@ -328,22 +328,14 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                     rename = Some(t);
                 }
                 ui.end_row();
-                // The drawing's unit: drawings are drawn in millimetres; what is typed (Input
-                // unit) and how sizes are shown (the dimension styles) are the choices.
-                ui.label(tl!("Unit")).on_hover_text(tl!("What one unit of the coordinates measures"));
-                ui.label(d.unit.symbol());
-                ui.end_row();
-                // The unit typed values are read in (the command line's points and distances).
-                ui.label(tl!("Input unit"));
-                let now = d.input.filter(|u| *u != d.unit);
-                let shown = now.map_or_else(|| format!("{} ({})", tl!("Drawing unit"), d.unit.symbol()), |u| u.symbol().to_string());
-                craft_ui::ComboBox::from_id_salt("cad_input_unit").selected_text(shown).show_ui(ui, |ui| {
-                    for (u, word) in
-                        [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
-                    {
-                        let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                        if ui.selectable_label(now == u, label).clicked() {
-                            input_unit = Some(word);
+                // The unit every length is shown and typed in (fields, properties, the command
+                // line). The drawing's own unit is an internal convention, never shown.
+                ui.label(tl!("Input unit")).on_hover_text(tl!("The unit lengths are shown and typed in"));
+                let now = strix_cad::Units::of(d).input;
+                craft_ui::ComboBox::from_id_salt("cad_input_unit").selected_text(now.symbol()).show_ui(ui, |ui| {
+                    for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                        if ui.selectable_label(now == u, u.symbol()).clicked() {
+                            input_unit = Some(u.symbol());
                         }
                     }
                 });
@@ -536,7 +528,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
     // Geometry of one object.
     if let [i] = idx.as_slice() {
         let i = *i;
-        let unit = ed.drawing.unit.symbol();
+        let unit = strix_cad::Units::of(&ed.drawing).input.symbol();
         ui.add_space(4.0);
         ui.label(RichText::new(tl!("Geometry")).strong());
         if let Some(strix_cad::Kind::Polyline { pts, .. }) = ed.drawing.entities.get(i).map(|e| &e.kind) {
@@ -555,7 +547,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         let id = ed.drawing.entities.get(i).map(|e| e.id.clone()).unwrap_or_default();
         let kind = ed.drawing.entities.get(i).map(|e| e.kind.clone());
         crate::rtl::grid(ui, egui::Grid::new("cad_geometry").num_columns(3).spacing(vec2(6.0, 4.0)), |ui| {
-            for f in ed.drawing.fields(i, ed.vertex) {
+            for f in ed.drawing.fields_typed(i, ed.vertex) {
                 // A dimension's scaled and annotative parts: marked in the sheet overlay's colours.
                 match kind.as_ref().and_then(|k| crate::cad_dim_parts::field_part(k, &f.key)) {
                     Some((c, hint)) => {
@@ -607,15 +599,15 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     _ => text_field(ui, ui.scope_id().with(("cad_field", &id, &f.key, ed.vertex)), &f.text, 120.0, typing),
                 };
                 let suffix = match (f.kind, f.key.as_str()) {
+                    _ if f.is_length() => unit,
                     (FieldKind::Angle, _) | (FieldKind::Derived, "angle" | "rotation") => "°",
-                    (FieldKind::Length | FieldKind::Derived, _) => unit,
                     (FieldKind::Paper, _) => "mm",
                     _ => "",
                 };
                 ui.label(RichText::new(suffix).weak());
                 ui.end_row();
                 if let Some(v) = new {
-                    match d.set_field(i, ed.vertex, &f.key, &v) {
+                    match d.set_field_typed(i, ed.vertex, &f.key, &v) {
                         Ok(()) => {
                             changed = true;
                             ed.message.clear();
@@ -626,6 +618,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             }
         });
         ui.label(RichText::new(tl!("Coordinates take a number or an expression of the calculations (L/2)")).weak().small());
+        ui.label(RichText::new(crate::i18n::fmt(tl!("Lengths in {unit} (or with their own unit: 2.5m, 30cm)"), &[("unit", unit)])).weak().small());
     }
     changed.then_some(d)
 }

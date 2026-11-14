@@ -1222,13 +1222,13 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         }
         "ui.cadProps" => {
             // A property of the selected object: {"field", "value", "vertex"?}; with no field,
-            // the object's fields.
+            // the object's fields. Lengths in the input unit, as the Properties pane shows them.
             let Some(ed) = app.cad.as_ref() else { return Ok(json!({})) };
             let &[i] = ed.selection.as_slice() else { return Err("select one object".into()) };
             let vertex = p.get("vertex").and_then(serde_json::Value::as_u64).map_or(ed.vertex, |v| v.min(1 << 20) as usize);
             let Some(field) = p.get("field").and_then(serde_json::Value::as_str) else {
                 let fields: Vec<serde_json::Value> =
-                    ed.drawing.fields(i, vertex).into_iter().map(|f| json!({"field": f.key, "label": f.label, "value": f.text})).collect();
+                    ed.drawing.fields_typed(i, vertex).into_iter().map(|f| json!({"field": f.key, "label": f.label, "value": f.text})).collect();
                 return Ok(json!({"fields": fields}));
             };
             let value = match p.get("value") {
@@ -1238,7 +1238,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 _ => return Err("value: a number, an expression or a text".into()),
             };
             let mut d = ed.drawing.clone();
-            d.set_field(i, vertex, field, &value)?;
+            d.set_field_typed(i, vertex, field, &value)?;
             commit(app, &d);
         }
         "ui.cadSnapOnce" => {
@@ -2449,18 +2449,20 @@ fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>
         prompt = format!("{}   [{}]", prompt, ed.found);
     }
     let hover_prompt = prompt.clone();
-    let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", p.x, p.y)).unwrap_or_default();
+    // Lengths in the input unit (the drawing's own unit is internal).
+    let units = strix_cad::Units::of(&ed.drawing);
+    let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", units.shown(p.x), units.shown(p.y))).unwrap_or_default();
     // From the base point: distance, angle (exact, from the kernel), Δx, Δy.
     if let (Some(b), Some(p)) = (base, cursor) {
         let v = p.minus(b);
         coords = format!(
             "{} {:.4}  {} {:.4}°  Δx {:.4}  Δy {:.4}   {coords}",
             tl!("Distance"),
-            v.len(),
+            units.shown(v.len()),
             tl!("Angle"),
             kernel::deg(kernel::direction(v)),
-            v.x,
-            v.y
+            units.shown(v.x),
+            units.shown(v.y)
         );
     }
     // The flags at the right; the prompt in the space left, cut short if it must be.
@@ -2499,11 +2501,8 @@ fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>
                     tl!("Layer:"),
                     ed.current_layer,
                     tl!("Unit:"),
-                    // The unit typed values are read in, when it is not the drawing's.
-                    match ed.drawing.input.filter(|u| *u != ed.drawing.unit) {
-                        Some(u) => format!("{} · {} {}", ed.drawing.unit.symbol(), tl!("input"), u.symbol()),
-                        None => ed.drawing.unit.symbol().to_string(),
-                    }
+                    // The unit lengths are shown and typed in (the drawing's own is internal).
+                    strix_cad::Units::of(&ed.drawing).input.symbol()
                 ))
                 .weak(),
             );
@@ -2817,7 +2816,7 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
             }
             // A dimension's distance as it would become, in its scaled and annotative parts.
             if let Some(parts) = ghost.dim_parts(e) {
-                cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ghost.unit.symbol());
+                cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ghost));
             }
         }
     }
@@ -2835,7 +2834,7 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
             }
         }
         if let Some(parts) = ed.drawing.dim_parts(&e) {
-            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ed.drawing));
         }
     }
     // Rubber band from the last point.
@@ -3007,6 +3006,15 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
     }
 }
 
+/// A line's width on the screen, points, from its width on paper (mm) and the screen points a
+/// paper mm takes: true to the page at every zoom, as it prints, a hairline at the thinnest so
+/// a far-off line still shows, and never wider than a lot of the screen.
+fn stroke_px(width_mm: f64, px_per_mm: f64) -> f32 {
+    const HAIRLINE: f32 = 0.5;
+    let px = (width_mm * px_per_mm) as f32;
+    if px.is_finite() { px.clamp(HAIRLINE, 200.0) } else { HAIRLINE }
+}
+
 /// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
 fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, unit: Color32) {
     let k = if rd.scale > 0.0 { rd.scale } else { 1.0 };
@@ -3014,7 +3022,7 @@ fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, un
         match prim {
             Prim::Path { pts, color, width, fill, .. } => {
                 let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(rd, *q));
-                let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
+                let stroke = Stroke::new(stroke_px(*width, zoom / k), rgb(*color));
                 if *fill {
                     painter.add(Shape::convex_polygon(pts.iter().map(to_screen).collect(), rgb(*color), stroke));
                 } else {
@@ -3092,7 +3100,7 @@ fn paint_dim_parts(ed: &CadEditor, painter: &egui::Painter, view: View, previewi
             continue;
         }
         if let Some(parts) = ed.drawing.entities.get(i).and_then(|e| ed.drawing.dim_parts(e)) {
-            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ed.drawing));
         }
     }
 }
@@ -4325,21 +4333,18 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
     layers_group(app, ui);
 }
 
-/// The unit typed values are read in (drawings are drawn in millimetres).
+/// The unit every length is shown and typed in (the drawing's own unit, millimetres, is an
+/// internal convention the user never sees).
 fn units_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::group;
-    let Some((unit, input)) = app.cad.as_ref().map(|e| (e.drawing.unit, e.drawing.input)) else { return };
+    let Some(input) = app.cad.as_ref().map(|e| strix_cad::Units::of(&e.drawing).input) else { return };
     group(ui, "Units", None, app, |ui, app| {
         field_grid(ui, "cad_units", |ui| {
-            ui.label(tl!("Input unit"));
-            let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
-            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
-                for (u, word) in
-                    [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
-                {
-                    let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                    if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
-                        let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
+            ui.label(tl!("Input unit")).on_hover_text(tl!("The unit lengths are shown and typed in"));
+            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(input.symbol()).width(FIELD_W).show_ui(ui, |ui| {
+                for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                    if ui.selectable_label(input == u, u.symbol()).clicked() {
+                        let _ = app.run("ui.cadInputUnit", json!({"unit": u.symbol()}));
                     }
                 }
             });
@@ -4482,6 +4487,17 @@ mod tests {
         app.cad.as_ref().map_or(0, |e| e.drawing.entities.len())
     }
 
+    /// Lines show their paper width at the zoom (a 0.5 mm line at 4 points a mm is 2 points,
+    /// twice a 0.25 mm one), a hairline at the thinnest, never NaN.
+    #[test]
+    fn lines_show_their_width_on_paper() {
+        assert_eq!(stroke_px(0.5, 4.0), 2.0);
+        assert_eq!(stroke_px(0.25, 4.0), 1.0);
+        assert_eq!(stroke_px(0.13, 1.0), 0.5);
+        assert_eq!(stroke_px(f64::NAN, 4.0), 0.5);
+        assert_eq!(stroke_px(2.0, 1e9), 200.0);
+    }
+
     #[test]
     fn drawing_in_the_editor_is_saved_and_undone_in_the_document() {
         let mut app = app_with_drawing();
@@ -4589,6 +4605,21 @@ mod tests {
         ed.set_tool(Tool::Rotate);
         ed.points = vec![Pt::new(0.0, 0.0)];
         assert!(typed_value(ed, "90").is_some_and(|d| d.is_some()));
+        // The properties too: shown and typed in the input unit, stored in mm.
+        let ed = app.cad.as_mut().unwrap();
+        ed.points.clear();
+        ed.set_tool(Tool::Select);
+        let mut d = ed.drawing.clone();
+        d.entities.push(strix_cad::Entity::new(strix_cad::Kind::Line { a: strix_cad::P::new(0.0, 0.0), b: strix_cad::P::new(10.0, 0.0) }));
+        let last = d.entities.len() - 1;
+        commit(&mut app, &d);
+        app.cad.as_mut().unwrap().selection = vec![last];
+        app.run("ui.cadProps", json!({"field": "ax", "value": "1.5"})).unwrap();
+        let fields = app.run("ui.cadProps", json!({})).unwrap();
+        let ax = fields["fields"].as_array().unwrap().iter().find(|f| f["field"] == "ax").unwrap();
+        assert_eq!(ax["value"], json!("1.5"), "{fields}");
+        let d = &app.cad.as_ref().unwrap().drawing;
+        assert_eq!(d.fields(last, 0).into_iter().find(|f| f.key == "ax").unwrap().text, "1500");
         assert!(app.run("ui.cadInputUnit", json!({"unit": "inch"})).is_err());
         app.run("ui.cadInputUnit", json!({"unit": "drawing"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.input, None);
