@@ -1,7 +1,7 @@
 # Dependency checks with cargo-deny (deny.toml): licenses, sources, bans and RustSec advisories of
 # everything in Cargo.lock. Runs when the dependencies or the rules change, and weekly for newly
-# published advisories. Advisories don't fail the run: a new advisory against an existing
-# dependency shouldn't block unrelated work; it shows as a failed step to look at.
+# published advisories. Every check blocks, advisories and yanked versions included: an advisory that
+# doesn't reach Strix is ignored in deny.toml with its reason, never by letting the job fail.
 name: Dependencies
 
 on:
@@ -30,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         checks: [licenses bans sources, advisories]
-    continue-on-error: ${{ matrix.checks == 'advisories' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
