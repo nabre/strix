@@ -3007,6 +3007,15 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
     }
 }
 
+/// A line's width on the screen, points, from its width on paper (mm) and the screen points a
+/// paper mm takes: true to the page at every zoom, as it prints, a hairline at the thinnest so
+/// a far-off line still shows, and never wider than a lot of the screen.
+fn stroke_px(width_mm: f64, px_per_mm: f64) -> f32 {
+    const HAIRLINE: f32 = 0.5;
+    let px = (width_mm * px_per_mm) as f32;
+    if px.is_finite() { px.clamp(HAIRLINE, 200.0) } else { HAIRLINE }
+}
+
 /// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
 fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, unit: Color32) {
     let k = if rd.scale > 0.0 { rd.scale } else { 1.0 };
@@ -3014,7 +3023,7 @@ fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, un
         match prim {
             Prim::Path { pts, color, width, fill, .. } => {
                 let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(rd, *q));
-                let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
+                let stroke = Stroke::new(stroke_px(*width, zoom / k), rgb(*color));
                 if *fill {
                     painter.add(Shape::convex_polygon(pts.iter().map(to_screen).collect(), rgb(*color), stroke));
                 } else {
@@ -4480,6 +4489,17 @@ mod tests {
 
     fn entities(app: &WordApp) -> usize {
         app.cad.as_ref().map_or(0, |e| e.drawing.entities.len())
+    }
+
+    /// Lines show their paper width at the zoom (a 0.5 mm line at 4 points a mm is 2 points,
+    /// twice a 0.25 mm one), a hairline at the thinnest, never NaN.
+    #[test]
+    fn lines_show_their_width_on_paper() {
+        assert_eq!(stroke_px(0.5, 4.0), 2.0);
+        assert_eq!(stroke_px(0.25, 4.0), 1.0);
+        assert_eq!(stroke_px(0.13, 1.0), 0.5);
+        assert_eq!(stroke_px(f64::NAN, 4.0), 0.5);
+        assert_eq!(stroke_px(2.0, 1e9), 200.0);
     }
 
     #[test]

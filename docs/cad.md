@@ -334,7 +334,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
    an arc bends through the point), point and text position (and a text's four box corners, which
-   move it), dimension ends and line (distance). A selected hatch (a solid fill too) or strip
+   move it), dimension ends and line (distance), and the blue reference between a dimension's
+   (or angle's) scaled and annotative parts, in the middle of the stretches (`Grip::Reference`):
+   dragging it moves the boundary, the dimension line or arc staying put (the annotative part
+   within ±500 mm, never negative for an angle). A selected hatch (a solid fill too) or strip
    shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
    reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
    its boundaries along.
@@ -568,6 +571,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    the pointer until the click. At most `MAX_BLOCKS` (256) blocks, holding the drawing's entity
    limit together; nested blocks are kept as their objects; an array of insertions is a plain
    group.
+   **Lineweights on screen**: the sheet draws every line at its width on paper at the current
+   zoom (`stroke_px`: a 0.5 mm line is twice a 0.25 mm one, as it prints), a 0.5 pt hairline at
+   the thinnest.
    **Line samples** in the panes and menus (linetype, lineweight, a layer's preview) are drawn on
    the sheet's white, as on paper, so a black line reads in the dark theme too.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
@@ -607,6 +613,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-14: a grip on the reference between a dimension's scaled and annotative parts (`Grip::Reference`, the line or arc staying put); the editor draws lines at their paper width at the zoom (it showed every lineweight about the same).
 - 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
 - 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
 - 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.

@@ -260,6 +260,38 @@ fn scaled_and_annotative_parts() {
     assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.scaled);
 }
 
+/// The reference between the two parts has its own grip, in the middle of the stretches: dragging
+/// it moves the boundary, the dimension line (arc) staying where it is.
+#[test]
+fn the_reference_grip_moves_the_boundary_between_the_parts() {
+    let mut d = Drawing::from_json(SCALED_AND_PAPER).unwrap();
+    let reference = |d: &Drawing, i: usize| d.grips(i).into_iter().find(|(g, _)| *g == Grip::Reference).unwrap().1;
+    // 500 units up, in the middle of the dimension.
+    assert!(reference(&d, 0).minus(Pt::new(500.0, 500.0)).len() < 1e-9, "{:?}", reference(&d, 0));
+    // Down to 300 units: the 200 units left go on paper (4 mm at 1:50), the line stays at 14 mm.
+    assert!(d.move_grip(0, Grip::Reference, Pt::new(123.0, 300.0)));
+    assert!(
+        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 8.0).abs() < 1e-9 && (offset_units - 300.0).abs() < 1e-9)
+    );
+    assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
+    // Past the line the paper part goes negative; it never passes 500 mm.
+    assert!(d.move_grip(0, Grip::Reference, Pt::new(500.0, 1e6)));
+    assert!(matches!(d.entities[0].kind, Kind::Dim { offset, .. } if offset == -500.0));
+    assert!((line(&d) - 14.0).abs() < 1e-9, "{}", line(&d));
+    // The angle: 250 units along the bisector of an arc 400 units out.
+    let (s, c) = std::f64::consts::FRAC_PI_4.sin_cos();
+    assert!(reference(&d, 1).minus(Pt::new(250.0 * c, 250.0 * s)).len() < 1e-9);
+    assert!(d.move_grip(1, Grip::Reference, Pt::new(100.0 * c, 100.0 * s)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 100.0).abs() < 1e-9 && (r_paper - 6.0).abs() < 1e-9));
+    // Past the arc it stops on it: no negative paper part for an angle.
+    assert!(d.move_grip(1, Grip::Reference, Pt::new(1000.0, 1000.0)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 400.0).abs() < 1e-9 && r_paper.abs() < 1e-9));
+    assert!((arc_reach(&d) - 8.0).abs() < 0.02, "{}", arc_reach(&d));
+    // Hostile points change nothing.
+    assert!(!d.move_grip(0, Grip::Reference, Pt::new(f64::NAN, 0.0)));
+    assert!(!d.move_grip(2, Grip::Reference, Pt::new(0.0, 0.0)));
+}
+
 /// The Properties of a dimension and an angle with both parts: JSON writes the new keys only
 /// when set, and an arc may be paper-only but not zero in all.
 #[test]

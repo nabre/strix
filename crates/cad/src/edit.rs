@@ -464,6 +464,9 @@ pub enum Grip {
     Corner(u8),
     /// A dimension's line: changes its distance from the measured points.
     DimLine,
+    /// The reference at a dimension's (or angle's) scaled distance, the boundary between its
+    /// scaled and annotative parts: moves it, the dimension line (arc) staying where it is.
+    Reference,
     /// A dimension's or level mark's text: moves it anywhere (its text shift).
     Text,
 }
@@ -562,6 +565,7 @@ impl Drawing {
                 let at = if units >= 0.0 { level(pa).max(level(pb)) + units } else { level(pa).min(level(pb)) + units };
                 let m = mid(pa, pb);
                 let mut out = vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))];
+                out.extend(self.dim_parts(e).map(|parts| (Grip::Reference, parts.scaled[1])));
                 out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
                 out
             }
@@ -571,7 +575,10 @@ impl Drawing {
                 let (ua, ub) = (pa.minus(pc).unit(), pb.minus(pc).unit());
                 let half = crate::kernel::direction(ua) + crate::kernel::angle_ccw(ua, ub) / 2.0;
                 let reach = r + r_paper / paper_per_unit(self);
-                vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(reach)))]
+                let mut out =
+                    vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(reach)))];
+                out.extend(self.dim_parts(e).map(|parts| (Grip::Reference, parts.scaled[1])));
+                out
             }
         }
     }
@@ -606,6 +613,9 @@ impl Drawing {
             Some(Kind::Dim { a, b, orient, .. }) => dim_offset(self, a.pt(), b.pt(), *orient, to),
             _ => 0.0,
         };
+        if g == Grip::Reference {
+            return self.move_reference(i, to);
+        }
         let Some(e) = self.entities.get_mut(i) else { return false };
         let tiny = crate::kernel::RESOLUTION;
         match (&mut e.kind, g) {
@@ -704,6 +714,54 @@ impl Drawing {
                 }
                 *offset_units = new_units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
                 *offset = new_offset.clamp(-500.0, 500.0);
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// Dimension (or angle) `i`'s reference, the boundary between its scaled and annotative
+    /// parts, taken to `to`: the scaled part becomes the distance (radius) up to it and the
+    /// annotative part the rest, so the dimension line (arc) stays put. The annotative part keeps
+    /// within its range (±500 paper mm, never negative for an angle), the scaled part takes the
+    /// difference.
+    fn move_reference(&mut self, i: usize, to: Pt) -> bool {
+        let k = paper_per_unit(self);
+        let Some(e) = self.entities.get(i) else { return false };
+        let Some(parts) = self.dim_parts(e) else { return false };
+        let Some(e) = self.entities.get_mut(i) else { return false };
+        match &mut e.kind {
+            Kind::Dim { a, b, offset, offset_units, orient, .. } => {
+                let n = dim_dir(a.pt(), b.pt(), *orient).left();
+                let level = |q: Pt| q.x * n.x + q.y * n.y;
+                let total = *offset / k + *offset_units;
+                // The distance from where it starts (the farther measured point), which the
+                // whole distance keeps.
+                let units = (level(to) - level(parts.scaled[0])).clamp(total - 500.0 / k, total + 500.0 / k);
+                let paper = (total - units) * k;
+                if !(units.is_finite() && paper.is_finite()) {
+                    return false;
+                }
+                *offset_units = units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
+                *offset = paper.clamp(-500.0, 500.0);
+            }
+            Kind::Angle { r, r_paper, .. } => {
+                // Along the stretches (an angle's bisector, a square's diagonal): `full` reaches
+                // the arc, `reach` drawing units from the vertex.
+                let (c, full) = (parts.scaled[0], parts.annotative[1].minus(parts.scaled[0]));
+                let reach = r.max(0.0) + r_paper.max(0.0) / k;
+                let len2 = full.x * full.x + full.y * full.y;
+                if len2 <= crate::kernel::RESOLUTION * crate::kernel::RESOLUTION || reach <= crate::kernel::RESOLUTION {
+                    return false;
+                }
+                let v = to.minus(c);
+                let nr = (reach * (v.x * full.x + v.y * full.y) / len2).clamp((reach - 500.0 / k).max(0.0), reach);
+                let np = (reach - nr) * k;
+                if !(nr.is_finite() && np.is_finite()) {
+                    return false;
+                }
+                *r = nr;
+                *r_paper = np.clamp(0.0, 500.0);
             }
             _ => return false,
         }
