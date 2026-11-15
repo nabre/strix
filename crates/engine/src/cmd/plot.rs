@@ -9,13 +9,15 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use strix_plot::{DEFAULT_COLORS, Plot, PlotAnchor, PlotPrim, PlotRendered, RegressionKind, Series, SeriesKind};
+use strix_plot::{AngleConvention, AngleUnit, DEFAULT_COLORS, Plot, PlotAnchor, PlotPrim, PlotRendered, RegressionKind, Series, SeriesKind};
 use wordcraft_doc::InlineObject;
 use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, PathSeg, TextAlign};
 use wordcraft_doc::para::Float;
 use wordcraft_doc::props::Rgb;
 
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
+
+mod analysis;
 
 const PT_PER_MM: f32 = 72.0 / 25.4;
 const MAX_ITEMS: usize = 20_000;
@@ -25,15 +27,18 @@ pub fn specs() -> Vec<CommandSpec> {
     let selected = |s: &Session| if is_selected(s) { None } else { Some("select a plot first") };
     vec![
         CommandSpec::new("plot.insert", "Plot", "Math › Drawing", insert).params(
-            r#"{"plot"?: object|string, "expr"?: string, "xMin"?: f64, "xMax"?: f64, "yMin"?: f64, "yMax"?: f64, "title"?: string, "xLabel"?: string, "yLabel"?: string, "xUnit"?: string, "yUnit"?: string, "grid"?: bool, "minorGrid"?: bool, "legend"?: bool, "answer"?: bool} → inserts a live mathematical/experimental plot in line at the caret"#,
+            r#"{"plot"?: object|string, "expr"?: string, "xMin"?: f64, "xMax"?: f64, "yMin"?: f64, "yMax"?: f64, "autoRange"?: bool, "title"?: string, "xLabel"?: string, "yLabel"?: string, "xUnit"?: string, "yUnit"?: string, "grid"?: bool, "minorGrid"?: bool, "legend"?: bool, "angles"?: "math"|"survey", "angleUnit"?: "rad"|"deg"|"gon", "angleMark"?: bool, "answer"?: bool} → inserts a live mathematical/experimental plot in line at the caret"#,
         ),
         CommandSpec::new("plot.get", "Plot Source", "Math › Drawing", get)
             .pure()
             .when(selected)
-            .params(r#"→ {"plot": object, "viewport": [x, y, w, h], "notables": [...], "integrals": [...], "regressions": [...], "errors": [...]}"#),
+            .params(r#"→ {"plot": object, "viewport": [x, y, w, h], "range": [xMin, xMax, yMin, yMax], "notables": [...], "integrals": [...], "regressions": [...], "errors": [...]}"#),
         CommandSpec::new("plot.set", "Set Plot", "Math › Drawing", set)
             .when(selected)
-            .params(r#"{"plot"?: object|string, "width"?: mm, "height"?: mm, "xMin"?: f64, "xMax"?: f64, "yMin"?: f64, "yMax"?: f64, "title"?: string, "xLabel"?: string, "yLabel"?: string, "xUnit"?: string, "yUnit"?: string, "grid"?: bool, "minorGrid"?: bool, "legend"?: bool, "answer"?: bool, "series"?: [...]} → updates the selected plot and redraws it"#),
+            .params(r#"{"plot"?: object|string, "width"?: mm, "height"?: mm, "xMin"?: f64, "xMax"?: f64, "yMin"?: f64, "yMax"?: f64, "autoRange"?: bool, "title"?: string, "xLabel"?: string, "yLabel"?: string, "xUnit"?: string, "yUnit"?: string, "grid"?: bool, "minorGrid"?: bool, "legend"?: bool, "angles"?: "math"|"survey", "angleUnit"?: "rad"|"deg"|"gon", "angleMark"?: bool, "answer"?: bool, "series"?: [...]} → updates the selected plot and redraws it"#),
+        CommandSpec::new("plot.analysis", "Insert Analysis", "Math › Drawing", analysis::run)
+            .when(selected)
+            .params(r#"{"labels"?: {"zeros"?: string, "minimum"?: string, "maximum"?: string, "tangent"?: string, "integral"?: string}} → writes after the selected plot live calculations of its functions: definitions, zeros, extrema, tangents and integrals"#),
     ]
 }
 
@@ -58,6 +63,7 @@ pub fn selected_plot_texts(s: &Session) -> Vec<String> {
         match s.kind {
             SeriesKind::Function { expr, var, .. } => out.extend([expr, var]),
             SeriesKind::Parametric { x_expr, y_expr, param, .. } => out.extend([x_expr, y_expr, param]),
+            SeriesKind::Polar { expr, param, .. } => out.extend([expr, param]),
             SeriesKind::Data { x_col, y_col, dx_col, dy_col, .. } => {
                 out.extend([x_col, y_col]);
                 out.extend(dx_col.into_iter().chain(dy_col));
@@ -84,6 +90,7 @@ fn starter_plot() -> Plot {
         color: DEFAULT_COLORS[0],
         width: 0.5,
         dashed: false,
+        style: strix_plot::LineStyle::Solid,
         answer: false,
         kind: SeriesKind::Function {
             expr: "sin(x)".to_string(),
@@ -142,6 +149,7 @@ fn apply_patch(plot: &mut Plot, v: &Value) -> Result<(), CmdError> {
     if let Some(ans) = p::bool(v, "answer") {
         plot.answer = ans;
     }
+    apply_patch_angles(plot, v)?;
     if let Some(series_val) = v.get("series") {
         let parsed: Vec<Series> = serde_json::from_value(series_val.clone()).map_err(|e| CmdError::Params(format!("series: {e}")))?;
         plot.series = parsed;
@@ -151,10 +159,11 @@ fn apply_patch(plot: &mut Plot, v: &Value) -> Result<(), CmdError> {
             color: DEFAULT_COLORS[0],
             width: 0.5,
             dashed: false,
+            style: strix_plot::LineStyle::Solid,
             answer: p::bool(v, "seriesAnswer").unwrap_or(false),
             kind: SeriesKind::Function {
                 expr: expr.to_string(),
-                var: "x".to_string(),
+                var: plot.x_name(),
                 domain: None,
                 roots: p::bool(v, "roots").unwrap_or(false),
                 extrema: p::bool(v, "extrema").unwrap_or(false),
@@ -176,12 +185,37 @@ fn apply_patch(plot: &mut Plot, v: &Value) -> Result<(), CmdError> {
     Ok(())
 }
 
+fn apply_patch_angles(plot: &mut Plot, v: &Value) -> Result<(), CmdError> {
+    if let Some(a) = p::str(v, "angles") {
+        plot.angles = match a.trim() {
+            "math" => AngleConvention::Math,
+            "survey" => AngleConvention::Survey,
+            other => return Err(CmdError::Params(format!("angles: \"{other}\" is not math or survey"))),
+        };
+    }
+    if let Some(u) = p::str(v, "angleUnit") {
+        plot.angle_unit = match u.trim() {
+            "rad" => AngleUnit::Rad,
+            "deg" | "°" => AngleUnit::Deg,
+            "gon" => AngleUnit::Gon,
+            other => return Err(CmdError::Params(format!("angleUnit: \"{other}\" is not rad, deg or gon"))),
+        };
+    }
+    if let Some(a) = p::bool(v, "autoRange") {
+        plot.auto_range = a;
+    }
+    if let Some(m) = p::bool(v, "angleMark") {
+        plot.angle_mark = m;
+    }
+    Ok(())
+}
+
 fn apply_patch_strings(plot: &mut Plot, v: &Value) {
     if let Some(t) = p::str(v, "title") {
         plot.title = t.to_string();
     }
     if let Some(xl) = p::str(v, "xLabel") {
-        plot.x_label = xl.to_string();
+        plot.set_x_label(xl);
     }
     if let Some(yl) = p::str(v, "yLabel") {
         plot.y_label = yl.to_string();
@@ -227,6 +261,7 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
     Ok(json!({
         "plot": plot,
         "viewport": rendered.viewport,
+        "range": rendered.range,
         "notables": rendered.notables,
         "integrals": rendered.integrals,
         "regressions": rendered.regressions,

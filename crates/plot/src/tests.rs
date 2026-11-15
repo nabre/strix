@@ -2,7 +2,7 @@
 
 use strix_calc::{Options, Worksheet};
 
-use crate::{DataPoint, NotableKind, Plot, PlotPrim, RegressionKind, Series, SeriesKind};
+use crate::{AngleConvention, AngleUnit, DataPoint, NotableKind, Plot, PlotPrim, RegressionKind, Series, SeriesKind};
 
 #[test]
 fn poles_and_asymptotes_split_without_vertical_jump_lines() {
@@ -221,4 +221,216 @@ fn student_teacher_dual_mode_preserves_exact_bounds_and_axes() {
     plot.x_min = f64::INFINITY;
     let safe = plot.sanitized().render_for(None, false);
     assert_eq!(safe.size.0, 120.0);
+}
+
+#[test]
+fn renaming_the_abscissa_renames_the_function_variable() {
+    let mut plot = Plot {
+        series: vec![Series {
+            kind: SeriesKind::Function {
+                expr: "2x + exp(x) - x_1".into(),
+                var: "x".into(),
+                domain: None,
+                roots: false,
+                extrema: false,
+                tangent_at: None,
+                integral: None,
+            },
+            label: "f(x)".into(),
+            ..Series::default()
+        }],
+        ..Plot::default()
+    };
+    plot.set_x_label("E");
+    assert_eq!(plot.series[0].label, "f(E)");
+    assert_eq!(plot.x_name(), "E");
+    let SeriesKind::Function { expr, var, .. } = &plot.series[0].kind else { panic!("function expected") };
+    assert_eq!(var, "E");
+    assert_eq!(expr, "2E + exp(E) - x_1");
+    // A label that is no name (`Tempo (s)`) leaves the variable `x`... of the old name `E`.
+    plot.set_x_label("Tempo (s)");
+    assert_eq!(plot.x_name(), "x");
+    let SeriesKind::Function { var, .. } = &plot.series[0].kind else { panic!("function expected") };
+    assert_eq!(var, "x");
+}
+
+fn polar_plot(angles: AngleConvention, unit: AngleUnit, theta: Option<[f64; 2]>) -> Plot {
+    Plot {
+        angles,
+        angle_unit: unit,
+        series: vec![Series { kind: SeriesKind::Polar { expr: "2".into(), param: "θ".into(), theta }, ..Series::default() }],
+        ..Plot::default()
+    }
+}
+
+/// The ends of the polar curve's first path, back in plot coordinates.
+fn polar_ends(plot: &Plot) -> ((f64, f64), (f64, f64)) {
+    let r = plot.render(None);
+    let [vx, vy, vw, vh] = r.viewport;
+    let to_plot =
+        |(px, py): (f64, f64)| (plot.x_min + (px - vx) / vw * (plot.x_max - plot.x_min), plot.y_max - (py - vy) / vh * (plot.y_max - plot.y_min));
+    let pts = r
+        .prims
+        .iter()
+        .find_map(|p| match p {
+            PlotPrim::Path { pts, stroke: Some((col, _)), .. } if *col == plot.series[0].color && pts.len() > 10 => Some(pts.clone()),
+            _ => None,
+        })
+        .expect("polar curve drawn");
+    (to_plot(pts[0]), to_plot(*pts.last().expect("points")))
+}
+
+#[test]
+fn polar_curves_follow_the_angle_convention_and_unit() {
+    // Mathematical, radians, a quarter turn: from (2, 0) counter-clockwise to (0, 2).
+    let math = polar_plot(AngleConvention::Math, AngleUnit::Rad, Some([0.0, std::f64::consts::FRAC_PI_2]));
+    let (a, b) = polar_ends(&math);
+    assert!((a.0 - 2.0).abs() < 0.05 && a.1.abs() < 0.05, "{a:?}");
+    assert!(b.0.abs() < 0.05 && (b.1 - 2.0).abs() < 0.05, "{b:?}");
+    // Surveying, gon, 0 to 100 gon: from north (0, 2) clockwise to east (2, 0).
+    let survey = polar_plot(AngleConvention::Survey, AngleUnit::Gon, Some([0.0, 100.0]));
+    let (a, b) = polar_ends(&survey);
+    assert!(a.0.abs() < 0.05 && (a.1 - 2.0).abs() < 0.05, "{a:?}");
+    assert!((b.0 - 2.0).abs() < 0.05 && b.1.abs() < 0.05, "{b:?}");
+    // Degrees: 90° is the same quarter turn as π/2.
+    let deg = polar_plot(AngleConvention::Math, AngleUnit::Deg, Some([0.0, 90.0]));
+    let (_, b) = polar_ends(&deg);
+    assert!(b.0.abs() < 0.05 && (b.1 - 2.0).abs() < 0.05, "{b:?}");
+    // The angle is an angle for calc: `sin(θ)` is right in gon too (ρ = sin θ peaks at 100 gon).
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("k := 1");
+    let mut sine = polar_plot(AngleConvention::Survey, AngleUnit::Gon, Some([100.0, 100.5]));
+    if let SeriesKind::Polar { expr, .. } = &mut sine.series[0].kind {
+        *expr = "sin(θ)".into();
+    }
+    let (a, _) = polar_ends(&sine);
+    assert!((a.0 - 1.0).abs() < 0.05 && a.1.abs() < 0.05, "{a:?}");
+}
+
+#[test]
+fn angle_mark_turns_the_conventions_way() {
+    // The θ inside the arc sits between the reference axis and the way angles turn: up-right of
+    // the origin for both, but nearer the abscissa in mathematics and nearer the ordinate in
+    // surveying.
+    for (angles, nearer_x) in [(AngleConvention::Math, true), (AngleConvention::Survey, false)] {
+        let plot = Plot { angles, angle_mark: true, series: Vec::new(), ..Plot::default() };
+        let r = plot.render(None);
+        let [vx, vy, vw, vh] = r.viewport;
+        let (ox, oy) = (vx + vw * 0.5, vy + vh * 0.5);
+        let theta = r
+            .prims
+            .iter()
+            .find_map(|p| match p {
+                PlotPrim::Text { at, text, .. } if text == "θ" => Some(*at),
+                _ => None,
+            })
+            .expect("θ drawn");
+        let (dx, dy) = (theta.0 - ox, oy - theta.1);
+        assert!(dx > 0.0 && dy > 0.0, "{angles:?}: {dx}, {dy}");
+        assert_eq!(dx > dy, nearer_x, "{angles:?}: {dx}, {dy}");
+    }
+}
+
+#[test]
+fn axis_names_sit_at_the_arrows() {
+    let plot = Plot { x_label: "E".into(), y_label: "N".into(), series: Vec::new(), ..Plot::default() };
+    let r = plot.render(None);
+    let [vx, vy, vw, vh] = r.viewport;
+    let at = |name: &str| {
+        r.prims
+            .iter()
+            .find_map(|p| match p {
+                PlotPrim::Text { at, text, .. } if text == name => Some(*at),
+                _ => None,
+            })
+            .expect("axis name drawn")
+    };
+    let (ex, ey) = at("E");
+    assert!((ex - (vx + vw)).abs() < 2.0 && (ey - (vy + vh * 0.5)).abs() < 3.0, "E by the abscissa's arrow: {ex}, {ey}");
+    let (nx, ny) = at("N");
+    assert!((nx - (vx + vw * 0.5)).abs() < 3.0 && (ny - vy).abs() < 4.0, "N by the ordinate's arrow: {nx}, {ny}");
+    // An axis out of view has its name in the margin under the frame.
+    let off = Plot { y_min: 1.0, y_max: 5.0, ..plot };
+    let r = off.render(None);
+    let e = r.prims.iter().find_map(|p| match p {
+        PlotPrim::Text { at, text, .. } if text == "E" => Some(*at),
+        _ => None,
+    });
+    assert!(e.is_some_and(|(_, y)| y > r.viewport[1] + r.viewport[3]), "{e:?}");
+}
+
+#[test]
+fn automatic_ranges_show_the_analysis() {
+    let plot = Plot {
+        x_min: -1.0,
+        x_max: 1.0,
+        y_min: -1.0,
+        y_max: 1.0,
+        auto_range: true,
+        series: vec![Series {
+            kind: SeriesKind::Function {
+                expr: "x^2 - 4".into(),
+                var: "x".into(),
+                domain: None,
+                roots: false,
+                extrema: false,
+                tangent_at: Some(3.0),
+                integral: Some([-3.0, 0.5]),
+            },
+            ..Series::default()
+        }],
+        ..Plot::default()
+    };
+    let r = plot.render(None);
+    let [x0, x1, y0, y1] = r.range;
+    assert!(x0 <= -3.0 && x1 >= 3.0, "tangent point and integral bound in view: {:?}", r.range);
+    assert!(y0 <= -4.0 && y1 >= 5.0, "minimum −4 and f(3) = 5 in view: {:?}", r.range);
+    assert!(x1 - x0 < 10.0, "not much wider than needed: {:?}", r.range);
+    // Tidy numbers.
+    for v in r.range {
+        assert_eq!(v, (v * 1e6).round() / 1e6, "{v}");
+    }
+    // Nothing to fit: the ranges stay as set.
+    let empty = Plot { auto_range: true, series: Vec::new(), ..Plot::default() };
+    assert_eq!(empty.render(None).range, [-5.0, 5.0, -5.0, 5.0]);
+}
+
+#[test]
+fn legend_shows_each_formula_by_its_colour() {
+    let f = |expr: &str, label: &str, color: [u8; 3]| Series {
+        label: label.into(),
+        color,
+        kind: SeriesKind::Function {
+            expr: expr.into(),
+            var: "x".into(),
+            domain: None,
+            roots: false,
+            extrema: false,
+            tangent_at: None,
+            integral: None,
+        },
+        ..Series::default()
+    };
+    let plot = Plot { legend: true, series: vec![f("x^2", "", [1, 2, 3]), f("2*sin(x)", "f(x)", [4, 5, 6])], ..Plot::default() };
+    let r = plot.render(None);
+    let texts: Vec<&str> = r.prims.iter().filter_map(|p| if let PlotPrim::Text { text, .. } = p { Some(text.as_str()) } else { None }).collect();
+    assert!(texts.contains(&"y = x²"), "{texts:?}");
+    assert!(texts.contains(&"f(x) = 2·sin(x)"), "{texts:?}");
+    // Each entry has a line in its series' colour (the curve's own paths aside: short ones).
+    for col in [[1, 2, 3], [4, 5, 6]] {
+        let swatch = r.prims.iter().any(|p| matches!(p, PlotPrim::Path { pts, stroke: Some((c, _)), .. } if *c == col && pts.len() == 2 && (pts[1].0 - pts[0].0 - 4.6).abs() < 1e-6));
+        assert!(swatch, "legend line in {col:?}");
+    }
+    // Off: no entries.
+    let off = Plot { legend: false, ..plot };
+    assert!(!off.render(None).prims.iter().any(|p| matches!(p, PlotPrim::Text { text, .. } if text == "y = x²")));
+}
+
+#[test]
+fn formulas_read_as_text() {
+    use crate::render::pretty_formula;
+    assert_eq!(pretty_formula("x^2 + 3*x^-1 - x^(1/2)"), "x² + 3·x⁻¹ - x^(1/2)");
+    assert_eq!(pretty_formula("sqrt(x) + sin\u{2061}x"), "√(x) + sinx");
+    assert_eq!(pretty_formula("e^x + 2^10 + x^n"), "e^x + 2¹⁰ + xⁿ");
+    assert_eq!(pretty_formula("x^"), "x^");
 }

@@ -360,6 +360,40 @@ pub(crate) fn sample_parametric(eval: &mut ScalarEval, param: &str, exprs: (&str
     branches
 }
 
+/// Samples the polar curve `ρ = f(θ)` over `theta_rad` (radians), each point placed by
+/// `convention`; a jump wider than the view or a failed evaluation starts a new branch.
+pub(crate) fn sample_polar(
+    eval: &mut ScalarEval,
+    param: &str,
+    expr: &str,
+    theta_rad: (f64, f64),
+    convention: crate::AngleConvention,
+    spans: (f64, f64),
+) -> Vec<Branch> {
+    let (t_min, t_max) = theta_rad;
+    let (x_span, y_span) = spans;
+    let steps: usize = 360;
+    let mut branches: Vec<Branch> = Vec::new();
+    let mut current: Branch = Vec::new();
+    for i in 0..=steps {
+        let t = t_min + (t_max - t_min) * (i as f64 / steps as f64);
+        match eval.eval_at(param, expr, t).filter(|r| r.is_finite()) {
+            Some(rho) => {
+                let (x, y) = convention.point(rho, t);
+                if let Some(&(px, py)) = current.last()
+                    && ((x - px).abs() > 1.5 * x_span.max(1e-6) || (y - py).abs() > 1.5 * y_span.max(1e-6))
+                {
+                    flush_branch(&mut branches, &mut current);
+                }
+                current.push((x, y));
+            }
+            None => flush_branch(&mut branches, &mut current),
+        }
+    }
+    flush_branch(&mut branches, &mut current);
+    branches
+}
+
 /// Clips a continuous branch to the rectangle `[x_min, x_max] × [y_min, y_max]` via Liang–Barsky,
 /// producing zero or more clean interior polyline pieces.
 pub(crate) fn clip_branch(branch: &[(f64, f64)], x_min: f64, x_max: f64, y_min: f64, y_max: f64) -> Vec<Branch> {

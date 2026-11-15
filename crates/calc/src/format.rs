@@ -250,6 +250,11 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
         }
         Expr::Index(base, index) => format!("{}[{}]", wrap(base, !matches!(**base, Expr::Name(_))), render(index)),
         Expr::Range(from, to) => format!("{}..{}", render(from), render(to)),
+        Expr::Nary(n) if n.op == '∫' => {
+            let limit = |e: &Option<Box<Expr>>| e.as_ref().map(|e| render(e)).unwrap_or_default();
+            let var = n.var.as_deref().unwrap_or("x");
+            format!("∫_({})^({})▒〖{} d{var}〗", limit(&n.from), limit(&n.to), wrap(&n.body, is_sum(&n.body)))
+        }
         Expr::Nary(n) => {
             let lower = match (&n.var, &n.from) {
                 (Some(var), Some(from)) => format!("_({var}={})", render(from)),

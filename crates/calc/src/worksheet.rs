@@ -218,12 +218,17 @@ impl Worksheet {
     }
 
     /// `f(x) = body` or `g(a, b) := body`: a name, then a list of distinct plain names in
-    /// brackets, then `=` or `:=`. `None` when the statement has another shape (then it is an
+    /// brackets, then `=` or `:=`. `worked`: the statement carried its working (read back). `None` when the statement has another shape (then it is an
     /// ordinary statement: `a(b + c) = 10`, `f(3) =`).
-    fn function_definition(&mut self, tokens: &[Token], len: usize) -> Option<RegionResult> {
+    fn function_definition(&mut self, tokens: &[Token], len: usize, worked: bool) -> Option<RegionResult> {
         let tok = |i: usize| tokens.get(i).map(|t| &t.tok);
         let name = match (tok(0), tok(1)) {
-            (Some(Tok::Ident(name)), Some(Tok::LParen)) if name.chars().next().is_some_and(char::is_alphabetic) => name.clone(),
+            // `f′(x) = …` is not a definition: `f′` is the derivative of `f`.
+            (Some(Tok::Ident(name)), Some(Tok::LParen))
+                if name.chars().next().is_some_and(char::is_alphabetic) && !name.ends_with(crate::calculus::PRIME) =>
+            {
+                name.clone()
+            }
             _ => return None,
         };
         let mut params: Vec<String> = Vec::new();
@@ -259,6 +264,13 @@ impl Worksheet {
             return Some(failed(CalcError::BadDefinition(format!("the parameter {p} of {name} is named twice"))));
         }
         let body = tokens.get(def + 1..).unwrap_or_default();
+        // `f(a) =` shown (`f(a) = 5`, or `f(a) = f(2) = 5` with its working) and read back: a
+        // call of known parameters with its result, no definition of a constant function.
+        let known = params.iter().all(|p| self.scope.get(p).is_some());
+        let result = parse(body, len).is_ok_and(|e| crate::format::is_numeric(&e) || crate::format::is_quantity(&e));
+        if known && (worked || result) {
+            return None;
+        }
         if let Some(t) = body.iter().find(|t| matches!(t.tok, Tok::Equals | Tok::Define | Tok::Cmp(_))) {
             self.scope.remove_function(&name);
             return Some(failed(CalcError::syntax(t.pos, "a function definition has one = (call it later to show a value: f(3) =)")));
@@ -650,7 +662,7 @@ impl Worksheet {
         };
         let len = text.chars().count();
         // `f(x) = 2·x + 1` defines a function; it is never an equation to solve.
-        if let Some(result) = self.function_definition(&tokens, len) {
+        if let Some(result) = self.function_definition(&tokens, len, reduced.is_some()) {
             return result;
         }
         let (main_text, main_tokens, inline_constraints) = match self.extract_inline_constraints(text, &tokens, len) {
