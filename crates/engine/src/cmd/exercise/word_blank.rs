@@ -7,10 +7,16 @@
 //! to complete (an Inline Completion question: elsewhere `[[…]]` stays as typed, so a list
 //! `[[1, 2], [3, 4]]` or an integer interval `[[1;n]]` is never taken), or made from a
 //! selection inside an exercise with `exercise.blank` and no `expr`.
+//!
+//! Wherever the word shows (the corrected copy, while writing the exercise) it is in the
+//! *Hidden Word* character style ([`STYLE`]: bold, italic, blue, added the first time), so the
+//! words that will be hidden stand out; the students' line is in the text's own formatting.
 
 use serde_json::{Value, json};
 use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
 use wordcraft_doc::para::OBJ;
+use wordcraft_doc::props::{CharProps, Rgb, TextColor};
+use wordcraft_doc::styles::{Style, StyleKind};
 use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef};
 
 use super::items::{Mode, TAG_ITEM};
@@ -26,6 +32,59 @@ const MIN_LINE: usize = 14;
 const MAX_LINE: usize = 60;
 const MAX_WORD_CHARS: usize = 200;
 const MAX_PER_PARA: usize = 64;
+/// The character style a hidden word shows in (`Hidden Word`).
+pub(crate) const STYLE: &str = "HiddenWord";
+const STYLE_NAME: &str = "Hidden Word";
+const STYLE_COLOR: Rgb = Rgb(0x1F, 0x5F, 0xD0);
+
+/// Adds the Hidden Word style (bold, italic, blue) when the document has none; a style the
+/// teacher changed is kept as it is.
+pub(crate) fn ensure_style(s: &mut Session) {
+    if s.doc.styles.get(STYLE).is_some() {
+        return;
+    }
+    std::sync::Arc::make_mut(&mut s.doc.styles).styles.push(Style {
+        id: STYLE.into(),
+        name: STYLE_NAME.into(),
+        kind: StyleKind::Character,
+        chr: CharProps { bold: Some(true), italic: Some(true), color: Some(TextColor::Rgb(STYLE_COLOR)), ..Default::default() },
+        priority: Some(31),
+        ..Default::default()
+    });
+}
+
+/// Whether a block (or a cell's paragraph in it) holds a hidden word.
+pub(crate) fn block_has_word(b: &Block) -> bool {
+    let para = |p: &Paragraph| {
+        p.object_offsets().into_iter().any(|o| matches!(p.object_at(o), Some(InlineObject::ControlStart { control }) if read(control).is_some()))
+    };
+    match b {
+        Block::Para(p) => para(p),
+        Block::Table(t) => t.rows.iter().flat_map(|r| &r.cells).flat_map(|c| &c.blocks).any(|cb| matches!(&**cb, Block::Para(p) if para(p))),
+    }
+}
+
+/// The formatting of a hidden word's text: the control's own (the text around it), in the
+/// Hidden Word style while the word shows.
+fn props_for(p: &Paragraph, at: usize, word_shows: bool) -> CharProps {
+    let mut props = p.props_of_char(at).clone();
+    if word_shows {
+        props.style = Some(STYLE.into());
+    } else if props.style.as_deref() == Some(STYLE) {
+        props.style = None;
+    }
+    props
+}
+
+/// Whether the control `(a, b)` of `p` must be rewritten to show `want`: another text, or the
+/// word without its style (or the line with it).
+pub(crate) fn needs_write(p: &Paragraph, (a, b): (usize, usize), want: &str, teacher: bool) -> bool {
+    let from = a + OBJ.len_utf8();
+    if p.text.get(from..b) != Some(want) {
+        return true;
+    }
+    b > from && (p.props_of_char(from).style.as_deref() == Some(STYLE)) != teacher
+}
 
 fn clean(raw: &str) -> String {
     raw.chars().filter(|&c| !c.is_control() && c != OBJ).take(MAX_WORD_CHARS).collect::<String>().trim().to_string()
@@ -60,7 +119,7 @@ pub(crate) fn shown(word: &str, teacher: bool) -> String {
 
 /// Wraps `from..to` of `p` (the word, already its text) in a hidden-word control.
 fn wrap(p: &mut Paragraph, from: usize, to: usize, word: &str) -> bool {
-    let props = p.props_of_char(from).clone();
+    let props = props_for(p, from, false);
     if p.delete(from, to).is_err() {
         return false;
     }
@@ -68,7 +127,9 @@ fn wrap(p: &mut Paragraph, from: usize, to: usize, word: &str) -> bool {
         return false;
     }
     let inner = from + OBJ.len_utf8();
-    let _ = p.insert_text(inner, word, &props);
+    let mut styled = props.clone();
+    styled.style = Some(STYLE.into());
+    let _ = p.insert_text(inner, word, &styled);
     let _ = p.insert_object(inner + word.len(), InlineObject::ControlEnd, &props);
     p.touch();
     true
@@ -175,16 +236,18 @@ pub(crate) fn convert_all(s: &mut Session, zones: &[Option<usize>]) -> bool {
         }
     }
     if changed {
+        ensure_style(s);
         s.touch();
         s.clamp_selection();
     }
     changed
 }
 
-/// Writes `text` as the content of the control `(a, b)` of `p` (plain, no unit). Whether it did.
-pub(crate) fn write(p: &mut Paragraph, (a, b): (usize, usize), text: &str) -> bool {
+/// Writes `text` as the content of the control `(a, b)` of `p` (plain, no unit), in the
+/// Hidden Word style when it is the word (`teacher`). Whether it did.
+pub(crate) fn write(p: &mut Paragraph, (a, b): (usize, usize), text: &str, teacher: bool) -> bool {
     let from = a + OBJ.len_utf8();
-    let props = p.props_of_char(a).clone();
+    let props = props_for(p, a, teacher);
     if b > from && p.delete(from, b).is_err() {
         return false;
     }
@@ -230,6 +293,7 @@ pub(crate) fn hide_selection(s: &mut Session, _v: &Value) -> CmdResult {
     if !wrap(para, a, b, &word) {
         return Err(CmdError::Failed("could not hide the words".into()));
     }
+    ensure_style(s);
     let end = b + 2 * OBJ.len_utf8();
     s.sel = Selection::caret(Pos::new(x.story, x.path.clone(), end));
     s.touch();
@@ -338,6 +402,33 @@ mod tests {
             .map(|r| r.control.title.clone())
             .collect();
         assert_eq!(titles, vec![super::TITLE.to_string()]);
+    }
+
+    /// A hidden word shows in the Hidden Word style (bold, italic, blue) so it stands out; the
+    /// students' line is in the text's own formatting, and the style comes back with the word.
+    #[test]
+    fn hidden_words_show_in_their_own_style() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "cloze", "questions": [{"text": "La [[fotosintesi]] avviene."}]}));
+        let st = s.doc.styles.get(super::STYLE).cloned().unwrap();
+        assert_eq!(st.kind, wordcraft_doc::styles::StyleKind::Character);
+        assert_eq!((st.chr.bold, st.chr.italic), (Some(true), Some(true)));
+        assert_eq!(st.chr.color, Some(wordcraft_doc::props::TextColor::Rgb(super::STYLE_COLOR)));
+        let style_of = |s: &Session, needle: &str| {
+            s.doc.body.iter().filter_map(|b| b.as_para()).find_map(|p| p.text.find(needle).map(|at| p.props_of_char(at).style.clone()))
+        };
+        run(&mut s, "exercise.show", json!({"solution": true}));
+        assert_eq!(style_of(&s, "fotosintesi"), Some(Some(super::STYLE.to_string())));
+        assert_ne!(style_of(&s, "avviene"), Some(Some(super::STYLE.to_string())));
+        run(&mut s, "exercise.show", json!({"solution": false}));
+        let line = style_of(&s, "_____").expect("the students' line");
+        assert_ne!(line.as_deref(), Some(super::STYLE));
+        run(&mut s, "exercise.show", json!({"solution": true}));
+        assert_eq!(style_of(&s, "fotosintesi"), Some(Some(super::STYLE.to_string())));
+        // Hide Words styles the selected words too.
+        run(&mut s, "select.text", json!({"text": "avviene"}));
+        run(&mut s, "exercise.blank", json!({}));
+        assert_eq!(style_of(&s, "avviene"), Some(Some(super::STYLE.to_string())));
     }
 
     /// Hide Words outside an exercise: refused, the text untouched.
