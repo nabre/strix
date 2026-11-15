@@ -81,3 +81,94 @@ fn a_rendering_with_its_underlay_beneath() {
     let x = (pts[1].0 + both.origin.0) / both.scale;
     assert!((x - 10.0).abs() < 1e-9, "{x}");
 }
+
+/// An underlay printed with the drawing counts in its picture and in the fitted scale: every
+/// object of the underlay lies inside the maximum size, not only the drawing's own; one shown
+/// only in the editor (or with no source known) does not count.
+#[test]
+fn a_printed_underlay_counts_in_the_fitted_scale() {
+    // The drawing: 1 m wide; its underlay: 4 m wide, from x = -3 m. Maximum size 100 mm wide.
+    let mut me = d(r#"{"id":"b","fit":{"width":100,"height":0},"padding":0,"entities":[{"type":"line","a":[0,0],"b":[1000,0]}]}"#);
+    let src = std::sync::Arc::new(d(r#"{"id":"a","entities":[{"type":"line","a":[-3000,0],"b":[1000,0]}]}"#));
+    me.apply_fit(None);
+    let alone = me.scale;
+    assert_eq!(alone, 10.0, "1 m in 100 mm: 1:10");
+    // Shown in the editor only: the scale stays.
+    me.underlay = Some(Underlay { source: "a".into(), ..Underlay::default() });
+    me.under_source = UnderSource(Some(src.clone()));
+    me.apply_fit(None);
+    assert_eq!(me.scale, alone);
+    assert_eq!(me.with_printed_underlay(me.render(None)).size, me.render(None).size);
+    // Printed: the 4 m of both fit in 100 mm at 1:50.
+    me.underlay.as_mut().unwrap().print = true;
+    me.apply_fit(None);
+    assert_eq!(me.scale, 50.0);
+    let both = me.with_printed_underlay(me.render(None));
+    assert!(both.size.0 <= 100.0 + 1e-9 && both.size.0 > 70.0, "{:?}", both.size);
+    assert!(me.fitting_scales(None).iter().all(|n| *n >= 50.0));
+    assert!(me.clone().set_fixed_scale(20.0, None).is_err(), "at 1:20 the underlay is 200 mm");
+    // The source unknown, hidden or another drawing's: as without an underlay.
+    let mut hidden = me.clone();
+    hidden.underlay.as_mut().unwrap().show = false;
+    assert!(hidden.printed_underlay().is_none());
+    let mut other = me.clone();
+    other.underlay.as_mut().unwrap().source = "c".into();
+    assert!(other.printed_underlay().is_none());
+    // Never saved, never compared.
+    assert!(!me.to_json().contains("-3000"));
+    let mut plain = me.clone();
+    plain.under_source = UnderSource::default();
+    assert_eq!(plain, me);
+}
+
+/// A source with an id lends its layers nested under its name, unlocked, not printed when its
+/// underlay does not print; a rename of the source follows; they are never renamed by hand and
+/// removed only when empty.
+#[test]
+fn inherited_layers_nest_under_their_drawing() {
+    let src = d(r#"{"id":"plan","layers":[{"name":"0"},{"name":"Walls","locked":true},{"name":"other/Axes","from":"other"}],"entities":[]}"#);
+    let mut me = d(r#"{"id":"b","layers":[{"name":"0"},{"name":"Walls","color":[0,0,255]}],"entities":[]}"#);
+    me.underlay = Some(Underlay { source: "plan".into(), ..Underlay::default() });
+    let got = me.inherit(&src);
+    assert_eq!(got.layers, 3);
+    let names: Vec<&str> = me.layers.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["0", "Walls", "plan/0", "plan/Walls", "other/Axes"]);
+    assert_eq!(me.layer("Walls").color, [0, 0, 255], "its own Walls untouched");
+    let w = me.layer("plan/Walls");
+    assert!(!w.locked && !w.print && w.from.as_deref() == Some("plan"));
+    assert_eq!(me.print_layers_from("plan", true), 2);
+    // Drawn on: kept; renamed: refused.
+    me.entities.push(Entity { layer: "plan/Walls".into(), ..Entity::new(Kind::Point { p: P::new(0.0, 0.0) }) });
+    assert!(me.rename_layer("plan/Walls", "x").is_err());
+    assert!(me.remove_layer("plan/Walls").is_err());
+    assert!(me.remove_layer("plan/0").is_ok(), "empty: it goes");
+    // The source renamed: the names and the objects follow.
+    assert!(me.rename_layers_from("plan", "ground"));
+    assert_eq!(me.entities[0].layer, "ground/Walls");
+    assert!(me.layers.iter().any(|l| l.name == "ground/Walls" && l.from.as_deref() == Some("ground")));
+    // Saved and read back.
+    let back = Drawing::from_json(&me.to_json()).unwrap();
+    assert_eq!(back.layer("ground/Walls").from.as_deref(), Some("ground"));
+}
+
+/// All the source's styles come with it, nested under its name: its Standard dimension style,
+/// its named ones (their text style following) and its text styles; a rename follows.
+#[test]
+fn inherited_styles_nest_under_their_drawing() {
+    let src = d(r#"{"id":"plan","dimStyle":{"text":4},"dimStyles":[{"name":"Big","style":{"text":6,"textStyle":"Notes"}}],
+        "textStyles":[{"name":"Notes","height":3}],"entities":[]}"#);
+    let mut me = d(r#"{"id":"b","dimStyles":[{"name":"Big","style":{"text":2}}],"entities":[]}"#);
+    let got = me.inherit(&src);
+    assert_eq!((got.dim_styles, got.text_styles), (2, 1));
+    let names: Vec<&str> = me.dim_styles.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, ["Big", "plan/Standard", "plan/Big"]);
+    assert_eq!(me.dim_style_named(Some("plan/Standard")).text, 4.0);
+    assert_eq!(me.dim_style_named(Some("plan/Big")).text_style.as_deref(), Some("plan/Notes"));
+    assert!(me.text_style_named(Some("plan/Notes")).is_some());
+    assert_eq!(me.dim_style_named(Some("Big")).text, 2.0, "its own Big untouched");
+    me.current_dim_style = Some("plan/Big".into());
+    assert!(me.rename_layers_from("plan", "ground"));
+    assert_eq!(me.current_dim_style.as_deref(), Some("ground/Big"));
+    assert_eq!(me.dim_style_named(Some("ground/Big")).text_style.as_deref(), Some("ground/Notes"));
+    assert!(me.text_style_named(Some("ground/Notes")).is_some());
+}

@@ -347,7 +347,7 @@ impl<'a> Flow<'a> {
                 line.end == LineEnd::PageBreak && self.pl.lines.last().is_some_and(|mark| only_markers(self.p, mark.start..mark.stop))
             });
         let height = self.pl.height + rooms.top + if break_mark { 0.0 } else { rooms.bottom };
-        if !(rp.keep_lines || (rp.keep_next && pb.y + height <= pb.bottom + 0.01)) {
+        if self.pl.gone || !(rp.keep_lines || (rp.keep_next && pb.y + height <= pb.bottom + 0.01)) {
             return before;
         }
         let need = height + if rp.keep_next { next_first_line(ctx, self.block, self.width, 0, &mut ctx.counters.clone()) } else { 0.0 };
@@ -434,7 +434,9 @@ impl<'a> Flow<'a> {
             } else {
                 0.0
             };
-            let over = bottom + tail > limit + 0.01;
+            // A paragraph laid out as nothing fits anywhere: a full page (its last line's space
+            // after past the bottom margin) doesn't send it to a blank page of its own.
+            let over = bottom + tail > limit + 0.01 && !pl.gone;
             let split = bottom > limit + 0.01 && notes_split(pb, (&fit.notes, &line_notes), bottom);
             if over && fit.l1 > l0 && !split {
                 break;

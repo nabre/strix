@@ -99,16 +99,16 @@ impl Func {
             "sin" => Func::Sin,
             "cos" => Func::Cos,
             "tan" => Func::Tan,
-            "asin" => Func::Asin,
-            "acos" => Func::Acos,
-            "atan" => Func::Atan,
+            "asin" | "arcsin" => Func::Asin,
+            "acos" | "arccos" => Func::Acos,
+            "atan" | "arctan" => Func::Atan,
             "atan2" => Func::Atan2,
             "sinh" => Func::Sinh,
             "cosh" => Func::Cosh,
             "tanh" => Func::Tanh,
-            "asinh" => Func::Asinh,
-            "acosh" => Func::Acosh,
-            "atanh" => Func::Atanh,
+            "asinh" | "arsinh" | "arcsinh" => Func::Asinh,
+            "acosh" | "arcosh" | "arccosh" => Func::Acosh,
+            "atanh" | "artanh" | "arctanh" => Func::Atanh,
             "gcd" | "mcd" => Func::Gcd,
             "lcm" | "mcm" => Func::Lcm,
             "fact" => Func::Fact,
@@ -188,6 +188,19 @@ impl Func {
         }
     }
 
+    /// The inverse of a trigonometric or hyperbolic function (`sin⁻¹` is `asin`).
+    pub(crate) fn inverse(self) -> Option<Func> {
+        Some(match self {
+            Func::Sin => Func::Asin,
+            Func::Cos => Func::Acos,
+            Func::Tan => Func::Atan,
+            Func::Sinh => Func::Asinh,
+            Func::Cosh => Func::Acosh,
+            Func::Tanh => Func::Atanh,
+            _ => return None,
+        })
+    }
+
     pub(crate) fn is_rounding(self) -> bool {
         matches!(self, Func::Round | Func::Floor | Func::Ceil | Func::Trunc)
     }
@@ -256,12 +269,23 @@ pub(crate) fn parse_with(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str
 
 /// [`parse_with`], also distinguishing defined vector parameters (`F = [1; 2; 3] kN` in `2 F =`).
 pub(crate) fn parse_env(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool, is_vec: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
-    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec };
+    parse_names(tokens, end_pos, is_func, is_vec).map(|(expr, _)| expr)
+}
+
+/// [`parse_env`], with the indices of the tokens read as names (parameters, constants, units
+/// spelled alone: `h` in `h·r`, not the unit `h` in `3 h`).
+pub(crate) fn parse_names(
+    tokens: &[Token],
+    end_pos: usize,
+    is_func: &dyn Fn(&str) -> bool,
+    is_vec: &dyn Fn(&str) -> bool,
+) -> Result<(Expr, Vec<usize>), CalcError> {
+    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec, names: Vec::new() };
     let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
         return Err(CalcError::syntax(token.pos, format!("unexpected {}", describe(&token.tok))));
     }
-    Ok(expr)
+    Ok((expr, parser.names))
 }
 
 type R<T> = Result<T, CalcError>;
@@ -274,6 +298,8 @@ struct Parser<'a> {
     end_pos: usize,
     is_func: &'a dyn Fn(&str) -> bool,
     is_vec: &'a dyn Fn(&str) -> bool,
+    /// The indices of the tokens read as names ([`parse_names`]).
+    names: Vec<usize>,
 }
 
 impl Parser<'_> {
@@ -589,6 +615,34 @@ impl Parser<'_> {
             }
             Tok::Ident(name) => {
                 self.bump();
+                // `sin⁻¹(x)`, `sin^(-1)⁡x`: the inverse function (`asin`); `sin²(x)`: `sin(x)²`.
+                if let Some(func) = Func::from_name(name).filter(|f| f.inverse().is_some())
+                    && let Some((power, after)) = self.function_power()
+                    && matches!(toks.get(after).map(|t| &t.tok), Some(Tok::LParen | Tok::Operand))
+                {
+                    self.i = after;
+                    let args = self.function_args()?;
+                    return match power {
+                        -1 => match func.inverse() {
+                            Some(inverse) => self.node(Expr::Call(inverse, args)),
+                            None => Err(CalcError::syntax(pos, format!("{name} has no inverse function"))),
+                        },
+                        1 => self.node(Expr::Call(func, args)),
+                        n if n >= 2 => {
+                            let call = self.node(Expr::Call(func, args))?;
+                            let exponent = self.node(Expr::Num(f64::from(n)))?;
+                            self.bin(BinOp::Pow, call, exponent)
+                        }
+                        _ => Err(CalcError::syntax(pos, format!("write the power after the brackets: ({name}(x))^{power}"))),
+                    };
+                }
+                // `sin⁡x`, `sin⁡(x)` (Word's function application): the argument follows.
+                if let Some(func) = Func::from_name(name)
+                    && matches!(self.peek(), Some(Tok::Operand))
+                {
+                    let args = self.function_args()?;
+                    return self.node(Expr::Call(func, args));
+                }
                 // A function name is a call only when `(` follows, so `min` alone is minutes.
                 let func = Func::from_name(name).filter(|_| matches!(self.peek(), Some(Tok::LParen)));
                 let Some(func) = func else {
@@ -597,6 +651,7 @@ impl Parser<'_> {
                         let args = self.nested(Self::args)?;
                         return self.node(Expr::Apply(name.clone(), args));
                     }
+                    self.names.push(self.i.saturating_sub(1));
                     return self.node(Expr::Name(name.clone()));
                 };
                 self.bump();
@@ -677,6 +732,43 @@ impl Parser<'_> {
         }
         let body = Box::new(self.term()?);
         self.node(Expr::Nary(Nary { op, var, from, to, body }))
+    }
+
+    /// The integer power written on a function name before its argument: `⁻¹`, `²`, `^-1`,
+    /// `^(-1)`, `^2`; with the index of the token after it. `None` when there is none.
+    fn function_power(&self) -> Option<(i32, usize)> {
+        let tok = |i: usize| self.toks.get(i).map(|t| &t.tok);
+        let at = self.i;
+        let int = |v: f64| (v.fract() == 0.0 && (1.0..=9.0).contains(&v)).then_some(v as i32);
+        match tok(at)? {
+            Tok::Sup(n) => Some((*n, at + 1)),
+            Tok::Caret => match (tok(at + 1)?, tok(at + 2), tok(at + 3), tok(at + 4)) {
+                (Tok::Num(v), ..) => Some((int(*v)?, at + 2)),
+                (Tok::Minus, Some(Tok::Num(v)), ..) => Some((-int(*v)?, at + 3)),
+                (Tok::LParen, Some(Tok::Num(v)), Some(Tok::RParen), _) => Some((int(*v)?, at + 4)),
+                (Tok::LParen, Some(Tok::Minus), Some(Tok::Num(v)), Some(Tok::RParen)) => Some((-int(*v)?, at + 5)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// A function's arguments: `(a; b)`, or after Word's function application `⁡(a)` or `⁡x`
+    /// (an operand up to its power: `sin⁡x²` is `sin(x²)`).
+    fn function_args(&mut self) -> R<Vec<Expr>> {
+        if matches!(self.peek(), Some(Tok::Operand)) {
+            self.bump();
+            if !matches!(self.peek(), Some(Tok::LParen)) {
+                return Ok(vec![self.nested(Self::power)?]);
+            }
+        }
+        match self.peek() {
+            Some(Tok::LParen) => {
+                self.bump();
+                self.nested(Self::args)
+            }
+            _ => Err(CalcError::syntax(self.pos(), "expected the function's argument")),
+        }
     }
 
     /// Arguments after `(` up to and including `)`.

@@ -12,7 +12,7 @@ use crate::{CmdError, Selection, Session};
 
 /// The beam in the exercise's statement: a simply supported beam of span `L` (metres, from the
 /// exercise's data) under a uniform load `q`, with its supports, load and span dimension.
-const BEAM: &str = r##"{"unit":"m","scale":50,"layers":[{"name":"0"},{"name":"loads","width":0.35},{"name":"ground","width":0.18}],"entities":[
+const BEAM: &str = r##"{"unit":"m","scale":50,"dimStyle":{"showUnit":true},"layers":[{"name":"0"},{"name":"loads","width":0.35},{"name":"ground","width":0.18}],"entities":[
     {"type":"polyline","pts":[[0,0],["L",0],["L",0.25],[0,0.25]],"closed":true,"stroke":{"width":0.5}},
     {"type":"polyline","pts":[[0,0],[-0.2,-0.35],[0.2,-0.35]],"closed":true},
     {"type":"polyline","pts":[["L",0],["L-0.2",-0.35],["L+0.2",-0.35]],"closed":true},

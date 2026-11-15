@@ -3244,3 +3244,21 @@ paper	Envelope DL	Enveloppe DL
 	Number Only	Nombre seul
 	Delete Value	Supprimer la valeur
 	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Ce que montre la valeur : une donnée (R), un calcul (2*R) ou une conversion (R -> cm). Entrée l'applique.
+	Download Thesaurus	Télécharger le thésaurus
+	Thesaurus Pane	Volet Thésaurus
+	Download the {name} thesaurus	Télécharger le thésaurus {name}
+	Downloading the {name} thesaurus…	Téléchargement du thésaurus {name}…
+	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Télécharge le thésaurus {name} depuis les dictionnaires de LibreOffice ({source}), sous licence {licence}, avec les fichiers qui indiquent sa licence, dans votre dossier de dictionnaires. Le thésaurus et le menu Synonymes l'utilisent aussitôt.
+	The {name} thesaurus is installed: synonyms in {language} come from it now.	Le thésaurus {name} est installé : les synonymes en {language} en proviennent désormais.
+	The {name} thesaurus couldn't be downloaded: {reason}	Impossible de télécharger le thésaurus {name} : {reason}
+	Search for a word	Rechercher un mot
+	Look up	Rechercher
+	Put the insertion point in a word, or type one above, to see its synonyms.	Placez le point d'insertion dans un mot, ou tapez-en un ci-dessus, pour voir ses synonymes.
+	No synonyms found for “{word}”.	Aucun synonyme trouvé pour « {word} ».
+	Showing “{entry}”.	Affichage de « {entry} ».
+	Look up this word	Rechercher ce mot
+	Replace the word at the insertion point with this one	Remplacer le mot au point d'insertion par celui-ci
+	From the {name} thesaurus.	Tiré du thésaurus {name}.
+	From Strix's short built-in list.	Tiré de la courte liste intégrée de Strix.
+	The thesaurus couldn't be read: {reason}	Impossible de lire le thésaurus : {reason}
+	No thesaurus for {language} is installed yet.	Aucun thésaurus n'est encore installé pour {language}.

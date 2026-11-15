@@ -24,6 +24,9 @@ pub enum SnapKind {
     Perpendicular,
     /// Where a line from the previous point touches a circle or arc.
     Tangent,
+    /// A point on another dimension's dimension line (or on its line carried on), so a new
+    /// dimension's line, or a text, lines up with it.
+    DimLine,
     /// The nearest point on a curve.
     Nearest,
 }
@@ -77,6 +80,8 @@ pub struct Snaps {
     pub perpendicular: bool,
     pub tangent: bool,
     pub nearest: bool,
+    #[serde(rename = "dimLine")]
+    pub dim_line: bool,
 }
 
 impl Default for Snaps {
@@ -91,6 +96,7 @@ impl Default for Snaps {
             perpendicular: true,
             tangent: true,
             nearest: true,
+            dim_line: true,
         }
     }
 }
@@ -107,6 +113,7 @@ impl Snaps {
             SnapKind::Perpendicular => self.perpendicular,
             SnapKind::Tangent => self.tangent,
             SnapKind::Nearest => self.nearest,
+            SnapKind::DimLine => self.dim_line,
         }
     }
 }
@@ -122,12 +129,13 @@ impl SnapKind {
             SnapKind::Quadrant | SnapKind::Mid => 4,
             SnapKind::Perpendicular => 5,
             SnapKind::Tangent => 6,
-            SnapKind::Nearest => 7,
+            SnapKind::DimLine => 7,
+            SnapKind::Nearest => 8,
         }
     }
 
     /// All kinds, in priority order.
-    pub const ALL: [SnapKind; 9] = [
+    pub const ALL: [SnapKind; 10] = [
         SnapKind::Node,
         SnapKind::End,
         SnapKind::Intersection,
@@ -136,6 +144,7 @@ impl SnapKind {
         SnapKind::Mid,
         SnapKind::Perpendicular,
         SnapKind::Tangent,
+        SnapKind::DimLine,
         SnapKind::Nearest,
     ];
 }
@@ -183,6 +192,9 @@ impl Drawing {
                 cands.extend(intersect(a, b).into_iter().map(|q| (q, SnapKind::Intersection)));
             }
         }
+        if on.dim_line {
+            cands.extend(self.dim_line_snaps(p, tol));
+        }
         let found: Vec<(f64, Pt, SnapKind)> = cands
             .into_iter()
             .filter(|(q, k)| on.on(*k) && q.is_finite())
@@ -201,6 +213,34 @@ impl Drawing {
             return near.first().filter(|(d, _)| *d <= tol).map(|(_, c)| (c.nearest(p), SnapKind::Nearest));
         }
         None
+    }
+}
+
+impl Drawing {
+    /// Points on the dimension lines within `tol` of `p` (drawing units): each line's ends, and
+    /// (away from them) the foot of `p` on the line carried on both ways — where the dimension line is drawn now,
+    /// at the drawing's scale (its paper offset included).
+    fn dim_line_snaps(&self, p: Pt, tol: f64) -> Vec<(Pt, SnapKind)> {
+        let k = paper_per_unit(self);
+        let mut out = Vec::new();
+        for e in self.entities.iter().filter(|e| matches!(e.kind, Kind::Dim { .. })).take(crate::MAX_ENTITIES) {
+            let Some(f) = self.dim_frame(e, k) else { continue };
+            let (a, b) = (f.fa.scale(1.0 / k), f.fb.scale(1.0 / k));
+            let ab = b.minus(a);
+            let l2 = ab.x * ab.x + ab.y * ab.y;
+            if !(l2.is_finite() && l2 > 0.0) {
+                continue;
+            }
+            out.push((a, SnapKind::DimLine));
+            out.push((b, SnapKind::DimLine));
+            let t = (p.minus(a).x * ab.x + p.minus(a).y * ab.y) / l2;
+            let foot = a.plus(ab.scale(t));
+            // Near an end, the end.
+            if foot.minus(p).len() <= tol && foot.minus(a).len() > tol && foot.minus(b).len() > tol {
+                out.push((foot, SnapKind::DimLine));
+            }
+        }
+        out
     }
 }
 

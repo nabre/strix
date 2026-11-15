@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 use super::{CmdError, CmdResult, Pos, Selection, Session, StoryRef, Value, json, p, pos_json};
 
 pub(super) fn word_count(s: &mut Session, v: &Value) -> CmdResult {
@@ -171,5 +172,5 @@ pub(super) fn thesaurus(s: &mut Session, v: &Value) -> CmdResult {
         }
     };
     let syn = T.iter().find(|(w, _)| *w == word).map(|(_, l)| l.to_vec()).unwrap_or_default();
-    Ok(json!({"word": word, "synonyms": syn}))
+    crate::cmd::thesaurus::answer(s, v, word, syn)
 }

@@ -1785,3 +1785,118 @@ fn table_rows_are_read_by_subscript() {
     }
     assert!(!crate::table::is_blank("-3"));
 }
+
+/// An unknown alone on the right of a formula is solved like one on the left: the formula is
+/// turned round first, as an isolation step, then substituted and worked out. A unit name alone
+/// there (`A`, `S`) is the unknown when the formula is of another kind.
+#[test]
+fn an_unknown_alone_on_the_right_is_solved() {
+    let data = ["h = 2 m", "r = 0.75 m"];
+    fn with<'a>(data: &[&'a str], last: &'a str) -> Vec<&'a str> {
+        let mut v = data.to_vec();
+        v.push(last);
+        v
+    }
+    let with = |last: &'static str| with(&data, last);
+    for name in ["A", "S", "Area", "x"] {
+        let statement: &'static str = Box::leak(format!("h*r = {name}").into_boxed_str());
+        let r = run(&with(statement)).pop().unwrap();
+        assert_eq!((r.kind, r.name.as_deref(), r.error), (RegionKind::Solved, Some(name), None), "{statement}");
+        assert_eq!(r.display, Some(format!("h*r = {name} ⇒ {name} = 1.5 m²")));
+        assert_eq!(steps(&with(statement)).unwrap(), [format!("{name} = h·r"), format!("{name} = (2 m)·(0.75 m)"), format!("{name} = 1.5 m²")]);
+        assert_eq!(inline(&with(statement)), format!("h*r = {name} ⇒ {name} = h·r = (2 m)·(0.75 m) = 1.5 m²"));
+    }
+    // Defined so, the unknown is a parameter for what follows.
+    assert_eq!(last(&with("h*r = A")).as_str(), "h*r = A ⇒ A = 1.5 m²");
+    let mut sheet = with("h*r = A");
+    sheet.push("A = cm^2");
+    assert_eq!(last(&sheet), "A = 15000 cm²");
+    // Inside the right side, as before; the value asked for in a unit.
+    assert_eq!(inline(&with("h*r = 2*x")), "h*r = 2*x ⇒ x = h·r/2 = (2 m)·(0.75 m)/2 = 0.75 m²");
+    assert_eq!(last(&with("h*r = A = cm^2")), "h*r = A = 15000 cm²");
+    // Data written the other way round stay a definition; a unit of the same kind is still a
+    // unit to show in, and a parameter alone before `=` still asks for one.
+    let r = run(&["0.75 m = r"]).pop().unwrap();
+    assert_eq!((r.kind, r.display), (RegionKind::Definition, None));
+    assert_eq!(last(&with("h*r = cm^2")), "h*r = 15000 cm²");
+    assert!(matches!(last_error(&["L = 2 m", "L = s"]), CalcError::WrongUnit { .. }));
+}
+
+/// Inverse trigonometric and hyperbolic functions: `asin acos atan asinh acosh atanh`, also
+/// `arcsin`…, and `sin⁻¹` written with the power on the name (typed or built up, Word's function
+/// application U+2061 before the argument). Steps write them `asin`…; `x⁻¹` stays a power.
+#[test]
+fn inverse_trigonometric_functions_in_every_form() {
+    for (written, value) in [
+        ("asin(0.5)", "30°"),
+        ("arcsin(0.5)", "30°"),
+        ("sin⁻¹(0.5)", "30°"),
+        ("sin^-1(0.5)", "30°"),
+        ("sin^(-1)(0.5)", "30°"),
+        ("sin^(−1)\u{2061}(0.5)", "30°"),
+        ("sin^(−1)\u{2061}0.5", "30°"),
+        ("acos(0.5)", "60°"),
+        ("arccos(0.5)", "60°"),
+        ("cos⁻¹(0.5)", "60°"),
+        ("cos^(−1)\u{2061}(0.5)", "60°"),
+        ("atan(1)", "45°"),
+        ("arctan(1)", "45°"),
+        ("tan⁻¹(1)", "45°"),
+        ("tan^-1(1)", "45°"),
+        ("tan^(−1)\u{2061}(1)", "45°"),
+        ("asinh(0)", "0"),
+        ("arsinh(0)", "0"),
+        ("sinh⁻¹(0)", "0"),
+        ("acosh(1)", "0"),
+        ("cosh^(−1)\u{2061}(1)", "0"),
+        ("atanh(0)", "0"),
+        ("tanh⁻¹(0)", "0"),
+    ] {
+        assert_eq!(last(&[&format!("{written} =")]), format!("{written} = {value}"), "{written}");
+    }
+    // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)).
+    let sheet = ["R = 3 m", "r = 1 m", "α = sin^(−1)\u{2061}((R−r)/(R+r))"];
+    assert_eq!(steps(&sheet).unwrap(), ["= asin(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
+    assert_eq!(
+        inline(&["R = 3 m", "r = 1 m", "α = sin⁻¹((R - r)/(R + r))"]),
+        "α = sin⁻¹((R - r)/(R + r)) = asin(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
+    );
+    // Solving for an angle writes the same inverse.
+    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = asin(y) = asin(0.5) = 30°");
+    // Functions applied the Word way, and powers of them.
+    assert_eq!(last(&["x = 2", "sin\u{2061}x ="]), "sin\u{2061}x = 0.909");
+    assert_eq!(last(&["x = 2", "cos²(x) + sin^2(x) ="]), "cos²(x) + sin^2(x) = 1");
+    // A power -1 elsewhere is a power; a function without an inverse, or another negative
+    // power on the name, is an error.
+    assert_eq!(last(&["x = 2", "x^-1 ="]), "x^-1 = 0.5");
+    assert_eq!(last(&["x = 2", "x⁻¹ ="]), "x⁻¹ = 0.5");
+    assert_eq!(last(&["x = 2", "sin(x)^-1 ="]), "sin(x)^-1 = 1.1");
+    assert_eq!(last(&["60 min^-1 ="]), "60 min^-1 = 1 Hz");
+    assert!(run(&["ln⁻¹(2) ="]).pop().unwrap().error.is_some());
+    assert!(run(&["sin^-2(1) ="]).pop().unwrap().error.is_some());
+    assert!(run(&["sin⁻¹ ="]).pop().unwrap().error.is_some());
+}
+
+/// A parameter the reader only saw as a value is written as that value where a calculation
+/// reads it (the engine asks for it: exercise data shown only by an inline value).
+#[test]
+fn parameters_shown_as_values() {
+    let mut ws = Worksheet::new(Options { steps: true, ..Options::default() });
+    for s in ["h = 2 m", "r = 0.75 m", "k = 3", "f(x) = x*h"] {
+        ws.eval_statement(s);
+    }
+    let h = |n: &str| n == "h" || n == "k";
+    assert_eq!(ws.with_values("A = h*r", &h).as_deref(), Some("A = (2 m)*r"));
+    assert_eq!(ws.with_values("A = h*r = (2 m)·(0.75 m) = 1.5 m²", &h).as_deref(), Some("A = (2 m)*r = (2 m)·(0.75 m) = 1.5 m²"));
+    assert_eq!(
+        ws.with_values("h*r = A ⇒ A = h·r = (2 m)·(0.75 m) = 1.5 m²", &h).as_deref(),
+        Some("(2 m)*r = A ⇒ A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²")
+    );
+    assert_eq!(ws.with_values("B = k·h^2 + max(h; r)", &h).as_deref(), Some("B = 3·(2 m)^2 + max((2 m); r)"));
+    // Left alone: a name alone on a side, what := defines, a unit after a number, other names,
+    // a function's head.
+    for t in ["h =", "h = 3 m", "h ≤ 3 m", "h := 2·r", "t = 3 h", "A = r·2", "g(h) = h + 1", "= (2 m)·(0.75 m)", "A = h·r ⚠ $"] {
+        assert_eq!(ws.with_values(t, &h), None, "{t}");
+    }
+    assert_eq!(ws.with_values("A = h*r", &|_| false), None);
+}

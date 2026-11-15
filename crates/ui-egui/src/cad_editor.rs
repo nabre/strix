@@ -844,6 +844,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "snap.perpendicular" => s.perpendicular = !s.perpendicular,
                     "snap.tangent" => s.tangent = !s.tangent,
                     "snap.nearest" => s.nearest = !s.nearest,
+                    "snap.dimLine" => s.dim_line = !s.dim_line,
                     "snaps.on" | "snaps.off" => {
                         let on = what == "snaps.on";
                         *s = Snaps {
@@ -856,6 +857,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                             perpendicular: on,
                             tangent: on,
                             nearest: on,
+                            dim_line: on,
                         };
                     }
                     _ => {
@@ -1290,7 +1292,7 @@ fn reorder(app: &mut WordApp, order: Order) {
 }
 
 /// The object snaps by name (`ui.cadToggle`'s `snap.<name>`, `ui.cadSnapOnce`).
-pub(crate) const SNAP_KINDS: [(&str, SnapKind); 9] = [
+pub(crate) const SNAP_KINDS: [(&str, SnapKind); 10] = [
     ("end", SnapKind::End),
     ("mid", SnapKind::Mid),
     ("center", SnapKind::Center),
@@ -1299,6 +1301,7 @@ pub(crate) const SNAP_KINDS: [(&str, SnapKind); 9] = [
     ("intersection", SnapKind::Intersection),
     ("perpendicular", SnapKind::Perpendicular),
     ("tangent", SnapKind::Tangent),
+    ("dimLine", SnapKind::DimLine),
     ("nearest", SnapKind::Nearest),
 ];
 
@@ -1322,6 +1325,7 @@ pub(crate) fn set_snap(s: &mut Snaps, k: SnapKind, on: bool) {
         SnapKind::Perpendicular => s.perpendicular = on,
         SnapKind::Tangent => s.tangent = on,
         SnapKind::Nearest => s.nearest = on,
+        SnapKind::DimLine => s.dim_line = on,
     }
 }
 
@@ -1654,6 +1658,13 @@ fn snap_marker(painter: &egui::Painter, s: Pos2, kind: SnapKind) {
             painter
                 .add(Shape::closed_line(vec![pos2(s.x - h, s.y - h), pos2(s.x + h, s.y - h), pos2(s.x - h, s.y + h), pos2(s.x + h, s.y + h)], mark));
         }
+        SnapKind::DimLine => {
+            // A dimension line between two ticks, the point on it.
+            painter.line_segment([pos2(s.x - h, s.y), pos2(s.x + h, s.y)], mark);
+            painter.line_segment([pos2(s.x - h - 2.0, s.y + 3.0), pos2(s.x - h + 2.0, s.y - 3.0)], mark);
+            painter.line_segment([pos2(s.x + h - 2.0, s.y + 3.0), pos2(s.x + h + 2.0, s.y - 3.0)], mark);
+            painter.circle_filled(s, 2.0, mark.color);
+        }
     }
 }
 
@@ -1669,6 +1680,7 @@ fn snap_name(kind: SnapKind) -> &'static str {
         SnapKind::Perpendicular => "Perpendicular",
         SnapKind::Tangent => "Tangent",
         SnapKind::Nearest => "Nearest",
+        SnapKind::DimLine => "Dimension line",
     }
 }
 
@@ -2165,7 +2177,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // Keys: not while a menu is open or a field of the pane has the keyboard. Esc cancels,
         // Enter or Space ends (or repeats), F8 Ortho, Delete removes the selection, Ctrl+A
         // selects all, Shift+Space steps through overlapping objects.
-        let keys_free = !menu_open && !ed.panel_typing;
+        // A style window open over the sheet has the keyboard: its fields keep the focus.
+        let window_open = ed.style_dialog.is_some();
+        let keys_free = !menu_open && !ed.panel_typing && !window_open;
         let typing_text = ed.tool == Tool::Text && ed.points.len() == 1;
         let keys = key_input(ed, ui, view, (keys_free, typing_text), (hovering, tol));
         let enter = keys.enter;
@@ -2186,7 +2200,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 .hint_text(tl!("Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter"))
                 .desired_width(f32::INFINITY),
         );
-        if !field.has_focus() && hovering.is_some() && !ed.panel_typing {
+        if !field.has_focus() && hovering.is_some() && !ed.panel_typing && !window_open {
             field.request_focus();
         }
         if enter && finished.is_none() {
@@ -2243,11 +2257,13 @@ fn docked_panes(ed: &mut CadEditor, ui: &mut Ui, t: &crate::theme::Tokens, (shee
     changed
 }
 
-/// Fits the drawing in `rect` (on first show and on Zoom Fit).
+/// Fits the drawing in `rect` (on first show and on Zoom Fit), with the underlay when it prints
+/// with the drawing (the picture the page shows).
 fn fit(ed: &mut CadEditor, rect: Rect) {
-    let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-    let (w, h) = (ed.rendered.size.0 / k, ed.rendered.size.1 / k);
-    ed.center = paper_to_drawing(&ed.rendered, (ed.rendered.size.0 / 2.0, ed.rendered.size.1 / 2.0));
+    let shown = ed.drawing.with_printed_underlay(ed.rendered.clone());
+    let k = if shown.scale > 0.0 { shown.scale } else { 1.0 };
+    let (w, h) = (shown.size.0 / k, shown.size.1 / k);
+    ed.center = paper_to_drawing(&shown, (shown.size.0 / 2.0, shown.size.1 / 2.0));
     ed.zoom = (f64::from(rect.width()) * 0.8 / w.max(1e-9)).min(f64::from(rect.height()) * 0.8 / h.max(1e-9)).clamp(1e-6, 1e9);
     ed.fitted = true;
 }

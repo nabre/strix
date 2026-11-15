@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix architecture
 
-> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-10 · **Change:** minor (WordCraft 0.17.0 merged: proofing is the external `craft-proof` (storytold/craft-libs) instead of `crates/proof`; previously minor: a push to `main` skips the checks a PR already passed on the same code; previously minor: each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
+> **Last reviewed:** 2026-10-28 · **Last updated:** 2026-11-14 · **Change:** minor (`dictionaries` also downloads thesauri and reads them with its own MyThes reader, LO1; previously minor: WordCraft 0.17.0 merged: proofing is the external `craft-proof` (storytold/craft-libs) instead of `crates/proof`; previously minor: a push to `main` skips the checks a PR already passed on the same code; previously minor: each check runs once across the GitHub workflows; `cargo xtask ci` checks the workflows; previously minor: `dictionaries` (L2) added; previously minor: layer table matches `cargo xtask layers`: `calc`, `cad`, `metafile` added, `zotero` is L5, `control-key` standalone; previously minor: `proof` is per language) · **Target:** Microsoft Word (Microsoft 365) for Mac 16.113.4
 
 How Strix is built today (origin/main `40c5d51`). The longer design notes in
 `plan/architecture.md` are gitignored and local to the original author's machine; this file is the
@@ -26,7 +26,7 @@ winit or rfd.
 | L2 | `docx` | 8.4k | OOXML WordprocessingML reader and writer (Transitional and Strict namespaces, `.docx/.docm/.dotx/.dotm`), OMML, custom properties, VBA parts preserved |
 | L2 | `docbin` | 4.4k | Word 97-2003 `.doc` reader ([MS-DOC]: FIB, piece table, FKPs, SPRMs, stylesheet, lists, tables, notes, pictures) over a CFB container |
 | L2 | `formats` | 10.6k | TXT, Markdown, HTML, RTF, ODT and LaTeX import/export through a shared intermediate model |
-| L2 | `dictionaries` | 0.2k | Spelling dictionaries on demand: which public Hunspell dictionary each proofing language reads (LibreOffice's repository, fixed revision, licences) and a size-capped, all-or-nothing download into the user's dictionaries folder (desktop only) |
+| L2 | `dictionaries` | 0.8k | Spelling dictionaries and thesauri on demand: which public Hunspell dictionary each proofing language reads and which MyThes thesaurus the Thesaurus reads (LibreOffice's repository, fixed revision, licences), a size-capped, all-or-nothing download into the user's dictionaries folder (desktop only; a thesaurus with its licence notices), and a clean-room, hostile-input-safe MyThes reader (`mythes`) with the thesauri read so far (`thesauri`) |
 | L3 | `render` | 0.6k | vello_cpu rasteriser: pages and thumbnails from the display list; PNG/JPEG |
 | L3 | `pdf` | 1.6k | krilla PDF export: font subsets, selectable text, links, outline, tagging |
 | L4 | `engine` | 15.2k | `Session` (document, selection, undo, layout cache, view state), **command registry** (422 `CommandSpec`s in `cmd/*.rs`), Word feature catalog (`catalog.rs`), samples, file I/O dispatch (`io.rs`), Read Aloud sentence model |
@@ -88,4 +88,5 @@ winit or rfd.
 | 2026-10-28 | minor | Layer table matches `cargo xtask layers` (`calc`, `cad`, `metafile`; `zotero` L5; `control-key` standalone) |
 | 2026-10-10 | minor | `proof`: proofing languages (English, Polish), affix engine, Polish patterns; layout and engine route each run by its language |
 | 2026-10-10 | major | First committed architecture doc, from the crates' sources and `AGENTS.md` |
+| 2026-11-14 | minor | `dictionaries` (L2): thesauri downloaded on demand and read by its own MyThes reader (LO1) |
 | 2026-11-08 | minor | `dictionaries` (L2): spelling dictionaries downloaded on demand |

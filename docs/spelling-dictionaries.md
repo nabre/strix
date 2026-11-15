@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Installing languages and spelling dictionaries
 
-> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-10 · **Change:** trivial (European Portuguese reads and downloads `pt_PT`; previously minor: WordCraft 0.17.0 merged: proofing is craft-proof, and Language packs install a language's spelling and hyphenation from File › Options › Language; without a Dictionaries folder of your own, the folder Strix downloads dictionaries to is searched first; previously minor: Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692)
+> **Last reviewed:** 2026-10-16 · **Last updated:** 2026-11-14 · **Change:** trivial (the same menu offers the thesaurus, see thesaurus.md; previously trivial: European Portuguese reads and downloads `pt_PT`; previously minor: WordCraft 0.17.0 merged: proofing is craft-proof, and Language packs install a language's spelling and hyphenation from File › Options › Language; without a Dictionaries folder of your own, the folder Strix downloads dictionaries to is searched first; previously minor: Download from Strix: the status bar's language menu and File › Options › Language download the missing dictionary, `proof.downloadDictionary`; previously minor: ISO 8859-9 Turkish dictionaries are read, #3692)
 
 English spelling works out of the box. Polish, Russian, Portuguese, Czech, Italian, Croatian,
 Turkish, Indonesian and Spanish spelling use a standard **Hunspell** dictionary (an `.aff` and a `.dic` file) that
@@ -57,6 +57,9 @@ strix-cli run --cmd 'proof.downloadDictionary={"lang":"it-IT"}' --print
 | `cs_CZ` | GPL-2.0 |
 | `id_ID` | LGPL-3.0 |
 | `es_ES`, `es_MX`, `es_UY` | GPL-3.0+, LGPL-3.0+ or MPL-1.1+ |
+
+The same menu and File › Options › Language also offer the language's **thesaurus**, for the
+Thesaurus pane and the Synonyms menu: see [Thesaurus](thesaurus.md).
 
 ## Installing by hand
 

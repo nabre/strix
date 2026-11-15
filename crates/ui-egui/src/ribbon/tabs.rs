@@ -143,6 +143,7 @@ pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
     if wordcraft_engine::cmd::cad::is_selected(s) {
         tabs.push("CAD Picture Format");
     }
+    tabs.extend(super::exercise::contextual(s));
     // Editing an equation.
     if s.math.is_some() {
         tabs.push("Equation");

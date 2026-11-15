@@ -40,7 +40,8 @@ pub(crate) enum Tok {
     Range,
     /// `_` after an n-ary operator: its lower limit.
     Under,
-    /// `▒`: the operand of an n-ary operator follows (Word's linear format).
+    /// `▒`: the operand of an n-ary operator follows (Word's linear format); also Word's
+    /// function application U+2061, the argument of a function follows.
     Operand,
     /// An n-ary operator: `∑` (sum) or `∏` (product).
     Nary(char),
@@ -163,7 +164,8 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '[' => Tok::LBracket,
             ']' => Tok::RBracket,
             '_' => Tok::Under,
-            '▒' => Tok::Operand,
+            // Word's function application (`sin⁡x`, U+2061) also says the operand follows.
+            '▒' | '\u{2061}' => Tok::Operand,
             '∑' => Tok::Nary('∑'),
             '∏' => Tok::Nary('∏'),
             ',' if !decimal_comma => Tok::Sep,

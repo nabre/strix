@@ -201,6 +201,8 @@ impl<'a> Exempt<'a> {
         if let Some(form) = &app.spelling_review {
             names.extend(form.content_text());
         }
+        // Strix: the Thesaurus pane's words and categories come from the thesaurus.
+        names.extend(crate::thesaurus_pane::content_text());
         Exempt { body: app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), names, math: math_placeholders }
     }
 

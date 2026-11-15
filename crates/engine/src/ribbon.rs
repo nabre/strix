@@ -34,7 +34,7 @@ pub const TABS: [&str; 15] = [
     "Help",
 ];
 /// Tabs that come up with the selection; custom tabs can't take their names.
-pub const CONTEXTUAL_TABS: [&str; 10] = [
+pub const CONTEXTUAL_TABS: [&str; 12] = [
     "Header & Footer",
     "Table Design",
     "Table Layout",
@@ -45,6 +45,8 @@ pub const CONTEXTUAL_TABS: [&str; 10] = [
     "SmartArt Design",
     "CAD Drawing",
     "CAD Picture Format",
+    "Exercise",
+    "Series",
 ];
 /// The Quick Access Toolbar's commands until the user changes them.
 pub const DEFAULT_QAT: [&str; 3] = ["file.save", "edit.undo", "edit.redo"];
@@ -110,6 +112,11 @@ fn built_in(name: &str) -> bool {
 /// Names a custom tab can't have.
 fn reserved(name: &str) -> bool {
     TABS.iter().chain(CONTEXTUAL_TABS.iter()).any(|t| same(t, name))
+}
+
+/// Whether `name` is a contextual tab's.
+fn contextual(name: &str) -> bool {
+    CONTEXTUAL_TABS.iter().any(|t| same(t, name))
 }
 
 fn default_tabs() -> Vec<TabEntry> {
@@ -182,7 +189,14 @@ impl RibbonLayout {
             return;
         }
         let mut tabs: Vec<TabEntry> = Vec::new();
-        for t in std::mem::take(&mut self.tabs) {
+        let saved: Vec<String> = self.tabs.iter().map(|t| t.name.clone()).collect();
+        for mut t in std::mem::take(&mut self.tabs) {
+            // A custom tab named like a contextual tab a newer version added (Exercise, Series)
+            // keeps its groups under a free name ("Exercise 2"); one named like a built-in tab
+            // could never be made and is junk.
+            if t.custom && contextual(&t.name) {
+                t.name = unique(&t.name, |n| reserved(n) || tabs.iter().any(|x| same(&x.name, n)) || saved.iter().any(|s| same(s, n)));
+            }
             let ok = if t.custom { !reserved(&t.name) } else { built_in(&t.name) };
             if ok && !tabs.iter().any(|x| same(&x.name, &t.name)) {
                 tabs.push(t);
@@ -528,5 +542,29 @@ mod tests {
         for v in [json!(null), json!(5), json!("x"), json!({"tabs": {"a": 1}, "qat": "file.save"})] {
             assert_eq!(serde_json::from_value::<RibbonLayout>(v).unwrap(), RibbonLayout::default());
         }
+    }
+
+    /// A custom tab saved under a name that a newer version gave a contextual tab (Exercise,
+    /// Series) is renamed, never dropped: its groups and commands stay.
+    #[test]
+    fn a_custom_tab_named_like_a_new_contextual_tab_is_renamed_not_lost() {
+        let saved = json!({
+            "tabs": [
+                {"name": "Exercise", "custom": true, "hidden": true, "groups": [{"name": "Mine", "commands": ["format.bold"]}]},
+                {"name": "series", "custom": true, "groups": [{"name": "G", "commands": ["edit.copy"]}]},
+                {"name": "Exercise 2", "custom": true}
+            ]
+        });
+        let l: RibbonLayout = serde_json::from_value(saved).unwrap();
+        let tabs = l.tabs();
+        let custom: Vec<&TabEntry> = tabs.iter().filter(|t| t.custom).collect();
+        let names: Vec<&str> = custom.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, ["Exercise 3", "series 2", "Exercise 2"]);
+        assert!(custom.iter().all(|t| !reserved(&t.name)));
+        assert!(custom[0].hidden);
+        assert_eq!(custom[0].groups[0].commands, ["format.bold"]);
+        assert_eq!(custom[1].groups[0].commands, ["edit.copy"]);
+        let back: RibbonLayout = serde_json::from_str(&serde_json::to_string(&l).unwrap()).unwrap();
+        assert_eq!(back, l);
     }
 }

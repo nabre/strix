@@ -51,7 +51,6 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::RestrictEditing, app.restrict.open),
         (Pane::Proofing, app.spelling_review.is_some()),
         (Pane::Comments, v.comments_pane),
-        (Pane::Exercise, v.exercise_pane),
         (Pane::GraphPaper, v.graph_pane),
         (Pane::Variables, v.variables_pane),
         (Pane::Subdocuments, v.subdocument_pane),
@@ -59,6 +58,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::Archive, v.archive_pane),
         (Pane::Plot, v.plot_pane),
         (Pane::Grading, v.grading_pane),
+        (Pane::Thesaurus, v.thesaurus_pane),
     ]
     .into_iter()
     .filter_map(|(pane, shown)| shown.then_some(pane))

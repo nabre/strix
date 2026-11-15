@@ -525,6 +525,21 @@ impl Drawing {
 }
 
 impl Drawing {
+    /// The square a right angle is drawn as (drawing units, y up: the vertex, along the first
+    /// ray, the far corner, along the second), when entity `e` is an angle drawn so: no text of
+    /// its own and a quarter turn. Picked inside, like a text's box.
+    pub(crate) fn right_angle_square(&self, e: &Entity) -> Option<[Pt; 4]> {
+        let Kind::Angle { c, a, b, r, r_paper, text, .. } = &e.kind else { return None };
+        let k = crate::edit::paper_per_unit(self);
+        let (c, a, b) = (c.pt(), a.pt(), b.pt());
+        let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
+        let sweep = crate::kernel::angle_ccw(ua, ub);
+        let side = r + r_paper / k;
+        let right = text.is_none() && (sweep - std::f64::consts::FRAC_PI_2).abs() <= RIGHT_ANGLE_TOL;
+        (right && ua.len() > 0.0 && ub.len() > 0.0 && side.is_finite() && side > 0.0)
+            .then(|| [c, c.plus(ua.scale(side)), c.plus(ua.plus(ub).scale(side)), c.plus(ub.scale(side))])
+    }
+
     /// A level mark (paper mm, y up): a short line on the level through the tip, the triangle
     /// standing on its tip (hanging from it when flipped), a line along the triangle's top
     /// running out to the text side, and the elevation on that line (under it when flipped).
@@ -772,13 +787,13 @@ pub fn parse_scale(text: &str) -> Option<f64> {
 }
 
 impl Drawing {
-    /// Whether the drawing, annotations and padding included, fits its maximum size at `1:n`
-    /// (always, without one).
+    /// Whether the drawing, annotations, padding and the underlay that prints with it included,
+    /// fits its maximum size at `1:n` (always, without one).
     pub fn fits_at(&self, n: f64, ws: Option<&Worksheet>) -> bool {
         let Some(fit) = self.fit else { return true };
         let mut d = self.clone();
         d.scale = n;
-        let (w, h) = d.render(ws).size;
+        let (w, h) = d.with_printed_underlay(d.render(ws)).size;
         (fit.width <= 0.0 || w <= fit.width + 1e-9) && (fit.height <= 0.0 || h <= fit.height + 1e-9)
     }
 

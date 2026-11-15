@@ -15397,3 +15397,40 @@ fn turned_cell_float_keeps_its_along_text_offset() {
         assert!((confined.y - reference.y).abs() < 0.01, "{direction:?}: {confined:?} vs {reference:?}");
     }
 }
+
+/// Hidden text that isn't shown takes no room, even after a full page: paragraphs and a table
+/// wholly hidden (text and marks, an exercise's hidden solution) at the end of the document don't
+/// leave a blank last page behind, though the last line's space after runs past the bottom
+/// margin. Shown (Show/Hide ¶), they take their pages again.
+#[test]
+fn hidden_text_after_a_full_page_adds_no_blank_page() {
+    crate::test_fonts();
+    let hidden = CharProps { hidden: Some(true), ..Default::default() };
+    let lines = |n: usize| {
+        let mut d = Document::new();
+        d.body = (0..n).map(|i| wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text(&format!("Line {i}"), Default::default()))).collect();
+        d
+    };
+    let fill = (1..200).find(|n| lay(&lines(*n)).pages.len() > 1).unwrap() - 1;
+    let hidden_para = |keep: bool| {
+        let mut p = wordcraft_doc::Paragraph::with_text("Secret solution", hidden.clone());
+        p.mark.hidden = Some(true);
+        p.props.keep_lines = Some(keep);
+        p.props.space_before = Some(30.0);
+        wordcraft_doc::para_block(p)
+    };
+    let mut paras = lines(fill);
+    paras.body.extend((0..30).map(|i| hidden_para(i % 2 == 0)));
+    let mut table = lines(fill);
+    let mut t = Table::new(10, 2, 400.0);
+    for cell in t.rows.iter_mut().flat_map(|r| r.cells.iter_mut()) {
+        cell.blocks = vec![hidden_para(false)];
+    }
+    table.body.push(Arc::new(Block::Table(t)));
+    table.body.push(hidden_para(false));
+    for (case, d) in [("paragraphs", &paras), ("table", &table)] {
+        assert_eq!(lay(d).pages.len(), 1, "{case}: hidden text added a page");
+        let shown = layout(d, &mut LayoutCache::new(), &LayoutOptions { show_hidden: true, ..Default::default() });
+        assert!(shown.pages.len() > 1, "{case}: shown hidden text takes its room");
+    }
+}

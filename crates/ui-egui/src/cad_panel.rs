@@ -604,9 +604,17 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     (FieldKind::Paper, _) => "mm",
                     _ => "",
                 };
-                ui.label(RichText::new(suffix).weak());
+                // A text that can show the calculations' parameters: a menu that writes them in.
+                let annotation = matches!(f.kind, FieldKind::Text) && matches!(f.key.as_str(), "text" | "below" | "value");
+                let added = if annotation {
+                    let dim = f.key != "value";
+                    parameter_menu(ui, &ed.names, dim).map(|piece| format!("{}{piece}", if dim && f.text.is_empty() { "" } else { f.text.as_str() }))
+                } else {
+                    ui.label(RichText::new(suffix).weak());
+                    None
+                };
                 ui.end_row();
-                if let Some(v) = new {
+                if let Some(v) = new.or(added) {
                     match d.set_field_typed(i, ed.vertex, &f.key, &v) {
                         Ok(()) => {
                             changed = true;
@@ -621,6 +629,39 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         ui.label(RichText::new(crate::i18n::fmt(tl!("Lengths in {unit} (or with their own unit: 2.5m, 30cm)"), &[("unit", unit)])).weak().small());
     }
     changed.then_some(d)
+}
+
+/// The button beside an annotation's text (a dimension's, level's, angle's or a text's) that
+/// writes in what it can show (docs/cad.md): a parameter of the calculations defined before the
+/// drawing as its value (`{{L}}`, a length written as the dimension style writes sizes), its
+/// symbol alone (`{{L:symbol}}`, an equation's letter) or both (`{{L:both}}`, `L = 4.50 m`),
+/// and for a dimension its measured size (`<>`). Returns the piece to add at the end.
+fn parameter_menu(ui: &mut Ui, names: &[String], dim: bool) -> Option<String> {
+    let mut piece = None;
+    ui.menu_button("{x}", |ui| {
+        if dim && ui.button(tl!("Measured size")).on_hover_text("<>").clicked() {
+            piece = Some("<>".to_string());
+            ui.close();
+        }
+        if names.is_empty() {
+            ui.label(RichText::new(tl!("No parameters are defined before the drawing")).weak());
+        }
+        for n in names.iter().take(200) {
+            ui.menu_button(n.as_str(), |ui| {
+                for (label, form) in
+                    [("Value", format!("{{{{{n}}}}}")), ("Symbol", format!("{{{{{n}:symbol}}}}")), ("Symbol = value", format!("{{{{{n}:both}}}}"))]
+                {
+                    if ui.button(tl!(label)).on_hover_text(form.as_str()).clicked() {
+                        piece = Some(form);
+                        ui.close();
+                    }
+                }
+            });
+        }
+    })
+    .response
+    .on_hover_text(tl!("Insert a parameter of the calculations: its value, its symbol or both"));
+    piece
 }
 
 /// A choice field's word as the pane shows it (English; translated by the caller).
@@ -684,10 +725,17 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
         ui.label(RichText::new(format!("{}: {}", tl!("Current layer"), ed.current_layer)).weak());
     });
     ui.add_space(2.0);
+    // The drawing's own layers first (`0` first), then those inherited from each other drawing,
+    // nested under a row with its name.
     let mut order: Vec<usize> = (0..ed.drawing.layers.len()).collect();
     order.sort_by(|&a, &b| {
-        let name = |i: usize| ed.drawing.layers.get(i).map(|l| l.name.to_lowercase()).unwrap_or_default();
-        (name(a) != "0").cmp(&(name(b) != "0")).then_with(|| name(a).cmp(&name(b)))
+        let key = |i: usize| {
+            let l = ed.drawing.layers.get(i);
+            let from = l.and_then(|l| l.from.clone());
+            let name = l.map(|l| l.name.to_lowercase()).unwrap_or_default();
+            (from, name != "0", name)
+        };
+        key(a).cmp(&key(b))
     });
     egui::ScrollArea::vertical().id_salt("cad_layer_manager").auto_shrink([false, false]).show(ui, |ui| {
         crate::rtl::grid(ui, egui::Grid::new("cad_layer_grid").num_columns(12).striped(true).spacing(vec2(10.0, 3.0)), |ui| {
@@ -695,9 +743,18 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 ui.label(RichText::new(tl!(h)).weak().small());
             }
             ui.end_row();
+            let mut group: Option<String> = None;
             for li in order {
                 let Some(l) = ed.drawing.layers.get(li).cloned() else { continue };
                 let name = l.name.clone();
+                // A drawing's layers under its name.
+                if l.from.is_some() && l.from != group {
+                    group.clone_from(&l.from);
+                    ui.label("");
+                    ui.label(RichText::new(format!("▾ {}", l.from.as_deref().unwrap_or_default())).strong())
+                        .on_hover_text(tl!("Layers of another drawing (its underlay or imported): usable like the drawing's own"));
+                    ui.end_row();
+                }
                 ui.push_id(("cad_layer", li), |ui| {
                     if ui.radio(ed.current_layer == name, "").on_hover_text(tl!("Current layer: new objects go on it")).clicked() {
                         ed.current_layer = name.clone();
@@ -705,6 +762,10 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 });
                 if name == "0" {
                     ui.label("0");
+                } else if let Some(from) = l.from.as_deref() {
+                    // Nested: its own name, under its drawing's; never renamed.
+                    let tail = name.strip_prefix(from).and_then(|t| t.strip_prefix('/')).unwrap_or(&name);
+                    ui.label(format!("    {tail}")).on_hover_text(name.clone());
                 } else if let Some(to) = text_field(ui, ui.scope_id().with(("cad_layer_name", li)), &name, 130.0, &mut typing) {
                     match d.rename_layer(&name, &to) {
                         Ok(()) => {
@@ -751,8 +812,14 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                     changed = true;
                 }
                 ui.label(ed.drawing.entities.iter().filter(|e| e.layer == name).count().to_string());
+                let removable = ed.drawing.can_remove_layer(&name);
+                let tip = if removable || l.from.is_none() {
+                    tl!("Delete the layer (its objects go to layer 0)")
+                } else {
+                    tl!("A layer of another drawing can be deleted only when no object is on it")
+                };
                 if name != "0"
-                    && ui.small_button("×").on_hover_text(tl!("Delete the layer (its objects go to layer 0)")).clicked()
+                    && ui.add_enabled(removable, egui::Button::new("×").small()).on_hover_text(tip).on_disabled_hover_text(tip).clicked()
                     && d.remove_layer(&name).is_ok()
                 {
                     if ed.current_layer == name {

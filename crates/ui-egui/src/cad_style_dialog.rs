@@ -99,6 +99,15 @@ pub(crate) fn styles_group(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// A style window's grid: every grid of the window with the same label column, so the fields
+/// line up from section to section.
+fn dialog_grid(ui: &mut Ui, id: &str, add: impl FnOnce(&mut Ui)) {
+    crate::rtl::grid(ui, egui::Grid::new(id).num_columns(2).spacing(vec2(8.0, 4.0)).min_row_height(22.0).min_col_width(LABEL_W), add);
+}
+
+/// The label column's width in the style windows.
+const LABEL_W: f32 = 170.0;
+
 /// Runs a style command; an error goes to the status bar.
 fn run(app: &mut WordApp, id: &str, params: serde_json::Value) {
     if let Err(e) = app.run(id, params) {
@@ -148,7 +157,7 @@ fn style_list(app: &mut WordApp, ui: &mut Ui, kind: StyleKind) {
         StyleKind::Dim => "dim",
         StyleKind::Text => "text",
     };
-    field_grid(ui, &format!("cad_style_list_{k}"), |ui| {
+    dialog_grid(ui, &format!("cad_style_list_{k}"), |ui| {
         ui.label(tl!("Style"));
         let mut pick = None;
         craft_ui::ComboBox::from_id_salt(("cad_style_current", k)).selected_text(tl!(current.as_str())).width(FIELD_W + 80.0).show_ui(ui, |ui| {
@@ -234,7 +243,7 @@ fn dim_body(app: &mut WordApp, ui: &mut Ui) {
             }
         });
     };
-    field_grid(ui, "cad_dim_style_marks", |ui| {
+    dialog_grid(ui, "cad_dim_style_marks", |ui| {
         ui.label(tl!("Start mark"));
         mark_combo(ui, app, "mark", Some(style.mark));
         ui.end_row();
@@ -247,7 +256,7 @@ fn dim_body(app: &mut WordApp, ui: &mut Ui) {
     });
     ui.add_space(8.0);
     ui.label(egui::RichText::new(tl!("Lines")).strong());
-    field_grid(ui, "cad_dim_style_lines", |ui| {
+    dialog_grid(ui, "cad_dim_style_lines", |ui| {
         size_row(ui, app, ("Line width", ""), "lineWidth", &current, style.line_width, 2.0);
         size_row(ui, app, ("Line beyond", ""), "lineOver", &current, style.line_over, 20.0);
         size_row(ui, app, ("Extension gap", ""), "extGap", &current, style.ext_gap, 20.0);
@@ -255,7 +264,7 @@ fn dim_body(app: &mut WordApp, ui: &mut Ui) {
     });
     ui.add_space(8.0);
     ui.label(egui::RichText::new(tl!("Text")).strong());
-    field_grid(ui, "cad_dim_style_text", |ui| {
+    dialog_grid(ui, "cad_dim_style_text", |ui| {
         size_row(ui, app, ("Text height", ""), "text", &current, style.text, 50.0);
         size_row(ui, app, ("Text gap", ""), "textGap", &current, style.text_gap, 20.0);
         ui.label(tl!("Text style"));
@@ -304,7 +313,7 @@ fn level_body(app: &mut WordApp, ui: &mut Ui) {
     style_list(app, ui, StyleKind::Dim);
     let Some((style, current, _)) = current_dim(app) else { return };
     ui.add_space(8.0);
-    field_grid(ui, "cad_level_style", |ui| {
+    dialog_grid(ui, "cad_level_style", |ui| {
         size_row(ui, app, ("Text height", "0: the dimension text height"), "levelText", &current, style.level_text, 50.0);
         size_row(ui, app, ("Triangle height", "0: automatic (a text and a fifth)"), "levelMark", &current, style.level_mark, 50.0);
         size_row(ui, app, ("Text gap", ""), "textGap", &current, style.text_gap, 20.0);
@@ -328,7 +337,7 @@ fn text_body(app: &mut WordApp, ui: &mut Ui) {
     let set = |app: &mut WordApp, params: serde_json::Value| run(app, "ui.cadTextStyle", params);
     let fields = ui.add_enabled_ui(style.is_some(), |ui| {
         let st = style.clone().unwrap_or_default();
-        field_grid(ui, "cad_text_style", |ui| {
+        dialog_grid(ui, "cad_text_style", |ui| {
             ui.label(tl!("Font"));
             let shown = st.font.clone().map_or_else(|| tl!("Document font").to_string(), |f| app.previews.font_shown(&f));
             let fams = app.previews.families();

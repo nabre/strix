@@ -49,7 +49,7 @@ mod dictionary_download;
 pub mod documents;
 pub mod equation_tab;
 mod exercise_grip;
-pub mod exercise_pane;
+pub mod exercise_panels;
 mod exercise_quiz;
 /// The built-in file browser, for desktops without a system file dialog (#576).
 #[cfg(not(target_arch = "wasm32"))]
@@ -96,6 +96,7 @@ pub mod table_pen;
 pub mod table_resize;
 pub mod table_ruler;
 pub mod theme;
+mod thesaurus_pane;
 pub mod updates_ui;
 pub mod variables_pane;
 pub mod widgets;

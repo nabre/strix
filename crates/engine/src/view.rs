@@ -69,6 +69,10 @@ pub struct ViewState {
     /// the points-to-grade table (docs/exercise.md).
     #[serde(default)]
     pub grading_pane: bool,
+    /// The Thesaurus pane (Review › Proofing › Thesaurus): synonyms by meaning from the
+    /// thesaurus of the word's language (docs/thesaurus.md).
+    #[serde(default)]
+    pub thesaurus_pane: bool,
     /// The Plot Properties pane (Math › Graphics › Plot Properties): axes, series and teacher/student
     /// options for the selected plot (`docs/plot.md`).
     #[serde(default)]
@@ -232,6 +236,7 @@ impl Default for ViewState {
             archive_pane: false,
             plot_pane: false,
             grading_pane: false,
+            thesaurus_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,

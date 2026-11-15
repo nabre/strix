@@ -85,3 +85,18 @@ fn a_measured_width_replaces_the_estimate() {
     assert_eq!(d.text_widths.get("t", "{{q:both}}"), Some(4.0));
     assert_eq!(d.text_widths.get("t", "other"), None);
 }
+
+/// A right angle is taken with one click anywhere in its square (drawn as the square of side
+/// `r` plus its paper part, not as an arc), and a point outside it misses.
+#[test]
+fn a_right_angle_is_picked_in_its_square() {
+    // 1:1 in mm: r 4 + r_paper 2 → a 6 mm square on the vertex.
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":[100,0]},{"type":"line","a":[0,0],"b":[0,100]},
+            {"type":"angle","c":[0,0],"a":[100,0],"b":[0,100],"r":4,"rPaper":2}]}"#,
+    )
+    .unwrap();
+    assert_eq!(d.hits(Pt::new(3.0, 3.0), 0.5).first(), Some(&2), "inside the square");
+    assert_eq!(d.hits(Pt::new(5.9, 5.8), 0.5).first(), Some(&2), "by the far corner");
+    assert!(!d.hits(Pt::new(9.0, 9.0), 0.5).contains(&2), "outside");
+}

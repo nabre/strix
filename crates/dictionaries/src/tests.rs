@@ -33,7 +33,7 @@ fn temp_dir(name: &str) -> PathBuf {
     d
 }
 
-const IT: Source = Source { name: "it_IT", folder: "it_IT", file: "it_IT", licence: "GPL-3.0" };
+const IT: Source = Source { kind: Kind::Spelling, name: "it_IT", folder: "it_IT", file: "it_IT", licence: "GPL-3.0", notices: &[] };
 
 #[test]
 fn every_proofing_language_can_download_its_dictionary() {
@@ -99,4 +99,74 @@ fn an_unreachable_server_is_an_error() {
     let base = format!("http://{}/", listener.local_addr().unwrap());
     drop(listener);
     assert!(download_from(&base, &IT, &temp_dir("down"), MAX_FILE).is_err());
+}
+
+/// LO1.1: every thesaurus Strix offers says under which licence its publisher gives it and where
+/// that is written, at the revision fetched.
+#[test]
+fn every_thesaurus_has_its_licence_and_page() {
+    let thesauri: Vec<_> = SOURCES.iter().filter(|s| s.kind == Kind::Thesaurus).collect();
+    assert!(thesauri.len() >= 8, "{}", thesauri.len());
+    for s in &thesauri {
+        assert!(!s.licence.trim().is_empty(), "{}", s.name);
+        assert!(s.page().contains(REVISION) && s.page().ends_with(s.folder), "{}", s.name);
+        assert!(!s.notices.is_empty(), "{}: the files that state its licence", s.name);
+        assert!(s.file_name().ends_with(".dat"), "{}", s.name);
+        // Names and files come from this table only: nothing a caller could point elsewhere.
+        for part in [s.folder, s.file].iter().chain(s.notices) {
+            assert!(!part.contains("..") && !part.contains('/') && !part.contains('\\'), "{part}");
+        }
+        assert_eq!(thesaurus(s.name), Some(*s));
+    }
+    // Spelling and thesaurus rows of the same language are told apart.
+    assert_eq!(source("it_IT").map(|s| s.kind), Some(Kind::Spelling));
+    assert_eq!(thesaurus("it_IT").map(|s| s.kind), Some(Kind::Thesaurus));
+    assert_eq!(thesaurus("pt_BR"), None, "its folder states no licence for the thesaurus");
+    assert_eq!(thesaurus("../it_IT"), None);
+}
+
+const TH_IT: Source =
+    Source { kind: Kind::Thesaurus, name: "it_IT", folder: "it_IT", file: "th_it_IT_v2", licence: "GPL-3.0", notices: &["README_th_it_IT.txt"] };
+
+#[test]
+fn downloads_a_thesaurus_with_its_licence_notice() {
+    let dat = "UTF-8\ncasa|1\n(s.f.)|abitazione|dimora\n".as_bytes().to_vec();
+    let readme = b"Italian Thesaurus\nLicense: GNU GPL 3\n".to_vec();
+    let base =
+        serve(HashMap::from([("it_IT/th_it_IT_v2.dat".to_string(), dat.clone()), ("it_IT/README_th_it_IT.txt".to_string(), readme.clone())]), 2);
+    let dir = temp_dir("thesaurus");
+    let file = download_from(&base, &TH_IT, &dir, crate::mythes::MAX_FILE).unwrap();
+    assert_eq!(file, dir.join("th_it_IT_v2.dat"));
+    assert_eq!(std::fs::read(&file).unwrap(), dat);
+    assert_eq!(std::fs::read(dir.join("th_it_IT_v2.README_th_it_IT.txt")).unwrap(), readme);
+    let note = std::fs::read_to_string(dir.join("th_it_IT_v2.source.txt")).unwrap();
+    assert!(note.contains("GPL-3.0") && note.contains(REVISION) && note.contains("th_it_IT_v2.README_th_it_IT.txt"), "{note}");
+    let names: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect();
+    assert!(!names.iter().any(|n| n.ends_with(".part")), "{names:?}");
+    let t = crate::mythes::load(&file, crate::mythes::MAX_FILE).unwrap();
+    assert_eq!(t.lookup("Case", Some("it-IT")).map(|(w, m)| (w, m.len())), Some(("casa".to_string(), 1)));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_thesaurus_that_cant_be_read_is_not_kept() {
+    let dir = temp_dir("bad-thesaurus");
+    for (dat, want) in [
+        (b"UTF-8\ncasa|3\n(s.f.)|abitazione\n".to_vec(), "declares 3 meanings"),
+        (b"<!DOCTYPE html><html>".to_vec(), "web page"),
+        (b"EBCDIC\ncasa|1\n-|dimora\n".to_vec(), "unknown encoding"),
+        (Vec::new(), "empty"),
+    ] {
+        let base =
+            serve(HashMap::from([("it_IT/th_it_IT_v2.dat".to_string(), dat), ("it_IT/README_th_it_IT.txt".to_string(), b"GPL 3\n".to_vec())]), 2);
+        let e = download_from(&base, &TH_IT, &dir, crate::mythes::MAX_FILE).unwrap_err();
+        assert!(e.contains(want), "{want}: {e}");
+        assert!(!dir.join("th_it_IT_v2.dat").exists() && !dir.join("th_it_IT_v2.README_th_it_IT.txt").exists(), "{want}");
+    }
+    // A missing licence notice: nothing is kept either.
+    let base = serve(HashMap::from([("it_IT/th_it_IT_v2.dat".to_string(), b"UTF-8\na|1\n-|b\n".to_vec())]), 1);
+    let e = download_from(&base, &TH_IT, &dir, crate::mythes::MAX_FILE).unwrap_err();
+    assert!(e.contains("404"), "{e}");
+    assert!(!dir.join("th_it_IT_v2.dat").exists());
+    let _ = std::fs::remove_dir_all(&dir);
 }

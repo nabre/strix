@@ -1,9 +1,9 @@
-//! The Questions section of the Exercise Properties pane (docs/exercise.md, Kinds of exercise):
+//! The Exercise tab's Question Settings panel (docs/exercise.md, Kinds of exercise):
 //! a compact list of the questions (label, text, type, points) and, under it, the settings of the
 //! one chosen — the question the cursor is in, until another is clicked: its type and points,
 //! then what its type has (the answer space, the correct options, the tolerance…), through
 //! `exercise.questions` and `exercise.questionMode`. One question's settings at a time keeps the
-//! pane readable however many questions the exercise has.
+//! panel readable however many questions the exercise has.
 
 use egui::{RichText, Ui};
 use serde_json::{Value, json};

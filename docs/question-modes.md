@@ -100,7 +100,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 - **Stage 4 — More closed modes**: fill in the blanks (*completamento*, blanks inline in the
   question's text), matching (*abbinamento*, two columns), ordering. Each keeps the two-copies
   rule and gives its line to the summary.
-- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and Exercise Properties.
+- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and the Exercise tab's Question Settings.
 
 ## Commands
 
@@ -136,7 +136,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
   {"studentBlank":true,"column":true}`). Student copies hide marked values;
   calculations retain their inputs. Removing the flag restores visibility.
 - `matching`: two columns with association boxes. Pass `"pairs":[["mass","kg"],
-  ["time","s"]]` or edit Pairs in Exercise Properties. The right column uses a
+  ["time","s"]]` or edit Pairs in the Exercise tab's Question Settings. The right column uses a
   deterministic permutation per exercise/question/variant. Only teacher copies
   contain the association letters. Pairs and modes survive Word round trips.
 
