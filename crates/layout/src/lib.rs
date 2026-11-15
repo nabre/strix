@@ -66,6 +66,7 @@ mod notes;
 mod page;
 mod pass;
 mod placed;
+mod quiet_mark;
 mod strict;
 mod substituted;
 mod table_flow;

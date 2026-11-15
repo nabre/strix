@@ -15,6 +15,7 @@
 //! primary  = number | name | function "(" args ")" | user "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
 //!          | "√" postfix | nary
 //! nary     = ("∑" | "∏") ("_" lower)? ("^" postfix)? "▒"? term      the operand spans · and /
+//!          | "∫" "_" limit "^" limit "▒"? term (("+" | "-") term)*   up to the differential `dx`
 //! lower    = "(" name "=" full ")" | name
 //! ```
 //!
@@ -646,7 +647,9 @@ impl Parser<'_> {
                 // A function name is a call only when `(` follows, so `min` alone is minutes.
                 let func = Func::from_name(name).filter(|_| matches!(self.peek(), Some(Tok::LParen)));
                 let Some(func) = func else {
-                    if matches!(self.peek(), Some(Tok::LParen)) && (self.is_func)(name) {
+                    // `f′(2)`: a derivative of the user function `f`.
+                    let (base, _) = crate::calculus::split_primes(name);
+                    if matches!(self.peek(), Some(Tok::LParen)) && (self.is_func)(base) {
                         self.bump();
                         let args = self.nested(Self::args)?;
                         return self.node(Expr::Apply(name.clone(), args));
@@ -700,6 +703,9 @@ impl Parser<'_> {
 
     /// An n-ary operator after its sign: limits, an optional `▒` and the operand.
     fn nary(&mut self, op: char) -> R<Expr> {
+        if op == '∫' {
+            return self.integral();
+        }
         let (mut var, mut from) = (None, None);
         if matches!(self.peek(), Some(Tok::Under)) {
             self.bump();
@@ -732,6 +738,71 @@ impl Parser<'_> {
         }
         let body = Box::new(self.term()?);
         self.node(Expr::Nary(Nary { op, var, from, to, body }))
+    }
+
+    /// A definite integral after `∫`: `_a^b` (either order), an optional `▒` and the integrand up
+    /// to its differential (`x² + 1 dx`, `〖x² dx〗`).
+    fn integral(&mut self) -> R<Expr> {
+        let (mut from, mut to) = (None, None);
+        loop {
+            match self.peek() {
+                Some(Tok::Under) if from.is_none() => {
+                    self.bump();
+                    from = Some(Box::new(self.limit()?));
+                }
+                Some(Tok::Caret) if to.is_none() => {
+                    self.bump();
+                    to = Some(Box::new(self.limit()?));
+                }
+                _ => break,
+            }
+        }
+        if from.is_none() || to.is_none() {
+            return Err(CalcError::syntax(self.pos(), "give both limits of the integral, like ∫_0^1"));
+        }
+        if matches!(self.peek(), Some(Tok::Operand)) {
+            self.bump();
+        }
+        let mut body: Option<Expr> = None;
+        let mut negate = false;
+        loop {
+            let term = self.term()?;
+            let term = if negate { self.node(Expr::Neg(Box::new(term)))? } else { term };
+            let (term, var) = match crate::calculus::split_differential(term) {
+                Ok((term, var)) => (term, Some(var)),
+                Err(term) => (term, None),
+            };
+            let joined = match body.take() {
+                None => term,
+                Some(left) => self.bin(BinOp::Add, left, term)?,
+            };
+            if let Some(var) = var {
+                return self.node(Expr::Nary(Nary { op: '∫', var: Some(var), from, to, body: Box::new(joined) }));
+            }
+            body = Some(joined);
+            negate = match self.peek() {
+                Some(Tok::Plus) => false,
+                Some(Tok::Minus) => true,
+                _ => return Err(CalcError::syntax(self.pos(), "end the integral with its variable, like dx")),
+            };
+            self.bump();
+        }
+    }
+
+    /// A limit of an integral: a signed postfix (`0`, `-1`, `π`, `(a+b)`).
+    fn limit(&mut self) -> R<Expr> {
+        match self.peek() {
+            Some(Tok::Minus) => {
+                self.bump();
+                let inner = self.nested(Self::postfix)?;
+                self.node(Expr::Neg(Box::new(inner)))
+            }
+            Some(Tok::Plus) => {
+                self.bump();
+                self.nested(Self::postfix)
+            }
+            _ => self.nested(Self::postfix),
+        }
     }
 
     /// The integer power written on a function name before its argument: `⁻¹`, `²`, `^-1`,

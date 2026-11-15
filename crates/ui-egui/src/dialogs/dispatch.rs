@@ -1012,8 +1012,9 @@ fn modify_style_dialog(app: &mut WordApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             r.cell(|ui| ui.add(egui::DragValue::new(size).range(1.0..=1638.0).speed(0.5)).labelled_by(size_label.id));
         });
         t.row(|r| {
-            let color_label = r.cell(|ui| ui.label(tl!("Color:")));
-            r.cell(|ui| ui.text_edit_singleline(color).labelled_by(color_label.id));
+            r.cell(|ui| ui.label(tl!("Color:")));
+            let theme = app.session.doc.settings.theme_colors.clone();
+            r.cell(|ui| color_field(ui, &theme, color, "Automatic", ""));
         });
         t.row(|r| {
             r.cell(|ui| ui.label(tl!("Space before/after:")));

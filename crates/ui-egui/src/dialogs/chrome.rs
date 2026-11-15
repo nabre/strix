@@ -27,11 +27,13 @@ pub(crate) fn color_field(ui: &mut Ui, theme: &[wordcraft_doc::Rgb], value: &mut
         ui.painter().rect_stroke(r, 2.0, egui::Stroke::new(1.0, t.border_strong), egui::StrokeKind::Inside);
         let label = if c.is_some() { value.clone() } else { tl!(none_label).to_string() };
         ui.menu_button(label, |ui| {
-            if ui.button(tl!(none_label)).clicked() {
+            use crate::color_palette::{Options, TopItem, TopSwatch};
+            // Automatic shows black, like Word's; any other first choice is no colour.
+            let swatch = if none_label == "Automatic" { TopSwatch::Color(wordcraft_doc::Rgb::BLACK) } else { TopSwatch::Empty };
+            let opts = Options::top(TopItem::new(none_label, swatch, serde_json::Value::Null, "none"));
+            if crate::colors::field_menu_with(ui, theme, id, value, &opts).is_some() {
                 *value = none_value.to_string();
-                ui.close();
             }
-            crate::colors::field_menu(ui, theme, id, value);
         });
     });
 }

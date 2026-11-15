@@ -38,6 +38,7 @@ pub mod canvas;
 pub mod caret_glide;
 pub mod check_pane;
 pub mod chrome;
+pub mod color_palette;
 pub mod colors;
 pub mod content_controls;
 pub mod control;
@@ -328,6 +329,8 @@ pub struct UiState {
     pub date_time_update: bool,
     /// Colours picked in the Colors dialog (More Colors…), most recent first (#606).
     pub recent_colors: Vec<String>,
+    /// Colour menus show only the colours that read well (High contrast only).
+    pub high_contrast_colors: bool,
     /// Fonts applied from the font box, the mini toolbar or the Font dialog, most recent first:
     /// the Recently Used Fonts section at the top of the font list (#2068).
     #[serde(deserialize_with = "lenient_recent_fonts")]
@@ -494,6 +497,7 @@ impl Default for UiState {
             date_time_language: String::new(),
             date_time_update: false,
             recent_colors: Vec::new(),
+            high_contrast_colors: false,
             recent_fonts: Vec::new(),
             theme: theme::Appearance::default(),
             interface_size: theme::InterfaceSize::default(),

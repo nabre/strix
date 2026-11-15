@@ -751,6 +751,9 @@ impl<'a> Ctx<'a> {
         if self.names == Names::UnitsOnly {
             return Err(CalcError::UnknownUnit(name.to_string()));
         }
+        if let (base, order @ 1..) = crate::calculus::split_primes(name) {
+            return self.derivative(base, order, args);
+        }
         let scope = self.scope;
         let f = scope.function(name).ok_or_else(|| CalcError::UnknownName(name.to_string()))?;
         if f.params.len() != args.len() {
@@ -766,6 +769,64 @@ impl<'a> Ctx<'a> {
         self.calls -= 1;
         self.locals = outer;
         result
+    }
+
+    /// `f′(x)`, `f″(x)`: the derivative of the user function `base` of one variable.
+    fn derivative(&mut self, base: &str, order: usize, args: Vec<Value>) -> Result<Value, CalcError> {
+        let name = format!("{base}{}", crate::calculus::PRIME.to_string().repeat(order.min(8)));
+        if order > crate::calculus::MAX_ORDER {
+            return Err(CalcError::Domain { function: name });
+        }
+        let params = self.scope.function(base).ok_or_else(|| CalcError::UnknownName(base.to_string()))?.params.len();
+        let [arg] = args.as_slice() else {
+            return Err(CalcError::ArgCount { function: name, expected: params, found: args.len() });
+        };
+        if params != 1 {
+            return Err(CalcError::ArgCount { function: name, expected: params, found: 1 });
+        }
+        let x = arg.expect_scalar()?;
+        const WHAT: &str = "derivative";
+        let mut first: Option<Quantity> = None;
+        let mut f = |v: f64| -> Result<f64, CalcError> {
+            let q = self.apply(base, vec![Quantity::new(v, x.dim).into()])?.expect_scalar()?;
+            match first {
+                None => first = Some(q),
+                Some(p) => p.same_dim(q, WHAT)?,
+            }
+            Ok(q.value)
+        };
+        let value = crate::calculus::derivative(&mut f, x.value, order)?;
+        let mut dim = first.map(|q| q.dim).unwrap_or_default();
+        for _ in 0..order {
+            dim = dim.try_div(x.dim)?;
+        }
+        Ok(Quantity::new(crate::quantity::finite(value)?, dim).into())
+    }
+
+    /// `∫_a^b body dvar`.
+    fn integral(&mut self, n: &Nary) -> Result<Value, CalcError> {
+        let (Some(var), Some(from), Some(to)) = (&n.var, &n.from, &n.to) else {
+            return Err(CalcError::syntax(0, "give both limits of the integral, like ∫_0^1"));
+        };
+        let a = self.eval(from)?.expect_scalar()?;
+        let b = self.eval(to)?.expect_scalar()?;
+        a.same_dim(b, "∫")?;
+        const WHAT: &str = "∫";
+        let mut first: Option<Quantity> = None;
+        let mut f = |v: f64| -> Result<f64, CalcError> {
+            self.locals.push((var.clone(), Quantity::new(v, a.dim).into()));
+            let q = self.eval(&n.body).and_then(|v| v.expect_scalar());
+            self.locals.pop();
+            let q = q?;
+            match first {
+                None => first = Some(q),
+                Some(p) => p.same_dim(q, WHAT)?,
+            }
+            Ok(q.value)
+        };
+        let value = crate::calculus::integral(&mut f, a.value, b.value)?;
+        let dim = first.map(|q| q.dim).unwrap_or_default().try_mul(a.dim)?;
+        Ok(Quantity::new(crate::quantity::finite(value)?, dim).into())
     }
 
     /// `a op b`, element by element when either side is a vector (vectors must be as long).
@@ -795,6 +856,9 @@ impl<'a> Ctx<'a> {
 
     /// `∑`/`∏`: over `var = from..to`, over the values of `var`, or over the operand's elements.
     fn nary(&mut self, n: &Nary) -> Result<Value, CalcError> {
+        if n.op == '∫' {
+            return self.integral(n);
+        }
         let sum = n.op == '∑';
         let mut acc: Option<Quantity> = None;
         let mode = self.scope.uncertainty;

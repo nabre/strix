@@ -31,7 +31,7 @@ a master document).
 |---|---|---|---|---|
 | **Open answer** | `open` | a space (cm), squared or blank | the answer written in the space | — |
 | **Multiple choice** | `choice` | options A), B)… with empty boxes | the correct boxes ticked (more than one may be) | `b) A, C` |
-| **True or false** | `trueFalse` | *Vero* / *Falso* with empty boxes | the right one ticked | `c) A` |
+| **True or false** | `trueFalse` | two empty boxes on the statement's line, in the V and F columns | the right one ticked | `c) A` |
 | **Calculation** | `calc` | a squared space for the working, then `Answer: A = ______ cm²` | the working (live equations) and `Answer: A = 15 cm²` | `d) A = 15 cm²` |
 | **CAD drawing** | `drawing` | a squared space (8 cm) to draw in | the solution's CAD drawing in the space | — |
 
@@ -47,6 +47,28 @@ geometry exercise can ask *a) what is a rectangle (open)*, *b) a square is a rec
 (drawing)*. New Exercise's kinds only say which mode the first questions start in; Add Question
 adds one like the last, or of the mode asked for (`exercise.addQuestion {"type": "calc"}`), with
 that mode's space.
+
+### True or false
+
+A true/false question is answered on its statement's line: at the right of the text column two
+columns, **V** and **F** (the initials of True and False in the exercise's language: V F in
+Italian and French, T F in English, W F in German), each with a check box. The boxes sit at the
+same two right-aligned tab stops in every statement, left of the points, so a **battery** of
+true/false statements lines up in two columns down the page; above the first statement of each
+run of consecutive true/false questions a generated header line names the columns. A statement
+that runs over several lines has its boxes on its last line, beside the points: a paragraph can
+only put them on its first line by becoming a table, which the quiz structure (one paragraph per
+question) doesn't use. The statement has no right indent: past one, the positional tab that sends
+the points to the margin would push them to a line of their own.
+
+The boxes behave as a multiple choice's: the right one ticked while the answers show, both empty
+in the students' copy; a box ticked by hand while the answers show becomes the answer and clears
+the other. `exercise.questions` reads and sets them as before (`"choices": ["Vero", "Falso"]`,
+`"correct": "A"`), and `exercise.questionMode` converts to and from the other modes (to multiple
+choice: *Vero*, *Falso* and two empty options). In the file the answer control is inline in the
+question's paragraph (`strix:exercise.answer`, the two `strix:exercise.box` check boxes after
+tabs) and the header is `strix:exercise.trueFalseHead`; true/false options from older files, one
+per paragraph, move onto the statement's line when the document is opened.
 
 ### Calculation
 

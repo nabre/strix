@@ -1900,3 +1900,16 @@ fn parameters_shown_as_values() {
     }
     assert_eq!(ws.with_values("A = h*r", &|_| false), None);
 }
+
+#[test]
+fn a_call_shown_with_its_result_is_read_back_as_a_call() {
+    // `f(a) =` refreshed to `f(a) = -4`, or `f(a) = f(0) = -4` with its working, must not
+    // redefine `f` as a constant when read back.
+    for shown in ["f(a) = -4", "f(a) = f(0) = -4", "f(a) = 7 m"] {
+        let r = run(&["f(x) = x^2 - 4", "a = 0", shown, "f(3) ="]);
+        assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("f(3) = 5"), "{shown}");
+    }
+    // An unknown parameter still defines a function, even with a number as its body.
+    assert_eq!(last(&["g(u) = 4", "g(9) ="]), "g(9) = 4");
+    assert_eq!(last(&["x = 2", "h(x) = x^2", "h(3) ="]), "h(3) = 9");
+}

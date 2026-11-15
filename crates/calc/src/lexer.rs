@@ -43,7 +43,7 @@ pub(crate) enum Tok {
     /// `▒`: the operand of an n-ary operator follows (Word's linear format); also Word's
     /// function application U+2061, the argument of a function follows.
     Operand,
-    /// An n-ary operator: `∑` (sum) or `∏` (product).
+    /// An n-ary operator: `∑` (sum), `∏` (product) or `∫` (definite integral).
     Nary(char),
     /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`).
     Cmp(char),
@@ -131,6 +131,7 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                     name.push(c);
                     i += 1;
                 }
+                i = crate::calculus::primes(&chars, i, &mut name);
                 out.push(Token { tok: Tok::Ident(name), pos, byte });
                 continue;
             }
@@ -168,6 +169,8 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '▒' | '\u{2061}' => Tok::Operand,
             '∑' => Tok::Nary('∑'),
             '∏' => Tok::Nary('∏'),
+            // Only a definite integral is calculated; `∫ f dx = F` stays an ordinary equation.
+            '∫' if matches!(next, Some('_' | '^')) => Tok::Nary('∫'),
             ',' if !decimal_comma => Tok::Sep,
             ';' => Tok::Sep,
             ':' if next == Some('=') => {

@@ -30,6 +30,7 @@
 //! after `=` is resolved as units only.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod calculus;
 mod error;
 mod eval;
 mod format;

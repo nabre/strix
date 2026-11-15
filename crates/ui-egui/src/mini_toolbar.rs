@@ -452,20 +452,10 @@ pub(crate) fn highlight_menu(ui: &mut egui::Ui, app: &mut WordApp) {
 
 /// Font colour: Automatic, the colour grid, Recent Colors and More Colors… (#606).
 fn font_color_menu(ui: &mut egui::Ui, app: &mut WordApp) {
-    egui::ScrollArea::vertical().max_height(280.0).show(ui, |ui| {
-        let auto_in_effect = widgets::current_pick(ui.ctx()).is_some_and(|cur| cur == "auto");
-        let automatic = ui.selectable_label(auto_in_effect, "Automatic");
-        if automatic.hovered() {
-            widgets::note_hover(ui.ctx(), "auto".to_string());
-        }
-        if automatic.clicked() {
-            widgets::run_from_ribbon(app, "format.color", json!({"color": "auto"}));
-            ui.close();
-            return;
-        }
+    egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
         let theme = app.session.doc.settings.theme_colors.clone();
         let target = crate::colors::Target::cmd("format.color").remember(crate::colors::Remember::FontColor);
-        crate::colors::menu(ui, app, &theme, target);
+        crate::colors::menu_with(ui, app, &theme, target, &crate::color_palette::Options::top(crate::color_palette::TopItem::automatic()));
     });
 }
 

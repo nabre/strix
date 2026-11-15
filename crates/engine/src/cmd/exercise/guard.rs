@@ -62,6 +62,8 @@ fn redirect(p: &Paragraph, off: usize) -> Result<Option<usize>, CmdError> {
 /// Before typing at a collapsed caret: a caret beside an exercise field moves into it (see the
 /// module docs), so nothing is typed outside the fields.
 pub(crate) fn typing_target(s: &mut Session) -> Result<(), CmdError> {
+    // In the results summary: into the free paragraph before it.
+    super::structure::typing_before_results(s);
     if !s.sel.is_collapsed() || s.sel.focus.story != StoryRef::Body || s.sel.focus.path.0.len() != 1 {
         return Ok(());
     }
@@ -102,7 +104,15 @@ pub(crate) fn outside_for(s: &mut Session, blocks: &[Block]) -> bool {
             let e = *e;
             layout.parts.iter().rposition(|(x, _)| *x == Some(e)).map_or(top + 1, |last| last + 1)
         }
-        Some((None, Part::Results)) => layout.parts.iter().position(|(_, part)| *part == Part::Results).unwrap_or(top),
+        Some((None, Part::Results)) => {
+            let from = layout.parts.iter().position(|(_, part)| *part == Part::Results).unwrap_or(top);
+            // The empty free paragraph before the summary takes it.
+            if let Some(i) = super::structure::free_before_results(s, from) {
+                s.sel = Selection::caret(Pos::new(StoryRef::Body, super::body_path(i), 0));
+                return true;
+            }
+            from
+        }
         _ => return false,
     };
     let at = at.min(s.doc.body.len());

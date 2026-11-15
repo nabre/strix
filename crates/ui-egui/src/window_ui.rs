@@ -271,6 +271,7 @@ impl WordApp {
             date_time_language: _,
             date_time_update: _,
             recent_colors: _,
+            high_contrast_colors: _,
             recent_fonts: _,
             theme: _,
             interface_size: _,

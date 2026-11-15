@@ -18,6 +18,8 @@ use egui::{Color32, RichText, Ui, vec2};
 use strix_cad::{Dash, Drawing, FieldKind, Focus, StrokeEdit, families};
 
 use crate::cad_editor::CadEditor;
+use crate::color_palette::{ButtonPick, Options, TopItem};
+use wordcraft_doc::Rgb;
 
 /// Lineweights offered, paper mm (ISO 128 series).
 const WIDTHS: [f64; 9] = [0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1.0, 1.4, 2.0];
@@ -55,8 +57,6 @@ const COLORS: [([u8; 3], &str); 23] = [
     ([230, 230, 230], "Grey 10%"),
     ([255, 255, 255], "White"),
 ];
-/// Pens per row in the colour menu: the colours fill three rows, the greys the last one.
-const PENS_PER_ROW: usize = 8;
 
 fn hex(c: [u8; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2])
@@ -115,22 +115,6 @@ fn state_toggle(ui: &mut Ui, on: bool, icon: &str, off: &str, tip: &str) -> bool
     resp.on_hover_text(tl!(tip)).clicked()
 }
 
-/// A pen in the colour menu: a swatch to click, ringed when it is the one shown.
-fn pen_swatch(ui: &mut Ui, c: [u8; 3], on: bool) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(18.0, 18.0), egui::Sense::click());
-    ui.painter().rect_filled(r.shrink(1.0), 2.0, Color32::from_rgb(c[0], c[1], c[2]));
-    let edge = if on {
-        egui::Stroke::new(2.0, ui.visuals().selection.stroke.color)
-    } else if resp.hovered() {
-        // The theme's text colour: it stands out on the pane in either theme.
-        egui::Stroke::new(1.5, crate::theme::Tokens::get(ui.ctx()).text)
-    } else {
-        egui::Stroke::new(0.5, Color32::from_gray(140))
-    };
-    ui.painter().rect_stroke(r, 2.0, edge, egui::StrokeKind::Inside);
-    resp
-}
-
 /// What a combo of the General section shows: one value, or "Varies".
 fn common<T: PartialEq + Clone>(values: impl Iterator<Item = T>) -> Option<Option<T>> {
     let mut out: Option<T> = None;
@@ -160,60 +144,21 @@ fn text_field(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, typing: &mut b
     (r.lost_focus() && !esc && buf != shown).then_some(buf)
 }
 
-/// A colour combo: ByLayer (when offered), the pens, and any colour typed as `r, g, b` or
-/// `#rrggbb`. `Some(None)` is ByLayer.
-fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: bool, typing: &mut bool) -> Option<Option<[u8; 3]>> {
-    let mut out = None;
+/// A colour combo: ByLayer (when offered) and the colour drop-down every colour uses (theme and
+/// standard colours, Recent Colors, More Colors…). `Some(None)` is ByLayer.
+fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: bool) -> Option<Option<[u8; 3]>> {
     let text = match shown {
         None => tl!("Varies").to_string(),
         Some(None) => tl!("ByLayer").to_string(),
         Some(Some(c)) => color_name(c),
     };
-    ui.horizontal(|ui| {
-        if let Some(Some(c)) = shown {
-            swatch(ui, c);
-        }
-        // Clicks inside keep it open (the RGB field takes typing); a pen or Enter applies.
-        // Every pen at once: the menu is as tall as its content, never scrolled.
-        craft_ui::ComboBox::from_id_salt(id)
-            .selected_text(text)
-            .width(120.0)
-            .height(f32::INFINITY)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .show_ui(ui, |ui| {
-                if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
-                    out = Some(None);
-                }
-                // The pens as a grid of swatches: the colours, then the greys on a row of their own.
-                ui.label(RichText::new(tl!("Pens")).weak().small());
-                let (colours, greys) = COLORS.split_at(15);
-                for row in colours.chunks(PENS_PER_ROW).chain(std::iter::once(greys)) {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
-                        for &(c, name) in row {
-                            if pen_swatch(ui, c, shown == Some(Some(c))).on_hover_text(tl!(name)).clicked() {
-                                out = Some(Some(c));
-                            }
-                        }
-                    });
-                }
-                ui.separator();
-                // Any colour by its RGB values or `#rrggbb` (applied with Enter: one undo step).
-                let rgb = match shown {
-                    Some(Some(c)) => format!("{}, {}, {}", c[0], c[1], c[2]),
-                    _ => String::new(),
-                };
-                ui.horizontal(|ui| {
-                    ui.label("RGB");
-                    if let Some(t) = text_field(ui, ui.scope_id().with((id, "rgb")), &rgb, 110.0, typing)
-                        && let Some(c) = parse_rgb(&t)
-                    {
-                        out = Some(Some(c));
-                    }
-                });
-            });
-    });
-    out
+    let current = shown.flatten().map(|c| Rgb(c[0], c[1], c[2]));
+    let tops = if by_layer { vec![TopItem::none("ByLayer", serde_json::Value::Null)] } else { Vec::new() };
+    let pick = crate::color_palette::color_button(ui, id, &wordcraft_doc::THEME_COLORS, current, &text, &Options::tops(tops))?;
+    Some(match pick {
+        ButtonPick::Color(c) => Some([c.0, c.1, c.2]),
+        ButtonPick::Top(_) => None,
+    })
 }
 
 /// `#rrggbb` (the `#` may be left out).
@@ -224,18 +169,6 @@ pub(crate) fn parse_hex(c: &str) -> Option<[u8; 3]> {
     }
     let byte = |i: usize| h.get(i..i + 2).and_then(|x| u8::from_str_radix(x, 16).ok());
     Some([byte(0)?, byte(2)?, byte(4)?])
-}
-
-/// `r, g, b` (0–255 each, commas or spaces), or `#rrggbb`.
-fn parse_rgb(t: &str) -> Option<[u8; 3]> {
-    if t.trim().starts_with('#') {
-        return parse_hex(t);
-    }
-    let parts: Vec<u8> = t.split([',', ' ', ';']).filter(|s| !s.is_empty()).map(|s| s.trim().parse::<u8>().ok()).collect::<Option<_>>()?;
-    match parts.as_slice() {
-        [r, g, b] => Some([*r, *g, *b]),
-        _ => None,
-    }
 }
 
 fn width_text(w: f64) -> String {
@@ -496,7 +429,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         });
         ui.end_row();
         ui.label(tl!("Colour"));
-        if let Some(c) = color_combo(ui, "cad_obj_color", common(ents.iter().map(|e| e.stroke.color)).flatten(), true, typing) {
+        if let Some(c) = color_combo(ui, "cad_obj_color", common(ents.iter().map(|e| e.stroke.color)).flatten(), true) {
             d.set_stroke(&idx, StrokeEdit { color: Some(c), ..StrokeEdit::default() });
             changed = true;
         }
@@ -793,7 +726,7 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 });
                 flag(ui, l.print, ("print", "cadNoPrint"), "Printed: off, the layer shows only in the editor", &mut |x, v| x.print = v);
                 flag(ui, l.answer, ("check", "minus"), "Solution only: hidden when the exercise's solution is hidden", &mut |x, v| x.answer = v);
-                if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false, &mut typing)
+                if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.color = c;

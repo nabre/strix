@@ -711,7 +711,7 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
         crate::widgets::BigSplit {
             icon: "exercise",
             label: "New Exercise",
-            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing",
+            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete",
             action: crate::widgets::ButtonAction::new("exercise.insert", json!({}), false),
         },
         |ui, app| {
@@ -719,12 +719,8 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "Open Answer", "exercise.insert", json!({"kind": "open"}));
             mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
             mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
-            mi(ui, app, "Calculation", "exercise.insert", json!({"kind": "calc"}));
-            mi(ui, app, "Worked Example", "exercise.insert", json!({"kind": "worked"}));
             mi(ui, app, "Inline Completion", "exercise.insert", json!({"kind": "cloze"}));
             mi(ui, app, "Table to Complete", "exercise.insert", json!({"kind": "tableFill"}));
-            mi(ui, app, "Matching", "exercise.insert", json!({"kind": "matching"}));
-            mi(ui, app, "CAD Drawing Question", "exercise.insert", json!({"kind": "drawing"}));
         },
     );
 }

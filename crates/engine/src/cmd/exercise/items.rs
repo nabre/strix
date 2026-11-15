@@ -62,9 +62,9 @@ pub(super) const STYLE_LINE: &str = "ExerciseResultLine";
 const KIND_EL: &str = "strix:exerciseKind";
 const ANSWER_EL: &str = "strix:answerSpace";
 const POINTS_EL: &str = "strix:points";
-const CORRECT_EL: &str = "<strix:correct/>";
+pub(super) const CORRECT_EL: &str = "<strix:correct/>";
 /// On a box last written with the answers shown: only then is its state a click to take.
-const SHOWN_EL: &str = "<strix:shown/>";
+pub(super) const SHOWN_EL: &str = "<strix:shown/>";
 
 /// Options of one question at most.
 const MAX_CHOICES: usize = 26;
@@ -81,8 +81,8 @@ const BLANK: &str = "______________";
 const LABEL_SEP: &str = ": ";
 /// The colour of the answers (the Exercise Answer style's).
 pub(super) const ANSWER_COLOUR: wordcraft_doc::props::TextColor = wordcraft_doc::props::TextColor::Rgb(wordcraft_doc::props::Rgb(0x1F, 0x4E, 0x9A));
-const CHECKED: char = '\u{2612}';
-const UNCHECKED: char = '\u{2610}';
+pub(super) const CHECKED: char = '\u{2612}';
+pub(super) const UNCHECKED: char = '\u{2610}';
 
 /// What an exercise is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -281,7 +281,7 @@ impl Answer {
     }
 }
 
-fn read_answer(ctl: &ContentControl) -> Answer {
+pub(super) fn read_answer(ctl: &ContentControl) -> Answer {
     let open = format!("<{ANSWER_EL}>");
     let close = format!("</{ANSWER_EL}>");
     let Some(raw) = ctl.extra.iter().find_map(|x| x.strip_prefix(&open)?.strip_suffix(&close)) else { return Answer::default() };
@@ -304,7 +304,7 @@ fn inline(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
     c
 }
 
-fn check_box(correct: bool, checked: bool) -> ContentControl {
+pub(super) fn check_box(correct: bool, checked: bool) -> ContentControl {
     let mut c = inline(TAG_BOX, "", ControlLock::SdtLocked);
     c.kind = ControlKind::CheckBox {
         checked,
@@ -503,7 +503,7 @@ pub(super) fn span(p: &Paragraph, tag: &str) -> Option<(usize, usize)> {
 }
 
 /// The control whose start marker is at `at` in `p`.
-fn control_at_mut(p: &mut Paragraph, at: usize) -> Option<&mut ContentControl> {
+pub(super) fn control_at_mut(p: &mut Paragraph, at: usize) -> Option<&mut ContentControl> {
     match p.object_at_mut(at) {
         Some(InlineObject::ControlStart { control }) => Some(control),
         _ => None,
@@ -579,11 +579,14 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
     let mut out: Vec<Item> = Vec::new();
     for i in from..=to {
         let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
-        if p.props.style.as_deref() == Some(STYLE_QUESTION) && !in_answer(&all, i) {
+        // A true/false question's answer is inline in its own paragraph (true_false.rs).
+        let inline = if p.props.style.as_deref() == Some(STYLE_QUESTION) { inline_answer(p) } else { None };
+        if p.props.style.as_deref() == Some(STYLE_QUESTION) && (inline.is_some() || !in_answer(&all, i)) {
             if out.len() >= MAX_QUESTIONS {
                 break;
             }
-            out.push(Item { question: i, answer: None, settings: Answer::default() });
+            let answer = inline.is_some().then_some((i, i));
+            out.push(Item { question: i, answer, settings: inline.unwrap_or_default() });
         } else if let Some((a, b, set)) = all.iter().find(|(a, _, _)| *a == i).cloned()
             && let Some(last) = out.last_mut()
             && last.answer.is_none()
@@ -593,6 +596,16 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
         }
     }
     out
+}
+
+/// The settings of a question paragraph's inline answer (a true/false question's boxes on its
+/// line), if it has one.
+pub(super) fn inline_answer(p: &Paragraph) -> Option<Answer> {
+    let (a, _) = super::true_false::answer_span(p)?;
+    match p.object_at(a) {
+        Some(InlineObject::ControlStart { control }) => Some(read_answer(control)),
+        _ => None,
+    }
 }
 
 fn in_answer(all: &[(usize, usize, Answer)], i: usize) -> bool {
@@ -981,7 +994,7 @@ pub(super) fn add_drawings(s: &mut Session, ex: usize, drawings: &[Option<Value>
 }
 
 /// End markers at the end of `p` that close controls opened in an earlier paragraph.
-fn trailing_outer_ends(p: &Paragraph) -> usize {
+pub(super) fn trailing_outer_ends(p: &Paragraph) -> usize {
     let mut open = 0usize;
     let mut outer = 0usize;
     for (_, o) in p.objects_with_offsets() {
@@ -1001,10 +1014,11 @@ fn trailing_outer_ends(p: &Paragraph) -> usize {
 /// the space of each open answer, the boxes of each option, the answers shown or hidden, a lone
 /// question without its letter. Whether anything changed.
 pub(super) fn update(s: &mut Session) -> bool {
+    // True/false questions: their boxes on the statement's line, a header over each battery.
+    let mut changed = super::true_false::restructure(s);
     let layout = scan(s);
     let w = super::doc_words(s);
     let comma = super::scores::comma(s);
-    let mut changed = false;
     for (e, ex) in layout.exercises.iter().enumerate() {
         let its = items(s, &layout, e);
         if its.is_empty() {
@@ -1100,9 +1114,11 @@ pub(super) fn update(s: &mut Session) -> bool {
                 );
             }
             for i in a..=b {
+                let width = text_width_at(s, i);
+                let ew = super::exercise_words(s, &layout, e);
                 let Some(block) = s.doc.body.get_mut(i) else { continue };
                 changed |= match it.settings.mode {
-                    Mode::Choice => choice_para(block, shown),
+                    Mode::Choice => choice_para(block, shown) | super::true_false::sync(block, shown, width, ew),
                     // The result line is filled in by `result_lines`, once calculated.
                     Mode::Calc if matches!(&**block, Block::Para(p) if span(p, TAG_LINE).is_some()) => false,
                     _ => open_para(block, &it.settings, i == a, shown || matches!(it.settings.mode, Mode::Worked | Mode::Cloze | Mode::TableFill)),
@@ -1323,7 +1339,7 @@ fn is_line(s: &Session, i: usize) -> bool {
 }
 
 /// The text width of the section block `i` is in.
-fn text_width_at(s: &Session, i: usize) -> f32 {
+pub(super) fn text_width_at(s: &Session, i: usize) -> f32 {
     s.doc.sections().into_iter().find(|(end, _)| *end >= i).map_or_else(|| s.doc.last_section.text_width(), |(_, sp)| sp.text_width())
 }
 
@@ -1587,6 +1603,9 @@ pub(super) fn choice_text(p: &Paragraph) -> String {
 
 /// The options of an answer with whether each is correct.
 pub(super) fn choices(s: &Session, (a, b): (usize, usize)) -> Vec<(String, bool)> {
+    if let Some(cs) = super::true_false::choices(s, (a, b)) {
+        return cs;
+    }
     (a..=b)
         .filter_map(|i| s.doc.body.get(i).and_then(|b| b.as_para()))
         .filter(|p| p.props.style.as_deref() == Some(STYLE_CHOICE))
@@ -1601,6 +1620,9 @@ pub(super) fn choices(s: &Session, (a, b): (usize, usize)) -> Vec<(String, bool)
 
 /// The optional teacher diagnostic rationale stored on each option in `(a, b)`.
 pub(super) fn rationales_of(s: &Session, (a, b): (usize, usize)) -> Vec<Option<String>> {
+    if let Some(rs) = super::true_false::rationales(s, (a, b)) {
+        return rs;
+    }
     (a..=b)
         .filter_map(|i| s.doc.body.get(i).and_then(|b| b.as_para()))
         .filter(|p| p.props.style.as_deref() == Some(STYLE_CHOICE))
@@ -1919,6 +1941,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
 
 fn apply_choice_edits(s: &mut Session, (a, b): (usize, usize), v: &Value, shown: bool) {
     let want_correct = v.get("correct").map(|_| correct_list(v));
+    if super::true_false::apply_correct(s, (a, b), want_correct.as_deref()) {
+        return;
+    }
     let want_rationales = v.get("rationales").and_then(Value::as_array);
     let mut k = 0usize;
     for i in a..=b {
@@ -1954,7 +1979,7 @@ fn apply_choice_edits(s: &mut Session, (a, b): (usize, usize), v: &Value, shown:
     }
 }
 
-fn outer_ends_after_answer(s: &Session, a: usize, b: usize) -> usize {
+pub(super) fn outer_ends_after_answer(s: &Session, a: usize, b: usize) -> usize {
     let mut open = 0usize;
     let mut outer = 0usize;
     for i in a..=b {
@@ -1983,7 +2008,12 @@ fn append_ends(p: &mut Paragraph, ends: usize) {
     }
 }
 
-fn build_choice_paras(s: &mut Session, answer: ContentControl, choices: &[(String, bool, Option<String>)], outer: usize) -> Vec<Paragraph> {
+pub(super) fn build_choice_paras(
+    s: &mut Session,
+    answer: ContentControl,
+    choices: &[(String, bool, Option<String>)],
+    outer: usize,
+) -> Vec<Paragraph> {
     let list = add_choice_list(s).ok();
     let n = choices.len().max(1);
     let mut opener = Some(answer);
@@ -2030,6 +2060,10 @@ pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
         None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
+    // A true/false question's boxes on its line go back to being its two options first.
+    let shown = layout.exercises.get(e).is_some_and(|x| x.show.solution);
+    let expanded = if super::true_false::expand(s, it, shown) { items(s, &scan(s), e) } else { Vec::new() };
+    let it = if expanded.is_empty() { it } else { expanded.get(q).ok_or_else(|| CmdError::Failed("question vanished".into()))? };
     let (a, b) =
         it.answer.ok_or_else(|| CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()))?;
     let old_mode = it.settings.mode;
@@ -2371,7 +2405,8 @@ mod tests {
     fn true_false_and_added_questions_follow_the_last_one() {
         let mut s = session();
         run(&mut s, "exercise.insert", json!({"kind": "trueFalse", "questions": [{"text": "Il ferro è un metallo.", "correct": 1, "points": 1}]}));
-        assert!(texts(&s).iter().any(|x| x == "☒ Vero"), "{:?}", texts(&s));
+        // The boxes on the statement's line, True ticked in the corrected copy (true_false.rs).
+        assert!(texts(&s).iter().any(|x| x.starts_with("Il ferro è un metallo.\t☒\t☐")), "{:?}", texts(&s));
         run(&mut s, "exercise.addQuestion", json!({"text": "L'aria è un solido.", "trueFalse": true, "correct": 2}));
         let st = run(&mut s, "exercise.questions", json!({}));
         assert_eq!(st["questions"].as_array().map(Vec::len), Some(2));
@@ -2640,7 +2675,7 @@ mod tests {
     }
 
     #[test]
-    fn quiz_data_block_inserts_removes_and_respects_show_data() {
+    fn quiz_data_block_inserts_and_removes() {
         let mut s = session();
         run(&mut s, "exercise.insert", json!({"kind": "calc", "questions": [{"text": "Calcola A.", "points": 2}]}));
         let has_data_ctl = |s: &Session| s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == super::super::TAG_DATA);
@@ -2657,17 +2692,17 @@ mod tests {
         run(&mut s, "calc.insert", json!({"text": "A = 2 * b = cm"}));
         assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 10 cm");
 
-        // `showData: false` hides the visual TAG_DATA block while keeping `b` live in the sandbox!
+        // New values: the data part and the result follow.
         run(
             &mut s,
             "exercise.setData",
-            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0, "showData": false}}),
+            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0}}),
         );
-        assert!(!has_data_ctl(&s), "showData: false omits TAG_DATA");
+        assert!(has_data_ctl(&s));
         assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 14 cm");
 
         // Emptying items removes TAG_DATA cleanly.
-        run(&mut s, "exercise.setData", json!({"exercise": 1, "data": {"items": [], "variants": ["A"], "active": 0, "showData": true}}));
+        run(&mut s, "exercise.setData", json!({"exercise": 1, "data": {"items": [], "variants": ["A"], "active": 0}}));
         assert!(!has_data_ctl(&s));
     }
 

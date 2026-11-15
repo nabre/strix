@@ -20,6 +20,7 @@ mod nbsp;
 mod nested_cant_split;
 mod numeral;
 mod pages;
+mod quiet_mark;
 mod styleref;
 mod table_contact;
 mod textbox;

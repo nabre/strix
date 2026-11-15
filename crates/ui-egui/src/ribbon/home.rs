@@ -160,9 +160,11 @@ pub(super) fn home(app: &mut WordApp, ui: &mut Ui) {
                     crate::widgets::ButtonAction::new("format.color", json!({"color": fc}), false),
                     sw,
                     |ui, app| {
-                        mi(ui, app, "Automatic", "format.color", json!({"color": "auto"}));
                         let theme = app.session.doc.settings.theme_colors.clone();
-                        crate::colors::menu(ui, app, &theme, Target::cmd("format.color").remember(Remember::FontColor));
+                        let opts = crate::color_palette::Options::top(crate::color_palette::TopItem::automatic());
+                        crate::colors::menu_with(ui, app, &theme, Target::cmd("format.color").remember(Remember::FontColor), &opts);
+                        let base = wordcraft_doc::Rgb::parse(&app.canvas.last_font_color).unwrap_or(wordcraft_doc::Rgb(0xC0, 0, 0));
+                        ui.menu_button(tl!("Gradient"), |ui| crate::color_palette::text_gradient_menu(ui, app, base));
                     },
                 );
             });
@@ -297,9 +299,10 @@ pub(super) fn home(app: &mut WordApp, ui: &mut Ui) {
                     crate::widgets::ButtonAction::new("para.shading", json!({"color": app.canvas.last_shading.clone()}), false),
                     sw,
                     |ui, app| {
-                        mi(ui, app, "No Color", "para.shading", json!({"color": null}));
                         let theme = app.session.doc.settings.theme_colors.clone();
-                        crate::colors::menu(ui, app, &theme, Target::cmd("para.shading").remember(Remember::Shading));
+                        let opts =
+                            crate::color_palette::Options::top(crate::color_palette::TopItem::none("No Color", serde_json::Value::Null)).fill();
+                        crate::colors::menu_with(ui, app, &theme, Target::cmd("para.shading").remember(Remember::Shading), &opts);
                     },
                 );
                 split(

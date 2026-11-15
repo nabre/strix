@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-14 · **Change:** unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-15 · **Change:** derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -372,6 +372,23 @@ power: `x⁻¹`, `x^-1`, `sin(x)^-1`, `60 min^-1`.
   an error, never a stack overflow; the step budgets bound the work of calls fanning out. A call
   with the wrong number of arguments is an error ("g takes 2 arguments, not 1").
 
+### Derivatives and integrals
+
+- **`f′(a)`** is the slope of the user function `f` at `a`, **`f″(a)`** its second derivative
+  (also typed `f'(a)`, `f''(a)`, or built up as `f^′`). The function takes one variable; units
+  follow (`s(t) = a·t^2`, `s′(2 s) = 12 m/s`). A derivative is a value like any call:
+  `m = f′(1)`, `t(x) = m·(x - 1) + f(1)`, and it can be solved for: `0 = f′(x); x < 0 ⇒ x = -1`.
+  `f′(x) = …` defines nothing (it would be a function named `f′`).
+- **`∫_a^b f(x) dx`** is the definite integral (Word's `∫_a^b▒〖f(x) dx〗`, also `d x` or
+  `ⅆx`); the integrand runs up to its differential, so `∫_0^1 x^2 + 1 dx` is the integral of
+  the sum. The variable is bound, as in `∑`; the limits may carry units, and the result's unit
+  is the integrand's times the variable's (`∫_(0 s)^(2 s) a·t dt = 6 m`). An integral without
+  limits (`∫ f dx = F`) stays an ordinary equation.
+- Both are numerical (`crates/calc/src/calculus.rs`): central differences with a Richardson
+  step; adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
+  nodes never touch the limits (`∫_0^1 1/√x dx = 2`). Results keep 10 significant digits, so
+  `f′(1)` of `x²` is `2`, not `1.9999999999`.
+
 **Composed units for structures.** A result that is a force times a length to a power keeps
 the units it is written in, force first: `F·a` with `F` in kN and `a` in m is `24 kN·m` (a moment,
 not `24 kJ`), `q·L²/8` is in kN·m, `γ·t` in kN/m², a line load in kN/m. Other compounds take the
@@ -554,6 +571,8 @@ Edit Drawing, see `docs/cad.md`).
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-15: derivatives of user functions (`f′(a)`, `f″(a)`) and definite integrals (`∫_a^b f(x) dx`), numerical, with units; solvable like any call (`0 = f′(x)`); they make the plot's analysis live in the document (`plot.analysis`, [plot.md](plot.md)).
 
 - 2026-11-14: the unknown alone on the right of a formula is solved (`h·r = A ⇒ A = h·r = … = 1.5 m²`, also when it is spelled like a unit of another kind); inverse functions written `sin⁻¹`, `sin^-1`, `sin^(−1)⁡x` (built up) or `arcsin`…, shown as `asin`… in the steps, `sin²(x)` a power of the result, Word's function application `sin⁡x` read; data shown only as values in an exercise's text written as their values in its calculations (`A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²`), the typed statement kept as the source.
 

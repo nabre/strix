@@ -3,7 +3,8 @@
 //! A [`Plot`] holds 2D Cartesian axes (`[x_min, x_max] × [y_min, y_max]`), grid settings,
 //! student/teacher visibility (`answer`) and a list of [`Series`]: adaptive `y = f(x)` functions
 //! (with discontinuity/pole splitting, roots, extrema, tangents and shaded definite integrals),
-//! parametric curves `(x(t), y(t))`, and experimental datasets from `calc.table` vectors or inline
+//! parametric curves `(x(t), y(t))`, polar curves `ρ = f(θ)` in the plot's angle convention
+//! (mathematical or surveying) and unit, and experimental datasets from `calc.table` vectors or inline
 //! points with `±Δx, ±Δy` error bars and linear/quadratic least-squares regression.
 //!
 //! [`Plot::render_for`] turns a plot into [`PlotPrim`] primitives in paper millimetres (y down),
@@ -12,6 +13,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod features;
+mod fit;
 mod model;
 mod render;
 mod sample;
@@ -21,7 +23,7 @@ mod svg;
 mod tests;
 
 pub use features::{IntegralInfo, NotableKind, NotablePoint, RegressionInfo};
-pub use model::{DEFAULT_COLORS, DataPoint, Plot, RegressionKind, Series, SeriesKind};
+pub use model::{AngleConvention, AngleUnit, DEFAULT_COLORS, DataPoint, LineStyle, Plot, RegressionKind, Series, SeriesKind};
 pub use render::{PlotAnchor, PlotPrim, PlotRendered};
 
 /// Maximum series in a single plot.

@@ -1,7 +1,8 @@
 //! The Grading Scale pane (Teaching › Scores › Grading Scale › Properties, docs/exercise.md,
-//! Grading scale): every property of the points-to-grade table — the country preset, the maximum
-//! points (from the scores or fixed), the lowest, highest and pass grades, the pass threshold,
-//! the curve, the rounding of grades and points, who sees it — with the scale it gives. Every
+//! Grading scale): every property of the grade-to-points table — the country preset, the maximum
+//! points (from the scores or fixed), the lowest, highest and pass grades and the grades' step,
+//! the pass threshold, the curve, the multiple the points are rounded to, who sees it — with the
+//! scale it gives (each grade with its points `[from; to[`). Every
 //! change is one `exercise.grading` (one undo step); numbers dragged apply when the drag ends.
 
 use egui::{RichText, Ui};
@@ -95,7 +96,7 @@ fn properties(app: &mut WordApp, ui: &mut Ui, st: &Value) {
             set(app, json!({"maxGrade": v}));
         }
         ui.end_row();
-        ui.label(tl!("Grades rounded to"));
+        ui.label(tl!("Grade step"));
         let step = num("step", 0.5);
         let label = |v: f64| shown(v);
         craft_ui::ComboBox::from_id_salt("grading_step").selected_text(label(step)).show_ui(ui, |ui| {
@@ -156,17 +157,12 @@ fn properties(app: &mut WordApp, ui: &mut Ui, st: &Value) {
         });
     });
     ui.add_space(4.0);
-    let points_step = st["pointsStep"].as_f64();
-    let mut every = points_step.is_some();
     ui.horizontal(|ui| {
-        if ui.checkbox(&mut every, tl!("A row every")).on_hover_text(tl!("Off: the table chooses the step so it stays short")).changed() {
-            set(app, json!({"pointsStep": if every { json!(1.0) } else { Value::Null }}));
+        ui.label(tl!("Points rounded to the multiple of"))
+            .on_hover_text(tl!("Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)"));
+        if let Some(v) = num_field(ui, "grading_points_round", num("pointsRound", 0.01), 0.01..=1000.0, " pt", 2) {
+            set(app, json!({"pointsRound": v}));
         }
-        ui.add_enabled_ui(points_step.is_some(), |ui| {
-            if let Some(v) = num_field(ui, "grading_points_step", points_step.unwrap_or(1.0), 0.1..=1000.0, " pt", 1) {
-                set(app, json!({"pointsStep": v}));
-            }
-        });
     });
 
     crate::pane_kit::section(ui, "04", tl!("Shown In"));
@@ -178,7 +174,7 @@ fn properties(app: &mut WordApp, ui: &mut Ui, st: &Value) {
     }
 }
 
-/// The scale the settings give: points and grade, the pass mark marked.
+/// The scale the settings give: each grade with its points `[from; to[`, the pass mark marked.
 fn preview(ui: &mut Ui, st: &Value) {
     let rows = st["scale"].as_array().cloned().unwrap_or_default();
     if rows.is_empty() {
@@ -202,7 +198,7 @@ fn preview(ui: &mut Ui, st: &Value) {
                     match rows.get(c * per + r) {
                         Some(row) => {
                             let pass = row["pass"].as_bool().unwrap_or(false);
-                            let pts = shown(row["points"].as_f64().unwrap_or(0.0));
+                            let pts = row["text"].as_str().map_or_else(|| shown(row["points"].as_f64().unwrap_or(0.0)), str::to_string);
                             let grade = shown(row["grade"].as_f64().unwrap_or(0.0));
                             ui.label(RichText::new(pts).monospace());
                             let g = RichText::new(grade).monospace();

@@ -12,7 +12,6 @@ use wordcraft_doc::smart_art::{MAX_ITEMS, SmartArtColors, SmartArtLayout, SmartA
 
 use crate::WordApp;
 use crate::theme::{Tokens, c32, regular, semibold};
-use crate::widgets;
 
 /// The picker's categories (`All` first), in the order shown.
 pub const CATEGORIES: [&str; 8] = ["All", "List", "Process", "Cycle", "Hierarchy", "Relationship", "Matrix", "Pyramid"];
@@ -404,12 +403,21 @@ fn color_button(app: &mut WordApp, ui: &mut Ui, g: &SmartArtSpec, i: usize) {
     ui.painter().rect_stroke(rect, 3.0, Stroke::new(1.0, line), egui::StrokeKind::Inside);
     let resp = resp.on_hover_text(tl!("Shape color"));
     egui::Popup::menu(&resp).show(|ui| {
-        let mut pick = widgets::color_grid(ui, &theme).map(|hex| json!({"index": i, "color": hex}));
-        ui.add_space(2.0);
-        ui.separator();
-        if ui.add_enabled(own.is_some(), egui::Button::new(tl!("Style Color")).frame(false)).clicked() {
-            pick = Some(json!({"index": i}));
-        }
+        // Style Color (the style's accent) clears the item's own colour, when it has one.
+        let style = theme.get(3 + accent_n.clamp(1, 6)).copied().unwrap_or(Rgb(0x15, 0x60, 0x82));
+        let top = crate::color_palette::TopItem::new("Style Color", crate::color_palette::TopSwatch::Color(style), serde_json::Value::Null, "style");
+        let opts = crate::color_palette::Options::tops(own.map(|_| top).into_iter().collect());
+        let pick = match crate::color_palette::body(ui, &theme, &opts) {
+            Some(crate::colors::Pick::Color(hex)) => Some(json!({"index": i, "color": hex})),
+            Some(crate::colors::Pick::Top(_)) => Some(json!({"index": i})),
+            Some(crate::colors::Pick::More) => {
+                let target = crate::colors::Target::at("smartArt.itemColor", json!({"index": i, "color": null}), "/color");
+                app.colors = Some(crate::colors::ColorsDialog::new(own, target));
+                ui.close();
+                None
+            }
+            None => None,
+        };
         if let Some(params) = pick {
             app.smart_art_typing = None;
             let _ = app.run("smartArt.itemColor", params);
@@ -528,7 +536,8 @@ mod tests {
         assert_eq!(items_with(&g, 0, "Boss")["items"][0]["text"], "Boss");
     }
 
-    /// The colour button opens a grid: a swatch sets the item's own colour and Style Color clears it.
+    /// The colour button opens the colour drop-down: a swatch sets the item's own colour and Style
+    /// Color (its first choice once the item has a colour) clears it.
     #[test]
     fn the_color_button_sets_and_clears_an_items_colour() {
         let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
@@ -556,13 +565,14 @@ mod tests {
         click(&ctx, button.rect.center(), &mut a, &mut frame);
         assert!(egui::Popup::is_id_open(&ctx, popup), "the button opens the colour grid");
         let area = ctx.memory(|m| m.area_rect(popup)).expect("the grid is drawn");
-        // The first theme swatch: under the "Theme Colors" label at the popup's top left.
-        click(&ctx, area.min + vec2(14.0, 38.0), &mut a, &mut frame);
+        // The first theme swatch: under High contrast only and the "Theme Colors" heading.
+        click(&ctx, area.min + vec2(14.0, 68.0), &mut a, &mut frame);
         assert!(colour(&a).is_some(), "a swatch gives the item its own colour");
         let button = ctx.read_response(color_button_id(1)).unwrap();
         click(&ctx, button.rect.center(), &mut a, &mut frame);
         let area = ctx.memory(|m| m.area_rect(popup)).expect("the grid is drawn again");
-        click(&ctx, pos2(area.min.x + 30.0, area.max.y - 14.0), &mut a, &mut frame);
+        // Style Color: the row under High contrast only.
+        click(&ctx, pos2(area.min.x + 30.0, area.min.y + 52.0), &mut a, &mut frame);
         assert_eq!(colour(&a), None, "Style Color clears it");
     }
 

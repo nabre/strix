@@ -8,7 +8,7 @@ use wordcraft_doc::control::ControlRange;
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef};
 
-use super::{TAG_ITEM, TAG_QUESTIONS, TAG_TEXT, TAG_TITLE};
+use super::{Part, TAG_ITEM, TAG_QUESTIONS, TAG_TEXT, TAG_TITLE, scan};
 use crate::{CmdError, Selection, Session};
 
 /// Bytes of the control start markers a paragraph begins with.
@@ -114,4 +114,70 @@ pub(crate) fn collapse_empty_part(s: &mut Session) -> Result<(), CmdError> {
     s.doc.delete_range(&start, &r.end)?;
     s.sel = Selection::caret(start);
     Ok(())
+}
+
+/// An empty paragraph outside every control that isn't graph paper: free text, nothing of an
+/// exercise's.
+fn free_empty(b: &Block) -> bool {
+    matches!(b, Block::Para(p) if p.text.is_empty() && p.objects.is_empty() && p.props.graph.is_none())
+}
+
+/// There is always an ordinary paragraph after the last exercise, before the results summary
+/// (which stays last) or the end of the document, as Word keeps one after a block content
+/// control: with the solution and the results hidden nothing else would follow the questions,
+/// and the text after the exercise could not be reached (click, Down, Ctrl+End then typing).
+/// Whether one was added.
+pub(super) fn free_paragraph(s: &mut Session) -> bool {
+    let layout = scan(s);
+    let Some(n) = layout.exercises.len().checked_sub(1) else { return false };
+    let Some(last) = layout.parts.iter().rposition(|(x, _)| *x == Some(n)) else { return false };
+    // A master document's exercises are its subdocuments': it keeps its own text as it is.
+    if master(s) {
+        return false;
+    }
+    let at = last + 1;
+    let follows = layout.parts.get(at).map(|(_, part)| *part);
+    if !matches!(follows, None | Some(Part::Results)) || at > s.doc.body.len() {
+        return false;
+    }
+    s.doc.body.insert(at, wordcraft_doc::para_block(Paragraph::new()));
+    true
+}
+
+/// Whether the document is a master document (it has subdocuments): its own text, between and
+/// after them, is the master's to write.
+fn master(s: &Session) -> bool {
+    s.doc.body.iter().any(|b| {
+        matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::ControlStart { control } if control.tag.starts_with(super::SUBDOC_TAG))))
+    })
+}
+
+/// The free paragraph just before the results summary (see [`free_paragraph`]), when it is empty:
+/// a new exercise or a paste meant for before the summary takes its place instead of leaving it
+/// between two exercises.
+pub(super) fn free_before_results(s: &Session, results: usize) -> Option<usize> {
+    let i = results.checked_sub(1)?;
+    let layout = scan(s);
+    (layout.parts.get(i).is_some_and(|(x, part)| x.is_none() && *part == Part::Other)
+        && s.doc.body.get(i).is_some_and(|b| free_empty(b) && b.as_para().is_some_and(|p| p.section.is_none())))
+    .then_some(i)
+}
+
+/// With the caret in the results summary (Ctrl+End reaches its end, hidden or not), typing goes
+/// to the free paragraph before it: the summary is generated and takes no text.
+pub(crate) fn typing_before_results(s: &mut Session) {
+    if !s.sel.is_collapsed() || s.sel.focus.story != StoryRef::Body {
+        return;
+    }
+    let Some(top) = s.sel.focus.path.0.first().map(|&t| t as usize) else { return };
+    let layout = scan(s);
+    if layout.parts.get(top).is_none_or(|(_, part)| *part != Part::Results) {
+        return;
+    }
+    let Some(i) = layout.results.and_then(|(from, _)| from.checked_sub(1)) else { return };
+    if layout.parts.get(i).is_none_or(|(x, part)| x.is_some() || *part != Part::Other) {
+        return;
+    }
+    let Some(len) = s.doc.body.get(i).and_then(|b| b.as_para()).map(Paragraph::len) else { return };
+    s.sel = Selection::caret(Pos::new(StoryRef::Body, super::body_path(i), len));
 }

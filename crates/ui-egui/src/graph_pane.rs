@@ -60,40 +60,18 @@ pub(crate) fn num_field(ui: &mut Ui, key: &str, current: f64, range: std::ops::R
     ((r.changed() || was_dragging) && (v - current).abs() > 1e-9).then_some(v)
 }
 
-/// A colour combo: the swatches, and any colour typed as `#rrggbb`.
-fn color_combo(ui: &mut Ui, key: &str, current: [u8; 3]) -> Option<[u8; 3]> {
-    let mut out = None;
+/// A colour combo: the colour drop-down every colour uses (theme and standard colours, Recent
+/// Colors, More Colors…).
+fn color_combo(ui: &mut Ui, key: &str, theme: &[wordcraft_doc::Rgb], current: [u8; 3]) -> Option<[u8; 3]> {
     let name = COLORS
         .iter()
         .find(|(c, _)| *c == current)
         .map_or_else(|| format!("#{:02x}{:02x}{:02x}", current[0], current[1], current[2]), |(_, n)| tl!(n).to_string());
-    ui.horizontal(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), egui::Sense::hover());
-        ui.painter().rect_filled(r, 2.0, color32(current));
-        ui.painter().rect_stroke(r, 2.0, Stroke::new(0.5, Color32::from_gray(140)), egui::StrokeKind::Inside);
-        craft_ui::ComboBox::from_id_salt(("graph_color", key)).selected_text(name).width(130.0).show_ui(ui, |ui| {
-            for &(c, n) in &COLORS {
-                ui.horizontal(|ui| {
-                    let (r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), egui::Sense::hover());
-                    ui.painter().rect_filled(r, 2.0, color32(c));
-                    if ui.selectable_label(c == current, tl!(n)).clicked() {
-                        out = Some(c);
-                    }
-                });
-            }
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("#");
-                let shown = format!("{:02x}{:02x}{:02x}", current[0], current[1], current[2]);
-                if let Some(t) = crate::a11y_pane::draft_box(ui, ("graph_hex", key), &shown, true, false)
-                    && let Some(c) = crate::cad_panel::parse_hex(&t)
-                {
-                    out = Some(c);
-                }
-            });
-        });
-    });
-    out
+    let now = wordcraft_doc::Rgb(current[0], current[1], current[2]);
+    match crate::color_palette::color_button(ui, ("graph_color", key), theme, Some(now), &name, &Default::default())? {
+        crate::color_palette::ButtonPick::Color(c) => Some([c.0, c.1, c.2]),
+        crate::color_palette::ButtonPick::Top(_) => None,
+    }
 }
 
 fn style_combo(ui: &mut Ui, key: &str, current: &str) -> Option<&'static str> {
@@ -193,8 +171,9 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
         return;
     };
     let mut change: Option<Value> = None;
+    let theme = app.session.doc.settings.theme_colors.clone();
     egui::ScrollArea::vertical().show(ui, |ui| {
-        change = editor(ui, &g, true);
+        change = editor(ui, &g, true, &theme);
         ui.add_space(12.0);
         if ui.button(tl!("Remove Graph Paper")).clicked() {
             let _ = app.run("graph.remove", json!({}));
@@ -215,7 +194,7 @@ pub fn pane(app: &mut WordApp, ui: &mut Ui) {
 /// The graph paper's settings (`g` as `graph.get` gives it), with a preview: the change made, as
 /// `graph.set` parameters. `background` offers the background placement (an exercise's graph
 /// paper stays in the text).
-pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> {
+pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool, theme: &[wordcraft_doc::Rgb]) -> Option<Value> {
     let mut change: Option<Value> = None;
     {
         preview(ui, g);
@@ -273,7 +252,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
             }
             ui.end_row();
             ui.label(tl!("Colour"));
-            if let Some(c) = color_combo(ui, "line", rgb(g["color"].as_str().unwrap_or(""))) {
+            if let Some(c) = color_combo(ui, "line", theme, rgb(g["color"].as_str().unwrap_or(""))) {
                 change = Some(json!({"color": format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])}));
             }
             ui.end_row();
@@ -316,7 +295,7 @@ pub(crate) fn editor(ui: &mut Ui, g: &Value, background: bool) -> Option<Value> 
                 }
                 ui.end_row();
                 ui.label(tl!("Colour"));
-                if let Some(c) = color_combo(ui, "major", rgb(g["majorColor"].as_str().unwrap_or(""))) {
+                if let Some(c) = color_combo(ui, "major", theme, rgb(g["majorColor"].as_str().unwrap_or(""))) {
                     change = Some(json!({"majorColor": format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])}));
                 }
                 ui.end_row();
