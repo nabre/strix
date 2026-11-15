@@ -58,6 +58,18 @@ step either way. A statement part left only showing its placeholder beside a lin
 statement (documents from before, or its rest deleted) goes. The data part follows the title
 when there is no statement part.
 
+A quiz's **only question goes on the line** (`question_line.rs`): with no title, a quiz with a
+single question and nothing written on the line has that question right after the number
+(*Esercizio 1.* Scrivi qui la domanda.) instead of the statement's placeholder over a question
+showing its own — for every mode (open answer, calculation, drawing, multiple choice,
+true/false, text to complete, matching, worked example). The title line and the question's
+paragraph become one: the title control stays, empty, and the question (its text, points and a
+true/false question's boxes) follows it in the body text's weight and size; the answer (options,
+space) stays below. Typing on the line writes the question. A true/false question there names
+its boxes (`V ☐  F ☐`), as no header line can go above the number. The question goes back to a
+paragraph of its own, lettered again, as soon as that no longer holds: a second question, a title
+on the line, a statement on the line, data shown. A problem keeps its statement on the line.
+
 Only paragraphs in the Exercise Question style are questions: the repeated questions and the
 summary use their labels (`a.1) …`), indented by level; notes and other content between them
 are never repeated. `exercise.insert` takes nested questions as `{"text", "level"}`.
@@ -349,26 +361,33 @@ Inline Expression is no longer on the ribbon (`exercise.insertExpr` stays for sc
 
 With the cursor in an exercise the ribbon shows the **Exercise** tab (Teaching › Exercise ›
 Exercise Tools, the grip's Exercise Properties and `view.exercisePane` bring it up; there is no
-pane). Its groups:
+pane). First come the groups every type of exercise has (problem, open answer, multiple choice,
+true or false, inline completion), then the ones only some types of question use, greyed out
+unless the exercise has a question of such a type (the commands stay on for scripts):
 
-- **Questions**: **Add Question** (a split button: the menu adds a question of a type), **Add
-  Sub-question**, **Add Note**, **Result Of**, and **Question Settings**, a panel under the button
-  with a compact list (label, text, type, points) and the settings of **one question at a time**
-  under it — the one the cursor is in, until another row is clicked: its type and points, then
-  what its type has (answer space height, squared, square size; correct options as check boxes
-  with their text, shuffling, teacher notes; a calculation's result, Go to working and tolerance;
-  a drawing's scale and Open in CAD editor; matching pairs).
 - **General**: **First Line** (title, or text next to the number), **Duration** in minutes, and
-  the exercise's kind.
-- **Variants**: the active **Variant**, **Add Variant**, **Remove Variant**, and two panels:
-  **Data** (the variants as buttons, with add and remove; one row per datum: its equation in
-  the active variant and its description) and **Generate Variants**. While the exercise has
-  several variants, its tab on the page names the active one (`Exercise · Variant B`): the
-  printed exercise never names it.
+  the exercise's type (Problem; a quiz whose questions are all of one type is named after it,
+  True or False, Inline Completion…; else Open Answer or Multiple Choice).
+- **Questions**: **Add Question** (in a quiz a split button: the menu adds a question of a type;
+  a problem's questions have no type), **Add Sub-question**, **Add Note**, and **Question
+  Settings**, a panel under the button with a compact list (label, text, type, points) and the
+  settings of **one question at a time** under it — the one the cursor is in, until another row
+  is clicked: its type and points, then what its type has (answer space height, squared, square
+  size; correct options as check boxes with their text, shuffling, teacher notes; a
+  calculation's result, Go to working and tolerance; a drawing's scale and Open in CAD editor;
+  matching pairs).
 - **Layout** (a lone exercise; in a series **Series Settings** brings up the Series tab):
   **Show** (solution, results, graph paper), **Page Breaks**, **Frontispiece** and **Graph
   Paper**, a panel with the graph paper's settings.
 - **Exercise**: **Select Exercise** and **Delete Exercise**.
+- **Calculation**: **Result Of** (on for a problem and for calculation and worked example
+  questions), then the active **Variant**, **Add Variant**, **Remove Variant**, and two panels:
+  **Data** (the variants as buttons, with add and remove; one row per datum: its equation in
+  the active variant and its description) and **Generate Variants** (on for those and for
+  inline completion questions, whose blanks can be calculated, and whenever the exercise
+  already has data). While the exercise has several variants, its tab on the page names the
+  active one (`Exercise · Variant B`): the printed exercise never names it.
+- **Inline Completion**: **Hide Words** (on with an inline completion question).
 
 With more than one exercise the **Series** tab shows, wherever the cursor is: **Exercises** (Go
 To Exercise, Previous and Next Exercise, Delete Exercise with the list), **Numbering** (prefix,
@@ -440,7 +459,7 @@ are split into one line each.)
 
 ## Results
 
-An equation in the solution is marked as the **result** of a question (Exercise tab › Questions ›
+An equation in the solution is marked as the **result** of a question (Exercise tab › Calculation ›
 Result Of, `equation.answer {"question": n}`; without `question`, the question it is worked
 under), saved as `strix:answer="n"` on `m:oMath`). The
 summary lists, for every exercise, its label alone (*Esercizio 1*, as the exercises are numbered, never the title; the variant when there are several) and each question with the value of its result
@@ -488,7 +507,7 @@ to the end.
 - **Grading Scale Properties** (`Teaching › Scores › Grading Scale › Grading Scale Properties`, `view.gradingPane`): a pane with every property — preset, lowest and highest grade, grade step, curve, pass threshold (%) and pass grade, maximum points from the document's points or fixed, the multiple the points are rounded to, who sees it — and a preview of the scale (pass grades green); Insert or Remove the table. Each change is one `exercise.grading`.
 - **Grading Scale** (`Teaching › Scores › Grading Scale`, `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, grade step (`step`: `0.1`, `0.25`, `0.5`, `1.0`…), points rounded to a multiple (`pointsRound`, `null` = hundredths), and `visibility` (`"teacher"` or `"both"`).
 - **Continuous validation across all variants** (`exercise.data` `"variantErrors"`): evaluates every variant `A..Z` in memory (sandbox calculations, CAD `Drawing::resolve` and degenerate geometry, and duplicate evaluated multiple-choice options) without mutating the document, showing `⚠` badges and tooltips in the Exercise tab's Variant list.
-- **Controlled variant generator** (`exercise.generateVariants`, Exercise tab › Variants › *Generate Variants*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
+- **Controlled variant generator** (`exercise.generateVariants`, Exercise tab › Calculation › *Generate Variants*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
 - **Inline parametric expressions** (`exercise.insertExpr`, `strix:expr`, `{{expr}}` / `{{expr -> unit}}`): evaluated live in the exercise's sandbox (in statements, questions, and multiple-choice options) with units styled in `Unit`.
 - **Assessment pre-flight check** (`Teaching › Assessment › Check`, `view.checkPane`, `exercise.check`): pure diagnostic command inspecting all variants `A..Z`, choice keys and option collisions, linked subdocuments, unused initial data, missing solutions, score totals, laid-out answer heights, durations, and variant page counts, with click-to-jump positions.
 - **Assessment Pack batch export** (`Teaching › Assessment › Export Pack`, `file.exportPack`): exports in one step (folder or `.zip` on desktop, `.zip` download on `strix-web`) the Student PDF per variant (`Show = false`), the DSA Student PDF per variant (`design.dsa` active), and the Teacher Key PDF (`Show = true`, worked solutions, grading scale, and final **Multi-Variant Synoptic Table**).
