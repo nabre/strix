@@ -67,6 +67,26 @@ fn a_few_stray_lines_are_skipped() {
 }
 
 #[test]
+fn a_stray_first_meaning_line_does_not_reach_the_next_entry() {
+    // The meanings start on the line after the entry: a stray line there doesn't shift them
+    // onto the next entry's line.
+    let t = parse("UTF-8\nparola|2\nsenza barra\n-|termine\nnext|1\n-|x\n".as_bytes()).unwrap();
+    assert_eq!(meanings(&t, "parola", "it"), vec![(None, vec!["termine".into()])]);
+    assert_eq!(meanings(&t, "next", "it"), vec![(None, vec!["x".into()])]);
+}
+
+#[test]
+fn a_count_larger_than_the_meanings_does_not_swallow_the_next_entry() {
+    let t = parse("UTF-8\nparola|3\n-|termine\nnext|1\n-|x\nultima|2\n(s.f.)|fine\n".as_bytes());
+    // The last entry still declares more than the file has: that stays an error.
+    assert!(t.unwrap_err().contains("declares 2 meanings, the file ends after 1"));
+    let t = parse("UTF-8\nparola|3\n-|termine\nnext|1\n-|x\n(s.)|y\n".as_bytes()).unwrap();
+    assert_eq!(meanings(&t, "parola", "it"), vec![(None, vec!["termine".into()])]);
+    assert_eq!(meanings(&t, "next", "it"), vec![(None, vec!["x".into()])]);
+    assert_eq!(t.len(), 2);
+}
+
+#[test]
 fn hostile_files_are_errors_never_panics() {
     let long = format!("UTF-8\n{}|1\n-|a\n", "x".repeat(MAX_LINE + 1));
     let many = format!("UTF-8\nparola|{}\n-|a\n", MAX_MEANINGS + 1);

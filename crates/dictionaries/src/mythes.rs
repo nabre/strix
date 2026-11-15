@@ -133,15 +133,17 @@ fn build_index(text: &str) -> Result<HashMap<Box<str>, Vec<(usize, usize)>>, Str
     // Lines that are neither an entry where one is due nor a meaning where one is: skipped.
     let mut stray = 0usize;
     let mut it = lines(text);
-    while let Some((_, number, line)) = it.next() {
+    // An entry's line met where a meaning was due (its word declared more than it has): read
+    // next, as the entry it is.
+    let mut pending: Option<(usize, usize, &str)> = None;
+    while let Some((_, number, line)) = pending.take().or_else(|| it.next()) {
         if line.len() > MAX_LINE {
             return Err(format!("line {number}: longer than the longest line read"));
         }
         if line.trim().is_empty() {
             continue;
         }
-        let entry = line.rsplit_once('|').map(|(w, c)| (w.trim(), c.trim()));
-        let Some((word, count)) = entry.filter(|(w, c)| !w.is_empty() && !c.is_empty() && c.bytes().all(|b| b.is_ascii_digit())) else {
+        let Some((word, count)) = entry_line(line) else {
             stray = stray.saturating_add(1);
             continue;
         };
@@ -149,7 +151,9 @@ fn build_index(text: &str) -> Result<HashMap<Box<str>, Vec<(usize, usize)>>, Str
             count.parse::<usize>().ok().filter(|n| *n <= MAX_MEANINGS).ok_or_else(|| {
                 format!("line {number}: \"{}\" declares more meanings than a word can have", word.chars().take(40).collect::<String>())
             })?;
-        let mut first = None;
+        // The entry's meanings start on the line after it, whatever that line is, and run for
+        // `read` lines: a lookup reads those and no others.
+        let (mut start, mut read, mut any) = (None, 0usize, false);
         for i in 0..n {
             let Some((at, mnumber, mline)) = it.next() else {
                 return Err(format!(
@@ -160,8 +164,15 @@ fn build_index(text: &str) -> Result<HashMap<Box<str>, Vec<(usize, usize)>>, Str
             if mline.len() > MAX_LINE {
                 return Err(format!("line {mnumber}: longer than the longest line read"));
             }
+            if looks_like_entry(mline) {
+                stray = stray.saturating_add(1);
+                pending = Some((at, mnumber, mline));
+                break;
+            }
+            start.get_or_insert(at);
+            read = read.saturating_add(1);
             if mline.contains('|') {
-                first.get_or_insert(at);
+                any = true;
             } else {
                 stray = stray.saturating_add(1);
             }
@@ -170,8 +181,8 @@ fn build_index(text: &str) -> Result<HashMap<Box<str>, Vec<(usize, usize)>>, Str
         if entries > MAX_ENTRIES {
             return Err(format!("more than {MAX_ENTRIES} entries"));
         }
-        if let Some(at) = first {
-            index.entry(word.to_lowercase().into_boxed_str()).or_default().push((at, n));
+        if let Some(at) = start.filter(|_| any) {
+            index.entry(word.to_lowercase().into_boxed_str()).or_default().push((at, read));
         }
     }
     if stray > STRAY_LINES.saturating_add(entries / 100) {
@@ -181,6 +192,19 @@ fn build_index(text: &str) -> Result<HashMap<Box<str>, Vec<(usize, usize)>>, Str
         return Err("no entries".into());
     }
     Ok(index)
+}
+
+/// An entry's line (`word|count`): its word and its count, both trimmed.
+fn entry_line(line: &str) -> Option<(&str, &str)> {
+    let (w, c) = line.rsplit_once('|').map(|(w, c)| (w.trim(), c.trim()))?;
+    (!w.is_empty() && !c.is_empty() && c.bytes().all(|b| b.is_ascii_digit())).then_some((w, c))
+}
+
+/// Whether a line where a meaning is due is the next entry's instead: one `|`, a count after it,
+/// and before it a word, not a category (published files write those `(noun)`, `[a]`, `-` or
+/// empty).
+fn looks_like_entry(line: &str) -> bool {
+    line.matches('|').count() == 1 && entry_line(line).is_some_and(|(w, _)| !w.starts_with(['(', '[', '-']))
 }
 
 /// The category of a meaning line's first field: without one pair of surrounding parentheses or

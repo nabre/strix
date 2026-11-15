@@ -80,7 +80,10 @@ file is untrusted:
 - a word declaring more meanings than the file has lines is an error (a truncated file);
 - an unknown encoding, text that isn't valid in its encoding, or a web page is an error;
 - a few stray lines (a meaning broken over two lines, as in a published file) are skipped; more
-  than 64 plus one per hundred entries, and the file isn't a thesaurus.
+  than 64 plus one per hundred entries, and the file isn't a thesaurus;
+- a word declaring more meanings than it has, followed by the next entry (`word|count` where a
+  meaning is due), ends there: the next entry is read as itself, and a lookup reads only each
+  entry's own lines (counted as one stray line).
 
 An installed thesaurus that can't be read leaves the built-in list in use; `review.thesaurus`
 answers with `thesaurusError` saying why.
