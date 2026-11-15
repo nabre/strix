@@ -106,6 +106,47 @@ fn d4_continuous_validation_across_all_variants() {
 }
 
 #[test]
+fn grading_table_one_row_per_grade_with_half_open_point_intervals() {
+    let mut s = it_session();
+    // 1–10 by 1 out of 20 points, pass 6 at 60 % (12 pt), points rounded to the multiple of 0.5:
+    // grade 2 is exactly 2.4 pt -> 2.5, grade 3 4.8 -> 5, grade 4 7.2 -> 7, grade 5 9.6 -> 9.5.
+    let st = s
+        .run("exercise.grading", &json!({"on": true, "preset": "it-10", "maxPoints": 20, "step": 1, "pointsRound": 0.5, "visibility": "both"}))
+        .unwrap();
+    assert_eq!(st["pointsRound"], json!(0.5));
+    let scale = st["scale"].as_array().unwrap();
+    let texts: Vec<&str> = scale.iter().map(|r| r["text"].as_str().unwrap()).collect();
+    assert_eq!(texts, ["[0; 2,5[", "[2,5; 5[", "[5; 7[", "[7; 9,5[", "[9,5; 12[", "[12; 14[", "[14; 16[", "[16; 18[", "[18; 20[", "20"]);
+    let grades: Vec<f64> = scale.iter().map(|r| r["grade"].as_f64().unwrap()).collect();
+    assert_eq!(grades, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]);
+    assert_eq!(scale[1]["to"], json!(5.0));
+    assert!(scale[9]["to"].is_null());
+    assert_eq!(scale[5]["pass"], json!(true));
+    assert_eq!(scale[4]["pass"], json!(false));
+    // The table on the page: points interval, then grade.
+    let txt = body_texts(&s).join("\n");
+    assert!(txt.contains("[9,5; 12[") && txt.contains("[18; 20["), "{txt}");
+
+    // Hundredths when no multiple is set: grade 2 at exactly 2.4 pt.
+    let st = s.run("exercise.grading", &json!({"pointsRound": null})).unwrap();
+    assert_eq!(st["pointsRound"], json!(0.01));
+    assert_eq!(st["scale"][1]["text"], json!("[2,4; 4,8["));
+
+    // A multiple coarser than a grade's share of points leaves grades no points earn: a dash.
+    let st = s.run("exercise.grading", &json!({"maxPoints": 4, "step": 0.5, "pointsRound": 1})).unwrap();
+    let scale = st["scale"].as_array().unwrap();
+    assert!(scale.iter().any(|r| r["empty"] == json!(true) && r["text"] == json!("\u{2014}")));
+    assert_eq!(scale.last().unwrap()["text"], json!("4"));
+
+    // Hostile numbers never panic and keep the grid bounded.
+    for v in [json!({"step": 0.0001, "minGrade": -1000, "maxGrade": 1000}), json!({"pointsRound": 1e300}), json!({"maxPoints": 1e-300})] {
+        let _ = s.run("exercise.grading", &v);
+    }
+    let st = s.run("exercise.grading", &json!({})).unwrap();
+    assert!(st["scale"].as_array().is_some_and(|a| !a.is_empty() && a.len() <= 101));
+}
+
+#[test]
 fn f1_grading_table_presets_curves_visibility_and_calc_tolerance() {
     let mut s = it_session();
     s.run(
@@ -134,6 +175,17 @@ fn f1_grading_table_presets_curves_visibility_and_calc_tolerance() {
     let scale_it = g_it["scale"].as_array().unwrap();
     assert_eq!(scale_it.first().unwrap()["grade"], json!(1.0));
     assert_eq!(scale_it.last().unwrap()["grade"], json!(10.0));
+    // One pair of columns however long the scale (side by side is the person's page columns),
+    // the heading row repeated on every page.
+    let table = s.doc.body.iter().find_map(|b| match &**b {
+        Block::Table(t) if t.controls.open.iter().any(|c| c.tag == super::grading::TAG_GRADING) => Some(t.clone()),
+        _ => None,
+    });
+    let table = table.expect("grading table");
+    assert!(scale_it.len() > 12, "{}", scale_it.len());
+    assert_eq!(table.grid.len(), 2);
+    assert_eq!(table.rows.len(), scale_it.len() + 1);
+    assert!(table.rows[0].props.header && !table.rows[1].props.header);
 
     // Switch to German inverted 6..1 scale (`de-6`): 0 pts -> 6.0 (fail), max pts -> 1.0 (pass).
     let g_de = s.run("exercise.grading", &json!({"preset": "de-6", "curve": "piecewiseLinear", "step": 0.5})).unwrap();

@@ -1385,12 +1385,15 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
     if s.calc_seen == Some(key) {
         return;
     }
+    // Data typed in an exercise's data part, once the caret has left it, are its data now.
+    let data_edits = super::exercise::data_line::take_page_edits(s, None);
+    let found = if data_edits { items(&s.doc.body) } else { found };
     // Drawings alone count once the document is open: a drawing whose calculations were just
     // deleted shows its parameters as missing, not their old values (on opening, a document
     // with drawings and no calculations is left as saved).
     let drawings = s.calc_seen.is_some() && found.iter().any(|i| matches!(i, Item::Cad { .. } | Item::Plot { .. }));
     let has_expr = super::exercise::expr::has_any_expr_or_template(&s.doc.body);
-    if drawings || has_expr || found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. })) {
+    if data_edits || drawings || has_expr || found.iter().any(|i| matches!(i, Item::Equation { text: Some(_), .. } | Item::Table { .. })) {
         let report = recalculate_now(s);
         if report["changed"].as_u64().unwrap_or(0) > 0 {
             s.touch();

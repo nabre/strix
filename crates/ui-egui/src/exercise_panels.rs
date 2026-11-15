@@ -80,56 +80,151 @@ pub(crate) fn remove_variant(data: &mut Value) {
     data["active"] = json!(active.saturating_sub(1));
 }
 
-/// The exercise's data (`info`, from `exercise.data`): symbol, description, value in the active
-/// variant and unit, whether the Data block prints, then the variant generator.
+/// The name an exercise's tab shows on the page (`ctl`, the exercise control): "Exercise", and
+/// the active variant while it has several, which the printed exercise never shows.
+pub(crate) fn tab_title(ctl: &wordcraft_doc::control::ContentControl) -> String {
+    match wordcraft_engine::cmd::exercise::active_variant(ctl) {
+        Some(name) => format!("{} · {} {name}", tl!("Exercise"), tl!("Variant")),
+        None => tl!("Exercise").to_string(),
+    }
+}
+
+/// The variants of the exercise's data as a row of buttons: the active one is selected, a click
+/// calculates the exercise with another one; then add (a copy of the active one) and remove.
+fn variants_row(app: &mut WordApp, ui: &mut Ui, ex: u64, data: &Value, errors: &Value) {
+    let variants: Vec<String> =
+        data["variants"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    let active = data["active"].as_u64().unwrap_or(0) as usize;
+    let has_items = data["items"].as_array().is_some_and(|a| !a.is_empty());
+    crate::widgets::row(ui, |ui| {
+        ui.spacing_mut().item_spacing.x = 3.0;
+        ui.label(egui::RichText::new(tl!("Variants")).small().weak());
+        let names = if variants.is_empty() { vec!["A".to_string()] } else { variants.clone() };
+        for (k, name) in names.iter().enumerate() {
+            let errs: Vec<&str> =
+                errors.get(name.as_str()).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            let text = if errs.is_empty() { name.clone() } else { format!("{name} ⚠") };
+            let r = ui.selectable_label(k == active, egui::RichText::new(text).strong());
+            let r = if errs.is_empty() { r.on_hover_text(tl!("Calculate the exercise with this variant")) } else { r.on_hover_text(format!("⚠ {}", errs.join("\n⚠ "))) };
+            if r.clicked() && k != active && variants.len() > 1 {
+                let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
+            }
+        }
+        ui.add_space(4.0);
+        let can_add = has_items && variants.len() < MAX_VARIANTS;
+        if ui.add_enabled(can_add, egui::Button::new("+").small()).on_hover_text(tl!("Add a variant: a copy of the active one's values (add data first)")).clicked() {
+            let mut added = data.clone();
+            add_variant(&mut added);
+            let _ = app.run("exercise.setData", json!({"exercise": ex, "data": added}));
+        }
+        if ui.add_enabled(variants.len() > 1, egui::Button::new("−").small()).on_hover_text(tl!("Remove the active variant")).clicked() {
+            let mut removed = data.clone();
+            remove_variant(&mut removed);
+            let _ = app.run("exercise.setData", json!({"exercise": ex, "data": removed}));
+        }
+    });
+}
+
+/// A datum's equation box: the text as typed while it has the focus; otherwise drawn like the
+/// page sets it, the symbol in italics and the unit in the unit colour.
+fn equation_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &str) -> Option<String> {
+    let id = egui::Id::unique(key);
+    let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| current.to_string());
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let (ink, unit_ink) = (ui.visuals().text_color(), t.accent_text);
+    let mut layouter = |ui: &Ui, buf: &dyn egui::TextBuffer, wrap: f32| {
+        let s = buf.as_str();
+        let mut job = egui::text::LayoutJob::default();
+        let plain = egui::TextFormat::simple(font.clone(), ink);
+        let parts = s.split_once('=').map(|(lhs, rhs)| (lhs, rhs, wordcraft_engine::cmd::exercise::data_line::split_value_unit(rhs).1));
+        match parts {
+            Some((lhs, rhs, unit)) if !unit.is_empty() && rhs.trim_end().ends_with(unit.as_str()) => {
+                let cut = rhs.trim_end().len() - unit.len();
+                job.append(lhs, 0.0, egui::TextFormat { italics: true, ..plain.clone() });
+                job.append("=", 0.0, plain.clone());
+                job.append(rhs.get(..cut).unwrap_or_default(), 0.0, plain.clone());
+                job.append(rhs.get(cut..).unwrap_or_default(), 0.0, egui::TextFormat::simple(font.clone(), unit_ink));
+            }
+            Some((lhs, rhs, _)) => {
+                job.append(lhs, 0.0, egui::TextFormat { italics: true, ..plain.clone() });
+                job.append("=", 0.0, plain.clone());
+                job.append(rhs, 0.0, plain.clone());
+            }
+            None => job.append(s, 0.0, plain.clone()),
+        }
+        job.wrap.max_width = wrap;
+        ui.fonts_mut(|f| f.layout_job(job))
+    };
+    let r = ui.add(egui::TextEdit::singleline(&mut text).hint_text("L = 4.5 m").desired_width(f32::INFINITY).layouter(&mut layouter));
+    if r.changed() {
+        ui.data_mut(|d| d.insert_temp(id, text.clone()));
+    }
+    if r.lost_focus() {
+        ui.data_mut(|d| d.remove::<String>(id));
+        return (text != current).then_some(text);
+    }
+    if !r.has_focus() {
+        ui.data_mut(|d| d.remove::<String>(id));
+    }
+    None
+}
+
+/// The exercise's data (`info`, from `exercise.data`): its variants, then one row per datum, the
+/// datum written whole as an equation in the active variant (`L = 4.5 m`) and its description.
+/// The data part on the page lists what is not already shown elsewhere in the exercise, and can
+/// be edited there too.
 pub(crate) fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
     let errors = info["errors"].as_array().cloned().unwrap_or_default();
     let variants = data["variants"].as_array().map_or(0, Vec::len);
     let active = data["active"].as_u64().unwrap_or(0) as usize;
+    let names: Vec<String> =
+        data["variants"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
     let data = &mut data;
     let save = |app: &mut WordApp, data: &Value| {
         let _ = app.run("exercise.setData", json!({"exercise": ex, "data": data}));
     };
-    let mut show_data = data["showData"].as_bool().unwrap_or(true);
-    if ui
-        .checkbox(&mut show_data, tl!("Show data in exercise"))
-        .on_hover_text(tl!("Print the Data block in the exercise; off, the values stay in the calculation sandbox only"))
-        .changed()
-    {
-        data["showData"] = json!(show_data);
-        save(app, data);
-    }
+    variants_row(app, ui, ex, data, &info["variantErrors"]);
+    ui.add_space(4.0);
     let rows = data["items"].as_array().map_or(0, Vec::len);
     let mut remove = None;
-    crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(5).spacing([4.0, 4.0]).striped(true), |ui| {
-        for head in ["Symbol", "Description", "Value", "Unit", ""] {
+    crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(3).spacing([4.0, 4.0]).striped(true), |ui| {
+        for head in ["Equation", "Description", ""] {
             ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
         }
         ui.end_row();
         for row in 0..rows {
-            let field = |data: &Value, key: &str| data["items"][row][key].as_str().unwrap_or_default().to_string();
-            let value = data["items"][row]["values"][active].as_str().unwrap_or_default().to_string();
+            let item = &data["items"][row];
+            let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+            let (symbol, unit) = (text(&item["symbol"]), text(&item["unit"]));
+            let value = text(&item["values"][active]);
+            let eq = if symbol.is_empty() && value.is_empty() && unit.is_empty() {
+                String::new()
+            } else {
+                format!("{symbol} = {value} {unit}").split_whitespace().collect::<Vec<_>>().join(" ")
+            };
             let mut changed: Option<(&str, String)> = None;
-            for (key, width, current) in [("symbol", 40.0, field(data, "symbol")), ("description", 90.0, field(data, "description"))] {
-                ui.scope(|ui| {
-                    ui.set_width(width);
-                    if let Some(t) = draft_box(ui, ("exercise_data", ex, row, key), &current, true, false) {
-                        changed = Some((key, t));
-                    }
-                });
-            }
-            ui.scope(|ui| {
-                ui.set_width(56.0);
-                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "value", active), &value, true, false) {
-                    changed = Some(("value", t));
+            let r = ui.scope(|ui| {
+                ui.set_width(150.0);
+                if let Some(t) = equation_box(ui, ("exercise_data", ex, row, "equation", active), &eq) {
+                    changed = Some(("equation", t));
                 }
             });
+            // The values in the other variants, on hover.
+            if names.len() > 1 {
+                let all: Vec<String> = names
+                    .iter()
+                    .enumerate()
+                    .map(|(k, n)| format!("{n}: {} {unit}", data["items"][row]["values"][k].as_str().unwrap_or("—")).trim().to_string())
+                    .collect();
+                r.response.on_hover_text(all.join("\n"));
+            }
             ui.scope(|ui| {
-                ui.set_width(58.0);
-                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "unit"), &field(data, "unit"), true, false) {
-                    changed = Some(("unit", t));
+                ui.set_width(130.0);
+                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "description"), &text(&item["description"]), true, false) {
+                    changed = Some(("description", t));
                 }
             });
             if ui.small_button("×").on_hover_text(tl!("Remove this datum")).clicked() {
@@ -137,16 +232,11 @@ pub(crate) fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
             }
             ui.end_row();
             if let Some(error) = errors.get(row).and_then(Value::as_str) {
-                ui.label("");
                 ui.colored_label(ui.visuals().error_fg_color, egui::RichText::new(error).small());
                 ui.end_row();
             }
             if let Some((key, text)) = changed {
-                if key == "value" {
-                    data["items"][row]["values"][active] = json!(text);
-                } else {
-                    data["items"][row][key] = json!(text);
-                }
+                data["items"][row][key] = json!(text);
                 save(app, data);
             }
         }
@@ -159,7 +249,7 @@ pub(crate) fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
         save(app, data);
     }
     ui.add_space(6.0);
-    if ui.button(tl!("Add Datum")).on_hover_text(tl!("Add an initial datum: a symbol with its value in every variant")).clicked() {
+    if ui.button(tl!("Add Datum")).on_hover_text(tl!("Add a datum: an equation such as L = 4.5 m, with its value in every variant")).clicked() {
         let n = variants.max(1);
         let item = json!({"symbol": "", "description": "", "unit": "", "values": vec![""; n]});
         match data["items"].as_array_mut() {
@@ -175,7 +265,7 @@ pub(crate) fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
     crate::pane_kit::note(
         ui,
         tl!(
-            "The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise."
+            "Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise."
         ),
     );
 }

@@ -451,6 +451,53 @@ mod tests {
         assert!(s.doc.body.iter().filter_map(|b| b.as_para()).any(|p| p.props.style.as_deref() == Some(STYLE_TITLE)));
     }
 
+    /// The owner: "with only the text and the questions shown (solution and results hidden) I
+    /// can't get after the exercise to go on with normal text". An ordinary paragraph always
+    /// follows the last exercise, before the summary: Down reaches it, Ctrl+End then typing
+    /// writes in it, Enter makes more, and a new exercise takes its place.
+    #[test]
+    fn text_goes_on_after_an_exercise_with_hidden_parts() {
+        let mut s = Session::new(Document::new());
+        run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
+        run(&mut s, "exercise.show", json!({"solution": false, "results": false}));
+        // The free paragraph: outside the exercise, before the summary.
+        let layout = super::scan(&s);
+        let (results, _) = layout.results.unwrap_or_default();
+        let free = results - 1;
+        assert_eq!(layout.parts.get(free), Some(&(None, super::super::Part::Other)), "{:?}", layout.parts);
+        // Down from the title reaches it (the hidden solution takes no lines).
+        run(&mut s, "caret.docStart", json!({}));
+        for _ in 0..10 {
+            run(&mut s, "caret.down", json!({}));
+            if s.sel.focus.path.0.first() == Some(&(free as u32)) {
+                break;
+            }
+        }
+        assert_eq!(s.sel.focus.path.0.first(), Some(&(free as u32)), "Down reaches the paragraph after the exercise");
+        // Ctrl+End lands in the hidden summary: typing goes to the free paragraph.
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "text.insert", json!({"text": "Dopo"}));
+        run(&mut s, "text.newParagraph", json!({}));
+        run(&mut s, "text.insert", json!({"text": "Ancora"}));
+        let texts: Vec<String> = s.doc.body.iter().filter_map(|b| b.as_para()).map(super::super::plain).collect();
+        let layout = super::scan(&s);
+        let (results, _) = layout.results.unwrap_or_default();
+        assert_eq!(texts.get(results - 2).map(String::as_str), Some("Dopo"), "{texts:?}");
+        assert_eq!(texts.get(results - 1).map(String::as_str), Some("Ancora"), "{texts:?}");
+        assert!(layout.parts.get(results - 1).is_some_and(|(e, _)| e.is_none()));
+        // A new exercise inserted from the summary takes an empty free paragraph, never leaves
+        // one between two exercises.
+        let mut s = Session::new(Document::new());
+        run(&mut s, "exercise.insert", json!({"title": "Uno", "questions": ["q"]}));
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"title": "Due", "questions": ["q"]}));
+        let layout = super::scan(&s);
+        let (results, _) = layout.results.unwrap_or_default();
+        let between = layout.parts.iter().take(results).filter(|(e, _)| e.is_none()).count();
+        assert_eq!(between, 1, "only the free paragraph after the last exercise: {:?}", layout.parts);
+        assert_eq!(layout.parts.get(results - 1).map(|(e, _)| *e), Some(None));
+    }
+
     #[test]
     fn hostile_params_never_panic() {
         let mut s = session();

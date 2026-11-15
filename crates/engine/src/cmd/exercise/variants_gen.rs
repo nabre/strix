@@ -201,7 +201,7 @@ fn build_item_domains(existing: &[DataItem], v: &Value) -> Result<Vec<(DataItem,
             break;
         }
         let item =
-            DataItem { symbol: dom.symbol, description: dom.description.unwrap_or_default(), unit: dom.unit.unwrap_or_default(), values: Vec::new() };
+            DataItem { symbol: dom.symbol, description: dom.description.unwrap_or_default(), unit: dom.unit.unwrap_or_default(), values: Vec::new(), equation: None };
         out.push((item, dom.values));
     }
     if out.is_empty() {

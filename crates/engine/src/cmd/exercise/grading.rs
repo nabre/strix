@@ -1,5 +1,7 @@
-//! Automatic grading scale table (`strix:grading`, `exercise.grading`): maps achieved points to a
-//! school grade, bound dynamically to the grand total of `strix:scores` (`maxPoints: null`) or an
+//! Automatic grading scale table (`strix:grading`, `exercise.grading`): one row per grade of the
+//! grid (lowest to highest grade by `step`), each with the points that earn it as a half-open
+//! interval `[from; to[` (the next grade's points excluded; the highest grade at full points), the
+//! points rounded to a multiple (`pointsRound`), bound dynamically to the grand total of `strix:scores` (`maxPoints: null`) or an
 //! explicit maximum, with national presets (`it-10`, `ch-6`, `de-6`, `fr-20`, `percent`, `custom`).
 
 use std::sync::Arc;
@@ -16,7 +18,9 @@ use crate::{CmdError, CmdResult, Session, p};
 
 pub const TAG_GRADING: &str = "strix:grading";
 const EL: &str = "strix:gradingTable";
-const MAX_ROWS_SHOWN: usize = 60;
+const MAX_ROWS_SHOWN: usize = 101;
+/// Points rounded to hundredths when no multiple is set.
+const DEFAULT_POINTS_ROUND: f64 = 0.01;
 const MAX_POINTS_CAP: f64 = 10_000.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -113,8 +117,9 @@ pub struct Config {
     pub pass_grade: f64,
     pub curve: Curve,
     pub step: f64,
+    /// The multiple the points of each grade are rounded to (`None`: hundredths).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub points_step: Option<f64>,
+    pub points_round: Option<f64>,
     pub visibility: Visibility,
 }
 
@@ -136,7 +141,7 @@ impl Config {
                 pass_grade: 6.0,
                 curve: Curve::PiecewiseLinear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Ch6 => Self {
@@ -148,7 +153,7 @@ impl Config {
                 pass_grade: 4.0,
                 curve: Curve::Linear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::De6 => Self {
@@ -160,7 +165,7 @@ impl Config {
                 pass_grade: 4.0,
                 curve: Curve::PiecewiseLinear,
                 step: 0.25,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Fr20 => Self {
@@ -172,7 +177,7 @@ impl Config {
                 pass_grade: 10.0,
                 curve: Curve::Linear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Percent | Preset::Custom => Self {
@@ -184,7 +189,7 @@ impl Config {
                 pass_grade: 60.0,
                 curve: Curve::Linear,
                 step: 1.0,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
         }
@@ -202,73 +207,119 @@ impl Config {
         let (lo, hi) = (self.min_grade.min(self.max_grade), self.min_grade.max(self.max_grade));
         self.pass_grade = fin(self.pass_grade, 0.5 * (lo + hi)).clamp(lo, hi);
         self.step = fin(self.step, 0.5).clamp(0.01, 100.0);
-        self.points_step = self.points_step.filter(|v| v.is_finite() && *v > 0.0).map(|v| v.clamp(0.1, 1000.0));
-    }
-
-    /// Computes the rounded grade for `pts` out of `max_pts`.
-    pub fn grade_for(&self, pts: f64, max_pts: f64) -> f64 {
-        let max_pts = max_pts.max(0.5);
-        let x = pts.clamp(0.0, max_pts);
-        let raw = match self.curve {
-            Curve::Linear => self.min_grade + (self.max_grade - self.min_grade) * (x / max_pts),
-            Curve::PiecewiseLinear => {
-                let pass_pts = (self.pass_ratio * max_pts).clamp(1e-6, max_pts - 1e-6);
-                if x <= pass_pts {
-                    self.min_grade + (self.pass_grade - self.min_grade) * (x / pass_pts)
-                } else {
-                    self.pass_grade + (self.max_grade - self.pass_grade) * ((x - pass_pts) / (max_pts - pass_pts))
-                }
-            }
-        };
-        let rounded = round_half_away(raw / self.step) * self.step;
-        let (lo, hi) = (self.min_grade.min(self.max_grade), self.min_grade.max(self.max_grade));
-        let clamped = rounded.clamp(lo, hi);
-        if clamped.abs() < 1e-12 { 0.0 } else { clamped }
+        self.points_round = self.points_round.filter(|v| v.is_finite() && *v > 0.0).map(|v| v.clamp(DEFAULT_POINTS_ROUND, 1000.0));
     }
 
     pub fn is_passing(&self, grade: f64) -> bool {
         if self.max_grade >= self.min_grade { grade + 1e-9 >= self.pass_grade } else { grade - 1e-9 <= self.pass_grade }
     }
 
-    /// Generates `(points, grade, is_passing)` entries from `0` to `max_pts`.
-    pub fn scale(&self, max_pts: f64) -> Vec<(f64, f64, bool)> {
-        let max_pts = max_pts.clamp(0.5, MAX_POINTS_CAP);
-        let p_step = self.effective_points_step(max_pts);
-        let mut out = Vec::new();
-        let mut k = 0usize;
-        while k < MAX_ROWS_SHOWN {
-            let pts = (k as f64 * p_step).min(max_pts);
-            let pts_clean = (pts * 1000.0).round() / 1000.0;
-            let g = self.grade_for(pts_clean, max_pts);
-            out.push((pts_clean, g, self.is_passing(g)));
-            if pts + 1e-9 >= max_pts {
-                break;
-            }
-            k += 1;
+    /// The multiple the points are rounded to.
+    pub fn points_multiple(&self) -> f64 {
+        self.points_round.unwrap_or(DEFAULT_POINTS_ROUND)
+    }
+
+    /// The grid of grades, lowest to highest by `step` (the highest always last), the step widened
+    /// to a multiple of itself when the grid would pass `MAX_ROWS_SHOWN` rows.
+    fn grades(&self) -> Vec<f64> {
+        let span = (self.max_grade - self.min_grade).abs();
+        let dir = if self.max_grade >= self.min_grade { 1.0 } else { -1.0 };
+        let mut step = self.step.max(0.01);
+        let n = (span / step + 1e-9).floor();
+        if n > (MAX_ROWS_SHOWN - 1) as f64 {
+            step *= (n / (MAX_ROWS_SHOWN - 1) as f64).ceil();
         }
-        if out.last().is_none_or(|&(p, _, _)| (p - max_pts).abs() > 1e-6) {
-            let g = self.grade_for(max_pts, max_pts);
-            out.push((max_pts, g, self.is_passing(g)));
+        let n = ((span / step + 1e-9).floor() as usize).min(MAX_ROWS_SHOWN - 1);
+        let mut out: Vec<f64> = (0..=n).map(|k| clean(self.min_grade + dir * step * k as f64)).collect();
+        if out.last().is_some_and(|g| (g - self.max_grade).abs() > 1e-6) {
+            if out.len() >= MAX_ROWS_SHOWN {
+                out.pop();
+            }
+            out.push(self.max_grade);
         }
         out
     }
 
-    fn effective_points_step(&self, max_pts: f64) -> f64 {
-        if let Some(s) = self.points_step
-            && max_pts / s <= MAX_ROWS_SHOWN as f64
-        {
-            return s;
-        }
-        for cand in [0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 20.0, 50.0, 100.0] {
-            if max_pts >= 10.0 && cand < 1.0 {
-                continue;
+    /// The exact points at which the curve reaches `grade` (out of `max_pts`), before rounding.
+    fn exact_points(&self, grade: f64, max_pts: f64) -> f64 {
+        let ratio = |a: f64, b: f64| if (b - a).abs() < 1e-12 { 1.0 } else { ((grade - a) / (b - a)).clamp(0.0, 1.0) };
+        let x = match self.curve {
+            Curve::Linear => max_pts * ratio(self.min_grade, self.max_grade),
+            Curve::PiecewiseLinear => {
+                let pass_pts = (self.pass_ratio * max_pts).clamp(0.0, max_pts);
+                let below = if self.max_grade >= self.min_grade { grade < self.pass_grade } else { grade > self.pass_grade };
+                if below {
+                    pass_pts * ratio(self.min_grade, self.pass_grade)
+                } else {
+                    pass_pts
+                        + (max_pts - pass_pts)
+                            * if (self.max_grade - self.pass_grade).abs() < 1e-12 { 0.0 } else { ratio(self.pass_grade, self.max_grade) }
+                }
             }
-            if ((max_pts / cand).ceil() as usize) < MAX_ROWS_SHOWN {
-                return cand;
-            }
-        }
-        (max_pts / (MAX_ROWS_SHOWN.saturating_sub(1).max(1) as f64)).max(0.5)
+        };
+        x.clamp(0.0, max_pts)
     }
+
+    /// One band per grade of the grid: `(grade, from, to, is_passing)`, the points from `from`
+    /// (included) to `to` (excluded; `None` for the highest grade, earned with full points),
+    /// rounded to `points_multiple`. The lowest grade starts at 0.
+    pub fn scale(&self, max_pts: f64) -> Vec<Band> {
+        let max_pts = max_pts.clamp(0.5, MAX_POINTS_CAP);
+        let m = self.points_multiple();
+        let grades = self.grades();
+        let last = grades.len().saturating_sub(1);
+        let from: Vec<f64> = grades
+            .iter()
+            .enumerate()
+            .map(|(k, &g)| {
+                if k == 0 {
+                    0.0
+                } else if k == last {
+                    max_pts
+                } else {
+                    clean((round_half_away(self.exact_points(g, max_pts) / m) * m).clamp(0.0, max_pts))
+                }
+            })
+            .collect();
+        grades
+            .iter()
+            .enumerate()
+            .map(|(k, &grade)| Band { grade, from: from.get(k).copied().unwrap_or(0.0), to: from.get(k + 1).copied(), pass: self.is_passing(grade) })
+            .collect()
+    }
+}
+
+/// One row of the scale: `grade` for points in `[from; to[` (`to: None`: exactly `from`, full points).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Band {
+    pub grade: f64,
+    pub from: f64,
+    pub to: Option<f64>,
+    pub pass: bool,
+}
+
+impl Band {
+    /// No points earn this grade (rounding gave it the same points as the next one).
+    pub fn is_empty(&self) -> bool {
+        self.to.is_some_and(|t| t <= self.from + 1e-9)
+    }
+
+    /// The points column: `[from; to[` (`;` between the ends with decimal commas, else `,`), the
+    /// full points alone on the highest grade, a dash when no points earn the grade.
+    pub fn points_text(&self, comma: bool) -> String {
+        let sep = if comma { "; " } else { ", " };
+        match self.to {
+            _ if self.is_empty() => "\u{2014}".to_string(),
+            Some(t) => format!("[{}{sep}{}[", super::scores::shown(self.from, comma), super::scores::shown(t, comma)),
+            None => super::scores::shown(self.from, comma),
+        }
+    }
+}
+
+/// `v` without floating-point dust (to a millionth) and without `-0`.
+fn clean(v: f64) -> f64 {
+    let r = (v * 1e6).round() / 1e6;
+    if r.abs() < 1e-12 { 0.0 } else { r }
 }
 
 fn round_half_away(v: f64) -> f64 {
@@ -340,13 +391,9 @@ fn cell(text: &str, align: Align, bold: bool, hidden: bool, width: f32) -> Cell 
 
 fn build_table(cfg: &Config, max_pts: f64, points_word: &str, grade_word: &str, width: f32, comma: bool, hidden: bool) -> Table {
     let entries = cfg.scale(max_pts);
-    let pairs = if entries.len() > 24 {
-        3
-    } else if entries.len() > 12 {
-        2
-    } else {
-        1
-    };
+    // One pair of columns: laying the scale out side by side is the person's choice (page
+    // columns), never automatic.
+    let pairs = 1usize;
     let rows_per_col = entries.len().div_ceil(pairs).max(1);
     let pair_w = (width / pairs as f32).max(72.0);
     let col_w = pair_w * 0.5;
@@ -367,17 +414,20 @@ fn build_table(cfg: &Config, max_pts: f64, points_word: &str, grade_word: &str, 
         header_cells.push(cell(points_word, Align::Center, true, false, col_w));
         header_cells.push(cell(grade_word, Align::Center, true, false, col_w));
     }
-    let mut out_rows = vec![Row { cells: header_cells, ..Row::default() }];
+    // The heading row repeats on every page the table runs onto.
+    let mut header = Row { cells: header_cells, ..Row::default() };
+    header.props.header = true;
+    let mut out_rows = vec![header];
     // Find first passing entry index to highlight the sufficiency threshold row.
-    let first_pass = entries.iter().position(|&(_, _, pass)| pass);
+    let first_pass = entries.iter().position(|b| b.pass);
     for r in 0..rows_per_col {
         let mut row_cells = Vec::with_capacity(pairs * 2);
         for p_idx in 0..pairs {
             let idx = p_idx * rows_per_col + r;
-            if let Some(&(pts, grade, _)) = entries.get(idx) {
+            if let Some(band) = entries.get(idx) {
                 let bold = first_pass == Some(idx);
-                row_cells.push(cell(&super::scores::shown(pts, comma), Align::Right, bold, false, col_w));
-                row_cells.push(cell(&super::scores::shown(grade, comma), Align::Right, bold, false, col_w));
+                row_cells.push(cell(&band.points_text(comma), Align::Center, bold, false, col_w));
+                row_cells.push(cell(&super::scores::shown(band.grade, comma), Align::Center, bold, false, col_w));
             } else {
                 row_cells.push(cell("", Align::Right, false, false, col_w));
                 row_cells.push(cell("", Align::Right, false, false, col_w));
@@ -435,7 +485,13 @@ fn put(s: &mut Session, i: usize, cfg: &Config) -> bool {
     let Some(Block::Table(old)) = s.doc.body.get(i).map(|b| &**b) else { return false };
     let old_cfg = control_of(old).map(read_config);
     let mut new = build_table(&cfg, max_pts, w.points, w.grade_mark, width, comma, hide);
-    if old_cfg.as_ref() == Some(&cfg) && shape(old) == shape(&new) && old.grid.len() == new.grid.len() && old.props.borders == new.props.borders {
+    let same_header = old.rows.first().map(|r| r.props.header) == new.rows.first().map(|r| r.props.header);
+    if old_cfg.as_ref() == Some(&cfg)
+        && shape(old) == shape(&new)
+        && old.grid.len() == new.grid.len()
+        && old.props.borders == new.props.borders
+        && same_header
+    {
         return false;
     }
     new.controls = old.controls.clone();
@@ -479,7 +535,12 @@ fn state(s: &Session) -> Value {
     let Some(ctl) = control_of(t) else { return json!({"on": false}) };
     let cfg = read_config(ctl);
     let max_pts = resolved_max_points(s, &cfg);
-    let scale: Vec<Value> = cfg.scale(max_pts).into_iter().map(|(pts, grade, pass)| json!({"points": pts, "grade": grade, "pass": pass})).collect();
+    let comma = super::scores::comma(s);
+    let scale: Vec<Value> = cfg
+        .scale(max_pts)
+        .into_iter()
+        .map(|b| json!({"grade": b.grade, "points": b.from, "from": b.from, "to": b.to, "pass": b.pass, "empty": b.is_empty(), "text": b.points_text(comma)}))
+        .collect();
     json!({
         "on": true,
         "preset": cfg.preset,
@@ -491,7 +552,7 @@ fn state(s: &Session) -> Value {
         "passGrade": cfg.pass_grade,
         "curve": cfg.curve,
         "step": cfg.step,
-        "pointsStep": cfg.points_step,
+        "pointsRound": cfg.points_multiple(),
         "visibility": cfg.visibility,
         "hidden": should_hide(s, &cfg),
         "scale": scale,
@@ -555,7 +616,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         }
         _ => {}
     }
-    let edits = ["preset", "maxPoints", "minGrade", "maxGrade", "passRatio", "passGrade", "curve", "step", "pointsStep", "visibility"]
+    let edits = ["preset", "maxPoints", "minGrade", "maxGrade", "passRatio", "passGrade", "curve", "step", "pointsRound", "visibility"]
         .iter()
         .any(|k| v.get(*k).is_some());
     if !edits {
@@ -611,12 +672,12 @@ fn apply_params(cfg: &mut Config, v: &Value) -> Result<(), CmdError> {
             }
         }
     }
-    if let Some(ps) = v.get("pointsStep") {
-        cfg.points_step = match ps {
+    if let Some(ps) = v.get("pointsRound") {
+        cfg.points_round = match ps {
             Value::Null => None,
-            x => {
-                Some(x.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("pointsStep: positive number or null".into()))?)
-            }
+            x => Some(
+                x.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("pointsRound: positive number or null".into()))?,
+            ),
         };
     }
     if let Some(cv) = p::str(v, "curve") {
