@@ -110,7 +110,8 @@ impl Kind {
             "problem" => Kind::Problem,
             // A quiz of calculations or drawings is an open-answer quiz whose questions start in
             // that mode (each question keeps its own).
-            "open" | "calc" | "drawing" | "worked" | "cloze" | "matching" => Kind::Open,
+            // `tableFill`: the table to complete of before, now an open answer.
+            "open" | "calc" | "drawing" | "worked" | "cloze" | "matching" | "tableFill" => Kind::Open,
             "choice" | "trueFalse" => Kind::Choice,
             _ => return None,
         })
@@ -182,6 +183,8 @@ impl Mode {
             "worked" => Mode::Worked,
             "cloze" => Mode::Cloze,
             "matching" => Mode::Matching,
+            // The table to complete of before reads as an open answer.
+            "tableFill" => Mode::Open,
             _ => return None,
         })
     }
@@ -856,11 +859,20 @@ fn apply_settings(set: &mut Answer, v: &Value) {
     if let Some(sp) = p::f32(v, "spacing") {
         set.spacing = sp;
     }
-    if let Some(st) = p::str(v, "gridStyle") {
-        set.grid_style = Some(st.to_string());
+    // null: back to the default (solid, the graph paper's light blue).
+    match v.get("gridStyle") {
+        Some(Value::Null) => set.grid_style = None,
+        Some(Value::String(st)) => set.grid_style = Some(st.clone()),
+        _ => {}
     }
-    if let Some(c) = p::str(v, "gridColor").and_then(Rgb::parse) {
-        set.grid_color = Some(c.hex());
+    match v.get("gridColor") {
+        Some(Value::Null) => set.grid_color = None,
+        Some(Value::String(c)) => {
+            if let Some(c) = Rgb::parse(c) {
+                set.grid_color = Some(c.hex());
+            }
+        }
+        _ => {}
     }
 }
 

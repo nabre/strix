@@ -66,6 +66,11 @@ pub enum Source {
     },
     /// A calculated table (`TableProps`' calc settings).
     Table {
+        /// Read only: the cells a "table to complete" of before left blank for the students
+        /// (their text hidden in the students' copy). That mode is gone; these cells are shown
+        /// again as they are read back, so no text stays hidden for good.
+        #[serde(default, skip_serializing)]
+        blanks: Vec<(usize, usize)>,
         #[serde(default)]
         names: Option<String>,
         #[serde(default)]
@@ -366,6 +371,7 @@ fn wrap_blocks(bl: &mut Blocks, m: &mut Manifest, next: &mut u32, depth: usize) 
                 if t.props.calc && m.objects.len() < MAX_ENTRIES {
                     let id = take_id(next);
                     let source = Source::Table {
+                        blanks: Vec::new(),
                         names: t.props.calc_names.map(|n| n.name().to_string()),
                         math: t.props.calc_math,
                         index: t.props.calc_index,
@@ -907,7 +913,7 @@ impl Unwrap<'_> {
         match self.verdict(entry.as_ref(), unchanged) {
             Verdict::Pending => return,
             Verdict::Restore => {
-                if let Some(Entry { source: Source::Table { names, math, index, no_total }, .. }) = &entry {
+                if let Some(Entry { source: Source::Table { names, math, index, no_total, blanks }, .. }) = &entry {
                     t.props.calc = true;
                     t.props.calc_names = names.as_deref().and_then(wordcraft_doc::props::CellNames::parse);
                     t.props.calc_math = *math;
@@ -915,6 +921,11 @@ impl Unwrap<'_> {
                     for &c in no_total.iter().take(MAX_ENTRIES) {
                         if let Some(cell) = t.rows.first_mut().and_then(|row| row.cells.get_mut(c)) {
                             cell.props.calc_no_total = true;
+                        }
+                    }
+                    for &(r, c) in blanks.iter().take(MAX_ENTRIES) {
+                        if let Some(cell) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)) {
+                            show_cell(cell);
                         }
                     }
                 }
@@ -1078,4 +1089,20 @@ fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
         Source::Table { .. } => {}
     }
     p.touch();
+}
+
+/// A student-blank cell of before shown again: its paragraphs' text no longer hidden.
+fn show_cell(cell: &mut wordcraft_doc::table::Cell) {
+    for b in &mut cell.blocks {
+        if let Block::Para(p) = &**b
+            && (p.mark.hidden.is_some() || p.runs.iter().any(|r| r.props.hidden.is_some()))
+            && let Block::Para(p) = Arc::make_mut(b)
+        {
+            for r in &mut p.runs {
+                r.props.hidden = None;
+            }
+            p.mark.hidden = None;
+            p.touch();
+        }
+    }
 }

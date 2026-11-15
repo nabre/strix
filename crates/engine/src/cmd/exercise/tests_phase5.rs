@@ -231,3 +231,25 @@ fn open_answer_space_has_its_grid_style_and_colour() {
     assert_eq!(st["questions"][0]["gridStyle"], "dotted", "{st}");
     assert_eq!(st["questions"][0]["gridColor"], "808080", "{st}");
 }
+
+/// The answer space's style and colour back to the default with null.
+#[test]
+fn open_answer_space_style_and_colour_reset_with_null() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Descrivi.", "height": 3}]}));
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "gridStyle": "dashed", "gridColor": "808080"}));
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "gridStyle": null, "gridColor": null}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["gridStyle"], "solid", "{st}");
+    let default = wordcraft_doc::graph_paper::GraphPaper::default().line.color.hex();
+    assert_eq!(st["questions"][0]["gridColor"], json!(default), "{st}");
+}
+
+/// A script or a bank asking for the table to complete of before gets an open answer.
+#[test]
+fn table_fill_of_before_is_an_open_answer() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"kind": "tableFill", "questions": ["Completa la tabella"]}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["type"], "open", "{st}");
+}

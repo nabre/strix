@@ -167,7 +167,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "count"?: 1–26 (default 4), "seed"?: u64, "domains"?: [{"symbol", "description"?, "unit"?, "values"?: [string], "min"?: number, "max"?: number, "step"?: number}], "constraints"?: {"maxDecimals"?: 0–9, "positiveResults"?: bool, "distinctFinalResults"?: bool, "extra"?: [string]}} → deterministically generates N validated variants within 5000 candidate evaluations"#),
         CommandSpec::new("exercise.blank", "Inline Blank", "Teaching › Exercise", stem_items::blank)
-            .params(r#"{"expr"?: string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer. Without expr: hides the selected words (a text to complete by hand; `[[word]]` typed in an exercise does the same): teachers see the words, students a line to write on"#),
+            .params(r#"{"expr"?: string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer. Without expr: hides the selected words inside an exercise (a text to complete by hand; `[[word]]` typed in an inline completion question does the same): teachers see the words, students a line to write on"#),
         CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
             .when(body)
             .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),

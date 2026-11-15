@@ -29,7 +29,7 @@ a master document).
 
 | Mode | `type` | Students' copy | Corrected copy | Summary |
 |---|---|---|---|---|
-| **Open answer** | `open` | a space (cm), squared or blank; the squares' side, line style and colour (`spacing`, `gridStyle`, `gridColor`; Exercise › Questions › Question Settings › Answer Space) | the answer written in the space | `a) risposta aperta` (only beside other results: a quiz of open answers alone has no summary) |
+| **Open answer** | `open` | a space (cm), squared or blank; the squares' side, line style and colour (`spacing`, `gridStyle`, `gridColor`, `null` for the default; Exercise › Questions › Question Settings › Answer Space) | the answer written in the space | `a) risposta aperta` (only beside other results: a quiz of open answers alone has no summary) |
 | **Multiple choice** | `choice` | options A), B)… with empty boxes | the correct boxes ticked (more than one may be) | `b) A, C` |
 | **True or false** | `trueFalse` | two empty boxes on the statement's line, in the V and F columns | the right one ticked | `c) V` (the column's initial in the exercise's language: V, T, W) |
 | **Calculation** | `calc` | a squared space for the working, then `Answer: A = ______ cm²` | the working (live equations) and `Answer: A = 15 cm²` | `d) A = 15 cm²` |
@@ -151,12 +151,15 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
   points are always unset. An exercise containing only worked examples has no
   row in the scores table.
 - `cloze`: inline completion — a text with gaps (*testo bucato*) the students fill in by hand.
-  - **Hidden words**: select words and click Exercise › Questions › Hide Words
-    (`exercise.blank` with no `expr`), or type `[[word]]` anywhere in an exercise. The corrected
-    copy shows the words; the students' copy a line to write on, twice the word's length and
-    never shorter than 14 underscores, so its length gives little away. Kept on the
-    `strix:blank` control (`<strix:blankWord>`). The results summary lists them
-    (`b) fotosintesi, foglie`).
+  - **Hidden words**: select words inside an exercise and click Exercise › Questions › Hide
+    Words (`exercise.blank` with no `expr`), or type `[[word]]` in an inline completion
+    question. Elsewhere `[[…]]` stays as typed, and so does one holding brackets (a list
+    `[[1, 2], [3, 4]]`) or inside another control. The corrected copy shows the words; the
+    students' copy a line to write on, twice the word's length and never shorter than 14
+    underscores, so its length gives little away. Kept on the `strix:blank` control
+    (`<strix:blankWord>`, titled *Hidden word*: the frame never shows the word; the word is
+    still in the file, as the solutions are, so hand students a printout or a PDF). The
+    results summary lists them (`b) fotosintesi, foglie`).
   - **Calculated gaps**: `{{expression}}` templates in the question become `strix:blank`
     controls; the teacher sees their calculated values, the student a blank retaining the unit.
     `exercise.blank {"expr":"rho -> kg/m³"}` inserts one at the caret in ordinary text too.

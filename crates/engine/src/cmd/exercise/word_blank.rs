@@ -3,18 +3,23 @@
 //! A hidden word is a `strix:blank` inline control (the same as a calculated blank) holding the
 //! word itself (`strix:blankWord`) instead of a formula. The corrected copy shows the word; the
 //! students' copy a line long enough to write it by hand, never shorter than
-//! [`MIN_LINE`] underscores, so its length gives little away. Written in an exercise as
-//! `[[word]]`, or made from a selection with `exercise.blank` and no `expr`.
+//! [`MIN_LINE`] underscores, so its length gives little away. Written as `[[word]]` in a text
+//! to complete (an Inline Completion question: elsewhere `[[…]]` stays as typed, so a list
+//! `[[1, 2], [3, 4]]` or an integer interval `[[1;n]]` is never taken), or made from a
+//! selection inside an exercise with `exercise.blank` and no `expr`.
 
 use serde_json::{Value, json};
 use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
 use wordcraft_doc::para::OBJ;
 use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef};
 
+use super::items::{Mode, TAG_ITEM};
 use super::stem_items::TAG_BLANK;
 use crate::{CmdError, CmdResult, Selection, Session};
 
 const EL: &str = "strix:blankWord";
+/// The control's title, shown on its frame: never the word, which the students' copy hides.
+const TITLE: &str = "Hidden word";
 /// The shortest line a hidden word gets in the students' copy.
 const MIN_LINE: usize = 14;
 /// The longest line (a whole phrase hidden).
@@ -40,7 +45,7 @@ pub(crate) fn read(ctl: &ContentControl) -> Option<String> {
 fn make(word: &str) -> ContentControl {
     let mut ctl = ContentControl::new(ControlKind::RichText);
     ctl.tag = TAG_BLANK.into();
-    ctl.title = word.into();
+    ctl.title = TITLE.into();
     ctl.block = false;
     ctl.lock = ControlLock::ContentLocked;
     let escaped = word.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
@@ -69,7 +74,27 @@ fn wrap(p: &mut Paragraph, from: usize, to: usize, word: &str) -> bool {
     true
 }
 
-/// The next `[[word]]` of `p` outside its controls: its byte range and word.
+/// Whether byte `at` of `p` lies inside an inline control opened in `p` other than the
+/// question's text (a calculated blank, an expression, the points, a hidden word…).
+fn in_other_control(p: &Paragraph, at: usize) -> bool {
+    let mut open: Vec<bool> = Vec::new();
+    for off in p.object_offsets() {
+        if off >= at {
+            break;
+        }
+        match p.object_at(off) {
+            Some(InlineObject::ControlStart { control }) => open.push(!control.block && control.tag != TAG_ITEM),
+            Some(InlineObject::ControlEnd) => {
+                open.pop();
+            }
+            _ => {}
+        }
+    }
+    open.last().copied().unwrap_or(false)
+}
+
+/// The next `[[word]]` of `p` that makes a hidden word: plain words (no brackets, fields or
+/// controls inside), not inside another control. Its byte range and word.
 fn next_template(p: &Paragraph) -> Option<(usize, usize, String)> {
     let mut from = 0usize;
     while let Some(rel) = p.text.get(from..)?.find("[[") {
@@ -77,7 +102,8 @@ fn next_template(p: &Paragraph) -> Option<(usize, usize, String)> {
         let after = open + 2;
         let close = after + p.text.get(after..)?.find("]]")?;
         let raw = p.text.get(after..close).unwrap_or_default();
-        if raw.contains(OBJ) || raw.contains("[[") || raw.chars().count() > MAX_WORD_CHARS || clean(raw).is_empty() {
+        let plain = !raw.contains(OBJ) && !raw.contains(['[', ']']) && raw.chars().count() <= MAX_WORD_CHARS && !clean(raw).is_empty();
+        if !plain || in_other_control(p, open) {
             from = after;
             continue;
         }
@@ -114,12 +140,27 @@ fn convert_para(p: &mut Paragraph) -> bool {
     changed
 }
 
-/// Makes every `[[word]]` inside an exercise (`zones`: the exercise of each top-level block) a
-/// hidden word. Whether anything changed.
+/// The top-level blocks of the Inline Completion questions (question and answer part).
+fn completion_blocks(s: &Session) -> Vec<(usize, usize)> {
+    let layout = super::scan(s);
+    (0..layout.exercises.len())
+        .flat_map(|e| super::items::items(s, &layout, e))
+        .filter(|it| it.settings.mode == Mode::Cloze)
+        .map(|it| (it.question, it.answer.map_or(it.question, |(_, b)| b.max(it.question))))
+        .collect()
+}
+
+/// Makes every `[[word]]` of an Inline Completion question (`zones`: the exercise of each
+/// top-level block, a quick first check) a hidden word. Whether anything changed.
 pub(crate) fn convert_all(s: &mut Session, zones: &[Option<usize>]) -> bool {
+    let candidate = |top: usize, b: &Block| zones.get(top).copied().flatten().is_some() && block_has_template(b);
+    if !s.doc.body.iter().enumerate().any(|(top, b)| candidate(top, b)) {
+        return false;
+    }
+    let ranges = completion_blocks(s);
     let mut changed = false;
     for (top, b) in s.doc.body.iter_mut().enumerate() {
-        if zones.get(top).copied().flatten().is_none() || !block_has_template(b) {
+        if !candidate(top, b) || !ranges.iter().any(|&(a, z)| (a..=z).contains(&top)) {
             continue;
         }
         match std::sync::Arc::make_mut(b) {
@@ -163,11 +204,17 @@ pub(crate) fn hide_selection(s: &mut Session, _v: &Value) -> CmdResult {
     if x.story != StoryRef::Body || y.story != StoryRef::Body || x.path != y.path {
         return Err(CmdError::Disabled("select words within one paragraph of the body".into()));
     }
+    // Only inside an exercise: elsewhere nothing would ever turn the words into a line.
+    let top = x.path.0.first().map(|&t| t as usize);
+    let in_exercise = top.is_some_and(|t| super::scan(s).parts.get(t).is_some_and(|(ex, _)| ex.is_some()));
+    if !in_exercise {
+        return Err(CmdError::Disabled("select words inside an exercise".into()));
+    }
     let para = s.doc.para_mut(x.story, &x.path).map_err(|e| CmdError::Failed(e.to_string()))?;
     let (from, to) = (x.off.min(para.text.len()), y.off.min(para.text.len()));
     let raw = para.text.get(from..to).ok_or_else(|| CmdError::Params("the selection is not on whole characters".into()))?;
-    if raw.contains(OBJ) {
-        return Err(CmdError::Disabled("the selection holds a field or a control".into()));
+    if raw.contains(OBJ) || in_other_control(para, from) {
+        return Err(CmdError::Disabled("the selection holds or is inside a field or a control".into()));
     }
     // Spaces selected around the words stay outside the blank.
     let lead = raw.len() - raw.trim_start().len();
@@ -252,5 +299,53 @@ mod tests {
         assert!(texts(&s).iter().any(|t| t.contains(&format!("Il cuore pompa il {}.", "_".repeat(14)))), "{:?}", texts(&s));
         // Nothing selected: an error, never a panic.
         assert!(s.run("exercise.blank", &json!({})).is_err());
+    }
+
+    /// `[[…]]` makes hidden words only in a text to complete, and never from a list or an
+    /// interval: elsewhere the text stays exactly as typed.
+    #[test]
+    fn double_brackets_elsewhere_stay_as_typed() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(
+            &mut s,
+            "exercise.insert",
+            json!({"kind": "open", "questions": [
+                {"text": "Che cosa stampa a = [[1, 2], [3, 4]]?"},
+                {"text": "Scrivi [[1;n]] in estensione."},
+                {"text": "Il [[cuore]] pompa; a = [[1, 2], [3, 4]].", "type": "cloze"}
+            ]}),
+        );
+        run(&mut s, "calc.recalculate", json!({}));
+        run(&mut s, "exercise.show", json!({"solution": false}));
+        let t = texts(&s);
+        assert!(t.iter().any(|x| x.contains("a = [[1, 2], [3, 4]]?")), "{t:?}");
+        assert!(t.iter().any(|x| x.contains("Scrivi [[1;n]] in estensione.")), "{t:?}");
+        // In the completion the word hides, the list stays.
+        assert!(t.iter().any(|x| x.contains(&format!("Il {} pompa; a = [[1, 2], [3, 4]].", "_".repeat(14)))), "{t:?}");
+    }
+
+    /// The hidden word's control never carries the word as its title (the frame shows it).
+    #[test]
+    fn the_control_title_never_gives_the_word_away() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "cloze", "questions": [{"text": "La [[fotosintesi]] avviene."}]}));
+        run(&mut s, "exercise.show", json!({"solution": false}));
+        let titles: Vec<String> = s
+            .doc
+            .control_ranges(wordcraft_doc::StoryRef::Body)
+            .into_iter()
+            .filter(|r| super::read(&r.control).is_some())
+            .map(|r| r.control.title.clone())
+            .collect();
+        assert_eq!(titles, vec![super::TITLE.to_string()]);
+    }
+
+    /// Hide Words outside an exercise: refused, the text untouched.
+    #[test]
+    fn hide_words_outside_an_exercise_is_refused() {
+        let mut s = Session::new(wordcraft_doc::Document::from_text("Il cuore pompa il sangue."));
+        run(&mut s, "select.text", json!({"text": "sangue"}));
+        assert!(s.run("exercise.blank", &json!({})).is_err());
+        assert_eq!(texts(&s), vec!["Il cuore pompa il sangue.".to_string()]);
     }
 }
