@@ -441,22 +441,6 @@ Table",
             calc_table_tools(ui, app);
         });
         stack(ui, |ui| calc_table_rows(ui, app));
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new(
-                "calcTable",
-                Some("Student Blanks"),
-                "Choose which calculated cells students complete",
-                false,
-                "exercise.tableFill",
-            ),
-            |ui, app| {
-                mi(ui, app, "Student Blank Cell", "exercise.tableFill", json!({"studentBlank":true}));
-                mi(ui, app, "Student Blank Column", "exercise.tableFill", json!({"studentBlank":true,"column":true}));
-                mi(ui, app, "Show Cell Value", "exercise.tableFill", json!({"studentBlank":false}));
-            },
-        );
     });
     group(ui, "Number Display", None, app, |ui, app| {
         let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
@@ -720,7 +704,6 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
             mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
             mi(ui, app, "Inline Completion", "exercise.insert", json!({"kind": "cloze"}));
-            mi(ui, app, "Table to Complete", "exercise.insert", json!({"kind": "tableFill"}));
         },
     );
 }

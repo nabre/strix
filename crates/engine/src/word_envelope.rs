@@ -66,8 +66,6 @@ pub enum Source {
     },
     /// A calculated table (`TableProps`' calc settings).
     Table {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        blanks: Vec<(usize, usize)>,
         #[serde(default)]
         names: Option<String>,
         #[serde(default)]
@@ -368,12 +366,6 @@ fn wrap_blocks(bl: &mut Blocks, m: &mut Manifest, next: &mut u32, depth: usize) 
                 if t.props.calc && m.objects.len() < MAX_ENTRIES {
                     let id = take_id(next);
                     let source = Source::Table {
-                        blanks: t
-                            .rows
-                            .iter()
-                            .enumerate()
-                            .flat_map(|(r, row)| row.cells.iter().enumerate().filter_map(move |(c, cell)| cell.props.student_blank.then_some((r, c))))
-                            .collect(),
                         names: t.props.calc_names.map(|n| n.name().to_string()),
                         math: t.props.calc_math,
                         index: t.props.calc_index,
@@ -915,7 +907,7 @@ impl Unwrap<'_> {
         match self.verdict(entry.as_ref(), unchanged) {
             Verdict::Pending => return,
             Verdict::Restore => {
-                if let Some(Entry { source: Source::Table { names, math, index, blanks, no_total }, .. }) = &entry {
+                if let Some(Entry { source: Source::Table { names, math, index, no_total }, .. }) = &entry {
                     t.props.calc = true;
                     t.props.calc_names = names.as_deref().and_then(wordcraft_doc::props::CellNames::parse);
                     t.props.calc_math = *math;
@@ -923,11 +915,6 @@ impl Unwrap<'_> {
                     for &c in no_total.iter().take(MAX_ENTRIES) {
                         if let Some(cell) = t.rows.first_mut().and_then(|row| row.cells.get_mut(c)) {
                             cell.props.calc_no_total = true;
-                        }
-                    }
-                    for &(r, c) in blanks.iter().take(MAX_ENTRIES) {
-                        if let Some(cell) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)) {
-                            cell.props.student_blank = true;
                         }
                     }
                 }

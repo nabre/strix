@@ -75,11 +75,12 @@ fn write_stash(ctl: &mut ContentControl, title: Option<&str>) {
     }
 }
 
-/// The placeholder a title control shows for `line` in an exercise of `kind`.
-pub(super) fn placeholder(w: &Words, line: Line, kind: Kind) -> &'static str {
+/// The placeholder a title control shows for `line`: the title's, or the statement's — in a
+/// quiz too, whose questions keep their own fields under the line (the line never shows a second
+/// "question" over the first one).
+pub(super) fn placeholder(w: &Words, line: Line, _kind: Kind) -> &'static str {
     match line {
         Line::Title => w.title,
-        Line::Statement if kind.quiz() => w.question,
         Line::Statement => w.text,
     }
 }
@@ -538,8 +539,8 @@ mod tests {
         let st = run(&mut s, "exercise.titleLine", json!({"line": "statement"}));
         assert_eq!(st["line"], "statement");
         let p = title_para(&s);
-        // The placeholder is the question's, in the body text's weight.
-        assert!(super::super::plain(&p).contains("Write the question here."), "{}", super::super::plain(&p));
+        // The placeholder is the statement's (the questions keep theirs), in the body text's weight.
+        assert!(super::super::plain(&p).contains("Write the exercise here"), "{}", super::super::plain(&p));
         let (a, _) = span(&p, TAG_TITLE).unwrap_or((0, 0));
         assert_eq!(p.props_of_char(a + OBJ.len_utf8()).bold, Some(false));
         // Typed over (the caret is on the line), the text keeps that weight.

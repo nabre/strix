@@ -1334,7 +1334,6 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     for top in plain_tables {
         changed += hide_header_equals(s, top);
     }
-    super::exercise::stem_items::table_blanks(s);
     let (expr_changed, expr_errors) = super::exercise::expr::apply_sheets(s, &zones, &sheets.main, &sheets.exercises);
     changed += usize::from(converted_templates) + expr_changed;
     errors.extend(expr_errors);

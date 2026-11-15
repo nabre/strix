@@ -351,7 +351,7 @@ mod tests {
             "b) c = 10 cm",
             "Motion and units",
             "a) A, C",
-            "b) A",
+            "b) T",
             "c) s = 20 m; v = 10 m/s",
         ] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");

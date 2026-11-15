@@ -1,5 +1,5 @@
 //! Laboratory question helpers, isolated from upstream editor code.
-use crate::{CmdError, CmdResult, Session, p};
+use crate::{CmdResult, Session};
 use serde_json::{Value, json};
 use std::sync::Arc;
 use wordcraft_doc::{Block, InlineObject};
@@ -8,6 +8,9 @@ pub const TAG_BLANK: &str = "strix:blank";
 pub(super) const TAG_MATCH_ROW: &str = "strix:matchingRow";
 
 pub(crate) fn blank(s: &mut Session, v: &Value) -> CmdResult {
+    if v.get("expr").is_none() {
+        return super::word_blank::hide_selection(s, v);
+    }
     super::expr::insert_command(s, v)?;
     let focus = s.sel.focus.clone();
     let para = s.doc.para_mut(focus.story, &focus.path)?;
@@ -68,54 +71,6 @@ pub(super) fn update_matching(
         }
     }
     changed
-}
-
-pub(crate) fn table_fill(s: &mut Session, v: &Value) -> CmdResult {
-    let (path, row, col) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("put the caret in a calculated table".into()))?;
-    let table = s.doc.table_mut(s.sel.focus.story, &path)?;
-    if !table.props.calc {
-        return Err(CmdError::Disabled("the table must be calculated".into()));
-    }
-    let current = table.rows.get(row).and_then(|r| r.cells.get(col)).is_some_and(|c| c.props.student_blank);
-    let want = p::bool(v, "studentBlank").unwrap_or(!current);
-    let column = p::bool(v, "column").unwrap_or(false);
-    for (r, line) in table.rows.iter_mut().enumerate() {
-        if r != row && !column {
-            continue;
-        }
-        if column && r == 0 {
-            continue;
-        }
-        if let Some(cell) = line.cells.get_mut(col) {
-            cell.props.student_blank = want;
-            if !want {
-                for b in &mut cell.blocks {
-                    super::show::set_hidden(b, false);
-                }
-            }
-        }
-    }
-    s.touch();
-    table_blanks(s);
-    Ok(json!({"studentBlank": want, "column": column}))
-}
-
-/// The calculation still reads the original text; only its visibility changes.
-pub(crate) fn table_blanks(s: &mut Session) {
-    let layout = super::scan(s);
-    for (top, block) in s.doc.body.iter_mut().enumerate() {
-        let teacher = layout.parts.get(top).and_then(|(ex, _)| *ex).and_then(|ex| layout.exercises.get(ex)).is_none_or(|ex| ex.show.solution);
-        let Block::Table(t) = &**block else { continue };
-        if !t.rows.iter().flat_map(|r| &r.cells).any(|c| c.props.student_blank) {
-            continue;
-        }
-        let Block::Table(t) = Arc::make_mut(block) else { continue };
-        for cell in t.rows.iter_mut().flat_map(|r| &mut r.cells).filter(|c| c.props.student_blank) {
-            for b in &mut cell.blocks {
-                super::show::set_hidden(b, !teacher);
-            }
-        }
-    }
 }
 
 /// Exercise indexes included in the scores table. Worked examples have no score row.

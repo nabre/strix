@@ -840,6 +840,12 @@ fn paint_draw_to_review(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(8.5, 5.5), (8.5, 10.5)], a);
             pen.lines(6.0, 11.0, &[13.5]);
         }
+        "hideWords" => {
+            pen.lines(3.0, 17.0, &[5.0, 15.0]);
+            pen.line(&[(3.0, 10.0), (6.0, 10.0)]);
+            pen.line_c(&[(7.5, 11.5), (12.5, 11.5)], a);
+            pen.line(&[(14.0, 10.0), (17.0, 10.0)]);
+        }
         "citation" => {
             pen.text(6.0, 9.0, 14.0, "“", a, true);
             pen.lines(9.0, 17.0, &[6.0, 10.0, 14.0]);
