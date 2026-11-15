@@ -3101,18 +3101,12 @@ paper	Envelope DL	Umschlag DL
 	Uncertainty in Quadrature (GUM)	Quadratische Unsicherheit (GUM)
 	Worked Example	Durchgerechnetes Beispiel
 	Inline Completion	Lückentext
-	Table to Complete	Tabelle zum Ausfüllen
 	Matching	Zuordnung
 	Inline Blank	Lücke im Text
-	Student Blank Cell	Zelle zum Ausfüllen
 	Grade	Klassenstufe
 	Profession	Fachrichtung
 	Teacher	Lehrperson
 	Pairs (left = right)	Paare (links = rechts)
-	Student Blanks	Lücken für Lernende
-	Choose which calculated cells students complete	Zu ergänzende berechnete Zellen auswählen
-	Student Blank Column	Spalte zum Ausfüllen
-	Show Cell Value	Zellwert anzeigen
 	School Subject	Fach
 	Score	Punktzahl
 # Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
@@ -3261,3 +3255,12 @@ paper	Envelope DL	Umschlag DL
 	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Die Anfangsangaben: eine Gleichung pro Angabe (L = 4.5 m) mit ihrer Beschreibung, und die Varianten
 	Description	Beschreibung
 	High contrast only	Nur hoher Kontrast
+	Hide Words	Wörter ausblenden
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an exercise does the same)	Blendet die ausgewählten Wörter für einen handschriftlich zu ergänzenden Lückentext aus: die korrigierte Fassung zeigt sie, die der Schüler eine Linie zum Schreiben ([[Wort]] in einer Aufgabe bewirkt dasselbe)
+	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	Die Linienbreite der Begrenzungszeichen; Automatisch: ein Schrägstrich kräftiger als die Linie, ein Pfeil gleich dünn
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	wähle das Maß, an das angeschlossen wird, nahe dem Ende, an dem es weitergeht (Eingabe: das letzte)
+	Pick a linear dimension	Wähle ein lineares Maß
+	ByStyle	NachStil
+	ByLayer / ByStyle	NachEbene / NachStil
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Maß-, Hilfs- und Führungslinien; NachEbene: die der Ebene. Begrenzungen behalten ihre eigene Breite
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Maß-, Hilfs- und Führungslinien; NachEbene: der der Ebene. Begrenzungen und Texte bleiben durchgezogen

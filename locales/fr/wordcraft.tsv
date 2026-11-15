@@ -3135,18 +3135,12 @@ paper	Envelope DL	Enveloppe DL
 	Uncertainty in Quadrature (GUM)	Incertitude en quadrature (GUM)
 	Worked Example	Exemple résolu
 	Inline Completion	Texte à trous
-	Table to Complete	Tableau à compléter
 	Matching	Appariement
 	Inline Blank	Lacune dans le texte
-	Student Blank Cell	Cellule à compléter
 	Grade	Niveau
 	Profession	Filière
 	Teacher	Enseignant
 	Pairs (left = right)	Paires (gauche = droite)
-	Student Blanks	Lacunes pour les élèves
-	Choose which calculated cells students complete	Choisir les cellules calculées à compléter
-	Student Blank Column	Colonne à compléter
-	Show Cell Value	Afficher la valeur de la cellule
 	School Subject	Matière
 	Score	Points
 # Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
@@ -3294,3 +3288,12 @@ paper	Envelope DL	Enveloppe DL
 	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes
 	Description	Description
 	High contrast only	Contraste élevé uniquement
+	Hide Words	Masquer des mots
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an exercise does the same)	Masque les mots sélectionnés pour un texte à trous à compléter à la main : la copie corrigée les montre, celle des élèves une ligne pour écrire ([[mot]] saisi dans un exercice fait de même)
+	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	L'épaisseur des traits des extrémités ; Automatique : un trait oblique plus épais que la ligne, une flèche aussi fine
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	choisissez la cote à prolonger, près de l'extrémité de départ (Entrée : la dernière)
+	Pick a linear dimension	Choisissez une cote linéaire
+	ByStyle	Par style
+	ByLayer / ByStyle	Par calque / Par style
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Lignes de cote, d'attache et de repère ; Par calque : celle du calque. Les extrémités gardent leur épaisseur
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Lignes de cote, d'attache et de repère ; Par calque : celui du calque. Extrémités et textes restent continus
