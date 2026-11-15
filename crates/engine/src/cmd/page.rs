@@ -765,6 +765,6 @@ fn shifted_by_split(p: &Pos, at: &Pos, new: &Pos) -> Pos {
     q
 }
 
+mod table_sections;
 #[cfg(test)]
 mod tests;
-mod table_sections;

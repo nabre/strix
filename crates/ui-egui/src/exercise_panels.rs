@@ -105,14 +105,22 @@ fn variants_row(app: &mut WordApp, ui: &mut Ui, ex: u64, data: &Value, errors: &
                 errors.get(name.as_str()).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
             let text = if errs.is_empty() { name.clone() } else { format!("{name} ⚠") };
             let r = ui.selectable_label(k == active, egui::RichText::new(text).strong());
-            let r = if errs.is_empty() { r.on_hover_text(tl!("Calculate the exercise with this variant")) } else { r.on_hover_text(format!("⚠ {}", errs.join("\n⚠ "))) };
+            let r = if errs.is_empty() {
+                r.on_hover_text(tl!("Calculate the exercise with this variant"))
+            } else {
+                r.on_hover_text(format!("⚠ {}", errs.join("\n⚠ ")))
+            };
             if r.clicked() && k != active && variants.len() > 1 {
                 let _ = app.run("exercise.variant", json!({"exercise": ex, "active": k}));
             }
         }
         ui.add_space(4.0);
         let can_add = has_items && variants.len() < MAX_VARIANTS;
-        if ui.add_enabled(can_add, egui::Button::new("+").small()).on_hover_text(tl!("Add a variant: a copy of the active one's values (add data first)")).clicked() {
+        if ui
+            .add_enabled(can_add, egui::Button::new("+").small())
+            .on_hover_text(tl!("Add a variant: a copy of the active one's values (add data first)"))
+            .clicked()
+        {
             let mut added = data.clone();
             add_variant(&mut added);
             let _ = app.run("exercise.setData", json!({"exercise": ex, "data": added}));

@@ -238,9 +238,10 @@ fn merge(data: &mut ExerciseData, shown_items: &[usize], lines: &[Datum]) {
     } else {
         let mut used = vec![false; shown_items.len()];
         for d in lines {
-            let found = shown_items.iter().enumerate().find(|&(k, &i)| {
-                !used.get(k).copied().unwrap_or(true) && data.items.get(i).is_some_and(|it| it.symbol.trim() == d.symbol.trim())
-            });
+            let found = shown_items
+                .iter()
+                .enumerate()
+                .find(|&(k, &i)| !used.get(k).copied().unwrap_or(true) && data.items.get(i).is_some_and(|it| it.symbol.trim() == d.symbol.trim()));
             match found {
                 Some((k, &i)) => {
                     if let Some(u) = used.get_mut(k) {

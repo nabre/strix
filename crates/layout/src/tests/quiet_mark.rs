@@ -26,7 +26,7 @@ fn a_quiet_mark_shows_beside_the_line_above_not_over_the_table() {
         .items
         .iter()
         .filter_map(|it| match it {
-            Placed::Cell { rect, row, cell: 0, .. } => Some((rect.x, rect.y)).filter(|_| *row < 11),
+            Placed::Cell { rect, row, cell: 0, .. } => (*row < 11).then_some((rect.x, rect.y)),
             _ => None,
         })
         .collect();

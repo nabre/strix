@@ -2464,7 +2464,10 @@ mod tests {
         let t = texts(&s);
         // The variant is named on the exercise's tab, not in the data part.
         assert!(t.contains(&"Dati".to_string()), "{t:?}");
-        assert_eq!(s.doc.control_ranges(StoryRef::Body).iter().find(|r| r.control.tag == TAG_EXERCISE).and_then(|r| active_variant(&r.control)), Some("A".into()));
+        assert_eq!(
+            s.doc.control_ranges(StoryRef::Body).iter().find(|r| r.control.tag == TAG_EXERCISE).and_then(|r| active_variant(&r.control)),
+            Some("A".into())
+        );
         assert!(t.contains(&"luce: L = 4.5 m".to_string()), "{t:?}");
         // The unit is set in the Unit style.
         let unit_runs = s.doc.body.iter().filter_map(|b| match &**b {
