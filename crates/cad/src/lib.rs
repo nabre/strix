@@ -67,8 +67,8 @@ pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};
 pub use model::{
-    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, LevelFill, MAX_PADDING, MAX_STYLES, Mark, NamedDimStyle, Num, Orient, P, Padding,
-    Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
+    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, LevelFill, MAX_PADDING, MAX_STYLES, Mark, NamedDimStyle, Num, Orient,
+    P, Padding, Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
 };
 pub use modify::Affine;
 pub use pick::TextWidths;

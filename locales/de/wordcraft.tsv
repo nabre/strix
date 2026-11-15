@@ -3256,7 +3256,7 @@ paper	Envelope DL	Umschlag DL
 	Description	Beschreibung
 	High contrast only	Nur hoher Kontrast
 	Hide Words	Wörter ausblenden
-	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an exercise does the same)	Blendet die ausgewählten Wörter für einen handschriftlich zu ergänzenden Lückentext aus: die korrigierte Fassung zeigt sie, die der Schüler eine Linie zum Schreiben ([[Wort]] in einer Aufgabe bewirkt dasselbe)
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Blendet die ausgewählten Wörter für einen handschriftlich zu ergänzenden Lückentext aus: die korrigierte Fassung zeigt sie, die der Schüler eine Linie zum Schreiben ([[Wort]] in einer Lückentext-Frage bewirkt dasselbe)
 	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	Die Linienbreite der Begrenzungszeichen; Automatisch: ein Schrägstrich kräftiger als die Linie, ein Pfeil gleich dünn
 	pick the dimension to go on from, near the end to start at (Enter: the last one)	wähle das Maß, an das angeschlossen wird, nahe dem Ende, an dem es weitergeht (Eingabe: das letzte)
 	Pick a linear dimension	Wähle ein lineares Maß
@@ -3264,3 +3264,12 @@ paper	Envelope DL	Umschlag DL
 	ByLayer / ByStyle	NachEbene / NachStil
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Maß-, Hilfs- und Führungslinien; NachEbene: die der Ebene. Begrenzungen behalten ihre eigene Breite
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Maß-, Hilfs- und Führungslinien; NachEbene: der der Ebene. Begrenzungen und Texte bleiben durchgezogen
+	Vertical mirror	Vertikal spiegeln
+	Horizontal mirror	Horizontal spiegeln
+	Fill	Füllung
+	Rough and finished level	Rohbau/Fertig
+	Rough level	Rohbau
+	Finished level	Fertig
+	Reference line, text side	Bezugslinie, Textseite
+	Reference line, other side	Bezugslinie, Gegenseite
+	0: automatic (the triangle height)	0: automatisch (die Dreieckshöhe)

@@ -3784,7 +3784,7 @@ paper	Envelope DL	Busta DL
 	Add a variant: a copy of the active one's values (add data first)	Aggiungi una variante: una copia dei valori di quella attiva (prima aggiungi i dati)
 	High contrast only	Solo contrasto elevato
 	Hide Words	Nascondi parole
-	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an exercise does the same)	Nasconde le parole selezionate per un testo da completare a mano: la copia corretta le mostra, quella degli studenti una riga su cui scrivere ([[parola]] scritto in un esercizio fa lo stesso)
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Nasconde le parole selezionate per un testo da completare a mano: la copia corretta le mostra, quella degli studenti una riga su cui scrivere ([[parola]] scritto in una domanda di completamento fa lo stesso)
 	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	Lo spessore delle linee dei terminali; Automatico: un trattino più spesso della linea, una freccia sottile come lei
 	pick the dimension to go on from, near the end to start at (Enter: the last one)	scegli la quota da cui proseguire, vicino all'estremo da cui partire (Invio: l'ultima)
 	Pick a linear dimension	Scegli una quota lineare
