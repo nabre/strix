@@ -56,16 +56,65 @@ fn run(app: &mut WordApp, id: &str, params: Value) {
     }
 }
 
-/// The Exercise tab: the exercise at the cursor's questions, first line and duration, variants and
-/// data, its layout (a lone exercise's; in a series the Series tab has it), Select and Delete.
+/// What only some types of question use, on the Exercise tab after what every exercise has (pure,
+/// tested): each is on only when the exercise's questions are of a type that uses it (the
+/// commands stay on for scripts).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct Peculiar {
+    /// A quiz: Add Question offers the types of question (a problem's questions have none).
+    pub(super) types: bool,
+    /// Result Of: a problem's results, or a calculation's or worked example's.
+    pub(super) results: bool,
+    /// The data and the variants the values are calculated with: those, an inline completion's
+    /// calculated blanks, or data already there.
+    pub(super) data: bool,
+    /// Hide Words: an inline completion question.
+    pub(super) hide_words: bool,
+}
+
+/// [`Peculiar`] for the exercise `q_st` (`exercise.questions`) describes, `has_data` when it
+/// already has data.
+pub(super) fn peculiar(q_st: &Value, has_data: bool) -> Peculiar {
+    let problem = q_st["kind"].as_str().unwrap_or("problem") == "problem";
+    let modes = modes(q_st);
+    let any = |m: &[&str]| modes.iter().any(|x| m.contains(&x.as_str()));
+    let results = problem || any(&["calc", "worked"]);
+    Peculiar { types: !problem, results, data: results || has_data || any(&["cloze"]), hide_words: any(&["cloze"]) }
+}
+
+/// The type of every question of the exercise `q_st` describes, in order.
+fn modes(q_st: &Value) -> Vec<String> {
+    q_st["questions"].as_array().map(|a| a.iter().map(|q| crate::exercise_quiz::mode_of(q).to_string()).collect()).unwrap_or_default()
+}
+
+/// The name of the exercise's type (pure, tested): a problem; a quiz whose questions are all of
+/// one type, that type's (True or False, Inline Completion…); else its kind's.
+pub(super) fn type_name(q_st: &Value) -> &'static str {
+    let kind = q_st["kind"].as_str().unwrap_or("problem");
+    if kind == "problem" {
+        return "Problem";
+    }
+    let modes = modes(q_st);
+    if let Some(first) = modes.first()
+        && modes.iter().all(|m| m == first)
+        && let Some((_, name)) = crate::exercise_quiz::QUESTION_MODES.iter().find(|(m, _)| m == first)
+    {
+        return name;
+    }
+    if kind == "choice" { "Multiple Choice" } else { "Open Answer" }
+}
+
+/// The Exercise tab: first what every exercise has (its first line, duration and type, adding
+/// questions and notes and their settings, the layout, Select and Delete), then what only some
+/// types of question use, on only for them: Result Of, the data and variants, Hide Words.
 pub(super) fn exercise_tab(app: &mut WordApp, ui: &mut Ui) {
     let Ok(info) = app.session.run("exercise.data", &json!({})) else { return };
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let q_st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().unwrap_or_default();
-    let kind = q_st["kind"].as_str().unwrap_or("problem").to_string();
-    questions_group(app, ui, ex, &q_st, kind != "problem");
-    general_group(app, ui, ex, &info, &kind);
-    variants_group(app, ui, ex, &info);
+    let has_data = info["data"]["items"].as_array().is_some_and(|a| !a.is_empty());
+    let pec = peculiar(&q_st, has_data);
+    general_group(app, ui, ex, &info, type_name(&q_st));
+    questions_group(app, ui, ex, &q_st, pec.types);
     if in_series(app) {
         group(ui, "Series", None, app, |ui, app| {
             go_to_series(ui, app);
@@ -73,6 +122,13 @@ pub(super) fn exercise_tab(app: &mut WordApp, ui: &mut Ui) {
     } else {
         layout_group(app, ui, false);
     }
+    exercise_group(app, ui);
+    calculation_group(app, ui, ex, &info, pec);
+    completion_group(app, ui, pec);
+}
+
+/// Exercise › Exercise: Select and Delete.
+fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
         stack(ui, |ui| {
             let span = app
@@ -119,25 +175,30 @@ fn go_to_series(ui: &mut Ui, app: &mut WordApp) {
     }
 }
 
-/// Exercise › Questions: add a question (of a type), a sub-question or a note, mark a result, and
-/// every question's settings in a panel.
+/// Exercise › Questions: add a question (of a type, in a quiz), a sub-question or a note, and every
+/// question's settings in a panel.
 fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: bool) {
     group(ui, "Questions", None, app, |ui, app| {
-        crate::widgets::big_split(
-            ui,
-            app,
-            crate::widgets::BigSplit {
-                icon: "addQuestion",
-                label: "Add Question",
-                tip: "Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…",
-                action: ButtonAction::new("exercise.addQuestion", json!({}), false),
-            },
-            |ui, app| {
-                for (id, name) in crate::exercise_quiz::QUESTION_MODES {
-                    mi(ui, app, name, "exercise.addQuestion", json!({"type": id}));
-                }
-            },
-        );
+        if quiz {
+            crate::widgets::big_split(
+                ui,
+                app,
+                crate::widgets::BigSplit {
+                    icon: "addQuestion",
+                    label: "Add Question",
+                    tip: "Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…",
+                    action: ButtonAction::new("exercise.addQuestion", json!({}), false),
+                },
+                |ui, app| {
+                    for (id, name) in crate::exercise_quiz::QUESTION_MODES {
+                        mi(ui, app, name, "exercise.addQuestion", json!({"type": id}));
+                    }
+                },
+            );
+        } else {
+            super::big(ui, app, "addQuestion", "Add Question", "exercise.addQuestion", json!({}), false)
+                .on_hover_text(tl!("Add a question at the end of the exercise"));
+        }
         stack(ui, |ui| {
             small(
                 ui,
@@ -154,17 +215,6 @@ fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: 
                 Some("Add Note"),
                 "Add a note between the questions: free text that is not a question",
                 ButtonAction::new("exercise.addNote", json!({}), false),
-            );
-            super::strix::result_of_menu(ui, app);
-        });
-        stack(ui, |ui| {
-            small(
-                ui,
-                app,
-                "hideWords",
-                Some("Hide Words"),
-                "Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)",
-                ButtonAction::new("exercise.blank", json!({}), false),
             );
         });
         let st = q_st.clone();
@@ -183,8 +233,8 @@ fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: 
     });
 }
 
-/// Exercise › Exercise: what the first line holds, the duration, the kind.
-fn general_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, kind: &str) {
+/// Exercise › General: what the first line holds, the duration, the type.
+fn general_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, type_name: &str) {
     let line = app.session.run("exercise.titleLine", &json!({"exercise": ex})).ok().and_then(|v| v["line"].as_str().map(str::to_string));
     let line = line.unwrap_or_else(|| "title".into());
     group(ui, "General", None, app, |ui, app| {
@@ -222,74 +272,93 @@ fn general_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, kind: &s
             });
             crate::widgets::row(ui, |ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                let name = match kind {
-                    "open" => "Open Answer",
-                    "choice" => "Multiple Choice",
-                    _ => "Problem",
-                };
-                ui.label(egui::RichText::new(tl!(name)).small().weak());
+                ui.label(egui::RichText::new(tl!(type_name)).small().weak());
             });
         });
     });
 }
 
-/// Exercise › Variants: the variant the exercise is calculated with, add and remove one, the data
-/// and the generator in panels.
-fn variants_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value) {
+/// Exercise › Inline Completion: Hide Words, on only with an inline completion question.
+fn completion_group(app: &mut WordApp, ui: &mut Ui, pec: Peculiar) {
+    group(ui, "Inline Completion", None, app, |ui, app| {
+        stack(ui, |ui| {
+            enabled_if(ui, pec.hide_words, |ui| {
+                small(
+                    ui,
+                    app,
+                    "hideWords",
+                    Some("Hide Words"),
+                    "Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)",
+                    ButtonAction::new("exercise.blank", json!({}), false),
+                );
+            });
+        });
+    });
+}
+
+/// Exercise › Calculation: Result Of (a problem's, a calculation's), the variant the exercise is
+/// calculated with, add and remove one, the data and the generator in panels; each on only when
+/// the exercise's type of question uses it.
+fn calculation_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, pec: Peculiar) {
     let data = info["data"].clone();
     let variants: Vec<String> =
         data["variants"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
     let active = data["active"].as_u64().unwrap_or(0) as usize;
     let has_items = data["items"].as_array().is_some_and(|a| !a.is_empty());
-    group(ui, "Variants", None, app, |ui, app| {
+    group(ui, "Calculation", None, app, |ui, app| {
         stack(ui, |ui| {
-            crate::widgets::row(ui, |ui| {
-                ui.spacing_mut().item_spacing.x = 4.0;
-                let name = ui.label(egui::RichText::new(tl!("Variant")).small());
-                let shown = variants.get(active).cloned().unwrap_or_else(|| "A".into());
-                let errors = &info["variantErrors"];
-                ui.add_enabled_ui(variants.len() > 1, |ui| {
-                    let combo = craft_ui::ComboBox::from_id_salt(("exercise_variant", ex)).selected_text(shown).width(56.0).show_ui(ui, |ui| {
-                        for (k, name) in variants.iter().enumerate() {
-                            let errs: Vec<&str> = errors
-                                .get(name.as_str())
-                                .and_then(Value::as_array)
-                                .map(|a| a.iter().filter_map(Value::as_str).collect())
-                                .unwrap_or_default();
-                            let text = if errs.is_empty() { name.clone() } else { format!("{name} ⚠") };
-                            let r = ui.selectable_label(k == active, text);
-                            let r = if errs.is_empty() { r } else { r.on_hover_text(format!("⚠ {}", errs.join("\n⚠ "))) };
-                            if r.clicked() && k != active {
-                                run(app, "exercise.variant", json!({"exercise": ex, "active": k}));
+            enabled_if(ui, pec.results, |ui| super::strix::result_of_menu(ui, app));
+        });
+        enabled_if(ui, pec.data, |ui| {
+            stack(ui, |ui| {
+                crate::widgets::row(ui, |ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    let name = ui.label(egui::RichText::new(tl!("Variant")).small());
+                    let shown = variants.get(active).cloned().unwrap_or_else(|| "A".into());
+                    let errors = &info["variantErrors"];
+                    ui.add_enabled_ui(variants.len() > 1, |ui| {
+                        let combo = craft_ui::ComboBox::from_id_salt(("exercise_variant", ex)).selected_text(shown).width(56.0).show_ui(ui, |ui| {
+                            for (k, name) in variants.iter().enumerate() {
+                                let errs: Vec<&str> = errors
+                                    .get(name.as_str())
+                                    .and_then(Value::as_array)
+                                    .map(|a| a.iter().filter_map(Value::as_str).collect())
+                                    .unwrap_or_default();
+                                let text = if errs.is_empty() { name.clone() } else { format!("{name} ⚠") };
+                                let r = ui.selectable_label(k == active, text);
+                                let r = if errs.is_empty() { r } else { r.on_hover_text(format!("⚠ {}", errs.join("\n⚠ "))) };
+                                if r.clicked() && k != active {
+                                    run(app, "exercise.variant", json!({"exercise": ex, "active": k}));
+                                }
                             }
-                        }
+                        });
+                        combo.response.labelled_by(name.id);
                     });
-                    combo.response.labelled_by(name.id);
                 });
-            });
-            let mut added = data.clone();
-            crate::exercise_panels::add_variant(&mut added);
-            enabled_if(ui, has_items && variants.len() < crate::exercise_panels::MAX_VARIANTS, |ui| {
-                small(
-                    ui,
-                    app,
-                    "plus",
-                    Some("Add Variant"),
-                    "Add a variant: a copy of the active one's values (add data first)",
-                    ButtonAction::new("exercise.setData", json!({"exercise": ex, "data": added}), false),
-                );
-            });
-            let mut removed = data.clone();
-            crate::exercise_panels::remove_variant(&mut removed);
-            enabled_if(ui, variants.len() > 1, |ui| {
-                small(
-                    ui,
-                    app,
-                    "minus",
-                    Some("Remove Variant"),
-                    "Remove the active variant",
-                    ButtonAction::new("exercise.setData", json!({"exercise": ex, "data": removed}), false),
-                );
+                let mut added = data.clone();
+                crate::exercise_panels::add_variant(&mut added);
+                enabled_if(ui, has_items && variants.len() < crate::exercise_panels::MAX_VARIANTS, |ui| {
+                    small(
+                        ui,
+                        app,
+                        "plus",
+                        Some("Add Variant"),
+                        "Add a variant: a copy of the active one's values (add data first)",
+                        ButtonAction::new("exercise.setData", json!({"exercise": ex, "data": added}), false),
+                    );
+                });
+                let mut removed = data.clone();
+                crate::exercise_panels::remove_variant(&mut removed);
+                enabled_if(ui, variants.len() > 1, |ui| {
+                    small(
+                        ui,
+                        app,
+                        "minus",
+                        Some("Remove Variant"),
+                        "Remove the active variant",
+                        ButtonAction::new("exercise.setData", json!({"exercise": ex, "data": removed}), false),
+                    );
+                });
             });
         });
         let panel_info = info.clone();
@@ -301,7 +370,7 @@ fn variants_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value) {
                 icon: "variables",
                 label: "Data",
                 tip: "The initial data: an equation per datum (L = 4.5 m) with its description, and the variants",
-                on: true,
+                on: pec.data,
             },
             |ui, app| crate::exercise_panels::data_panel(app, ui, &panel_info),
         );
@@ -314,7 +383,7 @@ fn variants_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value) {
                 icon: "generateVariants",
                 label: "Generate\nVariants",
                 tip: "Generate clean variants from each datum's range, checked against the constraints on the results (add data first)",
-                on: has_items,
+                on: pec.data && has_items,
             },
             |ui, app| crate::exercise_panels::variant_generator_ui(app, ui, ex, &gen_data),
         );
@@ -682,6 +751,34 @@ mod tests {
         app.run("view.exercisePane", json!({"value": true})).unwrap();
         follow(&mut app);
         assert_eq!(app.ui.tab, SERIES_TAB, "outside the exercises: the series");
+    }
+
+    /// Every type of exercise has the common commands; the peculiar ones are on only for the types
+    /// of question that use them, and the type shows by name.
+    #[test]
+    fn peculiar_commands_follow_the_type_of_question() {
+        let cases = [
+            ("problem", "Problem", Peculiar { types: false, results: true, data: true, hide_words: false }),
+            ("open", "Open Answer", Peculiar { types: true, results: false, data: false, hide_words: false }),
+            ("choice", "Multiple Choice", Peculiar { types: true, results: false, data: false, hide_words: false }),
+            ("trueFalse", "True or False", Peculiar { types: true, results: false, data: false, hide_words: false }),
+            ("cloze", "Inline Completion", Peculiar { types: true, results: false, data: true, hide_words: true }),
+            ("calc", "Calculation", Peculiar { types: true, results: true, data: true, hide_words: false }),
+        ];
+        for (kind, name, want) in cases {
+            let mut app = app_with(0);
+            app.run("exercise.insert", json!({"kind": kind})).unwrap();
+            let st = app.session.run("exercise.questions", &json!({})).unwrap();
+            assert_eq!(peculiar(&st, false), want, "{kind}: {st}");
+            assert_eq!(type_name(&st), name, "{kind}: {st}");
+        }
+        // Data already there stays reachable; a quiz of mixed types is named after its kind.
+        let mut app = app_with(0);
+        app.run("exercise.insert", json!({"kind": "open"})).unwrap();
+        app.run("exercise.addQuestion", json!({"type": "cloze"})).unwrap();
+        let st = app.session.run("exercise.questions", &json!({})).unwrap();
+        assert!(peculiar(&st, true).data && peculiar(&st, false).hide_words, "{st}");
+        assert_eq!(type_name(&st), "Open Answer");
     }
 
     /// Both tabs draw every group within the ribbon's height, and their buttons work: Add Variant

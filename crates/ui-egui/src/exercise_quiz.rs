@@ -36,7 +36,7 @@ pub(crate) const QUESTION_MODES: [(&str, &str); 8] = [
 ];
 
 /// The type a question reports, a true or false question told from a multiple choice.
-fn mode_of(q: &Value) -> &str {
+pub(crate) fn mode_of(q: &Value) -> &str {
     let t = q["type"].as_str().unwrap_or("open");
     if t == "choice" && q["trueFalse"].as_bool() == Some(true) { "trueFalse" } else { t }
 }
