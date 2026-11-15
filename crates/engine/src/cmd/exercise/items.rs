@@ -602,8 +602,9 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
     for i in from..=to {
         let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
         // A true/false question's answer is inline in its own paragraph (true_false.rs).
-        let inline = if p.props.style.as_deref() == Some(STYLE_QUESTION) { inline_answer(p) } else { None };
-        if p.props.style.as_deref() == Some(STYLE_QUESTION) && (inline.is_some() || !in_answer(&all, i)) {
+        let question = is_question(p);
+        let inline = if question { inline_answer(p) } else { None };
+        if question && (inline.is_some() || !in_answer(&all, i)) {
             if out.len() >= MAX_QUESTIONS {
                 break;
             }
@@ -618,6 +619,12 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
         }
     }
     out
+}
+
+/// Whether `p` is a question's paragraph: in the Exercise Question style, or the title line
+/// holding a quiz's only question (question_line.rs).
+pub(super) fn is_question(p: &Paragraph) -> bool {
+    p.props.style.as_deref() == Some(STYLE_QUESTION) || super::question_line::joined(p)
 }
 
 /// The settings of a question paragraph's inline answer (a true/false question's boxes on its
@@ -1032,13 +1039,18 @@ pub(super) fn add_drawings(s: &mut Session, ex: usize, drawings: &[Option<Value>
 
 /// End markers at the end of `p` that close controls opened in an earlier paragraph.
 pub(super) fn trailing_outer_ends(p: &Paragraph) -> usize {
-    let mut open = 0usize;
+    // A title line holding the question opens the exercise and its questions part itself: their
+    // ends are what it closes last, as a question paragraph's are.
+    let joined = super::question_line::joined(p);
+    let mut open: Vec<bool> = Vec::new();
     let mut outer = 0usize;
     for (_, o) in p.objects_with_offsets() {
         match o {
-            InlineObject::ControlStart { .. } => open += 1,
-            InlineObject::ControlEnd if open > 0 => open -= 1,
-            InlineObject::ControlEnd => outer += 1,
+            InlineObject::ControlStart { control } => open.push(joined && (control.tag == TAG_EXERCISE || control.tag == TAG_QUESTIONS)),
+            InlineObject::ControlEnd => match open.pop() {
+                Some(false) => {}
+                Some(true) | None => outer += 1,
+            },
             _ => {}
         }
     }
@@ -1096,11 +1108,16 @@ pub(super) fn update(s: &mut Session) -> bool {
                 let want_num = if lone { Some(NumRef { num: 0, level: 0 }) } else { None };
                 let Block::Para(p) = &**block else { continue };
                 let cur = p.props.numbering;
-                let new_num = match (want_num, cur, list) {
-                    (Some(w0), c, _) if c != Some(w0) => Some(Some(w0)),
-                    (None, Some(c), Some(l)) if c.num == 0 => Some(Some(NumRef { num: l, level: c.level })),
-                    (None, None, Some(l)) => Some(Some(NumRef { num: l, level: 0 })),
-                    _ => None,
+                // A title line holding the question keeps the title's number.
+                let new_num = if super::question_line::joined(p) {
+                    None
+                } else {
+                    match (want_num, cur, list) {
+                        (Some(w0), c, _) if c != Some(w0) => Some(Some(w0)),
+                        (None, Some(c), Some(l)) if c.num == 0 => Some(Some(NumRef { num: l, level: c.level })),
+                        (None, None, Some(l)) => Some(Some(NumRef { num: l, level: 0 })),
+                        _ => None,
+                    }
                 };
                 let text = points_text(it.settings.points, w, comma);
                 let needs_points = span(p, TAG_POINTS).is_some_and(|sp| !points_shown(p, sp, &text));

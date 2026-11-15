@@ -53,6 +53,7 @@ mod items_ext;
 mod language;
 mod numbering;
 mod pack;
+mod question_line;
 mod scores;
 mod series;
 mod show;
@@ -820,7 +821,7 @@ fn scan(s: &Session) -> Layout {
                 grow(&mut e.question_blocks);
                 if tags.iter().any(|(t, ph)| t == TAG_QUESTIONS && *ph) {
                     e.no_questions = true;
-                } else if p.props.style.as_deref() == Some(STYLE_QUESTION)
+                } else if items::is_question(p)
                     && e.questions.len() < MAX_QUESTIONS
                     && (!has(items::TAG_ANSWER) || items::inline_answer(p).is_some())
                     && let Some(text) = items::question_text(p).or_else(|| items::problem_question_text(p))
@@ -1367,6 +1368,8 @@ fn take_last_end(prev: &mut Paragraph) -> Result<(), CmdError> {
 fn e_list(s: &Session, last: usize) -> Option<u32> {
     s.doc.body.get(..=last)?.iter().rev().take(MAX_QUESTIONS * 4).find_map(|b| match &**b {
         Block::Para(p) if p.props.style.as_deref() == Some(STYLE_QUESTION) => p.props.numbering.map(|n| n.num).filter(|&n| n != 0),
+        // A quiz's only question on the title line keeps its list there.
+        Block::Para(p) if question_line::joined(p) => question_line::kept_list(p).map(|n| n.num),
         _ => None,
     })
 }
@@ -1906,6 +1909,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= title_styles(s);
     // A title line holding the statement: no empty statement part besides.
     changed |= title_line::conform(s);
+    // A quiz's only question on a title line holding the statement, or back below it.
+    changed |= question_line::conform(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);

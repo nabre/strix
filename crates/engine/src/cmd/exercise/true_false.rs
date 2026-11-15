@@ -28,7 +28,7 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
 use super::items::{self, CHECKED, CORRECT_EL, Item, SHOWN_EL, STYLE_CHOICE, TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS, UNCHECKED, span};
 use super::words::Words;
-use super::{Layout, STYLE_QUESTION, control, para, scan};
+use super::{Layout, control, para, scan};
 use crate::Session;
 
 /// The header line over a battery of true/false statements: the columns' names.
@@ -199,13 +199,24 @@ pub(super) fn apply_correct(s: &mut Session, r: (usize, usize), want: Option<&[u
     true
 }
 
-/// Inserts each box after a tab at `at`, its symbol showing its state; the offset after them.
-fn insert_boxes(p: &mut Paragraph, mut at: usize, boxes: Vec<ContentControl>) -> Option<usize> {
-    let props = CharProps::default();
-    for c in boxes {
+/// Inserts each box after a tab (and its name in `names`, bold, when there is one) at `at`, its
+/// symbol showing its state; the offset after them.
+fn insert_boxes(p: &mut Paragraph, mut at: usize, boxes: Vec<ContentControl>, names: &[String]) -> Option<usize> {
+    // On a title line (named boxes), the question's weight and size, not the title's.
+    let props = match span(p, TAG_ITEM) {
+        Some((a, _)) if !names.is_empty() => p.props_of_char(a + OBJ.len_utf8()).clone(),
+        _ => CharProps::default(),
+    };
+    for (k, c) in boxes.into_iter().enumerate() {
         let sym = if matches!(c.kind, ControlKind::CheckBox { checked: true, .. }) { CHECKED } else { UNCHECKED }.to_string();
         p.insert_text(at, "\t", &props).ok()?;
         at += 1;
+        if let Some(name) = names.get(k) {
+            let named = format!("{name} ");
+            p.insert_text(at, &named, &props).ok()?;
+            let _ = p.format(at, at + name.len(), &|c| c.bold = Some(true));
+            at += named.len();
+        }
         p.insert_object(at, InlineObject::ControlStart { control: Box::new(c) }, &props).ok()?;
         at += OBJ.len_utf8();
         p.insert_text(at, &sym, &props).ok()?;
@@ -216,15 +227,24 @@ fn insert_boxes(p: &mut Paragraph, mut at: usize, boxes: Vec<ContentControl>) ->
     Some(at)
 }
 
-/// The content an inline answer shows for `boxes`: tab, box, tab, box.
-fn content_text(boxes: &[ContentControl]) -> String {
+/// The content an inline answer shows for `boxes`: tab, box, tab, box (each box after its name
+/// in `names`, when there is one).
+fn content_text(boxes: &[ContentControl], names: &[String]) -> String {
     boxes
         .iter()
-        .map(|c| {
+        .enumerate()
+        .map(|(k, c)| {
             let sym = if matches!(c.kind, ControlKind::CheckBox { checked: true, .. }) { CHECKED } else { UNCHECKED };
-            format!("\t{OBJ}{sym}{OBJ}")
+            let name = names.get(k).map(|n| format!("{n} ")).unwrap_or_default();
+            format!("\t{name}{OBJ}{sym}{OBJ}")
         })
         .collect()
+}
+
+/// The boxes' names on a title line holding the question (no header above it): the columns'
+/// letters; none elsewhere.
+fn names(p: &Paragraph, w: &Words) -> Vec<String> {
+    if super::question_line::joined(p) { (0..2).filter_map(|j| column_letter(w, j)).collect() } else { Vec::new() }
 }
 
 /// A true/false question's line brought in line: its two boxes (ticked on the correct one while
@@ -232,10 +252,11 @@ fn content_text(boxes: &[ContentControl]) -> String {
 /// changed; nothing for any other block.
 pub(super) fn sync(block: &mut Arc<Block>, shown: bool, width: f32, w: &Words) -> bool {
     let Block::Para(p) = &**block else { return false };
-    if p.props.style.as_deref() != Some(STYLE_QUESTION) {
+    if !items::is_question(p) {
         return false;
     }
     let Some(sp) = answer_span(p) else { return false };
+    let names = names(p, w);
     let have = box_controls(p, sp);
     let states: Vec<_> = (0..2).map(|k| have.get(k).map_or((false, false, false), state_of)).collect();
     let now = correct_now(&states, shown);
@@ -260,7 +281,7 @@ pub(super) fn sync(block: &mut Arc<Block>, shown: bool, width: f32, w: &Words) -
             c
         })
         .collect();
-    let content = content_text(&want);
+    let content = content_text(&want, &names);
     let cols = columns(width);
     let tabs = statement_tabs(&cols);
     let same = have == want && p.text.get(sp.0 + OBJ.len_utf8()..sp.1) == Some(content.as_str()) && p.props.tabs.as_deref() == Some(tabs.as_slice());
@@ -272,7 +293,7 @@ pub(super) fn sync(block: &mut Arc<Block>, shown: bool, width: f32, w: &Words) -
     if sp.1 > from && np.delete(from, sp.1).is_err() {
         return false;
     }
-    if insert_boxes(&mut np, from, want).is_none() {
+    if insert_boxes(&mut np, from, want, &names).is_none() {
         return false;
     }
     np.props.tabs = Some(tabs);
@@ -282,7 +303,7 @@ pub(super) fn sync(block: &mut Arc<Block>, shown: bool, width: f32, w: &Words) -
 }
 
 /// Moves the positions of the selection in the body: `f` maps a top-level block and offset.
-fn remap(s: &mut Session, f: &dyn Fn(usize, usize) -> (usize, usize)) {
+pub(super) fn remap(s: &mut Session, f: &dyn Fn(usize, usize) -> (usize, usize)) {
     for pos in [&mut s.sel.anchor, &mut s.sel.focus] {
         if pos.story != StoryRef::Body {
             continue;
@@ -378,7 +399,8 @@ fn collapse(s: &mut Session, it: &Item, shown: bool, w: &Words) -> bool {
     if np.insert_object(at, InlineObject::ControlStart { control: Box::new(answer) }, &props).is_err() {
         return false;
     }
-    let Some(end) = insert_boxes(&mut np, at + OBJ.len_utf8(), opts) else { return false };
+    let names = names(&np, w);
+    let Some(end) = insert_boxes(&mut np, at + OBJ.len_utf8(), opts, &names) else { return false };
     if np.insert_object(end, InlineObject::ControlEnd, &props).is_err() {
         return false;
     }
@@ -474,7 +496,8 @@ fn heads(s: &mut Session, layout: &Layout, e: usize) -> bool {
     let inline: Vec<bool> = its.iter().map(|it| it.answer == Some((it.question, it.question))).collect();
     let mut need = Vec::new();
     for (k, it) in its.iter().enumerate() {
-        if !inline.get(k).copied().unwrap_or(false) {
+        // A question on the title line names its boxes: no header goes above the number.
+        if !inline.get(k).copied().unwrap_or(false) || it.question == ex.start {
             continue;
         }
         let joined = k > 0
@@ -590,7 +613,7 @@ fn insert_head(s: &mut Session, q: usize, w: &Words) -> bool {
 
 /// Removes the header at `h`; the controls opening on it open on the paragraph after it. A
 /// header that closes controls stays.
-fn remove_head(s: &mut Session, h: usize) -> bool {
+pub(super) fn remove_head(s: &mut Session, h: usize) -> bool {
     let Some(Block::Para(hp)) = s.doc.body.get(h).map(|b| &**b) else { return false };
     if items::trailing_outer_ends(hp) > 0 {
         return false;
@@ -638,6 +661,7 @@ fn remove_head(s: &mut Session, h: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::super::STYLE_QUESTION;
     use super::*;
     use serde_json::{Value, json};
     use wordcraft_doc::Document;

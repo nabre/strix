@@ -106,7 +106,7 @@ pub(super) fn holds_statement(s: &Session, start: usize) -> bool {
 }
 
 /// The run properties of a statement written on the title line: the body text's weight and size.
-fn statement_props(s: &Session) -> CharProps {
+pub(super) fn statement_props(s: &Session) -> CharProps {
     let size = s.doc.styles.get("Normal").and_then(|st| st.chr.size).unwrap_or(NORMAL_SIZE);
     CharProps { bold: Some(false), size: Some(size), ..CharProps::default() }
 }
@@ -264,6 +264,14 @@ fn set_line(p: &mut Paragraph, mid: Option<Paragraph>, text: &str, showing: bool
         c.showing_placeholder = shows;
     }
     p.touch();
+}
+
+/// Shows `shown`, the placeholder, on the empty title line of `p`.
+pub(super) fn show_placeholder(p: &mut Paragraph, shown: &str) {
+    if let Some(c) = title_ctl(p) {
+        c.placeholder_text = shown.into();
+    }
+    set_line(p, None, shown, true);
 }
 
 /// Moves the statement onto the title line of the exercise whose title is `blocks[at]` (see the
@@ -534,7 +542,8 @@ mod tests {
     #[test]
     fn the_statement_goes_next_to_the_number() {
         let mut s = Session::new(wordcraft_doc::Document::new());
-        run(&mut s, "exercise.insert", json!({"kind": "open"}));
+        // Two questions: a lone one would go on the line itself (question_line.rs).
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": ["One", "Two"]}));
         assert_eq!(run(&mut s, "exercise.titleLine", json!({}))["line"], "title");
         let st = run(&mut s, "exercise.titleLine", json!({"line": "statement"}));
         assert_eq!(st["line"], "statement");
