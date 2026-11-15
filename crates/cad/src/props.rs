@@ -5,7 +5,7 @@
 
 use crate::MAX_COORD;
 use crate::geom::Pt;
-use crate::model::{Align, Drawing, Ends, Kind, Mark, Num, Orient, P, Pattern, Side};
+use crate::model::{Align, Drawing, Ends, Kind, LevelFill, Mark, Num, Orient, P, Pattern, Side};
 
 /// What a field holds, for its editor and its unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +24,8 @@ pub enum FieldKind {
     Choice(&'static [&'static str]),
     /// `true` or `false`.
     Bool,
+    /// `true` or `false`, a mirroring: the pane turns it with a Flip button.
+    Flip,
     /// The name of a style of the drawing: a text style for a text, a dimension style for a
     /// dimension, an angle or a level mark ([`crate::STANDARD`] for the drawing's own).
     Style,
@@ -96,6 +98,8 @@ pub const MARKS: &[&str] = &["style", "tick", "arrow", "dot", "none"];
 pub const END_MARKS: &[&str] = &["asStart", "tick", "arrow", "dot", "none"];
 pub const ALIGNS: &[&str] = &["left", "center", "right"];
 pub const SIDES: &[&str] = &["left", "right"];
+/// A level mark's triangle: half filled, black, empty.
+pub const LEVEL_FILLS: &[&str] = &["roughFinished", "rough", "finished"];
 /// The arrowheads an open line, arc or polyline may carry.
 pub const ENDS: &[&str] = &["none", "start", "end", "both"];
 pub const PATTERNS: &[&str] = &["lines", "cross", "steel", "dashed", "solid", "along", "slope"];
@@ -226,13 +230,14 @@ impl Drawing {
                 out.push(f("mark", "Start mark", FieldKind::Choice(MARKS), mark_text(*mark)));
                 out.push(f("markEnd", "End mark", FieldKind::Choice(END_MARKS), end_mark_text(*mark_end)));
             }
-            Kind::Level { p, datum, text, flip, left } => {
+            Kind::Level { p, datum, text, flip, left, fill } => {
                 out.push(f("text", "Text", FieldKind::Text, text.clone().unwrap_or_default()));
                 point(&mut out, p, ("x", "X"), ("y", "Y"));
                 out.push(f("datum", "Datum (±0.00) Y", FieldKind::Length, num_text(datum)));
                 out.push(f("elevation", "Elevation", FieldKind::Derived, self.level_label(None, p.1.value - datum.value, false, None)));
-                out.push(f("flip", "Under the level", FieldKind::Bool, flip.to_string()));
-                out.push(f("left", "Text on the left", FieldKind::Bool, left.to_string()));
+                out.push(f("flip", "Vertical mirror", FieldKind::Flip, flip.to_string()));
+                out.push(f("left", "Horizontal mirror", FieldKind::Flip, left.to_string()));
+                out.push(f("fill", "Fill", FieldKind::Choice(LEVEL_FILLS), fill.name().into()));
             }
         }
         if matches!(e.kind, Kind::Line { .. } | Kind::Arc { .. } | Kind::Polyline { closed: false, .. }) {
@@ -371,6 +376,7 @@ impl Drawing {
             (Kind::Level { datum, .. }, "datum") => *datum = parse_num(text)?,
             (Kind::Level { flip, .. }, "flip") => *flip = matches!(text.trim(), "true" | "1" | "yes"),
             (Kind::Level { left, .. }, "left") => *left = matches!(text.trim(), "true" | "1" | "yes"),
+            (Kind::Level { fill, .. }, "fill") => *fill = LevelFill::parse(text).ok_or("fill: roughFinished, rough or finished")?,
             (Kind::Text { value, .. }, "value") => {
                 if text.trim().is_empty() {
                     return Err("a text cannot be empty".into());

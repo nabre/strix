@@ -485,11 +485,19 @@ impl Drawing {
         self.entities.get(i).map(|e| self.stroke_of(e))
     }
 
-    /// The colour, width and dash `e` is drawn with: its own, else its layer's.
+    /// The colour, width and dash `e` is drawn with: its own, else its layer's. An annotation
+    /// (a dimension, an angle, a level mark) takes its dimension style's width and linetype
+    /// between the two: its own, else its style's, else (the style's ByLayer) its layer's.
     pub(crate) fn stroke_of(&self, e: &Entity) -> ([u8; 3], f64, Dash) {
         let l = self.layer(&e.layer);
         let Stroke { color, width, dash } = &e.stroke;
-        (color.unwrap_or(l.color), width.unwrap_or(l.width), dash.unwrap_or(l.dash))
+        let (style_width, style_dash) = if e.kind.is_annotation() {
+            let st = self.dim_style_of(e);
+            ((st.line_width > 0.0).then_some(st.line_width), st.dash)
+        } else {
+            (None, None)
+        };
+        (color.unwrap_or(l.color), width.or(style_width).unwrap_or(l.width), dash.or(style_dash).unwrap_or(l.dash))
     }
 }
 

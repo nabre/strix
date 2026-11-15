@@ -223,10 +223,11 @@ impl Drawing {
                         look: self.text_look(e.style.as_deref()),
                     });
                 }
-                // Annotations are thin, their style's line width, unless they set their own.
-                Kind::Dim { .. } => self.dimension(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
-                Kind::Angle { .. } => self.angular(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
-                Kind::Level { .. } => self.level(e, k, color, e.stroke.width.unwrap_or(self.dim_style_of(e).line_width), ws, &mut prims),
+                // Annotations: their own width and linetype, else their style's (thin, solid),
+                // else (the style's ByLayer) their layer's (`stroke_of`).
+                Kind::Dim { .. } => self.dimension(e, k, (color, width, &dash), ws, &mut prims),
+                Kind::Angle { .. } => self.angular(e, k, (color, width, &dash), ws, &mut prims),
+                Kind::Level { .. } => self.level(e, k, (color, width, &dash), ws, &mut prims),
                 // A hatch or a hatched strip: its lines, thin as hatches are; a solid fill's lines
                 // close enough, and wide enough, to cover it (with its islands, on any output).
                 Kind::Strip { pattern, .. } | Kind::Hatch { pattern, .. } => {
@@ -369,14 +370,21 @@ impl Drawing {
         Some(DimFrame { a, b, fa: foot(a), fb: foot(b), dir, normal, side: if offset >= 0.0 { 1.0 } else { -1.0 } })
     }
 
-    fn dimension(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
+    fn dimension(&self, e: &Entity, k: f64, (color, width, dash): ([u8; 3], f64, &[f64]), ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
         let Kind::Dim { text, below, mark, mark_end, .. } = &e.kind else { return };
         let st = self.dim_style_of(e);
         let look = self.text_look(st.text_style.as_deref());
         let Some(DimFrame { a, b, fa, fb, dir, normal, side }) = self.dim_frame(e, k) else { return };
         let measured = fb.minus(fa).len() / k;
-        let line =
-            |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
+        // The lines (and a leader) take the linetype; the marks stay solid.
+        let line = |pts: Vec<Pt>| Prim::Path {
+            pts: pts.iter().map(|p| (p.x, p.y)).collect(),
+            closed: false,
+            color,
+            width,
+            dash: dash.to_vec(),
+            fill: false,
+        };
         for (p, f) in [(a, fa), (b, fb)] {
             let start = p.plus(normal.scale(st.ext_gap * side));
             if f.minus(p).len() > st.ext_gap {
@@ -443,7 +451,7 @@ impl Drawing {
                 let top = tip.y + if *flip { -h } else { h };
                 let out_x = if *left { -1.0 } else { 1.0 };
                 let at_y = if *flip { top - st.text_gap - text_h } else { top + st.text_gap };
-                Some(Pt::new(tip.x + out_x * (half + st.text_gap), at_y)).filter(|p| p.is_finite())
+                Some(Pt::new(tip.x - out_x * half, at_y)).filter(|p| p.is_finite())
             }
             _ => None,
         }
@@ -461,7 +469,7 @@ impl Drawing {
     /// An angular dimension: an arc between the two rays with its end marks, extension lines
     /// from the rays' ends to the arc when it is beyond them, and the angle just outside the
     /// arc's middle. A zero angle draws nothing (not a full circle).
-    fn angular(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
+    fn angular(&self, e: &Entity, k: f64, (color, width, dash): ([u8; 3], f64, &[f64]), ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
         let Kind::Angle { c, a, b, r, r_paper, text, mark, mark_end } = &e.kind else { return };
         let st = self.dim_style_of(e);
         let look = self.text_look(st.text_style.as_deref());
@@ -473,8 +481,15 @@ impl Drawing {
         if ua.len() == 0.0 || ub.len() == 0.0 || r <= 0.0 || sweep == 0.0 {
             return;
         }
-        let line =
-            |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
+        // The lines (and a leader) take the linetype; the marks stay solid.
+        let line = |pts: Vec<Pt>| Prim::Path {
+            pts: pts.iter().map(|p| (p.x, p.y)).collect(),
+            closed: false,
+            color,
+            width,
+            dash: dash.to_vec(),
+            fill: false,
+        };
         // A right angle with no text of its own: the square of side `r` on the vertex, a dot in
         // it, instead of the arc and "90°".
         let right = text.is_none() && (sweep - std::f64::consts::FRAC_PI_2).abs() <= RIGHT_ANGLE_TOL;
@@ -542,9 +557,10 @@ impl Drawing {
 
     /// A level mark (paper mm, y up): a short line on the level through the tip, the triangle
     /// standing on its tip (hanging from it when flipped), a line along the triangle's top
-    /// running out to the text side, and the elevation on that line (under it when flipped).
-    fn level(&self, e: &Entity, k: f64, color: [u8; 3], width: f64, ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
-        let Kind::Level { p, datum, text, flip, left } = &e.kind else { return };
+    /// running out to the text side, and the elevation on that line over the triangle, from its
+    /// far corner out (under the line when flipped).
+    fn level(&self, e: &Entity, k: f64, (color, width, dash): ([u8; 3], f64, &[f64]), ws: Option<&Worksheet>, out: &mut Vec<Prim>) {
+        let Kind::Level { p, datum, text, flip, left, fill } = &e.kind else { return };
         let st = self.dim_style_of(e);
         let tip = p.pt().scale(k);
         if !tip.is_finite() {
@@ -559,17 +575,33 @@ impl Drawing {
         let up = if *flip { -1.0 } else { 1.0 };
         let out_x = if *left { -1.0 } else { 1.0 };
         let top = tip.y + up * h;
+        // The triangle solid; the reference line and the line under the text take the linetype.
         let path = |pts: Vec<(f64, f64)>, closed: bool, fill: bool| Prim::Path { pts, closed, color, width, dash: Vec::new(), fill };
-        out.push(path(vec![(tip.x - h, tip.y), (tip.x + h, tip.y)], false, false));
-        out.push(path(vec![(tip.x, tip.y), (tip.x - half, top), (tip.x + half, top)], true, false));
-        // The half of the triangle on the text side filled, as level marks are drawn.
-        out.push(path(vec![(tip.x, tip.y), (tip.x + out_x * half, top), (tip.x, top)], true, true));
-        // The line under the text: past the triangle by the text's length (an estimate: about
-        // 0.8 of the height per character, as the drawing's bounds estimate texts).
+        let ref_line = |pts: Vec<(f64, f64)>| Prim::Path { pts, closed: false, color, width, dash: dash.to_vec(), fill: false };
+        // The reference line on the level, its own length on each side of the tip.
+        let (line_text, line_other) = st.level_line();
+        out.push(ref_line(vec![(tip.x - out_x * line_other, tip.y), (tip.x + out_x * line_text, tip.y)]));
+        let triangle = vec![(tip.x, tip.y), (tip.x - half, top), (tip.x + half, top)];
+        match fill {
+            // A rough level: the triangle black.
+            crate::model::LevelFill::Rough => out.push(path(triangle, true, true)),
+            // A finished level: the outline alone.
+            crate::model::LevelFill::Finished => out.push(path(triangle, true, false)),
+            // Rough and finished: the half on the text side filled.
+            crate::model::LevelFill::RoughFinished => {
+                out.push(path(triangle, true, false));
+                out.push(path(vec![(tip.x, tip.y), (tip.x + out_x * half, top), (tip.x, top)], true, true));
+            }
+        }
+        // The line under the text: from the triangle's far corner by the text's length (an
+        // estimate: about 0.8 of the height per character, as the drawing's bounds estimate
+        // texts), at least across the triangle.
         let texts_from = out.len();
-        let reach = half + st.text_gap + label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * text_h * 0.8;
-        out.push(path(vec![(tip.x - out_x * half, top), (tip.x + out_x * reach, top)], false, false));
-        let at_x = tip.x + out_x * (half + st.text_gap);
+        let text_w = label.chars().filter(|c| !crate::is_marker(*c)).count() as f64 * text_h * 0.8;
+        let reach = (text_w - half).max(half);
+        out.push(ref_line(vec![(tip.x - out_x * half, top), (tip.x + out_x * reach, top)]));
+        // The text over the triangle, starting above its far corner.
+        let at_x = tip.x - out_x * half;
         let at_y = if *flip { top - st.text_gap - text_h } else { top + st.text_gap };
         let anchor = if *left { Anchor::BaselineRight } else { Anchor::BaselineLeft };
         out.push(Prim::Text {
@@ -581,8 +613,15 @@ impl Drawing {
             color,
             look: self.text_look(st.text_style.as_deref()),
         });
-        let line =
-            |pts: Vec<Pt>| Prim::Path { pts: pts.iter().map(|p| (p.x, p.y)).collect(), closed: false, color, width, dash: Vec::new(), fill: false };
+        // The lines (and a leader) take the linetype; the marks stay solid.
+        let line = |pts: Vec<Pt>| Prim::Path {
+            pts: pts.iter().map(|p| (p.x, p.y)).collect(),
+            closed: false,
+            color,
+            width,
+            dash: dash.to_vec(),
+            fill: false,
+        };
         let anchor = Pt::new(tip.x + out_x * half, top);
         if let Some(leader) = self.text_home(e, k).and_then(|home| shift_texts(e, k, out, texts_from, home, anchor, text_h, line)) {
             out.push(leader);
