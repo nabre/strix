@@ -655,7 +655,9 @@ impl DocLayout {
         let gx = goal_x.unwrap_or(c.x);
         let page = self.pages.get(c.page)?;
         let lines = page_lines(page, pos.story);
-        let cands: Vec<&LineHit> = lines.iter().filter(|l| beyond(l, &c, dir)).collect();
+        // A wholly hidden paragraph (hidden text not shown) has lines of no height: the caret
+        // goes past them, to the next text seen.
+        let cands: Vec<&LineHit> = lines.iter().filter(|l| beyond(l, &c, dir) && l.bottom > l.top).collect();
         let across: Vec<&LineHit> = cands.iter().copied().filter(|l| gx >= l.left - 2.0 && gx <= l.right + 2.0).collect();
         let target = match nearest(&across, dir) {
             // The nearest line across `gx`, unless lines between the caret's paragraph and that

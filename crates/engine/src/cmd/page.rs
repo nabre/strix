@@ -27,7 +27,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("layout.size", "Size", "Layout › Page Setup", size).params(r#"{"name"?: "Letter|Legal|A4|…", "width"?: pt, "height"?: pt} (each side clamped to 7.2–1584 pt, 0.1–22 in; the section keeps its orientation)"#),
         CommandSpec::new("layout.columns", "Columns", "Layout › Page Setup", columns)
             .params(
-                r#"{"count": 1-12, "space"?: pt, "separator"?: bool, "preset"?: "left|right", "widths"?: [[width pt, space after pt], …] (unequal columns; sets the count), "apply"?: "section|document|forward|selection"} (default: selection when text is selected in the main text — section breaks around it — else section)"#,
+                r#"{"count": 1-12, "space"?: pt, "separator"?: bool, "preset"?: "left|right", "widths"?: [[width pt, space after pt], …] (unequal columns; sets the count), "apply"?: "section|document|forward|selection"} (default: selection when text is selected in the main text — section breaks around it; a selected table goes whole into that section, which starts with it — else section)"#,
             ),
         CommandSpec::new("layout.break", "Breaks", "Layout › Page Setup", breaks)
             .params(r#"{"kind": "page|column|textWrapping|nextPage|continuous|evenPage|oddPage"}"#),
@@ -627,10 +627,10 @@ fn columns(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// Whether the selection can become sections of its own: text selected in the main text, outside
-/// tables.
+/// tables, or with an end in a top-level table (which then goes whole into the section).
 pub fn selection_sectionable(s: &Session) -> bool {
     let (a, b) = s.sel.ordered();
-    !s.sel.is_collapsed() && [a, b].iter().all(|p| p.story == StoryRef::Body && p.path.depth() == 0)
+    (!s.sel.is_collapsed() && [a, b].iter().all(|p| p.story == StoryRef::Body && p.path.depth() == 0)) || table_sections::touches_table(s)
 }
 
 /// Columns for the selected text (#2024), as Word does it: a continuous section break where the
@@ -640,6 +640,9 @@ pub fn selection_sectionable(s: &Session) -> bool {
 fn selection_to_sections(s: &mut Session) -> Result<(), CmdError> {
     if !selection_sectionable(s) {
         return Err(CmdError::Params("selected text in the main text, outside tables, is needed".into()));
+    }
+    if table_sections::touches_table(s) {
+        return table_sections::table_selection_to_sections(s);
     }
     let old = s.sel.clone();
     let (a, mut b) = old.ordered();
@@ -764,3 +767,4 @@ fn shifted_by_split(p: &Pos, at: &Pos, new: &Pos) -> Pos {
 
 #[cfg(test)]
 mod tests;
+mod table_sections;

@@ -46,6 +46,9 @@ pub(crate) fn place_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragraph, blo
             (pb.y, pb.prev, pb.content_bottom) = (y, prev, content_bottom);
             if let Some(page) = pb.page() {
                 strip_mark(page, drawn, true);
+                if p.section.is_some() {
+                    super::quiet_mark::beside_line_above(page, drawn, block);
+                }
             }
         }
         return;
