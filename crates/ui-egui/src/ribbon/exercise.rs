@@ -290,7 +290,7 @@ fn variants_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value) {
                 key: "data",
                 icon: "variables",
                 label: "Data",
-                tip: "The initial data: symbol, description, value in the active variant and unit, and whether the exercise shows them",
+                tip: "The initial data: an equation per datum (L = 4.5 m) with its description, and the variants",
                 on: true,
             },
             |ui, app| crate::exercise_panels::data_panel(app, ui, &panel_info),
@@ -351,7 +351,8 @@ fn layout_group(app: &mut WordApp, ui: &mut Ui, series: bool) {
                 on,
             },
             |ui, app| {
-                if let Some(change) = crate::graph_pane::editor(ui, &grid, false) {
+                let theme = app.session.doc.settings.theme_colors.clone();
+                if let Some(change) = crate::graph_pane::editor(ui, &grid, false, &theme) {
                     run(app, "exercise.grid", change);
                 }
             },

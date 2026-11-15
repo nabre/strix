@@ -29,9 +29,14 @@ pub(super) fn underline_menu(ui: &mut Ui, app: &mut WordApp) {
     ui.separator();
     mi(ui, app, "More Underlines…", "format.fontDialog", json!({}));
     ui.menu_button(tl!("Underline Color"), |ui| {
-        mi(ui, app, "Automatic", "format.underlineColor", json!({"color": "auto"}));
         let theme = app.session.doc.settings.theme_colors.clone();
-        crate::colors::menu(ui, app, &theme, Target::cmd("format.underlineColor"));
+        crate::colors::menu_with(
+            ui,
+            app,
+            &theme,
+            Target::cmd("format.underlineColor"),
+            &crate::color_palette::Options::top(crate::color_palette::TopItem::automatic()),
+        );
     });
 }
 
