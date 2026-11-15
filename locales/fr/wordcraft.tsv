@@ -2447,7 +2447,7 @@ paper	Envelope DL	Enveloppe DL
 	Add a question at the end of the exercise at the cursor	Ajouter une question à la fin de l’exercice sous le curseur
 	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Ajouter une question imbriquée sous la dernière (a.1, a.1.1) ; Tab et Maj+Tab changent le niveau d’une question
 	Add a variant: a copy of the active one's values	Ajouter une variante : une copie des valeurs de la variante active
-	Add an initial datum: a symbol with its value in every variant	Ajouter une donnée initiale : un symbole avec sa valeur dans chaque variante
+	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Ajouter une donnée : une équation comme L = 4.5 m, avec sa valeur dans chaque variante
 	Add to CAD Drawing	Ajouter au dessin CAO
 	Advanced Properties…	Propriétés avancées…
 	Aligned texts	Textes alignés
@@ -2696,7 +2696,7 @@ paper	Envelope DL	Enveloppe DL
 	Text properties only: Word's number, date and yes-no types aren't offered.	Propriétés de texte uniquement : les types nombre, date et oui/non de Word ne sont pas proposés.
 	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Ce format ne conserve pas tout, le document reste donc ouvert. Enregistrez-le comme document Strix (.xmath) pour continuer.
 	That would make the object degenerate	Cela rendrait l’objet dégénéré
-	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Les données sont les premiers paramètres des calculs de l’exercice : la solution les utilise par symbole. Changer de variante recalcule l’exercice.
+	Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise.	Chaque donnée est une équation (L = 4.5 m) : la résolution l'utilise par son symbole. L'exercice liste les données qu'il ne montre pas déjà ailleurs, et on peut aussi les y modifier directement. Changer de variante recalcule l'exercice.
 	The document has no subdocuments.	Le document n’a aucun sous-document.
 	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ dans la première colonne, les sommes sous leurs colonnes) ; une cellule écrite là garde son propre texte (moyenne =, max =)
 	Column Total	Total de la colonne
@@ -2956,7 +2956,7 @@ paper	Envelope DL	Enveloppe DL
 	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
 	No DSA Formatting	Aucune mise en forme TSA
 	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, texte à trous, tableau à compléter
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
 	Multiple Choice	Choix multiple
@@ -3049,8 +3049,6 @@ paper	Envelope DL	Enveloppe DL
 	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
 	Give the block a name	Donnez un nom au bloc
 	Variants & Data	Variantes et données
-	Show data in exercise	Afficher les données dans l'exercice
-	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Affiche le bloc Données dans l'exercice ; désactivé, les valeurs restent uniquement dans l'espace de calcul
 	Question Mode	Mode de la question
 	Question Points	Points de la question
 	Mode	Mode
@@ -3172,6 +3170,37 @@ paper	Envelope DL	Enveloppe DL
 	Y axis	Axe Y
 	Minor grid	Grille secondaire
 	Student blank grid (solution only)	Repère vierge élève (solution seule)
+	Line	Ligne
+	Solid line	Ligne continue
+	Dashed line	Ligne tiretée
+	Dotted line	Ligne pointillée
+	Dash-dot line	Ligne mixte (trait-point)
+	Zeros	Zéros
+	Minimum	Minimum
+	Maximum	Maximum
+	Tangent	Tangente
+	Insert Analysis in Document	Insérer l'analyse dans le document
+	Writes after the plot each function's definition and live calculations of its zeros, extrema, tangent and integral	Écrit après le graphique la définition de chaque fonction et les calculs dynamiques de ses zéros, extremums, tangente et intégrale
+	Abscissa	Abscisse
+	Ordinate	Ordonnée
+	The axis name, written at the tip of its arrow; when it is a name (x, E, t), the formulas use it as their variable	Le nom de l'axe, écrit à la pointe de sa flèche ; si c'est un nom (x, E, t), les formules l'utilisent comme variable
+	Reference System	Repère
+	Angles	Angles
+	Angle unit	Unité d'angle
+	Surveying (clockwise)	Topographique (sens horaire)
+	Mathematical (counter-clockwise)	Mathématique (sens antihoraire)
+	Angles start from the positive ordinate and turn clockwise, like a bearing from north	Les angles partent de l'ordonnée positive et tournent dans le sens horaire, comme un gisement depuis le nord
+	Angles start from the positive abscissa and turn counter-clockwise	Les angles partent de l'abscisse positive et tournent dans le sens antihoraire
+	Radians (rad)	Radians (rad)
+	Degrees (°)	Degrés (°)
+	Gradians (gon)	Grades (gon)
+	Show angle direction	Afficher le sens des angles
+	Draw an arc with an arrow from the reference axis in the direction angles grow	Dessine un arc fléché depuis l'axe de référence dans le sens où les angles croissent
+	Polar	Polaire
+	Full turn	Tour complet
+	Ranges	Plages
+	Automatic	Automatique
+	Fit the ranges to what the plot shows: roots, extrema, tangent points, integral bounds, data and curves	Ajuste les plages à ce que le graphique montre : zéros, extremums, points de tangence, bornes d'intégration, données et courbes
 	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Sur la copie élève, trace uniquement le repère et la grille pour que les élèves tracent la courbe à la main
 	Series	Séries
 	Parametric	Paramétrique
@@ -3192,7 +3221,7 @@ paper	Envelope DL	Enveloppe DL
 	Add a question at the end of the exercise	Ajouter une question à la fin de l'exercice
 	Answer Space	Espace de réponse
 	A problem's questions are answered in its solution.	Les questions d'un problème trouvent leur réponse dans sa solution.
-	A row every	Une ligne tous les
+	Grade step	Pas des notes
 	Correct Options	Options correctes
 	Curve	Courbe
 	Custom	Personnalisé
@@ -3202,7 +3231,7 @@ paper	Envelope DL	Enveloppe DL
 	Fixed maximum	Maximum fixe
 	From the document's points ({points})	D'après les points du document ({points})
 	General	Général
-	Grades rounded to	Notes arrondies à
+	Points rounded to the multiple of	Points arrondis au multiple de
 	Hidden now: the solutions are hidden (student copy).	Masquée pour l'instant : les solutions sont masquées (copie élève).
 	Highest grade	Note la plus haute
 	How far an answer may be from the result and still be right: 2% or 0.1 cm	De combien une réponse peut s'écarter du résultat et rester juste : 2% ou 0,1 cm
@@ -3210,7 +3239,7 @@ paper	Envelope DL	Enveloppe DL
 	Like the last one	Comme la dernière
 	Lowest grade	Note la plus basse
 	No question yet: write one in the exercise, or add one.	Aucune question pour l'instant : écrivez-en une dans l'exercice ou ajoutez-en une.
-	Off: the table chooses the step so it stays short	Désactivé : le tableau choisit le pas pour rester court
+	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	Les points de chaque note sont calculés exactement d'après la courbe, puis arrondis à ce multiple (0,01 : centièmes)
 	One pair per line: left = right	Une paire par ligne : gauche = droite
 	Pairs	Paires
 	Pass grade	Note de réussite
@@ -3262,3 +3291,6 @@ paper	Envelope DL	Enveloppe DL
 	From Strix's short built-in list.	Tiré de la courte liste intégrée de Strix.
 	The thesaurus couldn't be read: {reason}	Impossible de lire le thésaurus : {reason}
 	No thesaurus for {language} is installed yet.	Aucun thésaurus n'est encore installé pour {language}.
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes
+	Description	Description
+	High contrast only	Contraste élevé uniquement
