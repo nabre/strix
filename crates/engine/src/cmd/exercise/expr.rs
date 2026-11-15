@@ -331,6 +331,9 @@ pub(crate) fn apply_sheets(
         return (usize::from(converted), Vec::new());
     }
     super::super::calc::unit_color(s);
+    if s.doc.body.iter().any(|b| super::word_blank::block_has_word(b)) {
+        super::word_blank::ensure_style(s);
+    }
     let mut updates = usize::from(converted);
     let mut errors = Vec::new();
     let layout = super::scan(s);
@@ -389,7 +392,7 @@ fn apply_block(
                     |&(a, _)| matches!(p.object_at(a), Some(InlineObject::ControlStart { control }) if super::word_blank::read(control).is_some()),
                 );
                 if let Some(&(a, b)) = spans.get(idx)
-                    && if word { super::word_blank::write(p, (a, b), &shown) } else { write_shown_in_span(p, (a, b), &prefix, &shown) }
+                    && if word { super::word_blank::write(p, (a, b), &shown, teacher) } else { write_shown_in_span(p, (a, b), &prefix, &shown) }
                 {
                     *updates += 1;
                 }
@@ -455,7 +458,7 @@ fn plan_para_updates(
         let Some(InlineObject::ControlStart { control }) = p.object_at(a) else { continue };
         if let Some(word) = super::word_blank::read(control) {
             let want = super::word_blank::shown(&word, teacher);
-            if p.text.get(a + OBJ.len_utf8()..b) != Some(want.as_str()) {
+            if super::word_blank::needs_write(p, (a, b), &want, teacher) {
                 out.push((idx, (String::new(), want)));
             }
             continue;

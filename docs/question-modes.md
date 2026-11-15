@@ -159,7 +159,11 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
     underscores, so its length gives little away. Kept on the `strix:blank` control
     (`<strix:blankWord>`, titled *Hidden word*: the frame never shows the word; the word is
     still in the file, as the solutions are, so hand students a printout or a PDF). The
-    results summary lists them (`b) fotosintesi, foglie`).
+    results summary lists them (`b) fotosintesi, foglie`). Wherever a hidden word shows (the
+    corrected copy, while writing the exercise) it is in the *Hidden Word* character style
+    (`HiddenWord`: bold, italic, blue, added the first time and kept as the teacher changes
+    it), so the words that will be hidden stand out; the students' line is in the text's own
+    formatting.
   - **Calculated gaps**: `{{expression}}` templates in the question become `strix:blank`
     controls; the teacher sees their calculated values, the student a blank retaining the unit.
     `exercise.blank {"expr":"rho -> kg/m³"}` inserts one at the caret in ordinary text too.
