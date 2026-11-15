@@ -38,7 +38,7 @@ use serde_json::{Value, json};
 use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
 use wordcraft_doc::graph_paper::{GraphPaper, GridLineStyle, GridPlacement, PT_PER_MM};
 use wordcraft_doc::para::{OBJ, PTabAlign, PTabBase};
-use wordcraft_doc::props::{CharProps, NumRef};
+use wordcraft_doc::props::{CharProps, NumRef, Rgb};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
 use super::{Layout, MAX_QUESTIONS, STYLE_QUESTION, TAG_EXERCISE, TAG_QUESTIONS, control, para, scan};
@@ -110,7 +110,8 @@ impl Kind {
             "problem" => Kind::Problem,
             // A quiz of calculations or drawings is an open-answer quiz whose questions start in
             // that mode (each question keeps its own).
-            "open" | "calc" | "drawing" | "worked" | "cloze" | "tableFill" | "matching" => Kind::Open,
+            // `tableFill`: the table to complete of before, now an open answer.
+            "open" | "calc" | "drawing" | "worked" | "cloze" | "matching" | "tableFill" => Kind::Open,
             "choice" | "trueFalse" => Kind::Choice,
             _ => return None,
         })
@@ -145,8 +146,9 @@ fn write_kind(ctl: &mut ContentControl, k: Kind) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Mode {
-    /// Written in a space, blank or squared.
+    /// Written in a space, blank or squared (a "table to complete" of a file from before is one).
     #[default]
+    #[serde(alias = "tableFill")]
     Open,
     /// Options ticked (true/false is two options).
     Choice,
@@ -156,7 +158,6 @@ pub(crate) enum Mode {
     Drawing,
     Worked,
     Cloze,
-    TableFill,
     Matching,
 }
 
@@ -169,7 +170,6 @@ impl Mode {
             Mode::Drawing => "drawing",
             Mode::Worked => "worked",
             Mode::Cloze => "cloze",
-            Mode::TableFill => "tableFill",
             Mode::Matching => "matching",
         }
     }
@@ -182,8 +182,9 @@ impl Mode {
             "drawing" => Mode::Drawing,
             "worked" => Mode::Worked,
             "cloze" => Mode::Cloze,
-            "tableFill" => Mode::TableFill,
             "matching" => Mode::Matching,
+            // The table to complete of before reads as an open answer.
+            "tableFill" => Mode::Open,
             _ => return None,
         })
     }
@@ -221,6 +222,12 @@ pub(crate) struct Answer {
     pub grid: bool,
     /// The side of a square, millimetres.
     pub spacing: f32,
+    /// The squares' line style (`solid`, `dashed`, `dotted`); `None`: solid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid_style: Option<String>,
+    /// The squares' line colour (`RRGGBB`); `None`: the graph paper's light blue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid_color: Option<String>,
 }
 
 impl Default for Answer {
@@ -236,6 +243,8 @@ impl Default for Answer {
             height: DEFAULT_HEIGHT_CM,
             grid: true,
             spacing: DEFAULT_SPACING_MM,
+            grid_style: None,
+            grid_color: None,
         }
     }
 }
@@ -264,6 +273,13 @@ impl Answer {
             height: fin(self.height, d.height).clamp(MIN_HEIGHT_CM, MAX_HEIGHT_CM),
             grid: self.grid,
             spacing: fin(self.spacing, d.spacing).clamp(1.0, 100.0),
+            grid_style: self
+                .grid_style
+                .as_deref()
+                .and_then(GridLineStyle::parse)
+                .filter(|s| !matches!(s, GridLineStyle::None | GridLineStyle::Solid))
+                .map(|s| s.name().to_string()),
+            grid_color: self.grid_color.as_deref().and_then(Rgb::parse).map(Rgb::hex),
         }
     }
 
@@ -274,6 +290,12 @@ impl Answer {
             placement: GridPlacement::Height { height: self.height * 10.0 * PT_PER_MM },
             ..GraphPaper::default()
         };
+        if let Some(st) = self.grid_style.as_deref().and_then(GridLineStyle::parse) {
+            g.line.style = st;
+        }
+        if let Some(c) = self.grid_color.as_deref().and_then(Rgb::parse) {
+            g.line.color = c;
+        }
         if !self.grid {
             g.line.style = GridLineStyle::None;
         }
@@ -837,13 +859,28 @@ fn apply_settings(set: &mut Answer, v: &Value) {
     if let Some(sp) = p::f32(v, "spacing") {
         set.spacing = sp;
     }
+    // null: back to the default (solid, the graph paper's light blue).
+    match v.get("gridStyle") {
+        Some(Value::Null) => set.grid_style = None,
+        Some(Value::String(st)) => set.grid_style = Some(st.clone()),
+        _ => {}
+    }
+    match v.get("gridColor") {
+        Some(Value::Null) => set.grid_color = None,
+        Some(Value::String(c)) => {
+            if let Some(c) = Rgb::parse(c) {
+                set.grid_color = Some(c.hex());
+            }
+        }
+        _ => {}
+    }
 }
 
 /// `exercise.insert` with a quiz kind: title, optional statement, then each question with its
 /// answer. Returns the blocks to insert, in order.
 pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Result<(Vec<Paragraph>, Vec<Option<Value>>), CmdError> {
     let kind = Kind::parse(kind_name)
-        .ok_or_else(|| CmdError::Params("kind: problem, open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
+        .ok_or_else(|| CmdError::Params("kind: problem, open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
     let true_false = kind_name == "trueFalse";
     let mode = Mode::of_kind(kind_name);
     let w = super::words(s);
@@ -923,7 +960,7 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
     let mut base = if other {
         json!({"points": like.points})
     } else {
-        json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing, "shuffleChoices": like.shuffle_choices, "tolerance": like.tolerance})
+        json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing, "gridStyle": like.grid_style, "gridColor": like.grid_color, "shuffleChoices": like.shuffle_choices, "tolerance": like.tolerance})
     };
     if let (Some(b), Some(o)) = (base.as_object_mut(), v.as_object()) {
         for (k, x) in o {
@@ -1121,7 +1158,7 @@ pub(super) fn update(s: &mut Session) -> bool {
                     Mode::Choice => choice_para(block, shown) | super::true_false::sync(block, shown, width, ew),
                     // The result line is filled in by `result_lines`, once calculated.
                     Mode::Calc if matches!(&**block, Block::Para(p) if span(p, TAG_LINE).is_some()) => false,
-                    _ => open_para(block, &it.settings, i == a, shown || matches!(it.settings.mode, Mode::Worked | Mode::Cloze | Mode::TableFill)),
+                    _ => open_para(block, &it.settings, i == a, shown || matches!(it.settings.mode, Mode::Worked | Mode::Cloze)),
                 };
             }
             if it.settings.mode == Mode::Calc {
@@ -1494,7 +1531,7 @@ pub(super) fn line_values(s: &Session, (a, b): (usize, usize)) -> Vec<String> {
 /// say), the text is hidden while the answers are; whether it changed.
 fn open_para(block: &mut Arc<Block>, set: &Answer, first: bool, shown: bool) -> bool {
     let Block::Para(p) = &**block else { return false };
-    let graph = (first && !matches!(set.mode, Mode::Cloze | Mode::TableFill)).then(|| Arc::new(set.graph()));
+    let graph = (first && set.mode != Mode::Cloze).then(|| Arc::new(set.graph()));
     let want_hidden = (!shown).then_some(true);
     let same_graph = p.props.graph.as_deref() == graph.as_deref();
     let same_hidden = p.runs.iter().all(|r| r.props.hidden == want_hidden) && p.mark.hidden.is_none();
@@ -1640,6 +1677,19 @@ fn letter(k: usize) -> String {
     super::letter(k).to_ascii_uppercase()
 }
 
+/// The correct options of a multiple choice answer `r` by their letters (`A`, `C`); a true/false
+/// question's by the initials its header shows in the exercise's language (`V`/`F`, `T`/`F`,
+/// `W`/`F`).
+pub(super) fn correct_letters(s: &Session, r: (usize, usize), true_false: bool, w: &super::words::Words) -> Vec<String> {
+    let tf = true_false || super::true_false::choices(s, r).is_some();
+    choices(s, r)
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.1)
+        .map(|(j, _)| if tf { super::true_false::column_letter(w, j).unwrap_or_else(|| letter(j)) } else { letter(j) })
+        .collect()
+}
+
 /// The exercise's maximum points: its questions' added up (`None` when none has points).
 pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
     let ex = layout.exercises.get(e)?;
@@ -1655,8 +1705,9 @@ pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
 }
 
 /// What a quiz gives the results summary: for each multiple-choice question, its letter and the
-/// correct options (`b) A, C`); for each calculation, its result (`c) A = 15 cm²`, from
-/// `answers`, or `none` when it has none); open answers and drawings give nothing.
+/// correct options (`b) A, C`, a true/false's column `V`); for each calculation, its result
+/// (`c) A = 15 cm²`, from `answers`, or `none` when it has none); an open answer says it is one
+/// (`d) risposta aperta`); a text to complete, its hidden words; drawings give nothing.
 pub(super) fn summary_lines(
     s: &Session,
     layout: &Layout,
@@ -1665,23 +1716,50 @@ pub(super) fn summary_lines(
     none: &str,
 ) -> Vec<String> {
     let its = items(s, layout, e);
+    let w = super::exercise_words(s, layout, e);
     let labels: Vec<String> = layout.exercises.get(e).map(|x| x.questions.iter().map(|q| q.label.clone()).collect()).unwrap_or_default();
     let lone = its.len() == 1;
+    // Open answers alone give no summary: it would only say so for each.
+    if its.iter().all(|it| matches!(it.settings.mode, Mode::Open | Mode::Drawing | Mode::Worked | Mode::Matching)) {
+        return Vec::new();
+    }
     its.iter()
         .enumerate()
         .filter_map(|(k, it)| {
             let shown = match it.settings.mode {
                 Mode::Choice => {
-                    let right: Vec<String> = choices(s, it.answer?).iter().enumerate().filter(|(_, c)| c.1).map(|(j, _)| letter(j)).collect();
+                    let right = correct_letters(s, it.answer?, it.settings.true_false, w);
                     if right.is_empty() { "—".to_string() } else { right.join(", ") }
                 }
                 Mode::Calc => {
                     let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
                     answers.get(&(e, n)).filter(|v| !v.is_empty()).map(|v| v.join("; ")).unwrap_or_else(|| none.to_string())
                 }
-                Mode::Open | Mode::Drawing | Mode::Worked | Mode::Cloze | Mode::TableFill | Mode::Matching => return None,
+                Mode::Open => w.open_answer.to_string(),
+                // A text to complete: its hidden words.
+                Mode::Cloze => {
+                    let words = hidden_words(s, (it.question, it.answer.map_or(it.question, |(_, b)| b)));
+                    if words.is_empty() {
+                        return None;
+                    }
+                    words.join(", ")
+                }
+                Mode::Drawing | Mode::Worked | Mode::Matching => return None,
             };
             Some(if lone { shown } else { format!("{} {shown}", labels.get(k).cloned().unwrap_or_default()) })
+        })
+        .collect()
+}
+
+/// The words hidden in the blocks `a..=b`, in order.
+fn hidden_words(s: &Session, (a, b): (usize, usize)) -> Vec<String> {
+    (a..=b)
+        .filter_map(|i| s.doc.body.get(i)?.as_para())
+        .flat_map(|p| {
+            super::expr::expr_spans(p).into_iter().filter_map(|(at, _)| match p.object_at(at) {
+                Some(InlineObject::ControlStart { control }) => super::word_blank::read(control),
+                _ => None,
+            })
         })
         .collect()
 }
@@ -1716,6 +1794,7 @@ pub(super) fn fingerprint(s: &Session) -> u64 {
                 &r.end.path.0,
             )
                 .hash(&mut h);
+            (&a.grid_style, &a.grid_color).hash(&mut h);
         } else if r.control.tag == TAG_POINTS {
             (read_points_ctl(&r.control).map(f64::to_bits), &r.start.path.0).hash(&mut h);
         }
@@ -1834,6 +1913,12 @@ fn state(s: &Session, e: usize) -> Value {
                     o.insert("height".into(), json!((f64::from(it.settings.height) * 100.0).round() / 100.0));
                     o.insert("grid".into(), json!(it.settings.grid));
                     o.insert("spacing".into(), json!((f64::from(it.settings.spacing) * 100.0).round() / 100.0));
+                    let line = it.settings.graph().line;
+                    let style =
+                        if line.style == GridLineStyle::None { it.settings.grid_style.as_deref().unwrap_or("solid") } else { line.style.name() };
+                    o.insert("gridStyle".into(), json!(style));
+                    let color = it.settings.grid_color.as_deref().and_then(Rgb::parse).unwrap_or(line.color);
+                    o.insert("gridColor".into(), json!(color.hex()));
                 }
             }
             v
@@ -1885,7 +1970,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let e = super::target(s, v)?;
     let layout = scan(s);
     let ex = layout.exercises.get(e).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
-    let changes = ["points", "height", "grid", "spacing", "correct", "tolerance", "shuffleChoices", "rationales"].iter().any(|k| v.get(*k).is_some());
+    let changes = ["points", "height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
+        .iter()
+        .any(|k| v.get(*k).is_some());
     if !changes {
         return Ok(state(s, e));
     }
@@ -1897,7 +1984,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
     let Some((a, b)) = it.answer else {
-        let answer_only = ["height", "grid", "spacing", "correct", "tolerance", "shuffleChoices", "rationales"].iter().any(|k| v.get(*k).is_some());
+        let answer_only = ["height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
+            .iter()
+            .any(|k| v.get(*k).is_some());
         if answer_only {
             return Err(CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()));
         }
@@ -2042,10 +2131,9 @@ pub(super) fn build_choice_paras(
 /// `trueFalse`, `calc`, and `drawing`, keeping its question paragraph (`TAG_ITEM` + `TAG_POINTS`)
 /// untouched and preserving existing working/options across compatible modes.
 pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
-    let ty = p::str(v, "type")
-        .ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
-    let new_mode = Mode::parse(ty)
-        .ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
+    let ty = p::str(v, "type").ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
+    let new_mode =
+        Mode::parse(ty).ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
     let want_tf = ty == "trueFalse";
     let e = super::target(s, v)?;
     let layout = scan(s);
@@ -2640,7 +2728,7 @@ mod tests {
         assert!(p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { .. })), "the added drawing question has its drawing");
         // The summary: the true/false's answer and the calculations without a result.
         let t = texts(&s);
-        assert!(t.contains(&"b) A".to_string()), "{t:?}");
+        assert!(t.contains(&"b) V".to_string()), "{t:?}");
         assert!(t.contains(&"c) risultato non indicato".to_string()), "{t:?}");
     }
 

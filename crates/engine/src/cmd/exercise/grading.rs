@@ -374,10 +374,37 @@ fn should_hide(s: &Session, cfg: &Config) -> bool {
     !layout.exercises.is_empty() && layout.exercises.iter().all(|e| !e.show.solution)
 }
 
-fn cell(text: &str, align: Align, bold: bool, hidden: bool, width: f32) -> Cell {
-    let chr = CharProps { bold: bold.then_some(true), hidden: hidden.then_some(true), ..CharProps::default() };
+/// Word's default cell margin left and right, points.
+const CELL_PAD: f32 = 5.4;
+/// Points columns: `[`+whole, fraction, `;`, whole, fraction, `[`; then the grade's whole and
+/// fraction. Neighbouring sub-columns share no visible border, so the numbers line up at their
+/// decimal separators without lines between them on the page or in print.
+const POINT_COLS: usize = 6;
+const GRADE_COLS: usize = 2;
+const COLS: usize = POINT_COLS + GRADE_COLS;
+
+/// One cell's look: alignment, bold, its left and right margins and whether its left and right
+/// borders are drawn (`None`: the table's own).
+#[derive(Clone, Copy)]
+struct Look {
+    align: Align,
+    bold: bool,
+    italic: bool,
+    pad: [f32; 2],
+    open: [bool; 2],
+}
+
+impl Look {
+    fn plain(align: Align) -> Self {
+        Look { align, bold: false, italic: false, pad: [CELL_PAD, CELL_PAD], open: [false, false] }
+    }
+}
+
+fn cell(text: &str, look: Look, hidden: bool, width: f32, span: usize) -> Cell {
+    let chr =
+        CharProps { bold: look.bold.then_some(true), italic: look.italic.then_some(true), hidden: hidden.then_some(true), ..CharProps::default() };
     let mut para = Paragraph::with_text(if hidden { "" } else { text }, chr);
-    para.props.align = Some(align);
+    para.props.align = Some(look.align);
     para.props.space_after = Some(0.0);
     para.props.space_before = Some(0.0);
     if hidden {
@@ -386,55 +413,160 @@ fn cell(text: &str, align: Align, bold: bool, hidden: bool, width: f32) -> Cell 
     let mut c = Cell::empty();
     c.blocks = vec![para_block(para)];
     c.props.width = Some(width);
+    c.props.span = span.max(1) as u32;
+    c.props.partial_margins = Some([None, Some(look.pad[0]), None, Some(look.pad[1])]);
+    if look.open.iter().any(|o| *o) {
+        let none = Some(Border::default());
+        c.props.borders =
+            Some(Borders { left: if look.open[0] { none } else { None }, right: if look.open[1] { none } else { None }, ..Borders::default() });
+    }
     c
 }
 
-fn build_table(cfg: &Config, max_pts: f64, points_word: &str, grade_word: &str, width: f32, comma: bool, hidden: bool) -> Table {
+/// `v` as shown, split at its decimal separator: the whole part and the fraction with its
+/// separator (`"12,5"` -> `("12", ",5")`).
+fn split_number(v: f64, comma: bool) -> (String, String) {
+    let t = super::scores::shown(v, comma);
+    match t.find([',', '.']) {
+        Some(at) => (t.get(..at).unwrap_or_default().to_string(), t.get(at..).unwrap_or_default().to_string()),
+        None => (t, String::new()),
+    }
+}
+
+/// A conservative estimate of `text`'s width at `size` points (sans-serif digits, narrow
+/// punctuation), so the table can be as narrow as its content.
+fn text_w(text: &str, size: f32, bold: bool) -> f32 {
+    let em: f32 = text
+        .chars()
+        .map(|c| match c {
+            '0'..='9' => 0.556,
+            '[' | ']' | ';' | ',' | '.' | ' ' | ':' => 0.3,
+            '\u{2014}' => 1.0,
+            c if c.is_uppercase() => 0.72,
+            _ => 0.56,
+        })
+        .sum();
+    em * size * if bold { 1.1 } else { 1.04 } + 0.5
+}
+
+/// The texts of one scale row's cells.
+fn row_texts(band: &Band, comma: bool) -> Option<[String; COLS]> {
+    let (gw, gf) = split_number(band.grade, comma);
+    if band.is_empty() {
+        return None;
+    }
+    let (fw, ff) = split_number(band.from, comma);
+    let (to_w, to_f, semi, close) = match band.to {
+        Some(t) => {
+            let (w, f) = split_number(t, comma);
+            (w, f, if comma { ";" } else { "," }.to_string(), "[".to_string())
+        }
+        None => Default::default(),
+    };
+    let open = if band.to.is_some() { "[" } else { "" };
+    Some([format!("{open}{fw}"), ff, semi, to_w, to_f, close, gw, gf])
+}
+
+struct HeadWords<'a> {
+    points: &'a str,
+    grade: &'a str,
+    rounded: &'a str,
+}
+
+fn build_table(cfg: &Config, max_pts: f64, w: &HeadWords<'_>, size: f32, max_width: f32, comma: bool, hidden: bool) -> Table {
     let entries = cfg.scale(max_pts);
-    // One pair of columns: laying the scale out side by side is the person's choice (page
-    // columns), never automatic.
-    let pairs = 1usize;
-    let rows_per_col = entries.len().div_ceil(pairs).max(1);
-    let pair_w = (width / pairs as f32).max(72.0);
-    let col_w = pair_w * 0.5;
-    let mut grid = Vec::with_capacity(pairs * 2);
-    for _ in 0..pairs {
-        grid.push(col_w);
-        grid.push(col_w);
-    }
-    let mut t = Table::new(1, grid.len(), width);
-    t.grid = grid;
-    if hidden {
-        t.props.borders = Some(Borders::all(Border::default()));
-        t.rows = vec![Row { cells: (0..pairs * 2).map(|_| cell("", Align::Center, false, true, col_w)).collect(), ..Row::default() }];
-        return t;
-    }
-    let mut header_cells = Vec::with_capacity(pairs * 2);
-    for _ in 0..pairs {
-        header_cells.push(cell(points_word, Align::Center, true, false, col_w));
-        header_cells.push(cell(grade_word, Align::Center, true, false, col_w));
-    }
-    // The heading row repeats on every page the table runs onto.
-    let mut header = Row { cells: header_cells, ..Row::default() };
-    header.props.header = true;
-    let mut out_rows = vec![header];
-    // Find first passing entry index to highlight the sufficiency threshold row.
+    let size = if size.is_finite() { size.clamp(4.0, 72.0) } else { 11.0 };
     let first_pass = entries.iter().position(|b| b.pass);
-    for r in 0..rows_per_col {
-        let mut row_cells = Vec::with_capacity(pairs * 2);
-        for p_idx in 0..pairs {
-            let idx = p_idx * rows_per_col + r;
-            if let Some(band) = entries.get(idx) {
-                let bold = first_pass == Some(idx);
-                row_cells.push(cell(&band.points_text(comma), Align::Center, bold, false, col_w));
-                row_cells.push(cell(&super::scores::shown(band.grade, comma), Align::Center, bold, false, col_w));
-            } else {
-                row_cells.push(cell("", Align::Right, false, false, col_w));
-                row_cells.push(cell("", Align::Right, false, false, col_w));
+    let texts: Vec<Option<[String; COLS]>> = entries.iter().map(|b| row_texts(b, comma)).collect();
+    // Each sub-column as wide as its widest text (bold on the pass row) plus its margins.
+    let pads: [[f32; 2]; COLS] = [[CELL_PAD, 0.0], [0.0, 0.0], [0.0, 3.0], [0.0, 0.0], [0.0, 0.0], [0.0, CELL_PAD], [CELL_PAD, 0.0], [0.0, CELL_PAD]];
+    let mut grid = [0.0f32; COLS];
+    for (k, t) in texts.iter().enumerate() {
+        let bold = first_pass == Some(k);
+        if let Some(t) = t {
+            for (c, txt) in t.iter().enumerate() {
+                if let Some(g) = grid.get_mut(c) {
+                    *g = g.max(text_w(txt, size, bold));
+                }
             }
         }
-        out_rows.push(Row { cells: row_cells, ..Row::default() });
     }
+    for (g, p) in grid.iter_mut().zip(pads.iter()) {
+        *g += p[0] + p[1];
+    }
+    // The headings and a dash (a grade no points earn) fit across their columns: the room
+    // missing goes to the outer sub-columns.
+    let dash = text_w("\u{2014}", size, false) + 2.0 * CELL_PAD;
+    let widen = |grid: &mut [f32; COLS], from: usize, to: usize, need: f32| {
+        let have: f32 = grid.get(from..to).map(|g| g.iter().sum()).unwrap_or(0.0);
+        if need > have {
+            let extra = (need - have) / 2.0;
+            for c in [from, to.saturating_sub(1)] {
+                if let Some(g) = grid.get_mut(c) {
+                    *g += extra;
+                }
+            }
+        }
+    };
+    widen(&mut grid, 0, POINT_COLS, (text_w(w.points, size, true) + 2.0 * CELL_PAD).max(dash));
+    widen(&mut grid, POINT_COLS, COLS, (text_w(w.grade, size, true) + 2.0 * CELL_PAD).max(dash));
+    // Never wider than the text column.
+    let total: f32 = grid.iter().sum();
+    let max_width = max_width.max(72.0);
+    if total > max_width {
+        let k = max_width / total;
+        grid.iter_mut().for_each(|g| *g *= k);
+    }
+    let width: f32 = grid.iter().sum();
+    let pts_w: f32 = grid.get(..POINT_COLS).map(|g| g.iter().sum()).unwrap_or(0.0);
+    let grade_w: f32 = grid.get(POINT_COLS..).map(|g| g.iter().sum()).unwrap_or(0.0);
+
+    let mut t = Table::new(1, COLS, width);
+    t.grid = grid.to_vec();
+    t.props.width = Some(width);
+    t.props.align = Some(Align::Center);
+    if hidden {
+        t.props.borders = Some(Borders::all(Border::default()));
+        t.rows = vec![Row { cells: vec![cell("", Look::plain(Align::Center), true, width, COLS)], ..Row::default() }];
+        return t;
+    }
+    let head = Look { bold: true, ..Look::plain(Align::Center) };
+    // The heading row repeats on every page the table runs onto.
+    let mut header =
+        Row { cells: vec![cell(w.points, head, false, pts_w, POINT_COLS), cell(w.grade, head, false, grade_w, GRADE_COLS)], ..Row::default() };
+    header.props.header = true;
+    let mut out_rows = vec![header];
+    for (k, t_row) in texts.iter().enumerate() {
+        let bold = first_pass == Some(k);
+        let grade_txt = entries.get(k).map(|b| split_number(b.grade, comma)).unwrap_or_default();
+        let cells = match t_row {
+            Some(t_row) => t_row
+                .iter()
+                .enumerate()
+                .map(|(c, txt)| {
+                    let align = if matches!(c, 0 | 3 | 6) { Align::Right } else { Align::Left };
+                    let pad = pads.get(c).copied().unwrap_or([0.0, 0.0]);
+                    let open = [!matches!(c, 0 | 6), !matches!(c, 5 | 7)];
+                    cell(txt, Look { align, bold, italic: false, pad, open }, false, grid.get(c).copied().unwrap_or(0.0), 1)
+                })
+                .collect(),
+            None => {
+                let g = |c: usize| grid.get(c).copied().unwrap_or(0.0);
+                vec![
+                    cell("\u{2014}", Look { bold, ..Look::plain(Align::Center) }, false, pts_w, POINT_COLS),
+                    cell(&grade_txt.0, Look { align: Align::Right, bold, italic: false, pad: [CELL_PAD, 0.0], open: [false, true] }, false, g(6), 1),
+                    cell(&grade_txt.1, Look { align: Align::Left, bold, italic: false, pad: [0.0, CELL_PAD], open: [true, false] }, false, g(7), 1),
+                ]
+            }
+        };
+        out_rows.push(Row { cells, ..Row::default() });
+    }
+    // Under the scale, how finely the points are counted (half points, hundredths…).
+    let note = format!("{} {}.", w.rounded, super::scores::shown(cfg.points_multiple(), comma));
+    let mut note_cell = cell(&note, Look { italic: true, ..Look::plain(Align::Center) }, false, width, COLS);
+    let none = Some(Border::default());
+    note_cell.props.borders = Some(Borders { left: none, right: none, bottom: none, ..Borders::default() });
+    out_rows.push(Row { cells: vec![note_cell], ..Row::default() });
     t.rows = out_rows;
     t
 }
@@ -479,16 +611,20 @@ fn put(s: &mut Session, i: usize, cfg: &Config) -> bool {
     cfg.sanitize();
     let max_pts = resolved_max_points(s, &cfg);
     let hide = should_hide(s, &cfg);
-    let w = doc_words(s);
+    let dw = doc_words(s);
+    let words = HeadWords { points: dw.points, grade: dw.grade_mark, rounded: dw.points_rounded };
     let width = text_width(s, i);
+    let size = s.doc.styles.default_chr.size.unwrap_or(11.0);
     let comma = super::scores::comma(s);
     let Some(Block::Table(old)) = s.doc.body.get(i).map(|b| &**b) else { return false };
     let old_cfg = control_of(old).map(read_config);
-    let mut new = build_table(&cfg, max_pts, w.points, w.grade_mark, width, comma, hide);
+    let mut new = build_table(&cfg, max_pts, &words, size, width, comma, hide);
     let same_header = old.rows.first().map(|r| r.props.header) == new.rows.first().map(|r| r.props.header);
     if old_cfg.as_ref() == Some(&cfg)
         && shape(old) == shape(&new)
-        && old.grid.len() == new.grid.len()
+        && old.grid == new.grid
+        && old.props.width == new.props.width
+        && old.props.align == new.props.align
         && old.props.borders == new.props.borders
         && same_header
     {
@@ -496,7 +632,13 @@ fn put(s: &mut Session, i: usize, cfg: &Config) -> bool {
     }
     new.controls = old.controls.clone();
     let keep_borders = new.props.borders;
+    let (width, align) = (new.props.width, new.props.align);
     new.props = old.props.clone();
+    // As narrow as its content, centred.
+    new.props.width = width;
+    new.props.width_pct = None;
+    new.props.align = align;
+    new.props.indent = None;
     new.props.borders = if hide { keep_borders } else { Some(Borders::all(Border::single(0.5))) };
     if let Some(ctl) = new.controls.open.iter_mut().find(|c| c.tag == TAG_GRADING) {
         write_config(ctl, &cfg);

@@ -157,6 +157,16 @@ fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: 
             );
             super::strix::result_of_menu(ui, app);
         });
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "hideWords",
+                Some("Hide Words"),
+                "Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)",
+                ButtonAction::new("exercise.blank", json!({}), false),
+            );
+        });
         let st = q_st.clone();
         panel_button(
             ui,

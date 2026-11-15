@@ -24,7 +24,7 @@ fn shown(v: f64) -> String {
 }
 
 /// Question types offered (`exercise.questionMode`), with their names.
-pub(crate) const QUESTION_MODES: [(&str, &str); 9] = [
+pub(crate) const QUESTION_MODES: [(&str, &str); 8] = [
     ("open", "Open Answer"),
     ("choice", "Multiple Choice"),
     ("trueFalse", "True or False"),
@@ -32,7 +32,6 @@ pub(crate) const QUESTION_MODES: [(&str, &str); 9] = [
     ("drawing", "CAD Drawing Question"),
     ("worked", "Worked Example"),
     ("cloze", "Inline Completion"),
-    ("tableFill", "Table to Complete"),
     ("matching", "Matching"),
 ];
 
@@ -240,6 +239,18 @@ fn space_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, 
             let sp = q["spacing"].as_f64().unwrap_or(5.0);
             if let Some(v) = num_field(ui, &format!("quiz_spacing_{ex}_{k}"), sp, 2.0..=20.0, " mm", 1) {
                 set(app, json!({"spacing": v}));
+            }
+            ui.end_row();
+            ui.label(tl!("Style"));
+            if let Some(st) = crate::graph_pane::style_combo(ui, &format!("quiz_{ex}_{k}"), q["gridStyle"].as_str().unwrap_or("solid")) {
+                set(app, json!({"gridStyle": st}));
+            }
+            ui.end_row();
+            ui.label(tl!("Colour"));
+            let theme = app.session.doc.settings.theme_colors.clone();
+            let now = q["gridColor"].as_str().and_then(wordcraft_doc::Rgb::parse).map_or([0x9F, 0xC5, 0xE8], |c| [c.0, c.1, c.2]);
+            if let Some(c) = crate::graph_pane::color_combo(ui, &format!("quiz_{ex}_{k}"), &theme, now) {
+                set(app, json!({"gridColor": format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])}));
             }
             ui.end_row();
         }

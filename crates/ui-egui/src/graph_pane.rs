@@ -62,7 +62,7 @@ pub(crate) fn num_field(ui: &mut Ui, key: &str, current: f64, range: std::ops::R
 
 /// A colour combo: the colour drop-down every colour uses (theme and standard colours, Recent
 /// Colors, More Colors…).
-fn color_combo(ui: &mut Ui, key: &str, theme: &[wordcraft_doc::Rgb], current: [u8; 3]) -> Option<[u8; 3]> {
+pub(crate) fn color_combo(ui: &mut Ui, key: &str, theme: &[wordcraft_doc::Rgb], current: [u8; 3]) -> Option<[u8; 3]> {
     let name = COLORS
         .iter()
         .find(|(c, _)| *c == current)
@@ -74,7 +74,7 @@ fn color_combo(ui: &mut Ui, key: &str, theme: &[wordcraft_doc::Rgb], current: [u
     }
 }
 
-fn style_combo(ui: &mut Ui, key: &str, current: &str) -> Option<&'static str> {
+pub(crate) fn style_combo(ui: &mut Ui, key: &str, current: &str) -> Option<&'static str> {
     let mut out = None;
     let label = STYLES.iter().find(|(k, _)| *k == current).map_or("Continuous", |(_, l)| l);
     craft_ui::ComboBox::from_id_salt(("graph_style", key)).selected_text(tl!(label)).width(130.0).show_ui(ui, |ui| {

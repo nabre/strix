@@ -251,13 +251,36 @@ fn dim_body(app: &mut WordApp, ui: &mut Ui) {
         mark_combo(ui, app, "markEnd", style.mark_end);
         ui.end_row();
         size_row(ui, app, ("Mark size", ""), "markSize", &current, style.mark_size, 20.0);
-        let hint = "The width of the marks' lines; 0: automatic (a tick heavier than the line, an arrow as thin)";
-        size_row(ui, app, ("Mark width", hint), "markWidth", &current, style.mark_width, 2.0);
+        // From the lineweights' menu, as every line width; Automatic: a tick heavier than the
+        // line, an arrow as thin.
+        ui.label(tl!("Mark width")).on_hover_text(tl!("The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin"));
+        let shown = Some((style.mark_width > 0.0).then_some(style.mark_width));
+        let auto = Some(crate::cad_panel::Inherit { label: "Automatic", now: None });
+        if let Some(w) = crate::cad_panel::width_combo(ui, "cad_dim_mark_width", shown, auto) {
+            run(app, "ui.cadDimStyle", json!({"markWidth": w.unwrap_or(0.0)}));
+        }
+        ui.end_row();
     });
     ui.add_space(8.0);
     ui.label(egui::RichText::new(tl!("Lines")).strong());
     dialog_grid(ui, "cad_dim_style_lines", |ui| {
-        size_row(ui, app, ("Line width", ""), "lineWidth", &current, style.line_width, 2.0);
+        // The lines' width and linetype: the style's, or ByLayer (each object's layer's); an
+        // object's own wins (Properties, General).
+        ui.label(tl!("Line width")).on_hover_text(tl!("Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width"));
+        let shown = Some((style.line_width > 0.0).then_some(style.line_width));
+        if let Some(w) =
+            crate::cad_panel::width_combo(ui, "cad_dim_line_width", shown, Some(crate::cad_panel::Inherit { label: "ByLayer", now: None }))
+        {
+            run(app, "ui.cadDimStyle", json!({"lineWidth": w.unwrap_or(0.0)}));
+        }
+        ui.end_row();
+        ui.label(tl!("Linetype")).on_hover_text(tl!("Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid"));
+        if let Some(k) =
+            crate::cad_panel::dash_combo(ui, "cad_dim_dash", Some(style.dash), Some(crate::cad_panel::Inherit { label: "ByLayer", now: None }))
+        {
+            run(app, "ui.cadDimStyle", json!({"dash": k.map_or(json!("byLayer"), |k| serde_json::to_value(k).unwrap_or_default())}));
+        }
+        ui.end_row();
         size_row(ui, app, ("Line beyond", ""), "lineOver", &current, style.line_over, 20.0);
         size_row(ui, app, ("Extension gap", ""), "extGap", &current, style.ext_gap, 20.0);
         size_row(ui, app, ("Extension beyond", ""), "extOver", &current, style.ext_over, 20.0);
@@ -316,6 +339,9 @@ fn level_body(app: &mut WordApp, ui: &mut Ui) {
     dialog_grid(ui, "cad_level_style", |ui| {
         size_row(ui, app, ("Text height", "0: the dimension text height"), "levelText", &current, style.level_text, 50.0);
         size_row(ui, app, ("Triangle height", "0: automatic (a text and a fifth)"), "levelMark", &current, style.level_mark, 50.0);
+        let auto = "0: automatic (the triangle height)";
+        size_row(ui, app, ("Reference line, text side", auto), "levelLineText", &current, style.level_line_text, 50.0);
+        size_row(ui, app, ("Reference line, other side", auto), "levelLineOther", &current, style.level_line_other, 50.0);
         size_row(ui, app, ("Text gap", ""), "textGap", &current, style.text_gap, 20.0);
     });
     let mut unit = style.level_unit;

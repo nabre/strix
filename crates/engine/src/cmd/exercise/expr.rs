@@ -319,7 +319,7 @@ pub(crate) fn apply_sheets(
     main: &strix_calc::Worksheet,
     exercises: &std::collections::BTreeMap<usize, strix_calc::Worksheet>,
 ) -> (usize, Vec<Value>) {
-    let converted = convert_all_templates(s);
+    let converted = convert_all_templates(s) | super::word_blank::convert_all(s, zones);
     let mut has_any = false;
     for b in &s.doc.body {
         if block_has_expr(b, 0) {
@@ -385,8 +385,11 @@ fn apply_block(
             }
             for (idx, (prefix, shown)) in planned.into_iter().rev() {
                 let spans = expr_spans(p);
+                let word = spans.get(idx).is_some_and(
+                    |&(a, _)| matches!(p.object_at(a), Some(InlineObject::ControlStart { control }) if super::word_blank::read(control).is_some()),
+                );
                 if let Some(&(a, b)) = spans.get(idx)
-                    && write_shown_in_span(p, (a, b), &prefix, &shown)
+                    && if word { super::word_blank::write(p, (a, b), &shown) } else { write_shown_in_span(p, (a, b), &prefix, &shown) }
                 {
                     *updates += 1;
                 }
@@ -450,6 +453,13 @@ fn plan_para_updates(
     let mut out = Vec::new();
     for (idx, (a, b)) in expr_spans(p).into_iter().enumerate() {
         let Some(InlineObject::ControlStart { control }) = p.object_at(a) else { continue };
+        if let Some(word) = super::word_blank::read(control) {
+            let want = super::word_blank::shown(&word, teacher);
+            if p.text.get(a + OBJ.len_utf8()..b) != Some(want.as_str()) {
+                out.push((idx, (String::new(), want)));
+            }
+            continue;
+        }
         let Some(formula) = read_formula(control) else { continue };
         let mut desired = match eval_in_sheet(ws, &formula) {
             Ok(val) => val,
@@ -533,7 +543,7 @@ pub(crate) fn render_choice_with_sheet(p: &Paragraph, ws: &strix_calc::Worksheet
 
 /// Whether any block in `blocks` holds a `strix:expr` control or a `{{...}}` template.
 pub(crate) fn has_any_expr_or_template(blocks: &[Arc<Block>]) -> bool {
-    blocks.iter().any(|b| block_has_expr(b, 0) || has_template(b, 0))
+    blocks.iter().any(|b| block_has_expr(b, 0) || has_template(b, 0) || super::word_blank::block_has_template(b))
 }
 
 /// Hash of all `strix:expr` formulas, displayed texts, and unexpanded `{{...}}` templates in `blocks`.
@@ -558,7 +568,7 @@ fn hash_block(b: &Block, top: usize, depth: usize, h: &mut impl std::hash::Hashe
                     (top, a, read_formula(control), p.text.get(a + OBJ.len_utf8()..end)).hash(h);
                 }
             }
-            if p.text.contains("{{") && p.text.contains("}}") {
+            if p.text.contains("{{") && p.text.contains("}}") || p.text.contains("[[") && p.text.contains("]]") {
                 (top, &p.text).hash(h);
             }
         }

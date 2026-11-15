@@ -75,6 +75,15 @@ fn initial(word: &str) -> String {
     word.chars().next().map(|c| c.to_uppercase().collect()).unwrap_or_default()
 }
 
+/// The name of column `j` (0 True, 1 False) as the header shows it: the word's initial.
+pub(super) fn column_letter(w: &Words, j: usize) -> Option<String> {
+    match j {
+        0 => Some(initial(w.true_word)),
+        1 => Some(initial(w.false_word)),
+        _ => None,
+    }
+}
+
 /// The header's text: the initials of True and False, each after its tab.
 fn head_text(w: &Words) -> String {
     format!("\t{}\t{}", initial(w.true_word), initial(w.false_word))
@@ -808,6 +817,27 @@ mod tests {
             let h = heads(&s);
             assert_eq!(h.len(), 1, "{lang}");
             assert_eq!(s.doc.body.get(h[0]).and_then(|b| b.as_para()).map(plain).as_deref(), Some(want), "{lang}");
+        }
+    }
+
+    #[test]
+    fn the_results_summary_names_the_answers_like_the_header() {
+        for (lang, t, f) in [("it-IT", "V", "F"), ("en-GB", "T", "F"), ("de-DE", "W", "F")] {
+            let mut s = session(lang);
+            run(
+                &mut s,
+                "exercise.insert",
+                json!({"kind": "trueFalse", "questions": [
+                    {"text": "x", "correct": 1},
+                    {"text": "y", "correct": 2},
+                    {"text": "z", "type": "choice", "choices": ["p", "q", "r"], "correct": [2]}
+                ]}),
+            );
+            run(&mut s, "exercise.show", json!({"solution": true, "results": true}));
+            let lines: Vec<String> = s.doc.body.iter().filter_map(|b| b.as_para()).map(plain).collect();
+            for want in [format!("a) {t}"), format!("b) {f}"), "c) B".to_string()] {
+                assert!(lines.contains(&want), "{lang}: {want} in {lines:?}");
+            }
         }
     }
 

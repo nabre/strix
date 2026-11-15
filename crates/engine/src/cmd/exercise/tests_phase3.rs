@@ -123,9 +123,28 @@ fn grading_table_one_row_per_grade_with_half_open_point_intervals() {
     assert!(scale[9]["to"].is_null());
     assert_eq!(scale[5]["pass"], json!(true));
     assert_eq!(scale[4]["pass"], json!(false));
-    // The table on the page: points interval, then grade.
+    // The table on the page: the interval's ends and the grade split at the decimal comma into
+    // sub-columns with no borders between them, so they line up; full points alone; the note on
+    // the rounding under the scale.
     let txt = body_texts(&s).join("\n");
-    assert!(txt.contains("[9,5; 12[") && txt.contains("[18; 20["), "{txt}");
+    assert!(txt.contains("[9 | ,5 | ; | 12 |  | [ | 5 | "), "{txt}");
+    assert!(txt.contains("// 20 |  |  |  |  |  | 10 | "), "{txt}");
+    assert!(txt.contains("// Punti arrotondati al multiplo di 0,5.]"), "{txt}");
+    let table = s.doc.body.iter().find_map(|b| match &**b {
+        Block::Table(t) if t.controls.open.iter().any(|c| c.tag == super::grading::TAG_GRADING) => Some(t.clone()),
+        _ => None,
+    });
+    let table = table.expect("grading table");
+    // As narrow as its content and centred.
+    assert_eq!(table.props.align, Some(wordcraft_doc::props::Align::Center));
+    let w = table.props.width.expect("width");
+    assert!(w < 200.0 && (w - table.grid.iter().sum::<f32>()).abs() < 0.01, "{w} {:?}", table.grid);
+    // [9 | ,5: no border between the whole part and the fraction; one between points and grade.
+    let row = &table.rows[5];
+    let none = |b: Option<wordcraft_doc::props::Border>| b.is_some_and(|b| !b.is_visible());
+    let borders = |c: usize| row.cells[c].props.borders.unwrap_or_default();
+    assert!(none(borders(0).right) && none(borders(1).left));
+    assert!(borders(5).right.is_none() && borders(6).left.is_none());
 
     // Hundredths when no multiple is set: grade 2 at exactly 2.4 pt.
     let st = s.run("exercise.grading", &json!({"pointsRound": null})).unwrap();
@@ -183,8 +202,8 @@ fn f1_grading_table_presets_curves_visibility_and_calc_tolerance() {
     });
     let table = table.expect("grading table");
     assert!(scale_it.len() > 12, "{}", scale_it.len());
-    assert_eq!(table.grid.len(), 2);
-    assert_eq!(table.rows.len(), scale_it.len() + 1);
+    assert_eq!(table.grid.len(), 8);
+    assert_eq!(table.rows.len(), scale_it.len() + 2);
     assert!(table.rows[0].props.header && !table.rows[1].props.header);
 
     // Switch to German inverted 6..1 scale (`de-6`): 0 pts -> 6.0 (fail), max pts -> 1.0 (pass).

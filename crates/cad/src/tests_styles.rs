@@ -164,7 +164,8 @@ fn the_drawing_unit_converts_or_reinterprets() {
 fn dimension_and_level_texts_show_their_unit_when_the_style_says() {
     let mut d = Drawing { unit: Unit::Mm, ..Drawing::default() };
     d.add(dim()).unwrap();
-    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false })).unwrap();
+    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false, fill: Default::default() }))
+        .unwrap();
     let plain: Vec<String> = texts(&d.render(None)).into_iter().map(|t| t.0).collect();
     assert_eq!(plain, vec!["100".to_string(), "+3.00".to_string()]);
     assert!(!d.to_json().contains("showUnit") && !d.to_json().contains("levelUnit"));
@@ -230,7 +231,8 @@ fn slope_ticks_alternate_and_flip() {
 fn dimension_and_level_texts_move_with_their_grip() {
     let mut d = Drawing { unit: Unit::Mm, ..Drawing::default() };
     d.add(dim()).unwrap();
-    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false })).unwrap();
+    d.add(Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false, fill: Default::default() }))
+        .unwrap();
     let before = d.render(None).prims.len();
     for i in 0..2 {
         let (_, at) = d.grips(i).into_iter().find(|(g, _)| *g == Grip::Text).expect("a text grip");
@@ -270,4 +272,77 @@ fn scales_typed_by_hand() {
     assert_eq!(parse_scale("1:1e300"), Some(SCALE_RANGE.1));
     assert_eq!(parse_scale("1e300:1"), Some(SCALE_RANGE.0));
     assert_eq!(scale_text(parse_scale("1:75").unwrap()), "1:75");
+}
+
+/// The lines of a drawing's rendering: (width, dash, closed, filled).
+fn strokes(r: &Rendered) -> Vec<(f64, Vec<f64>, bool, bool)> {
+    r.prims
+        .iter()
+        .filter_map(|p| if let Prim::Path { width, dash, closed, fill, .. } = p { Some((*width, dash.clone(), *closed, *fill)) } else { None })
+        .collect()
+}
+
+/// An annotation's lines take its own width and linetype, else its dimension style's, else (the
+/// style's ByLayer) its layer's; the marks and a level mark's triangle stay solid. The default
+/// style is thin and continuous whatever the layer, as before.
+#[test]
+fn annotation_lines_take_their_own_stroke_else_the_style_else_the_layer() {
+    let mut d = Drawing::default();
+    d.layers.push(Layer { name: "Hidden".into(), width: 0.5, dash: Dash::Dashed, ..Layer::default() });
+    let mut e = dim();
+    e.layer = "Hidden".into();
+    d.add(e).unwrap();
+    let dashed = Dash::Dashed.pattern().to_vec();
+    // The default style: 0.18 mm, continuous.
+    let r = d.render(None);
+    assert!(strokes(&r).iter().all(|(_, dash, ..)| dash.is_empty()), "{:?}", strokes(&r));
+    assert_eq!(d.effective_stroke(0), Some(([0, 0, 0], 0.18, Dash::Solid)));
+    // ByLayer both: the two extension lines and the dimension line dashed and 0.5 mm wide, the
+    // ticks solid (and heavier).
+    d.dim_style.line_width = 0.0;
+    d.dim_style.dash = None;
+    let s = strokes(&d.render(None));
+    let lines: Vec<_> = s.iter().filter(|(_, dash, ..)| !dash.is_empty()).collect();
+    assert_eq!(lines.len(), 3, "{s:?}");
+    assert!(lines.iter().all(|(w, dash, ..)| (*w - 0.5).abs() < 1e-9 && *dash == dashed), "{s:?}");
+    assert_eq!(s.iter().filter(|(_, dash, ..)| dash.is_empty()).count(), 2, "the ticks: {s:?}");
+    assert_eq!(d.effective_stroke(0), Some(([0, 0, 0], 0.5, Dash::Dashed)));
+    // The dimension's own stroke wins over the style and the layer.
+    d.set_stroke(&[0], StrokeEdit { width: Some(Some(0.35)), dash: Some(Some(Dash::Dotted)), ..StrokeEdit::default() });
+    assert_eq!(d.effective_stroke(0), Some(([0, 0, 0], 0.35, Dash::Dotted)));
+    // The style's own linetype over the layer's.
+    d.set_stroke(&[0], StrokeEdit { width: Some(None), dash: Some(None), ..StrokeEdit::default() });
+    d.dim_style.dash = Some(Dash::DashDotted);
+    d.dim_style.line_width = 0.25;
+    assert_eq!(d.effective_stroke(0), Some(([0, 0, 0], 0.25, Dash::DashDotted)));
+    // A level mark: its two lines take the linetype, the triangle (outline and half) is solid.
+    d.dim_style.dash = None;
+    let mut level =
+        Entity::new(Kind::Level { p: P::new(0.0, 3000.0), datum: Num::new(0.0), text: None, flip: false, left: false, fill: Default::default() });
+    level.layer = "Hidden".into();
+    let mut l = Drawing { layers: d.layers.clone(), dim_style: d.dim_style.clone(), ..Drawing::default() };
+    l.add(level).unwrap();
+    let s = strokes(&l.render(None));
+    assert_eq!(s.iter().filter(|(_, dash, ..)| *dash == dashed).count(), 2, "{s:?}");
+    assert!(s.iter().filter(|(_, _, closed, _)| *closed).all(|(_, dash, ..)| dash.is_empty()), "{s:?}");
+}
+
+/// The style's ByLayer is written and read back: `lineWidth` 0, `dash` "byLayer"; the default
+/// (continuous) is not written, and a linetype a file doesn't know reads Continuous.
+#[test]
+fn a_dimension_styles_by_layer_is_read_back() {
+    let mut d = Drawing::default();
+    let style = |d: &Drawing| serde_json::to_string(&d.dim_style).unwrap();
+    assert!(!style(&d).contains("\"dash\""), "{}", style(&d));
+    d.dim_style.line_width = 0.0;
+    d.dim_style.dash = None;
+    assert!(style(&d).contains("\"dash\":\"byLayer\""), "{}", style(&d));
+    let json = d.to_json();
+    let mut back = Drawing::from_json(&json).unwrap();
+    back.sanitize();
+    assert_eq!((back.dim_style.line_width, back.dim_style.dash), (0.0, None));
+    let dashed = Drawing::from_json(r#"{"dimStyle":{"dash":"dashed"}}"#).unwrap();
+    assert_eq!(dashed.dim_style.dash, Some(Dash::Dashed));
+    let wild = Drawing::from_json(r#"{"dimStyle":{"dash":"sparkles","lineWidth":-3}}"#).unwrap();
+    assert_eq!((wild.dim_style.dash, wild.dim_style.line_width), (Some(Dash::Solid), 0.05));
 }

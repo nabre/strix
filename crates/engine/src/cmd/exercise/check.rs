@@ -198,7 +198,7 @@ fn check_missing_solutions(s: &Session, layout: &Layout, e_idx: usize, ex: &Exer
         for (q_idx, it) in its.iter().enumerate() {
             let Some((a, b)) = it.answer else { continue };
             let missing = match it.settings.mode {
-                Mode::Choice | Mode::Worked | Mode::Cloze | Mode::TableFill | Mode::Matching => false,
+                Mode::Choice | Mode::Worked | Mode::Cloze | Mode::Matching => false,
                 Mode::Calc => !(a..=b).any(|i| {
                     s.doc
                         .body

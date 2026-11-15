@@ -4,7 +4,8 @@
 //!   one family ("Line (3)"); ‹ › step through the objects one by one, the counter goes back to
 //!   the family; Only These reduces the selection to them. The sheet shows them in orange.
 //! - **General**: layer, colour, lineweight and linetype of the objects considered, each "ByLayer"
-//!   or their own; "Varies" when they differ.
+//!   (for annotations "ByStyle": their dimension style's, which may be ByLayer) or their own,
+//!   with the value it comes to; "Varies" when they differ.
 //! - **Geometry** of one object: coordinates, radii and angles take a number or an expression of
 //!   the calculations (`L/2`), which stays linked; a line's length and angle and a circle's
 //!   diameter recompute it; a polyline shows one vertex at a time.
@@ -175,16 +176,30 @@ fn width_text(w: f64) -> String {
     format!("{w:.2} mm")
 }
 
-/// A lineweight combo; `Some(None)` is ByLayer.
-fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, by_layer: bool) -> Option<Option<f64>> {
+/// What a lineweight or linetype combo's "no value of its own" means: `label` (ByLayer, or
+/// ByStyle for annotations, which take their dimension style's), and the value it comes to when
+/// the objects agree (shown after the label).
+pub(crate) struct Inherit<T> {
+    pub label: &'static str,
+    pub now: Option<T>,
+}
+
+/// A lineweight combo; `Some(None)` is the inherited value (`inherit`, when offered).
+pub(crate) fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, inherit: Option<Inherit<f64>>) -> Option<Option<f64>> {
     let mut out = None;
+    let inherited = inherit.as_ref().map(|i| match i.now {
+        Some(w) => format!("{} · {}", tl!(i.label), width_text(w)),
+        None => tl!(i.label).to_string(),
+    });
     let text = match shown {
         None => tl!("Varies").to_string(),
-        Some(None) => tl!("ByLayer").to_string(),
+        Some(None) => inherited.clone().unwrap_or_default(),
         Some(Some(w)) => width_text(w),
     };
-    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
-        if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(140.0).show_ui(ui, |ui| {
+        if let Some(t) = &inherited
+            && ui.selectable_label(shown == Some(None), t.as_str()).clicked()
+        {
             out = Some(None);
         }
         for w in WIDTHS {
@@ -204,17 +219,22 @@ fn dash_name(d: Dash) -> &'static str {
     DASHES.iter().find(|(x, _)| *x == d).map_or("", |(_, n)| n)
 }
 
-/// A linetype combo; `Some(None)` is ByLayer.
-fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool) -> Option<Option<Dash>> {
+/// A linetype combo; `Some(None)` is the inherited value (`inherit`, when offered).
+pub(crate) fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, inherit: Option<Inherit<Dash>>) -> Option<Option<Dash>> {
     let mut out = None;
-    let name = dash_name;
+    let inherited = inherit.as_ref().map(|i| match i.now {
+        Some(d) => format!("{} · {}", tl!(i.label), tl!(dash_name(d))),
+        None => tl!(i.label).to_string(),
+    });
     let text = match shown {
         None => tl!("Varies").to_string(),
-        Some(None) => tl!("ByLayer").to_string(),
-        Some(Some(d)) => tl!(name(d)).to_string(),
+        Some(None) => inherited.clone().unwrap_or_default(),
+        Some(Some(d)) => tl!(dash_name(d)).to_string(),
     };
-    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
-        if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(140.0).show_ui(ui, |ui| {
+        if let Some(t) = &inherited
+            && ui.selectable_label(shown == Some(None), t.as_str()).clicked()
+        {
             out = Some(None);
         }
         for (d, n) in DASHES {
@@ -227,6 +247,16 @@ fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool
         }
     });
     out
+}
+
+/// What the General group's ByLayer means for these objects: ByStyle when they are all
+/// annotations (their dimension style comes first), both names when some are.
+fn inherit_label(ents: &[&strix_cad::Entity]) -> &'static str {
+    match (ents.iter().all(|e| e.kind.is_annotation()), ents.iter().any(|e| e.kind.is_annotation())) {
+        (true, _) => "ByStyle",
+        (false, true) => "ByLayer / ByStyle",
+        _ => "ByLayer",
+    }
 }
 
 /// A scale picked in the pane.
@@ -434,14 +464,21 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             changed = true;
         }
         ui.end_row();
+        // What the objects with no width or linetype of their own come to (their layer's, an
+        // annotation its style's first), shown beside ByLayer / ByStyle when they agree.
+        let label = inherit_label(&ents);
+        let effective: Vec<_> = idx.iter().filter_map(|&i| Some((ed.drawing.entities.get(i)?, ed.drawing.effective_stroke(i)?))).collect();
+        let now_w = common(effective.iter().filter(|(e, _)| e.stroke.width.is_none()).map(|(_, s)| s.1)).flatten();
+        let now_d = common(effective.iter().filter(|(e, _)| e.stroke.dash.is_none()).map(|(_, s)| s.2)).flatten();
         ui.label(tl!("Lineweight"));
-        if let Some(w) = width_combo(ui, "cad_obj_width", common(ents.iter().map(|e| e.stroke.width)).flatten(), true) {
+        if let Some(w) = width_combo(ui, "cad_obj_width", common(ents.iter().map(|e| e.stroke.width)).flatten(), Some(Inherit { label, now: now_w }))
+        {
             d.set_stroke(&idx, StrokeEdit { width: Some(w), ..StrokeEdit::default() });
             changed = true;
         }
         ui.end_row();
         ui.label(tl!("Linetype"));
-        if let Some(k) = dash_combo(ui, "cad_obj_dash", common(ents.iter().map(|e| e.stroke.dash)).flatten(), true) {
+        if let Some(k) = dash_combo(ui, "cad_obj_dash", common(ents.iter().map(|e| e.stroke.dash)).flatten(), Some(Inherit { label, now: now_d })) {
             d.set_stroke(&idx, StrokeEdit { dash: Some(k), ..StrokeEdit::default() });
             changed = true;
         }
@@ -500,6 +537,11 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     FieldKind::Bool => {
                         let mut on = f.text == "true";
                         ui.checkbox(&mut on, "").changed().then(|| on.to_string())
+                    }
+                    // A mirroring: one press turns it over, lit while mirrored.
+                    FieldKind::Flip => {
+                        let on = f.text == "true";
+                        ui.add(egui::Button::new(tl!("Flip")).selected(on)).clicked().then(|| (!on).to_string())
                     }
                     FieldKind::Choice(words) => {
                         let mut pick = None;
@@ -622,6 +664,9 @@ pub(crate) fn choice_label(s: &str) -> &'static str {
         "start" => "At the start",
         "end" => "At the end",
         "both" => "At both ends",
+        "roughFinished" => "Rough and finished level",
+        "rough" => "Rough level",
+        "finished" => "Finished level",
         _ => "",
     }
 }
@@ -732,13 +777,13 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                     x.color = c;
                     changed = true;
                 }
-                if let Some(Some(w)) = width_combo(ui, &format!("cad_layer_width{li}"), Some(Some(l.width)), false)
+                if let Some(Some(w)) = width_combo(ui, &format!("cad_layer_width{li}"), Some(Some(l.width)), None)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.width = w;
                     changed = true;
                 }
-                if let Some(Some(k)) = dash_combo(ui, &format!("cad_layer_dash{li}"), Some(Some(l.dash)), false)
+                if let Some(Some(k)) = dash_combo(ui, &format!("cad_layer_dash{li}"), Some(Some(l.dash)), None)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.dash = k;

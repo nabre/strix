@@ -1,7 +1,7 @@
 //! Laboratory, STEM questions, DSA and archive regressions.
 use crate::Session;
 use serde_json::{Value, json};
-use wordcraft_doc::{Block, Document, StoryRef};
+use wordcraft_doc::{Document, StoryRef};
 fn run(s: &mut Session, id: &str, v: Value) -> Value {
     s.run(id, &v).unwrap()
 }
@@ -100,62 +100,6 @@ fn phase5_archive_metadata_and_zip_bundle() {
     assert_eq!(indexed["entries"].as_array().unwrap().len(), 1);
     assert_eq!(indexed["entries"][0]["properties"]["subject"], "Fisica");
     assert_eq!(indexed["errors"], json!([]));
-}
-
-#[test]
-fn phase5_table_fill_keeps_calculation_and_word_flags() {
-    let mut s = Session::new(Document::new());
-    run(&mut s, "exercise.insert", json!({"kind":"tableFill","questions":["Completa la tabella"]}));
-    let layout = super::scan(&s);
-    let item = super::items::items(&s, &layout, 0).into_iter().next().unwrap();
-    let top = item.answer.unwrap().0;
-    let mut table = wordcraft_doc::Table::new(2, 2, 300.0);
-    table.props.calc = true;
-    for (r, row) in table.rows.iter_mut().enumerate() {
-        for (c, cell) in row.cells.iter_mut().enumerate() {
-            cell.blocks = vec![wordcraft_doc::para_block(wordcraft_doc::Paragraph::with_text(
-                if r == 0 { if c == 0 { "x [m]" } else { "y [m] = 2*x" } } else { if c == 0 { "3" } else { "" } },
-                Default::default(),
-            ))];
-        }
-    }
-    table.rows.get_mut(1).unwrap().cells.get_mut(1).unwrap().props.student_blank = true;
-    let mut closing = wordcraft_doc::Paragraph::new();
-    if let Block::Para(p) = std::sync::Arc::make_mut(s.doc.body.get_mut(top).unwrap()) {
-        let end = p.text.len();
-        p.delete(end.saturating_sub(3 * wordcraft_doc::para::OBJ.len_utf8()), end).unwrap();
-    }
-    for _ in 0..3 {
-        closing.insert_object(closing.text.len(), wordcraft_doc::InlineObject::ControlEnd, &Default::default()).unwrap();
-    }
-    s.doc.body.insert(top + 1, std::sync::Arc::new(Block::Table(table)));
-    s.doc.body.insert(top + 2, wordcraft_doc::para_block(closing));
-    run(&mut s, "exercise.show", json!({"solution":false}));
-    run(&mut s, "calc.recalculate", json!({}));
-    let table = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t) } else { None }).unwrap();
-    let cell = table.rows.get(1).unwrap().cells.get(1).unwrap();
-    assert!(cell.blocks.iter().filter_map(|b| b.as_para()).flat_map(|p| &p.runs).all(|r| r.props.hidden == Some(true)));
-    let bytes = crate::io::save_bytes("lab.docx", &s.doc).unwrap();
-    let doc = crate::io::open_bytes("lab.docx", &bytes).unwrap();
-    let table = doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t) } else { None }).unwrap();
-    assert!(table.rows.get(1).unwrap().cells.get(1).unwrap().props.student_blank);
-    run(&mut s, "exercise.show", json!({"solution":true}));
-    run(&mut s, "calc.recalculate", json!({}));
-    let table = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t) } else { None }).unwrap();
-    assert!(
-        table
-            .rows
-            .get(1)
-            .unwrap()
-            .cells
-            .get(1)
-            .unwrap()
-            .blocks
-            .iter()
-            .filter_map(|b| b.as_para())
-            .flat_map(|p| &p.runs)
-            .all(|r| r.props.hidden != Some(true))
-    );
 }
 
 #[test]
@@ -265,4 +209,47 @@ fn phase5_blank_at_existing_expression_targets_that_expression() {
         .filter_map(|o| if let wordcraft_doc::InlineObject::ControlStart { control } = o { Some(control.tag.as_str()) } else { None })
         .collect();
     assert_eq!(tags, vec![super::expr::TAG_EXPR, "strix:blank"]);
+}
+
+#[test]
+fn open_answer_space_has_its_grid_style_and_colour() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Descrivi.", "height": 3}]}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["gridStyle"], "solid");
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "gridStyle": "dotted", "gridColor": "#808080"}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["gridStyle"], "dotted", "{st}");
+    assert_eq!(st["questions"][0]["gridColor"], "808080", "{st}");
+    let g = s.doc.body.iter().filter_map(|b| b.as_para()).find_map(|p| p.props.graph.clone()).expect("space");
+    assert_eq!(g.line.style, wordcraft_doc::graph_paper::GridLineStyle::Dotted);
+    assert_eq!(g.line.color, wordcraft_doc::Rgb(0x80, 0x80, 0x80));
+    // Off, the space is blank; back on, the style is still there. Junk is ignored.
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "grid": false}));
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "grid": true, "gridColor": "zz"}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["gridStyle"], "dotted", "{st}");
+    assert_eq!(st["questions"][0]["gridColor"], "808080", "{st}");
+}
+
+/// The answer space's style and colour back to the default with null.
+#[test]
+fn open_answer_space_style_and_colour_reset_with_null() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Descrivi.", "height": 3}]}));
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "gridStyle": "dashed", "gridColor": "808080"}));
+    run(&mut s, "exercise.questions", json!({"exercise": 1, "question": 1, "gridStyle": null, "gridColor": null}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["gridStyle"], "solid", "{st}");
+    let default = wordcraft_doc::graph_paper::GraphPaper::default().line.color.hex();
+    assert_eq!(st["questions"][0]["gridColor"], json!(default), "{st}");
+}
+
+/// A script or a bank asking for the table to complete of before gets an open answer.
+#[test]
+fn table_fill_of_before_is_an_open_answer() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"kind": "tableFill", "questions": ["Completa la tabella"]}));
+    let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+    assert_eq!(st["questions"][0]["type"], "open", "{st}");
 }

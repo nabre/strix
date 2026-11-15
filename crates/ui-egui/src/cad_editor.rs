@@ -475,8 +475,10 @@ pub struct CadEditor {
     /// (drawing units; 0: not given yet).
     pub array_spacing: strix_cad::Spacing,
     pub array_pitch: f64,
-    /// The linear dimension Continue and Baseline go on from.
+    /// The linear dimension Continue and Baseline go on from (None: still to be picked), and
+    /// whether from its first point (else its second).
     pub(crate) chain_base: Option<usize>,
+    pub(crate) chain_first: bool,
     /// The style window open (Dimension, Level or Text Style).
     pub(crate) style_dialog: Option<crate::cad_style_dialog::StyleDialog>,
     /// The block window open and the block point waited for (`blocks`).
@@ -699,6 +701,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         panel_typing: false,
         rename: None,
         chain_base: None,
+        chain_first: false,
         style_dialog: None,
         block: blocks::BlockState::default(),
         space,
@@ -908,8 +911,11 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         "ui.cadDimStyle" => {
             // A dimension style: {"style"? (its name; default: the current one), "text"?,
             // "markSize"?, "markWidth"? (0: automatic), "extGap"?, "extOver"?, "textGap"?,
-            // "lineWidth"?, "lineOver"?, "levelText"?, "levelMark"? (mm; level marks' text and
-            // triangle, 0: automatic), "showUnit"?, "levelUnit"? (the unit after sizes, after
+            // "lineWidth"? (0 or "byLayer": the layer's), "dash"? (the lines' linetype: solid,
+            // dashed, dotted, dashDotted, dashDoubleDotted or "byLayer"), "lineOver"?,
+            // "levelText"?, "levelMark"? (mm; level marks' text and
+            // triangle, 0: automatic), "levelLineText"?, "levelLineOther"? (mm; the reference
+            // line from the tip on the text side and the other, 0: a triangle height), "showUnit"?, "levelUnit"? (the unit after sizes, after
             // elevations), "mark"? (the start's: tick, arrow, dot, none),
             // "markEnd"? (the end's, or "start": as the start), "textStyle"? (a text style's name,
             // Standard), "units"?, "aligned"?, "scaled"?}.
@@ -920,6 +926,15 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             };
             let text_styles = d.styles(strix_cad::StyleKind::Text);
             let st = d.dim_style_mut(&name).ok_or(format!("no dimension style {name}"))?;
+            if p.get("lineWidth").and_then(serde_json::Value::as_str) == Some("byLayer") {
+                st.line_width = 0.0;
+            }
+            if let Some(v) = p.get("dash") {
+                st.dash = match v.as_str() {
+                    Some("byLayer") => None,
+                    _ => Some(serde_json::from_value(v.clone()).map_err(|_| "dash: solid, dashed, dotted, dashDotted, dashDoubleDotted or byLayer")?),
+                };
+            }
             for (key, slot) in [
                 ("text", &mut st.text),
                 ("markSize", &mut st.mark_size),
@@ -931,8 +946,10 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 ("lineOver", &mut st.line_over),
                 ("levelText", &mut st.level_text),
                 ("levelMark", &mut st.level_mark),
+                ("levelLineText", &mut st.level_line_text),
+                ("levelLineOther", &mut st.level_line_other),
             ] {
-                if let Some(v) = p.get(key) {
+                if let Some(v) = p.get(key).filter(|v| !(key == "lineWidth" && v.as_str() == Some("byLayer"))) {
                     *slot = v.as_f64().ok_or(format!("{key}: a size in mm"))?;
                 }
             }
@@ -1363,13 +1380,14 @@ impl CadEditor {
         self.grip = None;
         self.picking = tool.takes_selection() && self.selection.is_empty();
         if matches!(tool, Tool::DimContinue | Tool::DimBaseline) {
-            // From the one linear dimension selected, else the newest.
-            let picked = match self.selection.as_slice() {
+            // From the one linear dimension selected, else from the one picked next (Enter: the
+            // newest). Continue goes on from its second point, Baseline from its first.
+            self.chain_base = match self.selection.as_slice() {
                 [i] if matches!(self.drawing.entities.get(*i).map(|e| &e.kind), Some(Kind::Dim { .. })) => Some(*i),
                 _ => None,
             };
-            self.chain_base = picked.or_else(|| self.drawing.last_linear_dim());
-            if self.chain_base.is_none() {
+            self.chain_first = tool == Tool::DimBaseline;
+            if self.drawing.last_linear_dim().is_none() {
                 self.message = "Draw a linear dimension first, or select the one to go on from".into();
             }
         }
@@ -1580,6 +1598,10 @@ impl CadEditor {
         }
         if self.tool == Tool::ArrayRect {
             return series::prompt(self);
+        }
+        if matches!(self.tool, Tool::DimContinue | Tool::DimBaseline) && self.chain_base.is_none() {
+            let name = if self.tool == Tool::DimContinue { tl!("Continue") } else { tl!("Baseline") };
+            return format!("{name}: {}", tl!("pick the dimension to go on from, near the end to start at (Enter: the last one)"));
         }
         tl!(self.tool.prompt(self.points.len())).to_string()
     }
@@ -2033,6 +2055,14 @@ impl CadEditor {
             }
             return None;
         }
+        if matches!(self.tool, Tool::DimContinue | Tool::DimBaseline) && self.chain_base.is_none() {
+            // No dimension picked: go on from the newest.
+            self.chain_base = self.drawing.last_linear_dim();
+            if self.chain_base.is_none() {
+                self.set_tool(Tool::Select);
+            }
+            return None;
+        }
         if !self.points.is_empty() {
             let kept = finish(self);
             self.points.clear();
@@ -2293,6 +2323,12 @@ fn paint_candidate(ed: &CadEditor, painter: &egui::Painter, view: View, e: &Enti
     }
 }
 
+/// The linear dimension under `p` (within a few pixels), for Continue and Baseline to go on from.
+fn picked_dim(ed: &CadEditor, p: Pt) -> Option<usize> {
+    let tol = 8.0 / ed.zoom.max(1e-9);
+    ed.drawing.hits(p, tol).into_iter().find(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. })))
+}
+
 /// The object-picking tools, before the click at `p`: Trim's piece to take away (red), Extend's
 /// stretch to add, the object Offset, Fillet, Chamfer or Match Properties would take (haloed,
 /// with the first pick kept haloed) and the result Offset, Fillet or Chamfer would make (dashed).
@@ -2355,6 +2391,10 @@ fn paint_pick_preview(ed: &CadEditor, painter: &egui::Painter, view: View, p: Pt
                     }
                 }
             }
+        },
+        Tool::DimContinue | Tool::DimBaseline => match ed.chain_base {
+            Some(i) => halo(i),
+            None => picked_dim(ed, p).into_iter().for_each(halo),
         },
         Tool::MatchProp => {
             let tol = 8.0 / ed.zoom.max(1e-9);
@@ -2898,6 +2938,51 @@ fn paint_cursor(
     }
 }
 
+/// The selection as Move, Copy, Scale, Rotate or Mirror would leave it with `p` as the next
+/// point (after the base point): dashed in the accent colour, as a hot grip's ghost, dimensions
+/// with their distance's parts.
+fn paint_transform_ghost(ed: &CadEditor, painter: &egui::Painter, view: View, p: Pt, accent: Color32) {
+    let [base] = ed.points.as_slice() else { return };
+    if ed.selection.is_empty() || ed.picking {
+        return;
+    }
+    let d = p.minus(*base);
+    let mut ghost = ed.drawing.clone();
+    match ed.tool {
+        Tool::Move | Tool::Copy => ghost.translate(&ed.selection, d),
+        Tool::Scale => {
+            let k = d.len();
+            if !(k.is_finite() && k > 1e-9) {
+                return;
+            }
+            ghost.transform(&ed.selection, &strix_cad::Affine::scaling(*base, k));
+        }
+        Tool::Rotate => {
+            if d.len() <= 1e-9 {
+                return;
+            }
+            ghost.transform(&ed.selection, &strix_cad::Affine::rotation(*base, kernel::deg(kernel::direction(d))));
+        }
+        Tool::Mirror => match strix_cad::Affine::mirror(*base, p) {
+            Some(m) => ghost.transform(&ed.selection, &m),
+            None => return,
+        },
+        _ => return,
+    }
+    let units = strix_cad::Units::of(&ghost);
+    for e in ed.selection.iter().filter_map(|&i| ghost.entities.get(i)) {
+        for line in ghost.shape(e) {
+            let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+            if screen.len() > 1 {
+                painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
+            }
+        }
+        if let Some(parts) = ghost.dim_parts(e) {
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, units);
+        }
+    }
+}
+
 /// What the next click would do: a hot grip's band and ghost, the rubber band from the last
 /// point, and a selection window, lasso or polygon in progress. `p` is the point in the drawing,
 /// `s` its place on the screen and `h` the pointer.
@@ -2922,6 +3007,9 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
             }
         }
     }
+    // Move, Copy, Scale, Rotate, Mirror after the base point: the selection as the next click
+    // would leave it, following the pointer.
+    paint_transform_ghost(ed, painter, view, p, accent);
     // A dimension being placed: as the next click would put it, with its distance's parts.
     let placing = match (ed.tool, ed.points.as_slice()) {
         (Tool::Dim(orient), &[a, b]) => Some(placed_dim(ed, orient, a, b, p)),
@@ -3758,11 +3846,22 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
         }
         Tool::DimContinue | Tool::DimBaseline => {
             done(ed);
-            let Some(base) = ed.chain_base.filter(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. }))) else {
+            if ed.drawing.last_linear_dim().is_none() {
                 ed.message = "Draw a linear dimension first, or select the one to go on from".into();
                 return None;
+            }
+            let Some(base) = ed.chain_base.filter(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. }))) else {
+                // The first click picks the dimension, and the end nearest it.
+                ed.chain_base = None;
+                let Some(i) = picked_dim(ed, p) else {
+                    ed.message = "Pick a linear dimension".into();
+                    return None;
+                };
+                ed.chain_base = Some(i);
+                ed.chain_first = ed.drawing.dim_end_near(i, p).unwrap_or(ed.tool == Tool::DimBaseline);
+                return None;
             };
-            let made = if ed.tool == Tool::DimContinue { ed.drawing.dim_continue(base, p) } else { ed.drawing.dim_baseline(base, p) };
+            let made = ed.drawing.dim_chain(base, ed.chain_first, p, ed.tool == Tool::DimBaseline);
             let Some(e) = made else {
                 ed.message = "Pick a point away from where the dimension starts".into();
                 return None;
@@ -3770,18 +3869,20 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             // The next one goes on from this one.
             let next = ed.drawing.entities.len();
             let d = with(ed, e)?;
+            // Continued on from the new one's far end; a baseline from the same start.
             ed.chain_base = Some(next);
+            ed.chain_first = ed.tool == Tool::DimBaseline;
             Some(d)
         }
         Tool::Level => {
             done(ed);
-            // Like the last level mark: the same datum, side and way up.
+            // Like the last level mark: the same datum, side, way up and fill.
             let like = ed.drawing.entities.iter().rev().find_map(|e| match &e.kind {
-                Kind::Level { datum, flip, left, .. } => Some((datum.clone(), *flip, *left)),
+                Kind::Level { datum, flip, left, fill, .. } => Some((datum.clone(), *flip, *left, *fill)),
                 _ => None,
             });
-            let (datum, flip, left) = like.unwrap_or_default();
-            with(ed, Entity::new(Kind::Level { p: pt(p), datum, text: None, flip, left }))
+            let (datum, flip, left, fill) = like.unwrap_or_default();
+            with(ed, Entity::new(Kind::Level { p: pt(p), datum, text: None, flip, left, fill }))
         }
         _ => feed_modify(ed, p, &pts),
     }
@@ -4792,6 +4893,16 @@ mod tests {
         let d = feed(ed, Pt::new(15.0, 12.0), None).unwrap();
         commit(&mut app, &d);
         app.run("ui.cadTool", json!({"tool": "dimContinue"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        // It asks for the dimension first: a click away from one picks nothing, a click on its
+        // line near the second point picks it and that end.
+        assert_eq!(ed.chain_base, None);
+        assert!(ed.prompt().contains("pick the dimension"), "{}", ed.prompt());
+        assert!(feed(ed, Pt::new(15.0, 60.0), None).is_none());
+        assert_eq!(ed.chain_base, None);
+        let base = ed.drawing.last_linear_dim();
+        assert!(feed(ed, Pt::new(28.0, 12.0), None).is_none());
+        assert_eq!((ed.chain_base, ed.chain_first), (base, false));
         for x in [50.0, 80.0] {
             let ed = app.cad.as_mut().unwrap();
             let d = feed(ed, Pt::new(x, -4.0), None).expect("a continued dimension");
@@ -4816,6 +4927,18 @@ mod tests {
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { a, b, .. } if a.0.value == 0.0 && b.0.value == 80.0));
         commit(&mut app, &d);
         assert_eq!(dims(&app), 4);
+        // Picked near its first point, a dimension is continued from there; Enter instead of a
+        // pick goes on from the newest.
+        app.cad.as_mut().unwrap().selection.clear();
+        app.run("ui.cadTool", json!({"tool": "dimContinue"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        feed(ed, Pt::new(2.0, 12.0), None);
+        assert_eq!((ed.chain_base, ed.chain_first), (Some(first), true));
+        let d = feed(ed, Pt::new(-20.0, 0.0), None).expect("continued to the left");
+        assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { a, b, .. } if a.0.value == 0.0 && b.0.value == -20.0));
+        ed.set_tool(Tool::DimBaseline);
+        assert!(ed.enter().is_none());
+        assert_eq!((ed.chain_base, ed.chain_first), (ed.drawing.last_linear_dim(), true));
     }
 
     #[test]

@@ -57,8 +57,17 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   style (`"style": "Arch"`; none, or a name the drawing doesn't have: Standard). New objects take
   the current style (`currentDimStyle`, `currentTextStyle`; a new text also the style's height).
   A dimension style has a **start mark** (`mark`) and an **end mark** (`markEnd`, absent: as the
-  start), a **mark width** (`markWidth` mm, 0 or absent: automatic — a tick about 2.8× the line,
-  an arrowhead as thin), and may name the **text style** of its texts (`textStyle`: their font,
+  start), a **mark width** (`markWidth` mm, picked from the lineweights' menu like every line width in the style window; 0 or absent: Automatic — a tick about 2.8× the line,
+  an arrowhead as thin), a **line width** and a **linetype** for the dimension, extension and
+  leader lines, an angle's arc and square and a level mark's two lines (`lineWidth` mm, 0:
+  ByLayer; `dash`: `solid` — the default, not written — `dashed`, `dotted`, `dashDotted`,
+  `dashDoubleDotted` or `"byLayer"`; both from the lineweights' and linetypes' menus). An
+  annotation's lines take its own width and linetype (Properties › General), else its style's,
+  else (ByLayer) its layer's; the marks, a right angle's dot, a level mark's triangle and the
+  texts are always solid. The Standard style is thin and continuous whatever the layer, so
+  dimensions read as annotations; ByLayer makes them follow a dimensions layer. The style's
+  "Scaled distances" moves dimension lines only: widths and dashes are paper mm at any scale.
+  A style may also name the **text style** of its texts (`textStyle`: their font,
   bold and italic; the height stays the style's `text`). A dimension's own `mark` (Properties ›
   Start mark) puts that mark at both ends, unless its own `markEnd` (Properties › End mark; "As
   the start" clears it) gives the end another. Renaming or deleting a style carries along the objects,
@@ -66,7 +75,7 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   the style list (choosing one with objects selected gives it to them, as a CAD's list does),
   its name to rename it, New (a copy of it, made current), Delete; then the current style's
   fields. Commands: `ui.cadStyles {"kind": "dim"|"text", "new"|"rename"+"to"|"delete"|"current"}`,
-  `ui.cadDimStyle {"style"?, …, "markEnd"?, "markWidth"?, "textStyle"?}` and
+  `ui.cadDimStyle {"style"?, …, "markEnd"?, "markWidth"?, "lineWidth"? (or "byLayer"), "dash"?, "textStyle"?}` and
   `ui.cadTextStyle {"style"?, "font"?, "height"?, "bold"?, "italic"?}`. On screen a text style's
   bold is the interface's semibold and its font family is shown on the page and in print.
 - **Drawing unit** (CAD Annotate › Units; `ui.cadUnit {"unit": "mm"|"cm"|"m", "convert"?}`):
@@ -389,7 +398,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    them one by one (back to all at the end), the counter goes back to the family, **Only these**
    reduces the selection to them (the old one becomes Previous); the sheet shows them in orange.
    General: layer, colour, lineweight, linetype, each ByLayer or the objects' own, "Varies" when
-   they differ (`ui.cadLayer`, `ui.cadStroke`). Geometry of one object: coordinates, radii and
+   they differ; for dimensions, angles and level marks the lineweight and linetype say ByStyle
+   (their dimension style's, which may itself be ByLayer), and either shows the value it comes
+   to when the objects agree ("ByStyle · 0.18 mm") (`ui.cadLayer`, `ui.cadStroke`). Geometry of one object: coordinates, radii and
    angles take a number or an expression of the calculations (`L/2` stays linked); a line's length
    and angle and a circle's diameter recompute it (a diameter expression `D` gives `r = (D)/2`);
    a polyline shows one vertex at a time and Closed; a text its value, height and rotation; a
@@ -430,7 +441,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    linear sizes with their unit (`3.50 m`, the unit of the style's Dimension units; SIA 400: m or
    cm as shown); off by default, as before. Level marks take the dimension styles; the Level
    Style window sets their **text height** (`levelText`, 0: the dimension text's), **triangle
-   height** (`levelMark`, 0: a text and a fifth) and **Show the unit** (`levelUnit`: `+3.00 m`),
+   height** (`levelMark`, 0: a text and a fifth), the **reference line**'s length from the tip on
+   the text side and on the other (`levelLineText`, `levelLineOther`, 0: a triangle height) and
+   **Show the unit** (`levelUnit`: `+3.00 m`),
    all written only when set. **Text grips**: a selected dimension or level mark has a grip on
    its text; dragged anywhere, the text moves (`textShift: [dx, dy]`, drawing units: in scale,
    it follows the drawing; converted with the unit), with a thin leader back to the dimension
@@ -508,19 +521,27 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    right-angle symbol instead: a square of side `r` on the vertex with a dot in it, no arc, no
    marks, no "90°"; a text of its own (`<>°`) keeps the arc. The square is picked anywhere
    inside with one click. **Continue** and **Baseline**
-   (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_continue`,
-   `dim_baseline`): from the one linear dimension selected, else the newest, each click adds a
-   dimension of the same orientation and look — Continue from the last one's second point, its
-   line on the last one's line (a chain); Baseline from the base's first point, each a row
+   (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_chain`,
+   `dim_end_near`): from the one linear dimension selected; else they first ask for the dimension
+   to go on from (the one under the cursor haloed): the click picks it and the end nearest the
+   click (Continue from the picked end, the other way round when it is the first point; Baseline
+   from it), Enter takes the newest. Then each click adds a dimension of the same orientation
+   and look — Continue from the last one's far end, its line on the last one's line (a chain);
+   Baseline from the base's start, each a row
    (`Drawing::dim_row`: 1.5 texts and a gap, paper mm) further out, away from the points. The
    first point keeps its expression (a chain from `L` starts at `L`). **Level marks**
    (`level {p, datum, text, flip, left}`; tool `level liv quotaLivello`, one click per mark, each
    like the last one: datum, side, way up): a triangle standing on the level, half filled on the
-   text side, a short line through its tip and a line along its top under the elevation —
+   text side, a short line through its tip and a line along its top under the elevation, written
+   over the triangle from its far corner —
    `p`'s height above `datum` (the ±0.00 level, drawing units, an expression too) in metres, two
    decimals, signed (`+3.00`, `−1.50`, `±0.00`), with the document's decimal comma when it uses
    one; `text` takes `<>` and `{{L}}` as a dimension's. `flip` hangs it under the level (a
-   ceiling, a soffit), `left` puts the text on the left. Moving, scaling or stretching moves its
+   ceiling, a soffit), `left` puts the text on the left: the Properties pane shows them as
+   **Vertical mirror** and **Horizontal mirror**, each with a **Flip** button (lit while
+   mirrored). `fill` (**Fill** in the pane) says what level it marks: `roughFinished` (the
+   default, half filled), `rough` (black) or `finished` (empty); a new mark takes the last one's.
+   Moving, scaling or stretching moves its
    point, so the elevation follows; the datum stays. **Flip** (`ui.cadFlip`, Dimensions › Flip
    and the right-click menu; `Drawing::flip_dims`): a linear dimension's line to the other side
    of its points, an angle's other side (360° − the angle), a level mark under or over its
@@ -659,6 +680,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 - 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
 - 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
 - 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.
+
+- 2026-11-15: a dimension style's line width may be ByLayer and it has a linetype (Continuous by default, or ByLayer) for the dimension, extension and leader lines, an angle's arc and a level mark's lines; marks and triangles stay solid; an annotation's own stroke, else its style's, else its layer's (Properties says ByStyle and the value it comes to).
+- 2026-11-15: Continue and Baseline ask for the dimension to go on from (unless one is selected) and go on from the end picked; Enter takes the newest; the dimension style's mark width from the lineweights' menu.
 
 - 2026-11-12: texts picked anywhere in their box, with a grip at each corner (`Grip::Corner`), the box measured by the editor in the text's own font (`Rendered::texts`, `TextWidths`); arrowheads picked inside; a selected hatch shows its boundaries' grips (a strip its path's), and a hatch moved, turned or copied on its own takes its boundaries along.
 

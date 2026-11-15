@@ -72,7 +72,7 @@ fn continued_and_baseline_dimensions() {
     assert_eq!(d.last_linear_dim(), Some(0));
     assert!((line_y(&d, 0) - 8.0).abs() < 1e-9);
     // Continue to x = 250 (and the point a little lower: the line stays).
-    let e = d.dim_continue(0, Pt::new(250.0, -3.0)).unwrap();
+    let e = d.dim_chain(0, false, Pt::new(250.0, -3.0), false).unwrap();
     let Kind::Dim { a, orient, mark, text, .. } = &e.kind else { panic!("{e:?}") };
     assert_eq!(a.0.expr.as_deref(), Some("L"), "starts on the base's second point, its expression kept");
     assert_eq!((*orient, *mark, text.clone()), (Orient::Horizontal, Some(Mark::Arrow), None));
@@ -81,10 +81,10 @@ fn continued_and_baseline_dimensions() {
     assert_eq!(d.last_linear_dim(), Some(1));
     // Baseline from the first: from x = 0, one row further up.
     let row = d.dim_row();
-    let e = d.dim_baseline(0, Pt::new(250.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(250.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 2) - (8.0 + row)).abs() < 1e-9, "{} vs {}", line_y(&d, 2), 8.0 + row);
-    let e = d.dim_baseline(2, Pt::new(400.0, 0.0)).unwrap();
+    let e = d.dim_chain(2, true, Pt::new(400.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 3) - (8.0 + 2.0 * row)).abs() < 1e-9);
     // Below the points (a negative offset), the rows go down.
@@ -101,21 +101,36 @@ fn continued_and_baseline_dimensions() {
         mark_end: None,
     }))
     .unwrap();
-    let e = d.dim_baseline(0, Pt::new(80.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(80.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 1) - (-6.0 - d.dim_row())).abs() < 1e-9);
     // At another scale the row is still paper mm.
     let mut d =
         Drawing::from_json(r#"{"unit":"m","scale":100,"entities":[{"type":"dim","a":[0,0],"b":[4,0],"offset":5,"orient":"horizontal"}]}"#).unwrap();
     let k = 10.0;
-    let e = d.dim_baseline(0, Pt::new(6.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(6.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     let y = |i: usize| d.dim_frame(&d.entities[i], k).unwrap().fa.y;
     assert!((y(1) - y(0) - d.dim_row()).abs() < 1e-9, "{} {}", y(0), y(1));
     // Nothing to chain from: not a linear dimension, or the point is the start.
     d.add(Entity::new(Kind::Point { p: P::new(0.0, 0.0) })).unwrap();
-    assert!(d.dim_continue(2, Pt::new(1.0, 1.0)).is_none() && d.dim_continue(99, Pt::new(1.0, 1.0)).is_none());
-    assert!(d.dim_continue(0, Pt::new(4.0, 0.0)).is_none());
+    assert!(d.dim_chain(2, false, Pt::new(1.0, 1.0), false).is_none() && d.dim_chain(99, false, Pt::new(1.0, 1.0), false).is_none());
+    assert!(d.dim_chain(0, false, Pt::new(4.0, 0.0), false).is_none());
+}
+
+/// Picked near its first point, a dimension is continued from there, the other way: the end
+/// nearest the pick is the one the chain goes on from.
+#[test]
+fn chains_go_on_from_the_end_nearest_the_pick() {
+    let d = Drawing::from_json(r#"{"entities":[{"type":"dim","a":[100,0],"b":[200,0],"offset":8,"orient":"horizontal"}]}"#).unwrap();
+    assert_eq!(d.dim_end_near(0, Pt::new(110.0, 8.0)), Some(true));
+    assert_eq!(d.dim_end_near(0, Pt::new(190.0, 8.0)), Some(false));
+    let e = d.dim_chain(0, true, Pt::new(40.0, 0.0), false).unwrap();
+    let Kind::Dim { a, b, .. } = &e.kind else { panic!("{e:?}") };
+    assert_eq!((a.0.value, b.0.value), (100.0, 40.0));
+    let f = d.dim_frame(&e, 1.0).unwrap();
+    assert!((f.fa.y - 8.0).abs() < 1e-9 && (f.fb.y - 8.0).abs() < 1e-9, "on the base's line");
+    assert_eq!(d.dim_end_near(5, Pt::new(0.0, 0.0)), None);
 }
 
 /// A level mark shows its point's height above the datum in metres, signed, two decimals, in

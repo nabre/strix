@@ -71,6 +71,7 @@ mod title_line;
 mod total_score;
 mod true_false;
 mod variants_gen;
+mod word_blank;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
@@ -166,9 +167,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "count"?: 1–26 (default 4), "seed"?: u64, "domains"?: [{"symbol", "description"?, "unit"?, "values"?: [string], "min"?: number, "max"?: number, "step"?: number}], "constraints"?: {"maxDecimals"?: 0–9, "positiveResults"?: bool, "distinctFinalResults"?: bool, "extra"?: [string]}} → deterministically generates N validated variants within 5000 candidate evaluations"#),
         CommandSpec::new("exercise.blank", "Inline Blank", "Teaching › Exercise", stem_items::blank)
-            .params(r#"{"expr": string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer"#),
-        CommandSpec::new("exercise.tableFill", "Student Blank Cell", "Teaching › Exercise", stem_items::table_fill)
-            .params(r#"{"studentBlank"?: bool, "column"?: bool} → mark the cell or column at the caret; the table remains calculated"#),
+            .params(r#"{"expr"?: string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer. Without expr: hides the selected words inside an exercise (a text to complete by hand; `[[word]]` typed in an inline completion question does the same): teachers see the words, students a line to write on"#),
         CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
             .when(body)
             .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),
@@ -2005,7 +2004,6 @@ pub(crate) fn update(s: &mut Session) -> bool {
     // Calculation questions: their result lines.
     changed |= items::result_lines(s, &layout, &answers);
     changed |= stem_items::problem_guides(s, &answers);
-    stem_items::table_blanks(s);
     let layout = scan(s);
     // Hidden results are hidden text in the summary; the heading too when every one is hidden.
     let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];

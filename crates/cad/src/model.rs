@@ -417,8 +417,14 @@ pub struct DimStyle {
     /// Between a dimension's text and its line, mm.
     pub text_gap: f64,
     /// Dimension, extension and leader lines' width, mm: thin, lighter than the drawing's
-    /// lines (a dimension's own stroke width wins). Ticks are drawn heavier.
+    /// lines; 0: the layer's (ByLayer). A dimension's own width wins. Ticks are drawn heavier
+    /// (see `mark_width`).
     pub line_width: f64,
+    /// Dimension, extension and leader lines' linetype; `None`: the layer's (ByLayer, written
+    /// `"byLayer"`). A dimension's own linetype wins. Marks and texts are always drawn solid.
+    /// Written only when not Continuous.
+    #[serde(with = "by_layer_dash", skip_serializing_if = "is_continuous")]
+    pub dash: Option<Dash>,
     /// How far a dimension line runs past its extension lines, mm, with ticks and dots (as
     /// architectural drawings do; never with arrows).
     pub line_over: f64,
@@ -448,6 +454,15 @@ pub struct DimStyle {
     /// Written only when set.
     #[serde(skip_serializing_if = "is_zero_f64")]
     pub level_mark: f64,
+    /// How far a level mark's reference line (the short line on the level) runs from the
+    /// triangle's tip on the text side, mm; 0 (the default): automatic (a triangle height).
+    /// Written only when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_line_text: f64,
+    /// …and on the other side, mm; 0 (the default): automatic (a triangle height). Written only
+    /// when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_line_other: f64,
     /// Level marks' elevations end with their unit (`+3.00 m`); off (the default), the number
     /// alone. Written only when on.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -469,6 +484,7 @@ impl Default for DimStyle {
             ext_over: 2.0,
             text_gap: 1.0,
             line_width: 0.18,
+            dash: Some(Dash::Solid),
             line_over: 1.5,
             aligned: true,
             scaled: false,
@@ -476,14 +492,16 @@ impl Default for DimStyle {
             show_unit: false,
             level_text: 0.0,
             level_mark: 0.0,
+            level_line_text: 0.0,
+            level_line_other: 0.0,
             level_unit: false,
         }
     }
 }
 
 impl DimStyle {
-    /// Every size finite and within reason (text 0.5–50 mm, line width 0.05–2 mm, the others
-    /// 0–20 mm).
+    /// Every size finite and within reason (text 0.5–50 mm, line width 0 (ByLayer) or 0.05–2
+    /// mm, the others 0–20 mm).
     pub fn sanitized(mut self) -> DimStyle {
         let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
         let d = DimStyle::default();
@@ -497,7 +515,9 @@ impl DimStyle {
             ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
-            line_width: c(self.line_width, 0.05, 2.0, d.line_width),
+            // 0 (ByLayer) stays; any other width at least 0.05 mm.
+            line_width: if self.line_width == 0.0 { 0.0 } else { c(self.line_width, 0.05, 2.0, d.line_width) },
+            dash: self.dash,
             line_over: c(self.line_over, 0.0, 20.0, d.line_over),
             aligned: self.aligned,
             scaled: self.scaled,
@@ -505,6 +525,8 @@ impl DimStyle {
             show_unit: self.show_unit,
             level_text: c(self.level_text, 0.0, 50.0, 0.0),
             level_mark: c(self.level_mark, 0.0, 50.0, 0.0),
+            level_line_text: c(self.level_line_text, 0.0, 50.0, 0.0),
+            level_line_other: c(self.level_line_other, 0.0, 50.0, 0.0),
             level_unit: self.level_unit,
         }
     }
@@ -517,6 +539,13 @@ impl DimStyle {
     /// The level marks' triangle height, mm (their own, else a text and a fifth, at least 1 mm).
     pub fn level_mark_height(&self) -> f64 {
         if self.level_mark > 0.0 { self.level_mark } else { (self.level_text_height() * 1.2).max(1.0) }
+    }
+
+    /// How far the level marks' reference line runs from the tip, mm: on the text side and on the
+    /// other (their own, else a triangle height each).
+    pub fn level_line(&self) -> (f64, f64) {
+        let auto = |v: f64| if v > 0.0 { v } else { self.level_mark_height() };
+        (auto(self.level_line_text), auto(self.level_line_other))
     }
 
     pub fn is_default(&self) -> bool {
@@ -705,7 +734,8 @@ pub enum Kind {
     /// the elevation over it: `p`'s height above `datum` (drawing units; the ±0.00 level) in
     /// metres, signed, `±0.00` at the datum. `text` as a dimension's (`<>` is the elevation).
     /// `flip`: the mark under the level, tip up (a ceiling, a soffit). `left`: the line and the
-    /// text go left of the tip.
+    /// text go left of the tip. `fill`: the triangle black (a rough level), empty (a finished
+    /// one) or half filled (rough and finished, the default).
     Level {
         p: P,
         #[serde(default, skip_serializing_if = "Num::is_zero")]
@@ -716,7 +746,47 @@ pub enum Kind {
         flip: bool,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         left: bool,
+        #[serde(default, deserialize_with = "lenient", skip_serializing_if = "LevelFill::is_default")]
+        fill: LevelFill,
     },
+}
+
+impl Kind {
+    /// A dimension, an angle or a level mark: an annotation drawn with a dimension style (its
+    /// sizes, and its line width and linetype between the object's own and its layer's).
+    pub fn is_annotation(&self) -> bool {
+        matches!(self, Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. })
+    }
+}
+
+/// How a level mark's triangle is filled: what kind of level it marks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LevelFill {
+    /// Half filled, on the text side: a rough and finished level.
+    #[default]
+    RoughFinished,
+    /// Filled black: a rough (structural) level.
+    Rough,
+    /// Empty: a finished level.
+    Finished,
+}
+
+impl LevelFill {
+    pub const ALL: [(LevelFill, &'static str); 3] =
+        [(LevelFill::RoughFinished, "roughFinished"), (LevelFill::Rough, "rough"), (LevelFill::Finished, "finished")];
+
+    pub fn name(self) -> &'static str {
+        Self::ALL.iter().find(|(f, _)| *f == self).map_or("roughFinished", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<LevelFill> {
+        Self::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(f, _)| *f)
+    }
+
+    pub fn is_default(&self) -> bool {
+        *self == LevelFill::default()
+    }
 }
 
 /// Which side of its line a strip lies on, looking along the line.
@@ -810,6 +880,34 @@ fn dim_offset() -> f64 {
 fn lenient<'de, D: serde::Deserializer<'de>, T: serde::de::DeserializeOwned + Default>(d: D) -> Result<T, D::Error> {
     let v = serde_json::Value::deserialize(d)?;
     Ok(T::deserialize(v).unwrap_or_default())
+}
+
+fn is_continuous(d: &Option<Dash>) -> bool {
+    *d == Some(Dash::Solid)
+}
+
+/// A dimension style's linetype: a linetype's name, or `"byLayer"` for `None`. Anything else
+/// read is Continuous.
+mod by_layer_dash {
+    use super::Dash;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    const BY_LAYER: &str = "byLayer";
+
+    pub fn serialize<S: Serializer>(d: &Option<Dash>, s: S) -> Result<S::Ok, S::Error> {
+        match d {
+            Some(d) => d.serialize(s),
+            None => s.serialize_str(BY_LAYER),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Dash>, D::Error> {
+        let v = serde_json::Value::deserialize(d)?;
+        if v.as_str() == Some(BY_LAYER) || v.is_null() {
+            return Ok(None);
+        }
+        Ok(Some(Dash::deserialize(v).unwrap_or_default()))
+    }
 }
 
 fn is_zero_f64(v: &f64) -> bool {

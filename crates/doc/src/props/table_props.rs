@@ -315,9 +315,6 @@ pub enum VMerge {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CellProps {
-    /// Calculated cell left blank in the student copy; its value remains live.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub student_blank: bool,
     /// On a calculated table's header cell: its column is not summed in the total row
     /// (`docs/calc.md`, Strix only). Saved as `strix:noTotal="1"` on `w:tcPr`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

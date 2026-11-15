@@ -15,7 +15,7 @@ use wordcraft_doc::props::{Align, CellProps, CharProps, ParaProps};
 use wordcraft_doc::table::{Cell, Row, Table};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
-use super::items::{Mode, choices, items};
+use super::items::{Mode, correct_letters, items};
 use super::{STYLE_HEADING, doc_words, numbering, plain, scan};
 use crate::{CmdError, CmdResult, Session, p};
 
@@ -104,9 +104,8 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                 };
                 let ans = match it.settings.mode {
                     Mode::Choice => {
-                        let cs = it.answer.map(|r| choices(sess, r)).unwrap_or_default();
-                        let letters: Vec<String> =
-                            cs.iter().enumerate().filter(|(_, (_, cor))| *cor).map(|(j, _)| super::letter(j).to_ascii_uppercase()).collect();
+                        let w = super::exercise_words(sess, &layout, e_idx);
+                        let letters = it.answer.map(|r| correct_letters(sess, r, it.settings.true_false, w)).unwrap_or_default();
                         if letters.is_empty() { "—".to_string() } else { letters.join(", ") }
                     }
                     Mode::Calc => {
@@ -117,7 +116,7 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                         })
                     }
                     Mode::Drawing => "[CAD]".to_string(),
-                    Mode::Open | Mode::Worked | Mode::Cloze | Mode::TableFill | Mode::Matching => {
+                    Mode::Open | Mode::Worked | Mode::Cloze | Mode::Matching => {
                         let snippet = it
                             .answer
                             .and_then(|(a, b)| {
