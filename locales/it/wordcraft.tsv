@@ -3716,7 +3716,6 @@ paper	Envelope DL	Busta DL
 	Student and teacher copies	Copia allievo e docente
 	Take the grading scale table out of the document (Undo brings it back)	Togli la tabella della scala di valutazione dal documento (Annulla la ripristina)
 	Teacher copy only	Solo copia docente
-	Text next to the number (no title)	Testo accanto al numero (senza titolo)
 	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Il documento non ha una scala di valutazione. Inseriscila: converte i punti ottenuti in un voto.
 	The most points this question gives; empty: not scored	I punti massimi di questa domanda; vuoto: senza punteggio
 	The scores table's grand total, else the questions' points added up	Il totale della tabella punteggi, altrimenti la somma dei punti delle domande
@@ -3742,8 +3741,10 @@ paper	Envelope DL	Busta DL
 	Question\nSettings	Impostazioni\ndomande
 	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…	Ogni domanda con tipo e punti, e le impostazioni di quella scelta: spazio per la risposta, opzioni corrette, tolleranza…
 	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Aggiungi una domanda alla fine dell'esercizio; il menu offre i tipi: risposta aperta, scelta multipla, vero o falso, calcolo, disegno CAD…
-	First Line	Prima riga
-	What the exercise's first line holds after the number: a title, or the statement's text	Cosa contiene la prima riga dell'esercizio dopo il numero: un titolo o il testo
+	Show Title	Mostra titolo
+	Remove Title	Rimuovi titolo
+	Give the exercise a title after the number; the text next to the number goes back under it	Dai un titolo all'esercizio dopo il numero; il testo accanto al numero torna sotto
+	Remove the exercise's title: the statement's text goes next to the number (Show Title brings the title back)	Rimuovi il titolo dell'esercizio: il testo va accanto al numero (Mostra titolo lo ripristina)
 	Problem	Problema
 	Add Variant	Aggiungi variante
 	Remove Variant	Rimuovi variante
