@@ -93,12 +93,16 @@ impl Ctx<'_> {
         let mut first: Option<Quantity> = None;
         for cell in cells {
             let q = self.eval(cell)?.expect_scalar()?;
+            if q.unc.is_some() {
+                return Err(domain("uncertainty propagation: unsupported function; use val() explicitly"));
+            }
             match first {
                 None => first = Some(q),
                 Some(p) => p.same_dim(q, "add")?,
             }
             m.push(q.value);
         }
+        let whole = m.iter().all(|v| v.fract() == 0.0);
         let mut dim = crate::quantity::Dim::NONE;
         for _ in 0..n {
             dim = dim.try_mul(first.map(|q| q.dim).unwrap_or_default())?;
@@ -129,10 +133,10 @@ impl Ctx<'_> {
                 }
             }
         }
-        // Whole cells give a whole determinant: drop the elimination's last bits.
-        let scale = m.iter().fold(0.0f64, |s, v| s.max(v.abs())).max(det.abs());
+        // Whole cells give a whole determinant: drop the elimination's last bits. Any other
+        // keeps its value however small it is (cells in micrometres are 10⁻⁶ in SI).
         let rounded = det.round();
-        if (det - rounded).abs() <= 1e-9 * scale.max(1.0) {
+        if whole && (det - rounded).abs() <= 1e-9 * det.abs().max(1.0) {
             det = rounded;
         }
         Ok(Quantity::new(finite(det)?, dim).into())

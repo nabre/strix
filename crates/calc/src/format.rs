@@ -249,9 +249,35 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                     if plain { format!("log_{base}\u{2061}({a})") } else { format!("log_({base})\u{2061}({a})") }
                 }
                 (Func::Lt | Func::Le | Func::Gt | Func::Ge | Func::Ne | Func::Eq, [a, b]) => format!("{a}{}{b}", func.name()),
-                (Func::All, _) => args.join(" ∧ "),
+                // Several comparisons at once, as they are read: `0≤x≤2` (each one starts where
+                // the one before ends).
+                (Func::All, _) => match expr {
+                    Expr::Call(_, comparisons) => {
+                        let mut chain = String::new();
+                        for (k, comparison) in comparisons.iter().enumerate() {
+                            match comparison {
+                                Expr::Call(op, sides) if k > 0 && sides.len() == 2 => {
+                                    chain.push_str(op.name());
+                                    chain.push_str(&sides.get(1).map(render).unwrap_or_default());
+                                }
+                                other => chain.push_str(&render(other)),
+                            }
+                        }
+                        chain
+                    }
+                    _ => args.join(""),
+                },
                 (Func::Cases, _) => {
-                    let rows: Vec<String> = args.chunks(2).map(|c| c.join(",&")).collect();
+                    // The case for whatever is left is written as it is read, `otherwise`.
+                    let always = |k: usize| matches!(expr, Expr::Call(_, cases) if matches!(cases.get(2 * k + 1), Some(Expr::Num(v)) if *v == 1.0));
+                    let rows: Vec<String> = args
+                        .chunks(2)
+                        .enumerate()
+                        .map(|(k, c)| match c {
+                            [value, _] if always(k) => format!("{value},&otherwise"),
+                            other => other.join(",&"),
+                        })
+                        .collect();
                     format!("├{{█({})┤", rows.join("@"))
                 }
                 (Func::Matrix | Func::Det, [columns, cells @ ..]) if !cells.is_empty() => {

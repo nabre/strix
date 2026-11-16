@@ -108,7 +108,14 @@ impl Parser<'_> {
         let mut to = self.limit()?;
         // A value with its unit: `h→0 s`.
         if crate::format::is_numeric(&to) && self.unit_at(self.i) {
-            let unit = self.unit_chain()?;
+            // The side written after the unit (`0 s^+`) is the limit's, not a power of the unit.
+            let whole = self.toks;
+            if let Some(side) = self.side_of_limit() {
+                self.toks = whole.get(..side).unwrap_or(whole);
+            }
+            let unit = self.unit_chain();
+            self.toks = whole;
+            let unit = unit?;
             to = self.node(Expr::Bin(crate::parser::BinOp::Mul, Box::new(to), Box::new(unit)))?;
         }
         let mut op = LIMIT;
@@ -128,6 +135,25 @@ impl Parser<'_> {
         let body = self.term()?;
         // The value tended to is the lower limit: with one, the variable is bound wherever names are read.
         self.node(Expr::Nary(Nary { op, var: Some(var), from: Some(Box::new(to)), to: None, body: Box::new(body) }))
+    }
+
+    /// The index of the `^` of a limit's side (`^+`, `^-` just before the bracket closes), when
+    /// the bracket being read ends with one.
+    fn side_of_limit(&self) -> Option<usize> {
+        let mut depth = 0usize;
+        for (k, t) in self.toks.iter().enumerate().skip(self.i) {
+            match t.tok {
+                Tok::LParen => depth = depth.saturating_add(1),
+                Tok::RParen if depth == 0 => {
+                    let side = k.checked_sub(2)?;
+                    let sign = matches!(self.toks.get(side + 1).map(|t| &t.tok), Some(Tok::Plus | Tok::Minus));
+                    return (side >= self.i && sign && matches!(self.toks.get(side).map(|t| &t.tok), Some(Tok::Caret))).then_some(side);
+                }
+                Tok::RParen => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+        None
     }
 
     /// After `√`: `(n&x)`, the root of degree `n`. `None` (nothing read) for a plain square root.
@@ -370,7 +396,6 @@ mod tests {
     #[test]
     fn brackets_group_and_bars_measure() {
         shows("{[(2+3)·4−1]·2+2}/8 =", "{[(2+3)·4−1]·2+2}/8 = 5");
-        shows("[6] =", "[6] = 6");
         shows("├|−6|┤ =", "├|−6|┤ = 6");
         shows("|−6| =", "|−6| = 6");
         shows("2├|−6|┤ =", "2├|−6|┤ = 12");
@@ -488,6 +513,18 @@ mod tests {
         assert!(no("lim┬(x→∞)⁡〖sin(x)〗 ="));
         assert!(no("lim┬(x→∞)⁡〖x^2〗 ="));
         assert!(last_error(&["lim┬6⁡3 ="]).is_some());
+        // Nor is a value that only the points sampled share: whole numbers, even ones.
+        assert!(no("lim┬(x→∞)⁡〖cos(2·π·x)〗 ="));
+        assert!(no("lim┬(n→∞)⁡〖(−1)^n〗 ="));
+        assert!(no("lim┬(x→−∞)⁡〖cos(π·x)〗 ="));
+        // Sequences of whole numbers and slow approaches are still limits.
+        shows("lim┬(n→∞)⁡〖(n+1)/n〗 =", "lim┬(n→∞)\u{2061}〖(n+1)/n〗 = 1");
+        shows("lim┬(x→∞)⁡〖sin(x)/x〗 =", "lim┬(x→∞)\u{2061}〖sin(x)/x〗 = 0");
+        shows("lim┬(x→∞)⁡〖1+1/√x〗 =", "lim┬(x→∞)\u{2061}〖1+1/√x〗 = 1");
+        shows("lim┬(x→∞)⁡〖x·sin(1/x)〗 =", "lim┬(x→∞)\u{2061}〖x·sin(1/x)〗 = 1");
+        // The side after a value with its unit.
+        assert_eq!(last(&["τ = 2 µs", "lim┬(t→0 s^+)⁡〖e^(−t/τ)〗 ="]), "lim┬(t→0 s^+)\u{2061}〖e^(−t/τ)〗 = 1");
+        assert_eq!(last(&["lim┬(t→2 s^-)⁡〖t^2〗 ="]), "lim┬(t→2 s^-)\u{2061}〖t^2〗 = 4 s²");
         // The variable is the limit's own.
         assert_eq!(last(&["x = 7", "lim┬(x→1)⁡〖x+1〗 ="]), "lim┬(x→1)\u{2061}〖x+1〗 = 2");
         assert_eq!(last(&["L = lim┬(x→0)⁡〖sin(2x)/x〗", "L ="]), "L = 2");
@@ -517,6 +554,8 @@ mod tests {
         assert!(matches!(err("├|■(1&2&3@4&5&6)|┤ ="), Some(CalcError::Structure(_))));
         assert!(err("■(1&2@3) =").is_some());
         assert!(err("├|■(1 m&2@3&4)|┤ =").is_some());
+        // An uncertain cell is not dropped without a word.
+        assert!(matches!(err("|■(1 ± 0.1&2@3&4)| ="), Some(CalcError::Domain { .. })));
     }
 
     #[test]
@@ -540,6 +579,13 @@ mod tests {
         assert_eq!(last(&[f, "∫_(−1)^2▒〖f(x) dx〗 ="]), "∫_(−1)^2▒〖f(x) dx〗 = 2.5");
         assert!(matches!(last_error(&["p(x) = {█(1,&x<0@2,&x>0)┤", "p(0) ="]), Some(CalcError::Structure(_))));
         assert!(last_error(&["{█(1@2)┤ ="]).is_some());
+        // Several comparisons at once are written in the steps as they are read, and read back.
+        let o = Options { steps: true, ..Options::default() };
+        let run = |s: &[&str]| evaluate(s, &o).pop().and_then(|r| r.display).unwrap_or_default();
+        let worked = run(&["x = 1", "{█(0,&x<0@x^2,&0≤x≤2@4,&otherwise)┤ ="]);
+        assert_eq!(worked, "{█(0,&x<0@x^2,&0≤x≤2@4,&otherwise)┤ = ├{█(0,&1<0@1²,&0≤1≤2@4,&otherwise)┤ = 1");
+        assert_eq!(run(&["x = 1", &worked]), worked);
+        assert_eq!(run(&["x = 3", &worked]), "{█(0,&x<0@x^2,&0≤x≤2@4,&otherwise)┤ = ├{█(0,&3<0@3²,&0≤3≤2@4,&otherwise)┤ = 4");
         assert!(last_error(&["t = 3 s", "{█(1,&t<2@2,&t≥2)┤ ="]).is_some());
     }
 
@@ -559,14 +605,167 @@ mod tests {
         assert!(last_error(&["x = [2; 4; 9]", "∑_(i=1)^5▒x_i ="]).is_some());
     }
 
+    /// A determinant of small cells (micrometres, probabilities) is not rounded away to 0: only
+    /// whole cells give a whole determinant.
+    #[test]
+    fn a_small_determinant_keeps_its_value() {
+        shows("├|■(2 µm&0 µm@0 µm&3 µm)|┤ = µm^2", "├|■(2 µm&0 µm@0 µm&3 µm)|┤ = 6 µm²");
+        shows("├|■(1 mm&0 mm&0 mm@0 mm&1 mm&0 mm@0 mm&0 mm&1 mm)|┤ = mm^3", "├|■(1 mm&0 mm&0 mm@0 mm&1 mm&0 mm@0 mm&0 mm&1 mm)|┤ = 1 mm³");
+        let small = evaluate(&["d := ├|■(0.00002&0@0&0.00003)|┤"], &Options::default()).pop().and_then(|r| r.value).and_then(|v| v.scalar());
+        assert!(small.is_some_and(|q| (q.value - 6e-10).abs() < 1e-20), "{small:?}");
+        // Whole cells still give a whole number, whatever the elimination's last bits.
+        shows("├|■(3&7&1@2&9&4@5&6&8)|┤ =", "├|■(3&7&1@2&9&4@5&6&8)|┤ = 139");
+    }
+
+    /// One simple value in square brackets is a vector of one element, as it always was; the
+    /// brackets group only an expression.
+    #[test]
+    fn one_value_in_square_brackets_is_still_a_vector() {
+        shows("[6] =", "[6] = [6]");
+        assert_eq!(last(&["F = [5] kN", "F[1] ="]), "F[1] = 5 kN");
+        assert_eq!(last(&["F = [5 kN]", "len(F) ="]), "len(F) = 1");
+        assert_eq!(last(&["x = 4", "v = [x]", "v[1] ="]), "v[1] = 4");
+        shows("len([−3]) =", "len([−3]) = 1");
+        shows("[2+4] =", "[2+4] = 6");
+        shows("[(2+3)·4−1]·2 =", "[(2+3)·4−1]·2 = 38");
+    }
+
+    /// A name with a subscript that is defined stays that name under a sum over its subscript;
+    /// an element read by its number is not an unknown.
+    #[test]
+    fn subscripted_names_and_elements_in_equations() {
+        assert_eq!(last(&["v_i = 2", "tot = ∑_(i=1)^3▒v_i", "tot ="]), "tot = 6");
+        assert_eq!(last_error(&["v_i = 2", "tot = ∑_(i=1)^3▒v_i"]), None);
+        assert_eq!(last(&["x = [2; 4; 9]", "y = 2·x_2", "y ="]), "y = 8");
+        assert_eq!(last(&["x = [2; 4; 9]", "k = 3", "y = x_k + 1", "y ="]), "y = 10");
+        assert_eq!(last(&["x = [2; 4; 9]", "n = 3", "m = (∑_(i=1)^n▒x_i)/n", "m ="]), "m = 5");
+        // Defined beside the vector, the name is its own.
+        assert_eq!(last(&["F = [1; 2] kN", "F_1 = 7 kN", "F_1 ="]), "F_1 = 7 kN");
+        assert_eq!(last(&["F = [1; 2] kN", "F_x = 3 kN", "2·F_x ="]), "2·F_x = 6 kN");
+    }
+
+    /// A function's name written without an argument is a name like any other: it can be
+    /// defined and solved for.
+    #[test]
+    fn function_names_are_names_without_an_argument() {
+        assert_eq!(last(&["a = 1", "b = 2", "c = 3", "d = 4", "det = a·d − b·c", "det ="]), "det = -2");
+        assert_eq!(last(&["sec = 3", "2·sec ="]), "2·sec = 6");
+        assert_eq!(last(&["norm = 5 m", "norm/2 ="]), "norm/2 = 2.5 m");
+        assert_eq!(last(&["tg = 0.5", "tg + 1 ="]), "tg + 1 = 1.5");
+        // The second of arc is still a unit, and the inverse secant a function.
+        assert_eq!(last(&["α = 3600 arcsec", "α = °"]), "α = 1°");
+        shows("arcsec(2) =", "arcsec(2) = 60°");
+    }
+
+    /// An applied function's operand ends with it: what follows a name multiplies the function.
+    #[test]
+    fn an_applied_function_stops_at_its_operand() {
+        assert_eq!(last(&["α = 30°", "L = 4 m", "sin\u{2061}α L ="]), "sin\u{2061}α L = 2 m");
+        assert_eq!(
+            last(&["α = 60°", "d_1 = 4 m", "L_1 = 4 m", "cos\u{2061}α d_1 + cos\u{2061}α L_1 ="]),
+            "cos\u{2061}α d_1 + cos\u{2061}α L_1 = 4 m"
+        );
+        assert_eq!(last(&["x = 0.5", "y = 2", "cos\u{2061}2x y ="]), "cos\u{2061}2x y = 1.081");
+    }
+
+    /// Cases with "otherwise" are written in the steps as they are read.
+    #[test]
+    fn cases_with_otherwise_are_read_back() {
+        let o = Options { steps: true, ..Options::default() };
+        let run = |s: &[&str]| evaluate(s, &o).pop().map(|r| (r.display.unwrap_or_default(), r.error));
+        let sheet = ["x = 3", "y = {█(0,&x<0@x^2,&otherwise)┤"];
+        let (shown, error) = run(&sheet).unwrap();
+        assert_eq!(error, None, "{shown}");
+        assert!(shown.contains("otherwise") && shown.ends_with("= 9"), "{shown}");
+        // What was shown is the same calculation: nothing moves.
+        assert_eq!(run(&[sheet[0], shown.as_str()]).unwrap(), (shown.clone(), None));
+    }
+
+    /// With decimal commas a comma that is not in a number still separates a case from its
+    /// condition.
+    #[test]
+    fn cases_with_decimal_commas() {
+        let o = Options { decimal_comma: true, ..Options::default() };
+        let run = |s: &[&str]| evaluate(s, &o).pop().map(|r| (r.display.unwrap_or_default(), r.error));
+        assert_eq!(run(&["f(x)=├{█(−x,&x<0@x,&x≥0)┤", "f(−3) ="]).unwrap(), ("f(−3) = 3".to_string(), None));
+        assert_eq!(run(&["g(x)={█(0,5,&x<0@1,5,&x≥0)┤", "g(2) ="]).unwrap(), ("g(2) = 1,5".to_string(), None));
+        assert_eq!(run(&["max(1,5; 2,5) ="]).unwrap(), ("max(1,5; 2,5) = 2,5".to_string(), None));
+    }
+
     #[test]
     fn hostile_structures_never_panic() {
         for s in [
-            "|", "||", "|||", "‖", "├|", "|┤", "├┤", "{", "}", "{}", "{{{{", "⌊", "⌋", "⌈⌉", "√(&)", "√(3&)", "√(&3)", "∛", "∜", "■", "■(", "■()", "■(&)",
-            "■(@)", "■(1&2@3)", "█", "█(", "█()", "█(@@&&", "{█(,&)┤", "{█(1,&x<)┤", "lim", "lim┬", "lim┬(", "lim┬(x", "lim┬(x→", "lim┬(x→)", "lim┬(x→0",
-            "lim┬(x→0)", "lim┬(x→0^)", "lim┬(x→0^+", "lim┬(x→∞)⁡〖1/0〗", "lim┬(x→x)⁡x", "log_", "log_⁡", "log_()⁡3", "log_2", "log_2⁡", "log_0⁡3",
-            "├|■(1&2@3&4)|", "|■()|", "det()", "det(1)", "det(■(1&2@3&4); 2)", "norm()", "norm(1; 2)", "x_", "x_0", "x_99999999999", "⁺", "⁻", "2⁺",
-            "csc", "csc^(−1)", "sec⁡", "cot^(−2)⁡x", "x\u{305}\u{305}\u{305}", "\u{305}", "6⁄0", "√(0&5)", "∛−8",
+            "|",
+            "||",
+            "|||",
+            "‖",
+            "├|",
+            "|┤",
+            "├┤",
+            "{",
+            "}",
+            "{}",
+            "{{{{",
+            "⌊",
+            "⌋",
+            "⌈⌉",
+            "√(&)",
+            "√(3&)",
+            "√(&3)",
+            "∛",
+            "∜",
+            "■",
+            "■(",
+            "■()",
+            "■(&)",
+            "■(@)",
+            "■(1&2@3)",
+            "█",
+            "█(",
+            "█()",
+            "█(@@&&",
+            "{█(,&)┤",
+            "{█(1,&x<)┤",
+            "lim",
+            "lim┬",
+            "lim┬(",
+            "lim┬(x",
+            "lim┬(x→",
+            "lim┬(x→)",
+            "lim┬(x→0",
+            "lim┬(x→0)",
+            "lim┬(x→0^)",
+            "lim┬(x→0^+",
+            "lim┬(x→∞)⁡〖1/0〗",
+            "lim┬(x→x)⁡x",
+            "log_",
+            "log_⁡",
+            "log_()⁡3",
+            "log_2",
+            "log_2⁡",
+            "log_0⁡3",
+            "├|■(1&2@3&4)|",
+            "|■()|",
+            "det()",
+            "det(1)",
+            "det(■(1&2@3&4); 2)",
+            "norm()",
+            "norm(1; 2)",
+            "x_",
+            "x_0",
+            "x_99999999999",
+            "⁺",
+            "⁻",
+            "2⁺",
+            "csc",
+            "csc^(−1)",
+            "sec⁡",
+            "cot^(−2)⁡x",
+            "x\u{305}\u{305}\u{305}",
+            "\u{305}",
+            "6⁄0",
+            "√(0&5)",
+            "∛−8",
         ] {
             for tail in ["", " =", " = 3"] {
                 let text = format!("{s}{tail}");
@@ -579,7 +778,7 @@ mod tests {
         assert!(last_error(&[deep.as_str()]).is_some());
         let deep = format!("{}1{} =", "{".repeat(200), "}".repeat(200));
         assert!(last_error(&[deep.as_str()]).is_some());
-        let big = format!("├|■({})|┤ =", vec![vec!["1"; 9].join("&"); 9].join("@"));
+        let big = format!("├|■({})|┤ =", vec![["1"; 9].join("&"); 9].join("@"));
         assert!(last_error(&[big.as_str()]).is_some());
     }
 }

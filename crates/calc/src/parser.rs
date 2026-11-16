@@ -397,6 +397,28 @@ pub(crate) fn parse_names(
 
 type R<T> = Result<T, CalcError>;
 
+/// True for one value as a vector lists it: a number, a name, either with a sign, a unit or an
+/// index (`5`, `x`, `−3`, `5 kN`, `F[2]`), not an expression to work out (`2 + 4`).
+fn one_value(expr: &Expr) -> bool {
+    match expr {
+        Expr::Num(_) | Expr::Name(_) => true,
+        Expr::Neg(inner) => one_value(inner),
+        Expr::Index(base, _) => one_value(base),
+        Expr::Bin(BinOp::Mul | BinOp::Div, value, unit) => one_value(value) && units_only(unit),
+        _ => false,
+    }
+}
+
+/// True when `expr` is made of units alone (`kN`, `m/s²`).
+fn units_only(expr: &Expr) -> bool {
+    match expr {
+        Expr::Unit(_) => true,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, b) => units_only(a) && units_only(b),
+        Expr::Bin(BinOp::Pow, base, exponent) => units_only(base) && crate::format::is_numeric(exponent),
+        _ => false,
+    }
+}
+
 pub(crate) struct Parser<'a> {
     pub(crate) toks: &'a [Token],
     pub(crate) i: usize,
@@ -786,9 +808,12 @@ impl Parser<'_> {
             Tok::LBracket => {
                 self.bump();
                 let mut items = self.nested(Self::items)?;
-                // Square brackets round one value group like round ones: `[(2 + 3)·4 − 1]·2`.
+                // Square brackets round an expression group like round ones (`[(2 + 3)·4 − 1]·2`),
+                // and so do those round a vector (`[■(1@2)]`); one value alone is a vector of one
+                // element (`[5]`, `[5 kN]`, `[x]`, `[−3]`).
                 if let [only] = items.as_slice()
                     && !matches!(only, Expr::Range(..))
+                    && !one_value(only)
                 {
                     return Ok(items.swap_remove(0));
                 }
@@ -956,21 +981,24 @@ impl Parser<'_> {
         if matches!(self.peek(), Some(Tok::Operand)) {
             self.bump();
             if !matches!(self.peek(), Some(Tok::LParen)) {
-                // The operand runs on through what is written against it, as the linear format
-                // has it: `cos⁡2x` is `cos(2·x)`, `sin⁡30°` the sine of thirty degrees. It ends at
-                // the next function (`sin⁡α cos⁡β`) and at a differential (`sin⁡x dx`).
+                // A number takes what is written against it, as the linear format has it: its
+                // unit (`sin⁡30°`) or the one factor it is the coefficient of (`cos⁡2x` is
+                // `cos(2·x)`). A name is the whole operand: `sin⁡α L` is `sin(α)·L`, as the
+                // built-up equation shows it.
                 let mut arg = self.nested(Self::power)?;
-                if crate::format::is_numeric(&arg) && self.unit_at(self.i) {
-                    let unit = self.unit_chain()?;
-                    arg = self.bin(BinOp::Mul, arg, unit)?;
-                }
-                while let Some(Tok::Ident(name)) = self.peek() {
-                    let differential = name.chars().count() > 1 && name.starts_with(['d', 'ⅆ']);
-                    if differential || Func::from_name(name).is_some() || (self.is_func)(name) || name.starts_with("log_") || name.starts_with("lim") {
-                        break;
+                if crate::format::is_numeric(&arg) {
+                    if self.unit_at(self.i) {
+                        let unit = self.unit_chain()?;
+                        arg = self.bin(BinOp::Mul, arg, unit)?;
+                    } else if let Some(Tok::Ident(name)) = self.peek()
+                        && Func::from_name(name).is_none()
+                        && !(self.is_func)(name)
+                        && !name.starts_with("log_")
+                        && !name.starts_with("lim")
+                    {
+                        let right = self.nested(Self::power)?;
+                        arg = self.bin(BinOp::Mul, arg, right)?;
                     }
-                    let right = self.nested(Self::power)?;
-                    arg = self.bin(BinOp::Mul, arg, right)?;
                 }
                 return Ok(vec![arg]);
             }

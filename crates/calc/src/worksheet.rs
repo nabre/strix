@@ -5,7 +5,7 @@ use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{BinOp, Expr, Func, parse, parse_env, parse_with};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, isolate, isolate_steps, numeric, solve_symbolic};
+use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, isolate, isolate_steps, numeric, solve_symbolic};
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
@@ -924,10 +924,13 @@ impl Worksheet {
     /// True when `part` is a step of our own working: numbers with units, constants and
     /// functions, and no parameter (`(12 kN/m)·(4.5 m)²/8`, `5 m·0.3 m`).
     fn is_working(&self, part: &[Token]) -> bool {
+        // The conditions of cases compare inside their brackets (`{█(0,&3<0@9,&otherwise)┤`).
+        let outside = positions(part, |t| matches!(t, Tok::Equals | Tok::Cmp(_)));
         part.iter().any(|t| matches!(t.tok, Tok::Num(_)))
+            && outside.is_empty()
             && part.iter().all(|t| match &t.tok {
                 Tok::Ident(n) => self.scope.get(n).is_none() || unit(n).is_some(),
-                Tok::Warn | Tok::Define | Tok::Equals | Tok::Cmp(_) => false,
+                Tok::Warn | Tok::Define => false,
                 _ => true,
             })
     }
@@ -1018,7 +1021,7 @@ impl Worksheet {
     /// True when `expr` reads a parameter other than `x` (`h·r`, not `3 m·5 m`).
     fn reads_parameter(&self, expr: &Expr, x: &str) -> bool {
         let mut names = Vec::new();
-        free_names(expr, &mut names);
+        free_names_where(expr, &|n| self.scope.get(n).is_some(), &mut names);
         names.iter().any(|n| n != x && self.scope.get(n).is_some())
     }
 
@@ -1117,12 +1120,26 @@ impl Worksheet {
     /// that a name alone on a side is unknown whenever it is not a parameter (`m = 3 kg` defines
     /// `m` although `m` is also the metre).
     fn unknowns(&self, lhs: &Expr, rhs: &Expr) -> Vec<String> {
+        let defined = |n: &str| self.scope.get(n).is_some();
         let mut names = Vec::new();
-        free_names(lhs, &mut names);
-        free_names(rhs, &mut names);
-        let alone = |e: &Expr, n: &str| matches!(e, Expr::Name(m) if m == n);
-        names.retain(|n| self.scope.get(n).is_none() && Func::from_name(n).is_none() && (alone(lhs, n) || alone(rhs, n) || constant(n).is_none()));
+        free_names_where(lhs, &defined, &mut names);
+        free_names_where(rhs, &defined, &mut names);
+        let alone = |n: &str| [lhs, rhs].iter().any(|e| matches!(e, Expr::Name(m) if m == n));
+        names.retain(|n| {
+            // A function's name alone on a side is a name like any other (`det = a·d − b·c`),
+            // unless it is a unit too (`α = arcsec`).
+            let function = Func::from_name(n).is_some() && !(alone(n) && unit(n).is_none());
+            !defined(n) && !function && (alone(n) || (constant(n).is_none() && !self.element(n)))
+        });
         names
+    }
+
+    /// True when the undefined name `n` reads an element of a vector by its subscript (`x_2`,
+    /// `x_k` with `k` a number), as the evaluation does.
+    fn element(&self, n: &str) -> bool {
+        let Some((base, index)) = n.split_once('_') else { return false };
+        matches!(self.scope.get(base), Some(Value::Vector(_)))
+            && (index.parse::<u32>().is_ok() || matches!(self.scope.get(index), Some(Value::Scalar(q)) if q.dim.is_dimensionless()))
     }
 
     /// An equation `lhs = rhs`, with `parts` the token ranges between its `=` signs.

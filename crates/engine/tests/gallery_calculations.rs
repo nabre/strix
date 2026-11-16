@@ -149,7 +149,6 @@ const NOTATION: &[&str] = &[
     "lim.max",
     "lim.maxExample",
     "op.",
-    "mat.1",
     "mat.2x2",
     "mat.2x3",
     "mat.3x2",
@@ -159,7 +158,8 @@ const NOTATION: &[&str] = &[
     "mat.vdots",
     "mat.ddots",
     "mat.adots",
-    "mat.id",
+    "mat.id2",
+    "mat.id3",
     "mat.paren",
     "mat.square",
     "mat.norm",
@@ -203,9 +203,11 @@ fn every_structure_with_a_value_is_calculated() {
 fn every_template_is_calculated_or_listed_as_notation() {
     for tpl in templates() {
         let calculated = CALCULATED.iter().any(|(id, ..)| *id == tpl.id);
-        let notation = NOTATION.iter().any(|p| tpl.id == *p || (p.ends_with('.') && tpl.id.starts_with(p)) || tpl.id.starts_with(&format!("{p}x")) || {
-            // A family: `int.double`, `int.doubleLimits`, `int.doubleStacked`.
-            tpl.id.strip_prefix(p).is_some_and(|rest| ["Limits", "Stacked", "Scripts", "Lower", "zeros", "2", "3"].contains(&rest))
+        let notation = NOTATION.iter().any(|p| {
+            tpl.id == *p || (p.ends_with('.') && tpl.id.starts_with(p)) || tpl.id.starts_with(&format!("{p}x")) || {
+                // A family: `int.double`, `int.doubleLimits`, `int.doubleStacked`; `brk.leftSquareOnly`.
+                tpl.id.strip_prefix(p).is_some_and(|rest| ["Limits", "Stacked", "Scripts", "Lower", "Only", "zeros", "2", "3"].contains(&rest))
+            }
         });
         assert!(calculated != notation, "{}: {}", tpl.id, if calculated { "listed twice" } else { "say whether it is calculated" });
     }

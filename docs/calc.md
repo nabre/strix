@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-16 · **Change:** binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-16 · **Change:** the structures of the Equation tab read as calculations (bars, determinants, floor and ceiling, roots with a degree, logarithms with a base, limits, cases, reciprocal functions); before that, binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -365,14 +365,69 @@ tanh⁻¹`. So `α = sin⁻¹((R − r)/(R + r))` with `R = 3 m`, `r = 1 m` give
 out in degrees, like every angle a calculation shows (`asin(0.5) = 30°`); the hyperbolic inverses
 give plain numbers.
 
-Steps and solutions always write the inverse by its name, `asin acos atan asinh acosh atanh`:
-`α = sin⁻¹((R − r)/(R + r)) = asin(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
-`y = sin(α)` gives `α = asin(y)`.
+Steps and solutions write the inverse as the Equation tab does, the −1 on the function's name:
+`α = sin⁻¹((R − r)/(R + r)) = sin^(−1)⁡(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
+`y = sin(α)` gives `α = sin^(−1)⁡(y)`.
 
 A positive whole power on the name is a power of the result: `sin²(x)` is `sin(x)²`
 (`cos²(x) + sin²(x) = 1`). Other powers on a name are errors (`sin^-2(x)`: write `(sin(x))^-2`),
 as is `⁻¹` on a function without an inverse here (`ln⁻¹`: write `exp`). Anywhere else `⁻¹` is a
 power: `x⁻¹`, `x^-1`, `sin(x)^-1`, `60 min^-1`.
+
+### Structures of the Equation tab
+
+What the Equation tab's galleries build is read as it is written in linear format
+(`crates/calc/src/structures.rs`; every template is filled in and calculated, or listed as
+notation, in `crates/engine/tests/gallery_calculations.rs`):
+
+- **Bars**: `|x|` (built up: `├|x|┤`) is the absolute value, `‖v‖` the length of a vector (of a
+  number, its absolute value), with the unit of what is inside (`‖F‖ = 5 kN`).
+- **Floor and ceiling**: `⌊2.7⌋ = 2`, `⌈2.1⌉ = 3`.
+- **Brackets**: `{…}` groups like `(…)`, and so does `[…]` round an expression
+  (`{[(2+3)·4−1]·2+2}/8 = 5`). One value alone in square brackets is still a vector of one
+  element (`[5]`, `[5 kN]`, `[x]`).
+- **Roots with a degree**: `√(3&27) = 3` (the degree first, as the radical is built), `∛27`,
+  `∜16`; the degree may be an expression, the radicand a quantity (`√(3&V)` with `V = 8 m³` is
+  `2 m`).
+- **Logarithms with a base**: `log_2⁡8 = 3`, `log_(a+1)⁡x`, `log_3(81)`; solved like any function
+  (`3 = log_2⁡x ⇒ x = 8`).
+- **Reciprocal functions**: `csc sec cot` and `csch sech coth`, with their inverses written
+  `csc⁻¹`, `csc^(−1)⁡x`, `arccsc`, `acsc`… (`cot⁻¹` gives the angle between 0° and 180°). A pole
+  is a division by zero (`cot(0)`, `csc(180°)`). The Italian names are read too: `sen tg cotg
+  cosec arcsen arctg senh tgh`. They do not propagate an uncertainty (use `val()`).
+- **A function's name without an argument is a name**: `det = a·d − b·c`, `sec = 3` define and
+  read `det` and `sec` like any other; `arcsec` after a number is still the second of arc.
+- **An applied function** (`sin⁡x`, Word's function application U+2061) takes its operand up to
+  its power, as before; a number also takes its unit or the one factor it is the coefficient of
+  (`sin⁡30°`, `cos⁡2x` is `cos(2·x)`). What follows a name multiplies the function: `sin⁡α L` is
+  `sin(α)·L`.
+- **Limits**: `lim┬(x→a)⁡…` (also `lim_(x→a)`), from one side with `x→a^+`, `x→a^-` (`a⁺`, `a⁻`),
+  at `∞` and `−∞`; the value tended to may carry a unit (`lim┬(h→0 s)⁡〖(s(2 s+h)−s(2 s))/h〗`).
+  Numerical (`crates/calc/src/limits.rs`): each side is extrapolated from samples at
+  `h = 2⁻², …, 2⁻¹¹` (Neville), else approached at `h = 10⁻¹, …, 10⁻¹²`, with `h` in SI units
+  scaled by `|a|` (at least 1); the two sides must agree, and a side where the function is not
+  defined takes no part. A limit that is infinite, differs from side to side or does not settle
+  is an error with its reason, never a number. At infinity the samples are even whole numbers
+  (`±2ᵏ`, `±10ᵏ`), so the value found is also looked for at an odd number and at one that is
+  not whole: `cos(2·π·x)` and `(−1)^n` do not settle. The side may follow a value with its
+  unit (`t→0 s^+`). **Its limits**: an error at one of the samples
+  (a pole exactly there) fails the limit, and a function that varies on a scale much smaller
+  than 1 SI unit is sampled too coarsely.
+- **Matrices**: `■(a&b@c&d)`. One row or one column is a vector (`■(6@3@2) = [6; 3; 2]`); any
+  other is only read between the bars of a determinant, `|■(1&2@3&4)| = -2` (or `det(■(…))`),
+  up to 8 × 8, the cells of one kind and the result that kind to the matrix's order
+  (`6 m²`). Whole cells give a whole determinant; any others keep their value however small
+  (cells in µm). A cell with an uncertainty is an error (use `val()`).
+- **Cases**: `{█(−x,&x<0@x,&x≥0)┤`, each value followed by its condition (`<  ≤  >  ≥  =  ≠`,
+  several at once as in `0≤x≤2`, or `otherwise`); the first case whose condition holds is the
+  value, and the others are not evaluated, so a case may be undefined where it does not apply.
+  Usually the body of a function, `f(x)={█(…)┤`, then called, integrated or taken to a limit.
+  With decimal commas the comma after a value still separates it from its condition. The steps
+  write several comparisons at once as they are read (`0≤1≤2`).
+- **Accents** belong to their letter: `x̅`, `v⃗`, `ẋ` are names.
+- **Subscripts as indices**: `x_i` under a sum or product over `i` is the element `x[i]` of the
+  vector `x`, and `x_2` (or `x_k` with `k` a whole number) its element when no such name is
+  defined; a name defined with that subscript (`F_1 = 7 kN`, `v_i = 2`) is always itself.
 
 ### User functions
 
@@ -622,6 +677,8 @@ none of them.
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-16: the structures of the Equation tab read as calculations (see *Structures of the Equation tab*): `|x|`, `‖v‖`, determinants, `⌊x⌋ ⌈x⌉`, `{…}`, `√(n&x)`, `log_b⁡x`, limits worked out numerically, cases with their conditions, `csc sec cot` with their hyperbolic and inverse functions, the Italian names, accents on names, `x_i` as an element; the steps write an inverse as it is written (`sin^(−1)⁡(…)`, was `asin(…)`). Put right in review: a determinant of small cells is no longer rounded to 0; one value in square brackets is a vector again; a name defined with a subscript stays itself under a sum over that subscript and an element read by number is not an unknown; a function's name without an argument is a name (`det = …`); what follows an applied function's operand multiplies the function (`sin⁡α L`); cases with `otherwise` are read back from the steps; cases are read with decimal commas.
 
 - 2026-11-16: binomial coefficients as equations write them (`(n¦k)`); the binomial theorem as the closed form of a sum: `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n` when its names have no value, a step of the working when they have, the identity written out accepted (`crates/calc/src/series.rs`); improper integrals with `∞` and `−∞` as limits (`∫_(−∞)^∞ e^(−x²) dx = 1.772`), "does not converge" when they don't; a statement that cannot be read keeps its sum whole before `= ⚠` (the `=` of `∑_(k=0)` used to cut it in two); a parameter as an exponent is substituted in the steps (`(2 + 5)^3`, was `(2 + 5)^n`).
 

@@ -55,7 +55,10 @@ pub(crate) enum Tok {
     RBrace,
     /// `|` (single) or `‖` (double): absolute value, determinant, norm. A built-up equation
     /// says which side it is (`├|` opens, `|┤` closes); typed alone it is either.
-    Bar { double: bool, side: Side },
+    Bar {
+        double: bool,
+        side: Side,
+    },
     /// `⌊` (floor) or `⌈` (ceiling).
     LFloor(bool),
     /// `⌋` or `⌉`.
@@ -135,8 +138,8 @@ pub(crate) fn describe(tok: &Tok) -> String {
     }
 }
 
-/// Splits `text` into tokens. With `decimal_comma`, `1,5` is one and a half and only `;`
-/// separates function arguments.
+/// Splits `text` into tokens. With `decimal_comma`, `1,5` is one and a half, so between
+/// two numbers only `;` separates function arguments; a comma that no number takes still does.
 pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcError> {
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let ch = |i: usize| chars.get(i).map(|&(_, c)| c);
@@ -226,8 +229,9 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '∏' => Tok::Nary('∏'),
             // Only a definite integral is calculated; `∫ f dx = F` stays an ordinary equation.
             '∫' if matches!(next, Some('_' | '^')) => Tok::Nary('∫'),
-            ',' if !decimal_comma => Tok::Sep,
-            ';' => Tok::Sep,
+            // With decimal commas a number has taken its own (`1,5`): any other separates, as
+            // after the value of a case (`█(−x,&x<0@…)`).
+            ',' | ';' => Tok::Sep,
             ':' if next == Some('=') => {
                 i += 1;
                 Tok::Define

@@ -80,10 +80,13 @@ fn one_sided(g: &mut dyn FnMut(f64) -> Result<f64, CalcError>) -> Result<f64, Ca
         vs.push(g(10f64.powi(-k))?);
     }
     let scale = vs.iter().fold(0.0f64, |m, v| m.max(v.abs()));
-    let diffs: Vec<f64> = vs.windows(2).map(|w| match w {
-        [a, b] => b - a,
-        _ => 0.0,
-    }).collect();
+    let diffs: Vec<f64> = vs
+        .windows(2)
+        .map(|w| match w {
+            [a, b] => b - a,
+            _ => 0.0,
+        })
+        .collect();
     let last = vs.last().copied().unwrap_or(f64::NAN);
     let tail = diffs.get(diffs.len().saturating_sub(4)..).unwrap_or_default();
     let snap = |v: f64| if v.abs() <= 1e-6 * scale { 0.0 } else { v };
@@ -91,10 +94,13 @@ fn one_sided(g: &mut dyn FnMut(f64) -> Result<f64, CalcError>) -> Result<f64, Ca
         return Ok(snap(round_to(last, 8)));
     }
     // Closing in geometrically: each step a steady fraction (at most half) of the one before.
-    let ratios: Vec<f64> = tail.windows(2).map(|w| match w {
-        [a, b] if *a != 0.0 => b / a,
-        _ => f64::NAN,
-    }).collect();
+    let ratios: Vec<f64> = tail
+        .windows(2)
+        .map(|w| match w {
+            [a, b] if *a != 0.0 => b / a,
+            _ => f64::NAN,
+        })
+        .collect();
     let steady = ratios.iter().all(|r| *r > 0.0 && *r <= 0.5) && ratios.windows(2).all(|w| matches!(w, [a, b] if (a - b).abs() <= 0.1 * a.abs()));
     if steady && let (Some(&r), Some(&d)) = (ratios.last(), tail.last()) {
         let limit = last + d * r / (1.0 - r);
@@ -113,6 +119,28 @@ fn one_sided(g: &mut dyn FnMut(f64) -> Result<f64, CalcError>) -> Result<f64, Ca
     Err(CalcError::Structure("the limit does not settle: it does not exist, or it is approached too slowly to compute"))
 }
 
+/// True when `f` is as near `value` away from the points a limit at infinity is sampled at as
+/// it is at them. Those are whole numbers, all even (`x = ±2ᵏ`, `±10ᵏ`), where `cos(2·π·x)` and
+/// `(−1)^n` stand still: an odd number and one that is not whole are looked at too. A point
+/// where the function does not exist (a sequence, between two whole numbers) takes no part.
+fn settles_off_the_samples(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, sign: f64, value: f64) -> Result<bool, CalcError> {
+    // How far the samples of the same size still are from the limit.
+    let mut far = 0.0f64;
+    for x in [512.0, 1024.0, 2048.0] {
+        far = far.max((f(sign * x)? - value).abs());
+    }
+    let allowed = 8.0 * far + 1e-6 * value.abs().max(1.0);
+    for x in [2187.0, 2048.0 * std::f64::consts::SQRT_2] {
+        match f(sign * x) {
+            Ok(v) if (v - value).abs() > allowed => return Ok(false),
+            Ok(_) => {}
+            Err(CalcError::Domain { .. } | CalcError::NotReal | CalcError::NotWhole { .. }) => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(true)
+}
+
 /// The limit of `f(x)` for `x → a` (`a` may be `±∞`); `f` takes and gives SI magnitudes.
 pub(crate) fn limit(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, from: From) -> Result<f64, CalcError> {
     if a.is_nan() {
@@ -120,7 +148,12 @@ pub(crate) fn limit(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, fr
     }
     if a.is_infinite() {
         let sign = a.signum();
-        return one_sided(&mut |h| f(sign / h));
+        let value = one_sided(&mut |h| f(sign / h))?;
+        return if settles_off_the_samples(f, sign, value)? {
+            Ok(value)
+        } else {
+            Err(CalcError::Structure("the limit does not settle: it does not exist, or it is approached too slowly to compute"))
+        };
     }
     let s = a.abs().max(1.0);
     let mut side = |sign: f64| one_sided(&mut |h| f(a + sign * s * h));
