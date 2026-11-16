@@ -1724,7 +1724,8 @@ pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
 /// What a quiz gives the results summary: for each multiple-choice question, its letter and the
 /// correct options (`b) A, C`, a true/false's column `V`); for each calculation, its result
 /// (`c) A = 15 cm²`, from `answers`, or `none` when it has none); an open answer says it is one
-/// (`d) risposta aperta`); a text to complete, its hidden words; drawings give nothing.
+/// (`d) domanda a risposta aperta`), also in a quiz of open answers alone, so that none is
+/// forgotten when correcting; a text to complete, its hidden words; drawings give nothing.
 pub(super) fn summary_lines(
     s: &Session,
     layout: &Layout,
@@ -1736,10 +1737,6 @@ pub(super) fn summary_lines(
     let w = super::exercise_words(s, layout, e);
     let labels: Vec<String> = layout.exercises.get(e).map(|x| x.questions.iter().map(|q| q.label.clone()).collect()).unwrap_or_default();
     let lone = its.len() == 1;
-    // Open answers alone give no summary: it would only say so for each.
-    if its.iter().all(|it| matches!(it.settings.mode, Mode::Open | Mode::Drawing | Mode::Worked | Mode::Matching)) {
-        return Vec::new();
-    }
     its.iter()
         .enumerate()
         .filter_map(|(k, it)| {
@@ -2438,9 +2435,10 @@ mod tests {
         );
         let t = texts(&s);
         assert!(t.iter().any(|x| x == "Definisci il momento flettente........... / 2 pt"), "{t:?}");
-        // No statement, no solution, no results summary.
+        // No statement, no solution; the results summary names the open answer.
         assert!(!t.iter().any(|x| x.contains("Scrivi qui il testo")), "{t:?}");
-        assert!(!t.iter().any(|x| x.contains("Risoluzione") || x.contains("Riepilogo")), "{t:?}");
+        assert!(!t.iter().any(|x| x.contains("Risoluzione")), "{t:?}");
+        assert!(t.iter().any(|x| x == "domanda a risposta aperta"), "{t:?}");
         let space = s.doc.body.iter().filter_map(|b| b.as_para()).find(|p| p.props.graph.is_some()).expect("space");
         let g = space.props.graph.as_deref().expect("graph");
         assert_eq!(g.line.style, GridLineStyle::None);

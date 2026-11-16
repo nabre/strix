@@ -29,7 +29,7 @@ a master document).
 
 | Mode | `type` | Students' copy | Corrected copy | Summary |
 |---|---|---|---|---|
-| **Open answer** | `open` | a space (cm), squared or blank; the squares' side, line style and colour (`spacing`, `gridStyle`, `gridColor`, `null` for the default; Exercise › Questions › Question Settings › Answer Space) | the answer written in the space | `a) risposta aperta` (only beside other results: a quiz of open answers alone has no summary) |
+| **Open answer** | `open` | a space (cm), squared or blank; the squares' side, line style and colour (`spacing`, `gridStyle`, `gridColor`, `null` for the default; Exercise › Questions › Question Settings › Answer Space) | the answer written in the space | `a) domanda a risposta aperta` (always, also in a quiz of open answers alone: a trace for correcting) |
 | **Multiple choice** | `choice` | options A), B)… with empty boxes | the correct boxes ticked (more than one may be) | `b) A, C` |
 | **True or false** | `trueFalse` | two empty boxes on the statement's line, in the V and F columns | the right one ticked | `c) V` (the column's initial in the exercise's language: V, T, W) |
 | **Calculation** | `calc` | a squared space for the working, then `Answer: A = ______ cm²` | the working (live equations) and `Answer: A = 15 cm²` | `d) A = 15 cm²` |
@@ -136,6 +136,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 
 ## Revision history
 
+- 2026-11-16: every open answer gives a line in the results summary (*domanda a risposta aperta*), also when an exercise or the whole document has open answers alone (no summary before), so that no part is forgotten when correcting.
 - 2026-11-13: one result line per result (the values the working doesn't use afterwards), right-aligned in columns that line up at the `=`, 1 cm apart for handwriting 8 mm tall; the corrected copy writes the value on the line, underlined.
 - 2026-11-13: the calculation's result line is labelled (*Risposta: s = 20 m*) and its value is in the answers' colour once given, so in the corrected copy it no longer looks like a stray repeat of the working's result.
 - 2026-11-13: calculation tolerances (`tolerance` in `exercise.questions`), parametric `{{expr}}` options (`strix:expr`), teacher-only option rationales (`strix:rationale`), and deterministic per-variant choice shuffling (`shuffleChoices`).
