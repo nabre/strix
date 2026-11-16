@@ -1,9 +1,9 @@
 # DSA formatting
 
-> **Status:** F1–F5: the command (`design.dsa`), three versions that combine, taken off exactly; the DSA menu in Design › Document Formatting; Atkinson Hyperlegible and Lexend in Design › Fonts, downloaded on first use; fonts embedded in `.docx` · **Last updated:** 2026-11-12 · **Change:** the DSA menu on the ribbon; the DSA typefaces, downloaded and embedded
+> **Status:** F1–F5: the command (`design.dsa`), three versions that combine, taken off exactly; the DSA group on the Design tab, one large button per version; Atkinson Hyperlegible and Lexend in Design › Fonts, downloaded on first use; fonts embedded in `.docx` · **Last updated:** 2026-11-16 · **Change:** a DSA group on the Design tab with one large button per version, instead of a menu in Document Formatting
 
 A test laid out for students with specific learning difficulties (DSA, *disturbi specifici
-dell'apprendimento*), from the same exercises: Design › Document Formatting › DSA
+dell'apprendimento*), from the same exercises: Design › DSA
 (`design.dsa`). Three versions, one per area of difficulty, that **combine**: a student with
 several difficulties gets them together.
 
@@ -29,9 +29,9 @@ Where two versions set the same thing, the more generous wins (Reading + Writing
 36 pt after each question). The page stays white in every version. The typeface is not part of
 it: choose one in Design › Fonts.
 
-On the ribbon: Design › Document Formatting › **DSA**, a menu with the three versions as check
-boxes (Reading, Writing, Maths and Memory: tick as many as the student needs) and **No DSA
-Formatting**, which takes them all off.
+On the ribbon: Design › **DSA**, a group with one large button per version (Reading, Writing,
+Maths and Memory). A button stays pressed while its version is on; press as many as the student
+needs, and press one again to take that version off.
 
 `design.dsa {"reading": true, "math": true}` turns versions on (and `false` off) leaving the
 others as they are; `{"none": true}` takes them all off; without params it says which are on.

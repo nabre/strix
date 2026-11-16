@@ -722,32 +722,20 @@ pub(super) fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     });
 }
 
-/// Design › Document Formatting › DSA (docs/dsa.md): the three versions of `design.dsa` as check
-/// boxes, which combine, and None to take them all off.
-pub(super) fn dsa_menu(ui: &mut Ui, app: &mut WordApp) {
-    stack(ui, |ui| {
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new(
-                "accessibility",
-                Some("DSA"),
-                "DSA formatting: the test laid out for students with specific learning difficulties; the versions combine",
-                false,
-                "design.dsa",
-            ),
-            |ui, app| {
-                let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
-                for (label, key) in
-                    [("Reading (dyslexia)", "reading"), ("Writing (dysgraphia)", "writing"), ("Maths and Memory (dyscalculia)", "math")]
-                {
-                    let on = st[key].as_bool().unwrap_or(false);
-                    mi_check(ui, app, label, on, "design.dsa", json!({ key: !on }));
-                }
-                ui.separator();
-                mi(ui, app, "No DSA Formatting", "design.dsa", json!({"none": true}));
-            },
-        );
+/// Design › DSA (docs/dsa.md): a group of its own with one large button per version of
+/// `design.dsa`. Each stays pressed while its version is on, and they combine; pressing one
+/// again takes that version off.
+pub(super) fn dsa_group(ui: &mut Ui, app: &mut WordApp) {
+    group(ui, "DSA", None, app, |ui, app| {
+        let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
+        for (icon, label, key) in [
+            ("dsaReading", "Reading\n(dyslexia)", "reading"),
+            ("dsaWriting", "Writing\n(dysgraphia)", "writing"),
+            ("dsaMath", "Maths and Memory\n(dyscalculia)", "math"),
+        ] {
+            let on = st[key].as_bool().unwrap_or(false);
+            crate::widgets::big_checked(ui, app, icon, label, "design.dsa", json!({ key: !on }), on);
+        }
     });
 }
 
@@ -819,9 +807,10 @@ mod tests {
     use super::*;
     use wordcraft_engine::Session;
 
-    /// Design › Document Formatting › DSA: ticking Reading in the menu turns that version on.
+    /// Design › DSA: each version has a large button of its own; pressing Reading turns that
+    /// version on and leaves the others, pressing it again takes it off.
     #[test]
-    fn the_dsa_menu_turns_a_version_on() {
+    fn the_dsa_buttons_turn_a_version_on_and_off() {
         use egui_kittest::kittest::Queryable;
         let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
         let mut h = egui_kittest::Harness::builder()
@@ -829,13 +818,18 @@ mod tests {
             .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
             .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
         h.run_steps(2);
-        h.get_by_label("DSA formatting: the test laid out for students with specific learning difficulties; the versions combine").click();
-        h.run_steps(2);
+        for label in ["Writing (dysgraphia)", "Maths and Memory (dyscalculia)"] {
+            h.get_by_label(label);
+        }
         h.get_by_label("Reading (dyslexia)").click();
         h.run_steps(2);
         let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
         assert_eq!(st["reading"], true, "{st}");
         assert_eq!(st["writing"], false, "{st}");
+        h.get_by_label("Reading (dyslexia)").click();
+        h.run_steps(2);
+        let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
+        assert_eq!(st["reading"], false, "{st}");
     }
 
     /// Design › Fonts offers the DSA typefaces (to download when missing) and Embed Fonts in the

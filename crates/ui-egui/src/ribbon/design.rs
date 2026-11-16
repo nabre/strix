@@ -90,8 +90,8 @@ pub(super) fn design(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("design.setDefault", json!({}), false),
             );
         });
-        super::strix::dsa_menu(ui, app);
     });
+    super::strix::dsa_group(ui, app);
     group(ui, "Page Background", None, app, |ui, app| {
         menu_button(
             ui,
