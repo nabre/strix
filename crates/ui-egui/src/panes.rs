@@ -76,6 +76,10 @@ pub enum Pane {
     Plot,
     /// Teaching › Scores › Grading Scale › Properties: the points-to-grade table.
     Grading,
+    /// Exercise › Questions › Question Settings: the questions of the exercise at the cursor.
+    Questions,
+    /// Exercise › Calculation › Data: the data and variants of the exercise at the cursor.
+    Data,
     /// Review › Proofing › Thesaurus: synonyms of the word at the caret, by meaning.
     Thesaurus,
 }
@@ -101,6 +105,8 @@ impl Pane {
             Self::Archive => "Exercise Bank",
             Self::Plot => "Plot Properties",
             Self::Grading => "Grading Scale",
+            Self::Questions => "Question Settings",
+            Self::Data => "Exercise Data",
             Self::Thesaurus => "Thesaurus",
         }
     }
@@ -125,6 +131,8 @@ impl Pane {
             Self::Archive => (Edge::End, 340.0),
             Self::Plot => (Edge::End, 330.0),
             Self::Grading => (Edge::End, 300.0),
+            Self::Questions => (Edge::End, 320.0),
+            Self::Data => (Edge::End, 350.0),
             Self::Thesaurus => (Edge::End, 280.0),
         };
         PaneState::docked(edge, width)
@@ -151,11 +159,13 @@ impl Pane {
             Self::Archive => "archive",
             Self::Plot => "plot",
             Self::Grading => "grading",
+            Self::Questions => "questions",
+            Self::Data => "exerciseData",
             Self::Thesaurus => "thesaurus",
         }
     }
 
-    const ALL: [Self; 19] = [
+    const ALL: [Self; 21] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -174,6 +184,8 @@ impl Pane {
         Self::Archive,
         Self::Plot,
         Self::Grading,
+        Self::Questions,
+        Self::Data,
         Self::Thesaurus,
     ];
 
@@ -200,6 +212,8 @@ impl Pane {
             Self::Archive => Some("view.archivePane"),
             Self::Plot => Some("view.plotPane"),
             Self::Grading => Some("view.gradingPane"),
+            Self::Questions => Some("view.questionsPane"),
+            Self::Data => Some("view.dataPane"),
             Self::Thesaurus => Some("view.thesaurusPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
@@ -234,6 +248,8 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Archive => crate::archive_pane::pane(app, ui),
             Pane::Plot => crate::plot_pane::pane(app, ui),
             Pane::Grading => crate::grading_pane::pane(app, ui),
+            Pane::Questions => crate::exercise_quiz::pane(app, ui),
+            Pane::Data => crate::exercise_panels::pane(app, ui),
             Pane::Thesaurus => crate::thesaurus_pane::pane(app, ui),
         })
     }

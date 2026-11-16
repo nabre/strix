@@ -148,6 +148,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("view.gradingPane", "Grading Scale Properties", "Teaching › Scores", |s, v| toggle(s, v, |x| &mut x.grading_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),
+        CommandSpec::new("view.questionsPane", "Question Settings", "Exercise › Questions", |s, v| toggle(s, v, |x| &mut x.questions_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
+        CommandSpec::new("view.dataPane", "Exercise Data", "Exercise › Calculation", |s, v| toggle(s, v, |x| &mut x.data_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.thesaurusPane", "Thesaurus Pane", "Review › Proofing", |s, v| toggle(s, v, |x| &mut x.thesaurus_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),

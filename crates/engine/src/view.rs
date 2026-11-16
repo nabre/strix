@@ -69,6 +69,14 @@ pub struct ViewState {
     /// the points-to-grade table (docs/exercise.md).
     #[serde(default)]
     pub grading_pane: bool,
+    /// The Question Settings pane (Exercise › Questions › Question Settings): the questions of the
+    /// exercise at the cursor with the chosen one's settings (docs/exercise.md).
+    #[serde(default)]
+    pub questions_pane: bool,
+    /// The Exercise Data pane (Exercise › Calculation › Data): the data and variants of the
+    /// exercise at the cursor (docs/exercise.md).
+    #[serde(default)]
+    pub data_pane: bool,
     /// The Thesaurus pane (Review › Proofing › Thesaurus): synonyms by meaning from the
     /// thesaurus of the word's language (docs/thesaurus.md).
     #[serde(default)]
@@ -236,6 +244,8 @@ impl Default for ViewState {
             archive_pane: false,
             plot_pane: false,
             grading_pane: false,
+            questions_pane: false,
+            data_pane: false,
             thesaurus_pane: false,
             format_shape_pane: false,
             multi_page: false,

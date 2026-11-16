@@ -1,6 +1,7 @@
-//! What the Exercise and Series ribbon tabs (`ribbon/exercise.rs`, docs/exercise.md) show in
-//! their drop-down panels: the exercise's data in the active variant, the variant generator, and
-//! the variants added and removed. Every change goes through `exercise.setData` or
+//! The Exercise Data pane (Exercise › Calculation › Data, `view.dataPane`; docs/exercise.md): the
+//! data of the exercise at the cursor in the active variant, with the variants added and removed;
+//! and the variant generator the Exercise ribbon tab (`ribbon/exercise.rs`) shows in a drop-down
+//! panel. Every change goes through `exercise.setData` or
 //! `exercise.variant`, so it is undoable and recalculates like any edit.
 
 use egui::Ui;
@@ -178,11 +179,21 @@ fn equation_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, curren
     None
 }
 
+/// The Exercise Data pane: the data and variants of the exercise at the cursor, a note outside
+/// the exercises.
+pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(info) = app.session.run("exercise.data", &json!({})) else {
+        crate::pane_kit::note(ui, tl!("Put the cursor in an exercise to see its data and variants."));
+        return;
+    };
+    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| data_panel(app, ui, &info));
+}
+
 /// The exercise's data (`info`, from `exercise.data`): its variants, then one row per datum, the
 /// datum written whole as an equation in the active variant (`L = 4.5 m`) and its description.
 /// The data part on the page lists what is not already shown elsewhere in the exercise, and can
 /// be edited there too.
-pub(crate) fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
+fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
     let ex = info["exercise"].as_u64().unwrap_or(0);
     let mut data = info["data"].clone();
     let errors = info["errors"].as_array().cloned().unwrap_or_default();
@@ -418,5 +429,37 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
                 }),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui_kittest::kittest::Queryable;
+    use wordcraft_engine::Session;
+
+    /// The owner: the data are in a pane beside the document, not a drop-down panel under the
+    /// button. `view.dataPane` shows and hides it; it edits the data of the exercise at the
+    /// cursor and says so outside the exercises.
+    #[test]
+    fn exercise_data_is_a_pane() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Intro")), crate::Services::default());
+        app.run("exercise.insert", json!({"kind": "problem"})).unwrap();
+        assert!(!crate::panes::open(&app).contains(&crate::panes::Pane::Data));
+        app.run("view.dataPane", json!({})).unwrap();
+        assert!(crate::panes::open(&app).contains(&crate::panes::Pane::Data));
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(360.0, 600.0)).build_ui_state(|ui, app: &mut WordApp| pane(app, ui), app);
+        h.run_steps(2);
+        h.get_by_label(tl!("Add Datum")).click();
+        h.run_steps(2);
+        let data = h.state_mut().session.run("exercise.data", &json!({})).unwrap();
+        assert_eq!(data["data"]["items"].as_array().map(Vec::len), Some(1), "{data}");
+        // Outside the exercises: a note, nothing to edit.
+        h.state_mut().run("caret.set", json!({"pos": wordcraft_doc::Pos::body(0, 0)})).unwrap();
+        h.run_steps(2);
+        assert!(h.query_by_label(tl!("Add Datum")).is_none());
+        h.get_by_label(tl!("Put the cursor in an exercise to see its data and variants."));
+        h.state_mut().run("view.dataPane", json!({})).unwrap();
+        assert!(!crate::panes::open(h.state()).contains(&crate::panes::Pane::Data));
     }
 }
