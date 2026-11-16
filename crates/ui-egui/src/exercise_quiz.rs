@@ -437,6 +437,59 @@ fn add_question_menu(app: &mut WordApp, ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
+    use egui_kittest::kittest::Queryable;
+    use serde_json::{Value, json};
+    use wordcraft_engine::Session;
+
+    use crate::WordApp;
+
+    /// A quiz question's row: a click on its text shows and hides what is under it; its own
+    /// settings on the row (the points, the type) are set there, and using them neither goes to
+    /// the row nor is lost to it.
+    #[test]
+    fn a_row_opens_with_a_click_and_its_settings_are_set_on_it() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Intro")), crate::Services::default());
+        app.run("exercise.insert", json!({"kind": "open"})).unwrap();
+        let state = |app: &mut WordApp| app.session.run("exercise.questions", &json!({})).unwrap();
+        if state(&mut app)["questions"].as_array().is_none_or(Vec::is_empty) {
+            app.run("exercise.addQuestion", json!({})).unwrap();
+        }
+        let ex = state(&mut app)["exercise"].as_u64().unwrap();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(600.0, 900.0)).build_ui_state(|ui, app: &mut WordApp| super::pane(app, ui), app);
+        h.run_steps(3);
+        let open = |h: &egui_kittest::Harness<'_, WordApp>| h.ctx.data(|d| d.get_temp::<bool>(super::open_id(ex, 0))).unwrap_or(false);
+        let question = |h: &mut egui_kittest::Harness<'_, WordApp>| -> Value { state(h.state_mut())["questions"][0].clone() };
+        // A click on the row's text shows the details, another hides them.
+        let was = open(&h);
+        let text: String = question(&mut h)["text"].as_str().unwrap_or_default().chars().take(60).collect();
+        let text = if text.is_empty() { tl!("(question not written yet)").to_string() } else { text };
+        h.get_by_label(&text).click();
+        h.run_steps(3);
+        assert_eq!(open(&h), !was, "the row's text toggles the details");
+        if open(&h) {
+            h.get_by_label(&text).click();
+            h.run_steps(3);
+        }
+        assert!(!open(&h));
+        // The points, typed on the row: the row stays as it is.
+        let points = h.query_all_by_role(egui::accesskit::Role::TextInput).next().expect("the points box");
+        points.click();
+        h.run_steps(3);
+        assert!(!open(&h), "a click in the points box is not a click on the row");
+        h.query_all_by_role(egui::accesskit::Role::TextInput).next().unwrap().type_text("3");
+        h.run_steps(2);
+        h.key_press(egui::Key::Tab);
+        h.run_steps(3);
+        assert_eq!(question(&mut h)["points"].as_f64(), Some(3.0), "{}", question(&mut h));
+        // The type, chosen on the row.
+        h.get_by_label(&super::mode_name("open")).click();
+        h.run_steps(3);
+        assert!(!open(&h), "a click on the type is not a click on the row");
+        h.get_by_label(&super::mode_name("calc")).click();
+        h.run_steps(3);
+        assert_eq!(super::mode_of(&question(&mut h)), "calc", "{}", question(&mut h));
+    }
+
     #[test]
     fn sub_questions_sit_deeper_than_their_question() {
         assert_eq!(super::depth("a)"), 0);
