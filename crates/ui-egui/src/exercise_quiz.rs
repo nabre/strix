@@ -173,6 +173,8 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
                 ui.with_layout(near, title);
             });
         }
+        // Where the row itself ends: what is under it is not the row.
+        let row_bottom = ui.min_rect().bottom();
         if open {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
@@ -181,9 +183,14 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
             });
             ui.add_space(4.0);
         }
+        row_bottom
     });
     if quiz {
-        let r = shown_frame.response.interact(egui::Sense::click());
+        // A click on the row shows or hides its details; one among the details (a label there,
+        // the space between two boxes) leaves them open.
+        let mut row = shown_frame.response.rect;
+        row.max.y = row.max.y.min(shown_frame.inner + 3.0);
+        let r = ui.interact(row, shown_frame.response.id.with("row"), egui::Sense::click());
         if r.on_hover_text(tl!("Show this question's settings")).clicked() {
             ui.data_mut(|d| d.insert_temp(open_id(ex, k), !open));
         }
@@ -455,7 +462,8 @@ mod tests {
             app.run("exercise.addQuestion", json!({})).unwrap();
         }
         let ex = state(&mut app)["exercise"].as_u64().unwrap();
-        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(600.0, 900.0)).build_ui_state(|ui, app: &mut WordApp| super::pane(app, ui), app);
+        let mut h =
+            egui_kittest::Harness::builder().with_size(egui::vec2(600.0, 900.0)).build_ui_state(|ui, app: &mut WordApp| super::pane(app, ui), app);
         h.run_steps(3);
         let open = |h: &egui_kittest::Harness<'_, WordApp>| h.ctx.data(|d| d.get_temp::<bool>(super::open_id(ex, 0))).unwrap_or(false);
         let question = |h: &mut egui_kittest::Harness<'_, WordApp>| -> Value { state(h.state_mut())["questions"][0].clone() };
@@ -470,6 +478,16 @@ mod tests {
             h.get_by_label(&text).click();
             h.run_steps(3);
         }
+        assert!(!open(&h));
+        // Shown, a click among the details (a label there) leaves them shown.
+        h.get_by_label(&text).click();
+        h.run_steps(3);
+        assert!(open(&h));
+        h.get_by_label(tl!("Height")).click();
+        h.run_steps(3);
+        assert!(open(&h), "a click among the details is not a click on the row");
+        h.get_by_label(&text).click();
+        h.run_steps(3);
         assert!(!open(&h));
         // The points, typed on the row: the row stays as it is.
         let points = h.query_all_by_role(egui::accesskit::Role::TextInput).next().expect("the points box");
