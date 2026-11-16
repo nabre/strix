@@ -209,7 +209,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("file.exportPack", "Export Assessment Pack", "Teaching › Export", pack::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"path"?: string (directory or .zip file path), "returnBytes"?: bool (returns base64 zip in zipBase64), "includeDsa"?: bool (default true), "includeTeacher"?: bool (default true)} → exports Student PDFs per variant, DSA Student PDFs, and Teacher Key PDF (with Grading Scale and Multi-Variant Synoptic Table)"#),
-        CommandSpec::new("design.dsa", "DSA", "Design › Document Formatting", dsa::command).params(
+        CommandSpec::new("design.dsa", "DSA", "Design › DSA", dsa::command).params(
             r#"{"reading"?: bool (dyslexia: 14 pt, wider letter spacing), "writing"?: bool (dysgraphia: 1 cm graph paper, room under each question), "math"?: bool (dyscalculia, working memory: the data framed), "none"?: true (all off)} → turns those versions on or off; they combine over a common base (13 pt, line spacing 1.5, left aligned, no italics, no hyphenation, each exercise on a new page). Formatting only (styles, hyphenation, the series' page breaks and graph paper), kept in the document so taking it off brings back its own; in a master document the files keep theirs. Without params, the versions on → {"reading", "writing", "math", "on"}"#,
         ),
         CommandSpec::new("archive.scan", "Exercise Bank", "Teaching › Archive", archive_bank::scan).pure()

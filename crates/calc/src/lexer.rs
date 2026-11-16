@@ -47,6 +47,45 @@ pub(crate) enum Tok {
     Nary(char),
     /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`).
     Cmp(char),
+    /// `¦`: the bar-less fraction of a binomial coefficient, `(n¦k)` (Word's linear format).
+    Choose,
+    /// `{`: a grouping bracket, or the brace of cases.
+    LBrace,
+    /// `}`.
+    RBrace,
+    /// `|` (single) or `‖` (double): absolute value, determinant, norm. A built-up equation
+    /// says which side it is (`├|` opens, `|┤` closes); typed alone it is either.
+    Bar {
+        double: bool,
+        side: Side,
+    },
+    /// `⌊` (floor) or `⌈` (ceiling).
+    LFloor(bool),
+    /// `⌋` or `⌉`.
+    RFloor(bool),
+    /// `∛` (3) or `∜` (4): a root with its degree.
+    Root(u8),
+    /// `&`: the degree of a radical before its radicand (`√(3&x)`), a matrix's next column, the
+    /// condition of a case.
+    Amp,
+    /// `@`: the next row of a matrix or of cases.
+    At,
+    /// `■`: a matrix follows, `■(a&b@c&d)`.
+    Matrix,
+    /// `█`: stacked rows follow (the rows of cases), `█(a,&x<0@b,&x≥0)`.
+    Stack,
+    /// `┬`: what follows goes below (`lim┬(x→0)`).
+    Below,
+    /// `→`: the variable of a limit tends to a value.
+    Tends,
+}
+
+/// Which side of its content a bar is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Side {
+    Open,
+    Close,
+    Either,
 }
 
 /// A token with its 0-based character position and byte offset in the statement.
@@ -83,11 +122,24 @@ pub(crate) fn describe(tok: &Tok) -> String {
         Tok::Under => "_".to_string(),
         Tok::Operand => "▒".to_string(),
         Tok::Nary(c) | Tok::Cmp(c) => c.to_string(),
+        Tok::Choose => "¦".to_string(),
+        Tok::LBrace => "{".to_string(),
+        Tok::RBrace => "}".to_string(),
+        Tok::Bar { double, .. } => if *double { "‖" } else { "|" }.to_string(),
+        Tok::LFloor(up) => if *up { "⌈" } else { "⌊" }.to_string(),
+        Tok::RFloor(up) => if *up { "⌉" } else { "⌋" }.to_string(),
+        Tok::Root(n) => if *n == 3 { "∛" } else { "∜" }.to_string(),
+        Tok::Amp => "&".to_string(),
+        Tok::At => "@".to_string(),
+        Tok::Matrix => "■".to_string(),
+        Tok::Stack => "█".to_string(),
+        Tok::Below => "┬".to_string(),
+        Tok::Tends => "→".to_string(),
     }
 }
 
-/// Splits `text` into tokens. With `decimal_comma`, `1,5` is one and a half and only `;`
-/// separates function arguments.
+/// Splits `text` into tokens. With `decimal_comma`, `1,5` is one and a half, so between
+/// two numbers only `;` separates function arguments; a comma that no number takes still does.
 pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcError> {
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let ch = |i: usize| chars.get(i).map(|&(_, c)| c);
@@ -127,7 +179,8 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             }
             c if c.is_alphabetic() => {
                 let mut name = String::new();
-                while let Some(c) = ch(i).filter(|&c| c.is_alphabetic() || c.is_ascii_digit() || c == '_') {
+                // An accent belongs to its letter: `x̅`, `v⃗`, `ẋ` are names.
+                while let Some(c) = ch(i).filter(|&c| c.is_alphabetic() || c.is_ascii_digit() || c == '_' || is_accent(c)) {
                     name.push(c);
                     i += 1;
                 }
@@ -151,8 +204,13 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '+' => Tok::Plus,
             '-' | '\u{2212}' | '\u{2013}' => Tok::Minus,
             '*' | '·' | '×' | '\u{22C5}' | '\u{2219}' => Tok::Star,
-            '/' | '÷' | '\u{2215}' => Tok::Slash,
+            '/' | '÷' | '\u{2215}' | '\u{2044}' => Tok::Slash,
             '^' => Tok::Caret,
+            // A sign alone as a superscript is the side of a limit: `x→0⁺`.
+            '⁺' | '⁻' if next.and_then(sup_digit).is_none() => {
+                out.push(Token { tok: Tok::Caret, pos, byte });
+                if c == '⁺' { Tok::Plus } else { Tok::Minus }
+            }
             c if sup_digit(c).is_some() || (matches!(c, '⁺' | '⁻') && next.and_then(sup_digit).is_some()) => {
                 let (tok, end) = superscript(&chars, i)?;
                 out.push(Token { tok, pos, byte });
@@ -171,8 +229,9 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '∏' => Tok::Nary('∏'),
             // Only a definite integral is calculated; `∫ f dx = F` stays an ordinary equation.
             '∫' if matches!(next, Some('_' | '^')) => Tok::Nary('∫'),
-            ',' if !decimal_comma => Tok::Sep,
-            ';' => Tok::Sep,
+            // With decimal commas a number has taken its own (`1,5`): any other separates, as
+            // after the value of a case (`█(−x,&x<0@…)`).
+            ',' | ';' => Tok::Sep,
             ':' if next == Some('=') => {
                 i += 1;
                 Tok::Define
@@ -192,6 +251,38 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '⩾' => Tok::Cmp('≥'),
             '=' => Tok::Equals,
             '√' => Tok::Sqrt,
+            '∛' => Tok::Root(3),
+            '∜' => Tok::Root(4),
+            '¦' => Tok::Choose,
+            '{' => Tok::LBrace,
+            '}' => Tok::RBrace,
+            // A built-up equation marks a bracket that could be either side: `├|x|┤`.
+            '├' if matches!(next, Some('|' | '‖')) => {
+                i += 1;
+                Tok::Bar { double: next == Some('‖'), side: Side::Open }
+            }
+            '|' | '‖' if next == Some('┤') => {
+                i += 1;
+                Tok::Bar { double: c == '‖', side: Side::Close }
+            }
+            '|' | '‖' => Tok::Bar { double: c == '‖', side: Side::Either },
+            // The markers alone (`├{█(…)┤`, a brace on one side) only say a bracket follows.
+            '├' | '┤' => {
+                i += 1;
+                continue;
+            }
+            '⌊' => Tok::LFloor(false),
+            '⌈' => Tok::LFloor(true),
+            '⌋' => Tok::RFloor(false),
+            '⌉' => Tok::RFloor(true),
+            '&' => Tok::Amp,
+            '@' => Tok::At,
+            '■' => Tok::Matrix,
+            '█' => Tok::Stack,
+            '┬' => Tok::Below,
+            '→' => Tok::Tends,
+            // Infinity is a number no arithmetic takes: only a limit of an integral reads it.
+            '∞' => Tok::Num(f64::INFINITY),
             '⚠' => Tok::Warn,
             other => return Err(CalcError::syntax(pos, format!("unexpected character {other}"))),
         };
@@ -241,6 +332,11 @@ fn number(chars: &[(usize, char)], start: usize, decimal_comma: bool) -> Result<
     }
     let value: f64 = text.parse().map_err(|_| CalcError::syntax(start, "malformed number"))?;
     Ok((Tok::Num(finite(value)?), i))
+}
+
+/// A combining accent of the Equation tab's Accent gallery (dot, bar, hat, arrow…).
+fn is_accent(c: char) -> bool {
+    matches!(c, '\u{300}'..='\u{36F}' | '\u{20D0}'..='\u{20F0}')
 }
 
 fn sup_digit(c: char) -> Option<i32> {

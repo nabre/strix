@@ -20,7 +20,7 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
 - Calculations with one `=` (docs/calc.md): unknown detected and solved (symbolic isolation,
   else numeric with the smallest non-negative root), checks `a = b` and comparisons `≤ ≥ < > ≠`
   with ✓/✗; Σ/∏, ranges, vectors; calculated tables (`TableProps::calc`, `strix:calc` on
-  `w:tblPr`, Table Layout › Data › Calculated Table); number format (`calc.options`: digits 3,
+  `w:tblPr`, Math › Tables › Calculated Table, then the contextual Calculated Table tab); number format (`calc.options`: digits 3,
   auto/decimals/significant, zeros, half-away rounding, scientific ≥1e7 / <1e-3); working units
   (last unit written per kind); unit-case hints; Math tab (keytip C); `*` types `·` in equations.
 - `strix-cad` stage 1 (docs/cad.md): drawing model, coordinates as expressions of calc

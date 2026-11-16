@@ -146,7 +146,7 @@ fn a_built_up_inverse_sine_is_worked_out() {
     run(&mut plain, "calc.recalculate", json!({}));
     let last = last_shown(&plain);
     assert!(last.starts_with("α=sin^(−1)\u{2061}") && last.ends_with("=30°"), "{last}");
-    // The steps write the inverse as `asin` (built up as a function, with its application mark).
-    assert!(last.contains("=asin\u{2061}(((3m)-(1m))/((3m)+(1m)))=30°"), "{last}");
+    // The steps write the inverse as it is written, the −1 on the function's name.
+    assert!(last.contains("=sin^(−1)\u{2061}(((3m)-(1m))/((3m)+(1m)))=30°"), "{last}");
     assert!(run(&mut plain, "calc.recalculate", json!({}))["errors"].as_array().unwrap().is_empty());
 }

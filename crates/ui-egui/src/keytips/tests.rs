@@ -101,6 +101,23 @@ fn tab_letters_match_word() {
     assert_eq!(tab_letter("Help"), "Y");
     assert_eq!(tab_letter("Table Design"), "JT");
     assert_eq!(tab_letter("Table Layout"), "JL");
+    assert_eq!(tab_letter("Calculated Table"), "JC");
+}
+
+/// A calculated table's own tab has its badge while the cursor is in one: Alt, J, C.
+#[test]
+fn alt_j_c_opens_the_calculated_table_tab() {
+    let mut a = app();
+    a.run("insert.table", serde_json::json!({"rows": 2, "cols": 2})).unwrap();
+    assert!(!badge_tabs(&a).contains(&"Calculated Table"));
+    a.run("table.calc", serde_json::json!({"value": true})).unwrap();
+    assert!(badge_tabs(&a).contains(&"Calculated Table"));
+    a.run("ui.tab", serde_json::json!({"tab": "Home"})).unwrap();
+    activate(&mut a);
+    assert!(handle_key(&mut a, egui::Key::J));
+    assert!(handle_key(&mut a, egui::Key::C));
+    assert_eq!((a.ui.tab.as_str(), a.ui.keytips), ("Calculated Table", Phase::Commands));
+    assert!(!letters_for(&a, "Calculated Table").is_empty());
 }
 
 #[test]

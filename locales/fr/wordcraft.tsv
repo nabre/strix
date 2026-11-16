@@ -2951,11 +2951,9 @@ paper	Envelope DL	Enveloppe DL
 	Decide Later	Décider plus tard
 	Objects Changed in Another Program	Objets modifiés dans un autre programme
 	DSA	TSA
-	Reading (dyslexia)	Lecture (dyslexie)
-	Writing (dysgraphia)	Écriture (dysgraphie)
-	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
-	No DSA Formatting	Aucune mise en forme TSA
-	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
+	Reading\n(dyslexia)	Lecture\n(dyslexie)
+	Writing\n(dysgraphia)	Écriture\n(dysgraphie)
+	Maths and Memory\n(dyscalculia)	Calcul et mémoire\n(dyscalculie)
 	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, texte à trous, tableau à compléter
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
@@ -3305,3 +3303,5 @@ paper	Envelope DL	Enveloppe DL
 	Reference line, text side	Trait de référence, côté texte
 	Reference line, other side	Trait de référence, côté opposé
 	0: automatic (the triangle height)	0 : automatique (la hauteur du triangle)
+	Symbols Pane	Volet Symboles
+	Close\nEquation	Fermer\nl’équation

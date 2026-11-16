@@ -13,11 +13,17 @@
 //! exponent = ("-" | "+") exponent | power
 //! postfix  = primary ("¹" | "²" | "³" | "[" full "]")*
 //! primary  = number | name | function "(" args ")" | user "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
+//!          | "(" full "¦" full ")"               a binomial coefficient, n over k
 //!          | "√" postfix | nary
 //! nary     = ("∑" | "∏") ("_" lower)? ("^" postfix)? "▒"? term      the operand spans · and /
-//!          | "∫" "_" limit "^" limit "▒"? term (("+" | "-") term)*   up to the differential `dx`
+//!          | "∫" "_" limit "^" limit "▒"? term (("+" | "-") term)*   up to the differential `dx`;
+//!                                                a limit may be `∞` or `-∞`
 //! lower    = "(" name "=" full ")" | name
 //! ```
+//!
+//! The structures of the Equation tab are read as they are written (`structures.rs`): `|x|`,
+//! `‖v‖`, `⌊x⌋`, `⌈x⌉`, `{…}`, `√(n&x)`, `log_b⁡x`, `lim┬(x→a)⁡…`, `■(a&b@c&d)` and the cases
+//! `{█(a,&x<0@b,&x≥0)┤`.
 //!
 //! Implicit multiplication binds tighter than `/` so `12 kN/m` is `(12·kN)/m` (see the crate
 //! docs). Nesting is capped by [`MAX_DEPTH`] and size by [`MAX_NODES`].
@@ -46,20 +52,51 @@ pub(crate) enum Func {
     Sin,
     Cos,
     Tan,
+    Csc,
+    Sec,
+    Cot,
     Asin,
     Acos,
     Atan,
+    Acsc,
+    Asec,
+    Acot,
     Atan2,
     Sinh,
     Cosh,
     Tanh,
+    Csch,
+    Sech,
+    Coth,
     Asinh,
     Acosh,
     Atanh,
+    Acsch,
+    Asech,
+    Acoth,
+    /// `‖v‖`: the length of a vector (of a number, its absolute value).
+    Norm,
+    /// A matrix as written, `■(a&b@c&d)`: the number of columns, then the cells row by row.
+    Matrix,
+    /// `|■(a&b@c&d)|`: the determinant; arguments as [`Func::Matrix`].
+    Det,
+    /// Cases, `{█(a,&x<0@b,&x≥0)┤`: each value followed by its condition.
+    Cases,
+    /// The comparisons of a case's condition (1 when it holds, else 0) and several at once
+    /// (`0≤x≤1`).
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Ne,
+    Eq,
+    All,
     Gcd,
     Lcm,
     Fact,
     Binom,
+    /// [`Func::Binom`] written as a coefficient, `(n¦k)`: the same value, shown as written.
+    Choose,
     Min,
     Max,
     Round,
@@ -97,19 +134,34 @@ impl Func {
             "ln" => Func::Ln,
             "log" => Func::Log,
             "log2" => Func::Log2,
-            "sin" => Func::Sin,
+            // The Italian names too: `sen`, `tg`, `cotg`, `cosec`.
+            "sin" | "sen" => Func::Sin,
             "cos" => Func::Cos,
-            "tan" => Func::Tan,
-            "asin" | "arcsin" => Func::Asin,
+            "tan" | "tg" => Func::Tan,
+            "csc" | "cosec" => Func::Csc,
+            "sec" => Func::Sec,
+            "cot" | "cotg" | "ctg" => Func::Cot,
+            "asin" | "arcsin" | "arcsen" => Func::Asin,
             "acos" | "arccos" => Func::Acos,
-            "atan" | "arctan" => Func::Atan,
+            "atan" | "arctan" | "arctg" => Func::Atan,
+            "acsc" | "arccsc" | "arccosec" => Func::Acsc,
+            "asec" | "arcsec" => Func::Asec,
+            "acot" | "arccot" | "arccotg" | "arcctg" => Func::Acot,
             "atan2" => Func::Atan2,
-            "sinh" => Func::Sinh,
+            "sinh" | "senh" => Func::Sinh,
             "cosh" => Func::Cosh,
-            "tanh" => Func::Tanh,
+            "tanh" | "tgh" => Func::Tanh,
+            "csch" => Func::Csch,
+            "sech" => Func::Sech,
+            "coth" => Func::Coth,
             "asinh" | "arsinh" | "arcsinh" => Func::Asinh,
             "acosh" | "arcosh" | "arccosh" => Func::Acosh,
             "atanh" | "artanh" | "arctanh" => Func::Atanh,
+            "acsch" | "arcsch" | "arccsch" => Func::Acsch,
+            "asech" | "arsech" | "arcsech" => Func::Asech,
+            "acoth" | "arcoth" | "arccoth" => Func::Acoth,
+            "norm" => Func::Norm,
+            "det" => Func::Det,
             "gcd" | "mcd" => Func::Gcd,
             "lcm" | "mcm" => Func::Lcm,
             "fact" => Func::Fact,
@@ -155,20 +207,44 @@ impl Func {
             Func::Sin => "sin",
             Func::Cos => "cos",
             Func::Tan => "tan",
-            Func::Asin => "asin",
-            Func::Acos => "acos",
-            Func::Atan => "atan",
+            Func::Csc => "csc",
+            Func::Sec => "sec",
+            Func::Cot => "cot",
+            // An inverse is named as it is written (Equation › Function › Inverse Functions).
+            Func::Asin => "sin⁻¹",
+            Func::Acos => "cos⁻¹",
+            Func::Atan => "tan⁻¹",
+            Func::Acsc => "csc⁻¹",
+            Func::Asec => "sec⁻¹",
+            Func::Acot => "cot⁻¹",
             Func::Atan2 => "atan2",
             Func::Sinh => "sinh",
             Func::Cosh => "cosh",
             Func::Tanh => "tanh",
-            Func::Asinh => "asinh",
-            Func::Acosh => "acosh",
-            Func::Atanh => "atanh",
+            Func::Csch => "csch",
+            Func::Sech => "sech",
+            Func::Coth => "coth",
+            Func::Asinh => "sinh⁻¹",
+            Func::Acosh => "cosh⁻¹",
+            Func::Atanh => "tanh⁻¹",
+            Func::Acsch => "csch⁻¹",
+            Func::Asech => "sech⁻¹",
+            Func::Acoth => "coth⁻¹",
+            Func::Norm => "norm",
+            Func::Matrix => "matrix",
+            Func::Det => "det",
+            Func::Cases => "cases",
+            Func::Lt => "<",
+            Func::Le => "≤",
+            Func::Gt => ">",
+            Func::Ge => "≥",
+            Func::Ne => "≠",
+            Func::Eq => "=",
+            Func::All => "and",
             Func::Gcd => "gcd",
             Func::Lcm => "lcm",
             Func::Fact => "fact",
-            Func::Binom => "binom",
+            Func::Binom | Func::Choose => "binom",
             Func::Min => "min",
             Func::Max => "max",
             Func::Round => "round",
@@ -195,11 +271,41 @@ impl Func {
             Func::Sin => Func::Asin,
             Func::Cos => Func::Acos,
             Func::Tan => Func::Atan,
+            Func::Csc => Func::Acsc,
+            Func::Sec => Func::Asec,
+            Func::Cot => Func::Acot,
             Func::Sinh => Func::Asinh,
             Func::Cosh => Func::Acosh,
             Func::Tanh => Func::Atanh,
+            Func::Csch => Func::Acsch,
+            Func::Sech => Func::Asech,
+            Func::Coth => Func::Acoth,
             _ => return None,
         })
+    }
+
+    /// The function an inverse undoes, when `self` is one (`sin` for `sin⁻¹`).
+    pub(crate) fn inverse_of(self) -> Option<Func> {
+        Some(match self {
+            Func::Asin => Func::Sin,
+            Func::Acos => Func::Cos,
+            Func::Atan => Func::Tan,
+            Func::Acsc => Func::Csc,
+            Func::Asec => Func::Sec,
+            Func::Acot => Func::Cot,
+            Func::Asinh => Func::Sinh,
+            Func::Acosh => Func::Cosh,
+            Func::Atanh => Func::Tanh,
+            Func::Acsch => Func::Csch,
+            Func::Asech => Func::Sech,
+            Func::Acoth => Func::Coth,
+            _ => return None,
+        })
+    }
+
+    /// An inverse trigonometric function: its result is an angle.
+    pub(crate) fn gives_angle(self) -> bool {
+        matches!(self, Func::Asin | Func::Acos | Func::Atan | Func::Acsc | Func::Asec | Func::Acot | Func::Atan2)
     }
 
     pub(crate) fn is_rounding(self) -> bool {
@@ -291,11 +397,33 @@ pub(crate) fn parse_names(
 
 type R<T> = Result<T, CalcError>;
 
-struct Parser<'a> {
-    toks: &'a [Token],
-    i: usize,
+/// True for one value as a vector lists it: a number, a name, either with a sign, a unit or an
+/// index (`5`, `x`, `−3`, `5 kN`, `F[2]`), not an expression to work out (`2 + 4`).
+fn one_value(expr: &Expr) -> bool {
+    match expr {
+        Expr::Num(_) | Expr::Name(_) => true,
+        Expr::Neg(inner) => one_value(inner),
+        Expr::Index(base, _) => one_value(base),
+        Expr::Bin(BinOp::Mul | BinOp::Div, value, unit) => one_value(value) && units_only(unit),
+        _ => false,
+    }
+}
+
+/// True when `expr` is made of units alone (`kN`, `m/s²`).
+fn units_only(expr: &Expr) -> bool {
+    match expr {
+        Expr::Unit(_) => true,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, b) => units_only(a) && units_only(b),
+        Expr::Bin(BinOp::Pow, base, exponent) => units_only(base) && crate::format::is_numeric(exponent),
+        _ => false,
+    }
+}
+
+pub(crate) struct Parser<'a> {
+    pub(crate) toks: &'a [Token],
+    pub(crate) i: usize,
     depth: usize,
-    nodes: usize,
+    pub(crate) nodes: usize,
     end_pos: usize,
     is_func: &'a dyn Fn(&str) -> bool,
     is_vec: &'a dyn Fn(&str) -> bool,
@@ -304,19 +432,19 @@ struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    fn peek(&self) -> Option<&Tok> {
+    pub(crate) fn peek(&self) -> Option<&Tok> {
         self.toks.get(self.i).map(|t| &t.tok)
     }
 
-    fn pos(&self) -> usize {
+    pub(crate) fn pos(&self) -> usize {
         self.toks.get(self.i).map_or(self.end_pos, |t| t.pos)
     }
 
-    fn bump(&mut self) {
+    pub(crate) fn bump(&mut self) {
         self.i = self.i.saturating_add(1);
     }
 
-    fn node(&mut self, expr: Expr) -> R<Expr> {
+    pub(crate) fn node(&mut self, expr: Expr) -> R<Expr> {
         self.nodes = self.nodes.saturating_add(1);
         if self.nodes > MAX_NODES { Err(CalcError::TooComplex) } else { Ok(expr) }
     }
@@ -326,7 +454,7 @@ impl Parser<'_> {
     }
 
     /// Runs `f` one nesting level deeper.
-    fn nested<T>(&mut self, f: impl FnOnce(&mut Self) -> R<T>) -> R<T> {
+    pub(crate) fn nested<T>(&mut self, f: impl FnOnce(&mut Self) -> R<T>) -> R<T> {
         self.depth = self.depth.saturating_add(1);
         if self.depth > MAX_DEPTH {
             return Err(CalcError::TooComplex);
@@ -336,7 +464,7 @@ impl Parser<'_> {
         result
     }
 
-    fn expect(&mut self, tok: Tok, what: &str) -> R<()> {
+    pub(crate) fn expect(&mut self, tok: Tok, what: &str) -> R<()> {
         if self.peek() == Some(&tok) {
             self.bump();
             Ok(())
@@ -345,7 +473,7 @@ impl Parser<'_> {
         }
     }
 
-    fn full(&mut self) -> R<Expr> {
+    pub(crate) fn full(&mut self) -> R<Expr> {
         let from = self.expr()?;
         if !matches!(self.peek(), Some(Tok::Range)) {
             return Ok(from);
@@ -355,7 +483,7 @@ impl Parser<'_> {
         self.node(Expr::Range(Box::new(from), Box::new(to)))
     }
 
-    fn expr(&mut self) -> R<Expr> {
+    pub(crate) fn expr(&mut self) -> R<Expr> {
         let mut left = self.term()?;
         loop {
             if matches!(self.peek(), Some(Tok::PlusMinus)) {
@@ -393,7 +521,7 @@ impl Parser<'_> {
         }
     }
 
-    fn term(&mut self) -> R<Expr> {
+    pub(crate) fn term(&mut self) -> R<Expr> {
         let mut left = self.unary()?;
         loop {
             let op = match self.peek() {
@@ -436,7 +564,7 @@ impl Parser<'_> {
             let unit = self.unit_chain()?;
             left = self.bin(BinOp::Mul, left, unit)?;
         }
-        while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt | Tok::Nary(_))) {
+        while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt | Tok::Nary(_))) || self.opens_structure() {
             let right = self.power()?;
             left = self.bin(BinOp::Mul, left, right)?;
         }
@@ -445,7 +573,7 @@ impl Parser<'_> {
 
     /// True when token `i` starts a unit factor (a unit name, or a parenthesised compound unit
     /// like `(kg·°C)` or `(m²)`).
-    fn unit_at(&self, i: usize) -> bool {
+    pub(crate) fn unit_at(&self, i: usize) -> bool {
         match self.toks.get(i).map(|t| &t.tok) {
             Some(Tok::Ident(name)) => {
                 let next = self.toks.get(i + 1).map(|t| &t.tok);
@@ -491,7 +619,7 @@ impl Parser<'_> {
 
     /// Units multiplied, divided and raised to powers: `kN·m`, `m/s²`, `kg m^-3`. Stops at
     /// anything that isn't a unit (`2 m·a` is two metres times `a`).
-    fn unit_chain(&mut self) -> R<Expr> {
+    pub(crate) fn unit_chain(&mut self) -> R<Expr> {
         let mut e = self.unit_factor()?;
         loop {
             match self.peek() {
@@ -554,7 +682,7 @@ impl Parser<'_> {
         }
     }
 
-    fn power(&mut self) -> R<Expr> {
+    pub(crate) fn power(&mut self) -> R<Expr> {
         let base = self.postfix()?;
         if matches!(self.peek(), Some(Tok::Caret)) {
             self.bump();
@@ -579,7 +707,7 @@ impl Parser<'_> {
         }
     }
 
-    fn postfix(&mut self) -> R<Expr> {
+    pub(crate) fn postfix(&mut self) -> R<Expr> {
         let mut expr = self.primary()?;
         loop {
             match self.peek() {
@@ -616,6 +744,9 @@ impl Parser<'_> {
             }
             Tok::Ident(name) => {
                 self.bump();
+                if let Some(expr) = self.named_structure(name)? {
+                    return Ok(expr);
+                }
                 // `sin⁻¹(x)`, `sin^(-1)⁡x`: the inverse function (`asin`); `sin²(x)`: `sin(x)²`.
                 if let Some(func) = Func::from_name(name).filter(|f| f.inverse().is_some())
                     && let Some((power, after)) = self.function_power()
@@ -664,12 +795,28 @@ impl Parser<'_> {
             Tok::LParen => {
                 self.bump();
                 let inner = self.nested(Self::full)?;
+                // `(n¦k)`: a binomial coefficient, as an equation writes it.
+                if matches!(self.peek(), Some(Tok::Choose)) {
+                    self.bump();
+                    let lower = self.nested(Self::full)?;
+                    self.expect(Tok::RParen, ")")?;
+                    return self.node(Expr::Call(Func::Choose, vec![inner, lower]));
+                }
                 self.expect(Tok::RParen, ")")?;
                 Ok(inner)
             }
             Tok::LBracket => {
                 self.bump();
-                let items = self.nested(Self::items)?;
+                let mut items = self.nested(Self::items)?;
+                // Square brackets round an expression group like round ones (`[(2 + 3)·4 − 1]·2`),
+                // and so do those round a vector (`[■(1@2)]`); one value alone is a vector of one
+                // element (`[5]`, `[5 kN]`, `[x]`, `[−3]`).
+                if let [only] = items.as_slice()
+                    && !matches!(only, Expr::Range(..))
+                    && !one_value(only)
+                {
+                    return Ok(items.swap_remove(0));
+                }
                 self.node(Expr::Vector(items))
             }
             &Tok::Nary(op) => {
@@ -678,9 +825,13 @@ impl Parser<'_> {
             }
             Tok::Sqrt => {
                 self.bump();
+                if let Some(root) = self.root_with_degree()? {
+                    return Ok(root);
+                }
                 let arg = self.nested(Self::postfix)?;
                 self.node(Expr::Call(Func::Sqrt, vec![arg]))
             }
+            Tok::LBrace | Tok::Bar { .. } | Tok::LFloor(_) | Tok::Root(_) | Tok::Matrix | Tok::Stack => self.nested(Self::structure),
             other => Err(CalcError::syntax(pos, format!("expected a value, found {}", describe(other)))),
         }
     }
@@ -790,7 +941,7 @@ impl Parser<'_> {
     }
 
     /// A limit of an integral: a signed postfix (`0`, `-1`, `π`, `(a+b)`).
-    fn limit(&mut self) -> R<Expr> {
+    pub(crate) fn limit(&mut self) -> R<Expr> {
         match self.peek() {
             Some(Tok::Minus) => {
                 self.bump();
@@ -826,11 +977,30 @@ impl Parser<'_> {
 
     /// A function's arguments: `(a; b)`, or after Word's function application `⁡(a)` or `⁡x`
     /// (an operand up to its power: `sin⁡x²` is `sin(x²)`).
-    fn function_args(&mut self) -> R<Vec<Expr>> {
+    pub(crate) fn function_args(&mut self) -> R<Vec<Expr>> {
         if matches!(self.peek(), Some(Tok::Operand)) {
             self.bump();
             if !matches!(self.peek(), Some(Tok::LParen)) {
-                return Ok(vec![self.nested(Self::power)?]);
+                // A number takes what is written against it, as the linear format has it: its
+                // unit (`sin⁡30°`) or the one factor it is the coefficient of (`cos⁡2x` is
+                // `cos(2·x)`). A name is the whole operand: `sin⁡α L` is `sin(α)·L`, as the
+                // built-up equation shows it.
+                let mut arg = self.nested(Self::power)?;
+                if crate::format::is_numeric(&arg) {
+                    if self.unit_at(self.i) {
+                        let unit = self.unit_chain()?;
+                        arg = self.bin(BinOp::Mul, arg, unit)?;
+                    } else if let Some(Tok::Ident(name)) = self.peek()
+                        && Func::from_name(name).is_none()
+                        && !(self.is_func)(name)
+                        && !name.starts_with("log_")
+                        && !name.starts_with("lim")
+                    {
+                        let right = self.nested(Self::power)?;
+                        arg = self.bin(BinOp::Mul, arg, right)?;
+                    }
+                }
+                return Ok(vec![arg]);
             }
         }
         match self.peek() {

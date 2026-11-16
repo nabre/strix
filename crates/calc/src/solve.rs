@@ -35,24 +35,36 @@ pub(crate) enum SymbolicKind {
 
 /// The names `expr` reads that are not bound by a `∑`/`∏` inside it, in first-use order.
 pub(crate) fn free_names(expr: &Expr, out: &mut Vec<String>) {
-    fn walk(expr: &Expr, bound: &mut Vec<String>, out: &mut Vec<String>) {
+    free_names_where(expr, &|_| false, out);
+}
+
+/// [`free_names`] for a reader that knows which names are `defined`: `x_i` under a sum over `i`
+/// is that name when it is defined (as the evaluation reads it), else the vector `x`.
+pub(crate) fn free_names_where(expr: &Expr, defined: &dyn Fn(&str) -> bool, out: &mut Vec<String>) {
+    fn walk(expr: &Expr, defined: &dyn Fn(&str) -> bool, bound: &mut Vec<String>, out: &mut Vec<String>) {
         match expr {
             Expr::Num(_) | Expr::Unit(_) => {}
             Expr::Name(n) => {
-                if !bound.contains(n) && !out.contains(n) {
-                    out.push(n.clone());
+                // `x_i` under a sum over `i` reads the vector `x` (its element `i`), not a name of
+                // its own, unless there is such a name.
+                let n = match n.split_once('_') {
+                    Some((base, index)) if !base.is_empty() && bound.iter().any(|b| b == index) && !defined(n) => base,
+                    _ => n.as_str(),
+                };
+                if !bound.iter().any(|b| b == n) && !out.iter().any(|o| o == n) {
+                    out.push(n.to_string());
                 }
             }
-            Expr::Neg(e) => walk(e, bound, out),
+            Expr::Neg(e) => walk(e, defined, bound, out),
             Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
-                walk(a, bound, out);
-                walk(b, bound, out);
+                walk(a, defined, bound, out);
+                walk(b, defined, bound, out);
             }
-            Expr::Call(f, args) if f.is_rounding() => args.iter().take(2).for_each(|a| walk(a, bound, out)),
-            Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(a, bound, out)),
+            Expr::Call(f, args) if f.is_rounding() => args.iter().take(2).for_each(|a| walk(a, defined, bound, out)),
+            Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(a, defined, bound, out)),
             Expr::Nary(n) => {
                 for e in [&n.from, &n.to].into_iter().flatten() {
-                    walk(e, bound, out);
+                    walk(e, defined, bound, out);
                 }
                 // A variable iterated without limits is read (its values); with limits it is bound.
                 if let Some(var) = &n.var {
@@ -60,15 +72,15 @@ pub(crate) fn free_names(expr: &Expr, out: &mut Vec<String>) {
                         out.push(var.clone());
                     }
                     bound.push(var.clone());
-                    walk(&n.body, bound, out);
+                    walk(&n.body, defined, bound, out);
                     bound.pop();
                 } else {
-                    walk(&n.body, bound, out);
+                    walk(&n.body, defined, bound, out);
                 }
             }
         }
     }
-    walk(expr, &mut Vec::new(), out);
+    walk(expr, defined, &mut Vec::new(), out);
 }
 
 /// How many times `expr` reads `x`.
@@ -179,6 +191,8 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                         Func::Asinh => call(Func::Sinh, other),
                         Func::Acosh => call(Func::Cosh, other),
                         Func::Atanh => call(Func::Tanh, other),
+                        Func::Csc | Func::Sec | Func::Cot | Func::Csch | Func::Sech | Func::Coth => call(f.inverse()?, other),
+                        Func::Acsc | Func::Asec | Func::Acot | Func::Acsch | Func::Asech | Func::Acoth => call(f.inverse_of()?, other),
                         _ => return None,
                     };
                     side = arg;

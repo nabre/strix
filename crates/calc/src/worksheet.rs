@@ -5,7 +5,7 @@ use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{BinOp, Expr, Func, parse, parse_env, parse_with};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, isolate, isolate_steps, numeric, solve_symbolic};
+use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, isolate, isolate_steps, numeric, solve_symbolic};
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
@@ -271,7 +271,8 @@ impl Worksheet {
         if known && (worked || result) {
             return None;
         }
-        if let Some(t) = body.iter().find(|t| matches!(t.tok, Tok::Equals | Tok::Define | Tok::Cmp(_))) {
+        // Outside brackets: the conditions of cases (`{█(−x,&x<0@x,&x≥0)┤`) compare inside theirs.
+        if let Some(t) = positions(body, |t| matches!(t, Tok::Equals | Tok::Define | Tok::Cmp(_))).first().and_then(|&i| body.get(i)) {
             self.scope.remove_function(&name);
             return Some(failed(CalcError::syntax(t.pos, "a function definition has one = (call it later to show a value: f(3) =)")));
         }
@@ -883,9 +884,7 @@ impl Worksheet {
             _ => return None,
         };
         let keep = *equals.get(own - 1)?;
-        if equals.len() <= own {
-            return None;
-        }
+        let end = tokens.get(keep)?.byte + 1;
         let mut parts: Vec<&[Token]> = Vec::new();
         let mut start = keep + 1;
         for &e in equals.iter().skip(own) {
@@ -893,11 +892,31 @@ impl Worksheet {
             start = e + 1;
         }
         parts.push(tokens.get(start..)?);
-        let (last, working) = parts.split_last()?;
-        if last.is_empty() || !(units_only(last) || self.is_working(last)) || !working.iter().all(|p| self.is_working(p)) {
+        let result = |last: &[Token], working: &[&[Token]]| {
+            !last.is_empty() && (units_only(last) || self.is_working(last)) && working.iter().all(|p| self.is_working(p))
+        };
+        // The closed form of the statement's sums, written first (`∑… = (x + a)^n`, then its
+        // values and the result when they are known): ours too.
+        let formula = tokens.get(own_formula(&defines, first, own)..keep)?;
+        let len = text.chars().count();
+        if let Some((closed, rest)) = parts.split_first()
+            && !closed.is_empty()
+            && let Some(form) = self.parse_expr(formula, len).ok().and_then(|f| crate::series::closed_form(&f))
+            && self.parse_expr(closed, len).is_ok_and(|e| render(&e) == render(&form))
+        {
+            return match rest.split_last() {
+                None => Some(text.get(..end)?.to_string()),
+                Some((last, working)) if result(last, working) => Some(format!("{} {}", text.get(..end)?, text.get(last.first()?.byte..)?)),
+                Some(_) => None,
+            };
+        }
+        if equals.len() <= own {
             return None;
         }
-        let end = tokens.get(keep)?.byte + 1;
+        let (last, working) = parts.split_last()?;
+        if !result(last, working) {
+            return None;
+        }
         let from = last.first()?.byte;
         Some(format!("{} {}", text.get(..end)?, text.get(from..)?))
     }
@@ -905,10 +924,13 @@ impl Worksheet {
     /// True when `part` is a step of our own working: numbers with units, constants and
     /// functions, and no parameter (`(12 kN/m)·(4.5 m)²/8`, `5 m·0.3 m`).
     fn is_working(&self, part: &[Token]) -> bool {
+        // The conditions of cases compare inside their brackets (`{█(0,&3<0@9,&otherwise)┤`).
+        let outside = positions(part, |t| matches!(t, Tok::Equals | Tok::Cmp(_)));
         part.iter().any(|t| matches!(t.tok, Tok::Num(_)))
+            && outside.is_empty()
             && part.iter().all(|t| match &t.tok {
                 Tok::Ident(n) => self.scope.get(n).is_none() || unit(n).is_some(),
-                Tok::Warn | Tok::Define | Tok::Equals | Tok::Cmp(_) => false,
+                Tok::Warn | Tok::Define => false,
                 _ => true,
             })
     }
@@ -973,6 +995,17 @@ impl Worksheet {
         (worked != Self::with_common_units(f, &[], &|_| None)).then_some(worked)
     }
 
+    /// The working of formula `f`, worth `value`, before its result: the closed form of its sums
+    /// (`(x + a)^n` for a binomial sum), shown when it gives the very value the terms add up
+    /// to, then the values substituted. Empty when there is nothing to show.
+    fn working(&self, f: &Expr, skip: Option<&str>, value: &Value) -> Vec<String> {
+        let closed =
+            crate::series::closed_form(f).filter(|c| eval(c, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok()));
+        let mut lines: Vec<String> = closed.iter().map(render).collect();
+        lines.extend(self.substituted(closed.as_ref().unwrap_or(f), skip));
+        lines
+    }
+
     /// Parameter `name`'s value as a substitution writes it: in parentheses when it has a unit,
     /// a sign or a power of ten, so the line reads unambiguously (`(12 kN/m)`, `2`). `None` for
     /// `skip` (the unknown) and names that are not parameters.
@@ -988,7 +1021,7 @@ impl Worksheet {
     /// True when `expr` reads a parameter other than `x` (`h·r`, not `3 m·5 m`).
     fn reads_parameter(&self, expr: &Expr, x: &str) -> bool {
         let mut names = Vec::new();
-        free_names(expr, &mut names);
+        free_names_where(expr, &|n| self.scope.get(n).is_some(), &mut names);
         names.iter().any(|n| n != x && self.scope.get(n).is_some())
     }
 
@@ -1087,12 +1120,26 @@ impl Worksheet {
     /// that a name alone on a side is unknown whenever it is not a parameter (`m = 3 kg` defines
     /// `m` although `m` is also the metre).
     fn unknowns(&self, lhs: &Expr, rhs: &Expr) -> Vec<String> {
+        let defined = |n: &str| self.scope.get(n).is_some();
         let mut names = Vec::new();
-        free_names(lhs, &mut names);
-        free_names(rhs, &mut names);
-        let alone = |e: &Expr, n: &str| matches!(e, Expr::Name(m) if m == n);
-        names.retain(|n| self.scope.get(n).is_none() && Func::from_name(n).is_none() && (alone(lhs, n) || alone(rhs, n) || constant(n).is_none()));
+        free_names_where(lhs, &defined, &mut names);
+        free_names_where(rhs, &defined, &mut names);
+        let alone = |n: &str| [lhs, rhs].iter().any(|e| matches!(e, Expr::Name(m) if m == n));
+        names.retain(|n| {
+            // A function's name alone on a side is a name like any other (`det = a·d − b·c`),
+            // unless it is a unit too (`α = arcsec`).
+            let function = Func::from_name(n).is_some() && !(alone(n) && unit(n).is_none());
+            !defined(n) && !function && (alone(n) || (constant(n).is_none() && !self.element(n)))
+        });
         names
+    }
+
+    /// True when the undefined name `n` reads an element of a vector by its subscript (`x_2`,
+    /// `x_k` with `k` a number), as the evaluation does.
+    fn element(&self, n: &str) -> bool {
+        let Some((base, index)) = n.split_once('_') else { return false };
+        matches!(self.scope.get(base), Some(Value::Vector(_)))
+            && (index.parse::<u32>().is_ok() || matches!(self.scope.get(index), Some(Value::Scalar(q)) if q.dim.is_dimensionless()))
     }
 
     /// An equation `lhs = rhs`, with `parts` the token ranges between its `=` signs.
@@ -1137,6 +1184,11 @@ impl Worksheet {
             text.get(..byte).unwrap_or(text).trim().to_string()
         };
         let unknowns = self.unknowns(&lhs, &rhs);
+        // An identity written out (`(x + a)^n = ∑_(k=0)^n▒(n¦k)·x^k·a^(n-k)`) holds whatever its
+        // names are worth: nothing to solve, nothing to report.
+        if !unknowns.is_empty() && !shows && crate::series::identity(&lhs, &rhs) {
+            return RegionResult { kind: RegionKind::Check, ..RegionResult::not_calc() };
+        }
         match unknowns.as_slice() {
             [] => {
                 let a = eval(&lhs, &self.scope, Names::Worksheet);
@@ -1236,8 +1288,11 @@ impl Worksheet {
         let name = || Some(x.to_string());
         match solution {
             Solution::Direct(f) => {
-                let worked = self.substituted(f, Some(x))?;
-                Some(vec![Line::Same(None, worked), Line::Same(None, result)])
+                let worked = self.working(f, Some(x), v);
+                if worked.is_empty() {
+                    return None;
+                }
+                Some(worked.into_iter().chain([result]).map(|line| Line::Same(None, line)).collect())
             }
             Solution::Isolated(f, rows) => {
                 let mut lines: Vec<Line> = rows.iter().map(|(side, other)| Line::New(format!("{} = {}", render(side), render(other)))).collect();
@@ -1454,14 +1509,33 @@ impl Worksheet {
         self.remember_unit(rhs, len);
         let (value, display, error) = self.show(left_text, left, eq_token.pos, rhs, len);
         let mut result = RegionResult { kind: RegionKind::Evaluation, name: None, value, display: None, error, steps: None, numeric: false };
-        // With steps: the values substituted (in one unit per kind), then the result.
+        // Names without a value (not parameters, constants or units): no number to show, but
+        // a sum with a closed form is worth that formula
+        // (`∑_(k=0)^n▒(n¦k)·x^k·a^(n-k) = (x + a)^n`). A unit asked for needs a number.
+        // Only the errors a name without a value gives (one spelled like a unit, `N` or `h`, is
+        // read as that unit): a value that breaks the sum (`n = 2.5`) stays an error.
+        if matches!(result.error, Some(CalcError::UnknownName(_) | CalcError::NeedsDimensionless { .. } | CalcError::DimensionMismatch { .. }))
+            && matches!(requested_unit(rhs, len), Ok(None))
+            && let Ok(expr) = self.parse_expr(left, eq_token.pos)
+            && !self.unknowns(&expr, &Expr::Num(0.0)).is_empty()
+            && let Some(closed) = crate::series::closed_form(&expr).filter(|c| !crate::series::has_nary(c))
+        {
+            result.error = None;
+            result.display = Some(format!("{left_text} = {}", render(&closed)));
+            return result;
+        }
+        // With steps: the closed form of a sum, the values substituted (in one unit per kind),
+        // then the result.
         if self.opts.steps
             && result.error.is_none()
             && let Ok(expr) = self.parse_expr(left, eq_token.pos)
-            && let Some(worked) = self.substituted(&expr, None)
+            && let Some(v) = &result.value
+            && let worked = self.working(&expr, None, v)
+            && !worked.is_empty()
             && let Some(shown) = display.get(left_text.len()..).map(str::trim).and_then(|r| r.strip_prefix('='))
         {
-            self.lay_out(&mut result, left_text, vec![Line::Same(None, worked), Line::Same(None, shown.trim().to_string())]);
+            let lines = worked.into_iter().chain([shown.trim().to_string()]).map(|line| Line::Same(None, line)).collect();
+            self.lay_out(&mut result, left_text, lines);
             return result;
         }
         result.display = Some(display);
@@ -1517,14 +1591,14 @@ impl Worksheet {
                 let rhs = if developed.is_some() && numbers >= 2 { &[][..] } else { rhs };
                 let (value, display, error) = self.show(left_text, body, eq_token.pos, rhs, len);
                 // With steps: the values substituted (in one unit per kind), then the result.
-                let worked = if self.opts.steps && error.is_none() {
-                    self.parse_expr(body, eq_token.pos).ok().and_then(|e| self.substituted(&e, None))
-                } else {
-                    None
+                let worked = match (&value, self.opts.steps && error.is_none()) {
+                    (Some(v), true) => self.parse_expr(body, eq_token.pos).map(|e| self.working(&e, None, v)).unwrap_or_default(),
+                    _ => Vec::new(),
                 };
-                match (worked, display.get(left_text.len()..).map(str::trim).and_then(|r| r.strip_prefix('='))) {
-                    (Some(w), Some(shown)) => {
-                        lines = Some((left_text, vec![Line::Same(None, w), Line::Same(None, shown.trim().to_string())]));
+                match display.get(left_text.len()..).map(str::trim).and_then(|r| r.strip_prefix('=')) {
+                    Some(shown) if !worked.is_empty() => {
+                        let all = worked.into_iter().chain([shown.trim().to_string()]).map(|line| Line::Same(None, line)).collect();
+                        lines = Some((left_text, all));
                         (value, None, error)
                     }
                     _ => (value, Some(display), error),
@@ -1675,15 +1749,24 @@ impl Worksheet {
     /// reports `err` for calc statements; other text is left alone.
     fn raw_failure(&mut self, text: &str, err: CalcError) -> RegionResult {
         let define = text.find(":=").map(|b| (b, 2)).or_else(|| text.find('≔').map(|b| (b, '≔'.len_utf8())));
-        let mut prev = None;
-        let mut first_eq = None;
-        for (b, c) in text.char_indices() {
-            if c == '=' && prev != Some(':') && define.is_none_or(|(d, _)| b > d) {
-                first_eq = Some(b);
-                break;
+        // The statement's first `=`: not one inside brackets (the lower limit of `∑_(k=0)`),
+        // which would cut the statement in two.
+        let equals = |nested: bool| {
+            let (mut prev, mut depth) = (None, 0usize);
+            for (b, c) in text.char_indices() {
+                match c {
+                    '(' | '[' | '〖' => depth = depth.saturating_add(1),
+                    ')' | ']' | '〗' => depth = depth.saturating_sub(1),
+                    '=' if prev != Some(':') && define.is_none_or(|(d, _)| b > d) && (nested || depth == 0) => return Some(b),
+                    _ => {}
+                }
+                prev = Some(c);
             }
-            prev = Some(c);
-        }
+            None
+        };
+        // Brackets that don't balance: the last `=` of a statement ending with one, else the first.
+        let last = || text.rfind('=').filter(|&b| text.trim_end().ends_with('=') && !text.get(..b).is_some_and(|t| t.ends_with(':')));
+        let first_eq = equals(false).or_else(|| last().or_else(|| equals(true)));
         let left = |b: usize| text.get(..b).unwrap_or_default().trim().to_string();
         let warn = |b: usize| Some(format!("{} = ⚠", left(b)));
         match define {
@@ -1718,6 +1801,16 @@ impl Worksheet {
                 _ => RegionResult::not_calc(),
             },
         }
+    }
+}
+
+/// The index of the token a statement's formula starts at: after `:=`, after the name's `=`
+/// (`own` is 2: `M = q·L²/8 =`), else at the start ([`Worksheet::without_working`]).
+fn own_formula(defines: &[usize], first: usize, own: usize) -> usize {
+    match (defines, own) {
+        ([d], _) => d.saturating_add(1),
+        (_, 2) => first.saturating_add(1),
+        _ => 0,
     }
 }
 
@@ -1873,7 +1966,20 @@ fn units_only(rhs: &[Token]) -> bool {
         | Tok::Under
         | Tok::Operand
         | Tok::Nary(_)
-        | Tok::Cmp(_) => false,
+        | Tok::Choose
+        | Tok::Cmp(_)
+        | Tok::LBrace
+        | Tok::RBrace
+        | Tok::Bar { .. }
+        | Tok::LFloor(_)
+        | Tok::RFloor(_)
+        | Tok::Root(_)
+        | Tok::Amp
+        | Tok::At
+        | Tok::Matrix
+        | Tok::Stack
+        | Tok::Below
+        | Tok::Tends => false,
         _ => true,
     })
 }

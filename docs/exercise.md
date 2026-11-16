@@ -376,9 +376,12 @@ unless the exercise has a question of such a type (the commands stay on for scri
   a problem's questions have no type), **Add Sub-question**, **Add Note**, and **Question
   Settings**, which shows or hides the Question Settings pane beside the document
   (`view.questionsPane`; it follows the cursor from exercise to exercise and stays open while
-  you write) with a compact list (label, text, type, points) and the
-  settings of **one question at a time** under it — the one the cursor is in, until another row
-  is clicked: its type and points, then what its type has (answer space height, squared, square
+  you write) with one row per question (label, the start of its text) carrying **its own
+  settings on the row** — a quiz question's type and every question's and sub-question's
+  points, each editable where it is listed; sub-questions are indented under their question
+  and the question the cursor is in is highlighted. A quiz question has more under its row,
+  shown or hidden with a click on the row and opened for the question the cursor moves into
+  (answer space height, squared, square
   size; correct options as check boxes with their text, shuffling, teacher notes; a
   calculation's result, Go to working and tolerance; a drawing's scale and Open in CAD editor;
   matching pairs).
@@ -500,7 +503,7 @@ to the end.
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
 | `exercise.inlineValue` | the inline value at the caret (`{"expr", "show", "shown", "blank"}`); change it with `{"expr"?, "show"?: "value" \| "both" \| "number"}`, delete it with `{"remove": true}` |
-| `view.questionsPane` | show or hide the Question Settings pane (`{"value"?: bool}`): the questions of the exercise at the cursor with the chosen one's settings |
+| `view.questionsPane` | show or hide the Question Settings pane (`{"value"?: bool}`): the questions of the exercise at the cursor, each with its settings on its row |
 | `view.dataPane` | show or hide the Exercise Data pane (`{"value"?: bool}`): the data and variants of the exercise at the cursor |
 | `view.exercisePane` | bring up the Exercise tab (the Series tab with the cursor outside the exercises) |
 
@@ -541,6 +544,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-16: the Question Settings pane has every question's and sub-question's settings on its own row (a quiz question's type, the points), sub-questions indented, instead of one card at the end for the question chosen; what a quiz question's type has opens under its row.
 - 2026-11-16: Exercise › Calculation › Data opens the Exercise Data pane beside the document (`view.dataPane`, docked on the right) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
 - 2026-11-16: Exercise › Questions › Question Settings opens a pane beside the document (`view.questionsPane`, docked on the right like the other properties panes) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
 - 2026-11-16: the questions' letters start again at a) in every exercise also in a copy pasted into the same document, which went on with c), d) (and its options with C), D)) by sharing the lists of the exercise it was copied from; documents holding such copies are put right as they open.

@@ -77,6 +77,10 @@ pub struct ViewState {
     /// exercise at the cursor (docs/exercise.md).
     #[serde(default)]
     pub data_pane: bool,
+    /// The Symbols pane (Equation › Symbols, the group's launcher): every symbol set under its
+    /// title, beside the document.
+    #[serde(default)]
+    pub symbols_pane: bool,
     /// The Thesaurus pane (Review › Proofing › Thesaurus): synonyms by meaning from the
     /// thesaurus of the word's language (docs/thesaurus.md).
     #[serde(default)]
@@ -246,6 +250,7 @@ impl Default for ViewState {
             grading_pane: false,
             questions_pane: false,
             data_pane: false,
+            symbols_pane: false,
             thesaurus_pane: false,
             format_shape_pane: false,
             multi_page: false,

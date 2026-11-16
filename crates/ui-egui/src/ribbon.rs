@@ -79,7 +79,7 @@ use tabs::{
 };
 pub use tabs::{
     StripPlan, TABS, TabSpec, contextual_tabs, fit_tabs, has_chart_selected, has_picture_selected, has_shape_selected, has_smart_art_selected,
-    in_table_public, plan_strip, resolve_tab,
+    in_calc_table_public, in_table_public, plan_strip, resolve_tab,
 };
 #[cfg(test)]
 use underline::{UNDERLINE_STYLES, underline_menu};
@@ -106,6 +106,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     }
     // Editing a header or footer brings up the Header & Footer tab; leaving it goes back.
     strix::follow_header_footer(app, ui.ctx());
+    strix::leave_calc_table_tab(app);
     // Exercise Properties brings up the Exercise or Series tab.
     exercise::follow(app);
     // The CAD editor brings up the CAD Drawing tab; closing it goes back.
@@ -487,6 +488,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Help" => help(app, ui),
                         "Table Design" => table_design(app, ui),
                         "Table Layout" => table_layout(app, ui),
+                        strix::CALC_TABLE_TAB => strix::calc_table_tab(app, ui),
                         "Equation" if app.session.math.is_some() => crate::equation_tab::show(app, ui),
                         name if app.cad.is_some() && crate::cad_editor::TABS.contains(&name) => crate::cad_editor::ribbon(app, ui),
                         "Picture Format" => picture_format(app, ui),

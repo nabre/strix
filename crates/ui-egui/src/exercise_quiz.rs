@@ -1,11 +1,12 @@
 //! The Question Settings pane (Exercise › Questions › Question Settings, `view.questionsPane`;
 //! docs/exercise.md, Kinds of exercise):
-//! a compact list of the questions (label, text, type, points) and, under it, the settings of the
-//! one chosen — the question the cursor is in, until another is clicked: its type and points,
-//! then what its type has (the answer space, the correct options, the tolerance…), through
-//! `exercise.questions` and `exercise.questionMode`. One question's settings at a time keeps the
-//! pane readable however many questions the exercise has. It follows the cursor: outside the
-//! exercises it says so.
+//! the questions of the exercise at the cursor, one row each (label, the start of its text) with
+//! its own settings on the row — a quiz question's type, its points — so every question and
+//! sub-question is set where it is listed; sub-questions are indented under their question. A
+//! quiz question has more under its row (the answer space, the correct options, the
+//! tolerance…), shown or hidden with a click on the row and opened for the question the cursor
+//! moves into; through `exercise.questions`, `exercise.questionMode` and
+//! `exercise.questionPoints`. It follows the cursor: outside the exercises it says so.
 
 use egui::{RichText, Ui};
 use serde_json::{Value, json};
@@ -47,20 +48,29 @@ fn mode_name(id: &str) -> String {
     QUESTION_MODES.iter().find(|(m, _)| *m == id).map_or_else(|| id.to_string(), |(_, l)| tl!(l).to_string())
 }
 
-/// The question whose settings show (0-based): the one the cursor moved into, else the one
-/// clicked last, else the first.
-fn chosen(ui: &Ui, ex: u64, st: &Value, n: usize) -> usize {
-    let pick = egui::Id::unique(("exercise_quiz_pick", ex));
+/// How deep a question sits under the exercise's own questions, from its label: `a)` 0,
+/// `a.1)` 1… (at most 4, whatever the label says).
+fn depth(label: &str) -> usize {
+    label.matches('.').count().min(4)
+}
+
+/// Where a question's "details shown" flag lives (quiz questions; 0-based).
+fn open_id(ex: u64, k: usize) -> egui::Id {
+    egui::Id::unique(("exercise_quiz_open", ex, k))
+}
+
+/// The question the cursor is in (0-based), its details opened when the cursor moves into it.
+fn at_cursor(ui: &Ui, ex: u64, st: &Value) -> Option<usize> {
     let seen = egui::Id::unique(("exercise_quiz_seen", ex));
     let current = st["current"].as_u64().map(|c| c.saturating_sub(1) as usize);
     let last_seen = ui.data(|d| d.get_temp::<Option<usize>>(seen)).flatten();
     if current != last_seen {
         ui.data_mut(|d| d.insert_temp(seen, current));
         if let Some(c) = current {
-            ui.data_mut(|d| d.insert_temp(pick, c));
+            ui.data_mut(|d| d.insert_temp(open_id(ex, c), true));
         }
     }
-    ui.data(|d| d.get_temp::<usize>(pick)).unwrap_or(0).min(n.saturating_sub(1))
+    current
 }
 
 /// The Question Settings pane: the questions of the exercise at the cursor, a note outside them.
@@ -75,7 +85,7 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| questions(app, ui, ex, &st, quiz));
 }
 
-/// The questions of exercise `ex` (1-based) with the chosen one's settings; `st` is
+/// The questions of exercise `ex` (1-based), each with its own settings; `st` is
 /// `exercise.questions`' reply. `quiz`: an exercise answered in its own spaces (else a problem,
 /// whose questions have only points).
 pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value, quiz: bool) {
@@ -83,17 +93,13 @@ pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value, qui
     if list.is_empty() {
         crate::pane_kit::note(ui, tl!("No question yet: write one in the exercise, or add one."));
     } else {
-        let k = chosen(ui, ex, st, list.len());
-        list_rows(ui, ex, &list, k, quiz);
-        if let Some(q) = list.get(k) {
-            ui.add_space(6.0);
-            crate::pane_kit::card(ui, |ui| {
-                if quiz {
-                    settings(app, ui, ex, k, q);
-                } else {
-                    problem_settings(app, ui, ex, k, q);
-                }
-            });
+        let current = at_cursor(ui, ex, st);
+        for (k, q) in list.iter().enumerate() {
+            question(app, ui, ex, k, q, quiz, current == Some(k));
+        }
+        if !quiz {
+            ui.add_space(4.0);
+            crate::pane_kit::note(ui, tl!("A problem's questions are answered in its solution."));
         }
     }
     ui.add_space(6.0);
@@ -109,90 +115,124 @@ pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value, qui
     });
 }
 
-/// One row per question: label and the start of its text, its type and its points. A click
-/// shows that question's settings.
-fn list_rows(ui: &mut Ui, ex: u64, list: &[Value], chosen: usize, quiz: bool) {
-    let t = crate::theme::Tokens::get(ui.ctx());
-    let pick = egui::Id::unique(("exercise_quiz_pick", ex));
-    for (k, q) in list.iter().enumerate() {
-        let label = q["label"].as_str().unwrap_or_default();
-        let text: String = q["text"].as_str().unwrap_or_default().chars().take(40).collect();
-        let text = if text.is_empty() { tl!("(question not written yet)").to_string() } else { text };
-        let pts = q["points"].as_f64().map_or_else(|| "—".to_string(), |p| format!("{} pt", shown(p)));
-        let selected = k == chosen;
-        let frame = egui::Frame::new()
-            .fill(if selected { t.accent.gamma_multiply(0.18) } else { egui::Color32::TRANSPARENT })
-            .corner_radius(egui::CornerRadius::same(4))
-            .inner_margin(egui::Margin::symmetric(6, 3));
-        let r = frame
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                ui.horizontal(|ui| {
-                    if !label.is_empty() {
-                        ui.label(RichText::new(label).monospace().strong());
-                    }
-                    ui.add(egui::Label::new(RichText::new(text)).truncate().selectable(false));
-                    ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
-                        ui.label(RichText::new(pts).monospace().color(t.text_dim));
-                        if quiz {
-                            ui.label(RichText::new(mode_name(mode_of(q))).small().color(t.text_dim));
-                        }
-                    });
-                });
-            })
-            .response
-            .interact(egui::Sense::click());
-        if r.on_hover_text(tl!("Show this question's settings")).clicked() {
-            ui.data_mut(|d| d.insert_temp(pick, k));
+/// Change settings of question `k` (0-based) of a quiz through `exercise.questions`.
+fn set_question(app: &mut WordApp, ex: u64, k: usize, params: Value) {
+    let mut p = json!({"exercise": ex, "question": k + 1});
+    if let (Some(o), Some(extra)) = (p.as_object_mut(), params.as_object()) {
+        for (key, v) in extra {
+            o.insert(key.clone(), v.clone());
         }
+    }
+    if let Err(e) = app.run("exercise.questions", p) {
+        app.status(e);
     }
 }
 
-/// A quiz question's settings: its type and points, then what its type has.
-fn settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
-    let set = |app: &mut WordApp, params: Value| {
-        let mut p = json!({"exercise": ex, "question": k + 1});
-        if let (Some(o), Some(extra)) = (p.as_object_mut(), params.as_object()) {
-            for (key, v) in extra {
-                o.insert(key.clone(), v.clone());
+/// One question: a row with its label, the start of its text and, at the far end, its own
+/// settings (a quiz question's type, its points), sub-questions indented under their question.
+/// A quiz question has more under the row (the answer space, the correct options…), shown or
+/// hidden with a click on the row. `current`: the cursor is in it.
+fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: bool, current: bool) {
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let label = q["label"].as_str().unwrap_or_default();
+    let text: String = q["text"].as_str().unwrap_or_default().chars().take(60).collect();
+    let (text, written) = if text.is_empty() { (tl!("(question not written yet)").to_string(), false) } else { (text, true) };
+    let open = quiz && ui.data(|d| d.get_temp::<bool>(open_id(ex, k))).unwrap_or(false);
+    let indent = 14.0 * depth(label) as f32;
+    let far = crate::rtl::far_side(ui, egui::Align::Center);
+    let near = crate::rtl::row_layout(ui, egui::Align::Center);
+    let frame = egui::Frame::new()
+        .fill(if current { t.accent.gamma_multiply(0.18) } else { egui::Color32::TRANSPARENT })
+        .corner_radius(egui::CornerRadius::same(4))
+        .inner_margin(egui::Margin::symmetric(6, 3));
+    let shown_frame = frame.show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        let row_h = ui.spacing().interact_size.y;
+        let title = |ui: &mut Ui| {
+            ui.add_space(indent);
+            if quiz {
+                let (rect, mut icon) = ui.allocate_exact_size(egui::vec2(12.0, row_h), egui::Sense::hover());
+                icon.rect = rect.shrink2(egui::vec2(1.0, (row_h - 10.0).max(0.0) / 2.0));
+                egui::collapsing_header::paint_default_icon(ui, if open { 1.0 } else { 0.0 }, &icon);
             }
+            if !label.is_empty() {
+                ui.label(RichText::new(label).monospace().strong());
+            }
+            let rt = if written { RichText::new(text.as_str()) } else { RichText::new(text.as_str()).color(t.text_dim) };
+            ui.add(egui::Label::new(rt).truncate().selectable(false));
+        };
+        // A quiz row in a narrow pane: the text on a line of its own, the settings under it.
+        let two_lines = quiz && ui.available_width() < 430.0;
+        if two_lines {
+            ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), row_h), near, title);
+            ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), row_h), far, |ui| row_settings(app, ui, ex, k, q, quiz));
+        } else {
+            // The settings first, from the far end, so the text gets what is left and is cut there.
+            ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), row_h), far, |ui| {
+                row_settings(app, ui, ex, k, q, quiz);
+                ui.with_layout(near, title);
+            });
         }
-        if let Err(e) = app.run("exercise.questions", p) {
+        // Where the row itself ends: what is under it is not the row.
+        let row_bottom = ui.min_rect().bottom();
+        if open {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.add_space(indent + 12.0);
+                ui.vertical(|ui| details(app, ui, ex, k, q));
+            });
+            ui.add_space(4.0);
+        }
+        row_bottom
+    });
+    if quiz {
+        // A click on the row shows or hides its details; one among the details (a label there,
+        // the space between two boxes) leaves them open.
+        let mut row = shown_frame.response.rect;
+        row.max.y = row.max.y.min(shown_frame.inner + 3.0);
+        let r = ui.interact(row, shown_frame.response.id.with("row"), egui::Sense::click());
+        if r.on_hover_text(tl!("Show this question's settings")).clicked() {
+            ui.data_mut(|d| d.insert_temp(open_id(ex, k), !open));
+        }
+    }
+    ui.add_space(1.0);
+}
+
+/// A question's settings on its row, added from the far end inwards: its points and, in a quiz,
+/// its type.
+fn row_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: bool) {
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let row_h = ui.spacing().interact_size.y;
+    ui.label(RichText::new("pt").color(t.text_dim));
+    let now = q["points"].as_f64().map(shown).unwrap_or_default();
+    let points = ui.allocate_ui_with_layout(egui::vec2(46.0, row_h), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        draft_box(ui, ("exercise_quiz_points", ex, k), &now, true, false)
+    });
+    points.response.on_hover_text(tl!("The most points this question gives; empty: not scored"));
+    if let Some(typed) = points.inner {
+        let v = if typed.trim().is_empty() { Value::Null } else { number(&typed).map_or(Value::Null, |n| json!(n)) };
+        if quiz {
+            set_question(app, ex, k, json!({"points": v}));
+        } else if let Err(e) = app.run("exercise.questionPoints", json!({"exercise": ex, "question": k + 1, "points": v})) {
             app.status(e);
         }
-    };
-    let label = q["label"].as_str().unwrap_or_default();
-    let head = if label.is_empty() { tl!("Question").to_string() } else { format!("{} {label}", tl!("Question")) };
-    ui.label(RichText::new(head).strong());
-    ui.add_space(4.0);
-    let mode = mode_of(q).to_string();
-    let q_type = q["type"].as_str().unwrap_or("open").to_string();
-    crate::rtl::grid(ui, egui::Grid::new(("exercise_quiz", ex, k)).num_columns(2).spacing([8.0, 6.0]), |ui| {
-        ui.label(tl!("Type"));
-        craft_ui::ComboBox::from_id_salt(("exercise_quiz_mode", ex, k)).selected_text(mode_name(&mode)).show_ui(ui, |ui| {
+    }
+    if quiz {
+        let mode = mode_of(q).to_string();
+        craft_ui::ComboBox::from_id_salt(("exercise_quiz_mode", ex, k)).width(132.0).selected_text(mode_name(&mode)).show_ui(ui, |ui| {
             for (id, name) in QUESTION_MODES {
                 if ui.selectable_label(id == mode, tl!(name)).clicked() && id != mode {
                     let _ = app.run("exercise.questionMode", json!({"exercise": ex, "question": k + 1, "type": id}));
                 }
             }
         });
-        ui.end_row();
-        ui.label(tl!("Points"));
-        ui.horizontal(|ui| {
-            let current = q["points"].as_f64().map(shown).unwrap_or_default();
-            ui.scope(|ui| {
-                ui.set_width(56.0);
-                if let Some(t) = draft_box(ui, ("exercise_quiz_points", ex, k), &current, true, false) {
-                    let v = if t.trim().is_empty() { Value::Null } else { number(&t).map_or(Value::Null, |n| json!(n)) };
-                    set(app, json!({"points": v}));
-                }
-            });
-            ui.label("pt");
-        })
-        .response
-        .on_hover_text(tl!("The most points this question gives; empty: not scored"));
-        ui.end_row();
-    });
+    }
+}
+
+/// What a quiz question's type has, under its row.
+fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
+    let set = |app: &mut WordApp, params: Value| set_question(app, ex, k, params);
+    let q_type = q["type"].as_str().unwrap_or("open").to_string();
     match q_type.as_str() {
         "choice" => choice_settings(app, ui, ex, k, q, &set),
         "matching" => {
@@ -384,29 +424,6 @@ fn choice_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value,
     });
 }
 
-/// A problem's question: only its points (it is answered in the solution).
-fn problem_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
-    let label = q["label"].as_str().unwrap_or_default();
-    let head = if label.is_empty() { tl!("Question").to_string() } else { format!("{} {label}", tl!("Question")) };
-    ui.label(RichText::new(head).strong());
-    ui.add_space(4.0);
-    ui.horizontal(|ui| {
-        ui.label(tl!("Points"));
-        let current = q["points"].as_f64().map(shown).unwrap_or_default();
-        ui.scope(|ui| {
-            ui.set_width(56.0);
-            if let Some(t) = draft_box(ui, ("exercise_problem_points", ex, k), &current, true, false) {
-                let v = if t.trim().is_empty() { Value::Null } else { number(&t).map_or(Value::Null, |n| json!(n)) };
-                if let Err(e) = app.run("exercise.questionPoints", json!({"exercise": ex, "question": k + 1, "points": v})) {
-                    app.status(e);
-                }
-            }
-        });
-        ui.label("pt");
-    });
-    crate::pane_kit::note(ui, tl!("A problem's questions are answered in its solution."));
-}
-
 /// Add Question, with the type to add.
 fn add_question_menu(app: &mut WordApp, ui: &mut Ui) {
     let r = ui.menu_button(format!("+ {}", tl!("Add Question")), |ui| {
@@ -423,4 +440,80 @@ fn add_question_menu(app: &mut WordApp, ui: &mut Ui) {
         }
     });
     r.response.on_hover_text(tl!("Add a question at the end of the exercise"));
+}
+
+#[cfg(test)]
+mod tests {
+    use egui_kittest::kittest::Queryable;
+    use serde_json::{Value, json};
+    use wordcraft_engine::Session;
+
+    use crate::WordApp;
+
+    /// A quiz question's row: a click on its text shows and hides what is under it; its own
+    /// settings on the row (the points, the type) are set there, and using them neither goes to
+    /// the row nor is lost to it.
+    #[test]
+    fn a_row_opens_with_a_click_and_its_settings_are_set_on_it() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Intro")), crate::Services::default());
+        app.run("exercise.insert", json!({"kind": "open"})).unwrap();
+        let state = |app: &mut WordApp| app.session.run("exercise.questions", &json!({})).unwrap();
+        if state(&mut app)["questions"].as_array().is_none_or(Vec::is_empty) {
+            app.run("exercise.addQuestion", json!({})).unwrap();
+        }
+        let ex = state(&mut app)["exercise"].as_u64().unwrap();
+        let mut h =
+            egui_kittest::Harness::builder().with_size(egui::vec2(600.0, 900.0)).build_ui_state(|ui, app: &mut WordApp| super::pane(app, ui), app);
+        h.run_steps(3);
+        let open = |h: &egui_kittest::Harness<'_, WordApp>| h.ctx.data(|d| d.get_temp::<bool>(super::open_id(ex, 0))).unwrap_or(false);
+        let question = |h: &mut egui_kittest::Harness<'_, WordApp>| -> Value { state(h.state_mut())["questions"][0].clone() };
+        // A click on the row's text shows the details, another hides them.
+        let was = open(&h);
+        let text: String = question(&mut h)["text"].as_str().unwrap_or_default().chars().take(60).collect();
+        let text = if text.is_empty() { tl!("(question not written yet)").to_string() } else { text };
+        h.get_by_label(&text).click();
+        h.run_steps(3);
+        assert_eq!(open(&h), !was, "the row's text toggles the details");
+        if open(&h) {
+            h.get_by_label(&text).click();
+            h.run_steps(3);
+        }
+        assert!(!open(&h));
+        // Shown, a click among the details (a label there) leaves them shown.
+        h.get_by_label(&text).click();
+        h.run_steps(3);
+        assert!(open(&h));
+        h.get_by_label(tl!("Height")).click();
+        h.run_steps(3);
+        assert!(open(&h), "a click among the details is not a click on the row");
+        h.get_by_label(&text).click();
+        h.run_steps(3);
+        assert!(!open(&h));
+        // The points, typed on the row: the row stays as it is.
+        let points = h.query_all_by_role(egui::accesskit::Role::TextInput).next().expect("the points box");
+        points.click();
+        h.run_steps(3);
+        assert!(!open(&h), "a click in the points box is not a click on the row");
+        h.query_all_by_role(egui::accesskit::Role::TextInput).next().unwrap().type_text("3");
+        h.run_steps(2);
+        h.key_press(egui::Key::Tab);
+        h.run_steps(3);
+        assert_eq!(question(&mut h)["points"].as_f64(), Some(3.0), "{}", question(&mut h));
+        // The type, chosen on the row.
+        h.get_by_label(&super::mode_name("open")).click();
+        h.run_steps(3);
+        assert!(!open(&h), "a click on the type is not a click on the row");
+        h.get_by_label(&super::mode_name("calc")).click();
+        h.run_steps(3);
+        assert_eq!(super::mode_of(&question(&mut h)), "calc", "{}", question(&mut h));
+    }
+
+    #[test]
+    fn sub_questions_sit_deeper_than_their_question() {
+        assert_eq!(super::depth("a)"), 0);
+        assert_eq!(super::depth("a.2)"), 1);
+        assert_eq!(super::depth("a.2.1)"), 2);
+        assert_eq!(super::depth(""), 0);
+        assert_eq!(super::depth("1.1.1.1.1.1.1)"), 4);
+    }
 }

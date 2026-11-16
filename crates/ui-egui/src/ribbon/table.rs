@@ -319,6 +319,5 @@ pub(super) fn table_layout(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "toText", Some("Convert to Text"), "Convert to Text", crate::widgets::ButtonAction::new("table.toText", json!({}), false));
             small(ui, app, "formula", Some("Formula"), "Formula", crate::widgets::ButtonAction::new("table.formula", json!({}), false));
         });
-        super::strix::calc_table_buttons(ui, app);
     });
 }
