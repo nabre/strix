@@ -266,12 +266,23 @@ fn set_line(p: &mut Paragraph, mid: Option<Paragraph>, text: &str, showing: bool
     p.touch();
 }
 
-/// Shows `shown`, the placeholder, on the empty title line of `p`.
-pub(super) fn show_placeholder(p: &mut Paragraph, shown: &str) {
+/// Shows `shown`, the placeholder, on the empty title line of `p`: in the body text's weight and
+/// size (`props`) when the line holds the statement, not the title style's.
+pub(super) fn show_placeholder(p: &mut Paragraph, shown: &str, props: &CharProps) {
     if let Some(c) = title_ctl(p) {
         c.placeholder_text = shown.into();
     }
     set_line(p, None, shown, true);
+    if of_para(p).is_some_and(|(_, l)| l == Line::Statement)
+        && let Some((a, b)) = span(p, TAG_TITLE)
+        && b > a + OBJ.len_utf8()
+    {
+        let _ = p.format(a + OBJ.len_utf8(), b, &|pr| {
+            pr.bold = pr.bold.or(props.bold);
+            pr.size = pr.size.or(props.size);
+        });
+        p.touch();
+    }
 }
 
 /// Moves the statement onto the title line of the exercise whose title is `blocks[at]` (see the
@@ -369,12 +380,10 @@ fn to_title(blocks: &mut Vec<Arc<Block>>, at: usize, w: &Words, props: &CharProp
         range = None;
     }
     let Some(mid) = mid else {
-        // Nothing on the line: a problem gets its statement part back, empty; a quiz needs none.
+        // Nothing on the line: a problem gets its statement part back, empty; a quiz needs one
+        // only with more than one question ([`quiz_statements`] gives it).
         if range.is_none() && !kind.quiz() {
-            let mut c = control(TAG_TEXT, w.statement, ControlLock::SdtLocked);
-            c.placeholder_text = w.text.into();
-            c.showing_placeholder = true;
-            blocks.insert((at + 1).min(blocks.len()), para_block(para("Normal", w.text, vec![c], 1, None)));
+            blocks.insert((at + 1).min(blocks.len()), para_block(empty_statement(w)));
         }
         return true;
     };
@@ -413,6 +422,43 @@ fn to_title(blocks: &mut Vec<Arc<Block>>, at: usize, w: &Words, props: &CharProp
         let _ = np.insert_object(len, InlineObject::ControlEnd, &props);
     }
     blocks.insert((at + 1).min(blocks.len()), para_block(np));
+    true
+}
+
+/// An empty statement part: one paragraph showing the statement's placeholder.
+fn empty_statement(w: &Words) -> Paragraph {
+    let mut c = control(TAG_TEXT, w.statement, ControlLock::SdtLocked);
+    c.placeholder_text = w.text.into();
+    c.showing_placeholder = true;
+    para("Normal", w.text, vec![c], 1, None)
+}
+
+/// A quiz with more than one question has a statement, like a problem: the text that introduces
+/// its questions (docs/exercise.md, Title line). With a title on the line it is a part of its
+/// own under the title; one lacking it gets an empty one (its placeholder), so Show Title moves
+/// the text next to the number back under the title instead of losing its place. A quiz with
+/// one question needs none (the exercise can be just the question). Whether anything changed.
+pub(super) fn quiz_statements(s: &mut Session) -> bool {
+    let layout = scan(s);
+    let lacking: Vec<(usize, usize)> = layout
+        .exercises
+        .iter()
+        .enumerate()
+        .filter(|(_, ex)| ex.kind.quiz() && ex.questions.len() > 1 && ex.text_blocks.is_none())
+        .filter(|(_, ex)| s.doc.body.get(ex.start).and_then(|b| b.as_para()).and_then(of_para).is_some_and(|(_, l)| l == Line::Title))
+        .map(|(e, ex)| (e, ex.start))
+        .collect();
+    for &(e, at) in lacking.iter().rev() {
+        let w = exercise_words(s, &layout, e);
+        let new = at.saturating_add(1).min(s.doc.body.len());
+        s.doc.body.insert(new, para_block(empty_statement(w)));
+        super::true_false::remap(s, &|top, off| if top >= new { (top.saturating_add(1), off) } else { (top, off) });
+    }
+    if lacking.is_empty() {
+        return false;
+    }
+    s.touch();
+    s.clamp_selection();
     true
 }
 
@@ -641,6 +687,62 @@ mod tests {
         let p = s.doc.body.get(1).and_then(|b| b.as_para()).cloned().unwrap_or_default();
         let at = p.text.find("Un").unwrap_or(0);
         assert_eq!(p.props_of_char(at).bold, None, "the line's weight is not left on the statement");
+    }
+
+    /// The owner: "with more questions in an exercise I need an opening text, as in the
+    /// problems; it moves with Show/Remove Title".
+    #[test]
+    fn a_quiz_with_more_questions_has_a_statement_that_moves() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut s, "exercise.insert", json!({"kind": "choice", "questions": ["Uno", "Due"]}));
+        // Under the title, its placeholder.
+        let st = statement(&s);
+        assert_eq!(st.len(), 1, "{st:?}");
+        assert!(st.first().is_some_and(|t| t.contains("Scrivi qui il testo")), "{st:?}");
+        // Typed over, it goes next to the number and back.
+        run(&mut s, "select.text", json!({"text": "Scrivi qui il testo dell'esercizio: dati, figure, tabelle."}));
+        run(&mut s, "text.insert", json!({"text": "Rispondi alle domande."}));
+        run(&mut s, "exercise.titleLine", json!({"line": "statement"}));
+        assert!(line_text(&s).contains("Rispondi alle domande."), "{}", line_text(&s));
+        assert!(statement(&s).is_empty(), "{:?}", statement(&s));
+        run(&mut s, "exercise.titleLine", json!({"line": "title"}));
+        assert_eq!(statement(&s), ["Rispondi alle domande."]);
+        // Empty, it moves too: its placeholder on the line, then under the title again.
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": ["Uno", "Due"], "titleLine": "statement"}));
+        assert!(line_text(&s).contains("Write the exercise here"), "{}", line_text(&s));
+        assert!(statement(&s).is_empty(), "{:?}", statement(&s));
+        run(&mut s, "exercise.titleLine", json!({"line": "title"}));
+        assert_eq!(statement(&s).len(), 1, "{:?}", statement(&s));
+        // A lone question needs none.
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": ["Uno"]}));
+        assert!(statement(&s).is_empty(), "{:?}", statement(&s));
+        // A second question brings it, the caret staying in what it was typing.
+        run(&mut s, "exercise.addQuestion", json!({}));
+        assert_eq!(statement(&s).len(), 1, "{:?}", statement(&s));
+        run(&mut s, "text.insert", json!({"text": "Nuova"}));
+        let layout = scan(&s);
+        let qs: Vec<&str> = layout.exercises.first().map(|e| e.questions.iter().map(|q| q.text.as_str()).collect()).unwrap_or_default();
+        assert_eq!(qs.get(1).copied(), Some("Nuova"), "{qs:?}");
+    }
+
+    /// The owner's screenshot: a quiz's only question on the line, a second one added, and the
+    /// statement's placeholder left on the line in the title's bold and size.
+    #[test]
+    fn the_line_left_by_a_question_keeps_the_body_text_weight() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "open", "titleLine": "statement"}));
+        run(&mut s, "exercise.addQuestion", json!({}));
+        let p = title_para(&s);
+        assert!(super::super::plain(&p).contains("Write the exercise here"), "{}", super::super::plain(&p));
+        let (a, _) = span(&p, TAG_TITLE).unwrap_or((0, 0));
+        let pr = p.props_of_char(a + OBJ.len_utf8());
+        assert_eq!(pr.bold, Some(false));
+        assert_eq!(pr.size, statement_props(&s).size);
+        // No statement part besides the line.
+        assert!(statement(&s).is_empty(), "{:?}", statement(&s));
     }
 
     /// A document from before the statement moved: an empty statement part beside a line holding

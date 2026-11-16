@@ -52,6 +52,7 @@ mod items;
 mod items_ext;
 mod language;
 mod numbering;
+mod own_lists;
 mod pack;
 mod question_line;
 mod scores;
@@ -135,7 +136,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "titleLine"?: "title" | "statement" (as exercise.titleLine), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "titleLine"?: "title" | "statement" (as exercise.titleLine), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement when given or with more than one question (its placeholder), each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
@@ -1911,6 +1912,10 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= title_line::conform(s);
     // A quiz's only question on a title line holding the statement, or back below it.
     changed |= question_line::conform(s);
+    // A quiz with more than one question has a statement under its title.
+    changed |= title_line::quiz_statements(s);
+    // Every exercise letters its own questions, a pasted copy included.
+    changed |= own_lists::conform(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
@@ -2018,7 +2023,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let lone = layout.exercises.len() == 1;
     let mut any = false;
     for (n, e) in layout.exercises.iter().enumerate() {
-        // A quiz gives its multiple choices' correct options; open answers give nothing.
+        // A quiz gives its multiple choices' correct options and a line naming each open answer.
         let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n, &answers, w.no_result));
         if quiz.as_ref().is_some_and(Vec::is_empty) {
             continue;
@@ -2046,7 +2051,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
             lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
         }
     }
-    // Only open answers: nothing to sum up, no summary.
+    // Nothing to sum up (drawings, matchings alone): no summary.
     if !any {
         if let Some((from, to)) = layout.results
             && s.doc.body.get(from..=to).is_some()

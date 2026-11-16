@@ -211,7 +211,7 @@ fn split(s: &mut Session, at: usize, _w: &Words, props: &CharProps, shown: &str)
     }
     title.props.tabs = None;
     if line_empty(title) {
-        title_line::show_placeholder(title, shown);
+        title_line::show_placeholder(title, shown, props);
     }
     title.touch();
     // The weight and size the line gave it are the question's own anyway.
