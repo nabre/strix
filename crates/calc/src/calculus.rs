@@ -7,6 +7,10 @@
 //!   the estimated error is below 10⁻¹⁰ of the result or [`MAX_INTERVALS`] are in use. The
 //!   nodes never touch the limits, so `∫_0^1 1/√x dx` works.
 //!
+//! - **Improper integrals** (`∫_0^∞`, `∫_(-∞)^∞`) are taken decade by decade from the finite
+//!   limit (or from 0) and then over the tail, mapped onto a finite interval; one that does not
+//!   settle is reported as not converging.
+//!
 //! Results are rounded to [`DIGITS`] significant digits, which hides the last bits of noise
 //! (`f′(1) = 2`, not `1.9999999999`).
 
@@ -198,27 +202,35 @@ fn kronrod(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, b: f64) -> 
     Ok((k * half, err, abs * half.abs()))
 }
 
-/// `∫_a^b f`; `f` takes and gives SI magnitudes.
-pub(crate) fn integral(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, b: f64) -> Result<f64, CalcError> {
-    if a == b {
-        return Ok(0.0);
+/// The sign of a limit at infinity: `∞` (or `+∞`) gives +∞, `-∞` gives −∞; `None` for any
+/// other limit.
+pub(crate) fn infinite(limit: &Expr) -> Option<f64> {
+    match limit {
+        Expr::Num(v) if v.is_infinite() => Some(*v),
+        Expr::Neg(inner) => infinite(inner).map(|v| -v),
+        _ => None,
     }
+}
+
+/// Adaptive Gauss–Kronrod over the intervals between `breaks`: the worst interval is split until
+/// the estimated error is below 10⁻¹⁰ of the result or `max` intervals are in use. Gives the
+/// estimate, its error and the integral of `|f|`.
+fn adaptive(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, breaks: &[f64], max: usize) -> Result<(f64, f64, f64), CalcError> {
     // Intervals: (a, b, estimate, error, ∫|f|).
-    let (k, e, s) = kronrod(f, a, b)?;
-    let mut parts = vec![(a, b, k, e, s)];
+    let mut parts = Vec::with_capacity(breaks.len());
+    for (&a, &b) in breaks.iter().zip(breaks.iter().skip(1)) {
+        if a != b {
+            let (k, e, s) = kronrod(f, a, b)?;
+            parts.push((a, b, k, e, s));
+        }
+    }
     loop {
         let total: f64 = parts.iter().map(|p| p.2).sum();
         let error: f64 = parts.iter().map(|p| p.3).sum();
         let abs: f64 = parts.iter().map(|p| p.4).sum();
         let done = error <= 1e-10 * total.abs().max(1e-3 * abs) || error == 0.0;
-        if done || parts.len() >= MAX_INTERVALS {
-            if !total.is_finite() {
-                return Err(CalcError::NotReal);
-            }
-            if total.abs() <= 1e-11 * abs {
-                return Ok(0.0);
-            }
-            return Ok(round_digits(total));
+        if done || parts.len() >= max || parts.is_empty() {
+            return Ok((total, error, abs));
         }
         let worst = parts.iter().enumerate().max_by(|x, y| x.1.3.total_cmp(&y.1.3)).map_or(0, |(i, _)| i);
         let (pa, pb, ..) = parts.swap_remove(worst);
@@ -228,6 +240,61 @@ pub(crate) fn integral(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64,
         parts.push((pa, mid, k1, e1, s1));
         parts.push((mid, pb, k2, e2, s2));
     }
+}
+
+/// The powers of ten an improper integral is sampled over, from its finite limit (or from 0):
+/// 10⁻⁹ to 10⁹, one interval per decade, so an integrand that lives at any such scale is seen.
+const DECADES: i32 = 9;
+
+/// `∫_0^∞ f(a + sign·u) du`: decade by decade up to 10⁹, then the tail with `u = 10⁹/s`, whose
+/// nodes never reach `s = 0`. Gives the estimate, its error and the integral of `|f|`.
+fn half_line(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, sign: f64) -> Result<(f64, f64, f64), CalcError> {
+    let mut breaks = vec![0.0];
+    breaks.extend((-DECADES..=DECADES).map(|j| 10f64.powi(j)));
+    let reach = 10f64.powi(DECADES);
+    let (k1, e1, s1) = adaptive(&mut |u| f(a + sign * u), &breaks, MAX_INTERVALS)?;
+    let (k2, e2, s2) = adaptive(&mut |s| Ok(f(a + sign * reach / s)? * reach / (s * s)), &[0.0, 1.0], MAX_INTERVALS)?;
+    Ok((k1 + k2, e1 + e2, s1 + s2))
+}
+
+/// `∫_a^b f`; `f` takes and gives SI magnitudes. A limit may be infinite: the integral is then
+/// improper, and an error when it does not converge.
+pub(crate) fn integral(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, b: f64) -> Result<f64, CalcError> {
+    if a.is_nan() || b.is_nan() {
+        return Err(CalcError::NotReal);
+    }
+    if a == b {
+        return Ok(0.0);
+    }
+    if a > b && (a.is_infinite() || b.is_infinite()) {
+        return integral(f, b, a).map(|v| -v);
+    }
+    let (total, error, abs) = match (a.is_finite(), b.is_finite()) {
+        (true, true) => {
+            let (total, _, abs) = adaptive(f, &[a, b], MAX_INTERVALS)?;
+            (total, 0.0, abs)
+        }
+        (true, false) => half_line(f, a, 1.0)?,
+        (false, true) => half_line(f, b, -1.0)?,
+        (false, false) => {
+            let (k1, e1, s1) = half_line(f, 0.0, -1.0)?;
+            let (k2, e2, s2) = half_line(f, 0.0, 1.0)?;
+            (k1 + k2, e1 + e2, s1 + s2)
+        }
+    };
+    // An improper integral must have settled: one that diverges (`∫_1^∞ 1/x dx`) keeps a large
+    // error however far it is refined.
+    let improper = a.is_infinite() || b.is_infinite();
+    if !total.is_finite() {
+        return Err(if improper { CalcError::Diverges } else { CalcError::NotReal });
+    }
+    if error > 1e-6 * total.abs().max(1e-3 * abs) {
+        return Err(CalcError::Diverges);
+    }
+    if total.abs() <= 1e-11 * abs {
+        return Ok(0.0);
+    }
+    Ok(round_digits(total))
 }
 
 #[cfg(test)]
@@ -240,6 +307,41 @@ mod tests {
 
     fn error(statements: &[&str]) -> Option<CalcError> {
         evaluate(statements, &Options::default()).pop().and_then(|r| r.error)
+    }
+
+    #[test]
+    fn improper_integrals() {
+        assert_eq!(last(&["∫_(-∞)^∞▒〖e^(-x^2) dx〗 ="]), "∫_(-∞)^∞▒〖e^(-x^2) dx〗 = 1.772");
+        assert_eq!(last(&["∫_(−∞)^(+∞)▒〖e^(−x^2) dx〗 = 99"]), "∫_(−∞)^(+∞)▒〖e^(−x^2) dx〗 = 1.772");
+        assert_eq!(last(&["∫_0^∞ e^(-x) dx ="]), "∫_0^∞ e^(-x) dx = 1");
+        assert_eq!(last(&["∫_1^∞ 1/x^2 dx ="]), "∫_1^∞ 1/x^2 dx = 1");
+        assert_eq!(last(&["∫_-∞^0 e^x dx ="]), "∫_-∞^0 e^x dx = 1");
+        assert_eq!(last(&["∫_0^∞ 1/(1 + x^2) dx ="]), "∫_0^∞ 1/(1 + x^2) dx = 1.571");
+        // The limits the other way round change the sign; the same limit twice is nothing.
+        assert_eq!(last(&["∫_∞^0 e^(-x) dx ="]), "∫_∞^0 e^(-x) dx = -1");
+        assert_eq!(last(&["∫_∞^∞ e^(-x) dx ="]), "∫_∞^∞ e^(-x) dx = 0");
+        // Whatever the scale of the integrand: a time constant in microseconds, a wide bell.
+        assert_eq!(last(&["τ = 2 µs", "∫_(0 s)^∞ e^(-t/τ) dt = µs"]), "∫_(0 s)^∞ e^(-t/τ) dt = 2 µs");
+        assert_eq!(last(&["s = 1000", "∫_(-∞)^∞ e^(-(x/s)^2) dx ="]), "∫_(-∞)^∞ e^(-(x/s)^2) dx = 1772.454");
+        // The normal distribution has area 1, mean μ.
+        let bell = ["μ = 3", "σ = 0.5", "φ(x) = 1/(σ·√(2·π))·e^(-(x - μ)^2/(2·σ^2))"];
+        assert_eq!(last(&[bell[0], bell[1], bell[2], "∫_(-∞)^∞ φ(x) dx ="]), "∫_(-∞)^∞ φ(x) dx = 1");
+        assert_eq!(last(&[bell[0], bell[1], bell[2], "∫_(-∞)^∞ x·φ(x) dx ="]), "∫_(-∞)^∞ x·φ(x) dx = 3");
+        // A solved unknown and a definition read it like any value.
+        assert_eq!(last(&["A = ∫_0^∞ e^(-2·x) dx", "A ="]), "A = 0.5");
+    }
+
+    #[test]
+    fn improper_integrals_that_do_not_converge() {
+        for diverging in ["∫_1^∞ 1/x dx =", "∫_0^∞ x dx =", "∫_(-∞)^∞ 1 dx =", "∫_0^∞ sin(x) dx =", "∫_1^∞ 1/√x dx ="] {
+            assert_eq!(error(&[diverging]), Some(CalcError::Diverges), "{diverging}");
+        }
+        assert_eq!(error(&["∫_0^∞ e^(x^2) dx ="]), Some(CalcError::Overflow));
+        // Infinity is a limit of an integral, never a value.
+        for wrong in ["∞ =", "x = ∞", "2·∞ =", "∑_(k=0)^∞▒k =", "∫_0^(2·∞) x dx =", "f(x) = x", "sin(∞) ="] {
+            let e = error(&[wrong]);
+            assert!(wrong == "f(x) = x" || e == Some(CalcError::Infinite), "{wrong}: {e:?}");
+        }
     }
 
     #[test]

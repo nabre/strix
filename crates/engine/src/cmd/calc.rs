@@ -3774,6 +3774,48 @@ mod tests {
         out
     }
 
+    /// The gallery's binomial sum and the Gaussian integral, as the equation editor builds them:
+    /// the sum without values shows its closed form, with values its number (through the closed
+    /// form with Show Steps); the improper integral its value. Nothing moves when recalculated.
+    #[test]
+    fn a_binomial_sum_and_an_improper_integral_are_worked_out() {
+        let sum = "∑_(k=0)^n▒〖(n¦k) x^k a^(n−k)〗=";
+        let squash = |m: &Math| to_linear(&m.nodes).replace(char::is_whitespace, "");
+        let build = |data: &[&str], steps: bool| {
+            let mut s = session();
+            s.run("calc.steps", &json!({"value": steps})).unwrap();
+            for t in data.iter().copied().chain([sum, "∫_(−∞)^∞▒〖e^(−x^2) dx〗="]) {
+                s.run("calc.insert", &json!({"text": t})).unwrap();
+                s.run("text.newParagraph", &json!({})).unwrap();
+            }
+            let report = s.run("calc.recalculate", &json!({})).unwrap();
+            assert_eq!(report["errors"], json!([]), "{report}");
+            let again = s.run("calc.recalculate", &json!({})).unwrap();
+            assert_eq!(again["changed"], 0, "{again}");
+            maths(&s).iter().map(squash).collect::<Vec<_>>()
+        };
+        // No values: the formula the sum is worth; the coefficient stays stacked, n over k.
+        let shown = build(&[], true);
+        assert_eq!(shown[0], "∑_(k=0)^n▒((n¦k)x^ka^(n−k))=(x+a)^n");
+        assert_eq!(shown[1], "∫_(−∞)^∞▒(e^(−x^2)dx)=1.772");
+        // With values: the number, and with Show Steps the way there.
+        let data = ["n = 3", "x = 2", "a = 5"];
+        assert_eq!(build(&data, false)[3], "∑_(k=0)^n▒((n¦k)x^ka^(n−k))=343");
+        assert_eq!(build(&data, true)[3], "∑_(k=0)^n▒((n¦k)x^ka^(n−k))=(x+a)^n=(2+5)^3=343");
+        // Values given after the formula was shown: the number takes its place.
+        let mut s = session();
+        s.run("calc.insert", &json!({"text": sum})).unwrap();
+        assert_eq!(squash(&maths(&s)[0]), "∑_(k=0)^n▒((n¦k)x^ka^(n−k))=(x+a)^n");
+        s.run("caret.docStart", &json!({})).unwrap();
+        for t in data {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        let report = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(report["errors"], json!([]), "{report}");
+        assert_eq!(squash(&maths(&s)[3]), "∑_(k=0)^n▒((n¦k)x^ka^(n−k))=(x+a)^n=(2+5)^3=343");
+    }
+
     /// A unit's quotient (`kN/m`) reads inline in a calculation, its formula's fractions stacked;
     /// recalculating again changes nothing.
     #[test]

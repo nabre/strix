@@ -13,9 +13,11 @@
 //! exponent = ("-" | "+") exponent | power
 //! postfix  = primary ("¹" | "²" | "³" | "[" full "]")*
 //! primary  = number | name | function "(" args ")" | user "(" args ")" | "(" full ")" | "[" full (";" full)* "]"
+//!          | "(" full "¦" full ")"               a binomial coefficient, n over k
 //!          | "√" postfix | nary
 //! nary     = ("∑" | "∏") ("_" lower)? ("^" postfix)? "▒"? term      the operand spans · and /
-//!          | "∫" "_" limit "^" limit "▒"? term (("+" | "-") term)*   up to the differential `dx`
+//!          | "∫" "_" limit "^" limit "▒"? term (("+" | "-") term)*   up to the differential `dx`;
+//!                                                a limit may be `∞` or `-∞`
 //! lower    = "(" name "=" full ")" | name
 //! ```
 //!
@@ -60,6 +62,8 @@ pub(crate) enum Func {
     Lcm,
     Fact,
     Binom,
+    /// [`Func::Binom`] written as a coefficient, `(n¦k)`: the same value, shown as written.
+    Choose,
     Min,
     Max,
     Round,
@@ -168,7 +172,7 @@ impl Func {
             Func::Gcd => "gcd",
             Func::Lcm => "lcm",
             Func::Fact => "fact",
-            Func::Binom => "binom",
+            Func::Binom | Func::Choose => "binom",
             Func::Min => "min",
             Func::Max => "max",
             Func::Round => "round",
@@ -664,6 +668,13 @@ impl Parser<'_> {
             Tok::LParen => {
                 self.bump();
                 let inner = self.nested(Self::full)?;
+                // `(n¦k)`: a binomial coefficient, as an equation writes it.
+                if matches!(self.peek(), Some(Tok::Choose)) {
+                    self.bump();
+                    let lower = self.nested(Self::full)?;
+                    self.expect(Tok::RParen, ")")?;
+                    return self.node(Expr::Call(Func::Choose, vec![inner, lower]));
+                }
                 self.expect(Tok::RParen, ")")?;
                 Ok(inner)
             }

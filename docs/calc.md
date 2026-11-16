@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-15 · **Change:** derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-16 · **Change:** binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -82,7 +82,8 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   calculation that tail is replaced, and the unit of its last value, if changed, is kept
   (`⇒ a = mm/s²`).
 - An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
-  listed by `calc.recalculate`. Names depending on a failed definition are undefined.
+  listed by `calc.recalculate`; the statement before `=` stays as typed, whole (a sum keeps its
+  limits: `∑_(k=0)^n▒… = ⚠`). Names depending on a failed definition are undefined.
 - Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
   parameter wins over a unit of the same spelling, **except right after a number**: there unit
   names are units (ISO 80000: a quantity is a number times a unit), so with a mass `m = 400 kg`,
@@ -109,7 +110,29 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 
 - `∑_(i=1)^n▒i²`, `∏_(k=1)^5▒k` (Word's linear format; `Σ` works too). The operand spans `·` and
   `/` but not `+ −`: `∑_(i=1)^3▒F[i]·x[i]` is a sum of products. Limits are whole numbers; an
-  empty range sums to 0 (product 1).
+  empty range sums to 0 (product 1). A binomial coefficient in the operand is written `(n¦k)`
+  (or `binom(n; k)`).
+- **A sum with a closed form shows it.** The binomial theorem is known:
+  `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k)` is `(x + a)^n`.
+  - *Names without a value*: the sum has no number, and its result is the formula,
+    `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n` (no error; nothing is defined). A unit asked for
+    after `=` still needs a number, and any other sum of unknown names is the error it was.
+  - *Values known*: the terms are added up as ever (`= 343` with `n = 3`, `x = 2`, `a = 5`), and
+    with Show Steps the working goes through the closed form:
+    `… = (x + a)^n = (2 + 5)^3 = 343` — shown only when the closed form gives the very value the
+    terms add up to. A definition does the same (`y = ∑… = (x + a)^n = (2 + 5)^3 = 343`).
+  - *Read back*, the formula after the sum is Strix's own, like any working: once the names have
+    values the number takes its place. Another expression after `=` is the user's equation.
+  - *The identity written out* (the gallery's Binomial expansion,
+    `(x + a)^n = ∑_(k=0)^n▒(n¦k)·x^k·a^(n−k)`, either way round, terms in any order) holds
+    whatever its names are worth: it is not an equation with too many unknowns, and nothing is
+    reported. With every name known it is checked like any equation.
+  - *The shapes recognised* (`crates/calc/src/series.rs`): the sum runs from 0 to the
+    coefficient's own `n` (a name, a number, an expression without `k`); the coefficient is
+    `(n¦k)`, `binom(n; k)` or the same with `n − k` below; the powers `u^k` and `v^(n−k)` may be
+    missing (`∑▒(n¦k) = 2^n`, `∑▒(n¦k)·x^k = (1 + x)^n`) or several (`2^k·x^k`: `(2·x + …)^n`); a
+    negative base alternates (`(−1)^k·x^k·a^(n−k)`: `(a − x)^n`); factors without `k` come out
+    (`c·(x + a)^n/d`). It holds for whole `n ≥ 0`, which a sum's upper limit is.
 - A range `i = 1..5` (or `1…5`) is a vector `[1; 2; 3; 4; 5]`; `∑_i▒…` runs over its values.
 - Vectors: `F = [1; 2; 3] kN`, `F[2]` (1-based), arithmetic element by element (a vector with a
   number, or two of the same length), functions element by element; `sum mean len min max` take
@@ -324,7 +347,9 @@ equation writes the multiplication dot `·`. Limits: 4096 characters, nesting de
 Functions: algebraic and trigonometric (`sqrt cbrt root(x; n) abs sign mod(a; b) exp ln log2
 log(x; base) sin cos tan asin acos atan atan2(y; x) sinh cosh tanh asinh acosh atanh min max
 round floor ceil trunc`; see *Inverse functions* below), combinatorics and integer arithmetic (`gcd/mcd lcm/mcm fact/n!
-binom(n; k)`), and laboratory statistics and linear regression (`sum mean median var varp
+binom(n; k)`, the coefficient also written as an equation writes it, `n` over `k` in brackets:
+Word's `(n¦k)`, Equation › Bracket › Binomial Coefficient; it is shown the way it was written),
+and laboratory statistics and linear regression (`sum mean median var varp
 stdev/std stdevp len slope(X; Y) intercept(X; Y) r2(X; Y)`); `π`/`pi`, `e`, `g` (standard gravity)
 are predefined. Numbers: `1.5`, `1,5` when the document language uses decimal commas, `2e-3`.
 
@@ -384,6 +409,20 @@ power: `x⁻¹`, `x^-1`, `sin(x)^-1`, `60 min^-1`.
   the sum. The variable is bound, as in `∑`; the limits may carry units, and the result's unit
   is the integrand's times the variable's (`∫_(0 s)^(2 s) a·t dt = 6 m`). An integral without
   limits (`∫ f dx = F`) stays an ordinary equation.
+- **Improper integrals**: a limit may be `∞` or `−∞` (`+∞` too):
+  `∫_(−∞)^∞ e^(−x²) dx = 1.772` (√π), `∫_0^∞ e^(−x) dx = 1`, `∫_1^∞ 1/x² dx = 1`. A limit at
+  infinity takes the other limit's unit (`∫_(0 s)^∞ e^(−t/τ) dt` with `τ = 2 µs` is `2 µs`);
+  with both infinite the variable is a plain number. The limits the other way round change the
+  sign. An integral that does not settle is an error, never a wrong number: "the integral does
+  not converge" (`∫_1^∞ 1/x dx`, `∫_0^∞ sin(x) dx`), or the integrand's own error when it
+  overflows (`∫_0^∞ e^(x²) dx`). `∞` is only a limit of an integral: anywhere else (`x = ∞`,
+  `∑_(k=0)^∞`, `2·∞`) it is an error, "∞ is not a value".
+- How: the range is taken decade by decade from the finite limit (from 0 with both infinite),
+  10⁻⁹ to 10⁹ in SI units, so an integrand that lives at any such scale is seen (a time constant
+  in microseconds, a bell a thousand wide), then the tail with `x = 10⁹/s` mapped onto a finite
+  interval; each piece adaptively, and the whole must settle to 10⁻⁶ of its value. As with any
+  sampled integral, a narrow peak far from that limit (`e^(−(x − 10⁵)²)`) can be missed: put the
+  limits near it.
 - Both are numerical (`crates/calc/src/calculus.rs`): central differences with a Richardson
   step; adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
   nodes never touch the limits (`∫_0^1 1/√x dx = 2`). Results keep 10 significant digits, so
@@ -571,6 +610,8 @@ Edit Drawing, see `docs/cad.md`).
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-16: binomial coefficients as equations write them (`(n¦k)`); the binomial theorem as the closed form of a sum: `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n` when its names have no value, a step of the working when they have, the identity written out accepted (`crates/calc/src/series.rs`); improper integrals with `∞` and `−∞` as limits (`∫_(−∞)^∞ e^(−x²) dx = 1.772`), "does not converge" when they don't; a statement that cannot be read keeps its sum whole before `= ⚠` (the `=` of `∑_(k=0)` used to cut it in two); a parameter as an exponent is substituted in the steps (`(2 + 5)^3`, was `(2 + 5)^n`).
 
 - 2026-11-15: derivatives of user functions (`f′(a)`, `f″(a)`) and definite integrals (`∫_a^b f(x) dx`), numerical, with units; solvable like any call (`0 = f′(x)`); they make the plot's analysis live in the document (`plot.analysis`, [plot.md](plot.md)).
 

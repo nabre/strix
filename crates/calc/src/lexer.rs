@@ -47,6 +47,8 @@ pub(crate) enum Tok {
     Nary(char),
     /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`).
     Cmp(char),
+    /// `¦`: the bar-less fraction of a binomial coefficient, `(n¦k)` (Word's linear format).
+    Choose,
 }
 
 /// A token with its 0-based character position and byte offset in the statement.
@@ -83,6 +85,7 @@ pub(crate) fn describe(tok: &Tok) -> String {
         Tok::Under => "_".to_string(),
         Tok::Operand => "▒".to_string(),
         Tok::Nary(c) | Tok::Cmp(c) => c.to_string(),
+        Tok::Choose => "¦".to_string(),
     }
 }
 
@@ -192,6 +195,9 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
             '⩾' => Tok::Cmp('≥'),
             '=' => Tok::Equals,
             '√' => Tok::Sqrt,
+            '¦' => Tok::Choose,
+            // Infinity is a number no arithmetic takes: only a limit of an integral reads it.
+            '∞' => Tok::Num(f64::INFINITY),
             '⚠' => Tok::Warn,
             other => return Err(CalcError::syntax(pos, format!("unexpected character {other}"))),
         };

@@ -788,6 +788,27 @@ fn hostile_sums_vectors_and_tables_never_panic() {
         "x = [1; 2] + x",
         "〖〗",
         "_ = _",
+        "¦",
+        "(¦)",
+        "(n¦",
+        "(¦k)",
+        "((((1¦2)¦3)¦4)¦5)",
+        "∑_(k=0)^n▒(n¦k)",
+        "∑_(k=0)^n▒(n¦k)·x^k·a^(n-k) = (x + a)^n = =",
+        "∑_(k=0)^(1e9)▒(1e9¦k)·2^k",
+        "∑_(k=0)^n▒(n¦k)·x^k = ∑_(k=0)^n▒(n¦k)·x^k",
+        "∞",
+        "-∞",
+        "∞ m",
+        "∞^∞",
+        "1/∞",
+        "[∞; 1]",
+        "1..∞",
+        "∫_∞^∞▒∞ dx",
+        "∫_(-∞)^∞▒1/x dx",
+        "∫_(-∞)^∞▒∫_(-∞)^∞▒e^(-x^2-y^2) dx dy",
+        "∫_0^∞▒x^x dx",
+        "∫_(0 m)^∞▒1 dx",
     ] {
         let _ = run(&[text, "i = 1..3", text, &format!("{text} =")]);
     }
@@ -1685,6 +1706,13 @@ fn m5_combinatorics_and_lab_statistics() {
     assert_eq!(last(&["5! ="]), "5! = 120");
     assert_eq!(last(&["fact(6) ="]), "fact(6) = 720");
     assert_eq!(last(&["binom(10; 3) ="]), "binom(10; 3) = 120");
+    // The coefficient as an equation writes it, n over k (Word's linear `(n¦k)`).
+    assert_eq!(last(&["(10¦3) ="]), "(10¦3) = 120");
+    assert_eq!(last(&["n = 5", "c = 2·(n¦2) ="]), "c = 2·(n¦2) = 20");
+    assert_eq!(last(&["n = 5", "((n + 1)¦(n - 1)) ="]), "((n + 1)¦(n - 1)) = 15");
+    assert!(matches!(last_error(&["(5¦2¦1) ="]), CalcError::Syntax { .. }));
+    assert!(matches!(last_error(&["5¦2 ="]), CalcError::Syntax { .. }));
+    assert!(matches!(last_error(&["(5¦) ="]), CalcError::Syntax { .. }));
     let b1000 = run(&["c := binom(1000; 500)"]).pop().unwrap();
     assert_eq!(b1000.error, None);
     assert!(b1000.value.unwrap().scalar().unwrap().value > 2.7e299);

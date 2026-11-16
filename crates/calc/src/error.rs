@@ -153,6 +153,10 @@ pub enum CalcError {
     Underdetermined(Vec<String>),
     /// A check (`σ ≤ f_yd`) that does not hold; the text is the comparison with the values.
     CheckFailed(String),
+    /// `∞` used as a value: it is only a limit of an integral.
+    Infinite,
+    /// An integral that has no finite value, or whose value was not found.
+    Diverges,
     /// An equation whose sides are both known but differ.
     NotEqual {
         /// The left side, formatted.
@@ -209,6 +213,8 @@ impl fmt::Display for CalcError {
             CalcError::NoSolution(name) => write!(f, "no value of {name} solves the equation"),
             CalcError::Underdetermined(names) => write!(f, "more than one unknown ({}): give values to all but one", names.join(", ")),
             CalcError::CheckFailed(text) => write!(f, "the check fails: {text}"),
+            CalcError::Infinite => f.write_str("∞ is not a value: it can only be a limit of an integral"),
+            CalcError::Diverges => f.write_str("the integral does not converge"),
             CalcError::NotEqual { left, right } => write!(f, "the two sides differ: {left} ≠ {right}"),
         }
     }

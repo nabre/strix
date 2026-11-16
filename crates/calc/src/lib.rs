@@ -37,6 +37,7 @@ mod format;
 mod lexer;
 mod parser;
 mod quantity;
+mod series;
 mod solve;
 mod table;
 mod uncertainty;

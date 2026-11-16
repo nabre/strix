@@ -563,6 +563,7 @@ impl<'a> Ctx<'a> {
     fn eval_node(&mut self, expr: &Expr) -> Result<Value, CalcError> {
         self.charge(1)?;
         match expr {
+            Expr::Num(v) if v.is_infinite() => Err(CalcError::Infinite),
             Expr::Num(v) => Ok(Quantity::number(finite(*v)?).into()),
             Expr::Name(name) => self.resolve(name),
             Expr::Unit(name) => unit(name).map(Value::Scalar).ok_or_else(|| CalcError::UnknownUnit(name.clone())),
@@ -808,9 +809,19 @@ impl<'a> Ctx<'a> {
         let (Some(var), Some(from), Some(to)) = (&n.var, &n.from, &n.to) else {
             return Err(CalcError::syntax(0, "give both limits of the integral, like ∫_0^1"));
         };
-        let a = self.eval(from)?.expect_scalar()?;
-        let b = self.eval(to)?.expect_scalar()?;
-        a.same_dim(b, "∫")?;
+        // A limit at infinity (`∞`, `-∞`) takes the other limit's unit.
+        let (ia, ib) = (crate::calculus::infinite(from), crate::calculus::infinite(to));
+        let finite_limit = |this: &mut Self, e: &Expr, inf: Option<f64>| match inf {
+            Some(_) => Ok(None),
+            None => this.eval(e).and_then(|v| v.expect_scalar()).map(Some),
+        };
+        let (qa, qb) = (finite_limit(self, from, ia)?, finite_limit(self, to, ib)?);
+        if let (Some(a), Some(b)) = (qa, qb) {
+            a.same_dim(b, "∫")?;
+        }
+        let dim = qa.or(qb).map(|q| q.dim).unwrap_or_default();
+        let a = Quantity::new(qa.map_or(ia.unwrap_or(0.0), |q| q.value), dim);
+        let b = Quantity::new(qb.map_or(ib.unwrap_or(0.0), |q| q.value), dim);
         const WHAT: &str = "∫";
         let mut first: Option<Quantity> = None;
         let mut f = |v: f64| -> Result<f64, CalcError> {
@@ -1006,7 +1017,7 @@ impl<'a> Ctx<'a> {
                 }
                 self.eval_log_base(args)
             }
-            Func::Atan2 | Func::Mod | Func::Binom => self.eval_binary_func(func, args),
+            Func::Atan2 | Func::Mod | Func::Binom | Func::Choose => self.eval_binary_func(func, args),
             _ => {
                 let [x] = args else {
                     return Err(CalcError::Arity { function: function.to_string(), expected: "1 argument" });

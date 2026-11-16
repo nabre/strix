@@ -228,6 +228,7 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
     let render = |e: &Expr| render_nodes(e, sub);
     let wrap = |e: &Expr, parens: bool| if parens { format!("({})", render_nodes(e, sub)) } else { render_nodes(e, sub) };
     match expr {
+        Expr::Num(v) if v.is_infinite() => "∞".to_string(),
         Expr::Num(v) => format!("{v}"),
         Expr::Name(name) => name.clone(),
         Expr::Unit(name) => name.clone(),
@@ -237,6 +238,14 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 args.iter().enumerate().map(|(i, a)| if func.is_rounding() && i == 2 { crate::format::render(a) } else { render(a) }).collect();
             match (func, args.as_slice()) {
                 (Func::Sqrt, [a]) => format!("√({a})"),
+                // A coefficient stacks single operands only: `(n¦k)`, `((n + 1)¦k)`.
+                (Func::Choose, [_, _]) => {
+                    let stacked: Vec<String> = match expr {
+                        Expr::Call(_, operands) => operands.iter().map(|a| wrap(a, !matches!(a, Expr::Name(_) | Expr::Num(_)))).collect(),
+                        _ => args,
+                    };
+                    format!("({})", stacked.join("¦"))
+                }
                 _ => format!("{}({})", func.name(), args.join("; ")),
             }
         }
@@ -282,7 +291,12 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 match integer(right) {
                     Some(n) => power_text(&base, n),
                     None => match &**right {
-                        Expr::Name(name) => format!("{base}^{name}"),
+                        // A name, or the value written for it (`3`, `(2 m)`).
+                        Expr::Name(_) => {
+                            let exponent = render(right);
+                            let plain = exponent.starts_with('(') || exponent.chars().all(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | ','));
+                            if plain { format!("{base}^{exponent}") } else { format!("{base}^({exponent})") }
+                        }
                         other => format!("{base}^({})", render(other)),
                     },
                 }
