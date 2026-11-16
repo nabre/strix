@@ -316,7 +316,7 @@ fn symbols(ui: &mut Ui, app: &mut WordApp) {
 
 /// Draws one equation-tab symbol button, paints its preview, shows the linear name and codepoint
 /// in a tooltip, and returns whether it was clicked.
-fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
+pub(crate) fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
     let (r, resp) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
     ui.painter().rect_filled(r, 2.0, t.input);
     if resp.hovered() {
@@ -400,7 +400,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
-    group(ui, "Symbols", None, app, symbols);
+    group(ui, "Symbols", Some("view.symbolsPane"), app, symbols);
     group(ui, "Structures", None, app, |ui, app| {
         for g in STRUCTURES {
             let id = g.id;

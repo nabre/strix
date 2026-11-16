@@ -3792,3 +3792,4 @@ paper	Envelope DL	Busta DL
 	ByLayer / ByStyle	DaLivello / DaStile
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Linee di quota, di riferimento e di richiamo; DaLivello: quello del livello. I terminali hanno il loro spessore
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Linee di quota, di riferimento e di richiamo; DaLivello: quello del livello. Terminali e testi restano continui
+	Symbols Pane	Riquadro Simboli

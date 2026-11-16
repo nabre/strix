@@ -154,6 +154,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("view.dataPane", "Exercise Data", "Exercise › Calculation", |s, v| toggle(s, v, |x| &mut x.data_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),
+        CommandSpec::new("view.symbolsPane", "Symbols Pane", "Equation › Symbols", |s, v| toggle(s, v, |x| &mut x.symbols_pane))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.thesaurusPane", "Thesaurus Pane", "Review › Proofing", |s, v| toggle(s, v, |x| &mut x.thesaurus_pane))
             .params(r#"{"value"?: bool}"#)
             .pure(),

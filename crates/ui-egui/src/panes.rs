@@ -80,6 +80,8 @@ pub enum Pane {
     Questions,
     /// Exercise › Calculation › Data: the data and variants of the exercise at the cursor.
     Data,
+    /// Equation › Symbols (the group's launcher): every symbol set under its title.
+    Symbols,
     /// Review › Proofing › Thesaurus: synonyms of the word at the caret, by meaning.
     Thesaurus,
 }
@@ -107,6 +109,7 @@ impl Pane {
             Self::Grading => "Grading Scale",
             Self::Questions => "Question Settings",
             Self::Data => "Exercise Data",
+            Self::Symbols => "Symbols",
             Self::Thesaurus => "Thesaurus",
         }
     }
@@ -133,6 +136,7 @@ impl Pane {
             Self::Grading => (Edge::End, 300.0),
             Self::Questions => (Edge::End, 320.0),
             Self::Data => (Edge::End, 350.0),
+            Self::Symbols => (Edge::End, 300.0),
             Self::Thesaurus => (Edge::End, 280.0),
         };
         PaneState::docked(edge, width)
@@ -161,11 +165,12 @@ impl Pane {
             Self::Grading => "grading",
             Self::Questions => "questions",
             Self::Data => "exerciseData",
+            Self::Symbols => "symbols",
             Self::Thesaurus => "thesaurus",
         }
     }
 
-    const ALL: [Self; 21] = [
+    const ALL: [Self; 22] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -186,6 +191,7 @@ impl Pane {
         Self::Grading,
         Self::Questions,
         Self::Data,
+        Self::Symbols,
         Self::Thesaurus,
     ];
 
@@ -214,6 +220,7 @@ impl Pane {
             Self::Grading => Some("view.gradingPane"),
             Self::Questions => Some("view.questionsPane"),
             Self::Data => Some("view.dataPane"),
+            Self::Symbols => Some("view.symbolsPane"),
             Self::Thesaurus => Some("view.thesaurusPane"),
             Self::RestrictEditing | Self::Proofing => None,
         }
@@ -250,6 +257,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Grading => crate::grading_pane::pane(app, ui),
             Pane::Questions => crate::exercise_quiz::pane(app, ui),
             Pane::Data => crate::exercise_panels::pane(app, ui),
+            Pane::Symbols => crate::symbols_pane::pane(app, ui),
             Pane::Thesaurus => crate::thesaurus_pane::pane(app, ui),
         })
     }
