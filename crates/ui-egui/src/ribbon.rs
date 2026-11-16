@@ -79,7 +79,7 @@ use tabs::{
 };
 pub use tabs::{
     StripPlan, TABS, TabSpec, contextual_tabs, fit_tabs, has_chart_selected, has_picture_selected, has_shape_selected, has_smart_art_selected,
-    in_table_public, plan_strip, resolve_tab,
+    in_calc_table_public, in_table_public, plan_strip, resolve_tab,
 };
 #[cfg(test)]
 use underline::{UNDERLINE_STYLES, underline_menu};

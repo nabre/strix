@@ -398,6 +398,11 @@ pub fn in_table_public(app: &WordApp) -> bool {
     app.session.sel.focus.path.cell().is_some()
 }
 
+/// Whether the caret is inside a calculated table (so its own tab and badge are shown).
+pub fn in_calc_table_public(app: &WordApp) -> bool {
+    super::strix::in_calc_table(&app.session)
+}
+
 #[cfg(test)]
 mod transition_tests {
     use super::*;
