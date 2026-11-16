@@ -243,16 +243,21 @@ fn adaptive(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, breaks: &[f64], ma
 }
 
 /// The powers of ten an improper integral is sampled over, from its finite limit (or from 0):
-/// 10⁻⁹ to 10⁹, one interval per decade, so an integrand that lives at any such scale is seen.
+/// 10⁻⁹ to 10⁹, three intervals per decade (they start at 1, 2 and 5), so an integrand that
+/// lives at any such scale is seen.
 const DECADES: i32 = 9;
 
-/// `∫_0^∞ f(a + sign·u) du`: decade by decade up to 10⁹, then the tail with `u = 10⁹/s`, whose
+/// `∫_0^∞ f(a + sign·u) du`: decade by decade (in three pieces each) up to 10⁹, then the tail with `u = 10⁹/s`, whose
 /// nodes never reach `s = 0`. Gives the estimate, its error and the integral of `|f|`.
 fn half_line(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64, sign: f64) -> Result<(f64, f64, f64), CalcError> {
-    let mut breaks = vec![0.0];
-    breaks.extend((-DECADES..=DECADES).map(|j| 10f64.powi(j)));
     let reach = 10f64.powi(DECADES);
-    let (k1, e1, s1) = adaptive(&mut |u| f(a + sign * u), &breaks, MAX_INTERVALS)?;
+    let mut breaks = vec![0.0];
+    for j in -DECADES..DECADES {
+        breaks.extend([1.0, 2.0, 5.0].map(|m| m * 10f64.powi(j)));
+    }
+    breaks.push(reach);
+    // The intervals it starts from do not eat into the ones it may split.
+    let (k1, e1, s1) = adaptive(&mut |u| f(a + sign * u), &breaks, MAX_INTERVALS + breaks.len())?;
     let (k2, e2, s2) = adaptive(&mut |s| Ok(f(a + sign * reach / s)? * reach / (s * s)), &[0.0, 1.0], MAX_INTERVALS)?;
     Ok((k1 + k2, e1 + e2, s1 + s2))
 }
@@ -327,6 +332,9 @@ mod tests {
         let bell = ["μ = 3", "σ = 0.5", "φ(x) = 1/(σ·√(2·π))·e^(-(x - μ)^2/(2·σ^2))"];
         assert_eq!(last(&[bell[0], bell[1], bell[2], "∫_(-∞)^∞ φ(x) dx ="]), "∫_(-∞)^∞ φ(x) dx = 1");
         assert_eq!(last(&[bell[0], bell[1], bell[2], "∫_(-∞)^∞ x·φ(x) dx ="]), "∫_(-∞)^∞ x·φ(x) dx = 3");
+        // A narrow bell away from the powers of ten is still seen.
+        assert_eq!(last(&["μ = 500", "σ = 1", bell[2], "∫_(-∞)^∞ φ(x) dx ="]), "∫_(-∞)^∞ φ(x) dx = 1");
+        assert_eq!(last(&["μ = 170", "σ = 7", bell[2], "∫_0^∞ φ(x) dx ="]), "∫_0^∞ φ(x) dx = 1");
         // A solved unknown and a definition read it like any value.
         assert_eq!(last(&["A = ∫_0^∞ e^(-2·x) dx", "A ="]), "A = 0.5");
     }
@@ -336,6 +344,9 @@ mod tests {
         for diverging in ["∫_1^∞ 1/x dx =", "∫_0^∞ x dx =", "∫_(-∞)^∞ 1 dx =", "∫_0^∞ sin(x) dx =", "∫_1^∞ 1/√x dx ="] {
             assert_eq!(error(&[diverging]), Some(CalcError::Diverges), "{diverging}");
         }
+        // One that converges too slowly to be found is the same error, never a number.
+        assert_eq!(error(&["∫_0^∞ sin(x)/x dx ="]), Some(CalcError::Diverges));
+        assert_eq!(CalcError::Diverges.to_string(), "no finite value found for the integral: it may not converge");
         assert_eq!(error(&["∫_0^∞ e^(x^2) dx ="]), Some(CalcError::Overflow));
         // Infinity is a limit of an integral, never a value.
         for wrong in ["∞ =", "x = ∞", "2·∞ =", "∑_(k=0)^∞▒k =", "∫_0^(2·∞) x dx =", "f(x) = x", "sin(∞) ="] {

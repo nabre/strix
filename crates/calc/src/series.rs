@@ -374,7 +374,8 @@ mod tests {
         assert!(matches!(r.error, Some(CalcError::UnknownName(_))), "{:?}", r.display);
         // Constants are values: with nothing unknown the terms are added up.
         assert_eq!(last(&["∑_(k=0)^2▒(2¦k)·π^k·e^(2-k) ="]), "∑_(k=0)^2▒(2¦k)·π^k·e^(2-k) = 34.338");
-        // Values that break the sum are errors, not formulas.
+        // Values that break the sum are errors, not formulas, whatever else has no value.
+        assert!(matches!(run(&["n = 2.5", "x = 1", &format!("{SUM}=")], false).error, Some(CalcError::NotWhole { .. })));
         assert!(matches!(run(&["n = 2.5", "x = 1", "a = 1", &format!("{SUM}=")], false).error, Some(CalcError::NotWhole { .. })));
     }
 

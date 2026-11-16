@@ -39,8 +39,13 @@ pub(crate) fn free_names(expr: &Expr, out: &mut Vec<String>) {
         match expr {
             Expr::Num(_) | Expr::Unit(_) => {}
             Expr::Name(n) => {
-                if !bound.contains(n) && !out.contains(n) {
-                    out.push(n.clone());
+                // `x_i` under a sum over `i` reads the vector `x` (its element `i`), not a name of its own.
+                let n = match n.split_once('_') {
+                    Some((base, index)) if !base.is_empty() && bound.iter().any(|b| b == index) => base,
+                    _ => n.as_str(),
+                };
+                if !bound.iter().any(|b| b == n) && !out.iter().any(|o| o == n) {
+                    out.push(n.to_string());
                 }
             }
             Expr::Neg(e) => walk(e, bound, out),
@@ -179,6 +184,14 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                         Func::Asinh => call(Func::Sinh, other),
                         Func::Acosh => call(Func::Cosh, other),
                         Func::Atanh => call(Func::Tanh, other),
+                        Func::Csc | Func::Sec | Func::Cot | Func::Csch | Func::Sech | Func::Coth => match f.inverse() {
+                            Some(inverse) => call(inverse, other),
+                            None => return None,
+                        },
+                        Func::Acsc | Func::Asec | Func::Acot | Func::Acsch | Func::Asech | Func::Acoth => match f.inverse_of() {
+                            Some(direct) => call(direct, other),
+                            None => return None,
+                        },
                         _ => return None,
                     };
                     side = arg;

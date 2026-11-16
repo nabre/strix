@@ -238,6 +238,28 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 args.iter().enumerate().map(|(i, a)| if func.is_rounding() && i == 2 { crate::format::render(a) } else { render(a) }).collect();
             match (func, args.as_slice()) {
                 (Func::Sqrt, [a]) => format!("√({a})"),
+                // As the Equation tab builds them: the degree first, the inverse as a power on
+                // the name, bars, a base under the logarithm.
+                (Func::Cbrt, [a]) => format!("√(3&{a})"),
+                (Func::Root, [a, n]) => format!("√({n}&{a})"),
+                (f, [a]) if let Some(direct) = f.inverse_of() => format!("{}^(−1)\u{2061}({a})", direct.name()),
+                (Func::Norm, [a]) => format!("├‖{a}‖┤"),
+                (Func::Log, [a, base]) => {
+                    let plain = base.chars().all(|c| c.is_alphanumeric() || c == '.');
+                    if plain { format!("log_{base}\u{2061}({a})") } else { format!("log_({base})\u{2061}({a})") }
+                }
+                (Func::Lt | Func::Le | Func::Gt | Func::Ge | Func::Ne | Func::Eq, [a, b]) => format!("{a}{}{b}", func.name()),
+                (Func::All, _) => args.join(" ∧ "),
+                (Func::Cases, _) => {
+                    let rows: Vec<String> = args.chunks(2).map(|c| c.join(",&")).collect();
+                    format!("├{{█({})┤", rows.join("@"))
+                }
+                (Func::Matrix | Func::Det, [columns, cells @ ..]) if !cells.is_empty() => {
+                    let per_row = columns.parse::<usize>().unwrap_or(1).max(1);
+                    let rows: Vec<String> = cells.chunks(per_row).map(|r| r.join("&")).collect();
+                    let matrix = format!("■({})", rows.join("@"));
+                    if *func == Func::Det { format!("├|{matrix}|┤") } else { matrix }
+                }
                 // A coefficient stacks single operands only: `(n¦k)`, `((n + 1)¦k)`.
                 (Func::Choose, [_, _]) => {
                     let stacked: Vec<String> = match expr {
@@ -263,6 +285,15 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
             let limit = |e: &Option<Box<Expr>>| e.as_ref().map(|e| render(e)).unwrap_or_default();
             let var = n.var.as_deref().unwrap_or("x");
             format!("∫_({})^({})▒〖{} d{var}〗", limit(&n.from), limit(&n.to), wrap(&n.body, is_sum(&n.body)))
+        }
+        Expr::Nary(n) if crate::structures::is_limit(n.op) => {
+            let to = n.from.as_ref().map(|e| render(e)).unwrap_or_default();
+            let side = match n.op {
+                crate::structures::LIMIT_RIGHT => "^+",
+                crate::structures::LIMIT_LEFT => "^-",
+                _ => "",
+            };
+            format!("lim┬({}→{to}{side})\u{2061}〖{}〗", n.var.as_deref().unwrap_or("x"), render(&n.body))
         }
         Expr::Nary(n) => {
             let lower = match (&n.var, &n.from) {

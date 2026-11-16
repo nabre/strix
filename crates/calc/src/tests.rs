@@ -164,7 +164,7 @@ fn errors_wrong_unit_and_arithmetic() {
     assert_eq!(last_error(&["1e999 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["10^10^10 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["ln(0) ="]), CalcError::Domain { function: "ln".into() });
-    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "asin".into() });
+    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "sin⁻¹".into() });
     assert!(matches!(last_error(&["sin(2 m) ="]), CalcError::NeedsDimensionless { .. }));
     assert!(matches!(last_error(&["sin(1, 2) ="]), CalcError::Arity { .. }));
     assert!(matches!(last_error(&["max() ="]), CalcError::Arity { .. }));
@@ -1852,7 +1852,8 @@ fn an_unknown_alone_on_the_right_is_solved() {
 
 /// Inverse trigonometric and hyperbolic functions: `asin acos atan asinh acosh atanh`, also
 /// `arcsin`…, and `sin⁻¹` written with the power on the name (typed or built up, Word's function
-/// application U+2061 before the argument). Steps write them `asin`…; `x⁻¹` stays a power.
+/// application U+2061 before the argument). Steps write them as the Equation tab does, the power on
+/// the name (`sin^(−1)⁡(…)`); `x⁻¹` stays a power.
 #[test]
 fn inverse_trigonometric_functions_in_every_form() {
     for (written, value) in [
@@ -1884,13 +1885,13 @@ fn inverse_trigonometric_functions_in_every_form() {
     }
     // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)).
     let sheet = ["R = 3 m", "r = 1 m", "α = sin^(−1)\u{2061}((R−r)/(R+r))"];
-    assert_eq!(steps(&sheet).unwrap(), ["= asin(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
+    assert_eq!(steps(&sheet).unwrap(), ["= sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
     assert_eq!(
         inline(&["R = 3 m", "r = 1 m", "α = sin⁻¹((R - r)/(R + r))"]),
-        "α = sin⁻¹((R - r)/(R + r)) = asin(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
+        "α = sin⁻¹((R - r)/(R + r)) = sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
     );
     // Solving for an angle writes the same inverse.
-    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = asin(y) = asin(0.5) = 30°");
+    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = sin^(−1)\u{2061}(y) = sin^(−1)\u{2061}(0.5) = 30°");
     // Functions applied the Word way, and powers of them.
     assert_eq!(last(&["x = 2", "sin\u{2061}x ="]), "sin\u{2061}x = 0.909");
     assert_eq!(last(&["x = 2", "cos²(x) + sin^2(x) ="]), "cos²(x) + sin^2(x) = 1");

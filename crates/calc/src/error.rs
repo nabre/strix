@@ -157,6 +157,9 @@ pub enum CalcError {
     Infinite,
     /// An integral that has no finite value, or whose value was not found.
     Diverges,
+    /// A structure of the Equation tab that has no value here: a limit that does not exist, a
+    /// matrix outside a determinant, cases none of which applies. The text says which.
+    Structure(&'static str),
     /// An equation whose sides are both known but differ.
     NotEqual {
         /// The left side, formatted.
@@ -213,8 +216,9 @@ impl fmt::Display for CalcError {
             CalcError::NoSolution(name) => write!(f, "no value of {name} solves the equation"),
             CalcError::Underdetermined(names) => write!(f, "more than one unknown ({}): give values to all but one", names.join(", ")),
             CalcError::CheckFailed(text) => write!(f, "the check fails: {text}"),
-            CalcError::Infinite => f.write_str("∞ is not a value: it can only be a limit of an integral"),
-            CalcError::Diverges => f.write_str("the integral does not converge"),
+            CalcError::Infinite => f.write_str("∞ is not a value: it can only be a limit of an integral or what a limit tends to"),
+            CalcError::Structure(message) => f.write_str(message),
+            CalcError::Diverges => f.write_str("no finite value found for the integral: it may not converge"),
             CalcError::NotEqual { left, right } => write!(f, "the two sides differ: {left} ≠ {right}"),
         }
     }

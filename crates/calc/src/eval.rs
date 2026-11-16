@@ -5,6 +5,8 @@ use crate::quantity::{Dim, Quantity, finite};
 use crate::units::{TEMPERATURE_DIM, affine, constant, dim_name, unit};
 use crate::{CalcError, MAX_CALL_DEPTH, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
 
+mod structures;
+
 /// The hint of a temperature difference (`T₂ − T₁`): shown in kelvin, never with the offset of
 /// a `°C`/`°F` working unit.
 pub(crate) const DIFFERENCE: &str = "K";
@@ -393,7 +395,7 @@ impl Scope {
             Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
             Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
             Expr::Bin(op @ (BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div), a, b) => self.dimless_bin(*op, a, b),
-            Expr::Call(Func::Asin | Func::Acos | Func::Atan | Func::Atan2, _) => Some("°".to_string()),
+            Expr::Call(f, _) if f.gives_angle() => Some("°".to_string()),
             Expr::Call(f, args) if f.is_rounding() => self.rounding_dimless(args),
             Expr::Call(
                 Func::Measure
@@ -601,6 +603,7 @@ impl<'a> Ctx<'a> {
                 self.call(Func::Measure, &[x, delta])
             }
             Expr::Call(func, args) if func.is_rounding() => self.eval_rounding(*func, args),
+            Expr::Call(func, args) if structures::is_lazy(*func) => self.structure(*func, args),
             Expr::Call(func, args) => {
                 let values = args.iter().map(|a| self.eval(a)).collect::<Result<Vec<_>, _>>()?;
                 self.call(*func, &values)
@@ -705,6 +708,9 @@ impl<'a> Ctx<'a> {
                 }
                 if let Some(v) = self.scope.get(name) {
                     return Ok(v.clone());
+                }
+                if let Some(element) = self.subscripted(name) {
+                    return element;
                 }
                 constant(name).or_else(|| unit(name)).map(Value::Scalar).ok_or_else(|| match Func::from_name(name) {
                     Some(_) => CalcError::FunctionNeedsArguments(name.to_string()),
@@ -870,6 +876,9 @@ impl<'a> Ctx<'a> {
         if n.op == '∫' {
             return self.integral(n);
         }
+        if crate::structures::is_limit(n.op) {
+            return self.limit(n);
+        }
         let sum = n.op == '∑';
         let mut acc: Option<Quantity> = None;
         let mode = self.scope.uncertainty;
@@ -1011,6 +1020,7 @@ impl<'a> Ctx<'a> {
             Func::Slope | Func::Intercept | Func::R2 => self.eval_regression(func, args),
             Func::Gcd | Func::Lcm => self.eval_int_agg(func, args),
             Func::Root => self.eval_root(args),
+            Func::Norm => self.norm(args),
             Func::Log if args.len() != 1 => {
                 if args.iter().flat_map(Value::quantities).any(|q| q.unc.is_some()) {
                     return Err(domain("uncertain logarithm base"));
@@ -1403,6 +1413,32 @@ fn unary_exact(func: Func, x: Quantity) -> Result<Quantity, CalcError> {
                 Func::Sin => v.sin(),
                 Func::Cos => v.cos(),
                 Func::Tan => v.tan(),
+                Func::Csc | Func::Sec | Func::Cot | Func::Csch | Func::Sech | Func::Coth => {
+                    let (over, under) = match func {
+                        Func::Csc => (1.0, v.sin()),
+                        Func::Sec => (1.0, v.cos()),
+                        Func::Cot => (v.cos(), v.sin()),
+                        Func::Csch => (1.0, v.sinh()),
+                        Func::Sech => (1.0, v.cosh()),
+                        _ => (v.cosh(), v.sinh()),
+                    };
+                    // A multiple of π is not exactly one in binary: `cot(180°)` has no value.
+                    if under.abs() <= 1e-15 * over.abs().max(1.0) {
+                        return Err(CalcError::DivisionByZero);
+                    }
+                    over / under
+                }
+                Func::Acsc | Func::Asec if v.abs() < 1.0 => return Err(domain(function)),
+                Func::Acsc => (1.0 / v).asin(),
+                Func::Asec => (1.0 / v).acos(),
+                // The angle between 0° and 180° (`cot⁻¹(0) = 90°`, `cot⁻¹(−1) = 135°`).
+                Func::Acot => std::f64::consts::FRAC_PI_2 - v.atan(),
+                Func::Acsch if v == 0.0 => return Err(CalcError::DivisionByZero),
+                Func::Acsch => (1.0 / v).asinh(),
+                Func::Asech if v <= 0.0 || v > 1.0 => return Err(domain(function)),
+                Func::Asech => (1.0 / v).acosh(),
+                Func::Acoth if v.abs() <= 1.0 => return Err(domain(function)),
+                Func::Acoth => (1.0 / v).atanh(),
                 Func::Asin | Func::Acos if !(-1.0..=1.0).contains(&v) => return Err(domain(function)),
                 Func::Asin => v.asin(),
                 Func::Acos => v.acos(),

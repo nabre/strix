@@ -271,7 +271,8 @@ impl Worksheet {
         if known && (worked || result) {
             return None;
         }
-        if let Some(t) = body.iter().find(|t| matches!(t.tok, Tok::Equals | Tok::Define | Tok::Cmp(_))) {
+        // Outside brackets: the conditions of cases (`{█(−x,&x<0@x,&x≥0)┤`) compare inside theirs.
+        if let Some(t) = positions(body, |t| matches!(t, Tok::Equals | Tok::Define | Tok::Cmp(_))).first().and_then(|&i| body.get(i)) {
             self.scope.remove_function(&name);
             return Some(failed(CalcError::syntax(t.pos, "a function definition has one = (call it later to show a value: f(3) =)")));
         }
@@ -1494,7 +1495,9 @@ impl Worksheet {
         // Names without a value (not parameters, constants or units): no number to show, but
         // a sum with a closed form is worth that formula
         // (`∑_(k=0)^n▒(n¦k)·x^k·a^(n-k) = (x + a)^n`). A unit asked for needs a number.
-        if result.error.is_some()
+        // Only the errors a name without a value gives (one spelled like a unit, `N` or `h`, is
+        // read as that unit): a value that breaks the sum (`n = 2.5`) stays an error.
+        if matches!(result.error, Some(CalcError::UnknownName(_) | CalcError::NeedsDimensionless { .. } | CalcError::DimensionMismatch { .. }))
             && matches!(requested_unit(rhs, len), Ok(None))
             && let Ok(expr) = self.parse_expr(left, eq_token.pos)
             && !self.unknowns(&expr, &Expr::Num(0.0)).is_empty()
@@ -1947,7 +1950,19 @@ fn units_only(rhs: &[Token]) -> bool {
         | Tok::Operand
         | Tok::Nary(_)
         | Tok::Choose
-        | Tok::Cmp(_) => false,
+        | Tok::Cmp(_)
+        | Tok::LBrace
+        | Tok::RBrace
+        | Tok::Bar { .. }
+        | Tok::LFloor(_)
+        | Tok::RFloor(_)
+        | Tok::Root(_)
+        | Tok::Amp
+        | Tok::At
+        | Tok::Matrix
+        | Tok::Stack
+        | Tok::Below
+        | Tok::Tends => false,
         _ => true,
     })
 }
