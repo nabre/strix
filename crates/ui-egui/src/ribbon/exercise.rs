@@ -233,28 +233,26 @@ fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: 
     });
 }
 
+/// The title toggle's label, tooltip and the line it sets, for the first line as it is (`line`:
+/// `exercise.titleLine`'s "title" or "statement"). Pure, tested.
+pub(super) fn title_toggle(line: &str) -> (&'static str, &'static str, &'static str) {
+    if line == "statement" {
+        ("Show Title", "Give the exercise a title after the number; the text next to the number goes back under it", "title")
+    } else {
+        ("Remove Title", "Remove the exercise's title: the statement's text goes next to the number (Show Title brings the title back)", "statement")
+    }
+}
+
 /// Exercise › General: what the first line holds, the duration, the type.
 fn general_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, type_name: &str) {
     let line = app.session.run("exercise.titleLine", &json!({"exercise": ex})).ok().and_then(|v| v["line"].as_str().map(str::to_string));
     let line = line.unwrap_or_else(|| "title".into());
     group(ui, "General", None, app, |ui, app| {
         stack(ui, |ui| {
-            menu_button(
-                ui,
-                app,
-                MenuButtonOptions::new(
-                    "addText",
-                    Some("First Line"),
-                    "What the exercise's first line holds after the number: a title, or the statement's text",
-                    false,
-                    "exercise.titleLine",
-                ),
-                |ui, app| {
-                    for (id, label) in [("title", "Title"), ("statement", "Text next to the number (no title)")] {
-                        mi_check(ui, app, label, line == id, "exercise.titleLine", json!({"exercise": ex, "line": id}));
-                    }
-                },
-            );
+            // One button, named after what it does: Remove Title with a title on the line, Show
+            // Title with the statement next to the number.
+            let (label, tip, to) = title_toggle(&line);
+            small(ui, app, "addText", Some(label), tip, ButtonAction::new("exercise.titleLine", json!({"exercise": ex, "line": to}), false));
             crate::widgets::row(ui, |ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
                 let name = ui.label(egui::RichText::new(tl!("Duration")).small());
@@ -755,6 +753,23 @@ mod tests {
 
     /// Every type of exercise has the common commands; the peculiar ones are on only for the types
     /// of question that use them, and the type shows by name.
+    /// The owner: the First Line menu is one toggle, Show Title / Remove Title.
+    #[test]
+    fn the_title_button_toggles_the_first_line() {
+        let mut s = Session::new(wordcraft_doc::Document::from_text("Intro"));
+        s.run("exercise.insert", &json!({"kind": "problem"})).unwrap();
+        let line = |s: &mut Session| s.run("exercise.titleLine", &json!({})).unwrap()["line"].as_str().unwrap().to_string();
+        let mut labels = Vec::new();
+        for _ in 0..2 {
+            let (label, _, to) = title_toggle(&line(&mut s));
+            labels.push(label);
+            s.run("exercise.titleLine", &json!({"line": to})).unwrap();
+            assert_eq!(line(&mut s), to);
+        }
+        assert_eq!(labels, ["Remove Title", "Show Title"]);
+        assert_eq!(line(&mut s), "title");
+    }
+
     #[test]
     fn peculiar_commands_follow_the_type_of_question() {
         let cases = [

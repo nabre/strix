@@ -348,8 +348,24 @@ mod tests {
         );
         run(&mut s, "exercise.show", json!({"solution": true, "results": true}));
         let t = texts(&s);
-        assert!(t.contains(&"a) risposta aperta".to_string()), "{t:?}");
+        assert!(t.contains(&"a) domanda a risposta aperta".to_string()), "{t:?}");
         assert!(t.contains(&"b) fotosintesi, foglie".to_string()), "{t:?}");
+    }
+
+    /// The owner: open answers leave a trace in the summary even when the exercise has nothing
+    /// else, so that no part is forgotten when correcting.
+    #[test]
+    fn open_answers_alone_are_named_in_the_results_summary() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Che cos'è un rettangolo?"}, {"text": "E un rombo?"}]}));
+        // A second exercise with a lone question: the line has no letter.
+        run(&mut s, "exercise.insert", json!({"kind": "open", "questions": [{"text": "Che cos'è un cerchio?"}]}));
+        run(&mut s, "exercise.show", json!({"solution": true, "results": true}));
+        let t = texts(&s);
+        assert!(t.contains(&"a) domanda a risposta aperta".to_string()), "{t:?}");
+        assert!(t.contains(&"b) domanda a risposta aperta".to_string()), "{t:?}");
+        assert!(t.contains(&"domanda a risposta aperta".to_string()), "{t:?}");
     }
 
     #[test]

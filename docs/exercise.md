@@ -17,7 +17,7 @@ deleted; the automatic parts can't be edited):
 | Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; Exercise Info follows the title as it is typed (the summary shows only the label; prefix, format, separator and first number: see Numbering). Its paragraph style can't be changed: another style applied to it (Apply Style, Styles pane, Clear Formatting) gives Exercise Title back at once, since the style numbers the title and marks it as the title; to restyle every title, modify the Exercise Title style. Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
 | Data | `strix:exercise.data` | editable (not deletable) | the initial data as equations in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise tab's Data panel and typed into in place, absent when there are none |
-| Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
+| Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own, **starting again at a) in every exercise** (a copy of an exercise pasted into the same document gets lists of its own too, for its questions and their options), and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
 | Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
 | Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
@@ -42,7 +42,7 @@ Insert Copy) with the cursor in an exercise puts it on a new paragraph right aft
 
 The first line holds, after the number, either a **title** (bold, the default) or the
 **statement itself, with no title** (`exercise.titleLine {"line": "statement"}`, Exercise
-Properties › General › First line, or `exercise.insert {"titleLine": "statement"}`): the text
+tab › General › **Remove Title**, **Show Title** to go back, or `exercise.insert {"titleLine": "statement"}`): the text
 written right after *Esercizio 1.* in the body text's weight and size (`Esercizio 1.` Calcola la
 velocità media…), its placeholder the statement's in a quiz as in a problem (a quiz's questions keep their own
 fields under the line, so the line never repeats *Scrivi qui la domanda.* over the first one). The number keeps the title's look. Kept on the title control
@@ -53,7 +53,7 @@ statement part's first paragraph (its words, their formatting, inline values) go
 number and the part goes; what followed that paragraph (a figure, a table) stays in the part
 below. The title is kept aside on the control (`<strix:titleLineTitle>`), not lost. Switching back
 to a title, the line's text is the statement part's first paragraph again (a problem gets an empty
-statement part when the line was empty; a quiz needs none) and the title comes back. One undo
+statement part when the line was empty, and so does a quiz with more than one question) and the title comes back. One undo
 step either way. A statement part left only showing its placeholder beside a line holding the
 statement (documents from before, or its rest deleted) goes. The data part follows the title
 when there is no statement part.
@@ -108,9 +108,12 @@ exercise (Add Question), still available to scripts as `kind`.
 | **Open answer** | `open` | title, then each question followed by a space to answer in |
 | **Multiple choice** | `choice`, `trueFalse` | title, then each question followed by its options A), B)… |
 
-The last two are **quizzes**: the exercise *is* its questions. A statement is optional and
-absent by default (an exercise can be just the question); give one with `"text"`, or its
-placeholder with `"statement": true`. **A lone question has no letter** (like a lone
+The last two are **quizzes**: the exercise *is* its questions. With one question a statement is
+optional and absent by default (an exercise can be just the question); give one with `"text"`, or its
+placeholder with `"statement": true`. **With more than one question a quiz has a statement**, like a
+problem: the text introducing its questions, under the title (its placeholder until typed over; a
+quiz that gets a second question, or a document from before, is given one), or next to the number
+when the first line holds it, moving with Show Title / Remove Title. **A lone question has no letter** (like a lone
 exercise has no number); a second question letters both a), b). There is no Solution part: the
 answers are in the exercise, next to their questions.
 
@@ -141,8 +144,9 @@ options are correct is kept). So one document gives the students' copy and the c
 
 **Points.** The points of an exercise's questions add up to the exercise's points (`exercise.questionPoints` sets or clears points on questions of both quizzes and problems, inserting `strix:exercise.points` at the end of a problem question when set); a **scores
 table** takes them as the exercise's row total, at once, for every exercise whose questions carry points (otherwise every criterion is typed in; see Scores table). Even with a single exercise and a single criterion (`1×1`), the scores table keeps its Total row (`__ / Max`). The results summary lists, for each multiple choice, its letter and
-the correct options (`a) A, C`); open answers give no line, and a document whose exercises are
-all open answers has no summary.
+the correct options (`a) A, C`); every open answer gives a line saying so (`b) domanda a risposta
+aperta`, in the exercise's language), also when the exercises are all open answers, so that no
+part is forgotten when correcting.
 
 `exercise.questions` reads an exercise's questions (text, kind, points, space, calculation line, CAD scale, options and correct
 ones, the total) and changes one's settings: `{"question": 2, "points": 3, "height": 6, "grid":
@@ -365,7 +369,7 @@ pane). First come the groups every type of exercise has (problem, open answer, m
 true or false, inline completion), then the ones only some types of question use, greyed out
 unless the exercise has a question of such a type (the commands stay on for scripts):
 
-- **General**: **First Line** (title, or text next to the number), **Duration** in minutes, and
+- **General**: **Remove Title** / **Show Title** (one button: with a title on the first line it removes it and the text goes next to the number, else it brings the title back), **Duration** in minutes, and
   the exercise's type (Problem; a quiz whose questions are all of one type is named after it,
   True or False, Inline Completion…; else Open Answer or Multiple Choice).
 - **Questions**: **Add Question** (in a quiz a split button: the menu adds a question of a type;
@@ -531,6 +535,8 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-16: the questions' letters start again at a) in every exercise also in a copy pasted into the same document, which went on with c), d) (and its options with C), D)) by sharing the lists of the exercise it was copied from; documents holding such copies are put right as they open.
+- 2026-11-16: every open answer gives a line in the results summary (*domanda a risposta aperta*), also when an exercise or the whole document has open answers alone (no summary before), so that no part is forgotten when correcting.
 - 2026-11-15: the grading table lists the grades of the grid (lowest to highest by the step), each with its points as a half-open interval `[from; to[`, the points worked out exactly and rounded to a multiple (`pointsRound`, Grading Scale Properties › Points); the old "a row every n points" (`pointsStep`) is gone.
 - 2026-11-15: the grading table's intervals and grades are aligned at the decimal separator in borderless sub-columns; the table is as narrow as its content and centred; a note under it gives the multiple the points are rounded to.
 - 2026-11-15: data as equations (`L = 4.5 m`) in the Data panel (equation and description) and editable in the data part on the page; the Show data switch is gone (the part lists what the exercise doesn't already show); the active variant on the exercise's tab instead of the data heading; variants as buttons in the Data panel; the grading table is never split into side-by-side columns and repeats its heading row; New Exercise no longer offers Calculation, Worked Example, Matching and CAD Drawing Question (still question types).
