@@ -34,10 +34,11 @@ pub const TABS: [&str; 15] = [
     "Help",
 ];
 /// Tabs that come up with the selection; custom tabs can't take their names.
-pub const CONTEXTUAL_TABS: [&str; 12] = [
+pub const CONTEXTUAL_TABS: [&str; 13] = [
     "Header & Footer",
     "Table Design",
     "Table Layout",
+    "Calculated Table",
     "Picture Format",
     "Shape Format",
     "Equation",

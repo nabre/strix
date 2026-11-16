@@ -418,29 +418,20 @@ Calculation",
     });
     symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {
+        // In a table that isn't calculated the button makes it one; anywhere else it inserts one.
+        // What a calculated table has is on its own tab (`calc_table_tab`).
+        let plain_table = app.session.sel.focus.path.cell().is_some() && !in_calc_table(&app.session);
+        let (id, params) = if plain_table { ("table.calc", json!({"value": true})) } else { ("calc.insertTable", json!({})) };
         big(
             ui,
             app,
             "calcTable",
             "Calculated
 Table",
-            "calc.insertTable",
-            json!({}),
+            id,
+            params,
             false,
         );
-        stack(ui, |ui| {
-            let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
-            small(
-                ui,
-                app,
-                "calcTable",
-                Some("Calculate Table"),
-                "The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =",
-                crate::widgets::ButtonAction::new("table.calc", json!({}), on),
-            );
-            calc_table_tools(ui, app);
-        });
-        stack(ui, |ui| calc_table_rows(ui, app));
     });
     group(ui, "Number Display", None, app, |ui, app| {
         let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
@@ -670,20 +661,37 @@ fn calc_table_tools(ui: &mut Ui, app: &mut WordApp) {
     );
 }
 
-/// Table Layout › Data: Calculated Table and its options (docs/calc.md).
-pub(super) fn calc_table_buttons(ui: &mut Ui, app: &mut WordApp) {
-    let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
-    big_toggle(
-        ui,
-        app,
-        "calcTable",
-        "Calculated
+/// The contextual tab of a calculated table, beside Table Layout (docs/calc.md).
+pub(super) const CALC_TABLE_TAB: &str = "Calculated Table";
+
+/// Whether the caret is in a calculated table (so its tab is shown).
+pub(super) fn in_calc_table(s: &wordcraft_engine::Session) -> bool {
+    s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
+}
+
+/// A table that stops being calculated loses its tab: Table Layout takes its place.
+pub(super) fn leave_calc_table_tab(app: &mut WordApp) {
+    if app.ui.tab == CALC_TABLE_TAB && app.session.sel.focus.path.cell().is_some() && !in_calc_table(&app.session) {
+        app.ui.tab = "Table Layout".into();
+    }
+}
+
+/// The Calculated Table tab: everything a calculated table has (docs/calc.md).
+pub(super) fn calc_table_tab(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Calculation", None, app, |ui, app| {
+        let on = in_calc_table(&app.session);
+        big_toggle(
+            ui,
+            app,
+            "calcTable",
+            "Calculated
 Table",
-        "table.calc",
-        on,
-    );
-    stack(ui, |ui| calc_table_tools(ui, app));
-    stack(ui, |ui| calc_table_rows(ui, app));
+            "table.calc",
+            on,
+        );
+    });
+    group(ui, "Options", None, app, |ui, app| stack(ui, |ui| calc_table_tools(ui, app)));
+    group(ui, "Rows & Columns", None, app, |ui, app| stack(ui, |ui| calc_table_rows(ui, app)));
 }
 
 /// Teaching › Exercise › New Exercise: the top part inserts a problem, the menu one of the kinds
@@ -830,6 +838,60 @@ mod tests {
         h.run_steps(2);
         let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
         assert_eq!(st["reading"], false, "{st}");
+    }
+
+    /// A calculated table has a tab of its own beside Table Layout, with every command of its;
+    /// Math keeps the one button, which makes the table at the cursor calculated or inserts one,
+    /// and Table Layout has none of them.
+    #[test]
+    fn a_calculated_table_has_its_own_tab() {
+        use egui_kittest::kittest::Queryable;
+        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        a.run("insert.table", json!({"rows": 3, "cols": 2})).unwrap();
+        let tabs = super::super::contextual_tabs(&a.session);
+        assert!(tabs.contains(&"Table Layout") && !tabs.contains(&CALC_TABLE_TAB), "{tabs:?}");
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1900.0, 400.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(
+                |ui, app: &mut WordApp| match app.ui.tab.as_str() {
+                    CALC_TABLE_TAB => calc_table_tab(app, ui),
+                    "Table Layout" => super::super::table_layout(app, ui),
+                    _ => math(app, ui),
+                },
+                a,
+            );
+        h.state_mut().ui.tab = "Math".into();
+        h.run_steps(2);
+        for label in ["Calculate Table", "Cells as Equations", "Data Table", "Ordinal Column", "Total Row", "Column Total"] {
+            assert!(h.query_by_label(label).is_none(), "{label} is not on Math");
+        }
+        // In a plain table the Math button makes that table calculated instead of inserting one.
+        h.get_by_label("Calculated\nTable").click();
+        h.run_steps(2);
+        assert!(in_calc_table(&h.state().session));
+        let tabs = super::super::contextual_tabs(&h.state().session);
+        let at = |t: &str| tabs.iter().position(|x| *x == t);
+        assert_eq!(at(CALC_TABLE_TAB), at("Table Layout").map(|i| i + 1), "{tabs:?}");
+        h.state_mut().ui.tab = "Table Layout".into();
+        h.run_steps(2);
+        for label in ["Calculated\nTable", "Cells as Equations", "Data Table", "Ordinal Column", "Total Row", "Column Total"] {
+            assert!(h.query_by_label(label).is_none(), "{label} is not on Table Layout");
+        }
+        h.state_mut().ui.tab = CALC_TABLE_TAB.into();
+        h.run_steps(2);
+        for label in ["Cells as Equations", "Data Table", "Total Row", "Column Total"] {
+            h.get_by_label(label);
+        }
+        h.get_by_label("Ordinal Column").click();
+        h.run_steps(2);
+        assert_eq!(h.state_mut().session.run("calc.tableInfo", &json!({})).unwrap()["index"], true);
+        // Turned off there, the table loses the tab and Table Layout takes its place.
+        h.get_by_label("Calculated\nTable").click();
+        h.run_steps(2);
+        assert!(!in_calc_table(&h.state().session));
+        leave_calc_table_tab(h.state_mut());
+        assert_eq!(h.state().ui.tab, "Table Layout");
     }
 
     /// Design › Fonts offers the DSA typefaces (to download when missing) and Embed Fonts in the

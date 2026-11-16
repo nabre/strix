@@ -1,7 +1,7 @@
 //! Live calculations (docs/calc.md): calc regions are equations marked as calculated
 //! (`Math::calc`, the Calculate button on an equation) whose linear text is a `strix-calc`
 //! statement (`L = 4.5 m`, `M = q·L²/8`, `F = m·a`), and calculated tables (`TableProps::calc`,
-//! Table Layout › Data › Calculated Table): named columns with units, column formulas and
+//! Math › Tables › Calculated Table, then the Calculated Table tab): named columns with units, column formulas and
 //! totals. Both are evaluated in reading order with one shared set of parameters, and results
 //! are written back into the equations and cells. Other equations and tables are never read or
 //! changed.
@@ -50,19 +50,19 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
         CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
-        CommandSpec::new("table.calc", "Calculated Table", "Table Layout › Data", toggle_table)
+        CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"calc": bool, "recalculated"}: the table at the caret is calculated: header cells name its columns (`L [m]`, `M [kN·m] = q·L^2/8`), `Σ =` cells total them"#),
-        CommandSpec::new("table.calcNames", "Data Table", "Table Layout › Data", cell_names)
+        CommandSpec::new("table.calcNames", "Data Table", "Calculated Table › Options", cell_names)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value": "columnRow" | "rowColumn" | "none"} → {"names", "recalculated"}: the table at the caret is a data table (made calculated): every value is a parameter named by its column and its row's label (the first column), joined by a subscript: `F_A` (columnRow) or `A_F` (rowColumn)"#),
-        CommandSpec::new("table.mathCells", "Cells as Equations", "Table Layout › Data", math_cells)
+        CommandSpec::new("table.mathCells", "Cells as Equations", "Calculated Table › Options", math_cells)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"math", "recalculated"}: the table at the caret (made calculated) shows every cell as an equation: names in italics, subscripts, units in the Unit style; off, the cells are text again"#),
-        CommandSpec::new("table.calcIndex", "Ordinal Column", "Table Layout › Data", calc_index)
+        CommandSpec::new("table.calcIndex", "Ordinal Column", "Calculated Table › Rows & Columns", calc_index)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "i", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
-        CommandSpec::new("table.calcTotal", "Column Total", "Table Layout › Data", calc_total)
+        CommandSpec::new("table.calcTotal", "Column Total", "Calculated Table › Rows & Columns", calc_total)
             .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
             .params(r#"{"value"?: bool (default: toggle)} → {"total": bool, "recalculated"}: the column at the caret is summed in the total row of its table (made calculated); on, the table gets its total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)

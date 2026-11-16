@@ -16,8 +16,8 @@ saved in the `.xmath` package as `strix:calc="1"` on its `m:oMath` (a Strix name
 frame) or `equation.calc` turns it on and off. New equations are calculated by default; the
 **Always Calculate** preference (`calc.newEquations`) changes that.
 
-A **calculated table** is an ordinary Word table with `TableProps::calc` on (Table Layout ›
-Data › Calculated Table, Math › Tables, `table.calc`), saved as `strix:calc="1"` on `w:tblPr`.
+A **calculated table** is an ordinary Word table with `TableProps::calc` on (Math › Tables ›
+Calculated Table, `table.calc`), saved as `strix:calc="1"` on `w:tblPr`.
 Nothing else about the table changes: style, borders and text stay the user's.
 
 Regions and calculated tables are evaluated in reading order (body top to bottom, a paragraph
@@ -116,7 +116,8 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k)` is `(x + a)^n`.
   - *Names without a value*: the sum has no number, and its result is the formula,
     `∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n` (no error; nothing is defined). A unit asked for
-    after `=` still needs a number, and any other sum of unknown names is the error it was.
+    after `=` still needs a number, any other sum of unknown names is the error it was, and so
+    is a value that breaks the sum (`n = 2.5`) whatever else has no value.
   - *Values known*: the terms are added up as ever (`= 343` with `n = 3`, `x = 2`, `a = 5`), and
     with Show Steps the working goes through the closed form:
     `… = (x + a)^n = (2 + 5)^3 = 343` — shown only when the closed form gives the very value the
@@ -225,11 +226,11 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   what an earlier calculation left (a number, `Σ = …`, `–`, `⚠`) is written over. It is not a
   data row. Turning it on or off works the table out at once; off, what the calculations wrote
   in that row goes with it (it would otherwise be read as a row of data).
-- **Column Total** (Table Layout › Data and Math › Tables; `table.calcTotal {"value"?}`): the
+- **Column Total** (Calculated Table › Rows & Columns; `table.calcTotal {"value"?}`): the
   column at the caret is summed in the total row or not; not summed, its cell there stays empty.
   Summing a column turns the total row on. Saved on the column's header cell
   (`strix:noTotal="1"` on its `w:tcPr`).
-- **Ordinal column** (Table Layout › Data › Ordinal Column, Math › Tables; `table.calcIndex`,
+- **Ordinal column** (Calculated Table › Rows & Columns › Ordinal Column; `table.calcIndex`,
   saved as `strix:calcIndex="1"` on `w:tblPr`): a first column, column "0", headed `i` (as `i` in a column formula), numbers
   the data rows with something in them 1, 2, 3… (not the header, a totals row or an empty row;
   `strix_calc::ordinals`). The calculations never read it: formulas, totals and a data table's
@@ -240,7 +241,7 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
 
 ### Cells as equations
 
-Table Layout › Cells as Equations (also in Math › Tables; `table.mathCells`) shows every cell of
+Calculated Table › Options › Cells as Equations (`table.mathCells`) shows every cell of
 a calculated table as an equation: names in italics with true subscripts (`F_k`), units in the
 Unit style, the values the table works out written into them. A label (`Support`, `Beam 2`:
 words with no digit, `=`, brackets or subscripts) stays plain text; single letters (`A`) are
@@ -263,8 +264,8 @@ Design › Table Styles).
 
 ### Data tables
 
-A calculated table can name its cells instead of (as well as) its columns: Table Layout › Data
-Table, or Math › Tables › Data Table (`table.calcNames`). Every value is then a parameter named
+A calculated table can name its cells instead of (as well as) its columns: Calculated Table › Options ›
+Data Table (`table.calcNames`). Every value is then a parameter named
 by its column and its row's label — the first column's text, its letters and digits — joined by
 a subscript, one way or the other:
 
@@ -413,16 +414,19 @@ power: `x⁻¹`, `x^-1`, `sin(x)^-1`, `60 min^-1`.
   `∫_(−∞)^∞ e^(−x²) dx = 1.772` (√π), `∫_0^∞ e^(−x) dx = 1`, `∫_1^∞ 1/x² dx = 1`. A limit at
   infinity takes the other limit's unit (`∫_(0 s)^∞ e^(−t/τ) dt` with `τ = 2 µs` is `2 µs`);
   with both infinite the variable is a plain number. The limits the other way round change the
-  sign. An integral that does not settle is an error, never a wrong number: "the integral does
-  not converge" (`∫_1^∞ 1/x dx`, `∫_0^∞ sin(x) dx`), or the integrand's own error when it
-  overflows (`∫_0^∞ e^(x²) dx`). `∞` is only a limit of an integral: anywhere else (`x = ∞`,
+  sign. An integral that does not settle is an error, not a number: "no finite value found for
+  the integral: it may not converge" (`∫_1^∞ 1/x dx`, `∫_0^∞ sin(x) dx`; also one that converges
+  too slowly to be found, `∫_0^∞ sin(x)/x dx`), or the integrand's own error when it overflows
+  (`∫_0^∞ e^(x²) dx`). `∞` is only a limit of an integral: anywhere else (`x = ∞`,
   `∑_(k=0)^∞`, `2·∞`) it is an error, "∞ is not a value".
 - How: the range is taken decade by decade from the finite limit (from 0 with both infinite),
-  10⁻⁹ to 10⁹ in SI units, so an integrand that lives at any such scale is seen (a time constant
-  in microseconds, a bell a thousand wide), then the tail with `x = 10⁹/s` mapped onto a finite
-  interval; each piece adaptively, and the whole must settle to 10⁻⁶ of its value. As with any
-  sampled integral, a narrow peak far from that limit (`e^(−(x − 10⁵)²)`) can be missed: put the
-  limits near it.
+  10⁻⁹ to 10⁹ in SI units, three pieces per decade (from 1, 2 and 5), so an integrand that lives
+  at any such scale is seen (a time constant in microseconds, a bell a thousand wide, a normal
+  distribution with `μ = 500`, `σ = 1`), then the tail with `x = 10⁹/s` mapped onto a finite
+  interval; each piece adaptively, and the whole must settle to 10⁻⁶ of its value.
+- **Its limit**: the integrand is sampled, so a peak much narrower than its distance from the
+  finite limit (`e^(−(x − 10⁵)²)`) can fall between the samples, and the result is then too small
+  or 0 **without an error**. Put the limits near the peak (`∫_(10⁵ − 10)^(10⁵ + 10)`).
 - Both are numerical (`crates/calc/src/calculus.rs`): central differences with a Richardson
   step; adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
   nodes never touch the limits (`∫_0^1 1/√x dx = 2`). Results keep 10 significant digits, so
@@ -593,9 +597,17 @@ Off, the three characters build up on Space as in Word.
 remove it, Copy gives its linear text (`(L^2)/8`); a plain move drops it.
 
 The **Math** tab gathers the tools: Calculation (New Calculation, Calculate, Always Calculate,
-Recalculate), Symbols, Exercise (docs/exercise.md), Tables (Calculated Table, Calculate Table),
+Recalculate), Symbols, Exercise (docs/exercise.md), Tables (Calculated Table),
 Number Display (More/Fewer Digits, Show Steps, Rounding, Result Layout) and Drawing (CAD Drawing,
 Edit Drawing, see `docs/cad.md`).
+
+Math › Tables has one button, **Calculated Table**: it inserts a calculated table, or, with the
+cursor in a table that isn't calculated, makes that table one. Everything else a calculated table
+has is on its own contextual tab, **Calculated Table**, shown beside Table Layout while the cursor
+is in a calculated table: Calculation (Calculated Table, pressed; pressing it makes the table an
+ordinary one again, the tab goes and Table Layout takes its place), Options (Cells as Equations,
+Data Table) and Rows & Columns (Ordinal Column, Total Row, Column Total). Table Layout › Data has
+none of them.
 
 ## Stages
 
@@ -616,6 +628,8 @@ Edit Drawing, see `docs/cad.md`).
 - 2026-11-15: derivatives of user functions (`f′(a)`, `f″(a)`) and definite integrals (`∫_a^b f(x) dx`), numerical, with units; solvable like any call (`0 = f′(x)`); they make the plot's analysis live in the document (`plot.analysis`, [plot.md](plot.md)).
 
 - 2026-11-14: the unknown alone on the right of a formula is solved (`h·r = A ⇒ A = h·r = … = 1.5 m²`, also when it is spelled like a unit of another kind); inverse functions written `sin⁻¹`, `sin^-1`, `sin^(−1)⁡x` (built up) or `arcsin`…, shown as `asin`… in the steps, `sin²(x)` a power of the result, Word's function application `sin⁡x` read; data shown only as values in an exercise's text written as their values in its calculations (`A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²`), the typed statement kept as the source.
+
+- 2026-11-16: calculated tables: a contextual **Calculated Table** tab beside Table Layout holds every command of theirs; Math › Tables keeps the Calculated Table button alone (it also makes the table at the cursor calculated) and Table Layout › Data has none.
 
 - 2026-11-14: calculated tables: rows by subscript (`y_(i+1)`, `y_(i-1)`, `y_1`, `y_n`, `y_i`; columns named `y_i`), never wrapping round, `–` where there is no such row; the total row shows `Σ` in its first column and the sums alone; Column Total (`table.calcTotal`) per column; in Cells as Equations the whole cell is its equation's place; the Calculated Table style (heavier header bottom and total top edges).
 

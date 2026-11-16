@@ -127,6 +127,9 @@ pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
     if s.sel.focus.path.cell().is_some() {
         tabs.push("Table Design");
         tabs.push("Table Layout");
+        if super::strix::in_calc_table(s) {
+            tabs.push(super::strix::CALC_TABLE_TAB);
+        }
     }
     if has_picture_selected(s) {
         tabs.push("Picture Format");
