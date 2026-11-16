@@ -19,7 +19,10 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
                 ui.spacing_mut().item_spacing = vec2(1.0, 1.0);
                 for c in chars.chars() {
                     if crate::equation_tab::symbol_button(ui, app, c, &t) {
-                        let _ = app.run("equation.insertSymbol", json!({"char": c.to_string()}));
+                        // Outside an equation there is nowhere to put it: say so.
+                        if let Err(e) = app.run("equation.insertSymbol", json!({"char": c.to_string()})) {
+                            app.status(e);
+                        }
                         app.canvas.want_focus = true;
                     }
                 }
