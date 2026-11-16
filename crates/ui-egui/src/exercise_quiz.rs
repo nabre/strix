@@ -1,9 +1,11 @@
-//! The Exercise tab's Question Settings panel (docs/exercise.md, Kinds of exercise):
+//! The Question Settings pane (Exercise › Questions › Question Settings, `view.questionsPane`;
+//! docs/exercise.md, Kinds of exercise):
 //! a compact list of the questions (label, text, type, points) and, under it, the settings of the
 //! one chosen — the question the cursor is in, until another is clicked: its type and points,
 //! then what its type has (the answer space, the correct options, the tolerance…), through
 //! `exercise.questions` and `exercise.questionMode`. One question's settings at a time keeps the
-//! panel readable however many questions the exercise has.
+//! pane readable however many questions the exercise has. It follows the cursor: outside the
+//! exercises it says so.
 
 use egui::{RichText, Ui};
 use serde_json::{Value, json};
@@ -59,6 +61,18 @@ fn chosen(ui: &Ui, ex: u64, st: &Value, n: usize) -> usize {
         }
     }
     ui.data(|d| d.get_temp::<usize>(pick)).unwrap_or(0).min(n.saturating_sub(1))
+}
+
+/// The Question Settings pane: the questions of the exercise at the cursor, a note outside them.
+pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
+    let Ok(info) = app.session.run("exercise.data", &json!({})) else {
+        crate::pane_kit::note(ui, tl!("Put the cursor in an exercise to see its questions' settings."));
+        return;
+    };
+    let ex = info["exercise"].as_u64().unwrap_or(0);
+    let st = app.session.run("exercise.questions", &json!({"exercise": ex})).ok().unwrap_or_default();
+    let quiz = st["kind"].as_str().unwrap_or("problem") != "problem";
+    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| questions(app, ui, ex, &st, quiz));
 }
 
 /// The questions of exercise `ex` (1-based) with the chosen one's settings; `st` is

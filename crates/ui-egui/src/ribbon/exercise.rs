@@ -114,7 +114,7 @@ pub(super) fn exercise_tab(app: &mut WordApp, ui: &mut Ui) {
     let has_data = info["data"]["items"].as_array().is_some_and(|a| !a.is_empty());
     let pec = peculiar(&q_st, has_data);
     general_group(app, ui, ex, &info, type_name(&q_st));
-    questions_group(app, ui, ex, &q_st, pec.types);
+    questions_group(app, ui, pec.types);
     if in_series(app) {
         group(ui, "Series", None, app, |ui, app| {
             go_to_series(ui, app);
@@ -175,9 +175,28 @@ fn go_to_series(ui: &mut Ui, app: &mut WordApp) {
     }
 }
 
+/// Question Settings: shows or hides the Question Settings pane (`view.questionsPane`), lit while
+/// it is open.
+fn questions_pane_button(ui: &mut Ui, app: &mut WordApp) {
+    let t = Tokens::get(ui.ctx());
+    let label = tl!("Question\nSettings");
+    let open = app.session.view.questions_pane;
+    let (r, resp) = big_rect(ui, label);
+    crate::widgets::bg(ui, r, &resp, open, &t);
+    big_face(ui, r, "exerciseProperties", label, false, true);
+    let tip = tl!(
+        "Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…, in a pane beside the document"
+    );
+    let resp = resp.on_hover_text(tip);
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, tip));
+    if resp.clicked() {
+        run(app, "view.questionsPane", json!({}));
+    }
+}
+
 /// Exercise › Questions: add a question (of a type, in a quiz), a sub-question or a note, and every
-/// question's settings in a panel.
-fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: bool) {
+/// question's settings in the Question Settings pane.
+fn questions_group(app: &mut WordApp, ui: &mut Ui, quiz: bool) {
     group(ui, "Questions", None, app, |ui, app| {
         if quiz {
             crate::widgets::big_split(
@@ -217,19 +236,7 @@ fn questions_group(app: &mut WordApp, ui: &mut Ui, ex: u64, q_st: &Value, quiz: 
                 ButtonAction::new("exercise.addNote", json!({}), false),
             );
         });
-        let st = q_st.clone();
-        panel_button(
-            ui,
-            app,
-            PanelButton {
-                key: "questions",
-                icon: "exerciseProperties",
-                label: "Question\nSettings",
-                tip: "Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…",
-                on: true,
-            },
-            |ui, app| crate::exercise_quiz::questions(app, ui, ex, &st, quiz),
-        );
+        questions_pane_button(ui, app);
     });
 }
 
@@ -359,19 +366,7 @@ fn calculation_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, pec:
                 });
             });
         });
-        let panel_info = info.clone();
-        panel_button(
-            ui,
-            app,
-            PanelButton {
-                key: "data",
-                icon: "variables",
-                label: "Data",
-                tip: "The initial data: an equation per datum (L = 4.5 m) with its description, and the variants",
-                on: pec.data,
-            },
-            |ui, app| crate::exercise_panels::data_panel(app, ui, &panel_info),
-        );
+        data_pane_button(ui, app, pec.data);
         let gen_data = data.clone();
         panel_button(
             ui,
@@ -386,6 +381,26 @@ fn calculation_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, pec:
             |ui, app| crate::exercise_panels::variant_generator_ui(app, ui, ex, &gen_data),
         );
     });
+}
+
+/// Data: shows or hides the Exercise Data pane (`view.dataPane`), lit while it is open. Greyed
+/// out unless `on` (the exercise's questions use data), but an open pane can always be closed.
+fn data_pane_button(ui: &mut Ui, app: &mut WordApp, on: bool) {
+    let t = Tokens::get(ui.ctx());
+    let label = tl!("Data");
+    let open = app.session.view.data_pane;
+    let on = on || open;
+    let (r, resp) = big_rect(ui, label);
+    if on {
+        crate::widgets::bg(ui, r, &resp, open, &t);
+    }
+    big_face(ui, r, "variables", label, false, on);
+    let tip = tl!("The initial data: an equation per datum (L = 4.5 m) with its description, and the variants, in a pane beside the document");
+    let resp = resp.on_hover_text(tip);
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, on, open, tip));
+    if resp.clicked() && on {
+        run(app, "view.dataPane", json!({}));
+    }
 }
 
 /// Draws `add` greyed out and unclickable unless `on` (the command stays on for scripts).
@@ -734,6 +749,24 @@ mod tests {
         assert_eq!(contextual(&app.session), vec![SERIES_TAB], "the series' tab shows with the cursor anywhere");
         let tabs = super::super::contextual_tabs(&app.session);
         assert!(tabs.contains(&SERIES_TAB) && !tabs.contains(&EXERCISE_TAB));
+    }
+
+    /// The owner: Question Settings opens a pane beside the document, not a drop-down panel; the
+    /// pane shows the questions of the exercise at the cursor and closes with the same command.
+    #[test]
+    fn question_settings_is_a_pane() {
+        let mut app = app_with(1);
+        app.run("exercise.addQuestion", json!({})).unwrap();
+        assert!(!crate::panes::open(&app).contains(&crate::panes::Pane::Questions));
+        app.run("view.questionsPane", json!({})).unwrap();
+        assert!(app.session.view.questions_pane);
+        assert!(crate::panes::open(&app).contains(&crate::panes::Pane::Questions));
+        let ctx = egui::Context::default();
+        ctx.run_ui(egui::RawInput::default(), |ui| crate::exercise_quiz::pane(&mut app, ui)).drop_without_applying_deltas();
+        caret_at_start(&mut app);
+        ctx.run_ui(egui::RawInput::default(), |ui| crate::exercise_quiz::pane(&mut app, ui)).drop_without_applying_deltas();
+        app.run("view.questionsPane", json!({})).unwrap();
+        assert!(!crate::panes::open(&app).contains(&crate::panes::Pane::Questions));
     }
 
     /// Exercise Properties (the grip's menu, command search) opens the tab, not a pane.

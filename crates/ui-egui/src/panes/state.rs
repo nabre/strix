@@ -58,6 +58,8 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::Archive, v.archive_pane),
         (Pane::Plot, v.plot_pane),
         (Pane::Grading, v.grading_pane),
+        (Pane::Questions, v.questions_pane),
+        (Pane::Data, v.data_pane),
         (Pane::Thesaurus, v.thesaurus_pane),
     ]
     .into_iter()

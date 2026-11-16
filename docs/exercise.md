@@ -16,7 +16,7 @@ deleted; the automatic parts can't be edited):
 | Exercise | `strix:exercise` | can't delete | everything below |
 | Title | `strix:exercise.title` | can't delete | the first paragraph, **your text**: type over its placeholder, select and replace it, delete it (the placeholder comes back); style **Exercise Title** (Titolo esercizio), numbered automatically: *Esercizio 1.*, *Esercizio 2.* … (a list in the style, the word in the document's language; documents made before get it with their next exercise). The number is the list's, never text; Exercise Info follows the title as it is typed (the summary shows only the label; prefix, format, separator and first number: see Numbering). Its paragraph style can't be changed: another style applied to it (Apply Style, Styles pane, Clear Formatting) gives Exercise Title back at once, since the style numbers the title and marks it as the title; to restyle every title, modify the Exercise Title style. Documents made before the title had its own control (the placeholder was on the exercise's, so typing over it was refused) get it as they open |
 | Statement | `strix:exercise.text` | can't delete | free content: text, figures, tables, equations, drawings |
-| Data | `strix:exercise.data` | editable (not deletable) | the initial data as equations in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise tab's Data panel and typed into in place, absent when there are none |
+| Data | `strix:exercise.data` | editable (not deletable) | the initial data as equations in the active variant (`luce: L = 6 m`), units in the Unit style; generated from the Exercise Data pane and typed into in place, absent when there are none |
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own, **starting again at a) in every exercise** (a copy of an exercise pasted into the same document gets lists of its own too, for its questions and their options), and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
 | Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
@@ -374,7 +374,9 @@ unless the exercise has a question of such a type (the commands stay on for scri
   True or False, Inline Completion…; else Open Answer or Multiple Choice).
 - **Questions**: **Add Question** (in a quiz a split button: the menu adds a question of a type;
   a problem's questions have no type), **Add Sub-question**, **Add Note**, and **Question
-  Settings**, a panel under the button with a compact list (label, text, type, points) and the
+  Settings**, which shows or hides the Question Settings pane beside the document
+  (`view.questionsPane`; it follows the cursor from exercise to exercise and stays open while
+  you write) with a compact list (label, text, type, points) and the
   settings of **one question at a time** under it — the one the cursor is in, until another row
   is clicked: its type and points, then what its type has (answer space height, squared, square
   size; correct options as check boxes with their text, shuffling, teacher notes; a
@@ -385,9 +387,11 @@ unless the exercise has a question of such a type (the commands stay on for scri
   Paper**, a panel with the graph paper's settings.
 - **Exercise**: **Select Exercise** and **Delete Exercise**.
 - **Calculation**: **Result Of** (on for a problem and for calculation and worked example
-  questions), then the active **Variant**, **Add Variant**, **Remove Variant**, and two panels:
-  **Data** (the variants as buttons, with add and remove; one row per datum: its equation in
-  the active variant and its description) and **Generate Variants** (on for those and for
+  questions), then the active **Variant**, **Add Variant**, **Remove Variant**, then **Data**, which shows or hides
+  the Exercise Data pane beside the document (`view.dataPane`; it follows the cursor from
+  exercise to exercise and stays open while you write: the variants as buttons, with add and
+  remove; one row per datum: its equation in the active variant and its description), and
+  **Generate Variants**, a panel under the button (on for those and for
   inline completion questions, whose blanks can be calculated, and whenever the exercise
   already has data). While the exercise has several variants, its tab on the page names the
   active one (`Exercise · Variant B`): the printed exercise never names it.
@@ -404,7 +408,7 @@ its button again or Esc closes it.
 ## Data and variants
 
 - **Data**: each datum is an equation, `L = 4.5 m`, with a description (`luce`), written whole
-  in the Data panel and in the exercise's data part on the page: the symbol, the value in the
+  in the Exercise Data pane and in the exercise's data part on the page: the symbol, the value in the
   active variant and the unit are told apart from it (the unit is shared by the variants, a value
   that isn't a number, `2*a`, stays whole). They are the first parameters of the exercise's
   sandbox, so the solution uses `L` without defining it; each datum is checked as the sandbox
@@ -496,6 +500,8 @@ to the end.
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
 | `exercise.inlineValue` | the inline value at the caret (`{"expr", "show", "shown", "blank"}`); change it with `{"expr"?, "show"?: "value" \| "both" \| "number"}`, delete it with `{"remove": true}` |
+| `view.questionsPane` | show or hide the Question Settings pane (`{"value"?: bool}`): the questions of the exercise at the cursor with the chosen one's settings |
+| `view.dataPane` | show or hide the Exercise Data pane (`{"value"?: bool}`): the data and variants of the exercise at the cursor |
 | `view.exercisePane` | bring up the Exercise tab (the Series tab with the cursor outside the exercises) |
 
 ## Next
@@ -535,6 +541,8 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-16: Exercise › Calculation › Data opens the Exercise Data pane beside the document (`view.dataPane`, docked on the right) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
+- 2026-11-16: Exercise › Questions › Question Settings opens a pane beside the document (`view.questionsPane`, docked on the right like the other properties panes) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
 - 2026-11-16: the questions' letters start again at a) in every exercise also in a copy pasted into the same document, which went on with c), d) (and its options with C), D)) by sharing the lists of the exercise it was copied from; documents holding such copies are put right as they open.
 - 2026-11-16: every open answer gives a line in the results summary (*domanda a risposta aperta*), also when an exercise or the whole document has open answers alone (no summary before), so that no part is forgotten when correcting.
 - 2026-11-15: the grading table lists the grades of the grid (lowest to highest by the step), each with its points as a half-open interval `[from; to[`, the points worked out exactly and rounded to a multiple (`pointsRound`, Grading Scale Properties › Points); the old "a row every n points" (`pointsStep`) is gone.

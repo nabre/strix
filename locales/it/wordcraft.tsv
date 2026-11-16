@@ -3739,7 +3739,8 @@ paper	Envelope DL	Busta DL
 	Exercise Tools	Strumenti esercizio
 	The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab	La scheda Esercizio (domande, varianti e dati, impaginazione) con il cursore in un esercizio, altrimenti la scheda Serie
 	Question\nSettings	Impostazioni\ndomande
-	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…	Ogni domanda con tipo e punti, e le impostazioni di quella scelta: spazio per la risposta, opzioni corrette, tolleranza…
+	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…, in a pane beside the document	Ogni domanda con tipo e punti, e le impostazioni di quella scelta: spazio per la risposta, opzioni corrette, tolleranza…, in una barra accanto al documento
+	Put the cursor in an exercise to see its questions' settings.	Metti il cursore in un esercizio per vederne le impostazioni delle domande.
 	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Aggiungi una domanda alla fine dell'esercizio; il menu offre i tipi: risposta aperta, scelta multipla, vero o falso, calcolo, disegno CAD…
 	Show Title	Mostra titolo
 	Remove Title	Rimuovi titolo
@@ -3748,7 +3749,7 @@ paper	Envelope DL	Busta DL
 	Problem	Problema
 	Add Variant	Aggiungi variante
 	Remove Variant	Rimuovi variante
-	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	I dati iniziali: un'equazione per dato (L = 4.5 m) con la sua descrizione, e le varianti
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants, in a pane beside the document	I dati iniziali: un'equazione per dato (L = 4.5 m) con la sua descrizione, e le varianti, in una barra accanto al documento
 	Generate\nVariants	Genera\nvarianti
 	Generate clean variants from each datum's range, checked against the constraints on the results (add data first)	Genera varianti pulite dall'intervallo di ogni dato, verificate con i vincoli sui risultati (prima aggiungi i dati)
 	The graph paper after the questions, before the solution: its squares, lines and colour (Show › Graph Paper Before the Solution adds it)	Il foglio a quadretti dopo le domande, prima della risoluzione: quadretti, righe e colore (Mostra › Foglio a quadretti prima della risoluzione lo aggiunge)
