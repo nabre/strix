@@ -189,8 +189,8 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| data_panel(app, ui, &info));
 }
 
-/// The exercise's data (`info`, from `exercise.data`): its variants, then one row per datum, the
-/// datum written whole as an equation in the active variant (`L = 4.5 m`) and its description.
+/// The exercise's data (`info`, from `exercise.data`): its variants, then one row per datum, its
+/// description and then the datum written whole as an equation in the active variant (`L = 4.5 m`).
 /// The data part on the page lists what is not already shown elsewhere in the exercise, and can
 /// be edited there too.
 fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
@@ -210,7 +210,7 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
     let rows = data["items"].as_array().map_or(0, Vec::len);
     let mut remove = None;
     crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(3).spacing([4.0, 4.0]).striped(true), |ui| {
-        for head in ["Equation", "Description", ""] {
+        for head in ["Description", "Equation", ""] {
             ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
         }
         ui.end_row();
@@ -225,6 +225,12 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
                 format!("{symbol} = {value} {unit}").split_whitespace().collect::<Vec<_>>().join(" ")
             };
             let mut changed: Option<(&str, String)> = None;
+            ui.scope(|ui| {
+                ui.set_width(130.0);
+                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "description"), &text(&item["description"]), true, false) {
+                    changed = Some(("description", t));
+                }
+            });
             let r = ui.scope(|ui| {
                 ui.set_width(150.0);
                 if let Some(t) = equation_box(ui, ("exercise_data", ex, row, "equation", active), &eq) {
@@ -240,12 +246,6 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
                     .collect();
                 r.response.on_hover_text(all.join("\n"));
             }
-            ui.scope(|ui| {
-                ui.set_width(130.0);
-                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "description"), &text(&item["description"]), true, false) {
-                    changed = Some(("description", t));
-                }
-            });
             if ui.small_button("×").on_hover_text(tl!("Remove this datum")).clicked() {
                 remove = Some(row);
             }
