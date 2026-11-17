@@ -1,0 +1,458 @@
+//! Unit tests for `strix-structure`: textbook cases.
+
+use strix_calc::{Options, Quantity, Value, Worksheet};
+
+use crate::{Action, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse, notables};
+
+fn node(id: &str, x: f64, y: f64) -> Node {
+    Node { id: id.into(), x: x.into(), y: y.into(), hinge: false }
+}
+
+fn member(id: &str, a: &str, b: &str) -> Member {
+    Member { id: id.into(), a: a.into(), b: b.into(), ..Member::default() }
+}
+
+fn support(node: &str, kind: SupportKind, angle: f64) -> Support {
+    Support { node: node.into(), kind, angle: angle.into() }
+}
+
+fn force_on(member: &str, at: f64, value: f64) -> Load {
+    Load::Force { node: None, member: Some(member.into()), at: at.into(), value: value.into(), angle: Num::new(-90.0) }
+}
+
+fn force_at(node: &str, value: f64, angle: f64) -> Load {
+    Load::Force { node: Some(node.into()), member: None, at: Num::default(), value: value.into(), angle: angle.into() }
+}
+
+fn uniform(member: &str, q: f64) -> Load {
+    Load::Distributed {
+        member: member.into(),
+        q1: q.into(),
+        q2: None,
+        from: Num::default(),
+        to: None,
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    }
+}
+
+fn close(a: f64, b: f64) -> bool {
+    (a - b).abs() <= 1e-6 * (1.0 + b.abs())
+}
+
+macro_rules! assert_close {
+    ($a:expr, $b:expr) => {{
+        let (a, b) = ($a, $b);
+        assert!(close(a, b), "{} = {a}, expected {b}", stringify!($a));
+    }};
+}
+
+/// Simply supported beam, `L = 6`, `q = 10`.
+fn simple_beam() -> Structure {
+    Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 6.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![uniform("1", 10.0)],
+        ..Structure::default()
+    }
+}
+
+#[test]
+fn simply_supported_beam_with_a_uniform_load() {
+    let an = analyse(&simple_beam());
+    assert_eq!(an.status, Status::Isostatic);
+    assert_close!(an.reactions[0].fy, 30.0);
+    assert_close!(an.reactions[0].fx, 0.0);
+    assert_close!(an.reactions[1].fy, 30.0);
+    let m = &an.members[0];
+    assert_close!(m.forces(0.0, true).v, 30.0);
+    assert_close!(m.forces(6.0, false).v, -30.0);
+    assert_close!(m.forces(3.0, true).m, 45.0);
+    assert_close!(m.forces(3.0, true).n, 0.0);
+    // The maximum moment is notable, where the shear is zero.
+    let ms = notables(m, Action::Moment);
+    let peak = ms.iter().find(|n| n.kind == NotableKind::Extreme).expect("extreme");
+    assert_close!(peak.x, 3.0);
+    assert_close!(peak.value, 45.0);
+    let vs = notables(m, Action::Shear);
+    assert!(vs.iter().any(|n| n.kind == NotableKind::Zero && close(n.x, 3.0)), "{vs:?}");
+}
+
+#[test]
+fn cantilever_with_a_tip_load() {
+    // Wall on the left of A: the fixed support turned −90°.
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 3.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0)],
+        loads: vec![force_at("B", 10.0, -90.0)],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Isostatic);
+    let r = &an.reactions[0];
+    assert_close!(r.fy, 10.0);
+    assert_close!(r.m, 30.0);
+    let m = &an.members[0];
+    assert_close!(m.forces(0.0, true).m, -30.0);
+    assert_close!(m.forces(3.0, false).m, 0.0);
+    assert_close!(m.forces(1.0, true).v, 10.0);
+}
+
+#[test]
+fn propped_cantilever_is_hyperstatic_of_degree_one() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![uniform("1", 12.0)],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Hyperstatic { degree: 1 });
+    // R_B = 3qL/8, M_A = −qL²/8.
+    assert_close!(an.reactions[1].fy, 3.0 * 12.0 * 4.0 / 8.0);
+    assert_close!(an.members[0].forces(0.0, true).m, -12.0 * 16.0 / 8.0);
+}
+
+#[test]
+fn fixed_fixed_beam_with_a_central_load() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 8.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0), support("B", SupportKind::Fixed, 90.0)],
+        loads: vec![force_on("1", 4.0, 20.0)],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Hyperstatic { degree: 3 });
+    let m = &an.members[0];
+    // −PL/8 at the ends, +PL/8 under the load; the shear jumps by P there.
+    assert_close!(m.forces(0.0, true).m, -20.0);
+    assert_close!(m.forces(8.0, false).m, -20.0);
+    assert_close!(m.forces(4.0, true).m, 20.0);
+    assert_close!(m.forces(4.0, false).v, 10.0);
+    assert_close!(m.forces(4.0, true).v, -10.0);
+    assert!(m.jumps_at(4.0));
+}
+
+#[test]
+fn continuous_beam_over_three_supports() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 5.0, 0.0), node("C", 10.0, 0.0)],
+        members: vec![member("1", "A", "B"), member("2", "B", "C")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("B", SupportKind::Roller, 0.0), support("C", SupportKind::Roller, 0.0)],
+        loads: vec![uniform("1", 8.0), uniform("2", 8.0)],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Hyperstatic { degree: 1 });
+    // Middle reaction 10qL/8, ends 3qL/8, moment over the middle support −qL²/8.
+    assert_close!(an.reactions[1].fy, 10.0 * 8.0 * 5.0 / 8.0);
+    assert_close!(an.reactions[0].fy, 3.0 * 8.0 * 5.0 / 8.0);
+    assert_close!(an.members[0].forces(5.0, false).m, -8.0 * 25.0 / 8.0);
+    assert_close!(an.members[1].forces(0.0, true).m, -8.0 * 25.0 / 8.0);
+}
+
+#[test]
+fn gerber_beam_with_an_internal_hinge() {
+    // Fixed at A, hinge at B, roller at C; load P at the middle of BC.
+    let mut st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 2.0, 0.0), node("C", 6.0, 0.0)],
+        members: vec![member("1", "A", "B"), member("2", "B", "C")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0), support("C", SupportKind::Roller, 0.0)],
+        loads: vec![force_on("2", 2.0, 10.0)],
+        ..Structure::default()
+    };
+    st.nodes[1].hinge = true;
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Isostatic);
+    // BC is simply supported: 5 at B and C; A takes 5 and M_A = 5·2 = 10 (counter-clockwise).
+    assert_close!(an.reactions[1].fy, 5.0);
+    assert_close!(an.reactions[0].fy, 5.0);
+    assert_close!(an.reactions[0].m, 10.0);
+    assert_close!(an.members[0].forces(2.0, false).m, 0.0);
+    assert_close!(an.members[1].forces(2.0, true).m, 10.0);
+    // A member end hinge does the same as the node's.
+    st.nodes[1].hinge = false;
+    st.members[0].hinge_b = true;
+    let an2 = analyse(&st);
+    assert_eq!(an2.status, Status::Isostatic);
+    assert_close!(an2.reactions[0].m, 10.0);
+}
+
+#[test]
+fn beam_on_two_rollers_is_labile() {
+    let mut st = simple_beam();
+    st.supports[0].kind = SupportKind::Roller;
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Labile { degree: 1, redundant: 0 });
+    assert!(an.reactions.is_empty());
+    // Three hinges in a row: labile too, though it counts enough constraints.
+    let mut st = simple_beam();
+    st.nodes.push(node("C", 12.0, 0.0));
+    st.members.push(member("2", "B", "C"));
+    st.supports[1].kind = SupportKind::Pin;
+    st.supports.push(support("C", SupportKind::Pin, 0.0));
+    st.nodes[1].hinge = true;
+    st.supports.remove(1);
+    st.supports.insert(1, support("B", SupportKind::Pin, 0.0));
+    // A pin at the hinge holds it: isostatic. Move it to a roller standing sideways: labile.
+    assert!(analyse(&st).status.is_solved(), "{:?}", analyse(&st).status);
+    st.supports[1] = support("B", SupportKind::Roller, 90.0);
+    assert!(matches!(analyse(&st).status, Status::Labile { .. }), "{:?}", analyse(&st).status);
+}
+
+#[test]
+fn triangular_truss() {
+    // Span 4, height 3; pin at A, roller at C, 12 down at the apex B.
+    let mut st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 2.0, 3.0), node("C", 4.0, 0.0)],
+        members: vec![member("1", "A", "B"), member("2", "B", "C"), member("3", "A", "C")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("C", SupportKind::Roller, 0.0)],
+        loads: vec![force_at("B", 12.0, -90.0)],
+        ..Structure::default()
+    };
+    for n in &mut st.nodes {
+        n.hinge = true;
+    }
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Isostatic);
+    assert!(an.truss);
+    let len = 13.0_f64.sqrt();
+    // Each rafter: N = −6·ℓ/3 (compression); the tie: +6·2/3 (tension).
+    assert_close!(an.members[0].forces(1.0, true).n, -6.0 * len / 3.0);
+    assert_close!(an.members[1].forces(1.0, true).n, -6.0 * len / 3.0);
+    assert_close!(an.members[2].forces(1.0, true).n, 4.0);
+    assert_close!(an.members[2].forces(1.0, true).m, 0.0);
+}
+
+#[test]
+fn portal_frame_with_a_horizontal_load() {
+    // Columns 4 high, beam 6 long; pin at A, roller at D; 10 to the right at B.
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 0.0, 4.0), node("C", 6.0, 4.0), node("D", 6.0, 0.0)],
+        members: vec![member("1", "A", "B"), member("2", "B", "C"), member("3", "C", "D")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("D", SupportKind::Roller, 0.0)],
+        loads: vec![force_at("B", 10.0, 0.0)],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Isostatic);
+    let (a, d) = (&an.reactions[0], &an.reactions[1]);
+    assert_close!(a.fx, -10.0);
+    // Moments about A: 10·4 = D·6.
+    assert_close!(d.fy, 40.0 / 6.0);
+    assert_close!(a.fy, -40.0 / 6.0);
+    // Column AB: the moment at B is 10·4 = 40, on the outside fibres (local −y of A→B is right):
+    // H_A = 10 to the left at A bends it with its right side stretched? Check the magnitude.
+    assert_close!(an.members[0].forces(4.0, false).m.abs(), 40.0);
+    assert_close!(an.members[1].forces(0.0, true).m.abs(), 40.0);
+}
+
+#[test]
+fn triangular_load_on_a_simple_beam() {
+    let mut st = simple_beam();
+    st.loads = vec![Load::Distributed {
+        member: "1".into(),
+        q1: 0.0.into(),
+        q2: Some(9.0.into()),
+        from: Num::default(),
+        to: None,
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    }];
+    let an = analyse(&st);
+    let (l, q) = (6.0, 9.0);
+    assert_close!(an.reactions[0].fy, q * l / 6.0);
+    assert_close!(an.reactions[1].fy, q * l / 3.0);
+    let peak = notables(&an.members[0], Action::Moment).into_iter().find(|n| n.kind == NotableKind::Extreme).expect("extreme");
+    assert_close!(peak.x, l / 3.0_f64.sqrt());
+    assert_close!(peak.value, q * l * l / (9.0 * 3.0_f64.sqrt()));
+}
+
+#[test]
+fn couple_at_midspan() {
+    let mut st = simple_beam();
+    st.loads = vec![Load::Moment { node: None, member: Some("1".into()), at: 3.0.into(), value: 12.0.into() }];
+    let an = analyse(&st);
+    // Counter-clockwise couple: about A, R_B·L + C = 0, so B pulls down C/L and A pushes up.
+    assert_close!(an.reactions[0].fy, 2.0);
+    assert_close!(an.reactions[1].fy, -2.0);
+    let m = &an.members[0];
+    assert_close!(m.forces(3.0, false).m, 6.0);
+    assert_close!(m.forces(3.0, true).m, -6.0);
+}
+
+#[test]
+fn inclined_roller() {
+    // Roller at B on a plane at 30°: its reaction leans 30° from the vertical.
+    let mut st = simple_beam();
+    st.supports[1].angle = 30.0.into();
+    let an = analyse(&st);
+    assert_eq!(an.status, Status::Isostatic);
+    let b = &an.reactions[1];
+    assert_close!(b.fy, 30.0);
+    assert_close!(b.fx, -30.0 * 30.0_f64.to_radians().tan());
+    assert_close!(an.reactions[0].fx, -b.fx);
+    // The beam is compressed by the horizontal thrust between A and B.
+    assert_close!(an.members[0].forces(1.0, true).n, b.fx);
+}
+
+#[test]
+fn projected_load_on_a_rafter() {
+    // A rafter from (0,0) to (4,3) with 5 per horizontal metre: total 20, as on a 4 m beam.
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 3.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![Load::Distributed {
+            member: "1".into(),
+            q1: 5.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: None,
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Projection,
+        }],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    assert_close!(an.reactions[0].fy + an.reactions[1].fy, 20.0);
+    // The moment at midspan is q·a²/8 with a the horizontal span.
+    assert_close!(an.members[0].forces(2.5, true).m, 5.0 * 16.0 / 8.0);
+}
+
+#[test]
+fn local_load_across_a_member() {
+    // Wind across a column: 2 per metre on a 3 m cantilever column.
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 0.0, 3.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, 0.0)],
+        loads: vec![Load::Distributed {
+            member: "1".into(),
+            q1: 2.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: None,
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Local,
+            per: LoadPer::Length,
+        }],
+        ..Structure::default()
+    };
+    let an = analyse(&st);
+    // Local −y of a column going up is +x: the wind blows right, A pushes back left.
+    assert_close!(an.reactions[0].fx, -6.0);
+    assert_close!(an.reactions[0].m.abs(), 9.0);
+}
+
+#[test]
+fn expressions_follow_the_calculations() {
+    let mut ws = Worksheet::new(Options::default());
+    let length = strix_calc::unit("cm").expect("cm");
+    ws.define("L", Value::Scalar(Quantity::new(600.0 * length.value, length.dim)));
+    let knm = strix_calc::unit("kN").expect("kN").value;
+    ws.define("q", Value::Scalar(Quantity::new(10.0 * knm, strix_calc::Dim::new([0, 1, -2, 0, 0, 0, 0]))));
+    let mut st = simple_beam();
+    st.nodes[1].x = Num::expr("L");
+    st.loads = vec![Load::Distributed {
+        member: "1".into(),
+        q1: Num::expr("q"),
+        q2: None,
+        from: Num::expr("L/2 - 1"),
+        to: None,
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    }];
+    let errors = st.resolve(&ws);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_close!(st.nodes[1].x.value, 6.0);
+    // `L/2 - 1` mixes a length and a number: lengths count in metres.
+    match &st.loads[0] {
+        Load::Distributed { q1, from, .. } => {
+            assert_close!(q1.value, 10.0);
+            assert_close!(from.value, 2.0);
+        }
+        other => panic!("{other:?}"),
+    }
+    let mut bad = simple_beam();
+    bad.nodes[1].x = Num::expr("q");
+    let errors = bad.resolve(&ws);
+    assert_eq!(errors.len(), 1, "{errors:?}");
+}
+
+#[test]
+fn json_round_trip_and_defaults() {
+    let st = simple_beam();
+    let json = st.to_json();
+    assert!(!json.contains("\"angle\":-90"), "the default direction is left out: {json}");
+    let back = Structure::from_json(&json).expect("parse");
+    assert_eq!(back, st.sanitized());
+    let small =
+        Structure::from_json(r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":"L","y":0}],"members":[{"id":"1","a":"A","b":"B"}]}"#).expect("parse");
+    assert_eq!(small.nodes[1].x.expr.as_deref(), Some("L"));
+    assert!(small.diagrams.m.positive == crate::Side::Down, "M on the stretched fibres by default");
+}
+
+#[test]
+fn rendering_student_and_teacher_copies_have_the_same_size() {
+    let st = simple_beam();
+    let teacher = st.render_for(None, true);
+    let student = st.render_for(None, false);
+    assert_eq!(teacher.plot.size, student.plot.size);
+    assert!(teacher.plot.prims.len() > student.plot.prims.len());
+    let text = |r: &crate::StructureRendered| -> Vec<String> {
+        r.plot.prims.iter().filter_map(|p| if let strix_plot::PlotPrim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect()
+    };
+    let t = text(&teacher);
+    assert!(t.iter().any(|s| s == "45"), "the maximum moment is written: {t:?}");
+    assert!(t.iter().any(|s| s == "30 kN"), "the reactions are written: {t:?}");
+    assert!(t.iter().any(|s| s == "M [kN·m]"), "{t:?}");
+    assert!(!text(&student).iter().any(|s| s == "45"));
+    // Not an answer: the student sees everything.
+    let mut open = st.clone();
+    open.answer = false;
+    assert_eq!(open.render_for(None, false).plot.prims.len(), teacher.plot.prims.len());
+    let svg = teacher.plot.to_svg();
+    assert!(svg.starts_with("<svg"));
+}
+
+#[test]
+fn a_labile_structure_says_so_and_draws_no_diagrams() {
+    let mut st = simple_beam();
+    st.supports[0].kind = SupportKind::Roller;
+    let r = st.render(None);
+    let texts: Vec<String> =
+        r.plot.prims.iter().filter_map(|p| if let strix_plot::PlotPrim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect();
+    assert!(texts.iter().any(|t| t.starts_with("labile")), "{texts:?}");
+}
+
+#[test]
+fn hostile_input_never_panics() {
+    for json in [
+        "{}",
+        r#"{"members":[{"id":"1","a":"A","b":"A"}]}"#,
+        r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"A","x":1,"y":0}],"members":[{"id":"1","a":"A","b":"A"}]}"#,
+        r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":1e300,"y":-1e300}],"members":[{"id":"1","a":"A","b":"B"}],"supports":[{"node":"A","kind":"fixed","angle":1e308}],"loads":[{"type":"force","member":"1","at":-5,"value":1e308},{"type":"distributed","member":"1","q1":"1/0","from":9,"to":-9}],"width":-1}"#,
+        r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":1,"y":0}],"members":[{"id":"1","a":"A","b":"B","e":0,"i":-1}],"supports":[{"node":"Z","kind":"pin"}],"loads":[{"type":"moment","node":"Q","value":3},{"type":"force","value":2}]}"#,
+        r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":1,"y":0},{"id":"C","x":2,"y":0}],"members":[{"id":"1","a":"A","b":"B"}],"supports":[{"node":"C","kind":"pin"}],"loads":[{"type":"force","node":"C","value":3}]}"#,
+    ] {
+        if let Ok(st) = Structure::from_json(json) {
+            let r = st.render(None);
+            assert!(r.plot.size.0.is_finite() && r.plot.size.1.is_finite(), "{json}");
+            for p in &r.plot.prims {
+                if let strix_plot::PlotPrim::Path { pts, .. } = p {
+                    assert!(pts.iter().all(|(x, y)| x.is_finite() && y.is_finite()), "{json}");
+                }
+            }
+        }
+    }
+    assert!(Structure::from_json("not json").is_err());
+}

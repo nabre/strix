@@ -3799,3 +3799,14 @@ mark	Grade	Voto
 	Points: a number, or empty for a question that is not scored	Punti: un numero, oppure vuoto per una domanda senza punteggio
 	Duration: 1 to 600 minutes, or empty	Durata: da 1 a 600 minuti, oppure vuoto
 	Scale: a point away from the base point, or a factor above 0	Scala: un punto lontano dal punto base, o un fattore maggiore di 0
+# Strix (2026-11-17): plane structures (strix-structure).
+	1 structure	1 struttura
+	{n} structures	{n} strutture
+	Structure	Struttura
+	Structures	Strutture
+	Structure Source	Sorgente struttura
+	Set Structure	Imposta struttura
+	Structure Node	Nodo della struttura
+	Structure Member	Asta della struttura
+	Structure Support	Vincolo della struttura
+	Structure Load	Carico della struttura
