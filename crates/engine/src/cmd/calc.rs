@@ -69,11 +69,16 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(calc_table_place)
             .params(r#"{"value"?: bool (default: toggle)} → {"total": bool, "recalculated"}: the column at the caret is summed in the total row of its table (made calculated); on, the table gets its total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
-            .when(|s| match calc_table_place(s) {
-                // A table inserted here would be inside another, or outside the body.
-                Some(why) if why != NO_TABLE => Some(why),
-                _ if s.sel.focus.path.cell().is_some() => Some(NESTED_TABLE),
-                _ => None,
+            // A table inserted here would be outside the body, or inside another (as
+            // `insert_table` refuses it).
+            .when(|s| {
+                if s.sel.focus.story != wordcraft_doc::StoryRef::Body {
+                    Some(NOT_BODY)
+                } else if s.sel.focus.path.cell().is_some() {
+                    Some(NESTED_TABLE)
+                } else {
+                    None
+                }
             })
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
@@ -4596,5 +4601,12 @@ mod tests {
         let r = s.run("table.calc", &json!({"value": true}));
         assert!(matches!(r, Err(CmdError::Disabled(_))), "{r:?}");
         assert!(s.why_disabled("table.calc").is_some());
+        // Nor is one inserted there, the caret outside any table: said before it is asked for.
+        let mut s = session();
+        s.run("insert.editHeader", &json!({"page": 0})).unwrap();
+        assert!(s.sel.focus.path.cell().is_none());
+        assert_eq!(s.why_disabled("calc.insertTable"), Some(NOT_BODY));
+        let r = s.run("calc.insertTable", &json!({}));
+        assert!(matches!(r, Err(CmdError::Disabled(_))), "{r:?}");
     }
 }

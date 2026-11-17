@@ -161,9 +161,9 @@ pub(crate) fn derivative(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, x: f6
             }
         };
         // One Richardson step, and what the values' last bits can make of a zero slope
-        // (`f′(0)` of `x²`).
+        // (`f′(0)` of `x²`) at the first step.
         let value = (4.0 * d2 - d1) / 3.0;
-        let noise = 1e-9 * s1.max(s2) / if order == 1 { base } else { base * base } * 10f64.powi(level * order as i32);
+        let noise = 1e-9 * s1.max(s2) / if order == 1 { base } else { base * base };
         if first.is_none() {
             first = Some((value, noise));
         }
@@ -172,10 +172,23 @@ pub(crate) fn derivative(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, x: f6
         }
         let Ok((d4, _)) = d(h / 4.0) else { continue };
         let finer = (4.0 * d4 - d2) / 3.0;
-        if (value - finer).abs() <= 1e-6 * finer.abs() || (value.abs() <= noise && finer.abs() <= noise) {
-            // At the first step the estimate is the one it always was; at a smaller one the
-            // two are extrapolated once more.
-            found = Some((if level == 0 { value } else { (16.0 * finer - value) / 15.0 }, noise));
+        let agree = (value - finer).abs() <= 1e-6 * finer.abs();
+        if level == 0 {
+            // The estimate is the one it always was; a slope within the noise is zero.
+            if agree || (value.abs() <= noise && finer.abs() <= noise) {
+                found = Some((value, noise));
+                break;
+            }
+            continue;
+        }
+        // At a smaller step the values' last bits weigh more (ten times a level for a slope, a
+        // hundred for a curvature): two estimates within them agree by chance (both 0, a small
+        // slope on a large value), and are no sign that the step is the function's scale. Such
+        // a derivative keeps the first estimate (`p″` of `101325 + x²/2` is 1, not 0).
+        let rounding = noise * 10f64.powi(level * order as i32);
+        if agree && finer.abs() > rounding {
+            // The two are extrapolated once more.
+            found = Some(((16.0 * finer - value) / 15.0, noise));
             break;
         }
     }

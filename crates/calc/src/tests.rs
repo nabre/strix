@@ -2062,6 +2062,18 @@ fn derivatives_follow_the_scale_of_the_function() {
     assert_eq!(last(&["f(x) = e^x", "f″(0) ="]), "f″(0) = 1");
 }
 
+/// Found in review: a small slope or curvature on a large value (a pressure with its offset)
+/// did not settle at the first step, and at the smaller ones it was taken for rounding: 0.
+#[test]
+fn a_small_derivative_on_a_large_value_is_not_zero() {
+    assert_eq!(last(&["f(x) = 101325 + 0.5·x^2", "f″(1) ="]), "f″(1) = 1");
+    assert_eq!(last(&["f(x) = 1000 + 0.001·x^2", "f″(1) ="]), "f″(1) = 0.002");
+    assert_eq!(last(&["f(x) = 100000 + 0.002·x", "f′(1) ="]), "f′(1) = 0.002");
+    // A constant's derivative is still nothing but rounding.
+    assert_eq!(last(&["f(x) = 101325 + 0·x", "f′(1) ="]), "f′(1) = 0");
+    assert_eq!(last(&["f(x) = 101325 + 0·x", "f″(1) ="]), "f″(1) = 0");
+}
+
 /// A definite integral that does not settle is an error, as an improper one is: never the
 /// number the last refinement happened to give.
 #[test]
