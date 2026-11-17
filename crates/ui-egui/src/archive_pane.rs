@@ -53,6 +53,21 @@ pub(crate) fn import(app: &mut WordApp, params: Value) -> Result<Value, String> 
     Ok(result)
 }
 
+/// Whether the bank's `entry` is found by `query` (lower case; empty finds all): in its name or
+/// in what its properties say, never in their names ("classe", "sezione" found every exercise).
+fn found(entry: &Value, query: &str) -> bool {
+    let query = query.trim();
+    if query.is_empty() {
+        return true;
+    }
+    let says = |v: &Value| match v {
+        Value::String(t) => t.to_lowercase().contains(query),
+        Value::Number(n) => n.to_string().contains(query),
+        _ => false,
+    };
+    says(&entry["name"]) || entry["properties"].as_object().is_some_and(|props| props.iter().any(|(k, v)| k != "names" && says(v)))
+}
+
 pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     egui::ScrollArea::vertical().show(ui, |ui| {
         ui.heading(tl!("Archive Properties"));
@@ -66,16 +81,20 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
             ("duration", tl!("Duration (min)")),
             ("tags", tl!("Topics / Tags")),
         ] {
-            let mut text = props[field]
+            let current = props[field]
                 .as_str()
                 .map(str::to_string)
                 .unwrap_or_else(|| if props[field].is_null() { String::new() } else { props[field].to_string() });
             ui.label(label);
-            let response = ui.text_edit_singleline(&mut text);
-            if response.changed() {
+            // Stored when editing ends: the command trims what it stores, so storing at every
+            // key would take away the space just typed between two words, and a value it
+            // refuses is said in the status bar.
+            if let Some(text) = crate::a11y_pane::draft_box(ui, ("archive_prop", field), &current, true, false) {
                 let mut update = json!({});
-                update[field] = if text.trim().is_empty() { Value::Null } else { json!(text) };
-                let _ = app.run("archive.properties", update);
+                update[field] = if text.trim().is_empty() { Value::Null } else { json!(text.trim()) };
+                if let Err(e) = app.run("archive.properties", update) {
+                    app.status(e);
+                }
             }
         }
         let score = if props["score"].is_null() { "—".to_string() } else { props["score"].to_string() };
@@ -112,7 +131,7 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
         }
         let query = state.query.to_lowercase();
         for entry in &state.entries {
-            if !query.is_empty() && !format!("{} {}", entry["name"], entry["properties"]).to_lowercase().contains(&query) {
+            if !found(entry, &query) {
                 continue;
             }
             ui.group(|ui| {
@@ -141,4 +160,24 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
         }
         ui.data_mut(|d| d.insert_temp(k, state));
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::found;
+    use serde_json::json;
+
+    /// Found in review: the pane's search looked in the properties as JSON, names included, so
+    /// "sezione", "grade" or "null" found every exercise of the bank.
+    #[test]
+    fn the_search_reads_what_the_properties_say_not_their_names() {
+        let entry = json!({"name": "leve.xmath", "properties": {"subject": "Fisica", "grade": 2, "section": null, "tags": "leve, momenti",
+            "names": {"grade": "Classe", "section": "Sezione"}}});
+        for q in ["", "fisica", "momenti", "leve", "2"] {
+            assert!(found(&entry, q), "{q:?} is found");
+        }
+        for q in ["sezione", "classe", "grade", "subject", "null", "names"] {
+            assert!(!found(&entry, q), "{q:?} is a property's name, not what one says");
+        }
+    }
 }

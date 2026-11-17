@@ -464,3 +464,22 @@ fn column_end_in_the_last_column_or_one_column_goes_on_the_next_page() {
     assert_eq!(page_of(&l, 3), Some(1));
     assert!(line_x(&l, 1, 3).is_some_and(|x| x < left + cols[0].1));
 }
+
+#[test]
+fn a_fixed_height_whose_text_runs_over_the_page_is_ruled_from_its_first_line() {
+    // Text longer than the page in a block of a fixed height: on the page it starts on, the grid
+    // starts at its first line (it was dropped onto the bottom margin, the first line left above
+    // the squares) and goes down in whole squares.
+    let mut p = Paragraph::with_text(&"word ".repeat(600), Default::default());
+    p.props.graph = Some(Arc::new(GraphPaper { placement: GridPlacement::Height { height: 30.0 * PT_PER_MM }, ..GraphPaper::default() }));
+    let doc = doc_with(vec![para("Before"), para_block(p), para("After")]);
+    let l = lay(&doc);
+    assert!(l.pages.len() >= 2, "the text runs over the page");
+    let first_line = l.pages[0].items.iter().find_map(|it| match it {
+        Placed::Lines { story: StoryRef::Body, path, y, .. } if *path == Path::top(1) => Some(*y),
+        _ => None,
+    });
+    let r = grids(&l)[0][0];
+    assert!(first_line.is_some_and(|y| (y - r.y).abs() < 0.05), "the grid starts at the text: {first_line:?} vs {r:?}");
+    assert!(whole(r.h) && r.bottom() <= l.pages[0].body.bottom() + 0.05 && r.bottom() > l.pages[0].body.bottom() - side(), "{r:?}");
+}

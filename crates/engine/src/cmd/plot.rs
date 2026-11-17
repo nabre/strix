@@ -292,13 +292,15 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, plot: &Plot) -> Result<(), C
                 return Err(CmdError::Failed("not a plot".into()));
             }
             let g = Arc::make_mut(graphic);
-            g.plot = Some(json_arc);
+            g.plot = Some(json_arc.clone());
         }
         para.touch();
     }
     let report = super::calc::recalculate_now(s);
-    if report["changed"].as_u64().unwrap_or(0) == 0 {
-        // Outside body or unchanged text: render directly against empty worksheet.
+    // Only a plot the recalculation does not reach (outside the body) is drawn here, against an
+    // empty worksheet: one it reached and found drawn as before (a change that draws nothing
+    // new) would lose the curves that use the document's variables.
+    if report["changed"].as_u64().unwrap_or(0) == 0 && super::calc::resolved_plot(s, &json_arc).is_none() {
         let rendered = plot.render(None);
         let (dw, dh, items) = items_of(&rendered, &s.doc.settings.minor_font);
         let svg: Arc<str> = rendered.to_svg().into();
@@ -465,4 +467,36 @@ pub(crate) fn items_of(r: &PlotRendered, body_font: &str) -> (f32, f32, Vec<Grap
         }
     }
     (pt(r.size.0).max(1.0), pt(r.size.1).max(1.0), items)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wordcraft_doc::Document;
+
+    fn drawn(s: &mut Session) -> Arc<str> {
+        let (pos, _) = selected_source(s).expect("the plot is selected");
+        let para = s.doc.para_mut(pos.story, &pos.path).unwrap();
+        match para.object_at_mut(pos.off) {
+            Some(InlineObject::Graphic { graphic, .. }) => graphic.svg.clone().expect("drawn"),
+            _ => panic!("no plot there"),
+        }
+    }
+
+    /// Found in review: a `plot.set` that changes nothing drawn (a title set to what it was) saw
+    /// "nothing changed" from the recalculation and drew the plot again without the document's
+    /// variables: a curve using one (`k·x`) was gone until the next recalculation.
+    #[test]
+    fn a_set_that_draws_nothing_new_keeps_the_curves_that_use_variables() {
+        let mut s = Session::new(Document::new());
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        s.run("calc.insert", &json!({"text": "k := 3"})).unwrap();
+        s.run("text.insert", &json!({"text": "\n"})).unwrap();
+        s.run("plot.insert", &json!({"expr": "k*x", "title": "Retta"})).unwrap();
+        let before = drawn(&mut s);
+        let info = s.run("plot.get", &json!({})).unwrap();
+        assert_eq!(info["errors"].as_array().map(Vec::len), Some(0), "{info}");
+        s.run("plot.set", &json!({"title": "Retta"})).unwrap();
+        assert!(drawn(&mut s) == before, "drawn as it was, with the curve");
+    }
 }

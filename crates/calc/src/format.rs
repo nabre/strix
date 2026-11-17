@@ -65,6 +65,11 @@ fn decimal_digits(v: f64) -> (bool, Vec<u8>, i32) {
     if ds.len() > 15 {
         let unit = exp - 14;
         round_at(&mut ds, &mut exp, unit);
+        // The zeros the cap leaves at the end are no digits of the number: `0.30000000000000004`
+        // is `0.3`, with nothing below it for `ceil` or `floor` to round away.
+        while ds.len() > 1 && ds.last() == Some(&0) {
+            ds.pop();
+        }
     }
     (v < 0.0, ds, exp)
 }

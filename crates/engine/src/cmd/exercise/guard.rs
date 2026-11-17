@@ -52,9 +52,10 @@ fn redirect(p: &Paragraph, off: usize) -> Result<Option<usize>, CmdError> {
     if span(p, TAG_LINE).is_some() {
         return Err(CmdError::Disabled(LINE_REFUSED.into()));
     }
-    // An option: the box first, then its text.
+    // An option: the box first, then (after the space that follows it) its text.
     if let Some((a, b)) = span(p, TAG_BOX) {
-        return Ok((off <= a).then_some(b + w));
+        let text = b + w + usize::from(p.text.get(b + w..).is_some_and(|t| t.starts_with(' ')));
+        return Ok((off <= a || (off > b && off < text)).then_some(text));
     }
     Ok(None)
 }
@@ -90,9 +91,34 @@ fn holds_exercise(blocks: &[Block]) -> bool {
     })
 }
 
+/// Before `blocks` are pasted at the caret (already moved outside any exercise): when they hold
+/// an exercise, how many exercises start before the caret and how many the document has, for
+/// [`after_paste`].
+pub(crate) fn before_paste(s: &Session, blocks: &[Block]) -> Option<(usize, usize)> {
+    if !holds_exercise(blocks) || s.sel.focus.story != StoryRef::Body {
+        return None;
+    }
+    let top = s.sel.focus.path.0.first().map(|&t| t as usize)?;
+    let layout = scan(s);
+    let before = layout.parts.iter().take(top.saturating_add(1)).filter_map(|(e, _)| *e).max().map_or(0, |e| e + 1);
+    Some((before, layout.exercises.len()))
+}
+
+/// After the paste [`before_paste`] looked at: the exercises it brought get an empty row each
+/// in the scores table where they stand, so the exercises after them keep their points (matched
+/// by their numbers, the rows gave the pasted exercise the points of the one it pushed down).
+pub(crate) fn after_paste(s: &mut Session, (before, total): (usize, usize)) {
+    let pasted = scan(s).exercises.len().saturating_sub(total);
+    if pasted > 0 {
+        let new: Vec<usize> = (before..before.saturating_add(pasted)).collect();
+        super::scores::open_rows(s, &new);
+    }
+}
+
 /// Before `blocks` go in at the selection: when they hold an exercise and the selection is in an
 /// exercise (or in the results summary), the caret moves to a new empty paragraph right after
-/// that exercise (before the summary), so the exercises never nest. Whether it moved.
+/// that exercise (before the summary), so the exercises never nest; in the frontispiece, to one
+/// after its break. Whether it moved.
 pub(crate) fn outside_for(s: &mut Session, blocks: &[Block]) -> bool {
     if !holds_exercise(blocks) || s.sel.focus.story != StoryRef::Body {
         return false;
@@ -100,6 +126,8 @@ pub(crate) fn outside_for(s: &mut Session, blocks: &[Block]) -> bool {
     let Some(top) = s.sel.focus.path.0.first().map(|&t| t as usize) else { return false };
     let layout = scan(s);
     let at = match layout.parts.get(top) {
+        // In the frontispiece: after its break, so it stays the frontispiece.
+        _ if layout.front.is_some_and(|(_, to)| top <= to) => layout.front.map_or(top + 1, |(_, to)| to + 1),
         Some((Some(e), _)) => {
             let e = *e;
             layout.parts.iter().rposition(|(x, _)| *x == Some(e)).map_or(top + 1, |last| last + 1)
@@ -184,6 +212,23 @@ mod tests {
         let p = s.doc.body[0].as_para().cloned().unwrap_or_default();
         let (a, b) = span(&p, TAG_TITLE).unwrap_or((0, 0));
         assert_eq!(p.text.get(a + OBJ.len_utf8()..b), Some("ZUno"));
+    }
+
+    /// Typed before an option's box, the text went between the box and the space that sets
+    /// it apart (`☐X uno`).
+    #[test]
+    fn typing_before_an_options_box_goes_into_its_text() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "choice", "questions": [{"text": "Domanda", "choices": ["uno", ""]}]}));
+        let options: Vec<usize> = (0..s.doc.body.len()).filter(|&i| s.doc.body[i].as_para().is_some_and(|p| span(p, TAG_BOX).is_some())).collect();
+        assert_eq!(options.len(), 2);
+        for (&o, want) in options.iter().zip(["\u{2610} Xuno", "\u{2610} X"]) {
+            s.sel = Selection::caret(Pos::body(o, 0));
+            run(&mut s, "text.insert", json!({"text": "X"}));
+            assert_eq!(para_text(&s, o), want);
+        }
+        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
+        assert_eq!(st["questions"][0]["choices"], json!(["Xuno", "X"]));
     }
 
     #[test]

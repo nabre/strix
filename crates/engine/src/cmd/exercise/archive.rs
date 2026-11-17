@@ -117,12 +117,24 @@ pub(crate) fn sync_score(s: &mut Session) -> bool {
     }
 }
 
-/// A property's value as JSON: a number when it reads as one, else its text.
+/// A number property's value as JSON: a number when it reads as one (a finite one: `inf` and
+/// `nan` are text), else its text.
 fn shown(t: Option<&str>) -> Value {
     match t {
         None => Value::Null,
-        Some(t) => t.trim().parse::<i64>().map(Value::from).or_else(|_| t.trim().parse::<f64>().map(Value::from)).unwrap_or_else(|_| json!(t)),
+        Some(t) => t
+            .trim()
+            .parse::<i64>()
+            .map(Value::from)
+            .ok()
+            .or_else(|| t.trim().parse::<f64>().ok().filter(|v| v.is_finite()).map(Value::from))
+            .unwrap_or_else(|| json!(t)),
     }
+}
+
+/// A text property's value as JSON: as typed, whatever it reads as (`INF`, `1e3`).
+fn shown_text(t: Option<&str>) -> Value {
+    t.map_or(Value::Null, |t| json!(t))
 }
 
 /// The document's archive duration in minutes, if set.
@@ -135,8 +147,8 @@ pub(super) fn state(s: &Session) -> Value {
     let text = |t: &str| if t.is_empty() { Value::Null } else { json!(t) };
     json!({
         "grade": shown(get(s, Field::Grade)),
-        "section": shown(get(s, Field::Section)),
-        "profession": shown(get(s, Field::Profession)),
+        "section": shown_text(get(s, Field::Section)),
+        "profession": shown_text(get(s, Field::Profession)),
         "subject": text(&s.doc.core.subject),
         "teacher": text(&s.doc.core.creator),
         "tags": text(&s.doc.core.keywords),
@@ -336,5 +348,24 @@ mod tests {
         let mut again = Session::new(back);
         let r = run(&mut again, "archive.properties", json!({}));
         assert_eq!((r["grade"].clone(), r["profession"].clone(), r["duration"].clone()), (json!(1), json!("GE"), json!(30)));
+    }
+
+    /// Section and profession are text, whatever they read as: an abbreviation that is also a
+    /// number's spelling (INF, NaN, 1e3) comes back as typed.
+    #[test]
+    fn text_properties_come_back_as_typed() {
+        let mut s = italian();
+        for t in ["INF", "nan", "Infinity", "1e3", "1."] {
+            let r = run(&mut s, "archive.properties", json!({"profession": t, "section": t}));
+            assert_eq!((r["profession"].clone(), r["section"].clone()), (json!(t), json!(t)));
+        }
+        // A number property a Word file holds as something that is no number isn't null.
+        s.doc.custom_props.push(wordcraft_doc::CustomProp {
+            name: "Classe".into(),
+            kind: "lpwstr".into(),
+            value: "inf".into(),
+            ..Default::default()
+        });
+        assert_eq!(run(&mut s, "archive.properties", json!({}))["grade"], json!("inf"));
     }
 }

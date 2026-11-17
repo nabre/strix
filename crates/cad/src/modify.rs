@@ -61,8 +61,10 @@ fn lit(v: f64) -> String {
     if s == "-0" { "0".into() } else { s }
 }
 
-/// `k·x + h·y + t` with the coordinates' expressions kept where there are some.
-fn combine(k: f64, x: &Num, h: f64, y: &Num, t: f64) -> Num {
+/// `k·x + h·y + t` with the coordinates' expressions kept where there are some. `f`: what a
+/// drawing unit measures in the expressions' unit ([`Drawing::expr_scale`]): the plain numbers
+/// written beside an expression are written in that unit.
+fn combine(k: f64, x: &Num, h: f64, y: &Num, t: f64, f: f64) -> Num {
     let value = k * x.value + h * y.value + t;
     if x.expr.is_none() && y.expr.is_none() {
         return Num::new(value);
@@ -71,21 +73,21 @@ fn combine(k: f64, x: &Num, h: f64, y: &Num, t: f64) -> Num {
         if c == 0.0 {
             return None;
         }
-        let text = n.expr.clone().map_or_else(|| lit(n.value), |e| format!("({e})"));
+        let text = n.expr.clone().map_or_else(|| lit(n.value * f), |e| format!("({e})"));
         Some(if c == 1.0 { text } else { format!("{text}*{}", lit(c)) })
     };
     let mut parts: Vec<String> = [term(k, x), term(h, y)].into_iter().flatten().collect();
     if t != 0.0 || parts.is_empty() {
-        parts.push(lit(t));
+        parts.push(lit(t * f));
     }
     Num { value, expr: Some(parts.join(" + ").replace("+ -", "- ")) }
 }
 
-fn map_p(p: &mut P, t: &Affine) {
+fn map_p(p: &mut P, t: &Affine, unit: f64) {
     let [a, b, c, d, e, f] = t.m;
     let (x, y) = (p.0.clone(), p.1.clone());
-    p.0 = combine(a, &x, b, &y, c);
-    p.1 = combine(d, &x, e, &y, f);
+    p.0 = combine(a, &x, b, &y, c, unit);
+    p.1 = combine(d, &x, e, &y, f, unit);
 }
 
 /// `n` times `k`, an expression kept.
@@ -115,6 +117,8 @@ impl Drawing {
     pub(crate) fn transform_only(&mut self, indices: &[usize], t: &Affine) {
         let indices = self.with_boundaries(indices);
         let indices = indices.as_slice();
+        let unit = self.expr_scale();
+        let map_p = |p: &mut P, t: &Affine| map_p(p, t, unit);
         for &i in indices {
             let Some(e) = self.entities.get_mut(i) else { continue };
             match &mut e.kind {

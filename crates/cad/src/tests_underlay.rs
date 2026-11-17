@@ -172,3 +172,19 @@ fn inherited_styles_nest_under_their_drawing() {
     assert_eq!(me.dim_style_named(Some("ground/Big")).text_style.as_deref(), Some("ground/Notes"));
     assert!(me.text_style_named(Some("ground/Notes")).is_some());
 }
+
+/// A source in metres whose sizes are expressions shows at its real size under a millimetre
+/// drawing: the values the expressions came to are converted like the plain numbers.
+#[test]
+fn an_underlay_with_expressions_is_converted_to_the_drawings_unit() {
+    let mut ws = strix_calc::Worksheet::new(strix_calc::Options::default());
+    ws.eval_statement("L = 4.5 m");
+    let mut src = d(r#"{"id":"plan","unit":"m","entities":[{"type":"line","a":[0,0],"b":["L",2]},{"type":"circle","c":["L",0],"r":"L/9"}]}"#);
+    assert!(src.resolve(&ws).is_empty());
+    let host = d(r#"{"unit":"mm","underlay":{"source":"plan","dx":100},"entities":[]}"#);
+    let view = host.underlay_view(&src);
+    let Kind::Line { a, b } = &view.entities[0].kind else { panic!() };
+    assert_eq!((a.pt(), b.pt()), (Pt::new(100.0, 0.0), Pt::new(4600.0, 2000.0)));
+    let Kind::Circle { c, r } = &view.entities[1].kind else { panic!() };
+    assert_eq!((c.pt(), r.value), (Pt::new(4600.0, 0.0), 500.0));
+}

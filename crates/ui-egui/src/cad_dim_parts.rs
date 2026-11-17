@@ -22,6 +22,9 @@ const REFERENCE_OVER: f32 = 10.0;
 /// Screen points per paper mm of a linetype's pattern, as the linetype samples show it.
 const PATTERN_PX_PER_MM: f32 = 2.5;
 
+/// The longest stretch (screen points) drawn with its linetype's pattern.
+const MAX_PATTERNED: f32 = 20_000.0;
+
 /// The pieces drawn of the path through `points` with a linetype's on/off `pattern` (screen
 /// points), carried on across the path's corners so an arc's chords read as one line.
 fn pattern_segments(points: &[Pos2], pattern: &[f32]) -> Vec<[Pos2; 2]> {
@@ -39,6 +42,15 @@ fn pattern_segments(points: &[Pos2], pattern: &[f32]) -> Vec<[Pos2; 2]> {
     let (mut k, mut left) = (0usize, first);
     for (a, b) in pairs {
         let len = a.distance(b);
+        // A stretch far longer than the screen (zoomed in on a detail) is drawn solid: a piece
+        // every few points of it would take the memory, and past what an `f32` can step along
+        // the walk would never end.
+        if !len.is_finite() || len > MAX_PATTERNED {
+            if len.is_finite() {
+                out.push([a, b]);
+            }
+            continue;
+        }
         let mut t = 0.0;
         while t < len {
             let step = left.min(len - t);
@@ -168,6 +180,16 @@ mod tests {
     use egui::pos2;
 
     use super::*;
+
+    /// Found in review: a reference line far longer than the screen (zoomed in on a detail) was
+    /// walked piece by piece; it is drawn solid instead, and one that is not a number not at all.
+    #[test]
+    fn a_pattern_is_not_walked_along_a_stretch_far_longer_than_the_screen() {
+        let pattern = [12.0, 3.0, 1.5, 3.0];
+        assert_eq!(pattern_segments(&[pos2(-1e12, 0.0), pos2(1e12, 0.0)], &pattern).len(), 1);
+        assert!(pattern_segments(&[pos2(0.0, 0.0), pos2(f32::INFINITY, 0.0)], &pattern).is_empty());
+        assert!(pattern_segments(&[pos2(0.0, 0.0), pos2(100.0, 0.0)], &pattern).len() > 5);
+    }
 
     /// The labels' sides: across the first stretch with a length, pointing right (down when
     /// level), and the anchor facing the point.

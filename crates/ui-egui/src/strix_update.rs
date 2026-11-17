@@ -170,6 +170,9 @@ pub struct Updater {
     install: Option<Receiver<Result<(), String>>>,
     /// Installed: Strix closes (and restarts) once it holds no unsaved work.
     installed: bool,
+    /// No unsaved work, as of the last frame: read by the install under way before it replaces
+    /// Strix and starts the helper that restarts it.
+    clean: Arc<AtomicBool>,
     stager: Option<StageSource>,
     /// Whether a newer release downloads by itself; read from the settings when first needed.
     auto_download: Option<bool>,
@@ -284,6 +287,11 @@ impl Updater {
     /// The panel's checkbox. Off cancels a download under way and deletes a staged package.
     fn set_auto_download(&mut self, ctx: &egui::Context, on: bool) {
         self.auto_download = Some(on);
+        if !on {
+            // Before the staged package is deleted: a download that ends just now sees it was
+            // stopped and leaves nothing behind (`staging::stage`).
+            self.stop.cancel();
+        }
         if self.stager.is_none()
             && let Ok(paths) = Paths::for_app(&STRIX)
         {
@@ -544,6 +552,7 @@ impl Updater {
     /// Once an update is installed and no unsaved work is left (`clean`), Strix closes so that it
     /// restarts in the new version; call once per frame.
     pub fn close_when_installed(&mut self, clean: bool) -> bool {
+        self.clean.store(clean, Ordering::Relaxed);
         if self.installed && clean {
             self.installed = false;
             self.offer = None;
@@ -742,8 +751,11 @@ impl Updater {
         offer.message = None;
         let (tx, rx) = channel();
         let (release, version, ctx) = (offer.release.clone(), self.version.clone(), ctx.clone());
+        // Asked for with everything saved; what is typed while it downloads is seen below.
+        self.clean.store(true, Ordering::Relaxed);
+        let clean = self.clean.clone();
         let spawned = std::thread::Builder::new().name("self-update".into()).spawn(move || {
-            let run = || install(&installed, &release, &version);
+            let run = || install(&installed, &release, &version, &clean);
             let outcome =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)).unwrap_or_else(|_| Err("the update failed unexpectedly".into()));
             let _ = tx.send(outcome);
@@ -836,11 +848,20 @@ fn download_url(release: &Release, platform: Option<Platform>) -> String {
         .map_or_else(|| release.html_url.clone(), |(asset, _)| asset.url.clone())
 }
 
-fn install(installed: &Install, release: &Release, version: &str) -> Result<(), String> {
+fn install(installed: &Install, release: &Release, version: &str, clean: &AtomicBool) -> Result<(), String> {
     let http = Http::new("Strix/Update")?;
     let paths = Paths::for_app(&STRIX)?;
     let platform = Platform::current().ok_or("this platform doesn't update itself")?;
-    self_update::update(&STRIX, installed, release, platform, &http, &paths, &Stop::default(), &mut |_| {}, &|| Ok(()), Some(version))
+    // The restart helper waits only so long for Strix to exit: with unsaved work (typed while
+    // the update was downloading) Strix would stay open past that, so nothing is replaced and
+    // the downloaded package waits for the next try.
+    let last = || may_replace(clean);
+    self_update::update(&STRIX, installed, release, platform, &http, &paths, &Stop::default(), &mut |_| {}, &last, Some(version))
+}
+
+/// Whether the install may replace Strix and start the restart helper: only with no unsaved work.
+fn may_replace(clean: &AtomicBool) -> Result<(), String> {
+    if clean.load(Ordering::Relaxed) { Ok(()) } else { Err(tl!("Save or close your documents first: updating restarts Strix Writer.").to_string()) }
 }
 
 /// The release notes as plain lines: no Markdown headings or emphasis marks, links shortened to
@@ -951,6 +972,18 @@ mod tests {
         settle(&mut u, &ctx);
         assert_eq!(u.outcome(), Some(&Outcome::Failed("offline".into())));
         assert!(u.offer.is_none());
+    }
+
+    /// Found in review: Update and Restart was only asked with everything saved, but the restart
+    /// helper was started however much had been typed while the update downloaded; it gives up
+    /// waiting for Strix to exit after a while. The install looks again before it replaces Strix.
+    #[test]
+    fn an_install_replaces_strix_only_while_nothing_is_unsaved() {
+        let mut u = Updater::new("0.18.0");
+        assert!(!u.close_when_installed(false));
+        assert!(may_replace(&u.clean).is_err(), "unsaved work: nothing is replaced");
+        assert!(!u.close_when_installed(true));
+        assert!(may_replace(&u.clean).is_ok());
     }
 
     #[test]

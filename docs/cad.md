@@ -585,7 +585,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    strip's pattern, angle, spacing; a dimension's end mark) until Enter. Stretch takes a
    crossing window, a base point and a second point: points of lines, polylines and dimensions
    inside the window move (as Move moves them: `L` becomes `L + 5`), circles, points and texts
-   move with their centre or point, an arc moves when it is inside whole. The rectangular array
+   move with their centre or point, an arc moves when it is inside whole (its ends and the quadrant points it passes through; its centre may be outside). The rectangular array
    (Serie; `Drawing::array_series`, `Series::plan`, `crates/cad/src/series.rs`) copies the
    selection from a base point to an end point: a single row or column (`1x5`, `5x1`) runs along
    the line between them in any direction, more of each make a grid with the end point its far

@@ -1942,3 +1942,310 @@ fn a_call_shown_with_its_result_is_read_back_as_a_call() {
     assert_eq!(last(&["g(u) = 4", "g(9) ="]), "g(9) = 4");
     assert_eq!(last(&["x = 2", "h(x) = x^2", "h(3) ="]), "h(3) = 9");
 }
+
+/// `ceil` and `floor` work on the number's 15 significant digits: the binary noise below them
+/// (`0.1 + 0.2` is `0.30000000000000004`) is nothing to round away.
+#[test]
+fn ceil_and_floor_ignore_binary_noise() {
+    assert_eq!(last(&["ceil(0.1 + 0.2; 1) ="]), "ceil(0.1 + 0.2; 1) = 0.3");
+    assert_eq!(last(&["ceil(4.35·100) ="]), "ceil(4.35·100) = 435");
+    assert_eq!(last(&["floor(-4.35·100) ="]), "floor(-4.35·100) = -435");
+    assert_eq!(last(&["floor(-(0.1 + 0.2); 1) ="]), "floor(-(0.1 + 0.2); 1) = -0.3");
+    // Digits that are the number's own are still rounded away.
+    assert_eq!(last(&["ceil(0.301; 1) ="]), "ceil(0.301; 1) = 0.4");
+    assert_eq!(last(&["floor(-0.301; 1) ="]), "floor(-0.301; 1) = -0.4");
+    assert_eq!(last(&["ceil(435.000001) ="]), "ceil(435.000001) = 436");
+}
+
+/// A numeric solve gives roots only: a side that fades away (towards infinity, or underflowing
+/// to 0) solves nothing, and never hides the root there is.
+#[test]
+fn a_numeric_solve_takes_no_fading_value_for_a_root() {
+    assert_eq!(last(&["1/x + 1/x^2 = 0"]), "1/x + 1/x^2 = 0 ⇒ x = -1");
+    assert_eq!(last(&["x·e^(-x) + e^(-x) = 0"]), "x·e^(-x) + e^(-x) = 0 ⇒ x = -1");
+    for none in ["e^(-x) + e^(-2·x) = 0", "e^x + e^(2·x) = 0", "e^(-x^2) + e^(-2·x^2) = 0"] {
+        assert_eq!(last_error(&[none]), CalcError::NoSolution("x".to_string()), "{none}");
+    }
+    // Roots that only touch zero are still found, and as near as the function lets them be.
+    assert_eq!(last(&["x^3 - 6·x^2 + 12·x - 8 = 0"]), "x^3 - 6·x^2 + 12·x - 8 = 0 ⇒ x = 2");
+    assert_eq!(last(&["(x - 3)^4·e^x = 0"]), "(x - 3)^4·e^x = 0 ⇒ x = 3");
+    assert_eq!(last(&["(x - 2)^2·(x^2 + 5)·e^x = 0"]), "(x - 2)^2·(x^2 + 5)·e^x = 0 ⇒ x = 2");
+    assert_eq!(last(&["cos(x)·cos(x) - 2·cos(x) + 1 = 0"]), "cos(x)·cos(x) - 2·cos(x) + 1 = 0 ⇒ x = 0");
+    assert_eq!(last(&["x^3 + x = 10"]), "x^3 + x = 10 ⇒ x = 2");
+}
+
+/// With decimal commas the working writes its numbers as the results beside it do.
+#[test]
+fn the_working_writes_decimal_commas() {
+    let opts = Options { decimal_comma: true, steps: true, ..Options::default() };
+    let shown = |s: &[&str]| evaluate(s, &opts).pop().and_then(|r| r.display).unwrap_or_default();
+    assert_eq!(shown(&["x = 2,5", "y = x·1,5 ="]), "y = x·1,5 = 2,5·1,5 = 3,75");
+    assert_eq!(shown(&["x = 2,5 m", "y = x·1,5 + 0,25 m ="]), "y = x·1,5 + 0,25 m = (2,5 m)·1,5 + 0,25 m = 4 m");
+    assert_eq!(shown(&["x = 0,5", "y = x^0,5 ="]), "y = x^0,5 = 0,5^(0,5) = 0,707");
+    // The steps of a solved equation too.
+    assert_eq!(shown(&["x = 2,5", "2,5·z = x"]), "2,5·z = x ⇒ z = x/2,5 = 2,5/2,5 = 1");
+    assert_eq!(
+        shown(&["x = 2,5", "z^2 + 1,5·z = x"]),
+        "z^2 + 1,5·z = x ⇒ z² + 1,5·z - x = 0 ⇒ z = (-1,5 ± √(1,5² - 4·(-x)))/2 = (-1,5 ± √(1,5² - 4·(-2,5)))/2 = [-2,5; 1]"
+    );
+    // Read back, what was shown is the same calculation.
+    let worked = shown(&["x = 2,5", "y = x·1,5 ="]);
+    assert_eq!(shown(&["x = 2,5", &worked]), worked);
+    let solved = shown(&["x = 2,5", "2,5·z = x"]);
+    assert_eq!(shown(&["x = 2,5", &solved]), solved);
+    // Without them nothing changes.
+    let plain = Options { steps: true, ..Options::default() };
+    assert_eq!(evaluate(&["x = 2.5", "y = x·1.5 ="], &plain).pop().and_then(|r| r.display).as_deref(), Some("y = x·1.5 = 2.5·1.5 = 3.75"));
+}
+
+/// A column's totals read like its cells: in the unit a formula's values carry (`%`, `°`), and
+/// as differences where the cells are differences of temperatures.
+#[test]
+fn table_totals_are_shown_as_their_cells_are() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows =
+        table(&[&["p [%]", "α [°]", "q = p·2", "β = 90° - α"], &["15", "30", "", ""], &["20", "40", "", ""], &["mean =", "Σ =", "Σ =", "max ="]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    for cell in [
+        (1, 2, "30 %"),
+        (2, 2, "40 %"),
+        (1, 3, "60°"),
+        (2, 3, "50°"),
+        (3, 0, "mean = 17.5"),
+        (3, 1, "Σ = 70"),
+        (3, 2, "Σ = 70 %"),
+        (3, 3, "max = 60°"),
+    ] {
+        assert!(r.updates.contains(&(cell.0, cell.1, cell.2.to_string())), "{cell:?}: {:?}", r.updates);
+    }
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[
+        &["T_1 [°C]", "T_2 [°C]", "D [°C] = T_2 - T_1"],
+        &["20", "80", ""],
+        &["30", "50", ""],
+        &["mean =", "max =", "Σ ="],
+        &["", "", "mean ="],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    for cell in [(1, 2, "60"), (2, 2, "20"), (3, 0, "mean = 25"), (3, 1, "max = 80"), (3, 2, "Σ = 80"), (4, 2, "mean = 40")] {
+        assert!(r.updates.contains(&(cell.0, cell.1, cell.2.to_string())), "{cell:?}: {:?}", r.updates);
+    }
+}
+
+/// In a table a temperature written in a formula (`20 °C`) is absolute, as in a statement: less
+/// it, a column's temperature is a difference.
+#[test]
+fn a_temperature_written_in_a_column_formula_is_absolute() {
+    assert_eq!(last(&["T = 25 °C", "D = T - 20 °C", "D = °C"]), "D = 5 °C");
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[&["T [°C]", "D [°C] = T - 20 °C", "U [°C] = T + 5 K"], &["25", "", ""], &["20", "", ""]]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(r.updates, vec![(1, 1, "5".to_string()), (1, 2, "30".to_string()), (2, 1, "0".to_string()), (2, 2, "25".to_string())]);
+}
+
+/// A derivative is taken at the scale the function varies on, not at one fixed step: a time
+/// constant in microseconds, a wavelength in millimetres.
+#[test]
+fn derivatives_follow_the_scale_of_the_function() {
+    assert_eq!(last(&["τ = 2 µs", "f(t) = e^(-t/τ)", "f′(0 s)·τ ="]), "f′(0 s)·τ = -1");
+    assert_eq!(last(&["τ = 2 µs", "f(t) = e^(-t/τ)", "f′(2 µs)·τ ="]), "f′(2 µs)·τ = -0.368");
+    assert_eq!(last(&["f(x) = sin(x/(1 mm))", "f′(0 mm)·1 mm ="]), "f′(0 mm)·1 mm = 1");
+    assert_eq!(last(&["f(x) = sin(1000·x)", "f′(0) ="]), "f′(0) = 1000");
+    assert_eq!(last(&["τ = 2 µs", "f(t) = e^(-t/τ)", "f″(0 s)·τ^2 ="]), "f″(0 s)·τ^2 = 1");
+    // At the usual scale nothing changes.
+    assert_eq!(last(&["f(x) = x^2 - 4", "f′(3) ="]), "f′(3) = 6");
+    assert_eq!(last(&["f(x) = x^3", "f″(2) ="]), "f″(2) = 12");
+    assert_eq!(last(&["f(x) = x^2", "f′(0) ="]), "f′(0) = 0");
+    assert_eq!(last(&["f(x) = e^x", "f″(0) ="]), "f″(0) = 1");
+}
+
+/// Found in review: a small slope or curvature on a large value (a pressure with its offset)
+/// did not settle at the first step, and at the smaller ones it was taken for rounding: 0.
+#[test]
+fn a_small_derivative_on_a_large_value_is_not_zero() {
+    assert_eq!(last(&["f(x) = 101325 + 0.5·x^2", "f″(1) ="]), "f″(1) = 1");
+    assert_eq!(last(&["f(x) = 1000 + 0.001·x^2", "f″(1) ="]), "f″(1) = 0.002");
+    assert_eq!(last(&["f(x) = 100000 + 0.002·x", "f′(1) ="]), "f′(1) = 0.002");
+    // A constant's derivative is still nothing but rounding.
+    assert_eq!(last(&["f(x) = 101325 + 0·x", "f′(1) ="]), "f′(1) = 0");
+    assert_eq!(last(&["f(x) = 101325 + 0·x", "f″(1) ="]), "f″(1) = 0");
+}
+
+/// A definite integral that does not settle is an error, as an improper one is: never the
+/// number the last refinement happened to give.
+#[test]
+fn a_definite_integral_that_does_not_settle_is_an_error() {
+    for diverging in ["∫_0^1 1/x dx =", "∫_0^1 1/x^2 dx =", "∫_0^1 x^(-0.99) dx =", "∫_0^10000 sin(x)^2 dx ="] {
+        assert_eq!(last_error(&[diverging]), CalcError::Diverges, "{diverging}");
+    }
+    // Singular at a limit but integrable, a kink, a step: still numbers.
+    assert_eq!(last(&["∫_0^1 1/√x dx ="]), "∫_0^1 1/√x dx = 2");
+    assert_eq!(last(&["∫_0^1 ln(x) dx ="]), "∫_0^1 ln(x) dx = -1");
+    assert_eq!(last(&["∫_0^2 |x - 1| dx ="]), "∫_0^2 |x - 1| dx = 1");
+    assert_eq!(last(&["∫_0^10 floor(x) dx ="]), "∫_0^10 floor(x) dx = 45");
+    assert_eq!(last(&["∫_0^1000 sin(x)^2 dx ="]), "∫_0^1000 sin(x)^2 dx = 499.767");
+    assert_eq!(last(&["∫_0^1 sin(1/x) dx ="]), "∫_0^1 sin(1/x) dx = 0.504");
+}
+
+/// The display of `statement` after `data`, calculated and then calculated again from what the
+/// first pass wrote, as a document is: both passes' text.
+fn twice(data: &[&str], statement: &str, opts: &Options) -> (String, String) {
+    let pass = |text: &str| {
+        let mut all = data.to_vec();
+        all.push(text);
+        let r = evaluate(&all, opts).pop().unwrap();
+        assert_eq!(r.error, None, "{text}");
+        r.display.unwrap_or_else(|| text.to_string())
+    };
+    let first = pass(statement);
+    let second = pass(&first);
+    (first, second)
+}
+
+/// A built-up equation has no spaces: `c=5!=` is a factorial and the `=` that shows it, never
+/// `c = 5 ≠`.
+#[test]
+fn a_factorial_before_equals_is_not_a_comparison() {
+    assert_eq!(last(&["c=5!="]), "c=5! = 120");
+    assert_eq!(last(&["5!="]), "5! = 120");
+    assert_eq!(last(&["n=5", "n!="]), "n! = 120");
+    assert_eq!(last(&["n=4", "(n+1)!="]), "(n+1)! = 120");
+    assert_eq!(last(&["n=3", "n!!="]), "n!! = 720");
+    assert_eq!(last(&["c:=5!="]), "c:=5! = 120");
+    // Read back, the result is a result: the statement is stable.
+    assert_eq!(last(&["c=5!=120"]), "c=5! = 120");
+    assert_eq!(last(&["5!=99"]), "5! = 120");
+    let r = run(&["n=5", "n!=120"]).pop().unwrap();
+    assert_eq!((r.kind, r.error), (RegionKind::Evaluation, None));
+    // An equation in a factorial, and a check of one.
+    assert_eq!(run(&["x=4!"])[0].value.clone().unwrap().scalar().unwrap().value, 24.0);
+    assert_eq!(last_error(&["a=7", "3!=a"]), CalcError::NotEqual { left: "6".to_string(), right: "7".to_string() });
+    // Not equal: the sign, or `!=` set apart from what is before it.
+    assert_eq!(last(&["a=5", "a != 3"]), "a != 3 ⇒ 5 ≠ 3 ✓");
+    assert_eq!(last(&["a=5", "a ≠ 3"]), "a ≠ 3 ⇒ 5 ≠ 3 ✓");
+    assert_eq!(last(&["a=5", "a≠3"]), "a≠3 ⇒ 5 ≠ 3 ✓");
+    assert_eq!(last(&["a=5", "(a + 1) != 3"]), "(a + 1) != 3 ⇒ 6 ≠ 3 ✓");
+}
+
+/// The working of a sum never writes a value for the variable it runs over, and what it writes
+/// reads back: the statement is the same from the second calculation on.
+#[test]
+fn the_working_leaves_a_sums_variable_alone() {
+    let opts = Options { steps: true, ..Options::default() };
+    let range = ["i = 1..5", "k = 2"];
+    for (statement, shown) in [
+        ("∑_i▒i² =", "∑_i▒i² = 55"),
+        ("S = ∑_i▒i² =", "S = ∑_i▒i² = 55"),
+        ("∑_i▒k·i² =", "∑_i▒k·i² = ∑_i▒(2·i²) = 110"),
+        ("S = ∑_i▒k·i² =", "S = ∑_i▒k·i² = ∑_i▒(2·i²) = 110"),
+        ("S = ∑_(i=1)^3▒k·i² =", "S = ∑_(i=1)^3▒k·i² = ∑_(i=1)^(3)▒(2·i²) = 28"),
+        ("∏_(k=1)^4▒k =", "∏_(k=1)^4▒k = 24"),
+    ] {
+        let (first, second) = twice(&range, statement, &opts);
+        assert_eq!(first, shown);
+        assert_eq!(second, shown, "read back: {statement}");
+    }
+    // The variable of an integral is its own too, whatever is defined under its name.
+    let (first, second) = twice(&["x = 3", "k = 2"], "∫_0^1 k·x dx =", &opts);
+    assert_eq!(first, "∫_0^1 k·x dx = ∫_(0)^(1)▒〖2·x dx〗 = 1");
+    assert_eq!(second, first);
+    // On lines: no line of working for a sum of its variable alone.
+    assert_eq!(steps(&["i = 1..5", "S = ∑_i▒i² ="]), None);
+}
+
+/// A stale result in scientific form is skipped with its exponent in brackets too, as the linear
+/// text of a built-up equation has it.
+#[test]
+fn a_stale_result_in_scientific_form_is_refreshed() {
+    let x = ["x = 0.000012 m", "y = 0.000012"];
+    let with = |s: &str| {
+        let mut v = x.to_vec();
+        v.push(s);
+        let r = run(&v).pop().unwrap();
+        assert_eq!(r.error, None, "{s}");
+        r.display.unwrap_or_default()
+    };
+    let shown = with("y =");
+    assert_eq!(shown, "y = 1.2·10^-5");
+    assert_eq!(with("y = 1.2·10^-5"), shown);
+    assert_eq!(with("y = 1.2·10^(-5)"), shown);
+    assert_eq!(with("y = 9.9·10^(−7)"), shown);
+    assert_eq!(with("y = -1.2·10^(+5)"), shown);
+    assert_eq!(with("2·x = 1.2·10^(-5) mm"), "2·x = 0.024 mm");
+    assert_eq!(with("z = 2·y = 1.2·10^(-5)"), "z = 2·y = 2.4·10^-5");
+    assert_eq!(with("y·1 kN = 9·10^(5) N"), "y·1 kN = 0.012 N");
+    // Brackets that are not an exponent's are no stale number.
+    assert!(run(&["y = 0.000012", "y = 1.2·10^(-5"]).pop().unwrap().error.is_some());
+}
+
+/// The `60 K` written after a difference of temperatures, read back, does not turn the
+/// temperatures' working unit to kelvin: the statement and those after it are stable.
+#[test]
+fn a_temperature_difference_read_back_keeps_the_working_unit() {
+    let opts = Options { steps: true, ..Options::default() };
+    let t = ["T_1 = 20 °C", "T_2 = 80 °C"];
+    let (first, second) = twice(&t, "ΔT = T_2 - T_1 =", &opts);
+    assert_eq!(first, "ΔT = T_2 - T_1 = (80 °C) - (20 °C) = 60 K");
+    assert_eq!(second, first);
+    let (first, second) = twice(&t, "T_2 - T_1 =", &opts);
+    assert_eq!(first, "T_2 - T_1 = (80 °C) - (20 °C) = 60 K");
+    assert_eq!(second, first);
+    // Asked for in K, a difference still leaves the others in °C.
+    let (first, second) = twice(&t, "ΔT = T_2 - T_1 = K", &opts);
+    assert_eq!(first, "ΔT = T_2 - T_1 = (80 °C) - (20 °C) = 60 K");
+    assert_eq!(second, first);
+    for stale in ["ΔT = T_2 - T_1 = 60 K", "T_2 - T_1 = 60 K", "T_1 + T_2 = 646.3 K", "D := T_2 - T_1 = 60 K"] {
+        assert_eq!(last(&[t[0], t[1], stale, "T_1 ="]), "T_1 = 20 °C", "{stale}");
+    }
+    // An absolute temperature asked for in K is a request, a number before it or not.
+    assert_eq!(last(&[t[0], "T_1 = K", "T_1 ="]), "T_1 = 293.15 K");
+    assert_eq!(last(&[t[0], "T_1 = 293.15 K", "T_1 ="]), "T_1 = 293.15 K");
+    assert_eq!(last(&[t[0], t[1], "ΔT = T_2 - T_1 = °F", "T_1 ="]), "T_1 = 68 °F");
+}
+
+/// `Σ =` under a column of absolute temperatures adds the numbers the column shows.
+#[test]
+fn a_temperature_column_sums_its_readings() {
+    let mut ws = Worksheet::new(Options::default());
+    let rows = table(&[
+        &["T [°C]", "F [°F]", "K [K]"],
+        &["20", "68", "293.15"],
+        &["30", "86", "303.15"],
+        &["Σ =", "Σ =", "Σ ="],
+        &["mean =", "mean =", "max ="],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    assert_eq!(
+        r.updates,
+        vec![
+            (3, 0, "Σ = 50".to_string()),
+            (3, 1, "Σ = 154".to_string()),
+            (3, 2, "Σ = 596.3".to_string()),
+            (4, 0, "mean = 25".to_string()),
+            (4, 1, "mean = 77".to_string()),
+            (4, 2, "max = 303.15".to_string())
+        ]
+    );
+}
+
+/// The linear text of equations built from the forms the docs give (`calc.insert {"text": …}`;
+/// `crates/doc/tests/calc_linear_forms.rs` pins what is built): they are calculated.
+#[test]
+fn forms_built_from_text_are_calculated() {
+    // `β = sin⁻¹((R − r)/(R + r))`, `sin²(30°)`, `cos²α + sin²α`.
+    assert_eq!(last(&["R = 3 m", "r = 1 m", "β=sin^(−1)\u{2061}((R−r)/(R+r))", "β ="]), "β = 30°");
+    assert_eq!(last(&["sin^2\u{2061}(30°)="]), "sin^2\u{2061}(30°) = 0.25");
+    assert_eq!(last(&["α=20°", "cos^2\u{2061}α+sin^2\u{2061}α="]), "cos^2\u{2061}α+sin^2\u{2061}α = 1");
+    // `∫_0^1 x^2 + 1 dx`, `∑_(i=1)^3 i²`: the operand follows an empty one.
+    assert_eq!(last(&["∫_0^1▒()x^2+1dx="]), "∫_0^1▒()x^2+1dx = 1.333");
+    assert_eq!(last(&["∫_0^1▒〖〗x^2+1dx="]), "∫_0^1▒〖〗x^2+1dx = 1.333");
+    assert_eq!(last(&["∑_(i=1)^3▒()i²="]), "∑_(i=1)^3▒()i² = 14");
+    assert_eq!(last(&["F=∑_(i=1)^3▒()i·2 kN="]), "F=∑_(i=1)^3▒()i·2 kN = 12 kN");
+    // Nothing after it is still no operand.
+    assert!(matches!(last_error(&["∑_(i=1)^3▒()="]), CalcError::Syntax { .. }));
+    assert!(matches!(last_error(&["∫_0^1▒()="]), CalcError::Syntax { .. }));
+}

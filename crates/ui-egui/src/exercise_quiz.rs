@@ -145,6 +145,17 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
         .fill(if current { t.accent.gamma_multiply(0.18) } else { egui::Color32::TRANSPARENT })
         .corner_radius(egui::CornerRadius::same(4))
         .inner_margin(egui::Margin::symmetric(6, 3));
+    // A click on the row shows or hides its details; one among the details (a label there, the
+    // space between two boxes) leaves them open. The row takes its clicks where it was drawn
+    // last, before what is on it is added: the points box and the type, added after, are above
+    // it and keep their own clicks (taken after them, the row had every click on them too).
+    let row_id = ui.scope_id().with(("exercise_quiz_row", ex, k));
+    if quiz && let Some(row) = ui.data(|d| d.get_temp::<egui::Rect>(row_id)) {
+        let r = ui.interact(row, row_id, egui::Sense::click());
+        if r.on_hover_text(tl!("Show this question's settings")).clicked() {
+            ui.data_mut(|d| d.insert_temp(open_id(ex, k), !open));
+        }
+    }
     let shown_frame = frame.show(ui, |ui| {
         ui.set_width(ui.available_width());
         let row_h = ui.spacing().interact_size.y;
@@ -186,14 +197,10 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
         row_bottom
     });
     if quiz {
-        // A click on the row shows or hides its details; one among the details (a label there,
-        // the space between two boxes) leaves them open.
+        // Where the row is, for its clicks in the next frame: not what is under it.
         let mut row = shown_frame.response.rect;
         row.max.y = row.max.y.min(shown_frame.inner + 3.0);
-        let r = ui.interact(row, shown_frame.response.id.with("row"), egui::Sense::click());
-        if r.on_hover_text(tl!("Show this question's settings")).clicked() {
-            ui.data_mut(|d| d.insert_temp(open_id(ex, k), !open));
-        }
+        ui.data_mut(|d| d.insert_temp(row_id, row));
     }
     ui.add_space(1.0);
 }
@@ -203,14 +210,24 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
 fn row_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: bool) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let row_h = ui.spacing().interact_size.y;
-    ui.label(RichText::new("pt").color(t.text_dim));
+    // The box is named by its "pt" for screen readers.
+    let pt = ui.label(RichText::new("pt").color(t.text_dim));
     let now = q["points"].as_f64().map(shown).unwrap_or_default();
     let points = ui.allocate_ui_with_layout(egui::vec2(46.0, row_h), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        draft_box(ui, ("exercise_quiz_points", ex, k), &now, true, false)
+        crate::ribbon::named_draft_box(ui, ("exercise_quiz_points", ex, k), &now, pt.id)
     });
     points.response.on_hover_text(tl!("The most points this question gives; empty: not scored"));
     if let Some(typed) = points.inner {
-        let v = if typed.trim().is_empty() { Value::Null } else { number(&typed).map_or(Value::Null, |n| json!(n)) };
+        // Only an empty box takes the points away: text that is no number leaves them as they
+        // were and says so.
+        let v = match number(&typed) {
+            Some(n) => json!(n),
+            None if typed.trim().is_empty() => Value::Null,
+            None => {
+                app.status(tl!("Points: a number, or empty for a question that is not scored").to_string());
+                return;
+            }
+        };
         if quiz {
             set_question(app, ex, k, json!({"points": v}));
         } else if let Err(e) = app.run("exercise.questionPoints", json!({"exercise": ex, "question": k + 1, "points": v})) {
@@ -219,14 +236,31 @@ fn row_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, qu
     }
     if quiz {
         let mode = mode_of(q).to_string();
-        craft_ui::ComboBox::from_id_salt(("exercise_quiz_mode", ex, k)).width(132.0).selected_text(mode_name(&mode)).show_ui(ui, |ui| {
+        let combo = craft_ui::ComboBox::from_id_salt(("exercise_quiz_mode", ex, k)).width(132.0).selected_text(mode_name(&mode)).show_ui(ui, |ui| {
             for (id, name) in QUESTION_MODES {
                 if ui.selectable_label(id == mode, tl!(name)).clicked() && id != mode {
                     let _ = app.run("exercise.questionMode", json!({"exercise": ex, "question": k + 1, "type": id}));
                 }
             }
         });
+        // Named for screen readers: nothing is written beside it on the row.
+        let named = mode_name(&mode);
+        combo.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, true, format!("{}: {named}", tl!("Question Type"))));
     }
+}
+
+/// The sign between the two sides of a pair when a side has an `=` of its own (`F = m·a`).
+const PAIR_SIGN: char = '↔';
+
+/// A matching pair as its line in the Pairs box: `left = right`, or `left ↔ right` when a side
+/// holds an `=` (read back at the first `=`, the pair would come out cut elsewhere).
+fn pair_line(left: &str, right: &str) -> String {
+    if left.contains('=') || right.contains('=') { format!("{left} {PAIR_SIGN} {right}") } else { format!("{left} = {right}") }
+}
+
+/// The pair a line of the Pairs box holds: its two sides round `↔`, else round the first `=`.
+fn pair_of(line: &str) -> Option<(&str, &str)> {
+    line.split_once(PAIR_SIGN).or_else(|| line.split_once('=')).map(|(a, b)| (a.trim(), b.trim()))
 }
 
 /// What a quiz question's type has, under its row.
@@ -243,13 +277,13 @@ fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
                 .map(|pairs| {
                     pairs
                         .iter()
-                        .map(|p| format!("{} = {}", p[0].as_str().unwrap_or_default(), p[1].as_str().unwrap_or_default()))
+                        .map(|p| pair_line(p[0].as_str().unwrap_or_default(), p[1].as_str().unwrap_or_default()))
                         .collect::<Vec<_>>()
                         .join("\n")
                 })
                 .unwrap_or_default();
             if let Some(text) = draft_box(ui, ("exercise_matching", ex, k), &current, true, true) {
-                let pairs: Vec<_> = text.lines().take(26).filter_map(|line| line.split_once('=').map(|(a, b)| json!([a.trim(), b.trim()]))).collect();
+                let pairs: Vec<_> = text.lines().take(26).filter_map(|line| pair_of(line).map(|(a, b)| json!([a, b]))).collect();
                 set(app, json!({"pairs": pairs}));
             }
         }
@@ -289,7 +323,7 @@ fn space_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, 
         }
         ui.end_row();
         if grid {
-            ui.label(tl!("Square"));
+            ui.label(tl!("Square size"));
             let sp = q["spacing"].as_f64().unwrap_or(5.0);
             if let Some(v) = num_field(ui, &format!("quiz_spacing_{ex}_{k}"), sp, 2.0..=20.0, " mm", 1) {
                 set(app, json!({"spacing": v}));
@@ -450,6 +484,18 @@ mod tests {
 
     use crate::WordApp;
 
+    /// Found in review: a pair with an `=` in its left side (`F = m·a`) came back cut at that
+    /// `=` whenever any line of the Pairs box was edited.
+    #[test]
+    fn a_pair_with_an_equals_sign_reads_back_as_it_was() {
+        for (left, right) in [("Roma", "Italia"), ("F = m·a", "Seconda legge"), ("y", "x = 2"), ("a=b", "c=d")] {
+            assert_eq!(super::pair_of(&super::pair_line(left, right)), Some((left, right)));
+        }
+        assert_eq!(super::pair_line("Roma", "Italia"), "Roma = Italia");
+        assert_eq!(super::pair_of("  Parigi=Francia "), Some(("Parigi", "Francia")));
+        assert_eq!(super::pair_of("no pair here"), None);
+    }
+
     /// A quiz question's row: a click on its text shows and hides what is under it; its own
     /// settings on the row (the points, the type) are set there, and using them neither goes to
     /// the row nor is lost to it.
@@ -500,7 +546,7 @@ mod tests {
         h.run_steps(3);
         assert_eq!(question(&mut h)["points"].as_f64(), Some(3.0), "{}", question(&mut h));
         // The type, chosen on the row.
-        h.get_by_label(&super::mode_name("open")).click();
+        h.get_by_label(&format!("{}: {}", tl!("Question Type"), super::mode_name("open"))).click();
         h.run_steps(3);
         assert!(!open(&h), "a click on the type is not a click on the row");
         h.get_by_label(&super::mode_name("calc")).click();

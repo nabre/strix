@@ -77,8 +77,12 @@ fn tables(s: &Session) -> Vec<usize> {
     s.doc.body.iter().enumerate().filter(|(_, b)| matches!(&***b, Block::Table(t) if control_of(t).is_some())).map(|(i, _)| i).collect()
 }
 
+/// The Total row: its first cell says Total, in any language the exercises are written in (an
+/// exercise's row is labelled with its number). Not told by how the cell is aligned: that is
+/// the person's to change, like any text's, and must not turn exercises into totals.
 fn is_total_row(r: &Row) -> bool {
-    r.cells.first().and_then(|c| c.blocks.first()?.as_para()?.props.align) == Some(Align::Left)
+    let label = r.cells.first().map(cell_text).unwrap_or_default();
+    super::words::ALL_WORDS.iter().any(|w| w.total == label)
 }
 
 /// What table `t` holds: the criteria (their number from the control, their names from the
@@ -228,6 +232,97 @@ fn put(s: &mut Session, i: usize, m: &Model) -> bool {
     true
 }
 
+/// The rows of `t` that are exercises' (neither the header nor the Total row): their indexes.
+fn exercise_rows(t: &Table) -> Vec<usize> {
+    t.rows.iter().enumerate().skip(1).filter(|(_, r)| !is_total_row(r)).map(|(i, _)| i).take(MAX_ROWS).collect()
+}
+
+/// The exercises `gone` (0-based) are about to be removed whole: their rows go first. A row is
+/// its exercise's only by its place, so [`update`] alone could not tell which exercise went: it
+/// would match the rows left by their numbers and give the exercise that moved up the points of
+/// the one removed. A table not in step with the exercises is left to [`update`].
+pub(super) fn drop_rows(s: &mut Session, gone: &[usize]) {
+    let graded = super::stem_items::graded(s);
+    let rows: Vec<usize> = graded.iter().enumerate().filter(|(_, e)| gone.contains(e)).map(|(r, _)| r).collect();
+    if rows.is_empty() || graded.len() > MAX_ROWS {
+        return;
+    }
+    for i in tables(s) {
+        let Some(b) = s.doc.body.get_mut(i) else { continue };
+        let at = match &**b {
+            Block::Table(t) => exercise_rows(t),
+            Block::Para(_) => continue,
+        };
+        if at.len() != graded.len() {
+            continue;
+        }
+        let Block::Table(t) = Arc::make_mut(b) else { continue };
+        for k in rows.iter().rev().filter_map(|r| at.get(*r)) {
+            if *k < t.rows.len() {
+                t.rows.remove(*k);
+            }
+        }
+    }
+}
+
+/// Exercise `e` (0-based) was just put in the document: an empty row opens where it stands, so
+/// the exercises after it keep their points ([`drop_rows`]). A table not in step with the
+/// exercises as they were is left to [`update`].
+pub(super) fn open_row(s: &mut Session, e: usize) {
+    let graded = super::stem_items::graded(s);
+    let Some(r) = graded.iter().position(|&x| x == e) else { return };
+    if graded.len() > MAX_ROWS {
+        return;
+    }
+    for i in tables(s) {
+        let Some(b) = s.doc.body.get_mut(i) else { continue };
+        let at = match &**b {
+            Block::Table(t) => exercise_rows(t),
+            Block::Para(_) => continue,
+        };
+        if at.len() + 1 != graded.len() {
+            continue;
+        }
+        let Block::Table(t) = Arc::make_mut(b) else { continue };
+        // Before the row there now, else after the last exercise's (or the header).
+        let k = at.get(r).copied().unwrap_or_else(|| at.last().map_or(1, |l| l + 1)).min(t.rows.len());
+        t.rows.insert(k, Row { cells: vec![cell("", Align::Center, true, 1, 0.0)], ..Row::default() });
+    }
+}
+
+/// The exercises `new` (0-based, in order) were just pasted into the document: an empty row
+/// opens for each where it stands, as [`open_row`] does for one. A table not in step with the
+/// exercises as they were is left to [`update`].
+pub(super) fn open_rows(s: &mut Session, new: &[usize]) {
+    let graded = super::stem_items::graded(s);
+    let places: Vec<usize> = graded.iter().enumerate().filter(|(_, e)| new.contains(e)).map(|(r, _)| r).collect();
+    if places.is_empty() || graded.len() > MAX_ROWS {
+        return;
+    }
+    for i in tables(s) {
+        let Some(b) = s.doc.body.get_mut(i) else { continue };
+        let at = match &**b {
+            Block::Table(t) => exercise_rows(t),
+            Block::Para(_) => continue,
+        };
+        if at.len() + places.len() != graded.len() {
+            continue;
+        }
+        let Block::Table(t) = Arc::make_mut(b) else { continue };
+        let after_last = at.last().map_or(1, |l| l + 1);
+        // In order: each row opened moves the ones after it down by one.
+        for (done, r) in places.iter().enumerate() {
+            let k = (at.get(r.saturating_sub(done)).copied().unwrap_or(after_last) + done).min(t.rows.len());
+            t.rows.insert(k, Row { cells: vec![cell("", Align::Center, true, 1, 0.0)], ..Row::default() });
+        }
+    }
+}
+
+/// Whether `at` is inside a scores table.
+pub(super) fn holds(s: &Session, at: &wordcraft_doc::Pos) -> bool {
+    at.story == StoryRef::Body && at.path.0.len() > 1 && at.path.0.first().is_some_and(|&i| tables(s).contains(&(i as usize)))
+}
+
 /// Every scores table brought up to date with the document's exercises (their number) and its
 /// own points (the totals). Whether anything changed.
 pub(crate) fn update(s: &mut Session) -> bool {
@@ -238,7 +333,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
         let graded = super::stem_items::graded(s);
         let old_rows: Vec<_> = t.rows.iter().skip(1).filter(|r| !is_total_row(r)).take(MAX_ROWS).collect();
         // Removing or restoring a worked example must not move another exercise's
-        // manually assigned points onto a different row.
+        // manually assigned points onto a different row. (An exercise deleted or inserted
+        // by the exercise commands has had its row taken or opened already: `drop_rows`,
+        // `open_row`.)
         if graded.len() != old_rows.len() {
             let numbering = numbering::current(s);
             let old = m.points.clone();
@@ -662,5 +759,87 @@ mod tests {
         run(&mut s, "exercise.scores", json!({"exercise": 2, "criterion": 3, "points": 2}));
         assert_eq!(grid(&s)[2], ["2", "", "", "", "", "", "2", "", "2"]);
         assert_eq!(grid(&s)[3][8], "9");
+    }
+
+    /// Aligning the table's text (the whole document selected, Align Left or Center) changes how
+    /// it looks, never its points.
+    #[test]
+    fn aligning_the_table_keeps_the_points() {
+        for align in ["para.alignLeft", "para.alignCenter", "para.alignRight"] {
+            for criteria in [1, 2] {
+                for exercises in [1, 3] {
+                    let mut s = Session::new(Document::new());
+                    run(&mut s, "document.setText", json!({"text": "Verifica"}));
+                    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+                    for k in 0..exercises {
+                        run(&mut s, "caret.docEnd", json!({}));
+                        run(&mut s, "exercise.insert", json!({"title": format!("E{k}"), "questions": ["q"]}));
+                    }
+                    run(&mut s, "caret.docStart", json!({}));
+                    run(&mut s, "exercise.scores", json!({"on": true}));
+                    if criteria == 2 {
+                        run(&mut s, "exercise.scores", json!({"add": "MOD"}));
+                    }
+                    for ex in 1..=exercises {
+                        for c in 1..=criteria {
+                            run(&mut s, "exercise.scores", json!({"exercise": ex, "criterion": c, "points": ex + c}));
+                        }
+                    }
+                    let before = run(&mut s, "exercise.scores", json!({}));
+                    let rows = grid(&s).len();
+                    run(&mut s, "select.all", json!({}));
+                    let _ = s.run(align, &json!({}));
+                    run(&mut s, "caret.docStart", json!({}));
+                    // Anything that rebuilds the automatic parts.
+                    run(&mut s, "text.insert", json!({"text": "x"}));
+                    let after = run(&mut s, "exercise.scores", json!({}));
+                    assert_eq!(after["points"], before["points"], "{align}, {criteria} criteria, {exercises} exercises");
+                    assert_eq!(grid(&s).len(), rows, "{align}, {criteria} criteria, {exercises} exercises: {:?}", grid(&s));
+                }
+            }
+        }
+    }
+
+    fn points(s: &mut Session) -> serde_json::Value {
+        run(s, "exercise.scores", json!({}))["points"].clone()
+    }
+
+    /// Found in review: a row is its exercise's only by its place, so with exercise 2 of four
+    /// deleted the rows left were matched by their numbers: exercise 3, now 2, took the deleted
+    /// one's points and the last one's were lost. The deleted exercise's row goes with it, a new
+    /// exercise gets an empty one where it lands, and undo brings the points back.
+    #[test]
+    fn deleting_or_inserting_an_exercise_keeps_the_others_points() {
+        let mut s = Session::new(Document::new());
+        run(&mut s, "document.setText", json!({"text": "Verifica"}));
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        for t in ["Uno", "Due", "Tre", "Quattro"] {
+            run(&mut s, "caret.docEnd", json!({}));
+            run(&mut s, "exercise.insert", json!({"title": t, "questions": ["q"]}));
+        }
+        run(&mut s, "caret.docStart", json!({}));
+        run(&mut s, "exercise.scores", json!({"on": true}));
+        for (ex, pts) in [(1, 1), (2, 20), (3, 3), (4, 4)] {
+            run(&mut s, "exercise.scores", json!({"exercise": ex, "criterion": 1, "points": pts}));
+        }
+        assert_eq!(points(&mut s), json!([[1.0], [20.0], [3.0], [4.0]]));
+        let before = grid(&s);
+        run(&mut s, "exercise.delete", json!({"exercise": 2}));
+        assert_eq!(points(&mut s), json!([[1.0], [3.0], [4.0]]));
+        assert_eq!(grid(&s)[4], ["Totale", "", "8"]);
+        // One undo step brings the exercise back with its points; redo takes both again.
+        run(&mut s, "edit.undo", json!({}));
+        assert_eq!(grid(&s), before);
+        run(&mut s, "edit.redo", json!({}));
+        assert_eq!(points(&mut s), json!([[1.0], [3.0], [4.0]]));
+        // A new exercise after the first one: an empty row there, the others keep theirs.
+        run(&mut s, "select.text", json!({"text": "Uno"}));
+        run(&mut s, "exercise.insert", json!({"title": "Nuovo", "questions": ["q"]}));
+        assert_eq!(points(&mut s), json!([[1.0], [null], [3.0], [4.0]]));
+        run(&mut s, "edit.undo", json!({}));
+        assert_eq!(points(&mut s), json!([[1.0], [3.0], [4.0]]));
+        // Several at once, the first among them.
+        run(&mut s, "exercise.delete", json!({"exercise": [1, 2]}));
+        assert_eq!(points(&mut s), json!([[4.0]]));
     }
 }

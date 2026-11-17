@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-16 · **Change:** the structures of the Equation tab read as calculations (bars, determinants, floor and ceiling, roots with a degree, logarithms with a base, limits, cases, reciprocal functions); before that, binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-17 · **Change:** fixes from a review for bugs (a chosen decimal separator is kept with the document; the calculated-table commands are disabled where tables are never calculated); before that, the structures of the Equation tab read as calculations (bars, determinants, floor and ceiling, roots with a degree, logarithms with a base, limits, cases, reciprocal functions); before that, binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -75,7 +75,8 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   or after `;`). Otherwise it is found **numerically**: its dimension is inferred algebraically
   from powers `x^k` and inverse ratios across the equation (plus known quantities), every sign
   change on a logarithmic grid from 10⁻¹² to 10¹² (both signs) is refined by bisection (a sign
-  change across a pole is dropped), and secant steps catch roots that touch zero. The **smallest
+  change across a pole is dropped), and secant steps catch roots that touch zero (only where `|f|` has a minimum there: a value
+  that merely fades towards zero, `e^(−x) + e^(−2·x) = 0`, is no root). The **smallest
   non-negative root** wins, else the negative root closest to zero. No root: "no value of x solves
   the equation".
 - After `⇒` Strix writes the solved value (with Show Steps, the algebra first); on the next
@@ -145,6 +146,11 @@ columns and 100 000 cells.
 
 ## Calculated tables
 
+Only a table of the document's body that is not inside another table is calculated. On any
+other table (inside a table's cell, in a header, a footer, a note or a text box) the commands
+below are disabled and refuse, saying why; a table there that carries the flag from a file can
+only have it taken off (`table.calc {"value": false}`).
+
 The first row is the **header**: the calculations the table does are read from it. Turning a
 table into a calculated one (Calculated Table, `table.calc`, Data Table, Cells as Equations,
 `calc.insertTable`) makes that row its header row (Table Design › Header Row, repeated at the top
@@ -184,7 +190,10 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   column name, then the worksheet's parameters. A row whose input cells are all empty is skipped
   (its formula cells are cleared).
 - A cell `Σ =` (also `sum`, `total`), `mean =`, `min =` or `max =` totals its column over the
-  data rows; its row is not a data row.
+  data rows; its row is not a data row. Under a column of absolute temperatures (`T [°C]`,
+  `[°F]`) the sum adds the numbers the column shows, on its scale: 20 and 30 give `Σ = 50`, as
+  `mean = 25` averages them (in a statement, where no scale is set, `T_1 + T_2` is the kelvin
+  value `596.3 K`).
 - **Rows by index.** In a column formula `i` is the row's number among the data rows (1, 2,
   3…) and `n` how many there are (unless a column has that name), and `x[k]` is column `x` in
   data row `k`: `x[i+1]` the next row, `x[i-1]` the one before. Indices wrap round — after the
@@ -225,7 +234,8 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   the column's unit). A cell written there keeps its own text (`mean =`, `max =`, a label);
   what an earlier calculation left (a number, `Σ = …`, `–`, `⚠`) is written over. It is not a
   data row. Turning it on or off works the table out at once; off, what the calculations wrote
-  in that row goes with it (it would otherwise be read as a row of data).
+  in that row goes with it (it would otherwise be read as a row of data); a cell that also
+  holds something else (a note's reference, a picture) is left as it is.
 - **Column Total** (Calculated Table › Rows & Columns; `table.calcTotal {"value"?}`): the
   column at the caret is summed in the total row or not; not summed, its cell there stays empty.
   Summing a column turns the total row on. Saved on the column's header cell
@@ -311,8 +321,11 @@ Temperatures are held in kelvin; the rules:
   (`mean(T_1; T_2) = 50 °C`). Anything else (`T_1 + T_2`, a value written in K) is a plain kelvin
   value.
 - **Display**: an absolute temperature shows in the working unit (the last temperature unit
-  written: `°C` after `T = 20 °C`), else in the unit it was written in; asked for after `=`
-  (`T = °F`) it converts with the offset. Differences and kelvin values never take a °C/°F
+  written: `°C` after `T = 20 °C`), else in the unit it was written in. The kelvin after the
+  result of a difference or of a kelvin value (`ΔT = T_2 - T_1 = 60 K`, which they show by
+  themselves) is no such unit written: only after an absolute temperature (`T = K`) does it turn
+  the working unit to kelvin. Asked for after `=` (`T = °F`) it
+  converts with the offset. Differences and kelvin values never take a °C/°F
   offset by themselves: they show in K (or a K working unit). A kelvin value asked for in °C is
   read as absolute (`300 K = °C` gives 26.85 °C); a difference asked for in °C is a difference
   (`ΔT = °C` gives 60 °C).
@@ -340,6 +353,11 @@ preferred table (`N`, `Pa`, `J`, `W`, `N/m`, `m/s²` …) with an engineering pr
 pressure, energy, power and electrical units (`kN`, `MPa`, `kJ`), else base units. Torque has
 the dimension of energy and shows in `J` unless `N·m` is asked for.
 
+**A factorial before `=`.** A `!` written against what is before it is the factorial, and an
+`=` after it is the statement's: `5!=`, `c=5!=` (an equation built up has no spaces) show
+`5! = 120`, and `n!=120` is `n! = 120`. Not equal is `≠`, or `!=` set apart from what is
+before it (`a != b`); in an equation write `≠`.
+
 Precedence, loosest first: comparisons; `+ -`; explicit `* · × /` (left to right); unary minus;
 implicit multiplication; postfix `!` and `^` / Unicode superscripts `⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹` (right to left).
 So `12 kN/m` is (12·kN)/m and `2 kN/4 m^2` is 500 Pa, while `1/2 m` is 1/(2 m). Typing `*` in an
@@ -352,7 +370,21 @@ binom(n; k)`, the coefficient also written as an equation writes it, `n` over `k
 Word's `(n¦k)`, Equation › Bracket › Binomial Coefficient; it is shown the way it was written),
 and laboratory statistics and linear regression (`sum mean median var varp
 stdev/std stdevp len slope(X; Y) intercept(X; Y) r2(X; Y)`); `π`/`pi`, `e`, `g` (standard gravity)
-are predefined. Numbers: `1.5`, `1,5` when the document language uses decimal commas, `2e-3`.
+are predefined. Numbers: `1.5`, `2e-3`, and `1,5` when the document is calculated with decimal
+commas.
+
+**Decimal separator.** Numbers are written with a decimal point, whatever the document's
+language (exercise data, drawings and plots are written with the point too).
+`calc.recalculate {"decimalComma": true}` chooses decimal commas for the document: the choice
+is kept with it (in its calculation options, `decimalComma`, saved in `.xmath` and `.docx`) and
+every later calculation reads and writes with it, so what one calculation wrote the next one
+reads (`b = a·3 = (2,5 m)·3 = 7,5 m`). With commas a number may be typed either way (`2,5` or
+`2.5`) and function arguments are parted by `;` (`max(1; 2,5)`; a comma that no number takes
+still parts them, `max(a, b)`); with points `2,5` is not a number.
+`{"decimalComma": false}` goes back to the point (the results written with commas are read
+once more as written, then rewritten); `calc.options {"scope": "document", "reset": true}`
+takes the choice off with the document's other options, without rewriting what stands.
+**Its limit**: the separator does not follow the document's language by itself.
 
 ### Inverse functions
 
@@ -462,7 +494,9 @@ notation, in `crates/engine/tests/gallery_calculations.rs`):
   `f′(x) = …` defines nothing (it would be a function named `f′`).
 - **`∫_a^b f(x) dx`** is the definite integral (Word's `∫_a^b▒〖f(x) dx〗`, also `d x` or
   `ⅆx`); the integrand runs up to its differential, so `∫_0^1 x^2 + 1 dx` is the integral of
-  the sum. The variable is bound, as in `∑`; the limits may carry units, and the result's unit
+  the sum. Built from that text (`calc.insert`), the operand after a space stays outside the
+  operator, as Word builds it, and the equation reads `∫_0^1▒()x^2+1dx`: an empty operand is
+  read past, for `∑` and `∏` too (`∑_(i=1)^3 i²`). The variable is bound, as in `∑`; the limits may carry units, and the result's unit
   is the integrand's times the variable's (`∫_(0 s)^(2 s) a·t dt = 6 m`). An integral without
   limits (`∫ f dx = F`) stays an ordinary equation.
 - **Improper integrals**: a limit may be `∞` or `−∞` (`+∞` too):
@@ -483,9 +517,11 @@ notation, in `crates/engine/tests/gallery_calculations.rs`):
   finite limit (`e^(−(x − 10⁵)²)`) can fall between the samples, and the result is then too small
   or 0 **without an error**. Put the limits near the peak (`∫_(10⁵ − 10)^(10⁵ + 10)`).
 - Both are numerical (`crates/calc/src/calculus.rs`): central differences with a Richardson
-  step; adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
+  step that shrinks until two estimates agree (a function that varies over microseconds is
+  differentiated at its own scale); adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
   nodes never touch the limits (`∫_0^1 1/√x dx = 2`). Results keep 10 significant digits, so
-  `f′(1)` of `x²` is `2`, not `1.9999999999`.
+  `f′(1)` of `x²` is `2`, not `1.9999999999`. A definite integral between finite limits that
+  does not settle either (`∫_0^1 1/x dx`) is the same error as an improper one, not a number.
 
 **Composed units for structures.** A result that is a force times a length to a power keeps
 the units it is written in, force first: `F·a` with `F` in kN and `a` in m is `24 kN·m` (a moment,
@@ -524,6 +560,8 @@ or `calc.layout`.
   unit over the bar, stays a fraction.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
+  Read back as a stale result it is skipped with its exponent in brackets too (`1.2·10^(-5)`,
+  as an equation built up writes it).
 
 ## Solution steps and layout
 
@@ -535,6 +573,11 @@ or `calc.layout`.
 | solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
 | solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
+
+The variable a sum, a product, an integral or a limit runs over is never substituted, whatever
+is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
+`∑_i▒k·i² = ∑_i▒(2·i²) = 110`, and `∑_i▒i² =` shows `∑_i▒i² = 55` (nothing to substitute). Read
+back, that working is recognised as Strix's own.
 
 A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a parameter shown alone
 (`M =`) have no steps: the result says it all. A unit asked for after `=` (`= cm^2`) is the
@@ -560,7 +603,10 @@ the result and the steps go:
   ```
 
   Without steps a solved unknown and a check's values still go under the statement; a formula's
-  result (`M = q·L²/8 = 30.375 kN·m`) stays on its line.
+  result (`M = q·L²/8 = 30.375 kN·m`) stays on its line. An equation in a line of text stands
+  on its own line (a display equation) while its steps are under it, and is in its line of
+  text again when they no longer are (back to Inline, or steps off); one that was a display
+  equation stays one.
 
 The steps are results, rebuilt with every recalculation and when the layout changes. Inline,
 everything after the statement is Strix's (read back, only the statement and its result count:
@@ -626,11 +672,11 @@ now stands (a `(2 m)` left in it stays a number). The source travels with the eq
 | `calc.insert` | insert a calc region (`{"text": "L = 4.5 m"}`), then recalculate |
 | `equation.calc` | the Calculate button: the equation at the caret is a region or not (`{"value"?: bool}`) |
 | `calc.newEquations` | preference: new equations are regions (default on) |
-| `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`) |
-| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`) |
+| `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`); disabled, like `table.calcNames`, `table.mathCells`, `table.calcIndex` and `table.calcTotal`, on a table that is never calculated (inside another table, or outside the body) |
+| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`); disabled inside a table and outside the body |
 | `calc.tableInfo` | whether the table at the caret is calculated, and its options (`columnTotal`: the caret's column is summed) |
 | `table.calcTotal` | Column Total: the column at the caret is summed in the total row or not (`{"value"?: bool}`) |
-| `calc.recalculate` | evaluate every region and table in order, update results; returns errors |
+| `calc.recalculate` | evaluate every region and table in order, update results; returns errors; `{"decimalComma": bool}` sets the document's decimal separator (see *Decimal separator*) |
 | `calc.variables` | the parameters of the document and of each exercise sandbox, with jump positions and optional unit conversions (`{"units"?: {…}}`) |
 | `view.variablesPane` | open or close the **Variables** task pane (Math › Calculation › Variables) |
 | `calc.options` | number format: digits, count, trailing zeros (and `layout`) |
@@ -677,6 +723,12 @@ none of them.
    regions (pending equations solved together), plots.
 
 ## Revision history
+
+- 2026-11-17: put right in the review of pull request 88: a small slope or curvature on a large value (`f(x) = 101325 + 0.5·x^2`, `f″(1)`) is its value again, not 0 (the smaller steps tried for a function's own scale took it for rounding; `crates/calc/src/calculus.rs`); Math › Calculated Table is greyed out with the cursor in a header, a footer or a note, where it was offered and then refused.
+
+- 2026-11-17: put right in a review for bugs (`crates/calc`, `crates/doc/src/math_linear.rs`): `5! =` in an equation (`c=5!=`) is a factorial and `=`, no longer `≠` (see *A factorial before `=`*); the steps never write a value for the variable of a sum (`∑_i▒i²` after `i = 1..5` was `∑_i▒(([1; 2; 3; 4; 5])²)`, an error from the second calculation on); a stale result `1.2·10^(-5)` is refreshed like `1.2·10^-5`; the `60 K` after a difference of temperatures, read back, no longer turns the working unit to kelvin (the working flipped from `(80 °C) - (20 °C)` to `(353.15 K) - (293.15 K)`); `Σ =` under a `[°C]` column adds the numbers shown (20 and 30 gave 323.15); text inserted as `sin⁻¹(…)`, `sin²(…)` is built with the power on the function's name (it was the function of `⁻¹(…)`), and an n-ary operator whose operand follows a space (`∫_0^1 x^2 + 1 dx`, built with an empty operand: `∫_0^1▒()x^2+1dx`) is read with what follows as its operand.
+
+- 2026-11-17: put right in a review for bugs: a decimal separator chosen with `calc.recalculate {"decimalComma"}` is kept with the document and used by every later calculation (the next plain recalculation failed on what it had written); this page no longer says the separator follows the document's language, which it never did (see *Decimal separator*); the calculated-table commands are disabled on a table inside another table and outside the body, where tables are never calculated (they gave it the header and the style and nothing was worked out); an inline calculation is inline again after its steps leave their lines; turning the total row off leaves a cell holding a note's reference alone; the exercise's result lines and the plot's analysis read a calculation's statement as the calculations do (`kN∕m`, `10^-4`).
 
 - 2026-11-16: the structures of the Equation tab read as calculations (see *Structures of the Equation tab*): `|x|`, `‖v‖`, determinants, `⌊x⌋ ⌈x⌉`, `{…}`, `√(n&x)`, `log_b⁡x`, limits worked out numerically, cases with their conditions, `csc sec cot` with their hyperbolic and inverse functions, the Italian names, accents on names, `x_i` as an element; the steps write an inverse as it is written (`sin^(−1)⁡(…)`, was `asin(…)`). Put right in review: a determinant of small cells is no longer rounded to 0; one value in square brackets is a vector again; a name defined with a subscript stays itself under a sum over that subscript and an element read by number is not an unknown; a function's name without an argument is a name (`det = …`); what follows an applied function's operand multiplies the function (`sin⁡α L`); cases with `otherwise` are read back from the steps; cases are read with decimal commas.
 

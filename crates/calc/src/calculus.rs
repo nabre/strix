@@ -118,38 +118,88 @@ fn round_digits(v: f64) -> f64 {
     if rounded.is_finite() { rounded } else { v }
 }
 
+/// How many times a derivative's step is made ten times smaller before giving up on finding the
+/// scale the function varies on.
+const STEP_LEVELS: i32 = 9;
+
 /// The `order`-th derivative (1 or 2) of `f` at `x`; `f` takes and gives SI magnitudes.
+///
+/// The step starts at a thousandth of `|x|` (at least of 1) and is made smaller until two
+/// estimates agree, so a function that varies on a much smaller scale (a time constant in
+/// microseconds) is still differentiated at its own; one that never settles keeps the first
+/// estimate.
 pub(crate) fn derivative(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, x: f64, order: usize) -> Result<f64, CalcError> {
     let base = x.abs().max(1.0);
-    let (h, value, scale) = match order {
-        1 => {
-            let h = 1e-3 * base;
-            let mut d = |h: f64| -> Result<(f64, f64), CalcError> {
-                let (a, b) = (f(x + h)?, f(x - h)?);
-                Ok(((a - b) / (2.0 * h), a.abs().max(b.abs())))
-            };
-            let (d1, s1) = d(h)?;
-            let (d2, s2) = d(h / 2.0)?;
-            (h, (4.0 * d2 - d1) / 3.0, s1.max(s2) / base)
-        }
-        2 => {
-            let h = 5e-3 * base;
-            let mid = f(x)?;
-            let mut d = |h: f64| -> Result<(f64, f64), CalcError> {
-                let (a, b) = (f(x + h)?, f(x - h)?);
-                Ok(((a - 2.0 * mid + b) / (h * h), a.abs().max(b.abs()).max(mid.abs())))
-            };
-            let (d1, s1) = d(h)?;
-            let (d2, s2) = d(h / 2.0)?;
-            (h, (4.0 * d2 - d1) / 3.0, s1.max(s2) / (base * base))
-        }
+    let start = match order {
+        1 => 1e-3 * base,
+        2 => 5e-3 * base,
         _ => return Err(CalcError::Domain { function: "derivative".to_string() }),
     };
-    if !value.is_finite() || !h.is_finite() {
+    let mid = if order == 2 { f(x)? } else { 0.0 };
+    // The difference quotient at step `h`, and the size of the values it is made of.
+    let mut d = |h: f64| -> Result<(f64, f64), CalcError> {
+        let (a, b) = (f(x + h)?, f(x - h)?);
+        Ok(if order == 1 {
+            ((a - b) / (2.0 * h), a.abs().max(b.abs()))
+        } else {
+            ((a - 2.0 * mid + b) / (h * h), a.abs().max(b.abs()).max(mid.abs()))
+        })
+    };
+    // The first estimate, kept when no step settles: (value, noise); and the first error, when
+    // the function has no value that far from `x` at any step.
+    let mut first: Option<(f64, f64)> = None;
+    let mut failed: Option<CalcError> = None;
+    let mut found: Option<(f64, f64)> = None;
+    for level in 0..STEP_LEVELS {
+        let h = start * 10f64.powi(-level);
+        let coarse = d(h).and_then(|a| Ok((a, d(h / 2.0)?)));
+        let ((d1, s1), (d2, s2)) = match coarse {
+            Ok(pair) => pair,
+            Err(e) => {
+                failed.get_or_insert(e);
+                continue;
+            }
+        };
+        // One Richardson step, and what the values' last bits can make of a zero slope
+        // (`f′(0)` of `x²`) at the first step.
+        let value = (4.0 * d2 - d1) / 3.0;
+        let noise = 1e-9 * s1.max(s2) / if order == 1 { base } else { base * base };
+        if first.is_none() {
+            first = Some((value, noise));
+        }
+        if !value.is_finite() {
+            continue;
+        }
+        let Ok((d4, _)) = d(h / 4.0) else { continue };
+        let finer = (4.0 * d4 - d2) / 3.0;
+        let agree = (value - finer).abs() <= 1e-6 * finer.abs();
+        if level == 0 {
+            // The estimate is the one it always was; a slope within the noise is zero.
+            if agree || (value.abs() <= noise && finer.abs() <= noise) {
+                found = Some((value, noise));
+                break;
+            }
+            continue;
+        }
+        // At a smaller step the values' last bits weigh more (ten times a level for a slope, a
+        // hundred for a curvature): two estimates within them agree by chance (both 0, a small
+        // slope on a large value), and are no sign that the step is the function's scale. Such
+        // a derivative keeps the first estimate (`p″` of `101325 + x²/2` is 1, not 0).
+        let rounding = noise * 10f64.powi(level * order as i32);
+        if agree && finer.abs() > rounding {
+            // The two are extrapolated once more.
+            found = Some(((16.0 * finer - value) / 15.0, noise));
+            break;
+        }
+    }
+    let Some((value, noise)) = found.or(first) else {
+        return Err(failed.unwrap_or(CalcError::NotReal));
+    };
+    if !value.is_finite() {
         return Err(CalcError::NotReal);
     }
-    // Noise around a zero slope (`f′(0)` of `x²`).
-    if value.abs() <= 1e-9 * scale {
+    // Noise around a zero slope.
+    if value.abs() <= noise {
         return Ok(0.0);
     }
     Ok(round_digits(value))
@@ -275,10 +325,7 @@ pub(crate) fn integral(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64,
         return integral(f, b, a).map(|v| -v);
     }
     let (total, error, abs) = match (a.is_finite(), b.is_finite()) {
-        (true, true) => {
-            let (total, _, abs) = adaptive(f, &[a, b], MAX_INTERVALS)?;
-            (total, 0.0, abs)
-        }
+        (true, true) => adaptive(f, &[a, b], MAX_INTERVALS)?,
         (true, false) => half_line(f, a, 1.0)?,
         (false, true) => half_line(f, b, -1.0)?,
         (false, false) => {
@@ -287,13 +334,16 @@ pub(crate) fn integral(f: &mut dyn FnMut(f64) -> Result<f64, CalcError>, a: f64,
             (k1 + k2, e1 + e2, s1 + s2)
         }
     };
-    // An improper integral must have settled: one that diverges (`∫_1^∞ 1/x dx`) keeps a large
-    // error however far it is refined.
+    // The integral must have settled: one that diverges (`∫_1^∞ 1/x dx`, `∫_0^1 1/x dx`) keeps a
+    // large error however far it is refined.
     let improper = a.is_infinite() || b.is_infinite();
     if !total.is_finite() {
         return Err(if improper { CalcError::Diverges } else { CalcError::NotReal });
     }
-    if error > 1e-6 * total.abs().max(1e-3 * abs) {
+    // Between finite limits the estimate of the error is a cautious one (an integrand with many
+    // waves is right long before it says so): only an error that stays large is no value.
+    let settled = if improper { 1e-6 } else { 1e-3 };
+    if error > settled * total.abs().max(1e-3 * abs) {
         return Err(CalcError::Diverges);
     }
     if total.abs() <= 1e-11 * abs {

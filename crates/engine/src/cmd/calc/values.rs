@@ -23,6 +23,9 @@ use crate::Session;
 const SOURCE: &str = "source";
 /// The fingerprint of the equation as Strix wrote it, in `Math::calc_opts`.
 const WRITTEN: &str = "written";
+/// In `Math::calc_opts`: the calculations made the equation a display equation (its steps on
+/// lines); it was inline before and is again when they no longer are.
+const WAS_INLINE: &str = "wasInline";
 /// The longest statement kept as a source (`calc_opts` is read back up to 2048 bytes); a longer
 /// one is shown as typed.
 const MAX_SOURCE: usize = 1024;
@@ -145,14 +148,41 @@ fn stamped(source: Option<String>, linear: &str, math: &Math) -> Option<String> 
     (!opts.is_empty()).then(|| Value::Object(opts).to_string())
 }
 
-/// `new` calculation options (as `calc.options` set them) with the source `old` kept.
+/// `new` calculation options (as `calc.options` set them) with the source `old` kept, and its
+/// mark of an equation taken out of its line ([`WAS_INLINE`]).
 pub(super) fn keep_source(old: Option<&str>, new: Option<String>) -> Option<String> {
     let old: Map<String, Value> = old.and_then(|o| serde_json::from_str(o).ok()).unwrap_or_default();
-    let (Some(src), Some(written)) = (old.get(SOURCE), old.get(WRITTEN)) else { return new };
+    let source = old.get(SOURCE).zip(old.get(WRITTEN));
+    let inline = old.get(WAS_INLINE);
+    if source.is_none() && inline.is_none() {
+        return new;
+    }
     let mut opts: Map<String, Value> = new.as_deref().and_then(|o| serde_json::from_str(o).ok()).unwrap_or_default();
-    opts.insert(SOURCE.into(), src.clone());
-    opts.insert(WRITTEN.into(), written.clone());
+    if let Some((src, written)) = source {
+        opts.insert(SOURCE.into(), src.clone());
+        opts.insert(WRITTEN.into(), written.clone());
+    }
+    if let Some(mark) = inline {
+        opts.insert(WAS_INLINE.into(), mark.clone());
+    }
     Some(Value::Object(opts).to_string())
+}
+
+/// Whether the calculations made this equation a display equation to put its steps on lines
+/// (`opts`: its `Math::calc_opts`): it was in its line of text, and goes back there.
+pub(super) fn was_inline(opts: Option<&str>) -> bool {
+    opts.and_then(|o| serde_json::from_str::<Map<String, Value>>(o).ok()).is_some_and(|m| m.get(WAS_INLINE) == Some(&Value::Bool(true)))
+}
+
+/// `opts` with the mark of [`was_inline`] set or taken off.
+pub(super) fn set_was_inline(opts: Option<String>, on: bool) -> Option<String> {
+    let mut map: Map<String, Value> = opts.as_deref().and_then(|o| serde_json::from_str(o).ok()).unwrap_or_default();
+    if on {
+        map.insert(WAS_INLINE.into(), Value::Bool(true));
+    } else if map.remove(WAS_INLINE).is_none() {
+        return opts;
+    }
+    (!map.is_empty()).then(|| Value::Object(map).to_string())
 }
 
 /// Every equation in `b`, in reading order (as `each_para` walks), with its index.

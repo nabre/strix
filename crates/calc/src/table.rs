@@ -152,6 +152,10 @@ struct Grid<'a> {
     values: &'a Values,
     /// Whether each row is a data row with at least one input.
     active: &'a [bool],
+    /// The unit each formula column's values carry (`%`, `°`), when its header gives none.
+    hints: &'a [Option<String>],
+    /// Whether each column holds absolute temperatures or differences of them ([`temp_kind`]).
+    temps: &'a [Option<bool>],
 }
 
 impl Worksheet {
@@ -388,7 +392,8 @@ impl Worksheet {
             }
         }
 
-        let grid = Grid { columns: &columns, label: &label, values: &values, active: &active };
+        let hints: Vec<Option<String>> = formulas.iter().map(|f| f.as_ref().and_then(|(hint, _)| hint.clone())).collect();
+        let grid = Grid { columns: &columns, label: &label, values: &values, active: &active, hints: &hints, temps: &temps };
         self.fill_totals(body, &grid, &mut out);
         // Complete columns become vectors in the scope.
         self.define_columns(&grid, &mut out);
@@ -403,7 +408,7 @@ impl Worksheet {
 
     /// A data table's cells as parameters named by column and row (`F_A`, or `A_F`).
     fn define_cells(&mut self, order: CellNames, body: &[Vec<String>], grid: &Grid<'_>, out: &mut TableResult) {
-        let Grid { columns, label, values, active } = *grid;
+        let Grid { columns, label, values, active, .. } = *grid;
         {
             for (r, cells) in body.iter().enumerate().filter(|(r, _)| active.get(*r) == Some(&true)) {
                 let row = name_part(cells.first().map(String::as_str).unwrap_or_default());
@@ -479,7 +484,7 @@ impl Worksheet {
 
     /// Total cells (`Σ =`, `mean =`...): their column's values aggregated.
     fn fill_totals(&self, body: &[Vec<String>], grid: &Grid<'_>, out: &mut TableResult) {
-        let Grid { columns, label, values, .. } = *grid;
+        let Grid { columns, label, values, hints, temps, .. } = *grid;
         for (r, row) in body.iter().enumerate() {
             for (c, text) in row.iter().enumerate() {
                 let Some((kind, key)) = total(text) else { continue };
@@ -494,7 +499,21 @@ impl Worksheet {
                     Some(Column::Input { unit, .. } | Column::Formula { unit, .. }) => unit.as_ref(),
                     _ => None,
                 };
-                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text(q, unit, None));
+                // As the column's cells are shown: with the unit their values carry, and as a
+                // difference where they are differences of temperatures.
+                let hint = hints.get(c).and_then(|h| h.as_deref());
+                let absolute = temps.get(c).copied().flatten() != Some(false);
+                // The sum of a column of absolute temperatures adds the numbers the column
+                // shows, on its own scale (20 and 30 in `[°C]`: 50), as its mean averages them.
+                let offset = unit.and_then(|u| crate::units::affine(&u.text)).map(|(_, offset)| offset);
+                let shown = match offset.filter(|_| absolute && matches!(kind, Total::Sum) && !column_values.is_empty()) {
+                    Some(offset) => {
+                        let readings: Result<Vec<Quantity>, CalcError> =
+                            column_values.iter().map(|q| Ok(Quantity { value: crate::quantity::finite(q.value - offset)?, ..*q })).collect();
+                        readings.and_then(|r| aggregate(kind, &r)).and_then(|q| self.cell_text_as(q, unit, hint, false))
+                    }
+                    None => aggregate(kind, &column_values).and_then(|q| self.cell_text_as(q, unit, hint, absolute)),
+                };
                 let new = match shown {
                     Ok(value) => format!("{key} = {value}"),
                     Err(err) => {
@@ -512,7 +531,7 @@ impl Worksheet {
     /// Complete columns (a value in every active row) become vectors in the scope; the others
     /// leave it.
     fn define_columns(&mut self, grid: &Grid<'_>, out: &mut TableResult) {
-        let Grid { columns, label, values, active } = *grid;
+        let Grid { columns, label, values, active, .. } = *grid;
         for (c, col) in columns.iter().enumerate() {
             let Some(name) = col.name().filter(|_| label.get(c) == Some(&false)) else { continue };
             let column: Option<Vec<Quantity>> = (0..active.len())
@@ -790,12 +809,8 @@ impl Worksheet {
         }
     }
 
-    /// A computed cell: the number in the column's unit, or the number and its automatic unit.
-    fn cell_text(&self, q: Quantity, unit: Option<&Unit>, hint: Option<&str>) -> Result<String, CalcError> {
-        self.cell_text_as(q, unit, hint, true)
-    }
-
-    /// [`Self::cell_text`]; without `absolute`, a `[°C]`/`[°F]` value is a difference (no offset).
+    /// A computed cell: the number in the column's unit, or the number and its automatic unit;
+    /// without `absolute`, a `[°C]`/`[°F]` value is a difference (no offset).
     fn cell_text_as(&self, q: Quantity, unit: Option<&Unit>, hint: Option<&str>, absolute: bool) -> Result<String, CalcError> {
         match unit {
             Some(u) if !absolute => in_unit_text_as(&Value::Scalar(q), u.q, &u.text, &self.opts, false),
@@ -817,8 +832,17 @@ fn temp_kind(e: &Expr, kinds: &[(String, Option<bool>)], depth: usize) -> Option
         return None;
     }
     let kind = |x: &Expr| temp_kind(x, kinds, depth + 1);
+    // A number written in °C or °F is an absolute temperature, with its sign too (`-20 °C`).
+    let written = |x: &Expr| {
+        matches!(x, Expr::Bin(crate::parser::BinOp::Mul, _, u)
+            if matches!(&**u, Expr::Unit(n) | Expr::Name(n) if crate::units::affine(n).is_some() && !kinds.iter().any(|(k, _)| k == n)))
+    };
+    if written(e) {
+        return Some(true);
+    }
     match e {
         Expr::Name(n) => kinds.iter().find(|(k, _)| k == n).and_then(|(_, t)| *t),
+        Expr::Neg(a) if written(a) => Some(true),
         Expr::Neg(a) => kind(a).filter(|k| !k),
         Expr::Bin(crate::parser::BinOp::Sub, a, b) => match (kind(a), kind(b)) {
             (Some(true), Some(true)) => Some(false),

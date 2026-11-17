@@ -58,7 +58,7 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Assessment", None, app, |ui, app| {
         let check_on = app.session.view.check_pane;
-        big_toggle(ui, app, "checkAssessment", "Check", "view.checkPane", check_on);
+        big_toggle(ui, app, "checkAssessment", "Check\nAssessment", "view.checkPane", check_on);
         big(ui, app, "exportPack", "Export\nPack", "file.exportPack", json!({}), false);
     });
     group(ui, "Graph Paper", None, app, |ui, app| {
@@ -422,7 +422,7 @@ Calculation",
         // What a calculated table has is on its own tab (`calc_table_tab`).
         let plain_table = app.session.sel.focus.path.cell().is_some() && !in_calc_table(&app.session);
         let (id, params) = if plain_table { ("table.calc", json!({"value": true})) } else { ("calc.insertTable", json!({})) };
-        big(
+        let made = big(
             ui,
             app,
             "calcTable",
@@ -432,6 +432,7 @@ Table",
             params,
             false,
         );
+        named(made, "Calculated\nTable", false);
     });
     group(ui, "Number Display", None, app, |ui, app| {
         let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
@@ -661,6 +662,15 @@ fn calc_table_tools(ui: &mut Ui, app: &mut WordApp) {
     );
 }
 
+/// Gives one of Strix's large buttons its name for screen readers: a large button draws its
+/// label without telling them (found in review: the tests that looked for these buttons by
+/// name could not find them either). `pressed`: a mode that is on.
+fn named(resp: egui::Response, label: &str, pressed: bool) -> egui::Response {
+    let name = tl!(label).replace('\n', " ");
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, pressed, &name));
+    resp
+}
+
 /// The contextual tab of a calculated table, beside Table Layout (docs/calc.md).
 pub(super) const CALC_TABLE_TAB: &str = "Calculated Table";
 
@@ -680,7 +690,7 @@ pub(super) fn leave_calc_table_tab(app: &mut WordApp) {
 pub(super) fn calc_table_tab(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Calculation", None, app, |ui, app| {
         let on = in_calc_table(&app.session);
-        big_toggle(
+        let toggle = big_toggle(
             ui,
             app,
             "calcTable",
@@ -689,6 +699,7 @@ Table",
             "table.calc",
             on,
         );
+        named(toggle, "Calculated\nTable", on);
     });
     group(ui, "Options", None, app, |ui, app| stack(ui, |ui| calc_table_tools(ui, app)));
     group(ui, "Rows & Columns", None, app, |ui, app| stack(ui, |ui| calc_table_rows(ui, app)));
@@ -742,7 +753,7 @@ pub(super) fn dsa_group(ui: &mut Ui, app: &mut WordApp) {
             ("dsaMath", "Maths and Memory\n(dyscalculia)", "math"),
         ] {
             let on = st[key].as_bool().unwrap_or(false);
-            crate::widgets::big_checked(ui, app, icon, label, "design.dsa", json!({ key: !on }), on);
+            named(crate::widgets::big_checked(ui, app, icon, label, "design.dsa", json!({ key: !on }), on), label, on);
         }
     });
 }
@@ -863,11 +874,20 @@ mod tests {
             );
         h.state_mut().ui.tab = "Math".into();
         h.run_steps(2);
-        for label in ["Calculate Table", "Cells as Equations", "Data Table", "Ordinal Column", "Total Row", "Column Total"] {
-            assert!(h.query_by_label(label).is_none(), "{label} is not on Math");
+        // A small button is named by its tip: the tools are looked for by how theirs begin.
+        let tool = |h: &egui_kittest::Harness<'_, WordApp>, tip: &str| h.query_all_by_label_contains(tip).next().is_some();
+        const TOOLS: [&str; 5] = [
+            "Show every cell as an equation",
+            "Every value is a parameter",
+            "A first column, column 0",
+            "The last row sums each column",
+            "Sum the column at the cursor",
+        ];
+        for tip in TOOLS {
+            assert!(!tool(&h, tip), "{tip} is not on Math");
         }
         // In a plain table the Math button makes that table calculated instead of inserting one.
-        h.get_by_label("Calculated\nTable").click();
+        h.get_by_label("Calculated Table").click();
         h.run_steps(2);
         assert!(in_calc_table(&h.state().session));
         let tabs = super::super::contextual_tabs(&h.state().session);
@@ -875,19 +895,20 @@ mod tests {
         assert_eq!(at(CALC_TABLE_TAB), at("Table Layout").map(|i| i + 1), "{tabs:?}");
         h.state_mut().ui.tab = "Table Layout".into();
         h.run_steps(2);
-        for label in ["Calculated\nTable", "Cells as Equations", "Data Table", "Ordinal Column", "Total Row", "Column Total"] {
-            assert!(h.query_by_label(label).is_none(), "{label} is not on Table Layout");
+        assert!(h.query_by_label("Calculated Table").is_none(), "Calculated Table is not on Table Layout");
+        for tip in TOOLS {
+            assert!(!tool(&h, tip), "{tip} is not on Table Layout");
         }
         h.state_mut().ui.tab = CALC_TABLE_TAB.into();
         h.run_steps(2);
-        for label in ["Cells as Equations", "Data Table", "Total Row", "Column Total"] {
-            h.get_by_label(label);
+        for tip in TOOLS {
+            assert!(tool(&h, tip), "{tip} is on the Calculated Table tab");
         }
-        h.get_by_label("Ordinal Column").click();
+        h.get_by_label_contains("A first column, column 0").click();
         h.run_steps(2);
         assert_eq!(h.state_mut().session.run("calc.tableInfo", &json!({})).unwrap()["index"], true);
         // Turned off there, the table loses the tab and Table Layout takes its place.
-        h.get_by_label("Calculated\nTable").click();
+        h.get_by_label("Calculated Table").click();
         h.run_steps(2);
         assert!(!in_calc_table(&h.state().session));
         leave_calc_table_tab(h.state_mut());

@@ -1,3 +1,4 @@
+// Modified by the Strix contributors (fork of WordCraft); see NOTICE.
 //! The linear format (UnicodeMath, the plain text Word builds equations from) → math tree.
 //!
 //! Grammar, informally: an expression is a sequence of atoms and operators. Atoms are characters,
@@ -447,6 +448,12 @@ impl P {
                 let lim = self.script_operand(stops);
                 vec![MNode::Lim { upper: false, e: plain, lim }]
             }
+            // Strix: a power written on the name in superscript characters is the name's
+            // (`sin⁻¹(x)`, `sin²(x)`), as `sin^(−1)` and `sin^2` are; it is no operand.
+            Some(_) if let Some(s) = self.superscript_run() => {
+                self.i += s.chars().count();
+                vec![attach_script(Some(MNode::Run(MRun::plain(word.clone()))), true, vec![MNode::Run(MRun::new(s))])]
+            }
             Some(c @ ('^' | '_')) => {
                 self.i += 1;
                 let s = self.script_operand(stops);
@@ -474,6 +481,15 @@ impl P {
             return name;
         }
         vec![MNode::Func { name, e }]
+    }
+
+    /// The run of superscript characters at the cursor, as plain text (`⁻¹` is `−1`); `None`
+    /// unless it is a whole number with at most one sign before it.
+    fn superscript_run(&self) -> Option<String> {
+        let run: String = self.c.get(self.i..)?.iter().map_while(|&c| superscript(c)).collect();
+        let digits = run.trim_start_matches(['−', '+']);
+        let signs = run.chars().count() - digits.chars().count();
+        (signs <= 1 && !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())).then_some(run)
     }
 
     /// Pre-scripts (`_a^b x`): the scripts, then the base.
@@ -658,6 +674,20 @@ impl P {
         self.depth -= 1;
         out
     }
+}
+
+/// The character a superscript one stands for: a digit or a sign.
+fn superscript(c: char) -> Option<char> {
+    Some(match c {
+        '⁰' => '0',
+        '¹' => '1',
+        '²' => '2',
+        '³' => '3',
+        '⁴'..='⁹' => char::from_u32(c as u32 - 0x2074 + 0x34)?,
+        '⁺' => '+',
+        '⁻' => '−',
+        _ => return None,
+    })
 }
 
 /// Where the trailing operand of `out` starts (after the last operator or space).

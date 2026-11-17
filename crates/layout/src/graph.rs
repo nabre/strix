@@ -168,7 +168,9 @@ pub(crate) fn place_graph_para(ctx: &mut Ctx, pb: &mut PageBuilder, p: &Paragrap
             continue;
         }
         let t = if pi == first_page { top } else { body.y };
-        let r = whole_rows(Rect::new(x, t, w, body.bottom() - t), &g, true);
+        // A fixed height's text was not moved down onto whole squares from the bottom: it is
+        // ruled from its first line, as on the page it ends on.
+        let r = whole_rows(Rect::new(x, t, w, body.bottom() - t), &g, !fixed);
         put(pb, pi, r, None);
     }
     // To the end of the column with its text run on to a later column of the page: the columns

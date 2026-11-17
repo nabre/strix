@@ -303,19 +303,27 @@ fn to_statement(blocks: &mut Vec<Arc<Block>>, at: usize, w: &Words) -> bool {
             let next_para = matches!(blocks.get(j + 1).map(|b| &**b), Some(Block::Para(_)));
             if to > from
                 && balanced(&first, from, to)
-                && (j == k || next_para)
                 && let Some(mid) = take(&mut first, from, to)
             {
                 moved = Some(mid);
-                let opener = first.objects.first().cloned();
-                blocks.remove(j);
-                // The part goes on with what followed that paragraph.
-                if j < k
-                    && let (Some(opener), Some(next)) = (opener, blocks.get_mut(j))
-                    && let Block::Para(next) = Arc::make_mut(next)
-                {
-                    let props = next.props_of_char(0).clone();
-                    let _ = next.insert_object(0, opener, &props);
+                if j < k && !next_para {
+                    // A table follows: the part's start stays on this paragraph, left empty
+                    // (a control's markers go in paragraphs).
+                    first.touch();
+                    if let Some(block) = blocks.get_mut(j) {
+                        *block = para_block(first);
+                    }
+                } else {
+                    let opener = first.objects.first().cloned();
+                    blocks.remove(j);
+                    // The part goes on with what followed that paragraph.
+                    if j < k
+                        && let (Some(opener), Some(next)) = (opener, blocks.get_mut(j))
+                        && let Block::Para(next) = Arc::make_mut(next)
+                    {
+                        let props = next.props_of_char(0).clone();
+                        let _ = next.insert_object(0, opener, &props);
+                    }
                 }
             }
         }

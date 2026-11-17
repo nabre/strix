@@ -190,7 +190,7 @@ fn preview(ui: &mut Ui, st: &Value) {
         crate::rtl::grid(ui, egui::Grid::new("grading_preview").num_columns(pairs * 2).spacing([14.0, 2.0]).striped(true), |ui| {
             for _ in 0..pairs {
                 ui.label(RichText::new(tl!("Points")).small().color(t.text_dim));
-                ui.label(RichText::new(tl!("Grade")).small().color(t.text_dim));
+                ui.label(RichText::new(crate::i18n::tc("mark", "Grade")).small().color(t.text_dim));
             }
             ui.end_row();
             for r in 0..per {

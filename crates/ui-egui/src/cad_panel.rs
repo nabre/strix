@@ -372,7 +372,7 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
             out = objects(ed, ui, &mut typing);
         }
     });
-    ed.panel_typing = typing;
+    ed.panel_typing |= typing;
     out
 }
 

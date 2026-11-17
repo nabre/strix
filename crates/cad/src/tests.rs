@@ -1782,3 +1782,64 @@ fn a_drawing_converts_to_millimetres() {
     mm.to_mm();
     assert_eq!(mm, Drawing::default());
 }
+
+/// In a drawing converted to millimetres whose expressions still count in metres, a move, a
+/// grip, a stretch or a transform writes its distance into the expression in metres: worked out
+/// again, the point is where the edit left it.
+#[test]
+fn edits_write_distances_in_the_expressions_unit() {
+    let ws = sheet(&["L = 4.5 m"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}, {"type": "circle", "c": ["L", 1], "r": 0.5},
+            {"type": "polyline", "pts": [["L", 0], ["L", 2]]}, {"type": "point", "p": ["L", "L"]}, {"type": "line", "a": [1, "L"], "b": [2, 2]}]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    d.to_mm();
+    assert!(d.resolve(&ws).is_empty());
+    let same = |d: &mut Drawing, what: &str| {
+        let before: Vec<Vec<Vec<Pt>>> = d.entities.iter().map(outline).collect();
+        assert!(d.resolve(&ws).is_empty(), "{what}");
+        let after: Vec<Vec<Vec<Pt>>> = d.entities.iter().map(outline).collect();
+        for (b, a) in before.iter().flatten().flatten().zip(after.iter().flatten().flatten()) {
+            assert!(b.minus(*a).len() < 1e-5, "{what}: {b:?} became {a:?}\n{}", d.to_json());
+        }
+    };
+    // Move: 500 mm to the right is `L + 0.5`.
+    d.translate(&[0], Pt::new(500.0, 0.0));
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert_eq!((b.0.value, b.0.expr.as_deref()), (5000.0, Some("L + 0.5")));
+    same(&mut d, "move");
+    // Copy.
+    d.copy(&[0], Pt::new(0.0, 250.0));
+    same(&mut d, "copy");
+    // Scale about a point off the origin, rotate, mirror.
+    d.transform(&[1], &Affine::scaling(Pt::new(1000.0, 0.0), 2.0));
+    let Kind::Circle { c, .. } = &d.entities[1].kind else { panic!() };
+    assert_eq!(c.pt(), Pt::new(8000.0, 2000.0));
+    same(&mut d, "scale");
+    d.transform(&[4], &Affine::rotation(Pt::new(1000.0, 500.0), 90.0));
+    same(&mut d, "rotate");
+    d.transform(&[3], &Affine::mirror(Pt::new(100.0, 0.0), Pt::new(100.0, 1.0)).unwrap());
+    same(&mut d, "mirror");
+    // A grip.
+    assert!(d.move_grip(2, Grip::Vertex(0), Pt::new(4600.0, 100.0)));
+    same(&mut d, "grip");
+    // Stretch.
+    assert_eq!(d.stretch(Pt::new(4400.0, 1900.0), Pt::new(4600.0, 2100.0), Pt::new(0.0, 300.0)), 1);
+    same(&mut d, "stretch");
+    // A drawing whose expressions count in its own unit writes them as before.
+    let mut mm = Drawing::from_json(r#"{"entities": [{"type": "point", "p": ["L", 0]}]}"#).unwrap();
+    mm.translate(&[0], Pt::new(500.0, 0.0));
+    assert!(matches!(&mm.entities[0].kind, Kind::Point { p } if p.0.expr.as_deref() == Some("L + 500")));
+}
+
+/// A layer named with spaces round it is the layer made for it, not an unknown one.
+#[test]
+fn objects_go_to_the_layer_as_it_is_named() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (1.0, 0.0))).unwrap();
+    d.set_layer(&[0], "  Walls ").unwrap();
+    assert!(d.layers.iter().any(|l| l.name == "Walls"));
+    assert_eq!(d.entities[0].layer, "Walls");
+}

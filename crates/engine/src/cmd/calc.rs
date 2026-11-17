@@ -51,21 +51,35 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
-            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .when(|s| match calc_table_place(s) {
+                Some(_) if caret_table_is_calc(s) => None,
+                why => why,
+            })
             .params(r#"{"value"?: bool (default: toggle)} → {"calc": bool, "recalculated"}: the table at the caret is calculated: header cells name its columns (`L [m]`, `M [kN·m] = q·L^2/8`), `Σ =` cells total them"#),
         CommandSpec::new("table.calcNames", "Data Table", "Calculated Table › Options", cell_names)
-            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .when(calc_table_place)
             .params(r#"{"value": "columnRow" | "rowColumn" | "none"} → {"names", "recalculated"}: the table at the caret is a data table (made calculated): every value is a parameter named by its column and its row's label (the first column), joined by a subscript: `F_A` (columnRow) or `A_F` (rowColumn)"#),
         CommandSpec::new("table.mathCells", "Cells as Equations", "Calculated Table › Options", math_cells)
-            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .when(calc_table_place)
             .params(r#"{"value"?: bool (default: toggle)} → {"math", "recalculated"}: the table at the caret (made calculated) shows every cell as an equation: names in italics, subscripts, units in the Unit style; off, the cells are text again"#),
         CommandSpec::new("table.calcIndex", "Ordinal Column", "Calculated Table › Rows & Columns", calc_index)
-            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .when(calc_table_place)
             .params(r#"{"value"?: bool (default: toggle)} → {"index": bool, "recalculated"}: the table at the caret (made calculated) gets a first column, column "0", headed "i", with its data rows' ordinal numbers (1, 2, 3…) written by the calculations and never read by them; off, that column goes"#),
         CommandSpec::new("table.calcTotal", "Column Total", "Calculated Table › Rows & Columns", calc_total)
-            .when(|s| if s.sel.focus.path.cell().is_some() { None } else { Some("the cursor isn't in a table") })
+            .when(calc_table_place)
             .params(r#"{"value"?: bool (default: toggle)} → {"total": bool, "recalculated"}: the column at the caret is summed in the total row of its table (made calculated); on, the table gets its total row (Table Design › Total Row)"#),
         CommandSpec::new("calc.insertTable", "Calculated Table", "Math › Tables", insert_table)
+            // A table inserted here would be outside the body, or inside another (as
+            // `insert_table` refuses it).
+            .when(|s| {
+                if s.sel.focus.story != wordcraft_doc::StoryRef::Body {
+                    Some(NOT_BODY)
+                } else if s.sel.focus.path.cell().is_some() {
+                    Some(NESTED_TABLE)
+                } else {
+                    None
+                }
+            })
             .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
             let table = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp));
@@ -105,6 +119,10 @@ pub struct CalcOverrides {
     pub layout: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uncertainty: Option<String>,
+    /// Decimal commas chosen for the document (`calc.recalculate {"decimalComma"}`): read and
+    /// written by every later calculation. Document scope only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decimal_comma: Option<bool>,
 }
 
 impl CalcOverrides {
@@ -115,6 +133,7 @@ impl CalcOverrides {
             && self.steps.is_none()
             && self.layout.is_none()
             && self.uncertainty.is_none()
+            && self.decimal_comma.is_none()
     }
 
     pub fn sanitize(&mut self) {
@@ -143,6 +162,7 @@ impl CalcOverrides {
             zeros: Some(prefs.calc_zeros),
             steps: Some(prefs.calc_steps),
             layout: Some(Layout::from_name(&prefs.calc_layout).unwrap_or_default().name().to_string()),
+            decimal_comma: None,
         }
     }
 
@@ -153,6 +173,7 @@ impl CalcOverrides {
             && !self.steps.unwrap_or(false)
             && self.layout.as_deref().unwrap_or("inline") == "inline"
             && self.uncertainty.as_deref().unwrap_or("max") == "max"
+            && self.decimal_comma.is_none()
     }
 
     pub fn apply_to(&self, o: &mut Options) {
@@ -173,6 +194,9 @@ impl CalcOverrides {
         }
         if let Some(l) = self.layout.as_deref().and_then(Layout::from_name) {
             o.layout = l;
+        }
+        if let Some(c) = self.decimal_comma {
+            o.decimal_comma = c;
         }
     }
 }
@@ -217,7 +241,8 @@ fn prefs_options(s: &Session) -> Options {
     }
 }
 
-/// Document-level resolved options (`Document > Prefs`).
+/// Document-level resolved options (`Document > Prefs`). Numbers are written with a decimal
+/// point unless the document holds the choice of commas ([`CalcOverrides::decimal_comma`]).
 fn doc_options(s: &Session) -> Options {
     let mut o = prefs_options(s);
     if let Some(c) = doc_overrides(&s.doc) {
@@ -261,6 +286,8 @@ fn call_overrides(v: &Value) -> CalcOverrides {
         zeros: p::bool(v, "zeros"),
         steps: p::bool(v, "steps"),
         layout: p::str(v, "layout").and_then(Layout::from_name).map(|l| l.name().to_string()),
+        // Never for one call only: what is written with commas is read with them afterwards.
+        decimal_comma: None,
     }
 }
 
@@ -268,9 +295,6 @@ fn call_overrides(v: &Value) -> CalcOverrides {
 fn options(s: &Session, v: &Value) -> Options {
     let mut o = doc_options(s);
     call_overrides(v).apply_to(&mut o);
-    if let Some(c) = p::bool(v, "decimalComma") {
-        o.decimal_comma = c;
-    }
     o
 }
 
@@ -478,8 +502,15 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
     }))
 }
 
+/// The statement of a calculated equation as every reader takes it: [`equation_text`] with a
+/// unit's inline quotient (`kN∕m`, see `style_parts`) as typed and the powers of ten as
+/// strix-calc writes them ([`bare_powers_of_ten`]).
+pub(crate) fn calc_text(linear: &str, math: &Math) -> String {
+    bare_powers_of_ten(&equation_text(linear, math).replace('∕', "/"))
+}
+
 /// The linear text of an equation, as the calc engine reads it.
-pub(crate) fn equation_text(linear: &str, math: &Math) -> String {
+fn equation_text(linear: &str, math: &Math) -> String {
     // An equation showing its result and steps on lines of their own is rows aligned at `&`:
     // the statement is the first, the result the last (read for the unit it is in). Only arrays
     // Strix made are read so: an array the user wrote is the statement as a whole.
@@ -487,7 +518,19 @@ pub(crate) fn equation_text(linear: &str, math: &Math) -> String {
         && let [wordcraft_doc::math::MNode::EqArr { rows }] = math.nodes.as_slice()
         && let Some(first) = rows.first()
     {
-        let row = |r: &[wordcraft_doc::math::MNode]| to_linear(&without_notes(r)).replace('&', "").trim().to_string();
+        // The alignment marks are the row's own ([`aligned`]); an `&` inside a structure is that
+        // structure's (a root's degree `√(3&V)`, a matrix's cells `■(a&b@c&d)`) and stays.
+        let row = |r: &[wordcraft_doc::math::MNode]| {
+            let mut nodes = without_notes(r);
+            for n in &mut nodes {
+                if let wordcraft_doc::math::MNode::Run(run) = n
+                    && run.text.contains('&')
+                {
+                    run.text = run.text.replace('&', "");
+                }
+            }
+            to_linear(&nodes).trim().to_string()
+        };
         let first = row(first);
         return match rows.get(1..).and_then(<[_]>::last).map(|r| row(r)) {
             // `= 30.375 kN·m` under a formula: its result, as if after it on its line.
@@ -625,9 +668,40 @@ fn cell_equation(p: &Paragraph) -> Option<String> {
     };
     match p.objects.as_slice() {
         [InlineObject::Equation { linear, math, .. }] if math.nodes.is_empty() => Some(format!("{lead}{}", linear.trim())),
-        [InlineObject::Equation { math, .. }] => Some(format!("{lead}{}", formula_linear(&math.nodes, !lead.is_empty()).trim())),
+        [InlineObject::Equation { math, .. }] => Some(format!("{lead}{}", bare_powers_of_ten(formula_linear(&math.nodes, !lead.is_empty()).trim()))),
         _ => None,
     }
+}
+
+/// `text` with its powers of ten as strix-calc writes its results and reads them back
+/// (`3·10^-4`): the linear format of a built-up equation puts a negative exponent in brackets
+/// (`3·10^(-4)`), which read back would be an expression after `=`, not the result to refresh.
+fn bare_powers_of_ten(text: &str) -> String {
+    const MARK: &str = "10^(";
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(MARK) {
+        let head = rest.get(..i + MARK.len()).unwrap_or_default();
+        let tail = rest.get(i + MARK.len()..).unwrap_or_default();
+        // The minus as strix-calc writes it; any other exponent is the user's and stays as written.
+        let sign = usize::from(tail.starts_with('-'));
+        let digits = tail.get(sign..).unwrap_or_default().bytes().take_while(u8::is_ascii_digit).count();
+        let end = sign + digits;
+        if sign > 0 && digits > 0 && tail.get(end..).is_some_and(|t| t.starts_with(')')) {
+            out.push_str(head.strip_suffix('(').unwrap_or(head));
+            out.push_str(tail.get(..end).unwrap_or_default());
+            rest = tail.get(end + 1..).unwrap_or_default();
+            // What the bracket parted from the exponent stays apart (`10^(-4)m`: `10^-4 m`).
+            if rest.starts_with(|c: char| c.is_alphanumeric() || c == '.') {
+                out.push(' ');
+            }
+        } else {
+            out.push_str(head);
+            rest = tail;
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// An equation's linear text, a header formula's closing unit (`= q·L/2 [kN]`) set apart by a
@@ -808,7 +882,7 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                             top,
                             // A unit written inline (`kN∕m`, see `style_parts`) reads as typed.
                             // Data shown as values: the statement as typed, while Strix's writing stands.
-                            text: math.calc.then(|| values::source(linear, math).unwrap_or_else(|| equation_text(linear, math).replace('∕', "/"))),
+                            text: math.calc.then(|| values::source(linear, math).unwrap_or_else(|| calc_text(linear, math))),
                             answer: math.answer,
                             full: equation_full(linear, math),
                             opts: math.calc_opts.clone(),
@@ -1096,7 +1170,7 @@ pub(crate) fn total_row_changed(s: &mut Session, before: Option<bool>) {
 
 /// A calculated table's total row turned off: what the calculations wrote in its last row (the
 /// sums, `Σ`, `–`, `⚠`) goes, so it doesn't stay behind as a row of data; text written there
-/// stays. Its cells keep their look.
+/// stays, and so does a cell holding anything else (a note's reference). Its cells keep their look.
 pub(crate) fn clear_total_row(t: &mut Table) {
     if !t.props.calc || t.rows.len() < 2 {
         return;
@@ -1109,6 +1183,11 @@ pub(crate) fn clear_total_row(t: &mut Table) {
         }
         let Some(first) = cell.blocks.first_mut() else { continue };
         let Block::Para(p) = &**first else { continue };
+        // Anything else in the cell (a note's reference, a picture) is not the calculations' to
+        // take away: left alone, as `write_cells` and `write_math_cells` leave it.
+        if !p.objects.is_empty() && cell_equation(p).is_none() {
+            continue;
+        }
         let mut new = Paragraph::with_text("", p.runs.first().map_or_else(|| p.mark.clone(), |r| r.props.clone()));
         new.props = p.props.clone();
         new.mark = p.mark.clone();
@@ -1199,20 +1278,64 @@ fn eval_calc_table(
 }
 
 fn recalculate_with(s: &mut Session, v: &Value) -> Value {
+    // The decimal separator asked for is the document's from now on: every later calculation
+    // reads and writes what this one writes.
+    let was = doc_options(s).decimal_comma;
+    if let Some(comma) = p::bool(v, "decimalComma") {
+        let mut c = doc_overrides(&s.doc).unwrap_or_default();
+        if c.decimal_comma != Some(comma) {
+            c.decimal_comma = Some(comma);
+            set_doc_overrides(&mut s.doc, &c);
+        }
+    }
     let base = options(s, v);
     let call_c = call_overrides(v);
-    recalculate_scoped(s, &base, &call_c)
+    // Back to the point: what was written with commas is read as it was written, once.
+    recalculate_scoped(s, &base, &call_c, was && !base.decimal_comma)
+}
+
+/// `text` written with decimal commas, as it reads with decimal points: a comma between two
+/// digits is the decimal separator there (as the calculations take it with commas on).
+fn commas_to_points(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let digit = |i: usize| chars.get(i).is_some_and(char::is_ascii_digit);
+    chars.iter().enumerate().map(|(i, &c)| if c == ',' && i > 0 && digit(i - 1) && digit(i + 1) { '.' } else { c }).collect()
 }
 
 /// Evaluates every region and calculated table and writes changed results back. Returns the
 /// report JSON.
 pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
-    recalculate_scoped(s, opts, &CalcOverrides::default())
+    recalculate_scoped(s, opts, &CalcOverrides::default(), false)
 }
 
-fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides) -> Value {
+/// `from_commas`: the document was calculated with decimal commas until now and no longer is.
+fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides, from_commas: bool) -> Value {
     let converted_templates = super::exercise::expr::convert_all_templates(s);
-    let found = items(&s.doc.body);
+    let mut found = items(&s.doc.body);
+    if from_commas {
+        for item in &mut found {
+            match item {
+                Item::Equation { text: Some(text), .. } => *text = commas_to_points(text),
+                Item::Table { top, cells, math, .. } => {
+                    let mut rewritten = Vec::new();
+                    for (r, row) in cells.iter_mut().enumerate() {
+                        for (c, cell) in row.iter_mut().enumerate() {
+                            let with_points = commas_to_points(cell);
+                            if with_points != *cell {
+                                rewritten.push((r, c, with_points.clone()));
+                                *cell = with_points;
+                            }
+                        }
+                    }
+                    // Cells shown as equations are rewritten with the results; text is not.
+                    if !*math {
+                        write_cells(s, *top, &rewritten);
+                    }
+                }
+                Item::Equation { .. } | Item::Cad { .. } | Item::Plot { .. } => {}
+            }
+        }
+    }
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
     let hidden = super::exercise::hidden_solutions(s);
@@ -1924,19 +2047,20 @@ fn write_back(
                     if let Some(Some((text, note))) = updates.get(index) {
                         let mut nodes = shown_nodes(text, *note);
                         style_rows(&mut nodes, found_units, color);
-                        // Steps go one under the other: the equation stands on its own line.
+                        // Steps go one under the other: the equation stands on its own line, and
+                        // goes back into its line of text when its steps are no longer on lines
+                        // (only an equation the calculations took out of its line).
+                        let mut calc_opts = math.calc_opts.clone();
                         if text.starts_with('█') {
-                            *display = true;
+                            if !*display {
+                                *display = true;
+                                calc_opts = values::set_was_inline(calc_opts, true);
+                            }
+                        } else if values::was_inline(calc_opts.as_deref()) {
+                            *display = false;
+                            calc_opts = values::set_was_inline(calc_opts, false);
                         }
-                        *math = Math {
-                            nodes,
-                            jc: math.jc,
-                            calc: true,
-                            answer: math.answer,
-                            stepped: steps_written,
-                            calc_opts: math.calc_opts.clone(),
-                            ..Math::default()
-                        };
+                        *math = Math { nodes, jc: math.jc, calc: true, answer: math.answer, stepped: steps_written, calc_opts, ..Math::default() };
                         *linear = to_linear(&math.nodes);
                         touched = true;
                     } else if math.calc {
@@ -2331,7 +2455,9 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
             let same = match p.objects.as_slice() {
                 [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes && lead_hidden == (cut > 0),
                 [] => (text.is_empty() || label) && p.text.trim() == text.as_str(),
-                _ => false,
+                // Anything else in the cell (a note's reference, a picture) is not the
+                // calculations' to replace: left alone, as `write_cells` leaves it.
+                _ => true,
             };
             if same {
                 continue;
@@ -2387,17 +2513,23 @@ fn unmath_cells(t: &mut Table) {
 }
 
 fn math_cells(s: &mut Session, v: &Value) -> CmdResult {
+    need_calc_table_place(s)?;
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let story = s.sel.focus.story;
     let t = s.doc.table_mut(story, &tp)?;
     let on = p::bool(v, "value").unwrap_or(!t.props.calc_math);
     t.props.calc_math = on;
     if on {
-        // Shown as equations, the table is calculated.
+        // Shown as equations, the table is calculated: its first row is the header.
+        let was = t.props.calc;
         t.props.calc = true;
+        if !was {
+            calc_header(s)?;
+        }
     } else {
         unmath_cells(t);
     }
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     super::table::touch_cells(s, &tp)?;
     let report = recalculate(s, &options(s, v));
     Ok(json!({"math": on, "recalculated": report}))
@@ -2456,10 +2588,42 @@ fn toggle_equation(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"calc": on, "recalculated": report}))
 }
 
+const NO_TABLE: &str = "the cursor isn't in a table";
+const NESTED_TABLE: &str = "a table inside another table is never calculated";
+const NOT_BODY: &str = "only tables in the body of the document are calculated";
+
+/// Why the table at the caret can't be a calculated table: the calculations read the top-level
+/// tables of the body only ([`items`]), so a table inside another table, or in a header, a
+/// footer, a note or a text box, would get the header and the style and never a result.
+fn calc_table_place(s: &Session) -> Option<&'static str> {
+    let Some((tp, _, _)) = s.sel.focus.path.cell() else { return Some(NO_TABLE) };
+    if s.sel.focus.story != wordcraft_doc::StoryRef::Body {
+        Some(NOT_BODY)
+    } else if tp.0.len() != 1 {
+        Some(NESTED_TABLE)
+    } else {
+        None
+    }
+}
+
+/// [`calc_table_place`] as a command's refusal.
+fn need_calc_table_place(s: &Session) -> Result<(), CmdError> {
+    calc_table_place(s).map_or(Ok(()), |why| Err(CmdError::Disabled(why.into())))
+}
+
+/// Whether the table at the caret has the calculated flag (wherever it is).
+fn caret_table_is_calc(s: &Session) -> bool {
+    s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
+}
+
 /// Turns the table at the caret into a calculated table or back, then recalculates.
 fn toggle_table(s: &mut Session, v: &Value) -> CmdResult {
-    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled(NO_TABLE.into()))?;
     let story = s.sel.focus.story;
+    // Where tables are never calculated the flag (from a file) can only come off.
+    if p::bool(v, "value").unwrap_or(!caret_table_is_calc(s)) {
+        need_calc_table_place(s)?;
+    }
     let t = s.doc.table_mut(story, &tp)?;
     let on = p::bool(v, "value").unwrap_or(!t.props.calc);
     let was = t.props.calc;
@@ -2484,6 +2648,7 @@ fn cell_names(s: &mut Session, v: &Value) -> CmdResult {
         }
         None => return Err(CmdError::Params("value: columnRow, rowColumn or none".into())),
     };
+    need_calc_table_place(s)?;
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let story = s.sel.focus.story;
     let t = s.doc.table_mut(story, &tp)?;
@@ -2679,6 +2844,7 @@ fn calc_style(s: &mut Session) -> Result<(), CmdError> {
 
 /// The ordinal column (column "0") on or off: a first column headed "i" added, or removed.
 fn calc_index(s: &mut Session, v: &Value) -> CmdResult {
+    need_calc_table_place(s)?;
     let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let story = s.sel.focus.story;
     let t = s.doc.table(story, &tp).ok_or_else(|| CmdError::Failed("no table".into()))?;
@@ -2726,6 +2892,7 @@ fn column_header(s: &Session) -> Option<(usize, &wordcraft_doc::table::Cell)> {
 /// The column at the caret summed in the total row or not (`CellProps::calc_no_total` on its
 /// header cell). Summing a column turns the total row on; the table is made calculated.
 fn calc_total(s: &mut Session, v: &Value) -> CmdResult {
+    need_calc_table_place(s)?;
     let (h, cell) = column_header(s).ok_or_else(|| CmdError::Disabled("the cursor isn't in a table".into()))?;
     let on = p::bool(v, "value").unwrap_or(cell.props.calc_no_total);
     let calc = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc);
@@ -2770,6 +2937,13 @@ fn write_cell_text(
 
 /// Inserts a table and turns it into a calculated table.
 fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
+    // The table would be inside another, or outside the body: never calculated there.
+    if s.sel.focus.story != wordcraft_doc::StoryRef::Body {
+        return Err(CmdError::Disabled(NOT_BODY.into()));
+    }
+    if s.sel.focus.path.cell().is_some() {
+        return Err(CmdError::Disabled(NESTED_TABLE.into()));
+    }
     let rows = p::u64(v, "rows").unwrap_or(4).clamp(2, 1000);
     let cols = p::u64(v, "cols").unwrap_or(3).clamp(1, 63);
     s.run("insert.table", &json!({"rows": rows, "cols": cols})).map_err(|e| CmdError::Failed(e.to_string()))?;
@@ -4136,5 +4310,303 @@ mod tests {
         add(&mut s, "d = 1/8 =");
         let new_texts = texts(&s);
         assert!(new_texts.iter().any(|t| t == "d=1/8=0.125"), "new doc inherited 3 decimals from prefs at creation: {new_texts:?}");
+    }
+
+    /// With the result under the statement (Line by Line), an `&` inside a structure of the
+    /// statement — a root's degree, a matrix's cells — is read back with it: only the alignment
+    /// marks Strix set are taken out.
+    #[test]
+    fn steps_on_lines_keep_the_marks_inside_a_root_and_a_matrix() {
+        for layout in ["inline", "lines"] {
+            let mut s = session();
+            s.run("calc.steps", &json!({"value": true})).unwrap();
+            s.run("calc.layout", &json!({"value": layout})).unwrap();
+            for t in ["V = 27", "a = 1", "x = √(3&V) =", "d = |■(a&2@3&4)| =", "y = 2·√(3&V)"] {
+                add(&mut s, t);
+            }
+            let r = s.run("calc.recalculate", &json!({})).unwrap();
+            assert_eq!(r["errors"].as_array().map_or(0, Vec::len), 0, "{layout}: {r}");
+            assert_eq!(r["changed"], 0, "{layout}: stable");
+            let all = texts(&s);
+            assert!(all[2].starts_with("x=√(3&V)") && all[2].ends_with("=3"), "{layout}: {all:?}");
+            assert!(all[3].contains("■(a&2@3&4)") && all[3].ends_with("=-2"), "{layout}: {all:?}");
+            assert!(all[4].starts_with("y=2·√(3&V)") && all[4].ends_with("=6"), "{layout}: {all:?}");
+            let vars = s.run("calc.variables", &json!({})).unwrap();
+            let value = |n: &str| vars["variables"].as_array().unwrap().iter().find(|v| v["name"] == n).map(|v| v["si"].clone());
+            assert_eq!((value("x"), value("d"), value("y")), (Some(json!(3.0)), Some(json!(-2.0)), Some(json!(6.0))), "{layout}");
+        }
+    }
+
+    /// Cells as Equations on an ordinary table makes it calculated like the other ways do: its
+    /// first row is the header (a table of numbers gets one above), with the Calculated Table style.
+    #[test]
+    fn cells_as_equations_gives_an_ordinary_table_its_header() {
+        let mut s = session();
+        with_table(&mut s, &[&["4", "12"], &["6", "10"]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s), vec![vec!["", ""], vec!["4", "12"], vec!["6", "10"]]);
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        assert!(t.props.calc && t.props.calc_math && t.props.look.header_row && t.rows[0].props.header && !t.rows[1].props.header);
+        assert_eq!(t.props.style, crate::cmd::table_style::table_style_id(&s, CALC_TABLE_STYLE));
+        assert_eq!(s.sel.focus.path.0, vec![0, 2, 1, 0], "the caret moved down with its cell");
+        // Off and on again adds no second header row.
+        s.run("table.mathCells", &json!({"value": false})).unwrap();
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s).len(), 3);
+    }
+
+    /// A cell holding something besides its text (a footnote's reference) keeps it when the
+    /// table's cells are shown as equations: the calculations still read its value.
+    #[test]
+    fn cells_as_equations_leave_a_cell_with_a_note_alone() {
+        let mut s = session();
+        with_table(&mut s, &[&["Beam", "L [m]", "D [m] = 2·L"], &["B1", "4", ""], &["B2", "6", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 1));
+        s.run("references.footnote", &json!({"text": "measured"})).unwrap();
+        let notes = |s: &Session| {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            t.rows
+                .iter()
+                .flat_map(|r| &r.cells)
+                .flat_map(|c| &c.blocks)
+                .filter_map(|b| b.as_para())
+                .flat_map(|p| &p.objects)
+                .filter(|o| !matches!(o, InlineObject::Equation { .. }))
+                .count()
+        };
+        assert_eq!(notes(&s), 1);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 2, 0, 0]), 0));
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        assert_eq!(notes(&s), 1, "the note's reference stays in its cell");
+        assert_eq!(table_texts(&s)[1][2], "8", "and its value is read");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable");
+    }
+
+    /// A result below a thousandth is shown with a power of ten (`3·10^-4`), which a built-up
+    /// equation writes `3·10^(-4)`: read back, it is still the result to refresh, so
+    /// recalculating changes nothing and what depends on it keeps its value.
+    #[test]
+    fn a_result_with_a_negative_power_of_ten_is_read_back() {
+        assert_eq!(bare_powers_of_ten("c=a·b=3·10^(-4) m²"), "c=a·b=3·10^-4 m²");
+        assert_eq!(bare_powers_of_ten("q=1.6·10^(-19)C"), "q=1.6·10^-19 C", "the unit stays out of the exponent");
+        assert_eq!(bare_powers_of_ten("[1·10^(-5);2·10^(-12)]·10^(-x)+10^(4)+10^(−3)+10^(-"), "[1·10^-5;2·10^-12]·10^(-x)+10^(4)+10^(−3)+10^(-");
+        for steps in [false, true] {
+            let mut s = session();
+            s.run("calc.steps", &json!({"value": steps})).unwrap();
+            for t in ["a = 0.0001 m", "b = 3 m", "c = a·b =", "d = c·2 =", "0.0001234 =", "v = 1e-5 m/s", "v·2 =", "q = 1.6·10^-19 C", "q·2 ="] {
+                add(&mut s, t);
+            }
+            s.run("text.newParagraph", &json!({})).unwrap();
+            with_table(&mut s, &[&["x", "note"], &["0.0001", "x·3 ="]]);
+            let top = s.doc.body.iter().position(|b| matches!(&**b, Block::Table(_))).unwrap() as u32;
+            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![top, 1, 0, 0]), 0));
+            s.run("table.mathCells", &json!({"value": true})).unwrap();
+            for pass in 0..3 {
+                let r = s.run("calc.recalculate", &json!({})).unwrap();
+                assert_eq!(r["errors"].as_array().map_or(0, Vec::len), 0, "steps {steps}, pass {pass}: {r}");
+                assert_eq!(r["changed"], 0, "steps {steps}, pass {pass}: {:?}", texts(&s));
+                let all = texts(&s);
+                assert!(all[2].starts_with("c=a·b=") && all[2].ends_with("=3·10^-4m²"), "steps {steps}, pass {pass}: {all:?}");
+                assert!(all[3].ends_with("=6·10^-4m²"), "steps {steps}, pass {pass}: {all:?}");
+                assert_eq!(all[4], "0.0001234=1.234·10^-4", "steps {steps}, pass {pass}");
+                assert!(all[6].ends_with("=2·10^-5m/s"), "steps {steps}, pass {pass}: {all:?}");
+                // A value typed with a power of ten keeps its unit out of the exponent.
+                assert_eq!(all[7], "q=1.6·10^-19C", "steps {steps}, pass {pass}");
+                assert!(all[8].ends_with("=3.2·10^-19C") || all[8].ends_with("=3.2·10^-10nC"), "steps {steps}, pass {pass}: {all:?}");
+                assert!(maths(&s).iter().any(|m| to_linear(&m.nodes).replace(char::is_whitespace, "") == "q=1.6·10^(-19)C"), "as typed");
+                assert_eq!(table_texts(&s)[1][1].replace(char::is_whitespace, ""), "x·3=3·10^-4", "steps {steps}, pass {pass}");
+            }
+        }
+    }
+
+    /// A decimal separator chosen with `calc.recalculate` stays the document's, so what one
+    /// calculation writes the next one reads; without the choice numbers have a point.
+    #[test]
+    fn decimal_commas_chosen_stay_with_the_document() {
+        let mut s = session();
+        s.run("calc.steps", &json!({"value": true})).unwrap();
+        add(&mut s, "a = 2.5 m");
+        add(&mut s, "b = a·3 =");
+        assert_eq!(texts(&s), ["a=2.5m", "b=a·3=(2.5m)·3=7.5m"]);
+        assert!(!options_now(&s).decimal_comma);
+        // A separator asked for is the document's from then on: the next plain recalculation
+        // reads what this one wrote, and so does the document reopened.
+        let r = s.run("calc.recalculate", &json!({"decimalComma": true})).unwrap();
+        assert_eq!(r["errors"].as_array().map(Vec::len), Some(0), "{r}");
+        let want = ["a=2.5m", "b=a·3=(2,5m)·3=7,5m"];
+        assert_eq!(texts(&s), want);
+        assert!(options_now(&s).decimal_comma && resolved_options(&s).decimal_comma);
+        for pass in 0..2 {
+            let r = s.run("calc.recalculate", &json!({})).unwrap();
+            assert_eq!((r["changed"].as_u64(), r["errors"].as_array().map(Vec::len)), (Some(0), Some(0)), "pass {pass}: {r}");
+            assert_eq!(texts(&s), want, "pass {pass}");
+        }
+        // The other options change without losing it.
+        s.run("calc.options", &json!({"digits": 2, "scope": "document"})).unwrap();
+        assert_eq!(texts(&s), want);
+        for ext in ["docx", "xmath"] {
+            let name = format!("comma.{ext}");
+            let bytes = crate::io::save_bytes(&name, &s.doc).unwrap();
+            let mut back = Session::new(crate::io::open_bytes(&name, &bytes).unwrap());
+            let r = back.run("calc.recalculate", &json!({})).unwrap();
+            assert_eq!((r["changed"].as_u64(), r["errors"].as_array().map(Vec::len)), (Some(0), Some(0)), "{ext}: {r}");
+            assert_eq!(texts(&back), want, "{ext}");
+        }
+        // And back to the point, for good.
+        s.run("calc.recalculate", &json!({"decimalComma": false})).unwrap();
+        assert_eq!(texts(&s), ["a=2.5m", "b=a·3=(2.5m)·3=7.5m"]);
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
+        // A table's cells follow, both ways.
+        let mut s = session();
+        with_table(&mut s, &[&["x", "y = x·3"], &["2.5", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 0, 0]), 0));
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        assert_eq!(grid(&s)[1], ["2.5", "7.5"]);
+        s.run("calc.recalculate", &json!({"decimalComma": true})).unwrap();
+        assert_eq!(grid(&s)[1], ["2.5", "7,5"]);
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0);
+        let r = s.run("calc.recalculate", &json!({"decimalComma": false})).unwrap();
+        assert_eq!(r["errors"].as_array().map(Vec::len), Some(0), "{r}");
+        assert_eq!(grid(&s)[1], ["2.5", "7.5"]);
+    }
+
+    /// Steps on lines make an inline calculation a display equation; back to Inline, it is in
+    /// its line of text again. An equation that was a display equation stays one.
+    #[test]
+    fn an_inline_calculation_is_inline_again_after_its_steps_leave_their_lines() {
+        let displays = |s: &Session| -> Vec<bool> {
+            let mut out = Vec::new();
+            for b in s.doc.body.iter() {
+                for o in b.as_para().map(|p| p.objects.as_slice()).unwrap_or_default() {
+                    if let InlineObject::Equation { display, .. } = o {
+                        out.push(*display);
+                    }
+                }
+            }
+            out
+        };
+        let mut s = session();
+        s.run("calc.steps", &json!({"value": true})).unwrap();
+        s.run("text.insert", &json!({"text": "With "})).unwrap();
+        s.run("calc.insert", &json!({"text": "L = 4.5 m", "display": false})).unwrap();
+        s.run("text.insert", &json!({"text": " the area is "})).unwrap();
+        s.run("calc.insert", &json!({"text": "A = L·2 m =", "display": false})).unwrap();
+        s.run("text.newParagraph", &json!({})).unwrap();
+        s.run("calc.insert", &json!({"text": "B = L·3 m =", "display": true})).unwrap();
+        s.run("text.newParagraph", &json!({})).unwrap();
+        assert_eq!(displays(&s), [false, false, true]);
+        s.run("calc.layout", &json!({"value": "lines"})).unwrap();
+        assert_eq!(displays(&s), [false, true, true], "steps on lines stand on their own line");
+        // The number format changed meanwhile: the mark stays with the equation.
+        s.sel = crate::Selection::caret(item_positions(&s.doc.body)[1].clone());
+        s.run("calc.options", &json!({"digits": 4, "scope": "equation"})).unwrap();
+        assert_eq!(displays(&s), [false, true, true]);
+        s.run("calc.layout", &json!({"value": "inline"})).unwrap();
+        assert_eq!(displays(&s), [false, false, true], "inline again; the display equation stays one");
+        assert_eq!(texts(&s)[1], "A=L·2m=(4.5m)·2m=9m²");
+        assert!(maths(&s).iter().all(|m| !m.calc_opts.as_deref().unwrap_or_default().contains("wasInline")), "no mark left");
+        assert_eq!(s.run("calc.recalculate", &json!({})).unwrap()["changed"], 0, "stable");
+    }
+
+    /// The total row turned off: a stale total in a cell that also holds a note's reference is
+    /// not the calculations' to take away (the note would go with it).
+    #[test]
+    fn the_total_row_turned_off_leaves_a_cell_with_a_note_alone() {
+        let mut s = session();
+        with_table(&mut s, &[&["Beam", "L [m]", "D [m]"], &["B1", "4", "8"], &["B2", "6", "12"], &["", "", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.calc", &json!({"value": true})).unwrap();
+        s.run("table.look", &json!({"totalRow": true})).unwrap();
+        assert_eq!(grid(&s)[3], ["Σ", "10", "20"]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 3, 1, 0]), 2));
+        s.run("references.footnote", &json!({"text": "checked"})).unwrap();
+        let notes = |s: &Session| {
+            let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+            t.rows.iter().flat_map(|r| &r.cells).flat_map(|c| &c.blocks).filter_map(|b| b.as_para()).flat_map(|p| &p.objects).count()
+        };
+        assert_eq!(notes(&s), 1);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.look", &json!({"totalRow": false})).unwrap();
+        assert_eq!(notes(&s), 1, "the note's reference stays in its cell");
+        let last = &grid(&s)[3];
+        assert_eq!((last[0].as_str(), last[2].as_str()), ("", ""), "the other totals go: {last:?}");
+    }
+
+    /// Every reader of a calculated equation takes its statement the same way: a unit's inline
+    /// quotient as typed, the powers of ten as strix-calc writes them.
+    #[test]
+    fn a_calculations_statement_is_read_the_same_everywhere() {
+        let mut s = session();
+        s.run("calc.steps", &json!({"value": true})).unwrap();
+        for t in ["q = 12 kN/m", "a = 0.0001 m", "b = 3 m", "c = a·b ="] {
+            add(&mut s, t);
+        }
+        let read: Vec<String> = s
+            .doc
+            .body
+            .iter()
+            .filter_map(|b| b.as_para())
+            .flat_map(|p| &p.objects)
+            .filter_map(|o| if let InlineObject::Equation { linear, math, .. } = o { Some(calc_text(linear, math)) } else { None })
+            .map(|t| t.replace(char::is_whitespace, ""))
+            .collect();
+        assert_eq!(read, texts(&s));
+        assert_eq!(read[0], "q=12kN/m");
+        assert!(read[3].ends_with("=3·10^-4m²"), "{read:?}");
+    }
+
+    /// Only top-level tables of the body are calculated (docs/calc.md): on a table inside
+    /// another table the calculated-table commands refuse and are greyed out, instead of giving
+    /// it a header and a style and never calculating it.
+    #[test]
+    fn a_nested_table_is_never_made_calculated() {
+        let mut s = session();
+        s.run("insert.table", &json!({"rows": 2, "cols": 2})).unwrap();
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 0, 0, 0]), 0));
+        s.run("insert.table", &json!({"rows": 3, "cols": 2})).unwrap();
+        let inner = |s: &Session| {
+            let Block::Table(outer) = &*s.doc.body[0] else { panic!("no table") };
+            outer.rows[0].cells[0].blocks.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap()
+        };
+        let at = s.doc.body[0].as_table().unwrap().rows[0].cells[0].blocks.iter().position(|b| matches!(&**b, Block::Table(_))).unwrap() as u32;
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 0, 0, at, 1, 0, 0]), 0));
+        let before = inner(&s);
+        for (id, params) in [
+            ("table.calc", json!({"value": true})),
+            ("table.calc", json!({})),
+            ("table.calcNames", json!({"value": "columnRow"})),
+            ("table.mathCells", json!({"value": true})),
+            ("table.calcIndex", json!({"value": true})),
+            ("table.calcTotal", json!({"value": true})),
+            ("calc.insertTable", json!({})),
+        ] {
+            let r = s.run(id, &params);
+            assert!(matches!(r, Err(CmdError::Disabled(_))), "{id}: {r:?}");
+            assert!(s.why_disabled(id).is_some(), "{id} is greyed out");
+            assert_eq!(inner(&s), before, "{id} leaves the table as it was");
+        }
+        assert!(s.doc.styles.styles.iter().all(|st| st.name != CALC_TABLE_STYLE), "no style added");
+        // The table around it is calculated as ever.
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        assert!(s.why_disabled("table.calc").is_none());
+        let r = s.run("table.calc", &json!({"value": true})).unwrap();
+        assert_eq!((r["calc"].as_bool(), r["recalculated"]["tables"].as_u64()), (Some(true), Some(1)), "{r}");
+        // A header or a footer's table is not calculated either.
+        let mut s = session();
+        s.run("insert.editHeader", &json!({"page": 0})).unwrap();
+        s.run("insert.table", &json!({"rows": 2, "cols": 2})).unwrap();
+        assert_ne!(s.sel.focus.story, wordcraft_doc::StoryRef::Body);
+        assert!(s.sel.focus.path.cell().is_some());
+        let r = s.run("table.calc", &json!({"value": true}));
+        assert!(matches!(r, Err(CmdError::Disabled(_))), "{r:?}");
+        assert!(s.why_disabled("table.calc").is_some());
+        // Nor is one inserted there, the caret outside any table: said before it is asked for.
+        let mut s = session();
+        s.run("insert.editHeader", &json!({"page": 0})).unwrap();
+        assert!(s.sel.focus.path.cell().is_none());
+        assert_eq!(s.why_disabled("calc.insertTable"), Some(NOT_BODY));
+        let r = s.run("calc.insertTable", &json!({}));
+        assert!(matches!(r, Err(CmdError::Disabled(_))), "{r:?}");
     }
 }

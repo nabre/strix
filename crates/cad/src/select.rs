@@ -372,6 +372,8 @@ impl Drawing {
 
     /// Puts the entities at `indices` on layer `name` (made if missing).
     pub fn set_layer(&mut self, indices: &[usize], name: &str) -> Result<(), String> {
+        // As `ensure_layer` names it: spaces round the name are not part of it.
+        let name = name.trim();
         self.ensure_layer(name)?;
         for &i in indices {
             if let Some(e) = self.entities.get_mut(i) {

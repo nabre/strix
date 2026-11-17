@@ -5,7 +5,7 @@
 //! the insertion point. Every change runs `ui.cadBlock`, so scripts and the MCP do the same
 //! without a window.
 
-use egui::{Color32, Pos2, Shape, Stroke, Ui};
+use egui::{Color32, Pos2, Stroke, Ui};
 use serde_json::{Value, json};
 use strix_cad::{Drawing, Pt};
 
@@ -161,7 +161,7 @@ pub(super) fn paint_preview(ed: &CadEditor, painter: &egui::Painter, view: View,
         for line in ghost.shape(e) {
             let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
             if screen.len() > 1 {
-                painter.add(Shape::dashed_line(&screen, Stroke::new(1.2, accent), 5.0, 3.0));
+                painter.add(super::clipped_dashes(painter.clip_rect(), &screen, Stroke::new(1.2, accent), 5.0, 3.0));
             }
         }
     }

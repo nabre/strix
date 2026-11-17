@@ -196,6 +196,9 @@ pub(super) fn underlay(s: &mut Session, v: &Value) -> CmdResult {
         }
         let mine = d.id.clone().unwrap_or_else(|| free_id(&list, None));
         let src_d = source_with_id(s, src, &list, Some(&mine))?;
+        // A pasted copy has its original's id: under that id it would be its own underlay
+        // (which `sanitize` drops), so it takes a free one.
+        let mine = if src_d.id.as_deref() == Some(mine.as_str()) { free_id(&list, None) } else { mine };
         if src_d.underlay.as_ref().is_some_and(|u| u.source == mine) {
             return Err(CmdError::Params("that drawing has this one as its underlay: two drawings can't be each other's".into()));
         }
@@ -326,6 +329,25 @@ mod tests {
         assert!(s.run("cad.name", &json!({"name": 3})).is_err());
         assert_eq!(s.run("cad.name", &json!({"name": "Sezione A-A"})).unwrap()["name"], json!("sezione-a-a"));
         assert_eq!(slug(&"x".repeat(500)).chars().count(), MAX_NAME);
+    }
+
+    /// A pasted copy carries its original's id: taking the original as its underlay gives the
+    /// copy an id of its own (under the shared one it was "its own underlay", dropped silently).
+    #[test]
+    fn a_copy_with_its_originals_id_takes_the_original_as_underlay() {
+        let mut s = Session::new(Document::new());
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        let plan = json!({"id": "plan", "entities": [{"type": "line", "a": [0, 0], "b": [100, 0]}]});
+        s.run("insert.cad", &json!({"drawing": plan})).unwrap();
+        s.sel = Selection::caret(s.sel.focus.clone());
+        s.run("text.insert", &json!({"text": "\n"})).unwrap();
+        s.run("insert.cad", &json!({"drawing": plan})).unwrap();
+        select(&mut s, 2);
+        assert_eq!(current(&s).id.as_deref(), Some("plan"), "the copy starts with the same id");
+        let r = s.run("cad.underlay", &json!({"source": 1})).unwrap();
+        let d = current(&s);
+        assert_eq!(d.underlay.as_ref().map(|u| u.source.as_str()), Some("plan"), "{r}");
+        assert_ne!(d.id.as_deref(), Some("plan"));
     }
 
     #[test]
