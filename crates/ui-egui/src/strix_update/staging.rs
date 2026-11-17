@@ -233,7 +233,14 @@ pub(super) fn stage(
         // `last` refuses, so nothing was replaced; never expected.
         Ok(()) => return Err("the update went further than downloading".into()),
     }
+    // Stopped while the download was being verified (automatic downloads turned off): nothing
+    // stays staged, or the next start would install it all the same.
+    stop.check()?;
     save(&paths.data, &staged)?;
+    if let Err(e) = stop.check() {
+        discard(&paths);
+        return Err(e);
+    }
     Ok(staged)
 }
 
