@@ -45,7 +45,8 @@ pub(crate) enum Tok {
     Operand,
     /// An n-ary operator: `∑` (sum), `∏` (product) or `∫` (definite integral).
     Nary(char),
-    /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`).
+    /// A comparison of a check: `≤` (also `<=`), `≥` (`>=`), `<`, `>` or `≠` (`!=`, unless the
+    /// `!` is written against an operand: `n!=` is a factorial and `=`).
     Cmp(char),
     /// `¦`: the bar-less fraction of a binomial coefficient, `(n¦k)` (Word's linear format).
     Choose,
@@ -237,6 +238,10 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                 Tok::Define
             }
             '≔' => Tok::Define,
+            // `5!=`, `n!=120`: a `!` written against its operand is the factorial, and the `=`
+            // after it the statement's (a built-up equation has no spaces: `c=5!=`). Not equal
+            // is `≠`, or `!=` set apart from what is before it (`a != b`).
+            '!' if next == Some('=') && i > 0 && ch(i - 1).is_some_and(|p| !p.is_whitespace()) && ends_operand(out.last()) => Tok::Bang,
             '<' | '>' | '!' if next == Some('=') => {
                 i += 1;
                 Tok::Cmp(match c {
@@ -290,6 +295,24 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
         i += 1;
     }
     Ok(out)
+}
+
+/// True when a postfix `!` can follow `last`: it ends a value (`5`, `n`, `(n − 1)`, `x²`, `3!`).
+fn ends_operand(last: Option<&Token>) -> bool {
+    matches!(
+        last.map(|t| &t.tok),
+        Some(
+            Tok::Num(_)
+                | Tok::Ident(_)
+                | Tok::RParen
+                | Tok::RBracket
+                | Tok::RBrace
+                | Tok::Sup(_)
+                | Tok::Bang
+                | Tok::RFloor(_)
+                | Tok::Bar { side: Side::Close, .. }
+        )
+    )
 }
 
 /// Reads a number starting at character `start`; returns the token and the index after it.

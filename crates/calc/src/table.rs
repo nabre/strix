@@ -503,7 +503,17 @@ impl Worksheet {
                 // difference where they are differences of temperatures.
                 let hint = hints.get(c).and_then(|h| h.as_deref());
                 let absolute = temps.get(c).copied().flatten() != Some(false);
-                let shown = aggregate(kind, &column_values).and_then(|q| self.cell_text_as(q, unit, hint, absolute));
+                // The sum of a column of absolute temperatures adds the numbers the column
+                // shows, on its own scale (20 and 30 in `[°C]`: 50), as its mean averages them.
+                let offset = unit.and_then(|u| crate::units::affine(&u.text)).map(|(_, offset)| offset);
+                let shown = match offset.filter(|_| absolute && matches!(kind, Total::Sum) && !column_values.is_empty()) {
+                    Some(offset) => {
+                        let readings: Result<Vec<Quantity>, CalcError> =
+                            column_values.iter().map(|q| Ok(Quantity { value: crate::quantity::finite(q.value - offset)?, ..*q })).collect();
+                        readings.and_then(|r| aggregate(kind, &r)).and_then(|q| self.cell_text_as(q, unit, hint, false))
+                    }
+                    None => aggregate(kind, &column_values).and_then(|q| self.cell_text_as(q, unit, hint, absolute)),
+                };
                 let new = match shown {
                     Ok(value) => format!("{key} = {value}"),
                     Err(err) => {

@@ -1251,7 +1251,7 @@ fn result_equations(s: &Session, (a, b): (usize, usize)) -> Vec<(usize, usize)> 
         }
         for (k, o) in p.objects.iter().enumerate() {
             if let InlineObject::Equation { linear, math, .. } = o {
-                let text = math.calc.then(|| super::super::calc::equation_text(linear, math));
+                let text = math.calc.then(|| super::super::calc::calc_text(linear, math));
                 eqs.push(((i, k), text));
             }
         }

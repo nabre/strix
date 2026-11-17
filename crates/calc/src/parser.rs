@@ -852,6 +852,18 @@ impl Parser<'_> {
         }
     }
 
+    /// The `▒` before the operand of an n-ary operator, if any. An equation built from text
+    /// whose operand follows a space (`∫_0^1 x^2 + 1 dx`, `∑_(i=1)^3 i²`) has an empty operand
+    /// and reads `∫_0^1▒()x^2+1dx` in linear format: the operand is what follows.
+    fn operand_mark(&mut self) {
+        if matches!(self.peek(), Some(Tok::Operand)) {
+            self.bump();
+            if matches!((self.peek(), self.toks.get(self.i + 1).map(|t| &t.tok)), (Some(Tok::LParen), Some(Tok::RParen))) {
+                self.i += 2;
+            }
+        }
+    }
+
     /// An n-ary operator after its sign: limits, an optional `▒` and the operand.
     fn nary(&mut self, op: char) -> R<Expr> {
         if op == '∫' {
@@ -884,9 +896,7 @@ impl Parser<'_> {
         if to.is_some() != from.is_some() {
             return Err(CalcError::syntax(self.pos(), "give both limits, like (i=1)^n, or a range variable alone"));
         }
-        if matches!(self.peek(), Some(Tok::Operand)) {
-            self.bump();
-        }
+        self.operand_mark();
         let body = Box::new(self.term()?);
         self.node(Expr::Nary(Nary { op, var, from, to, body }))
     }
@@ -911,9 +921,7 @@ impl Parser<'_> {
         if from.is_none() || to.is_none() {
             return Err(CalcError::syntax(self.pos(), "give both limits of the integral, like ∫_0^1"));
         }
-        if matches!(self.peek(), Some(Tok::Operand)) {
-            self.bump();
-        }
+        self.operand_mark();
         let mut body: Option<Expr> = None;
         let mut negate = false;
         loop {
