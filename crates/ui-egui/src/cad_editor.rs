@@ -2231,14 +2231,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let typing_text = ed.tool == Tool::Text && ed.points.len() == 1;
         let keys = key_input(ed, ui, view, (keys_free, typing_text), (hovering, tol));
         let enter = keys.enter;
+        if let Some(a) = keys.act() {
+            act = Some(a);
+        }
         if keys.kept.is_some() {
             finished = keys.kept;
-        }
-        if keys.delete {
-            act = Some(Act::Delete);
-        }
-        if let Some(undo) = keys.undo {
-            act = Some(if undo { Act::Undo } else { Act::Redo });
         }
 
         // Status and command line.
@@ -2468,6 +2465,18 @@ fn clip_segment(rect: Rect, a: Pos2, b: Pos2) -> Option<[Pos2; 2]> {
         }
     }
     (t0 <= t1).then(|| [a + d * t0, a + d * t1])
+}
+
+impl Keys {
+    /// What Delete, Ctrl+Z or Ctrl+Y asked for.
+    fn act(&self) -> Option<Act> {
+        match (self.delete, self.undo) {
+            (true, _) => Some(Act::Delete),
+            (false, Some(true)) => Some(Act::Undo),
+            (false, Some(false)) => Some(Act::Redo),
+            (false, None) => None,
+        }
+    }
 }
 
 /// `Shape::dashed_line` for a path that may reach far outside the visible area `clip`: zoomed in
