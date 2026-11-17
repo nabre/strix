@@ -49,7 +49,7 @@ fn parts(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
             let mut f = zip.by_index(i).unwrap();
             let mut b = Vec::new();
             f.read_to_end(&mut b).unwrap();
-            (f.name().to_string(), b)
+            (f.name().unwrap().to_string(), b)
         })
         .collect()
 }

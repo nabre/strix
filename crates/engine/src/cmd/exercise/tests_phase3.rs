@@ -481,10 +481,10 @@ fn f9_and_f4_preflight_check_and_export_pack_zip() {
     let mut names = Vec::new();
     for idx in 0..archive.len() {
         let mut entry = archive.by_index(idx).unwrap();
-        names.push(entry.name().to_string());
+        names.push(entry.name().unwrap().to_string());
         let mut head = [0u8; 5];
         entry.read_exact(&mut head).unwrap();
-        assert_eq!(&head, b"%PDF-", "{} must be a valid PDF", entry.name());
+        assert_eq!(&head, b"%PDF-", "{} must be a valid PDF", entry.name().unwrap());
     }
     assert!(names.contains(&"Fila_A.pdf".to_string()), "{names:?}");
     assert!(names.contains(&"Fila_B.pdf".to_string()), "{names:?}");
