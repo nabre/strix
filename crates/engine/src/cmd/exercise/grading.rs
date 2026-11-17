@@ -355,17 +355,19 @@ pub(crate) fn tables(s: &Session) -> Vec<usize> {
 }
 
 /// Resolves the maximum points for `cfg` in `s`: explicit `max_points`, else `scores::grand_total`,
-/// else the sum of all exercises' question points, else `10.0`.
+/// else the sum of all exercises' question points, else `10.0`. Within what a scale is built on
+/// ([`Config::scale`]), so what is reported as the maximum is the scale's.
 pub(crate) fn resolved_max_points(s: &Session, cfg: &Config) -> f64 {
+    let within = |v: f64| v.clamp(0.5, MAX_POINTS_CAP);
     if let Some(m) = cfg.max_points {
-        return m;
+        return within(m);
     }
     if let Some(tot) = super::scores::grand_total(s).filter(|&v| v > 0.0) {
-        return tot;
+        return within(tot);
     }
     let layout = scan(s);
     let ex_sum: f64 = (0..layout.exercises.len()).filter_map(|e| super::items::total(s, &layout, e)).sum();
-    if ex_sum > 0.0 && ex_sum.is_finite() { ex_sum } else { 10.0 }
+    if ex_sum > 0.0 && ex_sum.is_finite() { within(ex_sum) } else { 10.0 }
 }
 
 fn should_hide(s: &Session, cfg: &Config) -> bool {
@@ -891,5 +893,29 @@ mod tests {
             }
         }
         assert!(wrong.is_empty(), "{} wrong, e.g. {:?}", wrong.len(), wrong.iter().take(8).collect::<Vec<_>>());
+    }
+
+    /// Found in review: with a scores total beyond what a scale is built on (10 000 points)
+    /// `effectiveMaxPoints` gave the real total while the scale stopped at the limit. They agree.
+    #[test]
+    fn the_effective_maximum_is_the_one_the_scale_is_built_on() {
+        use serde_json::json;
+        let mut s = crate::Session::new(wordcraft_doc::Document::new());
+        s.run("document.setText", &json!({"text": "Intro"})).unwrap();
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.scores", &json!({"on": true})).unwrap();
+        s.run("exercise.scores", &json!({"exercise": 1, "criterion": 1, "points": 20000})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.grading", &json!({"on": true})).unwrap();
+        let top = |st: &serde_json::Value| st["scale"].as_array().unwrap().iter().filter_map(|b| b["from"].as_f64()).fold(0.0, f64::max);
+        let st = s.run("exercise.grading", &json!({})).unwrap();
+        assert_eq!(st["effectiveMaxPoints"], json!(10000.0), "{st}");
+        assert!(top(&st) <= 10000.0, "{st}");
+        // And below the least a scale is built on.
+        s.run("exercise.scores", &json!({"exercise": 1, "criterion": 1, "points": 0.2})).unwrap();
+        let st = s.run("exercise.grading", &json!({})).unwrap();
+        assert_eq!(st["effectiveMaxPoints"], json!(0.5), "{st}");
     }
 }

@@ -344,6 +344,7 @@ pub fn insert(s: &mut Session, mut frag: Fragment) -> Result<(), CmdError> {
     // An exercise never goes inside another one: after it (docs/exercise.md, Structure).
     super::exercise::outside_for(s, &frag.blocks);
     let at = delete_selection(s)?;
+    let pasted_exercises = super::exercise::before_paste(s, &frag.blocks);
     let track = s.doc.settings.track_changes;
     let mut rid = None;
     if track {
@@ -381,6 +382,9 @@ pub fn insert(s: &mut Session, mut frag: Fragment) -> Result<(), CmdError> {
         }
     }
     s.sel = Selection::caret(end);
+    if let Some(before) = pasted_exercises {
+        super::exercise::after_paste(s, before);
+    }
     Ok(())
 }
 

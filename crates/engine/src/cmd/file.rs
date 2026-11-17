@@ -448,7 +448,9 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     // Undone below if the write fails: a failed save (no permission, disk full, a bad path)
     // must not leave the document's own save stamps — zoom, modified/created, author, revision —
     // changed, or a later save would persist them for a write that never actually happened.
-    // A master document writes its edited subdocuments back first (Outlining › Master Document).
+    // A master document writes its edited subdocuments back once it is saved itself, so a save
+    // that fails changes no file; the conflicts are marked first, to be in the file saved
+    // (Outlining › Master Document).
     let subdocuments = super::master::before_save(s, &path);
     let before_stamp =
         (s.doc.settings.zoom, s.doc.core.last_modified_by.clone(), s.doc.core.created.clone(), s.doc.core.modified.clone(), s.doc.core.revision);
@@ -473,8 +475,8 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
         s.relayout();
     }
     let mut r = json!({"saved": true, "path": path.to_string_lossy(), "encrypted": encrypted});
-    if let (Some(subs), Some(o)) = (subdocuments, r.as_object_mut()) {
-        o.insert("subdocuments".into(), subs);
+    if subdocuments && let Some(o) = r.as_object_mut() {
+        o.insert("subdocuments".into(), super::master::after_save(s));
     }
     Ok(r)
 }

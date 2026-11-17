@@ -10,7 +10,8 @@ use wordcraft_doc::props::{CharProps, ParaProps};
 use wordcraft_doc::{InlineObject, Pos, StoryRef};
 
 use super::{
-    MAX_EXERCISES, STYLE_DATA, STYLE_HEADING, STYLE_PROMPT, STYLE_RESULT, STYLE_TITLE, TAG_EXERCISE, TAG_RESULTS, exercise_at_caret, scan, update,
+    MAX_EXERCISES, STYLE_DATA, STYLE_HEADING, STYLE_PROMPT, STYLE_RESULT, STYLE_TITLE, TAG_EXERCISE, TAG_RESULTS, exercise_at_caret, scan, scores,
+    update,
 };
 use crate::{CmdError, CmdResult, Selection, Session};
 
@@ -133,6 +134,11 @@ pub(crate) fn widen_selection(s: &mut Session) -> Option<Tidy> {
     if found.is_empty() {
         return None;
     }
+    // Their scores rows go with them (not when the deletion is only tracked: they stay then,
+    // and not from inside the table, whose rows the selection's ends are in).
+    if !s.doc.settings.track_changes && !scores::holds(s, &a) && !scores::holds(s, &b) {
+        scores::drop_rows(s, &found.iter().map(|(i, _)| *i).collect::<Vec<_>>());
+    }
     let (mut na, mut nb) = (a, b);
     for (_, r) in &found {
         if le(&r.start, &na) {
@@ -212,6 +218,8 @@ pub(super) fn delete(s: &mut Session, v: &Value) -> CmdResult {
         !spans.iter().any(|(a, b)| (a, b) != (&r.start, &after(r)) && le(a, &r.start) && le(&after(r), b))
     });
     let mut caret = None;
+    // Their rows of the scores table go with them, so the others keep their points.
+    scores::drop_rows(s, &targets);
     // Last first, so the positions of the ones before stay valid.
     for &t in targets.iter().rev() {
         let Some(r) = ranges.get(t).and_then(Option::as_ref) else {
@@ -451,5 +459,50 @@ Fine"}),
         let mut s = two();
         s.run("exercise.delete", &json!({"exercise": [2, 1, 2]})).unwrap();
         assert!(scan(&s).exercises.is_empty());
+    }
+
+    /// Found in review: with a scores table, deleting the first exercise gave its points to the
+    /// one that took its number. Its row goes with it, however it is deleted (Backspace or Cut
+    /// over a selection covering it too).
+    #[test]
+    fn a_selection_deleted_takes_the_exercises_scores_rows_with_it() {
+        let points = |s: &mut Session| s.run("exercise.scores", &json!({})).unwrap()["points"].clone();
+        let scored = || {
+            let mut s = two();
+            s.sel = Selection::caret(at(0, 0));
+            s.run("exercise.scores", &json!({"on": true})).unwrap();
+            s.run("exercise.scores", &json!({"exercise": 1, "criterion": 1, "points": 5})).unwrap();
+            s.run("exercise.scores", &json!({"exercise": 2, "criterion": 1, "points": 7})).unwrap();
+            s
+        };
+        // The first exercise selected as the mouse does.
+        let select = |s: &mut Session| {
+            let (title, last) = (find(s, "Uno"), find(s, "Due") - 1);
+            s.sel = Selection { anchor: at(last, len(s, last)), focus: at(title, 2 * OBJ.len_utf8()) };
+            assert_eq!(covered_by_selection(s), [0]);
+        };
+        for command in ["text.backspace", "text.delete", "edit.cut"] {
+            let mut s = scored();
+            select(&mut s);
+            s.run(command, &json!({})).unwrap();
+            assert_eq!(scan(&s).exercises.len(), 1, "{command}");
+            assert_eq!(points(&mut s), json!([[7.0]]), "{command}");
+            s.run("edit.undo", &json!({})).unwrap();
+            assert_eq!(points(&mut s), json!([[5.0], [7.0]]), "{command}");
+        }
+        // Tracked, the exercise stays (marked deleted), and so do the rows.
+        let mut s = scored();
+        s.doc.settings.track_changes = true;
+        select(&mut s);
+        let _ = s.run("text.delete", &json!({}));
+        let n = scan(&s).exercises.len();
+        assert_eq!(points(&mut s).as_array().map(Vec::len), Some(n));
+        if n == 2 {
+            assert_eq!(points(&mut s), json!([[5.0], [7.0]]));
+        }
+        // Delete Exercise by number.
+        let mut s = scored();
+        s.run("exercise.delete", &json!({"exercise": 1})).unwrap();
+        assert_eq!(points(&mut s), json!([[7.0]]));
     }
 }

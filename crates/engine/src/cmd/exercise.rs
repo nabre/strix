@@ -79,7 +79,7 @@ pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
 pub use expr::{SHOW_MODES, TAG_EXPR, inline_value_at};
 pub use grading::TAG_GRADING;
-pub(crate) use guard::{outside_for, typing_target};
+pub(crate) use guard::{after_paste, before_paste, outside_for, typing_target};
 pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
 pub use items_ext::TAG_RATIONALE;
 pub(crate) use language::follow_language;
@@ -150,7 +150,12 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
-            .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
+            .when(|s| match exercise_at_caret(s) {
+                None => Some("the cursor isn't in an exercise"),
+                // A note goes between or after the questions: there is none yet.
+                Some(e) if scan(s).exercises.get(e).is_some_and(|e| e.no_questions) => Some("write a question first"),
+                Some(_) => None,
+            })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("equation.answer", "Result Of", "Teaching › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
@@ -610,6 +615,10 @@ fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     }
     // The caret goes into the title, ready to type.
     s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
+    // An empty row for it in the scores table, where it stands: the others keep their points.
+    if let Some(e) = exercise_at_caret(s) {
+        scores::open_row(s, e);
+    }
     s.touch();
     update(s);
     s.clamp_selection();
@@ -1931,6 +1940,16 @@ pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
     s.doc
 }
 
+/// A new subdocument file `doc`, made from a master: the master's DSA formatting stays in the
+/// master (docs/master-documents.md), as for a file written back ([`keep_own`]); every style it
+/// changed has the formatting it had before.
+pub(crate) fn without_dsa(mut doc: Document) -> Document {
+    let mut plain = Document::new();
+    Arc::make_mut(&mut plain.styles).styles.clear();
+    dsa::leave_out(&mut doc, &plain);
+    doc
+}
+
 /// `doc` with its automatic parts up to date, its results summary included: a subdocument's
 /// file, written from a master, opened alone.
 pub(crate) fn with_results(doc: Document) -> Document {
@@ -2183,6 +2202,20 @@ mod tests {
         s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
         assert!(s.doc.body.iter().any(|b| matches!(&**b, Block::Para(p) if p.props.graph.is_some())), "{:?}", texts(&s));
         assert_eq!(scan(&s).exercises.len(), 1);
+    }
+
+    /// Found in review: Add Note was offered in an exercise still showing the questions'
+    /// placeholder, then failed. It is disabled there, with the reason.
+    #[test]
+    fn add_note_is_disabled_until_there_is_a_question() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "T"})).unwrap();
+        let e = s.run("exercise.addNote", &json!({"text": "Nota"})).unwrap_err();
+        assert!(matches!(e, CmdError::Disabled(_)), "{e:?}");
+        assert!(e.to_string().contains("write a question first"), "{e}");
+        s.run("exercise.addQuestion", &json!({"text": "Trova x"})).unwrap();
+        s.run("exercise.addNote", &json!({"text": "Nota"})).unwrap();
+        assert!(texts(&s).iter().any(|t| t == "Nota"), "{:?}", texts(&s));
     }
 
     /// Adding a question or a note after the last question keeps that question's formatting.

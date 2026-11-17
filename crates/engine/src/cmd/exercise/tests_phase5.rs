@@ -538,6 +538,37 @@ fn an_exercise_pasted_in_the_frontispiece_goes_after_it() {
     assert_eq!(layout.exercises.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Due", "Uno", "Due"]);
 }
 
+/// Found in review: an exercise pasted between two others took the points of the one it pushed
+/// down, and the last exercise's were lost (the scores rows were matched by their numbers). The
+/// pasted exercise gets an empty row where it stands.
+#[test]
+fn an_exercise_pasted_between_others_gets_an_empty_scores_row() {
+    use wordcraft_doc::Pos;
+    let mut s = Session::new(Document::new());
+    run(&mut s, "document.setText", json!({"text": "Intro"}));
+    for t in ["Uno", "Due", "Tre"] {
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "exercise.insert", json!({"title": t, "questions": ["q"]}));
+    }
+    run(&mut s, "caret.docStart", json!({}));
+    run(&mut s, "exercise.scores", json!({"on": true}));
+    for (ex, pts) in [(1, 1), (2, 20), (3, 3)] {
+        run(&mut s, "exercise.scores", json!({"exercise": ex, "criterion": 1, "points": pts}));
+    }
+    let (a, b) = blocks_of(&s, 2);
+    let end = s.doc.body[b].as_para().map_or(0, |p| p.text.len());
+    s.sel = crate::Selection { anchor: Pos::body(a, 0), focus: Pos::body(b, end) };
+    run(&mut s, "edit.copy", json!({}));
+    // With the caret in the first exercise the copy goes after it.
+    run(&mut s, "select.text", json!({"text": "Uno"}));
+    run(&mut s, "edit.paste", json!({}));
+    let titles: Vec<String> = super::scan(&s).exercises.iter().map(|e| e.title.clone()).collect();
+    assert_eq!(titles, ["Uno", "Tre", "Due", "Tre"]);
+    assert_eq!(run(&mut s, "exercise.scores", json!({}))["points"], json!([[1.0], [null], [20.0], [3.0]]));
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(run(&mut s, "exercise.scores", json!({}))["points"], json!([[1.0], [20.0], [3.0]]));
+}
+
 /// A quiz's only true/false question on the title line of an exercise ending a subdocument (a
 /// master document): the line closes the subdocument too, and converting the question left its
 /// options outside the questions, so the conversion failed half done.

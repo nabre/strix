@@ -1,6 +1,6 @@
 # Master documents
 
-> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-11 · **Change:** DSA formatting stays in the master; a known gap noted (series-setting changes rewrite the files); previously: the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
+> **Status:** first version: insert, create, unlink, reload, save back, open · **Last updated:** 2026-11-17 · **Change:** a subdocument never compared with its file is a conflict when they differ; subdocuments written after the master; a new file takes no property or DSA formatting of the master's; previously: DSA formatting stays in the master; a known gap noted (series-setting changes rewrite the files); previously: the files keep their own styles, numbering, series' settings and frontispiece; the master keeps its series' settings on reopening; previously: subdocuments marked on the page with Show/Hide ¶; Insert in an exercise goes after it; Unlink/Open act on a lone subdocument; style and numbering changes in the master reach the files; errors after picking a file shown; previously: styles and lists of a subdocument come with it
 
 A **master document** shows other documents — its **subdocuments** — in place, each still linked
 to its own file: editing a subdocument's text in the master and saving the master changes that
@@ -43,7 +43,8 @@ Save or Reload all of them.
   `strix-subdoc path=<absolute path>` and titled with the file name. It can't be deleted by
   accident (only its content is edited); Unlink removes it.
 - **Saving** the master as its own file (`.xmath`, or another editable format; not a static
-  export) first writes every subdocument edited in the master back to its file, in that file's
+  export) writes every subdocument edited in the master back to its file once the master itself
+  is saved (a save that fails changes no file), in that file's
   format, with the file's own styles and document defaults, its exercises' numbering and series'
   settings and its frontispiece kept as they were (the formatting is the master's only inside the
   master), and the file's own document properties. A subdocument not edited isn't rewritten:
@@ -58,6 +59,15 @@ Save or Reload all of them.
   master's) settles it. In the Subdocuments pane, Keep This Version does that for the one
   subdocument of its card (`"path"`); a subdocument not edited in the master is never written,
   forced or not, so a file someone else changed is not put back to the master's older copy.
+- A subdocument the master **never compared with its file** — a master loaded without being
+  opened from its file, as a recovered copy is, or a subdocument pasted in — is in step when
+  its content is what the file holds, and a conflict when they differ: which is the newer is
+  not known, so the file is not overwritten and the master's version is kept, until Reload or
+  Keep This Version settles it. `strix-cli` opens a master as File › Open does (`run --file`,
+  `convert`, `text`…): the subdocuments are read from their files first.
+- A **new file** (Create, or a file gone missing written again) takes nothing of the master's
+  own: no document properties (the archive properties among them, [archive.md](archive.md)) and
+  no DSA formatting.
 - When the folder holding the master and its subdocuments moves, a link whose path is gone finds
   the file of the same name beside the master.
 - A subdocument inside a subdocument is part of its content: it is a link again when that file
@@ -86,6 +96,8 @@ Save or Reload all of them.
 - DSA formatting ([dsa.md](dsa.md)) stays in the master: a file written back keeps its own styles.
 
 ## Revision history
+
+- 2026-11-17: fixes found in a review: a subdocument never compared with its file and differing from it is a conflict, not overwritten with the master's copy (a master loaded by `strix-cli run --file`, which now reads the files as File › Open does, or a recovered copy); the subdocuments are written after the master, so a failed save changes no file; a new subdocument file takes neither the master's document properties nor its DSA formatting.
 
 - 2026-11-11: DSA formatting stays in the master; known gap: series-setting changes rewrite the files.
 

@@ -8,10 +8,13 @@
 //! missing, and the tag round-trips through `.xmath` and `.docx` as an ordinary content control.
 //!
 //! - **Saving** the master (as its own file, not a static export) writes every subdocument edited
-//!   in the master back to its file, in that file's format. One that is unchanged isn't touched.
+//!   in the master back to its file, in that file's format, once the master itself is saved. One
+//!   that is unchanged isn't touched.
 //!   One changed both in the master and on disk since they last agreed is a conflict: the file is
 //!   left alone, the master keeps its version (marked `conflict` in the tag, so reopening doesn't
 //!   replace it), and `master.saveSubdocuments {"force": true}` or `master.refresh` settle it.
+//!   So is one the master never compared with its file (loaded without File › Open, as a
+//!   recovered copy is) when the two differ.
 //! - **Opening** the master reloads every subdocument whose file changed since (files win), so
 //!   edits made to a chapter on its own show up in the book.
 //!
@@ -278,13 +281,20 @@ fn load(s: &mut Session, path: &Path) -> Result<(Fragment, u64), String> {
 }
 
 /// The file a subdocument with content `frag` saves as: the master with only that content, the
-/// existing file's document properties kept.
+/// existing file's document properties kept. A new file has none: the master's (its archive
+/// properties among them) are the master's (docs/archive.md).
 fn subdocument_file(master: &Document, frag: &Fragment, old: Option<&Document>) -> Document {
     let mut d = master.clone();
     d.body = frag.blocks.iter().cloned().map(std::sync::Arc::new).collect();
-    if let Some(old) = old {
-        d.core = old.core.clone();
-        d.custom_props = old.custom_props.clone();
+    match old {
+        Some(old) => {
+            d.core = old.core.clone();
+            d.custom_props = old.custom_props.clone();
+        }
+        None => {
+            d.core = wordcraft_doc::CoreProps::default();
+            d.custom_props.clear();
+        }
     }
     // Only the comments and text boxes the content still has.
     let mut ids = std::collections::BTreeSet::new();
@@ -318,7 +328,8 @@ fn write(master: &Document, frag: &Fragment, path: &Path, own: bool) -> Result<u
     let doc = subdocument_file(master, frag, old.as_ref());
     let doc = match old.as_ref() {
         Some(old) => super::exercise::keep_own(doc, old),
-        None => doc,
+        // A new file: the master's DSA formatting stays in the master all the same.
+        None => super::exercise::without_dsa(doc),
     };
     let doc = super::exercise::with_results(doc);
     crate::strix_objects::check_save(&name, &doc)?;
@@ -589,6 +600,98 @@ fn refresh(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"reloaded": reloaded, "failed": failed}))
 }
 
+/// What a save does with a subdocument.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Plan {
+    /// Not edited in the master: its file is not touched.
+    Unchanged,
+    /// The file changed too, or the master never compared its copy with it: not overwritten.
+    Conflict,
+    Write,
+}
+
+/// Whether the master's copy of `sub`, which this session never compared with its file, is what
+/// the file holds: reading the file in again would change nothing. Tried on a copy of the
+/// master, with the master's series on it as when it is opened.
+fn same_as_file(s: &Session, sub: &Sub) -> bool {
+    let Some(now) = hash_without_list_ids(&content(&s.doc, &sub.range)) else { return false };
+    let mut probe = Session::new(s.doc.clone());
+    probe.path = s.path.clone();
+    let series = super::exercise::series_settings(&probe);
+    if !matches!(reload(&mut probe, sub), Ok(Ok(_))) {
+        return false;
+    }
+    super::exercise::impose_series(&mut probe, series.as_ref());
+    let read = subdocuments(&probe.doc).into_iter().find(|x| x.link.path == sub.link.path);
+    read.and_then(|x| hash_without_list_ids(&content(&probe.doc, &x.range))) == Some(now)
+}
+
+/// The hash of `frag` with its lists numbered as they come: a list's id is the document's (a
+/// file read in again gets new ones), not the content's.
+fn hash_without_list_ids(frag: &Fragment) -> Option<u64> {
+    let mut v = serde_json::to_value(&frag.blocks).ok()?;
+    renumber_lists(&mut v, &mut Vec::new(), 0);
+    serde_json::to_vec(&v).ok().map(|b| hash(&b))
+}
+
+/// Every `numbering.num` under `v` replaced by the order its list first appears in (`seen`).
+/// Deeper than any document nests, the ids stay (the content then reads as different).
+fn renumber_lists(v: &mut Value, seen: &mut Vec<u64>, depth: usize) {
+    if depth > 64 {
+        return;
+    }
+    match v {
+        Value::Array(a) => a.iter_mut().for_each(|x| renumber_lists(x, seen, depth + 1)),
+        Value::Object(o) => {
+            if let Some(n) = o.get_mut("numbering").and_then(|n| n.get_mut("num"))
+                && let Some(id) = n.as_u64().filter(|id| *id != 0)
+            {
+                let k = seen.iter().position(|x| *x == id).unwrap_or_else(|| {
+                    seen.push(id);
+                    seen.len() - 1
+                });
+                *n = json!(k + 1);
+            }
+            o.values_mut().for_each(|x| renumber_lists(x, seen, depth + 1));
+        }
+        _ => {}
+    }
+}
+
+/// What saving does with `sub` (content hash `now`), `force`d or not. A subdocument this session
+/// never compared with its file (a master loaded without File › Open, a recovered copy, a
+/// subdocument pasted in) is in step when it is what the file holds, and a conflict otherwise:
+/// which of the two is the newer is not known, so neither is lost.
+fn plan(s: &Session, sub: &Sub, now: u64, force: bool) -> Plan {
+    let id = s.document_id();
+    let file = resolve(s, &sub.link);
+    let disk_now = read_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
+    let last = synced(id, &sub.link.path);
+    if last.is_none()
+        && !sub.link.conflict
+        && let Some(disk) = disk_now
+    {
+        if same_as_file(s, sub) {
+            set_synced(id, &sub.link.path, Synced { disk, content: now });
+            return Plan::Unchanged;
+        }
+        return if force { Plan::Write } else { Plan::Conflict };
+    }
+    let edited = edited(last, now) || sub.link.conflict;
+    let changed_on_disk = match (last, disk_now) {
+        (Some(l), Some(d)) => l.disk != d,
+        (None, Some(_)) => sub.link.conflict,
+        (_, None) => false,
+    };
+    if !edited {
+        Plan::Unchanged
+    } else if changed_on_disk && !force {
+        Plan::Conflict
+    } else {
+        Plan::Write
+    }
+}
+
 /// Write the subdocuments edited in the master back to their files. With `force`, also those
 /// changed on disk since; without it those are conflicts, marked in their tags when `mark`. Only
 /// the subdocument linked to `only` when given. One not edited in the master is never written,
@@ -603,34 +706,24 @@ fn write_back(s: &mut Session, force: bool, mark: bool, only: Option<&Path>) -> 
         let file = resolve(s, &sub.link);
         let frag = content(&s.doc, &sub.range);
         let now = content_hash(&frag);
-        let disk_now = read_capped(&file.to_string_lossy(), MAX_FILE, "subdocument").ok().map(|b| hash(&b));
-        let last = synced(id, &sub.link.path);
-        let edited = edited(last, now) || sub.link.conflict;
-        let changed_on_disk = match (last, disk_now) {
-            (Some(l), Some(d)) => l.disk != d,
-            (None, Some(_)) => sub.link.conflict,
-            (_, None) => false,
-        };
-        if !edited {
-            unchanged.push(json!(sub.link.path));
-            continue;
-        }
-        if changed_on_disk && !force {
-            conflicts.push(json!(sub.link.path));
-            if mark && !sub.link.conflict {
-                set_tag(s, &sub, Link { conflict: true, ..sub.link.clone() });
-            }
-            continue;
-        }
-        match write(&s.doc, &frag, &file, true) {
-            Ok(disk) => {
-                set_synced(id, &sub.link.path, Synced { disk, content: now });
-                if sub.link.conflict {
-                    set_tag(s, &sub, Link { conflict: false, ..sub.link.clone() });
+        match plan(s, &sub, now, force) {
+            Plan::Unchanged => unchanged.push(json!(sub.link.path)),
+            Plan::Conflict => {
+                conflicts.push(json!(sub.link.path));
+                if mark && !sub.link.conflict {
+                    set_tag(s, &sub, Link { conflict: true, ..sub.link.clone() });
                 }
-                saved.push(json!(file));
             }
-            Err(e) => failed.push(json!({"path": file, "error": e})),
+            Plan::Write => match write(&s.doc, &frag, &file, true) {
+                Ok(disk) => {
+                    set_synced(id, &sub.link.path, Synced { disk, content: now });
+                    if sub.link.conflict {
+                        set_tag(s, &sub, Link { conflict: false, ..sub.link.clone() });
+                    }
+                    saved.push(json!(file));
+                }
+                Err(e) => failed.push(json!({"path": file, "error": e})),
+            },
         }
     }
     json!({"saved": saved, "unchanged": unchanged, "conflicts": conflicts, "failed": failed})
@@ -682,14 +775,35 @@ fn list(s: &mut Session, _: &Value) -> CmdResult {
 // ---------------------------------------------------------------------------------------------
 // Hooks for file.save and file.open
 
-/// Before the master is saved to `path`: write its edited subdocuments back when `path` becomes
-/// the master's own file (not a static export). `None` when it has none.
-pub(crate) fn before_save(s: &mut Session, path: &Path) -> Option<Value> {
+/// Before the master is saved to `path`, when that becomes the master's own file (not a static
+/// export): the subdocuments that can't be written (changed on disk too, or never compared with
+/// their files) are marked as conflicts, so the file saved carries the marks. No file is written
+/// yet: a save that fails leaves the subdocuments' files as they were. Whether [`after_save`] is
+/// to follow (the document has subdocuments).
+pub(crate) fn before_save(s: &mut Session, path: &Path) -> bool {
     let name = path.to_string_lossy();
     if !(crate::io::is_native(&name) || crate::io::is_foreign_save(&name)) || subdocuments(&s.doc).is_empty() {
-        return None;
+        return false;
     }
-    let r = write_back(s, false, true, None);
+    for sub in subdocuments(&s.doc) {
+        let now = content_hash(&content(&s.doc, &sub.range));
+        if !sub.link.conflict && plan(s, &sub, now, false) == Plan::Conflict {
+            set_tag(s, &sub, Link { conflict: true, ..sub.link.clone() });
+        }
+    }
+    true
+}
+
+/// Once the master is saved ([`before_save`] said so): its edited subdocuments are written back.
+pub(crate) fn after_save(s: &mut Session) -> Value {
+    let settled = |s: &Session| subdocuments(&s.doc).iter().filter(|x| x.link.conflict).count();
+    let marked = settled(s);
+    let r = write_back(s, false, false, None);
+    // A conflict mark taken off now (its file was gone, and is written again) is not in the
+    // file just saved.
+    if settled(s) != marked {
+        s.dirty = true;
+    }
     let count = |k: &str| r.get(k).and_then(Value::as_array).map_or(0, Vec::len);
     if count("conflicts") > 0 {
         s.status = format!(
@@ -699,12 +813,14 @@ pub(crate) fn before_save(s: &mut Session, path: &Path) -> Option<Value> {
     } else if count("failed") > 0 {
         s.status = format!("{} subdocument(s) could not be saved", count("failed"));
     }
-    Some(r)
+    r
 }
 
 /// After a master is opened: reload the subdocuments whose files changed (files win), except the
-/// ones holding a conflict. `None` when it has none.
-pub(crate) fn after_open(s: &mut Session) -> Option<Value> {
+/// ones holding a conflict. `None` when it has none. Every way a master is loaded from its file
+/// runs it (`file.open`, the command line's `--file`); one that doesn't (a recovered copy, whose
+/// edits the files must not replace) leaves the subdocuments to [`plan`].
+pub fn after_open(s: &mut Session) -> Option<Value> {
     let subs = subdocuments(&s.doc);
     if subs.is_empty() {
         return None;

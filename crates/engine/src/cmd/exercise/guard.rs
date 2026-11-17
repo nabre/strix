@@ -91,6 +91,30 @@ fn holds_exercise(blocks: &[Block]) -> bool {
     })
 }
 
+/// Before `blocks` are pasted at the caret (already moved outside any exercise): when they hold
+/// an exercise, how many exercises start before the caret and how many the document has, for
+/// [`after_paste`].
+pub(crate) fn before_paste(s: &Session, blocks: &[Block]) -> Option<(usize, usize)> {
+    if !holds_exercise(blocks) || s.sel.focus.story != StoryRef::Body {
+        return None;
+    }
+    let top = s.sel.focus.path.0.first().map(|&t| t as usize)?;
+    let layout = scan(s);
+    let before = layout.parts.iter().take(top.saturating_add(1)).filter_map(|(e, _)| *e).max().map_or(0, |e| e + 1);
+    Some((before, layout.exercises.len()))
+}
+
+/// After the paste [`before_paste`] looked at: the exercises it brought get an empty row each
+/// in the scores table where they stand, so the exercises after them keep their points (matched
+/// by their numbers, the rows gave the pasted exercise the points of the one it pushed down).
+pub(crate) fn after_paste(s: &mut Session, (before, total): (usize, usize)) {
+    let pasted = scan(s).exercises.len().saturating_sub(total);
+    if pasted > 0 {
+        let new: Vec<usize> = (before..before.saturating_add(pasted)).collect();
+        super::scores::open_rows(s, &new);
+    }
+}
+
 /// Before `blocks` go in at the selection: when they hold an exercise and the selection is in an
 /// exercise (or in the results summary), the caret moves to a new empty paragraph right after
 /// that exercise (before the summary), so the exercises never nest; in the frontispiece, to one

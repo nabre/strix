@@ -269,9 +269,14 @@ pub(crate) fn hide_selection(s: &mut Session, _v: &Value) -> CmdResult {
     }
     // Only inside an exercise: elsewhere nothing would ever turn the words into a line.
     let top = x.path.0.first().map(|&t| t as usize);
-    let in_exercise = top.is_some_and(|t| super::scan(s).parts.get(t).is_some_and(|(ex, _)| ex.is_some()));
-    if !in_exercise {
+    let part = top.and_then(|t| super::scan(s).parts.get(t).copied());
+    if !part.is_some_and(|(ex, _)| ex.is_some()) {
         return Err(CmdError::Disabled("select words inside an exercise".into()));
+    }
+    // A question repeated in the solution is rebuilt from the question: words hidden there
+    // would be gone at once.
+    if matches!(part, Some((_, super::Part::Prompt))) {
+        return Err(CmdError::Disabled("a question repeated in the solution can't be changed: hide the words in the question itself".into()));
     }
     let para = s.doc.para_mut(x.story, &x.path).map_err(|e| CmdError::Failed(e.to_string()))?;
     let (from, to) = (x.off.min(para.text.len()), y.off.min(para.text.len()));
@@ -281,6 +286,10 @@ pub(crate) fn hide_selection(s: &mut Session, _v: &Value) -> CmdResult {
     }
     // Spaces selected around the words stay outside the blank.
     let lead = raw.len() - raw.trim_start().len();
+    // Never a part of the selection only (`clean` cuts at the longest word kept).
+    if raw.trim().chars().count() > MAX_WORD_CHARS {
+        return Err(CmdError::Failed(format!("the selection is too long to hide: at most {MAX_WORD_CHARS} characters, select less")));
+    }
     let word = clean(raw);
     if word.is_empty() {
         return Err(CmdError::Params("the selection has no words".into()));
@@ -454,5 +463,44 @@ mod tests {
         run(&mut s, "select.text", json!({"text": "sangue"}));
         assert!(s.run("exercise.blank", &json!({})).is_err());
         assert_eq!(texts(&s), vec!["Il cuore pompa il sangue.".to_string()]);
+    }
+
+    /// Found in review: a selection longer than a hidden word can be hid its first 200
+    /// characters and said nothing; it is refused, the text untouched.
+    #[test]
+    fn a_selection_too_long_to_hide_is_refused() {
+        let long = "parola ".repeat(40);
+        let long = long.trim();
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"kind": "cloze", "questions": [{"text": format!("Inizio {long} fine.")}]}));
+        let before = texts(&s);
+        run(&mut s, "select.text", json!({"text": long}));
+        let e = s.run("exercise.blank", &json!({})).unwrap_err();
+        assert!(e.to_string().contains("200"), "{e}");
+        assert_eq!(texts(&s), before);
+        // As long as it can be: hidden whole.
+        let fits = &long[..199];
+        run(&mut s, "select.text", json!({"text": fits}));
+        assert_eq!(run(&mut s, "exercise.blank", json!({}))["word"], json!(fits));
+    }
+
+    /// Found in review: in a question repeated in the solution (rebuilt from the question, not
+    /// edited) Hide Words said it had hidden the words and the rebuild took them back: refused.
+    #[test]
+    fn hide_words_in_a_repeated_question_is_refused() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        run(&mut s, "exercise.insert", json!({"title": "Moto", "questions": ["Trova la velocità finale"]}));
+        let layout = super::super::scan(&s);
+        let (prompt, _) = *layout.exercises[0].prompts.first().expect("the repeated question");
+        let p = s.doc.body[prompt].as_para().unwrap();
+        let at = p.text.find("velocità").expect("repeated");
+        let pos = |off| wordcraft_doc::Pos::body(prompt, off);
+        s.sel = crate::Selection { anchor: pos(at), focus: pos(at + "velocità".len()) };
+        let before = texts(&s);
+        assert!(s.run("exercise.blank", &json!({})).is_err());
+        assert_eq!(texts(&s), before);
+        // In the question itself it hides.
+        run(&mut s, "select.text", json!({"text": "velocità"}));
+        assert_eq!(run(&mut s, "exercise.blank", json!({}))["word"], "velocità");
     }
 }

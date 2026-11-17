@@ -28,17 +28,22 @@ pub struct Datum {
 
 /// Reads a datum written as an equation, `L = 4.5 m` (`with_description`: a page line may start
 /// with its description, `luce: L = 4.5 m`). `None` for an empty text. Text without `=` is the
-/// symbol alone.
+/// symbol alone. The description ends at the last colon with an equation after it, so it may
+/// hold an `=` of its own (`velocità = alta: v = 3 m/s`), and a colon in the value (`s = 1:100`)
+/// is the value's.
 pub fn parse_datum(text: &str, with_description: bool) -> Option<Datum> {
     let text = text.trim();
     if text.is_empty() {
         return None;
     }
-    let (lhs, rhs) = text.split_once('=').unwrap_or((text, ""));
-    let (description, symbol) = match lhs.rsplit_once(':') {
-        Some((d, s)) if with_description => (d.trim(), s.trim()),
-        _ => ("", lhs.trim()),
+    let before = text.rfind('=').and_then(|eq| text.get(..eq)).unwrap_or(text);
+    let colon = if with_description { before.rfind(':') } else { None };
+    let (description, equation) = match colon {
+        Some(c) => (text.get(..c).unwrap_or_default().trim(), text.get(c + 1..).unwrap_or_default()),
+        None => ("", text),
     };
+    let (lhs, rhs) = equation.split_once('=').unwrap_or((equation, ""));
+    let symbol = lhs.trim();
     let (value, unit) = split_value_unit(rhs);
     Some(Datum { description: description.to_string(), symbol: symbol.to_string(), value, unit })
 }
@@ -365,5 +370,23 @@ mod tests {
             let _ = parse_datum(t, true);
             let _ = parse_datum(t, false);
         }
+    }
+
+    /// Found in review: a description with an `=` of its own was cut at it (`velocità` the
+    /// symbol, the rest its value). The description ends at the last colon before the equation.
+    #[test]
+    fn a_description_may_hold_an_equals_sign() {
+        let d = |t: &str| parse_datum(t, true).unwrap();
+        assert_eq!(
+            d("velocità = alta: v = 3 m/s"),
+            Datum { description: "velocità = alta".into(), symbol: "v".into(), value: "3".into(), unit: "m/s".into() }
+        );
+        assert_eq!(d("nota: a = b: L = 6 m"), Datum { description: "nota: a = b".into(), symbol: "L".into(), value: "6".into(), unit: "m".into() });
+        // A colon in the value is the value's (a ratio), with or without a description.
+        assert_eq!(d("s = 1:100"), Datum { description: String::new(), symbol: "s".into(), value: "1:100".into(), unit: String::new() });
+        assert_eq!(d("scala: s = 1:100").description, "scala");
+        assert_eq!(d("scala: s = 1:100").symbol, "s");
+        // Without descriptions (the Data panel) nothing changes.
+        assert_eq!(parse_datum("a = b: c = 3", false).unwrap().symbol, "a");
     }
 }

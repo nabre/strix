@@ -320,7 +320,11 @@ exercises (in the frontispiece, say):
 | Total | | 4 | | 4 | | 2 | | 10 |
 
 - the **rows are the document's exercises**, gathered by themselves and numbered as they are (a
-  new exercise adds its row, a deleted one takes it away);
+  new exercise adds its row, a deleted one takes it away). The points stay with their
+  exercise: deleting one (Delete Exercise, or Delete, Backspace or Cut over a selection covering
+  it) takes its row and the others keep theirs, a new exercise (`exercise.insert`) or one pasted in gets an
+  empty row where it stands, and undo brings the points back with the exercise. A worked
+  example made an exercise again gets its row by its number;
 - each **criterion** (IMP, MOD…) has **two columns**: one left empty, for the points given on the
   sheet, and one for the points the exercise is worth, typed in (`2`, `1,5`). Add Criterion adds
   both (`exercise.scores {"add": "MOD"}`); its name is typed in the header (or `"rename"`);
@@ -420,7 +424,9 @@ its button again or Esc closes it.
   into like text. When the caret leaves it, its lines are the data: a changed line changes its
   datum (in the active variant), a new line is a new datum (the same value in every variant), a
   line deleted removes its datum; then the part is rebuilt (the unit in the Unit style). While
-  the caret is in it, the part is left as typed.
+  the caret is in it, the part is left as typed. The description is what comes before the last
+  colon with an equation after it, so it may hold an `=` of its own (`velocità = alta: v = 3
+  m/s`), and a colon in the value (`s = 1:100`) is the value's.
 - **What the data part lists** regulates itself: the data the exercise doesn't already show
   (below); there is no switch to hide it.
 - **Variants**: A, B, C… Each datum has one value per variant; **+** adds a variant (a copy of
@@ -488,7 +494,7 @@ to the end.
 | `exercise.insert` | insert an exercise after the paragraph at the caret (`{"kind"?: "problem" \| "open" \| "choice" \| "trueFalse", "title"?, "text"?, "questions"?: [..]}`) |
 | `exercise.addQuestion` | add a question to the exercise at the caret (`{"text"?, "level"?: 0–2, "sub"?: bool}`) |
 | `exercise.questions` | a quiz's questions, or one question's settings (`{"question"?, "points"?, "height"?: cm, "grid"?, "spacing"?: mm, "correct"?}`) → `{"exercise", "kind", "questions", "total"}` |
-| `exercise.addNote` | add a note (free text, not a question) after the questions (`{"text"?}`) |
+| `exercise.addNote` | add a note (free text, not a question) after the questions (`{"text"?}`); disabled until the exercise has a question |
 | `equation.answer` | the equation at the caret is the result of question `n` (0: none) |
 | `exercise.info` | the exercise at the caret: number, title, questions with labels and levels, the equation's mark |
 | `exercise.update` | rebuild the repeated questions and the summary |
@@ -544,6 +550,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-17: fixes found in a review: the scores table's points stay with their exercise when another is deleted or inserted (they followed the row's number); Add Note is disabled until the exercise has a question; a datum's description may hold an `=`; the grading scale's `effectiveMaxPoints` is the maximum the scale is built on (0.5 to 10 000); Hide Words (`exercise.blank` without `expr`) refuses a selection over 200 characters, never hiding a part of it, and one in a question repeated in the solution.
 - 2026-11-16: the Question Settings pane has every question's and sub-question's settings on its own row (a quiz question's type, the points), sub-questions indented, instead of one card at the end for the question chosen; what a quiz question's type has opens under its row.
 - 2026-11-16: Exercise › Calculation › Data opens the Exercise Data pane beside the document (`view.dataPane`, docked on the right) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
 - 2026-11-16: Exercise › Questions › Question Settings opens a pane beside the document (`view.questionsPane`, docked on the right like the other properties panes) instead of a drop-down panel under the button; it follows the cursor and stays open while you write.
