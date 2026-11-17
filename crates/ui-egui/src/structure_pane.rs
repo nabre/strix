@@ -1142,9 +1142,8 @@ mod tests {
         let st = resolved(&mut app);
         let (cx, cy, s) = fit(&st, rect);
         let v = View { rect, cx, cy, s };
-        let mut state = State::default();
         // A member from B (6, 0) to (8, 2): a new node C.
-        state.tool = Tool::Member;
+        let mut state = State { tool: Tool::Member, ..State::default() };
         click(&mut app, &st, v, v.to_screen(6.0, 0.0), &mut state);
         click(&mut app, &st, v, v.to_screen(8.0, 2.0), &mut state);
         let st = resolved(&mut app);
