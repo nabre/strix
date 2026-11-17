@@ -2195,6 +2195,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         }
         // Selecting: a click adds (Shift removes), a click on empty space starts a two-click
         // window, a drag from empty space is a lasso, a fence or polygon takes clicked vertices.
+        // A click on the sheet while a field of a pane has the keyboard only ends that edit (it is
+        // passed over like a click that took a grip): the field stores its value as it loses the
+        // keyboard, in the pane drawn below, and a click that also changed the selection would
+        // have left it nothing to store the value in.
+        let grip_click = grip_click | ed.panel_typing;
         if selecting && !grip_click && !ed.grip_drag && !mods.alt {
             select_input(ed, &resp, view, (hover, hover_grip), tol, removing);
         } else if resp.clicked_by(egui::PointerButton::Primary)
