@@ -859,12 +859,29 @@ fn roots_of(f: &dyn Fn(f64) -> Result<f64, CalcError>) -> Vec<f64> {
     let mut grid: Vec<f64> = (-12 * PER_DECADE..=12 * PER_DECADE).map(|k| 10f64.powf(f64::from(k) / f64::from(PER_DECADE))).collect();
     let negatives: Vec<f64> = grid.iter().rev().map(|p| -p).collect();
     grid.splice(0..0, negatives.into_iter().chain([0.0]));
+    let (lowest, highest) = (grid.first().copied().unwrap_or(0.0), grid.last().copied().unwrap_or(0.0));
     let values: Vec<(f64, f64)> = grid.iter().filter_map(|&p| f(p).ok().filter(|v| v.is_finite()).map(|v| (p, v))).collect();
     let mut roots = Vec::new();
+    // Grid points where `f` is exactly 0 are roots, but for a run of them that reaches the end of
+    // the grid: that is `f` underflowing on its way to infinity (`e^(-x)` past 745), and it
+    // solves nothing.
+    let zero_at = |k: usize| values.get(k).is_some_and(|&(_, v)| v == 0.0);
+    let mut k = 0usize;
+    while k < values.len() {
+        let start = k;
+        while zero_at(k) {
+            k += 1;
+        }
+        let run = values.get(start..k).unwrap_or_default();
+        let fades = run.len() > 1 && (run.first().is_some_and(|&(p, _)| p == lowest) || run.last().is_some_and(|&(p, _)| p == highest));
+        if !fades {
+            roots.extend(run.iter().map(|&(p, _)| p));
+        }
+        k = k.max(start + 1);
+    }
     for pair in values.windows(2) {
         let (Some(&(a0, fa0)), Some(&(b0, fb0))) = (pair.first(), pair.get(1)) else { continue };
         if fa0 == 0.0 {
-            roots.push(a0);
             continue;
         }
         if fa0.signum() == fb0.signum() || fb0 == 0.0 {
@@ -891,23 +908,24 @@ fn roots_of(f: &dyn Fn(f64) -> Result<f64, CalcError>) -> Vec<f64> {
             roots.push(m);
         }
     }
-    if let Some(&(last, fl)) = values.last()
-        && fl == 0.0
-    {
-        roots.push(last);
-    }
     // Secant steps for roots that only touch zero (x² = 0).
     for &x0 in &[1.0, -1.0, 0.5, 2.0, 10.0, 0.1, 100.0, -10.0] {
         let (mut a, mut b) = (x0, x0 * 1.01 + 1e-6);
         let (Ok(mut fa), Ok(mut fb)) = (f(a), f(b)) else { continue };
         let scale = fa.abs().max(fb.abs()).max(1e-300);
+        // The nearest it gets to zero, once near enough: the point, the value and the step there.
+        let mut best: Option<(f64, f64, f64)> = None;
         for _ in 0..100 {
-            if fb.abs() <= 1e-12 * scale {
-                roots.push(b);
+            // Exactly 0 at two points running is no root found: `f` has underflowed there.
+            if fb == 0.0 && fa == 0.0 {
+                best = None;
                 break;
             }
+            if fb.abs() <= 1e-12 * scale && best.is_none_or(|(_, v, _)| fb.abs() < v) {
+                best = Some((b, fb.abs(), (b - a).abs()));
+            }
             let d = fb - fa;
-            if d == 0.0 || !d.is_finite() {
+            if fb == 0.0 || d == 0.0 || !d.is_finite() {
                 break;
             }
             let c = b - fb * (b - a) / d;
@@ -916,6 +934,17 @@ fn roots_of(f: &dyn Fn(f64) -> Result<f64, CalcError>) -> Vec<f64> {
                 break;
             }
             (a, fa, b, fb) = (b, fb, c, fc);
+        }
+        // A root is where `|f|` is smallest: a value that only fades away (`e^(-x)`, `1/x`) is
+        // smaller still further on, and one that is 0 all round (underflow) is no root either.
+        if let Some((x, v, step)) = best {
+            let h = 100.0 * step;
+            let beside = [f(x - h), f(x + h)];
+            let fades = beside.iter().any(|y| y.as_ref().is_ok_and(|y| y.abs() < v));
+            let rises = beside.iter().any(|y| y.as_ref().is_ok_and(|y| y.abs() > v));
+            if !fades && rises {
+                roots.push(x);
+            }
         }
     }
     let mut non_neg: Vec<f64> = roots.iter().copied().filter(|r| *r >= 0.0).collect();

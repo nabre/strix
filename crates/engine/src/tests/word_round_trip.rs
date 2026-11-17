@@ -365,3 +365,34 @@ fn student_blank_cells_of_before_are_shown_again() {
     let again = io::save_bytes("lab.docx", &back).unwrap();
     assert!(!parts(&again).iter().any(|(_, b)| String::from_utf8_lossy(b).contains("\"blanks\"")));
 }
+
+/// A calculation written on graph paper in the text: its wrapper sits inside the paragraph's own
+/// (the graph paper's). Both go when the file comes back, with no marker left behind, and both
+/// objects are live again.
+#[test]
+fn a_calculation_on_graph_paper_comes_back_live_with_no_marker_left() {
+    let mut s = Session::new(Document::from_text(""));
+    s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+    s.run("text.insert", &json!({"text": " then "})).unwrap();
+    s.run("calc.insert", &json!({"text": "A = L*2 ="})).unwrap();
+    s.run("text.insert", &json!({"text": " end"})).unwrap();
+    for b in s.doc.body.iter_mut() {
+        if let Block::Para(p) = std::sync::Arc::make_mut(b) {
+            p.props.graph = Some(std::sync::Arc::new(wordcraft_doc::graph_paper::GraphPaper::default()));
+        }
+    }
+    let before = kinds(&s.doc);
+    let text = s.doc.body[0].as_para().unwrap().text.clone();
+    for word in [false, true] {
+        let bytes = io::save_bytes("grid.docx", &s.doc).unwrap();
+        let bytes = if word { as_word_saves(&bytes, &|x| x) } else { bytes };
+        let back = io::open_bytes("grid.docx", &bytes).unwrap();
+        let p = back.body[0].as_para().unwrap();
+        let markers = p.objects.iter().filter(|o| matches!(o, InlineObject::ControlStart { .. } | InlineObject::ControlEnd)).count();
+        assert_eq!(markers, 0, "no control marker stays (through Word: {word}): {:?}", p.objects);
+        assert_eq!(p.text, text, "through Word: {word}");
+        assert_eq!(kinds(&back), before, "through Word: {word}");
+        assert!(pending(&back).is_empty());
+        assert!(equations(&back).iter().all(|(_, calc)| *calc), "{:?}", equations(&back));
+    }
+}

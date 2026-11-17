@@ -956,12 +956,21 @@ impl Unwrap<'_> {
         // A wrapper Word left without its end in this paragraph: its start goes.
         found.extend(stack.into_iter().filter_map(|(start, id)| id.map(|id| (start, None, id))));
         found.sort_by_key(|f| std::cmp::Reverse(f.0));
+        // The markers taken out so far, by where they were. All of them come after this wrapper's
+        // start; those before its end were inside it (a calculation on graph paper: its wrapper
+        // in the paragraph's), and its end has moved back by as much.
+        let mut gone: Vec<usize> = Vec::new();
         for (start, end, id) in found {
-            self.one(p, start, end, id);
+            let now = end.map(|e| e.saturating_sub(gone.iter().filter(|g| **g < e).count().saturating_mul(OBJ.len_utf8())));
+            if self.one(p, start, now, id) {
+                gone.push(start);
+                gone.extend(end);
+            }
         }
     }
 
-    fn one(&mut self, p: &mut Paragraph, start: usize, end: Option<usize>, id: u32) {
+    /// Decides the wrapper from `start` to `end`; returns whether its markers went.
+    fn one(&mut self, p: &mut Paragraph, start: usize, end: Option<usize>, id: u32) -> bool {
         let entry = self.entry(id).cloned();
         let inner: Vec<usize> = match end {
             Some(end) => p.object_offsets().into_iter().filter(|&o| o > start && o < end).collect(),
@@ -972,7 +981,7 @@ impl Unwrap<'_> {
             Some(e) => self.unchanged(p, e, &inner),
         };
         match self.verdict(entry.as_ref(), unchanged) {
-            Verdict::Pending => return,
+            Verdict::Pending => return false,
             Verdict::Restore => {
                 if let Some(e) = &entry {
                     restore(p, e, &inner);
@@ -984,6 +993,7 @@ impl Unwrap<'_> {
             let _ = p.delete(end, end + OBJ.len_utf8());
         }
         let _ = p.delete(start, start + OBJ.len_utf8());
+        true
     }
 
     /// Whether the content of a wrapper still shows what its entry recorded.

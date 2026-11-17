@@ -75,7 +75,8 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   or after `;`). Otherwise it is found **numerically**: its dimension is inferred algebraically
   from powers `x^k` and inverse ratios across the equation (plus known quantities), every sign
   change on a logarithmic grid from 10⁻¹² to 10¹² (both signs) is refined by bisection (a sign
-  change across a pole is dropped), and secant steps catch roots that touch zero. The **smallest
+  change across a pole is dropped), and secant steps catch roots that touch zero (only where `|f|` has a minimum there: a value
+  that merely fades towards zero, `e^(−x) + e^(−2·x) = 0`, is no root). The **smallest
   non-negative root** wins, else the negative root closest to zero. No root: "no value of x solves
   the equation".
 - After `⇒` Strix writes the solved value (with Show Steps, the algebra first); on the next
@@ -483,9 +484,11 @@ notation, in `crates/engine/tests/gallery_calculations.rs`):
   finite limit (`e^(−(x − 10⁵)²)`) can fall between the samples, and the result is then too small
   or 0 **without an error**. Put the limits near the peak (`∫_(10⁵ − 10)^(10⁵ + 10)`).
 - Both are numerical (`crates/calc/src/calculus.rs`): central differences with a Richardson
-  step; adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
+  step that shrinks until two estimates agree (a function that varies over microseconds is
+  differentiated at its own scale); adaptive Gauss–Kronrod 7–15 up to 200 intervals with a 10⁻¹⁰ relative tolerance, whose
   nodes never touch the limits (`∫_0^1 1/√x dx = 2`). Results keep 10 significant digits, so
-  `f′(1)` of `x²` is `2`, not `1.9999999999`.
+  `f′(1)` of `x²` is `2`, not `1.9999999999`. A definite integral between finite limits that
+  does not settle either (`∫_0^1 1/x dx`) is the same error as an improper one, not a number.
 
 **Composed units for structures.** A result that is a force times a length to a power keeps
 the units it is written in, force first: `F·a` with `F` in kN and `a` in m is `24 kN·m` (a moment,

@@ -991,8 +991,8 @@ impl Worksheet {
         }
         let sub = |name: &str| self.substitute(name, skip);
         let common = self.common_units(&[f], skip);
-        let worked = Self::with_common_units(f, &common, &sub);
-        (worked != Self::with_common_units(f, &[], &|_| None)).then_some(worked)
+        let worked = self.with_common_units(f, &common, &sub);
+        (worked != self.with_common_units(f, &[], &|_| None)).then_some(worked)
     }
 
     /// The working of formula `f`, worth `value`, before its result: the closed form of its sums
@@ -1001,7 +1001,7 @@ impl Worksheet {
     fn working(&self, f: &Expr, skip: Option<&str>, value: &Value) -> Vec<String> {
         let closed =
             crate::series::closed_form(f).filter(|c| eval(c, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok()));
-        let mut lines: Vec<String> = closed.iter().map(render).collect();
+        let mut lines: Vec<String> = closed.iter().map(|c| self.written(c)).collect();
         lines.extend(self.substituted(closed.as_ref().unwrap_or(f), skip));
         lines
     }
@@ -1295,7 +1295,8 @@ impl Worksheet {
                 Some(worked.into_iter().chain([result]).map(|line| Line::Same(None, line)).collect())
             }
             Solution::Isolated(f, rows) => {
-                let mut lines: Vec<Line> = rows.iter().map(|(side, other)| Line::New(format!("{} = {}", render(side), render(other)))).collect();
+                let mut lines: Vec<Line> =
+                    rows.iter().map(|(side, other)| Line::New(format!("{} = {}", self.written(side), self.written(other)))).collect();
                 if let Some(worked) = self.substituted(f, Some(x)) {
                     lines.push(Line::Same(name(), worked));
                 }
@@ -1304,15 +1305,15 @@ impl Worksheet {
             }
             Solution::Quadratic(plan) => {
                 let mut lines = Vec::new();
-                let std_eq = format!("{} = 0", render(&plan.standard_lhs));
-                if std_eq != format!("{} = {}", render(lhs), render(rhs)) {
+                let std_eq = format!("{} = 0", self.written(&plan.standard_lhs));
+                if std_eq != format!("{} = {}", self.written(lhs), self.written(rhs)) {
                     lines.push(Line::New(std_eq));
                 }
-                let formula = Self::format_quad_formula(&plan.a, &plan.b, &plan.c, &[], &|_| None);
+                let formula = self.format_quad_formula(&plan.a, &plan.b, &plan.c, &[], &|_| None);
                 lines.push(Line::New(format!("{x} = {formula}")));
                 let sub = |n: &str| self.substitute(n, Some(x));
                 let common = self.common_units(&[&plan.a, &plan.b, &plan.c], Some(x));
-                let worked = Self::format_quad_formula(&plan.a, &plan.b, &plan.c, &common, &sub);
+                let worked = self.format_quad_formula(&plan.a, &plan.b, &plan.c, &common, &sub);
                 if worked != formula {
                     lines.push(Line::Same(name(), worked));
                 }
@@ -1321,10 +1322,10 @@ impl Worksheet {
             }
             Solution::Abs(plan) => {
                 let mut lines: Vec<Line> =
-                    plan.outer_steps.iter().map(|(side, other)| Line::New(format!("{} = {}", render(side), render(other)))).collect();
-                let rhs_t = render(&plan.rhs);
+                    plan.outer_steps.iter().map(|(side, other)| Line::New(format!("{} = {}", self.written(side), self.written(other)))).collect();
+                let rhs_t = self.written(&plan.rhs);
                 let pm = if matches!(plan.rhs, Expr::Num(_) | Expr::Name(_)) { format!("±{rhs_t}") } else { format!("±({rhs_t})") };
-                lines.push(Line::New(format!("{} = {pm}", render(&plan.u))));
+                lines.push(Line::New(format!("{} = {pm}", self.written(&plan.u))));
                 if matches!(&plan.u, Expr::Name(n) if n == x) {
                     lines.push(Line::Same(name(), result));
                 } else {
@@ -1335,9 +1336,9 @@ impl Worksheet {
             Solution::Numeric => {
                 let common = self.common_units(&[lhs, rhs], Some(x));
                 let sub = |n: &str| self.substitute(n, Some(x));
-                let worked = format!("{} = {}", Self::with_common_units(lhs, &common, &sub), Self::with_common_units(rhs, &common, &sub));
+                let worked = format!("{} = {}", self.with_common_units(lhs, &common, &sub), self.with_common_units(rhs, &common, &sub));
                 let mut lines = Vec::new();
-                if worked != format!("{} = {}", render(lhs), render(rhs)) {
+                if worked != format!("{} = {}", self.written(lhs), self.written(rhs)) {
                     lines.push(Line::New(worked));
                 }
                 lines.push(Line::New(format!("{x} = {result}")));
@@ -1417,17 +1418,26 @@ impl Worksheet {
     }
 
     /// `expr` written with the pieces `common_units` changed.
-    fn with_common_units(expr: &Expr, changed: &[(&Expr, String)], names: &dyn Fn(&str) -> Option<String>) -> String {
+    fn with_common_units(&self, expr: &Expr, changed: &[(&Expr, String)], names: &dyn Fn(&str) -> Option<String>) -> String {
         render_nodes(expr, &|e: &Expr| {
             changed.iter().find(|(n, _)| std::ptr::eq(*n, e)).map(|(_, t)| t.clone()).or_else(|| match e {
                 Expr::Name(n) => names(n),
+                // A number of the working is written like the results beside it: `1,5` with
+                // decimal commas.
+                Expr::Num(v) if self.opts.decimal_comma && v.is_finite() => Some(format!("{v}").replace('.', ",")),
                 _ => None,
             })
         })
     }
 
-    fn format_quad_formula(a: &Expr, b: &Expr, c: &Expr, changed: &[(&Expr, String)], names: &dyn Fn(&str) -> Option<String>) -> String {
-        let term = |e: &Expr| Self::with_common_units(e, changed, names);
+    /// `expr` as a line of working writes it: [`render`], with the numbers as the options say
+    /// (decimal commas).
+    fn written(&self, expr: &Expr) -> String {
+        self.with_common_units(expr, &[], &|_| None)
+    }
+
+    fn format_quad_formula(&self, a: &Expr, b: &Expr, c: &Expr, changed: &[(&Expr, String)], names: &dyn Fn(&str) -> Option<String>) -> String {
+        let term = |e: &Expr| self.with_common_units(e, changed, names);
         let wrap = |e: &Expr| {
             let t = term(e);
             if matches!(e, Expr::Num(v) if *v >= 0.0)
@@ -1521,7 +1531,7 @@ impl Worksheet {
             && let Some(closed) = crate::series::closed_form(&expr).filter(|c| !crate::series::has_nary(c))
         {
             result.error = None;
-            result.display = Some(format!("{left_text} = {}", render(&closed)));
+            result.display = Some(format!("{left_text} = {}", self.written(&closed)));
             return result;
         }
         // With steps: the closed form of a sum, the values substituted (in one unit per kind),
@@ -1546,7 +1556,7 @@ impl Worksheet {
     fn developed(&self, expr: &[Token], end: usize) -> Option<String> {
         let parsed = self.parse_expr(expr, end).ok()?;
         let common = self.common_units(&[&parsed], None);
-        (!common.is_empty()).then(|| Self::with_common_units(&parsed, &common, &|_| None))
+        (!common.is_empty()).then(|| self.with_common_units(&parsed, &common, &|_| None))
     }
 
     fn definition(&mut self, text: &str, tokens: &[Token], def: usize, eq: Option<usize>, len: usize) -> RegionResult {
