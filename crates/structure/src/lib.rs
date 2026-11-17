@@ -19,6 +19,7 @@ mod linalg;
 mod model;
 mod render;
 mod solve;
+mod working;
 
 #[cfg(test)]
 mod tests;
@@ -29,6 +30,7 @@ pub use model::{
 };
 pub use render::StructureRendered;
 pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse};
+pub use working::{Resultant, ResultantKind, Stretch, resultants, stretches};
 
 /// Maximum nodes in a structure.
 pub(crate) const MAX_NODES: usize = 200;

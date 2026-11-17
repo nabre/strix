@@ -168,6 +168,7 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
         });
     });
     group(ui, "Teaching", None, app, |ui, app| {
+        super::big(ui, app, "steps", "Write\nWorking", "structure.working", crate::structure_pane::working_labels(), false);
         let answer = st["answer"].as_bool().unwrap_or(true);
         crate::widgets::big_checked(
             ui,

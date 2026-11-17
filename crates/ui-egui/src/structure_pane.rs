@@ -121,6 +121,13 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     sheet(app, ui, &st, &mut state);
     typed_point(app, ui, &st, &mut state);
     egui::ScrollArea::vertical().id_salt("structure_pane_scroll").show(ui, |ui| {
+        if ui
+            .button(ts("Write Working"))
+            .on_hover_text(ts("Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values"))
+            .clicked()
+        {
+            let _ = app.run("structure.working", working_labels());
+        }
         selection(app, ui, &src, &st, &mut state);
         ui.add_space(4.0);
         tables(app, ui, &src, &st, &mut state);
@@ -136,6 +143,23 @@ fn empty_state(app: &mut WordApp, ui: &mut Ui) {
             let _ = app.run("structure.insert", json!({"template": template, "openPane": true}));
         }
     }
+}
+
+/// `structure.working`'s words in the interface's language.
+pub(crate) fn working_labels() -> Value {
+    json!({"labels": {
+        "heading": ts("Working"),
+        "reactions": ts("Reactions"),
+        "signs": ts("Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way."),
+        "hyperstatic": ts("Hyperstatic: from the solution by the stiffness method"),
+        "together": ts("From the equations solved together"),
+        "forces": ts("Internal forces"),
+        "conventions": ts("x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres."),
+        "member": ts("Member"),
+        "axial": ts("Axial forces"),
+        "hinge": ts("part about the hinge"),
+        "range": ts("x from {a} to {b}"),
+    }})
 }
 
 /// The ready-made structures, as `structure.insert` names them.

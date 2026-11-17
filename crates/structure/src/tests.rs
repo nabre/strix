@@ -456,3 +456,39 @@ fn hostile_input_never_panics() {
     }
     assert!(Structure::from_json("not json").is_err());
 }
+
+#[test]
+fn resultants_and_laws_for_a_written_working() {
+    let mut st = simple_beam();
+    st.loads.push(Load::Distributed {
+        member: "1".into(),
+        q1: 2.0.into(),
+        q2: Some(8.0.into()),
+        from: 0.0.into(),
+        to: Some(3.0.into()),
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    });
+    let rs = crate::resultants(&st);
+    // The uniform load, then the trapezoid as a rectangle (2·3 at 1.5) and a triangle (6·3/2 at 2).
+    assert_eq!(rs.len(), 3);
+    assert_close!(rs[0].value(), 60.0);
+    assert_close!(rs[0].at.0, 3.0);
+    assert_close!(rs[1].value(), 6.0);
+    assert_close!(rs[1].at.0, 1.5);
+    assert_close!(rs[2].value(), 9.0);
+    assert_close!(rs[2].at.0, 2.0);
+    // The laws of the simple beam: V = 30 − 10x, M = 30x − 5x².
+    let an = analyse(&simple_beam());
+    let s = crate::stretches(&an.members[0]);
+    assert_eq!(s.len(), 1);
+    assert_close!(s[0].v[0], 30.0);
+    assert_close!(s[0].v[1], -10.0);
+    assert_eq!(s[0].v[2], 0.0);
+    assert_eq!(s[0].m[0], 0.0);
+    assert_close!(s[0].m[1], 30.0);
+    assert_close!(s[0].m[2], -5.0);
+    assert_eq!(s[0].m[3], 0.0);
+    assert_eq!(s[0].n, [0.0; 4]);
+}

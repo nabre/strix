@@ -771,7 +771,7 @@ impl Structure {
     }
 
     /// The node named `id`'s index.
-    pub(crate) fn node_index(&self, id: &str) -> Option<usize> {
+    pub fn node_index(&self, id: &str) -> Option<usize> {
         self.nodes.iter().position(|n| n.id == id)
     }
 

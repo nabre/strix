@@ -1,6 +1,6 @@
 # Plane structures (`strix-structure`)
 
-> **Status:** stages 1–2 done (solver, structure object, diagrams, commands; Structures tab, Structure Editor pane with its tables); stage 3 (step-by-step working) next · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/engine/src/cmd/structure.rs` (`L4`), `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs` (`L6`)
+> **Status:** done — stage 1 (solver, structure object, diagrams, commands), stage 2 (Structures tab, Structure Editor pane with its tables), stage 3 (the written working) · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/engine/src/cmd/structure.rs` (`L4`), `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs` (`L6`)
 
 Strix documents hold plane structures — beams, frames and trusses — that are solved where they sit and drawn with their reactions and their N, V (T) and M diagrams one under the other, at the same horizontal scale, as textbooks draw them. Lengths and loads may be calculation parameters (`L`, `q`), so a structure follows the calculations before it and each exercise variant has its own numbers and diagrams. This is a Strix feature beyond Word parity; the model is the one of 2D frame analysis tools such as structural-analyser.com, drawn with the conventions of Italian structural mechanics texts.
 
@@ -77,6 +77,15 @@ A task pane (docked right, 440 pt) for the selected structure, every change made
 - **Selection:** a node's name (renamed everywhere), x, y, internal hinge, support and its angle; a member's hinges at either end and E, I, A (empty: none), its length.
 - **Tables:** Nodes (x, y, hinge), Members (ends, hinges, E, I, A), Supports (kind, angle), Loads (where, position, values, direction, from the member's axis, per projection), each row editable and removable, with Add buttons. Every number may be a calculation parameter or an expression; a plain number is read with a decimal point or comma.
 
+## Working
+
+`structure.working` (Structures › Teaching › Write Working, or the editor's button) writes after the selected structure its solution as live calculations, in the interface's language (`labels`):
+
+- **Reactions.** One unknown per support component: `H_A`, `V_A` (along x and y), `R_B` along an inclined roller's or link's direction (`H_B` or `V_B` when it is horizontal or vertical), `M_A` for a fixed end or slider. The equations come from equilibrium — rotation about each support (`ΣM_A = 0`), translation along x and y (`ΣF_x = 0`, `ΣF_y = 0`), and the rotation about an internal hinge of the part on one side of it (`ΣM_B = 0 (part about the hinge B, Member 2)`) — and are written in an order where each has one unknown left, so calc solves it and shows its steps one under the other (`{"layout": "lines"}`): `V_B·(6 m) − (10 kN/m)·(6 m)·(3 m) = 0 kN·m ⇒ … ⇒ V_B = 30 kN`. Each reaction solved is a calculation name the later equations use. Loads enter as resultants: a trapezoid as a rectangle and a triangle (`(6 kN/m)·(2 m)/2·(4 m)/3`), a load per projection over the projected length. A reaction no equation isolates — a hyperstatic structure's redundants, or reactions only found together — is given its value from the stiffness solution, under a line saying so. A note recalls the reactions' signs.
+- **Internal forces.** For each member and each stretch between loads: `N_1(x)`, `T_1(x)`, `M_1(x)` (`N_2a`, `N_2b`… when a member has several stretches; the shear's letter is the structure's `titles.v`) as calc functions of `x` from the member's first node, then their values at the stretch's ends and at M's extremes (`M_1(3 m) = 45 kN·m`). A truss gets each member's axial force (`N_3 = (-25 kN)/2`).
+- **Numbers.** Quantities are written exactly when they are simple fractions (`(70 kN)/3`, `(15 m)/8`), so a law evaluated at a stretch's end gives the value itself (`M_2(6 m) = 0 kN·m`), else with eight significant digits; in the document's decimal separator. Equations are written as `… = 0 kN` (calc solves an equation whose zero has its unit).
+- The working is written with the structure's current values: after changing the structure (or for another variant of an exercise), write it again. A labile or invalid structure has none (the command says why).
+
 ## Next
 
-- **Stage 3:** the step-by-step working written after a structure as live calculations (equilibrium equations, reactions, the laws N(x), V(x), M(x) per stretch); exercise variants from the editor.
+- The working written with the structure's parameters (`L`, `q`) instead of their values, so it follows each variant without being written again.

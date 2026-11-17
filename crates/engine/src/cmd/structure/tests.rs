@@ -116,3 +116,96 @@ fn structures_survive_saving() {
         assert!(!g.items.is_empty(), "{name}: drawn again");
     }
 }
+
+/// The document's text with every calculation's result, as `strix-cli text` shows it.
+fn text_of(s: &Session) -> String {
+    // Units are set apart by narrow spaces: plain ones here, so tests read as typed.
+    String::from_utf8(crate::io::save_bytes("t.txt", &s.doc).unwrap()).unwrap().replace(['\u{202F}', '\u{2009}', '\u{00A0}'], " ").replace('∕', "/")
+}
+
+/// Does `t` hold `part`, spaces aside?
+fn has(t: &str, part: &str) -> bool {
+    let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+    squeeze(t).contains(&squeeze(part))
+}
+
+fn working_of(structure: serde_json::Value) -> Result<String, String> {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"structure": structure})).unwrap();
+    s.run("structure.working", &json!({})).map_err(|e| e.to_string())?;
+    Ok(text_of(&s))
+}
+
+fn template_working(template: &str) -> String {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": template})).unwrap();
+    let r = s.run("structure.working", &json!({})).unwrap();
+    assert!(r["lines"].as_u64().unwrap() > 5, "{r}");
+    text_of(&s)
+}
+
+#[test]
+fn the_working_solves_the_reactions_and_writes_the_laws() {
+    let t = template_working("beam");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "ΣM_A = 0:") && has(&t, "V_B·(6 m)") && has(&t, "V_B&=30 kN"), "{t}");
+    assert!(has(&t, "M_1(x)=(30 kN)·x-(5 kN/m)·x^2"), "{t}");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    // A frame: the roller's reaction from the rotation about the pin, exact fractions in the laws.
+    let t = template_working("frame");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "V_D&=36.667 kN") && has(&t, "H_A&=-10 kN"), "{t}");
+    assert!(has(&t, "N_1(x)=(-70 kN)/3") && has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    // A truss: each member's axial force.
+    let t = template_working("truss");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "N_3=(-25 kN)/2") && has(&t, "N_1=(15 kN)/2"), "{t}");
+    // Hyperstatic: one reaction from the stiffness solution, said so, the others by equilibrium.
+    let t = template_working("continuous");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "Hyperstatic"), "{t}");
+    assert!(has(&t, "=62.5 kN") || has(&t, "V_B=(125 kN)/2"), "{t}");
+}
+
+#[test]
+fn the_working_uses_the_hinge_of_a_gerber_beam() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 2, "y": 0, "hinge": true}, {"id": "C", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}],
+        "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "C", "kind": "roller"}],
+        "loads": [{"type": "force", "member": "2", "at": 2, "value": 10}, {"type": "distributed", "member": "1", "q1": 0, "q2": 6}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "ΣM_B = 0 (part about the hinge B, Member 2):") && has(&t, "V_C·(4 m)") && has(&t, "V_C&=5 kN"), "{t}");
+    assert!(has(&t, "M_1(2 m)=0 kN·m") && has(&t, "M_1(0 m)=-18 kN·m"), "{t}");
+}
+
+#[test]
+fn a_labile_structure_has_no_working() {
+    let r = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "roller"}, {"node": "B", "kind": "roller"}]
+    }));
+    assert!(r.is_err_and(|e| e.contains("labile")));
+}
+
+#[test]
+fn the_working_follows_the_document_decimal_comma() {
+    let mut s = Session::new(Document::new());
+    s.run("calc.recalculate", &json!({"decimalComma": true})).unwrap();
+    s.run(
+        "structure.insert",
+        &json!({"structure": {
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 2.5, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "force", "member": "1", "at": 1.25, "value": 7.3}]
+        }}),
+    )
+    .unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+}

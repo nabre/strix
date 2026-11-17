@@ -40,6 +40,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("structure.support", "Structure Support", PLACE, support).when(selected).params(
             r#"{"node": string, "kind"?: "fixed"|"pin"|"roller"|"link"|"slider", "angle"?: num|expr, "remove"?: bool} → puts a support on a node (replacing its support), turns it, or removes it"#,
         ),
+        CommandSpec::new("structure.working", "Write Working", PLACE, working::run).when(selected).params(
+            r#"{"labels"?: {"heading"?, "reactions"?, "signs"?, "hyperstatic"?, "together"?, "forces"?, "conventions"?, "member"?, "axial"?, "hinge"?, "range"? ("x from {a} to {b}"): string}} → writes after the selected structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) stretch by stretch with their values (a truss: its axial forces)"#,
+        ),
         CommandSpec::new("structure.load", "Structure Load", PLACE, load).when(selected).params(
             r#"{"index"?: n, "load"?: object ({"type": "force"|"moment"|"distributed", ...}), "remove"?: bool} → adds a load, replaces load `index`, or removes it"#,
         ),
@@ -576,6 +579,8 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<()
     s.touch();
     Ok(())
 }
+
+mod working;
 
 #[cfg(test)]
 mod tests;

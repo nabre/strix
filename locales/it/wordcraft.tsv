@@ -3942,3 +3942,18 @@ structure	y	y
 	Truss	Travatura reticolare
 	N: Positive Up	N: positivi in alto
 	Values	Valori
+# Strix (2026-11-17): the structure's written working.
+structure	Working	Svolgimento
+structure	Reactions	Reazioni vincolari
+structure	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Le reazioni sono positive verso x, verso y e in senso antiorario: una reazione negativa agisce nel verso opposto.
+structure	Hyperstatic: from the solution by the stiffness method	Struttura iperstatica: dalla soluzione col metodo degli spostamenti
+structure	From the equations solved together	Dalle equazioni risolte insieme
+structure	Internal forces	Caratteristiche della sollecitazione
+structure	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x dal primo nodo dell'asta; N positivo se di trazione, T positivo se fa ruotare in senso orario, M positivo se tende le fibre di riferimento.
+structure	Axial forces	Sforzi normali nelle aste
+structure	part about the hinge	parte rispetto alla cerniera
+structure	Write Working	Scrivi svolgimento
+structure	Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values	Scrivi dopo la struttura la soluzione come calcoli dal vivo: le equazioni di equilibrio che danno le reazioni, poi le leggi N(x), T(x), M(x) di ogni asta con i loro valori
+	Write\nWorking	Scrivi\nsvolgimento
+	Write Working	Scrivi svolgimento
+structure	x from {a} to {b}	x da {a} a {b}
