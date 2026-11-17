@@ -1602,10 +1602,20 @@ fn read_mode_resize_reflows(d: &mut FrameDriver, a: &mut WordApp, initial_width:
     // Resizing changes the content width (reflow), not the zoom or the print paper width.
     let narrow = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(850.0, 630.0));
     let before_resize = a.canvas.scroll_offset.x;
+    // Read before the layout it is compared with: see below.
+    let generation = wordcraft_engine::proof::dictionary_generation();
     let before_layout = a.session.layout();
     let anchor = a.canvas.read_first_visible.clone().unwrap();
+    // The layout cache is keyed by the process-wide dictionary generation, which other tests in
+    // this binary move (a word added, a dictionary loaded): a layout made again because it moved
+    // since `before_layout` says nothing about resizing (as in `tests/perf.rs`).
     d.frame(a, vec![], narrow);
-    assert!(std::sync::Arc::ptr_eq(&before_layout, &a.session.layout()), "resize frames reuse cached pagination");
+    let after_resize = a.session.layout();
+    if wordcraft_engine::proof::dictionary_generation() == generation {
+        assert!(std::sync::Arc::ptr_eq(&before_layout, &after_resize), "resize frames reuse cached pagination");
+    } else {
+        eprintln!("the dictionaries changed during the resize frame: the cached pagination is not checked");
+    }
     assert!((a.canvas.scroll_offset.x - before_resize).abs() < 1.0, "no jump while resize is in progress");
     assert_eq!(a.session.view.read_width, initial_width, "expensive repagination is deferred during resizing");
     for _ in 0..15 {
