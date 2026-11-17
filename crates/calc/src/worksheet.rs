@@ -1026,9 +1026,55 @@ impl Worksheet {
         }
         let bound = bound_in(&[f]);
         let sub = |name: &str| self.substitute(name, skip).filter(|_| !bound.iter().any(|b| b == name));
-        let common = self.common_units(&[f], skip);
+        let mut common = self.known_sums(f, skip);
+        // A formula that is such a sum alone: its total is the result, nothing to work out.
+        if common.iter().any(|(e, _)| std::ptr::eq(*e, f)) {
+            return None;
+        }
+        common.extend(self.common_units(&[f], skip));
         let worked = self.with_common_units(f, &common, &sub);
         (worked != self.with_common_units(f, &[], &|_| None)).then_some(worked)
+    }
+
+    /// The sums and products of `f` over values already known (a table's columns, a list:
+    /// `∑A_i·x_i`), each with its value as a substitution writes it: the total is shown
+    /// (`39`, as a table's `Σ` row has it) instead of the vectors (`∑([3; 6])·([5; 4])`).
+    /// One that reads `skip` (the unknown), or no vector but its own variable's values
+    /// (`∑_i▒k·i²` over `i = 1..5`, `∑_(k=0)^n▒…`), is left alone.
+    fn known_sums<'e>(&self, f: &'e Expr, skip: Option<&str>) -> Vec<(&'e Expr, String)> {
+        fn walk<'e>(ws: &Worksheet, e: &'e Expr, skip: Option<&str>, out: &mut Vec<(&'e Expr, String)>, depth: usize) {
+            if depth > crate::MAX_DEPTH {
+                return;
+            }
+            match e {
+                Expr::Num(_) | Expr::Name(_) | Expr::Unit(_) => {}
+                Expr::Neg(a) => walk(ws, a, skip, out, depth + 1),
+                Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
+                    walk(ws, a, skip, out, depth + 1);
+                    walk(ws, b, skip, out, depth + 1);
+                }
+                Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(ws, a, skip, out, depth + 1)),
+                Expr::Nary(n) if matches!(n.op, '∑' | '∏') => {
+                    let mut names = Vec::new();
+                    free_names_where(e, &|n| ws.scope.get(n).is_some(), &mut names);
+                    let known = names.iter().all(|n| Some(n.as_str()) != skip)
+                        && names.iter().any(|v| Some(v) != n.var.as_ref() && matches!(ws.scope.get(v), Some(Value::Vector(_))));
+                    match eval(e, &ws.scope, Names::Worksheet).ok().filter(|_| known) {
+                        Some(v @ Value::Scalar(_)) => {
+                            let (number, unit) = ws.auto_hinted(&v, ws.hint(e).as_deref());
+                            let shown = with_unit(&number, &unit);
+                            let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
+                            out.push((e, if bare { shown } else { format!("({shown})") }));
+                        }
+                        _ => walk(ws, &n.body, skip, out, depth + 1),
+                    }
+                }
+                Expr::Nary(n) => walk(ws, &n.body, skip, out, depth + 1),
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, f, skip, &mut out, 0);
+        out
     }
 
     /// The working of formula `f`, worth `value`, before its result: the closed form of its sums

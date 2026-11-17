@@ -1080,12 +1080,21 @@ fn run_sheet_with(
                             }
                         }
                         grid.into_iter()
-                            .map(|row| {
+                            .enumerate()
+                            .map(|(r, row)| {
                                 row.into_iter()
                                     .map(|t| {
                                         // Units only where a quantity or a column's unit is.
                                         let quantity = t.chars().any(|c| c.is_ascii_digit() || c == '[' || c == '(');
-                                        let units = if quantity { ws.units_in(&t) } else { Vec::new() };
+                                        let mut units = if quantity { ws.units_in(&t) } else { Vec::new() };
+                                        // A header's unit (`A_i [m²]`) is no quantity of its own.
+                                        if r == 0 {
+                                            for u in header_units(ws, &t) {
+                                                if !units.contains(&u) {
+                                                    units.push(u);
+                                                }
+                                            }
+                                        }
                                         (t, units)
                                     })
                                     .collect()
@@ -2450,7 +2459,10 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
             style_units(&mut nodes, units, color, 0);
             // A label (`Support`, `Beam 2`) stays words: no italics, no units; so do the total
             // row's sign and a cell that found no data.
-            let label = cut == 0 && (is_label(text) || text.trim() == TOTAL_SIGN || (!text.trim().is_empty() && strix_calc::is_blank(text)));
+            // A number with its unit stuck to it (`500cm`) is a quantity, not a word.
+            let quantity = text.trim_start().starts_with(|c: char| c.is_ascii_digit()) && !units.is_empty();
+            let label =
+                cut == 0 && ((is_label(text) && !quantity) || text.trim() == TOTAL_SIGN || (!text.trim().is_empty() && strix_calc::is_blank(text)));
             let lead_hidden = p.text.starts_with('=') && p.runs.first().is_some_and(|r| r.props.hidden == Some(true));
             let same = match p.objects.as_slice() {
                 [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes && lead_hidden == (cut > 0),
@@ -2481,6 +2493,18 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
         }
     }
     changed
+}
+
+/// The units of a header cell's unit, in square brackets (`A_i [m^2]`, `= q·L/2 [kN]`) or in
+/// parentheses closing a name (`q (kN/m)`), as [`Worksheet::units_in`] finds them after a number.
+fn header_units(ws: &Worksheet, header: &str) -> Vec<String> {
+    let t = header.trim_end();
+    let inner = match (t.rfind('['), t.ends_with(']')) {
+        (Some(open), true) => t.get(open + 1..t.len() - 1),
+        _ if t.ends_with(')') && !t.contains('=') => t.rfind('(').and_then(|open| t.get(open + 1..t.len() - 1)),
+        _ => None,
+    };
+    inner.filter(|u| !u.trim().is_empty()).map_or_else(Vec::new, |u| ws.units_in(&format!("1 {u}")))
 }
 
 /// A cell that names rather than computes: a word or words (`Support`, `Beam 2`), with no digit
@@ -3635,6 +3659,29 @@ mod tests {
         let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.calc_names) } else { None });
         assert_eq!(t, Some(Some(wordcraft_doc::props::CellNames::RowColumn)));
         assert!(s.run("table.calcNames", &json!({"value": "diagonal"})).is_err());
+    }
+
+    /// Cells as equations: the units are in the Unit style everywhere, the headers' units in
+    /// brackets (`A_i [m^2]`, `= A_i·x_i [m^3]`) and a number with its unit stuck to it
+    /// (`500cm`), which is a quantity, not a word.
+    #[test]
+    fn table_cells_as_equations_style_every_unit() {
+        let mut s = session();
+        with_table(&mut s, &[&["i", "A_i [m^2]", "x_i [m]", "= A_i·x_i [m^3]"], &["1", "3", "500cm", ""], &["2", "6", "4", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        let unit = unit_color(&mut s);
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        let styled = |r: usize, c: usize| {
+            matches!(t.rows[r].cells[c].blocks.first().map(|b| &**b), Some(Block::Para(p))
+                if matches!(p.objects.as_slice(), [InlineObject::Equation { math, .. }] if format!("{:?}", math.nodes).contains(&format!("{unit:?}"))))
+        };
+        assert!(styled(0, 1) && styled(0, 2) && styled(0, 3), "the headers' units");
+        assert!(styled(1, 2), "500cm is an equation with its unit styled");
+        assert!(!styled(0, 0) && !styled(1, 1), "no unit, no style");
+        assert_eq!(table_texts(&s)[1][3], "15", "500 cm is 5 m: 3 · 5");
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "stable: {again}");
     }
 
     /// Cells as equations: every cell with text becomes one equation (its units styled), a

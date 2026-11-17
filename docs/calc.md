@@ -255,7 +255,9 @@ Calculated Table › Options › Cells as Equations (`table.mathCells`) shows ev
 a calculated table as an equation: names in italics with true subscripts (`F_k`), units in the
 Unit style, the values the table works out written into them. A label (`Support`, `Beam 2`:
 words with no digit, `=`, brackets or subscripts) stays plain text; single letters (`A`) are
-symbols; units are styled only where a quantity or a column's unit is (`12 kN`, `F [kN]`). Turned
+symbols; units are styled only where a quantity or a column's unit is (`12 kN`, `F [kN]`), every
+one in the Unit style: the headers' units in brackets (`A_i [m²]`, `= A_i·x_i [m³]`) and a number
+with its unit stuck to it (`500cm`, an equation, not a label) included. Turned
 off, the cells are text again. Saved as `strix:calcMath` on `w:tblPr`.
 
 The whole of a cell is its equation's place: a click anywhere in a cell that is an equation
@@ -578,6 +580,13 @@ The variable a sum, a product, an integral or a limit runs over is never substit
 is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
 `∑_i▒k·i² = ∑_i▒(2·i²) = 110`, and `∑_i▒i² =` shows `∑_i▒i² = 55` (nothing to substitute). Read
 back, that working is recognised as Strix's own.
+
+A sum or a product over values already known — a calculated table's columns, a list — is written
+in the working as its total, as the table's `Σ` row has it, not as the vectors: after a table
+with columns `A_i` (3, 6) and `x_i` (5, 4), `x_g = (∑A_i·x_i)/(∑A_i) =` shows
+`x_g = (∑A_i·x_i)/(∑A_i) = 39/9 = 4.333` (`2·∑L = 2·(5 m) = 10 m` with a unit). A sum that is the
+whole formula shows its result alone (`∑A_i = 9`); one over its own variable's values or with
+limits over scalars (`∑_i▒k·i²`, `∑_(k=1)^n▒k`) keeps the working above.
 
 A formula with nothing to substitute (`L = 4.5 m`, `A = 3 m·5 m =`) and a parameter shown alone
 (`M =`) have no steps: the result says it all. A unit asked for after `=` (`= cm^2`) is the
