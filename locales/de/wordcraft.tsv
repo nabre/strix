@@ -2161,7 +2161,7 @@ paper	Envelope DL	Umschlag DL
 	Change to Level 4	Zu Ebene 4 wechseln
 	Change to Level 5	Zu Ebene 5 wechseln
 	Changed here and in the file: keep one of the two.	Hier und in der Datei geändert: Behalten Sie eine der beiden Fassungen.
-	Check	Prüfen
+	Check	Hatschek
 	Check for	Updates
 	Updates…	suchen…
 	Checking for updates…	Suche nach Updates…
@@ -3272,3 +3272,8 @@ paper	Envelope DL	Umschlag DL
 	0: automatic (the triangle height)	0: automatisch (die Dreieckshöhe)
 	Symbols Pane	Bereich Symbole
 	Close\nEquation	Formel\nschließen
+	Check\nAssessment	Prüfung\nkontrollieren
+mark	Grade	Note
+	Points: a number, or empty for a question that is not scored	Punkte: eine Zahl, oder leer für eine Frage ohne Bewertung
+	Duration: 1 to 600 minutes, or empty	Dauer: 1 bis 600 Minuten, oder leer
+	Scale: a point away from the base point, or a factor above 0	Skalieren: ein Punkt abseits des Basispunkts oder ein Faktor über 0

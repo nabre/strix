@@ -18,7 +18,7 @@ Outlining › Master Document (in Outline view):
 | Unlink | `master.unlinkSubdocument {"path"?}` | the subdocument's text becomes the master's own; the file stays as it is |
 | Reload | `master.refresh {"path"?}` | replaces the content with the file's, discarding edits made in the master |
 | Open | `master.openSubdocument {"path"?}` | opens the subdocument's file in a window of its own |
-| — | `master.saveSubdocuments {"force"?}` | writes the edited subdocuments now |
+| — | `master.saveSubdocuments {"force"?, "path"?}` | writes the edited subdocuments now (one, with `path`) |
 | — | `master.subdocuments` | lists them: path, file found, edited, conflict |
 
 Without `path`, the commands act on the subdocument at the caret, or on the only one when the
@@ -55,7 +55,9 @@ Save or Reload all of them.
 - When a file was **changed on disk and in the master** since they last agreed, saving doesn't
   overwrite it: the subdocument is marked as a conflict (kept across reopening), the status bar
   says so, and Reload (take the file's) or `master.saveSubdocuments {"force": true}` (take the
-  master's) settles it.
+  master's) settles it. In the Subdocuments pane, Keep This Version does that for the one
+  subdocument of its card (`"path"`); a subdocument not edited in the master is never written,
+  forced or not, so a file someone else changed is not put back to the master's older copy.
 - When the folder holding the master and its subdocuments moves, a link whose path is gone finds
   the file of the same name beside the master.
 - A subdocument inside a subdocument is part of its content: it is a link again when that file

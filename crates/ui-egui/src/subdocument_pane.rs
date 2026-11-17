@@ -89,7 +89,7 @@ fn row(app: &mut WordApp, ui: &mut Ui, i: usize, sub: &Value) {
             let p = json!({"path": path});
             if status == Status::Error {
                 if ui.small_button(tl!("Keep this version")).on_hover_text(tl!("Overwrite the file with the text shown here")).clicked() {
-                    run(app, "master.saveSubdocuments", json!({"force": true}));
+                    run(app, "master.saveSubdocuments", json!({"force": true, "path": path}));
                 }
                 if ui.small_button(tl!("Keep the file")).on_hover_text(tl!("Replace the text shown here with the file's")).clicked() {
                     run(app, "master.refresh", p.clone());

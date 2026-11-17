@@ -3794,3 +3794,8 @@ paper	Envelope DL	Busta DL
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Linee di quota, di riferimento e di richiamo; DaLivello: quello del livello. Terminali e testi restano continui
 	Symbols Pane	Riquadro Simboli
 	Close\nEquation	Chiudi\nequazione
+	Check\nAssessment	Controlla\nvalutazione
+mark	Grade	Voto
+	Points: a number, or empty for a question that is not scored	Punti: un numero, oppure vuoto per una domanda senza punteggio
+	Duration: 1 to 600 minutes, or empty	Durata: da 1 a 600 minuti, oppure vuoto
+	Scale: a point away from the base point, or a factor above 0	Scala: un punto lontano dal punto base, o un fattore maggiore di 0

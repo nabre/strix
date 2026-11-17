@@ -66,16 +66,20 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
             ("duration", tl!("Duration (min)")),
             ("tags", tl!("Topics / Tags")),
         ] {
-            let mut text = props[field]
+            let current = props[field]
                 .as_str()
                 .map(str::to_string)
                 .unwrap_or_else(|| if props[field].is_null() { String::new() } else { props[field].to_string() });
             ui.label(label);
-            let response = ui.text_edit_singleline(&mut text);
-            if response.changed() {
+            // Stored when editing ends: the command trims what it stores, so storing at every
+            // key would take away the space just typed between two words, and a value it
+            // refuses is said in the status bar.
+            if let Some(text) = crate::a11y_pane::draft_box(ui, ("archive_prop", field), &current, true, false) {
                 let mut update = json!({});
-                update[field] = if text.trim().is_empty() { Value::Null } else { json!(text) };
-                let _ = app.run("archive.properties", update);
+                update[field] = if text.trim().is_empty() { Value::Null } else { json!(text.trim()) };
+                if let Err(e) = app.run("archive.properties", update) {
+                    app.status(e);
+                }
             }
         }
         let score = if props["score"].is_null() { "—".to_string() } else { props["score"].to_string() };

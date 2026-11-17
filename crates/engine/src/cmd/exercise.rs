@@ -194,7 +194,11 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
         CommandSpec::new("exercise.frontispiece", "Frontispiece", "Teaching › Exercise", front::command)
-            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            // A frontispiece left without exercises is still told, and taken away.
+            .when(|s| {
+                let layout = scan(s);
+                if layout.exercises.is_empty() && layout.front.is_none() && layout.legacy_front.is_none() { Some("the document has no exercise") } else { None }
+            })
             .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: your own pages at the start of the document (title of the series, class, date…), as many as you like, ended by a Frontispiece Break (a next-page section break marked as the frontispiece's, shown with the formatting marks); added, it is an empty paragraph with the break and the caret in it; removed, everything before the break goes with it → {"on": bool}"#),
         CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
@@ -477,8 +481,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         return super::sel_result(s);
     }
     let w = words(s);
-    let title = p::str(v, "title").map(str::to_string);
-    let text = p::str(v, "text").map(str::to_string);
+    // An empty title or text is none given: its placeholder shows.
+    let title = p::str(v, "title").filter(|t| !t.trim().is_empty()).map(str::to_string);
+    let text = p::str(v, "text").filter(|t| !t.trim().is_empty()).map(str::to_string);
     // Questions: strings, or {"text", "level", "points"} for nested / scored ones.
     let comma = scores::comma(s);
     let questions: Vec<(String, u8, Option<f64>)> = v
@@ -562,6 +567,12 @@ fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     // summary (the caret in it).
     let layout = scan(s);
     let inside = match layout.parts.get(top) {
+        // Never in the frontispiece (the caret in it, as Frontispiece leaves it): after its break,
+        // which stays where it is.
+        _ if layout.front.is_some_and(|(_, to)| top <= to) => {
+            at = layout.front.map_or(at, |(_, to)| to + 1).min(s.doc.body.len());
+            true
+        }
         Some((Some(e), _)) => {
             let e = *e;
             at = layout.parts.iter().rposition(|(x, _)| *x == Some(e)).map_or(at, |last| last + 1).min(s.doc.body.len());
@@ -739,6 +750,8 @@ fn scan(s: &Session) -> Layout {
     let mut current: Option<usize> = None;
     for (i, b) in s.doc.body.iter().enumerate() {
         let mut tags: Vec<(String, bool)> = stack.clone();
+        // The exercise ends in this paragraph: it is its last one, whatever part it is in.
+        let mut closes = false;
         if let Block::Para(p) = &**b {
             for o in &p.objects {
                 match o {
@@ -761,6 +774,7 @@ fn scan(s: &Session) -> Layout {
                         if let Some((tag, _)) = stack.pop()
                             && tag == TAG_EXERCISE
                         {
+                            closes = current.is_some();
                             current = None;
                         }
                     }
@@ -791,7 +805,7 @@ fn scan(s: &Session) -> Layout {
         } else {
             Part::Other
         };
-        let ex = if in_exercise { out.exercises.len().checked_sub(1).filter(|_| current.is_some() || part != Part::Other) } else { None };
+        let ex = if in_exercise { out.exercises.len().checked_sub(1).filter(|_| current.is_some() || closes || part != Part::Other) } else { None };
         out.parts.push((ex, part));
         // A range grows only over contiguous blocks: a later control with the same tag (pasted,
         // say) is another instance and is left alone, so a rewrite never spans user content.
@@ -1364,6 +1378,23 @@ fn take_last_end(prev: &mut Paragraph) -> Result<(), CmdError> {
     Ok(())
 }
 
+/// How many control ends the last paragraph of a questions part (top-level block `last`) closes
+/// from the questions control's own to its end: that one alone in a problem (its solution
+/// follows), the exercise's too in a quiz, whose questions are its last part, and the
+/// subdocument's when the exercise ends one in a master document. A paragraph added to the part
+/// after it takes them all. `None` when the questions control doesn't end there.
+fn questions_ends(s: &Session, last: usize) -> Option<usize> {
+    let w = OBJ.len_utf8();
+    let p = s.doc.body.get(last)?.as_para()?;
+    let path = body_path(last);
+    let at = s.doc.control_ranges(StoryRef::Body).iter().find(|r| r.control.tag == TAG_QUESTIONS && r.end.path == path).map(|r| r.end.off)?;
+    let tail = p.text.get(at..)?;
+    let n = tail.len() / w;
+    // Nothing but control ends from there on.
+    let ends = tail.chars().all(|c| c == OBJ) && (0..n).all(|k| matches!(p.object_at(at + k * w), Some(InlineObject::ControlEnd)));
+    (ends && (1..=8).contains(&n)).then_some(n)
+}
+
 /// The question list of the exercise whose questions end at block `last`: the list of its first
 /// numbered question paragraph.
 fn e_list(s: &Session, last: usize) -> Option<u32> {
@@ -1385,11 +1416,16 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Failed("write a question first".into()));
     }
     let text = p::str(v, "text").unwrap_or_default().to_string();
+    // The questions control's end moves to the note with what closes after it (in a quiz the
+    // exercise ends there too), so the note is in the questions part.
+    let ends = questions_ends(s, last).unwrap_or(1);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
-    take_last_end(prev)?;
-    let new = para(STYLE_NOTE, &text, Vec::new(), 1, None);
-    let caret = new.text.len() - OBJ.len_utf8();
+    for _ in 0..ends {
+        take_last_end(prev)?;
+    }
+    let new = para(STYLE_NOTE, &text, Vec::new(), ends, None);
+    let caret = new.text.len() - OBJ.len_utf8() * ends;
     s.doc.body.insert(last + 1, para_block(new));
     s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     s.touch();
@@ -1593,6 +1629,8 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
     let end = e.solution_blocks.map_or(slots.last().copied().unwrap_or(first), |r| r.1);
     let mut inserts: Vec<(usize, Paragraph)> = Vec::new();
     let mut next_slot: Option<usize> = None;
+    // Empty paragraphs that went with a removed prompt: the solution is shorter by them too.
+    let mut merged = 0usize;
     for (j, q) in want.iter().enumerate().rev() {
         match pairs.iter().find(|(_, w)| *w == j) {
             Some(&(k, _)) => next_slot = slots.get(k).copied(),
@@ -1635,6 +1673,7 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
                 };
                 if let Some(g) = gone {
                     s.doc.body.remove(g);
+                    merged += 1;
                     inserts.iter_mut().for_each(|(at, _)| {
                         if *at != usize::MAX && *at > g {
                             *at -= 1;
@@ -1648,7 +1687,7 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
         return changed;
     }
     let removed = slots.iter().enumerate().filter(|&(k, &i)| i <= end && !pairs.iter().any(|&(o, _)| o == k)).count();
-    let end = end.saturating_sub(removed);
+    let end = end.saturating_sub(removed + merged);
     // At the end, before the paragraph closing the solution.
     let tail = inserts.iter().any(|(at, _)| *at == usize::MAX).then(|| free_end(s, end)).flatten();
     // `inserts` is bottom-up for each anchor: inserting each at its anchor puts them in order.

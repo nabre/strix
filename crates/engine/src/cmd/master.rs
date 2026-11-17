@@ -58,7 +58,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"path"?: string (one subdocument; default all) } — replaces the content with the files', discarding edits made in the master"#)
             .when(no_subdocuments),
         CommandSpec::new("master.saveSubdocuments", "Save Subdocuments", LOC, save_now)
-            .params(r#"{"force"?: bool (also overwrite files changed on disk since; default false)}"#)
+            .params(r#"{"force"?: bool (also overwrite files changed on disk since; default false), "path"?: string (one subdocument; default all)}"#)
             .when(no_subdocuments),
         CommandSpec::new("master.openSubdocument", "Open Subdocument", LOC, open_subdocument)
             .params(r#"{"path"?: string (default the subdocument at the caret)}"#)
@@ -301,14 +301,17 @@ fn subdocument_file(master: &Document, frag: &Fragment, old: Option<&Document>) 
     d
 }
 
-/// Write a subdocument's content to `path` in its format; the hash of the bytes written.
-fn write(master: &Document, frag: &Fragment, path: &Path) -> Result<u64, String> {
+/// Write a subdocument's content to `path` in its format; the hash of the bytes written. The file
+/// there is the subdocument's as it was (`own`: what is its own is kept), or another document
+/// being replaced whole (Create over an existing file: nothing of it stays).
+fn write(master: &Document, frag: &Fragment, path: &Path, own: bool) -> Result<u64, String> {
     let name = path.to_string_lossy();
     crate::io::check_writable(&name)?;
     if crate::io::EXPORT_EXTS.iter().any(|e| name.to_ascii_lowercase().ends_with(&format!(".{e}"))) && !crate::io::is_native(&name) {
         return Err(format!("{name}: a subdocument is saved to a document format (.xmath, .docx, .odt, .rtf…), not an export"));
     }
-    let old = if path.exists() { read_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok() } else { None };
+    let old =
+        if own && path.exists() { read_capped(&name, MAX_FILE, "subdocument").and_then(|b| crate::io::open_bytes(&name, &b)).ok() } else { None };
     // What is the file's own comes back (styles, numbering, the series' settings, its
     // frontispiece), and opened alone it is complete: its exercises get their own results
     // summary back.
@@ -492,7 +495,7 @@ fn create(s: &mut Session, v: &Value) -> CmdResult {
     let last_len = s.doc.para(StoryRef::Body, &b.path).map_or(0, Paragraph::len);
     let end = Pos::new(StoryRef::Body, b.path.clone(), last_len);
     let frag = s.doc.copy_range(&start, &end);
-    let disk = write(&s.doc, &frag, &path).map_err(CmdError::Failed)?;
+    let disk = write(&s.doc, &frag, &path, false).map_err(CmdError::Failed)?;
     s.sel = Selection { anchor: start.clone(), focus: end };
     let at = delete_selection(s)?;
     let at = Pos { off: 0, ..at };
@@ -587,11 +590,16 @@ fn refresh(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// Write the subdocuments edited in the master back to their files. With `force`, also those
-/// changed on disk since; without it those are conflicts, marked in their tags when `mark`.
-fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
+/// changed on disk since; without it those are conflicts, marked in their tags when `mark`. Only
+/// the subdocument linked to `only` when given. One not edited in the master is never written,
+/// forced or not: its file may have changed since, and the master's copy is the older one.
+fn write_back(s: &mut Session, force: bool, mark: bool, only: Option<&Path>) -> Value {
     let id = s.document_id();
     let (mut saved, mut unchanged, mut conflicts, mut failed) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for sub in subdocuments(&s.doc) {
+        if only.is_some_and(|p| p != Path::new(&sub.link.path)) {
+            continue;
+        }
         let file = resolve(s, &sub.link);
         let frag = content(&s.doc, &sub.range);
         let now = content_hash(&frag);
@@ -603,7 +611,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
             (None, Some(_)) => sub.link.conflict,
             (_, None) => false,
         };
-        if !edited && !force {
+        if !edited {
             unchanged.push(json!(sub.link.path));
             continue;
         }
@@ -614,7 +622,7 @@ fn write_back(s: &mut Session, force: bool, mark: bool) -> Value {
             }
             continue;
         }
-        match write(&s.doc, &frag, &file) {
+        match write(&s.doc, &frag, &file, true) {
             Ok(disk) => {
                 set_synced(id, &sub.link.path, Synced { disk, content: now });
                 if sub.link.conflict {
@@ -635,7 +643,13 @@ fn set_tag(s: &mut Session, sub: &Sub, link: Link) {
 }
 
 fn save_now(s: &mut Session, v: &Value) -> CmdResult {
-    Ok(write_back(s, p::bool(v, "force") == Some(true), true))
+    // One subdocument, named as for `master.refresh`, or all of them.
+    let only = match v.get("path") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(_)) => Some(PathBuf::from(&target(s, v)?.link.path)),
+        Some(_) => return Err(CmdError::Params("path: a subdocument's path".into())),
+    };
+    Ok(write_back(s, p::bool(v, "force") == Some(true), true, only.as_deref()))
 }
 
 fn open_subdocument(s: &mut Session, v: &Value) -> CmdResult {
@@ -675,7 +689,7 @@ pub(crate) fn before_save(s: &mut Session, path: &Path) -> Option<Value> {
     if !(crate::io::is_native(&name) || crate::io::is_foreign_save(&name)) || subdocuments(&s.doc).is_empty() {
         return None;
     }
-    let r = write_back(s, false, true);
+    let r = write_back(s, false, true, None);
     let count = |k: &str| r.get(k).and_then(Value::as_array).map_or(0, Vec::len);
     if count("conflicts") > 0 {
         s.status = format!(

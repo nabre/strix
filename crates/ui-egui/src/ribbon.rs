@@ -16,6 +16,7 @@ mod common;
 mod design;
 mod draw;
 mod exercise;
+pub(crate) use exercise::named_draft_box;
 mod home;
 mod insert;
 mod language;

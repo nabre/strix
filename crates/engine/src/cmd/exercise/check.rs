@@ -265,7 +265,9 @@ fn check_missing_solutions(s: &Session, layout: &Layout, e_idx: usize, ex: &Exer
 
 fn check_scores_consistency(s: &Session, layout: &Layout, out: &mut Vec<CheckIssue>) {
     let Some((table_block, rows)) = super::scores::row_points(s) else { return };
-    for (e_idx, ex) in layout.exercises.iter().enumerate() {
+    // A worked example has no row there: it isn't graded.
+    let graded = super::stem_items::graded(s);
+    for (e_idx, ex) in layout.exercises.iter().enumerate().filter(|(e, _)| graded.contains(e)) {
         let row_sum = rows.get(e_idx).copied().flatten();
         if row_sum.is_none() {
             out.push(CheckIssue {
@@ -443,4 +445,27 @@ pub(crate) fn command(s: &mut Session, _v: &Value) -> CmdResult {
         "infos": infos,
         "issues": issues,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use wordcraft_doc::Document;
+
+    use crate::Session;
+
+    /// A worked example has no row in the scores table (it isn't graded): the check doesn't ask
+    /// for its points.
+    #[test]
+    fn a_worked_example_needs_no_points_in_the_scores_table() {
+        let mut s = Session::new(Document::from_text("Laboratorio"));
+        s.run("exercise.insert", &json!({"kind": "worked", "questions": [{"text": "Esempio", "points": 10}]})).unwrap();
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"kind": "open", "questions": [{"text": "Prova", "points": 4}]})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.scores", &json!({"on": true})).unwrap();
+        let r = s.run("exercise.check", &json!({})).unwrap();
+        let missing: Vec<&serde_json::Value> = r["issues"].as_array().unwrap().iter().filter(|i| i["code"] == "missing_scores_points").collect();
+        assert!(missing.is_empty(), "{missing:?}");
+    }
 }

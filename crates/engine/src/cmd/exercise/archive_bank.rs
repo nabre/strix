@@ -7,15 +7,27 @@ const MAX_FILES: usize = 1000;
 const MAX_FILE: u64 = 32 * 1024 * 1024;
 const MAX_BUNDLE: usize = 64 * 1024 * 1024;
 
+/// The properties a free-text query looks in: what they say, never their names.
+const SEARCHED: [&str; 9] = ["title", "subject", "tags", "teacher", "profession", "section", "grade", "duration", "score"];
+
 fn matches(props: &Value, v: &Value) -> bool {
-    let query = p::str(v, "query").unwrap_or("").to_lowercase();
-    if !query.is_empty() && !props.to_string().to_lowercase().contains(&query) {
+    let text = |x: &Value| x.as_str().map(str::to_string).unwrap_or_else(|| x.to_string()).trim().to_lowercase();
+    let have = |k: &str| props.get(k).filter(|x| !x.is_null()).map(text);
+    let query = p::str(v, "query").unwrap_or("").trim().to_lowercase();
+    if !query.is_empty() && !SEARCHED.iter().any(|k| have(k).is_some_and(|t| t.contains(&query))) {
         return false;
     }
     ["subject", "grade", "tags", "section", "profession", "teacher"].iter().all(|k| {
-        let Some(filter) = v.get(*k).filter(|x| !x.is_null()) else { return true };
-        let text = |x: &Value| x.as_str().map(str::to_string).unwrap_or_else(|| x.to_string()).to_lowercase();
-        text(props.get(*k).unwrap_or(&Value::Null)).contains(&text(filter))
+        let Some(want) = v.get(*k).filter(|x| !x.is_null()).map(text).filter(|w| !w.is_empty()) else { return true };
+        match have(k) {
+            // A grade is a number: 1 is not found in 10 to 19.
+            Some(t) if *k == "grade" => match (t.parse::<f64>(), want.parse::<f64>()) {
+                (Ok(a), Ok(b)) => a == b,
+                _ => t == want,
+            },
+            Some(t) => t.contains(&want),
+            None => false,
+        }
     })
 }
 
@@ -122,4 +134,43 @@ pub(crate) fn insert(s: &mut Session, v: &Value) -> CmdResult {
     let end = s.doc.insert_fragment(&at, &frag)?;
     s.sel = crate::Selection::caret(end);
     Ok(json!({"inserted": true}))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    /// A grade is a number: grade 1 is not found in grades 10 to 19, nor 2 in 12 and 20.
+    #[test]
+    fn a_grade_filter_matches_that_grade_only() {
+        let props = |g: u64| json!({"grade": g, "subject": "Fisica", "section": "B", "tags": "misure, laboratorio"});
+        assert!(super::matches(&props(1), &json!({"grade": 1})));
+        assert!(super::matches(&props(1), &json!({"grade": "1"})));
+        assert!(super::matches(&props(12), &json!({"grade": " 12 "})));
+        for g in [10, 11, 12, 19] {
+            assert!(!super::matches(&props(g), &json!({"grade": 1})), "{g}");
+        }
+        assert!(!super::matches(&props(12), &json!({"grade": 2})));
+        assert!(!super::matches(&json!({"grade": null}), &json!({"grade": 2})));
+        // Text properties are still searched within, case aside.
+        assert!(super::matches(&props(3), &json!({"subject": "fis", "tags": "MISURE"})));
+        assert!(!super::matches(&props(3), &json!({"subject": "chimica"})));
+    }
+
+    /// The free-text query looks in what the properties say, not in their names: "sezione" or
+    /// "grade" doesn't find every file.
+    #[test]
+    fn a_query_searches_the_values_not_the_property_names() {
+        let mut s = crate::Session::new(wordcraft_doc::Document::new());
+        s.run("review.language", &json!({"lang": "it-CH", "default": true})).unwrap();
+        s.run("archive.properties", &json!({"subject": "Fisica", "tags": "misure", "grade": 3, "section": "B", "teacher": "M. Rossi"})).unwrap();
+        let mut props = super::super::archive::state(&s);
+        props["title"] = json!("Laboratorio");
+        for q in ["fisica", "MISURE", "rossi", "laboratorio", "3"] {
+            assert!(super::matches(&props, &json!({"query": q})), "{q}");
+        }
+        for q in ["sezione", "classe", "punteggio", "grade", "names", "null", "subject", "chimica"] {
+            assert!(!super::matches(&props, &json!({"query": q})), "{q}");
+        }
+    }
 }

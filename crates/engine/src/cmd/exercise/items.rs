@@ -891,8 +891,9 @@ pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Re
     let true_false = kind_name == "trueFalse";
     let mode = Mode::of_kind(kind_name);
     let w = super::words(s);
-    let title = p::str(v, "title").map(str::to_string);
-    let text = p::str(v, "text").map(str::to_string);
+    // An empty title or text is none given: its placeholder shows.
+    let title = p::str(v, "title").filter(|t| !t.trim().is_empty()).map(str::to_string);
+    let text = p::str(v, "text").filter(|t| !t.trim().is_empty()).map(str::to_string);
     let mut questions: Vec<NewQuestion> = v
         .get("questions")
         .and_then(Value::as_array)
@@ -976,16 +977,32 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
     }
     let q = new_question(s, &base, like.mode, false);
     let w = super::words(s);
-    let num = super::e_list(s, last).map(|num| NumRef { num, level: 0 });
+    // Nested as a problem's questions are: `level`, or `sub` for one below the last question.
+    let last_level = e.questions.last().map_or(0, |q| q.level);
+    let level = match (p::u64(v, "level"), p::bool(v, "sub")) {
+        (Some(l), _) => l.min(u64::from(super::MAX_LEVEL)) as u8,
+        (None, Some(true)) => (last_level + 1).min(super::MAX_LEVEL),
+        _ => 0,
+    };
+    // A lone question has no list yet (`update` gives both one): the level is kept for it.
+    let num = match (super::e_list(s, last), level) {
+        (Some(num), _) => Some(NumRef { num, level }),
+        (None, 0) => None,
+        (None, _) => Some(NumRef { num: 0, level }),
+    };
     let new = question_blocks(s, w, q.text.as_deref(), &q.set, &q.choices, num);
     // The questions control's end (and the exercise's) move from the last paragraph to the new
     // last one: as many end markers as the old last paragraph ends with past its own controls.
+    // From the questions control's end on (the exercise's follows it, unless a note put outside
+    // the questions closes the exercise; a subdocument's may follow that): never the end of the
+    // last answer, which a paragraph of options closes before them.
+    let from_questions = super::questions_ends(s, last);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
     let mut moved = 0;
-    for _ in 0..2 {
+    for _ in 0..from_questions.unwrap_or(2) {
         // Only ends of controls that opened before this paragraph: the questions and the exercise.
-        if trailing_outer_ends(prev) > 0 {
+        if from_questions.is_some() || trailing_outer_ends(prev) > 0 {
             super::take_last_end(prev)?;
             moved += 1;
         }
@@ -1039,14 +1056,17 @@ pub(super) fn add_drawings(s: &mut Session, ex: usize, drawings: &[Option<Value>
 
 /// End markers at the end of `p` that close controls opened in an earlier paragraph.
 pub(super) fn trailing_outer_ends(p: &Paragraph) -> usize {
-    // A title line holding the question opens the exercise and its questions part itself: their
-    // ends are what it closes last, as a question paragraph's are.
+    // A title line holding the question opens the exercise and its questions part itself (and,
+    // in a master document, the subdocument the exercise is): their ends are what it closes
+    // last, as a question paragraph's are.
     let joined = super::question_line::joined(p);
     let mut open: Vec<bool> = Vec::new();
     let mut outer = 0usize;
     for (_, o) in p.objects_with_offsets() {
         match o {
-            InlineObject::ControlStart { control } => open.push(joined && (control.tag == TAG_EXERCISE || control.tag == TAG_QUESTIONS)),
+            InlineObject::ControlStart { control } => {
+                open.push(joined && (control.tag == TAG_EXERCISE || control.tag == TAG_QUESTIONS || control.tag.starts_with(super::SUBDOC_TAG)));
+            }
             InlineObject::ControlEnd => match open.pop() {
                 Some(false) => {}
                 Some(true) | None => outer += 1,
@@ -1947,6 +1967,10 @@ fn question_at_caret(s: &Session, layout: &Layout, e: usize) -> Option<usize> {
         return None;
     }
     let top = *s.sel.focus.path.0.first()? as usize;
+    // Only with the caret in that exercise: after it, its last question is not "at the caret".
+    if layout.parts.get(top).and_then(|(x, _)| *x) != Some(e) {
+        return None;
+    }
     items(s, layout, e).iter().rposition(|it| it.question <= top)
 }
 
@@ -2250,7 +2274,10 @@ fn clear_equation_answer_marks(s: &mut Session, a: usize, b: usize) {
 }
 
 fn convert_non_choice(s: &mut Session, (a, mut b): (usize, usize), outer: usize, new_mode: Mode, set: &Answer) -> Result<(), CmdError> {
-    if new_mode == Mode::Matching {
+    // A matching's generated rows go with it: the answer part is made anew, as it is for one.
+    let was_matching =
+        (a..=b).any(|i| s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| span(p, super::stem_items::TAG_MATCH_ROW).is_some()));
+    if new_mode == Mode::Matching || was_matching {
         let w = super::words(s);
         let mut blocks = question_blocks(s, w, None, set, &[], None);
         if let Some(last) = blocks.last_mut() {

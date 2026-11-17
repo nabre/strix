@@ -58,7 +58,7 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Assessment", None, app, |ui, app| {
         let check_on = app.session.view.check_pane;
-        big_toggle(ui, app, "checkAssessment", "Check", "view.checkPane", check_on);
+        big_toggle(ui, app, "checkAssessment", "Check\nAssessment", "view.checkPane", check_on);
         big(ui, app, "exportPack", "Export\nPack", "file.exportPack", json!({}), false);
     });
     group(ui, "Graph Paper", None, app, |ui, app| {

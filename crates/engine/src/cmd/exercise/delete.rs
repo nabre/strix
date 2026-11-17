@@ -219,7 +219,11 @@ pub(super) fn delete(s: &mut Session, v: &Value) -> CmdResult {
         };
         // Text before the exercise in its first paragraph keeps that paragraph's properties;
         // without it, the paragraph left is a plain one.
-        let head = r.start.off > 0;
+        // (control starts alone, a subdocument's in a master document, are no text).
+        let head = s.doc.para_at(&r.start).is_some_and(|p| {
+            p.text.get(..r.start.off).is_some_and(|t| t.chars().any(|c| c != OBJ))
+                || p.objects_with_offsets().any(|(at, o)| at < r.start.off && !matches!(o, InlineObject::ControlStart { .. }))
+        });
         let at = s.doc.delete_range(&r.start, &after(r))?;
         if !head && let Ok(p) = s.doc.para_mut(at.story, &at.path) {
             p.props = ParaProps::default();

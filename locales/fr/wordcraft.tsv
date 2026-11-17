@@ -3305,3 +3305,8 @@ paper	Envelope DL	Enveloppe DL
 	0: automatic (the triangle height)	0 : automatique (la hauteur du triangle)
 	Symbols Pane	Volet Symboles
 	Close\nEquation	Fermer\nl’équation
+	Check\nAssessment	Contrôler\nl’évaluation
+mark	Grade	Note
+	Points: a number, or empty for a question that is not scored	Points : un nombre, ou vide pour une question non notée
+	Duration: 1 to 600 minutes, or empty	Durée : de 1 à 600 minutes, ou vide
+	Scale: a point away from the base point, or a factor above 0	Échelle : un point éloigné du point de base, ou un facteur supérieur à 0

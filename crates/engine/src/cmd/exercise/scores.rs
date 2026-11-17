@@ -77,8 +77,12 @@ fn tables(s: &Session) -> Vec<usize> {
     s.doc.body.iter().enumerate().filter(|(_, b)| matches!(&***b, Block::Table(t) if control_of(t).is_some())).map(|(i, _)| i).collect()
 }
 
+/// The Total row: its first cell says Total, in any language the exercises are written in (an
+/// exercise's row is labelled with its number). Not told by how the cell is aligned: that is
+/// the person's to change, like any text's, and must not turn exercises into totals.
 fn is_total_row(r: &Row) -> bool {
-    r.cells.first().and_then(|c| c.blocks.first()?.as_para()?.props.align) == Some(Align::Left)
+    let label = r.cells.first().map(cell_text).unwrap_or_default();
+    super::words::ALL_WORDS.iter().any(|w| w.total == label)
 }
 
 /// What table `t` holds: the criteria (their number from the control, their names from the
@@ -662,5 +666,44 @@ mod tests {
         run(&mut s, "exercise.scores", json!({"exercise": 2, "criterion": 3, "points": 2}));
         assert_eq!(grid(&s)[2], ["2", "", "", "", "", "", "2", "", "2"]);
         assert_eq!(grid(&s)[3][8], "9");
+    }
+
+    /// Aligning the table's text (the whole document selected, Align Left or Center) changes how
+    /// it looks, never its points.
+    #[test]
+    fn aligning_the_table_keeps_the_points() {
+        for align in ["para.alignLeft", "para.alignCenter", "para.alignRight"] {
+            for criteria in [1, 2] {
+                for exercises in [1, 3] {
+                    let mut s = Session::new(Document::new());
+                    run(&mut s, "document.setText", json!({"text": "Verifica"}));
+                    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+                    for k in 0..exercises {
+                        run(&mut s, "caret.docEnd", json!({}));
+                        run(&mut s, "exercise.insert", json!({"title": format!("E{k}"), "questions": ["q"]}));
+                    }
+                    run(&mut s, "caret.docStart", json!({}));
+                    run(&mut s, "exercise.scores", json!({"on": true}));
+                    if criteria == 2 {
+                        run(&mut s, "exercise.scores", json!({"add": "MOD"}));
+                    }
+                    for ex in 1..=exercises {
+                        for c in 1..=criteria {
+                            run(&mut s, "exercise.scores", json!({"exercise": ex, "criterion": c, "points": ex + c}));
+                        }
+                    }
+                    let before = run(&mut s, "exercise.scores", json!({}));
+                    let rows = grid(&s).len();
+                    run(&mut s, "select.all", json!({}));
+                    let _ = s.run(align, &json!({}));
+                    run(&mut s, "caret.docStart", json!({}));
+                    // Anything that rebuilds the automatic parts.
+                    run(&mut s, "text.insert", json!({"text": "x"}));
+                    let after = run(&mut s, "exercise.scores", json!({}));
+                    assert_eq!(after["points"], before["points"], "{align}, {criteria} criteria, {exercises} exercises");
+                    assert_eq!(grid(&s).len(), rows, "{align}, {criteria} criteria, {exercises} exercises: {:?}", grid(&s));
+                }
+            }
+        }
     }
 }

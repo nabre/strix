@@ -277,7 +277,9 @@ impl Config {
                 } else if k == last {
                     max_pts
                 } else {
-                    clean((round_half_away(self.exact_points(g, max_pts) / m) * m).clamp(0.0, max_pts))
+                    // Without the dust first: 0.975 points in hundredths is 97.49999999999999 of
+                    // them, which is 97.5 and goes up.
+                    clean((round_half_away(clean(self.exact_points(g, max_pts) / m)) * m).clamp(0.0, max_pts))
                 }
             })
             .collect();
@@ -830,4 +832,64 @@ fn apply_params(cfg: &mut Config, v: &Value) -> Result<(), CmdError> {
     }
     cfg.sanitize();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Config, Curve, Preset};
+
+    /// `a/b` rounded half away from zero, in whole numbers.
+    fn div_round(a: i128, b: i128) -> i128 {
+        (2 * a + b).div_euclid(2 * b)
+    }
+
+    /// The points of every grade are the curve's exact ones rounded to the multiple, a half
+    /// going up, whatever dust the floating-point arithmetic leaves: checked against whole-number
+    /// arithmetic for every preset, maximum (whole and half points) and usual multiple.
+    #[test]
+    fn points_are_rounded_from_the_exact_curve() {
+        let mut wrong = Vec::new();
+        for preset in [Preset::It10, Preset::Ch6, Preset::De6, Preset::Fr20, Preset::Percent] {
+            for round in [None, Some(0.1), Some(0.25), Some(0.5), Some(1.0)] {
+                for max2 in 2..=240_i128 {
+                    let mut cfg = Config::from_preset(preset);
+                    cfg.points_round = round;
+                    let max = max2 as f64 / 2.0;
+                    // Everything in units of 1/400: grades (steps of 0.25 or more), the
+                    // multiples (hundredths of 0.01 to 1) and the pass ratio (0.5 or 0.6 = 240/400).
+                    let u = |v: f64| (v * 400.0).round() as i128;
+                    let (lo, hi, pass, m) = (u(cfg.min_grade), u(cfg.max_grade), u(cfg.pass_grade), u(cfg.points_multiple()));
+                    let ratio = u(cfg.pass_ratio);
+                    let scale = cfg.scale(max);
+                    let last = scale.len() - 1;
+                    for (k, band) in scale.iter().enumerate() {
+                        if k == 0 || k == last {
+                            continue;
+                        }
+                        let g = u(band.grade);
+                        // The exact points as a fraction `num / den` of a point.
+                        let (num, den) = match cfg.curve {
+                            Curve::Linear => (max2 * (g - lo), 2 * (hi - lo)),
+                            Curve::PiecewiseLinear => {
+                                let below = if hi >= lo { g < pass } else { g > pass };
+                                if below {
+                                    (max2 * ratio * (g - lo), 2 * 400 * (pass - lo))
+                                } else {
+                                    (max2 * ratio * (hi - pass) + max2 * (400 - ratio) * (g - pass), 2 * 400 * (hi - pass))
+                                }
+                            }
+                        };
+                        let (num, den) = if den < 0 { (-num, -den) } else { (num, den) };
+                        // In multiples of `m/400` points: `num/den / (m/400)`.
+                        let want = div_round(num * 400, den * m) as f64 * cfg.points_multiple();
+                        let want = want.min(max);
+                        if (band.from - want).abs() > 1e-6 {
+                            wrong.push(format!("{preset:?} max {max} round {round:?} grade {}: {} not {want}", band.grade, band.from));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(wrong.is_empty(), "{} wrong, e.g. {:?}", wrong.len(), wrong.iter().take(8).collect::<Vec<_>>());
+    }
 }

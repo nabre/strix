@@ -419,7 +419,9 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
             if let Ok(md) = cfg.max_decimals.trim().parse::<u8>() {
                 constraints["maxDecimals"] = json!(md.min(9));
             }
-            let _ = app.run(
+            // A generation that fails (too few values for the variants asked, a minimum above
+            // its maximum) says why in the status bar.
+            if let Err(e) = app.run(
                 "exercise.generateVariants",
                 json!({
                     "exercise": ex,
@@ -427,7 +429,9 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
                     "domains": dom_arr,
                     "constraints": constraints,
                 }),
-            );
+            ) {
+                app.status(e);
+            }
         }
     }
 }

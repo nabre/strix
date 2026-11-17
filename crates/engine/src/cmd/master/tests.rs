@@ -94,6 +94,34 @@ fn changes_on_both_sides_are_a_conflict_not_an_overwrite() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// Found in review: Keep This Version on one subdocument's card forced every subdocument's file
+/// to be written, also one never edited in the master whose file had changed since: that file
+/// went back to the master's older copy.
+#[test]
+fn keeping_one_subdocuments_version_leaves_the_other_files_alone() {
+    let d = dir("keep-one");
+    let (a, b) = (d.join("a.xmath"), d.join("b.xmath"));
+    file(&a, "First original");
+    file(&b, "Second original");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    run(&mut s, "master.insertSubdocument", json!({"path": a.to_str().unwrap()}));
+    run(&mut s, "caret.docEnd", json!({}));
+    run(&mut s, "master.insertSubdocument", json!({"path": b.to_str().unwrap()}));
+    run(&mut s, "select.text", json!({"text": "First original"}));
+    run(&mut s, "text.insert", json!({"text": "First in the master"}));
+    file(&a, "First on disk");
+    file(&b, "Second changed by someone else");
+    let r = run(&mut s, "master.saveSubdocuments", json!({"force": true, "path": a.to_str().unwrap()}));
+    assert_eq!(r["saved"].as_array().unwrap().len(), 1, "{r}");
+    assert!(text_of(&a).contains("First in the master"));
+    assert!(text_of(&b).contains("Second changed by someone else"), "the other file is not touched");
+    // Forced for all: still only what was edited in the master.
+    let r = run(&mut s, "master.saveSubdocuments", json!({"force": true}));
+    assert!(text_of(&b).contains("Second changed by someone else"), "{r}");
+    assert!(s.run("master.saveSubdocuments", &json!({"path": 3})).is_err());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 #[test]
 fn create_makes_a_file_of_the_selected_paragraphs() {
     let d = dir("create");
@@ -316,4 +344,34 @@ fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     assert_eq!(run(&mut s, "exercise.numbering", json!({}))["separator"], json!(")"));
+}
+
+/// Create with `"overwrite": true` replaces the file there: nothing of the document it held stays
+/// in the new one, neither its frontispiece nor its document properties.
+#[test]
+fn create_over_an_existing_file_replaces_it_whole() {
+    let d = dir("replace");
+    let old = d.join("old.xmath");
+    // The file there: a test of its own, with a frontispiece and archive properties.
+    let mut f = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut f.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut f, "exercise.insert", json!({"title": "Vecchio", "questions": ["q"]}));
+    run(&mut f, "exercise.frontispiece", json!({"on": true}));
+    run(&mut f, "text.insert", json!({"text": "Verifica di prima"}));
+    run(&mut f, "archive.properties", json!({"subject": "Fisica", "grade": 3}));
+    run(&mut f, "file.saveAs", json!({"path": old.to_str().unwrap()}));
+    assert!(text_of(&old).contains("Verifica di prima"));
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Intro\nCapitolo nuovo\nEnd"}));
+    run(&mut s, "select.text", json!({"text": "Capitolo nuovo"}));
+    assert!(s.run("master.createSubdocument", &json!({"path": old.to_str().unwrap()})).is_err(), "not unasked");
+    run(&mut s, "master.createSubdocument", json!({"path": old.to_str().unwrap(), "overwrite": true}));
+    let t = text_of(&old);
+    assert!(t.contains("Capitolo nuovo"), "{t:?}");
+    assert!(!t.contains("Verifica di prima") && !t.contains("Vecchio"), "{t:?}");
+    let back = crate::io::open_path(&old).unwrap();
+    assert_eq!(back.core.subject, "");
+    assert!(back.custom_props.is_empty(), "{:?}", back.custom_props);
+    let _ = std::fs::remove_dir_all(&d);
 }

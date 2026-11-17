@@ -267,10 +267,16 @@ fn general_group(app: &mut WordApp, ui: &mut Ui, ex: u64, info: &Value, type_nam
                 ui.scope(|ui| {
                     ui.set_width(40.0);
                     if let Some(t) = named_draft_box(ui, ("exercise_duration", ex), &dur, name.id) {
-                        let mut data = info["data"].clone();
+                        // Only an empty box removes the duration: anything else that is not
+                        // 1–600 minutes leaves it as it was and says so.
                         let parsed = t.trim().parse::<u32>().ok().filter(|&n| (1..=600).contains(&n));
-                        data["duration"] = parsed.map_or(Value::Null, |n| json!(n));
-                        run(app, "exercise.setData", json!({"exercise": ex, "data": data}));
+                        if parsed.is_none() && !t.trim().is_empty() {
+                            app.status(tl!("Duration: 1 to 600 minutes, or empty").to_string());
+                        } else {
+                            let mut data = info["data"].clone();
+                            data["duration"] = parsed.map_or(Value::Null, |n| json!(n));
+                            run(app, "exercise.setData", json!({"exercise": ex, "data": data}));
+                        }
                     }
                 });
                 ui.label(egui::RichText::new("min").small());
@@ -626,7 +632,7 @@ fn numbering_group(app: &mut WordApp, ui: &mut Ui) {
 
 /// A text box editing `current`, named by the label `name` for screen readers; the draft lives
 /// in egui memory while it has focus. Returns the new text when editing ends with a change.
-fn named_draft_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &str, name: egui::Id) -> Option<String> {
+pub(crate) fn named_draft_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &str, name: egui::Id) -> Option<String> {
     let key = egui::Id::unique(key);
     let mut text = ui.data(|d| d.get_temp::<String>(key)).unwrap_or_else(|| current.to_string());
     let r = ui.add(egui::TextEdit::singleline(&mut text).desired_width(f32::INFINITY)).labelled_by(name);
