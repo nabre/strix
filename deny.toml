@@ -52,13 +52,10 @@ ignore = true
 yanked = "deny"
 # Every ignored advisory says why it doesn't reach Strix; drop the line when the dependency moves on.
 ignore = [
-    # zip 3: all four are in `ZipArchive::extract` / `ZipStreamReader::extract`, which write an
-    # archive's entries to disk. Strix only reads entries into memory and writes archives
-    # (ZipArchive::by_name, ZipWriter); no code calls `extract`. Fixed in zip 9 (a major upgrade).
-    { id = "RUSTSEC-2026-0367", reason = "zip extract() only; Strix never extracts archives to disk" },
-    { id = "RUSTSEC-2026-0368", reason = "zip extract() only; Strix never extracts archives to disk" },
-    { id = "RUSTSEC-2026-0369", reason = "zip extract() only; Strix never extracts archives to disk" },
-    { id = "RUSTSEC-2026-0429", reason = "zip extract() only; Strix never extracts archives to disk" },
+    # Unmaintained, no fixed release: chrono, Strix's one date/time library (a direct dependency of
+    # most crates, and of sigstore-* through craft-update and winprint). Moving to jiff or time is
+    # separate work.
+    { id = "RUSTSEC-2026-0543", reason = "chrono: unmaintained, no fixed release; replacement (jiff/time) is separate work" },
     # Unmaintained, no fixed release: Linux accessibility (AT-SPI over D-Bus) through eframe's
     # accesskit and zbus 5; they go when egui moves to zbus 6.
     { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, via eframe/accesskit/zbus 5; no fixed release" },

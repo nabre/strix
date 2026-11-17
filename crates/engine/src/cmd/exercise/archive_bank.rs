@@ -85,10 +85,10 @@ pub(crate) fn bundle(_: &mut Session, v: &Value) -> CmdResult {
     let (mut entries, mut errors, mut total) = (Vec::new(), Vec::new(), 0usize);
     for i in 0..zip.len().min(MAX_FILES) {
         let file = zip.by_index(i).map_err(|e| CmdError::Params(e.to_string()))?;
-        if file.is_dir() || !file.name().to_ascii_lowercase().ends_with(".docx") {
+        let name = file.name().map_err(|e| CmdError::Params(e.to_string()))?.into_owned();
+        if file.is_dir() || !name.to_ascii_lowercase().ends_with(".docx") {
             continue;
         }
-        let name = file.name().to_string();
         let result = (|| -> Result<Vec<u8>, String> {
             if file.size() > MAX_FILE {
                 return Err("file too large".into());
