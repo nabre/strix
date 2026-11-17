@@ -287,6 +287,11 @@ impl Drawing {
         v.id = None;
         v.fit = None;
         v.entities.truncate(MAX_UNDERLAY_ENTITIES);
+        // Its sizes as they are worked out where it sits: the values, no longer expressions (a
+        // change of unit converts numbers only, and nothing works them out again here).
+        for (n, _) in v.nums_mut() {
+            n.expr = None;
+        }
         if v.unit != self.unit {
             v.set_unit(self.unit, true);
         }

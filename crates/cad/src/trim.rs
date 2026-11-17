@@ -63,6 +63,14 @@ impl Span {
         }
     }
 
+    /// Where `p`, a point of the span, is within it (0 to 1). An arc's parameter runs on round
+    /// its circle, so its start seen a hair before it (a rounding away) would read as far past
+    /// its end: nearer the start that way round, it is the start.
+    fn within(&self, p: Pt) -> f64 {
+        let s = self.param(p);
+        if s > (1.0 + self.full()) / 2.0 { 0.0 } else { s.clamp(0.0, 1.0) }
+    }
+
     /// How far the parameter can go before an arc comes back to its start.
     fn full(&self) -> f64 {
         match *self {
@@ -156,7 +164,7 @@ fn locate(spans: &[Span], p: Pt) -> f64 {
         .enumerate()
         .map(|(k, s)| {
             let q = s.curve().nearest(p);
-            (k as f64 + s.param(q).clamp(0.0, 1.0), q.minus(p).len())
+            (k as f64 + s.within(q), q.minus(p).len())
         })
         .min_by(|x, y| x.1.total_cmp(&y.1))
         .map_or(0.0, |(u, _)| u)
@@ -191,7 +199,7 @@ impl Drawing {
             let c = s.curve();
             for edge in &edges {
                 for p in intersect(&c, edge) {
-                    cuts.push(k as f64 + s.param(p).clamp(0.0, 1.0));
+                    cuts.push(k as f64 + s.within(p));
                 }
             }
         }

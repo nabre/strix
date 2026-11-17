@@ -149,3 +149,65 @@ fn a_maximum_size_offers_the_scales_that_fit() {
     assert!(!old.fit.unwrap().fixed);
     assert!(!old.to_json().contains("fixed"));
 }
+
+/// Trim: a cutting line through the vertex where a polyline's arc starts cuts it there, not at
+/// the arc's other end too (the vertex seen from the arc's centre a hair before its start).
+#[test]
+fn trim_cuts_a_polyline_where_its_arc_starts() {
+    for k in 0..400 {
+        let (s, c) = (0.3 + f64::from(k) * 0.0137).sin_cos();
+        if s < 0.05 {
+            continue;
+        }
+        // A line ending on the vertex (10, 0), from below it at every slope: it meets the
+        // polyline nowhere else.
+        let json = format!(
+            r#"{{"entities":[{{"type":"polyline","pts":[[0,0],[10,0],[10,10],[0,10]],"bulges":[0,1,0]}},
+                {{"type":"line","a":[{},{}],"b":[10,0]}}]}}"#,
+            10.0 - 3.0 * c,
+            -3.0 * s
+        );
+        let mut d = Drawing::from_json(&json).unwrap();
+        // Picked on the last side: the arc and that side go, from the vertex on.
+        let piece = d.trim_preview(0, Pt::new(5.0, 10.0)).unwrap();
+        assert!(piece[0].minus(Pt::new(10.0, 0.0)).len() < 1e-6, "{k}: {:?}", piece[0]);
+        d.trim(0, Pt::new(5.0, 10.0)).unwrap();
+        let Kind::Polyline { pts, .. } = kind(&d, 0) else { panic!("{k}: {:?}", kind(&d, 0)) };
+        assert_eq!(pts.len(), 2, "{k}: {pts:?}");
+    }
+}
+
+/// Explode: an arrowhead stays on the end it was on when the polyline's arc ran clockwise (the
+/// arc made of it runs counter-clockwise, the other way).
+#[test]
+fn an_exploded_clockwise_arc_keeps_its_arrowhead() {
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"polyline","pts":[[-5,0],[5,0]],"bulges":[-1],"arrows":"end"}]}"#).unwrap();
+    let tips = |d: &Drawing| d.arrowhead_triangles(&d.entities[0]).iter().map(|t| t[0]).collect::<Vec<Pt>>();
+    let before = tips(&d);
+    assert!(before.len() == 1 && before[0].minus(Pt::new(5.0, 0.0)).len() < 1e-9, "{before:?}");
+    d.explode(&[0]);
+    assert!(matches!(kind(&d, 0), Kind::Arc { .. }));
+    let after = tips(&d);
+    assert!(after.len() == 1 && after[0].minus(Pt::new(5.0, 0.0)).len() < 1e-9, "{after:?}");
+    // Counter-clockwise, the arc runs as the polyline did.
+    let mut ccw = Drawing::from_json(r#"{"entities":[{"type":"polyline","pts":[[-5,0],[5,0]],"bulges":[1],"arrows":"end"}]}"#).unwrap();
+    ccw.explode(&[0]);
+    assert_eq!(ccw.entities[0].arrows, Ends::End);
+}
+
+/// Stretch: an arc inside the window whole moves, wherever its centre is; one only partly
+/// inside stays.
+#[test]
+fn stretch_moves_an_arc_inside_whole() {
+    // A shallow arc over the top of a circle of radius 100: its centre is far below the window.
+    let json = r#"{"entities":[{"type":"arc","c":[0,0],"r":100,"start":80,"end":100}]}"#;
+    let mut d = Drawing::from_json(json).unwrap();
+    assert_eq!(d.stretch(Pt::new(-30.0, 90.0), Pt::new(30.0, 110.0), Pt::new(5.0, 0.0)), 1);
+    assert!(matches!(kind(&d, 0), Kind::Arc { c, .. } if c.pt() == Pt::new(5.0, 0.0)), "{:?}", kind(&d, 0));
+    // Its ends inside but its top outside the window: not inside whole.
+    let mut d = Drawing::from_json(json).unwrap();
+    assert_eq!(d.stretch(Pt::new(-30.0, 90.0), Pt::new(30.0, 99.0), Pt::new(5.0, 0.0)), 0);
+    // A whole circle written as an arc moves with its centre, as a circle does.
+    let mut d = Drawing::from_json(r#"{"entities":[{"type":"arc","c":[0,0],"r":100,"start":0,"end":360}]}"#).unwrap();
+    assert_eq!(d.stretch(Pt::new(-1.0, -1.0), Pt::new(1.0, 1.0), Pt::new(5.0, 0.0)), 1);
+}

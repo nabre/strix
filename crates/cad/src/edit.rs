@@ -283,9 +283,10 @@ impl Drawing {
     /// expression stays one: `L` becomes `L + 0.5`.
     pub fn translate(&mut self, indices: &[usize], d: Pt) {
         let all = self.with_boundaries(indices);
+        let f = self.expr_scale();
         for &i in &all {
             if let Some(e) = self.entities.get_mut(i) {
-                move_kind(&mut e.kind, d);
+                move_kind(&mut e.kind, d, f);
             }
         }
         self.inserts_follow(&all, &crate::Affine { m: [1.0, 0.0, d.x, 0.0, 1.0, d.y], scale: 1.0, mirror: false });
@@ -304,11 +305,12 @@ impl Drawing {
         // Each copy's original id, and which group it is in.
         let mut origin: Vec<(String, usize)> = Vec::new();
         let indices = self.with_boundaries(indices);
+        let f = self.expr_scale();
         for (g, &d) in offsets.iter().enumerate() {
             for &i in &indices {
                 let Some(mut e) = self.entities.get(i).cloned() else { continue };
                 origin.push((e.id.clone(), g));
-                move_kind(&mut e.kind, d);
+                move_kind(&mut e.kind, d, f);
                 made.push(e);
             }
         }
@@ -432,34 +434,65 @@ impl Drawing {
                 ring.extend(ring.first().copied());
                 vec![ring]
             }),
+            // An angle is picked where it is drawn: a right angle's square, else the arc at its
+            // whole radius (the scaled part and the annotative one) and the rays out to it.
+            Kind::Angle { c, a, b, r, r_paper, .. } => match self.right_angle_square(e) {
+                Some(sq) => Some(vec![vec![sq[0], sq[1], sq[2], sq[3], sq[0]]]),
+                None => {
+                    let (c, a, b) = (c.pt(), a.pt(), b.pt());
+                    let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
+                    let (start, sweep) = (crate::kernel::direction(ua), crate::kernel::angle_ccw(ua, ub));
+                    let reach = r + r_paper / paper_per_unit(self);
+                    (reach.is_finite() && reach > 0.0 && ua.len() > 0.0 && ub.len() > 0.0 && sweep > 0.0).then(|| {
+                        vec![
+                            vec![c, c.plus(ua.scale(reach.max(a.minus(c).len())))],
+                            vec![c, c.plus(ub.scale(reach.max(b.minus(c).len())))],
+                            arc_points(c, reach, start.to_degrees(), (start + sweep).to_degrees()),
+                        ]
+                    })
+                }
+            },
             _ => None,
         }
         .unwrap_or_else(|| outline(e))
     }
 }
 
+impl Drawing {
+    /// What a drawing unit measures in the unit the expressions count in ([`Drawing::expr_unit`];
+    /// 1 unless the drawing was converted from another unit): a distance an edit writes into an
+    /// expression is written in that unit (500 mm moved in a drawing whose expressions are in
+    /// metres is `L + 0.5`).
+    pub(crate) fn expr_scale(&self) -> f64 {
+        let f = self.unit.mm() / self.expr_unit.unwrap_or(self.unit).mm();
+        if f.is_finite() && f > 0.0 { f } else { 1.0 }
+    }
+}
+
 /// `n` moved by `d`, keeping an expression: `L` → `L + 0.5`, `L + 0.5` → `L + 1` stays readable
-/// enough as `(L + 0.5) + 0.5`.
-fn shift(n: &mut Num, d: f64) {
+/// enough as `(L + 0.5) + 0.5`. `f`: what a drawing unit measures in the expressions' unit
+/// ([`Drawing::expr_scale`]).
+fn shift(n: &mut Num, d: f64, f: f64) {
     if d == 0.0 || !d.is_finite() {
         return;
     }
     n.value += d;
     if let Some(e) = &n.expr {
         // To the kernel's resolution: a point taken to a snap stays exactly there.
-        let step = format!("{}", crate::kernel::canon(d.abs()));
+        let step = format!("{}", crate::kernel::canon(d.abs() * f));
         let op = if d < 0.0 { "-" } else { "+" };
         let base = if e.contains(['+', '-']) { format!("({e})") } else { e.clone() };
         n.expr = Some(format!("{base} {op} {step}"));
     }
 }
 
-pub(crate) fn shift_p(p: &mut P, d: Pt) {
-    shift(&mut p.0, d.x);
-    shift(&mut p.1, d.y);
+pub(crate) fn shift_p(p: &mut P, d: Pt, f: f64) {
+    shift(&mut p.0, d.x, f);
+    shift(&mut p.1, d.y, f);
 }
 
-fn move_kind(k: &mut Kind, d: Pt) {
+fn move_kind(k: &mut Kind, d: Pt, f: f64) {
+    let shift_p = |p: &mut P, d: Pt| shift_p(p, d, f);
     match k {
         Kind::Line { a, b } | Kind::Dim { a, b, .. } => {
             shift_p(a, d);
@@ -656,6 +689,8 @@ impl Drawing {
         if g == Grip::Reference {
             return self.move_reference(i, to);
         }
+        let f = self.expr_scale();
+        let shift_p = |p: &mut P, d: Pt| shift_p(p, d, f);
         let Some(e) = self.entities.get_mut(i) else { return false };
         let tiny = crate::kernel::RESOLUTION;
         match (&mut e.kind, g) {

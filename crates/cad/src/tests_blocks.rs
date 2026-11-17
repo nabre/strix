@@ -185,3 +185,18 @@ fn an_array_of_insertions_keeps_them() {
     assert_eq!(d.inserts.len(), 2, "the insertion is gone");
     assert!(first.iter().all(|&k| d.entities[k].group.is_none()));
 }
+
+/// A scale that is no scale (set by hand on the struct, never read from a file) draws the
+/// drawing as it is: annotative insertions are not rescaled for it, over and over.
+#[test]
+fn a_scale_below_zero_never_rescales_annotative_blocks_for_ever() {
+    let mut d = drawing();
+    d.create_block("Mark", &[0], Pt::new(10.0, 10.0), true, true).unwrap();
+    for scale in [-50.0, 0.0, f64::NAN, f64::NEG_INFINITY] {
+        let mut bad = d.clone();
+        bad.scale = scale;
+        let r = bad.render(None);
+        assert!(r.size.0.is_finite() && r.size.1.is_finite(), "{scale}");
+        assert!(bad.fits_at(scale, None), "{scale}");
+    }
+}

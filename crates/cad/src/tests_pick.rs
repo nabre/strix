@@ -100,3 +100,23 @@ fn a_right_angle_is_picked_in_its_square() {
     assert_eq!(d.hits(Pt::new(5.9, 5.8), 0.5).first(), Some(&2), "by the far corner");
     assert!(!d.hits(Pt::new(9.0, 9.0), 0.5).contains(&2), "outside");
 }
+
+/// An angular dimension is picked on its arc where it is drawn: at its scaled radius plus its
+/// annotative one (the radius a click places by default), not at the scaled part alone.
+#[test]
+fn an_angle_is_picked_on_its_arc() {
+    let d = Drawing::from_json(
+        r#"{"scale":2,"entities":[{"type":"angle","c":[0,0],"a":[10,0],"b":[10,10],"r":0,"rPaper":20},
+            {"type":"angle","c":[100,0],"a":[110,0],"b":[110,10],"r":30,"rPaper":5}]}"#,
+    )
+    .unwrap();
+    // Paper mm to drawing units at 1:2: the arcs are 40 and 30 + 10 units from their vertices.
+    let (s, c) = 22.5f64.to_radians().sin_cos();
+    assert_eq!(d.hits(Pt::new(40.0 * c, 40.0 * s), 0.5), vec![0]);
+    assert_eq!(d.hits(Pt::new(100.0 + 40.0 * c, 40.0 * s), 0.5), vec![1]);
+    // Not where the scaled part alone would put it.
+    assert!(d.hits(Pt::new(100.0 + 30.0 * c, 30.0 * s), 0.5).is_empty());
+    // The box round it holds the arc.
+    let (_, hi) = d.bounds_of(&[0]).unwrap();
+    assert!((hi.x - 40.0).abs() < 1e-6, "{hi:?}");
+}
