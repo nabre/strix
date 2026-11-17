@@ -57,8 +57,16 @@ const MAX_NOTABLES_PER_SERIES: usize = 32;
 /// Touching zeros looked for per series at most (each is a golden-section search).
 const MAX_TOUCH_SEARCHES: usize = 24;
 
-/// Finds zeros `f(x) = 0` along continuous branches via 40-step bisection.
-pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, expr: &str, branches: &[Branch], y_span: f64) -> Vec<NotablePoint> {
+/// Finds zeros `f(x) = 0` along continuous branches via 40-step bisection. `x_span`, `y_span`:
+/// the view's width and height.
+pub(crate) fn find_roots(
+    eval: &mut ScalarEval,
+    series_index: usize,
+    var: &str,
+    expr: &str,
+    branches: &[Branch],
+    (x_span, y_span): (f64, f64),
+) -> Vec<NotablePoint> {
     let mut out: Vec<NotablePoint> = Vec::new();
     // Both follow the view's height: in a view a millionth tall, 1e-5 is far from zero.
     let tol_y = 1e-5 * y_span.abs().max(1e-12);
@@ -77,14 +85,14 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
             // (`floor(x)` over [0, 1)) there is no point to mark.
             if fa.abs() <= zero {
                 if !(i > 0 && is_zero(i - 1)) && !is_zero(i + 1) {
-                    push_unique_notable(&mut out, series_index, NotableKind::Root, a, 0.0, None);
+                    push_unique_notable(&mut out, x_span, series_index, NotableKind::Root, a, 0.0, None);
                 }
                 continue;
             }
             if fb.abs() <= zero {
                 // The next pair sees it, but for the branch's last point.
                 if i + 2 >= br.len() {
-                    push_unique_notable(&mut out, series_index, NotableKind::Root, b, 0.0, None);
+                    push_unique_notable(&mut out, x_span, series_index, NotableKind::Root, b, 0.0, None);
                 }
                 continue;
             }
@@ -112,7 +120,7 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
             if let Some(fr) = eval.eval_at(var, expr, root)
                 && fr.abs() <= tol_y
             {
-                push_unique_notable(&mut out, series_index, NotableKind::Root, root, 0.0, None);
+                push_unique_notable(&mut out, x_span, series_index, NotableKind::Root, root, 0.0, None);
             }
         }
         // Also detect tangential roots (`(x - 1)^2 = 0`) where `|f|` touches zero without
@@ -133,7 +141,7 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
                 if let Some((rx, ry)) = golden_section(eval, var, expr, x0, x2, true)
                     && ry.abs() <= tol_y * 0.1
                 {
-                    push_unique_notable(&mut out, series_index, NotableKind::Root, rx, 0.0, None);
+                    push_unique_notable(&mut out, x_span, series_index, NotableKind::Root, rx, 0.0, None);
                 }
             }
         }
@@ -142,7 +150,7 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
 }
 
 /// Finds strict local minima and maxima along continuous branches via 32-step golden-section search.
-pub(crate) fn find_extrema(eval: &mut ScalarEval, series_index: usize, var: &str, expr: &str, branches: &[Branch]) -> Vec<NotablePoint> {
+pub(crate) fn find_extrema(eval: &mut ScalarEval, series_index: usize, var: &str, expr: &str, branches: &[Branch], x_span: f64) -> Vec<NotablePoint> {
     let mut out: Vec<NotablePoint> = Vec::new();
     for br in branches {
         for (i, pair) in br.windows(2).enumerate() {
@@ -164,7 +172,7 @@ pub(crate) fn find_extrema(eval: &mut ScalarEval, series_index: usize, var: &str
                 && let Some((xm, ym)) = golden_section_signed(eval, var, expr, x0, x2, minimum)
             {
                 let kind = if minimum { NotableKind::Minimum } else { NotableKind::Maximum };
-                push_unique_notable(&mut out, series_index, kind, xm, ym, None);
+                push_unique_notable(&mut out, x_span, series_index, kind, xm, ym, None);
             }
         }
     }
@@ -227,11 +235,15 @@ fn golden_section_signed(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f6
     Some((xm, ym))
 }
 
-fn push_unique_notable(out: &mut Vec<NotablePoint>, series_index: usize, kind: NotableKind, x: f64, y: f64, slope: Option<f64>) {
+/// Adds the point unless one of its kind is already there: within a hundred-thousandth of the
+/// view's width `x_span` (two zeros 3·10⁻⁶ apart are two in a view 2·10⁻⁵ wide), or as near as
+/// the abscissa can tell them apart.
+fn push_unique_notable(out: &mut Vec<NotablePoint>, x_span: f64, series_index: usize, kind: NotableKind, x: f64, y: f64, slope: Option<f64>) {
     if !x.is_finite() || !y.is_finite() {
         return;
     }
-    let dup = out.iter().any(|p| p.kind == kind && (p.x - x).abs() < 1e-4);
+    let near = (1e-5 * x_span.abs()).max(1e-12 * x.abs());
+    let dup = out.iter().any(|p| p.kind == kind && (p.x - x).abs() < near);
     if !dup {
         out.push(NotablePoint { series_index, kind, x: clean_zero(x), y: clean_zero(y), slope });
     }

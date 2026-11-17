@@ -112,15 +112,18 @@ impl ScalarEval {
         if !q.value.is_finite() {
             return None;
         }
-        if let Some((factor, dim)) = self.y_scale {
-            if !q.dim.is_dimensionless() && q.dim != dim {
-                self.record_error("expression unit does not match plot yUnit");
-                return None;
+        // A plain number is plotted as it is (the ordinate's unit is then its label), like the
+        // numbers of the coherent-SI fallback in `eval_at`; a quantity is converted to the unit.
+        match self.y_scale {
+            Some((factor, dim)) if !q.dim.is_dimensionless() => {
+                if q.dim != dim {
+                    self.record_error("expression unit does not match plot yUnit");
+                    return None;
+                }
+                let v = q.value / factor;
+                v.is_finite().then_some(v)
             }
-            let v = q.value / factor;
-            v.is_finite().then_some(v)
-        } else {
-            Some(q.value)
+            _ => Some(q.value),
         }
     }
 

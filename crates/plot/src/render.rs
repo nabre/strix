@@ -428,8 +428,14 @@ fn render_function_series(p: &Plot, vp: Viewport, ws: Option<&Worksheet>, idx: u
     if xb <= xa {
         return;
     }
-    if let Some([ia, ib]) = integral
-        && let Some((info, polys)) = compute_integral(&mut eval, idx, var, expr, *ia, *ib, vp.x_min, vp.x_max, vp.y_min, vp.y_max)
+    // The area asked for, as far as the series goes: cut to its domain.
+    let area = match (integral, domain) {
+        (Some([ia, ib]), Some([da, db])) => Some((ia.max(*da), ib.min(*db))).filter(|(a, b)| b > a),
+        (Some([ia, ib]), None) => Some((*ia, *ib)),
+        (None, _) => None,
+    };
+    if let Some((ia, ib)) = area
+        && let Some((info, polys)) = compute_integral(&mut eval, idx, var, expr, ia, ib, vp.x_min, vp.x_max, vp.y_min, vp.y_max)
     {
         if draw {
             emit_integral_polys(polys, vp, series.color, &mut out.prims);
@@ -446,7 +452,9 @@ fn render_function_series(p: &Plot, vp: Viewport, ws: Option<&Worksheet>, idx: u
     if draw {
         emit_clipped_branches(&branches, vp, series.color, series.width, &dash, &mut out.prims);
     }
-    collect_and_draw_notables(&mut eval, vp, idx, series, (&branches, *roots, *extrema, *tangent_at), draw, out);
+    // A tangent point outside the domain is no point of the series.
+    let tangent_at = tangent_at.filter(|x0| domain.is_none_or(|[da, db]| (da..=db).contains(x0)));
+    collect_and_draw_notables(&mut eval, vp, idx, series, (&branches, *roots, *extrema, tangent_at), draw, out);
 }
 
 fn emit_integral_polys(polys: Vec<Branch>, vp: Viewport, color: [u8; 3], prims: &mut Vec<PlotPrim>) {
@@ -470,13 +478,13 @@ fn collect_and_draw_notables(
         return;
     };
     let (branches, roots, extrema, tangent_at) = flags;
-    let y_span = vp.y_max - vp.y_min;
+    let (x_span, y_span) = (vp.x_max - vp.x_min, vp.y_max - vp.y_min);
     let mut series_notables = Vec::new();
     if roots {
-        series_notables.extend(find_roots(eval, idx, var, expr, branches, y_span));
+        series_notables.extend(find_roots(eval, idx, var, expr, branches, (x_span, y_span)));
     }
     if extrema {
-        series_notables.extend(find_extrema(eval, idx, var, expr, branches));
+        series_notables.extend(find_extrema(eval, idx, var, expr, branches, x_span));
     }
     if let Some(x0) = tangent_at
         && let Some((pt, seg)) = compute_tangent(eval, idx, var, expr, x0, vp.x_min, vp.x_max, vp.y_min, vp.y_max)

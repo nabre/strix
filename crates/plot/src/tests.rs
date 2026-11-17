@@ -631,9 +631,9 @@ fn an_extremum_that_cannot_be_evaluated_is_not_reported_at_zero() {
     let mut eval = ScalarEval::new(None, None, None);
     while eval.eval_at("x", "x^2 + 1", 0.5).is_some() {}
     let branch = vec![vec![(-1.0, 2.0), (0.0, 1.0), (1.0, 2.0)]];
-    assert!(find_extrema(&mut eval, 0, "x", "x^2 + 1", &branch).is_empty());
+    assert!(find_extrema(&mut eval, 0, "x", "x^2 + 1", &branch, 10.0).is_empty());
     let touching = vec![vec![(-1.0, 1.0), (0.1, 0.01), (1.0, 1.0)]];
-    assert!(find_roots(&mut eval, 0, "x", "x^2", &touching, 10.0).is_empty());
+    assert!(find_roots(&mut eval, 0, "x", "x^2", &touching, (10.0, 10.0)).is_empty());
 }
 
 fn data_series(points: &[(f64, f64)]) -> Series {
@@ -714,4 +714,103 @@ fn the_tangent_in_a_narrow_range_is_the_curves_slope_there() {
     let r = plot.render(None);
     let slope = r.notables.iter().find(|n| n.kind == NotableKind::Tangent).and_then(|n| n.slope).expect("tangent");
     assert!((slope / 1e7 - 1.0).abs() < 1e-3, "{slope}");
+}
+
+/// The ordinate of `expr` at `x`, as the plot reads it (its tangent point there).
+fn ordinate(plot: &Plot, ws: &Worksheet, expr: &str, x: f64) -> f64 {
+    let mut s = function(expr);
+    if let SeriesKind::Function { tangent_at, .. } = &mut s.kind {
+        *tangent_at = Some(x);
+    }
+    let r = Plot { series: vec![s], ..plot.clone() }.render(Some(ws));
+    assert!(r.errors.is_empty(), "{expr}: {:?}", r.errors);
+    r.notables.iter().find(|n| n.kind == NotableKind::Tangent).map(|n| n.y).expect("a tangent point")
+}
+
+/// A plain number is plotted as it is, whatever the ordinate's unit (its label, then); a
+/// quantity is converted to it.
+#[test]
+fn a_plain_number_is_plotted_as_is_under_an_axis_unit() {
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("L := 30 cm");
+    let plot = Plot { x_min: 0.0, x_max: 5.0, y_min: 0.0, y_max: 500.0, y_unit: Some("cm".into()), ..Plot::default() };
+    let close = |a: f64, b: f64| (a - b).abs() < 1e-9 * b.abs().max(1.0);
+    // Plain numbers, evaluated with units or in the fallback (`L + x` adds a length to a number).
+    assert!(close(ordinate(&plot, &ws, "x^2", 2.0), 4.0));
+    assert!(close(ordinate(&plot, &ws, "L + x", 2.0), 2.3));
+    // Quantities: in the ordinate's unit.
+    assert!(close(ordinate(&plot, &ws, "L*x", 2.0), 60.0));
+    assert!(close(ordinate(&plot, &ws, "L", 2.0), 30.0));
+    let both = Plot { x_unit: Some("cm".into()), ..plot.clone() };
+    assert!(close(ordinate(&both, &ws, "L + x", 2.0), 32.0));
+    // Without a unit on the ordinate, coherent SI as ever.
+    let bare = Plot { y_unit: None, ..plot.clone() };
+    assert!(close(ordinate(&bare, &ws, "L*x", 2.0), 0.6));
+    assert!(close(ordinate(&bare, &ws, "x^2", 2.0), 4.0));
+}
+
+/// The analysis stays inside the series' domain: the area asked for is cut to it, a tangent
+/// point outside it is none.
+#[test]
+fn the_domain_bounds_the_tangent_and_the_integral() {
+    let series = |tangent: Option<f64>, area: Option<[f64; 2]>| {
+        let mut s = function("x^2");
+        if let SeriesKind::Function { domain, tangent_at, integral, .. } = &mut s.kind {
+            (*domain, *tangent_at, *integral) = (Some([1.0, 2.0]), tangent, area);
+        }
+        s
+    };
+    let render = |s: Series| Plot { series: vec![s], ..Plot::default() }.render(None);
+    let r = render(series(None, Some([-3.0, 3.0])));
+    let ig = r.integrals.first().expect("the integral over the domain");
+    assert_eq!((ig.a, ig.b), (1.0, 2.0));
+    assert!((ig.value - 7.0 / 3.0).abs() < 1e-6, "{ig:?}");
+    // The shading keeps to the domain too: no filled point left of 1 or right of 2.
+    let vp = r.viewport;
+    let x_of = |px: f64| -5.0 + (px - vp[0]) / vp[2] * 10.0;
+    let filled: Vec<f64> = r
+        .prims
+        .iter()
+        .filter_map(|p| match p {
+            PlotPrim::Path { pts, closed: true, fill: Some(_), .. } if pts.len() > 8 => Some(pts.iter().map(|q| x_of(q.0)).collect::<Vec<f64>>()),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+    assert!(!filled.is_empty());
+    assert!(filled.iter().all(|x| (1.0 - 1e-6..=2.0 + 1e-6).contains(x)), "{filled:?}");
+    // An area wholly outside the domain is none; one inside it is as asked.
+    assert!(render(series(None, Some([-3.0, 0.0]))).integrals.is_empty());
+    let r = render(series(None, Some([1.25, 1.75])));
+    assert_eq!(r.integrals.first().map(|ig| (ig.a, ig.b)), Some((1.25, 1.75)));
+    // The tangent: at a point of the domain (its ends too), not outside it.
+    for (x0, there) in [(1.5, true), (1.0, true), (2.0, true), (0.5, false), (3.0, false)] {
+        let r = render(series(Some(x0), None));
+        assert_eq!(r.notables.iter().any(|n| n.kind == NotableKind::Tangent), there, "tangent at {x0}");
+    }
+    // Automatic ranges follow: the abscissa is not stretched to bounds outside the domain.
+    let r = Plot { auto_range: true, series: vec![series(Some(40.0), Some([-30.0, 3.0]))], ..Plot::default() }.render(None);
+    assert!(r.range[0] > -6.0 && r.range[1] < 6.0, "{:?}", r.range);
+}
+
+/// Zeros are told apart by the width of the view, not by a fixed distance: a view narrower than
+/// a thousandth keeps its distinct zeros.
+#[test]
+fn zeros_in_a_narrow_view_are_told_apart() {
+    let plot = Plot { x_min: -1e-5, x_max: 1e-5, y_min: -1.0, y_max: 1.0, series: vec![analysed("sin(10^6*x)")], ..Plot::default() };
+    let r = plot.render(None);
+    assert!(r.errors.is_empty(), "{:?}", r.errors);
+    let mut roots = roots_of(&r);
+    roots.sort_by(f64::total_cmp);
+    assert_eq!(roots.len(), 7, "{roots:?}");
+    for (k, x) in (-3..=3).zip(&roots) {
+        assert!((x - f64::from(k) * std::f64::consts::PI * 1e-6).abs() < 1e-10, "{roots:?}");
+    }
+    let extrema = r.notables.iter().filter(|n| n.kind != NotableKind::Root).count();
+    assert_eq!(extrema, 6);
+    // At the usual width a zero found twice is still one.
+    let r = Plot { series: vec![analysed("(x - 1)^2*(x + 2)")], ..Plot::default() }.render(None);
+    let mut roots = roots_of(&r);
+    roots.sort_by(f64::total_cmp);
+    assert_eq!(roots.len(), 2, "{roots:?}");
 }
