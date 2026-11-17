@@ -27,6 +27,7 @@ mod references;
 mod review;
 mod shape;
 mod strix;
+mod structures;
 mod table;
 mod tabs;
 mod underline;
@@ -473,6 +474,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Home" => home(app, ui),
                         "Insert" => insert(app, ui),
                         "Math" => strix::math(app, ui),
+                        "Structures" => structures::structures(app, ui),
                         "Teaching" => strix::teaching(app, ui),
                         "Header & Footer" => strix::header_footer(app, ui),
                         exercise::EXERCISE_TAB => exercise::exercise_tab(app, ui),

@@ -25,6 +25,9 @@ wordcraft-layout = { workspace = true }
 wordcraft-render = { workspace = true }
 wordcraft-engine = { workspace = true }
 strix-cad = { workspace = true }
+strix-calc = { workspace = true }
+strix-plot = { workspace = true }
+strix-structure = { workspace = true }
 wordcraft-zotero = { workspace = true }
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_extras = { workspace = true }

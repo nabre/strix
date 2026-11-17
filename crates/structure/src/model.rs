@@ -745,6 +745,15 @@ impl Structure {
         errors
     }
 
+    /// The structure with its numbers' values only (their expressions dropped): what it is now.
+    pub fn values_only(&self) -> Structure {
+        let mut copy = self.clone();
+        for (n, _) in copy.nums_mut() {
+            n.expr = None;
+        }
+        copy
+    }
+
     /// The expressions its numbers come from, in order.
     pub fn expressions(&self) -> Vec<String> {
         let mut copy = self.clone();

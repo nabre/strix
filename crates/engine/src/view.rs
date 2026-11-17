@@ -89,6 +89,10 @@ pub struct ViewState {
     /// options for the selected plot (`docs/plot.md`).
     #[serde(default)]
     pub plot_pane: bool,
+    /// The Structure Editor pane (Structures › Editor): draws and edits the selected structure's
+    /// nodes, members, supports and loads, with their tables (`docs/structures.md`).
+    #[serde(default)]
+    pub structure_pane: bool,
     /// The Format Shape pane (Shape Fill › More Gradients…, a shape's Format Shape…): the
     /// selected shapes' fill.
     #[serde(default)]
@@ -247,6 +251,7 @@ impl Default for ViewState {
             check_pane: false,
             archive_pane: false,
             plot_pane: false,
+            structure_pane: false,
             grading_pane: false,
             questions_pane: false,
             data_pane: false,

@@ -23,13 +23,13 @@ pub fn specs() -> Vec<CommandSpec> {
     let selected = |s: &Session| if is_selected(s) { None } else { Some("select a structure first") };
     vec![
         CommandSpec::new("structure.insert", "Structure", PLACE, insert).params(
-            r#"{"structure"?: object|string, "template"?: "beam"|"cantilever"|"continuous"|"frame"|"truss"} → inserts a plane structure with its reactions and diagrams in line at the caret (a simply supported beam by default)"#,
+            r#"{"structure"?: object|string, "template"?: "beam"|"cantilever"|"continuous"|"frame"|"truss", "openPane"?: bool} → inserts a plane structure with its reactions and diagrams in line at the caret (a simply supported beam by default)"#,
         ),
         CommandSpec::new("structure.get", "Structure Source", PLACE, get).pure().when(selected).params(
-            r#"→ {"structure": object, "status": "isostatic"|"hyperstatic"|"labile"|"invalid"|"empty", "degree"?: n, "message": string, "truss": bool, "reactions": [{"node", "kind", "fx", "fy", "m"}], "members": [{"id", "length", "n": [...], "v": [...], "m": [...]}], "errors": [...]} (notable values: {"x", "value", "kind": "end"|"extreme"|"zero"})"#,
+            r#"→ {"structure": object, "resolved": object (its numbers' values), "status": "isostatic"|"hyperstatic"|"labile"|"invalid"|"empty", "degree"?: n, "message": string, "truss": bool, "reactions": [{"node", "kind", "fx", "fy", "m"}], "members": [{"id", "length", "n": [...], "v": [...], "m": [...]}], "errors": [...]} (notable values: {"x", "value", "kind": "end"|"extreme"|"zero"})"#,
         ),
         CommandSpec::new("structure.set", "Set Structure", PLACE, set).when(selected).params(
-            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN", "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?}), "titles"?: {"n"?, "v"?, "m"?}} → updates the selected structure and redraws it"#,
+            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN", "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
         ),
         CommandSpec::new("structure.node", "Structure Node", PLACE, node).when(selected).params(
             r#"{"id"?: string, "x"?: num|expr, "y"?: num|expr, "hinge"?: bool, "rename"?: string, "remove"?: bool} → adds a node (a new name when id is absent or new), changes it, or removes it with what uses it"#,
@@ -225,6 +225,13 @@ fn apply_settings(st: &mut Structure, v: &Value) -> Result<(), CmdError> {
         merge(&mut cur, t);
         st.titles = serde_json::from_value(cur).map_err(|e| CmdError::Params(format!("titles: {e}")))?;
     }
+    match p::str(v, "layout") {
+        None => {}
+        Some("auto") => st.layout = strix_structure::Layout::Auto,
+        Some("column") => st.layout = strix_structure::Layout::Column,
+        Some("grid") => st.layout = strix_structure::Layout::Grid,
+        Some(other) => return Err(CmdError::Params(format!("layout: \"{other}\" is not auto, column or grid"))),
+    }
     match p::str(v, "convention") {
         None => {}
         Some("italian") => st.diagrams = st.diagrams.italian(),
@@ -251,6 +258,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     s.sel = Selection { anchor: at, focus: end };
     super::calc::recalculate_now(s);
     s.touch();
+    if p::bool(v, "openPane").unwrap_or(false) {
+        s.view.structure_pane = true;
+    }
     super::sel_result(s)
 }
 
@@ -289,6 +299,7 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
         .collect();
     Ok(json!({
         "structure": st,
+        "resolved": r.resolved.values_only(),
         "status": status,
         "degree": degree,
         "message": an.status.describe(),

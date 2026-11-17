@@ -3803,10 +3803,142 @@ mark	Grade	Voto
 	1 structure	1 struttura
 	{n} structures	{n} strutture
 	Structure	Struttura
-	Structures	Strutture
 	Structure Source	Sorgente struttura
 	Set Structure	Imposta struttura
 	Structure Node	Nodo della struttura
 	Structure Member	Asta della struttura
 	Structure Support	Vincolo della struttura
 	Structure Load	Carico della struttura
+# Strix (2026-11-17): the Structures tab and the Structure Editor.
+structure	(truss)	(reticolare)
+structure	Add Couple	Aggiungi coppia
+structure	Add Distributed Load	Aggiungi carico distribuito
+structure	Add Force	Aggiungi forza
+structure	Add Member	Aggiungi asta
+structure	Add Node	Aggiungi nodo
+structure	Angle (°)	Angolo (°)
+structure	Angle: the support turned counter-clockwise; 0 stands on the ground, 90 on a wall to the right, −90 on a wall to the left.	Angolo: il vincolo ruotato in senso antiorario; 0 poggia a terra, 90 su una parete a destra, −90 su una parete a sinistra.
+structure	Automatic (Frames in Two Columns)	Automatica (telai su due colonne)
+structure	Cantilever	Mensola
+structure	Click a member to load it along its length	Fai clic su un'asta per caricarla lungo la sua lunghezza
+structure	Click a node or a member to remove it (a node with what uses it)	Fai clic su un nodo o un'asta per eliminarli (un nodo con ciò che lo usa)
+structure	Click a node or a member to see its properties.	Fai clic su un nodo o un'asta per vederne le proprietà.
+structure	Click a node or a point of a member to put a couple there	Fai clic su un nodo o un punto di un'asta per applicarvi una coppia
+structure	Click a node or a point of a member to put a force there	Fai clic su un nodo o un punto di un'asta per applicarvi una forza
+structure	Click a node to fix it (incastro)	Fai clic su un nodo per incastrarlo
+structure	Click a node to hold it with a link (pendolo)	Fai clic su un nodo per vincolarlo con un pendolo
+structure	Click a node to hold it with a slider (glifo)	Fai clic su un nodo per vincolarlo con un glifo
+structure	Click a node to make it an internal hinge, or not	Fai clic su un nodo per farne una cerniera interna, o toglierla
+structure	Click a node to pin it (cerniera)	Fai clic su un nodo per metterci una cerniera
+structure	Click a node to put it on a roller (carrello)	Fai clic su un nodo per metterlo su un carrello
+structure	Click to add a node	Fai clic per aggiungere un nodo
+structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Fai clic su due punti per disegnare un'asta; si prosegue dal suo estremo (Esc o clic destro per smettere)
+structure	Continuous Beam	Trave continua
+structure	Couple	Coppia
+structure	Distributed	Distribuito
+structure	Erase	Elimina
+structure	Fit	Adatta
+structure	Fixed	Incastro
+structure	Force	Forza
+structure	Grid	Griglia
+structure	Hinge	Cerniera
+structure	Hinge at its first node	Cerniera al primo nodo
+structure	Hinge at its second node	Cerniera al secondo nodo
+structure	Hinges	Cerniere
+structure	Hyperstatic, degree {n}	Iperstatica di grado {n}
+structure	Internal hinge	Cerniera interna
+structure	Isostatic	Isostatica
+structure	Labile: {n} degree(s) of freedom	Labile: {n} grado/i di libertà
+structure	Link	Pendolo
+structure	Loads	Carichi
+structure	Member	Asta
+structure	Member {n}	Asta {n}
+structure	Members	Aste
+structure	Name	Nome
+structure	No members yet: draw them with Member	Ancora nessuna asta: disegnale con Asta
+structure	Node	Nodo
+structure	Node or Member tool: Enter places the point	Con Nodo o Asta, Invio inserisce il punto
+structure	Node {n}	Nodo {n}
+structure	Nodes	Nodi
+structure	None	Nessuno
+structure	Numbers may be calculation parameters or expressions (L/2, q). Direction: degrees from the horizontal, counter-clockwise; −90 is down.	I numeri possono essere parametri dei calcoli o espressioni (L/2, q). Direzione: gradi dall'orizzontale in senso antiorario; −90 è verso il basso.
+structure	One Column	Una colonna
+structure	Pin	Cerniera
+structure	Point	Punto
+structure	Portal Frame	Portale
+structure	Positive Down	Positivi in basso
+structure	Positive Up	Positivi in alto
+structure	Remove Member	Elimina asta
+structure	Remove Node	Elimina nodo
+structure	Remove the load	Elimina il carico
+structure	Remove the node with its members, support and loads	Elimina il nodo con le sue aste, il vincolo e i carichi
+structure	Remove the member with its loads	Elimina l'asta con i suoi carichi
+structure	Remove the support	Elimina il vincolo
+structure	Roller	Carrello
+structure	Select	Seleziona
+structure	Select a node or a member, drag a node to move it	Seleziona un nodo o un'asta; trascina un nodo per spostarlo
+structure	Select a structure in the document to draw and edit it, or insert one.	Seleziona una struttura nel documento per disegnarla e modificarla, o inseriscine una.
+structure	Shear	Taglio
+structure	Show the whole structure	Mostra tutta la struttura
+structure	Simply Supported Beam	Trave appoggiata
+structure	Slider	Glifo
+structure	Snap	Aggancia
+structure	Snap to the grid (always to the nodes)	Aggancia alla griglia (ai nodi sempre)
+structure	Support	Vincolo
+structure	Supports	Vincoli
+structure	The direction measured from the member's axis (−90: towards the reference fibres), not from the horizontal	La direzione misurata dall'asse dell'asta (−90: verso le fibre di riferimento), non dall'orizzontale
+structure	The intensity per unit of the member's projection across the load (snow on a roof), not per unit of its length	L'intensità per unità di proiezione dell'asta trasversale al carico (neve su una falda), non per unità di lunghezza
+structure	The structure can't be read.	Impossibile leggere la struttura.
+structure	Truss	Travatura reticolare
+structure	Two Columns	Due colonne
+structure	Without E, I, A: EI is the same for every member and members do not stretch.	Senza E, I, A: EI è uguale per tutte le aste e le aste sono inestensibili.
+structure	at	a
+structure	at {n}	in {n}
+structure	counter-clockwise positive	positiva antioraria
+structure	direction (°)	direzione (°)
+structure	from	da
+structure	from the member	dall'asta
+structure	member	asta
+structure	node	nodo
+structure	per projection	per proiezione
+structure	to	a
+structure	From	Da
+structure	To	A
+structure	x	x
+structure	y	y
+	Structure\nEditor	Editor\nstruttura
+	Structure Editor	Editor struttura
+	Insert a beam, frame or truss with its reactions and diagrams	Inserisci una trave, un telaio o una reticolare con reazioni e diagrammi
+	Diagrams	Diagrammi
+	Reactions	Reazioni
+	Draw the reactions on the structure, in a panel of their own	Disegna le reazioni sulla struttura, in un riquadro a parte
+	Axial Force N	Sforzo normale N
+	Draw the axial force diagram (a truss: each member's force)	Disegna il diagramma dello sforzo normale (in una reticolare: lo sforzo di ogni asta)
+	Shear	Taglio
+	Draw the shear diagram	Disegna il diagramma del taglio
+	Moment M	Momento M
+	Draw the bending moment diagram	Disegna il diagramma del momento flettente
+	Positive Side	Lato positivo
+	Which side of each member a diagram's positive values are drawn on	Da che parte dell'asta si disegnano i valori positivi di ogni diagramma
+	Italian Convention	Convenzione italiana
+	N and T positive up, M on the stretched fibres (positive down)	N e T positivi in alto, M dalla parte delle fibre tese (positivo in basso)
+	Write the notable values: at the ends of each stretch, the jumps, the maxima	Scrivi i valori notevoli: agli estremi dei tratti, i salti, i massimi
+	Hatching	Tratteggio
+	Hatch the diagrams' areas across the members	Tratteggia le aree dei diagrammi trasversalmente alle aste
+	Signs	Segni
+	Mark each area of the diagrams with its sign	Segna ogni area dei diagrammi col suo segno
+	Panel Layout	Disposizione
+	How the panels are laid out: one under the other, or two by two	Come si dispongono i riquadri: uno sotto l'altro o a due a due
+	Automatic (Frames in Two Columns)	Automatica (telai su due colonne)
+	One Column	Una colonna
+	Two Columns	Due colonne
+	Units	Unità
+	The units of lengths and forces (moments are their product)	Le unità di lunghezze e forze (i momenti sono il loro prodotto)
+	Solution\nOnly	Solo\nsoluzione
+	Simply Supported Beam	Trave appoggiata
+	Cantilever	Mensola
+	Continuous Beam	Trave continua
+	Portal Frame	Portale
+	Truss	Travatura reticolare
+	N: Positive Up	N: positivi in alto
+	Values	Valori

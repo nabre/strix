@@ -197,7 +197,7 @@ pub struct Analysis {
 }
 
 impl Analysis {
-    fn failed(status: Status, warnings: Vec<String>) -> Analysis {
+    pub(crate) fn failed(status: Status, warnings: Vec<String>) -> Analysis {
         Analysis { status, reactions: Vec::new(), members: Vec::new(), truss: false, warnings }
     }
 }

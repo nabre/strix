@@ -1,6 +1,6 @@
 # Plane structures (`strix-structure`)
 
-> **Status:** stage 1 done (solver, structure object, diagrams, commands); stage 2 (Structures tab, editor and tables) and stage 3 (step-by-step working, exercise variants in the editor) next · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/engine/src/cmd/structure.rs` (`L4`)
+> **Status:** stages 1–2 done (solver, structure object, diagrams, commands; Structures tab, Structure Editor pane with its tables); stage 3 (step-by-step working) next · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/engine/src/cmd/structure.rs` (`L4`), `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs` (`L6`)
 
 Strix documents hold plane structures — beams, frames and trusses — that are solved where they sit and drawn with their reactions and their N, V (T) and M diagrams one under the other, at the same horizontal scale, as textbooks draw them. Lengths and loads may be calculation parameters (`L`, `q`), so a structure follows the calculations before it and each exercise variant has its own numbers and diagrams. This is a Strix feature beyond Word parity; the model is the one of 2D frame analysis tools such as structural-analyser.com, drawn with the conventions of Italian structural mechanics texts.
 
@@ -55,7 +55,28 @@ A `GraphicKind::Structure` graphic holds the JSON source (`Graphic::structure`),
 | `structure.support {node, kind?, angle?, remove?}` | one support per node: puts, changes or removes it |
 | `structure.load {index?, load?, remove?}` | adds, replaces or removes a load |
 
+## The Structures tab (Strutture)
+
+Between Math and Teaching (`ribbon::TABS`; a saved ribbon layout gets it after Math). Its groups:
+
+- **Structure:** Structure (a menu of the templates: Simply Supported Beam, Cantilever, Continuous Beam, Portal Frame, Truss; it opens the editor) and **Structure Editor** (`view.structurePane`).
+- **Diagrams:** Reactions, Axial Force N, Shear T (the shear's title as the structure names it), Moment M, each shown or hidden; **Positive Side** (up or down for each of N, T, M); **Italian Convention**.
+- **Show:** Values, Hatching, Signs; **Panel Layout** (Automatic — frames in two columns —, One Column, Two Columns); **Units** (m, cm, mm; kN, daN, N).
+- **Teaching:** **Solution Only** (`answer`: reactions and diagrams hidden in the student copy).
+
+Everything but Structure and the editor needs a structure selected (`structure.set` is enabled only then).
+
+## The Structure Editor pane
+
+A task pane (docked right, 440 pt) for the selected structure, every change made through the `structure.*` commands (so undoable and scriptable):
+
+- **Status:** isostatic, hyperstatic of degree h, labile (with its degrees of freedom), a truss; the expressions that failed and the analysis' warnings.
+- **Sheet:** the structure as the document draws it (`Structure::schema_prims`: the same symbols, loads and names) on a white sheet with a grid; the wheel zooms about the pointer, the middle or right button pans, **Fit** shows it whole. The pointer snaps to the nodes, and to the grid with **Snap** (its step in **Grid**); its coordinates are shown in the corner.
+- **Tools:** Select (a node or a member; drag a node to move it), Node, Member (two clicks, then it goes on from its end; Esc or a right click stops; missing nodes are made), the five supports (a click on a node), Internal hinge (a click on a node turns it on or off), Force and Couple (on a node, or on a member at the point clicked, rounded to the grid), Distributed (a uniform load on the member clicked), Erase (a node with what uses it, or a member with its loads). New loads start at 10 in the structure's units.
+- **Point:** coordinates typed as in the CAD editor — `x, y`, or `x; y` with decimal commas, or `@dx, dy` from the member's last point or the selected node — place a node (or the member's next point with Member) on Enter.
+- **Selection:** a node's name (renamed everywhere), x, y, internal hinge, support and its angle; a member's hinges at either end and E, I, A (empty: none), its length.
+- **Tables:** Nodes (x, y, hinge), Members (ends, hinges, E, I, A), Supports (kind, angle), Loads (where, position, values, direction, from the member's axis, per projection), each row editable and removable, with Add buttons. Every number may be a calculation parameter or an expression; a plain number is read with a decimal point or comma.
+
 ## Next
 
-- **Stage 2:** the Structures tab (between Math and Teaching): insert from templates, the structure editor (drawing nodes and members with the CAD editor's snaps, grid and typed coordinates; supports, hinges and loads from the ribbon) beside tables of nodes, members, supports and loads that accept parameters; the diagrams' settings (positive side per diagram, convention, values, hatch, signs).
 - **Stage 3:** the step-by-step working written after a structure as live calculations (equilibrium equations, reactions, the laws N(x), V(x), M(x) per stretch); exercise variants from the editor.

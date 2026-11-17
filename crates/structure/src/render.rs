@@ -271,6 +271,11 @@ impl Ctx<'_> {
 
     /// The paper direction at node `id` farthest from its members (and supports, below).
     fn free_side(&self, id: &str) -> P {
+        self.free_side_avoiding(id, &[])
+    }
+
+    /// [`Ctx::free_side`] keeping clear of the paper directions `taken` too (arrows drawn there).
+    fn free_side_avoiding(&self, id: &str, taken: &[P]) -> P {
         let st = self.st;
         let Some(n) = st.node(id) else { return (-FRAC_1_SQRT_2, -FRAC_1_SQRT_2) };
         let mut dirs: Vec<P> = Vec::new();
@@ -289,7 +294,13 @@ impl Ctx<'_> {
         for s in st.supports.iter().filter(|s| s.node == id) {
             let phi = s.angle.value.to_radians();
             dirs.push((phi.sin(), phi.cos()));
+            // A fixed end's plate runs along the ground both ways.
+            if s.kind == SupportKind::Fixed {
+                dirs.push((phi.cos(), -phi.sin()));
+                dirs.push((-phi.cos(), phi.sin()));
+            }
         }
+        dirs.extend_from_slice(taken);
         let mut best = (-FRAC_1_SQRT_2, -FRAC_1_SQRT_2);
         let mut score = f64::MAX;
         for k in 0..16 {
@@ -478,6 +489,7 @@ impl Ctx<'_> {
                     comps.push((n, r.fx * n.0 + r.fy * n.1));
                 }
             }
+            let mut taken: Vec<P> = Vec::new();
             for (axis, v) in comps {
                 if v == 0.0 {
                     continue;
@@ -486,6 +498,7 @@ impl Ctx<'_> {
                 // The side of the node the arrow stands on: the support's side for the axis
                 // across it, else away from the members.
                 let side = self.arrow_side(&r.node, ap, below);
+                taken.push(side);
                 let far = add(p, mul(side, ARROW + 2.0));
                 let near = add(p, mul(side, 1.0));
                 // The force on the paper.
@@ -502,7 +515,7 @@ impl Ctx<'_> {
             if r.m != 0.0 {
                 self.pen.couple(p, 5.0, r.m > 0.0, REACTION, 0.4);
                 let label = self.moment(r.m.abs());
-                let free = self.free_side(&r.node);
+                let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.beside(add(p, mul(free, 6.5)), free, label, REACTION);
             }
         }
@@ -748,6 +761,21 @@ fn interp(seg: &[(f64, f64)], x: f64) -> f64 {
 }
 
 impl Structure {
+    /// The structure alone — members, hinges, supports, loads and node names — for an editor:
+    /// `k` paper mm per unit, the world point `origin` at paper (0, 0), y down. Its numbers as
+    /// they are (resolve them first).
+    pub fn schema_prims(&self, k: f64, origin: (f64, f64), opts: Options) -> Vec<PlotPrim> {
+        let an = Analysis::failed(Status::Empty, Vec::new());
+        let k = if k.is_finite() && k > 0.0 { k } else { 1.0 };
+        let f = Frame { x0: 0.0, top: 0.0, xmin: origin.0, ymax: origin.1, k };
+        let mut cx = Ctx { st: self, an: &an, opts, pen: Pen::default(), amp_cap: f64::MAX, placed: Vec::new() };
+        cx.members(&f, BLACK, MEMBER_W, true);
+        cx.supports(&f, BLACK);
+        cx.loads(&f);
+        cx.node_names(&f);
+        cx.pen.prims
+    }
+
     /// Renders the teacher's copy (reactions and diagrams shown).
     pub fn render(&self, ws: Option<&Worksheet>) -> StructureRendered {
         self.render_for(ws, true)
@@ -831,7 +859,7 @@ impl Structure {
                     Action::Shear => d.v,
                     Action::Moment => d.m,
                 };
-                let pad = (dg.amplitude.min(amp_cap) + 6.0).max(9.0);
+                let pad = (dg.amplitude.min(amp_cap) + 9.0).max(12.0);
                 (*above, *below) = (pad, pad);
             }
         }
