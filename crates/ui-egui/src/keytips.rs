@@ -92,8 +92,9 @@ const TAB_LETTERS: [(&str, &str); 12] = [
     ("Help", "Y"),
 ];
 
-/// Word's contextual table tabs take two letters (Alt, J, T and Alt, J, L), shown in a table.
-const TABLE_TAB_LETTERS: [(&str, &str); 2] = [("Table Design", "JT"), ("Table Layout", "JL")];
+/// Word's contextual table tabs take two letters (Alt, J, T and Alt, J, L), shown in a table;
+/// a calculated table's own tab takes Alt, J, C.
+const TABLE_TAB_LETTERS: [(&str, &str); 3] = [("Table Design", "JT"), ("Table Layout", "JL"), ("Calculated Table", "JC")];
 
 /// The Search box's badge beside the tab badges (Word's Alt, Q).
 pub const SEARCH_LETTER: &str = "Q";
@@ -151,6 +152,9 @@ pub fn badge_tabs(app: &WordApp) -> Vec<&'static str> {
     let mut v: Vec<&'static str> = TAB_LETTERS.iter().filter(|(_, l)| !l.is_empty()).map(|(t, _)| *t).collect();
     if crate::ribbon::in_table_public(app) {
         v.extend_from_slice(&["Table Design", "Table Layout"]);
+    }
+    if crate::ribbon::in_calc_table_public(app) {
+        v.push("Calculated Table");
     }
     v
 }
@@ -423,6 +427,17 @@ fn controls(tab: &str) -> Vec<Control> {
             c("Repeat Header Rows", "table.repeatHeader"),
             c("Convert to Text", "table.toText"),
             c("Formula", "table.formula"),
+        ],
+        // Total Row is set by its state (`table.look`), so it has no badge.
+        "Calculated Table" => vec![
+            c("Calculated Table", "table.calc"),
+            c("Show every cell as an equation: names in italics, subscripts, units in the Unit style", "table.mathCells"),
+            m(
+                "Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F",
+                "table.calcNames",
+            ),
+            c("A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)", "table.calcIndex"),
+            c("Sum the column at the cursor in the total row, or leave its cell there empty", "table.calcTotal"),
         ],
         _ => Vec::new(),
     }

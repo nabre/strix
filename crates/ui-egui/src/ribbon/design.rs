@@ -90,8 +90,8 @@ pub(super) fn design(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("design.setDefault", json!({}), false),
             );
         });
-        super::strix::dsa_menu(ui, app);
     });
+    super::strix::dsa_group(ui, app);
     group(ui, "Page Background", None, app, |ui, app| {
         menu_button(
             ui,
@@ -111,9 +111,9 @@ pub(super) fn design(app: &mut WordApp, ui: &mut Ui) {
             app,
             crate::widgets::MenuButtonOptions::new("pageColor", Some("Page\nColor"), "Page Color", true, "design.pageColor"),
             |ui, app| {
-                mi(ui, app, "No Color", "design.pageColor", json!({"color": null}));
                 let theme = app.session.doc.settings.theme_colors.clone();
-                crate::colors::menu(ui, app, &theme, Target::cmd("design.pageColor"));
+                let opts = crate::color_palette::Options::top(crate::color_palette::TopItem::none("No Color", serde_json::Value::Null)).fill();
+                crate::colors::menu_with(ui, app, &theme, Target::cmd("design.pageColor"), &opts);
             },
         );
         big(ui, app, "pageBorders", "Page\nBorders", "design.pageBorders", json!({}), false);

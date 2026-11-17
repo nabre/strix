@@ -242,4 +242,7 @@ Strix è distribuito con doppia licenza [MIT](../LICENSE-MIT) o [Apache-2.0](../
 tua scelta. Copyright (c) 2026 nabre e i contributori di Strix. Strix è un fork di
 [WordCraft](https://github.com/storytold/wordcraft) e non è affiliato né approvato dai suoi autori;
 le note richieste sono in [NOTICE](../NOTICE). Font, icone, dizionari e traduzioni inclusi
-mantengono le loro licenze aperte, elencate in [ATTRIBUTION.md](../ATTRIBUTION.md).
+mantengono le loro licenze aperte, elencate in [ATTRIBUTION.md](../ATTRIBUTION.md). Microsoft e
+Word sono marchi di Microsoft Corporation; Strix è un progetto indipendente, non affiliato,
+approvato o sponsorizzato da Microsoft, e legge e scrive i file di Word a partire dalle specifiche
+pubblicate (ECMA-376, ISO/IEC 29500).

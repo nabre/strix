@@ -12,10 +12,10 @@
 //!   automatically (one read-only `strix:exercise.prompt` per question) followed by its free
 //!   working, kept when the questions change; an equation in it is marked as the result of a
 //!   question (`Math::answer`, `equation.answer`: by default the question it is worked under);
-//! - the **data** (`strix:exercise.data`, read-only): the exercise's initial data with their
-//!   values in the active variant, generated from the data kept on the exercise control (Exercise
-//!   Properties pane, `exercise.setData`); they are the first parameters of the exercise's
-//!   sandbox;
+//! - the **data** (`strix:exercise.data`): the exercise's initial data as equations with their
+//!   values in the active variant, generated from the data kept on the exercise control (Data
+//!   panel, `exercise.setData`) and editable in place ([`data_line`]); they are the first
+//!   parameters of the exercise's sandbox;
 //! - one **results summary** (`strix:results`, read-only) at the end of the document, listing
 //!   every exercise's questions with the value of their result equations.
 //!
@@ -40,35 +40,46 @@ mod archive;
 mod archive_bank;
 mod breaks;
 mod check;
+pub mod data_line;
 mod delete;
 mod dsa;
 mod dsa_runs;
 pub(crate) mod expr;
 mod front;
 pub(crate) mod grading;
+mod guard;
 mod items;
 mod items_ext;
 mod language;
 mod numbering;
+mod own_lists;
 mod pack;
+mod question_line;
 mod scores;
 mod series;
 mod show;
+mod shown;
 pub(crate) mod stem_items;
 mod structure;
+#[cfg(test)]
+mod tests_expr;
 #[cfg(test)]
 mod tests_phase3;
 #[cfg(test)]
 mod tests_phase4;
 #[cfg(test)]
 mod tests_phase5;
+mod title_line;
 mod total_score;
+mod true_false;
 mod variants_gen;
+mod word_blank;
 mod words;
 pub use delete::{covered_by_selection, delete_targets};
 pub(crate) use delete::{goes_with, refusal, taken_whole, tidy, widen_selection};
-pub use expr::TAG_EXPR;
+pub use expr::{SHOW_MODES, TAG_EXPR, inline_value_at};
 pub use grading::TAG_GRADING;
+pub(crate) use guard::{after_paste, before_paste, outside_for, typing_target};
 pub use items::{TAG_ANSWER, TAG_BOX, TAG_ITEM, TAG_POINTS};
 pub use items_ext::TAG_RATIONALE;
 pub(crate) use language::follow_language;
@@ -125,7 +136,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("exercise.insert", "New Exercise", "Teaching › Exercise", insert)
             .when(body)
-            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement only when given, each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
+            .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "titleLine"?: "title" | "statement" (as exercise.titleLine), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement when given or with more than one question (its placeholder), each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
@@ -139,14 +150,19 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
-            .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
+            .when(|s| match exercise_at_caret(s) {
+                None => Some("the cursor isn't in an exercise"),
+                // A note goes between or after the questions: there is none yet.
+                Some(e) if scan(s).exercises.get(e).is_some_and(|e| e.no_questions) => Some("write a question first"),
+                Some(_) => None,
+            })
             .params(r#"{"text"?: string} → adds a note (free text, not a question) at the end of the questions of the exercise at the caret"#),
         CommandSpec::new("equation.answer", "Result Of", "Teaching › Exercise", answer)
             .when(|s| if super::equation::equation_at_caret(s).is_some() { None } else { Some("no equation at the caret") })
             .params(r#"{"question"?: n (1-based; 0 = none; default: the question it is worked under), "toggle"?: bool (a result is taken off)} → the equation at the caret is the result of that question of its exercise"#),
         CommandSpec::new("exercise.info", "Exercise Info", "Teaching › Exercise", info)
             .pure()
-            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n}"#),
+            .params(r#"→ {"exercise": n|null, "title", "questions": [string], "labels": ["a)", "a.1)"…], "levels": [n], "answer": n (of the equation at the caret, 0 none), "exercises": n, "list": [{"label", "title", "kind", "pos"}] (every exercise)}"#),
         CommandSpec::new("exercise.data", "Exercise Data", "Teaching › Exercise", data_info)
             .pure()
             .params(r#"{"exercise"?: n (1-based; default: at the caret)} → {"exercise", "data": {"items": [{"symbol", "description", "unit", "values": [string per variant]}], "variants": [name], "active": n, "duration"?: minutes}, "errors": [string|null per item], "variantErrors": {variantName: [string]}}"#),
@@ -158,12 +174,16 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "count"?: 1–26 (default 4), "seed"?: u64, "domains"?: [{"symbol", "description"?, "unit"?, "values"?: [string], "min"?: number, "max"?: number, "step"?: number}], "constraints"?: {"maxDecimals"?: 0–9, "positiveResults"?: bool, "distinctFinalResults"?: bool, "extra"?: [string]}} → deterministically generates N validated variants within 5000 candidate evaluations"#),
         CommandSpec::new("exercise.blank", "Inline Blank", "Teaching › Exercise", stem_items::blank)
-            .params(r#"{"expr": string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer"#),
-        CommandSpec::new("exercise.tableFill", "Student Blank Cell", "Teaching › Exercise", stem_items::table_fill)
-            .params(r#"{"studentBlank"?: bool, "column"?: bool} → mark the cell or column at the caret; the table remains calculated"#),
+            .params(r#"{"expr"?: string} → inserts a live strix:blank; students see a blank with the unit, teachers see the calculated answer. Without expr: hides the selected words inside an exercise (a text to complete by hand; `[[word]]` typed in an inline completion question does the same): teachers see the words, students a line to write on"#),
         CommandSpec::new("exercise.insertExpr", "Inline Expression", "Teaching › Exercise", expr::insert_command)
             .when(body)
             .params(r#"{"expr": string (e.g. "v * t -> m")} → inserts an inline strix:expr control at the caret evaluated in the exercise's sandbox (or main worksheet) with its unit in the Unit style"#),
+        CommandSpec::new("exercise.inlineValue", "Inline Value", "Teaching › Exercise", expr::inline_value_command)
+            .when(|s| if expr::inline_value_at(s).is_some() { None } else { Some("no inline value at the caret") })
+            .params(r#"{"expr"?: string (e.g. "R -> cm"), "show"?: "value" (1.5 m) | "both" (R = 1.5 m) | "number" (1.5), "remove"?: bool} → the inline value at the caret ({"expr", "show", "shown", "blank"}), changed or deleted"#),
+        CommandSpec::new("exercise.titleLine", "Title Line", "Teaching › Exercise", title_line::command)
+            .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "line"?: "title" (a bold title after the number) | "statement" (no title: the statement or question written right after the number, in the body text's weight)} → {"exercise", "line"}"#),
         CommandSpec::new("exercise.delete", "Delete Exercise", "Teaching › Exercise", delete::delete)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n | [n] (1-based; default: the exercises the selection covers whole, else the one at the caret)} → removes those exercises whole (title, statement, data, questions, solution) in one undo step; an empty paragraph stays where each was; the others renumber and the results summary follows (it goes with the last exercise) → {"deleted": [n], "exercises": n left}"#),
@@ -179,7 +199,11 @@ pub fn specs() -> Vec<CommandSpec> {
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"exercise"?: n, "on"?: bool (rules graph paper after the questions, before the solution; false takes it away), and graph.set's parameters ("placement" but not "background", "pages", "height", "spacing", "style", "color", "width", "majorEvery", "majorStyle", "majorColor", "majorWidth", "followColumns", "frameWidth")} → in a series (two or more exercises) it applies to every exercise, and a change in the Graph Paper pane to one exercise's graph paper goes to all → as exercise.show, "grid": the first exercise's graph paper as graph.get gives it, or null"#),
         CommandSpec::new("exercise.frontispiece", "Frontispiece", "Teaching › Exercise", front::command)
-            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            // A frontispiece left without exercises is still told, and taken away.
+            .when(|s| {
+                let layout = scan(s);
+                if layout.exercises.is_empty() && layout.front.is_none() && layout.legacy_front.is_none() { Some("the document has no exercise") } else { None }
+            })
             .params(r#"{"on"?: bool} → adds (true) or removes (false) the frontispiece: your own pages at the start of the document (title of the series, class, date…), as many as you like, ended by a Frontispiece Break (a next-page section break marked as the frontispiece's, shown with the formatting marks); added, it is an empty paragraph with the break and the caret in it; removed, everything before the break goes with it → {"on": bool}"#),
         CommandSpec::new("exercise.scores", "Scores Table", "Teaching › Scores", scores::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
@@ -187,14 +211,14 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.totalScore", "Total Score", "Teaching › Scores", total_score::command)
             .params(r#"{"on"?: bool (insert a right-aligned `Punteggio: .......... / 20 pt` line after the caret's paragraph, outside the exercises / remove it), "points"?: number | null (the maximum used when the document's points give none)} → {"on", "points" (the maximum shown), "computed" (the scores table's grand total, else the exercises' question points added up; null without points), "manual"}"#),
         CommandSpec::new("exercise.grading", "Grading Scale", "Teaching › Scores", grading::command)
-            .params(r#"{"on"?: bool (insert or remove the strix:grading scale table), "preset"?: "it-10" | "ch-6" | "de-6" | "fr-20" | "percent" | "custom", "maxPoints"?: number | null (null = bound automatically to strix:scores grand total), "minGrade"?: number, "maxGrade"?: number, "passRatio"?: 0.05–0.95, "passGrade"?: number, "curve"?: "linear" | "piecewiseLinear", "step"?: 0.1 | 0.25 | 0.5 | 1.0, "pointsStep"?: number | null, "visibility"?: "teacher" | "both"} → {"on", "config", "maxPoints", "scale": [{"points", "grade", "passing"}]}"#),
+            .params(r#"{"on"?: bool (insert or remove the strix:grading scale table), "preset"?: "it-10" | "ch-6" | "de-6" | "fr-20" | "percent" | "custom", "maxPoints"?: number | null (null = bound automatically to strix:scores grand total), "minGrade"?: number, "maxGrade"?: number, "passRatio"?: 0.05–0.95, "passGrade"?: number, "curve"?: "linear" | "piecewiseLinear", "step"?: number (the grade grid's step, e.g. 0.25 | 0.5 | 1), "pointsRound"?: number | null (the multiple the points of each grade are rounded to; null = hundredths), "visibility"?: "teacher" | "both"} → {"on", "preset", "maxPoints", "effectiveMaxPoints", …, "pointsRound", "scale": [{"grade", "from", "to" (excluded; null on the highest grade), "points" (= from), "pass", "empty", "text" ("[from; to[")}]}"#),
         CommandSpec::new("exercise.check", "Check Assessment", "Teaching › Check", check::command)
             .pure()
             .params(r#"→ {"ok": bool, "errors": n, "warnings": n, "infos": n, "issues": [{"kind": "error"|"warning"|"info", "code", "message", "exercise"?, "variant"?, "pos"}]}; inspects all variants A..Z, choices, subdocuments, scores, durations and laid-out answer heights without mutating the session"#),
         CommandSpec::new("file.exportPack", "Export Assessment Pack", "Teaching › Export", pack::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"path"?: string (directory or .zip file path), "returnBytes"?: bool (returns base64 zip in zipBase64), "includeDsa"?: bool (default true), "includeTeacher"?: bool (default true)} → exports Student PDFs per variant, DSA Student PDFs, and Teacher Key PDF (with Grading Scale and Multi-Variant Synoptic Table)"#),
-        CommandSpec::new("design.dsa", "DSA", "Design › Document Formatting", dsa::command).params(
+        CommandSpec::new("design.dsa", "DSA", "Design › DSA", dsa::command).params(
             r#"{"reading"?: bool (dyslexia: 14 pt, wider letter spacing), "writing"?: bool (dysgraphia: 1 cm graph paper, room under each question), "math"?: bool (dyscalculia, working memory: the data framed), "none"?: true (all off)} → turns those versions on or off; they combine over a common base (13 pt, line spacing 1.5, left aligned, no italics, no hyphenation, each exercise on a new page). Formatting only (styles, hyphenation, the series' page breaks and graph paper), kept in the document so taking it off brings back its own; in a master document the files keep theirs. Without params, the versions on → {"reading", "writing", "math", "on"}"#,
         ),
         CommandSpec::new("archive.scan", "Exercise Bank", "Teaching › Archive", archive_bank::scan).pure()
@@ -445,7 +469,8 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     }
     ensure_styles(s);
     if let Some(kind) = p::str(v, "kind").filter(|k| *k != "problem") {
-        let (blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        let (mut blocks, drawings) = items::exercise_blocks(s, v, kind)?;
+        title_line::on_insert(s, &mut blocks, v);
         let placed = place(s, blocks)?;
         if drawings.is_empty() {
             return Ok(placed);
@@ -461,8 +486,9 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         return super::sel_result(s);
     }
     let w = words(s);
-    let title = p::str(v, "title").map(str::to_string);
-    let text = p::str(v, "text").map(str::to_string);
+    // An empty title or text is none given: its placeholder shows.
+    let title = p::str(v, "title").filter(|t| !t.trim().is_empty()).map(str::to_string);
+    let text = p::str(v, "text").filter(|t| !t.trim().is_empty()).map(str::to_string);
     // Questions: strings, or {"text", "level", "points"} for nested / scored ones.
     let comma = scores::comma(s);
     let questions: Vec<(String, u8, Option<f64>)> = v
@@ -533,6 +559,7 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     blocks.push(para(STYLE_PROMPT, "", vec![control(TAG_PROMPT, w.prompt, ControlLock::SdtContentLocked)], 1, None));
     // The free space of the solution closes the solution and the exercise.
     blocks.push(para("Normal", "", Vec::new(), 2, None));
+    title_line::on_insert(s, &mut blocks, v);
     place(s, blocks)
 }
 
@@ -545,6 +572,12 @@ fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     // summary (the caret in it).
     let layout = scan(s);
     let inside = match layout.parts.get(top) {
+        // Never in the frontispiece (the caret in it, as Frontispiece leaves it): after its break,
+        // which stays where it is.
+        _ if layout.front.is_some_and(|(_, to)| top <= to) => {
+            at = layout.front.map_or(at, |(_, to)| to + 1).min(s.doc.body.len());
+            true
+        }
         Some((Some(e), _)) => {
             let e = *e;
             at = layout.parts.iter().rposition(|(x, _)| *x == Some(e)).map_or(at, |last| last + 1).min(s.doc.body.len());
@@ -552,6 +585,11 @@ fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
         }
         Some((None, Part::Results)) => {
             at = layout.parts.iter().position(|(_, part)| *part == Part::Results).unwrap_or(top);
+            // The empty free paragraph before the summary gives way to the exercise.
+            if let Some(i) = structure::free_before_results(s, at) {
+                s.doc.body.remove(i);
+                at = i;
+            }
             true
         }
         _ => false,
@@ -577,6 +615,10 @@ fn place(s: &mut Session, mut blocks: Vec<Paragraph>) -> CmdResult {
     }
     // The caret goes into the title, ready to type.
     s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(at), 2 * OBJ.len_utf8()));
+    // An empty row for it in the scores table, where it stands: the others keep their points.
+    if let Some(e) = exercise_at_caret(s) {
+        scores::open_row(s, e);
+    }
     s.touch();
     update(s);
     s.clamp_selection();
@@ -717,6 +759,8 @@ fn scan(s: &Session) -> Layout {
     let mut current: Option<usize> = None;
     for (i, b) in s.doc.body.iter().enumerate() {
         let mut tags: Vec<(String, bool)> = stack.clone();
+        // The exercise ends in this paragraph: it is its last one, whatever part it is in.
+        let mut closes = false;
         if let Block::Para(p) = &**b {
             for o in &p.objects {
                 match o {
@@ -739,6 +783,7 @@ fn scan(s: &Session) -> Layout {
                         if let Some((tag, _)) = stack.pop()
                             && tag == TAG_EXERCISE
                         {
+                            closes = current.is_some();
                             current = None;
                         }
                     }
@@ -769,7 +814,7 @@ fn scan(s: &Session) -> Layout {
         } else {
             Part::Other
         };
-        let ex = if in_exercise { out.exercises.len().checked_sub(1).filter(|_| current.is_some() || part != Part::Other) } else { None };
+        let ex = if in_exercise { out.exercises.len().checked_sub(1).filter(|_| current.is_some() || closes || part != Part::Other) } else { None };
         out.parts.push((ex, part));
         // A range grows only over contiguous blocks: a later control with the same tag (pasted,
         // say) is another instance and is left alone, so a rewrite never spans user content.
@@ -800,9 +845,9 @@ fn scan(s: &Session) -> Layout {
                 grow(&mut e.question_blocks);
                 if tags.iter().any(|(t, ph)| t == TAG_QUESTIONS && *ph) {
                     e.no_questions = true;
-                } else if p.props.style.as_deref() == Some(STYLE_QUESTION)
+                } else if items::is_question(p)
                     && e.questions.len() < MAX_QUESTIONS
-                    && !has(items::TAG_ANSWER)
+                    && (!has(items::TAG_ANSWER) || items::inline_answer(p).is_some())
                     && let Some(text) = items::question_text(p).or_else(|| items::problem_question_text(p))
                 {
                     // Only question paragraphs count; notes and other content sit between them.
@@ -832,16 +877,8 @@ fn scan(s: &Session) -> Layout {
     out
 }
 
-fn default_true() -> bool {
-    true
-}
-
-fn is_true(v: &bool) -> bool {
-    *v
-}
-
 /// The initial data of an exercise and its variants: each item has one value per variant.
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ExerciseData {
     pub items: Vec<DataItem>,
@@ -849,21 +886,12 @@ pub struct ExerciseData {
     pub variants: Vec<String>,
     /// The active variant (0-based).
     pub active: usize,
-    /// Whether the generated `Data` block is shown in the exercise (`true` by default).
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
-    pub show_data: bool,
     /// Per-exercise calculation and number-format overrides (`docs/calc.md`).
     #[serde(default, skip_serializing_if = "super::calc::CalcOverrides::is_empty")]
     pub calc: super::calc::CalcOverrides,
     /// Estimated duration of this exercise in minutes (`1..=600`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<u32>,
-}
-
-impl Default for ExerciseData {
-    fn default() -> Self {
-        Self { items: Vec::new(), variants: Vec::new(), active: 0, show_data: true, calc: Default::default(), duration: None }
-    }
 }
 
 /// One datum: `L` "span" = 4.5 m.
@@ -875,6 +903,10 @@ pub struct DataItem {
     pub unit: String,
     /// The value in each variant, as typed (`4.5`, `2·10^3`).
     pub values: Vec<String>,
+    /// The datum written whole for the active variant (`L = 4.5 m`, [`data_line::parse_datum`]):
+    /// given to `exercise.setData`, it sets the symbol, the unit and the active variant's value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub equation: Option<String>,
 }
 
 /// Data text as stored: no control or object characters (the unit marker and U+FFFC are
@@ -894,7 +926,17 @@ impl ExerciseData {
             self.variants.push("A".into());
         }
         let n = self.variants.len();
+        let active = self.active.min(n.saturating_sub(1));
         for item in &mut self.items {
+            item.values.resize(n, String::new());
+            if let Some(eq) = item.equation.take() {
+                let d = data_line::parse_datum(&eq, false).unwrap_or_default();
+                item.symbol = d.symbol;
+                item.unit = d.unit;
+                if let Some(v) = item.values.get_mut(active) {
+                    *v = d.value;
+                }
+            }
             item.symbol = clip(&item.symbol);
             item.description = clip(&item.description);
             item.unit = clip(&item.unit);
@@ -917,36 +959,50 @@ impl ExerciseData {
             .collect()
     }
 
-    /// The lines of the generated data part.
-    fn lines(&self, w: &Words) -> Vec<(&'static str, String)> {
-        if !self.show_data {
-            return Vec::new();
-        }
-        let statements: Vec<(String, String)> = self
-            .items
+    /// The items the data part lists, in order: those with a symbol the exercise doesn't
+    /// already show (`shown`).
+    fn listed(&self, shown: Option<&std::collections::BTreeSet<String>>) -> Vec<usize> {
+        self.items
             .iter()
-            .filter_map(|i| {
-                let value = i.values.get(self.active).filter(|v| !v.is_empty())?;
+            .enumerate()
+            .filter(|(_, i)| !i.symbol.is_empty() && !shown.is_some_and(|set| set.contains(i.symbol.trim())))
+            .map(|(k, _)| k)
+            .collect()
+    }
+
+    /// The lines of the generated data part.
+    /// A datum the exercise already shows (`shown`: in its statement, questions or a drawing
+    /// there) has no line.
+    fn lines(&self, w: &Words, shown: Option<&std::collections::BTreeSet<String>>) -> Vec<(&'static str, String)> {
+        let statements: Vec<(String, String)> = self
+            .listed(shown)
+            .into_iter()
+            .filter_map(|k| self.items.get(k))
+            .map(|i| {
+                let value = i.values.get(self.active).map(String::as_str).unwrap_or_default();
                 // The unit follows a marker: it is set in the Unit style.
                 let unit = if i.unit.is_empty() { String::new() } else { format!(" {UNIT_MARK}{}", i.unit) };
-                (!i.symbol.is_empty()).then(|| (i.description.clone(), format!("{} = {value}{unit}", i.symbol)))
+                let value = if value.is_empty() { String::new() } else { format!(" {value}") };
+                (i.description.clone(), format!("{} ={value}{unit}", i.symbol))
             })
             .collect();
         if statements.is_empty() {
             return Vec::new();
         }
-        let mut head = w.data.to_string();
-        if self.variants.len() > 1
-            && let Some(name) = self.variants.get(self.active)
-        {
-            head.push_str(&format!(" ({} {name})", w.variant));
-        }
-        let mut out = vec![(STYLE_HEADING, head)];
+        // The variant is shown on the exercise's tab while designing it, never in the text.
+        let mut out = vec![(STYLE_HEADING, w.data.to_string())];
         for (description, statement) in statements {
             out.push((STYLE_DATA, if description.is_empty() { statement } else { format!("{description}: {statement}") }));
         }
         out
     }
+}
+
+/// The name of the active variant of the exercise control `ctl`, while it has more than one: the
+/// exercise's tab shows it while designing (never the printed exercise).
+pub fn active_variant(ctl: &ContentControl) -> Option<String> {
+    let data = read_data(ctl);
+    (data.variants.len() > 1).then(|| data.variants.get(data.active).cloned()).flatten()
 }
 
 /// The data kept on an exercise control (empty when none or unreadable).
@@ -964,7 +1020,7 @@ fn read_data(ctl: &ContentControl) -> ExerciseData {
 fn write_data(ctl: &mut ContentControl, data: &ExerciseData) {
     let open = format!("<{DATA_EL}>");
     ctl.extra.retain(|x| !x.starts_with(&open));
-    if data.items.is_empty() && data.show_data && data.calc.is_empty() && data.duration.is_none() {
+    if data.items.is_empty() && data.calc.is_empty() && data.duration.is_none() {
         return;
     }
     let json = serde_json::to_string(data).unwrap_or_default();
@@ -1009,6 +1065,11 @@ fn generated(ctl: ContentControl, lines: &[(&'static str, String)]) -> Vec<Parag
 /// The definitions each exercise's sandbox starts with (its data, active variant).
 pub(crate) fn seeds(s: &Session) -> std::collections::BTreeMap<usize, Vec<String>> {
     scan(s).exercises.iter().enumerate().filter(|(_, e)| !e.data.items.is_empty()).map(|(i, e)| (i, e.data.statements())).collect()
+}
+
+/// For each exercise (0-based), the data its text shows only as values ([`shown::value_only`]).
+pub(crate) fn value_only(s: &Session) -> std::collections::BTreeMap<usize, std::collections::BTreeSet<String>> {
+    shown::value_only(s, &scan(s))
 }
 
 /// Title, active variant name (when multi-variant), and jump position of each exercise's data/start.
@@ -1137,28 +1198,16 @@ fn data_info(s: &mut Session, v: &Value) -> CmdResult {
 
 /// Changes the data of exercise `ex` with `f`, then rebuilds and recalculates.
 fn with_data(s: &mut Session, ex: usize, f: impl FnOnce(&mut ExerciseData)) -> CmdResult {
+    // What was typed in its data part counts first.
+    data_line::take_page_edits(s, Some(ex));
     let layout = scan(s);
     let e = layout.exercises.get(ex).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
     let mut data = e.data.clone();
     f(&mut data);
     data.sanitize();
-    let block = s.doc.body.get_mut(e.start).ok_or_else(|| CmdError::Failed("exercise vanished".into()))?;
-    let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("exercise vanished".into())) };
-    let mut found = false;
-    for o in &mut p.objects {
-        if let InlineObject::ControlStart { control } = o
-            && control.tag == TAG_EXERCISE
-        {
-            write_data(control, &data);
-            found = true;
-            break;
-        }
-    }
-    if !found {
+    if !data_line::store(s, e.start, &data) {
         return Err(CmdError::Failed("exercise vanished".into()));
     }
-    p.touch();
-    s.touch();
     update(s);
     s.clamp_selection();
     Ok(json!({"exercise": ex + 1, "data": data}))
@@ -1214,9 +1263,11 @@ pub(crate) fn signature(s: &Session) -> u64 {
     let layout = scan(s);
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for e in &layout.exercises {
-        (&e.title, &e.questions, e.data.statements(), e.data.show_data, &e.data.calc, e.breaks, e.show, e.grid.is_some()).hash(&mut h);
+        (&e.title, &e.questions, e.data.statements(), &e.data.calc, e.breaks, e.show, e.grid.is_some()).hash(&mut h);
     }
     layout.results.is_some().hash(&mut h);
+    // Data typed on the page, and the caret leaving their part.
+    data_line::fingerprint(s, &layout, &mut h);
     // Points typed in a scores table change its totals.
     scores::fingerprint(s).hash(&mut h);
     grading::fingerprint(s).hash(&mut h);
@@ -1237,6 +1288,15 @@ pub(crate) fn hidden_solutions(s: &Session) -> (std::collections::BTreeSet<usize
     let hidden: std::collections::BTreeSet<usize> = layout.exercises.iter().enumerate().filter(|(_, e)| !e.show.solution).map(|(i, _)| i).collect();
     let all_hidden = !layout.exercises.is_empty() && hidden.len() == layout.exercises.len();
     (hidden, all_hidden)
+}
+
+/// What the Exercise and Series ribbon tabs need, in one scan: whether the caret is in an
+/// exercise, and how many exercises the document has.
+pub fn context(s: &Session) -> (bool, usize) {
+    let layout = scan(s);
+    let here = s.sel.focus.story == StoryRef::Body
+        && s.sel.focus.path.0.first().and_then(|&top| layout.parts.get(top as usize)).is_some_and(|(e, _)| e.is_some());
+    (here, layout.exercises.len())
 }
 
 /// The exercise holding the caret.
@@ -1327,11 +1387,30 @@ fn take_last_end(prev: &mut Paragraph) -> Result<(), CmdError> {
     Ok(())
 }
 
+/// How many control ends the last paragraph of a questions part (top-level block `last`) closes
+/// from the questions control's own to its end: that one alone in a problem (its solution
+/// follows), the exercise's too in a quiz, whose questions are its last part, and the
+/// subdocument's when the exercise ends one in a master document. A paragraph added to the part
+/// after it takes them all. `None` when the questions control doesn't end there.
+fn questions_ends(s: &Session, last: usize) -> Option<usize> {
+    let w = OBJ.len_utf8();
+    let p = s.doc.body.get(last)?.as_para()?;
+    let path = body_path(last);
+    let at = s.doc.control_ranges(StoryRef::Body).iter().find(|r| r.control.tag == TAG_QUESTIONS && r.end.path == path).map(|r| r.end.off)?;
+    let tail = p.text.get(at..)?;
+    let n = tail.len() / w;
+    // Nothing but control ends from there on.
+    let ends = tail.chars().all(|c| c == OBJ) && (0..n).all(|k| matches!(p.object_at(at + k * w), Some(InlineObject::ControlEnd)));
+    (ends && (1..=8).contains(&n)).then_some(n)
+}
+
 /// The question list of the exercise whose questions end at block `last`: the list of its first
 /// numbered question paragraph.
 fn e_list(s: &Session, last: usize) -> Option<u32> {
     s.doc.body.get(..=last)?.iter().rev().take(MAX_QUESTIONS * 4).find_map(|b| match &**b {
         Block::Para(p) if p.props.style.as_deref() == Some(STYLE_QUESTION) => p.props.numbering.map(|n| n.num).filter(|&n| n != 0),
+        // A quiz's only question on the title line keeps its list there.
+        Block::Para(p) if question_line::joined(p) => question_line::kept_list(p).map(|n| n.num),
         _ => None,
     })
 }
@@ -1346,11 +1425,16 @@ fn add_note(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Failed("write a question first".into()));
     }
     let text = p::str(v, "text").unwrap_or_default().to_string();
+    // The questions control's end moves to the note with what closes after it (in a quiz the
+    // exercise ends there too), so the note is in the questions part.
+    let ends = questions_ends(s, last).unwrap_or(1);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
-    take_last_end(prev)?;
-    let new = para(STYLE_NOTE, &text, Vec::new(), 1, None);
-    let caret = new.text.len() - OBJ.len_utf8();
+    for _ in 0..ends {
+        take_last_end(prev)?;
+    }
+    let new = para(STYLE_NOTE, &text, Vec::new(), ends, None);
+    let caret = new.text.len() - OBJ.len_utf8() * ends;
     s.doc.body.insert(last + 1, para_block(new));
     s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(last + 1), caret));
     s.touch();
@@ -1413,7 +1497,28 @@ fn info(s: &mut Session, _: &Value) -> CmdResult {
         "levels": e.map(|e| e.questions.iter().map(|q| q.level).collect::<Vec<_>>()).unwrap_or_default(),
         "answer": answer,
         "exercises": layout.exercises.len(),
+        "list": list_of(s, &layout),
     }))
+}
+
+/// Every exercise of the document, for the pane's list: its label (`Esercizio 2`, none for a
+/// lone one), title (or statement), kind and where its title starts.
+fn list_of(s: &Session, layout: &Layout) -> Vec<Value> {
+    let numbering = numbering::current(s);
+    let lone = layout.exercises.len() == 1;
+    layout
+        .exercises
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            json!({
+                "label": if lone { String::new() } else { numbering.label(i) },
+                "title": e.title,
+                "kind": e.kind.name(),
+                "pos": s.doc.clamp(&wordcraft_doc::Pos::body(e.start, 2 * OBJ.len_utf8())),
+            })
+        })
+        .collect()
 }
 
 /// The repeated question `q`: its own read-only control, indented like its list.
@@ -1533,6 +1638,8 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
     let end = e.solution_blocks.map_or(slots.last().copied().unwrap_or(first), |r| r.1);
     let mut inserts: Vec<(usize, Paragraph)> = Vec::new();
     let mut next_slot: Option<usize> = None;
+    // Empty paragraphs that went with a removed prompt: the solution is shorter by them too.
+    let mut merged = 0usize;
     for (j, q) in want.iter().enumerate().rev() {
         match pairs.iter().find(|(_, w)| *w == j) {
             Some(&(k, _)) => next_slot = slots.get(k).copied(),
@@ -1575,6 +1682,7 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
                 };
                 if let Some(g) = gone {
                     s.doc.body.remove(g);
+                    merged += 1;
                     inserts.iter_mut().for_each(|(at, _)| {
                         if *at != usize::MAX && *at > g {
                             *at -= 1;
@@ -1588,7 +1696,7 @@ fn update_prompts(s: &mut Session, e: &Exercise) -> bool {
         return changed;
     }
     let removed = slots.iter().enumerate().filter(|&(k, &i)| i <= end && !pairs.iter().any(|&(o, _)| o == k)).count();
-    let end = end.saturating_sub(removed);
+    let end = end.saturating_sub(removed + merged);
     // At the end, before the paragraph closing the solution.
     let tail = inserts.iter().any(|(at, _)| *at == usize::MAX).then(|| free_end(s, end)).flatten();
     // `inserts` is bottom-up for each anchor: inserting each at its anchor puts them in order.
@@ -1721,11 +1829,17 @@ fn placeholders(s: &mut Session) {
             continue;
         }
         let Block::Para(p) = Arc::make_mut(block) else { continue };
+        // A title line holding the statement has the statement's placeholder.
+        let line = title_line::of_para(p);
         for o in &mut p.objects {
             if let InlineObject::ControlStart { control } = o
                 && control.placeholder_text.is_empty()
                 && let Some(text) = wanted(&control.tag)
             {
+                let text = match line {
+                    Some((kind, line)) if control.tag == TAG_TITLE => title_line::placeholder(w, line, kind),
+                    _ => text,
+                };
                 control.placeholder_text = text.to_string();
             }
         }
@@ -1754,7 +1868,8 @@ pub(crate) fn results_start(s: &Session) -> Option<usize> {
 pub(crate) fn without_results(doc: Document) -> Document {
     let mut s = Session::new(doc);
     front::migrate(&mut s);
-    if let Some((from, to)) = scan(&s).results
+    // The free paragraph before the summary goes too: the master has its own.
+    if let Some((from, to)) = scan(&s).results.map(|(from, to)| (structure::free_before_results(&s, from).unwrap_or(from), to))
         && s.doc.body.get(from..=to).is_some()
     {
         s.doc.body.drain(from..=to);
@@ -1825,6 +1940,16 @@ pub(crate) fn keep_own(doc: Document, old: &Document) -> Document {
     s.doc
 }
 
+/// A new subdocument file `doc`, made from a master: the master's DSA formatting stays in the
+/// master (docs/master-documents.md), as for a file written back ([`keep_own`]); every style it
+/// changed has the formatting it had before.
+pub(crate) fn without_dsa(mut doc: Document) -> Document {
+    let mut plain = Document::new();
+    Arc::make_mut(&mut plain.styles).styles.clear();
+    dsa::leave_out(&mut doc, &plain);
+    doc
+}
+
 /// `doc` with its automatic parts up to date, its results summary included: a subdocument's
 /// file, written from a master, opened alone.
 pub(crate) fn with_results(doc: Document) -> Document {
@@ -1841,6 +1966,14 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= expr::convert_all_templates(s);
     changed |= title_controls(s);
     changed |= title_styles(s);
+    // A title line holding the statement: no empty statement part besides.
+    changed |= title_line::conform(s);
+    // A quiz's only question on a title line holding the statement, or back below it.
+    changed |= question_line::conform(s);
+    // A quiz with more than one question has a statement under its title.
+    changed |= title_line::quiz_statements(s);
+    // Every exercise letters its own questions, a pasted copy included.
+    changed |= own_lists::conform(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
@@ -1852,6 +1985,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= archive::sync_score(s);
     // The total score lines: the scores table's grand total or the question points.
     changed |= total_score::update(s);
+    // An ordinary paragraph after the last exercise, so the text can go on after it.
+    changed |= structure::free_paragraph(s);
     let layout = scan(s);
     if layout.exercises.is_empty() {
         // No exercise left: the summary goes with the last one.
@@ -1876,8 +2011,14 @@ pub(crate) fn update(s: &mut Session) -> bool {
     if layout.exercises.iter().any(|e| !e.data.items.is_empty()) {
         super::calc::unit_color(s);
     }
-    for e in layout.exercises.iter().rev() {
-        let lines = e.data.lines(w);
+    let shown = shown::shown(s, &layout);
+    // A data part being edited on the page waits for the caret to leave it.
+    let editing = data_line::pending(s, &layout, w, &shown);
+    for (k, e) in layout.exercises.iter().enumerate().rev() {
+        if editing.contains(&k) {
+            continue;
+        }
+        let lines = e.data.lines(w, shown.get(k));
         match (e.data_blocks, lines.is_empty()) {
             (Some((from, to)), true) => {
                 // Only blocks that are the generated data part are removed.
@@ -1888,13 +2029,19 @@ pub(crate) fn update(s: &mut Session) -> bool {
                 }
             }
             (Some((from, to)), false) => {
-                let ctl = opener(s, from, TAG_DATA).unwrap_or_else(|| control(TAG_DATA, w.data, ControlLock::SdtContentLocked));
+                // Editable on the page (data_line.rs), never deleted.
+                let mut ctl = opener(s, from, TAG_DATA).unwrap_or_else(|| control(TAG_DATA, w.data, ControlLock::SdtLocked));
+                ctl.lock = ControlLock::SdtLocked;
+                data_line::mark(&mut ctl, &lines);
                 changed |= replace(s, from, to, generated(ctl, &lines));
             }
             (None, false) => {
-                // After the statement; a quiz without one, after the title.
-                let Some(end) = e.text_blocks.map(|(_, end)| end).or_else(|| e.kind.quiz().then_some(e.start)) else { continue };
-                let new = generated(control(TAG_DATA, w.data, ControlLock::SdtContentLocked), &lines);
+                // After the statement; a quiz without one, or a title line holding it, after the title.
+                let title_only = e.kind.quiz() || title_line::holds_statement(s, e.start);
+                let Some(end) = e.text_blocks.map(|(_, end)| end).or_else(|| title_only.then_some(e.start)) else { continue };
+                let mut ctl = control(TAG_DATA, w.data, ControlLock::SdtLocked);
+                data_line::mark(&mut ctl, &lines);
+                let new = generated(ctl, &lines);
                 let at = (end + 1).min(s.doc.body.len());
                 for (k, p) in new.into_iter().enumerate() {
                     s.doc.body.insert(at + k, para_block(p));
@@ -1925,7 +2072,6 @@ pub(crate) fn update(s: &mut Session) -> bool {
     // Calculation questions: their result lines.
     changed |= items::result_lines(s, &layout, &answers);
     changed |= stem_items::problem_guides(s, &answers);
-    stem_items::table_blanks(s);
     let layout = scan(s);
     // Hidden results are hidden text in the summary; the heading too when every one is hidden.
     let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];
@@ -1935,7 +2081,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
     let lone = layout.exercises.len() == 1;
     let mut any = false;
     for (n, e) in layout.exercises.iter().enumerate() {
-        // A quiz gives its multiple choices' correct options; open answers give nothing.
+        // A quiz gives its multiple choices' correct options and a line naming each open answer.
         let quiz = e.kind.quiz().then(|| items::summary_lines(s, &layout, n, &answers, w.no_result));
         if quiz.as_ref().is_some_and(Vec::is_empty) {
             continue;
@@ -1963,7 +2109,7 @@ pub(crate) fn update(s: &mut Session) -> bool {
             lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
         }
     }
-    // Only open answers: nothing to sum up, no summary.
+    // Nothing to sum up (drawings, matchings alone): no summary.
     if !any {
         if let Some((from, to)) = layout.results
             && s.doc.body.get(from..=to).is_some()
@@ -2058,6 +2204,20 @@ mod tests {
         assert_eq!(scan(&s).exercises.len(), 1);
     }
 
+    /// Found in review: Add Note was offered in an exercise still showing the questions'
+    /// placeholder, then failed. It is disabled there, with the reason.
+    #[test]
+    fn add_note_is_disabled_until_there_is_a_question() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "T"})).unwrap();
+        let e = s.run("exercise.addNote", &json!({"text": "Nota"})).unwrap_err();
+        assert!(matches!(e, CmdError::Disabled(_)), "{e:?}");
+        assert!(e.to_string().contains("write a question first"), "{e}");
+        s.run("exercise.addQuestion", &json!({"text": "Trova x"})).unwrap();
+        s.run("exercise.addNote", &json!({"text": "Nota"})).unwrap();
+        assert!(texts(&s).iter().any(|t| t == "Nota"), "{:?}", texts(&s));
+    }
+
     /// Adding a question or a note after the last question keeps that question's formatting.
     #[test]
     fn adding_a_question_or_a_note_keeps_the_last_questions_formatting() {
@@ -2147,6 +2307,8 @@ mod tests {
                 "",
                 "b) La reazione",
                 "",
+                // The free paragraph after the exercise, before the summary.
+                "",
                 "Riepilogo dei risultati",
                 "a) risultato non indicato",
                 "b) risultato non indicato",
@@ -2167,7 +2329,8 @@ mod tests {
         assert_eq!(t.last().map(String::as_str), Some("a) risultato non indicato"));
         assert!(t.contains(&"Esercizio 2".to_string()) && !t.iter().any(|x| x.contains(" — ")), "{t:?}");
         let second = t.iter().position(|x| x == "a) x").unwrap();
-        assert_eq!(t[second + 1..second + 3], ["", "Riepilogo dei risultati"], "{t:?}");
+        // Its working space, then the free paragraph after the last exercise.
+        assert_eq!(t[second + 1..second + 4], ["", "", "Riepilogo dei risultati"], "{t:?}");
     }
 
     /// Exercise titles number themselves through their style: Esercizio 1., Esercizio 2.; a
@@ -2280,7 +2443,8 @@ mod tests {
         let solution = |s: &Session| {
             let t = texts(s);
             let from = t.iter().position(|t| t == "Risoluzione").unwrap();
-            let to = t.iter().position(|t| t == "Riepilogo dei risultati").unwrap();
+            // Up to the free paragraph after the exercise, before the summary.
+            let to = t.iter().position(|t| t == "Riepilogo dei risultati").unwrap() - 1;
             t[from + 1..to].to_vec()
         };
         assert_eq!(solution(&s), ["a) Prima", "lavoro a", "b) Seconda", "lavoro b"]);
@@ -2378,7 +2542,12 @@ mod tests {
         });
         s.run("exercise.setData", &json!({"data": data})).unwrap();
         let t = texts(&s);
-        assert!(t.contains(&"Dati (variante A)".to_string()), "{t:?}");
+        // The variant is named on the exercise's tab, not in the data part.
+        assert!(t.contains(&"Dati".to_string()), "{t:?}");
+        assert_eq!(
+            s.doc.control_ranges(StoryRef::Body).iter().find(|r| r.control.tag == TAG_EXERCISE).and_then(|r| active_variant(&r.control)),
+            Some("A".into())
+        );
         assert!(t.contains(&"luce: L = 4.5 m".to_string()), "{t:?}");
         // The unit is set in the Unit style.
         let unit_runs = s.doc.body.iter().filter_map(|b| match &**b {
@@ -2420,6 +2589,49 @@ mod tests {
         // No data: the data part goes away.
         s.run("exercise.setData", &json!({"exercise": 1, "data": {}})).unwrap();
         assert!(!texts(&s).iter().any(|x| x.starts_with("Dati")));
+    }
+
+    #[test]
+    fn data_are_edited_in_place_as_equations() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Trave", "questions": ["Momento"]})).unwrap();
+        let data = json!({"items": [{"equation": "L = 4.5 m", "description": "luce"}], "variants": ["A", "B"], "active": 0});
+        s.run("exercise.setData", &json!({"data": data})).unwrap();
+        let info = s.run("exercise.data", &json!({"exercise": 1})).unwrap();
+        assert_eq!(info["data"]["items"][0]["symbol"], "L");
+        assert_eq!(info["data"]["items"][0]["unit"], "m");
+        assert_eq!(info["data"]["items"][0]["values"], json!(["4.5", ""]));
+        let line = |s: &Session| s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if plain(p).starts_with("luce:"))).unwrap();
+        // Retype the line: nothing changes while the caret is in it.
+        let at = line(&s);
+        let len = s.doc.para(StoryRef::Body, &body_path(at)).unwrap().text.len();
+        let end = s.doc.clamp(&wordcraft_doc::Pos::body(at, len));
+        s.sel = crate::Selection { anchor: wordcraft_doc::Pos::body(at, 0), focus: end };
+        s.run("text.insert", &json!({"text": "campata: L = 6 cm"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        assert_eq!(s.run("exercise.data", &json!({"exercise": 1})).unwrap()["data"]["items"][0]["values"][0], "4.5");
+        assert!(texts(&s).iter().any(|t| t.starts_with("campata: L = 6 cm")), "{:?}", texts(&s));
+        // A new line is a new datum.
+        s.run("text.newParagraph", &json!({})).unwrap();
+        s.run("text.insert", &json!({"text": "q = 12 kN/m"})).unwrap();
+        // The caret leaves: the lines are the data now, and the part is rebuilt from them.
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::body(0, 0));
+        s.run("exercise.info", &json!({})).unwrap();
+        let info = s.run("exercise.data", &json!({"exercise": 1})).unwrap();
+        assert_eq!(info["data"]["items"][0], json!({"symbol": "L", "description": "campata", "unit": "cm", "values": ["6", ""]}));
+        assert_eq!(info["data"]["items"][1], json!({"symbol": "q", "description": "", "unit": "kN/m", "values": ["12", "12"]}));
+        let t = texts(&s);
+        assert!(t.contains(&"campata: L = 6 cm".to_string()) && t.contains(&"q = 12 kN/m".to_string()), "{t:?}");
+        // A line deleted removes its datum.
+        let at = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if plain(p) == "q = 12 kN/m")).unwrap();
+        let len = s.doc.para(StoryRef::Body, &body_path(at)).unwrap().text.len();
+        let end = s.doc.clamp(&wordcraft_doc::Pos::body(at, len));
+        s.sel = crate::Selection { anchor: s.doc.clamp(&wordcraft_doc::Pos::body(at, 0)), focus: end };
+        s.run("text.backspace", &json!({})).unwrap();
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::body(0, 0));
+        s.run("exercise.info", &json!({})).unwrap();
+        let info = s.run("exercise.data", &json!({"exercise": 1})).unwrap();
+        assert_eq!(info["data"]["items"].as_array().map(Vec::len), Some(1), "{info}");
     }
 
     /// The title paragraph's text (without the control markers).

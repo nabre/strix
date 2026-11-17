@@ -83,6 +83,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     d.add(Entity::new(Kind::Dim {
@@ -94,6 +95,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: Some("L = {{L}}".into()),
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     d.add(Entity::new(Kind::Dim {
@@ -105,6 +107,7 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         text: Some("<> mm".into()),
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(Some(&ws));
@@ -113,7 +116,9 @@ fn a_dimension_shows_the_size_or_a_parameter() {
         .iter()
         .filter_map(|p| if let Prim::Text { text, .. } = p { Some(text.chars().filter(|&c| !is_marker(c)).collect::<String>()) } else { None })
         .collect();
-    assert_eq!(texts, ["4500", "L = 4.5 m", "30 mm"]);
+    // A length parameter in a dimension is written as the style writes sizes (millimetres, no
+    // unit shown, by default), like the measured size.
+    assert_eq!(texts, ["4500", "L = 4500", "30 mm"]);
     // The unit of a parameter is marked for the Unit style.
     assert_eq!(d.label(Some("L = {{L}}"), 1.0, Some(&ws)), format!("L = {MATH_START}4.5 {UNIT_START}m{UNIT_END}{MATH_END}"));
     assert_eq!(d.label(Some("{{nope}}"), 1.0, Some(&ws)), format!("{MISSING_START}[nope?]{MISSING_END}"));
@@ -269,7 +274,7 @@ fn texts_take_placeholders_too() {
 fn svg_is_the_drawing_as_seen() {
     let ws = sheet(&["L = 4.5 m"]);
     let d = Drawing::from_json(
-        r#"{"unit": "m", "scale": 50, "layers": [{"name": "0"}, {"name": "h", "dash": "dashed", "color": [255, 0, 0]}],
+        r#"{"unit": "m", "scale": 50, "dimStyle": {"showUnit": true}, "layers": [{"name": "0"}, {"name": "h", "dash": "dashed", "color": [255, 0, 0]}],
             "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0], "layer": "h"},
                          {"type": "dim", "a": [0, 0], "b": ["L", 0], "offset": 8, "text": "L = {{L}} & {{x}}"},
                          {"type": "text", "p": [1, 1], "value": "<a>", "angle": 30}]}"#,
@@ -849,6 +854,7 @@ fn dimension_style_marks_texts_below_and_angles() {
         text: None,
         below: Some("L".into()),
         mark: Some(Mark::Arrow),
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(None);
@@ -873,13 +879,22 @@ fn dimension_style_marks_texts_below_and_angles() {
         r_paper: 0.0,
         text: Some("<>°".into()),
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let r = d.render(None);
     assert!(r.prims.iter().any(|p| matches!(p, Prim::Text { text, .. } if text == "90°")), "{:?}", r.prims);
     // Hostile radius: nothing drawn, no panic.
-    d.entities[0].kind =
-        Kind::Angle { c: P::new(0.0, 0.0), a: P::new(0.0, 0.0), b: P::new(0.0, 0.0), r: f64::NAN, r_paper: 0.0, text: None, mark: None };
+    d.entities[0].kind = Kind::Angle {
+        c: P::new(0.0, 0.0),
+        a: P::new(0.0, 0.0),
+        b: P::new(0.0, 0.0),
+        r: f64::NAN,
+        r_paper: 0.0,
+        text: None,
+        mark: None,
+        mark_end: None,
+    };
     d.sanitize();
     let _ = d.render(None);
 }
@@ -1146,6 +1161,7 @@ fn dimensions_are_picked_where_they_are_drawn() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     assert_eq!(d.hits(Pt::new(50.0, 8.0), 0.5), [0], "on the dimension line");
@@ -1315,6 +1331,62 @@ fn trim_takes_away_the_piece_picked() {
     assert!(approx(bulges[0], -(std::f64::consts::FRAC_PI_8).tan()), "{bulges:?}");
     // No object there: an error, never a panic.
     assert!(d.trim(99, Pt::new(0.0, 0.0)).is_err());
+}
+
+/// Trim's preview: the piece a click would take away, as the editor highlights it — the middle
+/// of a line between its crossings, a whole object nothing crosses, a circle's side round the
+/// seam, a closed square's side; an error where Trim refuses.
+#[test]
+fn trim_preview_is_the_piece_taken_away() {
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[0,0],"b":[10,0]},{"type":"line","a":[3,-1],"b":[3,1]},
+            {"type":"line","a":[6,-1],"b":[6,1]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(d.trim_preview(0, Pt::new(4.5, 0.0)).unwrap(), vec![Pt::new(3.0, 0.0), Pt::new(6.0, 0.0)]);
+    assert_eq!(d.trim_preview(0, Pt::new(1.0, 0.0)).unwrap(), vec![Pt::new(0.0, 0.0), Pt::new(3.0, 0.0)]);
+    assert_eq!(d.trim_preview(0, Pt::new(8.0, 0.0)).unwrap(), vec![Pt::new(6.0, 0.0), Pt::new(10.0, 0.0)]);
+    // The lower half of a circle cut by a line: from 180° round to 360°, every point below.
+    let c = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[-10,0],"b":[10,0]}]}"#).unwrap();
+    let lower = c.trim_preview(0, Pt::new(0.0, -5.0)).unwrap();
+    assert!(lower.len() > 8);
+    assert!(lower.first().unwrap().minus(Pt::new(-5.0, 0.0)).len() < 1e-9 && lower.last().unwrap().minus(Pt::new(5.0, 0.0)).len() < 1e-9);
+    assert!(lower.iter().all(|p| p.y <= 1e-9 && (p.len() - 5.0).abs() < 1e-9), "{lower:?}");
+    // The upper half, across the seam at 0°.
+    let upper = c.trim_preview(0, Pt::new(0.0, 5.0)).unwrap();
+    assert!(upper.iter().all(|p| p.y >= -1e-9), "{upper:?}");
+    // A closed square cut by a line: the right side picked, from the bottom cut round to the top.
+    let sq = Drawing::from_json(
+        r#"{"entities":[{"type":"polyline","pts":[[0,0],[10,0],[10,10],[0,10]],"closed":true},{"type":"line","a":[5,-1],"b":[5,11]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(sq.trim_preview(0, Pt::new(10.0, 5.0)).unwrap(), vec![Pt::new(5.0, 0.0), Pt::new(10.0, 0.0), Pt::new(10.0, 10.0), Pt::new(5.0, 10.0)]);
+    // Nothing crossing: the whole object.
+    let lone = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[4,0]}]}"#).unwrap();
+    assert_eq!(lone.trim_preview(0, Pt::new(1.0, 0.0)).unwrap(), vec![Pt::new(0.0, 0.0), Pt::new(4.0, 0.0)]);
+    // Where Trim refuses, so does the preview.
+    let t = Drawing::from_json(r#"{"entities":[{"type":"circle","c":[0,0],"r":5},{"type":"line","a":[0,0],"b":[10,0]}]}"#).unwrap();
+    assert!(t.trim_preview(0, Pt::new(0.0, 5.0)).is_err());
+    assert!(d.trim_preview(99, Pt::new(0.0, 0.0)).is_err());
+}
+
+/// Extend's preview: the stretch a click would add, from the end nearer the pick to the first
+/// object ahead; an error where Extend refuses.
+#[test]
+fn extend_preview_is_the_stretch_added() {
+    let d = Drawing::from_json(
+        r#"{"entities":[{"type":"line","a":[2,0],"b":[5,0]},{"type":"line","a":[8,-1],"b":[8,1]},{"type":"line","a":[0,-1],"b":[0,1]}]}"#,
+    )
+    .unwrap();
+    assert_eq!(d.extend_preview(0, Pt::new(4.5, 0.0)).unwrap(), vec![Pt::new(5.0, 0.0), Pt::new(8.0, 0.0)]);
+    assert_eq!(d.extend_preview(0, Pt::new(2.5, 0.0)).unwrap(), vec![Pt::new(2.0, 0.0), Pt::new(0.0, 0.0)]);
+    let mut e = d.clone();
+    e.extend(0, Pt::new(4.5, 0.0)).unwrap();
+    assert!(matches!(&e.entities[0].kind, Kind::Line { b, .. } if b.pt() == Pt::new(8.0, 0.0)));
+    // Nothing ahead: an error, as Extend.
+    let lone = Drawing::from_json(r#"{"entities":[{"type":"line","a":[0,0],"b":[4,0]}]}"#).unwrap();
+    assert!(lone.extend_preview(0, Pt::new(3.0, 0.0)).is_err());
+    assert!(d.extend_preview(99, Pt::new(0.0, 0.0)).is_err());
 }
 
 /// Extend: the end nearer the pick runs to the first object ahead; an arc goes round its circle;
@@ -1709,4 +1781,65 @@ fn a_drawing_converts_to_millimetres() {
     let mut mm = Drawing::default();
     mm.to_mm();
     assert_eq!(mm, Drawing::default());
+}
+
+/// In a drawing converted to millimetres whose expressions still count in metres, a move, a
+/// grip, a stretch or a transform writes its distance into the expression in metres: worked out
+/// again, the point is where the edit left it.
+#[test]
+fn edits_write_distances_in_the_expressions_unit() {
+    let ws = sheet(&["L = 4.5 m"]);
+    let mut d = Drawing::from_json(
+        r#"{"unit": "m", "entities": [{"type": "line", "a": [0, 0], "b": ["L", 0]}, {"type": "circle", "c": ["L", 1], "r": 0.5},
+            {"type": "polyline", "pts": [["L", 0], ["L", 2]]}, {"type": "point", "p": ["L", "L"]}, {"type": "line", "a": [1, "L"], "b": [2, 2]}]}"#,
+    )
+    .unwrap();
+    d.resolve(&ws);
+    d.to_mm();
+    assert!(d.resolve(&ws).is_empty());
+    let same = |d: &mut Drawing, what: &str| {
+        let before: Vec<Vec<Vec<Pt>>> = d.entities.iter().map(outline).collect();
+        assert!(d.resolve(&ws).is_empty(), "{what}");
+        let after: Vec<Vec<Vec<Pt>>> = d.entities.iter().map(outline).collect();
+        for (b, a) in before.iter().flatten().flatten().zip(after.iter().flatten().flatten()) {
+            assert!(b.minus(*a).len() < 1e-5, "{what}: {b:?} became {a:?}\n{}", d.to_json());
+        }
+    };
+    // Move: 500 mm to the right is `L + 0.5`.
+    d.translate(&[0], Pt::new(500.0, 0.0));
+    let Kind::Line { b, .. } = &d.entities[0].kind else { panic!() };
+    assert_eq!((b.0.value, b.0.expr.as_deref()), (5000.0, Some("L + 0.5")));
+    same(&mut d, "move");
+    // Copy.
+    d.copy(&[0], Pt::new(0.0, 250.0));
+    same(&mut d, "copy");
+    // Scale about a point off the origin, rotate, mirror.
+    d.transform(&[1], &Affine::scaling(Pt::new(1000.0, 0.0), 2.0));
+    let Kind::Circle { c, .. } = &d.entities[1].kind else { panic!() };
+    assert_eq!(c.pt(), Pt::new(8000.0, 2000.0));
+    same(&mut d, "scale");
+    d.transform(&[4], &Affine::rotation(Pt::new(1000.0, 500.0), 90.0));
+    same(&mut d, "rotate");
+    d.transform(&[3], &Affine::mirror(Pt::new(100.0, 0.0), Pt::new(100.0, 1.0)).unwrap());
+    same(&mut d, "mirror");
+    // A grip.
+    assert!(d.move_grip(2, Grip::Vertex(0), Pt::new(4600.0, 100.0)));
+    same(&mut d, "grip");
+    // Stretch.
+    assert_eq!(d.stretch(Pt::new(4400.0, 1900.0), Pt::new(4600.0, 2100.0), Pt::new(0.0, 300.0)), 1);
+    same(&mut d, "stretch");
+    // A drawing whose expressions count in its own unit writes them as before.
+    let mut mm = Drawing::from_json(r#"{"entities": [{"type": "point", "p": ["L", 0]}]}"#).unwrap();
+    mm.translate(&[0], Pt::new(500.0, 0.0));
+    assert!(matches!(&mm.entities[0].kind, Kind::Point { p } if p.0.expr.as_deref() == Some("L + 500")));
+}
+
+/// A layer named with spaces round it is the layer made for it, not an unknown one.
+#[test]
+fn objects_go_to_the_layer_as_it_is_named() {
+    let mut d = Drawing::default();
+    d.add(line((0.0, 0.0), (1.0, 0.0))).unwrap();
+    d.set_layer(&[0], "  Walls ").unwrap();
+    assert!(d.layers.iter().any(|l| l.name == "Walls"));
+    assert_eq!(d.entities[0].layer, "Walls");
 }

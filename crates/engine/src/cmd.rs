@@ -58,6 +58,7 @@ pub mod table_resize;
 pub mod table_style;
 pub mod templates;
 pub mod text;
+pub mod thesaurus;
 pub mod tools;
 pub mod user_templates;
 pub mod view;
@@ -94,6 +95,7 @@ pub fn registry() -> Registry {
     v.extend(plot::specs());
     v.extend(exercise::specs());
     v.extend(dictionaries::specs());
+    v.extend(thesaurus::specs());
     v.extend(graph::specs());
     v.extend(page::specs());
     v.extend(table::specs());

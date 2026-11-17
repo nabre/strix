@@ -66,7 +66,10 @@ pub enum Source {
     },
     /// A calculated table (`TableProps`' calc settings).
     Table {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        /// Read only: the cells a "table to complete" of before left blank for the students
+        /// (their text hidden in the students' copy). That mode is gone; these cells are shown
+        /// again as they are read back, so no text stays hidden for good.
+        #[serde(default, skip_serializing)]
         blanks: Vec<(usize, usize)>,
         #[serde(default)]
         names: Option<String>,
@@ -74,6 +77,9 @@ pub enum Source {
         math: bool,
         #[serde(default)]
         index: bool,
+        /// The header row's columns not summed in the total row (`CellProps::calc_no_total`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        no_total: Vec<usize>,
     },
     /// A CAD drawing: its `strix-cad` JSON, and what its picture was (`svg`: a fingerprint of the
     /// SVG written; `w`, `h`: its size in points).
@@ -365,15 +371,15 @@ fn wrap_blocks(bl: &mut Blocks, m: &mut Manifest, next: &mut u32, depth: usize) 
                 if t.props.calc && m.objects.len() < MAX_ENTRIES {
                     let id = take_id(next);
                     let source = Source::Table {
-                        blanks: t
-                            .rows
-                            .iter()
-                            .enumerate()
-                            .flat_map(|(r, row)| row.cells.iter().enumerate().filter_map(move |(c, cell)| cell.props.student_blank.then_some((r, c))))
-                            .collect(),
+                        blanks: Vec::new(),
                         names: t.props.calc_names.map(|n| n.name().to_string()),
                         math: t.props.calc_math,
                         index: t.props.calc_index,
+                        no_total: t
+                            .rows
+                            .first()
+                            .map(|row| row.cells.iter().enumerate().filter(|(_, c)| c.props.calc_no_total).map(|(c, _)| c).collect())
+                            .unwrap_or_default(),
                     };
                     m.objects.push(Entry { id, fp: table_fp(t), source });
                     // Innermost: it opens last and closes first, inside any control already here.
@@ -907,14 +913,19 @@ impl Unwrap<'_> {
         match self.verdict(entry.as_ref(), unchanged) {
             Verdict::Pending => return,
             Verdict::Restore => {
-                if let Some(Entry { source: Source::Table { names, math, index, blanks }, .. }) = &entry {
+                if let Some(Entry { source: Source::Table { names, math, index, no_total, blanks }, .. }) = &entry {
                     t.props.calc = true;
                     t.props.calc_names = names.as_deref().and_then(wordcraft_doc::props::CellNames::parse);
                     t.props.calc_math = *math;
                     t.props.calc_index = *index;
+                    for &c in no_total.iter().take(MAX_ENTRIES) {
+                        if let Some(cell) = t.rows.first_mut().and_then(|row| row.cells.get_mut(c)) {
+                            cell.props.calc_no_total = true;
+                        }
+                    }
                     for &(r, c) in blanks.iter().take(MAX_ENTRIES) {
                         if let Some(cell) = t.rows.get_mut(r).and_then(|row| row.cells.get_mut(c)) {
-                            cell.props.student_blank = true;
+                            show_cell(cell);
                         }
                     }
                 }
@@ -945,12 +956,21 @@ impl Unwrap<'_> {
         // A wrapper Word left without its end in this paragraph: its start goes.
         found.extend(stack.into_iter().filter_map(|(start, id)| id.map(|id| (start, None, id))));
         found.sort_by_key(|f| std::cmp::Reverse(f.0));
+        // The markers taken out so far, by where they were. All of them come after this wrapper's
+        // start; those before its end were inside it (a calculation on graph paper: its wrapper
+        // in the paragraph's), and its end has moved back by as much.
+        let mut gone: Vec<usize> = Vec::new();
         for (start, end, id) in found {
-            self.one(p, start, end, id);
+            let now = end.map(|e| e.saturating_sub(gone.iter().filter(|g| **g < e).count().saturating_mul(OBJ.len_utf8())));
+            if self.one(p, start, now, id) {
+                gone.push(start);
+                gone.extend(end);
+            }
         }
     }
 
-    fn one(&mut self, p: &mut Paragraph, start: usize, end: Option<usize>, id: u32) {
+    /// Decides the wrapper from `start` to `end`; returns whether its markers went.
+    fn one(&mut self, p: &mut Paragraph, start: usize, end: Option<usize>, id: u32) -> bool {
         let entry = self.entry(id).cloned();
         let inner: Vec<usize> = match end {
             Some(end) => p.object_offsets().into_iter().filter(|&o| o > start && o < end).collect(),
@@ -961,7 +981,7 @@ impl Unwrap<'_> {
             Some(e) => self.unchanged(p, e, &inner),
         };
         match self.verdict(entry.as_ref(), unchanged) {
-            Verdict::Pending => return,
+            Verdict::Pending => return false,
             Verdict::Restore => {
                 if let Some(e) = &entry {
                     restore(p, e, &inner);
@@ -973,6 +993,7 @@ impl Unwrap<'_> {
             let _ = p.delete(end, end + OBJ.len_utf8());
         }
         let _ = p.delete(start, start + OBJ.len_utf8());
+        true
     }
 
     /// Whether the content of a wrapper still shows what its entry recorded.
@@ -1078,4 +1099,20 @@ fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
         Source::Table { .. } => {}
     }
     p.touch();
+}
+
+/// A student-blank cell of before shown again: its paragraphs' text no longer hidden.
+fn show_cell(cell: &mut wordcraft_doc::table::Cell) {
+    for b in &mut cell.blocks {
+        if let Block::Para(p) = &**b
+            && (p.mark.hidden.is_some() || p.runs.iter().any(|r| r.props.hidden.is_some()))
+            && let Block::Para(p) = Arc::make_mut(b)
+        {
+            for r in &mut p.runs {
+                r.props.hidden = None;
+            }
+            p.mark.hidden = None;
+            p.touch();
+        }
+    }
 }

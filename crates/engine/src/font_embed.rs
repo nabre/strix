@@ -29,7 +29,7 @@ pub fn embed(mut doc: Document) -> Document {
 pub fn fonts_to_embed(doc: &Document) -> Vec<FontToEmbed> {
     let used = used_fonts(doc);
     let db = wordcraft_fonts::FontDb::global();
-    let mut out: Vec<FontToEmbed> = Vec::new();
+    let mut out: Vec<(FontToEmbed, f32)> = Vec::new();
     for font in db.user_fonts() {
         for (family, style) in &font.faces {
             if !used.contains(&family.to_lowercase()) {
@@ -49,30 +49,24 @@ pub fn fonts_to_embed(doc: &Document) -> Vec<FontToEmbed> {
             let target = if matches!(slot, FaceSlot::Bold | FaceSlot::BoldItalic) { 700.0 } else { 400.0 };
             let distance = (face.weight - target).abs();
             let entry = FontToEmbed { family: family.clone(), slot, data: Arc::new(face.data().to_vec()) };
-            match out.iter().position(|f| f.slot == slot && f.family.eq_ignore_ascii_case(family)) {
-                Some(i) => {
-                    let held = db.face(family, &style_of(slot));
-                    if distance < (held.weight - target).abs()
-                        && let Some(f) = out.get_mut(i)
-                    {
-                        *f = entry;
-                    }
-                }
-                None => out.push(entry),
-            }
+            place(&mut out, entry, distance);
         }
     }
-    out
+    out.into_iter().map(|(f, _)| f).collect()
 }
 
-fn style_of(slot: FaceSlot) -> String {
-    match slot {
-        FaceSlot::Regular => "Regular",
-        FaceSlot::Bold => "Bold",
-        FaceSlot::Italic => "Italic",
-        FaceSlot::BoldItalic => "Bold Italic",
+/// Puts `entry` in its family's slot unless a face nearer the slot's weight holds it: `distance`
+/// is how far the face is from that weight, kept beside each face held (compared with the face
+/// in the slot, not with the family's best one, or the first file read would keep the slot).
+fn place(out: &mut Vec<(FontToEmbed, f32)>, entry: FontToEmbed, distance: f32) {
+    match out.iter_mut().find(|(f, _)| f.slot == entry.slot && f.family.eq_ignore_ascii_case(&entry.family)) {
+        Some(held) => {
+            if distance < held.1 {
+                *held = (entry, distance);
+            }
+        }
+        None => out.push((entry, distance)),
     }
-    .into()
 }
 
 /// The font names `doc` asks for, lower case: the theme's, the styles', the text's.
@@ -134,6 +128,21 @@ mod tests {
         s.run("design.themeFonts", &serde_json::json!({"heading": "Atkinson Hyperlegible", "body": "Atkinson Hyperlegible"})).unwrap();
         let used = used_fonts(&s.doc);
         assert!(used.contains("lexend") && used.contains("atkinson hyperlegible"), "{used:?}");
+    }
+
+    /// Each slot goes to the face nearest its weight whatever the order the files are read in:
+    /// Black before Bold and Light before Regular (file-name order) used to keep the slots.
+    #[test]
+    fn a_slot_goes_to_the_face_nearest_its_weight() {
+        let face = |slot, data: &[u8]| FontToEmbed { family: "Foo".into(), slot, data: Arc::new(data.to_vec()) };
+        let mut out = Vec::new();
+        place(&mut out, face(FaceSlot::Bold, b"black"), 200.0);
+        place(&mut out, face(FaceSlot::Bold, b"bold"), 0.0);
+        place(&mut out, face(FaceSlot::Regular, b"light"), 100.0);
+        place(&mut out, face(FaceSlot::Regular, b"regular"), 0.0);
+        place(&mut out, face(FaceSlot::Regular, b"medium"), 100.0);
+        let held: Vec<(FaceSlot, &[u8])> = out.iter().map(|(f, _)| (f.slot, f.data.as_slice())).collect();
+        assert_eq!(held, vec![(FaceSlot::Bold, b"bold".as_slice()), (FaceSlot::Regular, b"regular".as_slice())]);
     }
 
     #[test]

@@ -1,5 +1,7 @@
-//! Automatic grading scale table (`strix:grading`, `exercise.grading`): maps achieved points to a
-//! school grade, bound dynamically to the grand total of `strix:scores` (`maxPoints: null`) or an
+//! Automatic grading scale table (`strix:grading`, `exercise.grading`): one row per grade of the
+//! grid (lowest to highest grade by `step`), each with the points that earn it as a half-open
+//! interval `[from; to[` (the next grade's points excluded; the highest grade at full points), the
+//! points rounded to a multiple (`pointsRound`), bound dynamically to the grand total of `strix:scores` (`maxPoints: null`) or an
 //! explicit maximum, with national presets (`it-10`, `ch-6`, `de-6`, `fr-20`, `percent`, `custom`).
 
 use std::sync::Arc;
@@ -16,7 +18,9 @@ use crate::{CmdError, CmdResult, Session, p};
 
 pub const TAG_GRADING: &str = "strix:grading";
 const EL: &str = "strix:gradingTable";
-const MAX_ROWS_SHOWN: usize = 60;
+const MAX_ROWS_SHOWN: usize = 101;
+/// Points rounded to hundredths when no multiple is set.
+const DEFAULT_POINTS_ROUND: f64 = 0.01;
 const MAX_POINTS_CAP: f64 = 10_000.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -113,8 +117,9 @@ pub struct Config {
     pub pass_grade: f64,
     pub curve: Curve,
     pub step: f64,
+    /// The multiple the points of each grade are rounded to (`None`: hundredths).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub points_step: Option<f64>,
+    pub points_round: Option<f64>,
     pub visibility: Visibility,
 }
 
@@ -136,7 +141,7 @@ impl Config {
                 pass_grade: 6.0,
                 curve: Curve::PiecewiseLinear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Ch6 => Self {
@@ -148,7 +153,7 @@ impl Config {
                 pass_grade: 4.0,
                 curve: Curve::Linear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::De6 => Self {
@@ -160,7 +165,7 @@ impl Config {
                 pass_grade: 4.0,
                 curve: Curve::PiecewiseLinear,
                 step: 0.25,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Fr20 => Self {
@@ -172,7 +177,7 @@ impl Config {
                 pass_grade: 10.0,
                 curve: Curve::Linear,
                 step: 0.5,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
             Preset::Percent | Preset::Custom => Self {
@@ -184,7 +189,7 @@ impl Config {
                 pass_grade: 60.0,
                 curve: Curve::Linear,
                 step: 1.0,
-                points_step: None,
+                points_round: None,
                 visibility: Visibility::Teacher,
             },
         }
@@ -202,73 +207,121 @@ impl Config {
         let (lo, hi) = (self.min_grade.min(self.max_grade), self.min_grade.max(self.max_grade));
         self.pass_grade = fin(self.pass_grade, 0.5 * (lo + hi)).clamp(lo, hi);
         self.step = fin(self.step, 0.5).clamp(0.01, 100.0);
-        self.points_step = self.points_step.filter(|v| v.is_finite() && *v > 0.0).map(|v| v.clamp(0.1, 1000.0));
-    }
-
-    /// Computes the rounded grade for `pts` out of `max_pts`.
-    pub fn grade_for(&self, pts: f64, max_pts: f64) -> f64 {
-        let max_pts = max_pts.max(0.5);
-        let x = pts.clamp(0.0, max_pts);
-        let raw = match self.curve {
-            Curve::Linear => self.min_grade + (self.max_grade - self.min_grade) * (x / max_pts),
-            Curve::PiecewiseLinear => {
-                let pass_pts = (self.pass_ratio * max_pts).clamp(1e-6, max_pts - 1e-6);
-                if x <= pass_pts {
-                    self.min_grade + (self.pass_grade - self.min_grade) * (x / pass_pts)
-                } else {
-                    self.pass_grade + (self.max_grade - self.pass_grade) * ((x - pass_pts) / (max_pts - pass_pts))
-                }
-            }
-        };
-        let rounded = round_half_away(raw / self.step) * self.step;
-        let (lo, hi) = (self.min_grade.min(self.max_grade), self.min_grade.max(self.max_grade));
-        let clamped = rounded.clamp(lo, hi);
-        if clamped.abs() < 1e-12 { 0.0 } else { clamped }
+        self.points_round = self.points_round.filter(|v| v.is_finite() && *v > 0.0).map(|v| v.clamp(DEFAULT_POINTS_ROUND, 1000.0));
     }
 
     pub fn is_passing(&self, grade: f64) -> bool {
         if self.max_grade >= self.min_grade { grade + 1e-9 >= self.pass_grade } else { grade - 1e-9 <= self.pass_grade }
     }
 
-    /// Generates `(points, grade, is_passing)` entries from `0` to `max_pts`.
-    pub fn scale(&self, max_pts: f64) -> Vec<(f64, f64, bool)> {
-        let max_pts = max_pts.clamp(0.5, MAX_POINTS_CAP);
-        let p_step = self.effective_points_step(max_pts);
-        let mut out = Vec::new();
-        let mut k = 0usize;
-        while k < MAX_ROWS_SHOWN {
-            let pts = (k as f64 * p_step).min(max_pts);
-            let pts_clean = (pts * 1000.0).round() / 1000.0;
-            let g = self.grade_for(pts_clean, max_pts);
-            out.push((pts_clean, g, self.is_passing(g)));
-            if pts + 1e-9 >= max_pts {
-                break;
-            }
-            k += 1;
+    /// The multiple the points are rounded to.
+    pub fn points_multiple(&self) -> f64 {
+        self.points_round.unwrap_or(DEFAULT_POINTS_ROUND)
+    }
+
+    /// The grid of grades, lowest to highest by `step` (the highest always last), the step widened
+    /// to a multiple of itself when the grid would pass `MAX_ROWS_SHOWN` rows.
+    fn grades(&self) -> Vec<f64> {
+        let span = (self.max_grade - self.min_grade).abs();
+        let dir = if self.max_grade >= self.min_grade { 1.0 } else { -1.0 };
+        let mut step = self.step.max(0.01);
+        let n = (span / step + 1e-9).floor();
+        if n > (MAX_ROWS_SHOWN - 1) as f64 {
+            step *= (n / (MAX_ROWS_SHOWN - 1) as f64).ceil();
         }
-        if out.last().is_none_or(|&(p, _, _)| (p - max_pts).abs() > 1e-6) {
-            let g = self.grade_for(max_pts, max_pts);
-            out.push((max_pts, g, self.is_passing(g)));
+        let n = ((span / step + 1e-9).floor() as usize).min(MAX_ROWS_SHOWN - 1);
+        let mut out: Vec<f64> = (0..=n).map(|k| clean(self.min_grade + dir * step * k as f64)).collect();
+        if out.last().is_some_and(|g| (g - self.max_grade).abs() > 1e-6) {
+            if out.len() >= MAX_ROWS_SHOWN {
+                out.pop();
+            }
+            out.push(self.max_grade);
         }
         out
     }
 
-    fn effective_points_step(&self, max_pts: f64) -> f64 {
-        if let Some(s) = self.points_step
-            && max_pts / s <= MAX_ROWS_SHOWN as f64
-        {
-            return s;
-        }
-        for cand in [0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 20.0, 50.0, 100.0] {
-            if max_pts >= 10.0 && cand < 1.0 {
-                continue;
+    /// The exact points at which the curve reaches `grade` (out of `max_pts`), before rounding.
+    fn exact_points(&self, grade: f64, max_pts: f64) -> f64 {
+        let ratio = |a: f64, b: f64| if (b - a).abs() < 1e-12 { 1.0 } else { ((grade - a) / (b - a)).clamp(0.0, 1.0) };
+        let x = match self.curve {
+            Curve::Linear => max_pts * ratio(self.min_grade, self.max_grade),
+            Curve::PiecewiseLinear => {
+                let pass_pts = (self.pass_ratio * max_pts).clamp(0.0, max_pts);
+                let below = if self.max_grade >= self.min_grade { grade < self.pass_grade } else { grade > self.pass_grade };
+                if below {
+                    pass_pts * ratio(self.min_grade, self.pass_grade)
+                } else {
+                    pass_pts
+                        + (max_pts - pass_pts)
+                            * if (self.max_grade - self.pass_grade).abs() < 1e-12 { 0.0 } else { ratio(self.pass_grade, self.max_grade) }
+                }
             }
-            if ((max_pts / cand).ceil() as usize) < MAX_ROWS_SHOWN {
-                return cand;
-            }
-        }
-        (max_pts / (MAX_ROWS_SHOWN.saturating_sub(1).max(1) as f64)).max(0.5)
+        };
+        x.clamp(0.0, max_pts)
     }
+
+    /// One band per grade of the grid: `(grade, from, to, is_passing)`, the points from `from`
+    /// (included) to `to` (excluded; `None` for the highest grade, earned with full points),
+    /// rounded to `points_multiple`. The lowest grade starts at 0.
+    pub fn scale(&self, max_pts: f64) -> Vec<Band> {
+        let max_pts = max_pts.clamp(0.5, MAX_POINTS_CAP);
+        let m = self.points_multiple();
+        let grades = self.grades();
+        let last = grades.len().saturating_sub(1);
+        let from: Vec<f64> = grades
+            .iter()
+            .enumerate()
+            .map(|(k, &g)| {
+                if k == 0 {
+                    0.0
+                } else if k == last {
+                    max_pts
+                } else {
+                    // Without the dust first: 0.975 points in hundredths is 97.49999999999999 of
+                    // them, which is 97.5 and goes up.
+                    clean((round_half_away(clean(self.exact_points(g, max_pts) / m)) * m).clamp(0.0, max_pts))
+                }
+            })
+            .collect();
+        grades
+            .iter()
+            .enumerate()
+            .map(|(k, &grade)| Band { grade, from: from.get(k).copied().unwrap_or(0.0), to: from.get(k + 1).copied(), pass: self.is_passing(grade) })
+            .collect()
+    }
+}
+
+/// One row of the scale: `grade` for points in `[from; to[` (`to: None`: exactly `from`, full points).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Band {
+    pub grade: f64,
+    pub from: f64,
+    pub to: Option<f64>,
+    pub pass: bool,
+}
+
+impl Band {
+    /// No points earn this grade (rounding gave it the same points as the next one).
+    pub fn is_empty(&self) -> bool {
+        self.to.is_some_and(|t| t <= self.from + 1e-9)
+    }
+
+    /// The points column: `[from; to[` (`;` between the ends with decimal commas, else `,`), the
+    /// full points alone on the highest grade, a dash when no points earn the grade.
+    pub fn points_text(&self, comma: bool) -> String {
+        let sep = if comma { "; " } else { ", " };
+        match self.to {
+            _ if self.is_empty() => "\u{2014}".to_string(),
+            Some(t) => format!("[{}{sep}{}[", super::scores::shown(self.from, comma), super::scores::shown(t, comma)),
+            None => super::scores::shown(self.from, comma),
+        }
+    }
+}
+
+/// `v` without floating-point dust (to a millionth) and without `-0`.
+fn clean(v: f64) -> f64 {
+    let r = (v * 1e6).round() / 1e6;
+    if r.abs() < 1e-12 { 0.0 } else { r }
 }
 
 fn round_half_away(v: f64) -> f64 {
@@ -302,17 +355,19 @@ pub(crate) fn tables(s: &Session) -> Vec<usize> {
 }
 
 /// Resolves the maximum points for `cfg` in `s`: explicit `max_points`, else `scores::grand_total`,
-/// else the sum of all exercises' question points, else `10.0`.
+/// else the sum of all exercises' question points, else `10.0`. Within what a scale is built on
+/// ([`Config::scale`]), so what is reported as the maximum is the scale's.
 pub(crate) fn resolved_max_points(s: &Session, cfg: &Config) -> f64 {
+    let within = |v: f64| v.clamp(0.5, MAX_POINTS_CAP);
     if let Some(m) = cfg.max_points {
-        return m;
+        return within(m);
     }
     if let Some(tot) = super::scores::grand_total(s).filter(|&v| v > 0.0) {
-        return tot;
+        return within(tot);
     }
     let layout = scan(s);
     let ex_sum: f64 = (0..layout.exercises.len()).filter_map(|e| super::items::total(s, &layout, e)).sum();
-    if ex_sum > 0.0 && ex_sum.is_finite() { ex_sum } else { 10.0 }
+    if ex_sum > 0.0 && ex_sum.is_finite() { within(ex_sum) } else { 10.0 }
 }
 
 fn should_hide(s: &Session, cfg: &Config) -> bool {
@@ -323,10 +378,37 @@ fn should_hide(s: &Session, cfg: &Config) -> bool {
     !layout.exercises.is_empty() && layout.exercises.iter().all(|e| !e.show.solution)
 }
 
-fn cell(text: &str, align: Align, bold: bool, hidden: bool, width: f32) -> Cell {
-    let chr = CharProps { bold: bold.then_some(true), hidden: hidden.then_some(true), ..CharProps::default() };
+/// Word's default cell margin left and right, points.
+const CELL_PAD: f32 = 5.4;
+/// Points columns: `[`+whole, fraction, `;`, whole, fraction, `[`; then the grade's whole and
+/// fraction. Neighbouring sub-columns share no visible border, so the numbers line up at their
+/// decimal separators without lines between them on the page or in print.
+const POINT_COLS: usize = 6;
+const GRADE_COLS: usize = 2;
+const COLS: usize = POINT_COLS + GRADE_COLS;
+
+/// One cell's look: alignment, bold, its left and right margins and whether its left and right
+/// borders are drawn (`None`: the table's own).
+#[derive(Clone, Copy)]
+struct Look {
+    align: Align,
+    bold: bool,
+    italic: bool,
+    pad: [f32; 2],
+    open: [bool; 2],
+}
+
+impl Look {
+    fn plain(align: Align) -> Self {
+        Look { align, bold: false, italic: false, pad: [CELL_PAD, CELL_PAD], open: [false, false] }
+    }
+}
+
+fn cell(text: &str, look: Look, hidden: bool, width: f32, span: usize) -> Cell {
+    let chr =
+        CharProps { bold: look.bold.then_some(true), italic: look.italic.then_some(true), hidden: hidden.then_some(true), ..CharProps::default() };
     let mut para = Paragraph::with_text(if hidden { "" } else { text }, chr);
-    para.props.align = Some(align);
+    para.props.align = Some(look.align);
     para.props.space_after = Some(0.0);
     para.props.space_before = Some(0.0);
     if hidden {
@@ -335,56 +417,160 @@ fn cell(text: &str, align: Align, bold: bool, hidden: bool, width: f32) -> Cell 
     let mut c = Cell::empty();
     c.blocks = vec![para_block(para)];
     c.props.width = Some(width);
+    c.props.span = span.max(1) as u32;
+    c.props.partial_margins = Some([None, Some(look.pad[0]), None, Some(look.pad[1])]);
+    if look.open.iter().any(|o| *o) {
+        let none = Some(Border::default());
+        c.props.borders =
+            Some(Borders { left: if look.open[0] { none } else { None }, right: if look.open[1] { none } else { None }, ..Borders::default() });
+    }
     c
 }
 
-fn build_table(cfg: &Config, max_pts: f64, points_word: &str, grade_word: &str, width: f32, comma: bool, hidden: bool) -> Table {
-    let entries = cfg.scale(max_pts);
-    let pairs = if entries.len() > 24 {
-        3
-    } else if entries.len() > 12 {
-        2
-    } else {
-        1
+/// `v` as shown, split at its decimal separator: the whole part and the fraction with its
+/// separator (`"12,5"` -> `("12", ",5")`).
+fn split_number(v: f64, comma: bool) -> (String, String) {
+    let t = super::scores::shown(v, comma);
+    match t.find([',', '.']) {
+        Some(at) => (t.get(..at).unwrap_or_default().to_string(), t.get(at..).unwrap_or_default().to_string()),
+        None => (t, String::new()),
+    }
+}
+
+/// A conservative estimate of `text`'s width at `size` points (sans-serif digits, narrow
+/// punctuation), so the table can be as narrow as its content.
+fn text_w(text: &str, size: f32, bold: bool) -> f32 {
+    let em: f32 = text
+        .chars()
+        .map(|c| match c {
+            '0'..='9' => 0.556,
+            '[' | ']' | ';' | ',' | '.' | ' ' | ':' => 0.3,
+            '\u{2014}' => 1.0,
+            c if c.is_uppercase() => 0.72,
+            _ => 0.56,
+        })
+        .sum();
+    em * size * if bold { 1.1 } else { 1.04 } + 0.5
+}
+
+/// The texts of one scale row's cells.
+fn row_texts(band: &Band, comma: bool) -> Option<[String; COLS]> {
+    let (gw, gf) = split_number(band.grade, comma);
+    if band.is_empty() {
+        return None;
+    }
+    let (fw, ff) = split_number(band.from, comma);
+    let (to_w, to_f, semi, close) = match band.to {
+        Some(t) => {
+            let (w, f) = split_number(t, comma);
+            (w, f, if comma { ";" } else { "," }.to_string(), "[".to_string())
+        }
+        None => Default::default(),
     };
-    let rows_per_col = entries.len().div_ceil(pairs).max(1);
-    let pair_w = (width / pairs as f32).max(72.0);
-    let col_w = pair_w * 0.5;
-    let mut grid = Vec::with_capacity(pairs * 2);
-    for _ in 0..pairs {
-        grid.push(col_w);
-        grid.push(col_w);
-    }
-    let mut t = Table::new(1, grid.len(), width);
-    t.grid = grid;
-    if hidden {
-        t.props.borders = Some(Borders::all(Border::default()));
-        t.rows = vec![Row { cells: (0..pairs * 2).map(|_| cell("", Align::Center, false, true, col_w)).collect(), ..Row::default() }];
-        return t;
-    }
-    let mut header_cells = Vec::with_capacity(pairs * 2);
-    for _ in 0..pairs {
-        header_cells.push(cell(points_word, Align::Center, true, false, col_w));
-        header_cells.push(cell(grade_word, Align::Center, true, false, col_w));
-    }
-    let mut out_rows = vec![Row { cells: header_cells, ..Row::default() }];
-    // Find first passing entry index to highlight the sufficiency threshold row.
-    let first_pass = entries.iter().position(|&(_, _, pass)| pass);
-    for r in 0..rows_per_col {
-        let mut row_cells = Vec::with_capacity(pairs * 2);
-        for p_idx in 0..pairs {
-            let idx = p_idx * rows_per_col + r;
-            if let Some(&(pts, grade, _)) = entries.get(idx) {
-                let bold = first_pass == Some(idx);
-                row_cells.push(cell(&super::scores::shown(pts, comma), Align::Right, bold, false, col_w));
-                row_cells.push(cell(&super::scores::shown(grade, comma), Align::Right, bold, false, col_w));
-            } else {
-                row_cells.push(cell("", Align::Right, false, false, col_w));
-                row_cells.push(cell("", Align::Right, false, false, col_w));
+    let open = if band.to.is_some() { "[" } else { "" };
+    Some([format!("{open}{fw}"), ff, semi, to_w, to_f, close, gw, gf])
+}
+
+struct HeadWords<'a> {
+    points: &'a str,
+    grade: &'a str,
+    rounded: &'a str,
+}
+
+fn build_table(cfg: &Config, max_pts: f64, w: &HeadWords<'_>, size: f32, max_width: f32, comma: bool, hidden: bool) -> Table {
+    let entries = cfg.scale(max_pts);
+    let size = if size.is_finite() { size.clamp(4.0, 72.0) } else { 11.0 };
+    let first_pass = entries.iter().position(|b| b.pass);
+    let texts: Vec<Option<[String; COLS]>> = entries.iter().map(|b| row_texts(b, comma)).collect();
+    // Each sub-column as wide as its widest text (bold on the pass row) plus its margins.
+    let pads: [[f32; 2]; COLS] = [[CELL_PAD, 0.0], [0.0, 0.0], [0.0, 3.0], [0.0, 0.0], [0.0, 0.0], [0.0, CELL_PAD], [CELL_PAD, 0.0], [0.0, CELL_PAD]];
+    let mut grid = [0.0f32; COLS];
+    for (k, t) in texts.iter().enumerate() {
+        let bold = first_pass == Some(k);
+        if let Some(t) = t {
+            for (c, txt) in t.iter().enumerate() {
+                if let Some(g) = grid.get_mut(c) {
+                    *g = g.max(text_w(txt, size, bold));
+                }
             }
         }
-        out_rows.push(Row { cells: row_cells, ..Row::default() });
     }
+    for (g, p) in grid.iter_mut().zip(pads.iter()) {
+        *g += p[0] + p[1];
+    }
+    // The headings and a dash (a grade no points earn) fit across their columns: the room
+    // missing goes to the outer sub-columns.
+    let dash = text_w("\u{2014}", size, false) + 2.0 * CELL_PAD;
+    let widen = |grid: &mut [f32; COLS], from: usize, to: usize, need: f32| {
+        let have: f32 = grid.get(from..to).map(|g| g.iter().sum()).unwrap_or(0.0);
+        if need > have {
+            let extra = (need - have) / 2.0;
+            for c in [from, to.saturating_sub(1)] {
+                if let Some(g) = grid.get_mut(c) {
+                    *g += extra;
+                }
+            }
+        }
+    };
+    widen(&mut grid, 0, POINT_COLS, (text_w(w.points, size, true) + 2.0 * CELL_PAD).max(dash));
+    widen(&mut grid, POINT_COLS, COLS, (text_w(w.grade, size, true) + 2.0 * CELL_PAD).max(dash));
+    // Never wider than the text column.
+    let total: f32 = grid.iter().sum();
+    let max_width = max_width.max(72.0);
+    if total > max_width {
+        let k = max_width / total;
+        grid.iter_mut().for_each(|g| *g *= k);
+    }
+    let width: f32 = grid.iter().sum();
+    let pts_w: f32 = grid.get(..POINT_COLS).map(|g| g.iter().sum()).unwrap_or(0.0);
+    let grade_w: f32 = grid.get(POINT_COLS..).map(|g| g.iter().sum()).unwrap_or(0.0);
+
+    let mut t = Table::new(1, COLS, width);
+    t.grid = grid.to_vec();
+    t.props.width = Some(width);
+    t.props.align = Some(Align::Center);
+    if hidden {
+        t.props.borders = Some(Borders::all(Border::default()));
+        t.rows = vec![Row { cells: vec![cell("", Look::plain(Align::Center), true, width, COLS)], ..Row::default() }];
+        return t;
+    }
+    let head = Look { bold: true, ..Look::plain(Align::Center) };
+    // The heading row repeats on every page the table runs onto.
+    let mut header =
+        Row { cells: vec![cell(w.points, head, false, pts_w, POINT_COLS), cell(w.grade, head, false, grade_w, GRADE_COLS)], ..Row::default() };
+    header.props.header = true;
+    let mut out_rows = vec![header];
+    for (k, t_row) in texts.iter().enumerate() {
+        let bold = first_pass == Some(k);
+        let grade_txt = entries.get(k).map(|b| split_number(b.grade, comma)).unwrap_or_default();
+        let cells = match t_row {
+            Some(t_row) => t_row
+                .iter()
+                .enumerate()
+                .map(|(c, txt)| {
+                    let align = if matches!(c, 0 | 3 | 6) { Align::Right } else { Align::Left };
+                    let pad = pads.get(c).copied().unwrap_or([0.0, 0.0]);
+                    let open = [!matches!(c, 0 | 6), !matches!(c, 5 | 7)];
+                    cell(txt, Look { align, bold, italic: false, pad, open }, false, grid.get(c).copied().unwrap_or(0.0), 1)
+                })
+                .collect(),
+            None => {
+                let g = |c: usize| grid.get(c).copied().unwrap_or(0.0);
+                vec![
+                    cell("\u{2014}", Look { bold, ..Look::plain(Align::Center) }, false, pts_w, POINT_COLS),
+                    cell(&grade_txt.0, Look { align: Align::Right, bold, italic: false, pad: [CELL_PAD, 0.0], open: [false, true] }, false, g(6), 1),
+                    cell(&grade_txt.1, Look { align: Align::Left, bold, italic: false, pad: [0.0, CELL_PAD], open: [true, false] }, false, g(7), 1),
+                ]
+            }
+        };
+        out_rows.push(Row { cells, ..Row::default() });
+    }
+    // Under the scale, how finely the points are counted (half points, hundredths…).
+    let note = format!("{} {}.", w.rounded, super::scores::shown(cfg.points_multiple(), comma));
+    let mut note_cell = cell(&note, Look { italic: true, ..Look::plain(Align::Center) }, false, width, COLS);
+    let none = Some(Border::default());
+    note_cell.props.borders = Some(Borders { left: none, right: none, bottom: none, ..Borders::default() });
+    out_rows.push(Row { cells: vec![note_cell], ..Row::default() });
     t.rows = out_rows;
     t
 }
@@ -429,18 +615,34 @@ fn put(s: &mut Session, i: usize, cfg: &Config) -> bool {
     cfg.sanitize();
     let max_pts = resolved_max_points(s, &cfg);
     let hide = should_hide(s, &cfg);
-    let w = doc_words(s);
+    let dw = doc_words(s);
+    let words = HeadWords { points: dw.points, grade: dw.grade_mark, rounded: dw.points_rounded };
     let width = text_width(s, i);
+    let size = s.doc.styles.default_chr.size.unwrap_or(11.0);
     let comma = super::scores::comma(s);
     let Some(Block::Table(old)) = s.doc.body.get(i).map(|b| &**b) else { return false };
     let old_cfg = control_of(old).map(read_config);
-    let mut new = build_table(&cfg, max_pts, w.points, w.grade_mark, width, comma, hide);
-    if old_cfg.as_ref() == Some(&cfg) && shape(old) == shape(&new) && old.grid.len() == new.grid.len() && old.props.borders == new.props.borders {
+    let mut new = build_table(&cfg, max_pts, &words, size, width, comma, hide);
+    let same_header = old.rows.first().map(|r| r.props.header) == new.rows.first().map(|r| r.props.header);
+    if old_cfg.as_ref() == Some(&cfg)
+        && shape(old) == shape(&new)
+        && old.grid == new.grid
+        && old.props.width == new.props.width
+        && old.props.align == new.props.align
+        && old.props.borders == new.props.borders
+        && same_header
+    {
         return false;
     }
     new.controls = old.controls.clone();
     let keep_borders = new.props.borders;
+    let (width, align) = (new.props.width, new.props.align);
     new.props = old.props.clone();
+    // As narrow as its content, centred.
+    new.props.width = width;
+    new.props.width_pct = None;
+    new.props.align = align;
+    new.props.indent = None;
     new.props.borders = if hide { keep_borders } else { Some(Borders::all(Border::single(0.5))) };
     if let Some(ctl) = new.controls.open.iter_mut().find(|c| c.tag == TAG_GRADING) {
         write_config(ctl, &cfg);
@@ -479,7 +681,12 @@ fn state(s: &Session) -> Value {
     let Some(ctl) = control_of(t) else { return json!({"on": false}) };
     let cfg = read_config(ctl);
     let max_pts = resolved_max_points(s, &cfg);
-    let scale: Vec<Value> = cfg.scale(max_pts).into_iter().map(|(pts, grade, pass)| json!({"points": pts, "grade": grade, "pass": pass})).collect();
+    let comma = super::scores::comma(s);
+    let scale: Vec<Value> = cfg
+        .scale(max_pts)
+        .into_iter()
+        .map(|b| json!({"grade": b.grade, "points": b.from, "from": b.from, "to": b.to, "pass": b.pass, "empty": b.is_empty(), "text": b.points_text(comma)}))
+        .collect();
     json!({
         "on": true,
         "preset": cfg.preset,
@@ -491,7 +698,7 @@ fn state(s: &Session) -> Value {
         "passGrade": cfg.pass_grade,
         "curve": cfg.curve,
         "step": cfg.step,
-        "pointsStep": cfg.points_step,
+        "pointsRound": cfg.points_multiple(),
         "visibility": cfg.visibility,
         "hidden": should_hide(s, &cfg),
         "scale": scale,
@@ -555,7 +762,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         }
         _ => {}
     }
-    let edits = ["preset", "maxPoints", "minGrade", "maxGrade", "passRatio", "passGrade", "curve", "step", "pointsStep", "visibility"]
+    let edits = ["preset", "maxPoints", "minGrade", "maxGrade", "passRatio", "passGrade", "curve", "step", "pointsRound", "visibility"]
         .iter()
         .any(|k| v.get(*k).is_some());
     if !edits {
@@ -611,12 +818,12 @@ fn apply_params(cfg: &mut Config, v: &Value) -> Result<(), CmdError> {
             }
         }
     }
-    if let Some(ps) = v.get("pointsStep") {
-        cfg.points_step = match ps {
+    if let Some(ps) = v.get("pointsRound") {
+        cfg.points_round = match ps {
             Value::Null => None,
-            x => {
-                Some(x.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("pointsStep: positive number or null".into()))?)
-            }
+            x => Some(
+                x.as_f64().filter(|n| n.is_finite() && *n > 0.0).ok_or_else(|| CmdError::Params("pointsRound: positive number or null".into()))?,
+            ),
         };
     }
     if let Some(cv) = p::str(v, "curve") {
@@ -627,4 +834,88 @@ fn apply_params(cfg: &mut Config, v: &Value) -> Result<(), CmdError> {
     }
     cfg.sanitize();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Config, Curve, Preset};
+
+    /// `a/b` rounded half away from zero, in whole numbers.
+    fn div_round(a: i128, b: i128) -> i128 {
+        (2 * a + b).div_euclid(2 * b)
+    }
+
+    /// The points of every grade are the curve's exact ones rounded to the multiple, a half
+    /// going up, whatever dust the floating-point arithmetic leaves: checked against whole-number
+    /// arithmetic for every preset, maximum (whole and half points) and usual multiple.
+    #[test]
+    fn points_are_rounded_from_the_exact_curve() {
+        let mut wrong = Vec::new();
+        for preset in [Preset::It10, Preset::Ch6, Preset::De6, Preset::Fr20, Preset::Percent] {
+            for round in [None, Some(0.1), Some(0.25), Some(0.5), Some(1.0)] {
+                for max2 in 2..=240_i128 {
+                    let mut cfg = Config::from_preset(preset);
+                    cfg.points_round = round;
+                    let max = max2 as f64 / 2.0;
+                    // Everything in units of 1/400: grades (steps of 0.25 or more), the
+                    // multiples (hundredths of 0.01 to 1) and the pass ratio (0.5 or 0.6 = 240/400).
+                    let u = |v: f64| (v * 400.0).round() as i128;
+                    let (lo, hi, pass, m) = (u(cfg.min_grade), u(cfg.max_grade), u(cfg.pass_grade), u(cfg.points_multiple()));
+                    let ratio = u(cfg.pass_ratio);
+                    let scale = cfg.scale(max);
+                    let last = scale.len() - 1;
+                    for (k, band) in scale.iter().enumerate() {
+                        if k == 0 || k == last {
+                            continue;
+                        }
+                        let g = u(band.grade);
+                        // The exact points as a fraction `num / den` of a point.
+                        let (num, den) = match cfg.curve {
+                            Curve::Linear => (max2 * (g - lo), 2 * (hi - lo)),
+                            Curve::PiecewiseLinear => {
+                                let below = if hi >= lo { g < pass } else { g > pass };
+                                if below {
+                                    (max2 * ratio * (g - lo), 2 * 400 * (pass - lo))
+                                } else {
+                                    (max2 * ratio * (hi - pass) + max2 * (400 - ratio) * (g - pass), 2 * 400 * (hi - pass))
+                                }
+                            }
+                        };
+                        let (num, den) = if den < 0 { (-num, -den) } else { (num, den) };
+                        // In multiples of `m/400` points: `num/den / (m/400)`.
+                        let want = div_round(num * 400, den * m) as f64 * cfg.points_multiple();
+                        let want = want.min(max);
+                        if (band.from - want).abs() > 1e-6 {
+                            wrong.push(format!("{preset:?} max {max} round {round:?} grade {}: {} not {want}", band.grade, band.from));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(wrong.is_empty(), "{} wrong, e.g. {:?}", wrong.len(), wrong.iter().take(8).collect::<Vec<_>>());
+    }
+
+    /// Found in review: with a scores total beyond what a scale is built on (10 000 points)
+    /// `effectiveMaxPoints` gave the real total while the scale stopped at the limit. They agree.
+    #[test]
+    fn the_effective_maximum_is_the_one_the_scale_is_built_on() {
+        use serde_json::json;
+        let mut s = crate::Session::new(wordcraft_doc::Document::new());
+        s.run("document.setText", &json!({"text": "Intro"})).unwrap();
+        s.run("caret.docEnd", &json!({})).unwrap();
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.scores", &json!({"on": true})).unwrap();
+        s.run("exercise.scores", &json!({"exercise": 1, "criterion": 1, "points": 20000})).unwrap();
+        s.run("caret.docStart", &json!({})).unwrap();
+        s.run("exercise.grading", &json!({"on": true})).unwrap();
+        let top = |st: &serde_json::Value| st["scale"].as_array().unwrap().iter().filter_map(|b| b["from"].as_f64()).fold(0.0, f64::max);
+        let st = s.run("exercise.grading", &json!({})).unwrap();
+        assert_eq!(st["effectiveMaxPoints"], json!(10000.0), "{st}");
+        assert!(top(&st) <= 10000.0, "{st}");
+        // And below the least a scale is built on.
+        s.run("exercise.scores", &json!({"exercise": 1, "criterion": 1, "points": 0.2})).unwrap();
+        let st = s.run("exercise.grading", &json!({})).unwrap();
+        assert_eq!(st["effectiveMaxPoints"], json!(0.5), "{st}");
+    }
 }

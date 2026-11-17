@@ -8,9 +8,10 @@ use wordcraft_doc::Rgb;
 use wordcraft_doc::wordart::{ART_STYLES, DRAWN_WARPS, TextFill, TextWarp, art_style};
 
 use crate::WordApp;
+use crate::color_palette::{Options, TopItem, TopSwatch};
+use crate::colors::Target;
 use crate::ribbon::mi;
 use crate::theme::{Tokens, semibold};
-use crate::widgets::color_grid;
 
 fn c32(c: Rgb) -> Color32 {
     Color32::from_rgb(c.0, c.1, c.2)
@@ -92,12 +93,11 @@ pub fn style_gallery(ui: &mut Ui, app: &mut WordApp, cmd: &str) {
 /// Text Fill: automatic (the text's colour), a colour, no fill (hollow), or a gradient of
 /// theme colours.
 pub fn fill_menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb]) {
-    mi(ui, app, "Automatic", "format.textEffects", json!({"fill": null}));
-    mi(ui, app, "No Fill", "format.textEffects", json!({"fill": "none"}));
-    if let Some(hex) = color_grid(ui, theme) {
-        crate::widgets::run_from_ribbon(app, "format.textEffects", json!({"fill": hex}));
-        ui.close();
-    }
+    let opts = Options::tops(vec![
+        TopItem::new("Automatic", TopSwatch::Color(Rgb::BLACK), serde_json::Value::Null, "auto"),
+        TopItem::none("No Fill", json!("none")),
+    ]);
+    crate::colors::menu_with(ui, app, theme, Target::at("format.textEffects", json!({"fill": null}), "/fill"), &opts);
     ui.add_space(4.0);
     let slot = |i: usize| theme.get(i).copied().unwrap_or(Rgb::BLACK);
     ui.horizontal(|ui| {
@@ -122,13 +122,13 @@ pub fn fill_menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb]) {
 
 /// Text Outline: automatic (none set), no outline, a colour, a weight.
 pub fn outline_menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb], current: Option<(Rgb, f32)>) {
-    mi(ui, app, "Automatic", "format.textEffects", json!({"outline": null}));
-    mi(ui, app, "No Outline", "format.textEffects", json!({"outline": "none"}));
     let width = current.map_or(0.75, |c| c.1);
-    if let Some(hex) = color_grid(ui, theme) {
-        crate::widgets::run_from_ribbon(app, "format.textEffects", json!({"outline": {"color": hex, "width": width}}));
-        ui.close();
-    }
+    let opts = Options::tops(vec![
+        TopItem::new("Automatic", TopSwatch::Color(Rgb::BLACK), serde_json::Value::Null, "auto").with_params(json!({"outline": null})),
+        TopItem::none("No Outline", serde_json::Value::Null).with_params(json!({"outline": "none"})),
+    ]);
+    let target = Target::at("format.textEffects", json!({"outline": {"color": null, "width": width}}), "/outline/color");
+    crate::colors::menu_with(ui, app, theme, target, &opts);
     ui.separator();
     ui.menu_button(crate::tl!("Weight"), |ui| {
         let color = current.map_or(Rgb::BLACK, |c| c.0).hex();
@@ -173,10 +173,8 @@ pub fn effects_menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb], transform: bo
         }
         ui.separator();
         ui.menu_button(crate::tl!("Glow Colors"), |ui| {
-            if let Some(hex) = color_grid(ui, theme) {
-                crate::widgets::run_from_ribbon(app, "format.textEffects", json!({"glow": {"color": hex, "size": 5.0}}));
-                ui.close();
-            }
+            let target = Target::at("format.textEffects", json!({"glow": {"color": null, "size": 5.0}}), "/glow/color");
+            crate::colors::menu(ui, app, theme, target);
         });
     });
     ui.menu_button(crate::tl!("Reflection"), |ui| {

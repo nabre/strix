@@ -38,7 +38,7 @@ use serde_json::{Value, json};
 use wordcraft_doc::control::{ContentControl, ControlKind, ControlLock};
 use wordcraft_doc::graph_paper::{GraphPaper, GridLineStyle, GridPlacement, PT_PER_MM};
 use wordcraft_doc::para::{OBJ, PTabAlign, PTabBase};
-use wordcraft_doc::props::{CharProps, NumRef};
+use wordcraft_doc::props::{CharProps, NumRef, Rgb};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
 use super::{Layout, MAX_QUESTIONS, STYLE_QUESTION, TAG_EXERCISE, TAG_QUESTIONS, control, para, scan};
@@ -62,9 +62,9 @@ pub(super) const STYLE_LINE: &str = "ExerciseResultLine";
 const KIND_EL: &str = "strix:exerciseKind";
 const ANSWER_EL: &str = "strix:answerSpace";
 const POINTS_EL: &str = "strix:points";
-const CORRECT_EL: &str = "<strix:correct/>";
+pub(super) const CORRECT_EL: &str = "<strix:correct/>";
 /// On a box last written with the answers shown: only then is its state a click to take.
-const SHOWN_EL: &str = "<strix:shown/>";
+pub(super) const SHOWN_EL: &str = "<strix:shown/>";
 
 /// Options of one question at most.
 const MAX_CHOICES: usize = 26;
@@ -81,8 +81,8 @@ const BLANK: &str = "______________";
 const LABEL_SEP: &str = ": ";
 /// The colour of the answers (the Exercise Answer style's).
 pub(super) const ANSWER_COLOUR: wordcraft_doc::props::TextColor = wordcraft_doc::props::TextColor::Rgb(wordcraft_doc::props::Rgb(0x1F, 0x4E, 0x9A));
-const CHECKED: char = '\u{2612}';
-const UNCHECKED: char = '\u{2610}';
+pub(super) const CHECKED: char = '\u{2612}';
+pub(super) const UNCHECKED: char = '\u{2610}';
 
 /// What an exercise is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -110,7 +110,8 @@ impl Kind {
             "problem" => Kind::Problem,
             // A quiz of calculations or drawings is an open-answer quiz whose questions start in
             // that mode (each question keeps its own).
-            "open" | "calc" | "drawing" | "worked" | "cloze" | "tableFill" | "matching" => Kind::Open,
+            // `tableFill`: the table to complete of before, now an open answer.
+            "open" | "calc" | "drawing" | "worked" | "cloze" | "matching" | "tableFill" => Kind::Open,
             "choice" | "trueFalse" => Kind::Choice,
             _ => return None,
         })
@@ -145,8 +146,9 @@ fn write_kind(ctl: &mut ContentControl, k: Kind) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Mode {
-    /// Written in a space, blank or squared.
+    /// Written in a space, blank or squared (a "table to complete" of a file from before is one).
     #[default]
+    #[serde(alias = "tableFill")]
     Open,
     /// Options ticked (true/false is two options).
     Choice,
@@ -156,7 +158,6 @@ pub(crate) enum Mode {
     Drawing,
     Worked,
     Cloze,
-    TableFill,
     Matching,
 }
 
@@ -169,7 +170,6 @@ impl Mode {
             Mode::Drawing => "drawing",
             Mode::Worked => "worked",
             Mode::Cloze => "cloze",
-            Mode::TableFill => "tableFill",
             Mode::Matching => "matching",
         }
     }
@@ -182,8 +182,9 @@ impl Mode {
             "drawing" => Mode::Drawing,
             "worked" => Mode::Worked,
             "cloze" => Mode::Cloze,
-            "tableFill" => Mode::TableFill,
             "matching" => Mode::Matching,
+            // The table to complete of before reads as an open answer.
+            "tableFill" => Mode::Open,
             _ => return None,
         })
     }
@@ -221,6 +222,12 @@ pub(crate) struct Answer {
     pub grid: bool,
     /// The side of a square, millimetres.
     pub spacing: f32,
+    /// The squares' line style (`solid`, `dashed`, `dotted`); `None`: solid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid_style: Option<String>,
+    /// The squares' line colour (`RRGGBB`); `None`: the graph paper's light blue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid_color: Option<String>,
 }
 
 impl Default for Answer {
@@ -236,6 +243,8 @@ impl Default for Answer {
             height: DEFAULT_HEIGHT_CM,
             grid: true,
             spacing: DEFAULT_SPACING_MM,
+            grid_style: None,
+            grid_color: None,
         }
     }
 }
@@ -264,6 +273,13 @@ impl Answer {
             height: fin(self.height, d.height).clamp(MIN_HEIGHT_CM, MAX_HEIGHT_CM),
             grid: self.grid,
             spacing: fin(self.spacing, d.spacing).clamp(1.0, 100.0),
+            grid_style: self
+                .grid_style
+                .as_deref()
+                .and_then(GridLineStyle::parse)
+                .filter(|s| !matches!(s, GridLineStyle::None | GridLineStyle::Solid))
+                .map(|s| s.name().to_string()),
+            grid_color: self.grid_color.as_deref().and_then(Rgb::parse).map(Rgb::hex),
         }
     }
 
@@ -274,6 +290,12 @@ impl Answer {
             placement: GridPlacement::Height { height: self.height * 10.0 * PT_PER_MM },
             ..GraphPaper::default()
         };
+        if let Some(st) = self.grid_style.as_deref().and_then(GridLineStyle::parse) {
+            g.line.style = st;
+        }
+        if let Some(c) = self.grid_color.as_deref().and_then(Rgb::parse) {
+            g.line.color = c;
+        }
         if !self.grid {
             g.line.style = GridLineStyle::None;
         }
@@ -281,7 +303,7 @@ impl Answer {
     }
 }
 
-fn read_answer(ctl: &ContentControl) -> Answer {
+pub(super) fn read_answer(ctl: &ContentControl) -> Answer {
     let open = format!("<{ANSWER_EL}>");
     let close = format!("</{ANSWER_EL}>");
     let Some(raw) = ctl.extra.iter().find_map(|x| x.strip_prefix(&open)?.strip_suffix(&close)) else { return Answer::default() };
@@ -304,7 +326,7 @@ fn inline(tag: &str, title: &str, lock: ControlLock) -> ContentControl {
     c
 }
 
-fn check_box(correct: bool, checked: bool) -> ContentControl {
+pub(super) fn check_box(correct: bool, checked: bool) -> ContentControl {
     let mut c = inline(TAG_BOX, "", ControlLock::SdtLocked);
     c.kind = ControlKind::CheckBox {
         checked,
@@ -503,7 +525,7 @@ pub(super) fn span(p: &Paragraph, tag: &str) -> Option<(usize, usize)> {
 }
 
 /// The control whose start marker is at `at` in `p`.
-fn control_at_mut(p: &mut Paragraph, at: usize) -> Option<&mut ContentControl> {
+pub(super) fn control_at_mut(p: &mut Paragraph, at: usize) -> Option<&mut ContentControl> {
     match p.object_at_mut(at) {
         Some(InlineObject::ControlStart { control }) => Some(control),
         _ => None,
@@ -579,11 +601,15 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
     let mut out: Vec<Item> = Vec::new();
     for i in from..=to {
         let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
-        if p.props.style.as_deref() == Some(STYLE_QUESTION) && !in_answer(&all, i) {
+        // A true/false question's answer is inline in its own paragraph (true_false.rs).
+        let question = is_question(p);
+        let inline = if question { inline_answer(p) } else { None };
+        if question && (inline.is_some() || !in_answer(&all, i)) {
             if out.len() >= MAX_QUESTIONS {
                 break;
             }
-            out.push(Item { question: i, answer: None, settings: Answer::default() });
+            let answer = inline.is_some().then_some((i, i));
+            out.push(Item { question: i, answer, settings: inline.unwrap_or_default() });
         } else if let Some((a, b, set)) = all.iter().find(|(a, _, _)| *a == i).cloned()
             && let Some(last) = out.last_mut()
             && last.answer.is_none()
@@ -593,6 +619,22 @@ pub(super) fn items(s: &Session, layout: &Layout, e: usize) -> Vec<Item> {
         }
     }
     out
+}
+
+/// Whether `p` is a question's paragraph: in the Exercise Question style, or the title line
+/// holding a quiz's only question (question_line.rs).
+pub(super) fn is_question(p: &Paragraph) -> bool {
+    p.props.style.as_deref() == Some(STYLE_QUESTION) || super::question_line::joined(p)
+}
+
+/// The settings of a question paragraph's inline answer (a true/false question's boxes on its
+/// line), if it has one.
+pub(super) fn inline_answer(p: &Paragraph) -> Option<Answer> {
+    let (a, _) = super::true_false::answer_span(p)?;
+    match p.object_at(a) {
+        Some(InlineObject::ControlStart { control }) => Some(read_answer(control)),
+        _ => None,
+    }
 }
 
 fn in_answer(all: &[(usize, usize, Answer)], i: usize) -> bool {
@@ -824,18 +866,34 @@ fn apply_settings(set: &mut Answer, v: &Value) {
     if let Some(sp) = p::f32(v, "spacing") {
         set.spacing = sp;
     }
+    // null: back to the default (solid, the graph paper's light blue).
+    match v.get("gridStyle") {
+        Some(Value::Null) => set.grid_style = None,
+        Some(Value::String(st)) => set.grid_style = Some(st.clone()),
+        _ => {}
+    }
+    match v.get("gridColor") {
+        Some(Value::Null) => set.grid_color = None,
+        Some(Value::String(c)) => {
+            if let Some(c) = Rgb::parse(c) {
+                set.grid_color = Some(c.hex());
+            }
+        }
+        _ => {}
+    }
 }
 
 /// `exercise.insert` with a quiz kind: title, optional statement, then each question with its
 /// answer. Returns the blocks to insert, in order.
 pub(super) fn exercise_blocks(s: &mut Session, v: &Value, kind_name: &str) -> Result<(Vec<Paragraph>, Vec<Option<Value>>), CmdError> {
     let kind = Kind::parse(kind_name)
-        .ok_or_else(|| CmdError::Params("kind: problem, open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
+        .ok_or_else(|| CmdError::Params("kind: problem, open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
     let true_false = kind_name == "trueFalse";
     let mode = Mode::of_kind(kind_name);
     let w = super::words(s);
-    let title = p::str(v, "title").map(str::to_string);
-    let text = p::str(v, "text").map(str::to_string);
+    // An empty title or text is none given: its placeholder shows.
+    let title = p::str(v, "title").filter(|t| !t.trim().is_empty()).map(str::to_string);
+    let text = p::str(v, "text").filter(|t| !t.trim().is_empty()).map(str::to_string);
     let mut questions: Vec<NewQuestion> = v
         .get("questions")
         .and_then(Value::as_array)
@@ -910,7 +968,7 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
     let mut base = if other {
         json!({"points": like.points})
     } else {
-        json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing, "shuffleChoices": like.shuffle_choices, "tolerance": like.tolerance})
+        json!({"points": like.points, "height": like.height, "grid": like.grid, "spacing": like.spacing, "gridStyle": like.grid_style, "gridColor": like.grid_color, "shuffleChoices": like.shuffle_choices, "tolerance": like.tolerance})
     };
     if let (Some(b), Some(o)) = (base.as_object_mut(), v.as_object()) {
         for (k, x) in o {
@@ -919,16 +977,32 @@ pub(super) fn add_question(s: &mut Session, ex: usize, v: &Value) -> CmdResult {
     }
     let q = new_question(s, &base, like.mode, false);
     let w = super::words(s);
-    let num = super::e_list(s, last).map(|num| NumRef { num, level: 0 });
+    // Nested as a problem's questions are: `level`, or `sub` for one below the last question.
+    let last_level = e.questions.last().map_or(0, |q| q.level);
+    let level = match (p::u64(v, "level"), p::bool(v, "sub")) {
+        (Some(l), _) => l.min(u64::from(super::MAX_LEVEL)) as u8,
+        (None, Some(true)) => (last_level + 1).min(super::MAX_LEVEL),
+        _ => 0,
+    };
+    // A lone question has no list yet (`update` gives both one): the level is kept for it.
+    let num = match (super::e_list(s, last), level) {
+        (Some(num), _) => Some(NumRef { num, level }),
+        (None, 0) => None,
+        (None, _) => Some(NumRef { num: 0, level }),
+    };
     let new = question_blocks(s, w, q.text.as_deref(), &q.set, &q.choices, num);
     // The questions control's end (and the exercise's) move from the last paragraph to the new
     // last one: as many end markers as the old last paragraph ends with past its own controls.
+    // From the questions control's end on (the exercise's follows it, unless a note put outside
+    // the questions closes the exercise; a subdocument's may follow that): never the end of the
+    // last answer, which a paragraph of options closes before them.
+    let from_questions = super::questions_ends(s, last);
     let block = s.doc.body.get_mut(last).ok_or_else(|| CmdError::Failed("no questions".into()))?;
     let Block::Para(prev) = Arc::make_mut(block) else { return Err(CmdError::Failed("the questions end in a table".into())) };
     let mut moved = 0;
-    for _ in 0..2 {
+    for _ in 0..from_questions.unwrap_or(2) {
         // Only ends of controls that opened before this paragraph: the questions and the exercise.
-        if trailing_outer_ends(prev) > 0 {
+        if from_questions.is_some() || trailing_outer_ends(prev) > 0 {
             super::take_last_end(prev)?;
             moved += 1;
         }
@@ -981,14 +1055,22 @@ pub(super) fn add_drawings(s: &mut Session, ex: usize, drawings: &[Option<Value>
 }
 
 /// End markers at the end of `p` that close controls opened in an earlier paragraph.
-fn trailing_outer_ends(p: &Paragraph) -> usize {
-    let mut open = 0usize;
+pub(super) fn trailing_outer_ends(p: &Paragraph) -> usize {
+    // A title line holding the question opens the exercise and its questions part itself (and,
+    // in a master document, the subdocument the exercise is): their ends are what it closes
+    // last, as a question paragraph's are.
+    let joined = super::question_line::joined(p);
+    let mut open: Vec<bool> = Vec::new();
     let mut outer = 0usize;
     for (_, o) in p.objects_with_offsets() {
         match o {
-            InlineObject::ControlStart { .. } => open += 1,
-            InlineObject::ControlEnd if open > 0 => open -= 1,
-            InlineObject::ControlEnd => outer += 1,
+            InlineObject::ControlStart { control } => {
+                open.push(joined && (control.tag == TAG_EXERCISE || control.tag == TAG_QUESTIONS || control.tag.starts_with(super::SUBDOC_TAG)));
+            }
+            InlineObject::ControlEnd => match open.pop() {
+                Some(false) => {}
+                Some(true) | None => outer += 1,
+            },
             _ => {}
         }
     }
@@ -1001,10 +1083,11 @@ fn trailing_outer_ends(p: &Paragraph) -> usize {
 /// the space of each open answer, the boxes of each option, the answers shown or hidden, a lone
 /// question without its letter. Whether anything changed.
 pub(super) fn update(s: &mut Session) -> bool {
+    // True/false questions: their boxes on the statement's line, a header over each battery.
+    let mut changed = super::true_false::restructure(s);
     let layout = scan(s);
     let w = super::doc_words(s);
     let comma = super::scores::comma(s);
-    let mut changed = false;
     for (e, ex) in layout.exercises.iter().enumerate() {
         let its = items(s, &layout, e);
         if its.is_empty() {
@@ -1045,11 +1128,16 @@ pub(super) fn update(s: &mut Session) -> bool {
                 let want_num = if lone { Some(NumRef { num: 0, level: 0 }) } else { None };
                 let Block::Para(p) = &**block else { continue };
                 let cur = p.props.numbering;
-                let new_num = match (want_num, cur, list) {
-                    (Some(w0), c, _) if c != Some(w0) => Some(Some(w0)),
-                    (None, Some(c), Some(l)) if c.num == 0 => Some(Some(NumRef { num: l, level: c.level })),
-                    (None, None, Some(l)) => Some(Some(NumRef { num: l, level: 0 })),
-                    _ => None,
+                // A title line holding the question keeps the title's number.
+                let new_num = if super::question_line::joined(p) {
+                    None
+                } else {
+                    match (want_num, cur, list) {
+                        (Some(w0), c, _) if c != Some(w0) => Some(Some(w0)),
+                        (None, Some(c), Some(l)) if c.num == 0 => Some(Some(NumRef { num: l, level: c.level })),
+                        (None, None, Some(l)) => Some(Some(NumRef { num: l, level: 0 })),
+                        _ => None,
+                    }
                 };
                 let text = points_text(it.settings.points, w, comma);
                 let needs_points = span(p, TAG_POINTS).is_some_and(|sp| !points_shown(p, sp, &text));
@@ -1100,12 +1188,14 @@ pub(super) fn update(s: &mut Session) -> bool {
                 );
             }
             for i in a..=b {
+                let width = text_width_at(s, i);
+                let ew = super::exercise_words(s, &layout, e);
                 let Some(block) = s.doc.body.get_mut(i) else { continue };
                 changed |= match it.settings.mode {
-                    Mode::Choice => choice_para(block, shown),
+                    Mode::Choice => choice_para(block, shown) | super::true_false::sync(block, shown, width, ew),
                     // The result line is filled in by `result_lines`, once calculated.
                     Mode::Calc if matches!(&**block, Block::Para(p) if span(p, TAG_LINE).is_some()) => false,
-                    _ => open_para(block, &it.settings, i == a, shown || matches!(it.settings.mode, Mode::Worked | Mode::Cloze | Mode::TableFill)),
+                    _ => open_para(block, &it.settings, i == a, shown || matches!(it.settings.mode, Mode::Worked | Mode::Cloze)),
                 };
             }
             if it.settings.mode == Mode::Calc {
@@ -1161,7 +1251,7 @@ fn result_equations(s: &Session, (a, b): (usize, usize)) -> Vec<(usize, usize)> 
         }
         for (k, o) in p.objects.iter().enumerate() {
             if let InlineObject::Equation { linear, math, .. } = o {
-                let text = math.calc.then(|| super::super::calc::equation_text(linear, math));
+                let text = math.calc.then(|| super::super::calc::calc_text(linear, math));
                 eqs.push(((i, k), text));
             }
         }
@@ -1323,7 +1413,7 @@ fn is_line(s: &Session, i: usize) -> bool {
 }
 
 /// The text width of the section block `i` is in.
-fn text_width_at(s: &Session, i: usize) -> f32 {
+pub(super) fn text_width_at(s: &Session, i: usize) -> f32 {
     s.doc.sections().into_iter().find(|(end, _)| *end >= i).map_or_else(|| s.doc.last_section.text_width(), |(_, sp)| sp.text_width())
 }
 
@@ -1478,7 +1568,7 @@ pub(super) fn line_values(s: &Session, (a, b): (usize, usize)) -> Vec<String> {
 /// say), the text is hidden while the answers are; whether it changed.
 fn open_para(block: &mut Arc<Block>, set: &Answer, first: bool, shown: bool) -> bool {
     let Block::Para(p) = &**block else { return false };
-    let graph = (first && !matches!(set.mode, Mode::Cloze | Mode::TableFill)).then(|| Arc::new(set.graph()));
+    let graph = (first && set.mode != Mode::Cloze).then(|| Arc::new(set.graph()));
     let want_hidden = (!shown).then_some(true);
     let same_graph = p.props.graph.as_deref() == graph.as_deref();
     let same_hidden = p.runs.iter().all(|r| r.props.hidden == want_hidden) && p.mark.hidden.is_none();
@@ -1587,6 +1677,9 @@ pub(super) fn choice_text(p: &Paragraph) -> String {
 
 /// The options of an answer with whether each is correct.
 pub(super) fn choices(s: &Session, (a, b): (usize, usize)) -> Vec<(String, bool)> {
+    if let Some(cs) = super::true_false::choices(s, (a, b)) {
+        return cs;
+    }
     (a..=b)
         .filter_map(|i| s.doc.body.get(i).and_then(|b| b.as_para()))
         .filter(|p| p.props.style.as_deref() == Some(STYLE_CHOICE))
@@ -1601,6 +1694,9 @@ pub(super) fn choices(s: &Session, (a, b): (usize, usize)) -> Vec<(String, bool)
 
 /// The optional teacher diagnostic rationale stored on each option in `(a, b)`.
 pub(super) fn rationales_of(s: &Session, (a, b): (usize, usize)) -> Vec<Option<String>> {
+    if let Some(rs) = super::true_false::rationales(s, (a, b)) {
+        return rs;
+    }
     (a..=b)
         .filter_map(|i| s.doc.body.get(i).and_then(|b| b.as_para()))
         .filter(|p| p.props.style.as_deref() == Some(STYLE_CHOICE))
@@ -1618,6 +1714,19 @@ fn letter(k: usize) -> String {
     super::letter(k).to_ascii_uppercase()
 }
 
+/// The correct options of a multiple choice answer `r` by their letters (`A`, `C`); a true/false
+/// question's by the initials its header shows in the exercise's language (`V`/`F`, `T`/`F`,
+/// `W`/`F`).
+pub(super) fn correct_letters(s: &Session, r: (usize, usize), true_false: bool, w: &super::words::Words) -> Vec<String> {
+    let tf = true_false || super::true_false::choices(s, r).is_some();
+    choices(s, r)
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.1)
+        .map(|(j, _)| if tf { super::true_false::column_letter(w, j).unwrap_or_else(|| letter(j)) } else { letter(j) })
+        .collect()
+}
+
 /// The exercise's maximum points: its questions' added up (`None` when none has points).
 pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
     let ex = layout.exercises.get(e)?;
@@ -1633,8 +1742,10 @@ pub(crate) fn total(s: &Session, layout: &Layout, e: usize) -> Option<f64> {
 }
 
 /// What a quiz gives the results summary: for each multiple-choice question, its letter and the
-/// correct options (`b) A, C`); for each calculation, its result (`c) A = 15 cm²`, from
-/// `answers`, or `none` when it has none); open answers and drawings give nothing.
+/// correct options (`b) A, C`, a true/false's column `V`); for each calculation, its result
+/// (`c) A = 15 cm²`, from `answers`, or `none` when it has none); an open answer says it is one
+/// (`d) domanda a risposta aperta`), also in a quiz of open answers alone, so that none is
+/// forgotten when correcting; a text to complete, its hidden words; drawings give nothing.
 pub(super) fn summary_lines(
     s: &Session,
     layout: &Layout,
@@ -1643,6 +1754,7 @@ pub(super) fn summary_lines(
     none: &str,
 ) -> Vec<String> {
     let its = items(s, layout, e);
+    let w = super::exercise_words(s, layout, e);
     let labels: Vec<String> = layout.exercises.get(e).map(|x| x.questions.iter().map(|q| q.label.clone()).collect()).unwrap_or_default();
     let lone = its.len() == 1;
     its.iter()
@@ -1650,16 +1762,38 @@ pub(super) fn summary_lines(
         .filter_map(|(k, it)| {
             let shown = match it.settings.mode {
                 Mode::Choice => {
-                    let right: Vec<String> = choices(s, it.answer?).iter().enumerate().filter(|(_, c)| c.1).map(|(j, _)| letter(j)).collect();
+                    let right = correct_letters(s, it.answer?, it.settings.true_false, w);
                     if right.is_empty() { "—".to_string() } else { right.join(", ") }
                 }
                 Mode::Calc => {
                     let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
                     answers.get(&(e, n)).filter(|v| !v.is_empty()).map(|v| v.join("; ")).unwrap_or_else(|| none.to_string())
                 }
-                Mode::Open | Mode::Drawing | Mode::Worked | Mode::Cloze | Mode::TableFill | Mode::Matching => return None,
+                Mode::Open => w.open_answer.to_string(),
+                // A text to complete: its hidden words.
+                Mode::Cloze => {
+                    let words = hidden_words(s, (it.question, it.answer.map_or(it.question, |(_, b)| b)));
+                    if words.is_empty() {
+                        return None;
+                    }
+                    words.join(", ")
+                }
+                Mode::Drawing | Mode::Worked | Mode::Matching => return None,
             };
             Some(if lone { shown } else { format!("{} {shown}", labels.get(k).cloned().unwrap_or_default()) })
+        })
+        .collect()
+}
+
+/// The words hidden in the blocks `a..=b`, in order.
+fn hidden_words(s: &Session, (a, b): (usize, usize)) -> Vec<String> {
+    (a..=b)
+        .filter_map(|i| s.doc.body.get(i)?.as_para())
+        .flat_map(|p| {
+            super::expr::expr_spans(p).into_iter().filter_map(|(at, _)| match p.object_at(at) {
+                Some(InlineObject::ControlStart { control }) => super::word_blank::read(control),
+                _ => None,
+            })
         })
         .collect()
 }
@@ -1694,6 +1828,7 @@ pub(super) fn fingerprint(s: &Session) -> u64 {
                 &r.end.path.0,
             )
                 .hash(&mut h);
+            (&a.grid_style, &a.grid_color).hash(&mut h);
         } else if r.control.tag == TAG_POINTS {
             (read_points_ctl(&r.control).map(f64::to_bits), &r.start.path.0).hash(&mut h);
         }
@@ -1714,6 +1849,8 @@ fn state(s: &Session, e: usize) -> Value {
     let layout = scan(s);
     let Some(ex) = layout.exercises.get(e) else { return Value::Null };
     let its = items(s, &layout, e);
+    // The question the caret is in (1-based), for the pane to open.
+    let current = (super::exercise_at_caret(s) == Some(e)).then(|| question_at_caret(s, &layout, e)).flatten().map(|q| q + 1);
     if !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
         let list: Vec<Value> = if ex.no_questions {
             Vec::new()
@@ -1734,7 +1871,7 @@ fn state(s: &Session, e: usize) -> Value {
                 })
                 .collect()
         };
-        return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e)});
+        return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e), "current": current});
     }
     let calc_opts = super::super::calc::options_now(s);
     let mut calc_answers: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
@@ -1810,12 +1947,18 @@ fn state(s: &Session, e: usize) -> Value {
                     o.insert("height".into(), json!((f64::from(it.settings.height) * 100.0).round() / 100.0));
                     o.insert("grid".into(), json!(it.settings.grid));
                     o.insert("spacing".into(), json!((f64::from(it.settings.spacing) * 100.0).round() / 100.0));
+                    let line = it.settings.graph().line;
+                    let style =
+                        if line.style == GridLineStyle::None { it.settings.grid_style.as_deref().unwrap_or("solid") } else { line.style.name() };
+                    o.insert("gridStyle".into(), json!(style));
+                    let color = it.settings.grid_color.as_deref().and_then(Rgb::parse).unwrap_or(line.color);
+                    o.insert("gridColor".into(), json!(color.hex()));
                 }
             }
             v
         })
         .collect();
-    json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e)})
+    json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e), "current": current})
 }
 
 /// The question at the caret (0-based) in exercise `e`, by the paragraph it is in or the answer.
@@ -1824,6 +1967,10 @@ fn question_at_caret(s: &Session, layout: &Layout, e: usize) -> Option<usize> {
         return None;
     }
     let top = *s.sel.focus.path.0.first()? as usize;
+    // Only with the caret in that exercise: after it, its last question is not "at the caret".
+    if layout.parts.get(top).and_then(|(x, _)| *x) != Some(e) {
+        return None;
+    }
     items(s, layout, e).iter().rposition(|it| it.question <= top)
 }
 
@@ -1861,7 +2008,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let e = super::target(s, v)?;
     let layout = scan(s);
     let ex = layout.exercises.get(e).ok_or_else(|| CmdError::Params("no such exercise".into()))?;
-    let changes = ["points", "height", "grid", "spacing", "correct", "tolerance", "shuffleChoices", "rationales"].iter().any(|k| v.get(*k).is_some());
+    let changes = ["points", "height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
+        .iter()
+        .any(|k| v.get(*k).is_some());
     if !changes {
         return Ok(state(s, e));
     }
@@ -1873,7 +2022,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
     let Some((a, b)) = it.answer else {
-        let answer_only = ["height", "grid", "spacing", "correct", "tolerance", "shuffleChoices", "rationales"].iter().any(|k| v.get(*k).is_some());
+        let answer_only = ["height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
+            .iter()
+            .any(|k| v.get(*k).is_some());
         if answer_only {
             return Err(CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()));
         }
@@ -1917,6 +2068,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
 
 fn apply_choice_edits(s: &mut Session, (a, b): (usize, usize), v: &Value, shown: bool) {
     let want_correct = v.get("correct").map(|_| correct_list(v));
+    if super::true_false::apply_correct(s, (a, b), want_correct.as_deref()) {
+        return;
+    }
     let want_rationales = v.get("rationales").and_then(Value::as_array);
     let mut k = 0usize;
     for i in a..=b {
@@ -1952,7 +2106,7 @@ fn apply_choice_edits(s: &mut Session, (a, b): (usize, usize), v: &Value, shown:
     }
 }
 
-fn outer_ends_after_answer(s: &Session, a: usize, b: usize) -> usize {
+pub(super) fn outer_ends_after_answer(s: &Session, a: usize, b: usize) -> usize {
     let mut open = 0usize;
     let mut outer = 0usize;
     for i in a..=b {
@@ -1981,7 +2135,12 @@ fn append_ends(p: &mut Paragraph, ends: usize) {
     }
 }
 
-fn build_choice_paras(s: &mut Session, answer: ContentControl, choices: &[(String, bool, Option<String>)], outer: usize) -> Vec<Paragraph> {
+pub(super) fn build_choice_paras(
+    s: &mut Session,
+    answer: ContentControl,
+    choices: &[(String, bool, Option<String>)],
+    outer: usize,
+) -> Vec<Paragraph> {
     let list = add_choice_list(s).ok();
     let n = choices.len().max(1);
     let mut opener = Some(answer);
@@ -2010,10 +2169,9 @@ fn build_choice_paras(s: &mut Session, answer: ContentControl, choices: &[(Strin
 /// `trueFalse`, `calc`, and `drawing`, keeping its question paragraph (`TAG_ITEM` + `TAG_POINTS`)
 /// untouched and preserving existing working/options across compatible modes.
 pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
-    let ty = p::str(v, "type")
-        .ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
-    let new_mode = Mode::parse(ty)
-        .ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze, tableFill or matching".into()))?;
+    let ty = p::str(v, "type").ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
+    let new_mode =
+        Mode::parse(ty).ok_or_else(|| CmdError::Params("type: open, choice, trueFalse, calc, drawing, worked, cloze or matching".into()))?;
     let want_tf = ty == "trueFalse";
     let e = super::target(s, v)?;
     let layout = scan(s);
@@ -2028,6 +2186,10 @@ pub(super) fn set_mode(s: &mut Session, v: &Value) -> CmdResult {
         None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
+    // A true/false question's boxes on its line go back to being its two options first.
+    let shown = layout.exercises.get(e).is_some_and(|x| x.show.solution);
+    let expanded = if super::true_false::expand(s, it, shown) { items(s, &scan(s), e) } else { Vec::new() };
+    let it = if expanded.is_empty() { it } else { expanded.get(q).ok_or_else(|| CmdError::Failed("question vanished".into()))? };
     let (a, b) =
         it.answer.ok_or_else(|| CmdError::Disabled("this question has no answer part (a problem's question is answered in the solution)".into()))?;
     let old_mode = it.settings.mode;
@@ -2112,7 +2274,10 @@ fn clear_equation_answer_marks(s: &mut Session, a: usize, b: usize) {
 }
 
 fn convert_non_choice(s: &mut Session, (a, mut b): (usize, usize), outer: usize, new_mode: Mode, set: &Answer) -> Result<(), CmdError> {
-    if new_mode == Mode::Matching {
+    // A matching's generated rows go with it: the answer part is made anew, as it is for one.
+    let was_matching =
+        (a..=b).any(|i| s.doc.body.get(i).and_then(|bl| bl.as_para()).is_some_and(|p| span(p, super::stem_items::TAG_MATCH_ROW).is_some()));
+    if new_mode == Mode::Matching || was_matching {
         let w = super::words(s);
         let mut blocks = question_blocks(s, w, None, set, &[], None);
         if let Some(last) = blocks.last_mut() {
@@ -2297,9 +2462,10 @@ mod tests {
         );
         let t = texts(&s);
         assert!(t.iter().any(|x| x == "Definisci il momento flettente........... / 2 pt"), "{t:?}");
-        // No statement, no solution, no results summary.
+        // No statement, no solution; the results summary names the open answer.
         assert!(!t.iter().any(|x| x.contains("Scrivi qui il testo")), "{t:?}");
-        assert!(!t.iter().any(|x| x.contains("Risoluzione") || x.contains("Riepilogo")), "{t:?}");
+        assert!(!t.iter().any(|x| x.contains("Risoluzione")), "{t:?}");
+        assert!(t.iter().any(|x| x == "domanda a risposta aperta"), "{t:?}");
         let space = s.doc.body.iter().filter_map(|b| b.as_para()).find(|p| p.props.graph.is_some()).expect("space");
         let g = space.props.graph.as_deref().expect("graph");
         assert_eq!(g.line.style, GridLineStyle::None);
@@ -2369,7 +2535,8 @@ mod tests {
     fn true_false_and_added_questions_follow_the_last_one() {
         let mut s = session();
         run(&mut s, "exercise.insert", json!({"kind": "trueFalse", "questions": [{"text": "Il ferro è un metallo.", "correct": 1, "points": 1}]}));
-        assert!(texts(&s).iter().any(|x| x == "☒ Vero"), "{:?}", texts(&s));
+        // The boxes on the statement's line, True ticked in the corrected copy (true_false.rs).
+        assert!(texts(&s).iter().any(|x| x.starts_with("Il ferro è un metallo.\t☒\t☐")), "{:?}", texts(&s));
         run(&mut s, "exercise.addQuestion", json!({"text": "L'aria è un solido.", "trueFalse": true, "correct": 2}));
         let st = run(&mut s, "exercise.questions", json!({}));
         assert_eq!(st["questions"].as_array().map(Vec::len), Some(2));
@@ -2603,7 +2770,7 @@ mod tests {
         assert!(p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { .. })), "the added drawing question has its drawing");
         // The summary: the true/false's answer and the calculations without a result.
         let t = texts(&s);
-        assert!(t.contains(&"b) A".to_string()), "{t:?}");
+        assert!(t.contains(&"b) V".to_string()), "{t:?}");
         assert!(t.contains(&"c) risultato non indicato".to_string()), "{t:?}");
     }
 
@@ -2638,7 +2805,7 @@ mod tests {
     }
 
     #[test]
-    fn quiz_data_block_inserts_removes_and_respects_show_data() {
+    fn quiz_data_block_inserts_and_removes() {
         let mut s = session();
         run(&mut s, "exercise.insert", json!({"kind": "calc", "questions": [{"text": "Calcola A.", "points": 2}]}));
         let has_data_ctl = |s: &Session| s.doc.control_ranges(StoryRef::Body).iter().any(|r| r.control.tag == super::super::TAG_DATA);
@@ -2655,17 +2822,17 @@ mod tests {
         run(&mut s, "calc.insert", json!({"text": "A = 2 * b = cm"}));
         assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 10 cm");
 
-        // `showData: false` hides the visual TAG_DATA block while keeping `b` live in the sandbox!
+        // New values: the data part and the result follow.
         run(
             &mut s,
             "exercise.setData",
-            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0, "showData": false}}),
+            json!({"exercise": 1, "data": {"items": [{"symbol": "b", "description": "base", "unit": "cm", "values": ["7"]}], "variants": ["A"], "active": 0}}),
         );
-        assert!(!has_data_ctl(&s), "showData: false omits TAG_DATA");
+        assert!(has_data_ctl(&s));
         assert_eq!(run(&mut s, "exercise.questions", json!({"exercise": 1}))["questions"][0]["line"], "A = 14 cm");
 
         // Emptying items removes TAG_DATA cleanly.
-        run(&mut s, "exercise.setData", json!({"exercise": 1, "data": {"items": [], "variants": ["A"], "active": 0, "showData": true}}));
+        run(&mut s, "exercise.setData", json!({"exercise": 1, "data": {"items": [], "variants": ["A"], "active": 0}}));
         assert!(!has_data_ctl(&s));
     }
 

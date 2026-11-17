@@ -169,6 +169,12 @@ pub struct Layer {
     /// the drawing's bounds and fitted scale so pagination never shifts.
     #[serde(default, skip_serializing_if = "is_false")]
     pub answer: bool,
+    /// The drawing it was inherited from (its id), with an underlay or Import styles and layers:
+    /// the layer is named `source/name`, shown nested under its drawing in the Layer Manager,
+    /// never renamed and removed only when empty ([`Drawing::inherit`]). `None`: the drawing's
+    /// own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -181,7 +187,17 @@ fn is_true(b: &bool) -> bool {
 
 impl Default for Layer {
     fn default() -> Self {
-        Layer { name: "0".to_string(), color: [0, 0, 0], width: 0.35, dash: Dash::Solid, visible: true, locked: false, print: true, answer: false }
+        Layer {
+            name: "0".to_string(),
+            color: [0, 0, 0],
+            width: 0.35,
+            dash: Dash::Solid,
+            visible: true,
+            locked: false,
+            print: true,
+            answer: false,
+            from: None,
+        }
     }
 }
 
@@ -290,11 +306,18 @@ fn is_no_ends(e: &Ends) -> bool {
     *e == Ends::None
 }
 
+/// A dimension's start and end marks: its own (`mark`; the end's `mark_end`, else the start's)
+/// over the style's.
+pub(crate) fn dim_marks(st: &DimStyle, mark: Option<Mark>, mark_end: Option<Mark>) -> (Mark, Mark) {
+    let (start, end) = mark.map_or((st.mark, st.end_mark()), |m| (m, m));
+    (start, mark_end.unwrap_or(end))
+}
+
 /// How linear dimensions show their size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DimUnits {
-    /// In the drawing's unit.
+    /// In the input unit (the drawing's own when it sets none); saved as `drawing`.
     #[default]
     Drawing,
     /// All in metres, centimetres or millimetres.
@@ -308,7 +331,7 @@ pub enum DimUnits {
 
 impl DimUnits {
     pub const ALL: [(DimUnits, &'static str, &'static str); 5] = [
-        (DimUnits::Drawing, "drawing", "Drawing unit"),
+        (DimUnits::Drawing, "drawing", "Input unit"),
         (DimUnits::M, "m", "Metres"),
         (DimUnits::Cm, "cm", "Centimetres"),
         (DimUnits::Mm, "mm", "Millimetres"),
@@ -321,7 +344,7 @@ impl DimUnits {
 
     /// Its label (English; the UI translates it).
     pub fn label(self) -> &'static str {
-        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("Drawing unit", |(.., l)| l)
+        DimUnits::ALL.iter().find(|(u, ..)| *u == self).map_or("Input unit", |(.., l)| l)
     }
 
     pub fn parse(s: &str) -> Option<DimUnits> {
@@ -394,8 +417,14 @@ pub struct DimStyle {
     /// Between a dimension's text and its line, mm.
     pub text_gap: f64,
     /// Dimension, extension and leader lines' width, mm: thin, lighter than the drawing's
-    /// lines (a dimension's own stroke width wins). Ticks are drawn heavier.
+    /// lines; 0: the layer's (ByLayer). A dimension's own width wins. Ticks are drawn heavier
+    /// (see `mark_width`).
     pub line_width: f64,
+    /// Dimension, extension and leader lines' linetype; `None`: the layer's (ByLayer, written
+    /// `"byLayer"`). A dimension's own linetype wins. Marks and texts are always drawn solid.
+    /// Written only when not Continuous.
+    #[serde(with = "by_layer_dash", skip_serializing_if = "is_continuous")]
+    pub dash: Option<Dash>,
     /// How far a dimension line runs past its extension lines, mm, with ticks and dots (as
     /// architectural drawings do; never with arrows).
     pub line_over: f64,
@@ -425,6 +454,15 @@ pub struct DimStyle {
     /// Written only when set.
     #[serde(skip_serializing_if = "is_zero_f64")]
     pub level_mark: f64,
+    /// How far a level mark's reference line (the short line on the level) runs from the
+    /// triangle's tip on the text side, mm; 0 (the default): automatic (a triangle height).
+    /// Written only when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_line_text: f64,
+    /// …and on the other side, mm; 0 (the default): automatic (a triangle height). Written only
+    /// when set.
+    #[serde(skip_serializing_if = "is_zero_f64")]
+    pub level_line_other: f64,
     /// Level marks' elevations end with their unit (`+3.00 m`); off (the default), the number
     /// alone. Written only when on.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -446,6 +484,7 @@ impl Default for DimStyle {
             ext_over: 2.0,
             text_gap: 1.0,
             line_width: 0.18,
+            dash: Some(Dash::Solid),
             line_over: 1.5,
             aligned: true,
             scaled: false,
@@ -453,14 +492,16 @@ impl Default for DimStyle {
             show_unit: false,
             level_text: 0.0,
             level_mark: 0.0,
+            level_line_text: 0.0,
+            level_line_other: 0.0,
             level_unit: false,
         }
     }
 }
 
 impl DimStyle {
-    /// Every size finite and within reason (text 0.5–50 mm, line width 0.05–2 mm, the others
-    /// 0–20 mm).
+    /// Every size finite and within reason (text 0.5–50 mm, line width 0 (ByLayer) or 0.05–2
+    /// mm, the others 0–20 mm).
     pub fn sanitized(mut self) -> DimStyle {
         let c = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
         let d = DimStyle::default();
@@ -474,7 +515,9 @@ impl DimStyle {
             ext_gap: c(self.ext_gap, 0.0, 20.0, d.ext_gap),
             ext_over: c(self.ext_over, 0.0, 20.0, d.ext_over),
             text_gap: c(self.text_gap, 0.0, 20.0, d.text_gap),
-            line_width: c(self.line_width, 0.05, 2.0, d.line_width),
+            // 0 (ByLayer) stays; any other width at least 0.05 mm.
+            line_width: if self.line_width == 0.0 { 0.0 } else { c(self.line_width, 0.05, 2.0, d.line_width) },
+            dash: self.dash,
             line_over: c(self.line_over, 0.0, 20.0, d.line_over),
             aligned: self.aligned,
             scaled: self.scaled,
@@ -482,6 +525,8 @@ impl DimStyle {
             show_unit: self.show_unit,
             level_text: c(self.level_text, 0.0, 50.0, 0.0),
             level_mark: c(self.level_mark, 0.0, 50.0, 0.0),
+            level_line_text: c(self.level_line_text, 0.0, 50.0, 0.0),
+            level_line_other: c(self.level_line_other, 0.0, 50.0, 0.0),
             level_unit: self.level_unit,
         }
     }
@@ -494,6 +539,13 @@ impl DimStyle {
     /// The level marks' triangle height, mm (their own, else a text and a fifth, at least 1 mm).
     pub fn level_mark_height(&self) -> f64 {
         if self.level_mark > 0.0 { self.level_mark } else { (self.level_text_height() * 1.2).max(1.0) }
+    }
+
+    /// How far the level marks' reference line runs from the tip, mm: on the text side and on the
+    /// other (their own, else a triangle height each).
+    pub fn level_line(&self) -> (f64, f64) {
+        let auto = |v: f64| if v > 0.0 { v } else { self.level_mark_height() };
+        (auto(self.level_line_text), auto(self.level_line_other))
     }
 
     pub fn is_default(&self) -> bool {
@@ -625,6 +677,9 @@ pub enum Kind {
         below: Option<String>,
         #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
+        /// The mark at the end, when it differs from the start's; `None`: the start's.
+        #[serde(default, rename = "markEnd", deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+        mark_end: Option<Mark>,
     },
     /// A hatched strip along the line or polyline with id `along` (it follows it), `width` paper
     /// mm wide on its `side`, filled with `pattern`: lines at `angle` degrees to the line,
@@ -671,12 +726,16 @@ pub enum Kind {
         text: Option<String>,
         #[serde(default, deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
         mark: Option<Mark>,
+        /// The mark at the end, when it differs from the start's; `None`: the start's.
+        #[serde(default, rename = "markEnd", deserialize_with = "lenient", skip_serializing_if = "Option::is_none")]
+        mark_end: Option<Mark>,
     },
     /// A level (elevation) mark at `p`: a triangle with its tip on the level, a line along it and
     /// the elevation over it: `p`'s height above `datum` (drawing units; the ±0.00 level) in
     /// metres, signed, `±0.00` at the datum. `text` as a dimension's (`<>` is the elevation).
     /// `flip`: the mark under the level, tip up (a ceiling, a soffit). `left`: the line and the
-    /// text go left of the tip.
+    /// text go left of the tip. `fill`: the triangle black (a rough level), empty (a finished
+    /// one) or half filled (rough and finished, the default).
     Level {
         p: P,
         #[serde(default, skip_serializing_if = "Num::is_zero")]
@@ -687,7 +746,47 @@ pub enum Kind {
         flip: bool,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         left: bool,
+        #[serde(default, deserialize_with = "lenient", skip_serializing_if = "LevelFill::is_default")]
+        fill: LevelFill,
     },
+}
+
+impl Kind {
+    /// A dimension, an angle or a level mark: an annotation drawn with a dimension style (its
+    /// sizes, and its line width and linetype between the object's own and its layer's).
+    pub fn is_annotation(&self) -> bool {
+        matches!(self, Kind::Dim { .. } | Kind::Angle { .. } | Kind::Level { .. })
+    }
+}
+
+/// How a level mark's triangle is filled: what kind of level it marks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LevelFill {
+    /// Half filled, on the text side: a rough and finished level.
+    #[default]
+    RoughFinished,
+    /// Filled black: a rough (structural) level.
+    Rough,
+    /// Empty: a finished level.
+    Finished,
+}
+
+impl LevelFill {
+    pub const ALL: [(LevelFill, &'static str); 3] =
+        [(LevelFill::RoughFinished, "roughFinished"), (LevelFill::Rough, "rough"), (LevelFill::Finished, "finished")];
+
+    pub fn name(self) -> &'static str {
+        Self::ALL.iter().find(|(f, _)| *f == self).map_or("roughFinished", |(_, n)| n)
+    }
+
+    pub fn parse(s: &str) -> Option<LevelFill> {
+        Self::ALL.iter().find(|(_, n)| *n == s.trim()).map(|(f, _)| *f)
+    }
+
+    pub fn is_default(&self) -> bool {
+        *self == LevelFill::default()
+    }
 }
 
 /// Which side of its line a strip lies on, looking along the line.
@@ -781,6 +880,34 @@ fn dim_offset() -> f64 {
 fn lenient<'de, D: serde::Deserializer<'de>, T: serde::de::DeserializeOwned + Default>(d: D) -> Result<T, D::Error> {
     let v = serde_json::Value::deserialize(d)?;
     Ok(T::deserialize(v).unwrap_or_default())
+}
+
+fn is_continuous(d: &Option<Dash>) -> bool {
+    *d == Some(Dash::Solid)
+}
+
+/// A dimension style's linetype: a linetype's name, or `"byLayer"` for `None`. Anything else
+/// read is Continuous.
+mod by_layer_dash {
+    use super::Dash;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    const BY_LAYER: &str = "byLayer";
+
+    pub fn serialize<S: Serializer>(d: &Option<Dash>, s: S) -> Result<S::Ok, S::Error> {
+        match d {
+            Some(d) => d.serialize(s),
+            None => s.serialize_str(BY_LAYER),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Dash>, D::Error> {
+        let v = serde_json::Value::deserialize(d)?;
+        if v.as_str() == Some(BY_LAYER) || v.is_null() {
+            return Ok(None);
+        }
+        Ok(Some(Dash::deserialize(v).unwrap_or_default()))
+    }
 }
 
 fn is_zero_f64(v: &f64) -> bool {
@@ -908,6 +1035,11 @@ pub struct Drawing {
     /// saved, never compared.
     #[serde(skip)]
     pub text_widths: crate::TextWidths,
+    /// The underlay's source drawing as the document worked it out ([`crate::UnderSource`]),
+    /// so the printed underlay counts in the picture's size and the fitted scale; never saved,
+    /// never compared.
+    #[serde(skip)]
+    pub under_source: crate::UnderSource,
 }
 
 /// The drawing's maximum size on paper, mm (0 leaves that side free), and how the scale is
@@ -951,6 +1083,7 @@ impl Default for Drawing {
             blocks: Vec::new(),
             inserts: Vec::new(),
             text_widths: crate::TextWidths::default(),
+            under_source: crate::UnderSource::default(),
         }
     }
 }
@@ -1055,6 +1188,7 @@ impl Drawing {
         for l in &mut self.layers {
             cut(&mut l.name);
             l.width = clamp_paper(l.width, 0.35);
+            l.from = l.from.take().map(|n| cut_name(&n)).filter(|n| !n.trim().is_empty());
         }
         self.entities.truncate(MAX_ENTITIES);
         let mut seen = std::collections::HashSet::new();
@@ -1424,14 +1558,23 @@ impl Drawing {
     }
 
     /// A linear dimension's label: `text` (else `<>`) with `<>` the size `measured` (drawing
-    /// units) in the style's units ([`DimUnits`]), in the document's number style, followed by
-    /// its unit when the style shows it.
+    /// units) in the style's units ([`DimUnits`]; the first, the input unit), in the document's
+    /// number style, followed by its unit when the style shows it.
     pub fn dim_label(&self, st: &DimStyle, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {
+        let size = self.dim_size(st, measured * self.unit.mm(), ws);
+        let text = text.unwrap_or("<>").replace("<>", &size);
+        fill(&self.dim_params(st, &text, ws), ws)
+    }
+
+    /// A length of `mm` millimetres written as dimension style `st` writes sizes: in its units
+    /// ([`DimUnits`]; the first, the input unit), in the document's number style, followed by
+    /// its unit when the style shows it.
+    fn dim_size(&self, st: &DimStyle, mm: f64, ws: Option<&Worksheet>) -> String {
         let opts = ws.map(|w| *w.options()).unwrap_or_default();
-        let mm = measured * self.unit.mm();
         let units = st.units;
+        let input = crate::Units::of(self);
         let symbol = match units {
-            DimUnits::Drawing => self.unit.symbol(),
+            DimUnits::Drawing => input.input.symbol(),
             DimUnits::M => "m",
             DimUnits::Cm => "cm",
             DimUnits::Mm => "mm",
@@ -1439,7 +1582,7 @@ impl Drawing {
             DimUnits::Sia => "cm",
         };
         let size = match units {
-            DimUnits::Drawing => strix_calc::format_number(measured, &opts),
+            DimUnits::Drawing => strix_calc::format_number(input.shown(mm / self.unit.mm()), &opts),
             DimUnits::M => strix_calc::format_number(mm / 1000.0, &opts),
             DimUnits::Cm => strix_calc::format_number(mm / 10.0, &opts),
             DimUnits::Mm => strix_calc::format_number(mm, &opts),
@@ -1450,8 +1593,38 @@ impl Drawing {
             }
             DimUnits::Sia => strix_calc::format_number(mm / 10.0, &opts),
         };
-        let size = if st.show_unit { format!("{size} {}{symbol}{}", crate::UNIT_START, crate::UNIT_END) } else { size };
-        fill(&text.unwrap_or("<>").replace("<>", &size), ws)
+        if st.show_unit { format!("{size} {}{symbol}{}", crate::UNIT_START, crate::UNIT_END) } else { size }
+    }
+
+    /// A dimension's text with the length parameters it shows (`{{L}}`, `{{L:value}}`,
+    /// `{{L:both}}`) written as the dimension style writes sizes, like its measured `<>`; other
+    /// placeholders are left to [`fill`].
+    fn dim_params(&self, st: &DimStyle, text: &str, ws: Option<&Worksheet>) -> String {
+        let Some(w) = ws else { return text.to_string() };
+        let length = strix_calc::Dim::new([1, 0, 0, 0, 0, 0, 0]);
+        let (m0, m1, s0, s1) = (crate::MATH_START, crate::MATH_END, crate::SYM_START, crate::SYM_END);
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text;
+        for _ in 0..64 {
+            let Some(i) = rest.find("{{") else { break };
+            let Some(j) = rest.get(i..).and_then(|r| r.find("}}")).map(|j| i + j) else { break };
+            let whole = rest.get(i..j + 2).unwrap_or_default();
+            out.push_str(rest.get(..i).unwrap_or_default());
+            let inner = rest.get(i + 2..j).unwrap_or_default().trim();
+            let (name, mode) = inner.split_once(':').map_or((inner, "value"), |(n, m)| (n.trim(), m.trim()));
+            let q = match w.scope().get(name) {
+                Some(Value::Scalar(q)) if q.dim == length && q.value.is_finite() => Some(*q),
+                _ => None,
+            };
+            match (q, mode) {
+                (Some(q), "value") => out.push_str(&format!("{m0}{}{m1}", self.dim_size(st, q.value * 1000.0, ws))),
+                (Some(q), "both") => out.push_str(&format!("{m0}{s0}{name}{s1} = {}{m1}", self.dim_size(st, q.value * 1000.0, ws))),
+                _ => out.push_str(whole),
+            }
+            rest = rest.get(j + 2..).unwrap_or_default();
+        }
+        out.push_str(rest);
+        out
     }
 
     pub fn label(&self, text: Option<&str>, measured: f64, ws: Option<&Worksheet>) -> String {

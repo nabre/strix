@@ -5,6 +5,8 @@ use crate::quantity::{Dim, Quantity, finite};
 use crate::units::{TEMPERATURE_DIM, affine, constant, dim_name, unit};
 use crate::{CalcError, MAX_CALL_DEPTH, MAX_SHEET_STEPS, MAX_STEPS, MAX_VALUES};
 
+mod structures;
+
 /// The hint of a temperature difference (`T₂ − T₁`): shown in kelvin, never with the offset of
 /// a `°C`/`°F` working unit.
 pub(crate) const DIFFERENCE: &str = "K";
@@ -393,7 +395,7 @@ impl Scope {
             Expr::Name(n) => unit(n).filter(|q| q.dim.is_dimensionless()).map(|_| n.clone()),
             Expr::Neg(a) | Expr::Index(a, _) => self.dimensionless_hint(a),
             Expr::Bin(op @ (BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div), a, b) => self.dimless_bin(*op, a, b),
-            Expr::Call(Func::Asin | Func::Acos | Func::Atan | Func::Atan2, _) => Some("°".to_string()),
+            Expr::Call(f, _) if f.gives_angle() => Some("°".to_string()),
             Expr::Call(f, args) if f.is_rounding() => self.rounding_dimless(args),
             Expr::Call(
                 Func::Measure
@@ -508,11 +510,20 @@ pub(crate) struct Ctx<'a> {
     /// In a calculated table's row: its columns' values over the data rows, so `x[k]` reaches
     /// column `x` in data row `k` (cyclic: row `n + 1` is row 1, row 0 is row `n`).
     columns: Vec<(String, Vec<Option<Quantity>>)>,
+    /// In a calculated table's row: the cells of its columns that found no data (`–`), by
+    /// column and data row; read with a subscript (`y_(i+1)`) they find none either.
+    no_data: Vec<(String, Vec<bool>)>,
 }
 
 impl<'a> Ctx<'a> {
     pub(crate) fn new(scope: &'a Scope, names: Names, locals: Vec<(String, Value)>) -> Self {
-        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0, columns: Vec::new() }
+        Ctx { scope, names, locals, steps: 0, depth: 0, calls: 0, columns: Vec::new(), no_data: Vec::new() }
+    }
+
+    /// In a calculated table's row: the cells that found no data, by column and data row.
+    pub(crate) fn with_no_data(mut self, no_data: Vec<(String, Vec<bool>)>) -> Self {
+        self.no_data = no_data;
+        self
     }
 
     /// In a calculated table's row: the table's columns, which `x[k]` indexes by row.
@@ -554,6 +565,7 @@ impl<'a> Ctx<'a> {
     fn eval_node(&mut self, expr: &Expr) -> Result<Value, CalcError> {
         self.charge(1)?;
         match expr {
+            Expr::Num(v) if v.is_infinite() => Err(CalcError::Infinite),
             Expr::Num(v) => Ok(Quantity::number(finite(*v)?).into()),
             Expr::Name(name) => self.resolve(name),
             Expr::Unit(name) => unit(name).map(Value::Scalar).ok_or_else(|| CalcError::UnknownUnit(name.clone())),
@@ -591,6 +603,7 @@ impl<'a> Ctx<'a> {
                 self.call(Func::Measure, &[x, delta])
             }
             Expr::Call(func, args) if func.is_rounding() => self.eval_rounding(*func, args),
+            Expr::Call(func, args) if structures::is_lazy(*func) => self.structure(*func, args),
             Expr::Call(func, args) => {
                 let values = args.iter().map(|a| self.eval(a)).collect::<Result<Vec<_>, _>>()?;
                 self.call(*func, &values)
@@ -610,6 +623,27 @@ impl<'a> Ctx<'a> {
                     }
                 }
                 Ok(Value::Vector(Vector::from_quantities(&all)?))
+            }
+            // A table column read by row with a subscript (`y_(i+1)`, rewritten by the table to
+            // `ROW_SUBSCRIPT` + the column's name): not cyclic, a row that isn't there is
+            // `NoRow` (the cell shows `–`).
+            Expr::Index(base, index)
+                if let Expr::Name(name) = &**base
+                    && let Some(col) = name.strip_prefix(crate::table::ROW_SUBSCRIPT) =>
+            {
+                let k = whole(self.eval(index)?.expect_scalar()?, "a row")?;
+                let Some((_, column)) = self.columns.iter().find(|(n, _)| n == col) else {
+                    return Err(CalcError::MissingValue(col.to_string()));
+                };
+                let row = usize::try_from(k).ok().and_then(|k| k.checked_sub(1)).filter(|&r| r < column.len());
+                let Some(row) = row else {
+                    return Err(CalcError::NoRow { name: col.to_string(), row: k });
+                };
+                if let Some(q) = column.get(row).copied().flatten() {
+                    return Ok(Value::Scalar(q));
+                }
+                let none = self.no_data.iter().find(|(n, _)| n == col).and_then(|(_, d)| d.get(row)) == Some(&true);
+                Err(if none { CalcError::NoRow { name: col.to_string(), row: k } } else { CalcError::MissingValue(format!("{col}_{k}")) })
             }
             // A table column indexed by row (`x[i+1]`): cyclic over the data rows.
             Expr::Index(base, index)
@@ -675,6 +709,9 @@ impl<'a> Ctx<'a> {
                 if let Some(v) = self.scope.get(name) {
                     return Ok(v.clone());
                 }
+                if let Some(element) = self.subscripted(name) {
+                    return element;
+                }
                 constant(name).or_else(|| unit(name)).map(Value::Scalar).ok_or_else(|| match Func::from_name(name) {
                     Some(_) => CalcError::FunctionNeedsArguments(name.to_string()),
                     None => CalcError::UnknownName(name.to_string()),
@@ -721,6 +758,9 @@ impl<'a> Ctx<'a> {
         if self.names == Names::UnitsOnly {
             return Err(CalcError::UnknownUnit(name.to_string()));
         }
+        if let (base, order @ 1..) = crate::calculus::split_primes(name) {
+            return self.derivative(base, order, args);
+        }
         let scope = self.scope;
         let f = scope.function(name).ok_or_else(|| CalcError::UnknownName(name.to_string()))?;
         if f.params.len() != args.len() {
@@ -736,6 +776,74 @@ impl<'a> Ctx<'a> {
         self.calls -= 1;
         self.locals = outer;
         result
+    }
+
+    /// `f′(x)`, `f″(x)`: the derivative of the user function `base` of one variable.
+    fn derivative(&mut self, base: &str, order: usize, args: Vec<Value>) -> Result<Value, CalcError> {
+        let name = format!("{base}{}", crate::calculus::PRIME.to_string().repeat(order.min(8)));
+        if order > crate::calculus::MAX_ORDER {
+            return Err(CalcError::Domain { function: name });
+        }
+        let params = self.scope.function(base).ok_or_else(|| CalcError::UnknownName(base.to_string()))?.params.len();
+        let [arg] = args.as_slice() else {
+            return Err(CalcError::ArgCount { function: name, expected: params, found: args.len() });
+        };
+        if params != 1 {
+            return Err(CalcError::ArgCount { function: name, expected: params, found: 1 });
+        }
+        let x = arg.expect_scalar()?;
+        const WHAT: &str = "derivative";
+        let mut first: Option<Quantity> = None;
+        let mut f = |v: f64| -> Result<f64, CalcError> {
+            let q = self.apply(base, vec![Quantity::new(v, x.dim).into()])?.expect_scalar()?;
+            match first {
+                None => first = Some(q),
+                Some(p) => p.same_dim(q, WHAT)?,
+            }
+            Ok(q.value)
+        };
+        let value = crate::calculus::derivative(&mut f, x.value, order)?;
+        let mut dim = first.map(|q| q.dim).unwrap_or_default();
+        for _ in 0..order {
+            dim = dim.try_div(x.dim)?;
+        }
+        Ok(Quantity::new(crate::quantity::finite(value)?, dim).into())
+    }
+
+    /// `∫_a^b body dvar`.
+    fn integral(&mut self, n: &Nary) -> Result<Value, CalcError> {
+        let (Some(var), Some(from), Some(to)) = (&n.var, &n.from, &n.to) else {
+            return Err(CalcError::syntax(0, "give both limits of the integral, like ∫_0^1"));
+        };
+        // A limit at infinity (`∞`, `-∞`) takes the other limit's unit.
+        let (ia, ib) = (crate::calculus::infinite(from), crate::calculus::infinite(to));
+        let finite_limit = |this: &mut Self, e: &Expr, inf: Option<f64>| match inf {
+            Some(_) => Ok(None),
+            None => this.eval(e).and_then(|v| v.expect_scalar()).map(Some),
+        };
+        let (qa, qb) = (finite_limit(self, from, ia)?, finite_limit(self, to, ib)?);
+        if let (Some(a), Some(b)) = (qa, qb) {
+            a.same_dim(b, "∫")?;
+        }
+        let dim = qa.or(qb).map(|q| q.dim).unwrap_or_default();
+        let a = Quantity::new(qa.map_or(ia.unwrap_or(0.0), |q| q.value), dim);
+        let b = Quantity::new(qb.map_or(ib.unwrap_or(0.0), |q| q.value), dim);
+        const WHAT: &str = "∫";
+        let mut first: Option<Quantity> = None;
+        let mut f = |v: f64| -> Result<f64, CalcError> {
+            self.locals.push((var.clone(), Quantity::new(v, a.dim).into()));
+            let q = self.eval(&n.body).and_then(|v| v.expect_scalar());
+            self.locals.pop();
+            let q = q?;
+            match first {
+                None => first = Some(q),
+                Some(p) => p.same_dim(q, WHAT)?,
+            }
+            Ok(q.value)
+        };
+        let value = crate::calculus::integral(&mut f, a.value, b.value)?;
+        let dim = first.map(|q| q.dim).unwrap_or_default().try_mul(a.dim)?;
+        Ok(Quantity::new(crate::quantity::finite(value)?, dim).into())
     }
 
     /// `a op b`, element by element when either side is a vector (vectors must be as long).
@@ -765,6 +873,12 @@ impl<'a> Ctx<'a> {
 
     /// `∑`/`∏`: over `var = from..to`, over the values of `var`, or over the operand's elements.
     fn nary(&mut self, n: &Nary) -> Result<Value, CalcError> {
+        if n.op == '∫' {
+            return self.integral(n);
+        }
+        if crate::structures::is_limit(n.op) {
+            return self.limit(n);
+        }
         let sum = n.op == '∑';
         let mut acc: Option<Quantity> = None;
         let mode = self.scope.uncertainty;
@@ -906,13 +1020,14 @@ impl<'a> Ctx<'a> {
             Func::Slope | Func::Intercept | Func::R2 => self.eval_regression(func, args),
             Func::Gcd | Func::Lcm => self.eval_int_agg(func, args),
             Func::Root => self.eval_root(args),
+            Func::Norm => self.norm(args),
             Func::Log if args.len() != 1 => {
                 if args.iter().flat_map(Value::quantities).any(|q| q.unc.is_some()) {
                     return Err(domain("uncertain logarithm base"));
                 }
                 self.eval_log_base(args)
             }
-            Func::Atan2 | Func::Mod | Func::Binom => self.eval_binary_func(func, args),
+            Func::Atan2 | Func::Mod | Func::Binom | Func::Choose => self.eval_binary_func(func, args),
             _ => {
                 let [x] = args else {
                     return Err(CalcError::Arity { function: function.to_string(), expected: "1 argument" });
@@ -1298,6 +1413,32 @@ fn unary_exact(func: Func, x: Quantity) -> Result<Quantity, CalcError> {
                 Func::Sin => v.sin(),
                 Func::Cos => v.cos(),
                 Func::Tan => v.tan(),
+                Func::Csc | Func::Sec | Func::Cot | Func::Csch | Func::Sech | Func::Coth => {
+                    let (over, under) = match func {
+                        Func::Csc => (1.0, v.sin()),
+                        Func::Sec => (1.0, v.cos()),
+                        Func::Cot => (v.cos(), v.sin()),
+                        Func::Csch => (1.0, v.sinh()),
+                        Func::Sech => (1.0, v.cosh()),
+                        _ => (v.cosh(), v.sinh()),
+                    };
+                    // A multiple of π is not exactly one in binary: `cot(180°)` has no value.
+                    if under.abs() <= 1e-15 * over.abs().max(1.0) {
+                        return Err(CalcError::DivisionByZero);
+                    }
+                    over / under
+                }
+                Func::Acsc | Func::Asec if v.abs() < 1.0 => return Err(domain(function)),
+                Func::Acsc => (1.0 / v).asin(),
+                Func::Asec => (1.0 / v).acos(),
+                // The angle between 0° and 180° (`cot⁻¹(0) = 90°`, `cot⁻¹(−1) = 135°`).
+                Func::Acot => std::f64::consts::FRAC_PI_2 - v.atan(),
+                Func::Acsch if v == 0.0 => return Err(CalcError::DivisionByZero),
+                Func::Acsch => (1.0 / v).asinh(),
+                Func::Asech if v <= 0.0 || v > 1.0 => return Err(domain(function)),
+                Func::Asech => (1.0 / v).acosh(),
+                Func::Acoth if v.abs() <= 1.0 => return Err(domain(function)),
+                Func::Acoth => (1.0 / v).atanh(),
                 Func::Asin | Func::Acos if !(-1.0..=1.0).contains(&v) => return Err(domain(function)),
                 Func::Asin => v.asin(),
                 Func::Acos => v.acos(),

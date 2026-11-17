@@ -90,7 +90,7 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
     };
     // The exercise the caret is in shows its frame and tab too (docs/exercise.md).
     if !app.session.view.design_mode {
-        shown.extend(crate::exercise_pane::enclosing_exercise(app, current.as_ref()));
+        shown.extend(crate::exercise_panels::enclosing_exercise(app, current.as_ref()));
     }
     // Check boxes are clickable wherever they are, framed or not.
     let all = if app.session.view.design_mode { shown.clone() } else { app.session.doc.control_ranges(story) };
@@ -114,7 +114,8 @@ pub fn paint(app: &mut WordApp, painter: &egui::Painter, t: &Tokens, layout: &Do
         let exercise = r.control.tag == wordcraft_engine::cmd::exercise::TAG_EXERCISE;
         let title = if r.control.title.is_empty() && app.session.view.design_mode { r.control.tag.as_str() } else { r.control.title.as_str() };
         // An exercise's tab is interface: it names the exercise in the interface's language.
-        let title = if exercise && !app.session.view.design_mode { tl!("Exercise") } else { title };
+        let exercise_title = (exercise && !app.session.view.design_mode).then(|| crate::exercise_panels::tab_title(&r.control));
+        let title = exercise_title.as_deref().unwrap_or(title);
         if let Some(first) = fr.first()
             && !title.is_empty()
         {

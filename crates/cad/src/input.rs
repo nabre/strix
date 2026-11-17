@@ -42,6 +42,11 @@ impl Units {
     pub fn of(d: &crate::Drawing) -> Units {
         Units { drawing: d.unit, input: d.input.unwrap_or(d.unit) }
     }
+
+    /// A length in drawing units as it is shown in the input unit.
+    pub fn shown(self, v: f64) -> f64 {
+        v * self.drawing.mm() / self.input.mm()
+    }
 }
 
 /// A typed length in the drawing's unit: a number in the input unit, or a number with its own

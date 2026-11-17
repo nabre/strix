@@ -30,13 +30,17 @@
 //! after `=` is resolved as units only.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod calculus;
 mod error;
 mod eval;
 mod format;
 mod lexer;
+mod limits;
 mod parser;
 mod quantity;
+mod series;
 mod solve;
+mod structures;
 mod table;
 mod uncertainty;
 mod units;
@@ -50,7 +54,7 @@ pub use error::CalcError;
 pub use eval::{Scope, Value, Vector};
 pub use format::format_number;
 pub use quantity::{BASE_SYMBOLS, Dim, Quantity};
-pub use table::{CellNames, TableResult, ordinals};
+pub use table::{CellNames, TableResult, is_blank, ordinals};
 pub use units::{auto_unit, compatible_units, constant, display_unit, unit};
 pub use worksheet::{Count, Layout, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value, format_value_in};
 

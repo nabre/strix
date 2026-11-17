@@ -373,6 +373,7 @@ fn place_block(ctx: &mut Ctx, pb: &mut PageBuilder, outline: &Option<OutlinePass
     match (&**b, outline) {
         (Block::Para(p), Some(o)) => place_outline_para(ctx, pb, p, block, o),
         (Block::Table(_), Some(o)) if o.hidden.get(block).copied().unwrap_or(false) => {}
+        (Block::Table(t), None) if !ctx.opts.show_hidden && super::hidden::table_hidden(ctx.doc, t) => {}
         (Block::Para(p), None) => place_para(ctx, pb, p, block, body_top),
         (Block::Table(t), _) => place_table(ctx, pb, t, block, body_top),
     }

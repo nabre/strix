@@ -4,7 +4,8 @@
 //!   one family ("Line (3)"); ‹ › step through the objects one by one, the counter goes back to
 //!   the family; Only These reduces the selection to them. The sheet shows them in orange.
 //! - **General**: layer, colour, lineweight and linetype of the objects considered, each "ByLayer"
-//!   or their own; "Varies" when they differ.
+//!   (for annotations "ByStyle": their dimension style's, which may be ByLayer) or their own,
+//!   with the value it comes to; "Varies" when they differ.
 //! - **Geometry** of one object: coordinates, radii and angles take a number or an expression of
 //!   the calculations (`L/2`), which stays linked; a line's length and angle and a circle's
 //!   diameter recompute it; a polyline shows one vertex at a time.
@@ -18,6 +19,8 @@ use egui::{Color32, RichText, Ui, vec2};
 use strix_cad::{Dash, Drawing, FieldKind, Focus, StrokeEdit, families};
 
 use crate::cad_editor::CadEditor;
+use crate::color_palette::{ButtonPick, Options, TopItem};
+use wordcraft_doc::Rgb;
 
 /// Lineweights offered, paper mm (ISO 128 series).
 const WIDTHS: [f64; 9] = [0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1.0, 1.4, 2.0];
@@ -55,8 +58,6 @@ const COLORS: [([u8; 3], &str); 23] = [
     ([230, 230, 230], "Grey 10%"),
     ([255, 255, 255], "White"),
 ];
-/// Pens per row in the colour menu: the colours fill three rows, the greys the last one.
-const PENS_PER_ROW: usize = 8;
 
 fn hex(c: [u8; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2])
@@ -115,22 +116,6 @@ fn state_toggle(ui: &mut Ui, on: bool, icon: &str, off: &str, tip: &str) -> bool
     resp.on_hover_text(tl!(tip)).clicked()
 }
 
-/// A pen in the colour menu: a swatch to click, ringed when it is the one shown.
-fn pen_swatch(ui: &mut Ui, c: [u8; 3], on: bool) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(18.0, 18.0), egui::Sense::click());
-    ui.painter().rect_filled(r.shrink(1.0), 2.0, Color32::from_rgb(c[0], c[1], c[2]));
-    let edge = if on {
-        egui::Stroke::new(2.0, ui.visuals().selection.stroke.color)
-    } else if resp.hovered() {
-        // The theme's text colour: it stands out on the pane in either theme.
-        egui::Stroke::new(1.5, crate::theme::Tokens::get(ui.ctx()).text)
-    } else {
-        egui::Stroke::new(0.5, Color32::from_gray(140))
-    };
-    ui.painter().rect_stroke(r, 2.0, edge, egui::StrokeKind::Inside);
-    resp
-}
-
 /// What a combo of the General section shows: one value, or "Varies".
 fn common<T: PartialEq + Clone>(values: impl Iterator<Item = T>) -> Option<Option<T>> {
     let mut out: Option<T> = None;
@@ -160,60 +145,21 @@ fn text_field(ui: &mut Ui, id: egui::Id, shown: &str, width: f32, typing: &mut b
     (r.lost_focus() && !esc && buf != shown).then_some(buf)
 }
 
-/// A colour combo: ByLayer (when offered), the pens, and any colour typed as `r, g, b` or
-/// `#rrggbb`. `Some(None)` is ByLayer.
-fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: bool, typing: &mut bool) -> Option<Option<[u8; 3]>> {
-    let mut out = None;
+/// A colour combo: ByLayer (when offered) and the colour drop-down every colour uses (theme and
+/// standard colours, Recent Colors, More Colors…). `Some(None)` is ByLayer.
+fn color_combo(ui: &mut Ui, id: &str, shown: Option<Option<[u8; 3]>>, by_layer: bool) -> Option<Option<[u8; 3]>> {
     let text = match shown {
         None => tl!("Varies").to_string(),
         Some(None) => tl!("ByLayer").to_string(),
         Some(Some(c)) => color_name(c),
     };
-    ui.horizontal(|ui| {
-        if let Some(Some(c)) = shown {
-            swatch(ui, c);
-        }
-        // Clicks inside keep it open (the RGB field takes typing); a pen or Enter applies.
-        // Every pen at once: the menu is as tall as its content, never scrolled.
-        craft_ui::ComboBox::from_id_salt(id)
-            .selected_text(text)
-            .width(120.0)
-            .height(f32::INFINITY)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .show_ui(ui, |ui| {
-                if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
-                    out = Some(None);
-                }
-                // The pens as a grid of swatches: the colours, then the greys on a row of their own.
-                ui.label(RichText::new(tl!("Pens")).weak().small());
-                let (colours, greys) = COLORS.split_at(15);
-                for row in colours.chunks(PENS_PER_ROW).chain(std::iter::once(greys)) {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
-                        for &(c, name) in row {
-                            if pen_swatch(ui, c, shown == Some(Some(c))).on_hover_text(tl!(name)).clicked() {
-                                out = Some(Some(c));
-                            }
-                        }
-                    });
-                }
-                ui.separator();
-                // Any colour by its RGB values or `#rrggbb` (applied with Enter: one undo step).
-                let rgb = match shown {
-                    Some(Some(c)) => format!("{}, {}, {}", c[0], c[1], c[2]),
-                    _ => String::new(),
-                };
-                ui.horizontal(|ui| {
-                    ui.label("RGB");
-                    if let Some(t) = text_field(ui, ui.scope_id().with((id, "rgb")), &rgb, 110.0, typing)
-                        && let Some(c) = parse_rgb(&t)
-                    {
-                        out = Some(Some(c));
-                    }
-                });
-            });
-    });
-    out
+    let current = shown.flatten().map(|c| Rgb(c[0], c[1], c[2]));
+    let tops = if by_layer { vec![TopItem::none("ByLayer", serde_json::Value::Null)] } else { Vec::new() };
+    let pick = crate::color_palette::color_button(ui, id, &wordcraft_doc::THEME_COLORS, current, &text, &Options::tops(tops))?;
+    Some(match pick {
+        ButtonPick::Color(c) => Some([c.0, c.1, c.2]),
+        ButtonPick::Top(_) => None,
+    })
 }
 
 /// `#rrggbb` (the `#` may be left out).
@@ -226,32 +172,34 @@ pub(crate) fn parse_hex(c: &str) -> Option<[u8; 3]> {
     Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
-/// `r, g, b` (0–255 each, commas or spaces), or `#rrggbb`.
-fn parse_rgb(t: &str) -> Option<[u8; 3]> {
-    if t.trim().starts_with('#') {
-        return parse_hex(t);
-    }
-    let parts: Vec<u8> = t.split([',', ' ', ';']).filter(|s| !s.is_empty()).map(|s| s.trim().parse::<u8>().ok()).collect::<Option<_>>()?;
-    match parts.as_slice() {
-        [r, g, b] => Some([*r, *g, *b]),
-        _ => None,
-    }
-}
-
 fn width_text(w: f64) -> String {
     format!("{w:.2} mm")
 }
 
-/// A lineweight combo; `Some(None)` is ByLayer.
-fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, by_layer: bool) -> Option<Option<f64>> {
+/// What a lineweight or linetype combo's "no value of its own" means: `label` (ByLayer, or
+/// ByStyle for annotations, which take their dimension style's), and the value it comes to when
+/// the objects agree (shown after the label).
+pub(crate) struct Inherit<T> {
+    pub label: &'static str,
+    pub now: Option<T>,
+}
+
+/// A lineweight combo; `Some(None)` is the inherited value (`inherit`, when offered).
+pub(crate) fn width_combo(ui: &mut Ui, id: &str, shown: Option<Option<f64>>, inherit: Option<Inherit<f64>>) -> Option<Option<f64>> {
     let mut out = None;
+    let inherited = inherit.as_ref().map(|i| match i.now {
+        Some(w) => format!("{} · {}", tl!(i.label), width_text(w)),
+        None => tl!(i.label).to_string(),
+    });
     let text = match shown {
         None => tl!("Varies").to_string(),
-        Some(None) => tl!("ByLayer").to_string(),
+        Some(None) => inherited.clone().unwrap_or_default(),
         Some(Some(w)) => width_text(w),
     };
-    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
-        if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(140.0).show_ui(ui, |ui| {
+        if let Some(t) = &inherited
+            && ui.selectable_label(shown == Some(None), t.as_str()).clicked()
+        {
             out = Some(None);
         }
         for w in WIDTHS {
@@ -271,17 +219,22 @@ fn dash_name(d: Dash) -> &'static str {
     DASHES.iter().find(|(x, _)| *x == d).map_or("", |(_, n)| n)
 }
 
-/// A linetype combo; `Some(None)` is ByLayer.
-fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool) -> Option<Option<Dash>> {
+/// A linetype combo; `Some(None)` is the inherited value (`inherit`, when offered).
+pub(crate) fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, inherit: Option<Inherit<Dash>>) -> Option<Option<Dash>> {
     let mut out = None;
-    let name = dash_name;
+    let inherited = inherit.as_ref().map(|i| match i.now {
+        Some(d) => format!("{} · {}", tl!(i.label), tl!(dash_name(d))),
+        None => tl!(i.label).to_string(),
+    });
     let text = match shown {
         None => tl!("Varies").to_string(),
-        Some(None) => tl!("ByLayer").to_string(),
-        Some(Some(d)) => tl!(name(d)).to_string(),
+        Some(None) => inherited.clone().unwrap_or_default(),
+        Some(Some(d)) => tl!(dash_name(d)).to_string(),
     };
-    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(120.0).show_ui(ui, |ui| {
-        if by_layer && ui.selectable_label(shown == Some(None), tl!("ByLayer")).clicked() {
+    craft_ui::ComboBox::from_id_salt(id).selected_text(text).width(140.0).show_ui(ui, |ui| {
+        if let Some(t) = &inherited
+            && ui.selectable_label(shown == Some(None), t.as_str()).clicked()
+        {
             out = Some(None);
         }
         for (d, n) in DASHES {
@@ -294,6 +247,16 @@ fn dash_combo(ui: &mut Ui, id: &str, shown: Option<Option<Dash>>, by_layer: bool
         }
     });
     out
+}
+
+/// What the General group's ByLayer means for these objects: ByStyle when they are all
+/// annotations (their dimension style comes first), both names when some are.
+fn inherit_label(ents: &[&strix_cad::Entity]) -> &'static str {
+    match (ents.iter().all(|e| e.kind.is_annotation()), ents.iter().any(|e| e.kind.is_annotation())) {
+        (true, _) => "ByStyle",
+        (false, true) => "ByLayer / ByStyle",
+        _ => "ByLayer",
+    }
 }
 
 /// A scale picked in the pane.
@@ -328,22 +291,14 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
                     rename = Some(t);
                 }
                 ui.end_row();
-                // The drawing's unit: drawings are drawn in millimetres; what is typed (Input
-                // unit) and how sizes are shown (the dimension styles) are the choices.
-                ui.label(tl!("Unit")).on_hover_text(tl!("What one unit of the coordinates measures"));
-                ui.label(d.unit.symbol());
-                ui.end_row();
-                // The unit typed values are read in (the command line's points and distances).
-                ui.label(tl!("Input unit"));
-                let now = d.input.filter(|u| *u != d.unit);
-                let shown = now.map_or_else(|| format!("{} ({})", tl!("Drawing unit"), d.unit.symbol()), |u| u.symbol().to_string());
-                craft_ui::ComboBox::from_id_salt("cad_input_unit").selected_text(shown).show_ui(ui, |ui| {
-                    for (u, word) in
-                        [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
-                    {
-                        let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                        if ui.selectable_label(now == u, label).clicked() {
-                            input_unit = Some(word);
+                // The unit every length is shown and typed in (fields, properties, the command
+                // line). The drawing's own unit is an internal convention, never shown.
+                ui.label(tl!("Input unit")).on_hover_text(tl!("The unit lengths are shown and typed in"));
+                let now = strix_cad::Units::of(d).input;
+                craft_ui::ComboBox::from_id_salt("cad_input_unit").selected_text(now.symbol()).show_ui(ui, |ui| {
+                    for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                        if ui.selectable_label(now == u, u.symbol()).clicked() {
+                            input_unit = Some(u.symbol());
                         }
                     }
                 });
@@ -417,7 +372,7 @@ pub(crate) fn show(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> {
             out = objects(ed, ui, &mut typing);
         }
     });
-    ed.panel_typing = typing;
+    ed.panel_typing |= typing;
     out
 }
 
@@ -504,19 +459,26 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         });
         ui.end_row();
         ui.label(tl!("Colour"));
-        if let Some(c) = color_combo(ui, "cad_obj_color", common(ents.iter().map(|e| e.stroke.color)).flatten(), true, typing) {
+        if let Some(c) = color_combo(ui, "cad_obj_color", common(ents.iter().map(|e| e.stroke.color)).flatten(), true) {
             d.set_stroke(&idx, StrokeEdit { color: Some(c), ..StrokeEdit::default() });
             changed = true;
         }
         ui.end_row();
+        // What the objects with no width or linetype of their own come to (their layer's, an
+        // annotation its style's first), shown beside ByLayer / ByStyle when they agree.
+        let label = inherit_label(&ents);
+        let effective: Vec<_> = idx.iter().filter_map(|&i| Some((ed.drawing.entities.get(i)?, ed.drawing.effective_stroke(i)?))).collect();
+        let now_w = common(effective.iter().filter(|(e, _)| e.stroke.width.is_none()).map(|(_, s)| s.1)).flatten();
+        let now_d = common(effective.iter().filter(|(e, _)| e.stroke.dash.is_none()).map(|(_, s)| s.2)).flatten();
         ui.label(tl!("Lineweight"));
-        if let Some(w) = width_combo(ui, "cad_obj_width", common(ents.iter().map(|e| e.stroke.width)).flatten(), true) {
+        if let Some(w) = width_combo(ui, "cad_obj_width", common(ents.iter().map(|e| e.stroke.width)).flatten(), Some(Inherit { label, now: now_w }))
+        {
             d.set_stroke(&idx, StrokeEdit { width: Some(w), ..StrokeEdit::default() });
             changed = true;
         }
         ui.end_row();
         ui.label(tl!("Linetype"));
-        if let Some(k) = dash_combo(ui, "cad_obj_dash", common(ents.iter().map(|e| e.stroke.dash)).flatten(), true) {
+        if let Some(k) = dash_combo(ui, "cad_obj_dash", common(ents.iter().map(|e| e.stroke.dash)).flatten(), Some(Inherit { label, now: now_d })) {
             d.set_stroke(&idx, StrokeEdit { dash: Some(k), ..StrokeEdit::default() });
             changed = true;
         }
@@ -536,7 +498,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
     // Geometry of one object.
     if let [i] = idx.as_slice() {
         let i = *i;
-        let unit = ed.drawing.unit.symbol();
+        let unit = strix_cad::Units::of(&ed.drawing).input.symbol();
         ui.add_space(4.0);
         ui.label(RichText::new(tl!("Geometry")).strong());
         if let Some(strix_cad::Kind::Polyline { pts, .. }) = ed.drawing.entities.get(i).map(|e| &e.kind) {
@@ -555,7 +517,7 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
         let id = ed.drawing.entities.get(i).map(|e| e.id.clone()).unwrap_or_default();
         let kind = ed.drawing.entities.get(i).map(|e| e.kind.clone());
         crate::rtl::grid(ui, egui::Grid::new("cad_geometry").num_columns(3).spacing(vec2(6.0, 4.0)), |ui| {
-            for f in ed.drawing.fields(i, ed.vertex) {
+            for f in ed.drawing.fields_typed(i, ed.vertex) {
                 // A dimension's scaled and annotative parts: marked in the sheet overlay's colours.
                 match kind.as_ref().and_then(|k| crate::cad_dim_parts::field_part(k, &f.key)) {
                     Some((c, hint)) => {
@@ -575,6 +537,11 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     FieldKind::Bool => {
                         let mut on = f.text == "true";
                         ui.checkbox(&mut on, "").changed().then(|| on.to_string())
+                    }
+                    // A mirroring: one press turns it over, lit while mirrored.
+                    FieldKind::Flip => {
+                        let on = f.text == "true";
+                        ui.add(egui::Button::new(tl!("Flip")).selected(on)).clicked().then(|| (!on).to_string())
                     }
                     FieldKind::Choice(words) => {
                         let mut pick = None;
@@ -607,15 +574,23 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
                     _ => text_field(ui, ui.scope_id().with(("cad_field", &id, &f.key, ed.vertex)), &f.text, 120.0, typing),
                 };
                 let suffix = match (f.kind, f.key.as_str()) {
+                    _ if f.is_length() => unit,
                     (FieldKind::Angle, _) | (FieldKind::Derived, "angle" | "rotation") => "°",
-                    (FieldKind::Length | FieldKind::Derived, _) => unit,
                     (FieldKind::Paper, _) => "mm",
                     _ => "",
                 };
-                ui.label(RichText::new(suffix).weak());
+                // A text that can show the calculations' parameters: a menu that writes them in.
+                let annotation = matches!(f.kind, FieldKind::Text) && matches!(f.key.as_str(), "text" | "below" | "value");
+                let added = if annotation {
+                    let dim = f.key != "value";
+                    parameter_menu(ui, &ed.names, dim).map(|piece| format!("{}{piece}", if dim && f.text.is_empty() { "" } else { f.text.as_str() }))
+                } else {
+                    ui.label(RichText::new(suffix).weak());
+                    None
+                };
                 ui.end_row();
-                if let Some(v) = new {
-                    match d.set_field(i, ed.vertex, &f.key, &v) {
+                if let Some(v) = new.or(added) {
+                    match d.set_field_typed(i, ed.vertex, &f.key, &v) {
                         Ok(()) => {
                             changed = true;
                             ed.message.clear();
@@ -626,8 +601,42 @@ fn objects(ed: &mut CadEditor, ui: &mut Ui, typing: &mut bool) -> Option<Drawing
             }
         });
         ui.label(RichText::new(tl!("Coordinates take a number or an expression of the calculations (L/2)")).weak().small());
+        ui.label(RichText::new(crate::i18n::fmt(tl!("Lengths in {unit} (or with their own unit: 2.5m, 30cm)"), &[("unit", unit)])).weak().small());
     }
     changed.then_some(d)
+}
+
+/// The button beside an annotation's text (a dimension's, level's, angle's or a text's) that
+/// writes in what it can show (docs/cad.md): a parameter of the calculations defined before the
+/// drawing as its value (`{{L}}`, a length written as the dimension style writes sizes), its
+/// symbol alone (`{{L:symbol}}`, an equation's letter) or both (`{{L:both}}`, `L = 4.50 m`),
+/// and for a dimension its measured size (`<>`). Returns the piece to add at the end.
+fn parameter_menu(ui: &mut Ui, names: &[String], dim: bool) -> Option<String> {
+    let mut piece = None;
+    ui.menu_button("{x}", |ui| {
+        if dim && ui.button(tl!("Measured size")).on_hover_text("<>").clicked() {
+            piece = Some("<>".to_string());
+            ui.close();
+        }
+        if names.is_empty() {
+            ui.label(RichText::new(tl!("No parameters are defined before the drawing")).weak());
+        }
+        for n in names.iter().take(200) {
+            ui.menu_button(n.as_str(), |ui| {
+                for (label, form) in
+                    [("Value", format!("{{{{{n}}}}}")), ("Symbol", format!("{{{{{n}:symbol}}}}")), ("Symbol = value", format!("{{{{{n}:both}}}}"))]
+                {
+                    if ui.button(tl!(label)).on_hover_text(form.as_str()).clicked() {
+                        piece = Some(form);
+                        ui.close();
+                    }
+                }
+            });
+        }
+    })
+    .response
+    .on_hover_text(tl!("Insert a parameter of the calculations: its value, its symbol or both"));
+    piece
 }
 
 /// A choice field's word as the pane shows it (English; translated by the caller).
@@ -651,9 +660,13 @@ pub(crate) fn choice_label(s: &str) -> &'static str {
         "solid" => "Solid",
         "along" => "Along the path",
         "slope" => "Slope ticks",
+        "asStart" => "As the start",
         "start" => "At the start",
         "end" => "At the end",
         "both" => "At both ends",
+        "roughFinished" => "Rough and finished level",
+        "rough" => "Rough level",
+        "finished" => "Finished level",
         _ => "",
     }
 }
@@ -690,10 +703,17 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
         ui.label(RichText::new(format!("{}: {}", tl!("Current layer"), ed.current_layer)).weak());
     });
     ui.add_space(2.0);
+    // The drawing's own layers first (`0` first), then those inherited from each other drawing,
+    // nested under a row with its name.
     let mut order: Vec<usize> = (0..ed.drawing.layers.len()).collect();
     order.sort_by(|&a, &b| {
-        let name = |i: usize| ed.drawing.layers.get(i).map(|l| l.name.to_lowercase()).unwrap_or_default();
-        (name(a) != "0").cmp(&(name(b) != "0")).then_with(|| name(a).cmp(&name(b)))
+        let key = |i: usize| {
+            let l = ed.drawing.layers.get(i);
+            let from = l.and_then(|l| l.from.clone());
+            let name = l.map(|l| l.name.to_lowercase()).unwrap_or_default();
+            (from, name != "0", name)
+        };
+        key(a).cmp(&key(b))
     });
     egui::ScrollArea::vertical().id_salt("cad_layer_manager").auto_shrink([false, false]).show(ui, |ui| {
         crate::rtl::grid(ui, egui::Grid::new("cad_layer_grid").num_columns(12).striped(true).spacing(vec2(10.0, 3.0)), |ui| {
@@ -701,9 +721,18 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 ui.label(RichText::new(tl!(h)).weak().small());
             }
             ui.end_row();
+            let mut group: Option<String> = None;
             for li in order {
                 let Some(l) = ed.drawing.layers.get(li).cloned() else { continue };
                 let name = l.name.clone();
+                // A drawing's layers under its name.
+                if l.from.is_some() && l.from != group {
+                    group.clone_from(&l.from);
+                    ui.label("");
+                    ui.label(RichText::new(format!("▾ {}", l.from.as_deref().unwrap_or_default())).strong())
+                        .on_hover_text(tl!("Layers of another drawing (its underlay or imported): usable like the drawing's own"));
+                    ui.end_row();
+                }
                 ui.push_id(("cad_layer", li), |ui| {
                     if ui.radio(ed.current_layer == name, "").on_hover_text(tl!("Current layer: new objects go on it")).clicked() {
                         ed.current_layer = name.clone();
@@ -711,6 +740,10 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 });
                 if name == "0" {
                     ui.label("0");
+                } else if let Some(from) = l.from.as_deref() {
+                    // Nested: its own name, under its drawing's; never renamed.
+                    let tail = name.strip_prefix(from).and_then(|t| t.strip_prefix('/')).unwrap_or(&name);
+                    ui.label(format!("    {tail}")).on_hover_text(name.clone());
                 } else if let Some(to) = text_field(ui, ui.scope_id().with(("cad_layer_name", li)), &name, 130.0, &mut typing) {
                     match d.rename_layer(&name, &to) {
                         Ok(()) => {
@@ -738,27 +771,33 @@ pub(crate) fn layer_manager(ed: &mut CadEditor, ui: &mut Ui) -> Option<Drawing> 
                 });
                 flag(ui, l.print, ("print", "cadNoPrint"), "Printed: off, the layer shows only in the editor", &mut |x, v| x.print = v);
                 flag(ui, l.answer, ("check", "minus"), "Solution only: hidden when the exercise's solution is hidden", &mut |x, v| x.answer = v);
-                if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false, &mut typing)
+                if let Some(Some(c)) = color_combo(ui, &format!("cad_layer_color{li}"), Some(Some(l.color)), false)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.color = c;
                     changed = true;
                 }
-                if let Some(Some(w)) = width_combo(ui, &format!("cad_layer_width{li}"), Some(Some(l.width)), false)
+                if let Some(Some(w)) = width_combo(ui, &format!("cad_layer_width{li}"), Some(Some(l.width)), None)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.width = w;
                     changed = true;
                 }
-                if let Some(Some(k)) = dash_combo(ui, &format!("cad_layer_dash{li}"), Some(Some(l.dash)), false)
+                if let Some(Some(k)) = dash_combo(ui, &format!("cad_layer_dash{li}"), Some(Some(l.dash)), None)
                     && let Some(x) = d.layers.get_mut(li)
                 {
                     x.dash = k;
                     changed = true;
                 }
                 ui.label(ed.drawing.entities.iter().filter(|e| e.layer == name).count().to_string());
+                let removable = ed.drawing.can_remove_layer(&name);
+                let tip = if removable || l.from.is_none() {
+                    tl!("Delete the layer (its objects go to layer 0)")
+                } else {
+                    tl!("A layer of another drawing can be deleted only when no object is on it")
+                };
                 if name != "0"
-                    && ui.small_button("×").on_hover_text(tl!("Delete the layer (its objects go to layer 0)")).clicked()
+                    && ui.add_enabled(removable, egui::Button::new("×").small()).on_hover_text(tip).on_disabled_hover_text(tip).clicked()
                     && d.remove_layer(&name).is_ok()
                 {
                     if ed.current_layer == name {

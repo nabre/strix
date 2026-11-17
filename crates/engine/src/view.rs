@@ -65,6 +65,26 @@ pub struct ViewState {
     pub check_pane: bool,
     #[serde(default)]
     pub archive_pane: bool,
+    /// The Grading Scale pane (Teaching › Scores › Grading Scale › Properties): the properties of
+    /// the points-to-grade table (docs/exercise.md).
+    #[serde(default)]
+    pub grading_pane: bool,
+    /// The Question Settings pane (Exercise › Questions › Question Settings): the questions of the
+    /// exercise at the cursor with the chosen one's settings (docs/exercise.md).
+    #[serde(default)]
+    pub questions_pane: bool,
+    /// The Exercise Data pane (Exercise › Calculation › Data): the data and variants of the
+    /// exercise at the cursor (docs/exercise.md).
+    #[serde(default)]
+    pub data_pane: bool,
+    /// The Symbols pane (Equation › Symbols, the group's launcher): every symbol set under its
+    /// title, beside the document.
+    #[serde(default)]
+    pub symbols_pane: bool,
+    /// The Thesaurus pane (Review › Proofing › Thesaurus): synonyms by meaning from the
+    /// thesaurus of the word's language (docs/thesaurus.md).
+    #[serde(default)]
+    pub thesaurus_pane: bool,
     /// The Plot Properties pane (Math › Graphics › Plot Properties): axes, series and teacher/student
     /// options for the selected plot (`docs/plot.md`).
     #[serde(default)]
@@ -227,6 +247,11 @@ impl Default for ViewState {
             check_pane: false,
             archive_pane: false,
             plot_pane: false,
+            grading_pane: false,
+            questions_pane: false,
+            data_pane: false,
+            symbols_pane: false,
+            thesaurus_pane: false,
             format_shape_pane: false,
             multi_page: false,
             single_column: false,

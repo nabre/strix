@@ -670,7 +670,7 @@ fn gap_width(k: &El) -> Option<f32> {
 
 /// `w:tcPr`; returns the props and whether the cell is a legacy `hMerge` continuation.
 pub fn tcpr(pc: &PropCtx, e: &El) -> (CellProps, bool) {
-    let mut c = CellProps { span: 1, ..Default::default() };
+    let mut c = CellProps { span: 1, calc_no_total: e.attr("strix:noTotal") == Some("1"), ..Default::default() };
     let mut hcont = false;
     for k in e.els() {
         match k.name.as_str() {

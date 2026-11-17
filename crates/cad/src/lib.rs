@@ -67,12 +67,12 @@ pub use edit::{Grip, SnapKind, Snaps, dim_offset, outline};
 pub use geom::{Pt, bulge_points};
 pub use input::{InputError, Units, parse_length, parse_point, parse_point_in};
 pub use model::{
-    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, MAX_PADDING, MAX_STYLES, Mark, NamedDimStyle, Num, Orient, P, Padding,
-    Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
+    Align, Dash, DimStyle, DimUnits, Drawing, Ends, Entity, Fit, Kind, Layer, LevelFill, MAX_PADDING, MAX_STYLES, Mark, NamedDimStyle, Num, Orient,
+    P, Padding, Pattern, STANDARD, Side, Stroke, TextLook, TextStyle, Unit, fill,
 };
 pub use modify::Affine;
 pub use pick::TextWidths;
-pub use props::{ALIGNS, ENDS, Field, FieldKind, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
+pub use props::{ALIGNS, ENDS, Field, FieldKind, LEVEL_FILLS, MARKS, ORIENTS, PATTERNS, SIDES, num_text};
 pub use render::{Anchor, Prim, Rendered, SCALE_RANGE, parse_scale, scale_text, standard_scales};
 pub use rework::MAX_ARRAY;
 pub use select::{Family, Focus, Order, SelectOption, StrokeEdit, families, point_in_polygon};
@@ -81,7 +81,7 @@ pub use spans::{Span, SpanKind, spans};
 pub use strip::StripShape;
 pub use styles::StyleKind;
 pub use svg::MISSING_COLOR;
-pub use underlay::{Inherited, MAX_UNDERLAY_ENTITIES, Underlay};
+pub use underlay::{Inherited, MAX_UNDERLAY_ENTITIES, UnderSource, Underlay};
 
 /// Marks the start and end of a unit in a text (`L = 4.5 \u{1F}m\u{1E}`), so it can be set in
 /// the document's Unit style. Never part of what is shown.

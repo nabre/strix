@@ -2624,7 +2624,9 @@ paper	Envelope DL	Sobre DL
 	That would make the object degenerate	Eso volvería degenerado el objeto
 	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Los datos son los primeros parámetros de los cálculos del ejercicio: la solución los usa por símbolo. Cambiar la variante recalcula el ejercicio.
 	The document has no subdocuments.	El documento no tiene subdocumentos.
-	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	La última fila suma cada columna (Σ =); una celda escrita ahí conserva su propio texto (media =, máx =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La última fila suma cada columna (Σ en la primera columna, las sumas bajo sus columnas); una celda escrita ahí conserva su propio texto (media =, máx =)
+	Column Total	Total de columna
+	Sum the column at the cursor in the total row, or leave its cell there empty	Sumar la columna del cursor en la fila de totales, o dejar vacía su celda
 	The layer of the selected objects becomes the current layer	La capa de los objetos seleccionados pasa a ser la capa actual
 	The number must be a divisor of {max}.	El número debe ser un divisor de {max}.
 	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	No se pudo leer el diccionario ortográfico de {language}, por lo que no se revisa. Archivo: {file}. Motivo: {reason}

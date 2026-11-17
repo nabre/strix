@@ -111,6 +111,9 @@ fn open(path: &Path, password: Option<&str>) -> Result<Session, Failure> {
     if encrypted {
         s.password = password.map(wordcraft_engine::io::Password::new);
     }
+    // A master document shows its subdocuments as their files are now, as File › Open does: a
+    // save then writes back only what the commands edited, never its older copy of a file.
+    wordcraft_engine::cmd::master::after_open(&mut s);
     Ok(s)
 }
 

@@ -175,6 +175,14 @@ fn edges(pts: &[Pt], closed: bool) -> Vec<(Pt, Pt)> {
 /// How far `p` is from entity `e`: from its exact curves when it has some, else from its
 /// outline (a point, a text's position, a dimension's lines).
 fn entity_distance(d: &Drawing, e: &crate::Entity, p: Pt) -> f64 {
+    // A right angle is taken anywhere in its square, with one click.
+    if let Some(sq) = d.right_angle_square(e) {
+        if point_in_polygon(p, &sq) {
+            return 0.0;
+        }
+        let edges = [(sq[0], sq[1]), (sq[1], sq[2]), (sq[2], sq[3]), (sq[3], sq[0])];
+        return edges.iter().map(|&(a, b)| seg_dist(p, a, b)).fold(f64::INFINITY, f64::min);
+    }
     let exact = curves(e);
     if !exact.is_empty() {
         // Its arrowheads are picked inside too.
@@ -364,6 +372,8 @@ impl Drawing {
 
     /// Puts the entities at `indices` on layer `name` (made if missing).
     pub fn set_layer(&mut self, indices: &[usize], name: &str) -> Result<(), String> {
+        // As `ensure_layer` names it: spaces round the name are not part of it.
+        let name = name.trim();
         self.ensure_layer(name)?;
         for &i in indices {
             if let Some(e) = self.entities.get_mut(i) {
@@ -432,6 +442,9 @@ impl Drawing {
         if from == to {
             return Ok(());
         }
+        if self.layers.iter().any(|l| l.name == from && l.from.is_some()) {
+            return Err(format!("layer {from} comes from another drawing: its name is that drawing's"));
+        }
         if self.layers.iter().any(|l| l.name == to) {
             return Err(format!("there is already a layer {to}"));
         }
@@ -443,10 +456,14 @@ impl Drawing {
         Ok(())
     }
 
-    /// Removes layer `name` (not `0`); its entities go to layer `0`.
+    /// Removes layer `name` (not `0`; one inherited from another drawing only when no object is
+    /// on it); its entities go to layer `0`.
     pub fn remove_layer(&mut self, name: &str) -> Result<(), String> {
         if name == "0" {
             return Err("layer 0 cannot be removed".into());
+        }
+        if !self.can_remove_layer(name) {
+            return Err(format!("layer {name} comes from another drawing: it can be removed only when no object is on it"));
         }
         let before = self.layers.len();
         self.layers.retain(|l| l.name != name);
@@ -459,16 +476,30 @@ impl Drawing {
         Ok(())
     }
 
+    /// Whether layer `name` can be removed: not `0`, and one inherited from another drawing only
+    /// when no object is on it.
+    pub fn can_remove_layer(&self, name: &str) -> bool {
+        name != "0" && !(self.layers.iter().any(|l| l.name == name && l.from.is_some()) && self.entities.iter().any(|e| e.layer == name))
+    }
+
     /// The stroke entity `i` is drawn with (its own, else its layer's).
     pub fn effective_stroke(&self, i: usize) -> Option<([u8; 3], f64, Dash)> {
         self.entities.get(i).map(|e| self.stroke_of(e))
     }
 
-    /// The colour, width and dash `e` is drawn with: its own, else its layer's.
+    /// The colour, width and dash `e` is drawn with: its own, else its layer's. An annotation
+    /// (a dimension, an angle, a level mark) takes its dimension style's width and linetype
+    /// between the two: its own, else its style's, else (the style's ByLayer) its layer's.
     pub(crate) fn stroke_of(&self, e: &Entity) -> ([u8; 3], f64, Dash) {
         let l = self.layer(&e.layer);
         let Stroke { color, width, dash } = &e.stroke;
-        (color.unwrap_or(l.color), width.unwrap_or(l.width), dash.unwrap_or(l.dash))
+        let (style_width, style_dash) = if e.kind.is_annotation() {
+            let st = self.dim_style_of(e);
+            ((st.line_width > 0.0).then_some(st.line_width), st.dash)
+        } else {
+            (None, None)
+        };
+        (color.unwrap_or(l.color), width.or(style_width).unwrap_or(l.width), dash.or(style_dash).unwrap_or(l.dash))
     }
 }
 

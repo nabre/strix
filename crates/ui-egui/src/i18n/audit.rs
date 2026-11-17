@@ -201,6 +201,8 @@ impl<'a> Exempt<'a> {
         if let Some(form) = &app.spelling_review {
             names.extend(form.content_text());
         }
+        // Strix: the Thesaurus pane's words and categories come from the thesaurus.
+        names.extend(crate::thesaurus_pane::content_text());
         Exempt { body: app.session.doc.plain_text(wordcraft_doc::StoryRef::Body), names, math: math_placeholders }
     }
 
@@ -347,7 +349,10 @@ fn untranslated_interface_text() {
     frames(&ctx, &mut app, escape());
     // Contextual tabs: a table, then an equation.
     let _ = app.run("insert.table", json!({"rows": 2, "cols": 2}));
-    for tab in ["Table Design", "Table Layout"] {
+    for tab in ["Table Design", "Table Layout", "Calculated Table"] {
+        if tab == "Calculated Table" {
+            let _ = app.run("table.calc", json!({"value": true}));
+        }
         let _ = app.run("ui.tab", json!({"tab": tab}));
         let drawn = frame(&ctx, &mut app);
         record(&app, &format!("tab {tab}"), drawn);
@@ -380,12 +385,13 @@ fn untranslated_interface_text() {
     // tab keeps one tab's commands from changing the next.
     // A fresh app per control, set up the same way, so no click changes what the next one hits
     // (Escape, for one, leaves an equation and takes the Equation tab with it).
-    let contextual = ["Table Design", "Table Layout", "Equation", "Chart Design", "SmartArt Design"];
+    let contextual = ["Table Design", "Table Layout", "Calculated Table", "Equation", "Chart Design", "SmartArt Design"];
     let open = |tab: &str| {
         let ctx = egui::Context::default();
         let mut app = fresh_app(&ctx);
         match tab {
             "Table Design" | "Table Layout" => drop(app.run("insert.table", json!({"rows": 2, "cols": 2}))),
+            "Calculated Table" => drop(app.run("calc.insertTable", json!({}))),
             "Equation" => drop(app.run("insert.equation", json!({}))),
             "SmartArt Design" => drop(app.run("insert.smartArt", json!({"layout": "process"}))),
             "Chart Design" => drop(app.run("insert.chart", json!({"type": "column"}))),
@@ -438,7 +444,7 @@ fn report_catalog_gaps(mut keys: std::collections::BTreeSet<String>) {
     if !problems.is_empty() {
         eprintln!("{} catalog rows are skipped (they show in English):\n{problems:#?}", problems.len());
     }
-    let tabs = crate::ribbon::TABS.iter().chain(&["Table Design", "Table Layout"]);
+    let tabs = crate::ribbon::TABS.iter().chain(&["Table Design", "Table Layout", "Calculated Table"]);
     keys.extend(tabs.map(|t| t.to_string()));
     keys.extend(["Good morning", "Good afternoon", "Good evening"].map(String::from));
     keys.extend(disabled_reasons());
@@ -812,7 +818,10 @@ fn the_arabic_interface_is_mirrored_and_never_panics() {
     frames(&ctx, &mut app, click(egui::pos2(1280.0, 520.0), egui::PointerButton::Secondary));
     frames(&ctx, &mut app, escape());
     let _ = app.run("insert.table", json!({"rows": 2, "cols": 2}));
-    for tab in ["Table Design", "Table Layout"] {
+    for tab in ["Table Design", "Table Layout", "Calculated Table"] {
+        if tab == "Calculated Table" {
+            let _ = app.run("table.calc", json!({"value": true}));
+        }
         let _ = app.run("ui.tab", json!({"tab": tab}));
         frame(&ctx, &mut app);
         frame_at(&ctx, &mut app, 600.0);
@@ -821,12 +830,13 @@ fn the_arabic_interface_is_mirrored_and_never_panics() {
     let _ = app.run("ui.tab", json!({"tab": "Equation"}));
     frame(&ctx, &mut app);
     // Every ribbon control on every tab, hovered and clicked: its tooltip, menu or dialog.
-    let contextual = ["Table Design", "Table Layout", "Equation"];
+    let contextual = ["Table Design", "Table Layout", "Calculated Table", "Equation"];
     let open = |tab: &str| {
         let ctx = egui::Context::default();
         let mut app = start(&ctx);
         match tab {
             "Table Design" | "Table Layout" => drop(app.run("insert.table", json!({"rows": 2, "cols": 2}))),
+            "Calculated Table" => drop(app.run("calc.insertTable", json!({}))),
             "Equation" => drop(app.run("insert.equation", json!({}))),
             _ => {}
         }

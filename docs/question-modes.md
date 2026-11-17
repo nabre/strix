@@ -29,9 +29,9 @@ a master document).
 
 | Mode | `type` | Students' copy | Corrected copy | Summary |
 |---|---|---|---|---|
-| **Open answer** | `open` | a space (cm), squared or blank | the answer written in the space | — |
+| **Open answer** | `open` | a space (cm), squared or blank; the squares' side, line style and colour (`spacing`, `gridStyle`, `gridColor`, `null` for the default; Exercise › Questions › Question Settings › Answer Space) | the answer written in the space | `a) domanda a risposta aperta` (always, also in a quiz of open answers alone: a trace for correcting) |
 | **Multiple choice** | `choice` | options A), B)… with empty boxes | the correct boxes ticked (more than one may be) | `b) A, C` |
-| **True or false** | `trueFalse` | *Vero* / *Falso* with empty boxes | the right one ticked | `c) A` |
+| **True or false** | `trueFalse` | two empty boxes on the statement's line, in the V and F columns | the right one ticked | `c) V` (the column's initial in the exercise's language: V, T, W) |
 | **Calculation** | `calc` | a squared space for the working, then `Answer: A = ______ cm²` | the working (live equations) and `Answer: A = 15 cm²` | `d) A = 15 cm²` |
 | **CAD drawing** | `drawing` | a squared space (8 cm) to draw in | the solution's CAD drawing in the space | — |
 
@@ -47,6 +47,28 @@ geometry exercise can ask *a) what is a rectangle (open)*, *b) a square is a rec
 (drawing)*. New Exercise's kinds only say which mode the first questions start in; Add Question
 adds one like the last, or of the mode asked for (`exercise.addQuestion {"type": "calc"}`), with
 that mode's space.
+
+### True or false
+
+A true/false question is answered on its statement's line: at the right of the text column two
+columns, **V** and **F** (the initials of True and False in the exercise's language: V F in
+Italian and French, T F in English, W F in German), each with a check box. The boxes sit at the
+same two right-aligned tab stops in every statement, left of the points, so a **battery** of
+true/false statements lines up in two columns down the page; above the first statement of each
+run of consecutive true/false questions a generated header line names the columns. A statement
+that runs over several lines has its boxes on its last line, beside the points: a paragraph can
+only put them on its first line by becoming a table, which the quiz structure (one paragraph per
+question) doesn't use. The statement has no right indent: past one, the positional tab that sends
+the points to the margin would push them to a line of their own.
+
+The boxes behave as a multiple choice's: the right one ticked while the answers show, both empty
+in the students' copy; a box ticked by hand while the answers show becomes the answer and clears
+the other. `exercise.questions` reads and sets them as before (`"choices": ["Vero", "Falso"]`,
+`"correct": "A"`), and `exercise.questionMode` converts to and from the other modes (to multiple
+choice: *Vero*, *Falso* and two empty options). In the file the answer control is inline in the
+question's paragraph (`strix:exercise.answer`, the two `strix:exercise.box` check boxes after
+tabs) and the header is `strix:exercise.trueFalseHead`; true/false options from older files, one
+per paragraph, move onto the statement's line when the document is opened.
 
 ### Calculation
 
@@ -100,7 +122,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 - **Stage 4 — More closed modes**: fill in the blanks (*completamento*, blanks inline in the
   question's text), matching (*abbinamento*, two columns), ordering. Each keeps the two-copies
   rule and gives its line to the summary.
-- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and Exercise Properties.
+- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and the Exercise tab's Question Settings.
 
 ## Commands
 
@@ -114,10 +136,12 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 
 ## Revision history
 
+- 2026-11-16: every open answer gives a line in the results summary (*domanda a risposta aperta*), also when an exercise or the whole document has open answers alone (no summary before), so that no part is forgotten when correcting.
 - 2026-11-13: one result line per result (the values the working doesn't use afterwards), right-aligned in columns that line up at the `=`, 1 cm apart for handwriting 8 mm tall; the corrected copy writes the value on the line, underlined.
 - 2026-11-13: the calculation's result line is labelled (*Risposta: s = 20 m*) and its value is in the answers' colour once given, so in the corrected copy it no longer looks like a stray repeat of the working's result.
 - 2026-11-13: calculation tolerances (`tolerance` in `exercise.questions`), parametric `{{expr}}` options (`strix:expr`), teacher-only option rationales (`strix:rationale`), and deterministic per-variant choice shuffling (`shuffleChoices`).
 - 2026-11-13: in-place mode conversion (`exercise.questionMode`), contextual Quiz controls (mode selector, live calculation preview and Go to Working, CAD scale and Edit Drawing), Variants & Data exposed for quizzes (`showData` toggle), and per-question points on problems (`exercise.questionPoints`).
+- 2026-11-15: the summary names a true/false answer by its column's initial in the exercise's language (V/F, T/F, W/F), says *risposta aperta* for an open answer beside other results and lists a completion's hidden words; hidden words for texts to complete by hand (Hide Words, `[[word]]`); the answer space's line style and colour; the *table to complete* mode removed (a file's `tableFill` question reads as an open answer).
 - 2026-11-12: new: question modes; a mode per question, mixed in one quiz; calculation questions (worked with the exercise's data and variants, result line with blank and unit, result in the summary) and CAD drawing questions (the solution's drawing in a squared space, hidden in the students' copy); a quiz's data part after its title when it has no statement.
 
 ## Laboratory and completion questions (Phase 5)
@@ -127,16 +151,26 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 - `worked`: an example whose working stays visible in the student copy. Its
   points are always unset. An exercise containing only worked examples has no
   row in the scores table.
-- `cloze`: inline completion. `{{expression}}` templates in the question become
-  `strix:blank` controls; the teacher sees their calculated values, the student
-  a blank retaining the unit. `exercise.blank {"expr":"rho -> kg/m³"}` inserts
-  a blank at the caret in ordinary text too. Values use the exercise's sandbox.
-- `tableFill`: an answer containing a calculated table to complete. In Table
-  Layout › Data › Student Blanks, mark a cell or column (`exercise.tableFill
-  {"studentBlank":true,"column":true}`). Student copies hide marked values;
-  calculations retain their inputs. Removing the flag restores visibility.
+- `cloze`: inline completion — a text with gaps (*testo bucato*) the students fill in by hand.
+  - **Hidden words**: select words inside an exercise and click Exercise › Questions › Hide
+    Words (`exercise.blank` with no `expr`), or type `[[word]]` in an inline completion
+    question. Elsewhere `[[…]]` stays as typed, and so does one holding brackets (a list
+    `[[1, 2], [3, 4]]`) or inside another control. The corrected copy shows the words; the
+    students' copy a line to write on, twice the word's length and never shorter than 14
+    underscores, so its length gives little away. Kept on the `strix:blank` control
+    (`<strix:blankWord>`, titled *Hidden word*: the frame never shows the word; the word is
+    still in the file, as the solutions are, so hand students a printout or a PDF). The
+    results summary lists them (`b) fotosintesi, foglie`). Wherever a hidden word shows (the
+    corrected copy, while writing the exercise) it is in the *Hidden Word* character style
+    (`HiddenWord`: bold, italic, blue, added the first time and kept as the teacher changes
+    it), so the words that will be hidden stand out; the students' line is in the text's own
+    formatting.
+  - **Calculated gaps**: `{{expression}}` templates in the question become `strix:blank`
+    controls; the teacher sees their calculated values, the student a blank retaining the unit.
+    `exercise.blank {"expr":"rho -> kg/m³"}` inserts one at the caret in ordinary text too.
+    Values use the exercise's sandbox.
 - `matching`: two columns with association boxes. Pass `"pairs":[["mass","kg"],
-  ["time","s"]]` or edit Pairs in Exercise Properties. The right column uses a
+  ["time","s"]]` or edit Pairs in the Exercise tab's Question Settings. The right column uses a
   deterministic permutation per exercise/question/variant. Only teacher copies
   contain the association letters. Pairs and modes survive Word round trips.
 

@@ -12,6 +12,8 @@ pub(crate) struct ScalarEval {
     x_factor: Quantity,
     y_scale: Option<(f64, strix_calc::Dim)>,
     budget_left: usize,
+    /// Jumps [`jump_persists`] may still look into (each costs a dozen evaluations).
+    jump_probes_left: usize,
     pub(crate) last_hard_error: Option<String>,
     pub(crate) last_domain_error: Option<String>,
 }
@@ -45,7 +47,16 @@ impl ScalarEval {
         }
         let x_factor = x_unit.and_then(|u| unit_quantity(&rich, u)).unwrap_or_else(|| Quantity::number(1.0));
         let y_scale = y_unit.and_then(|u| unit_quantity(&rich, u)).filter(|q| q.value.abs() > 1e-30).map(|q| (q.value, q.dim));
-        ScalarEval { rich, plain, x_factor, y_scale, budget_left: MAX_SAMPLES.saturating_mul(4), last_hard_error: None, last_domain_error: None }
+        ScalarEval {
+            rich,
+            plain,
+            x_factor,
+            y_scale,
+            budget_left: MAX_SAMPLES.saturating_mul(4),
+            jump_probes_left: 128,
+            last_hard_error: None,
+            last_domain_error: None,
+        }
     }
 
     pub(crate) fn eval_at(&mut self, var: &str, expr: &str, x: f64) -> Option<f64> {
@@ -101,15 +112,18 @@ impl ScalarEval {
         if !q.value.is_finite() {
             return None;
         }
-        if let Some((factor, dim)) = self.y_scale {
-            if !q.dim.is_dimensionless() && q.dim != dim {
-                self.record_error("expression unit does not match plot yUnit");
-                return None;
+        // A plain number is plotted as it is (the ordinate's unit is then its label), like the
+        // numbers of the coherent-SI fallback in `eval_at`; a quantity is converted to the unit.
+        match self.y_scale {
+            Some((factor, dim)) if !q.dim.is_dimensionless() => {
+                if q.dim != dim {
+                    self.record_error("expression unit does not match plot yUnit");
+                    return None;
+                }
+                let v = q.value / factor;
+                v.is_finite().then_some(v)
             }
-            let v = q.value / factor;
-            v.is_finite().then_some(v)
-        } else {
-            Some(q.value)
+            _ => Some(q.value),
         }
     }
 
@@ -214,7 +228,8 @@ fn refine_segment(
     let y_bounds = (y_min, y_max, y_span);
     let need_mid = depth < 5 && (dy > 0.04 * y_span || depth == 0 && dy > 0.01 * y_span);
     if !need_mid {
-        if is_jump_or_pole(eval, var, expr, p0, p1, y_bounds) {
+        // A change still plain to see across the narrowest interval sampled: a step?
+        if is_jump_or_pole(eval, var, expr, p0, p1, y_bounds) || (depth >= 5 && dy > 0.05 * y_span && jump_persists(eval, var, expr, p0, p1)) {
             flush_branch(branches, current);
             current.push(p1);
         } else {
@@ -288,6 +303,36 @@ fn is_jump_or_pole(eval: &mut ScalarEval, var: &str, expr: &str, p0: (f64, f64),
     is_discontinuous_triple(p0, (xm, ym), p1, y_bounds)
 }
 
+/// Whether the change between `p0` and `p1` is a jump (`sign(x)`, `floor(x)`): followed by
+/// bisection into the half that changes more, at least half of it is still there in an interval
+/// some thousand times narrower. A continuous curve's change shrinks with the interval, a
+/// vertical tangent's too (`sqrt(x)` at 0 loses a third each halving).
+fn jump_persists(eval: &mut ScalarEval, var: &str, expr: &str, p0: (f64, f64), p1: (f64, f64)) -> bool {
+    if eval.jump_probes_left == 0 {
+        return false;
+    }
+    eval.jump_probes_left -= 1;
+    let (mut a, mut b) = (p0, p1);
+    let mut halvings = 0u32;
+    for _ in 0..12 {
+        let xm = 0.5 * (a.0 + b.0);
+        // No number left between the two: as far as the abscissa can be told apart.
+        if !(xm > a.0.min(b.0) && xm < a.0.max(b.0)) {
+            break;
+        }
+        let Some(ym) = eval.eval_at(var, expr, xm) else {
+            return true;
+        };
+        if (ym - a.1).abs() >= (b.1 - ym).abs() {
+            b = (xm, ym);
+        } else {
+            a = (xm, ym);
+        }
+        halvings += 1;
+    }
+    halvings >= 8 && (b.1 - a.1).abs() >= 0.5 * (p1.1 - p0.1).abs()
+}
+
 /// Binary-searches up to 8 steps towards a domain boundary (such as `sqrt(x)` near `x = 0`) so the
 /// curve reaches the endpoint cleanly.
 fn probe_boundary_right(eval: &mut ScalarEval, var: &str, expr: &str, mut ok_x: f64, mut bad_x: f64, current: &mut Branch) {
@@ -350,6 +395,40 @@ pub(crate) fn sample_parametric(eval: &mut ScalarEval, param: &str, exprs: (&str
                     if jump_x || jump_y {
                         flush_branch(&mut branches, &mut current);
                     }
+                }
+                current.push((x, y));
+            }
+            None => flush_branch(&mut branches, &mut current),
+        }
+    }
+    flush_branch(&mut branches, &mut current);
+    branches
+}
+
+/// Samples the polar curve `ρ = f(θ)` over `theta_rad` (radians), each point placed by
+/// `convention`; a jump wider than the view or a failed evaluation starts a new branch.
+pub(crate) fn sample_polar(
+    eval: &mut ScalarEval,
+    param: &str,
+    expr: &str,
+    theta_rad: (f64, f64),
+    convention: crate::AngleConvention,
+    spans: (f64, f64),
+) -> Vec<Branch> {
+    let (t_min, t_max) = theta_rad;
+    let (x_span, y_span) = spans;
+    let steps: usize = 360;
+    let mut branches: Vec<Branch> = Vec::new();
+    let mut current: Branch = Vec::new();
+    for i in 0..=steps {
+        let t = t_min + (t_max - t_min) * (i as f64 / steps as f64);
+        match eval.eval_at(param, expr, t).filter(|r| r.is_finite()) {
+            Some(rho) => {
+                let (x, y) = convention.point(rho, t);
+                if let Some(&(px, py)) = current.last()
+                    && ((x - px).abs() > 1.5 * x_span.max(1e-6) || (y - py).abs() > 1.5 * y_span.max(1e-6))
+                {
+                    flush_branch(&mut branches, &mut current);
                 }
                 current.push((x, y));
             }

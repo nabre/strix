@@ -352,6 +352,11 @@ impl Drawing {
 
     /// Whether some annotative insertion is drawn for another scale than the drawing's.
     pub(crate) fn annotative_stale(&self) -> bool {
+        // A scale that is none (zero, negative, not a number: set by hand, never read from a
+        // file) has nothing drawn for it: rescaling for it would never come to an end.
+        if !(self.scale.is_finite() && self.scale > 0.0) {
+            return false;
+        }
         self.inserts.iter().any(|r| (r.drawn_at - self.scale).abs() > 1e-9 * self.scale && self.block(&r.block).is_some_and(|b| b.annotative))
     }
 

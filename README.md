@@ -408,7 +408,9 @@ Progress log: [ROADMAP.md](ROADMAP.md). The document editor's plan is
 Strix is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 Copyright (c) 2026 nabre and the Strix contributors. Strix is a fork of
 [WordCraft](https://github.com/storytold/wordcraft) and is not affiliated with or endorsed by its
-authors. The original notice is kept as it was:
+authors. Microsoft and Word are trademarks of Microsoft Corporation; Strix is an independent
+project, not affiliated with, endorsed or sponsored by Microsoft, and reads and writes Word files
+from the published specifications (ECMA-376, ISO/IEC 29500). The original notice is kept as it was:
 
 Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notices are in [NOTICE](NOTICE).
 

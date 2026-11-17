@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-12 · **Change:** the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-14 · **Change:** the underlay printed with a drawing counts in its fitted scale, its picture and Zoom Fit, and shows its source's parameters' values and settings; the underlay's layers and all its styles (its Standard dimension style too) nested under the source's name, its layers not printed with an underlay that is not, removed only when empty; length parameters in dimension texts written as the dimension style writes sizes, a `{x}` button beside annotation texts; the Dimension line object snap; a right angle picked anywhere in its square; the style windows keep the keyboard and line up; previously: every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -34,12 +34,17 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   are paper mm; positions are drawing units (the prototype moved the dimension offset to paper
   mm because it drifted with the scale).
 - **Input unit** (`input`: `mm`, `cm` or `m`; Properties with nothing selected › Input unit,
-  `ui.cadInputUnit`): the unit numbers typed in the editor are read in — the command line's
-  points (`x,y`, `@dx,dy`, `@d<a`, direct distances), radii and diameters, and the Offset,
-  Fillet and Chamfer distances — converted to the drawing's unit (`unit`); left out, the
-  drawing's own. A value written with its unit is read in that (`2.5m`, `@300mm<45`,
-  `120cm;2m`; `strix_cad::parse_point_in`, `parse_length`). Angles, factors and counts are not
-  lengths. The status bar shows it (`Unit: mm · input m`).
+  CAD Annotate › Units, `ui.cadInputUnit`): the one unit the user sees. The drawing's own unit
+  (millimetres in the editor) is an internal convention, never shown: every length is shown and
+  typed in the input unit — the command line's points (`x,y`, `@dx,dy`, `@d<a`, direct
+  distances), radii and diameters, the Offset, Fillet and Chamfer distances, the Properties
+  pane's coordinates, radii, lengths, diameters and scaled distances (`Drawing::fields_typed`,
+  `set_field_typed`; `ui.cadProps` the same), the status line's coordinates and distances, the
+  dimension overlay's scaled size and a new block's size — converted to and from the drawing's
+  unit (`unit`); left out, the drawing's own. A value written with its unit is read in that
+  (`2.5m`, `@300mm<45`, `120cm;2m`; `strix_cad::parse_point_in`, `parse_length`). Expressions
+  (`L/2`) are kept as written. Angles, factors, counts and paper sizes (mm) are not lengths. The
+  status line shows it (`Unit: m`).
 - **Dimension style defaults** (ISO 129 / ISO 128 practice): text 2.5 mm, thin lines 0.18 mm
   (`lineWidth`; a dimension's own stroke width wins), ticks 3 mm drawn heavier (about 0.5 mm),
   extension lines from 1 mm off the object to 2 mm past the dimension line, and with ticks or
@@ -52,15 +57,25 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   style (`"style": "Arch"`; none, or a name the drawing doesn't have: Standard). New objects take
   the current style (`currentDimStyle`, `currentTextStyle`; a new text also the style's height).
   A dimension style has a **start mark** (`mark`) and an **end mark** (`markEnd`, absent: as the
-  start), a **mark width** (`markWidth` mm, 0 or absent: automatic — a tick about 2.8× the line,
-  an arrowhead as thin), and may name the **text style** of its texts (`textStyle`: their font,
+  start), a **mark width** (`markWidth` mm, picked from the lineweights' menu like every line width in the style window; 0 or absent: Automatic — a tick about 2.8× the line,
+  an arrowhead as thin), a **line width** and a **linetype** for the dimension, extension and
+  leader lines, an angle's arc and square and a level mark's two lines (`lineWidth` mm, 0:
+  ByLayer; `dash`: `solid` — the default, not written — `dashed`, `dotted`, `dashDotted`,
+  `dashDoubleDotted` or `"byLayer"`; both from the lineweights' and linetypes' menus). An
+  annotation's lines take its own width and linetype (Properties › General), else its style's,
+  else (ByLayer) its layer's; the marks, a right angle's dot, a level mark's triangle and the
+  texts are always solid. The Standard style is thin and continuous whatever the layer, so
+  dimensions read as annotations; ByLayer makes them follow a dimensions layer. The style's
+  "Scaled distances" moves dimension lines only: widths and dashes are paper mm at any scale.
+  A style may also name the **text style** of its texts (`textStyle`: their font,
   bold and italic; the height stays the style's `text`). A dimension's own `mark` (Properties ›
-  Marks) puts that mark at both ends. Renaming or deleting a style carries along the objects,
+  Start mark) puts that mark at both ends, unless its own `markEnd` (Properties › End mark; "As
+  the start" clears it) gives the end another. Renaming or deleting a style carries along the objects,
   current styles and dimension styles that name it (deleted: they take Standard). The ribbon:
   the style list (choosing one with objects selected gives it to them, as a CAD's list does),
   its name to rename it, New (a copy of it, made current), Delete; then the current style's
   fields. Commands: `ui.cadStyles {"kind": "dim"|"text", "new"|"rename"+"to"|"delete"|"current"}`,
-  `ui.cadDimStyle {"style"?, …, "markEnd"?, "markWidth"?, "textStyle"?}` and
+  `ui.cadDimStyle {"style"?, …, "markEnd"?, "markWidth"?, "lineWidth"? (or "byLayer"), "dash"?, "textStyle"?}` and
   `ui.cadTextStyle {"style"?, "font"?, "height"?, "bold"?, "italic"?}`. On screen a text style's
   bold is the interface's semibold and its font family is shown on the page and in print.
 - **Drawing unit** (CAD Annotate › Units; `ui.cadUnit {"unit": "mm"|"cm"|"m", "convert"?}`):
@@ -77,7 +92,7 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   converted drawing with expressions needs a Strix that knows `exprUnit` (2026-11-11 or later);
   an older one would read its expressions in millimetres (1000 times too small for metres).
 - **Dimension units** (`dimStyle.units`, CAD Annotate › Dimension Style › Dimension units): how
-  linear dimensions show their size (`<>`) — in the drawing's unit (`drawing`, the default), all
+  linear dimensions show their size (`<>`) — in the input unit (`drawing`, the default; the drawing's own unit when it sets none), all
   in metres, centimetres or millimetres (`m`, `cm`, `mm`), or as SIA 400 (`sia`): metres with
   two decimals from 1 m up (`2.45`, `3.00`), centimetres below (`30`, `30.5`), rounded to the
   centimetre before choosing (99.996 cm reads `1.00`). Numbers follow the document's number
@@ -90,7 +105,7 @@ and the editor, where the prototype kept three copies (TypeScript, Python, Typst
   `offsetUnits` / `rPaper` out). Scale multiplies the scaled parts only. The style's **Scaled
   distances** (`dimStyle.scaled`, off by default) says which part a click or a grip places: on
   paper, or in the drawing; the other part is kept. Properties shows both, as **Scaled
-  distance** (drawing units) and **Annotative distance** (paper mm) — an angle's **Scaled
+  distance** (input unit) and **Annotative distance** (paper mm) — an angle's **Scaled
   radius** and **Annotative radius** — each marked with its overlay colour and explained on
   hover.
 - **The parts on screen** (editor only: never printed, exported or in the SVG picture): for the
@@ -122,7 +137,13 @@ Annotations recall parameters (as the prototype's dimension texts did): in a dim
 and in a free text, `{{L}}` or `{{L:value}}` is the value of parameter `L` as calculations show
 it (`4.5 m`), `{{L:symbol}}` its symbol (`L`), `{{L:both}}` both (`L = 4.5 m`); `<>` is a
 dimension's measured size, and a dimension without text shows it. A parameter not defined where
-the drawing sits shows `[L?]` in red. A parameter is **set as the equations set it** (in
+the drawing sits shows `[L?]` in red. In a **dimension**, a length parameter (`{{L}}`,
+`{{L:both}}`) is written as the dimension style writes sizes, like the measured `<>`: its units
+(SIA: `4.50 m`, `45 cm`), the number format, the unit shown or not; other parameters (a count, an
+angle) as everywhere else. A dimension's text may be a symbol or a short formula alone
+(`{{L:symbol}}`, `{{L:symbol}}/2`). Beside every annotation text in the Properties pane a
+**`{x}`** button writes in what it can show: the measured size (`<>`, dimensions) and each
+parameter defined before the drawing as Value, Symbol or Symbol = value. A parameter is **set as the equations set it** (in
 dimensions, angles, level marks and texts; on the page, in the PDF, the SVG picture and the
 editor): its symbol in italics with its subscript smaller and lowered (`F_k` as 𝐹ₖ), the value
 upright with its unit in the Unit style, in the equations' font; the text around it keeps the
@@ -324,8 +345,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    is one `cad.set` (an undo step); the editor reads the drawing back after Undo or a
    recalculation. Moving keeps a coordinate's expression (`L` → `L + 0.5`).
    **Object snaps** (exact, from the kernel; AutoCAD's markers and names): Endpoint, Midpoint,
-   Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point, Nearest
-   (only when nothing else); the nearest wins, ties to that order; each toggles with its icon in
+   Centre, Node, Quadrant, Intersection, Perpendicular and Tangent from the last point,
+   **Dimension line** (`dimLine`: another dimension's line where it is drawn now, its paper
+   offset included, carried on past its ends, and its ends — a new dimension's line, placed with a
+   click or its grip, lines up with it), Nearest (only when nothing else); the nearest wins, ties to that order; each toggles with its icon in
    the status line (`ui.cadToggle {"what": "snap.<kind>"}`); Ortho holds a point only when no object snap does.
    The status line shows distance, angle, Δx and Δy from the last point.
    **Grips** (AutoCAD and Allplan): the selected objects (up to 50) show square grips; a click
@@ -334,7 +357,10 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    Line ends and middle (moves the line), circle centre and quadrants (radius), arc centre, ends
    (angles) and middle (radius), polyline vertices and segment middles (a straight segment moves,
    an arc bends through the point), point and text position (and a text's four box corners, which
-   move it), dimension ends and line (distance). A selected hatch (a solid fill too) or strip
+   move it), dimension ends and line (distance), and the blue reference between a dimension's
+   (or angle's) scaled and annotative parts, in the middle of the stretches (`Grip::Reference`):
+   dragging it changes the scaled part, the annotative part keeping its value and the dimension
+   line or arc following (an angle's scaled radius never negative). A selected hatch (a solid fill too) or strip
    shows its boundaries' or path's grips with its own (`Drawing::grip_targets`): dragging them
    reshapes what follows them. A hatch moved, turned, scaled, mirrored or copied on its own takes
    its boundaries along.
@@ -372,7 +398,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    them one by one (back to all at the end), the counter goes back to the family, **Only these**
    reduces the selection to them (the old one becomes Previous); the sheet shows them in orange.
    General: layer, colour, lineweight, linetype, each ByLayer or the objects' own, "Varies" when
-   they differ (`ui.cadLayer`, `ui.cadStroke`). Geometry of one object: coordinates, radii and
+   they differ; for dimensions, angles and level marks the lineweight and linetype say ByStyle
+   (their dimension style's, which may itself be ByLayer), and either shows the value it comes
+   to when the objects agree ("ByStyle · 0.18 mm") (`ui.cadLayer`, `ui.cadStroke`). Geometry of one object: coordinates, radii and
    angles take a number or an expression of the calculations (`L/2` stays linked); a line's length
    and angle and a circle's diameter recompute it (a diameter expression `D` gives `r = (D)/2`);
    a polyline shows one vertex at a time and Closed; a text its value, height and rotation; a
@@ -413,7 +441,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    linear sizes with their unit (`3.50 m`, the unit of the style's Dimension units; SIA 400: m or
    cm as shown); off by default, as before. Level marks take the dimension styles; the Level
    Style window sets their **text height** (`levelText`, 0: the dimension text's), **triangle
-   height** (`levelMark`, 0: a text and a fifth) and **Show the unit** (`levelUnit`: `+3.00 m`),
+   height** (`levelMark`, 0: a text and a fifth), the **reference line**'s length from the tip on
+   the text side and on the other (`levelLineText`, `levelLineOther`, 0: a triangle height) and
+   **Show the unit** (`levelUnit`: `+3.00 m`),
    all written only when set. **Text grips**: a selected dimension or level mark has a grip on
    its text; dragged anywhere, the text moves (`textShift: [dx, dy]`, drawing units: in scale,
    it follows the drawing; converted with the unit), with a thin leader back to the dimension
@@ -452,6 +482,26 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    hold it. A drawing never takes itself, two drawings never take each other, and an underlay's
    own underlay is never drawn (one level deep); at most 5000 of its objects are drawn and snapped
    to. A source deleted or unreadable shows nothing and says so on the status bar.
+   An underlay **printed** with the drawing is part of its picture everywhere a size is worked
+   out: with a maximum size the fitted scale makes room for every object of both (the scales
+   offered and a scale typed by hand too: `Drawing::fits_at` measures
+   `Drawing::with_printed_underlay`), the page and the PDF show both within the frame, and the
+   editor's Zoom Fit takes both in. The document hands the drawing its underlay's source worked
+   out (`Drawing::under_source`, never saved; a source later in the document is worked out by a
+   second pass, only then); an underlay shown only in the editor counts for none of these.
+   The underlay shows its source **as it is where it sits**: its texts' parameters, dimension,
+   angle and level labels written out with the source's worksheet (`Drawing::freeze_labels`: the
+   values, the number format, the source's dimension styles and units), so they never read
+   `[L?]` or this drawing's values.
+   **Its layers and styles** come nested under the source's name (`pianta/Walls`,
+   `pianta/Standard` for its Standard dimension style, `pianta/Notes`; `Layer::from` marks the
+   layers; layers the source itself inherited keep their names): they never meet the drawing's
+   own, follow a rename of the source (`cad.name`), and the Layer Manager lists them under a row
+   with the drawing's name. They are not locked: the drawing draws on them and uses their styles
+   like its own. An inherited layer is never renamed and is removed only when no object is on it;
+   with an underlay that does not print they come set not to print, and Print with the drawing
+   switches them along (`Drawing::print_layers_from`). Import styles and layers only nests them
+   the same way.
    **Space here**: a drawing knows the space where it sits — its column's width and the height
    from its top down to the page's bottom margin (`cad.space`, from the layout) — a guide, not a
    limit: a new drawing takes it as its maximum size (the scale fitted to it), Maximum size and
@@ -469,20 +519,29 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    the angle (`<>°`) just outside the arc's middle, along the arc. A **right angle** (90° to a millionth
    of a degree: exact and parametric drawings) without a text of its own is drawn as the
    right-angle symbol instead: a square of side `r` on the vertex with a dot in it, no arc, no
-   marks, no "90°"; a text of its own (`<>°`) keeps the arc. **Continue** and **Baseline**
-   (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_continue`,
-   `dim_baseline`): from the one linear dimension selected, else the newest, each click adds a
-   dimension of the same orientation and look — Continue from the last one's second point, its
-   line on the last one's line (a chain); Baseline from the base's first point, each a row
+   marks, no "90°"; a text of its own (`<>°`) keeps the arc. The square is picked anywhere
+   inside with one click. **Continue** and **Baseline**
+   (`dimContinue dco quotaContinua`, `dimBaseline dba quotaBase`; `Drawing::dim_chain`,
+   `dim_end_near`): from the one linear dimension selected; else they first ask for the dimension
+   to go on from (the one under the cursor haloed): the click picks it and the end nearest the
+   click (Continue from the picked end, the other way round when it is the first point; Baseline
+   from it), Enter takes the newest. Then each click adds a dimension of the same orientation
+   and look — Continue from the last one's far end, its line on the last one's line (a chain);
+   Baseline from the base's start, each a row
    (`Drawing::dim_row`: 1.5 texts and a gap, paper mm) further out, away from the points. The
    first point keeps its expression (a chain from `L` starts at `L`). **Level marks**
    (`level {p, datum, text, flip, left}`; tool `level liv quotaLivello`, one click per mark, each
    like the last one: datum, side, way up): a triangle standing on the level, half filled on the
-   text side, a short line through its tip and a line along its top under the elevation —
+   text side, a short line through its tip and a line along its top under the elevation, written
+   over the triangle from its far corner —
    `p`'s height above `datum` (the ±0.00 level, drawing units, an expression too) in metres, two
    decimals, signed (`+3.00`, `−1.50`, `±0.00`), with the document's decimal comma when it uses
    one; `text` takes `<>` and `{{L}}` as a dimension's. `flip` hangs it under the level (a
-   ceiling, a soffit), `left` puts the text on the left. Moving, scaling or stretching moves its
+   ceiling, a soffit), `left` puts the text on the left: the Properties pane shows them as
+   **Vertical mirror** and **Horizontal mirror**, each with a **Flip** button (lit while
+   mirrored). `fill` (**Fill** in the pane) says what level it marks: `roughFinished` (the
+   default, half filled), `rough` (black) or `finished` (empty); a new mark takes the last one's.
+   Moving, scaling or stretching moves its
    point, so the elevation follows; the datum stays. **Flip** (`ui.cadFlip`, Dimensions › Flip
    and the right-click menu; `Drawing::flip_dims`): a linear dimension's line to the other side
    of its points, an angle's other side (360° − the angle), a level mark under or over its
@@ -505,7 +564,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    becomes an arc (it needs two crossings), a closed polyline an open one, arcs of polylines keep
    their bulges in proportion; an object nothing crosses goes. Extend runs the end nearer the pick
    to the first object ahead: a line along itself, an arc round its circle, a polyline's end
-   segment (straight or arc). Both go on for the next pick. Fillet joins two lines with an arc of
+   segment (straight or arc). Both go on for the next pick. Before the click the editor shows
+   what it would do (`Drawing::trim_preview`, `extend_preview`): Trim the piece it would take
+   away, red; Extend the stretch it would add. Offset, Fillet, Chamfer and Match Properties halo
+   the object under the pointer (and the first one picked), and Offset, Fillet and Chamfer show
+   their result dashed. Fillet joins two lines with an arc of
    the radius typed (0, the default, makes the corner), Chamfer with a bevel the distance typed
    from the corner (equal on both); the parts picked are kept, each line trimmed or extended to
    the arc or bevel, which takes the first line's layer and stroke; the size is kept while the
@@ -522,7 +585,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    strip's pattern, angle, spacing; a dimension's end mark) until Enter. Stretch takes a
    crossing window, a base point and a second point: points of lines, polylines and dimensions
    inside the window move (as Move moves them: `L` becomes `L + 5`), circles, points and texts
-   move with their centre or point, an arc moves when it is inside whole. The rectangular array
+   move with their centre or point, an arc moves when it is inside whole (its ends and the quadrant points it passes through; its centre may be outside). The rectangular array
    (Serie; `Drawing::array_series`, `Series::plan`, `crates/cad/src/series.rs`) copies the
    selection from a base point to an end point: a single row or column (`1x5`, `5x1`) runs along
    the line between them in any direction, more of each make a grid with the end point its far
@@ -568,6 +631,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    the pointer until the click. At most `MAX_BLOCKS` (256) blocks, holding the drawing's entity
    limit together; nested blocks are kept as their objects; an array of insertions is a plain
    group.
+   **Lineweights on screen**: the sheet draws every line at its width on paper at the current
+   zoom (`stroke_px`: a 0.5 mm line is twice a 0.25 mm one, as it prints), a 0.5 pt hairline at
+   the thinnest.
    **Line samples** in the panes and menus (linetype, lineweight, a layer's preview) are drawn on
    the sheet's white, as on paper, so a black line reads in the dark theme too.
    **Hatch** (CAD Annotate › Hatch; `hatch {boundary, pattern, angle, spacing}`; tool `hatch`,
@@ -607,9 +673,16 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
 
 ## Revision history
 
+- 2026-11-14: the printed underlay counts in the fitted scale, the scales offered, the page picture and Zoom Fit (`Drawing::under_source`, `with_printed_underlay`; a later source by a second pass); the underlay shows its source's labels as they read there (`freeze_labels`); inherited layers and all styles nested under the source's name (`Layer::from`), following its rename, never renamed, removed only when empty, not printed with an underlay that is not (`print_layers_from`), listed under the drawing's name in the Layer Manager; length parameters in dimensions follow the dimension style (`dim_params`); `{x}` parameter menu beside annotation texts; Dimension line snap (`SnapKind::DimLine`, `snap.dimLine`); right angles picked in their square; the style windows keep the keyboard (the command line no longer takes the focus under them) and line up their fields.
+- 2026-11-14: Trim and Extend show what they would take away or add before the click, Offset, Fillet, Chamfer and Match Properties halo the objects (with the result dashed); a dimension's own end mark (`markEnd`); dimension styles' first unit is the input unit; the ribbon's layer box shows the selection's layer (blank across several) and moves the selection to the layer chosen; the reference grip keeps the annotative part (the line follows).
+- 2026-11-14: the input unit is the only unit shown: the Properties pane (coordinates, radii, lengths, scaled distances), `ui.cadProps`, the status line, the dimension overlay and a new block's size show and read lengths in it (`Drawing::fields_typed`, `set_field_typed`); the drawing's own unit (mm) is no longer shown (the Unit rows of the Properties pane and the Picture tab are gone, Input unit offers mm, cm, m).
+- 2026-11-14: a grip on the reference between a dimension's scaled and annotative parts (`Grip::Reference`, the line or arc staying put); the editor draws lines at their paper width at the zoom (it showed every lineweight about the same).
 - 2026-11-13: completion drawings (`F6`): `answer` flag on layers and entities (`Layer Manager › Answer`, `Properties › Solution only`), pagination-invariant `Drawing::render_for` keeping exact bounds, origin and scale when an exercise hides its solution, and `Student Preview` (`ui.cadToggle {"what": "student"}`) on the CAD editor ribbon.
 - 2026-11-12: blocks: Create Block (annotative or not, base point picked or the selection's centre or corner) and Insert Block (proposed scale `N / N₀` for annotative blocks, kept the same size on paper when the drawing's scale changes), from the ribbon's Block group, the context menu, `B`/`I` and `ui.cadBlock`.
 - 2026-11-12: the rectangular array (Serie) from a base point to an end point, spaced to fit it, at an exact spacing (interasse rigoroso) or spread within one (spalmato), along a line in any direction or as a grid; arrays (rectangular, polar) are one object, a group picked whole, that Explode takes apart.
+
+- 2026-11-15: a dimension style's line width may be ByLayer and it has a linetype (Continuous by default, or ByLayer) for the dimension, extension and leader lines, an angle's arc and a level mark's lines; marks and triangles stay solid; an annotation's own stroke, else its style's, else its layer's (Properties says ByStyle and the value it comes to).
+- 2026-11-15: Continue and Baseline ask for the dimension to go on from (unless one is selected) and go on from the end picked; Enter takes the newest; the dimension style's mark width from the lineweights' menu.
 
 - 2026-11-12: texts picked anywhere in their box, with a grip at each corner (`Grip::Corner`), the box measured by the editor in the text's own font (`Rendered::texts`, `TextWidths`); arrowheads picked inside; a selected hatch shows its boundaries' grips (a strip its path's), and a hatch moved, turned or copied on its own takes its boundaries along.
 

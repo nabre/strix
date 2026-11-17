@@ -127,6 +127,9 @@ pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
     if s.sel.focus.path.cell().is_some() {
         tabs.push("Table Design");
         tabs.push("Table Layout");
+        if super::strix::in_calc_table(s) {
+            tabs.push(super::strix::CALC_TABLE_TAB);
+        }
     }
     if has_picture_selected(s) {
         tabs.push("Picture Format");
@@ -143,6 +146,7 @@ pub fn contextual_tabs(s: &wordcraft_engine::Session) -> Vec<&'static str> {
     if wordcraft_engine::cmd::cad::is_selected(s) {
         tabs.push("CAD Picture Format");
     }
+    tabs.extend(super::exercise::contextual(s));
     // Editing an equation.
     if s.math.is_some() {
         tabs.push("Equation");
@@ -392,6 +396,11 @@ pub fn plan_strip(tabs: &[TabSpec], buttons: [f32; 3], avail: f32, more: f32) ->
 /// Whether the caret is inside a table (so the contextual tabs and their badges are shown).
 pub fn in_table_public(app: &WordApp) -> bool {
     app.session.sel.focus.path.cell().is_some()
+}
+
+/// Whether the caret is inside a calculated table (so its own tab and badge are shown).
+pub fn in_calc_table_public(app: &WordApp) -> bool {
+    super::strix::in_calc_table(&app.session)
 }
 
 #[cfg(test)]

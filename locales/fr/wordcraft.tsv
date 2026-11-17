@@ -2447,7 +2447,7 @@ paper	Envelope DL	Enveloppe DL
 	Add a question at the end of the exercise at the cursor	Ajouter une question à la fin de l’exercice sous le curseur
 	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Ajouter une question imbriquée sous la dernière (a.1, a.1.1) ; Tab et Maj+Tab changent le niveau d’une question
 	Add a variant: a copy of the active one's values	Ajouter une variante : une copie des valeurs de la variante active
-	Add an initial datum: a symbol with its value in every variant	Ajouter une donnée initiale : un symbole avec sa valeur dans chaque variante
+	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Ajouter une donnée : une équation comme L = 4.5 m, avec sa valeur dans chaque variante
 	Add to CAD Drawing	Ajouter au dessin CAO
 	Advanced Properties…	Propriétés avancées…
 	Aligned texts	Textes alignés
@@ -2696,9 +2696,11 @@ paper	Envelope DL	Enveloppe DL
 	Text properties only: Word's number, date and yes-no types aren't offered.	Propriétés de texte uniquement : les types nombre, date et oui/non de Word ne sont pas proposés.
 	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Ce format ne conserve pas tout, le document reste donc ouvert. Enregistrez-le comme document Strix (.xmath) pour continuer.
 	That would make the object degenerate	Cela rendrait l’objet dégénéré
-	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	Les données sont les premiers paramètres des calculs de l’exercice : la solution les utilise par symbole. Changer de variante recalcule l’exercice.
+	Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise.	Chaque donnée est une équation (L = 4.5 m) : la résolution l'utilise par son symbole. L'exercice liste les données qu'il ne montre pas déjà ailleurs, et on peut aussi les y modifier directement. Changer de variante recalcule l'exercice.
 	The document has no subdocuments.	Le document n’a aucun sous-document.
-	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ =) ; une cellule écrite là garde son propre texte (moyenne =, max =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ dans la première colonne, les sommes sous leurs colonnes) ; une cellule écrite là garde son propre texte (moyenne =, max =)
+	Column Total	Total de la colonne
+	Sum the column at the cursor in the total row, or leave its cell there empty	Additionner la colonne du curseur dans la ligne des totaux, ou laisser sa cellule vide
 	The layer of the selected objects becomes the current layer	Le calque des objets sélectionnés devient le calque courant
 	The number must be a divisor of {max}.	Le nombre doit être un diviseur de {max}.
 	The spelling dictionary for {language} couldn't be read, so it isn't checked. File: {file}. Reason: {reason}	Le dictionnaire orthographique pour {language} n’a pas pu être lu, l’orthographe n’est donc pas vérifiée. Fichier : {file}. Raison : {reason}
@@ -2880,6 +2882,9 @@ paper	Envelope DL	Enveloppe DL
 	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Choisir ce que montre l’exercice (tous les exercices d’une série) : les parties masquées restent dans le document comme texte masqué
 	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Données et variantes, sauts de page, numérotation, parties affichées et papier millimétré, dans le volet Propriétés de l’exercice
 	Download updates automatically	Télécharger les mises à jour automatiquement
+	Check for updates automatically	Rechercher automatiquement les mises à jour
+	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	Au démarrage puis une fois par jour, Strix Writer demande à GitHub la liste de ses versions. Rien sur vous, votre ordinateur ou vos documents n'est envoyé.
+	Strix Writer looks for a newer version only when you choose Check for Updates.	Strix Writer ne recherche une version plus récente que lorsque vous choisissez Rechercher des mises à jour.
 	Drawing Space	Espace du dessin
 	Drawing Underlay	Sous-couche du dessin
 	Drawings of the Document	Dessins du document
@@ -2946,12 +2951,10 @@ paper	Envelope DL	Enveloppe DL
 	Decide Later	Décider plus tard
 	Objects Changed in Another Program	Objets modifiés dans un autre programme
 	DSA	TSA
-	Reading (dyslexia)	Lecture (dyslexie)
-	Writing (dysgraphia)	Écriture (dysgraphie)
-	Maths and Memory (dyscalculia)	Calcul et mémoire (dyscalculie)
-	No DSA Formatting	Aucune mise en forme TSA
-	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Mise en forme TSA : le contrôle mis en page pour les élèves ayant des troubles spécifiques des apprentissages ; les versions se combinent
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+	Reading\n(dyslexia)	Lecture\n(dyslexie)
+	Writing\n(dysgraphia)	Écriture\n(dysgraphie)
+	Maths and Memory\n(dyscalculia)	Calcul et mémoire\n(dyscalculie)
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, texte à trous, tableau à compléter
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
 	Multiple Choice	Choix multiple
@@ -3044,8 +3047,6 @@ paper	Envelope DL	Enveloppe DL
 	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
 	Give the block a name	Donnez un nom au bloc
 	Variants & Data	Variantes et données
-	Show data in exercise	Afficher les données dans l'exercice
-	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Affiche le bloc Données dans l'exercice ; désactivé, les valeurs restent uniquement dans l'espace de calcul
 	Question Mode	Mode de la question
 	Question Points	Points de la question
 	Mode	Mode
@@ -3132,18 +3133,12 @@ paper	Envelope DL	Enveloppe DL
 	Uncertainty in Quadrature (GUM)	Incertitude en quadrature (GUM)
 	Worked Example	Exemple résolu
 	Inline Completion	Texte à trous
-	Table to Complete	Tableau à compléter
 	Matching	Appariement
 	Inline Blank	Lacune dans le texte
-	Student Blank Cell	Cellule à compléter
 	Grade	Niveau
 	Profession	Filière
 	Teacher	Enseignant
 	Pairs (left = right)	Paires (gauche = droite)
-	Student Blanks	Lacunes pour les élèves
-	Choose which calculated cells students complete	Choisir les cellules calculées à compléter
-	Student Blank Column	Colonne à compléter
-	Show Cell Value	Afficher la valeur de la cellule
 	School Subject	Matière
 	Score	Points
 # Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
@@ -3167,6 +3162,37 @@ paper	Envelope DL	Enveloppe DL
 	Y axis	Axe Y
 	Minor grid	Grille secondaire
 	Student blank grid (solution only)	Repère vierge élève (solution seule)
+	Line	Ligne
+	Solid line	Ligne continue
+	Dashed line	Ligne tiretée
+	Dotted line	Ligne pointillée
+	Dash-dot line	Ligne mixte (trait-point)
+	Zeros	Zéros
+	Minimum	Minimum
+	Maximum	Maximum
+	Tangent	Tangente
+	Insert Analysis in Document	Insérer l'analyse dans le document
+	Writes after the plot each function's definition and live calculations of its zeros, extrema, tangent and integral	Écrit après le graphique la définition de chaque fonction et les calculs dynamiques de ses zéros, extremums, tangente et intégrale
+	Abscissa	Abscisse
+	Ordinate	Ordonnée
+	The axis name, written at the tip of its arrow; when it is a name (x, E, t), the formulas use it as their variable	Le nom de l'axe, écrit à la pointe de sa flèche ; si c'est un nom (x, E, t), les formules l'utilisent comme variable
+	Reference System	Repère
+	Angles	Angles
+	Angle unit	Unité d'angle
+	Surveying (clockwise)	Topographique (sens horaire)
+	Mathematical (counter-clockwise)	Mathématique (sens antihoraire)
+	Angles start from the positive ordinate and turn clockwise, like a bearing from north	Les angles partent de l'ordonnée positive et tournent dans le sens horaire, comme un gisement depuis le nord
+	Angles start from the positive abscissa and turn counter-clockwise	Les angles partent de l'abscisse positive et tournent dans le sens antihoraire
+	Radians (rad)	Radians (rad)
+	Degrees (°)	Degrés (°)
+	Gradians (gon)	Grades (gon)
+	Show angle direction	Afficher le sens des angles
+	Draw an arc with an arrow from the reference axis in the direction angles grow	Dessine un arc fléché depuis l'axe de référence dans le sens où les angles croissent
+	Polar	Polaire
+	Full turn	Tour complet
+	Ranges	Plages
+	Automatic	Automatique
+	Fit the ranges to what the plot shows: roots, extrema, tangent points, integral bounds, data and curves	Ajuste les plages à ce que le graphique montre : zéros, extremums, points de tangence, bornes d'intégration, données et courbes
 	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Sur la copie élève, trace uniquement le repère et la grille pour que les élèves tracent la courbe à la main
 	Series	Séries
 	Parametric	Paramétrique
@@ -3184,3 +3210,103 @@ paper	Envelope DL	Enveloppe DL
 	Section	Section
 	Set Plot	Définir le graphique
 	select a plot first	sélectionnez d’abord un graphique
+	Add a question at the end of the exercise	Ajouter une question à la fin de l'exercice
+	Answer Space	Espace de réponse
+	A problem's questions are answered in its solution.	Les questions d'un problème trouvent leur réponse dans sa solution.
+	Grade step	Pas des notes
+	Correct Options	Options correctes
+	Curve	Courbe
+	Custom	Personnalisé
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Supprimer tout l'exercice : énoncé, questions et solution (Annuler le rétablit)
+	Duration	Durée
+	Exercises	Exercices
+	Fixed maximum	Maximum fixe
+	From the document's points ({points})	D'après les points du document ({points})
+	General	Général
+	Points rounded to the multiple of	Points arrondis au multiple de
+	Hidden now: the solutions are hidden (student copy).	Masquée pour l'instant : les solutions sont masquées (copie élève).
+	Highest grade	Note la plus haute
+	How far an answer may be from the result and still be right: 2% or 0.1 cm	De combien une réponse peut s'écarter du résultat et rester juste : 2% ou 0,1 cm
+	Insert Grading Scale	Insérer le barème
+	Like the last one	Comme la dernière
+	Lowest grade	Note la plus basse
+	No question yet: write one in the exercise, or add one.	Aucune question pour l'instant : écrivez-en une dans l'exercice ou ajoutez-en une.
+	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	Les points de chaque note sont calculés exactement d'après la courbe, puis arrondis à ce multiple (0,01 : centièmes)
+	One pair per line: left = right	Une paire par ligne : gauche = droite
+	Pairs	Paires
+	Pass grade	Note de réussite
+	Pass Mark	Seuil de réussite
+	Pass threshold	Seuil de réussite
+	Piecewise (pass threshold)	Par morceaux (seuil de réussite)
+	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	Par morceaux : le seuil de réussite des points donne la note de réussite, et les notes montent régulièrement en dessous et au-dessus. Linéaire : la note suit les points régulièrement.
+	Preset	Préréglage
+	Preview	Aperçu
+	Put the cursor in this exercise's title	Placer le curseur dans le titre de cet exercice
+	(question not written yet)	(question pas encore écrite)
+	Remove Grading Scale	Supprimer le barème
+	Result	Résultat
+	Shown In	Affiché dans
+	Show this question's settings	Afficher les réglages de cette question
+	Student and teacher copies	Copies élève et enseignant
+	Take the grading scale table out of the document (Undo brings it back)	Retirer le barème du document (Annuler le rétablit)
+	Teacher copy only	Copie enseignant seulement
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Le document n'a pas de barème. Insérez-en un : il convertit les points obtenus en note.
+	The most points this question gives; empty: not scored	Le maximum de points de cette question ; vide : sans points
+	The scores table's grand total, else the questions' points added up	Le total du tableau des points, sinon la somme des points des questions
+	Type	Type
+	Write the options in the exercise: each line under the question is one.	Écrivez les options dans l'exercice : chaque ligne sous la question en est une.
+	Grading Scale Properties	Propriétés du barème
+	Title Line	Ligne de titre
+	The result line is generated from the working: write the working in the space above it.	La ligne de résultat est générée à partir du calcul : écrivez le calcul dans l'espace au-dessus.
+	Inline Value	Valeur dans le texte
+	Value and Unit	Valeur et unité
+	Symbol = Value	Symbole = valeur
+	Number Only	Nombre seul
+	Delete Value	Supprimer la valeur
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Ce que montre la valeur : une donnée (R), un calcul (2*R) ou une conversion (R -> cm). Entrée l'applique.
+	Download Thesaurus	Télécharger le thésaurus
+	Thesaurus Pane	Volet Thésaurus
+	Download the {name} thesaurus	Télécharger le thésaurus {name}
+	Downloading the {name} thesaurus…	Téléchargement du thésaurus {name}…
+	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Télécharge le thésaurus {name} depuis les dictionnaires de LibreOffice ({source}), sous licence {licence}, avec les fichiers qui indiquent sa licence, dans votre dossier de dictionnaires. Le thésaurus et le menu Synonymes l'utilisent aussitôt.
+	The {name} thesaurus is installed: synonyms in {language} come from it now.	Le thésaurus {name} est installé : les synonymes en {language} en proviennent désormais.
+	The {name} thesaurus couldn't be downloaded: {reason}	Impossible de télécharger le thésaurus {name} : {reason}
+	Search for a word	Rechercher un mot
+	Look up	Rechercher
+	Put the insertion point in a word, or type one above, to see its synonyms.	Placez le point d'insertion dans un mot, ou tapez-en un ci-dessus, pour voir ses synonymes.
+	No synonyms found for “{word}”.	Aucun synonyme trouvé pour « {word} ».
+	Showing “{entry}”.	Affichage de « {entry} ».
+	Look up this word	Rechercher ce mot
+	Replace the word at the insertion point with this one	Remplacer le mot au point d'insertion par celui-ci
+	From the {name} thesaurus.	Tiré du thésaurus {name}.
+	From Strix's short built-in list.	Tiré de la courte liste intégrée de Strix.
+	The thesaurus couldn't be read: {reason}	Impossible de lire le thésaurus : {reason}
+	No thesaurus for {language} is installed yet.	Aucun thésaurus n'est encore installé pour {language}.
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes
+	Description	Description
+	High contrast only	Contraste élevé uniquement
+	Hide Words	Masquer des mots
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Masque les mots sélectionnés pour un texte à trous à compléter à la main : la copie corrigée les montre, celle des élèves une ligne pour écrire ([[mot]] saisi dans une question à compléter fait de même)
+	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	L'épaisseur des traits des extrémités ; Automatique : un trait oblique plus épais que la ligne, une flèche aussi fine
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	choisissez la cote à prolonger, près de l'extrémité de départ (Entrée : la dernière)
+	Pick a linear dimension	Choisissez une cote linéaire
+	ByStyle	Par style
+	ByLayer / ByStyle	Par calque / Par style
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Lignes de cote, d'attache et de repère ; Par calque : celle du calque. Les extrémités gardent leur épaisseur
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Lignes de cote, d'attache et de repère ; Par calque : celui du calque. Extrémités et textes restent continus
+	Vertical mirror	Miroir vertical
+	Horizontal mirror	Miroir horizontal
+	Fill	Remplissage
+	Rough and finished level	Brut/fini
+	Rough level	Brut
+	Finished level	Fini
+	Reference line, text side	Trait de référence, côté texte
+	Reference line, other side	Trait de référence, côté opposé
+	0: automatic (the triangle height)	0 : automatique (la hauteur du triangle)
+	Symbols Pane	Volet Symboles
+	Close\nEquation	Fermer\nl’équation
+	Check\nAssessment	Contrôler\nl’évaluation
+mark	Grade	Note
+	Points: a number, or empty for a question that is not scored	Points : un nombre, ou vide pour une question non notée
+	Duration: 1 to 600 minutes, or empty	Durée : de 1 à 600 minutes, ou vide
+	Scale: a point away from the base point, or a factor above 0	Échelle : un point éloigné du point de base, ou un facteur supérieur à 0

@@ -840,6 +840,12 @@ fn paint_draw_to_review(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(8.5, 5.5), (8.5, 10.5)], a);
             pen.lines(6.0, 11.0, &[13.5]);
         }
+        "hideWords" => {
+            pen.lines(3.0, 17.0, &[5.0, 15.0]);
+            pen.line(&[(3.0, 10.0), (6.0, 10.0)]);
+            pen.line_c(&[(7.5, 11.5), (12.5, 11.5)], a);
+            pen.line(&[(14.0, 10.0), (17.0, 10.0)]);
+        }
         "citation" => {
             pen.text(6.0, 9.0, 14.0, "“", a, true);
             pen.lines(9.0, 17.0, &[6.0, 10.0, 14.0]);
@@ -1271,6 +1277,24 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.lines(4.8, 8.2, &[9.5, 12.5, 15.2]);
             pen.lines(11.8, 15.2, &[9.5, 12.5, 15.2]);
         }
+        // DSA, reading: widely spaced letters over a reading ruler.
+        "dsaReading" => {
+            pen.text(5.5, 8.5, 11.0, "A", c, true);
+            pen.text(14.0, 9.5, 11.0, "a", c, true);
+            pen.line_c(&[(2.5, 16.0), (17.5, 16.0)], a);
+        }
+        // DSA, writing: graph paper with a pen stroke across it.
+        "dsaWriting" => {
+            pen.rect(3.0, 3.0, 17.0, 17.0, c);
+            pen.line(&[(3.0, 10.0), (17.0, 10.0)]);
+            pen.line(&[(10.0, 3.0), (10.0, 17.0)]);
+            pen.line_c(&[(5.0, 14.5), (7.5, 12.0), (9.5, 14.5), (12.0, 12.0), (14.5, 14.5)], a);
+        }
+        // DSA, maths and memory: the data in a frame.
+        "dsaMath" => {
+            pen.rect(2.5, 4.5, 17.5, 15.5, a);
+            pen.text(10.0, 10.0, 8.5, "1+2", c, true);
+        }
         "checkAssessment" => {
             let green = Color32::from_rgb(0x2E, 0x8B, 0x57);
             pen.page(3.5, 2.0, 15.0, 17.5);
@@ -1415,6 +1439,14 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
             pen.line_c(&[(2.0, 12.0), (18.0, 12.0)], c);
             pen.text(10.0, 14.5, 6.5, "Σ", a, false);
+        }
+        // Column Total: a table with one column picked out, a sum sign at its foot.
+        "calcColumnTotal" => {
+            pen.line_c(&[(2.0, 3.0), (18.0, 3.0), (18.0, 17.0), (2.0, 17.0), (2.0, 3.0)], c);
+            pen.line_c(&[(2.0, 7.0), (18.0, 7.0)], c);
+            pen.line_c(&[(7.5, 3.0), (7.5, 17.0)], c);
+            pen.line_c(&[(12.5, 3.0), (12.5, 17.0), (18.0, 17.0), (18.0, 3.0), (12.5, 3.0)], a);
+            pen.text(15.25, 14.0, 6.0, "Σ", a, false);
         }
         // A level mark: the triangle on its tip, half filled, the line and a value over it.
         "cadLevel" => {

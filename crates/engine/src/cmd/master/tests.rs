@@ -94,6 +94,34 @@ fn changes_on_both_sides_are_a_conflict_not_an_overwrite() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// Found in review: Keep This Version on one subdocument's card forced every subdocument's file
+/// to be written, also one never edited in the master whose file had changed since: that file
+/// went back to the master's older copy.
+#[test]
+fn keeping_one_subdocuments_version_leaves_the_other_files_alone() {
+    let d = dir("keep-one");
+    let (a, b) = (d.join("a.xmath"), d.join("b.xmath"));
+    file(&a, "First original");
+    file(&b, "Second original");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    run(&mut s, "master.insertSubdocument", json!({"path": a.to_str().unwrap()}));
+    run(&mut s, "caret.docEnd", json!({}));
+    run(&mut s, "master.insertSubdocument", json!({"path": b.to_str().unwrap()}));
+    run(&mut s, "select.text", json!({"text": "First original"}));
+    run(&mut s, "text.insert", json!({"text": "First in the master"}));
+    file(&a, "First on disk");
+    file(&b, "Second changed by someone else");
+    let r = run(&mut s, "master.saveSubdocuments", json!({"force": true, "path": a.to_str().unwrap()}));
+    assert_eq!(r["saved"].as_array().unwrap().len(), 1, "{r}");
+    assert!(text_of(&a).contains("First in the master"));
+    assert!(text_of(&b).contains("Second changed by someone else"), "the other file is not touched");
+    // Forced for all: still only what was edited in the master.
+    let r = run(&mut s, "master.saveSubdocuments", json!({"force": true}));
+    assert!(text_of(&b).contains("Second changed by someone else"), "{r}");
+    assert!(s.run("master.saveSubdocuments", &json!({"path": 3})).is_err());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 #[test]
 fn create_makes_a_file_of_the_selected_paragraphs() {
     let d = dir("create");
@@ -316,4 +344,185 @@ fn style_and_numbering_changes_in_the_master_stay_in_the_master() {
     std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
     crate::cmd::master::after_open(&mut s);
     assert_eq!(run(&mut s, "exercise.numbering", json!({}))["separator"], json!(")"));
+}
+
+/// Create with `"overwrite": true` replaces the file there: nothing of the document it held stays
+/// in the new one, neither its frontispiece nor its document properties.
+#[test]
+fn create_over_an_existing_file_replaces_it_whole() {
+    let d = dir("replace");
+    let old = d.join("old.xmath");
+    // The file there: a test of its own, with a frontispiece and archive properties.
+    let mut f = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut f.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut f, "exercise.insert", json!({"title": "Vecchio", "questions": ["q"]}));
+    run(&mut f, "exercise.frontispiece", json!({"on": true}));
+    run(&mut f, "text.insert", json!({"text": "Verifica di prima"}));
+    run(&mut f, "archive.properties", json!({"subject": "Fisica", "grade": 3}));
+    run(&mut f, "file.saveAs", json!({"path": old.to_str().unwrap()}));
+    assert!(text_of(&old).contains("Verifica di prima"));
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Intro\nCapitolo nuovo\nEnd"}));
+    run(&mut s, "select.text", json!({"text": "Capitolo nuovo"}));
+    assert!(s.run("master.createSubdocument", &json!({"path": old.to_str().unwrap()})).is_err(), "not unasked");
+    run(&mut s, "master.createSubdocument", json!({"path": old.to_str().unwrap(), "overwrite": true}));
+    let t = text_of(&old);
+    assert!(t.contains("Capitolo nuovo"), "{t:?}");
+    assert!(!t.contains("Verifica di prima") && !t.contains("Vecchio"), "{t:?}");
+    let back = crate::io::open_path(&old).unwrap();
+    assert_eq!(back.core.subject, "");
+    assert!(back.custom_props.is_empty(), "{:?}", back.custom_props);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// A master loaded without `file.open` (as `strix-cli run` did, or a recovered copy): this session
+/// never compared its subdocuments with their files.
+fn loaded_raw(book: &std::path::Path) -> Session {
+    let mut s = Session::new(crate::io::open_path(book).unwrap());
+    s.path = Some(book.to_path_buf());
+    s
+}
+
+/// Found in review: a master that never read its files wrote its old copy over a chapter edited
+/// on its own since, and reported it saved. A subdocument this session never compared with its
+/// file, and that differs from it, is a conflict; one that is what the file holds is unchanged.
+#[test]
+fn a_master_that_never_read_its_files_does_not_overwrite_them() {
+    let d = dir("never-read");
+    let (ch1, ch2, book, copy) = (d.join("ch1.xmath"), d.join("ch2.xmath"), d.join("book.xmath"), d.join("copy.xmath"));
+    file(&ch1, "Chapter one\nFirst text");
+    file(&ch2, "Chapter two\nSecond text");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    run(&mut s, "document.setText", json!({"text": "Book"}));
+    for p in [&ch1, &ch2] {
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "master.insertSubdocument", json!({"path": p.to_str().unwrap()}));
+    }
+    run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    // Chapter one edited on its own after the master's last save.
+    file(&ch1, "Chapter one\nEdited alone");
+    let ch2_before = std::fs::read(&ch2).unwrap();
+    let mut s = loaded_raw(&book);
+    let r = run(&mut s, "file.saveAs", json!({"path": copy.to_str().unwrap()}));
+    let subs = &r["subdocuments"];
+    assert_eq!(subs["conflicts"], json!([ch1]), "{r}");
+    assert_eq!(subs["saved"], json!([]), "{r}");
+    assert_eq!(subs["unchanged"], json!([ch2]), "{r}");
+    assert!(text_of(&ch1).contains("Edited alone"), "{}", text_of(&ch1));
+    assert_eq!(std::fs::read(&ch2).unwrap(), ch2_before);
+    // Both versions are kept: the conflict is marked, and settled as any other.
+    let list = run(&mut s, "master.subdocuments", json!({}));
+    assert_eq!(list["subdocuments"][0]["conflict"], json!(true), "{list}");
+    assert!(body(&s).contains("First text"));
+    run(&mut s, "master.refresh", json!({"path": ch1.to_str().unwrap()}));
+    assert!(body(&s).contains("Edited alone") && !body(&s).contains("First text"), "{:?}", body(&s));
+    // Once in step, an edit in the master is written as usual.
+    run(&mut s, "select.text", json!({"text": "Second text"}));
+    run(&mut s, "text.insert", json!({"text": "Second in the book"}));
+    let r = run(&mut s, "file.save", json!({}));
+    assert_eq!(r["subdocuments"]["saved"], json!([ch2]), "{r}");
+    assert!(text_of(&ch2).contains("Second in the book"));
+    assert!(text_of(&ch1).contains("Edited alone"));
+
+    // The master's version, never compared (a recovered copy's edits): kept, and written when
+    // the person says so.
+    file(&ch1, "Chapter one\nOn disk");
+    let mut s = loaded_raw(&copy);
+    run(&mut s, "select.text", json!({"text": "Edited alone"}));
+    run(&mut s, "text.insert", json!({"text": "Recovered edit"}));
+    let r = run(&mut s, "master.saveSubdocuments", json!({}));
+    assert_eq!(r["conflicts"], json!([ch1]), "{r}");
+    assert_eq!(r["unchanged"], json!([ch2]), "{r}");
+    assert!(text_of(&ch1).contains("On disk"));
+    assert!(body(&s).contains("Recovered edit"));
+    let r = run(&mut s, "master.saveSubdocuments", json!({"force": true, "path": ch1.to_str().unwrap()}));
+    assert_eq!(r["saved"], json!([ch1]), "{r}");
+    assert!(text_of(&ch1).contains("Recovered edit"));
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The same with exercises, whose copy in the master carries the master's series: a file the
+/// master's copy still matches is in step, not a conflict.
+#[test]
+fn exercises_never_read_and_unchanged_are_in_step() {
+    let d = dir("never-read-exercises");
+    let (a, b, book) = (d.join("a.xmath"), d.join("b.xmath"), d.join("book.xmath"));
+    exercise_file(&a, "Area");
+    exercise_file(&b, "Pendenza");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Libro"}));
+    for p in [&a, &b] {
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "master.insertSubdocument", json!({"path": p.to_str().unwrap()}));
+    }
+    run(&mut s, "exercise.show", json!({"solution": false}));
+    run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    let before = (std::fs::read(&a).unwrap(), std::fs::read(&b).unwrap());
+    let mut s = loaded_raw(&book);
+    let r = run(&mut s, "file.save", json!({}));
+    assert_eq!(r["subdocuments"]["unchanged"].as_array().unwrap().len(), 2, "{r}");
+    assert_eq!((std::fs::read(&a).unwrap(), std::fs::read(&b).unwrap()), before);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// Found in review: the subdocuments were written before the master itself; when that save
+/// failed their files were already changed. They are written once the master is.
+#[test]
+fn a_failed_save_of_the_master_leaves_the_subdocument_files_alone() {
+    let d = dir("failed-save");
+    let (ch, book) = (d.join("ch.xmath"), d.join("book.xmath"));
+    file(&ch, "Original");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    run(&mut s, "master.insertSubdocument", json!({"path": ch.to_str().unwrap()}));
+    run(&mut s, "select.text", json!({"text": "Original"}));
+    run(&mut s, "text.insert", json!({"text": "Edited in the book"}));
+    let nowhere = d.join("no-such-folder").join("book.xmath");
+    assert!(s.run("file.saveAs", &json!({"path": nowhere.to_str().unwrap()})).is_err());
+    assert!(text_of(&ch).contains("Original"), "{}", text_of(&ch));
+    assert_eq!(run(&mut s, "master.subdocuments", json!({}))["subdocuments"][0]["edited"], json!(true));
+    // Saved where it can be: the edit goes to the file.
+    let r = run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+    assert_eq!(r["subdocuments"]["saved"], json!([ch]), "{r}");
+    assert!(text_of(&ch).contains("Edited in the book"));
+    // A conflict is still marked in the master's saved file.
+    run(&mut s, "select.text", json!({"text": "Edited in the book"}));
+    run(&mut s, "text.insert", json!({"text": "Master side"}));
+    file(&ch, "Disk side");
+    let r = run(&mut s, "file.save", json!({}));
+    assert_eq!(r["subdocuments"]["conflicts"], json!([ch]), "{r}");
+    let saved = crate::io::open_path(&book).unwrap();
+    assert!(super::subdocuments(&saved).iter().all(|x| x.link.conflict), "the mark is in the file");
+    assert!(text_of(&ch).contains("Disk side"));
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// Found in review: a subdocument file made from a master took the master's archive properties
+/// and, with DSA formatting on, its DSA styles (docs/archive.md: a master writes no property of
+/// its into the files; docs/master-documents.md: DSA formatting stays in the master).
+#[test]
+fn a_new_subdocument_file_takes_nothing_of_the_masters_own() {
+    let d = dir("new-file");
+    let part = d.join("part.xmath");
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+    run(&mut s, "document.setText", json!({"text": "Intro\nCapitolo nuovo\nEnd"}));
+    run(&mut s, "caret.docEnd", json!({}));
+    run(&mut s, "exercise.insert", json!({"title": "Area", "questions": ["q"]}));
+    run(&mut s, "archive.properties", json!({"subject": "Fisica", "grade": 3}));
+    run(&mut s, "design.dsa", json!({"reading": true}));
+    assert!(s.doc.styles.styles.iter().any(|st| st.id.starts_with("StrixDsa")));
+    run(&mut s, "select.text", json!({"text": "Capitolo nuovo"}));
+    run(&mut s, "master.createSubdocument", json!({"path": part.to_str().unwrap()}));
+    let back = crate::io::open_path(&part).unwrap();
+    assert!(back.plain_text(wordcraft_doc::StoryRef::Body).contains("Capitolo nuovo"));
+    assert_eq!(back.core.subject, "");
+    assert!(back.custom_props.is_empty(), "{:?}", back.custom_props);
+    let dsa: Vec<&str> = back.styles.styles.iter().map(|st| st.id.as_str()).filter(|id| id.starts_with("StrixDsa")).collect();
+    assert!(dsa.is_empty(), "{dsa:?}");
+    // The master keeps its own.
+    assert_eq!(s.doc.core.subject, "Fisica");
+    assert!(s.doc.styles.styles.iter().any(|st| st.id.starts_with("StrixDsa")));
+    let _ = std::fs::remove_dir_all(&d);
 }

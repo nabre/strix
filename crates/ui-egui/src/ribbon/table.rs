@@ -90,9 +90,9 @@ pub(super) fn table_design(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("table.shading", json!({"color": app.canvas.last_shading.clone()}), false),
                 sw,
                 |ui, app| {
-                    mi(ui, app, "No Color", "table.shading", json!({"color": null}));
                     let theme = app.session.doc.settings.theme_colors.clone();
-                    crate::colors::menu(ui, app, &theme, Target::cmd("table.shading").remember(Remember::Shading));
+                    let opts = crate::color_palette::Options::top(crate::color_palette::TopItem::none("No Color", serde_json::Value::Null)).fill();
+                    crate::colors::menu_with(ui, app, &theme, Target::cmd("table.shading").remember(Remember::Shading), &opts);
                 },
             );
         });
@@ -319,6 +319,5 @@ pub(super) fn table_layout(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "toText", Some("Convert to Text"), "Convert to Text", crate::widgets::ButtonAction::new("table.toText", json!({}), false));
             small(ui, app, "formula", Some("Formula"), "Formula", crate::widgets::ButtonAction::new("table.formula", json!({}), false));
         });
-        super::strix::calc_table_buttons(ui, app);
     });
 }

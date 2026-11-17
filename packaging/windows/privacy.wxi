@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strix's privacy page and update-check option (docs/code-signing.md, Privacy; docs/updates.md).
+     The installer shows what Strix sends over the network (only the update check, to GitHub) and
+     lets the person installing turn the automatic check off. Silent installs choose it with
+     msiexec UPDATECHECK=0.
+
+     Off writes strix-updates.ini ([Updates] Check=0) beside strix.exe, which the app reads
+     (crates/ui-egui/src/strix_update.rs, installed_check), and Software\Strix\UpdateCheck = 0 in the
+     installation's hive, so a later installer (an update, run unattended) keeps the choice. Both go
+     away on uninstall. In the app, File › Info › Updates changes it again. -->
+<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Property Id="UPDATECHECK" Value="1" Secure="yes" />
+  <Property Id="STRIX_UPDATES_OFF_U" Secure="yes"><RegistrySearch Id="StrixUpdatesOffUser" Root="HKCU" Key="Software\Strix" Name="UpdateCheck" Type="raw" /></Property>
+  <Property Id="STRIX_UPDATES_OFF_M" Secure="yes"><RegistrySearch Id="StrixUpdatesOffMachine" Root="HKLM" Key="Software\Strix" Name="UpdateCheck" Type="raw" /></Property>
+  <SetProperty Id="UPDATECHECK" Action="StrixKeepUpdatesOff" Value="0" After="AppSearch" Sequence="both" Condition="STRIX_UPDATES_OFF_U = &quot;0&quot; OR STRIX_UPDATES_OFF_M = &quot;0&quot;" />
+
+  <ComponentGroup Id="StrixUpdatePolicy" Directory="INSTALLFOLDER">
+    <Component Id="StrixUpdatesOff" Guid="6B0C3F52-2E7A-4C61-9D0B-8F1A4E2C7D35" Condition="UPDATECHECK &lt;&gt; &quot;1&quot;">
+      <RegistryValue Root="HKMU" Key="Software\Strix" Name="UpdateCheck" Value="0" Type="string" KeyPath="yes" />
+      <IniFile Id="StrixUpdatesIni" Action="addLine" Directory="INSTALLFOLDER" Name="strix-updates.ini" Section="Updates" Key="Check" Value="0" />
+    </Component>
+  </ComponentGroup>
+
+  <UI>
+    <Dialog Id="StrixPrivacyDlg" Width="370" Height="220" Title="[ProductName] Setup" NoMinimize="yes">
+      <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="20" Text="{\CraftScopeTitle}Privacy" />
+      <Control Id="Info" Type="Text" X="20" Y="38" Width="330" Height="112" Text="{\CraftScopeText}[ProductName] collects no telemetry or usage data and has no account; your documents stay on this computer.&#xD;&#xA;To find updates it asks GitHub for its list of releases when it starts and once a day. Nothing about you or your documents is sent; GitHub sees your network address. File, Info, Updates changes this later.&#xD;&#xA;Privacy and code signing policy: github.com/nabre/strix/blob/main/docs/code-signing.md" />
+      <Control Id="Check" Type="CheckBox" X="20" Y="156" Width="330" Height="18" Property="UPDATECHECK" CheckBoxValue="1" Text="{\CraftScopeText}Check for updates automatically" />
+      <Control Id="Next" Type="PushButton" X="214" Y="182" Width="66" Height="20" Default="yes" Text="Next">
+        <Publish Event="EndDialog" Value="Return" />
+      </Control>
+      <Control Id="Cancel" Type="PushButton" X="290" Y="182" Width="60" Height="20" Cancel="yes" Text="Cancel"><Publish Event="EndDialog" Value="Exit" /></Control>
+    </Dialog>
+  </UI>
+  <InstallUISequence>
+    <!-- After the scope page and related-product discovery (install-policy.wxi), before costing. -->
+    <Show Dialog="StrixPrivacyDlg" After="FindRelatedProducts" Condition="NOT Installed AND NOT REMOVE AND UILevel = 5" />
+  </InstallUISequence>
+</Include>

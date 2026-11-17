@@ -129,7 +129,10 @@ fn restore(s: &mut Session) -> Result<bool, CmdError> {
             if let Some(b) = m.before_exercise {
                 super::breaks::command(s, &json!({"beforeExercise": b}))?;
             }
-            if let Some((mm, width)) = m.grid {
+            // The graph paper taken away meanwhile has nothing to go back to.
+            if let Some((mm, width)) = m.grid
+                && grid_now(s).is_some()
+            {
                 super::show::grid_command(s, &json!({"spacing": mm, "width": width}))?;
             }
         }
@@ -215,11 +218,13 @@ fn apply(s: &mut Session, on: Versions) -> Result<(), CmdError> {
 /// A subdocument's file written from a master (`super::keep_own`): the master's DSA formatting
 /// stays the master's. A style the file doesn't have comes with the formatting it had before
 /// DSA formatting, and the hidden styles go (the file's own come back with its other styles).
+/// The hyphenation DSA formatting turned off in the master is the file's own again.
 pub(super) fn leave_out(doc: &mut wordcraft_doc::Document, file: &wordcraft_doc::Document) {
     super::dsa_runs::restore(doc);
     if !doc.styles.styles.iter().any(|st| st.id.starts_with(MARKER)) {
         return;
     }
+    doc.settings.auto_hyphenation = file.settings.auto_hyphenation;
     let sheet = Arc::make_mut(&mut doc.styles);
     let kept: Vec<Style> = sheet.styles.iter().filter(|st| st.id.starts_with(BASE)).cloned().collect();
     for k in &kept {
@@ -428,6 +433,58 @@ mod tests {
         let after = own(&a);
         assert!(after.4.contains("Superficie"), "{}", after.4);
         assert_eq!((after.0, after.1, after.2, after.3), (before.0, before.1, before.2, before.3));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Writing changed the series' graph paper; the graph paper is then taken away while the
+    /// versions are on: they still come off (nothing is left to put back on the graph paper).
+    #[test]
+    fn it_comes_off_after_the_graph_paper_was_removed() {
+        let mut s = test();
+        let normal_before = style(&s, "Normal").clone();
+        run(&mut s, "design.dsa", json!({"writing": true}));
+        run(&mut s, "exercise.grid", json!({"on": false}));
+        let r = s.run("design.dsa", &json!({"none": true})).unwrap_or_else(|e| panic!("design.dsa none: {e}"));
+        assert_eq!(r["on"], false);
+        assert_eq!(style(&s, "Normal").chr.size, normal_before.chr.size);
+        assert!(!s.doc.styles.styles.iter().any(|st| st.id.starts_with(super::MARKER)));
+        // Another version instead of Writing comes on too.
+        let mut s = test();
+        run(&mut s, "design.dsa", json!({"writing": true}));
+        run(&mut s, "exercise.grid", json!({"on": false}));
+        let r = s.run("design.dsa", &json!({"writing": false, "reading": true})).unwrap_or_else(|e| panic!("design.dsa: {e}"));
+        assert_eq!((r["reading"].clone(), r["writing"].clone()), (json!(true), json!(false)));
+    }
+
+    /// The master's DSA formatting turns the master's hyphenation off; a file written back from
+    /// it keeps its own.
+    #[test]
+    fn in_a_master_the_files_keep_their_own_hyphenation() {
+        let d = std::env::temp_dir().join(format!("strix-dsa-hyphenation-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let (a, book) = (d.join("a.xmath"), d.join("book.xmath"));
+        let mut f = Session::new(Document::new());
+        std::sync::Arc::make_mut(&mut f.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut f, "exercise.insert", json!({"title": "Area", "questions": ["Trova x"]}));
+        f.doc.settings.auto_hyphenation = true;
+        run(&mut f, "file.saveAs", json!({"path": a.to_str().unwrap()}));
+        assert!(crate::io::open_path(&a).unwrap().settings.auto_hyphenation);
+        let mut s = Session::new(Document::new());
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        run(&mut s, "document.setText", json!({"text": "Verifica"}));
+        run(&mut s, "caret.docEnd", json!({}));
+        run(&mut s, "master.insertSubdocument", json!({"path": a.to_str().unwrap()}));
+        s.doc.settings.auto_hyphenation = true;
+        run(&mut s, "file.saveAs", json!({"path": book.to_str().unwrap()}));
+        run(&mut s, "design.dsa", json!({"reading": true}));
+        assert!(!s.doc.settings.auto_hyphenation);
+        run(&mut s, "select.text", json!({"text": "Area"}));
+        run(&mut s, "text.insert", json!({"text": "Superficie"}));
+        run(&mut s, "file.save", json!({}));
+        let back = crate::io::open_path(&a).unwrap();
+        assert!(back.plain_text(wordcraft_doc::StoryRef::Body).contains("Superficie"));
+        assert!(back.settings.auto_hyphenation, "the file's own hyphenation setting");
         let _ = std::fs::remove_dir_all(&d);
     }
 }

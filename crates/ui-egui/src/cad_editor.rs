@@ -475,8 +475,10 @@ pub struct CadEditor {
     /// (drawing units; 0: not given yet).
     pub array_spacing: strix_cad::Spacing,
     pub array_pitch: f64,
-    /// The linear dimension Continue and Baseline go on from.
+    /// The linear dimension Continue and Baseline go on from (None: still to be picked), and
+    /// whether from its first point (else its second).
     pub(crate) chain_base: Option<usize>,
+    pub(crate) chain_first: bool,
     /// The style window open (Dimension, Level or Text Style).
     pub(crate) style_dialog: Option<crate::cad_style_dialog::StyleDialog>,
     /// The block window open and the block point waited for (`blocks`).
@@ -699,6 +701,7 @@ pub fn open(app: &mut WordApp) -> Result<(), String> {
         panel_typing: false,
         rename: None,
         chain_base: None,
+        chain_first: false,
         style_dialog: None,
         block: blocks::BlockState::default(),
         space,
@@ -749,8 +752,12 @@ fn reload(app: &mut WordApp) {
         if !ed.drawing.layers.iter().any(|l| l.name == ed.current_layer) {
             ed.current_layer = "0".into();
         }
-        if ed.grip.is_some_and(|(i, _, _)| i >= ed.drawing.entities.len()) {
-            ed.grip = None;
+        // A hot grip and a block waiting for its base point name objects by index: after a
+        // change they may be other objects (a deletion, an undo), so they do not go on.
+        ed.grip = None;
+        ed.grip_drag = false;
+        if matches!(ed.block.pick, Some(blocks::Pending::Create { .. })) {
+            ed.block.pick = None;
         }
     }
     refresh_underlay(app);
@@ -844,6 +851,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     "snap.perpendicular" => s.perpendicular = !s.perpendicular,
                     "snap.tangent" => s.tangent = !s.tangent,
                     "snap.nearest" => s.nearest = !s.nearest,
+                    "snap.dimLine" => s.dim_line = !s.dim_line,
                     "snaps.on" | "snaps.off" => {
                         let on = what == "snaps.on";
                         *s = Snaps {
@@ -856,6 +864,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                             perpendicular: on,
                             tangent: on,
                             nearest: on,
+                            dim_line: on,
                         };
                     }
                     _ => {
@@ -891,7 +900,14 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                     .and_then(serde_json::Value::as_array)
                     .map(|a| a.iter().filter_map(serde_json::Value::as_str).collect())
                     .unwrap_or_default();
-                ed.drawing.entities.iter().enumerate().filter(|(_, e)| ids.contains(&e.id.as_str())).map(|(i, _)| i).collect()
+                // As a click: not what is on a locked or hidden layer.
+                ed.drawing
+                    .entities
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, e)| ids.contains(&e.id.as_str()) && ed.drawing.selectable(*i))
+                    .map(|(i, _)| i)
+                    .collect()
             };
             ed.grip = None;
             return Ok(json!({"selected": ed.selection.len()}));
@@ -906,8 +922,11 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         "ui.cadDimStyle" => {
             // A dimension style: {"style"? (its name; default: the current one), "text"?,
             // "markSize"?, "markWidth"? (0: automatic), "extGap"?, "extOver"?, "textGap"?,
-            // "lineWidth"?, "lineOver"?, "levelText"?, "levelMark"? (mm; level marks' text and
-            // triangle, 0: automatic), "showUnit"?, "levelUnit"? (the unit after sizes, after
+            // "lineWidth"? (0 or "byLayer": the layer's), "dash"? (the lines' linetype: solid,
+            // dashed, dotted, dashDotted, dashDoubleDotted or "byLayer"), "lineOver"?,
+            // "levelText"?, "levelMark"? (mm; level marks' text and
+            // triangle, 0: automatic), "levelLineText"?, "levelLineOther"? (mm; the reference
+            // line from the tip on the text side and the other, 0: a triangle height), "showUnit"?, "levelUnit"? (the unit after sizes, after
             // elevations), "mark"? (the start's: tick, arrow, dot, none),
             // "markEnd"? (the end's, or "start": as the start), "textStyle"? (a text style's name,
             // Standard), "units"?, "aligned"?, "scaled"?}.
@@ -918,6 +937,15 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
             };
             let text_styles = d.styles(strix_cad::StyleKind::Text);
             let st = d.dim_style_mut(&name).ok_or(format!("no dimension style {name}"))?;
+            if p.get("lineWidth").and_then(serde_json::Value::as_str) == Some("byLayer") {
+                st.line_width = 0.0;
+            }
+            if let Some(v) = p.get("dash") {
+                st.dash = match v.as_str() {
+                    Some("byLayer") => None,
+                    _ => Some(serde_json::from_value(v.clone()).map_err(|_| "dash: solid, dashed, dotted, dashDotted, dashDoubleDotted or byLayer")?),
+                };
+            }
             for (key, slot) in [
                 ("text", &mut st.text),
                 ("markSize", &mut st.mark_size),
@@ -929,8 +957,10 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 ("lineOver", &mut st.line_over),
                 ("levelText", &mut st.level_text),
                 ("levelMark", &mut st.level_mark),
+                ("levelLineText", &mut st.level_line_text),
+                ("levelLineOther", &mut st.level_line_other),
             ] {
-                if let Some(v) = p.get(key) {
+                if let Some(v) = p.get(key).filter(|v| !(key == "lineWidth" && v.as_str() == Some("byLayer"))) {
                     *slot = v.as_f64().ok_or(format!("{key}: a size in mm"))?;
                 }
             }
@@ -1222,13 +1252,13 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
         }
         "ui.cadProps" => {
             // A property of the selected object: {"field", "value", "vertex"?}; with no field,
-            // the object's fields.
+            // the object's fields. Lengths in the input unit, as the Properties pane shows them.
             let Some(ed) = app.cad.as_ref() else { return Ok(json!({})) };
             let &[i] = ed.selection.as_slice() else { return Err("select one object".into()) };
             let vertex = p.get("vertex").and_then(serde_json::Value::as_u64).map_or(ed.vertex, |v| v.min(1 << 20) as usize);
             let Some(field) = p.get("field").and_then(serde_json::Value::as_str) else {
                 let fields: Vec<serde_json::Value> =
-                    ed.drawing.fields(i, vertex).into_iter().map(|f| json!({"field": f.key, "label": f.label, "value": f.text})).collect();
+                    ed.drawing.fields_typed(i, vertex).into_iter().map(|f| json!({"field": f.key, "label": f.label, "value": f.text})).collect();
                 return Ok(json!({"fields": fields}));
             };
             let value = match p.get("value") {
@@ -1238,7 +1268,7 @@ pub fn command(app: &mut WordApp, id: &str, p: &serde_json::Value) -> Result<ser
                 _ => return Err("value: a number, an expression or a text".into()),
             };
             let mut d = ed.drawing.clone();
-            d.set_field(i, vertex, field, &value)?;
+            d.set_field_typed(i, vertex, field, &value)?;
             commit(app, &d);
         }
         "ui.cadSnapOnce" => {
@@ -1272,7 +1302,11 @@ fn delete_selection(app: &mut WordApp) {
     }
     let mut d = ed.drawing.clone();
     d.remove(&ed.selection);
-    ed.previous = std::mem::take(&mut ed.selection);
+    // What was selected is gone, and the indices now name the objects that came after: there
+    // is no previous selection to take back.
+    ed.selection.clear();
+    ed.previous.clear();
+    ed.grip = None;
     ed.focus = Focus::default();
     commit(app, &d);
 }
@@ -1290,7 +1324,7 @@ fn reorder(app: &mut WordApp, order: Order) {
 }
 
 /// The object snaps by name (`ui.cadToggle`'s `snap.<name>`, `ui.cadSnapOnce`).
-pub(crate) const SNAP_KINDS: [(&str, SnapKind); 9] = [
+pub(crate) const SNAP_KINDS: [(&str, SnapKind); 10] = [
     ("end", SnapKind::End),
     ("mid", SnapKind::Mid),
     ("center", SnapKind::Center),
@@ -1299,6 +1333,7 @@ pub(crate) const SNAP_KINDS: [(&str, SnapKind); 9] = [
     ("intersection", SnapKind::Intersection),
     ("perpendicular", SnapKind::Perpendicular),
     ("tangent", SnapKind::Tangent),
+    ("dimLine", SnapKind::DimLine),
     ("nearest", SnapKind::Nearest),
 ];
 
@@ -1322,6 +1357,7 @@ pub(crate) fn set_snap(s: &mut Snaps, k: SnapKind, on: bool) {
         SnapKind::Perpendicular => s.perpendicular = on,
         SnapKind::Tangent => s.tangent = on,
         SnapKind::Nearest => s.nearest = on,
+        SnapKind::DimLine => s.dim_line = on,
     }
 }
 
@@ -1357,15 +1393,18 @@ impl CadEditor {
         self.lasso.clear();
         self.remove_mode = false;
         self.grip = None;
+        // A block waiting for its point is given up with the tool it belonged to.
+        self.block.pick = None;
         self.picking = tool.takes_selection() && self.selection.is_empty();
         if matches!(tool, Tool::DimContinue | Tool::DimBaseline) {
-            // From the one linear dimension selected, else the newest.
-            let picked = match self.selection.as_slice() {
+            // From the one linear dimension selected, else from the one picked next (Enter: the
+            // newest). Continue goes on from its second point, Baseline from its first.
+            self.chain_base = match self.selection.as_slice() {
                 [i] if matches!(self.drawing.entities.get(*i).map(|e| &e.kind), Some(Kind::Dim { .. })) => Some(*i),
                 _ => None,
             };
-            self.chain_base = picked.or_else(|| self.drawing.last_linear_dim());
-            if self.chain_base.is_none() {
+            self.chain_first = tool == Tool::DimBaseline;
+            if self.drawing.last_linear_dim().is_none() {
                 self.message = "Draw a linear dimension first, or select the one to go on from".into();
             }
         }
@@ -1577,6 +1616,10 @@ impl CadEditor {
         if self.tool == Tool::ArrayRect {
             return series::prompt(self);
         }
+        if matches!(self.tool, Tool::DimContinue | Tool::DimBaseline) && self.chain_base.is_none() {
+            let name = if self.tool == Tool::DimContinue { tl!("Continue") } else { tl!("Baseline") };
+            return format!("{name}: {}", tl!("pick the dimension to go on from, near the end to start at (Enter: the last one)"));
+        }
         tl!(self.tool.prompt(self.points.len())).to_string()
     }
 }
@@ -1654,6 +1697,13 @@ fn snap_marker(painter: &egui::Painter, s: Pos2, kind: SnapKind) {
             painter
                 .add(Shape::closed_line(vec![pos2(s.x - h, s.y - h), pos2(s.x + h, s.y - h), pos2(s.x - h, s.y + h), pos2(s.x + h, s.y + h)], mark));
         }
+        SnapKind::DimLine => {
+            // A dimension line between two ticks, the point on it.
+            painter.line_segment([pos2(s.x - h, s.y), pos2(s.x + h, s.y)], mark);
+            painter.line_segment([pos2(s.x - h - 2.0, s.y + 3.0), pos2(s.x - h + 2.0, s.y - 3.0)], mark);
+            painter.line_segment([pos2(s.x + h - 2.0, s.y + 3.0), pos2(s.x + h + 2.0, s.y - 3.0)], mark);
+            painter.circle_filled(s, 2.0, mark.color);
+        }
     }
 }
 
@@ -1669,6 +1719,7 @@ fn snap_name(kind: SnapKind) -> &'static str {
         SnapKind::Perpendicular => "Perpendicular",
         SnapKind::Tangent => "Tangent",
         SnapKind::Nearest => "Nearest",
+        SnapKind::DimLine => "Dimension line",
     }
 }
 
@@ -2021,6 +2072,14 @@ impl CadEditor {
             }
             return None;
         }
+        if matches!(self.tool, Tool::DimContinue | Tool::DimBaseline) && self.chain_base.is_none() {
+            // No dimension picked: go on from the newest.
+            self.chain_base = self.drawing.last_linear_dim();
+            if self.chain_base.is_none() {
+                self.set_tool(Tool::Select);
+            }
+            return None;
+        }
         if !self.points.is_empty() {
             let kept = finish(self);
             self.points.clear();
@@ -2117,6 +2176,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let (snapped, p) = pointer_point(ed, view, h, free, base);
             cursor = Some(p);
             let s = view.to_screen(p);
+            paint_pick_preview(ed, &painter, view, p, t.accent);
             paint_cursor(ed, &painter, s, selecting, candidate.is_some() || hover_grip.is_some(), snapped, t.accent);
             paint_previews(ed, &painter, view, (p, s, h), t.accent);
             blocks::paint_preview(ed, &painter, view, p, t.accent);
@@ -2135,6 +2195,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         }
         // Selecting: a click adds (Shift removes), a click on empty space starts a two-click
         // window, a drag from empty space is a lasso, a fence or polygon takes clicked vertices.
+        // A click on the sheet while a field of a pane has the keyboard only ends that edit (it is
+        // passed over like a click that took a grip): the field stores its value as it loses the
+        // keyboard, in the pane drawn below, and a click that also changed the selection would
+        // have left it nothing to store the value in.
+        let grip_click = grip_click | ed.panel_typing;
         if selecting && !grip_click && !ed.grip_drag && !mods.alt {
             select_input(ed, &resp, view, (hover, hover_grip), tol, removing);
         } else if resp.clicked_by(egui::PointerButton::Primary)
@@ -2164,15 +2229,18 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // Keys: not while a menu is open or a field of the pane has the keyboard. Esc cancels,
         // Enter or Space ends (or repeats), F8 Ortho, Delete removes the selection, Ctrl+A
         // selects all, Shift+Space steps through overlapping objects.
-        let keys_free = !menu_open && !ed.panel_typing;
+        // A style or block window open over the sheet has the keyboard: its fields keep the
+        // focus, and Delete, Space and Enter typed in them are not the editor's.
+        let window_open = ed.style_dialog.is_some() || ed.block.dialog.is_some();
+        let keys_free = !menu_open && !ed.panel_typing && !window_open;
         let typing_text = ed.tool == Tool::Text && ed.points.len() == 1;
         let keys = key_input(ed, ui, view, (keys_free, typing_text), (hovering, tol));
         let enter = keys.enter;
+        if let Some(a) = keys.act() {
+            act = Some(a);
+        }
         if keys.kept.is_some() {
             finished = keys.kept;
-        }
-        if keys.delete {
-            act = Some(Act::Delete);
         }
 
         // Status and command line.
@@ -2185,7 +2253,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 .hint_text(tl!("Type a point (x,y  @dx,dy  @d<a), a distance, a command (l, pl, rec, c, a, t, m, co), an option or press Enter"))
                 .desired_width(f32::INFINITY),
         );
-        if !field.has_focus() && hovering.is_some() && !ed.panel_typing {
+        if !field.has_focus() && hovering.is_some() && !ed.panel_typing && !window_open {
             field.request_focus();
         }
         if enter && finished.is_none() {
@@ -2225,6 +2293,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
 /// or floating in their own windows. Returns the drawing an edit in them made.
 fn docked_panes(ed: &mut CadEditor, ui: &mut Ui, t: &crate::theme::Tokens, (sheet, full): (Rect, Rect), layers_h: f32) -> Option<Drawing> {
     let mut changed = None;
+    // Each pane shown says whether one of its fields has the keyboard: a pane that is hidden
+    // (or was hidden with a field in use) must not keep the keys from the editor.
+    ed.panel_typing = false;
     if ed.panel {
         let docked = Rect::from_min_max(pos2(sheet.max.x, full.min.y), pos2(full.max.x, sheet.max.y));
         if let Some(d) = pane(ed, ui, t, Pane::Properties, docked, vec2(300.0, 460.0)) {
@@ -2242,11 +2313,13 @@ fn docked_panes(ed: &mut CadEditor, ui: &mut Ui, t: &crate::theme::Tokens, (shee
     changed
 }
 
-/// Fits the drawing in `rect` (on first show and on Zoom Fit).
+/// Fits the drawing in `rect` (on first show and on Zoom Fit), with the underlay when it prints
+/// with the drawing (the picture the page shows).
 fn fit(ed: &mut CadEditor, rect: Rect) {
-    let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
-    let (w, h) = (ed.rendered.size.0 / k, ed.rendered.size.1 / k);
-    ed.center = paper_to_drawing(&ed.rendered, (ed.rendered.size.0 / 2.0, ed.rendered.size.1 / 2.0));
+    let shown = ed.drawing.with_printed_underlay(ed.rendered.clone());
+    let k = if shown.scale > 0.0 { shown.scale } else { 1.0 };
+    let (w, h) = (shown.size.0 / k, shown.size.1 / k);
+    ed.center = paper_to_drawing(&shown, (shown.size.0 / 2.0, shown.size.1 / 2.0));
     ed.zoom = (f64::from(rect.width()) * 0.8 / w.max(1e-9)).min(f64::from(rect.height()) * 0.8 / h.max(1e-9)).clamp(1e-6, 1e9);
     ed.fitted = true;
 }
@@ -2276,6 +2349,163 @@ fn paint_candidate(ed: &CadEditor, painter: &egui::Painter, view: View, e: &Enti
     }
 }
 
+/// The linear dimension under `p` (within a few pixels), for Continue and Baseline to go on from.
+fn picked_dim(ed: &CadEditor, p: Pt) -> Option<usize> {
+    let tol = 8.0 / ed.zoom.max(1e-9);
+    ed.drawing.hits(p, tol).into_iter().find(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. })))
+}
+
+/// The object-picking tools, before the click at `p`: Trim's piece to take away (red), Extend's
+/// stretch to add, the object Offset, Fillet, Chamfer or Match Properties would take (haloed,
+/// with the first pick kept haloed) and the result Offset, Fillet or Chamfer would make (dashed).
+fn paint_pick_preview(ed: &CadEditor, painter: &egui::Painter, view: View, p: Pt, accent: Color32) {
+    let screen = |line: &[Pt]| -> Vec<Pos2> { line.iter().map(|&q| view.to_screen(q)).collect() };
+    let halo = |i: usize| {
+        if let Some(e) = ed.drawing.entities.get(i) {
+            paint_candidate(ed, painter, view, e, false);
+        }
+    };
+    let pts = ed.points.as_slice();
+    match ed.tool {
+        Tool::Trim => {
+            let Some(line) = picked_path(ed, p).and_then(|i| ed.drawing.trim_preview(i, p).ok()) else { return };
+            let line = screen(&line);
+            if line.len() > 1 {
+                let red = Color32::from_rgb(0xE1, 0x1D, 0x48);
+                painter.add(Shape::line(line.clone(), Stroke::new(7.0, Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 90))));
+                painter.extend(clipped_dashes(painter.clip_rect(), &line, Stroke::new(1.5, red), 5.0, 3.0));
+            }
+        }
+        Tool::Extend => {
+            let Some(i) = picked_path(ed, p) else { return };
+            halo(i);
+            if let Ok(line) = ed.drawing.extend_preview(i, p) {
+                let line = screen(&line);
+                if line.len() > 1 {
+                    painter.add(Shape::line(line.clone(), Stroke::new(7.0, accent.gamma_multiply(0.35))));
+                    painter.extend(clipped_dashes(painter.clip_rect(), &line, Stroke::new(1.5, accent), 5.0, 3.0));
+                }
+            }
+        }
+        Tool::Offset => match pts {
+            [] => picked_path(ed, p).into_iter().for_each(halo),
+            [first, ..] => {
+                let Some((i, _)) = ed.drawing.nearest_path(*first) else { return };
+                halo(i);
+                if let Some(e) = ed.drawing.offset_entity(i, ed.offset_dist, p) {
+                    paint_ghost_entity(ed, painter, view, &e, accent);
+                }
+            }
+        },
+        Tool::Fillet | Tool::Chamfer => match pts {
+            [] => picked_path(ed, p).into_iter().for_each(halo),
+            [first, ..] => {
+                let Some(i) = picked_path(ed, *first) else { return };
+                halo(i);
+                let Some(j) = picked_path(ed, p) else { return };
+                halo(j);
+                let mut ghost = ed.drawing.clone();
+                let made = if ed.tool == Tool::Fillet {
+                    ghost.fillet(i, *first, j, p, ed.fillet_radius)
+                } else {
+                    ghost.chamfer(i, *first, j, p, ed.chamfer_dist, ed.chamfer_dist)
+                };
+                if made.is_ok() {
+                    // What the edit changed or made, as it would become.
+                    for e in ghost.entities.iter().filter(|g| !ed.drawing.entities.iter().any(|o| o == *g)) {
+                        paint_ghost_entity(ed, painter, view, e, accent);
+                    }
+                }
+            }
+        },
+        Tool::DimContinue | Tool::DimBaseline => match ed.chain_base {
+            Some(i) => halo(i),
+            None => picked_dim(ed, p).into_iter().for_each(halo),
+        },
+        Tool::MatchProp => {
+            let tol = 8.0 / ed.zoom.max(1e-9);
+            let source = pts.first().and_then(|&q| ed.drawing.hit(q, tol));
+            source.into_iter().for_each(halo);
+            if let Some(i) = ed.drawing.hit(p, tol).filter(|&i| ed.drawing.selectable(i) && Some(i) != source) {
+                halo(i);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// An object as an edit would make it: dashed in the accent colour.
+fn paint_ghost_entity(ed: &CadEditor, painter: &egui::Painter, view: View, e: &Entity, accent: Color32) {
+    for line in ed.drawing.shape(e) {
+        let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+        if screen.len() > 1 {
+            painter.add(clipped_dashes(painter.clip_rect(), &screen, Stroke::new(1.5, accent), 5.0, 3.0));
+        }
+    }
+}
+
+/// How far outside the visible area a dashed line is still drawn as given.
+const DASH_MARGIN: f32 = 4096.0;
+
+/// `a`–`b` cut to `rect` (Liang–Barsky); `None` when nothing of it is inside or a coordinate is
+/// not a number.
+fn clip_segment(rect: Rect, a: Pos2, b: Pos2) -> Option<[Pos2; 2]> {
+    if !(a.x.is_finite() && a.y.is_finite() && b.x.is_finite() && b.y.is_finite()) {
+        return None;
+    }
+    let d = b - a;
+    let (mut t0, mut t1) = (0.0f32, 1.0f32);
+    for (p, q) in [(-d.x, a.x - rect.min.x), (d.x, rect.max.x - a.x), (-d.y, a.y - rect.min.y), (d.y, rect.max.y - a.y)] {
+        if p == 0.0 {
+            if q < 0.0 {
+                return None;
+            }
+        } else {
+            let r = q / p;
+            if p < 0.0 {
+                t0 = t0.max(r);
+            } else {
+                t1 = t1.min(r);
+            }
+        }
+    }
+    (t0 <= t1).then(|| [a + d * t0, a + d * t1])
+}
+
+impl Keys {
+    /// What Delete, Ctrl+Z or Ctrl+Y asked for.
+    fn act(&self) -> Option<Act> {
+        match (self.delete, self.undo) {
+            (true, _) => Some(Act::Delete),
+            (false, Some(true)) => Some(Act::Undo),
+            (false, Some(false)) => Some(Act::Redo),
+            (false, None) => None,
+        }
+    }
+}
+
+/// `Shape::dashed_line` for a path that may reach far outside the visible area `clip`: zoomed in
+/// on a detail, a guide or a selected object is millions of points long on screen, and a dash
+/// every few points of it would take the memory (and, past what an `f32` can step along, never
+/// end). Such a path is cut to what is near `clip` first, each stretch dashed on its own.
+pub(crate) fn clipped_dashes(clip: Rect, path: &[Pos2], stroke: impl Into<Stroke>, dash: f32, gap: f32) -> Vec<Shape> {
+    let near = clip.expand(DASH_MARGIN);
+    let stroke = stroke.into();
+    if !(near.min.x.is_finite() && near.min.y.is_finite() && near.max.x.is_finite() && near.max.y.is_finite()) {
+        return Vec::new();
+    }
+    if path.iter().all(|p| near.contains(*p)) {
+        return Shape::dashed_line(path, stroke, dash, gap);
+    }
+    path.windows(2)
+        .filter_map(|w| match w {
+            [a, b] => clip_segment(near, *a, *b),
+            _ => None,
+        })
+        .flat_map(|piece| Shape::dashed_line(&piece, stroke, dash, gap))
+        .collect()
+}
+
 /// What the keys asked for in one frame.
 struct Keys {
     /// Enter or Space: end (or repeat) the command.
@@ -2284,6 +2514,8 @@ struct Keys {
     kept: Option<Drawing>,
     /// Delete: remove the selection.
     delete: bool,
+    /// Ctrl+Z (true) or Ctrl+Y / Ctrl+Shift+Z (false): undo or redo in the drawing.
+    undo: Option<bool>,
 }
 
 /// Keys, when free (`keys_free`: not while a menu is open or a field of the pane has the keyboard):
@@ -2331,7 +2563,19 @@ fn key_input(ed: &mut CadEditor, ui: &mut Ui, view: View, (keys_free, typing_tex
     if del && ed.command.is_empty() {
         delete = true;
     }
-    Keys { enter, kept: kept_on_escape, delete }
+    // Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z undo and redo in the drawing: taken here, before the
+    // command line (a text box, which would keep them for its own text) when nothing is typed
+    // there.
+    let undo = if keys_free && ed.command.is_empty() {
+        ui.input_mut(|i| {
+            let redo = i.consume_key(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT, egui::Key::Z)
+                || i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y);
+            if redo { Some(false) } else { i.consume_key(egui::Modifiers::COMMAND, egui::Key::Z).then_some(true) }
+        })
+    } else {
+        None
+    };
+    Keys { enter, kept: kept_on_escape, delete, undo }
 }
 
 /// The object snaps in the status line, icons without labels (their names in tooltips): icon,
@@ -2449,18 +2693,20 @@ fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>
         prompt = format!("{}   [{}]", prompt, ed.found);
     }
     let hover_prompt = prompt.clone();
-    let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", p.x, p.y)).unwrap_or_default();
+    // Lengths in the input unit (the drawing's own unit is internal).
+    let units = strix_cad::Units::of(&ed.drawing);
+    let mut coords = cursor.map(|p| format!("{:.3}, {:.3}", units.shown(p.x), units.shown(p.y))).unwrap_or_default();
     // From the base point: distance, angle (exact, from the kernel), Δx, Δy.
     if let (Some(b), Some(p)) = (base, cursor) {
         let v = p.minus(b);
         coords = format!(
             "{} {:.4}  {} {:.4}°  Δx {:.4}  Δy {:.4}   {coords}",
             tl!("Distance"),
-            v.len(),
+            units.shown(v.len()),
             tl!("Angle"),
             kernel::deg(kernel::direction(v)),
-            v.x,
-            v.y
+            units.shown(v.x),
+            units.shown(v.y)
         );
     }
     // The flags at the right; the prompt in the space left, cut short if it must be.
@@ -2499,11 +2745,8 @@ fn status_line(ed: &CadEditor, ui: &mut Ui, cursor: Option<Pt>, base: Option<Pt>
                     tl!("Layer:"),
                     ed.current_layer,
                     tl!("Unit:"),
-                    // The unit typed values are read in, when it is not the drawing's.
-                    match ed.drawing.input.filter(|u| *u != ed.drawing.unit) {
-                        Some(u) => format!("{} · {} {}", ed.drawing.unit.symbol(), tl!("input"), u.symbol()),
-                        None => ed.drawing.unit.symbol().to_string(),
-                    }
+                    // The unit lengths are shown and typed in (the drawing's own is internal).
+                    strix_cad::Units::of(&ed.drawing).input.symbol()
                 ))
                 .weak(),
             );
@@ -2797,6 +3040,51 @@ fn paint_cursor(
     }
 }
 
+/// The selection as Move, Copy, Scale, Rotate or Mirror would leave it with `p` as the next
+/// point (after the base point): dashed in the accent colour, as a hot grip's ghost, dimensions
+/// with their distance's parts.
+fn paint_transform_ghost(ed: &CadEditor, painter: &egui::Painter, view: View, p: Pt, accent: Color32) {
+    let [base] = ed.points.as_slice() else { return };
+    if ed.selection.is_empty() || ed.picking {
+        return;
+    }
+    let d = p.minus(*base);
+    let mut ghost = ed.drawing.clone();
+    match ed.tool {
+        Tool::Move | Tool::Copy => ghost.translate(&ed.selection, d),
+        Tool::Scale => {
+            let k = d.len();
+            if !(k.is_finite() && k > 1e-9) {
+                return;
+            }
+            ghost.transform(&ed.selection, &strix_cad::Affine::scaling(*base, k));
+        }
+        Tool::Rotate => {
+            if d.len() <= 1e-9 {
+                return;
+            }
+            ghost.transform(&ed.selection, &strix_cad::Affine::rotation(*base, kernel::deg(kernel::direction(d))));
+        }
+        Tool::Mirror => match strix_cad::Affine::mirror(*base, p) {
+            Some(m) => ghost.transform(&ed.selection, &m),
+            None => return,
+        },
+        _ => return,
+    }
+    let units = strix_cad::Units::of(&ghost);
+    for e in ed.selection.iter().filter_map(|&i| ghost.entities.get(i)) {
+        for line in ghost.shape(e) {
+            let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
+            if screen.len() > 1 {
+                painter.add(clipped_dashes(painter.clip_rect(), &screen, Stroke::new(1.5, accent), 5.0, 3.0));
+            }
+        }
+        if let Some(parts) = ghost.dim_parts(e) {
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, units);
+        }
+    }
+}
+
 /// What the next click would do: a hot grip's band and ghost, the rubber band from the last
 /// point, and a selection window, lasso or polygon in progress. `p` is the point in the drawing,
 /// `s` its place on the screen and `h` the pointer.
@@ -2812,15 +3100,18 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
             for line in ed.drawing.shape(e) {
                 let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
                 if screen.len() > 1 {
-                    painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
+                    painter.add(clipped_dashes(painter.clip_rect(), &screen, Stroke::new(1.5, accent), 5.0, 3.0));
                 }
             }
             // A dimension's distance as it would become, in its scaled and annotative parts.
             if let Some(parts) = ghost.dim_parts(e) {
-                cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ghost.unit.symbol());
+                cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ghost));
             }
         }
     }
+    // Move, Copy, Scale, Rotate, Mirror after the base point: the selection as the next click
+    // would leave it, following the pointer.
+    paint_transform_ghost(ed, painter, view, p, accent);
     // A dimension being placed: as the next click would put it, with its distance's parts.
     let placing = match (ed.tool, ed.points.as_slice()) {
         (Tool::Dim(orient), &[a, b]) => Some(placed_dim(ed, orient, a, b, p)),
@@ -2831,11 +3122,11 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
         for line in ed.drawing.shape(&e) {
             let screen: Vec<Pos2> = line.iter().map(|&q| view.to_screen(q)).collect();
             if screen.len() > 1 {
-                painter.add(Shape::dashed_line(&screen, Stroke::new(1.5, accent), 5.0, 3.0));
+                painter.add(clipped_dashes(painter.clip_rect(), &screen, Stroke::new(1.5, accent), 5.0, 3.0));
             }
         }
         if let Some(parts) = ed.drawing.dim_parts(&e) {
-            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ed.drawing));
         }
     }
     // Rubber band from the last point.
@@ -2907,7 +3198,7 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
         painter.rect_filled(r, 0.0, fill);
         let corners = vec![r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
         if crossing {
-            painter.add(Shape::dashed_line(&corners, Stroke::new(1.0, edge), 5.0, 3.0));
+            painter.add(clipped_dashes(painter.clip_rect(), &corners, Stroke::new(1.0, edge), 5.0, 3.0));
         } else {
             painter.add(Shape::line(corners, Stroke::new(1.0, edge)));
         }
@@ -2924,7 +3215,7 @@ fn paint_previews(ed: &CadEditor, painter: &egui::Painter, view: View, (p, s, h)
         path.push(h);
         let (_, edge) = window_look(*mode == SelectOption::CPolygon);
         if *mode == SelectOption::Fence {
-            painter.add(Shape::dashed_line(&path, Stroke::new(1.2, edge), 5.0, 3.0));
+            painter.add(clipped_dashes(painter.clip_rect(), &path, Stroke::new(1.2, edge), 5.0, 3.0));
         } else {
             painter.add(Shape::closed_line(path, Stroke::new(1.2, edge)));
         }
@@ -2990,7 +3281,7 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
         let guide = Stroke::new(1.0, Color32::from_rgb(0x3B, 0x82, 0xC4));
         let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
         for w in corners.windows(2) {
-            painter.extend(Shape::dashed_line(w, guide, 6.0, 4.0));
+            painter.extend(clipped_dashes(painter.clip_rect(), w, guide, 6.0, 4.0));
         }
         painter.text(r.right_top() + vec2(-4.0, 4.0), Align2::RIGHT_TOP, tl!("Space here"), FontId::proportional(11.0), guide.color);
     }
@@ -3007,6 +3298,15 @@ fn paint_sheet(ed: &CadEditor, painter: &egui::Painter, view: View, unit: Color3
     }
 }
 
+/// A line's width on the screen, points, from its width on paper (mm) and the screen points a
+/// paper mm takes: true to the page at every zoom, as it prints, a hairline at the thinnest so
+/// a far-off line still shows, and never wider than a lot of the screen.
+fn stroke_px(width_mm: f64, px_per_mm: f64) -> f32 {
+    const HAIRLINE: f32 = 0.5;
+    let px = (width_mm * px_per_mm) as f32;
+    if px.is_finite() { px.clamp(HAIRLINE, 200.0) } else { HAIRLINE }
+}
+
 /// The primitives of rendering `rd` on the sheet (each point back in drawing coordinates).
 fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, unit: Color32) {
     let k = if rd.scale > 0.0 { rd.scale } else { 1.0 };
@@ -3014,7 +3314,7 @@ fn paint_prims(rd: &Rendered, zoom: f64, painter: &egui::Painter, view: View, un
         match prim {
             Prim::Path { pts, color, width, fill, .. } => {
                 let to_screen = |q: &(f64, f64)| view.to_screen(paper_to_drawing(rd, *q));
-                let stroke = Stroke::new((*width as f32 * 3.0).clamp(1.0, 4.0), rgb(*color));
+                let stroke = Stroke::new(stroke_px(*width, zoom / k), rgb(*color));
                 if *fill {
                     painter.add(Shape::convex_polygon(pts.iter().map(to_screen).collect(), rgb(*color), stroke));
                 } else {
@@ -3072,7 +3372,7 @@ fn paint_selection(ed: &CadEditor, painter: &egui::Painter, view: View, accent: 
                     if partial && scope.contains(&i) {
                         painter.add(Shape::line(screen.clone(), Stroke::new(6.0, color.gamma_multiply(0.3))));
                     }
-                    painter.add(Shape::dashed_line(&screen, Stroke::new(2.5, color), 6.0, 3.0));
+                    painter.add(clipped_dashes(painter.clip_rect(), &screen, Stroke::new(2.5, color), 6.0, 3.0));
                 }
             }
         }
@@ -3092,7 +3392,7 @@ fn paint_dim_parts(ed: &CadEditor, painter: &egui::Painter, view: View, previewi
             continue;
         }
         if let Some(parts) = ed.drawing.entities.get(i).and_then(|e| ed.drawing.dim_parts(e)) {
-            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, ed.drawing.unit.symbol());
+            cad_dim_parts::paint(painter, |q| view.to_screen(q), &parts, strix_cad::Units::of(&ed.drawing));
         }
     }
 }
@@ -3498,7 +3798,7 @@ fn placed_dim(ed: &CadEditor, orient: Orient, a: Pt, b: Pt, at: Pt) -> Kind {
     let offset_units = if nl >= na.max(nb) { nl - na.max(nb) } else { nl - na.min(nb) };
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
     let (offset, offset_units) = if ed.drawing.current_dim().scaled { (0.0, offset_units) } else { (offset_units * k, 0.0) };
-    Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None }
+    Kind::Dim { a: pt(a), b: pt(b), offset, offset_units, orient, text: None, below: None, mark: None, mark_end: None }
 }
 
 /// The angle at `c` between the rays to `a` and `b`, on the side its arc is placed in (through
@@ -3515,7 +3815,18 @@ fn placed_angle(ed: &CadEditor, c: Pt, mut a: Pt, mut b: Pt, at: Pt) -> Result<K
     }
     let k = if ed.rendered.scale > 0.0 { ed.rendered.scale } else { 1.0 };
     let (r, r_paper) = if ed.drawing.current_dim().scaled { (r, 0.0) } else { (0.0, (r * k).min(500.0)) };
-    Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None })
+    Ok(Kind::Angle { c: pt(c), a: pt(a), b: pt(b), r, r_paper, text: None, mark: None, mark_end: None })
+}
+
+/// A hatch or a strip just made went behind everything else ([`with`]), so every other object
+/// is one place further on: the selections, kept by index, follow them.
+fn sent_to_back(ed: &mut CadEditor, made: Option<Drawing>) -> Option<Drawing> {
+    if made.is_some() {
+        for i in ed.selection.iter_mut().chain(ed.previous.iter_mut()) {
+            *i = i.saturating_add(1);
+        }
+    }
+    made
 }
 
 /// Takes point `p` for the current tool; returns the new drawing when an operation completes.
@@ -3524,6 +3835,11 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
         return made;
     }
     ed.message.clear();
+    if ed.tool == Tool::Text {
+        // One point only, the text's position: another click moves it, and what is typed next
+        // is still the text.
+        ed.points.clear();
+    }
     ed.points.push(p);
     let n = ed.points.len();
     let pts = ed.points.clone();
@@ -3601,7 +3917,7 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                 ed.message = "No closed object around that point: draw a closed polyline, a rectangle or a circle".into();
                 return None;
             };
-            with(
+            let made = with(
                 ed,
                 Entity::new(Kind::Hatch {
                     boundary,
@@ -3609,7 +3925,8 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
                     angle: 45.0,
                     spacing: (ed.drawing.current_dim().text * 0.8).max(0.5),
                 }),
-            )
+            );
+            sent_to_back(ed, made)
         }
         Tool::Strip | Tool::Slope if n == 1 => {
             // The path first: something it can follow must be there.
@@ -3633,7 +3950,8 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             } else {
                 ((style.text * 1.2).max(1.0), strix_cad::Pattern::Lines, (style.text * 0.5).max(0.5))
             };
-            with(ed, Entity::new(Kind::Strip { along, width, side, pattern, angle: 45.0, spacing, ratio: 0.5 }))
+            let made = with(ed, Entity::new(Kind::Strip { along, width, side, pattern, angle: 45.0, spacing, ratio: 0.5 }));
+            sent_to_back(ed, made)
         }
         Tool::DimAngle if n >= 4 => {
             let placed = placed_angle(ed, pts[0], pts[1], pts[2], pts[3]);
@@ -3648,11 +3966,22 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
         }
         Tool::DimContinue | Tool::DimBaseline => {
             done(ed);
-            let Some(base) = ed.chain_base.filter(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. }))) else {
+            if ed.drawing.last_linear_dim().is_none() {
                 ed.message = "Draw a linear dimension first, or select the one to go on from".into();
                 return None;
+            }
+            let Some(base) = ed.chain_base.filter(|&i| matches!(ed.drawing.entities.get(i).map(|e| &e.kind), Some(Kind::Dim { .. }))) else {
+                // The first click picks the dimension, and the end nearest it.
+                ed.chain_base = None;
+                let Some(i) = picked_dim(ed, p) else {
+                    ed.message = "Pick a linear dimension".into();
+                    return None;
+                };
+                ed.chain_base = Some(i);
+                ed.chain_first = ed.drawing.dim_end_near(i, p).unwrap_or(ed.tool == Tool::DimBaseline);
+                return None;
             };
-            let made = if ed.tool == Tool::DimContinue { ed.drawing.dim_continue(base, p) } else { ed.drawing.dim_baseline(base, p) };
+            let made = ed.drawing.dim_chain(base, ed.chain_first, p, ed.tool == Tool::DimBaseline);
             let Some(e) = made else {
                 ed.message = "Pick a point away from where the dimension starts".into();
                 return None;
@@ -3660,18 +3989,20 @@ fn feed(ed: &mut CadEditor, p: Pt, _text: Option<&str>) -> Option<Drawing> {
             // The next one goes on from this one.
             let next = ed.drawing.entities.len();
             let d = with(ed, e)?;
+            // Continued on from the new one's far end; a baseline from the same start.
             ed.chain_base = Some(next);
+            ed.chain_first = ed.tool == Tool::DimBaseline;
             Some(d)
         }
         Tool::Level => {
             done(ed);
-            // Like the last level mark: the same datum, side and way up.
+            // Like the last level mark: the same datum, side, way up and fill.
             let like = ed.drawing.entities.iter().rev().find_map(|e| match &e.kind {
-                Kind::Level { datum, flip, left, .. } => Some((datum.clone(), *flip, *left)),
+                Kind::Level { datum, flip, left, fill, .. } => Some((datum.clone(), *flip, *left, *fill)),
                 _ => None,
             });
-            let (datum, flip, left) = like.unwrap_or_default();
-            with(ed, Entity::new(Kind::Level { p: pt(p), datum, text: None, flip, left }))
+            let (datum, flip, left, fill) = like.unwrap_or_default();
+            with(ed, Entity::new(Kind::Level { p: pt(p), datum, text: None, flip, left, fill }))
         }
         _ => feed_modify(ed, p, &pts),
     }
@@ -3771,6 +4102,12 @@ fn feed_modify(ed: &mut CadEditor, p: Pt, pts: &[Pt]) -> Option<Drawing> {
         }
         Tool::Scale if n >= 2 => {
             let k = pts[1].minus(pts[0]).len();
+            if !(k.is_finite() && k > kernel::RESOLUTION) {
+                // A second click on the base point would shrink the objects to that point.
+                ed.points.pop();
+                ed.message = "Scale: a point away from the base point, or a factor above 0".into();
+                return None;
+            }
             transformed(ed, &strix_cad::Affine::scaling(pts[0], k), false)
         }
         Tool::Rotate if n >= 2 => {
@@ -4200,16 +4537,26 @@ fn underlay_group(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// The layer the ribbon's layer box shows: the current layer with nothing selected, the
+/// selection's layer when all of it is on one, blank when it spans several.
+fn layer_shown(ed: &CadEditor) -> String {
+    let mut layers = ed.selection.iter().filter_map(|&i| ed.drawing.entities.get(i)).map(|e| e.layer.as_str());
+    match layers.next() {
+        None => ed.current_layer.clone(),
+        Some(first) if layers.all(|l| l == first) => first.to_string(),
+        Some(_) => String::new(),
+    }
+}
+
 /// Layers: the Layer Manager, Properties, Student Preview, the current layer.
 fn layers_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::{big_checked, group};
     let (panel, manager, student, layers, current) = app
         .cad
         .as_ref()
-        .map(|e| {
-            (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), e.current_layer.clone())
-        })
+        .map(|e| (e.panel, e.layers_panel, e.student_preview, e.drawing.layers.iter().map(|l| l.name.clone()).collect::<Vec<_>>(), layer_shown(e)))
         .unwrap_or_default();
+    let selected = app.cad.as_ref().is_some_and(|e| !e.selection.is_empty());
     let tool = tool_of(app);
     group(ui, "Layers", None, app, |ui, app| {
         // Match Properties, large, beside the Layer Manager: both are about how objects look.
@@ -4220,7 +4567,9 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
         big_checked(ui, app, "studentPreview", "Student\nPreview", "ui.cadToggle", json!({"what": "student"}), student)
             .on_hover_text(tl!("Student Preview: hide solution-only layers and objects as on the student copy"));
         ui.vertical(|ui| {
-            ui.label(tl!("Current layer"));
+            // Nothing selected: the current layer, which a pick changes. A selection: its layer
+            // (blank when it spans several), and a pick moves every selected object to it.
+            ui.label(if selected { tl!("Layer") } else { tl!("Current layer") });
             let mut pick = None;
             craft_ui::ComboBox::from_id_salt("cad_current_layer").selected_text(&current).width(120.0).show_ui(ui, |ui| {
                 for name in &layers {
@@ -4230,7 +4579,7 @@ fn layers_group(app: &mut WordApp, ui: &mut Ui) {
                 }
             });
             if let Some(name) = pick {
-                let _ = app.run("ui.cadCurrentLayer", json!({"layer": name}));
+                let _ = app.run(if selected { "ui.cadLayer" } else { "ui.cadCurrentLayer" }, json!({"layer": name}));
             }
         });
     });
@@ -4325,21 +4674,18 @@ fn annotate_tab(app: &mut WordApp, ui: &mut Ui) {
     layers_group(app, ui);
 }
 
-/// The unit typed values are read in (drawings are drawn in millimetres).
+/// The unit every length is shown and typed in (the drawing's own unit, millimetres, is an
+/// internal convention the user never sees).
 fn units_group(app: &mut WordApp, ui: &mut Ui) {
     use crate::widgets::group;
-    let Some((unit, input)) = app.cad.as_ref().map(|e| (e.drawing.unit, e.drawing.input)) else { return };
+    let Some(input) = app.cad.as_ref().map(|e| strix_cad::Units::of(&e.drawing).input) else { return };
     group(ui, "Units", None, app, |ui, app| {
         field_grid(ui, "cad_units", |ui| {
-            ui.label(tl!("Input unit"));
-            let shown = input.filter(|u| *u != unit).map_or_else(|| tl!("Drawing unit").to_string(), |u| u.symbol().to_string());
-            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(shown).width(FIELD_W).show_ui(ui, |ui| {
-                for (u, word) in
-                    [(None, "drawing"), (Some(strix_cad::Unit::Mm), "mm"), (Some(strix_cad::Unit::Cm), "cm"), (Some(strix_cad::Unit::M), "m")]
-                {
-                    let label = if u.is_none() { tl!("Drawing unit").to_string() } else { word.to_string() };
-                    if ui.selectable_label(input.filter(|i| *i != unit) == u, label).clicked() {
-                        let _ = app.run("ui.cadInputUnit", json!({"unit": word}));
+            ui.label(tl!("Input unit")).on_hover_text(tl!("The unit lengths are shown and typed in"));
+            craft_ui::ComboBox::from_id_salt("cad_input_unit_ribbon").selected_text(input.symbol()).width(FIELD_W).show_ui(ui, |ui| {
+                for u in [strix_cad::Unit::Mm, strix_cad::Unit::Cm, strix_cad::Unit::M] {
+                    if ui.selectable_label(input == u, u.symbol()).clicked() {
+                        let _ = app.run("ui.cadInputUnit", json!({"unit": u.symbol()}));
                     }
                 }
             });
@@ -4482,6 +4828,17 @@ mod tests {
         app.cad.as_ref().map_or(0, |e| e.drawing.entities.len())
     }
 
+    /// Lines show their paper width at the zoom (a 0.5 mm line at 4 points a mm is 2 points,
+    /// twice a 0.25 mm one), a hairline at the thinnest, never NaN.
+    #[test]
+    fn lines_show_their_width_on_paper() {
+        assert_eq!(stroke_px(0.5, 4.0), 2.0);
+        assert_eq!(stroke_px(0.25, 4.0), 1.0);
+        assert_eq!(stroke_px(0.13, 1.0), 0.5);
+        assert_eq!(stroke_px(f64::NAN, 4.0), 0.5);
+        assert_eq!(stroke_px(2.0, 1e9), 200.0);
+    }
+
     #[test]
     fn drawing_in_the_editor_is_saved_and_undone_in_the_document() {
         let mut app = app_with_drawing();
@@ -4589,6 +4946,21 @@ mod tests {
         ed.set_tool(Tool::Rotate);
         ed.points = vec![Pt::new(0.0, 0.0)];
         assert!(typed_value(ed, "90").is_some_and(|d| d.is_some()));
+        // The properties too: shown and typed in the input unit, stored in mm.
+        let ed = app.cad.as_mut().unwrap();
+        ed.points.clear();
+        ed.set_tool(Tool::Select);
+        let mut d = ed.drawing.clone();
+        d.entities.push(strix_cad::Entity::new(strix_cad::Kind::Line { a: strix_cad::P::new(0.0, 0.0), b: strix_cad::P::new(10.0, 0.0) }));
+        let last = d.entities.len() - 1;
+        commit(&mut app, &d);
+        app.cad.as_mut().unwrap().selection = vec![last];
+        app.run("ui.cadProps", json!({"field": "ax", "value": "1.5"})).unwrap();
+        let fields = app.run("ui.cadProps", json!({})).unwrap();
+        let ax = fields["fields"].as_array().unwrap().iter().find(|f| f["field"] == "ax").unwrap();
+        assert_eq!(ax["value"], json!("1.5"), "{fields}");
+        let d = &app.cad.as_ref().unwrap().drawing;
+        assert_eq!(d.fields(last, 0).into_iter().find(|f| f.key == "ax").unwrap().text, "1500");
         assert!(app.run("ui.cadInputUnit", json!({"unit": "inch"})).is_err());
         app.run("ui.cadInputUnit", json!({"unit": "drawing"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.input, None);
@@ -4647,6 +5019,16 @@ mod tests {
         let d = feed(ed, Pt::new(15.0, 12.0), None).unwrap();
         commit(&mut app, &d);
         app.run("ui.cadTool", json!({"tool": "dimContinue"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        // It asks for the dimension first: a click away from one picks nothing, a click on its
+        // line near the second point picks it and that end.
+        assert_eq!(ed.chain_base, None);
+        assert!(ed.prompt().contains("pick the dimension"), "{}", ed.prompt());
+        assert!(feed(ed, Pt::new(15.0, 60.0), None).is_none());
+        assert_eq!(ed.chain_base, None);
+        let base = ed.drawing.last_linear_dim();
+        assert!(feed(ed, Pt::new(28.0, 12.0), None).is_none());
+        assert_eq!((ed.chain_base, ed.chain_first), (base, false));
         for x in [50.0, 80.0] {
             let ed = app.cad.as_mut().unwrap();
             let d = feed(ed, Pt::new(x, -4.0), None).expect("a continued dimension");
@@ -4671,6 +5053,18 @@ mod tests {
         assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { a, b, .. } if a.0.value == 0.0 && b.0.value == 80.0));
         commit(&mut app, &d);
         assert_eq!(dims(&app), 4);
+        // Picked near its first point, a dimension is continued from there; Enter instead of a
+        // pick goes on from the newest.
+        app.cad.as_mut().unwrap().selection.clear();
+        app.run("ui.cadTool", json!({"tool": "dimContinue"})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        feed(ed, Pt::new(2.0, 12.0), None);
+        assert_eq!((ed.chain_base, ed.chain_first), (Some(first), true));
+        let d = feed(ed, Pt::new(-20.0, 0.0), None).expect("continued to the left");
+        assert!(matches!(&d.entities.last().unwrap().kind, Kind::Dim { a, b, .. } if a.0.value == 0.0 && b.0.value == -20.0));
+        ed.set_tool(Tool::DimBaseline);
+        assert!(ed.enter().is_none());
+        assert_eq!((ed.chain_base, ed.chain_first), (ed.drawing.last_linear_dim(), true));
     }
 
     #[test]
@@ -4757,6 +5151,15 @@ mod tests {
         // Layers: move the selection to a new one; the current layer takes new objects.
         app.run("ui.cadLayer", json!({"layer": "Axes"})).unwrap();
         assert_eq!(app.cad.as_ref().unwrap().drawing.entities[last].layer, "Axes");
+        // The ribbon's layer box: the selection's layer, blank across several, else the current.
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(layer_shown(ed), "Axes");
+        ed.selection = (0..ed.drawing.entities.len()).collect();
+        assert!(ed.drawing.entities.iter().any(|e| e.layer != "Axes"));
+        assert_eq!(layer_shown(ed), "");
+        ed.selection.clear();
+        assert_eq!(layer_shown(ed), ed.current_layer);
+        ed.selection = vec![last];
         app.run("ui.cadCurrentLayer", json!({"layer": "Hidden lines"})).unwrap();
         let ed = app.cad.as_mut().unwrap();
         ed.tool = Tool::Point;
@@ -5692,6 +6095,157 @@ mod tests {
             let m = s / 10f64.powf(s.log10().floor());
             assert!([1.0, 2.0, 5.0, 10.0].iter().any(|x| (m - x).abs() < 1e-9), "{s}");
         }
+    }
+
+    /// Found in review: a hot grip and the previous selection name objects by index, so after a
+    /// Delete (or an undo) they named other objects: the next click moved an object that was
+    /// never selected, and Previous selected the survivors.
+    #[test]
+    fn a_deletion_leaves_no_grip_or_previous_selection_behind() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        let mut d = ed.drawing.clone();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -100.0), b: P::new(-50.0, -100.0) })).unwrap();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -200.0), b: P::new(-50.0, -200.0) })).unwrap();
+        commit(&mut app, &d);
+        let n = entities(&app);
+        let ed = app.cad.as_mut().unwrap();
+        ed.selection = vec![n - 2];
+        ed.grip = Some((n - 2, Grip::B, Pt::new(-50.0, -100.0)));
+        app.run("ui.cadDelete", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        assert_eq!(ed.drawing.entities.len(), n - 1);
+        assert!(ed.grip.is_none(), "the grip was the deleted line's");
+        assert!(ed.selection.is_empty() && ed.previous.is_empty(), "{:?} {:?}", ed.selection, ed.previous);
+        // An undo in the document while a grip is hot: the grip does not go on either.
+        ed.grip = Some((0, Grip::A, Pt::new(0.0, 0.0)));
+        app.run("edit.undo", json!({})).unwrap();
+        reload(&mut app);
+        assert!(app.cad.as_ref().unwrap().grip.is_none());
+    }
+
+    /// Found in review: Scale's second click on the base point (a double click) was a factor of
+    /// 0, every selected object shrunk to that point.
+    #[test]
+    fn a_second_click_on_the_base_point_does_not_scale_to_nothing() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.selection = vec![0];
+        ed.set_tool(Tool::Scale);
+        assert!(feed(ed, Pt::new(10.0, 10.0), None).is_none());
+        assert!(feed(ed, Pt::new(10.0, 10.0), None).is_none(), "no drawing made");
+        assert_eq!(ed.points, [Pt::new(10.0, 10.0)], "the base point is kept");
+        assert!(!ed.message.is_empty());
+        assert!(feed(ed, Pt::new(12.0, 10.0), None).is_some(), "a point away from it scales");
+    }
+
+    /// Found in review: a second click with the Text tool (to put the text elsewhere) left two
+    /// points, and what was typed next was read as a point instead of the text.
+    #[test]
+    fn the_text_tool_keeps_one_point_the_last_clicked() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.set_tool(Tool::Text);
+        assert!(feed(ed, Pt::new(10.0, 10.0), None).is_none());
+        assert!(feed(ed, Pt::new(30.0, 40.0), None).is_none());
+        assert_eq!(ed.points, [Pt::new(30.0, 40.0)]);
+    }
+
+    /// Found in review: `ui.cadSelect` by id took objects on a locked layer, which Delete and
+    /// Move then changed; a click never picks them.
+    #[test]
+    fn selecting_by_id_leaves_locked_layers_alone() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        let id = ed.drawing.entities[0].id.clone();
+        assert_eq!(app.run("ui.cadSelect", json!({"ids": [id]})).unwrap()["selected"], json!(1));
+        let ed = app.cad.as_mut().unwrap();
+        let layer = ed.drawing.entities[0].layer.clone();
+        for l in ed.drawing.layers.iter_mut().filter(|l| l.name == layer) {
+            l.locked = true;
+        }
+        assert_eq!(app.run("ui.cadSelect", json!({"ids": [id]})).unwrap()["selected"], json!(0));
+    }
+
+    /// Found in review: a hatch goes behind everything, so every index moves on by one, and the
+    /// selection (kept through the Hatch tool) named the wrong objects.
+    #[test]
+    fn a_hatch_made_behind_keeps_the_selection_on_its_objects() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.selection = vec![0];
+        let id = ed.drawing.entities[0].id.clone();
+        ed.set_tool(Tool::Hatch);
+        let d = feed(ed, Pt::new(60.0, 30.0), None).expect("a hatch");
+        let selected: Vec<&str> = ed.selection.iter().filter_map(|&i| d.entities.get(i)).map(|e| e.id.as_str()).collect();
+        assert_eq!(selected, [id.as_str()]);
+    }
+
+    /// Found in review: a block waiting for its insertion point outlived the tool, so the first
+    /// click of the Line chosen next inserted the block.
+    #[test]
+    fn choosing_a_tool_gives_up_a_block_waiting_for_its_point() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let ed = app.cad.as_mut().unwrap();
+        ed.block.pick = Some(blocks::Pending::Insert { name: "door".into(), factor: 1.0, angle: 0.0 });
+        ed.set_tool(Tool::Line);
+        assert!(ed.block.pick.is_none());
+    }
+
+    /// Found in review: zoomed in on a detail, a dashed guide or selected object is millions of
+    /// points long on screen; a dash every few points of it took the memory and, further in,
+    /// never ended. Only what is near the visible area is dashed.
+    #[test]
+    fn dashes_are_only_made_near_the_visible_area() {
+        let clip = Rect::from_min_size(pos2(0.0, 0.0), vec2(1000.0, 800.0));
+        let stroke = Stroke::new(1.0, Color32::BLACK);
+        let far = clipped_dashes(clip, &[pos2(-1e9, 400.0), pos2(1e9, 400.0)], stroke, 5.0, 3.0);
+        assert!(!far.is_empty() && far.len() < 2000, "{}", far.len());
+        // Wholly outside, or not numbers: nothing.
+        assert!(clipped_dashes(clip, &[pos2(-1e9, -1e7), pos2(1e9, -1e7)], stroke, 5.0, 3.0).is_empty());
+        assert!(clipped_dashes(clip, &[pos2(f32::NAN, 0.0), pos2(10.0, f32::INFINITY)], stroke, 5.0, 3.0).is_empty());
+        // On screen: as egui dashes it.
+        let near = [pos2(10.0, 10.0), pos2(90.0, 10.0), pos2(90.0, 50.0)];
+        assert_eq!(clipped_dashes(clip, &near, stroke, 5.0, 3.0).len(), Shape::dashed_line(&near, stroke, 5.0, 3.0).len());
+        assert_eq!(clip_segment(clip, pos2(-50.0, 100.0), pos2(50.0, 100.0)), Some([pos2(0.0, 100.0), pos2(50.0, 100.0)]));
+    }
+
+    /// The docs: Ctrl+Z and Ctrl+Y undo and redo in the editor. Found in review: nothing took
+    /// them there (the command line, a text box, kept them for its own text).
+    #[test]
+    fn ctrl_z_and_ctrl_y_undo_and_redo_in_the_editor() {
+        let mut app = app_with_drawing();
+        app.run("ui.cadEdit", json!({})).unwrap();
+        let mut d = app.cad.as_ref().unwrap().drawing.clone();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -100.0), b: P::new(-50.0, -100.0) })).unwrap();
+        commit(&mut app, &d);
+        let mut d = app.cad.as_ref().unwrap().drawing.clone();
+        d.add(Entity::new(Kind::Line { a: P::new(-100.0, -200.0), b: P::new(-50.0, -200.0) })).unwrap();
+        commit(&mut app, &d);
+        assert_eq!(entities(&app), 5);
+        let mut h = egui_kittest::Harness::builder().with_accessibility_check(false).with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(3);
+        h.event(egui::Event::PointerMoved(pos2(500.0, 500.0)));
+        h.run_steps(2);
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+        h.run_steps(3);
+        assert_eq!(entities(h.state()), 4, "one step undone");
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Y);
+        h.run_steps(3);
+        assert_eq!(entities(h.state()), 5, "and redone");
     }
 }
 

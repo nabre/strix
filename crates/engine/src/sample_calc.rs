@@ -12,7 +12,7 @@ use crate::{CmdError, Selection, Session};
 
 /// The beam in the exercise's statement: a simply supported beam of span `L` (metres, from the
 /// exercise's data) under a uniform load `q`, with its supports, load and span dimension.
-const BEAM: &str = r##"{"unit":"m","scale":50,"layers":[{"name":"0"},{"name":"loads","width":0.35},{"name":"ground","width":0.18}],"entities":[
+const BEAM: &str = r##"{"unit":"m","scale":50,"dimStyle":{"showUnit":true},"layers":[{"name":"0"},{"name":"loads","width":0.35},{"name":"ground","width":0.18}],"entities":[
     {"type":"polyline","pts":[[0,0],["L",0],["L",0.25],[0,0.25]],"closed":true,"stroke":{"width":0.5}},
     {"type":"polyline","pts":[[0,0],[-0.2,-0.35],[0.2,-0.35]],"closed":true},
     {"type":"polyline","pts":[["L",0],["L-0.2",-0.35],["L+0.2",-0.35]],"closed":true},
@@ -315,10 +315,12 @@ mod tests {
         let t = texts(&d);
         // The formulas are live: their values are worked out.
         assert!(t.iter().any(|x| x.starts_with("A=b·h=") && x.ends_with("0.15\u{2009}m²")), "{t:?}");
-        // The exercise: data, questions, worked solution and the results summary.
-        for want in ["Simply supported beam", "Data (variant A)", "span: L = 4.5 m", "a) R = 27 kN", "b) M = 30.375 kN·m"] {
+        // The exercise: questions, worked solution and the results summary.
+        for want in ["Simply supported beam", "a) R = 27 kN", "b) M = 30.375 kN·m"] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
         }
+        // The drawing in the statement shows both data (L and q): no data part repeats them.
+        assert!(!t.iter().any(|x| x.starts_with("Data") || x == "span: L = 4.5 m"), "{t:?}");
         // The statement holds the drawing, sized by the data: its span dimension reads 4.5.
         let statement = t.iter().position(|x| x.starts_with("A beam of span L")).unwrap();
         let Block::Para(p) = &*d.body[statement + 1] else { panic!("no drawing paragraph") };
@@ -349,7 +351,7 @@ mod tests {
             "b) c = 10 cm",
             "Motion and units",
             "a) A, C",
-            "b) A",
+            "b) T",
             "c) s = 20 m; v = 10 m/s",
         ] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");

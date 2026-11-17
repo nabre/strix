@@ -2499,8 +2499,8 @@ preview	Title	Esempio
 	Unit	Unità
 	Remove this datum	Rimuovi questo dato
 	Add Datum	Aggiungi dato
-	Add an initial datum: a symbol with its value in every variant	Aggiungi un dato iniziale: un simbolo con il suo valore in ogni variante
-	The data are the first parameters of the exercise's calculations: the solution uses them by symbol. Changing the variant recalculates the exercise.	I dati sono i primi parametri dei calcoli dell'esercizio: la risoluzione li usa tramite il simbolo. Cambiando variante l'esercizio viene ricalcolato.
+	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Aggiungi un dato: un'equazione come L = 4.5 m, con il suo valore in ogni variante
+	Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise.	Ogni dato è un'equazione (L = 4.5 m): la risoluzione lo usa tramite il simbolo. L'esercizio elenca i dati che non mostra già altrove, e lì si possono modificare anche direttamente. Cambiando variante l'esercizio viene ricalcolato.
 	Exercise Data	Dati esercizio
 	Show\nSteps	Mostra\npassaggi
 	Show Steps	Mostra passaggi
@@ -2804,6 +2804,9 @@ preview	Title	Esempio
 	Triangle height	Altezza del triangolo
 	0: the dimension text height	0: l'altezza del testo delle quote
 	0: automatic (a text and a fifth)	0: automatica (un testo e un quinto)
+	Reference line, text side	Segno di riferimento, lato testo
+	Reference line, other side	Segno di riferimento, lato opposto
+	0: automatic (the triangle height)	0: automatica (l'altezza del triangolo)
 	Elevations end with their unit (+3.00 m); off, the number alone	Le quote altimetriche finiscono con la loro unità (+3,00 m); disattivato, solo il numero
 	Slope\nTicks	Barbette
 	Slope ticks	Barbette
@@ -2999,8 +3002,12 @@ preview	Title	Esempio
 	select the dimensions or level marks to flip	seleziona le quote o le quote di livello da ribaltare
 	Datum (±0.00) Y	Riferimento (±0.00) Y
 	Elevation	Quota
-	Under the level	Sotto il livello
-	Text on the left	Testo a sinistra
+	Vertical mirror	Specchio verticale
+	Horizontal mirror	Specchio orizzontale
+	Fill	Riempimento
+	Rough and finished level	Grezzo/finito
+	Rough level	Grezzo
+	Finished level	Finito
 	Annotative distance	Distanza annotativa
 	Scaled distance	Distanza in scala
 	Scaled radius	Raggio in scala
@@ -3014,7 +3021,9 @@ preview	Title	Esempio
 	a radius is more than 0	un raggio è maggiore di 0
 	Ordinal Column	Colonna ordinale
 	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Una prima colonna, la colonna 0, che numera le righe di dati 1, 2, 3… (i calcoli non la leggono mai)
-	The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)	L'ultima riga somma ogni colonna (Σ =); una cella scritta lì mantiene il suo testo (mean =, max =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	L'ultima riga somma ogni colonna (Σ nella prima colonna, le somme sotto le loro colonne); una cella scritta lì mantiene il suo testo (mean =, max =)
+	Column Total	Totale colonna
+	Sum the column at the cursor in the total row, or leave its cell there empty	Somma nella riga totale la colonna in cui si trova il cursore, oppure lascia vuota la sua cella
 	Dimension units	Unità delle quote
 	Drawing unit	Unità del disegno
 	Metres	Metri
@@ -3232,6 +3241,9 @@ paper	Envelope DL	Busta DL
 	downloaded	scaricato
 	Don't Restart	Non riavviare
 	Download updates automatically	Scarica automaticamente gli aggiornamenti
+	Check for updates automatically	Verifica automaticamente gli aggiornamenti
+	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	All'avvio e una volta al giorno, Strix Writer chiede a GitHub l'elenco delle sue versioni. Non viene inviato nulla su di te, sul tuo computer o sui tuoi documenti.
+	Strix Writer looks for a newer version only when you choose Check for Updates.	Strix Writer cerca una versione più recente solo quando scegli Verifica aggiornamenti.
 	Downloading in the background…	Download in background in corso…
 	It will be installed when you restart Strix Writer.	Verrà installato al prossimo riavvio di Strix Writer.
 	Strix Writer restarts in the new version as soon as it closes.	Strix Writer si riavvierà nella nuova versione non appena si chiude.
@@ -3254,7 +3266,6 @@ paper	Envelope DL	Busta DL
 	The style new objects take; chosen with objects selected, they take it too	Lo stile dei nuovi oggetti; scelto con oggetti selezionati, lo prendono anche loro
 	A new style, a copy of this one, made current	Un nuovo stile, copia di questo, reso corrente
 	Delete this style: its objects take Standard	Elimina questo stile: i suoi oggetti prendono Standard
-	The width of the marks' lines; 0: automatic (a tick heavier than the line, an arrow as thin)	Lo spessore delle linee dei terminali; 0: automatico (un trattino più spesso della linea, una freccia sottile come lei)
 	Standard: the document's font. New makes a style of your own.	Standard: il carattere del documento. Nuovo crea uno stile tuo.
 	What one unit of the coordinates measures	Quanto misura un'unità delle coordinate
 	Changing the unit keeps the coordinates' numbers (the drawing grows or shrinks); off, they are converted and the drawing keeps its size	Cambiando unità le coordinate mantengono i numeri (il disegno si ingrandisce o si rimpicciolisce); disattivato, vengono convertite e il disegno mantiene le sue dimensioni
@@ -3431,12 +3442,10 @@ paper	Envelope DL	Busta DL
 	Decide Later	Decidi dopo
 	Objects Changed in Another Program	Oggetti modificati in un altro programma
 	DSA	DSA
-	Reading (dyslexia)	Lettura (dislessia)
-	Writing (dysgraphia)	Scrittura (disgrafia)
-	Maths and Memory (dyscalculia)	Calcolo e memoria (discalculia)
-	No DSA Formatting	Nessuna formattazione DSA
-	DSA formatting: the test laid out for students with specific learning difficulties; the versions combine	Formattazione DSA: la verifica impaginata per studenti con disturbi specifici dell'apprendimento; le versioni si combinano
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing	Inserisci un esercizio; il menu offre i tipi: problema, risposta aperta, risposta multipla, vero o falso, calcolo, disegno CAD
+	Reading\n(dyslexia)	Lettura\n(dislessia)
+	Writing\n(dysgraphia)	Scrittura\n(disgrafia)
+	Maths and Memory\n(dyscalculia)	Calcolo e memoria\n(discalculia)
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Inserisci un esercizio; il menu offre i tipi: problema, risposta aperta, risposta multipla, vero o falso, completamento in linea, tabella da completare
 	Problem (Statement, Questions, Solution)	Problema (testo, domande, risoluzione)
 	Open Answer	Risposta aperta
 	Multiple Choice	Risposta multipla
@@ -3505,8 +3514,6 @@ paper	Envelope DL	Busta DL
 	Question Type	Tipo di domanda
 	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Aggiungi all'esercizio al cursore una domanda di un tipo: risposta aperta, risposta multipla, vero o falso, calcolo, disegno CAD
 	Variants & Data	Varianti e dati
-	Show data in exercise	Mostra i dati nell'esercizio
-	Print the Data block in the exercise; off, the values stay in the calculation sandbox only	Stampa il blocco Dati nell'esercizio; disattivato, i valori restano solo nella sandbox di calcolo
 	Question Mode	Modalità della domanda
 	Question Points	Punti della domanda
 	Mode	Modalità
@@ -3593,18 +3600,12 @@ paper	Envelope DL	Busta DL
 	Uncertainty in Quadrature (GUM)	Incertezze in quadratura (GUM)
 	Worked Example	Esempio svolto
 	Inline Completion	Completamento in linea
-	Table to Complete	Tabella da completare
 	Matching	Abbinamento
 	Inline Blank	Lacuna in linea
-	Student Blank Cell	Cella da completare
 	Grade	Classe
 	Profession	Indirizzo
 	Teacher	Docente
 	Pairs (left = right)	Coppie (sinistra = destra)
-	Student Blanks	Lacune per gli allievi
-	Choose which calculated cells students complete	Scegli le celle calcolate da far completare agli allievi
-	Student Blank Column	Colonna da completare
-	Show Cell Value	Mostra il valore della cella
 	School Subject	Materia
 	Score	Punteggio
 # Strix (2026-11-13): Phase 4 scientific plots (strix-plot) and completion CAD drawings (F5, F6).
@@ -3628,6 +3629,35 @@ paper	Envelope DL	Busta DL
 	Y axis	Asse Y
 	Minor grid	Griglia secondaria
 	Student blank grid (solution only)	Griglia muta allievo (solo soluzione)
+	Solid line	Linea continua
+	Dashed line	Linea tratteggiata
+	Dotted line	Linea punteggiata
+	Dash-dot line	Linea tratto-punto
+	Zeros	Zeri
+	Minimum	Minimo
+	Maximum	Massimo
+	Area	Area
+	Insert Analysis in Document	Inserisci analisi nel documento
+	Writes after the plot each function's definition and live calculations of its zeros, extrema, tangent and integral	Scrive dopo il grafico la definizione di ogni funzione e i calcoli dal vivo di zeri, estremi, tangente e integrale
+	Abscissa	Ascissa
+	Ordinate	Ordinata
+	The axis name, written at the tip of its arrow; when it is a name (x, E, t), the formulas use it as their variable	Il nome dell'asse, scritto in punta alla sua freccia; se è un nome (x, E, t), le formule lo usano come variabile
+	Reference System	Sistema di riferimento
+	Angles	Angoli
+	Angle unit	Unità degli angoli
+	Surveying (clockwise)	Topografico (orario)
+	Mathematical (counter-clockwise)	Matematico (antiorario)
+	Angles start from the positive ordinate and turn clockwise, like a bearing from north	Gli angoli partono dall'ordinata positiva e girano in senso orario, come un azimut dal nord
+	Angles start from the positive abscissa and turn counter-clockwise	Gli angoli partono dall'ascissa positiva e girano in senso antiorario
+	Radians (rad)	Radianti (rad)
+	Degrees (°)	Gradi sessagesimali (°)
+	Gradians (gon)	Gradi centesimali (gon)
+	Show angle direction	Mostra il verso degli angoli
+	Draw an arc with an arrow from the reference axis in the direction angles grow	Disegna un arco con una freccia dall'asse di riferimento nel verso in cui crescono gli angoli
+	Full turn	Giro completo
+	Ranges	Intervalli
+	Automatic	Automatico
+	Fit the ranges to what the plot shows: roots, extrema, tangent points, integral bounds, data and curves	Adatta gli intervalli a ciò che il grafico mostra: zeri, estremi, punti di tangenza, estremi d'integrazione, dati e curve
 	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Nella copia allievo traccia solo la griglia e gli assi cartesiani così che gli allievi disegnino la curva a mano
 	Parametric	Parametrica
 	Roots	Zeri
@@ -3643,3 +3673,129 @@ paper	Envelope DL	Busta DL
 	Pre-flight Check Pane	Riquadro Controllo preliminare
 	Set Plot	Imposta grafico
 	select a plot first	seleziona prima un grafico
+	Add a question at the end of the exercise	Aggiungi una domanda alla fine dell'esercizio
+	Answer Space	Spazio per la risposta
+	A problem's questions are answered in its solution.	Le domande di un problema si risolvono nella sua soluzione.
+	Grade step	Passo dei voti
+	Correct Options	Opzioni corrette
+	Curve	Curva
+	Custom	Personalizzata
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Elimina l'intero esercizio: testo, domande e soluzione (Annulla lo ripristina)
+	Duration	Durata
+	Exercises	Esercizi
+	Fixed maximum	Massimo fisso
+	From the document's points ({points})	Dai punti del documento ({points})
+	General	Generale
+	Points rounded to the multiple of	Punti arrotondati al multiplo di
+	Hidden now: the solutions are hidden (student copy).	Ora nascosta: le soluzioni sono nascoste (copia allievo).
+	Highest grade	Voto massimo
+	How far an answer may be from the result and still be right: 2% or 0.1 cm	Quanto una risposta può scostarsi dal risultato ed essere giusta: 2% o 0,1 cm
+	Insert Grading Scale	Inserisci scala di valutazione
+	Layout	Impaginazione
+	Like the last one	Come l'ultima
+	Lowest grade	Voto minimo
+	No question yet: write one in the exercise, or add one.	Ancora nessuna domanda: scrivila nell'esercizio o aggiungila.
+	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	I punti di ogni voto si calcolano esattamente dalla curva, poi si arrotondano a questo multiplo (0,01: centesimi)
+	One pair per line: left = right	Una coppia per riga: sinistra = destra
+	Pairs	Coppie
+	Pass grade	Voto di sufficienza
+	Pass Mark	Sufficienza
+	Pass threshold	Soglia di sufficienza
+	Piecewise (pass threshold)	A tratti (soglia di sufficienza)
+	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	A tratti: la soglia di sufficienza dei punti dà il voto di sufficienza e i voti crescono in modo uniforme sotto e sopra di essa. Lineare: il voto segue i punti in modo uniforme.
+	Preset	Predefinito
+	Preview	Anteprima
+	Put the cursor in this exercise's title	Porta il cursore nel titolo di questo esercizio
+	(question not written yet)	(domanda non ancora scritta)
+	Remove Grading Scale	Rimuovi scala di valutazione
+	Result	Risultato
+	Shown In	Mostrata in
+	Show this question's settings	Mostra le impostazioni di questa domanda
+	Student and teacher copies	Copia allievo e docente
+	Take the grading scale table out of the document (Undo brings it back)	Togli la tabella della scala di valutazione dal documento (Annulla la ripristina)
+	Teacher copy only	Solo copia docente
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Il documento non ha una scala di valutazione. Inseriscila: converte i punti ottenuti in un voto.
+	The most points this question gives; empty: not scored	I punti massimi di questa domanda; vuoto: senza punteggio
+	The scores table's grand total, else the questions' points added up	Il totale della tabella punteggi, altrimenti la somma dei punti delle domande
+	Type	Tipo
+	Write the options in the exercise: each line under the question is one.	Scrivi le opzioni nell'esercizio: ogni riga sotto la domanda è un'opzione.
+	Grading Scale Properties	Proprietà scala di valutazione
+	Title Line	Riga del titolo
+	The result line is generated from the working: write the working in the space above it.	La riga del risultato è generata dallo svolgimento: scrivi lo svolgimento nello spazio sopra.
+	Inline Value	Valore in linea
+	Value and Unit	Valore e unità
+	Symbol = Value	Simbolo = valore
+	Number Only	Solo il numero
+	Delete Value	Elimina valore
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Cosa mostra il valore: un dato (R), un calcolo (2*R) o una conversione (R -> cm). Invio lo applica.
+	Layers of another drawing (its underlay or imported): usable like the drawing's own	Livelli di un altro disegno (il sottomano o importati): si usano come quelli del disegno
+	A layer of another drawing can be deleted only when no object is on it	Un livello di un altro disegno si elimina solo quando non ha oggetti
+	Measured size	Misura rilevata
+	No parameters are defined before the drawing	Nessun parametro definito prima del disegno
+	Symbol = value	Simbolo = valore
+	Insert a parameter of the calculations: its value, its symbol or both	Inserisci un parametro dei calcoli: il valore, il simbolo o entrambi
+	Exercise Tools	Strumenti esercizio
+	The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab	La scheda Esercizio (domande, varianti e dati, impaginazione) con il cursore in un esercizio, altrimenti la scheda Serie
+	Question\nSettings	Impostazioni\ndomande
+	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…, in a pane beside the document	Ogni domanda con tipo e punti, e le impostazioni di quella scelta: spazio per la risposta, opzioni corrette, tolleranza…, in una barra accanto al documento
+	Put the cursor in an exercise to see its questions' settings.	Metti il cursore in un esercizio per vederne le impostazioni delle domande.
+	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Aggiungi una domanda alla fine dell'esercizio; il menu offre i tipi: risposta aperta, scelta multipla, vero o falso, calcolo, disegno CAD…
+	Show Title	Mostra titolo
+	Remove Title	Rimuovi titolo
+	Give the exercise a title after the number; the text next to the number goes back under it	Dai un titolo all'esercizio dopo il numero; il testo accanto al numero torna sotto
+	Remove the exercise's title: the statement's text goes next to the number (Show Title brings the title back)	Rimuovi il titolo dell'esercizio: il testo va accanto al numero (Mostra titolo lo ripristina)
+	Problem	Problema
+	Add Variant	Aggiungi variante
+	Remove Variant	Rimuovi variante
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants, in a pane beside the document	I dati iniziali: un'equazione per dato (L = 4.5 m) con la sua descrizione, e le varianti, in una barra accanto al documento
+	Generate\nVariants	Genera\nvarianti
+	Generate clean variants from each datum's range, checked against the constraints on the results (add data first)	Genera varianti pulite dall'intervallo di ogni dato, verificate con i vincoli sui risultati (prima aggiungi i dati)
+	The graph paper after the questions, before the solution: its squares, lines and colour (Show › Graph Paper Before the Solution adds it)	Il foglio a quadretti dopo le domande, prima della risoluzione: quadretti, righe e colore (Mostra › Foglio a quadretti prima della risoluzione lo aggiunge)
+	Where the exercises start a new page	Dove gli esercizi iniziano una nuova pagina
+	Series\nSettings	Impostazioni\nserie
+	Page breaks, parts shown, graph paper and numbering are the series': they are in the Series tab	Interruzioni di pagina, parti visibili, foglio a quadretti e numerazione sono della serie: si trovano nella scheda Serie
+	Select the whole exercise: its statement, questions and solution	Seleziona tutto l'esercizio: testo, domande e risoluzione
+	Go To\nExercise	Vai\nall'esercizio
+	Put the cursor in an exercise's title	Porta il cursore nel titolo di un esercizio
+	Previous Exercise	Esercizio precedente
+	Next Exercise	Esercizio successivo
+	Put the cursor in the previous exercise's title	Porta il cursore nel titolo dell'esercizio precedente
+	Put the cursor in the next exercise's title	Porta il cursore nel titolo dell'esercizio successivo
+	Delete an exercise whole: its statement, questions and solution (Undo brings it back)	Elimina un esercizio intero: testo, domande e risoluzione (Annulla lo ripristina)
+	Dimension line	Linea di quota
+	Download Thesaurus	Scarica dizionario dei sinonimi
+	Thesaurus Pane	Riquadro Sinonimi
+	Download the {name} thesaurus	Scarica il dizionario dei sinonimi {name}
+	Downloading the {name} thesaurus…	Download del dizionario dei sinonimi {name} in corso…
+	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Scarica il dizionario dei sinonimi {name} dai dizionari di LibreOffice ({source}), con licenza {licence}, insieme ai file che ne indicano la licenza, nella cartella dei dizionari. Il riquadro Sinonimi e il menu Sinonimi lo usano subito.
+	The {name} thesaurus is installed: synonyms in {language} come from it now.	Il dizionario dei sinonimi {name} è installato: ora i sinonimi in {language} vengono da lì.
+	The {name} thesaurus couldn't be downloaded: {reason}	Impossibile scaricare il dizionario dei sinonimi {name}: {reason}
+	Search for a word	Cerca una parola
+	Look up	Cerca
+	Put the insertion point in a word, or type one above, to see its synonyms.	Metti il punto di inserimento in una parola, o scrivine una qui sopra, per vederne i sinonimi.
+	No synonyms found for “{word}”.	Nessun sinonimo trovato per “{word}”.
+	Showing “{entry}”.	Viene mostrato “{entry}”.
+	Look up this word	Cerca questa parola
+	Replace the word at the insertion point with this one	Sostituisci con questa la parola al punto di inserimento
+	From the {name} thesaurus.	Dal dizionario dei sinonimi {name}.
+	From Strix's short built-in list.	Dal breve elenco integrato di Strix.
+	The thesaurus couldn't be read: {reason}	Impossibile leggere il dizionario dei sinonimi: {reason}
+	No thesaurus for {language} is installed yet.	Non è ancora installato un dizionario dei sinonimi per {language}.
+	Add a variant: a copy of the active one's values (add data first)	Aggiungi una variante: una copia dei valori di quella attiva (prima aggiungi i dati)
+	High contrast only	Solo contrasto elevato
+	Hide Words	Nascondi parole
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Nasconde le parole selezionate per un testo da completare a mano: la copia corretta le mostra, quella degli studenti una riga su cui scrivere ([[parola]] scritto in una domanda di completamento fa lo stesso)
+	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	Lo spessore delle linee dei terminali; Automatico: un trattino più spesso della linea, una freccia sottile come lei
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	scegli la quota da cui proseguire, vicino all'estremo da cui partire (Invio: l'ultima)
+	Pick a linear dimension	Scegli una quota lineare
+	ByStyle	DaStile
+	ByLayer / ByStyle	DaLivello / DaStile
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Linee di quota, di riferimento e di richiamo; DaLivello: quello del livello. I terminali hanno il loro spessore
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Linee di quota, di riferimento e di richiamo; DaLivello: quello del livello. Terminali e testi restano continui
+	Symbols Pane	Riquadro Simboli
+	Close\nEquation	Chiudi\nequazione
+	Check\nAssessment	Controlla\nvalutazione
+mark	Grade	Voto
+	Points: a number, or empty for a question that is not scored	Punti: un numero, oppure vuoto per una domanda senza punteggio
+	Duration: 1 to 600 minutes, or empty	Durata: da 1 a 600 minuti, oppure vuoto
+	Scale: a point away from the base point, or a factor above 0	Scala: un punto lontano dal punto base, o un fattore maggiore di 0

@@ -351,14 +351,18 @@ fn put_leading_control(s: &mut Session, block_idx: usize, ctl: ContentControl) {
     }
 }
 
+/// Takes the last `count` control ends off the paragraph at `block_idx`: all of them, or (when
+/// it closes fewer) none, the paragraph left as it was.
 fn strip_trailing_ends(s: &mut Session, block_idx: usize, count: usize) -> Result<(), ()> {
     let block = s.doc.body.get_mut(block_idx).ok_or(())?;
-    let Block::Para(p) = Arc::make_mut(block) else { return Err(()) };
+    let Block::Para(p) = &**block else { return Err(()) };
+    let mut stripped = p.clone();
     for _ in 0..count {
-        if super::take_last_end(p).is_err() {
+        if super::take_last_end(&mut stripped).is_err() {
             return Err(());
         }
     }
+    *block = Arc::new(Block::Para(stripped));
     Ok(())
 }
 
@@ -372,5 +376,32 @@ fn append_trailing_ends(s: &mut Session, block_idx: usize, count: usize) {
             let _ = p.insert_object(end, InlineObject::ControlEnd, &props);
         }
         p.touch();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wordcraft_doc::props::CharProps;
+    use wordcraft_doc::{Block, Document, InlineObject, Paragraph, para_block};
+
+    use crate::Session;
+
+    /// Found in review: asked for more control ends than the paragraph closes, the ones already
+    /// taken off were not put back, leaving controls without an end. All or none.
+    #[test]
+    fn ends_are_stripped_all_or_none() {
+        let mut p = Paragraph::with_text("Scelta", CharProps::default());
+        let end = p.text.len();
+        p.insert_object(end, InlineObject::ControlEnd, &CharProps::default()).unwrap();
+        let mut s = Session::new(Document::new());
+        s.doc.body.insert(0, para_block(p));
+        let ends = |s: &Session| match &*s.doc.body[0] {
+            Block::Para(p) => p.objects.iter().filter(|o| matches!(o, InlineObject::ControlEnd)).count(),
+            Block::Table(_) => 0,
+        };
+        assert!(super::strip_trailing_ends(&mut s, 0, 2).is_err());
+        assert_eq!(ends(&s), 1, "the end taken off is back");
+        assert!(super::strip_trailing_ends(&mut s, 0, 1).is_ok());
+        assert_eq!(ends(&s), 0);
     }
 }

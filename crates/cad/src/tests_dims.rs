@@ -20,6 +20,7 @@ fn a_right_angle_is_drawn_as_a_square() {
             r_paper: 0.0,
             text: text.map(Into::into),
             mark: None,
+            mark_end: None,
         }))
         .unwrap();
         d.render(None)
@@ -64,14 +65,14 @@ fn continued_and_baseline_dimensions() {
         Kind::Dim { b, offset, orient, mark, .. } => {
             let mut b = b;
             b.0.value = 100.0;
-            Kind::Dim { a: P::new(0.0, 0.0), b, offset, offset_units: 0.0, orient, text: None, below: None, mark }
+            Kind::Dim { a: P::new(0.0, 0.0), b, offset, offset_units: 0.0, orient, text: None, below: None, mark, mark_end: None }
         }
         other => other,
     };
     assert_eq!(d.last_linear_dim(), Some(0));
     assert!((line_y(&d, 0) - 8.0).abs() < 1e-9);
     // Continue to x = 250 (and the point a little lower: the line stays).
-    let e = d.dim_continue(0, Pt::new(250.0, -3.0)).unwrap();
+    let e = d.dim_chain(0, false, Pt::new(250.0, -3.0), false).unwrap();
     let Kind::Dim { a, orient, mark, text, .. } = &e.kind else { panic!("{e:?}") };
     assert_eq!(a.0.expr.as_deref(), Some("L"), "starts on the base's second point, its expression kept");
     assert_eq!((*orient, *mark, text.clone()), (Orient::Horizontal, Some(Mark::Arrow), None));
@@ -80,10 +81,10 @@ fn continued_and_baseline_dimensions() {
     assert_eq!(d.last_linear_dim(), Some(1));
     // Baseline from the first: from x = 0, one row further up.
     let row = d.dim_row();
-    let e = d.dim_baseline(0, Pt::new(250.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(250.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 2) - (8.0 + row)).abs() < 1e-9, "{} vs {}", line_y(&d, 2), 8.0 + row);
-    let e = d.dim_baseline(2, Pt::new(400.0, 0.0)).unwrap();
+    let e = d.dim_chain(2, true, Pt::new(400.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 3) - (8.0 + 2.0 * row)).abs() < 1e-9);
     // Below the points (a negative offset), the rows go down.
@@ -97,23 +98,39 @@ fn continued_and_baseline_dimensions() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
-    let e = d.dim_baseline(0, Pt::new(80.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(80.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     assert!((line_y(&d, 1) - (-6.0 - d.dim_row())).abs() < 1e-9);
     // At another scale the row is still paper mm.
     let mut d =
         Drawing::from_json(r#"{"unit":"m","scale":100,"entities":[{"type":"dim","a":[0,0],"b":[4,0],"offset":5,"orient":"horizontal"}]}"#).unwrap();
     let k = 10.0;
-    let e = d.dim_baseline(0, Pt::new(6.0, 0.0)).unwrap();
+    let e = d.dim_chain(0, true, Pt::new(6.0, 0.0), true).unwrap();
     d.add(e).unwrap();
     let y = |i: usize| d.dim_frame(&d.entities[i], k).unwrap().fa.y;
     assert!((y(1) - y(0) - d.dim_row()).abs() < 1e-9, "{} {}", y(0), y(1));
     // Nothing to chain from: not a linear dimension, or the point is the start.
     d.add(Entity::new(Kind::Point { p: P::new(0.0, 0.0) })).unwrap();
-    assert!(d.dim_continue(2, Pt::new(1.0, 1.0)).is_none() && d.dim_continue(99, Pt::new(1.0, 1.0)).is_none());
-    assert!(d.dim_continue(0, Pt::new(4.0, 0.0)).is_none());
+    assert!(d.dim_chain(2, false, Pt::new(1.0, 1.0), false).is_none() && d.dim_chain(99, false, Pt::new(1.0, 1.0), false).is_none());
+    assert!(d.dim_chain(0, false, Pt::new(4.0, 0.0), false).is_none());
+}
+
+/// Picked near its first point, a dimension is continued from there, the other way: the end
+/// nearest the pick is the one the chain goes on from.
+#[test]
+fn chains_go_on_from_the_end_nearest_the_pick() {
+    let d = Drawing::from_json(r#"{"entities":[{"type":"dim","a":[100,0],"b":[200,0],"offset":8,"orient":"horizontal"}]}"#).unwrap();
+    assert_eq!(d.dim_end_near(0, Pt::new(110.0, 8.0)), Some(true));
+    assert_eq!(d.dim_end_near(0, Pt::new(190.0, 8.0)), Some(false));
+    let e = d.dim_chain(0, true, Pt::new(40.0, 0.0), false).unwrap();
+    let Kind::Dim { a, b, .. } = &e.kind else { panic!("{e:?}") };
+    assert_eq!((a.0.value, b.0.value), (100.0, 40.0));
+    let f = d.dim_frame(&e, 1.0).unwrap();
+    assert!((f.fa.y - 8.0).abs() < 1e-9 && (f.fb.y - 8.0).abs() < 1e-9, "on the base's line");
+    assert_eq!(d.dim_end_near(5, Pt::new(0.0, 0.0)), None);
 }
 
 /// A level mark shows its point's height above the datum in metres, signed, two decimals, in
@@ -258,6 +275,34 @@ fn scaled_and_annotative_parts() {
         d.entities[1].kind
     );
     assert!(Drawing::from_json(&d.to_json()).unwrap().dim_style.scaled);
+}
+
+/// The reference between the two parts has its own grip, in the middle of the stretches: dragging
+/// it changes the scaled part; the annotative part keeps its value, the dimension line (arc)
+/// following.
+#[test]
+fn the_reference_grip_moves_the_scaled_part_and_keeps_the_annotative() {
+    let mut d = Drawing::from_json(SCALED_AND_PAPER).unwrap();
+    let reference = |d: &Drawing, i: usize| d.grips(i).into_iter().find(|(g, _)| *g == Grip::Reference).unwrap().1;
+    // 500 units up, in the middle of the dimension.
+    assert!(reference(&d, 0).minus(Pt::new(500.0, 500.0)).len() < 1e-9, "{:?}", reference(&d, 0));
+    // Down to 300 units: still 4 mm on paper, the line at 300/50 + 4 = 10 mm.
+    assert!(d.move_grip(0, Grip::Reference, Pt::new(123.0, 300.0)));
+    assert!(
+        matches!(d.entities[0].kind, Kind::Dim { offset, offset_units, .. } if (offset - 4.0).abs() < 1e-9 && (offset_units - 300.0).abs() < 1e-9)
+    );
+    assert!((line(&d) - 10.0).abs() < 1e-9, "{}", line(&d));
+    // The angle: 250 units along the bisector, 3 mm on paper.
+    let (s, c) = std::f64::consts::FRAC_PI_4.sin_cos();
+    assert!(reference(&d, 1).minus(Pt::new(250.0 * c, 250.0 * s)).len() < 1e-9);
+    assert!(d.move_grip(1, Grip::Reference, Pt::new(100.0 * c, 100.0 * s)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if (r - 100.0).abs() < 1e-9 && (r_paper - 3.0).abs() < 1e-9));
+    // Behind the vertex the scaled radius stops at 0; the paper part stays.
+    assert!(d.move_grip(1, Grip::Reference, Pt::new(-100.0, -100.0)));
+    assert!(matches!(d.entities[1].kind, Kind::Angle { r, r_paper, .. } if r == 0.0 && (r_paper - 3.0).abs() < 1e-9));
+    // Hostile points change nothing.
+    assert!(!d.move_grip(0, Grip::Reference, Pt::new(f64::NAN, 0.0)));
+    assert!(!d.move_grip(2, Grip::Reference, Pt::new(0.0, 0.0)));
 }
 
 /// The Properties of a dimension and an angle with both parts: JSON writes the new keys only
@@ -417,6 +462,34 @@ fn typed_values_in_the_input_unit() {
     assert!(Drawing::from_json(r#"{"input":"inch"}"#).is_ok_and(|d| d.input.is_none()), "an unknown unit is the drawing's");
 }
 
+/// The Properties pane's fields in the input unit: the drawing's own unit (mm) is internal. A
+/// drawing in mm typed in m shows a 2500 mm line as 2.5 and reads `3` as 3000 mm; a value with
+/// its own unit wins; expressions, angles and paper sizes are kept as they are.
+#[test]
+fn fields_in_the_input_unit() {
+    let mut d = Drawing::from_json(
+        r#"{"unit":"mm","input":"m","entities":[{"type":"line","a":[0,0],"b":[2500,0]},{"type":"text","p":[0,0],"value":"A","height":3.5}]}"#,
+    )
+    .unwrap();
+    let text = |d: &Drawing, i: usize, key: &str| d.fields_typed(i, 0).into_iter().find(|f| f.key == key).map(|f| f.text).unwrap();
+    assert_eq!((text(&d, 0, "bx"), text(&d, 0, "length"), text(&d, 0, "angle")), ("2.5".into(), "2.5".into(), "0".into()));
+    assert_eq!(text(&d, 1, "height"), "3.5", "paper mm stay mm");
+    d.set_field_typed(0, 0, "bx", "3").unwrap();
+    assert_eq!(text(&d, 0, "bx"), "3");
+    assert_eq!(d.fields(0, 0).into_iter().find(|f| f.key == "bx").unwrap().text, "3000", "stored in mm");
+    d.set_field_typed(0, 0, "length", "30cm").unwrap();
+    assert_eq!(text(&d, 0, "length"), "0.3");
+    d.set_field_typed(0, 0, "angle", "90").unwrap();
+    assert!(text(&d, 0, "by").starts_with("0.3"), "an angle is no length");
+    d.set_field_typed(0, 0, "ax", "L/2").unwrap();
+    assert_eq!(text(&d, 0, "ax"), "L/2", "an expression is kept as typed");
+    d.set_field_typed(1, 0, "height", "5").unwrap();
+    assert_eq!(text(&d, 1, "height"), "5");
+    // With no input unit of its own the drawing's is used: nothing changes.
+    d.input = None;
+    assert_eq!(text(&d, 0, "bx"), d.fields(0, 0).into_iter().find(|f| f.key == "bx").unwrap().text);
+}
+
 fn near(p: Pt, x: f64, y: f64) -> bool {
     (p.x - x).abs() < 1e-9 && (p.y - y).abs() < 1e-9
 }
@@ -439,6 +512,7 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
             text: None,
             below: None,
             mark: None,
+            mark_end: None,
         }))
         .unwrap();
         let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
@@ -478,6 +552,7 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
         text: None,
         below: None,
         mark: None,
+        mark_end: None,
     }))
     .unwrap();
     let p = d.dim_parts(&d.entities[0]).unwrap();
@@ -492,7 +567,17 @@ fn a_linear_dimension_has_a_scaled_and_an_annotative_part() {
 fn an_angle_has_a_scaled_and_an_annotative_radius() {
     let angle = |b: P, r: f64, r_paper: f64, text: Option<&str>| {
         let mut d = Drawing { scale: 10.0, ..Drawing::default() };
-        d.add(Entity::new(Kind::Angle { c: P::new(0.0, 0.0), a: P::new(10.0, 0.0), b, r, r_paper, text: text.map(Into::into), mark: None })).unwrap();
+        d.add(Entity::new(Kind::Angle {
+            c: P::new(0.0, 0.0),
+            a: P::new(10.0, 0.0),
+            b,
+            r,
+            r_paper,
+            text: text.map(Into::into),
+            mark: None,
+            mark_end: None,
+        }))
+        .unwrap();
         d.add(Entity::new(Kind::Line { a: P::new(0.0, 0.0), b: P::new(1.0, 1.0) })).unwrap();
         let grip = d.grips(0).into_iter().find(|(g, _)| *g == Grip::DimLine).map(|(_, p)| p).unwrap();
         (d, grip)
@@ -517,4 +602,48 @@ fn an_angle_has_a_scaled_and_an_annotative_radius() {
     assert!(d.dim_parts(&d.entities[1]).is_none());
     let (d, _) = angle(P::new(20.0, 0.0), 5.0, 3.0, None);
     assert!(d.dim_parts(&d.entities[0]).is_none());
+}
+
+/// A length parameter in a dimension's text is written as the dimension style writes sizes:
+/// its units (SIA: cm below 1 m, m to the centimetre from 1 m), number format and unit shown,
+/// like the measured `<>`; `{{L:both}}` too; other parameters as everywhere else.
+#[test]
+fn dimension_parameters_follow_the_dimension_style() {
+    let mut ws = strix_calc::Worksheet::new(strix_calc::Options { decimal_comma: true, ..strix_calc::Options::default() });
+    ws.eval_statement("L = 4.5 m");
+    ws.eval_statement("s = 45 cm");
+    ws.eval_statement("n = 3");
+    let d = Drawing::from_json(r#"{"unit":"m","dimStyle":{"units":"sia","showUnit":true},"entities":[]}"#).unwrap();
+    let st = d.dim_style.clone();
+    let plain = |t: String| {
+        t.chars()
+            .filter(|c| !matches!(*c, crate::MATH_START | crate::MATH_END | crate::UNIT_START | crate::UNIT_END | crate::SYM_START | crate::SYM_END))
+            .collect::<String>()
+    };
+    assert_eq!(plain(d.dim_label(&st, Some("{{L}}"), 1.0, Some(&ws))), "4,50 m");
+    assert_eq!(plain(d.dim_label(&st, Some("{{s}}"), 1.0, Some(&ws))), "45 cm");
+    assert_eq!(plain(d.dim_label(&st, Some("{{L:both}}"), 1.0, Some(&ws))), "L = 4,50 m");
+    assert_eq!(plain(d.dim_label(&st, Some("{{L:symbol}}"), 1.0, Some(&ws))), "L");
+    assert_eq!(plain(d.dim_label(&st, Some("{{n}} × <>"), 1.0, Some(&ws))), "3 × 1,00 m");
+    // Millimetres, no unit shown.
+    let d = Drawing::from_json(r#"{"unit":"m","dimStyle":{"units":"mm"},"entities":[]}"#).unwrap();
+    assert_eq!(plain(d.dim_label(&d.dim_style.clone(), Some("{{L}}"), 1.0, Some(&ws))), "4500");
+}
+
+/// The Dimension line snap: a point near another dimension's line (drawn at the drawing's
+/// scale, its paper offset included) takes the line, carried on past its ends too.
+#[test]
+fn the_dimension_line_snap_takes_another_dimensions_line() {
+    // 1:100 in mm: the 8 mm paper offset is 800 drawing units above the measured points.
+    let d = Drawing::from_json(r#"{"scale":100,"entities":[{"type":"dim","a":[0,0],"b":[1000,0],"offset":8,"orient":"horizontal"}]}"#).unwrap();
+    let on = Snaps { end: false, mid: false, nearest: false, ..Snaps::default() };
+    let got = d.snap(Pt::new(1500.0, 790.0), 20.0, None, &on);
+    let (q, k) = got.expect("on the line carried on");
+    assert_eq!(k, SnapKind::DimLine);
+    assert!((q.y - 800.0).abs() < 1e-6 && (q.x - 1500.0).abs() < 1e-6, "{q:?}");
+    // Its end, preferred when near.
+    let (q, _) = d.snap(Pt::new(1003.0, 805.0), 20.0, None, &on).unwrap();
+    assert!((q.x - 1000.0).abs() < 1e-6 && (q.y - 800.0).abs() < 1e-6, "{q:?}");
+    // Off: nothing.
+    assert!(d.snap(Pt::new(1500.0, 790.0), 20.0, None, &Snaps { dim_line: false, ..on }).is_none());
 }

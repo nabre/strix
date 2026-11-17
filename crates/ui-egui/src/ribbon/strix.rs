@@ -58,7 +58,7 @@ pub(super) fn teaching(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Assessment", None, app, |ui, app| {
         let check_on = app.session.view.check_pane;
-        big_toggle(ui, app, "checkAssessment", "Check", "view.checkPane", check_on);
+        big_toggle(ui, app, "checkAssessment", "Check\nAssessment", "view.checkPane", check_on);
         big(ui, app, "exportPack", "Export\nPack", "file.exportPack", json!({}), false);
     });
     group(ui, "Graph Paper", None, app, |ui, app| {
@@ -80,13 +80,11 @@ fn total_score_button(ui: &mut Ui, app: &mut WordApp) {
 }
 
 fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
+    // `exercise.grading` reads the scale's settings at the top level of its reply.
     let gst = app.session.run("exercise.grading", &json!({})).ok().unwrap_or_default();
     let g_on = gst["on"].as_bool().unwrap_or(false);
-    let cfg = &gst["config"];
-    let preset = cfg["preset"].as_str().unwrap_or("it-10").to_string();
-    let curve = cfg["curve"].as_str().unwrap_or("linear").to_string();
-    let step = cfg["step"].as_f64().unwrap_or(0.5);
-    let vis = cfg["visibility"].as_str().unwrap_or("teacher").to_string();
+    let preset = gst["preset"].as_str().unwrap_or("it-10").to_string();
+    let pane = app.session.view.grading_pane;
     menu_button(
         ui,
         app,
@@ -110,22 +108,8 @@ fn grading_scale_menu(ui: &mut Ui, app: &mut WordApp) {
                 mi_check(ui, app, lbl, g_on && preset == id, "exercise.grading", json!({"on": true, "preset": id}));
             }
             ui.separator();
-            mi_check(ui, app, "Linear Curve", curve == "linear", "exercise.grading", json!({"on": true, "curve": "linear"}));
-            mi_check(
-                ui,
-                app,
-                "Piecewise Curve (Pass Threshold)",
-                curve == "piecewiseLinear",
-                "exercise.grading",
-                json!({"on": true, "curve": "piecewiseLinear"}),
-            );
-            ui.separator();
-            for (st_val, st_lbl) in [(0.1, "Step 0.1"), (0.25, "Step 0.25"), (0.5, "Step 0.5"), (1.0, "Step 1.0")] {
-                mi_check(ui, app, st_lbl, (step - st_val).abs() < 1e-6, "exercise.grading", json!({"on": true, "step": st_val}));
-            }
-            ui.separator();
-            mi_check(ui, app, "Teacher Copy Only", vis == "teacher", "exercise.grading", json!({"on": true, "visibility": "teacher"}));
-            mi_check(ui, app, "Student and Teacher Copies", vis == "both", "exercise.grading", json!({"on": true, "visibility": "both"}));
+            // Every property (grades, pass mark, maximum points, rounding, who sees it) in the pane.
+            mi_check(ui, app, "Grading Scale Properties", pane, "view.gradingPane", json!({}));
         },
     );
 }
@@ -246,70 +230,27 @@ pub(super) fn follow_header_footer(app: &mut WordApp, ctx: &egui::Context) {
     }
 }
 
-/// Teaching › Exercise (docs/exercise.md).
+/// Teaching › Exercise (docs/exercise.md): a new exercise and the frontispiece; what an exercise
+/// and a series have is on the contextual Exercise and Series tabs, which Exercise Tools brings up.
 fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Exercise", None, app, |ui, app| {
         new_exercise(ui, app);
-        let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
         stack(ui, |ui| {
-            small(
-                ui,
-                app,
-                "addQuestion",
-                Some("Add Question"),
-                "Add a question at the end of the exercise at the cursor",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({}), false),
-            );
-            small(
-                ui,
-                app,
-                "addSubQuestion",
-                Some("Add Sub-question"),
-                "Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level",
-                crate::widgets::ButtonAction::new("exercise.addQuestion", json!({"sub": true}), false),
-            );
-            small(
-                ui,
-                app,
-                "addNote",
-                Some("Add Note"),
-                "Add a note between the questions: free text that is not a question",
-                crate::widgets::ButtonAction::new("exercise.addNote", json!({}), false),
-            );
-        });
-        stack(ui, |ui| {
-            let strings = |key: &str| -> Vec<String> {
-                info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
-            };
-            let (questions, labels) = (strings("questions"), strings("labels"));
-            let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
-            let current = info["answer"].as_u64().unwrap_or(0);
-            menu_button(
-                ui,
-                app,
-                crate::widgets::MenuButtonOptions::new(
-                    "resultOf",
-                    Some("Result Of"),
-                    "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
-                    false,
-                    "equation.answer",
-                ),
-                |ui, app| {
-                    for (k, q) in questions.iter().enumerate() {
-                        let n = k as u64 + 1;
-                        let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
-                        let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
-                        let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
-                        if resp.clicked() {
-                            let _ = app.run("equation.answer", json!({"question": n}));
-                            ui.close();
-                        }
-                    }
-                    ui.separator();
-                    mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
-                },
-            );
-            show_menu(ui, app);
+            let (here, count) = wordcraft_engine::cmd::exercise::context(&app.session);
+            let any = here || count > 0;
+            ui.add_enabled_ui(any, |ui| {
+                if !any {
+                    ui.multiply_opacity(0.4);
+                }
+                small(
+                    ui,
+                    app,
+                    "exerciseProperties",
+                    Some("Exercise Tools"),
+                    "The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab",
+                    crate::widgets::ButtonAction::new("view.exercisePane", json!({"value": true}), false),
+                );
+            });
             let front = app.session.run("exercise.frontispiece", &json!({})).ok().is_some_and(|v| v["on"].as_bool().unwrap_or(false));
             small(
                 ui,
@@ -320,63 +261,41 @@ fn exercise_group(app: &mut WordApp, ui: &mut Ui) {
                 crate::widgets::ButtonAction::new("exercise.frontispiece", json!({"on": !front}), front),
             );
         });
-        stack(ui, |ui| {
-            let pane = app.session.view.exercise_pane;
-            small(
-                ui,
-                app,
-                "exerciseProperties",
-                Some("Properties"),
-                "Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane",
-                crate::widgets::ButtonAction::new("view.exercisePane", json!({}), pane),
-            );
-            question_type_menu(ui, app);
-            // Only with the cursor in an exercise, or whole ones selected.
-            let targets = !wordcraft_engine::cmd::exercise::delete_targets(&app.session).is_empty();
-            ui.add_enabled_ui(targets, |ui| {
-                // Drawn greyed out like a disabled command: the command itself stays on for
-                // scripts naming an exercise.
-                if !targets {
-                    ui.multiply_opacity(0.4);
-                }
-                small(
-                    ui,
-                    app,
-                    "deleteTable",
-                    Some("Delete Exercise"),
-                    "Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)",
-                    crate::widgets::ButtonAction::new("exercise.delete", json!({}), false),
-                );
-            });
-        });
-        // A column of its own: a stack holds three small buttons.
-        stack(ui, |ui| inline_expr_menu(ui, app));
     });
 }
 
-fn inline_expr_menu(ui: &mut Ui, app: &mut WordApp) {
+/// Exercise › Questions › Result Of: marks the equation at the cursor as a question's result.
+pub(super) fn result_of_menu(ui: &mut Ui, app: &mut WordApp) {
+    let info = app.session.run("exercise.info", &json!({})).ok().unwrap_or_default();
+    let strings = |key: &str| -> Vec<String> {
+        info[key].as_array().map(|a| a.iter().filter_map(|q| q.as_str().map(str::to_string)).collect()).unwrap_or_default()
+    };
+    let (questions, labels) = (strings("questions"), strings("labels"));
+    let levels: Vec<u64> = info["levels"].as_array().map(|a| a.iter().filter_map(serde_json::Value::as_u64).collect()).unwrap_or_default();
+    let current = info["answer"].as_u64().unwrap_or(0);
     menu_button(
         ui,
         app,
         crate::widgets::MenuButtonOptions::new(
-            "inlineExpr",
-            Some("Inline Expression"),
-            "Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)",
+            "resultOf",
+            Some("Result Of"),
+            "Mark the equation at the cursor as the result of a question: its value goes into the results summary",
             false,
-            "exercise.insertExpr",
+            "equation.answer",
         ),
         |ui, app| {
-            let id = egui::Id::unique("inline_expr_draft");
-            let mut text = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| "v * t -> m".into());
-            ui.set_min_width(200.0);
-            ui.label(egui::RichText::new(tl!("Parametric expression")).small().weak());
-            let edit = ui.text_edit_singleline(&mut text);
-            let enter = edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            ui.data_mut(|d| d.insert_temp(id, text.clone()));
-            if (enter || ui.button(tl!("Insert")).clicked()) && !text.trim().is_empty() {
-                let _ = app.run("exercise.insertExpr", json!({"expr": text.trim()}));
-                ui.close();
+            for (k, q) in questions.iter().enumerate() {
+                let n = k as u64 + 1;
+                let indent = "    ".repeat(levels.get(k).copied().unwrap_or(0) as usize);
+                let label = format!("{indent}{} {}", labels.get(k).map_or("", String::as_str), q.chars().take(48).collect::<String>());
+                let resp = ui.add_enabled(crate::widgets::enabled(app, "equation.answer"), egui::Button::new(label).selected(current == n));
+                if resp.clicked() {
+                    let _ = app.run("equation.answer", json!({"question": n}));
+                    ui.close();
+                }
             }
+            ui.separator();
+            mi_check(ui, app, "Not a Result", current == 0, "equation.answer", json!({"question": 0}));
         },
     );
 }
@@ -499,45 +418,21 @@ Calculation",
     });
     symbols_group(app, ui);
     group(ui, "Tables", None, app, |ui, app| {
-        big(
+        // In a table that isn't calculated the button makes it one; anywhere else it inserts one.
+        // What a calculated table has is on its own tab (`calc_table_tab`).
+        let plain_table = app.session.sel.focus.path.cell().is_some() && !in_calc_table(&app.session);
+        let (id, params) = if plain_table { ("table.calc", json!({"value": true})) } else { ("calc.insertTable", json!({})) };
+        let made = big(
             ui,
             app,
             "calcTable",
             "Calculated
 Table",
-            "calc.insertTable",
-            json!({}),
+            id,
+            params,
             false,
         );
-        stack(ui, |ui| {
-            let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
-            small(
-                ui,
-                app,
-                "calcTable",
-                Some("Calculate Table"),
-                "The table at the cursor is calculated: name its columns in the first row (L [m], M [kN·m] = q·L²/8) and total them with Σ =",
-                crate::widgets::ButtonAction::new("table.calc", json!({}), on),
-            );
-            calc_table_tools(ui, app);
-        });
-        stack(ui, |ui| calc_table_rows(ui, app));
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new(
-                "calcTable",
-                Some("Student Blanks"),
-                "Choose which calculated cells students complete",
-                false,
-                "exercise.tableFill",
-            ),
-            |ui, app| {
-                mi(ui, app, "Student Blank Cell", "exercise.tableFill", json!({"studentBlank":true}));
-                mi(ui, app, "Student Blank Column", "exercise.tableFill", json!({"studentBlank":true,"column":true}));
-                mi(ui, app, "Show Cell Value", "exercise.tableFill", json!({"studentBlank":false}));
-            },
-        );
+        named(made, "Calculated\nTable", false);
     });
     group(ui, "Number Display", None, app, |ui, app| {
         let eff = wordcraft_engine::cmd::calc::resolved_options(&app.session);
@@ -694,9 +589,6 @@ Page",
                 let _ = app.run("cad.padding", json!({"value": v}));
             }
             ui.end_row();
-            ui.label(tl!("Unit"));
-            ui.label(d.unit.symbol());
-            ui.end_row();
         });
     });
     alt_text_group(ui, app);
@@ -708,7 +600,7 @@ Page",
 fn calc_table_rows(ui: &mut Ui, app: &mut WordApp) {
     let info = app.session.run("calc.tableInfo", &json!({})).ok();
     let flag = |k: &str| info.as_ref().and_then(|v| v.get(k).and_then(Value::as_bool)).unwrap_or(false);
-    let (index, total) = (flag("index"), flag("total"));
+    let (index, total, column_total) = (flag("index"), flag("total"), flag("columnTotal"));
     small(
         ui,
         app,
@@ -722,8 +614,16 @@ fn calc_table_rows(ui: &mut Ui, app: &mut WordApp) {
         app,
         "calcTotal",
         Some("Total Row"),
-        "The last row sums each column (Σ =); a cell written there keeps its own text (mean =, max =)",
+        "The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)",
         crate::widgets::ButtonAction::new("table.look", json!({"totalRow": !total}), total),
+    );
+    small(
+        ui,
+        app,
+        "calcColumnTotal",
+        Some("Column Total"),
+        "Sum the column at the cursor in the total row, or leave its cell there empty",
+        crate::widgets::ButtonAction::new("table.calcTotal", json!({}), total && column_total),
     );
 }
 
@@ -762,20 +662,47 @@ fn calc_table_tools(ui: &mut Ui, app: &mut WordApp) {
     );
 }
 
-/// Table Layout › Data: Calculated Table and its options (docs/calc.md).
-pub(super) fn calc_table_buttons(ui: &mut Ui, app: &mut WordApp) {
-    let on = app.session.run("calc.tableInfo", &json!({})).ok().and_then(|v| v.get("calc").and_then(Value::as_bool)).unwrap_or(false);
-    big_toggle(
-        ui,
-        app,
-        "calcTable",
-        "Calculated
+/// Gives one of Strix's large buttons its name for screen readers: a large button draws its
+/// label without telling them (found in review: the tests that looked for these buttons by
+/// name could not find them either). `pressed`: a mode that is on.
+fn named(resp: egui::Response, label: &str, pressed: bool) -> egui::Response {
+    let name = tl!(label).replace('\n', " ");
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, pressed, &name));
+    resp
+}
+
+/// The contextual tab of a calculated table, beside Table Layout (docs/calc.md).
+pub(super) const CALC_TABLE_TAB: &str = "Calculated Table";
+
+/// Whether the caret is in a calculated table (so its tab is shown).
+pub(super) fn in_calc_table(s: &wordcraft_engine::Session) -> bool {
+    s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp)).is_some_and(|t| t.props.calc)
+}
+
+/// A table that stops being calculated loses its tab: Table Layout takes its place.
+pub(super) fn leave_calc_table_tab(app: &mut WordApp) {
+    if app.ui.tab == CALC_TABLE_TAB && app.session.sel.focus.path.cell().is_some() && !in_calc_table(&app.session) {
+        app.ui.tab = "Table Layout".into();
+    }
+}
+
+/// The Calculated Table tab: everything a calculated table has (docs/calc.md).
+pub(super) fn calc_table_tab(app: &mut WordApp, ui: &mut Ui) {
+    group(ui, "Calculation", None, app, |ui, app| {
+        let on = in_calc_table(&app.session);
+        let toggle = big_toggle(
+            ui,
+            app,
+            "calcTable",
+            "Calculated
 Table",
-        "table.calc",
-        on,
-    );
-    stack(ui, |ui| calc_table_tools(ui, app));
-    stack(ui, |ui| calc_table_rows(ui, app));
+            "table.calc",
+            on,
+        );
+        named(toggle, "Calculated\nTable", on);
+    });
+    group(ui, "Options", None, app, |ui, app| stack(ui, |ui| calc_table_tools(ui, app)));
+    group(ui, "Rows & Columns", None, app, |ui, app| stack(ui, |ui| calc_table_rows(ui, app)));
 }
 
 /// Teaching › Exercise › New Exercise: the top part inserts a problem, the menu one of the kinds
@@ -787,7 +714,7 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
         crate::widgets::BigSplit {
             icon: "exercise",
             label: "New Exercise",
-            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, calculation, CAD drawing",
+            tip: "Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete",
             action: crate::widgets::ButtonAction::new("exercise.insert", json!({}), false),
         },
         |ui, app| {
@@ -795,41 +722,14 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
             mi(ui, app, "Open Answer", "exercise.insert", json!({"kind": "open"}));
             mi(ui, app, "Multiple Choice", "exercise.insert", json!({"kind": "choice"}));
             mi(ui, app, "True or False", "exercise.insert", json!({"kind": "trueFalse"}));
-            mi(ui, app, "Calculation", "exercise.insert", json!({"kind": "calc"}));
-            mi(ui, app, "Worked Example", "exercise.insert", json!({"kind": "worked"}));
             mi(ui, app, "Inline Completion", "exercise.insert", json!({"kind": "cloze"}));
-            mi(ui, app, "Table to Complete", "exercise.insert", json!({"kind": "tableFill"}));
-            mi(ui, app, "Matching", "exercise.insert", json!({"kind": "matching"}));
-            mi(ui, app, "CAD Drawing Question", "exercise.insert", json!({"kind": "drawing"}));
-        },
-    );
-}
-
-/// Teaching › Exercise › Question Type: adds a question of a mode to the quiz at the cursor
-/// (docs/question-modes.md); one quiz mixes them.
-fn question_type_menu(ui: &mut Ui, app: &mut WordApp) {
-    let tip = "Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing";
-    menu_button(
-        ui,
-        app,
-        crate::widgets::MenuButtonOptions::new("addQuestion", Some("Question Type"), tip, false, "exercise.addQuestion"),
-        |ui, app| {
-            mi(ui, app, "Open Answer", "exercise.addQuestion", json!({"type": "open"}));
-            mi(ui, app, "Multiple Choice", "exercise.addQuestion", json!({"type": "choice"}));
-            mi(ui, app, "True or False", "exercise.addQuestion", json!({"type": "trueFalse"}));
-            mi(ui, app, "Calculation", "exercise.addQuestion", json!({"type": "calc"}));
-            mi(ui, app, "CAD Drawing Question", "exercise.addQuestion", json!({"type": "drawing"}));
-            mi(ui, app, "Worked Example", "exercise.addQuestion", json!({"type": "worked"}));
-            mi(ui, app, "Inline Completion", "exercise.addQuestion", json!({"type": "cloze"}));
-            mi(ui, app, "Table to Complete", "exercise.addQuestion", json!({"type": "tableFill"}));
-            mi(ui, app, "Matching", "exercise.addQuestion", json!({"type": "matching"}));
         },
     );
 }
 
 /// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
-fn show_menu(ui: &mut Ui, app: &mut WordApp) {
+pub(super) fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();
     let flag = |k: &str| st[k].as_bool().unwrap_or(true);
     let (solution, results, grid) = (flag("solution"), flag("results"), !st["grid"].is_null());
@@ -841,32 +741,20 @@ fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     });
 }
 
-/// Design › Document Formatting › DSA (docs/dsa.md): the three versions of `design.dsa` as check
-/// boxes, which combine, and None to take them all off.
-pub(super) fn dsa_menu(ui: &mut Ui, app: &mut WordApp) {
-    stack(ui, |ui| {
-        menu_button(
-            ui,
-            app,
-            crate::widgets::MenuButtonOptions::new(
-                "accessibility",
-                Some("DSA"),
-                "DSA formatting: the test laid out for students with specific learning difficulties; the versions combine",
-                false,
-                "design.dsa",
-            ),
-            |ui, app| {
-                let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
-                for (label, key) in
-                    [("Reading (dyslexia)", "reading"), ("Writing (dysgraphia)", "writing"), ("Maths and Memory (dyscalculia)", "math")]
-                {
-                    let on = st[key].as_bool().unwrap_or(false);
-                    mi_check(ui, app, label, on, "design.dsa", json!({ key: !on }));
-                }
-                ui.separator();
-                mi(ui, app, "No DSA Formatting", "design.dsa", json!({"none": true}));
-            },
-        );
+/// Design › DSA (docs/dsa.md): a group of its own with one large button per version of
+/// `design.dsa`. Each stays pressed while its version is on, and they combine; pressing one
+/// again takes that version off.
+pub(super) fn dsa_group(ui: &mut Ui, app: &mut WordApp) {
+    group(ui, "DSA", None, app, |ui, app| {
+        let st = app.session.run("design.dsa", &json!({})).ok().unwrap_or_default();
+        for (icon, label, key) in [
+            ("dsaReading", "Reading\n(dyslexia)", "reading"),
+            ("dsaWriting", "Writing\n(dysgraphia)", "writing"),
+            ("dsaMath", "Maths and Memory\n(dyscalculia)", "math"),
+        ] {
+            let on = st[key].as_bool().unwrap_or(false);
+            named(crate::widgets::big_checked(ui, app, icon, label, "design.dsa", json!({ key: !on }), on), label, on);
+        }
     });
 }
 
@@ -938,9 +826,10 @@ mod tests {
     use super::*;
     use wordcraft_engine::Session;
 
-    /// Design › Document Formatting › DSA: ticking Reading in the menu turns that version on.
+    /// Design › DSA: each version has a large button of its own; pressing Reading turns that
+    /// version on and leaves the others, pressing it again takes it off.
     #[test]
-    fn the_dsa_menu_turns_a_version_on() {
+    fn the_dsa_buttons_turn_a_version_on_and_off() {
         use egui_kittest::kittest::Queryable;
         let a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
         let mut h = egui_kittest::Harness::builder()
@@ -948,13 +837,82 @@ mod tests {
             .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
             .build_ui_state(|ui, app: &mut WordApp| super::super::design(app, ui), a);
         h.run_steps(2);
-        h.get_by_label("DSA formatting: the test laid out for students with specific learning difficulties; the versions combine").click();
-        h.run_steps(2);
+        for label in ["Writing (dysgraphia)", "Maths and Memory (dyscalculia)"] {
+            h.get_by_label(label);
+        }
         h.get_by_label("Reading (dyslexia)").click();
         h.run_steps(2);
         let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
         assert_eq!(st["reading"], true, "{st}");
         assert_eq!(st["writing"], false, "{st}");
+        h.get_by_label("Reading (dyslexia)").click();
+        h.run_steps(2);
+        let st = h.state_mut().session.run("design.dsa", &json!({})).unwrap();
+        assert_eq!(st["reading"], false, "{st}");
+    }
+
+    /// A calculated table has a tab of its own beside Table Layout, with every command of its;
+    /// Math keeps the one button, which makes the table at the cursor calculated or inserts one,
+    /// and Table Layout has none of them.
+    #[test]
+    fn a_calculated_table_has_its_own_tab() {
+        use egui_kittest::kittest::Queryable;
+        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Text")), crate::Services::default());
+        a.run("insert.table", json!({"rows": 3, "cols": 2})).unwrap();
+        let tabs = super::super::contextual_tabs(&a.session);
+        assert!(tabs.contains(&"Table Layout") && !tabs.contains(&CALC_TABLE_TAB), "{tabs:?}");
+        let mut h = egui_kittest::Harness::builder()
+            .with_size(vec2(1900.0, 400.0))
+            .with_context_setup(|ctx| ctx.set_fonts(crate::theme::font_definitions(false, false)))
+            .build_ui_state(
+                |ui, app: &mut WordApp| match app.ui.tab.as_str() {
+                    CALC_TABLE_TAB => calc_table_tab(app, ui),
+                    "Table Layout" => super::super::table_layout(app, ui),
+                    _ => math(app, ui),
+                },
+                a,
+            );
+        h.state_mut().ui.tab = "Math".into();
+        h.run_steps(2);
+        // A small button is named by its tip: the tools are looked for by how theirs begin.
+        let tool = |h: &egui_kittest::Harness<'_, WordApp>, tip: &str| h.query_all_by_label_contains(tip).next().is_some();
+        const TOOLS: [&str; 5] = [
+            "Show every cell as an equation",
+            "Every value is a parameter",
+            "A first column, column 0",
+            "The last row sums each column",
+            "Sum the column at the cursor",
+        ];
+        for tip in TOOLS {
+            assert!(!tool(&h, tip), "{tip} is not on Math");
+        }
+        // In a plain table the Math button makes that table calculated instead of inserting one.
+        h.get_by_label("Calculated Table").click();
+        h.run_steps(2);
+        assert!(in_calc_table(&h.state().session));
+        let tabs = super::super::contextual_tabs(&h.state().session);
+        let at = |t: &str| tabs.iter().position(|x| *x == t);
+        assert_eq!(at(CALC_TABLE_TAB), at("Table Layout").map(|i| i + 1), "{tabs:?}");
+        h.state_mut().ui.tab = "Table Layout".into();
+        h.run_steps(2);
+        assert!(h.query_by_label("Calculated Table").is_none(), "Calculated Table is not on Table Layout");
+        for tip in TOOLS {
+            assert!(!tool(&h, tip), "{tip} is not on Table Layout");
+        }
+        h.state_mut().ui.tab = CALC_TABLE_TAB.into();
+        h.run_steps(2);
+        for tip in TOOLS {
+            assert!(tool(&h, tip), "{tip} is on the Calculated Table tab");
+        }
+        h.get_by_label_contains("A first column, column 0").click();
+        h.run_steps(2);
+        assert_eq!(h.state_mut().session.run("calc.tableInfo", &json!({})).unwrap()["index"], true);
+        // Turned off there, the table loses the tab and Table Layout takes its place.
+        h.get_by_label("Calculated Table").click();
+        h.run_steps(2);
+        assert!(!in_calc_table(&h.state().session));
+        leave_calc_table_tab(h.state_mut());
+        assert_eq!(h.state().ui.tab, "Table Layout");
     }
 
     /// Design › Fonts offers the DSA typefaces (to download when missing) and Embed Fonts in the

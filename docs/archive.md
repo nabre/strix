@@ -55,7 +55,8 @@ already has (a Word file's own). So that an archive file has a score, give it a 
 of one row.
 
 Each document has its own: an archive file's score is its exercise's points, a master
-document's is the whole test's. Saving a master writes no property of its into the files.
+document's is the whole test's. Saving a master writes no property of its into the files: one
+written back keeps its own, and a new one (Create Subdocument) starts with none.
 
 ## Notes
 

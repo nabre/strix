@@ -24,6 +24,9 @@ pub enum SnapKind {
     Perpendicular,
     /// Where a line from the previous point touches a circle or arc.
     Tangent,
+    /// A point on another dimension's dimension line (or on its line carried on), so a new
+    /// dimension's line, or a text, lines up with it.
+    DimLine,
     /// The nearest point on a curve.
     Nearest,
 }
@@ -77,6 +80,8 @@ pub struct Snaps {
     pub perpendicular: bool,
     pub tangent: bool,
     pub nearest: bool,
+    #[serde(rename = "dimLine")]
+    pub dim_line: bool,
 }
 
 impl Default for Snaps {
@@ -91,6 +96,7 @@ impl Default for Snaps {
             perpendicular: true,
             tangent: true,
             nearest: true,
+            dim_line: true,
         }
     }
 }
@@ -107,6 +113,7 @@ impl Snaps {
             SnapKind::Perpendicular => self.perpendicular,
             SnapKind::Tangent => self.tangent,
             SnapKind::Nearest => self.nearest,
+            SnapKind::DimLine => self.dim_line,
         }
     }
 }
@@ -122,12 +129,13 @@ impl SnapKind {
             SnapKind::Quadrant | SnapKind::Mid => 4,
             SnapKind::Perpendicular => 5,
             SnapKind::Tangent => 6,
-            SnapKind::Nearest => 7,
+            SnapKind::DimLine => 7,
+            SnapKind::Nearest => 8,
         }
     }
 
     /// All kinds, in priority order.
-    pub const ALL: [SnapKind; 9] = [
+    pub const ALL: [SnapKind; 10] = [
         SnapKind::Node,
         SnapKind::End,
         SnapKind::Intersection,
@@ -136,6 +144,7 @@ impl SnapKind {
         SnapKind::Mid,
         SnapKind::Perpendicular,
         SnapKind::Tangent,
+        SnapKind::DimLine,
         SnapKind::Nearest,
     ];
 }
@@ -183,6 +192,9 @@ impl Drawing {
                 cands.extend(intersect(a, b).into_iter().map(|q| (q, SnapKind::Intersection)));
             }
         }
+        if on.dim_line {
+            cands.extend(self.dim_line_snaps(p, tol));
+        }
         let found: Vec<(f64, Pt, SnapKind)> = cands
             .into_iter()
             .filter(|(q, k)| on.on(*k) && q.is_finite())
@@ -201,6 +213,34 @@ impl Drawing {
             return near.first().filter(|(d, _)| *d <= tol).map(|(_, c)| (c.nearest(p), SnapKind::Nearest));
         }
         None
+    }
+}
+
+impl Drawing {
+    /// Points on the dimension lines within `tol` of `p` (drawing units): each line's ends, and
+    /// (away from them) the foot of `p` on the line carried on both ways — where the dimension line is drawn now,
+    /// at the drawing's scale (its paper offset included).
+    fn dim_line_snaps(&self, p: Pt, tol: f64) -> Vec<(Pt, SnapKind)> {
+        let k = paper_per_unit(self);
+        let mut out = Vec::new();
+        for e in self.entities.iter().filter(|e| matches!(e.kind, Kind::Dim { .. })).take(crate::MAX_ENTITIES) {
+            let Some(f) = self.dim_frame(e, k) else { continue };
+            let (a, b) = (f.fa.scale(1.0 / k), f.fb.scale(1.0 / k));
+            let ab = b.minus(a);
+            let l2 = ab.x * ab.x + ab.y * ab.y;
+            if !(l2.is_finite() && l2 > 0.0) {
+                continue;
+            }
+            out.push((a, SnapKind::DimLine));
+            out.push((b, SnapKind::DimLine));
+            let t = (p.minus(a).x * ab.x + p.minus(a).y * ab.y) / l2;
+            let foot = a.plus(ab.scale(t));
+            // Near an end, the end.
+            if foot.minus(p).len() <= tol && foot.minus(a).len() > tol && foot.minus(b).len() > tol {
+                out.push((foot, SnapKind::DimLine));
+            }
+        }
+        out
     }
 }
 
@@ -243,9 +283,10 @@ impl Drawing {
     /// expression stays one: `L` becomes `L + 0.5`.
     pub fn translate(&mut self, indices: &[usize], d: Pt) {
         let all = self.with_boundaries(indices);
+        let f = self.expr_scale();
         for &i in &all {
             if let Some(e) = self.entities.get_mut(i) {
-                move_kind(&mut e.kind, d);
+                move_kind(&mut e.kind, d, f);
             }
         }
         self.inserts_follow(&all, &crate::Affine { m: [1.0, 0.0, d.x, 0.0, 1.0, d.y], scale: 1.0, mirror: false });
@@ -264,11 +305,12 @@ impl Drawing {
         // Each copy's original id, and which group it is in.
         let mut origin: Vec<(String, usize)> = Vec::new();
         let indices = self.with_boundaries(indices);
+        let f = self.expr_scale();
         for (g, &d) in offsets.iter().enumerate() {
             for &i in &indices {
                 let Some(mut e) = self.entities.get(i).cloned() else { continue };
                 origin.push((e.id.clone(), g));
-                move_kind(&mut e.kind, d);
+                move_kind(&mut e.kind, d, f);
                 made.push(e);
             }
         }
@@ -392,34 +434,65 @@ impl Drawing {
                 ring.extend(ring.first().copied());
                 vec![ring]
             }),
+            // An angle is picked where it is drawn: a right angle's square, else the arc at its
+            // whole radius (the scaled part and the annotative one) and the rays out to it.
+            Kind::Angle { c, a, b, r, r_paper, .. } => match self.right_angle_square(e) {
+                Some(sq) => Some(vec![vec![sq[0], sq[1], sq[2], sq[3], sq[0]]]),
+                None => {
+                    let (c, a, b) = (c.pt(), a.pt(), b.pt());
+                    let (ua, ub) = (a.minus(c).unit(), b.minus(c).unit());
+                    let (start, sweep) = (crate::kernel::direction(ua), crate::kernel::angle_ccw(ua, ub));
+                    let reach = r + r_paper / paper_per_unit(self);
+                    (reach.is_finite() && reach > 0.0 && ua.len() > 0.0 && ub.len() > 0.0 && sweep > 0.0).then(|| {
+                        vec![
+                            vec![c, c.plus(ua.scale(reach.max(a.minus(c).len())))],
+                            vec![c, c.plus(ub.scale(reach.max(b.minus(c).len())))],
+                            arc_points(c, reach, start.to_degrees(), (start + sweep).to_degrees()),
+                        ]
+                    })
+                }
+            },
             _ => None,
         }
         .unwrap_or_else(|| outline(e))
     }
 }
 
+impl Drawing {
+    /// What a drawing unit measures in the unit the expressions count in ([`Drawing::expr_unit`];
+    /// 1 unless the drawing was converted from another unit): a distance an edit writes into an
+    /// expression is written in that unit (500 mm moved in a drawing whose expressions are in
+    /// metres is `L + 0.5`).
+    pub(crate) fn expr_scale(&self) -> f64 {
+        let f = self.unit.mm() / self.expr_unit.unwrap_or(self.unit).mm();
+        if f.is_finite() && f > 0.0 { f } else { 1.0 }
+    }
+}
+
 /// `n` moved by `d`, keeping an expression: `L` → `L + 0.5`, `L + 0.5` → `L + 1` stays readable
-/// enough as `(L + 0.5) + 0.5`.
-fn shift(n: &mut Num, d: f64) {
+/// enough as `(L + 0.5) + 0.5`. `f`: what a drawing unit measures in the expressions' unit
+/// ([`Drawing::expr_scale`]).
+fn shift(n: &mut Num, d: f64, f: f64) {
     if d == 0.0 || !d.is_finite() {
         return;
     }
     n.value += d;
     if let Some(e) = &n.expr {
         // To the kernel's resolution: a point taken to a snap stays exactly there.
-        let step = format!("{}", crate::kernel::canon(d.abs()));
+        let step = format!("{}", crate::kernel::canon(d.abs() * f));
         let op = if d < 0.0 { "-" } else { "+" };
         let base = if e.contains(['+', '-']) { format!("({e})") } else { e.clone() };
         n.expr = Some(format!("{base} {op} {step}"));
     }
 }
 
-pub(crate) fn shift_p(p: &mut P, d: Pt) {
-    shift(&mut p.0, d.x);
-    shift(&mut p.1, d.y);
+pub(crate) fn shift_p(p: &mut P, d: Pt, f: f64) {
+    shift(&mut p.0, d.x, f);
+    shift(&mut p.1, d.y, f);
 }
 
-fn move_kind(k: &mut Kind, d: Pt) {
+fn move_kind(k: &mut Kind, d: Pt, f: f64) {
+    let shift_p = |p: &mut P, d: Pt| shift_p(p, d, f);
     match k {
         Kind::Line { a, b } | Kind::Dim { a, b, .. } => {
             shift_p(a, d);
@@ -464,6 +537,9 @@ pub enum Grip {
     Corner(u8),
     /// A dimension's line: changes its distance from the measured points.
     DimLine,
+    /// The reference at a dimension's (or angle's) scaled distance, the boundary between its
+    /// scaled and annotative parts: moves it, the dimension line (arc) staying where it is.
+    Reference,
     /// A dimension's or level mark's text: moves it anywhere (its text shift).
     Text,
 }
@@ -562,6 +638,7 @@ impl Drawing {
                 let at = if units >= 0.0 { level(pa).max(level(pb)) + units } else { level(pa).min(level(pb)) + units };
                 let m = mid(pa, pb);
                 let mut out = vec![(Grip::A, pa), (Grip::B, pb), (Grip::DimLine, m.plus(n.scale(at - level(m))))];
+                out.extend(self.dim_parts(e).map(|parts| (Grip::Reference, parts.scaled[1])));
                 out.extend(self.entities.get(i).and_then(|e| self.text_grip(e)).map(|t| (Grip::Text, t)));
                 out
             }
@@ -571,7 +648,10 @@ impl Drawing {
                 let (ua, ub) = (pa.minus(pc).unit(), pb.minus(pc).unit());
                 let half = crate::kernel::direction(ua) + crate::kernel::angle_ccw(ua, ub) / 2.0;
                 let reach = r + r_paper / paper_per_unit(self);
-                vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(reach)))]
+                let mut out =
+                    vec![(Grip::Center, pc), (Grip::A, pa), (Grip::B, pb), (Grip::DimLine, pc.plus(Pt::new(half.cos(), half.sin()).scale(reach)))];
+                out.extend(self.dim_parts(e).map(|parts| (Grip::Reference, parts.scaled[1])));
+                out
             }
         }
     }
@@ -606,6 +686,11 @@ impl Drawing {
             Some(Kind::Dim { a, b, orient, .. }) => dim_offset(self, a.pt(), b.pt(), *orient, to),
             _ => 0.0,
         };
+        if g == Grip::Reference {
+            return self.move_reference(i, to);
+        }
+        let f = self.expr_scale();
+        let shift_p = |p: &mut P, d: Pt| shift_p(p, d, f);
         let Some(e) = self.entities.get_mut(i) else { return false };
         let tiny = crate::kernel::RESOLUTION;
         match (&mut e.kind, g) {
@@ -704,6 +789,46 @@ impl Drawing {
                 }
                 *offset_units = new_units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
                 *offset = new_offset.clamp(-500.0, 500.0);
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// Dimension (or angle) `i`'s reference, the boundary between its scaled and annotative
+    /// parts, taken to `to`: the scaled part becomes the distance (radius) up to it, the
+    /// annotative part keeps its value and the dimension line (arc) follows (an angle's scaled
+    /// radius never negative).
+    fn move_reference(&mut self, i: usize, to: Pt) -> bool {
+        let Some(e) = self.entities.get(i) else { return false };
+        let Some(parts) = self.dim_parts(e) else { return false };
+        let Some(e) = self.entities.get_mut(i) else { return false };
+        match &mut e.kind {
+            Kind::Dim { a, b, offset_units, orient, .. } => {
+                let n = dim_dir(a.pt(), b.pt(), *orient).left();
+                let level = |q: Pt| q.x * n.x + q.y * n.y;
+                // The scaled part runs from where it starts (the farther measured point) to the
+                // pointer; the annotative part keeps its value, the dimension line following.
+                let units = level(to) - level(parts.scaled[0]);
+                if !units.is_finite() {
+                    return false;
+                }
+                *offset_units = units.clamp(-crate::MAX_COORD, crate::MAX_COORD);
+            }
+            Kind::Angle { r, r_paper, .. } => {
+                // Along the stretches (an angle's bisector, a square's diagonal), from the
+                // vertex: the scaled radius to the pointer, the annotative one kept.
+                let (c, full) = (parts.scaled[0], parts.annotative[1].minus(parts.scaled[0]));
+                let len = full.len();
+                if len <= crate::kernel::RESOLUTION {
+                    return false;
+                }
+                let v = to.minus(c);
+                let nr = ((v.x * full.x + v.y * full.y) / len).clamp(0.0, crate::MAX_COORD);
+                if !nr.is_finite() || (nr <= crate::kernel::RESOLUTION && *r_paper <= 0.0) {
+                    return false;
+                }
+                *r = nr;
             }
             _ => return false,
         }

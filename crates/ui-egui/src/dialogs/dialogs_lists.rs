@@ -483,11 +483,11 @@ fn color(ui: &mut Ui, theme: &[wordcraft_doc::Rgb], value: &mut String, none_lab
         let label = if c.is_some() { value.clone() } else { tl!(none_label).to_string() };
         ui.menu_button(label, |ui| {
             crate::rtl::root(ui, |ui| {
-                if ui.button(tl!(none_label)).clicked() {
+                let swatch = auto.map_or(crate::color_palette::TopSwatch::Empty, crate::color_palette::TopSwatch::Color);
+                let top = crate::color_palette::TopItem::new(none_label, swatch, serde_json::Value::Null, "none");
+                if crate::colors::field_menu_with(ui, theme, id, value, &crate::color_palette::Options::top(top)).is_some() {
                     value.clear();
-                    ui.close();
                 }
-                crate::colors::field_menu(ui, theme, id, value);
             })
         });
     });

@@ -414,6 +414,13 @@ jobs:
           name: unsigned-windows-${{ matrix.arch }}
           path: dist/release/*
           if-no-files-found: error
+      # The installers' version: Windows Installer versions are numeric, so a pre-release's MSI
+      # carries X.Y.Z without its "-…" part (package.ps1), which SignPath checks it against.
+      - name: Version of the installers
+        id: msiversion
+        if: env.SIGNPATH == 'true'
+        shell: bash
+        run: echo "value=${WORDCRAFT_VERSION%%-*}" >>"$GITHUB_OUTPUT"
       - name: Sign through SignPath
         if: env.SIGNPATH == 'true'
         uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
@@ -426,6 +433,7 @@ jobs:
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
           parameters: |
             version: ${{ toJSON(env.WORDCRAFT_VERSION) }}
+            msiversion: ${{ toJSON(steps.msiversion.outputs.value) }}
           wait-for-completion: true
           wait-for-completion-timeout-in-seconds: 86400
           output-artifact-directory: dist/signed
@@ -762,8 +770,11 @@ jobs:
           fi
           flags=(--latest)
           [ "$PRERELEASE" = true ] && flags=(--prerelease --latest=false)
+          # Every release page names the code signing policy (SignPath Foundation's conditions);
+          # gh puts the generated notes after it.
+          policy="**Code signing policy**: which files are signed, by whom, and what Strix sends over the network: https://github.com/nabre/strix/blob/main/docs/code-signing.md"
           gh release create "$tag" ./* --repo "$repo" --target "$SHA" \
-            --title "Strix $tag" --generate-notes "${flags[@]}"
+            --title "Strix $tag" --notes "$policy" --generate-notes "${flags[@]}"
           echo "Published $(gh release view "$tag" --repo "$repo" --json url --jq .url)" | tee -a "$GITHUB_STEP_SUMMARY"
       # The site's download links and its web app (app/) come from the latest release.
       - name: Redeploy the site

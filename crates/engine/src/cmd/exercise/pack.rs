@@ -15,7 +15,7 @@ use wordcraft_doc::props::{Align, CellProps, CharProps, ParaProps};
 use wordcraft_doc::table::{Cell, Row, Table};
 use wordcraft_doc::{Block, InlineObject, Paragraph, StoryRef, para_block};
 
-use super::items::{Mode, choices, items};
+use super::items::{Mode, correct_letters, items};
 use super::{STYLE_HEADING, doc_words, numbering, plain, scan};
 use crate::{CmdError, CmdResult, Session, p};
 
@@ -47,6 +47,24 @@ fn sanitize_filename_part(raw: &str) -> String {
     let s: String = raw.chars().map(|c| if c.is_alphanumeric() || matches!(c, '-' | '_') { c } else { '_' }).take(32).collect();
     let trimmed = s.trim_matches('_');
     if trimmed.is_empty() { "A".to_string() } else { trimmed.to_string() }
+}
+
+/// `part` told apart from the parts already `used`, by a number after it, then counted as used:
+/// variants named alike (the same name twice, names that differ by case or by characters a file
+/// name can't have, a name that ends like another's DSA copy) each get files of their own.
+fn unique_part(part: String, used: &mut Vec<String>) -> String {
+    let taken = |p: &str, used: &[String]| {
+        let p = p.to_lowercase();
+        used.iter().any(|u| *u == p || format!("{u}_dsa") == p || *u == format!("{p}_dsa"))
+    };
+    let mut out = part.clone();
+    let mut n = 2usize;
+    while taken(&out, used) {
+        out = format!("{part}_{n}");
+        n = n.saturating_add(1);
+    }
+    used.push(out.to_lowercase());
+    out
 }
 
 fn collect_variant_names(s: &Session) -> Vec<String> {
@@ -104,9 +122,8 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                 };
                 let ans = match it.settings.mode {
                     Mode::Choice => {
-                        let cs = it.answer.map(|r| choices(sess, r)).unwrap_or_default();
-                        let letters: Vec<String> =
-                            cs.iter().enumerate().filter(|(_, (_, cor))| *cor).map(|(j, _)| super::letter(j).to_ascii_uppercase()).collect();
+                        let w = super::exercise_words(sess, &layout, e_idx);
+                        let letters = it.answer.map(|r| correct_letters(sess, r, it.settings.true_false, w)).unwrap_or_default();
                         if letters.is_empty() { "—".to_string() } else { letters.join(", ") }
                     }
                     Mode::Calc => {
@@ -117,7 +134,7 @@ fn collect_synoptic_column(sess: &Session) -> Vec<(String, String)> {
                         })
                     }
                     Mode::Drawing => "[CAD]".to_string(),
-                    Mode::Open | Mode::Worked | Mode::Cloze | Mode::TableFill | Mode::Matching => {
+                    Mode::Open | Mode::Worked | Mode::Cloze | Mode::Matching => {
                         let snippet = it
                             .answer
                             .and_then(|(a, b)| {
@@ -260,8 +277,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     let mut synoptic_cols: Vec<Vec<(String, String)>> = Vec::with_capacity(variant_names.len());
 
+    let mut used_parts: Vec<String> = Vec::new();
     for (vi, v_name) in variant_names.iter().enumerate() {
-        let safe_v = sanitize_filename_part(v_name);
+        let safe_v = unique_part(sanitize_filename_part(v_name), &mut used_parts);
         // 1. Standard Student PDF (`Fila_A.pdf`).
         let mut student = s.fork_in_memory();
         let _ = student.run("design.dsa", &json!({"none": true}));
@@ -343,4 +361,34 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     }
 
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use wordcraft_doc::Document;
+
+    use crate::Session;
+
+    /// Variants whose names give the same file name (the same name twice, names that differ by
+    /// a character a file name can't have, or by case only) each get a file of their own: none
+    /// overwrites another in the folder, and the archive is still made.
+    #[test]
+    fn variants_with_clashing_names_each_get_their_file() {
+        let mut s = Session::new(Document::new());
+        s.run("exercise.insert", &json!({"title": "Uno", "questions": ["q"]})).unwrap();
+        s.run(
+            "exercise.setData",
+            &json!({"data": {"items": [{"symbol": "x", "values": ["1", "2", "3", "4"]}], "variants": ["A", "A", "A?", "a"], "active": 0}}),
+        )
+        .unwrap();
+        let pack = s
+            .run("file.exportPack", &json!({"returnBytes": true, "includeDsa": false, "includeTeacher": false}))
+            .unwrap_or_else(|e| panic!("file.exportPack: {e}"));
+        let mut names: Vec<String> = pack["files"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_lowercase()).collect();
+        assert_eq!(names.len(), 4, "{names:?}");
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), 4, "{names:?}");
+    }
 }

@@ -315,9 +315,10 @@ pub enum VMerge {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CellProps {
-    /// Calculated cell left blank in the student copy; its value remains live.
+    /// On a calculated table's header cell: its column is not summed in the total row
+    /// (`docs/calc.md`, Strix only). Saved as `strix:noTotal="1"` on `w:tcPr`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub student_blank: bool,
+    pub calc_no_total: bool,
     /// Preferred width, points.
     pub width: Option<f32>,
     /// Preferred width as a percentage of the table's (`w:tcW w:type="pct"`).

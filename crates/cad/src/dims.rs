@@ -18,23 +18,21 @@ impl Drawing {
         (st.text * 1.5 + st.text_gap).max(2.0)
     }
 
-    /// A linear dimension continuing dimension `base` to `p`: from the base's second point, its
-    /// line on the base's line, the same orientation and look. None when `base` is no linear
-    /// dimension or `p` is its second point.
-    pub fn dim_continue(&self, base: usize, p: Pt) -> Option<Entity> {
-        let e = self.entities.get(base)?;
-        let Kind::Dim { b, .. } = &e.kind else { return None };
-        let from = b.clone();
-        self.chained(e, from, p, 0.0)
+    /// Which end of linear dimension `base` is nearer `p`: true for its first point. Continue
+    /// and Baseline go on from the end nearest where the dimension was picked. None when `base`
+    /// is no linear dimension.
+    pub fn dim_end_near(&self, base: usize, p: Pt) -> Option<bool> {
+        let Kind::Dim { a, b, .. } = &self.entities.get(base)?.kind else { return None };
+        Some(a.pt().minus(p).len() <= b.pt().minus(p).len())
     }
 
-    /// A baseline dimension from dimension `base` to `p`: from the base's first point, its line
-    /// one row ([`Drawing::dim_row`]) beyond the base's, away from the measured points.
-    pub fn dim_baseline(&self, base: usize, p: Pt) -> Option<Entity> {
+    /// A dimension chained to dimension `base` from its first point (`from_first`) or its second:
+    /// continued on the base's line, or one row beyond it for a baseline dimension.
+    pub fn dim_chain(&self, base: usize, from_first: bool, p: Pt, baseline: bool) -> Option<Entity> {
         let e = self.entities.get(base)?;
-        let Kind::Dim { a, .. } = &e.kind else { return None };
-        let from = a.clone();
-        self.chained(e, from, p, self.dim_row())
+        let Kind::Dim { a, b, .. } = &e.kind else { return None };
+        let from = if from_first { a.clone() } else { b.clone() };
+        self.chained(e, from, p, if baseline { self.dim_row() } else { 0.0 })
     }
 
     /// Flips the dimensions among `indices` (the rest are left alone): a linear dimension's line
@@ -62,7 +60,7 @@ impl Drawing {
     /// A copy of dimension `base` measuring from `from` to `p`, its line on the base's line moved
     /// `shift` paper mm further out.
     fn chained(&self, base: &Entity, from: crate::model::P, p: Pt, shift: f64) -> Option<Entity> {
-        let Kind::Dim { orient, mark, offset_units, .. } = &base.kind else { return None };
+        let Kind::Dim { orient, mark, mark_end, offset_units, .. } = &base.kind else { return None };
         let k = paper_per_unit(self);
         let frame = self.dim_frame(base, k)?;
         let a = from.pt();
@@ -84,6 +82,7 @@ impl Drawing {
             text: None,
             below: None,
             mark: *mark,
+            mark_end: *mark_end,
         };
         Some(e)
     }

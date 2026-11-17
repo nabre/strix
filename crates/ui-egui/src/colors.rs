@@ -195,11 +195,16 @@ impl Target {
 
     /// The command and params a pick of `hex` runs (`None` for a field).
     pub fn command(&self, hex: &str) -> Option<(String, Value)> {
+        self.command_value(json!(hex))
+    }
+
+    /// The command and params with `value` (a colour, `"auto"`, `null`…) at the colour's place.
+    pub fn command_value(&self, value: Value) -> Option<(String, Value)> {
         let Target::Run { cmd, params, at, .. } = self else { return None };
         let mut p = params.clone();
         match p.pointer_mut(at) {
-            Some(slot) => *slot = json!(hex),
-            None => p["color"] = json!(hex),
+            Some(slot) => *slot = value,
+            None => p["color"] = value,
         }
         Some((cmd.clone(), p))
     }
@@ -244,11 +249,14 @@ fn current_of(app: &mut WordApp, target: &Target) -> Option<Rgb> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Pick {
     Color(String),
+    /// One of the menu's first choices (Automatic, No Color…; see
+    /// [`crate::color_palette::Options`]), by index.
+    Top(usize),
     More,
 }
 
 /// Stable storage id for the Recent Colors list.
-fn recent_id() -> Id {
+pub(crate) fn recent_id() -> Id {
     Id::unique("wordcraft.recentColors")
 }
 
@@ -275,63 +283,30 @@ struct FieldRequest(Id, Option<Rgb>);
 #[derive(Clone)]
 struct FieldResult(String);
 
-/// The drop-down's body: theme and standard colours, Recent Colors, More Colors….
-pub fn palette(ui: &mut Ui, theme: &[Rgb]) -> Option<Pick> {
-    let mut picked = crate::widgets::color_grid(ui, theme).map(Pick::Color);
-    let recent: Vec<String> = ui.data(|d| d.get_temp::<Vec<String>>(recent_id())).unwrap_or_default();
-    let recent = self::recent(&recent);
-    if !recent.is_empty() {
-        ui.add_space(4.0);
-        ui.label(egui::RichText::new(tl!("Recent Colors")).small().weak());
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing = vec2(3.0, 0.0);
-            for c in recent {
-                if crate::widgets::swatch(ui, c) {
-                    picked = Some(Pick::Color(c.hex()));
-                }
-            }
-        });
-    }
-    ui.add_space(2.0);
-    ui.separator();
-    if more_item(ui).clicked() {
-        picked = Some(Pick::More);
-    }
-    picked
-}
-
-/// The More Colors… row: a small rainbow wheel and the label.
-fn more_item(ui: &mut Ui) -> egui::Response {
-    let t = Tokens::get(ui.ctx());
-    let (r, resp) = ui.allocate_exact_size(vec2(180.0, 22.0), Sense::click());
-    if resp.hovered() {
-        ui.painter().rect_filled(r, 2.0, t.hover);
-    }
-    let c = pos2(r.min.x + 10.0, r.center().y);
-    for i in 0..12 {
-        let a0 = (i as f32) * std::f32::consts::TAU / 12.0;
-        let a1 = a0 + std::f32::consts::TAU / 12.0;
-        let p = |a: f32| c + vec2(a.cos(), a.sin()) * 6.5;
-        let col = c32(from_hsl(i as f32 * 30.0, 1.0, 0.5));
-        ui.painter().add(egui::Shape::convex_polygon(vec![c, p(a0), p(a1)], col, Stroke::NONE));
-    }
-    ui.painter().circle_stroke(c, 6.5, Stroke::new(0.5, t.border_strong));
-    ui.painter().text(
-        pos2(r.min.x + 22.0, r.center().y),
-        egui::Align2::LEFT_CENTER,
-        tl!("More Colors…"),
-        egui::TextStyle::Button.resolve(ui.style()),
-        t.text,
-    );
-    resp
-}
-
 /// A command colour drop-down's body: picks run `target`, More Colors… opens the Colors dialog.
 pub fn menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb], target: Target) {
-    match palette(ui, theme) {
+    menu_with(ui, app, theme, target, &crate::color_palette::Options::default());
+}
+
+/// [`menu`] laid out by `opts`: its first choice (Automatic, No Color…) runs `target` with the
+/// choice's value.
+pub fn menu_with(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb], target: Target, opts: &crate::color_palette::Options) {
+    match crate::color_palette::body(ui, theme, opts) {
         Some(Pick::Color(hex)) => {
             let ctx = ui.ctx().clone();
             apply(app, &ctx, &target, &hex);
+            ui.close();
+        }
+        Some(Pick::Top(i)) => {
+            if let Some(top) = opts.top.get(i) {
+                let run = match (&top.params, &target) {
+                    (Some(p), Target::Run { cmd, .. }) => Some((cmd.clone(), p.clone())),
+                    _ => target.command_value(top.value.clone()),
+                };
+                if let Some((cmd, p)) = run {
+                    crate::widgets::run_from_ribbon(app, &cmd, p);
+                }
+            }
             ui.close();
         }
         Some(Pick::More) => {
@@ -347,10 +322,20 @@ pub fn menu(ui: &mut Ui, app: &mut WordApp, theme: &[Rgb], target: Target) {
 /// More Colors… asks for the Colors dialog, whose answer [`take_field`] collects. `id` must be
 /// the same each frame.
 pub fn field_menu(ui: &mut Ui, theme: &[Rgb], id: Id, value: &mut String) {
-    match palette(ui, theme) {
+    field_menu_with(ui, theme, id, value, &crate::color_palette::Options::default());
+}
+
+/// [`field_menu`] laid out by `opts`; which of its first choices was picked, if one was (`value`
+/// is left to the caller then).
+pub fn field_menu_with(ui: &mut Ui, theme: &[Rgb], id: Id, value: &mut String, opts: &crate::color_palette::Options) -> Option<usize> {
+    match crate::color_palette::body(ui, theme, opts) {
         Some(Pick::Color(hex)) => {
             *value = hex;
             ui.close();
+        }
+        Some(Pick::Top(i)) => {
+            ui.close();
+            return Some(i);
         }
         Some(Pick::More) => {
             let current = parse(value);
@@ -359,6 +344,7 @@ pub fn field_menu(ui: &mut Ui, theme: &[Rgb], id: Id, value: &mut String) {
         }
         None => {}
     }
+    None
 }
 
 /// The Colors dialog's answer for the field `id`, if it just closed with OK.
@@ -445,6 +431,7 @@ impl ColorsDialog {
 /// Draws the Colors dialog if it is open (and opens it for a dialog field that asked).
 pub fn show(app: &mut WordApp, ctx: &egui::Context) {
     ctx.data_mut(|d| d.insert_temp(recent_id(), app.ui.recent_colors.clone()));
+    crate::color_palette::sync_high_contrast(ctx, &mut app.ui.high_contrast_colors);
     if let Some(FieldRequest(id, current)) = ctx.data_mut(|d| take::<FieldRequest>(d, request_id())) {
         app.colors = Some(ColorsDialog::new(current, Target::Field(id)));
     }

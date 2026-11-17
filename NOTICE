@@ -16,6 +16,10 @@ Later WordCraft changes are merged through the branch vendor/wordcraft, whose co
 upstream snapshots with the same mechanical rename applied (docs/upstream.md); the changes Strix
 makes on top of upstream are `git diff vendor/wordcraft main`.
 Strix is not affiliated with or endorsed by the ArtCraft Team or the WordCraft project.
+Microsoft and Word are trademarks of Microsoft Corporation. Strix is an independent project, not
+affiliated with, endorsed or sponsored by Microsoft; it reads and writes Word files from the
+published specifications (ECMA-376, ISO/IEC 29500). The files under docs/brand/ that the WordCraft
+notice below mentions were replaced by Strix's own (ATTRIBUTION.md).
 
 Interface translations (locales/): vendored from storytold/craft-i18n at commit
 9205108cfdced5177706264038848b68b2422d2b, MIT OR Apache-2.0, Copyright (c) the craft-i18n

@@ -100,6 +100,13 @@ fn value_as_domain_entry(v: &Value) -> Option<String> {
     }
 }
 
+/// `values` without repeats, the first of each kept in its place: a value listed twice is one
+/// value, so no two variants are given the same data.
+fn distinct(values: Vec<String>) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    values.into_iter().filter(|v| seen.insert(v.clone())).collect()
+}
+
 fn parse_one_domain(symbol: &str, spec: &Value) -> Result<DomainSpec, CmdError> {
     let sym = clip(symbol);
     if sym.is_empty() {
@@ -107,7 +114,7 @@ fn parse_one_domain(symbol: &str, spec: &Value) -> Result<DomainSpec, CmdError> 
     }
     match spec {
         Value::Array(arr) => {
-            let values: Vec<String> = arr.iter().take(MAX_DOMAIN_VALUES).filter_map(value_as_domain_entry).collect();
+            let values = distinct(arr.iter().take(MAX_DOMAIN_VALUES).filter_map(value_as_domain_entry).collect());
             if values.is_empty() {
                 return Err(CmdError::Params(format!("domains.{sym}: empty value list")));
             }
@@ -117,7 +124,7 @@ fn parse_one_domain(symbol: &str, spec: &Value) -> Result<DomainSpec, CmdError> 
             let unit = map.get("unit").and_then(Value::as_str).map(clip);
             let description = map.get("description").and_then(Value::as_str).map(clip);
             if let Some(arr) = map.get("values").and_then(Value::as_array) {
-                let values: Vec<String> = arr.iter().take(MAX_DOMAIN_VALUES).filter_map(value_as_domain_entry).collect();
+                let values = distinct(arr.iter().take(MAX_DOMAIN_VALUES).filter_map(value_as_domain_entry).collect());
                 if values.is_empty() {
                     return Err(CmdError::Params(format!("domains.{sym}: empty values list")));
                 }
@@ -146,7 +153,8 @@ fn parse_one_domain(symbol: &str, spec: &Value) -> Result<DomainSpec, CmdError> 
             if values.is_empty() {
                 values.push(format_domain_number(min, step));
             }
-            Ok(DomainSpec { symbol: sym, unit, description, values })
+            // A step finer than a value is written with gives the same text again.
+            Ok(DomainSpec { symbol: sym, unit, description, values: distinct(values) })
         }
         _ => {
             let single =
@@ -188,8 +196,7 @@ fn build_item_domains(existing: &[DataItem], v: &Value) -> Result<Vec<(DataItem,
             }
             out.push((updated, dom.values));
         } else {
-            let mut vals: Vec<String> = item.values.iter().map(|s| clip(s)).filter(|s| !s.is_empty()).collect();
-            vals.dedup();
+            let mut vals = distinct(item.values.iter().map(|s| clip(s)).filter(|s| !s.is_empty()).collect());
             if vals.is_empty() {
                 vals.push("1".into());
             }
@@ -200,8 +207,13 @@ fn build_item_domains(existing: &[DataItem], v: &Value) -> Result<Vec<(DataItem,
         if out.len() >= MAX_DATA {
             break;
         }
-        let item =
-            DataItem { symbol: dom.symbol, description: dom.description.unwrap_or_default(), unit: dom.unit.unwrap_or_default(), values: Vec::new() };
+        let item = DataItem {
+            symbol: dom.symbol,
+            description: dom.description.unwrap_or_default(),
+            unit: dom.unit.unwrap_or_default(),
+            values: Vec::new(),
+            equation: None,
+        };
         out.push((item, dom.values));
     }
     if out.is_empty() {
@@ -443,14 +455,23 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         )));
     }
 
-    let mut new_items: Vec<DataItem> = item_domains
-        .into_iter()
-        .enumerate()
-        .map(|(item_idx, (mut it, _))| {
-            it.values = chosen.iter().map(|row| row.get(item_idx).cloned().unwrap_or_default()).collect();
-            it
-        })
-        .collect();
+    let mut generated = item_domains.into_iter().enumerate().map(|(item_idx, (mut it, _))| {
+        it.values = chosen.iter().map(|row| row.get(item_idx).cloned().unwrap_or_default()).collect();
+        it
+    });
+    // A datum without a symbol (a line of the data part that is no equation yet) is nothing to
+    // vary: it stays where it was, with its active value in every variant. The data with a
+    // symbol come in the order they had, the new ones after them (`build_item_domains`).
+    let mut new_items: Vec<DataItem> = Vec::with_capacity(e.data.items.len());
+    for old in &e.data.items {
+        if old.symbol.is_empty() {
+            let value = old.values.get(e.data.active).cloned().unwrap_or_default();
+            new_items.push(DataItem { values: vec![value; count], ..old.clone() });
+        } else if let Some(it) = generated.next() {
+            new_items.push(it);
+        }
+    }
+    new_items.extend(generated);
     let final_names: Vec<String> = names.into_iter().take(count).collect();
 
     // Ensure the exercise exposes `strix:exercise.data` even if previously empty.
@@ -471,4 +492,95 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         "variants": final_names,
         "data": out_data,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use wordcraft_doc::Document;
+
+    use crate::Session;
+
+    fn session() -> Session {
+        let mut s = Session::new(Document::new());
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        std::sync::Arc::make_mut(&mut s.doc.styles).default_chr.lang = Some("it-IT".into());
+        s.run("exercise.insert", &json!({"title": "Rettangolo", "questions": ["Area"]})).unwrap();
+        s
+    }
+
+    /// The values of each datum across the variants generated.
+    fn rows(r: &serde_json::Value) -> Vec<Vec<String>> {
+        let items = r["data"]["items"].as_array().unwrap();
+        let n = r["generated"].as_u64().unwrap() as usize;
+        (0..n).map(|v| items.iter().map(|i| i["values"][v].as_str().unwrap().to_string()).collect()).collect()
+    }
+
+    /// A value listed twice in a domain is one value: no two variants get the same data, and a
+    /// domain with fewer distinct values than variants asked is refused, as a short one is.
+    #[test]
+    fn a_value_listed_twice_gives_no_twin_variants() {
+        let mut s = session();
+        let r = s.run("exercise.generateVariants", &json!({"count": 3, "domains": {"L": [2, 2, 3, 3, 4, 4, 2, "3"], "b": [5, 5]}})).unwrap();
+        let mut got = rows(&r);
+        got.sort();
+        assert_eq!(got, [["2", "5"], ["3", "5"], ["4", "5"]], "{r}");
+        let e = s.run("exercise.generateVariants", &json!({"count": 3, "domains": {"L": [2, 2, 2, 3]}})).unwrap_err().to_string();
+        assert!(e.contains("2/3"), "{e}");
+        // The values a datum already has, when no domain is given for it.
+        let mut s = session();
+        s.run("exercise.generateVariants", &json!({"count": 2, "domains": {"L": [2, 3], "b": [7]}})).unwrap();
+        s.run("exercise.setData", &json!({"data": {"items": [{"symbol": "L", "values": ["2", "3", "2", "3"]}], "variants": ["A", "B", "C", "D"]}}))
+            .unwrap();
+        let e = s.run("exercise.generateVariants", &json!({"count": 3})).unwrap_err().to_string();
+        assert!(e.contains("2/3"), "{e}");
+    }
+
+    /// A step too fine to write gives the same text again and again: one value, not three
+    /// variants with the same data.
+    #[test]
+    fn a_step_too_fine_to_write_gives_no_twin_variants() {
+        let mut s = session();
+        let e =
+            s.run("exercise.generateVariants", &json!({"count": 3, "domains": {"L": {"min": 1, "max": 2, "step": 1e-9}}})).unwrap_err().to_string();
+        assert!(e.contains("1/3"), "{e}");
+    }
+
+    /// A datum without a symbol (a line of the data part that is no equation yet) is nothing to
+    /// vary, and stays where it is.
+    #[test]
+    fn a_datum_without_a_symbol_is_kept() {
+        let mut s = session();
+        s.run(
+            "exercise.setData",
+            &json!({"data": {"items": [{"symbol": "L", "unit": "m", "values": ["2"]}, {"description": "acciaio S235", "values": ["x"]}, {"symbol": "b", "values": ["3"]}]}}),
+        )
+        .unwrap();
+        let before = s.run("exercise.data", &json!({})).unwrap()["data"]["items"].as_array().unwrap().len();
+        let r = s.run("exercise.generateVariants", &json!({"count": 2, "domains": {"L": [2, 4]}})).unwrap();
+        let items = r["data"]["items"].as_array().unwrap();
+        assert_eq!(items.len(), before, "{r}");
+        if before == 3 {
+            assert_eq!(items[1]["description"], json!("acciaio S235"), "{r}");
+            assert_eq!(items[1]["values"], json!(["x", "x"]), "{r}");
+        }
+    }
+
+    #[test]
+    fn hostile_domains_never_panic() {
+        let mut s = session();
+        for v in [
+            json!({"domains": {"L": {"min": -1e308, "max": 1e308, "step": 1e-300}}}),
+            json!({"domains": {"L": {"min": 5, "max": 1}}}),
+            json!({"domains": {"L": {"min": "x", "max": 1}}}),
+            json!({"domains": {"": [1]}}),
+            json!({"domains": [{"symbol": "L", "values": []}]}),
+            json!({"domains": {"L": [1, 2]}, "count": 0}),
+            json!({"domains": {"L": [1, 2]}, "count": 1e30}),
+            json!({"domains": {"L": [1, 2]}, "seed": -1, "variants": [1, null, "", "A"]}),
+            json!({"domains": {"L": {"min": 0, "max": 1e300, "step": 1e298}}, "count": 26, "constraints": {"maxDecimals": 1e9, "extra": ["L >", "= 1", "<<", ""]}}),
+        ] {
+            let _ = s.run("exercise.generateVariants", &v);
+        }
+    }
 }

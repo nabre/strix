@@ -352,6 +352,73 @@ fn columns_apply_to_the_selected_text() {
     assert!(s.run("layout.columns", &json!({"count": 2, "apply": "selection"})).is_err());
 }
 
+/// Each section's blocks (a table as `[table]`) and column count.
+fn blocks_of(s: &Session) -> Vec<(Vec<String>, u32)> {
+    let mut from = 0;
+    let mut out = Vec::new();
+    for (end, x) in s.doc.sections() {
+        let blocks = (from..=end)
+            .map(|i| match s.doc.body.get(i).map(|b| &**b) {
+                Some(Block::Para(p)) => p.text.clone(),
+                _ => "[table]".to_string(),
+            })
+            .collect();
+        out.push((blocks, x.columns.count));
+        from = end + 1;
+    }
+    out
+}
+
+/// Columns with a table selected (or a selection ending in one): the whole table goes into the
+/// new section, which starts with it. The paragraph above holds the break (no empty paragraph
+/// before the table); an empty paragraph under it holds the closing one.
+#[test]
+fn columns_on_a_selected_table_start_the_section_with_it() {
+    let with_table = |text: &str, at: usize| {
+        let mut d = wordcraft_doc::Document::from_text(text);
+        d.body.insert(at, std::sync::Arc::new(Block::Table(wordcraft_doc::Table::new(4, 2, 300.0))));
+        Session::new(d)
+    };
+    let in_cell = |t: usize, r: u32, c: u32| Pos { path: wordcraft_doc::Path(vec![t as u32, r, c, 0]), ..Pos::body(0, 0) };
+    // Title, the table, an empty paragraph, After: the whole table selected.
+    let mut s = with_table("Title\n\nAfter", 1);
+    s.sel = Selection { anchor: in_cell(1, 0, 0), focus: in_cell(1, 3, 1) };
+    assert!(selection_sectionable(&s));
+    s.run("layout.columns", &json!({"count": 2})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["Title"]), 1), (strs(&["[table]", ""]), 2), (strs(&["After"]), 1)]);
+    assert!(s.doc.sections().iter().skip(1).all(|(_, x)| x.start == SectionStart::Continuous));
+    assert_eq!((s.sel.anchor.clone(), s.sel.focus.clone()), (in_cell(1, 0, 0), in_cell(1, 3, 1)), "the table stays selected");
+    // One undo step takes it all back.
+    s.run("edit.undo", &json!({})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["Title", "[table]", "", "After"]), 1)]);
+
+    // Text right under the table: split at its start, the break in the empty half.
+    let mut s = with_table("Title\nAfter", 1);
+    s.sel = Selection { anchor: in_cell(1, 1, 0), focus: in_cell(1, 2, 0) };
+    s.run("layout.columns", &json!({"count": 2})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["Title"]), 1), (strs(&["[table]", ""]), 2), (strs(&["After"]), 1)]);
+
+    // At the document's start: no break before; the last paragraph after it: none after.
+    let mut s = with_table("", 0);
+    s.sel = Selection { anchor: in_cell(0, 0, 0), focus: in_cell(0, 3, 1) };
+    s.run("layout.columns", &json!({"count": 2})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["[table]", ""]), 2)]);
+
+    // A table under a table: an empty paragraph between them holds the break.
+    let mut s = with_table("Title\n\nAfter", 1);
+    s.doc.body.insert(1, std::sync::Arc::new(Block::Table(wordcraft_doc::Table::new(1, 1, 300.0))));
+    s.sel = Selection { anchor: in_cell(2, 0, 0), focus: in_cell(2, 3, 1) };
+    s.run("layout.columns", &json!({"count": 2})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["Title", "[table]", ""]), 1), (strs(&["[table]", ""]), 2), (strs(&["After"]), 1)]);
+    assert_eq!(s.sel.anchor, in_cell(3, 0, 0), "the selection follows the table down");
+
+    // From a paragraph above into the table: the paragraph and the whole table.
+    let mut s = with_table("Title\nIntro\n\nAfter", 2);
+    s.sel = Selection { anchor: Pos::body(1, 0), focus: in_cell(2, 1, 1) };
+    s.run("layout.columns", &json!({"count": 2})).unwrap();
+    assert_eq!(blocks_of(&s), vec![(strs(&["Title", ""]), 1), (strs(&["Intro", "[table]", ""]), 2), (strs(&["After"]), 1)]);
+}
+
 /// #407 Line Numbers options: start, count by, distance and restart; options alone keep the
 /// restart mode, `none` turns numbering off.
 #[test]

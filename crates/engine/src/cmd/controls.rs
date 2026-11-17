@@ -312,6 +312,8 @@ pub fn prepare_edit(s: &mut Session) -> Result<Option<CharProps>, CmdError> {
             break;
         }
     }
+    // Beside an exercise's fields: into the nearest one (docs/exercise.md, Structure).
+    super::exercise::typing_target(s)?;
     let (a, b) = s.sel.ordered();
     let Some(r) = s.doc.control_at(&a) else { return Ok(None) };
     if !r.control.lock.can_edit() {

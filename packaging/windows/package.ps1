@@ -133,6 +133,8 @@ function ConvertTo-RtfText([string] $Text) {
 }
 $paragraphs = [System.Collections.Generic.List[string]]::new()
 $paragraphs.Add('\b Strix\b0')
+# The privacy statement first: what Strix sends over the network (docs/code-signing.md, Privacy).
+$paragraphs.Add((ConvertTo-RtfText 'Privacy: Strix collects no telemetry, crash reports or usage data. It asks GitHub for the list of its releases when it starts and once a day, to find updates; nothing about you, your computer or your documents is sent. The installer''s Privacy page lets you turn this off; File, Info, Updates changes it later. Privacy and code signing policy: https://github.com/nabre/strix/blob/main/docs/code-signing.md'))
 $paragraphs.Add((ConvertTo-RtfText 'Strix is dual-licensed under the MIT License or the Apache License, Version 2.0, at your option. Both license texts follow. Bundled fonts and other third-party material keep their own open licenses, listed in NOTICE and ATTRIBUTION.md at https://github.com/nabre/strix.'))
 foreach ($file in 'LICENSE-MIT', 'LICENSE-APACHE') {
   $title = $true  # each file opens with its license's name: show it bold
@@ -205,7 +207,16 @@ Copy-Item -Force (Join-Path $Stage 'strix.exe') $PortableExe
 
 # Smoke-test the CLI when this machine can run it. An ARM64 build made on an x64 runner can't run
 # here; .github/workflows/windows-arm64.yml installs and runs it on ARM64 instead.
-$HostArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+# Windows PowerShell 5.1 (.NET Framework) has no RuntimeInformation.OSArchitecture: fall back to the
+# environment (PROCESSOR_ARCHITEW6432 is the OS's when this is a 32-bit process on a 64-bit one).
+# An older .NET Framework doesn't know the type at all: that's an error, caught to the same fallback.
+try { $OsArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture } catch { $OsArch = $null }
+if ($null -ne $OsArch) {
+  $HostArch = $OsArch.ToString().ToLowerInvariant()
+} else {
+  $HostArch = "$(if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE })".ToLowerInvariant()
+  if ($HostArch -eq 'amd64') { $HostArch = 'x64' }
+}
 if ($Arch -ne 'arm64' -or $HostArch -eq 'arm64') {
   Invoke-Native 'strix-cli --version' { & (Join-Path $Stage 'strix-cli.exe') --version }
 } else {

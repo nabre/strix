@@ -4,19 +4,23 @@
      keep the two identical. The artifact is the zip GitHub Actions makes from dist/release/ in
      the Release workflow's Windows job. Every Strix program is signed inside the installers and
      the portable zip, then the installers themselves, and the single-file portable exe (the app
-     itself, renamed); each must be named Strix with the
-     release's version (VERSIONINFO from apps/strix/build.rs and apps/strix-cli/build.rs). -->
+     itself, renamed); each must carry the project's name, Strix Writer, and the release's version:
+     the programs' VERSIONINFO (ProductName, ProductVersion: apps/strix/build.rs and
+     apps/strix-cli/build.rs, the Cargo version), the installers' ProductName and ProductVersion
+     (packaging/windows/strix.wxs; Windows Installer versions are numeric, so a pre-release's
+     installer carries the version without its "-…" part: the msiversion parameter). -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
   <parameters>
     <parameter name="version" required="true" />
+    <parameter name="msiversion" required="true" />
   </parameters>
   <zip-file>
     <msi-file-set>
-      <include path="strix-*-windows-*.msi" max-matches="unbounded" />
+      <include path="strix-*-windows-*.msi" max-matches="unbounded" product-name="Strix Writer" product-version="${msiversion}" />
       <for-each>
         <pe-file-set>
-          <include path="strix.exe" product-name="Strix" product-version="${version}" />
-          <include path="strix-cli.exe" product-name="Strix" product-version="${version}" />
+          <include path="strix.exe" product-name="Strix Writer" product-version="${version}" />
+          <include path="strix-cli.exe" product-name="Strix Writer" product-version="${version}" />
           <for-each>
             <authenticode-sign />
           </for-each>
@@ -28,8 +32,8 @@
       <include path="strix-*-windows-*-portable.zip" max-matches="unbounded" />
       <for-each>
         <pe-file-set>
-          <include path="strix.exe" product-name="Strix" product-version="${version}" />
-          <include path="strix-cli.exe" product-name="Strix" product-version="${version}" />
+          <include path="strix.exe" product-name="Strix Writer" product-version="${version}" />
+          <include path="strix-cli.exe" product-name="Strix Writer" product-version="${version}" />
           <for-each>
             <authenticode-sign />
           </for-each>
@@ -37,7 +41,7 @@
       </for-each>
     </zip-file-set>
     <pe-file-set>
-      <include path="strix-*-windows-*-portable.exe" max-matches="unbounded" product-name="Strix" product-version="${version}" />
+      <include path="strix-*-windows-*-portable.exe" max-matches="unbounded" product-name="Strix Writer" product-version="${version}" />
       <for-each>
         <authenticode-sign />
       </for-each>

@@ -122,12 +122,16 @@ pub(super) fn name(s: &mut Session, v: &Value) -> CmdResult {
     if list.iter().any(|e| e.pos != pos && e.id().as_deref() == Some(new.as_str())) {
         return Err(CmdError::Params(format!("another drawing of the document is already called \"{new}\"")));
     }
-    // The drawings that have this one as their underlay follow the new name.
+    // The drawings that have this one as their underlay, or its layers, follow the new name.
     if let Some(old) = &old {
         for e in list.iter().filter(|e| e.pos != pos) {
             let Ok(mut other) = Drawing::from_json(&e.source) else { continue };
+            let mut changed = other.rename_layers_from(old, &new);
             if let Some(u) = other.underlay.as_mut().filter(|u| &u.source == old) {
                 u.source = new.clone();
+                changed = true;
+            }
+            if changed {
                 store(s, &e.pos, &other)?;
             }
         }
@@ -192,6 +196,9 @@ pub(super) fn underlay(s: &mut Session, v: &Value) -> CmdResult {
         }
         let mine = d.id.clone().unwrap_or_else(|| free_id(&list, None));
         let src_d = source_with_id(s, src, &list, Some(&mine))?;
+        // A pasted copy has its original's id: under that id it would be its own underlay
+        // (which `sanitize` drops), so it takes a free one.
+        let mine = if src_d.id.as_deref() == Some(mine.as_str()) { free_id(&list, None) } else { mine };
         if src_d.underlay.as_ref().is_some_and(|u| u.source == mine) {
             return Err(CmdError::Params("that drawing has this one as its underlay: two drawings can't be each other's".into()));
         }
@@ -224,6 +231,9 @@ pub(super) fn underlay(s: &mut Session, v: &Value) -> CmdResult {
         }
         if let Some(b) = flag("print")? {
             u.print = b;
+            // Its layers' default follows: not printed with an underlay that is not.
+            let source = u.source.clone();
+            d.print_layers_from(&source, b);
         }
     } else if v.get("remove").is_none() && v.get("source").is_none() {
         return Ok(json!({"underlay": d.underlay}));
@@ -241,7 +251,9 @@ pub(super) fn inherit(s: &mut Session, v: &Value) -> CmdResult {
     if src.pos == pos {
         return Err(CmdError::Params("a drawing can't inherit from itself".into()));
     }
-    let src_d = Drawing::from_json(&src.source).map_err(|e| CmdError::Failed(format!("the drawing can't be read: {e}")))?;
+    // With an id, its layers come nested under its name.
+    let mine = d.id.clone();
+    let src_d = source_with_id(s, src, &list, mine.as_deref())?;
     let got = d.inherit(&src_d);
     store(s, &pos, &d)?;
     Ok(json!({"inherited": got}))
@@ -257,8 +269,9 @@ pub fn underlay_view(s: &Session, d: &Drawing) -> Result<Option<Drawing>, String
     }
     let list = entries(s);
     let src = list.iter().find(|e| e.id().as_deref() == Some(u.source.as_str())).ok_or("The underlay's drawing is no longer in the document")?;
-    let src_d = match super::super::calc::resolved_cad(s, &src.source) {
-        Some(r) => r.0.clone(),
+    // As it shows where it sits: its parameters' values and settings with it.
+    let src_d = match super::super::calc::underlay_source(s, &src.source) {
+        Some(r) => (*r).clone(),
         None => Drawing::from_json(&src.source).map_err(|e| format!("The underlay's drawing can't be read: {e}"))?,
     };
     Ok(Some(d.underlay_view(&src_d)))
@@ -318,6 +331,25 @@ mod tests {
         assert_eq!(slug(&"x".repeat(500)).chars().count(), MAX_NAME);
     }
 
+    /// A pasted copy carries its original's id: taking the original as its underlay gives the
+    /// copy an id of its own (under the shared one it was "its own underlay", dropped silently).
+    #[test]
+    fn a_copy_with_its_originals_id_takes_the_original_as_underlay() {
+        let mut s = Session::new(Document::new());
+        s.run("document.setText", &json!({"text": ""})).unwrap();
+        let plan = json!({"id": "plan", "entities": [{"type": "line", "a": [0, 0], "b": [100, 0]}]});
+        s.run("insert.cad", &json!({"drawing": plan})).unwrap();
+        s.sel = Selection::caret(s.sel.focus.clone());
+        s.run("text.insert", &json!({"text": "\n"})).unwrap();
+        s.run("insert.cad", &json!({"drawing": plan})).unwrap();
+        select(&mut s, 2);
+        assert_eq!(current(&s).id.as_deref(), Some("plan"), "the copy starts with the same id");
+        let r = s.run("cad.underlay", &json!({"source": 1})).unwrap();
+        let d = current(&s);
+        assert_eq!(d.underlay.as_ref().map(|u| u.source.as_str()), Some("plan"), "{r}");
+        assert_ne!(d.id.as_deref(), Some("plan"));
+    }
+
     #[test]
     fn an_underlay_is_another_drawing_by_id_with_its_layers_and_styles() {
         let mut s = two();
@@ -325,10 +357,14 @@ mod tests {
         assert_eq!(list.as_array().map(Vec::len), Some(2), "{list}");
         assert_eq!(list[1]["current"], json!(true));
         let r = s.run("cad.underlay", &json!({"source": 1})).unwrap();
-        assert_eq!(r["inherited"]["layers"], json!(1), "{r}");
+        assert_eq!(r["inherited"]["layers"], json!(2), "{r}: d1/0 and d1/Walls");
         let d = current(&s);
-        assert!(d.layers.iter().any(|l| l.name == "Walls") && d.text_styles.iter().any(|t| t.name == "Notes"));
         let src_id = entries(&s)[0].id().expect("the source got an id");
+        // Its layers nested under its name, not printed with an underlay that is not, usable.
+        let walls = d.layers.iter().find(|l| l.name == format!("{src_id}/Walls")).expect("nested");
+        assert_eq!(walls.from.as_deref(), Some(src_id.as_str()));
+        assert!(!walls.print && !walls.locked);
+        assert!(d.text_styles.iter().any(|t| t.name.ends_with("/Notes")));
         assert_eq!(d.underlay.as_ref().map(|u| u.source.clone()), Some(src_id));
         assert_eq!(s.run("cad.drawings", &json!({})).unwrap()[0]["underlay"], json!(true));
         // The editor's view: locked, from the source as it is now.
@@ -357,8 +393,16 @@ mod tests {
                 _ => 0.0,
             }
         };
+        // Fitted to the space where it sits: the scale makes room for the underlay printed.
         let before = width(&s, 2);
+        let space = s.run("cad.scale", &json!({})).unwrap()["fit"]["width"].as_f64().unwrap_or(0.0);
         s.run("cad.underlay", &json!({"source": 1, "dx": -300, "print": true})).unwrap();
+        assert!(f64::from(width(&s, 2)) * 25.4 / 72.0 <= space + 0.5, "{} {space}", width(&s, 2));
+        // Without a maximum size, the picture grows to hold it.
+        s.run("cad.scale", &json!({"fit": false, "scale": 1})).unwrap();
+        s.run("cad.underlay", &json!({"print": false})).unwrap();
+        let before = before.min(width(&s, 2));
+        s.run("cad.underlay", &json!({"print": true})).unwrap();
         assert!(width(&s, 2) > before + 100.0, "{} {before}", width(&s, 2));
         // Itself, and each other: refused.
         assert!(s.run("cad.underlay", &json!({"source": 2})).is_err());
@@ -374,11 +418,96 @@ mod tests {
         assert!(gone.is_err() || entries(&s).len() == 2, "{gone:?}");
     }
 
+    /// With a maximum size, the underlay printed with the drawing counts in the fitted scale:
+    /// every object of both lies inside it, whether the source comes before or after.
+    #[test]
+    fn a_printed_underlay_counts_in_the_fitted_scale() {
+        let width = |s: &Session, n: usize| {
+            let e = entries(s).into_iter().find(|e| e.index == n).unwrap();
+            match s.doc.para(e.pos.story, &e.pos.path).and_then(|p| p.object_at(e.pos.off).cloned()) {
+                Some(InlineObject::Graphic { w, .. }) => w,
+                _ => 0.0,
+            }
+        };
+        for source_first in [true, false] {
+            let mut s = two();
+            let (src, me) = if source_first { (1, 2) } else { (2, 1) };
+            select(&mut s, src);
+            s.run("cad.set", &json!({"drawing": {"entities": [{"type": "line", "a": [-3000, 0], "b": [1000, 0]}]}})).unwrap();
+            select(&mut s, me);
+            s.run("cad.set", &json!({"drawing": {"padding": 0, "entities": [{"type": "line", "a": [0, 0], "b": [1000, 0]}]}})).unwrap();
+            let r = s.run("cad.scale", &json!({"fit": {"width": 100}})).unwrap();
+            assert_eq!(r["scale"], json!(10.0), "{r}");
+            s.run("cad.underlay", &json!({"source": src, "print": true})).unwrap();
+            let r = s.run("cad.scale", &json!({})).unwrap();
+            assert_eq!(r["scale"], json!(50.0), "source first: {source_first}, {r}");
+            // The picture on the page: both, within the 100 mm (a point is 0.3528 mm).
+            let mm = f64::from(width(&s, me)) * 25.4 / 72.0;
+            assert!(mm <= 100.5 && mm > 70.0, "{mm} mm");
+            // Shown only in the editor: the drawing's own size again.
+            s.run("cad.underlay", &json!({"print": false})).unwrap();
+            assert_eq!(s.run("cad.scale", &json!({})).unwrap()["scale"], json!(10.0));
+        }
+    }
+
+    /// The underlay's layers: nested under the source's name, following its rename; printed or
+    /// not with the underlay; never renamed, removed only when empty; drawn on like any.
+    #[test]
+    fn inherited_layers_are_nested_protected_and_follow_print() {
+        let mut s = two();
+        s.run("cad.underlay", &json!({"source": 1})).unwrap();
+        select(&mut s, 1);
+        s.run("cad.name", &json!({"name": "Pianta"})).unwrap();
+        select(&mut s, 2);
+        let d = current(&s);
+        let walls = d.layers.iter().find(|l| l.name == "pianta/Walls").expect("follows the rename");
+        assert_eq!(walls.from.as_deref(), Some("pianta"));
+        assert!(!walls.print, "the underlay does not print");
+        s.run("cad.underlay", &json!({"print": true})).unwrap();
+        assert!(current(&s).layers.iter().filter(|l| l.from.is_some()).all(|l| l.print));
+        s.run("cad.underlay", &json!({"print": false})).unwrap();
+        assert!(current(&s).layers.iter().filter(|l| l.from.is_some()).all(|l| !l.print));
+        // Drawn on: then it stays; empty: it goes. Never renamed.
+        let mut d = current(&s);
+        assert!(d.rename_layer("pianta/Walls", "Mine").is_err());
+        let mut on = strix_cad::Entity::new(strix_cad::Kind::Point { p: strix_cad::P::new(1.0, 1.0) });
+        on.layer = "pianta/Walls".into();
+        d.entities.push(on);
+        assert!(!d.can_remove_layer("pianta/Walls") && d.remove_layer("pianta/Walls").is_err());
+        d.entities.retain(|e| e.layer != "pianta/Walls");
+        d.remove_layer("pianta/Walls").unwrap();
+    }
+
+    /// The underlay shows its source as it is where it sits: the parameters' values in its
+    /// texts and dimensions, with the document's number format and its dimension style.
+    #[test]
+    fn the_underlay_carries_its_parameters_values() {
+        let mut s = Session::new(Document::new());
+        s.run("calc.insert", &json!({"text": "L = 4.5 m"})).unwrap();
+        s.run("text.insert", &json!({"text": " "})).unwrap();
+        let beam = json!({"unit": "m", "scale": 50, "entities": [
+            {"type": "line", "a": [0, 0], "b": ["L", 0]},
+            {"type": "dim", "a": [0, 0], "b": ["L", 0], "offset": -8, "text": "L = {{L}}"},
+            {"type": "text", "p": [0, 1], "value": "span {{L:both}}", "height": 3}
+        ]});
+        s.run("insert.cad", &json!({"drawing": beam})).unwrap();
+        s.sel = Selection::caret(s.sel.focus.clone());
+        s.run("text.insert", &json!({"text": "\n"})).unwrap();
+        s.run("insert.cad", &json!({})).unwrap();
+        s.run("cad.underlay", &json!({"source": 1})).unwrap();
+        let view = underlay_view(&s, &current(&s)).unwrap().expect("a view");
+        let shown = view.render(None).texts;
+        let joined: String = shown.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("|");
+        assert!(joined.contains("4.5") && !joined.contains("{{") && !joined.contains("?]"), "{joined}");
+        let dim = view.entities.iter().find_map(|e| if let strix_cad::Kind::Dim { text, .. } = &e.kind { text.clone() } else { None }).unwrap();
+        assert!(dim.contains("4.5") && !dim.contains("{{"), "{dim}");
+    }
+
     #[test]
     fn inheriting_alone_and_new_drawings_from_another() {
         let mut s = two();
         let r = s.run("cad.inherit", &json!({"source": 1})).unwrap();
-        assert_eq!(r["inherited"]["layers"], json!(1));
+        assert_eq!(r["inherited"]["layers"], json!(2));
         assert!(current(&s).underlay.is_none());
         assert!(s.run("cad.inherit", &json!({"source": 2})).is_err(), "not from itself");
         assert!(s.run("cad.inherit", &json!({})).is_err());
@@ -387,11 +516,11 @@ mod tests {
         s.run("text.insert", &json!({"text": "\n"})).unwrap();
         s.run("insert.cad", &json!({"underlay": 1})).unwrap();
         let d = current(&s);
-        assert!(d.underlay.is_some() && d.layers.iter().any(|l| l.name == "Walls"));
+        assert!(d.underlay.is_some() && d.layers.iter().any(|l| l.name.ends_with("/Walls") && l.from.is_some()));
         s.sel = Selection::caret(s.sel.focus.clone());
         s.run("insert.cad", &json!({"inherit": 1})).unwrap();
         let d = current(&s);
-        assert!(d.underlay.is_none() && d.layers.iter().any(|l| l.name == "Walls"));
+        assert!(d.underlay.is_none() && d.layers.iter().any(|l| l.name.ends_with("/Walls") && l.from.is_some()));
         for junk in [json!({"underlay": "zz"}), json!({"inherit": -1}), json!({"underlay": {"a": 1}})] {
             assert!(s.run("insert.cad", &junk).is_err(), "{junk}");
         }

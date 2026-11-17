@@ -58,8 +58,8 @@ pub(super) fn shape_format(app: &mut WordApp, ui: &mut Ui) {
                 app,
                 crate::widgets::MenuButtonOptions::new("shading", Some("Shape Fill"), "Shape Fill", false, "shape.fill"),
                 |ui, app| {
-                    mi(ui, app, "No Color", "shape.fill", json!({"color": null}));
-                    crate::colors::menu(ui, app, &theme, Target::cmd("shape.fill"));
+                    let opts = crate::color_palette::Options::top(crate::color_palette::TopItem::none("No Color", serde_json::Value::Null)).fill();
+                    crate::colors::menu_with(ui, app, &theme, Target::cmd("shape.fill"), &opts);
                     ui.separator();
                     ui.menu_button(tl!("Gradient"), |ui| gradient_menu(ui, app, fill.as_ref()));
                 },
@@ -69,8 +69,8 @@ pub(super) fn shape_format(app: &mut WordApp, ui: &mut Ui) {
                 app,
                 crate::widgets::MenuButtonOptions::new("pen", Some("Shape Outline"), "Shape Outline", false, "shape.outline"),
                 |ui, app| {
-                    mi(ui, app, "No Color", "shape.outline", json!({"color": null}));
-                    crate::colors::menu(ui, app, &theme, Target::cmd("shape.outline"));
+                    let opts = crate::color_palette::Options::top(crate::color_palette::TopItem::none("No Color", serde_json::Value::Null));
+                    crate::colors::menu_with(ui, app, &theme, Target::cmd("shape.outline"), &opts);
                     ui.separator();
                     ui.menu_button(tl!("Weight"), |ui| {
                         let color = stroke.unwrap_or(wordcraft_doc::Rgb::BLACK).hex();

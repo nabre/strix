@@ -63,6 +63,14 @@ impl Span {
         }
     }
 
+    /// Where `p`, a point of the span, is within it (0 to 1). An arc's parameter runs on round
+    /// its circle, so its start seen a hair before it (a rounding away) would read as far past
+    /// its end: nearer the start that way round, it is the start.
+    fn within(&self, p: Pt) -> f64 {
+        let s = self.param(p);
+        if s > (1.0 + self.full()) / 2.0 { 0.0 } else { s.clamp(0.0, 1.0) }
+    }
+
     /// How far the parameter can go before an arc comes back to its start.
     fn full(&self) -> f64 {
         match *self {
@@ -156,7 +164,7 @@ fn locate(spans: &[Span], p: Pt) -> f64 {
         .enumerate()
         .map(|(k, s)| {
             let q = s.curve().nearest(p);
-            (k as f64 + s.param(q).clamp(0.0, 1.0), q.minus(p).len())
+            (k as f64 + s.within(q), q.minus(p).len())
         })
         .min_by(|x, y| x.1.total_cmp(&y.1))
         .map_or(0.0, |(u, _)| u)
@@ -177,12 +185,10 @@ impl Drawing {
         format!("e{n}")
     }
 
-    /// Trims entity `i` (a line, circle, arc or polyline) at the piece picked at `pick`: what
-    /// lies between the nearest crossings with the other objects shown on either side of it goes;
-    /// with nothing crossing it, the object goes. A circle needs two crossings and becomes an
-    /// arc, a closed polyline becomes an open one; a piece out of the middle leaves two objects
-    /// (the second gets a new id, the first keeps the object's).
-    pub fn trim(&mut self, i: usize, pick: Pt) -> Result<(), String> {
+    /// What Trim at `pick` on entity `i` works from: the object, its spans, whether it closes,
+    /// the crossings with the other objects shown (sorted, one per place; a closed object's
+    /// closing seam is no cut, an open object's ends are none) and where the pick is.
+    fn trim_plan(&self, i: usize, pick: Pt) -> Result<TrimPlan, String> {
         let e = self.entities.get(i).cloned().ok_or("There is no object there")?;
         let (sp, closed) = spans(&e).ok_or("Trim works on lines, circles, arcs and polylines")?;
         let n = sp.len() as f64;
@@ -193,14 +199,14 @@ impl Drawing {
             let c = s.curve();
             for edge in &edges {
                 for p in intersect(&c, edge) {
-                    cuts.push(k as f64 + s.param(p).clamp(0.0, 1.0));
+                    cuts.push(k as f64 + s.within(p));
                 }
             }
         }
         cuts.retain(|u| u.is_finite());
         cuts.sort_by(f64::total_cmp);
         cuts.dedup_by(|a, b| (*a - *b).abs() <= EPS);
-        let pieces: Vec<(f64, f64)> = if closed {
+        if closed {
             // Periodic: a closing seam is no cut.
             if let (Some(&first), Some(&last)) = (cuts.first(), cuts.last())
                 && cuts.len() > 1
@@ -209,18 +215,52 @@ impl Drawing {
             {
                 cuts.pop();
             }
+        } else {
+            cuts.retain(|&u| u > EPS && u < n - EPS);
+        }
+        Ok(TrimPlan { e, sp, closed, cuts, up })
+    }
+
+    /// The piece Trim at `pick` would take away from entity `i`, as a line through drawing
+    /// points (arcs sampled): what the editor highlights before the click. An error where
+    /// [`Drawing::trim`] would refuse.
+    pub fn trim_preview(&self, i: usize, pick: Pt) -> Result<Vec<Pt>, String> {
+        let TrimPlan { sp, closed, cuts, up, .. } = self.trim_plan(i, pick)?;
+        let n = sp.len() as f64;
+        let (u0, u1) = if closed {
+            match cuts.len() {
+                0 => (0.0, n),
+                1 => return Err("A closed object is trimmed between two crossings".into()),
+                _ => {
+                    let (lo, hi) = around(&cuts, up);
+                    (lo, if hi > lo { hi } else { hi + n })
+                }
+            }
+        } else {
+            (cuts.iter().rev().find(|&&u| u < up).copied().unwrap_or(0.0), cuts.iter().copied().find(|&u| u > up).unwrap_or(n))
+        };
+        Ok(sample(&sp, u0, u1))
+    }
+
+    /// Trims entity `i` (a line, circle, arc or polyline) at the piece picked at `pick`: what
+    /// lies between the nearest crossings with the other objects shown on either side of it goes;
+    /// with nothing crossing it, the object goes. A circle needs two crossings and becomes an
+    /// arc, a closed polyline becomes an open one; a piece out of the middle leaves two objects
+    /// (the second gets a new id, the first keeps the object's).
+    pub fn trim(&mut self, i: usize, pick: Pt) -> Result<(), String> {
+        let TrimPlan { e, sp, closed, cuts, up } = self.trim_plan(i, pick)?;
+        let n = sp.len() as f64;
+        let pieces: Vec<(f64, f64)> = if closed {
             match cuts.len() {
                 0 => Vec::new(),
                 1 => return Err("A closed object is trimmed between two crossings".into()),
                 _ => {
-                    let lo = cuts.iter().rev().find(|&&u| u < up).or(cuts.last()).copied().unwrap_or(0.0);
-                    let hi = cuts.iter().find(|&&u| u > up).or(cuts.first()).copied().unwrap_or(0.0);
+                    let (lo, hi) = around(&cuts, up);
                     // What stays runs from the crossing after the pick round to the one before it.
                     vec![(hi, if lo > hi { lo } else { lo + n })]
                 }
             }
         } else {
-            cuts.retain(|&u| u > EPS && u < n - EPS);
             let lo = cuts.iter().rev().find(|&&u| u < up).copied();
             let hi = cuts.iter().copied().find(|&u| u > up);
             [lo.map(|l| (0.0, l)), hi.map(|h| (h, n))].into_iter().flatten().collect()
@@ -253,9 +293,11 @@ impl Drawing {
 
     /// Extends entity `i` (a line, arc or open polyline) from its end nearer `pick` to the
     /// first object shown it meets on its way: a line along itself, an arc round its circle.
-    pub fn extend(&mut self, i: usize, pick: Pt) -> Result<(), String> {
-        let e = self.entities.get(i).cloned().ok_or("There is no object there")?;
-        let (sp, closed) = spans(&e).ok_or("Extend works on lines, arcs and open polylines")?;
+    /// Where Extend at `pick` takes entity `i`: the spans, the end span, whether it is the end
+    /// (not the start), its new parameter on that span and the point it reaches.
+    fn extend_plan(&self, i: usize, pick: Pt) -> Result<(Vec<Span>, Span, bool, f64, Pt), String> {
+        let e = self.entities.get(i).ok_or("There is no object there")?;
+        let (sp, closed) = spans(e).ok_or("Extend works on lines, arcs and open polylines")?;
         if closed {
             return Err("A closed object has no end to extend".into());
         }
@@ -288,6 +330,25 @@ impl Drawing {
         if !q.is_finite() || q.x.abs() > crate::MAX_COORD || q.y.abs() > crate::MAX_COORD {
             return Err("The extension runs out of the drawing".into());
         }
+        Ok((sp, span, at_end, s, q))
+    }
+
+    /// The stretch Extend at `pick` would add to entity `i`, as a line through drawing points
+    /// from the end to where it would reach (an arc sampled): what the editor highlights
+    /// before the click. An error where [`Drawing::extend`] would refuse.
+    pub fn extend_preview(&self, i: usize, pick: Pt) -> Result<Vec<Pt>, String> {
+        let (_, span, at_end, s, _) = self.extend_plan(i, pick)?;
+        let from = if at_end { 1.0 } else { 0.0 };
+        let steps = match span {
+            Span::Seg { .. } => 1,
+            Span::Arc { sweep, .. } => ((sweep * (s - from)).abs() / (TAU / 96.0)).ceil().clamp(1.0, 96.0) as usize,
+        };
+        let out: Vec<Pt> = (0..=steps).map(|j| span.at(from + (s - from) * j as f64 / steps as f64)).filter(|p| p.is_finite()).collect();
+        Ok(out)
+    }
+
+    pub fn extend(&mut self, i: usize, pick: Pt) -> Result<(), String> {
+        let (sp, span, at_end, s, q) = self.extend_plan(i, pick)?;
         let Some(obj) = self.entities.get_mut(i) else { return Err("There is no object there".into()) };
         match &mut obj.kind {
             Kind::Line { a, b } => *(if at_end { b } else { a }) = pt(q),
@@ -312,7 +373,7 @@ impl Drawing {
                         *v = pt(q);
                     }
                     if let Some(b) = bulges.first_mut() {
-                        *b = span.bulge(1.0 + best);
+                        *b = span.bulge(1.0 - s);
                     }
                 }
                 if bulges.iter().all(|b| *b == 0.0) {
@@ -454,6 +515,54 @@ fn canon_deg(rad: f64) -> f64 {
 
 /// The part of entity `e` from `u0` to `u1` along its spans (`u1` may pass the end of a closed
 /// one and wrap round). Ends left where they were keep their expressions.
+/// What [`Drawing::trim_plan`] finds.
+struct TrimPlan {
+    e: Entity,
+    sp: Vec<Span>,
+    closed: bool,
+    cuts: Vec<f64>,
+    up: f64,
+}
+
+/// On a closed object with crossings `cuts` (sorted, at least one), the crossings before and
+/// after the pick at `up`, going round.
+fn around(cuts: &[f64], up: f64) -> (f64, f64) {
+    let lo = cuts.iter().rev().find(|&&u| u < up).or(cuts.last()).copied().unwrap_or(0.0);
+    let hi = cuts.iter().find(|&&u| u > up).or(cuts.first()).copied().unwrap_or(0.0);
+    (lo, hi)
+}
+
+/// Points along the spans from parameter `u0` to `u1` (round past the last span for a closed
+/// object): a segment's ends, an arc every few degrees.
+fn sample(sp: &[Span], u0: f64, u1: f64) -> Vec<Pt> {
+    let m = sp.len();
+    let mut out = Vec::new();
+    if m == 0 || (u1 - u0).is_nan() || u1 - u0 <= EPS {
+        return out;
+    }
+    let mut u = u0;
+    for _ in 0..(2 * m + 2) {
+        let k = (u + EPS).floor().max(0.0);
+        let Some(span) = sp.get((k as usize) % m) else { break };
+        let next = u1.min(k + 1.0);
+        let (s0, s1) = ((u - k).max(0.0), (next - k).max(0.0));
+        let steps = match *span {
+            Span::Seg { .. } => 1,
+            Span::Arc { sweep, .. } => ((sweep * (s1 - s0)).abs() / (TAU / 96.0)).ceil().clamp(1.0, 96.0) as usize,
+        };
+        for j in 0..steps {
+            out.push(span.at(s0 + (s1 - s0) * j as f64 / steps as f64));
+        }
+        u = next;
+        if u >= u1 - EPS {
+            out.push(span.at(s1));
+            break;
+        }
+    }
+    out.retain(|p| p.is_finite());
+    out
+}
+
 fn piece(e: &Entity, sp: &[Span], closed: bool, u0: f64, u1: f64) -> Option<Kind> {
     let n = sp.len() as f64;
     if u1 - u0 <= EPS {

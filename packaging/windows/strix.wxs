@@ -7,6 +7,7 @@
   <Package Name="Strix Writer" Manufacturer="The Strix contributors" Version="$(var.Version)" UpgradeCode="075497F9-E861-45D0-9C7F-A74F8C34E6BA" Scope="perUserOrMachine" Compressed="yes" Language="1033">
     <SummaryInformation Description="Strix Writer word processor" Manufacturer="The Strix contributors" />
     <?include $(sys.SOURCEFILEDIR)install-policy.wxi?>
+    <?include $(sys.SOURCEFILEDIR)privacy.wxi?>
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
          (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Strix Writer is already installed." />
@@ -46,6 +47,7 @@
       <ComponentGroupRef Id="CraftFontLicences" />
       <?endif?>
       <ComponentGroupRef Id="StrixFiles" />
+      <ComponentGroupRef Id="StrixUpdatePolicy" />
     </Feature>
   </Package>
 

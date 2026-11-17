@@ -22,6 +22,9 @@ const REFERENCE_OVER: f32 = 10.0;
 /// Screen points per paper mm of a linetype's pattern, as the linetype samples show it.
 const PATTERN_PX_PER_MM: f32 = 2.5;
 
+/// The longest stretch (screen points) drawn with its linetype's pattern.
+const MAX_PATTERNED: f32 = 20_000.0;
+
 /// The pieces drawn of the path through `points` with a linetype's on/off `pattern` (screen
 /// points), carried on across the path's corners so an arc's chords read as one line.
 fn pattern_segments(points: &[Pos2], pattern: &[f32]) -> Vec<[Pos2; 2]> {
@@ -39,6 +42,15 @@ fn pattern_segments(points: &[Pos2], pattern: &[f32]) -> Vec<[Pos2; 2]> {
     let (mut k, mut left) = (0usize, first);
     for (a, b) in pairs {
         let len = a.distance(b);
+        // A stretch far longer than the screen (zoomed in on a detail) is drawn solid: a piece
+        // every few points of it would take the memory, and past what an `f32` can step along
+        // the walk would never end.
+        if !len.is_finite() || len > MAX_PATTERNED {
+            if len.is_finite() {
+                out.push([a, b]);
+            }
+            continue;
+        }
         let mut t = 0.0;
         while t < len {
             let step = left.min(len - t);
@@ -69,7 +81,7 @@ fn phantom(painter: &egui::Painter, points: &[Pos2], stroke: Stroke) {
 pub(crate) fn field_part(kind: &Kind, key: &str) -> Option<(Color32, &'static str)> {
     match (kind, key) {
         (Kind::Dim { .. }, "offsetUnits") | (Kind::Angle { .. }, "radius") => {
-            Some((SCALED, "In the drawing's units: it follows the drawing's size and scale (scaled)"))
+            Some((SCALED, "In the drawing: it follows the drawing's size and scale (scaled)"))
         }
         (Kind::Dim { .. }, "offset") | (Kind::Angle { .. }, "radiusPaper") => {
             Some((ANNOTATIVE, "On paper, mm: the same in print at any scale (annotative)"))
@@ -78,11 +90,11 @@ pub(crate) fn field_part(kind: &Kind, key: &str) -> Option<(Color32, &'static st
     }
 }
 
-/// The two stretches' labels: the scaled size in the drawing's `unit`, the annotative in mm.
-pub(crate) fn labels(parts: &DimParts, unit: &str) -> (String, String) {
+/// The two stretches' labels: the scaled size in the input unit, the annotative in mm.
+pub(crate) fn labels(parts: &DimParts, units: strix_cad::Units) -> (String, String) {
     let size = |v: f64, unit: &str| format!("{} {unit}", strix_cad::num_text(&Num::new(v)));
     (
-        crate::i18n::fmt(tl!("scaled {size}"), &[("size", &size(parts.scaled_size, unit))]),
+        crate::i18n::fmt(tl!("scaled {size}"), &[("size", &size(units.shown(parts.scaled_size), units.input.symbol()))]),
         crate::i18n::fmt(tl!("annotative {size}"), &[("size", &size(parts.annotative_size, "mm"))]),
     )
 }
@@ -119,8 +131,8 @@ fn anchor(side: Vec2) -> Align2 {
     Align2([x, y])
 }
 
-/// Draws a dimension's parts (drawing points through `to_screen`); `unit` is the drawing's.
-pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, parts: &DimParts, unit: &str) {
+/// Draws a dimension's parts (drawing points through `to_screen`); sizes in `units`' input unit.
+pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, parts: &DimParts, units: strix_cad::Units) {
     // The reference at the scaled distance, a dash and two dots: a line a little past the
     // extension lines, an arc or a square, or a ring on the vertex when there is no scaled part.
     let reference: Vec<Pos2> = parts.reference.iter().map(|&p| to_screen(p)).collect();
@@ -153,7 +165,7 @@ pub(crate) fn paint(painter: &egui::Painter, to_screen: impl Fn(Pt) -> Pos2, par
     }
     // Their sizes: the scaled one on one side, the annotative on the other, on a light ground
     // so they read over the drawing.
-    let (scaled, annotative) = labels(parts, unit);
+    let (scaled, annotative) = labels(parts, units);
     for ((text, color), ((a, b), side)) in [(scaled, SCALED), (annotative, ANNOTATIVE)].into_iter().zip(stretches.iter().zip([-side, side])) {
         let galley = painter.layout_no_wrap(text, FontId::proportional(11.0), color);
         let at = a.lerp(*b, 0.5) + side * LABEL_GAP;
@@ -168,6 +180,16 @@ mod tests {
     use egui::pos2;
 
     use super::*;
+
+    /// Found in review: a reference line far longer than the screen (zoomed in on a detail) was
+    /// walked piece by piece; it is drawn solid instead, and one that is not a number not at all.
+    #[test]
+    fn a_pattern_is_not_walked_along_a_stretch_far_longer_than_the_screen() {
+        let pattern = [12.0, 3.0, 1.5, 3.0];
+        assert_eq!(pattern_segments(&[pos2(-1e12, 0.0), pos2(1e12, 0.0)], &pattern).len(), 1);
+        assert!(pattern_segments(&[pos2(0.0, 0.0), pos2(f32::INFINITY, 0.0)], &pattern).is_empty());
+        assert!(pattern_segments(&[pos2(0.0, 0.0), pos2(100.0, 0.0)], &pattern).len() > 5);
+    }
 
     /// The labels' sides: across the first stretch with a length, pointing right (down when
     /// level), and the anchor facing the point.
@@ -187,7 +209,7 @@ mod tests {
     }
 
     /// The Properties pane colours the same two numbers as the overlay; the labels give the
-    /// scaled size in the drawing's unit and the annotative one in paper mm.
+    /// scaled size in the input unit and the annotative one in paper mm.
     #[test]
     fn fields_and_labels_match_the_overlay() {
         let dim = Kind::Dim {
@@ -199,6 +221,7 @@ mod tests {
             text: None,
             below: None,
             mark: None,
+            mark_end: None,
         };
         let color = |kind: &Kind, key: &str| field_part(kind, key).map(|(c, _)| c);
         assert_eq!((color(&dim, "offsetUnits"), color(&dim, "offset")), (Some(SCALED), Some(ANNOTATIVE)));
@@ -212,8 +235,8 @@ mod tests {
             scaled_size: 50.0,
             annotative_size: 4.0,
         };
-        let (s, a) = labels(&parts, "cm");
-        assert!(s.contains("50 cm") && a.contains("4 mm"), "{s} / {a}");
+        let (s, a) = labels(&parts, strix_cad::Units { drawing: strix_cad::Unit::Mm, input: strix_cad::Unit::Cm });
+        assert!(s.contains("5 cm") && a.contains("4 mm"), "{s} / {a}");
     }
 
     /// The reference is a dash and two dots: a long dash, a gap, a dot, a gap, a dot, a gap, and

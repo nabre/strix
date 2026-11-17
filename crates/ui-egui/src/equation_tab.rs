@@ -12,7 +12,7 @@ use wordcraft_engine::math_gallery::{BUILT_INS, STRUCTURES, SYMBOL_SETS, Templat
 
 use crate::WordApp;
 use crate::theme::{Tokens, regular, semibold};
-use crate::widgets::{BIG_ICON_Y, BIG_LABEL_Y, CONTENT_H, LABEL_PITCH, group, small};
+use crate::widgets::{BIG_ICON_Y, BIG_LABEL_Y, CONTENT_H, LABEL_PITCH, big, group, small};
 
 /// What each structure button shows.
 pub(crate) fn button_picture(id: &str) -> &'static str {
@@ -316,7 +316,7 @@ fn symbols(ui: &mut Ui, app: &mut WordApp) {
 
 /// Draws one equation-tab symbol button, paints its preview, shows the linear name and codepoint
 /// in a tooltip, and returns whether it was clicked.
-fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
+pub(crate) fn symbol_button(ui: &mut Ui, app: &mut WordApp, c: char, t: &Tokens) -> bool {
     let (r, resp) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
     ui.painter().rect_filled(r, 2.0, t.input);
     if resp.hovered() {
@@ -400,7 +400,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
-    group(ui, "Symbols", None, app, symbols);
+    group(ui, "Symbols", Some("view.symbolsPane"), app, symbols);
     group(ui, "Structures", None, app, |ui, app| {
         for g in STRUCTURES {
             let id = g.id;
@@ -509,11 +509,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 "^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)",
                 crate::widgets::ButtonAction::new("equation.quickKeys", json!({}), quick),
             );
-            if ui.button(tl!("Close Equation")).on_hover_text(tl!("Leave the equation (Esc)")).clicked() {
-                let _ = app.run("equation.exit", json!({}));
-                app.canvas.want_focus = true;
-            }
         });
+    });
+    // A group of its own, as on the Header & Footer tab: a fourth row would not fit the ribbon.
+    group(ui, "Close", None, app, |ui, app| {
+        big(ui, app, "close", "Close\nEquation", "equation.exit", json!({}), false);
     });
 }
 

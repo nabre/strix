@@ -16,6 +16,8 @@ pub(super) struct Words {
     pub text: &'static str,
     pub question: &'static str,
     pub no_result: &'static str,
+    /// What the results summary says for an open-answer question.
+    pub open_answer: &'static str,
     /// Titles of the controls, shown on their frames.
     pub title_part: &'static str,
     pub statement: &'static str,
@@ -40,6 +42,8 @@ pub(super) struct Words {
     /// Grading scale table (`cmd/exercise/grading.rs`) and assessment pack (`cmd/exercise/pack.rs`).
     pub grading_scale: &'static str,
     pub grade_mark: &'static str,
+    /// The note under the grading scale table, before the multiple the points are rounded to.
+    pub points_rounded: &'static str,
     pub pack_row_prefix: &'static str,
     pub pack_teacher_name: &'static str,
     pub synoptic_heading: &'static str,
@@ -76,6 +80,7 @@ pub(super) const IT: Words = Words {
     text: "Scrivi qui il testo dell'esercizio: dati, figure, tabelle.",
     question: "Scrivi qui la domanda.",
     no_result: "risultato non indicato",
+    open_answer: "domanda a risposta aperta",
     title_part: "Titolo",
     statement: "Testo",
     questions: "Domande",
@@ -94,6 +99,7 @@ pub(super) const IT: Words = Words {
     numeric_solution: "(soluzione numerica)",
     grading_scale: "Griglia di valutazione",
     grade_mark: "Voto",
+    points_rounded: "Punti arrotondati al multiplo di",
     pack_row_prefix: "Fila",
     pack_teacher_name: "Correttore_Docente",
     synoptic_heading: "Tabella sinottica multi-variante",
@@ -110,6 +116,7 @@ pub(super) const EN: Words = Words {
     text: "Write the exercise here: data, figures, tables.",
     question: "Write the question here.",
     no_result: "no result marked",
+    open_answer: "open-answer question",
     title_part: "Title",
     statement: "Statement",
     questions: "Questions",
@@ -128,6 +135,7 @@ pub(super) const EN: Words = Words {
     numeric_solution: "(numerical solution)",
     grading_scale: "Grading scale",
     grade_mark: "Grade",
+    points_rounded: "Points rounded to the nearest multiple of",
     pack_row_prefix: "Variant",
     pack_teacher_name: "Teacher_Key",
     synoptic_heading: "Multi-variant answer key",
@@ -144,6 +152,7 @@ const FR: Words = Words {
     text: "Écrivez ici l'énoncé de l'exercice : données, figures, tableaux.",
     question: "Écrivez ici la question.",
     no_result: "résultat non indiqué",
+    open_answer: "question à réponse ouverte",
     title_part: "Titre",
     statement: "Énoncé",
     questions: "Questions",
@@ -162,6 +171,7 @@ const FR: Words = Words {
     numeric_solution: "(solution numérique)",
     grading_scale: "Barème de notation",
     grade_mark: "Note",
+    points_rounded: "Points arrondis au multiple de",
     pack_row_prefix: "Sujet",
     pack_teacher_name: "Corrige_Enseignant",
     synoptic_heading: "Tableau synoptique des variantes",
@@ -178,6 +188,7 @@ const DE: Words = Words {
     text: "Schreiben Sie hier die Aufgabe: Daten, Abbildungen, Tabellen.",
     question: "Schreiben Sie hier die Frage.",
     no_result: "kein Ergebnis angegeben",
+    open_answer: "Frage mit offener Antwort",
     title_part: "Titel",
     statement: "Aufgabenstellung",
     questions: "Fragen",
@@ -196,6 +207,7 @@ const DE: Words = Words {
     numeric_solution: "(numerische Lösung)",
     grading_scale: "Notenskala",
     grade_mark: "Note",
+    points_rounded: "Punkte gerundet auf ein Vielfaches von",
     pack_row_prefix: "Variante",
     pack_teacher_name: "Korrekturschluessel",
     synoptic_heading: "Variantenübersicht",
@@ -235,7 +247,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| -> [&str; 31] {
+        let fields = |w: &Words| -> [&str; 33] {
             [
                 w.exercise,
                 w.total,
@@ -246,6 +258,7 @@ mod tests {
                 w.text,
                 w.question,
                 w.no_result,
+                w.open_answer,
                 w.title_part,
                 w.statement,
                 w.questions,
@@ -264,6 +277,7 @@ mod tests {
                 w.numeric_solution,
                 w.grading_scale,
                 w.grade_mark,
+                w.points_rounded,
                 w.pack_row_prefix,
                 w.pack_teacher_name,
                 w.synoptic_heading,

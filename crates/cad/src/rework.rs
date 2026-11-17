@@ -79,21 +79,26 @@ impl Drawing {
             let Some(e) = self.entities.get(i).cloned() else { continue };
             let Kind::Polyline { pts, bulges, closed } = &e.kind else { continue };
             let n = pts.len();
-            let kinds: Vec<Kind> = (0..segments(n, *closed))
+            // Each piece, and whether it runs the other way than the polyline did: an arc is
+            // kept counter-clockwise, so one of a clockwise segment starts where that ended.
+            let kinds: Vec<(Kind, bool)> = (0..segments(n, *closed))
                 .filter_map(|k| {
                     let (a, b) = (pts.get(k)?, pts.get((k + 1) % n)?);
                     let bulge = bulges.get(k).copied().unwrap_or(0.0);
                     if !bulge_bends(a.pt(), b.pt(), bulge) {
-                        return Some(Kind::Line { a: a.clone(), b: b.clone() });
+                        return Some((Kind::Line { a: a.clone(), b: b.clone() }, false));
                     }
                     match Curve::from_bulge(a.pt(), b.pt(), bulge) {
-                        Curve::Arc { c, r, start, sweep } => Some(Kind::Arc {
-                            c: pt(c),
-                            r: Num::new(canon(r)),
-                            start: Num::new(canon(deg(start))),
-                            end: Num::new(canon(deg(start + sweep))),
-                        }),
-                        _ => Some(Kind::Line { a: a.clone(), b: b.clone() }),
+                        Curve::Arc { c, r, start, sweep } => Some((
+                            Kind::Arc {
+                                c: pt(c),
+                                r: Num::new(canon(r)),
+                                start: Num::new(canon(deg(start))),
+                                end: Num::new(canon(deg(start + sweep))),
+                            },
+                            bulge < 0.0,
+                        )),
+                        _ => Some((Kind::Line { a: a.clone(), b: b.clone() }, false)),
                     }
                 })
                 .collect();
@@ -102,10 +107,13 @@ impl Drawing {
             }
             gone.push(e.id.clone());
             let count = kinds.len();
-            for (k, kind) in kinds.into_iter().enumerate() {
+            for (k, (kind, turned)) in kinds.into_iter().enumerate() {
                 let mut piece = e.clone();
                 piece.kind = kind;
                 piece.arrows = e.arrows.piece(k == 0, k + 1 == count);
+                if turned {
+                    piece.arrows = piece.arrows.reversed();
+                }
                 if k == 0 {
                     if let Some(obj) = self.entities.get_mut(i) {
                         *obj = piece;
@@ -217,7 +225,8 @@ impl Drawing {
                 ) => {
                     (*w, *p, *a, *s, *r) = (*width, *pattern, *angle, *spacing, *ratio);
                 }
-                (Kind::Dim { mark, .. }, Kind::Dim { mark: m, .. }) | (Kind::Angle { mark, .. }, Kind::Angle { mark: m, .. }) => *m = *mark,
+                (Kind::Dim { mark, mark_end, .. }, Kind::Dim { mark: m, mark_end: me, .. })
+                | (Kind::Angle { mark, mark_end, .. }, Kind::Angle { mark: m, mark_end: me, .. }) => (*m, *me) = (*mark, *mark_end),
                 _ => {}
             }
         }
@@ -235,18 +244,25 @@ impl Drawing {
             p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y
         };
         let mut changed = 0;
+        let f = self.expr_scale();
         for i in 0..self.entities.len() {
             if !self.selectable(i) {
                 continue;
             }
+            // An arc inside whole: its ends and the quadrant points it passes (its extremes);
+            // one that is a whole circle moves with its centre, as a circle does.
             let arc_inside = self.entities.get(i).is_some_and(|e| {
-                matches!(&e.kind, Kind::Arc { .. }) && crate::kernel::curves(e).iter().all(|c| c.ends().iter().all(|q| inside(&pt(*q))))
+                matches!(&e.kind, Kind::Arc { .. })
+                    && crate::kernel::curves(e).iter().all(|c| match c {
+                        Curve::Arc { .. } => c.ends().iter().chain(&c.quadrants()).all(|q| inside(&pt(*q))),
+                        _ => c.center().is_some_and(|q| inside(&pt(q))),
+                    })
             });
             let Some(e) = self.entities.get_mut(i) else { continue };
             let mut moved = false;
             let mut step = |p: &mut P| {
                 if inside(p) {
-                    shift_p(p, d);
+                    shift_p(p, d, f);
                     moved = true;
                 }
             };
@@ -258,8 +274,9 @@ impl Drawing {
                 Kind::Polyline { pts, .. } => pts.iter_mut().for_each(&mut step),
                 Kind::Circle { c, .. } | Kind::Point { p: c } | Kind::Text { p: c, .. } | Kind::Level { p: c, .. } => step(c),
                 Kind::Arc { c, .. } => {
-                    if arc_inside && inside(c) {
-                        step(c);
+                    if arc_inside {
+                        shift_p(c, d, f);
+                        moved = true;
                     }
                 }
                 Kind::Angle { c, a, b, .. } => {

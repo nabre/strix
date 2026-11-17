@@ -65,6 +65,11 @@ fn decimal_digits(v: f64) -> (bool, Vec<u8>, i32) {
     if ds.len() > 15 {
         let unit = exp - 14;
         round_at(&mut ds, &mut exp, unit);
+        // The zeros the cap leaves at the end are no digits of the number: `0.30000000000000004`
+        // is `0.3`, with nothing below it for `ceil` or `floor` to round away.
+        while ds.len() > 1 && ds.last() == Some(&0) {
+            ds.pop();
+        }
     }
     (v < 0.0, ds, exp)
 }
@@ -228,6 +233,7 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
     let render = |e: &Expr| render_nodes(e, sub);
     let wrap = |e: &Expr, parens: bool| if parens { format!("({})", render_nodes(e, sub)) } else { render_nodes(e, sub) };
     match expr {
+        Expr::Num(v) if v.is_infinite() => "∞".to_string(),
         Expr::Num(v) => format!("{v}"),
         Expr::Name(name) => name.clone(),
         Expr::Unit(name) => name.clone(),
@@ -237,6 +243,62 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 args.iter().enumerate().map(|(i, a)| if func.is_rounding() && i == 2 { crate::format::render(a) } else { render(a) }).collect();
             match (func, args.as_slice()) {
                 (Func::Sqrt, [a]) => format!("√({a})"),
+                // As the Equation tab builds them: the degree first, the inverse as a power on
+                // the name, bars, a base under the logarithm.
+                (Func::Cbrt, [a]) => format!("√(3&{a})"),
+                (Func::Root, [a, n]) => format!("√({n}&{a})"),
+                (f, [a]) if let Some(direct) = f.inverse_of() => format!("{}^(−1)\u{2061}({a})", direct.name()),
+                (Func::Norm, [a]) => format!("├‖{a}‖┤"),
+                (Func::Log, [a, base]) => {
+                    let plain = base.chars().all(|c| c.is_alphanumeric() || c == '.');
+                    if plain { format!("log_{base}\u{2061}({a})") } else { format!("log_({base})\u{2061}({a})") }
+                }
+                (Func::Lt | Func::Le | Func::Gt | Func::Ge | Func::Ne | Func::Eq, [a, b]) => format!("{a}{}{b}", func.name()),
+                // Several comparisons at once, as they are read: `0≤x≤2` (each one starts where
+                // the one before ends).
+                (Func::All, _) => match expr {
+                    Expr::Call(_, comparisons) => {
+                        let mut chain = String::new();
+                        for (k, comparison) in comparisons.iter().enumerate() {
+                            match comparison {
+                                Expr::Call(op, sides) if k > 0 && sides.len() == 2 => {
+                                    chain.push_str(op.name());
+                                    chain.push_str(&sides.get(1).map(render).unwrap_or_default());
+                                }
+                                other => chain.push_str(&render(other)),
+                            }
+                        }
+                        chain
+                    }
+                    _ => args.join(""),
+                },
+                (Func::Cases, _) => {
+                    // The case for whatever is left is written as it is read, `otherwise`.
+                    let always = |k: usize| matches!(expr, Expr::Call(_, cases) if matches!(cases.get(2 * k + 1), Some(Expr::Num(v)) if *v == 1.0));
+                    let rows: Vec<String> = args
+                        .chunks(2)
+                        .enumerate()
+                        .map(|(k, c)| match c {
+                            [value, _] if always(k) => format!("{value},&otherwise"),
+                            other => other.join(",&"),
+                        })
+                        .collect();
+                    format!("├{{█({})┤", rows.join("@"))
+                }
+                (Func::Matrix | Func::Det, [columns, cells @ ..]) if !cells.is_empty() => {
+                    let per_row = columns.parse::<usize>().unwrap_or(1).max(1);
+                    let rows: Vec<String> = cells.chunks(per_row).map(|r| r.join("&")).collect();
+                    let matrix = format!("■({})", rows.join("@"));
+                    if *func == Func::Det { format!("├|{matrix}|┤") } else { matrix }
+                }
+                // A coefficient stacks single operands only: `(n¦k)`, `((n + 1)¦k)`.
+                (Func::Choose, [_, _]) => {
+                    let stacked: Vec<String> = match expr {
+                        Expr::Call(_, operands) => operands.iter().map(|a| wrap(a, !matches!(a, Expr::Name(_) | Expr::Num(_)))).collect(),
+                        _ => args,
+                    };
+                    format!("({})", stacked.join("¦"))
+                }
                 _ => format!("{}({})", func.name(), args.join("; ")),
             }
         }
@@ -250,6 +312,20 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
         }
         Expr::Index(base, index) => format!("{}[{}]", wrap(base, !matches!(**base, Expr::Name(_))), render(index)),
         Expr::Range(from, to) => format!("{}..{}", render(from), render(to)),
+        Expr::Nary(n) if n.op == '∫' => {
+            let limit = |e: &Option<Box<Expr>>| e.as_ref().map(|e| render(e)).unwrap_or_default();
+            let var = n.var.as_deref().unwrap_or("x");
+            format!("∫_({})^({})▒〖{} d{var}〗", limit(&n.from), limit(&n.to), wrap(&n.body, is_sum(&n.body)))
+        }
+        Expr::Nary(n) if crate::structures::is_limit(n.op) => {
+            let to = n.from.as_ref().map(|e| render(e)).unwrap_or_default();
+            let side = match n.op {
+                crate::structures::LIMIT_RIGHT => "^+",
+                crate::structures::LIMIT_LEFT => "^-",
+                _ => "",
+            };
+            format!("lim┬({}→{to}{side})\u{2061}〖{}〗", n.var.as_deref().unwrap_or("x"), render(&n.body))
+        }
         Expr::Nary(n) => {
             let lower = match (&n.var, &n.from) {
                 (Some(var), Some(from)) => format!("_({var}={})", render(from)),
@@ -277,7 +353,12 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 match integer(right) {
                     Some(n) => power_text(&base, n),
                     None => match &**right {
-                        Expr::Name(name) => format!("{base}^{name}"),
+                        // A name, or the value written for it (`3`, `(2 m)`).
+                        Expr::Name(_) => {
+                            let exponent = render(right);
+                            let plain = exponent.starts_with('(') || exponent.chars().all(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | ','));
+                            if plain { format!("{base}^{exponent}") } else { format!("{base}^({exponent})") }
+                        }
                         other => format!("{base}^({})", render(other)),
                     },
                 }

@@ -242,4 +242,7 @@ Copyright (c) 2026 nabre und die Strix-Mitwirkenden. Strix ist ein Fork von
 [WordCraft](https://github.com/storytold/wordcraft), weder mit dessen Autoren verbunden noch von
 ihnen unterstützt; die erforderlichen Hinweise stehen in [NOTICE](../NOTICE). Mitgelieferte
 Schriften, Symbole, Wörterbücher und Übersetzungen behalten ihre offenen Lizenzen, aufgeführt in
-[ATTRIBUTION.md](../ATTRIBUTION.md).
+[ATTRIBUTION.md](../ATTRIBUTION.md). Microsoft und Word sind Marken der Microsoft Corporation;
+Strix ist ein unabhängiges Projekt, weder mit Microsoft verbunden noch von Microsoft unterstützt
+oder gesponsert, und liest und schreibt Word-Dateien nach den veröffentlichten Spezifikationen
+(ECMA-376, ISO/IEC 29500).
