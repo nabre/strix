@@ -1,7 +1,7 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # MCP server
 
-> **Last updated:** 2026-10-31 · Delivery review fixes for #2596: unknown outcomes are not replayed, including image exports to a path; invalid UTF-8 returns a parse error without stopping later requests.
+> **Last updated:** 2026-11-17 · Strix: `new_document`'s `calc` and `test` templates, `.xmath` and Word documents keeping Strix objects, and a pointer to Strix's own commands.
 
 Strix speaks the [Model Context Protocol](https://modelcontextprotocol.io) over stdio, so
 Claude and other agents can write and edit documents.
@@ -167,12 +167,12 @@ test source in File › Options › Language and on the bar's Install.
 
 | Tool | What it does |
 |---|---|
-| `list_commands` | every command (filter with `query`) — over 270 of them |
+| `list_commands` | every command (filter with `query`) — over 700 of them |
 | `execute` | run one command: `{command: "insert.table", params: {rows: 3, cols: 4}}` (an empty table; for a filled one use `insert_table`) |
 | `insert_table` | insert a filled table in one call: `{values: [["Month", "Cases"], ["January", 12]], header: true, style?}` (same as `insert.spreadsheet`) |
 | `batch` | run several commands in order |
-| `new_document` | blank, sample, letter, resume, report; opens beside the open documents |
-| `open_document` / `save_document` | docx, doc (open only), odt, rtf, html, md, tex, txt, json; save also pdf, png |
+| `new_document` | blank, sample, letter, resume, report, and Strix's `calc` (Calculation and exercise) and `test` (Sample test); opens beside the open documents |
+| `open_document` / `save_document` | Strix's own `.xmath` / `.xmathm`; docx, doc (open only), odt, rtf, html, md, tex, txt, json; save also pdf, png. A document with Strix objects (calculations, exercises, CAD drawings, plots, structures, graph paper…) saves to `.xmath` or a Word document (`.docx` keeps them, [Word round trip](word-round-trip.md)); `.odt`, `.rtf` and the other editable formats are refused while it has any |
 | `list_documents` | the open documents: `id`, `title`, `path`, `dirty`, `active` |
 | `type_text` | type at the caret (`paragraphs: true` splits lines into paragraphs: one undo
   step; each break is the Enter it stands for, so AutoFormat and AutoCorrect run and a
@@ -210,6 +210,19 @@ window, so they work on the document on screen.
 replace it; Picture Format commands (`picture.*`, `arrange.*`) still act on it.
 
 Resources: `wordcraft://document` (inspect) and `wordcraft://commands`.
+
+### Strix's own commands
+
+Strix's calculations, teaching material and drawings are commands like any other, run with
+`execute` or `batch` (`list_commands` with `query` finds them; each feature document has its
+table): `calc.*` ([calculations](calc.md)); `exercise.*`, `exercise.grading` (grading scale),
+`exercise.generateVariants` and `file.exportPack` (assessment pack) ([exercises](exercise.md),
+[question modes](question-modes.md)); `master.*` ([master documents](master-documents.md));
+`archive.*` ([archive](archive.md)); `design.dsa` ([DSA formatting](dsa.md)); `graph.*`
+([graph paper](graph-paper.md)); `cad.*` ([CAD](cad.md)); `plot.*` ([plots](plot.md));
+`structure.*`, `structure.working` included ([plane structures](structures.md)). Their panes
+(`view.questionsPane`, `view.dataPane`, `view.gradingPane`, `view.plotPane`,
+`view.structurePane`…) show only in the app (`--connect`); headless they just record the setting.
 
 The acceptance test `crates/mcp/src/tests.rs` writes a formatted document using MCP only.
 

@@ -655,7 +655,7 @@ fn data_fields(ui: &mut Ui, i: usize, s: &mut Value) -> bool {
         }
     });
     ui.horizontal(|ui| {
-        ui.label(tl!("Fit"));
+        ui.label(crate::i18n::tc("plot", "Fit"));
         let reg = s["regression"].as_str().unwrap_or("none").to_string();
         craft_ui::ComboBox::from_id_salt(("plot_reg", i)).selected_text(tl!(reg_label(&reg))).width(110.0).show_ui(ui, |ui| {
             for id in ["none", "linear", "quadratic"] {

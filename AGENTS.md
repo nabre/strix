@@ -4,7 +4,7 @@
 Strix is a clean-room, open-source, Rust-native word processor targeting Microsoft Word parity — and going further on speed, openness and agent control. It runs natively on macOS, Windows, Linux and BSD, and on the web via WASM. Siblings with the same conventions: `../photocraft` (Photoshop), `../vectorcraft` (Illustrator), `../filmcraft` (Premiere), `../lightcraft` (Lightroom), `../pdfcraft` (Acrobat), `../effectcraft` (After Effects), `../designcraft` (InDesign). Shared rules and learnings: [`storytold/craftrules`](https://github.com/storytold/craftrules) (`../../craftrules`) — read its `AGENTS.md`.
 
 ## Start every session here
-1. Read `plan/STATUS.md` (current milestone, next task), then the task in `plan/execution-plan.md` and the relevant `plan/architecture.md` section. `plan/` is gitignored (local only); if it's missing, start from `ROADMAP.md`, `docs/gaps.md` and `docs/roadmap.md` (Current focus).
+1. Read `plan/STATUS.md` (current milestone, next task), then the task in `plan/execution-plan.md` and the relevant `plan/architecture.md` section. `plan/` is gitignored (local only); if it's missing, start from `ROADMAP.md` (Strix's own features, Next, progress log) and the feature documents it links; the document editor's plan is WordCraft's (`docs/roadmap.md` points to it), and `docs/gaps.md` is the snapshot taken at the fork.
 2. Follow the autonomous operation protocol (`plan/execution-plan.md` §5). Don't stop to ask unless a decision is genuinely the owner's (licensing, publishing, pushing to new remotes, secrets).
 
 ## Never crash
@@ -14,7 +14,7 @@ People trust Strix with their writing; a crash loses their work. **This outranks
 - **Input-derived numbers are hostile** (files, commands, MCP/control params): `get()` instead of `[i]`, slice strings only at char boundaries, checked/saturating arithmetic, clamp sizes, cap allocations, bound recursion.
 - **Last-resort guard:** `Session::run` turns an escaped panic into an error and restores the document. It's a safety net, not a licence.
 - **Prove it:** every crash fix lands with a regression test. `crates/engine/src/tests.rs::hostile_params_never_panic` runs every command with junk params — keep it green.
-- Production crate roots carry `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]`; new crates start with it. Tests may `unwrap` (`clippy.toml`).
+- Production crate roots carry `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]`; new crates start with it and add `[lints]` with `workspace = true` to their `Cargo.toml`. Tests may `unwrap` (`clippy.toml`).
 
 ## Assets: absolutely no Microsoft (or Adobe/Avid/Autodesk) iconography or images
 **This rule is non-negotiable.** Breaking it is the worst mistake you can make in this repo.
@@ -33,15 +33,15 @@ People trust Strix with their writing; a crash loses their work. **This outranks
 Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch (`cargo xtask upstream status|sync`, then `git merge vendor/wordcraft`; [`docs/upstream.md`](docs/upstream.md)).
 - New Strix code goes in new files/crates; upstream files only get the lines that register or call it.
 - Never reformat, reorder, rename or split upstream code you aren't otherwise changing.
-- Never hand-edit brand names in upstream files: extend `RENAMES` in `xtask/src/upstream.rs`.
+- Internal names (crates, Rust paths, environment variables) are WordCraft's (`wordcraft_doc`, `WORDCRAFT_DICTIONARIES`); Strix's name only where users see it or it would collide with an installed WordCraft ([`docs/naming.md`](docs/naming.md)). Never hand-edit brand names in upstream files: add a row to `PRODUCT_NAME` or `STRIX_NAMES` in `xtask/src/upstream.rs`.
 - Dead code: `cargo xtask unused` lists dependencies nothing names and public items in Strix's own files nothing (or only tests) uses. Remove those; dead code in upstream files stays (report it upstream instead).
 
 ## Architecture (see `plan/architecture.md`)
 | Layer | Crate | Job |
 |---|---|---|
 | L0 | `geom` | units, rects, measurement parsing |
-| L1 | `doc`, `fonts`, `calc`, `cad`, `metafile`; external `craft-proof` (storytold/craft-libs, used as `wordcraft-proof`) | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; WMF/EMF; proofing (its word lists and patterns are craft-i18n's `language-data/`, `CRAFT_I18N_DIR`) |
-| L2 | `layout`, `docx`, `docbin`, `formats` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT |
+| L1 | `doc`, `fonts`, `calc`, `cad`, `plot`, `structure`, `metafile`; external `craft-proof` (storytold/craft-libs, used as `wordcraft-proof`) | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; scientific plots; plane structures (beams, frames, trusses); WMF/EMF; proofing (its word lists and patterns are craft-i18n's `language-data/`, `CRAFT_I18N_DIR`) |
+| L2 | `layout`, `docx`, `docbin`, `formats`, `dictionaries` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT; spelling dictionaries and thesauri downloaded on demand |
 | L3 | `render`, `pdf` | vello_cpu rasteriser; krilla PDF |
 | L4 | `engine` | Session, undo, **command registry**, Word feature catalog, samples, I/O dispatch |
 | L5 | `mcp`, `zotero` | MCP server (headless or bridged to the app); Zotero integration |
@@ -73,7 +73,7 @@ Typing, Enter, Backspace, Tab, lists, AutoCorrect and AutoFormat follow Word's o
 - Parallel agents: separate `CARGO_TARGET_DIR` per agent; edit only the crates you own; delete your target dir when done (disk).
 
 ## Roadmap
-Progress docs: `ROADMAP.md` is Strix's own (what Strix adds, next steps, progress log since the fork, revision history); the document editor's plan is WordCraft's ([roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md)), so `docs/roadmap.md` only points there and `docs/target-app-parity.md`, `docs/gaps.md` and `docs/*-parity.md` are the snapshot taken at the fork. When Strix work lands, add a progress-log entry and a revision-history row to `ROADMAP.md` and update the feature doc (`docs/calc.md`, `docs/exercise.md`, `docs/cad.md`…).
+Progress docs: `ROADMAP.md` is Strix's own (what Strix adds, next steps, progress log since the fork, revision history); the document editor's plan is WordCraft's ([roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md)), so `docs/roadmap.md` only points there and `docs/target-app-parity.md`, `docs/gaps.md` and `docs/*-parity.md` are the snapshot taken at the fork. When Strix work lands, add a progress-log entry and a revision-history row to `ROADMAP.md` and update the feature doc (`docs/calc.md`, `docs/exercise.md`, `docs/cad.md`, `docs/plot.md`, `docs/structures.md`…).
 
 ## Contributor credits (About window)
 

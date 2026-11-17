@@ -1,6 +1,6 @@
 # Plane structures (`strix-structure`)
 
-> **Status:** done — stage 1 (solver, structure object, diagrams, commands), stage 2 (Structures tab, Structure Editor pane with its tables), stage 3 (the written working) · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/engine/src/cmd/structure.rs` (`L4`), `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs` (`L6`)
+> **Status:** done — stage 1 (solver, structure object, diagrams, commands), stage 2 (Structures tab, Structure Editor pane with its tables), stage 3 (the written working) · **Last updated:** 2026-11-17 · **Crates:** `crates/structure` (`L1`), `crates/structure/src/working.rs`, `crates/engine/src/cmd/structure.rs` and `cmd/structure/working.rs` (`L4`), `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs` (`L6`)
 
 Strix documents hold plane structures — beams, frames and trusses — that are solved where they sit and drawn with their reactions and their N, V (T) and M diagrams one under the other, at the same horizontal scale, as textbooks draw them. Lengths and loads may be calculation parameters (`L`, `q`), so a structure follows the calculations before it and each exercise variant has its own numbers and diagrams. This is a Strix feature beyond Word parity; the model is the one of 2D frame analysis tools such as structural-analyser.com, drawn with the conventions of Italian structural mechanics texts.
 
@@ -47,13 +47,14 @@ A `GraphicKind::Structure` graphic holds the JSON source (`Graphic::structure`),
 
 | Command | Does |
 |---|---|
-| `structure.insert {structure?, template?}` | inserts a structure at the caret: `beam` (default: simply supported, 6 m, 10 kN/m), `cantilever`, `continuous`, `frame` (portal), `truss` |
-| `structure.get` | the source, `status` (`isostatic`, `hyperstatic`, `labile`, `invalid`, `empty`), `degree`, `reactions`, each member's notable N, V, M values, `errors` |
-| `structure.set {structure?, title?, width?, lengthUnit?, forceUnit?, answer?, convention?, diagrams?, titles?}` | settings (`diagrams` and `titles` merged key by key) |
+| `structure.insert {structure?, template?, openPane?}` | inserts a structure at the caret: `beam` (default: simply supported, 6 m, 10 kN/m), `cantilever`, `continuous`, `frame` (portal), `truss`; `openPane` opens the Structure Editor |
+| `structure.get` | the source and `resolved` (its numbers' values), `status` (`isostatic`, `hyperstatic`, `labile`, `invalid`, `empty`), `degree`, `message`, `truss`, `reactions`, each member's length and notable N, V, M values, `errors` |
+| `structure.set {structure?, title?, width?, lengthUnit?, forceUnit?, answer?, convention?, diagrams?, titles?, layout?}` | settings (`diagrams` and `titles` merged key by key; `layout` `auto`, `column` or `grid`) |
 | `structure.node {id?, x?, y?, hinge?, rename?, remove?}` | adds (next free letter), changes, renames (everywhere) or removes a node with its members, supports and loads |
 | `structure.member {id?, a?, b?, hingeA?, hingeB?, e?, i?, area?, remove?}` | adds, changes or removes a member (with its loads); `null` clears `e`, `i`, `area` |
 | `structure.support {node, kind?, angle?, remove?}` | one support per node: puts, changes or removes it |
 | `structure.load {index?, load?, remove?}` | adds, replaces or removes a load |
+| `structure.working {labels?}` | writes the solution after the structure as live calculations ([Working](#working)) |
 
 ## The Structures tab (Strutture)
 

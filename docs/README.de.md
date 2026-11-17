@@ -13,9 +13,10 @@
   vorzubereiten. Rechenaufgaben halten Angaben, Lösung und Ergebnisse lebendig, mit Varianten A,
   B, C für jede Bankreihe; Multiple-Choice-, Richtig/Falsch- und offene Fragen tragen ihre Punkte;
   eine Datei pro Aufgabe ergibt eine Sammlung, aus der die Klassenarbeit entsteht, mit oder ohne
-  Lösungen. Eine Punktetabelle summiert selbst nach Kriterien; ein Notenschlüssel, der Punkte in
-  Noten umrechnet, ist geplant. Darunter rechnen die Gleichungen auf der Seite, mit Einheiten.
-  Nativ unter Windows, macOS, Linux und BSD, und im Browser per WebAssembly.
+  Lösungen. Eine Punktetabelle summiert selbst nach Kriterien, und ein Notenschlüssel rechnet die
+  Punkte in Noten um. Darunter rechnen die Gleichungen auf der Seite, mit Einheiten, und
+  Diagramme, CAD-Zeichnungen und ebene Tragwerke folgen ihnen. Nativ unter Windows, macOS, Linux
+  und BSD, und im Browser per WebAssembly.
 </p>
 
 <p align="center">
@@ -27,14 +28,14 @@
 
 <p align="center"><a href="../README.md">English</a> · <a href="README.it.md">Italiano</a> · <a href="README.fr.md">Français</a> · Deutsch</p>
 
-> **Status: Alpha.** Der Dokumenteditor, auf dem Strix aufbaut, ist ausgereift; Rechenkern, Übungen
-> und CAD sind neu und entwickeln sich schnell. Bewahre eine Kopie wichtiger Dokumente auf und
+> **Status: Alpha.** Der Dokumenteditor, auf dem Strix aufbaut, ist ausgereift; Rechenkern, Aufgaben,
+> CAD, Diagramme und Tragwerke sind neu und entwickeln sich schnell. Bewahre eine Kopie wichtiger Dokumente auf und
 > [sag uns, was nicht funktioniert](https://github.com/nabre/strix/issues). Das englische README
 > ist die vollständige Referenz.
 
 ## Rechenaufgaben
 
-**Unterricht › Übung › Neue Übung** fügt eine gelöste Aufgabe ein, deren Struktur beim Bearbeiten
+**Unterricht › Aufgabe › Neue Aufgabe** fügt eine gelöste Aufgabe ein, deren Struktur beim Bearbeiten
 nicht zerbricht: Titel, Aufgabentext, **Angaben** (Symbol, Beschreibung, Wert, Einheit), Fragen
 mit Buchstaben auf drei Ebenen (a), a.1), a.1.1)); die **Lösung** wiederholt jede Frage
 schreibgeschützt mit Platz für den Lösungsweg; eine **Ergebnisübersicht** am Dokumentende
@@ -43,19 +44,28 @@ schreibgeschützt mit Platz für den Lösungsweg; eine **Ergebnisübersicht** am
 Die Lösung ist eine lebendige Berechnung (siehe [WYSIWYG-Mathematik](#wysiwyg-mathematik)): Die
 Angaben können **Varianten** A, B, C… haben, und die Wahl einer Variante berechnet Angaben, Lösung
 und Übersicht neu; jede Bankreihe bekommt ihre eigenen Zahlen, keine Lösung wird von Hand neu
-gerechnet. Jede Übung ist eine **Sandbox** (zwei Übungen können beide `t` definieren); nach den
-Fragen kann Karopapier folgen, und eine CAD-Zeichnung im Aufgabentext folgt den Angaben.
+gerechnet. Jede Aufgabe ist eine **Sandbox** (zwei Aufgaben können beide `t` definieren); nach den
+Fragen kann Karopapier folgen, und eine CAD-Zeichnung, ein [Diagramm](#diagramme) oder ein
+[Tragwerk](#ebene-tragwerke) im Aufgabentext folgt den Angaben.
+
+Steht der Cursor in einer Aufgabe, erscheint neben den anderen der Reiter **Aufgabe** mit Fragen,
+Varianten und Layout; **Frageneinstellungen** (Typ und Punkte jeder Frage) und **Daten** (eine
+Gleichung pro Angabe, `L = 4.5 m`, mit den Varianten als Schaltflächen) öffnen sich als Bereiche
+neben dem Dokument. **Varianten generieren** erzeugt neue Varianten aus Listen oder Bereichen von
+Werten und behält nur die mit sauberen Ergebnissen (wenige Nachkommastellen, positiv, alle
+verschieden), und jede Variante wird beim Schreiben geprüft: Eine, deren Rechnung scheitert
+(Einheiten, die nicht zusammenpassen, die Wurzel einer negativen Zahl), wird sofort markiert.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../site/shots/de/shot-exercise-dark.png">
-    <img src="../site/shots/de/shot-exercise-light.png" alt="Eine Übung in Strix: ein Auto, das aus dem Stand anfährt, die Angaben in zwei Varianten, die Fragen und die Lösung mit berechneten Ergebnissen." width="70%">
+    <img src="../site/shots/de/shot-exercise-light.png" alt="Eine Aufgabe in Strix: ein Auto, das aus dem Stand anfährt, die Angaben in zwei Varianten, die Fragen und die Lösung mit berechneten Ergebnissen." width="70%">
   </picture>
 </p>
 
 ## Multiple Choice und offene Fragen
 
-Eine Übung kann auch ein Quiz sein, und jede Frage hat ihren eigenen Modus, sodass ein Quiz sie
+Eine Aufgabe kann auch ein Quiz sein, und jede Frage hat ihren eigenen Modus, sodass ein Quiz sie
 mischt ([question-modes.md](question-modes.md), auf Englisch):
 
 | Modus | Kopie der Schüler | Korrigierte Kopie |
@@ -64,12 +74,15 @@ mischt ([question-modes.md](question-modes.md), auf Englisch):
 | **Multiple Choice** | Optionen A), B), C)… mit leeren Kästchen | die richtigen Kästchen angekreuzt (auch mehrere) |
 | **Richtig/Falsch** | *Richtig* und *Falsch* mit leeren Kästchen | das richtige angekreuzt |
 | **Rechnung** | ein kariertes Feld für den Lösungsweg, dann `Antwort: s = ______ m` | der Lösungsweg als lebendige Gleichungen und `Antwort: s = 20 m` |
-| **CAD-Zeichnung** | ein kariertes Feld zum Zeichnen | die CAD-Zeichnung der Lösung |
+| **CAD-Zeichnung** | ein kariertes Feld zum Zeichnen, oder eine Figur zum Vervollständigen | die CAD-Zeichnung der Lösung, oder die vervollständigte Figur |
+| **Lückentext** | ein Text mit einer Schreiblinie für jedes ausgeblendete Wort (oder jeden berechneten Wert) | die ausgeblendeten Wörter, in der Formatvorlage *Ausgeblendetes Wort* |
+| **Zuordnung** | zwei Spalten, die rechte gemischt, mit Kästchen für die Buchstaben | die Buchstaben der richtigen Paare |
+| **Durchgerechnetes Beispiel** | das Beispiel mit seiner Lösung, immer sichtbar, ohne Punkte | dasselbe |
 
 Die richtigen Antworten werden **mit der Lösung ausgeblendet**: Die Kästchen bleiben leer, die
 Felder behalten ihre Höhe, so ist die Kopie der Schüler genauso gesetzt wie die der Lehrkraft.
 Jede Frage hat ihre **Punkte**, daneben angezeigt und in der Punktetabelle summiert. Die
-**Aufgabe** (Text, Angaben, Fragen, Lösung) bleibt die Art für lange, mehrstufige Übungen.
+**Aufgabe** (Text, Angaben, Fragen, Lösung) bleibt die Art für lange, mehrstufige Aufgaben.
 
 <p align="center">
   <picture>
@@ -81,24 +94,41 @@ Jede Frage hat ihre **Punkte**, daneben angezeigt und in der Punktetabelle summi
 ## Von der Aufgabensammlung zur Klassenarbeit
 
 - **Eine Datei pro Aufgabe** ergibt eine Sammlung; jede Datei trägt ihre **Archiveigenschaften**
-  (Klasse, Zug, Fach, Lehrkraft, Dauer, Punktzahl), auch in Word sichtbar
+  (Klasse, Zug, Fach, Lehrkraft, Dauer, Themen, Punktzahl), auch in Word sichtbar. Der Bereich
+  **Aufgabenbank** (Unterricht › Archiv) durchsucht einen Ordner mit Aufgaben nach Eigenschaften
+  und Text und fügt eine als Kopie oder als verknüpftes Filialdokument ein
   ([archive.md](archive.md)).
 - Ein **Masterdokument** stellt daraus die Klassenarbeit zusammen, mit eigener Nummerierung,
   Deckblatt, Seitenumbrüchen und gezeigten Teilen (mit oder ohne Lösungen und Ergebnisse);
   **die Dateien der Sammlung ändern sich nie** ([master-documents.md](master-documents.md)).
-- Die **DSA-Formatierung** (Lernschwierigkeiten: Lesen, Schreiben, Rechnen und Gedächtnis,
-  kombinierbar, Seite immer weiß) passt dieselbe Klassenarbeit an ([dsa.md](dsa.md)).
+- Die **DSA-Formatierung** (Gruppe **LRS** im Reiter Entwurf; Lernschwierigkeiten: Lesen,
+  Schreiben, Rechnen und Gedächtnis, kombinierbar, Seite immer weiß) passt dieselbe Klassenarbeit
+  an ([dsa.md](dsa.md)).
+- **Prüfung kontrollieren** (Unterricht › Beurteilung) sieht die Klassenarbeit vor dem Druck
+  durch: alle Varianten, die richtigen Antworten, fehlende Lösungen, die Punkte und ihre Summen,
+  die Antwortfelder, die Dauer und die Seitenzahl jeder Variante, jedes Problem einen Klick
+  entfernt.
+- **Prüfungspaket exportieren** (Unterricht › Beurteilung) schreibt in einem Schritt das
+  Schüler-PDF jeder Variante, ihre DSA-Fassung und den Lehrerschlüssel mit den ausgearbeiteten
+  Lösungen, dem Notenschlüssel und einer Tabelle der Ergebnisse aller Varianten.
 - **PDF**-Export zum Drucken.
 
 ## Punkte und Noten
 
-Die **Punktetabelle** (Unterricht › Punkte › Punktetabelle) hat eine Zeile pro Übung und zwei
-Spalten pro Kriterium (die auf dem Blatt vergebenen Punkte und die, die die Übung wert ist); die
+Die **Punktetabelle** (Unterricht › Punkte › Punktetabelle) hat eine Zeile pro Aufgabe und zwei
+Spalten pro Kriterium (die auf dem Blatt vergebenen Punkte und die, die die Aufgabe wert ist); die
 **Summen** je Zeile und Spalte folgen beim Tippen, und die Gesamtsumme ist die Eigenschaft
 **Punktzahl** der Datei.
 
-*Geplant:* ein **Notenschlüssel**, der Punkte in Noten umrechnet (Schwellen, Skala, Rundung).
-Details (auf Englisch): [exercise.md](exercise.md).
+Der **Notenschlüssel** (Unterricht › Punkte › Notenschlüssel) rechnet die Punkte in Noten um:
+eine Tabelle mit einer Zeile pro Note, von der niedrigsten zur höchsten in der gewählten
+Schrittweite (etwa 1–10 in halben Schritten), und den Punkten, die sie ergeben, als Intervall
+`[12; 14[`. Er beginnt mit einer Schulvorgabe (Italien 1–10, Schweiz 1–6, Deutschland 6–1,
+Frankreich 0–20, Prozent) oder einer eigenen: die Bestehensgrenze und ihre Note, eine Gerade oder
+zwei, die Punkte auf ein Vielfaches gerundet (0,25, 0,5), das Maximum aus der Punktetabelle oder
+fest, und ob die Schüler ihn sehen. **Eigenschaften des Notenschlüssels** öffnet sich neben dem
+Dokument mit einer Vorschau, bestandene Noten in Grün. Details (auf Englisch):
+[exercise.md](exercise.md).
 
 ## WYSIWYG-Mathematik
 
@@ -138,23 +168,95 @@ v² = 2·a·d                         →  v² = 2·a·d ⇒ d = 125 m         (
   geschriebene Einheit bekommt einen Hinweis („meintest du kN?“).
 - **Lösungsschritte**, **berechnete Tabellen** (Spalten mit Einheiten und Formeln, etwa
   `ρ [g/cm³] = m/V` für Messreihen im Labor, und `Σ =`, `mean =`, `min =`, `max =`), **Summen, Bereiche und Vektoren**, **Zahlenformat**.
+- **Ableitungen, Integrale und Grenzwerte**: `f′(a)` und `f″(a)` einer selbst definierten
+  Funktion (`f(x) = …`), bestimmte Integrale `∫_a^b f(x) dx` mit Einheiten, links- und
+  rechtsseitige Grenzwerte, Binomialsummen; die Strukturen des Formeleditors (Betrag, Wurzeln mit
+  Wurzelexponent, Logarithmen zur Basis, Fallunterscheidungen, Determinanten) werden als
+  Berechnungen gelesen. `°C` und `°F` rechnen sich als Temperaturen und als Differenzen um.
+- **Der Variablenbereich** (Mathematik › Berechnung › Variablen) listet jeden bis dahin
+  definierten Namen mit seinem Wert und rechnet Einheiten um.
 - **Fehler halten das Blatt nicht an**: Eine fehlerhafte Anweisung zeigt `⚠` und ihre Meldung.
 
-Das Rechnen liegt im Reiter **Math**; Übungen, Punkte und Karopapier im Reiter **Unterricht**. Details (auf Englisch): [calc.md](calc.md).
+Das Rechnen liegt im Reiter **Mathematik** (mit Berechnete Tabelle, die einen eigenen Reiter
+bekommt, solange der Cursor in einer Tabelle steht, dem Zahlenformat, CAD-Zeichnung und
+Diagramm); Tragwerke haben den Reiter **Strukturen**; Aufgaben, Punkte, Notenschlüssel und
+Karopapier liegen im Reiter **Unterricht**. Details (auf Englisch): [calc.md](calc.md).
 
 ## CAD-Zeichnungen, die den Berechnungen folgen
 
-**Einfügen › CAD Drawing** setzt eine technische Zeichnung in den Text. Koordinaten, Radien und
+**Einfügen › CAD-Zeichnung** setzt eine technische Zeichnung in den Text. Koordinaten, Radien und
 Winkel können **Ausdrücke der Parameter** sein (`["b", 0]`, `b/2`): Ändere `b = 6 cm`, und das
 Dreieck wird neu gezeichnet, jede Variante hat also ihre Figur; Bemaßungen rufen Parameter ab
-(`{{b}}` zeigt `6 cm`). Der Editor
-auf dem Zeichenblatt hat eine Befehlszeile für Koordinaten, **exakte Objektfänge** auf den echten
-Kurven, Griffe, die die Ausdrücke behalten, einen Eigenschaftenbereich und Layer. Die Zeichnung
-wird als JSON in der `.xmath`-Datei gespeichert, zusammen mit einem SVG-Bild. Details: [cad.md](cad.md).
+(`{{b}}` zeigt `6 cm`). Der Editor auf dem Zeichenblatt, mit eigenen Reitern (**CAD-Zeichnung**,
+**CAD-Beschriftung**, **CAD-Ausgabe**), hat eine Befehlszeile für Koordinaten, **exakte
+Objektfänge** auf den echten Kurven, Griffe, die die Ausdrücke behalten, ausgerichtete,
+horizontale, vertikale und Winkelbemaßungen, Schraffuren und die Änderungswerkzeuge (Schieben,
+Kopieren, Drehen, Skalieren, Spiegeln, Versatz, Stutzen, Dehnen, Abrunden, Fasen, Reihen), jedes
+mit einer Vorschau vor dem Klick; dazu einen Eigenschaftenbereich und Layer. Die Zeichnung wird als
+JSON in der Datei gespeichert, zusammen mit einem SVG-Bild. *Geplant:* Bemaßungen, die die
+Zeichnung steuern, mit geometrischen Abhängigkeiten. Details: [cad.md](cad.md).
+
+## Diagramme
+
+**Mathematik › Zeichnung › Diagramm** zeichnet ein lebendiges kartesisches Diagramm in den Text,
+aus den Berechnungen davor ([plot.md](plot.md), auf Englisch): Funktionen `y = f(x)` (Pole und
+Asymptoten nie verbunden), Parameter- und Polarkurven, Messwerte aus einer berechneten Tabelle mit
+Fehlerbalken und einer linearen oder quadratischen Regression mit R². Eine Funktion kann ihre
+**Nullstellen**, **Extrema**, eine **Tangente** und ein schraffiertes **Integral** zeigen;
+**Analyse in Dokument einfügen** schreibt sie nach dem Diagramm als lebendige Berechnungen. Die
+Achsen tragen ihre Namen an den Pfeilen, und diese Namen sind die Variablen der Formeln; die
+Bereiche passen sich dem an, was zu zeigen ist; Winkel laufen mathematisch oder geodätisch, in
+rad, ° oder gon. Ändere einen Parameter, und das Diagramm zeichnet sich neu; in der Kopie der
+Schüler lässt ein als Lösung markiertes Diagramm (oder eine einzelne Kurve) ein leeres,
+beschriftetes Raster gleicher Größe stehen. Der Bereich **Diagrammeigenschaften** bearbeitet jede
+Datenreihe.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../site/shots/de/shot-plot-dark.png">
+    <img src="../site/shots/de/shot-plot-light.png" alt="Ein Diagramm in Strix: die Funktion f(x) = x³/3 − x mit Nullstellen, Extrema, der Tangente bei x = 1,5 und der schraffierten Fläche, daneben die Diagrammeigenschaften." width="100%">
+  </picture>
+</p>
+
+## Ebene Tragwerke
+
+Der Reiter **Strukturen** (zwischen Mathematik und Unterricht) fügt einen **Träger, Rahmen oder
+ein Fachwerk** ein, das an Ort und Stelle berechnet und wie im Lehrbuch gezeichnet wird
+([structures.md](structures.md), auf Englisch): das Tragwerk mit Lagern und Lasten, die
+**Auflagerreaktionen** und die **Zustandslinien** von Normalkraft, Querkraft und Biegemoment
+untereinander im selben Maßstab, schraffiert, mit ⊕/⊖ und den maßgebenden Werten; ein Fachwerk
+zeigt die Stabkraft jedes Stabs, Zug und Druck in zwei Farben. Die Zustandslinien heißen
+standardmäßig N, T und M; den Titel der Querkraft kann man pro Tragwerk ändern, etwa in Q.
+
+- **Jedes ebene Tragwerk**: Einspannungen, Festlager, Loslager, Pendelstäbe und
+  Parallelführungen unter beliebigem Winkel, innere Gelenke; Kräfte, Momente und Streckenlasten,
+  konstant, dreieck- oder trapezförmig, in globalen oder lokalen Achsen, je Länge oder je
+  Projektion. Es wird als statisch bestimmt, *h*-fach statisch unbestimmt oder kinematisch
+  eingestuft und mit dem Weggrößenverfahren berechnet.
+- **Von den Berechnungen gesteuert**: Jede Länge und jede Last kann ein Parameter sein (`L`,
+  `q`), so hat jede Variante einer Aufgabe ihr eigenes Tragwerk und ihre eigenen Zustandslinien;
+  die italienische Konvention (Moment auf der Seite der gezogenen Faser) ist voreingestellt, und
+  die positive Seite jeder Zustandslinie ist wählbar.
+- **Der Tragwerkseditor**, ein Bereich neben dem Dokument: ein Blatt mit Raster und Fang,
+  Werkzeuge für Knoten, Stäbe, Lager, Gelenke und Lasten, eingetippte Koordinaten und Tabellen der
+  Knoten, Stäbe, Lager und Lasten.
+- **Der geschriebene Lösungsweg**: **Lösungsweg schreiben** setzt die Lösung als lebendige
+  Berechnungen hinter das Tragwerk: die Gleichgewichtsbedingungen, die die Auflagerreaktionen
+  ergeben, dann die Verläufe N(x), T(x), M(x) jedes Stabs Abschnitt für Abschnitt, mit ihren
+  Werten an den Enden und den Extrema des Moments.
+- In der Kopie der Schüler lässt **Nur Lösung** Auflagerreaktionen und Zustandslinien weg und
+  behält die leeren Felder, so haben beide Kopien dasselbe Layout.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../site/shots/de/shot-structure-dark.png">
+    <img src="../site/shots/de/shot-structure-light.png" alt="Strix mit einem Einfeldträger im Reiter Strukturen, Länge und Lasten aus den Parametern L, q und F: der Träger mit seinen Lasten, die Auflagerreaktionen, die Zustandslinien T und M und der Tragwerkseditor neben dem Dokument." width="100%">
+  </picture>
+</p>
 
 ## Karopapier
 
-**Einfügen › Graph Paper** kariert die Seite oder einen Block im Text wie ein Rechenheft, mit einer
+**Einfügen › Rasterpapier** kariert die Seite oder einen Block im Text wie ein Rechenheft, mit einer
 kräftigeren Linie alle N Kästchen, scharf bei jedem Zoom und im PDF. Details: [graph-paper.md](graph-paper.md).
 
 ## Ein vollständiger Dokumenteditor
@@ -169,26 +271,36 @@ Englisch, Italienisch oder Französisch).
 
 | | Formate |
 |---|---|
-| **Speichert** | `.xmath` (Dokument) und `.xmathm` (Vorlage): ein OOXML-Paket, das Berechnungen, Übungen und Zeichnungen lebendig hält |
-| **Speichert zurück** (Dokumente ohne Strix-Objekte) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.odt`, `.rtf`, `.txt`, Word XML |
+| **Speichert** | `.xmath` (Dokument) und `.xmathm` (Vorlage), und Words `.docx`, `.docm`, `.dotx`, `.dotm`: alle halten Berechnungen, Aufgaben, Zeichnungen, Diagramme und Tragwerke lebendig |
+| **Speichert zurück** (Dokumente ohne Strix-Objekte) | `.odt`, `.rtf`, `.txt`, Word XML |
 | **Exportiert** (statische Kopien) | PDF, PNG, LaTeX, HTML, Markdown |
-| **Öffnet** | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt` |
+| **Öffnet** | `.xmath`, `.xmathm`, `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt`, Word XML |
 
-Strix öffnet eine `.docx` (oder `.odt`, `.rtf`…) und speichert sie im selben Format zurück, solange
-das Dokument keine **Strix-Objekte** enthält: Berechnungen, berechnete Tabellen, Übungen,
-CAD-Zeichnungen oder Karopapier. Diese Formate verlören die lebendigen Berechnungen und die Quelle
-der Zeichnungen; ein Dokument mit solchen Objekten speichert deshalb nur als `.xmath`: Speichern
-schlägt eine `.xmath` gleichen Namens vor und nennt, was verloren ginge („3 Berechnungen,
-1 CAD-Zeichnung“), Speichern unter lässt die verlustbehafteten Formate weg, und `file.save`,
-`strix-cli convert` und MCP `save_document` lehnen mit derselben Erklärung ab. Exporte (PDF, PNG,
-LaTeX, HTML, Markdown) sind Kopien und gehen immer. Eine `.xmath`-Datei bleibt ein Standardpaket:
-Andere Programme zeigen die zuletzt berechneten Werte.
+Ein neues Dokument ist eine `.xmath`, und wie Word speichert Strix eine Datei im Format zurück,
+aus dem sie kommt. **Word-Dateien behalten Strix-Objekte auch über Word hinweg**: Eine von Strix
+geschriebene `.docx` trägt jede Berechnung, berechnete Tabelle, Aufgabe, CAD-Zeichnung, jedes
+Diagramm, Tragwerk und Karopapier ein zweites Mal, in Inhaltssteuerelementen und einem
+benutzerdefinierten XML-Teil, den Word beim Speichern behält. Öffne die Datei in Word, bearbeite
+den Text drumherum, speichere, und in Strix sind die Objekte wieder lebendig; eines, das in Word
+geändert wurde, bleibt, wie Word es hinterlassen hat, und wartet auf deine Entscheidung
+([word-round-trip.md](word-round-trip.md), auf Englisch). Die anderen bearbeitbaren Formate (ODT,
+RTF, reiner Text, Word XML) behielten nur ihr letztes Aussehen, deshalb wird ein Dokument mit
+solchen Objekten nicht in diesen Formaten gespeichert: Speichern schlägt eine `.xmath` vor und
+nennt, was verloren ginge („3 Berechnungen, 1 CAD-Zeichnung“), Speichern unter lässt diese Formate
+weg, und `file.save`, `strix-cli convert` und MCP `save_document` lehnen mit derselben Erklärung
+ab. Exporte (PDF, PNG, LaTeX, HTML, Markdown) sind Kopien und gehen immer. Eine `.xmath`-Datei
+bleibt ein Standardpaket: Andere Programme zeigen die zuletzt berechneten Werte.
 
 ## Für Agenten: Befehle, CLI, MCP
 
 Alles, was Strix tut, ist ein **Befehl** in einem einzigen Register. Menüband, Tastenkürzel,
 Befehlssuche, Kommandozeile, Steuerkanal und MCP-Server führen dieselben Befehle aus, und
-programmatische Aufrufe öffnen nie Dialoge.
+programmatische Aufrufe öffnen nie Dialoge. Zu den Befehlen für Unterricht, Berechnung und
+Zeichnung gehören `exercise.insert`, `exercise.setData`, `exercise.variant`,
+`exercise.generateVariants`, `exercise.scores`, `exercise.grading`, `exercise.check`,
+`file.exportPack`, `design.dsa`, `calc.insert`, `table.calc`, `insert.cad`, `plot.insert`,
+`plot.analysis`, `structure.insert` und `structure.working`: Ein Agent kann eine ganze
+Klassenarbeit vorbereiten, mit ihren Varianten, ihrem Notenschlüssel und den Kopien zum Drucken.
 
 ```sh
 claude mcp add strix -- strix-cli mcp                      # Dokumente ohne Oberfläche
@@ -228,10 +340,15 @@ Web: `cd apps/strix-web && trunk serve`, dann <http://127.0.0.1:8771/?sample> ö
 
 ## Stand und Roadmap
 
-Fertig: Berechnungen mit einem `=` und Einheiten, berechnete Tabellen, Übungen mit Angaben und
-Varianten, Quiz mit den fünf Fragemodi, Klassenarbeiten aus der Aufgabensammlung über
-Masterdokumente, DSA-Formatierung, Punktetabelle, Karopapier, parametrische CAD-Zeichnungen. Die
-nächsten Funktionen werden gerade festgelegt: [ROADMAP.md](../ROADMAP.md) (mit dem
+Fertig: Berechnungen mit einem `=` und Einheiten, Ableitungen, Integrale und Grenzwerte,
+berechnete Tabellen, Aufgaben mit Angaben und Varianten (generiert und geprüft), Quiz mit allen
+Fragemodi, Klassenarbeiten aus der Aufgabensammlung über Masterdokumente, DSA-Formatierung,
+Kontrolle vor dem Druck und Export des Prüfungspakets, Punktetabelle und Notenschlüssel,
+Karopapier, parametrische CAD-Zeichnungen mit den Änderungswerkzeugen, Diagramme mit ihrer
+Analyse, ebene Tragwerke mit ihrem Lösungsweg, Word-Dateien, die Strix-Objekte behalten. Als
+Nächstes notiert: Gleichungssysteme und Matrizen, eine Ergebnistabelle pro Aufgabe und eine
+Übersicht pro Variante, Fragen zum Ordnen, CAD-Bemaßungen, die die Zeichnung steuern. Details in
+[ROADMAP.md](../ROADMAP.md) (mit dem
 Fortschrittsprotokoll). Der Dokumenteditor folgt der
 [Roadmap von WordCraft](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 

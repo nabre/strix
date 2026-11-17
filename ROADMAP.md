@@ -1,8 +1,9 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix roadmap
 
-> **Last updated:** 2026-11-13 · **Change:** major (the word-processor plan inherited from
-> WordCraft replaced by a reference to WordCraft's roadmap; Strix's own next steps to be defined)
+> **Last updated:** 2026-11-17 · **Change:** patch (the documentation brought up to date with
+> the code: READMEs, site, brand manual, store texts, feature docs, screenshots and translations;
+> the Structures tab done, next steps listed)
 
 Strix is a tool for teachers of mathematics, science and engineering: calculation exercises with
 units, open and multiple-choice questions, tests assembled from an archive of exercises, scores,
@@ -27,16 +28,22 @@ documents: [calculations](docs/calc.md), [exercises](docs/exercise.md),
 [archive](docs/archive.md), [DSA formatting](docs/dsa.md), [graph paper](docs/graph-paper.md),
 [CAD](docs/cad.md), [plots](docs/plot.md), [plane structures](docs/structures.md), [Word round trip](docs/word-round-trip.md).
 
-**Next: the Structures tab** (docs/structures.md): plane structures solved and drawn with their
-reactions and N, V (T), M diagrams. All three stages are done: the solver, structure object, diagrams
-and commands; the tab between Math and Teaching with the Structure Editor and its tables; the
-working written after a structure as live calculations.
+The latest feature, **plane structures** (docs/structures.md), is done in its three stages: the
+solver, the structure object and its commands; the Structures tab between Math and Teaching with
+the Structure Editor and its tables; the working written after a structure as live calculations.
+
+**Next** (to be confirmed by the owner, gathered from the feature documents' Next sections):
+systems of equations across regions and matrices (docs/calc.md); a results table per exercise,
+checks against expected values and a summary per variant (docs/exercise.md); ordering questions
+(docs/question-modes.md); driving
+dimensions with geometric constraints in CAD (docs/cad.md).
 
 ## Progress log
 
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-17: **The documentation brought up to date with the code**, every language and picture. *READMEs* (English, Italian, French, German): the grading scale is done (no longer "planned"), new sections Plots and Plane structures, the Exercise tab and its panes, generated and checked variants, every question mode, the Exercise Bank, the DSA group, Check Assessment and Export Pack, derivatives, integrals and limits, the CAD tools, Word files that keep Strix objects through Word, the commands for agents, the architecture, the status and next steps. *Site* (`site/landing.html`, `site/strings/*.json`): a Structures section with its screenshot, tiles for plots, structures and printing, the planned list rewritten. *Brand manual* (`docs/brand/MARKETING.md`), *store and package texts* (AppStream summary, description and four screenshots in four languages, desktop entry, nfpm, Windows installer). *Feature docs* (calc, exercise, question modes, master documents, archive, DSA, graph paper, CAD, plots, structures, Word round trip, MCP, control protocol, updates, releasing, RESUME, roadmap, AGENTS.md, GLOSSARY.md with Strix's terms). *Screenshots*: every site/README shot remade in four languages and both themes with today's ribbon, new structure and plot shots (`site/shots/make.sh`), `docs/images` remade from the sample test (the store screenshot was still WordCraft's). *Translations*: the French and German catalogs gain Strix's ~570 and ~700 missing strings, the Italian catalog reviewed line by line (one word per idea: copia dello studente, risoluzione, risposta multipla, quota altimetrica…), no string left untranslated in the interface audit. *Code text*: `file.save`/`file.saveAs`/MCP `save_document` say Word files keep Strix objects, MCP `new_document` lists the `calc` and `test` templates, command locations match the ribbon (Math › Number Display, Math › Calculation, Teaching › Assessment), the sample test's instructions name the Exercise tab, the plot pane's Fit (regression) has its own context so the drawing canvas's Fit is translated right again.
 - 2026-11-17: **Plane structures, stage 3: the written working** (docs/structures.md, `crates/engine/src/cmd/structure/working.rs`, `crates/structure/src/working.rs`): `structure.working` (Structures › Teaching › Write Working, and the editor's button) writes after a structure its solution as live calculations — the equilibrium equations giving the reactions (rotations about the supports, translations, a part's rotation about an internal hinge), ordered so each has one unknown that calc solves with its steps one under the other; a hyperstatic structure's redundants from the stiffness solution, said so; then each member's laws N(x), T(x), M(x) stretch by stretch as calc functions with their values at the ends and M's extremes, or a truss's axial forces. Loads as resultants (a trapezoid as rectangle and triangle), exact fractions (`(70 kN)/3`), the document's decimal separator, the interface's language.
 - 2026-11-17: **Plane structures, stage 2** (docs/structures.md, `crates/ui-egui/src/structure_pane.rs`, `crates/ui-egui/src/ribbon/structures.rs`): the **Structures** tab between Math and Teaching — insert from templates (simply supported beam, cantilever, continuous beam, portal frame, truss), the Structure Editor, the diagrams shown and their positive side, the Italian convention, values, hatching and signs, the panels' layout, the units, Solution Only — and the **Structure Editor** pane: the structure drawn on a sheet with a grid, zoom and pan, snapping to the grid and the nodes, tools to draw nodes and members, put supports, internal hinges, forces, couples and distributed loads and erase, coordinates typed as in the CAD editor (`x, y`, `@dx, dy`), the selection's properties and tables of nodes, members, supports and loads whose numbers may be calculation parameters. `view.structurePane`; `structure.get` gives the structure resolved, `structure.set` its layout. Drawing: the reactions' moment written clear of their arrows, a fixed end's node name clear of its plate, more room above the diagrams.
 - 2026-11-17: **Plane structures, stage 1** (docs/structures.md, `crates/structure`, `crates/engine/src/cmd/structure.rs`): a new Strix object holds a beam, frame or truss — nodes, members with hinges and optional E, I, A, supports (fixed, pin, roller, link, slider, at any angle) and loads (forces, couples, uniform, triangular and trapezoidal distributed loads in global or local axes, per length or per projection), every number a calculation parameter or expression. It is classified by the rank of its equilibrium matrix (isostatic, hyperstatic of degree h, labile) and solved by the stiffness method with Lagrange multipliers for the supports; the internal forces follow by equilibrium along each member. It draws the structure with Italian textbook symbols and its loads, then its reactions and the N, T, M diagrams one under the other at the same horizontal scale (on the members for frames), each diagram in its colour, hatched, with ⊕/⊖ and its notable values (ends of each stretch, jumps, M's extremes where T is zero), the positive side chosen per diagram (Italian convention by default: M on the stretched fibres); a truss shows its members' axial forces instead. Redrawn with the calculations in reading order (an exercise's variant included), the student copy keeps every panel empty at the same size; saved in .docx (source part and SVG picture) and through Word; `structure.insert` (templates beam, cantilever, continuous, frame, truss), `structure.get`, `structure.set`, `structure.node`, `structure.member`, `structure.support`, `structure.load`.
@@ -170,6 +177,7 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-17 | patch | Documentation brought up to date with the code: READMEs, site, brand manual, store texts, feature docs, screenshots and the it/fr/de translations |
 | 2026-11-17 | minor | Plane structures, stage 3: the working written as live calculations (`structure.working`): reactions by equilibrium with their steps, laws N(x), T(x), M(x) per stretch |
 | 2026-11-17 | minor | Plane structures, stage 2: the Structures tab and the Structure Editor pane (sheet with tools, snapping and typed coordinates; properties; tables) |
 | 2026-11-17 | minor | Plane structures, stage 1: `strix-structure` (classification, stiffness solution, reactions, N, T, M diagrams, trusses), the Structure object in the document and its commands |

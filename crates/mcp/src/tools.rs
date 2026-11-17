@@ -108,7 +108,7 @@ pub fn tool_definitions() -> Value {
             "new_document",
             "New document",
             "Start a document: blank, sample, letter, resume or report. It opens beside the documents already open and becomes the active one; the reply's `id` addresses it (`doc`).",
-            obj(json!({"template": s("blank|sample|letter|resume|report")}), &[]),
+            obj(json!({"template": s("blank|calc|test|sample|letter|resume|report")}), &[]),
             false
         ),
         tool(
@@ -121,7 +121,7 @@ pub fn tool_definitions() -> Value {
         tool(
             "save_document",
             "Save",
-            "Save. Without a path, saves in place a Strix document (.xmath/.xmathm), or a document opened from .docx, .odt, .rtf, .txt or .xml that has no Strix objects; any other needs a path. With a path, the format follows the extension: xmath (the default when there is none) or xmathm saves the Strix document; docx, docm, dotx, dotm, odt, rtf, txt or xml saves it in that format only while it has no Strix objects (calculations, calculated tables, exercises, CAD drawings, graph paper), which those formats would lose: otherwise the call fails naming them, so save as .xmath; pdf, png, tex, html, md export a static copy.",
+            "Save. Without a path, saves in place a Strix document (.xmath/.xmathm), a Word package (.docx/.docm/.dotx/.dotm), which keeps Strix objects, or a document opened from .odt, .rtf, .txt or .xml that has no Strix objects; any other needs a path. With a path, the format follows the extension: xmath (the default when there is none) or xmathm saves the Strix document; docx, docm, dotx or dotm saves a Word package that keeps Strix objects; odt, rtf, txt or xml saves it in that format only while it has no Strix objects (calculations, calculated tables, exercises, CAD drawings, plots, structures, graph paper), which those formats would lose: otherwise the call fails naming them, so save as .xmath; pdf, png, tex, html, md export a static copy.",
             with_doc(obj(json!({"path": s("File path; omit to save in place")}), &[])),
             false
         ),

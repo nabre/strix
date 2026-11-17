@@ -6,16 +6,34 @@
 #                                                     variants, questions, the worked solution
 #   site/shots/<lang>/shot-quiz-{light,dark}.png      a quiz: multiple choice, true/false and a
 #                                                     calculation question, with points
+#   site/shots/<lang>/shot-structure-{light,dark}.png a simply supported beam from the parameters
+#                                                     L, q, F, on the Structures tab, with its
+#                                                     reactions, T and M diagrams and the
+#                                                     Structure Editor
+#   site/shots/<lang>/shot-plot-{light,dark}.png      a function's plot with zeros, extremes, a
+#                                                     tangent and an area, and Plot Properties
+#   docs/images/*.png (with --docs; English, light)   the sample test on the Teaching tab
+#                                                     (hero.png, the store screenshot), File ›
+#                                                     Home (backstage), the dark theme (dark), the
+#                                                     Design, Layout, References and Review tabs
 # The documents are written here, by us. Usage, from the repository root:
-#   site/shots/make.sh [--no-build] [LANG...]
+#   site/shots/make.sh [--no-build] [--docs] [LANG...]
 # builds ui_shot in release mode first (unless --no-build) and makes every language (or the ones
-# named). Original work by the Strix contributors, MIT OR Apache-2.0.
+# named); --docs also remakes docs/images. Original work by the Strix contributors, MIT OR Apache-2.0.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-if [[ "${1:-}" == "--no-build" ]]; then
+BUILD=1
+DOCS=0
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --no-build) BUILD=0 ;;
+    --docs) DOCS=1 ;;
+    *) echo "error: unknown option $1" >&2; exit 2 ;;
+  esac
   shift
-else
+done
+if [[ $BUILD == 1 ]]; then
   cargo build --release -q -p wordcraft-ui-egui --example ui_shot
 fi
 ONLY=" $* "
@@ -60,10 +78,11 @@ proofed() {
   cmd caret.docStart '{}'
 }
 
-# A light and a dark picture of the document built so far, on the given ribbon tab.
+# A light and a dark picture of the document built so far, on the given ribbon tab (zoom 115 %
+# unless a fourth argument gives it).
 pictures() {
-  local tab="$1" name="$2" out="$3"
-  cmd view.zoom '{"value":115}'
+  local tab="$1" name="$2" out="$3" zoom="${4:-115}"
+  cmd view.zoom "{\"value\":$zoom}"
   cmd ui.tab "{\"tab\":\"$tab\"}"
   cmd ui.theme '{"value":"light"}'
   # A first picture warms the renderer up: the first one after a long script can time out.
@@ -161,3 +180,104 @@ it|Moto uniformemente accelerato|Un’automobile parte da ferma e raggiunge 90 k
 fr|Mouvement uniformément accéléré|Une voiture démarre à l’arrêt et atteint 90 km/h en 10 s : son accélération, la force, la distance et l’énergie.|Voiture qui démarre à l’arrêt|Une voiture démarre à l’arrêt et atteint la vitesse v au bout du temps t, avec une accélération constante.|Calculer l’accélération.|Calculer la distance parcourue.|vitesse finale|durée|Mouvement et unités|Lesquelles sont des unités de base du SI ?|kilogramme (kg);newton (N);seconde (s);kilomètre par heure (km/h)|L’accélération se mesure en m/s².|Un chariot démarre à l’arrêt avec l’accélération a. Quelle distance parcourt-il pendant la durée t ?|accélération
 de|Gleichmäßig beschleunigte Bewegung|Ein Auto fährt aus dem Stand an und erreicht 90 km/h in 10 s: Beschleunigung, Kraft, Weg und Energie.|Auto, das aus dem Stand anfährt|Ein Auto fährt aus dem Stand an und erreicht die Geschwindigkeit v in der Zeit t, mit konstanter Beschleunigung.|Berechne die Beschleunigung.|Berechne den zurückgelegten Weg.|Endgeschwindigkeit|Zeit|Bewegung und Einheiten|Welche davon sind SI-Basiseinheiten?|Kilogramm (kg);Newton (N);Sekunde (s);Kilometer pro Stunde (km/h)|Die Beschleunigung wird in m/s² gemessen.|Ein Wagen fährt aus dem Stand mit der Beschleunigung a an. Welchen Weg legt er in der Zeit t zurück?|Beschleunigung
 EOF
+
+# The beam: its lengths and loads are the parameters written above it.
+BEAM='{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":"L","y":0}],"members":[{"id":"1","a":"A","b":"B"}],"supports":[{"node":"A","kind":"pin"},{"node":"B","kind":"roller"}],"width":130,"loads":[{"type":"distributed","member":"1","q1":"q"},{"type":"force","member":"1","at":"L/3","value":"F","angle":-90}]}'
+# The plot: a cubic with its zeros, extremes, a tangent and the area between two zeros.
+PLOT='{"xMin":-3,"xMax":3,"yMin":-2,"yMax":2,"series":[{"label":"f(x)","type":"function","expr":"x^3/3 - x","var":"x","roots":true,"extrema":true,"tangentAt":1.5,"integral":[0,1.7320508]}]}'
+
+# lang | beam heading | "Data:" | plot heading | plot lead
+while IFS='|' read -r lang sheading data pheading plead; do
+  [[ "$ONLY" == "  " || "$ONLY" == *" $lang "* ]] || continue
+  out="$ROOT/site/shots/$lang"
+  mkdir -p "$out"
+
+  structure="$TMP/structure-$lang.jsonl"
+  {
+    echo '{"empty": true}'
+    cmd ui.language "{\"value\":\"$lang\"}"
+    cmd text.insert "{\"text\":\"$sheading\"}"
+    cmd para.style '{"style":"Heading1"}'
+    cmd text.newParagraph '{}'
+    cmd para.style '{"style":"Normal"}'
+    cmd text.insert "{\"text\":\"$data \"}"
+    cmd calc.insert '{"text":"L = 6 m"}'
+    cmd text.insert '{"text":", "}'
+    cmd calc.insert '{"text":"q = 10 kN/m"}'
+    cmd text.insert '{"text":", "}'
+    cmd calc.insert '{"text":"F = 30 kN"}'
+    cmd text.insert '{"text":"."}'
+    cmd text.newParagraph '{}'
+    # Inserted last and left selected, so the Structure Editor shows it.
+    cmd structure.insert "{\"structure\":$BEAM,\"openPane\":true}"
+    # A beam loaded across its axis has no axial force: its empty panel is left out.
+    cmd structure.set '{"diagrams":{"n":{"show":false}}}'
+    pictures Structures structure "$out" 80
+  } > "$structure"
+  shoot "$structure" "$out/shot-structure-light.png" "$out/shot-structure-dark.png"
+
+  plot="$TMP/plot-$lang.jsonl"
+  {
+    echo '{"empty": true}'
+    cmd ui.language "{\"value\":\"$lang\"}"
+    cmd text.insert "{\"text\":\"$pheading\"}"
+    cmd para.style '{"style":"Heading1"}'
+    cmd text.newParagraph '{}'
+    cmd para.style '{"style":"Normal"}'
+    cmd text.insert "{\"text\":\"$plead\"}"
+    proofed "$lang"
+    cmd caret.docEnd '{}'
+    cmd text.newParagraph '{}'
+    cmd plot.insert "{\"plot\":$PLOT,\"openPane\":true}"
+    pictures Math plot "$out" 100
+  } > "$plot"
+  shoot "$plot" "$out/shot-plot-light.png" "$out/shot-plot-dark.png"
+  echo "site/shots/$lang: structure and plot done"
+done <<'EOF'
+en|Simply supported beam|Data:|Study of a function|The function f(x) = x³/3 − x: its zeros, its extremes, the tangent at x = 1.5 and the area between 0 and √3.
+it|Trave appoggiata|Dati:|Studio di funzione|La funzione f(x) = x³/3 − x: gli zeri, gli estremi, la tangente in x = 1,5 e l’area tra 0 e √3.
+fr|Poutre sur deux appuis|Données :|Étude d’une fonction|La fonction f(x) = x³/3 − x : ses zéros, ses extremums, la tangente en x = 1,5 et l’aire entre 0 et √3.
+de|Einfeldträger|Gegeben:|Kurvendiskussion|Die Funktion f(x) = x³/3 − x: ihre Nullstellen, ihre Extrema, die Tangente bei x = 1,5 und die Fläche zwischen 0 und √3.
+EOF
+
+# docs/images: the app in English, light, at the default window size, on the sample test.
+if [[ $DOCS == 1 && ( "$ONLY" == "  " || "$ONLY" == *" en "* ) ]]; then
+  docs="$ROOT/docs/images"
+  # name | tab ("" for File › Home) | theme
+  while IFS='|' read -r name tab theme; do
+    script="$TMP/docs-$name.jsonl"
+    picture="${docs:?}/${name:?}.png"
+    {
+      echo '{"empty": true}'
+      cmd ui.language '{"value":"en"}'
+      cmd file.new '{"template":"test"}'
+      cmd view.zoom '{"value":100}'
+      cmd ui.theme "{\"value\":\"$theme\"}"
+      if [[ -n "$tab" ]]; then
+        cmd ui.tab "{\"tab\":\"$tab\"}"
+      else
+        cmd ui.backstage '{"value":true,"page":"home"}'
+      fi
+      echo '{"wait": 5000}'
+      printf '{"shot":"%s"}\n' "$(native "$TMP/warmup.png")"
+      echo '{"steps": 60}'
+      printf '{"shot":"%s"}\n' "$(native "$picture")"
+    } > "$script"
+    : > "$picture.tmp"
+    for _ in 1 2 3 4 5 6 7 8; do
+      "$BIN" "$script" >"$script.log" 2>&1 || true
+      [[ -s "$picture" && "$picture" -nt "$picture.tmp" ]] && break
+    done
+    [[ "$picture" -nt "$picture.tmp" ]] || { echo "error: docs/images/$name.png: no picture" >&2; exit 1; }
+    /bin/mv -f "$picture.tmp" "$TMP/" 2>/dev/null || true
+  done <<'EOF'
+hero|Teaching|light
+backstage||light
+dark|Teaching|dark
+design|Design|light
+layout|Layout|light
+references|References|light
+review|Review|light
+EOF
+  echo "docs/images: done"
+fi

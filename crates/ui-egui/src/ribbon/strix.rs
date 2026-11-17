@@ -727,7 +727,7 @@ fn new_exercise(ui: &mut Ui, app: &mut WordApp) {
     );
 }
 
-/// Teaching › Exercise › Show: the parts the exercise shows (of the one there is, or of every one in a
+/// Exercise (and Series) › Layout › Show: the parts the exercise shows (of the one there is, or of every one in a
 /// series, which rules) and its graph paper (docs/exercise.md, Parts shown).
 pub(super) fn show_menu(ui: &mut Ui, app: &mut WordApp) {
     let st = app.session.run("exercise.show", &json!({})).ok().unwrap_or_default();

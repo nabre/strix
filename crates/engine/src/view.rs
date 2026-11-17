@@ -59,7 +59,7 @@ pub struct ViewState {
     /// the document and in exercise sandboxes, with unit conversion and jump links (docs/calc.md).
     #[serde(default)]
     pub variables_pane: bool,
-    /// The Pre-flight Check pane (Teaching › Check): diagnostic errors, warnings and infos across
+    /// The Pre-flight Check pane (Teaching › Assessment › Check Assessment): diagnostic errors, warnings and infos across
     /// all variants with jump links.
     #[serde(default)]
     pub check_pane: bool,

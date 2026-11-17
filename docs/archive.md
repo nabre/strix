@@ -1,6 +1,6 @@
 # Archive properties
 
-> **Status:** stage 1: the properties on a file (`archive.properties`), the score computed from the scores table · **Last updated:** 2026-11-11 · **Change:** first version
+> **Status:** the properties on a file (`archive.properties`), the score computed from the scores table; the Exercise Bank pane (Teaching › Archive) with the properties, a folder search (`archive.scan`), exercise bundles (`archive.importBundle`) and Insert Copy (`archive.insertCopy`) · **Last updated:** 2026-11-17 · **Change:** docs brought up to date with the code (the Next items that landed in Phase 5 moved to the Exercise bank section); previously: first version
 
 A teacher keeps exercises **one per file**, the archive, and assembles them into tests with
 [master documents](master-documents.md). Each file says what it is about through **archive
@@ -66,13 +66,13 @@ written back keeps its own, and a new one (Create Subdocument) starts with none.
 
 ## Next
 
-- Teaching › Archive in the ribbon: a pane to fill the properties in.
-- Search a folder (`archive.scan`, `archive.query`): read only the properties part of each file,
-  filter by them and by text, insert the chosen files into a master document.
+Nothing planned at the moment. The pane to fill the properties in (Teaching › Archive › Exercise
+Bank, `view.archivePane`) and the folder search (`archive.scan`, filtering by properties and text,
+Insert Copy or Link Subdocument) listed here before are done: see below.
 
 ## Exercise bank (Phase 5)
 
-Teaching › Archive › Exercise Bank opens archive properties and a searchable
+Teaching › Archive › Exercise Bank (`view.archivePane`) opens archive properties and a searchable
 bank in one pane. Topics / Tags uses the standard Word Keywords property;
 subject, grade, profession, section, duration and teacher remain editable, while
 score remains calculated.

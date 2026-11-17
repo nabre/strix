@@ -69,7 +69,7 @@ pub enum Pane {
     Variables,
     /// Outlining › Master Document: the master document's linked files.
     Subdocuments,
-    /// Teaching › Check: pre-flight inspection across all variants.
+    /// Teaching › Assessment › Check Assessment: pre-flight inspection across all variants.
     Check,
     Archive,
     /// Math › Drawing › Plot Properties: configure Cartesian plots, series and regressions.

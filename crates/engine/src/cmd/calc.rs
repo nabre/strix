@@ -44,11 +44,11 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"{"value"?: bool (default: toggle)}: new equations are calculation regions (a preference)"#),
-        CommandSpec::new("calc.steps", "Show Steps", "Math › Results", set_steps)
+        CommandSpec::new("calc.steps", "Show Steps", "Math › Number Display", set_steps)
             .params(r#"{"value"?: bool (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → formulas, solved equations and checks show their solution steps, laid out as calc.layout says"#),
-        CommandSpec::new("calc.layout", "Result Layout", "Math › Results", set_layout)
+        CommandSpec::new("calc.layout", "Result Layout", "Math › Number Display", set_layout)
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
-        CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
+        CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| match calc_table_place(s) {
@@ -93,7 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool, "columnTotal": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row), whether the caret's column is summed there (table.calcTotal)"#),
-        CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
+        CommandSpec::new("calc.variables", "Variables", "Math › Calculation", variables)
             .pure()
             .params(r#"{"digits"?: n, "units"?: {"name" | "document:name" | "exercise:1:name": "unit"}} → {"variables": [{"name", "value", "text", "unit", "si", "shown", "region", "pos", "compatibleUnits", "selectedUnit", "convertedText", "converted"}], "exercises": [{"exercise": 1-based, "title", "variant", "variables": [...]}]}"#),
     ]

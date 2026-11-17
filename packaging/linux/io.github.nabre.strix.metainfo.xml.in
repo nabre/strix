@@ -7,13 +7,37 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT OR Apache-2.0</project_license>
   <name>Strix Writer</name>
-  <summary>Write and design documents; open and save Word files</summary>
+  <summary>Tests and exercises for teachers</summary>
+  <summary xml:lang="it">Momenti di valutazione ed esercizi per il docente</summary>
+  <summary xml:lang="fr">Évaluations et exercices pour l’enseignant</summary>
+  <summary xml:lang="de">Klassenarbeiten und Übungen für Lehrkräfte</summary>
   <developer id="io.github.nabre">
     <name>The Strix contributors</name>
   </developer>
   <description>
     <p>
-      Strix Writer is a fast, open-source word processor with a familiar ribbon: styles, tables, track changes, references, mail merge, and .docx, PDF, ODT, RTF, HTML and Markdown files. It can be driven by AI agents over MCP.
+      Strix Writer is an open-source editor for preparing tests. Calculation exercises keep their data, solution and results live, with variants A, B, C for each row of desks; multiple-choice, true/false and open questions carry their points; a scores table adds them up and a grading scale turns them into marks.
+    </p>
+    <p xml:lang="it">
+      Strix Writer è un editor open source per preparare i momenti di valutazione. Gli esercizi di calcolo tengono vivi dati, soluzione e risultati, con le varianti A, B, C per ogni fila di banchi; le domande a risposta multipla, vero/falso e aperte portano il loro punteggio; la tabella dei punteggi li somma e la scala di valutazione li trasforma in voti.
+    </p>
+    <p xml:lang="fr">
+      Strix Writer est un éditeur open source pour préparer les évaluations. Les exercices de calcul gardent leurs données, leur corrigé et leurs résultats vivants, avec des variantes A, B, C pour chaque rangée ; les questions à choix multiples, vrai/faux et ouvertes portent leurs points ; un tableau des points les additionne et un barème les convertit en notes.
+    </p>
+    <p xml:lang="de">
+      Strix Writer ist ein quelloffener Editor, um Klassenarbeiten vorzubereiten. Rechenaufgaben halten Angaben, Lösung und Ergebnisse lebendig, mit Varianten A, B, C für jede Bankreihe; Multiple-Choice-, Richtig/Falsch- und offene Fragen tragen ihre Punkte; eine Punktetabelle summiert sie, und ein Notenschlüssel rechnet sie in Noten um.
+    </p>
+    <p>
+      The equations in the page calculate, with units; plots, CAD drawings and plane structures (beams, frames, trusses with their diagrams) follow the calculations. One file per exercise makes an archive, and a master document assembles a test from it, with or without the solutions. Underneath is a full document editor with a ribbon; it saves .xmath and Word files that keep everything live through Word, exports PDF, and can be driven by AI agents over MCP.
+    </p>
+    <p xml:lang="it">
+      Le equazioni nella pagina calcolano, con le unità; grafici, disegni CAD e strutture piane (travi, telai, travature reticolari con i loro diagrammi) seguono i calcoli. Un file per esercizio fa l’archivio, e un documento master ne compone il momento di valutazione, con o senza soluzioni. Sotto c’è un editor di documenti completo con la barra multifunzione; salva file .xmath e file Word che restano vivi anche passando da Word, esporta in PDF e può essere guidato da agenti AI tramite MCP.
+    </p>
+    <p xml:lang="fr">
+      Les équations de la page calculent, avec les unités ; les graphiques, les dessins CAO et les structures planes (poutres, portiques, treillis avec leurs diagrammes) suivent les calculs. Un fichier par exercice forme une banque, et un document maître compose l’évaluation à partir d’elle, avec ou sans corrigé. Dessous, un éditeur de documents complet avec un ruban ; il enregistre des fichiers .xmath et Word qui restent vivants en passant par Word, exporte en PDF et peut être piloté par des agents IA via MCP.
+    </p>
+    <p xml:lang="de">
+      Die Gleichungen auf der Seite rechnen, mit Einheiten; Diagramme, CAD-Zeichnungen und ebene Tragwerke (Träger, Rahmen, Fachwerke mit ihren Schnittgrößenverläufen) folgen den Berechnungen. Eine Datei pro Aufgabe ergibt eine Aufgabensammlung, aus der ein Masterdokument die Klassenarbeit zusammenstellt, mit oder ohne Lösungen. Darunter steckt ein vollständiger Dokumenteditor mit Menüband; er speichert .xmath- und Word-Dateien, die auch durch Word hindurch lebendig bleiben, exportiert PDF und lässt sich von KI-Agenten über MCP steuern.
     </p>
   </description>
   <launchable type="desktop-id">io.github.nabre.strix.desktop</launchable>
@@ -26,22 +50,55 @@
   <categories>
     <category>Office</category>
     <category>WordProcessor</category>
+    <category>Education</category>
+    <category>Math</category>
   </categories>
   <keywords>
-    <keyword>word processor</keyword>
+    <keyword>teacher</keyword>
+    <keyword>test</keyword>
+    <keyword>exercise</keyword>
+    <keyword>quiz</keyword>
+    <keyword>grading</keyword>
+    <keyword>math</keyword>
+    <keyword>calculation</keyword>
+    <keyword>CAD</keyword>
     <keyword>docx</keyword>
-    <keyword>document</keyword>
-    <keyword>writer</keyword>
+    <keyword>word processor</keyword>
   </keywords>
+  <!-- Real windows of Strix, made by site/shots/make.sh (English; the site has every language). -->
   <screenshots>
     <screenshot type="default">
-      <caption>The Open Studio Handbook sample with the Navigation pane</caption>
-      <image>https://raw.githubusercontent.com/nabre/strix/main/docs/images/hero.png</image>
+      <caption>A calculation exercise: data in two variants, the questions and the worked solution with live results</caption>
+      <caption xml:lang="it">Un esercizio di calcolo: i dati in due varianti, le domande e la soluzione svolta con i risultati vivi</caption>
+      <caption xml:lang="fr">Un exercice de calcul : les données en deux variantes, les questions et le corrigé avec ses résultats vivants</caption>
+      <caption xml:lang="de">Eine Rechenaufgabe: Angaben in zwei Varianten, die Fragen und die ausgearbeitete Lösung mit lebendigen Ergebnissen</caption>
+      <image>https://raw.githubusercontent.com/nabre/strix/main/site/shots/en/shot-exercise-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>A quiz: multiple choice, true/false and a calculation question, with points</caption>
+      <caption xml:lang="it">Un quiz: risposta multipla, vero o falso e una domanda di calcolo, con i punti</caption>
+      <caption xml:lang="fr">Un quiz : choix multiple, vrai ou faux et une question de calcul, avec les points</caption>
+      <caption xml:lang="de">Ein Quiz: Multiple Choice, Richtig oder Falsch und eine Rechenfrage, mit Punkten</caption>
+      <image>https://raw.githubusercontent.com/nabre/strix/main/site/shots/en/shot-quiz-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Equations that calculate, with units, solution steps and a check</caption>
+      <caption xml:lang="it">Equazioni che calcolano, con le unità, i passaggi della soluzione e una verifica</caption>
+      <caption xml:lang="fr">Des équations qui calculent, avec les unités, les étapes de la solution et une vérification</caption>
+      <caption xml:lang="de">Gleichungen, die rechnen, mit Einheiten, Lösungsschritten und einer Prüfung</caption>
+      <image>https://raw.githubusercontent.com/nabre/strix/main/site/shots/en/shot-calc-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>A simply supported beam solved where it sits, from the parameters above it: reactions, shear and moment diagrams, and the Structure Editor</caption>
+      <caption xml:lang="it">Una trave appoggiata risolta dove si trova, dai parametri scritti sopra: reazioni vincolari, diagrammi del taglio e del momento, e l’editor della struttura</caption>
+      <caption xml:lang="fr">Une poutre sur deux appuis résolue là où elle est, à partir des paramètres écrits au-dessus : réactions d’appui, diagrammes de l’effort tranchant et du moment, et l’éditeur de structure</caption>
+      <caption xml:lang="de">Ein Einfeldträger, an Ort und Stelle berechnet aus den Parametern darüber: Auflagerreaktionen, Querkraft- und Momentenlinie und der Tragwerkseditor</caption>
+      <image>https://raw.githubusercontent.com/nabre/strix/main/site/shots/en/shot-structure-light.png</image>
     </screenshot>
   </screenshots>
   <branding>
-    <color type="primary" scheme_preference="light">#b9c7f5</color>
-    <color type="primary" scheme_preference="dark">#2b47b5</color>
+    <color type="primary" scheme_preference="light">#6ee7b7</color>
+    <color type="primary" scheme_preference="dark">#0f3d2e</color>
   </branding>
   <requires>
     <display_length compare="ge">760</display_length>

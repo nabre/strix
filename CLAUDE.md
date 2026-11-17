@@ -4,7 +4,7 @@
 Strix is a clean-room, open-source, Rust-native word processor targeting Microsoft Word parity — and going further on speed, openness and agent control. It runs natively on macOS, Windows, Linux and BSD, and on the web via WASM. Siblings with the same conventions: `../photocraft` (Photoshop), `../vectorcraft` (Illustrator), `../filmcraft` (Premiere), `../lightcraft` (Lightroom), `../pdfcraft` (Acrobat), `../effectcraft` (After Effects), `../designcraft` (InDesign). Shared rules and learnings: [`storytold/craftrules`](https://github.com/storytold/craftrules) (`../../craftrules`) — read its `AGENTS.md`.
 
 ## Start every session here
-1. Read `plan/STATUS.md` (current milestone, next task), then the task in `plan/execution-plan.md` and the relevant `plan/architecture.md` section. `plan/` is gitignored (local only); if it's missing, start from `ROADMAP.md`, `docs/gaps.md` and `docs/roadmap.md` (Current focus).
+1. Read `plan/STATUS.md` (current milestone, next task), then the task in `plan/execution-plan.md` and the relevant `plan/architecture.md` section. `plan/` is gitignored (local only); if it's missing, start from `ROADMAP.md` (Strix's own features and Next) and `docs/RESUME.md` (current state).
 2. Follow the autonomous operation protocol (`plan/execution-plan.md` §5). Don't stop to ask unless a decision is genuinely the owner's (licensing, publishing, pushing to new remotes, secrets).
 
 ## Never crash
@@ -40,7 +40,7 @@ Strix tracks upstream WordCraft through the rebranded `vendor/wordcraft` branch 
 | Layer | Crate | Job |
 |---|---|---|
 | L0 | `geom` | units, rects, measurement parsing |
-| L1 | `doc`, `fonts`, `calc`, `cad`, `metafile`; external `craft-proof` (storytold/craft-libs, used as `wordcraft-proof`) | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; WMF/EMF; proofing (its word lists and patterns are craft-i18n's `language-data/`, `CRAFT_I18N_DIR`) |
+| L1 | `doc`, `fonts`, `calc`, `cad`, `plot`, `structure`, `metafile`; external `craft-proof` (storytold/craft-libs, used as `wordcraft-proof`) | document model + edit primitives; font DB, shaping, Word font substitution; calculations with units; CAD drawings; plots; plane structures; WMF/EMF; proofing (its word lists and patterns are craft-i18n's `language-data/`, `CRAFT_I18N_DIR`) |
 | L2 | `layout`, `docx`, `docbin`, `formats`, `dictionaries` | line breaking, pagination, tables, headers/footers, hit testing; OOXML I/O; Word 97-2003 .doc; TXT/MD/HTML/RTF/ODT; spelling dictionaries downloaded on demand |
 | L3 | `render`, `pdf` | vello_cpu rasteriser; krilla PDF |
 | L4 | `engine` | Session, undo, **command registry**, Word feature catalog, samples, I/O dispatch |

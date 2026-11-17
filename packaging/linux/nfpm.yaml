@@ -18,10 +18,14 @@ vendor: The Strix contributors
 homepage: https://github.com/nabre/strix
 license: MIT OR Apache-2.0
 description: |-
-  Open-source, native word processor that works the way Word users expect.
-  The ribbon, styles, tables, track changes, references and mail merge; reads
-  and writes .docx, opens .odt, .rtf, .html, .md and .txt, and exports PDF.
-  Includes strix-cli, a headless converter and command runner.
+  Tests and exercises for teachers. Calculation exercises keep their data,
+  solution and results live, with variants A, B, C; multiple-choice, true/false
+  and open questions carry their points; a scores table and a grading scale
+  turn them into marks. Plots, CAD drawings and plane structures follow the
+  calculations. A full document editor underneath: saves .xmath and .docx
+  (Strix objects stay live through Word), opens .odt, .rtf, .html, .md and
+  .txt, and exports PDF. Includes strix-cli, a headless converter, command
+  runner and MCP server.
 
 # The binaries link only glibc and libgcc_s directly. Windowing (X11/Wayland, xkbcommon) and the
 # GPU (Vulkan, EGL/GL) are loaded at runtime, so they are dependencies/recommendations here

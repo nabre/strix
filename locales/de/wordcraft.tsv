@@ -888,7 +888,7 @@
 	Interface theme:	Oberflächendesign:
 	Interface\nTheme	Oberflächen-\ndesign
 	Internet addresses as links	Internetadressen als Links
-	Intersection	Intersection
+	Intersection	Schnitt
 	Ionosphere	Ionosphäre
 	Is blank	Ist leer
 	Is not blank	Ist nicht leer
@@ -2039,7 +2039,7 @@
 	No Scaling	Keine Skalierung
 	Pages in the range	Seiten im Bereich
 	Scale to paper size	An Papierformat anpassen
-	Calculation and exercise	Berechnung und Übung
+	Calculation and exercise	Berechnung und Aufgabe
 	Sample test	Klassenarbeit (Beispiel)
 paper	Envelope #10	Umschlag #10
 paper	Envelope DL	Umschlag DL
@@ -2050,7 +2050,7 @@ paper	Envelope DL	Umschlag DL
 	1 CAD drawing	1 CAD-Zeichnung
 	1 calculated table	1 berechnete Tabelle
 	1 calculation	1 Berechnung
-	1 exercise	1 Übung
+	1 exercise	1 Aufgabe
 	1 object selected	1 Objekt markiert
 	1 results summary	1 Ergebnisübersicht
 	1×2 Empty Matrix	Leere 1×2-Matrix
@@ -2072,7 +2072,7 @@ paper	Envelope DL	Umschlag DL
 	A first column, column 0, that numbers the data rows 1, 2, 3… (the calculations never read it)	Eine erste Spalte, Spalte 0, die die Datenzeilen mit 1, 2, 3… nummeriert (die Berechnungen lesen sie nie)
 	A free, open-source word processor written in Rust.	Eine freie, quelloffene Textverarbeitung, geschrieben in Rust.
 	A grid from the cursor to the end of the page	Ein Raster vom Cursor bis zum Seitenende
-	A new exercise takes the page breaks of the last one.	Eine neue Übung übernimmt die Seitenumbrüche der letzten.
+	A new exercise takes the page breaks of the last one.	Eine neue Aufgabe übernimmt die Seitenumbrüche der letzten.
 	A new layer, made current	Eine neue Ebene, die zur aktuellen wird
 	A polar array has	Ein polares Muster hat
 	A xor B	A xor B
@@ -2089,7 +2089,7 @@ paper	Envelope DL	Umschlag DL
 	Add Sub-question	Teilfrage hinzufügen
 	Add a note between the questions: free text that is not a question	Eine Notiz zwischen den Fragen hinzufügen: freier Text, der keine Frage ist
 	Add a period with double-space	Punkt mit doppeltem Leerzeichen einfügen
-	Add a question at the end of the exercise at the cursor	Eine Frage am Ende der Übung am Cursor hinzufügen
+	Add a question at the end of the exercise at the cursor	Eine Frage am Ende der Aufgabe am Cursor hinzufügen
 	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Eine Frage unter der letzten verschachtelt hinzufügen (a.1, a.1.1); Tab und Umschalt+Tab ändern die Ebene einer Frage
 	Add a variant: a copy of the active one's values	Eine Variante hinzufügen: eine Kopie der Werte der aktiven
 	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Eine Angabe hinzufügen: eine Gleichung wie L = 4.5 m, mit ihrem Wert in jeder Variante
@@ -2104,7 +2104,7 @@ paper	Envelope DL	Umschlag DL
 	Angle Brackets	Spitze Klammern
 	Angle Brackets with Separator	Spitze Klammern mit Trennzeichen
 	Angle Brackets with Two Separators	Spitze Klammern mit zwei Trennzeichen
-	Apply to all exercises	Auf alle Übungen anwenden
+	Apply to all exercises	Auf alle Aufgaben anwenden
 	As the grid lines	Wie die Rasterlinien
 	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	Die automatische Speicherung behält nur Strix-Dokumente (.xmath); {name} liegt in einem anderen Format vor. Speichern Sie als .xmath, um die automatische Speicherung einzuschalten.
 	Automatic (Decimals, Significant Below 1)	Automatisch (Dezimalstellen, signifikante unter 1)
@@ -2139,7 +2139,7 @@ paper	Envelope DL	Umschlag DL
 	CONFIDENTIAL	VERTRAULICH
 	Calculate New Equations	Neue Formeln berechnen
 	Calculate This Table	Diese Tabelle berechnen
-	Calculate the exercise with this variant	Die Übung mit dieser Variante berechnen
+	Calculate the exercise with this variant	Die Aufgabe mit dieser Variante berechnen
 	Calculated	Berechnete
 	Table	Tabelle
 	Calculated Table	Berechnete Tabelle
@@ -2214,8 +2214,8 @@ paper	Envelope DL	Umschlag DL
 	DRAFT	ENTWURF
 	Data Table	Datentabelle
 	Decimal Places	Dezimalstellen
-	Delete Exercise	Übung löschen
-	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Die Übung am Cursor oder die markierten Übungen vollständig löschen: Aufgabenstellung, Fragen und Lösung verschwinden, ihre Ergebnisse verlassen die Übersicht (Rückgängig stellt sie wieder her)
+	Delete Exercise	Aufgabe löschen
+	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Die Aufgabe am Cursor oder die markierten Aufgaben vollständig löschen: Aufgabenstellung, Fragen und Lösung verschwinden, ihre Ergebnisse verlassen die Übersicht (Rückgängig stellt sie wieder her)
 	Delete the layer (its objects go to layer 0)	Die Ebene löschen (ihre Objekte wandern auf Ebene 0)
 	Delta Equal To	Delta gleich
 	Delta over arrow	Delta über Pfeil
@@ -2270,15 +2270,15 @@ paper	Envelope DL	Umschlag DL
 	Equal by Definition	Gleich per Definition
 	Euler's identity	Eulersche Identität
 	Every	Jede
-	Every exercise of the document takes this exercise's page breaks	Jede Übung des Dokuments übernimmt die Seitenumbrüche dieser Übung
+	Every exercise of the document takes this exercise's page breaks	Jede Aufgabe des Dokuments übernimmt die Seitenumbrüche dieser Aufgabe
 	Every value is a parameter named by its column and its row's label (the first column), with a subscript: F_A or A_F	Jeder Wert ist ein Parameter, benannt nach seiner Spalte und der Beschriftung seiner Zeile (der ersten Spalte), mit einem Index: F_A oder A_F
-	Exercise	Übung
-	Exercise Data	Übungsdaten
-	Exercise Info	Übungsinfo
-	Exercise Numbering	Übungsnummerierung
-	Exercise Properties	Übungseigenschaften
-	Exercise Result	Übungsergebnis
-	Exercise, in the document's language	Übung, in der Sprache des Dokuments
+	Exercise	Aufgabe
+	Exercise Data	Aufgabendaten
+	Exercise Info	Aufgabeninfo
+	Exercise Numbering	Aufgabennummerierung
+	Exercise Properties	Aufgabeneigenschaften
+	Exercise Result	Aufgabenergebnis
+	Exercise, in the document's language	Aufgabe, in der Sprache des Dokuments
 	Exponential	Exponentialfunktion
 	Exponential series	Exponentialreihe
 	Fence	Zaun
@@ -2286,7 +2286,7 @@ paper	Envelope DL	Umschlag DL
 	File type	Dateityp
 	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Datei › Neu listet hier unter „Persönlich“ die Vorlagen .xmathm, .dotx und .dotm auf; „Als Strix-Vorlage speichern“ beginnt hier.
 	Find “{text}” in the document	„{text}“ im Dokument suchen
-	First exercise: {label}	Erste Übung: {label}
+	First exercise: {label}	Erste Aufgabe: {label}
 	Fitted to Frame	An Rahmen angepasst
 	Float	Schwebend
 	Floor	Abrunden
@@ -2296,7 +2296,7 @@ paper	Envelope DL	Umschlag DL
 	Footnote Text	Fußnotentext
 	For Two Pages	Für zwei Seiten
 	For a Height of 5 cm	Für eine Höhe von 5 cm
-	For every exercise of the document: the label of each title and of the results summary.	Für jede Übung des Dokuments: die Beschriftung jedes Titels und der Ergebnisübersicht.
+	For every exercise of the document: the label of each title and of the results summary.	Für jede Aufgabe des Dokuments: die Beschriftung jedes Titels und der Ergebnisübersicht.
 	For which item:	Für welches Element:
 	Go to it	Dorthin springen
 	Graph	Millimeter-
@@ -2421,15 +2421,15 @@ paper	Envelope DL	Umschlag DL
 	More Digits	Mehr Stellen
 	Move Pane: {title}	Bereich verschieben: {title}
 	Move to layer	In Ebene verschieben
-	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Die Übungen des Dokuments benennen und nummerieren: Präfix („Esercizio“, eigener Text oder keiner), Zahlenformat und erste Nummer im Bereich „Übungseigenschaften“
+	Name and number the exercises of the document: prefix (Esercizio, your own text or none), number format and first number, in the Exercise Properties pane	Die Aufgaben des Dokuments benennen und nummerieren: Präfix („Esercizio“, eigener Text oder keiner), Zahlenformat und erste Nummer im Bereich „Aufgabeneigenschaften“
 	Natural Logarithm	Natürlicher Logarithmus
 	Negated Relations	Negierte Relationen
 	New	Neu
 	New Calculation	Neue Berechnung
-	New Exercise	Neue Übung
+	New Exercise	Neue Aufgabe
 	New equations are live calculations	Neue Formeln sind Live-Berechnungen
 	New layer	Neue Ebene
-	New page before the exercise	Neue Seite vor der Übung
+	New page before the exercise	Neue Seite vor der Aufgabe
 	New page before the results summary	Neue Seite vor der Ergebnisübersicht
 	New page before the solution	Neue Seite vor der Lösung
 	Next object	Nächstes Objekt
@@ -2451,7 +2451,7 @@ paper	Envelope DL	Umschlag DL
 	One half	Ein Halb
 	Only text properties can be changed.	Nur Texteigenschaften können geändert werden.
 	Only these	Nur diese
-	Only when another exercise comes before it	Nur wenn vor ihr eine andere Übung steht
+	Only when another exercise comes before it	Nur wenn vor ihr eine andere Aufgabe steht
 	Open Subdocument	Teildokument öffnen
 	Open the file in a window of its own	Die Datei in einem eigenen Fenster öffnen
 	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Öffnet Strix-Dokumente (.xmath, .xmathm), .docx-, .doc-, .rtf- und .odt-Dateien sowie Word-Vorlagen ab jetzt mit Strix.
@@ -2487,7 +2487,7 @@ paper	Envelope DL	Umschlag DL
 	Products and Coproducts	Produkte und Koprodukte
 	Property names are 1–{max} characters.	Eigenschaftsnamen sind 1–{max} Zeichen lang.
 	Property values are at most {max} bytes.	Eigenschaftswerte umfassen höchstens {max} Bytes.
-	Put the cursor in an exercise to see its data and variants.	Setzen Sie den Cursor in eine Übung, um ihre Daten und Varianten zu sehen.
+	Put the cursor in an exercise to see its data and variants.	Setzen Sie den Cursor in eine Aufgabe, um ihre Daten und Varianten zu sehen.
 	Put the cursor in graph paper (or on a page with a graph paper background) to see its properties.	Setzen Sie den Cursor in ein Rasterpapier (oder auf eine Seite mit Rasterpapier-Hintergrund), um seine Eigenschaften zu sehen.
 	Quadratic Root	Quadratische Wurzel
 	Quick Keys	Tastenkürzel
@@ -2539,7 +2539,7 @@ paper	Envelope DL	Umschlag DL
 	Selection options	Auswahloptionen
 	Separate text with	Text trennen mit
 	Set CAD Drawing	CAD-Zeichnung festlegen
-	Set Exercise Data	Übungsdaten festlegen
+	Set Exercise Data	Aufgabendaten festlegen
 	Set left- and first-indent with tabs and backspaces	Linken Einzug und Erstzeileneinzug mit Tabs und Rücktaste festlegen
 	Steps	Schritte
 	Show Steps	Schritte anzeigen
@@ -2550,7 +2550,7 @@ paper	Envelope DL	Umschlag DL
 	Show one more digit in results	Eine Stelle mehr in Ergebnissen anzeigen
 	Show the equation in the line of text	Die Formel im Fließtext anzeigen
 	Show the equation on a line of its own	Die Formel in einer eigenen Zeile anzeigen
-	Show the exercise's data and variants	Die Daten und Varianten der Übung anzeigen
+	Show the exercise's data and variants	Die Daten und Varianten der Aufgabe anzeigen
 	Show the file as it is on disk, discarding edits made here	Die Datei so zeigen, wie sie auf dem Datenträger liegt, und hier vorgenommene Änderungen verwerfen
 	Sides of a right triangle	Seiten eines rechtwinkligen Dreiecks
 	Significant Digits	Signifikante Stellen
@@ -2698,7 +2698,7 @@ paper	Envelope DL	Umschlag DL
 	You have version {version}.	Sie haben Version {version}.
 	^ _ / make the superscript, subscript or fraction at once (off: they build up on Space, as in Word)	^ _ / erzeugen sofort Hochstellung, Tiefstellung oder Bruch (aus: Sie entstehen erst bei Leertaste, wie in Word)
 	already selected	bereits markiert
-	an exercise goes in the body, outside tables	eine Übung gehört in den Textkörper, nicht in Tabellen
+	an exercise goes in the body, outside tables	eine Aufgabe gehört in den Textkörper, nicht in Tabellen
 	annotative {size}	annotativ {size}
 	click adds, Shift+click removes	Klick fügt hinzu, Umschalt+Klick entfernt
 	click on empty space for a window, drag for a lasso	Klick auf leere Fläche für ein Fenster, Ziehen für ein Lasso
@@ -2715,7 +2715,7 @@ paper	Envelope DL	Umschlag DL
 	installed	installiert
 	no graph paper at the cursor	kein Rasterpapier am Cursor
 	no snap	kein Fang
-	not available: the cursor isn't in an exercise	nicht verfügbar: Der Cursor steht nicht in einer Übung
+	not available: the cursor isn't in an exercise	nicht verfügbar: Der Cursor steht nicht in einer Aufgabe
 	not found	nicht gefunden
 	n×n Identity Matrix	n×n-Einheitsmatrix
 	n×n Matrix	n×n-Matrix
@@ -2728,8 +2728,8 @@ paper	Envelope DL	Umschlag DL
 	selected	markiert
 	squares (0: none)	Quadrate (0: keine)
 	tOGGLE cASE	gROSS-/kLEINSCHREIBUNG uMKEHREN
-	the cursor isn't in an exercise	der Cursor steht nicht in einer Übung
-	the document has no exercise	das Dokument hat keine Übung
+	the cursor isn't in an exercise	der Cursor steht nicht in einer Aufgabe
+	the document has no exercise	das Dokument hat keine Aufgabe
 	x bar	x Strich
 	{field}, record {n}	{field}, Datensatz {n}
 	{language} (dictionary unreadable)	{language} (Wörterbuch nicht lesbar)
@@ -2738,13 +2738,13 @@ paper	Envelope DL	Umschlag DL
 	{n} CAD drawings	{n} CAD-Zeichnungen
 	{n} calculated tables	{n} berechnete Tabellen
 	{n} calculations	{n} Berechnungen
-	{n} exercises	{n} Übungen
+	{n} exercises	{n} Aufgaben
 	{n} results summaries	{n} Ergebnisübersichten
 	{paper}   {width} × {height}	{paper}   {width} × {height}
 	✓ None	✓ Keine
 	Check for\nUpdates…	Nach Updates\nsuchen…
 	Edit\nDrawing	Zeichnung\nbearbeiten
-	New\nExercise	Neue\nÜbung
+	New\nExercise	Neue\nAufgabe
 	Show\nSteps	Schritte\nanzeigen
 	Switch\nWindows	Fenster\nwechseln
 	Track\nChanges ✓	Änderungen\nverfolgen ✓
@@ -2845,8 +2845,8 @@ paper	Envelope DL	Umschlag DL
 	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Ein Kriterium zur Punktetabelle hinzufügen: zwei Spalten, eine leer und eine für die Punkte (den Namen in die Kopfzeile schreiben)
 	Always Calculate	Immer berechnen
 	Calculate Table	Tabelle berechnen
-	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Wählen, was die Übung zeigt (jede Übung einer Serie): ausgeblendete Teile bleiben als ausgeblendeter Text im Dokument
-	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Daten und Varianten, Seitenumbrüche, Nummerierung, angezeigte Teile und Rasterpapier im Bereich Übungseigenschaften
+	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Wählen, was die Aufgabe zeigt (jede Aufgabe einer Serie): ausgeblendete Teile bleiben als ausgeblendeter Text im Dokument
+	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Daten und Varianten, Seitenumbrüche, Nummerierung, angezeigte Teile und Rasterpapier im Bereich Aufgabeneigenschaften
 	Download updates automatically	Updates automatisch herunterladen
 	Check for updates automatically	Automatisch nach Updates suchen
 	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	Beim Start und einmal täglich fragt Strix Writer GitHub nach der Liste seiner Versionen. Es wird nichts über Sie, Ihren Computer oder Ihre Dokumente gesendet.
@@ -2854,11 +2854,11 @@ paper	Envelope DL	Umschlag DL
 	Drawing Space	Zeichenbereich
 	Drawing Underlay	Unterlage der Zeichnung
 	Drawings of the Document	Zeichnungen des Dokuments
-	Exercise Graph Paper	Rasterpapier der Übung
+	Exercise Graph Paper	Rasterpapier der Aufgabe
 	Frontispiece	Deckblatt
 	Inherit Layers and Styles	Ebenen und Stile übernehmen
 	Number Display	Zahlendarstellung
-	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Eigene Seiten vor den Übungen (Titel, Klasse, Datum, Anweisungen), beendet durch einen Deckblattumbruch
+	Pages of your own before the exercises (title, class, date, instructions), ended by a Frontispiece Break	Eigene Seiten vor den Aufgaben (Titel, Klasse, Datum, Anweisungen), beendet durch einen Deckblattumbruch
 	Parts Shown	Angezeigte Teile
 	Remove Criterion	Kriterium entfernen
 	Remove a criterion and its points from the scores table	Ein Kriterium und seine Punkte aus der Punktetabelle entfernen
@@ -2920,7 +2920,7 @@ paper	Envelope DL	Umschlag DL
 	Reading\n(dyslexia)	Lesen\n(Legasthenie)
 	Writing\n(dysgraphia)	Schreiben\n(Dysgraphie)
 	Maths and Memory\n(dyscalculia)	Rechnen und Gedächtnis\n(Dyskalkulie)
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Eine Aufgabe einfügen; das Menü bietet die Arten an: Problem, offene Antwort, Mehrfachauswahl, richtig oder falsch, Lückentext, auszufüllende Tabelle
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Eine Aufgabe einfügen; das Menü bietet die Arten an: Problem, offene Antwort, Multiple Choice, wahr oder falsch, Lückentext, auszufüllende Tabelle
 	Problem (Statement, Questions, Solution)	Problem (Aufgabenstellung, Fragen, Lösung)
 	Open Answer	Offene Antwort
 	Multiple Choice	Multiple Choice
@@ -2937,7 +2937,7 @@ paper	Envelope DL	Umschlag DL
 	Add a question like the last one	Eine Frage wie die letzte hinzufügen
 	Mark this option correct (more than one can be)	Diese Option als richtig markieren (mehrere sind möglich)
 	Graph paper in the answer space; off, the space is blank	Kariertes Papier im Antwortfeld; aus, bleibt das Feld leer
-	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Die Antworten werden mit der Lösung ein- oder ausgeblendet (Unterricht › Übung › Einblenden): ausgeblendet behält ein Antwortfeld seine Höhe und jedes Kästchen ist leer.
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Die Antworten werden mit der Lösung ein- oder ausgeblendet (Unterricht › Aufgabe › Einblenden): ausgeblendet behält ein Antwortfeld seine Höhe und jedes Kästchen ist leer.
 	{font} (download)	{font} (herunterladen)
 	{font} (downloading…)	{font} (wird heruntergeladen…)
 	{font} (download failed: click to try again)	{font} (Download fehlgeschlagen: zum Wiederholen klicken)
@@ -3021,11 +3021,11 @@ paper	Envelope DL	Umschlag DL
 	Open in CAD editor	Im CAD-Editor öffnen
 	Select this question's solution drawing and open it in the CAD editor	Wählt die Lösungszeichnung dieser Frage aus und öffnet sie im CAD-Editor
 	No result equation yet	Noch keine Ergebnisgleichung
-	write a question first	schreibe zuerst eine Frage
+	write a question first	zuerst eine Frage schreiben
 # Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
 	Variables Pane	Variablenbereich
 	Filter variables…	Variablen filtern…
-	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Noch keine Variablen definiert. Fügen Sie eine Live-Berechnung (z. B. L = 4.5 m) oder Übungsangaben ein, um sie hier zu prüfen.
+	No variables defined yet. Insert a live calculation (such as L = 4.5 m) or exercise data to inspect them here.	Noch keine Variablen definiert. Fügen Sie eine Live-Berechnung (z. B. L = 4.5 m) oder Aufgabenangaben ein, um sie hier zu prüfen.
 	Exercise {n}	Aufgabe {n}
 	Variant {v}	Variante {v}
 	No matching variables.	Keine passenden Variablen.
@@ -3067,9 +3067,9 @@ paper	Envelope DL	Umschlag DL
 	Tolerance	Toleranz
 	Assessment	Beurteilung
 	Export\nPack	Paket\nexportieren
-	Grading Scale	Notenskala
+	Grading Scale	Notenschlüssel
 	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Tabelle zur Umrechnung von Punkten in Noten einfügen oder einrichten (1–10, 1–6, 6–1, 0–20, %)
-	Show Grading Scale	Notenskala anzeigen
+	Show Grading Scale	Notenschlüssel anzeigen
 	Italy (1–10)	Italien (1–10)
 	Switzerland (1–6)	Schweiz (1–6)
 	Germany (6–1)	Deutschland (6–1)
@@ -3084,7 +3084,7 @@ paper	Envelope DL	Umschlag DL
 	Teacher Copy Only	Nur Lehrerausgabe
 	Student and Teacher Copies	Schüler- und Lehrerausgabe
 	Inline Expression	Inline-Ausdruck
-	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Parametrischen Ausdruck im Fließtext einfügen, berechnet in der Übungsumgebung (z. B. v * t -> m)
+	Insert an inline parametric expression evaluated in the exercise's sandbox (e.g. v * t -> m)	Parametrischen Ausdruck im Fließtext einfügen, berechnet in der Aufgabenumgebung (z. B. v * t -> m)
 	Parametric expression	Parametrischer Ausdruck
 	ZIP Archive	ZIP-Archiv
 	Exercise Bank	Aufgabenbank
@@ -3119,7 +3119,7 @@ paper	Envelope DL	Umschlag DL
 	Answer	Lösung
 	Student\nPreview	Schüler-\nvorschau
 	Student Preview: hide solution-only layers and objects as on the student copy	Schülervorschau: blendet Ebenen und Objekte der Lösung wie auf der Schülerausgabe aus
-	Solution only: hidden when the exercise's solution is hidden	Nur Lösung: ausgeblendet, wenn der Lösungsweg der Aufgabe ausgeblendet ist
+	Solution only: hidden when the exercise's solution is hidden	Nur Lösung: ausgeblendet, wenn die Lösung der Aufgabe ausgeblendet ist
 	Select a plot in the document to edit its axes, functions and experimental data.	Wählen Sie ein Diagramm im Dokument aus, um Achsen, Funktionen und Messdaten zu bearbeiten.
 	Axes & Frame	Achsen & Rahmen
 	X range	X-Bereich
@@ -3169,35 +3169,35 @@ paper	Envelope DL	Umschlag DL
 	Linear	Linear
 	Quadratic	Quadratisch
 	Analysis	Analyse
-	Import Exercise Bundle	Aufgabenpaket importieren
+	Import Exercise Bundle	Aufgabensammlung importieren
 	Insert Exercise Copy	Aufgabenkopie einfügen
 	Plot Source	Diagrammquelle
 	Pre-flight Check Pane	Bereich Vorabprüfung
 	Section	Abschnitt
 	Set Plot	Diagramm festlegen
 	select a plot first	wählen Sie zuerst ein Diagramm aus
-	Add a question at the end of the exercise	Am Ende der Übung eine Frage hinzufügen
+	Add a question at the end of the exercise	Am Ende der Aufgabe eine Frage hinzufügen
 	Answer Space	Antwortbereich
 	A problem's questions are answered in its solution.	Die Fragen einer Aufgabe werden in ihrer Lösung beantwortet.
 	Grade step	Notenschritt
 	Correct Options	Richtige Optionen
 	Curve	Kurve
 	Custom	Benutzerdefiniert
-	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Die ganze Übung löschen: Aufgabentext, Fragen und Lösung (Rückgängig stellt sie wieder her)
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Die ganze Aufgabe löschen: Aufgabenstellung, Fragen und Lösung (Rückgängig stellt sie wieder her)
 	Duration	Dauer
-	Exercises	Übungen
+	Exercises	Aufgaben
 	Fixed maximum	Festes Maximum
 	From the document's points ({points})	Aus den Punkten des Dokuments ({points})
 	General	Allgemein
 	Points rounded to the multiple of	Punkte gerundet auf ein Vielfaches von
-	Hidden now: the solutions are hidden (student copy).	Jetzt ausgeblendet: Die Lösungen sind ausgeblendet (Schülerkopie).
+	Hidden now: the solutions are hidden (student copy).	Jetzt ausgeblendet: Die Lösungen sind ausgeblendet (Schülerausgabe).
 	Highest grade	Beste Note
 	How far an answer may be from the result and still be right: 2% or 0.1 cm	Wie weit eine Antwort vom Ergebnis abweichen darf und noch richtig ist: 2% oder 0,1 cm
-	Insert Grading Scale	Notenskala einfügen
+	Insert Grading Scale	Notenschlüssel einfügen
 	Layout	Layout
 	Like the last one	Wie die letzte
 	Lowest grade	Schlechteste Note
-	No question yet: write one in the exercise, or add one.	Noch keine Frage: Schreiben Sie eine in die Übung oder fügen Sie eine hinzu.
+	No question yet: write one in the exercise, or add one.	Noch keine Frage: Schreiben Sie eine in die Aufgabe oder fügen Sie eine hinzu.
 	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	Die Punkte jeder Note werden exakt aus der Kurve berechnet und dann auf dieses Vielfache gerundet (0,01: Hundertstel)
 	One pair per line: left = right	Ein Paar pro Zeile: links = rechts
 	Pairs	Paare
@@ -3208,23 +3208,23 @@ paper	Envelope DL	Umschlag DL
 	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	Abschnittsweise: Die Bestehensschwelle der Punkte ergibt die genügende Note, darunter und darüber steigen die Noten gleichmäßig. Linear: Die Note folgt gleichmäßig den Punkten.
 	Preset	Vorgabe
 	Preview	Vorschau
-	Put the cursor in this exercise's title	Den Cursor in den Titel dieser Übung setzen
+	Put the cursor in this exercise's title	Den Cursor in den Titel dieser Aufgabe setzen
 	(question not written yet)	(Frage noch nicht geschrieben)
-	Remove Grading Scale	Notenskala entfernen
+	Remove Grading Scale	Notenschlüssel entfernen
 	Result	Ergebnis
 	Shown In	Angezeigt in
 	Show this question's settings	Die Einstellungen dieser Frage anzeigen
-	Student and teacher copies	Schüler- und Lehrerkopie
-	Take the grading scale table out of the document (Undo brings it back)	Die Notenskala aus dem Dokument entfernen (Rückgängig stellt sie wieder her)
-	Teacher copy only	Nur Lehrerkopie
-	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Das Dokument hat keine Notenskala. Fügen Sie eine ein: Sie wandelt die erreichten Punkte in eine Note um.
+	Student and teacher copies	Schüler- und Lehrerausgabe
+	Take the grading scale table out of the document (Undo brings it back)	Den Notenschlüssel aus dem Dokument entfernen (Rückgängig stellt ihn wieder her)
+	Teacher copy only	Nur Lehrerausgabe
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Das Dokument hat keinen Notenschlüssel. Fügen Sie einen ein: Er wandelt die erreichten Punkte in eine Note um.
 	The most points this question gives; empty: not scored	Die Höchstpunktzahl dieser Frage; leer: ohne Punkte
 	The scores table's grand total, else the questions' points added up	Die Gesamtsumme der Punktetabelle, sonst die Summe der Fragenpunkte
 	Type	Typ
-	Write the options in the exercise: each line under the question is one.	Schreiben Sie die Optionen in die Übung: Jede Zeile unter der Frage ist eine.
-	Grading Scale Properties	Eigenschaften der Notenskala
+	Write the options in the exercise: each line under the question is one.	Schreiben Sie die Optionen in die Aufgabe: Jede Zeile unter der Frage ist eine.
+	Grading Scale Properties	Eigenschaften des Notenschlüssels
 	Title Line	Titelzeile
-	The result line is generated from the working: write the working in the space above it.	Die Ergebniszeile wird aus dem Rechenweg erzeugt: Schreiben Sie den Rechenweg in den Bereich darüber.
+	The result line is generated from the working: write the working in the space above it.	Die Ergebniszeile wird aus dem Lösungsweg erzeugt: Schreiben Sie den Lösungsweg in den Bereich darüber.
 	Inline Value	Wert im Text
 	Value and Unit	Wert und Einheit
 	Symbol = Value	Symbol = Wert
@@ -3232,7 +3232,7 @@ paper	Envelope DL	Umschlag DL
 	Delete Value	Wert löschen
 	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Was der Wert zeigt: eine Angabe (R), eine Rechnung (2*R) oder eine Umrechnung (R -> cm). Eingabe übernimmt sie.
 	Download Thesaurus	Thesaurus herunterladen
-	Thesaurus Pane	Aufgabenbereich Thesaurus
+	Thesaurus Pane	Bereich Thesaurus
 	Download the {name} thesaurus	Den Thesaurus {name} herunterladen
 	Downloading the {name} thesaurus…	Der Thesaurus {name} wird heruntergeladen…
 	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Lädt den Thesaurus {name} aus den Wörterbüchern von LibreOffice ({source}), lizenziert unter {licence}, mit den Dateien, die seine Lizenz angeben, in Ihren Wörterbuchordner herunter. Der Thesaurus und das Menü Synonyme verwenden ihn sofort.
@@ -3255,12 +3255,12 @@ paper	Envelope DL	Umschlag DL
 	Hide Words	Wörter ausblenden
 	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Blendet die ausgewählten Wörter für einen handschriftlich zu ergänzenden Lückentext aus: die korrigierte Fassung zeigt sie, die der Schüler eine Linie zum Schreiben ([[Wort]] in einer Lückentext-Frage bewirkt dasselbe)
 	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	Die Linienbreite der Begrenzungszeichen; Automatisch: ein Schrägstrich kräftiger als die Linie, ein Pfeil gleich dünn
-	pick the dimension to go on from, near the end to start at (Enter: the last one)	wähle das Maß, an das angeschlossen wird, nahe dem Ende, an dem es weitergeht (Eingabe: das letzte)
-	Pick a linear dimension	Wähle ein lineares Maß
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	die Bemaßung anklicken, an die angeschlossen wird, nahe dem Ende, an dem es weitergeht (Eingabe: die letzte)
+	Pick a linear dimension	Eine lineare Bemaßung anklicken
 	ByStyle	NachStil
 	ByLayer / ByStyle	NachEbene / NachStil
 	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Maß-, Hilfs- und Führungslinien; NachEbene: die der Ebene. Begrenzungen behalten ihre eigene Breite
-	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Maß-, Hilfs- und Führungslinien; NachEbene: der der Ebene. Begrenzungen und Texte bleiben durchgezogen
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Maß-, Hilfs- und Führungslinien; NachEbene: die der Ebene. Begrenzungen und Texte bleiben durchgezogen
 	Vertical mirror	Vertikal spiegeln
 	Horizontal mirror	Horizontal spiegeln
 	Fill	Füllung
@@ -3277,3 +3277,612 @@ mark	Grade	Note
 	Points: a number, or empty for a question that is not scored	Punkte: eine Zahl, oder leer für eine Frage ohne Bewertung
 	Duration: 1 to 600 minutes, or empty	Dauer: 1 bis 600 Minuten, oder leer
 	Scale: a point away from the base point, or a factor above 0	Skalieren: ein Punkt abseits des Basispunkts oder ein Faktor über 0
+
+# Strix (2026-11-17): the strings the Italian catalog had and this one lacked: CAD drafting (dimensions, level marks, trim, extend, fillet, chamfer, offset, hatching), plane structures (Tragwerke), exercises, header and footer, updates.
+	0: automatic (a text and a fifth)	0: automatisch (eine Texthöhe und ein Fünftel)
+	0: the dimension text height	0: die Texthöhe der Bemaßung
+	1 structure	1 Tragwerk
+	2 Points	2 Punkte
+	A block in the text: write on it, or press Enter at its end to go on below it.	Ein Block im Text: Schreiben Sie darin, oder drücken Sie an seinem Ende die Eingabetaste, um darunter weiterzuschreiben.
+	A closed object has no end to extend	Ein geschlossenes Objekt hat kein Ende zum Verlängern
+	A closed object is trimmed between two crossings	Ein geschlossenes Objekt wird zwischen zwei Schnittpunkten gestutzt
+	Add (a click adds)	Hinzufügen (ein Klick fügt hinzu)
+	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Eine Frage am Ende der Aufgabe hinzufügen; das Menü bietet die Typen an: offene Antwort, Multiple Choice, wahr oder falsch, Berechnung, CAD-Zeichnung…
+	Add a variant: a copy of the active one's values (add data first)	Eine Variante hinzufügen: eine Kopie der Werte der aktiven (zuerst Angaben hinzufügen)
+	Add the objects of the same type on the same layer	Die Objekte desselben Typs auf derselben Ebene hinzufügen
+	Add Variant	Variante hinzufügen
+	A fillet radius is 0 or more	Ein Rundungsradius ist 0 oder größer
+	A fillet radius or chamfer distance is 0 or more	Ein Rundungsradius oder Fasenabstand ist 0 oder größer
+	A layer of another drawing can be deleted only when no object is on it	Eine Ebene einer anderen Zeichnung kann nur gelöscht werden, wenn kein Objekt darauf liegt
+	Aligned	Ausgerichtet
+	Aligned dimension	Ausgerichtete Bemaßung
+	Along the path	Entlang des Pfads
+	Amber	Bernstein
+	A mirrored copy of the selection: two points of the axis	Eine gespiegelte Kopie der Auswahl: zwei Punkte der Achse
+	A new style, a copy of this one, made current	Ein neuer Stil, eine Kopie dieses Stils, der zum aktuellen wird
+	Angular dimension	Winkelbemaßung
+	Angular dimension: a point on the first side	Winkelbemaßung: ein Punkt auf dem ersten Schenkel
+	Angular dimension: a point on the second side	Winkelbemaßung: ein Punkt auf dem zweiten Schenkel
+	Angular dimension: the vertex	Winkelbemaßung: der Scheitelpunkt
+	Angular dimension: the vertex, a point on each side, where the arc goes	Winkelbemaßung: der Scheitelpunkt, ein Punkt auf jedem Schenkel, die Lage des Bogens
+	Angular dimension: where the arc goes	Winkelbemaßung: die Lage des Bogens
+	Annotation Reference	Anmerkungsverweis
+	Annotation Subject	Anmerkungsbetreff
+	Annotation Text	Anmerkungstext
+	Annotative distance	Beschriftungsabhängiger Abstand
+	Annotative radius	Beschriftungsabhängiger Radius
+	APA	APA
+	a radius is more than 0	ein Radius ist größer als 0
+	As the start	Wie am Anfang
+	At both ends	An beiden Enden
+	At the end	Am Ende
+	At the start	Am Anfang
+	Automatic (Frames in Two Columns)	Automatisch (Rahmen in zwei Spalten)
+	Axial Force N	Normalkraft N
+	Baseline dimension	Basislinienbemaßung
+	Baseline: dimensions from the same first point, each a row further out	Basislinie: Bemaßungen vom selben ersten Punkt aus, jede eine Reihe weiter außen
+	Baseline: next point (Enter or Esc to end)	Basislinie: nächster Punkt (Eingabe oder Esc zum Beenden)
+	Base point (select the objects first)	Basispunkt (zuerst die Objekte auswählen)
+	Behind the text of every page of this section.	Hinter dem Text jeder Seite dieses Abschnitts.
+	By style	Nach Stil
+	CAD Annotate	CAD-Beschriftung
+	CAD Output	CAD-Ausgabe
+	CAD View	CAD-Ansicht
+	Cantilever	Kragträger
+	Centimetres	Zentimeter
+	Centre	Mittelpunkt
+	Centre, Diameter	Mittelpunkt, Durchmesser
+	Centre, Radius	Mittelpunkt, Radius
+	Centre X	Mittelpunkt X
+	Centre Y	Mittelpunkt Y
+	Chamfer distances are 0 or more	Fasenabstände sind 0 oder größer
+	Chamfer: pick the first line (type a number to change the distance)	Fasen: die erste Linie anklicken (eine Zahl eingeben, um den Abstand zu ändern)
+	Chamfer: pick the second line	Fasen: die zweite Linie anklicken
+	Chamfer: two lines cut at the corner (type the distance; 0 makes the corner)	Fasen: zwei Linien an der Ecke abgeschrägt (den Abstand eingeben; 0 bildet die Ecke)
+	Chicago	Chicago
+	Circle, 2 points	Kreis, 2 Punkte
+	Circle 2 points: first end of the diameter	Kreis 2 Punkte: erstes Ende des Durchmessers
+	Circle 2 points: second end of the diameter	Kreis 2 Punkte: zweites Ende des Durchmessers
+	Circle, 3 points	Kreis, 3 Punkte
+	Circle 3 points: first point	Kreis 3 Punkte: erster Punkt
+	Circle 3 points: second point	Kreis 3 Punkte: zweiter Punkt
+	Circle 3 points: third point	Kreis 3 Punkte: dritter Punkt
+	Circle: centre	Kreis: Mittelpunkt
+	Circle, centre and diameter	Kreis, Mittelpunkt und Durchmesser
+	Circle: centre (or 2p, 3p, ttr, ttt)	Kreis: Mittelpunkt (oder 2p, 3p, ttr, ttt)
+	Circle: centre, then the diameter	Kreis: Mittelpunkt, dann der Durchmesser
+	Circle: centre, then the radius	Kreis: Mittelpunkt, dann der Radius
+	Circle: diameter (a point or a number)	Kreis: Durchmesser (ein Punkt oder eine Zahl)
+	Circle: radius (a point or a number; d for the diameter)	Kreis: Radius (ein Punkt oder eine Zahl; d für den Durchmesser)
+	Circle, tan tan radius	Kreis, Tan Tan Radius
+	Circle, tan tan tan	Kreis, Tan Tan Tan
+	Circle: the two ends of a diameter	Kreis: die beiden Enden eines Durchmessers
+	Circle: three points on it	Kreis: drei Punkte auf dem Umfang
+	Circle: touching three objects	Kreis: berührt drei Objekte
+	Circle: touching two objects, with a radius	Kreis: berührt zwei Objekte, mit einem Radius
+	Click to put the cursor in it: Unlink, Reload and Open act on it.	Klicken, um den Cursor hineinzusetzen: Verknüpfung lösen, Neu laden und Öffnen wirken darauf.
+	Closed	Geschlossen
+	Close Drawing	Zeichnung schließen
+	Close Header\nand Footer	Kopf- und Fußzeile\nschließen
+	Close\nDrawing	Zeichnung\nschließen
+	Collapse the Ribbon	Menüband reduzieren
+	Colon (1:)	Doppelpunkt (1:)
+	Confirm the objects	Die Objekte bestätigen
+	Continue dimension	Kettenbemaßung
+	Continue: dimensions in a chain, each from the last one's end, on its line	Weiter: Bemaßungen als Kette, jede ab dem Ende der vorigen, auf deren Linie
+	Continue: next point (Enter or Esc to end)	Weiter: nächster Punkt (Eingabe oder Esc zum Beenden)
+	Continuous Beam	Durchlaufträger
+	Copy the selection: base point, second point	Die Auswahl kopieren: Basispunkt, zweiter Punkt
+	Could not check for updates.	Die Suche nach Updates ist fehlgeschlagen.
+	Dash (1 -)	Bindestrich (1 -)
+	Dash-dot	Strichpunkt
+	Dash-dot-dot	Strich-Punkt-Punkt
+	Datum (±0.00) Y	Bezugshöhe (±0.00) Y
+	Default Paragraph Font	Standard-Absatzschriftart
+	Delete an exercise whole: its statement, questions and solution (Undo brings it back)	Eine Aufgabe vollständig löschen: Aufgabenstellung, Fragen und Lösung (Rückgängig stellt sie wieder her)
+	Delete the selection (Del)	Die Auswahl löschen (Entf)
+	Delete this style: its objects take Standard	Diesen Stil löschen: seine Objekte erhalten Standard
+	Diagrams	Zustandslinien
+	Dimension	Bemaßung
+	Dimension: first point	Bemaßung: erster Punkt
+	Dimension line	Bemaßungslinie
+	Dimension\nStyle	Bemaßungs-\nstil
+	Dimension: second point	Bemaßung: zweiter Punkt
+	Dimension style	Bemaßungsstil
+	Dimension Style	Bemaßungsstil
+	Dimension Style: marks, sizes, text and units of the dimensions	Bemaßungsstil: Begrenzungszeichen, Größen, Text und Einheiten der Bemaßungen
+	Dimension: where the dimension line goes	Bemaßung: die Lage der Bemaßungslinie
+	Document font	Schriftart des Dokuments
+	Don't Restart	Nicht neu starten
+	downloaded	heruntergeladen
+	Downloading in the background…	Wird im Hintergrund heruntergeladen…
+	Downloading in the background: {done} of {total} MB	Wird im Hintergrund heruntergeladen: {done} von {total} MB
+	Draw a linear dimension first, or select the one to go on from	Zuerst eine lineare Bemaßung zeichnen oder die auswählen, an die angeschlossen werden soll
+	Draw the axial force diagram (a truss: each member's force)	Die Normalkraftlinie zeichnen (bei einem Fachwerk: die Kraft jedes Stabs)
+	Draw the bending moment diagram	Die Momentenlinie zeichnen
+	Draw the reactions on the structure, in a panel of their own	Die Auflagerreaktionen am Tragwerk zeichnen, in einem eigenen Feld
+	Draw the selection above every other object	Die Auswahl über allen anderen Objekten zeichnen
+	Draw the selection under every other object	Die Auswahl unter allen anderen Objekten zeichnen
+	Draw the shear diagram	Die Querkraftlinie zeichnen
+	Edit this page's footer	Die Fußzeile dieser Seite bearbeiten
+	Edit this page's header	Die Kopfzeile dieser Seite bearbeiten
+	Elevations end with their unit (+3.00 m); off, the number alone	Höhenangaben enden mit ihrer Einheit (+3.00 m); aus, nur die Zahl
+	End angle	Endwinkel
+	End X	Ende X
+	End Y	Ende Y
+	Envelope Address	Umschlag Empfänger
+	Envelope Return	Umschlag Absender
+	Even pages have a header and footer of their own (the whole document)	Gerade Seiten haben eine eigene Kopf- und Fußzeile (das ganze Dokument)
+	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…, in a pane beside the document	Jede Frage mit Typ und Punkten und die Einstellungen der gewählten: Antwortfeld, richtige Optionen, Toleranz…, in einem Bereich neben dem Dokument
+	Exercise Heading	Aufgabenüberschrift
+	Exercise Note	Aufgabenhinweis
+	Exercise Prompt	Wiederholte Aufgabenfrage
+	Exercise Question	Aufgabenfrage
+	Exercise Title	Aufgabentitel
+	Exercise Tools	Aufgabentools
+	Explode	Zerlegen
+	Explode: polylines into lines and arcs	Zerlegen: Polylinien in Linien und Bögen
+	Extend	Verlängern
+	Extend: pick near the ends to extend	Verlängern: nahe den zu verlängernden Enden klicken
+	Extend: pick near the end to extend (to the next object)	Verlängern: nahe dem zu verlängernden Ende klicken (bis zum nächsten Objekt)
+	Extend works on lines, arcs and open polylines	Verlängern wirkt auf Linien, Bögen und offene Polylinien
+	Extension beyond	Hilfslinienüberstand
+	Extension gap	Hilfslinienabstand
+	Fade	Verblassen
+	Fillet	Abrunden
+	Fillet and Chamfer join two lines	Abrunden und Fasen verbinden zwei Linien
+	Fillet: pick the first line (type a number to change the radius)	Abrunden: die erste Linie anklicken (eine Zahl eingeben, um den Radius zu ändern)
+	Fillet: pick the second line	Abrunden: die zweite Linie anklicken
+	Fillet: two lines joined with an arc (type the radius; 0 makes the corner)	Abrunden: zwei Linien mit einem Bogen verbunden (den Radius eingeben; 0 bildet die Ecke)
+	First ray X	Erster Schenkel X
+	First ray Y	Erster Schenkel Y
+	Fit Here	Hier einpassen
+	Flip Side	Seite wechseln
+	Flip the selected dimensions: the line to the other side, the other side of an angle, a level mark under its level	Die ausgewählten Bemaßungen umklappen: die Linie auf die andere Seite, die andere Seite eines Winkels, eine Höhenkote unter ihre Höhe
+	Flip the selected hatched strips and slope ticks to the other side of their line	Die ausgewählten Schraffurbänder und Böschungsschraffen auf die andere Seite ihrer Linie umklappen
+	For a height	Für eine Höhe
+	For a number of pages	Für eine Anzahl Seiten
+	GB/T 7714	GB/T 7714
+	Generate clean variants from each datum's range, checked against the constraints on the results (add data first)	Saubere Varianten aus dem Wertebereich jeder Angabe erzeugen, geprüft gegen die Bedingungen an die Ergebnisse (zuerst Angaben hinzufügen)
+	Generate\nVariants	Varianten\ngenerieren
+	Give the exercise a title after the number; the text next to the number goes back under it	Der Aufgabe einen Titel nach der Nummer geben; der Text neben der Nummer rückt wieder darunter
+	GOST (name sort)	GOST (nach Name sortiert)
+	GOST (title sort)	GOST (nach Titel sortiert)
+	Go to Footer	Zur Fußzeile
+	Go to Header	Zur Kopfzeile
+	Go To\nExercise	Zur\nAufgabe
+	Graph Paper Before the Solution	Rasterpapier vor der Lösung
+	Grey	Grau
+	Grey 10%	Grau 10 %
+	Grey 20%	Grau 20 %
+	Grey 35%	Grau 35 %
+	Grey 50%	Grau 50 %
+	Grey 65%	Grau 65 %
+	Grey 80%	Grau 80 %
+	Harvard (Anglia)	Harvard (Anglia)
+	Hatch	Schraffur
+	Hatch: click inside the region to fill (islands are left out)	Schraffur: in die zu füllende Fläche klicken (Inseln bleiben frei)
+	Hatched\nStrip	Schraffur-\nband
+	Hatched strip	Schraffurband
+	Hatched strip: click on the side it goes	Schraffurband: auf die Seite klicken, auf die es kommt
+	Hatched strip: pick the line or polyline it follows	Schraffurband: die Linie oder Polylinie anklicken, der es folgt
+	Hatching	Schraffur
+	Hatch the diagrams' areas across the members	Die Flächen der Zustandslinien quer zu den Stäben schraffieren
+	Horizontal dimension	Horizontale Bemaßung
+	How the panels are laid out: one under the other, or two by two	Wie die Felder angeordnet sind: untereinander oder zu zweit nebeneinander
+	IEEE	IEEE
+	Import styles and layers only	Nur Stile und Ebenen importieren
+	Index Heading	Index-Überschrift
+	Index {n}	Index {n}
+	Indigo	Indigo
+	Insert a beam, frame or truss with its reactions and diagrams	Einen Träger, Rahmen oder ein Fachwerk mit Auflagerreaktionen und Zustandslinien einfügen
+	Insert a parameter of the calculations: its value, its symbol or both	Einen Parameter der Berechnungen einfügen: seinen Wert, sein Symbol oder beides
+	Installing it asks for your password, then Strix Writer restarts.	Für die Installation wird Ihr Kennwort abgefragt, danach startet Strix Writer neu.
+	Islands	Inseln
+	ISO 690 (author-date)	ISO 690 (Autor-Jahr)
+	ISO 690 (numerical)	ISO 690 (numerisch)
+	Italian Convention	Italienische Konvention
+	It will be installed when you restart Strix Writer.	Sie wird beim nächsten Neustart von Strix Writer installiert.
+	Join: objects that meet end to end into a polyline	Verbinden: Objekte, die Ende an Ende liegen, zu einer Polylinie
+	{key} removed from {command}	{key} von {command} entfernt
+	Last attempt: {time}. Strix Writer tries again within an hour.	Letzter Versuch: {time}. Strix Writer versucht es innerhalb einer Stunde erneut.
+	Last checked: {time}	Zuletzt gesucht: {time}
+	Layer Manager	Ebenenverwaltung
+	Layer\nManager	Ebenen-\nverwaltung
+	Layers of another drawing (its underlay or imported): usable like the drawing's own	Ebenen einer anderen Zeichnung (ihre Unterlage oder importiert): wie die eigenen der Zeichnung verwendbar
+	Level mark	Höhenkote
+	Level marks take the dimension styles: these settings are the style's.	Höhenkoten verwenden die Bemaßungsstile: Diese Einstellungen gehören zum Stil.
+	Level mark: the elevation of a point above the datum (±0.00), in metres	Höhenkote: die Höhe eines Punkts über der Bezugshöhe (±0.00), in Metern
+	Level mark: the point on the level (Enter or Esc to end)	Höhenkote: der Punkt auf der Höhe (Eingabe oder Esc zum Beenden)
+	Level\nStyle	Koten-\nstil
+	Level Style	Kotenstil
+	Level Style: text, triangle and unit of the level marks	Kotenstil: Text, Dreieck und Einheit der Höhenkoten
+	Light blue	Hellblau
+	Light green	Hellgrün
+	Light grey	Hellgrau
+	Light orange	Hellorange
+	Lime	Limette
+	Line beyond	Linienüberstand
+	Line: first point	Linie: erster Punkt
+	Line: next point (Enter or Esc to end)	Linie: nächster Punkt (Eingabe oder Esc zum Beenden)
+	Line Number	Zeilennummer
+	Line: two points, then more to go on	Linie: zwei Punkte, dann weitere zum Fortsetzen
+	Line width	Linienbreite
+	Link Footer to Previous	Fußzeile mit vorheriger verknüpfen
+	Link Header to Previous	Kopfzeile mit vorheriger verknüpfen
+	Locked: shown and snapped to, but its objects can't be picked	Gesperrt: sichtbar und fangbar, aber ihre Objekte können nicht angeklickt werden
+	Make the space here the maximum size and fit the scale to it	Den Platz hier zur Höchstgröße machen und den Maßstab daran anpassen
+	Mark each area of the diagrams with its sign	Jede Fläche der Zustandslinien mit ihrem Vorzeichen kennzeichnen
+	Marks	Begrenzungszeichen
+	Mark size	Größe der Begrenzung
+	Mark width	Breite der Begrenzung
+	Match	Übertragen
+	Match Properties	Eigenschaften übertragen
+	Match Properties: pick the objects that take its look (Enter to end)	Eigenschaften übertragen: die Objekte anklicken, die sein Aussehen übernehmen (Eingabe zum Beenden)
+	Match Properties: pick the source object	Eigenschaften übertragen: das Quellobjekt anklicken
+	Match Properties: the source, then the objects that take its look	Eigenschaften übertragen: die Quelle, dann die Objekte, die ihr Aussehen übernehmen
+	Measured size	Gemessenes Maß
+	Metres	Meter
+	Millimetres	Millimeter
+	Mirror: first point of the axis	Spiegeln: erster Punkt der Achse
+	Mirror: second point of the axis (a mirrored copy is made)	Spiegeln: zweiter Punkt der Achse (eine gespiegelte Kopie wird erstellt)
+	MLA	MLA
+	Moment M	Biegemoment M
+	Move the selection: base point, second point	Die Auswahl verschieben: Basispunkt, zweiter Punkt
+	N and T positive up, M on the stretched fibres (positive down)	N und T positiv nach oben, M auf der Zugseite (positiv nach unten)
+	Nearest	Nächster
+	New page before each exercise	Neue Seite vor jeder Aufgabe
+	New page before each solution	Neue Seite vor jeder Lösung
+	Next Exercise	Nächste Aufgabe
+	No closed object around that point: draw a closed polyline, a rectangle or a circle	Kein geschlossenes Objekt um diesen Punkt: eine geschlossene Polylinie, ein Rechteck oder einen Kreis zeichnen
+	Node	Punkt
+	No other drawing in the document	Keine andere Zeichnung im Dokument
+	No parameters are defined before the drawing	Vor der Zeichnung sind keine Parameter definiert
+	Normal Indent	Normaler Einzug
+	Normal Table	Normale Tabelle
+	Not a Result	Kein Ergebnis
+	Nothing to extend to: no object lies ahead of that end	Nichts zum Verlängern: vor diesem Ende liegt kein Objekt
+	Nothing to join	Nichts zu verbinden
+	Nothing to join: the objects must meet end to end	Nichts zu verbinden: die Objekte müssen Ende an Ende liegen
+	Nothing to stretch: the window takes no points	Nichts zu strecken: das Fenster erfasst keine Punkte
+	{n} structures	{n} Tragwerke
+	off	aus
+	Offset: click on the side to offset to	Versetzen: auf die Seite klicken, zu der versetzt wird
+	Offset: pick the object (type a number to change the distance)	Versetzen: das Objekt anklicken (eine Zahl eingeben, um den Abstand zu ändern)
+	Offset: the distance (type it), the object, the side	Versetzen: der Abstand (eingeben), das Objekt, die Seite
+	on	ein
+	One Column	Eine Spalte
+	On paper, mm: the same in print at any scale (annotative)	Auf dem Papier, mm: im Druck in jedem Maßstab gleich (beschriftungsabhängig)
+	On: this section shows the previous section's footer. Off: it has its own (a copy to change)	Ein: Dieser Abschnitt zeigt die Fußzeile des vorherigen Abschnitts. Aus: Er hat eine eigene (eine Kopie zum Ändern)
+	On: this section shows the previous section's header. Off: it has its own (a copy to change)	Ein: Dieser Abschnitt zeigt die Kopfzeile des vorherigen Abschnitts. Aus: Er hat eine eigene (eine Kopie zum Ändern)
+	Ortho	Ortho
+	Ortho: lines level or plumb (F8)	Ortho: Linien waagerecht oder senkrecht (F8)
+	page	Seite
+	Page background	Seitenhintergrund
+	Page breaks, parts shown, graph paper and numbering are the series': they are in the Series tab	Seitenumbrüche, angezeigte Teile, Rasterpapier und Nummerierung gehören zur Serie: Sie stehen auf der Registerkarte Serie
+	Panel Layout	Feldanordnung
+paper	Legal	Legal
+paper	Letter	Letter
+	Parenthesis (1))	Klammer (1))
+	Period (1.)	Punkt (1.)
+	Perpendicular	Lot
+	Pick a line	Eine Linie anklicken
+	Pick a line, circle, arc or polyline	Eine Linie, einen Kreis, einen Bogen oder eine Polylinie anklicken
+	Pick an object	Ein Objekt anklicken
+	Pick a point away from where the dimension starts	Einen Punkt abseits vom Anfang der Bemaßung angeben
+	Pick each line on the part to keep	Jede Linie auf dem Teil anklicken, der bleiben soll
+	Pick two different lines	Zwei verschiedene Linien anklicken
+	Point: location	Punkt: Position
+	Polar Array	Polare Reihe
+	Polar array: centre (type a number to change how many items)	Polare Reihe: Mittelpunkt (eine Zahl eingeben, um die Anzahl der Elemente zu ändern)
+	Polar Array: of the selection round a centre (type how many items)	Polare Reihe: der Auswahl um einen Mittelpunkt (die Anzahl der Elemente eingeben)
+	Polyline: first point	Polylinie: erster Punkt
+	Polyline: next point (Enter to end, c to close)	Polylinie: nächster Punkt (Eingabe zum Beenden, c zum Schließen)
+	Portal Frame	Portalrahmen
+	Positive Side	Positive Seite
+preview	Title	Beispiel
+	Previous Exercise	Vorherige Aufgabe
+	Previous selection	Vorherige Auswahl
+	Printed: off, the layer shows only in the editor	Gedruckt: aus, die Ebene erscheint nur im Editor
+	Print with the drawing	Mit der Zeichnung drucken
+	Problem	Problem
+	Published {date}	Veröffentlicht am {date}
+	Put the cursor in an exercise's title	Den Cursor in den Titel einer Aufgabe setzen
+	Put the cursor in an exercise to see its questions' settings.	Setzen Sie den Cursor in eine Aufgabe, um die Einstellungen ihrer Fragen zu sehen.
+	Put the cursor in the next exercise's title	Den Cursor in den Titel der nächsten Aufgabe setzen
+	Put the cursor in the previous exercise's title	Den Cursor in den Titel der vorherigen Aufgabe setzen
+	Put the grip back	Griff zurücksetzen
+	Quadrant	Quadrant
+	Question\nSettings	Fragen-\neinstellungen
+	Reactions	Auflagerreaktionen
+	Rectangle by two corners	Rechteck über zwei Ecken
+	Rectangle: first corner	Rechteck: erste Ecke
+	Rectangle: other corner	Rechteck: gegenüberliegende Ecke
+	Rectangular Array	Rechteckige Reihe
+	Remove (a click removes)	Entfernen (ein Klick entfernt)
+	Remove the exercise's title: the statement's text goes next to the number (Show Title brings the title back)	Den Titel der Aufgabe entfernen: der Text der Aufgabenstellung rückt neben die Nummer (Titel anzeigen stellt den Titel wieder her)
+	Remove Title	Titel entfernen
+	Remove Underlay	Unterlage entfernen
+	Remove Variant	Variante entfernen
+	Reserved by the interface: it can't be given to another command.	Von der Oberfläche reserviert: Sie kann keinem anderen Befehl zugewiesen werden.
+	Restart Now	Jetzt neu starten
+	Results in the Summary	Ergebnisse in der Übersicht
+	Rotate: angle in degrees (type it, or a point in that direction)	Drehen: Winkel in Grad (eingeben oder einen Punkt in dieser Richtung angeben)
+	Rotate: base point	Drehen: Basispunkt
+	Rotate the selection: base point, then the angle	Die Auswahl drehen: Basispunkt, dann der Winkel
+	Scale: base point	Skalieren: Basispunkt
+	Scaled distance	Maßstäblicher Abstand
+	Scaled radius	Maßstäblicher Radius
+	Scale: factor (type it, or a point that many units from the base)	Skalieren: Faktor (eingeben oder einen Punkt so viele Einheiten vom Basispunkt entfernt angeben)
+	Scale the selection: base point, then the factor	Die Auswahl skalieren: Basispunkt, dann der Faktor
+	Second point	Zweiter Punkt
+	Second ray X	Zweiter Schenkel X
+	Second ray Y	Zweiter Schenkel Y
+	Select Exercise	Aufgabe auswählen
+	Select objects: click, or drag a window (left to right) or a crossing (right to left)	Objekte auswählen: klicken oder ein Fenster (von links nach rechts) bzw. einen Kreuzungsbereich (von rechts nach links) aufziehen
+	Select Similar	Ähnliche auswählen
+	Select the objects first	Zuerst die Objekte auswählen
+	Select the objects, then Enter	Die Objekte auswählen, dann Eingabe
+	Select the whole exercise: its statement, questions and solution	Die ganze Aufgabe auswählen: Aufgabenstellung, Fragen und Lösung
+	Select two or more lines, arcs or open polylines to join	Zwei oder mehr Linien, Bögen oder offene Polylinien zum Verbinden auswählen
+	Separator	Trennzeichen
+	Series\nSettings	Serien-\neinstellungen
+	Set a maximum size first	Zuerst eine Höchstgröße festlegen
+	Set Structure	Tragwerk festlegen
+	Shear	Querkraft
+	Short ticks	Kurze Striche
+	Shown	Sichtbar
+	Shown (hidden layers are neither drawn nor picked)	Sichtbar (ausgeblendete Ebenen werden weder gezeichnet noch angeklickt)
+	Show the unit	Einheit anzeigen
+	Show Title	Titel anzeigen
+	SIA 400: m from 1 m, cm below	SIA 400: m ab 1 m, darunter cm
+	Side	Seite
+	Signs	Vorzeichen
+	Simply Supported Beam	Einfeldträger
+	SIST02	SIST02
+	Sizes end with their unit (3.50 m); off, the number alone	Maße enden mit ihrer Einheit (3,50 m); aus, nur die Zahl
+	Sky blue	Himmelblau
+	Slope\nTicks	Böschungs-\nschraffen
+	Slope ticks	Böschungsschraffen
+	Slope ticks: click on the side the slope goes down	Böschungsschraffen: auf die Seite klicken, zu der die Böschung abfällt
+	Slope ticks: pick the line or polyline of the crest	Böschungsschraffen: die Linie oder Polylinie der Böschungskante anklicken
+	Snap: to the object snaps and the grid	Fang: auf die Objektfangpunkte und das Raster
+	Solid	Durchgezogen
+	Solution	Lösung
+	Solution\nOnly	Nur\nLösung
+	Space (1 Title)	Leerzeichen (1 Titel)
+	Space here	Platz hier
+	Standard: the document's font. New makes a style of your own.	Standard: die Schriftart des Dokuments. Neu erstellt einen eigenen Stil.
+	Start angle	Startwinkel
+	Start mark	Begrenzung am Anfang
+	Start X	Start X
+	Start Y	Start Y
+	Steel	Stahl
+	Stretch: a crossing window, then a base point and a second point	Strecken: ein Kreuzungsfenster, dann ein Basispunkt und ein zweiter Punkt
+	Stretch: base point	Strecken: Basispunkt
+	Stretch: first corner of the crossing window	Strecken: erste Ecke des Kreuzungsfensters
+	Stretch: other corner (the points inside it move)	Strecken: gegenüberliegende Ecke (die Punkte darin werden verschoben)
+	Stretch: second point	Strecken: zweiter Punkt
+	Strix Writer restarts in the new version as soon as it closes.	Strix Writer startet in der neuen Version neu, sobald es geschlossen wird.
+	Structure	Tragwerk
+structure	Add Couple	Moment hinzufügen
+structure	Add Distributed Load	Streckenlast hinzufügen
+structure	Add Force	Kraft hinzufügen
+structure	Add Member	Stab hinzufügen
+structure	Add Node	Knoten hinzufügen
+structure	Angle (°)	Winkel (°)
+structure	Angle: the support turned counter-clockwise; 0 stands on the ground, 90 on a wall to the right, −90 on a wall to the left.	Winkel: das Lager gegen den Uhrzeigersinn gedreht; 0 steht auf dem Boden, 90 an einer Wand rechts, −90 an einer Wand links.
+structure	at	bei
+structure	at {n}	an {n}
+structure	Automatic (Frames in Two Columns)	Automatisch (Rahmen in zwei Spalten)
+structure	Axial forces	Stabkräfte
+structure	Cantilever	Kragträger
+structure	Click a member to load it along its length	Einen Stab anklicken, um ihn auf seiner Länge zu belasten
+structure	Click a node or a member to remove it (a node with what uses it)	Einen Knoten oder Stab anklicken, um ihn zu entfernen (einen Knoten mit allem, was ihn verwendet)
+structure	Click a node or a member to see its properties.	Klicken Sie auf einen Knoten oder Stab, um seine Eigenschaften zu sehen.
+structure	Click a node or a point of a member to put a couple there	Einen Knoten oder einen Punkt eines Stabs anklicken, um dort ein Moment anzusetzen
+structure	Click a node or a point of a member to put a force there	Einen Knoten oder einen Punkt eines Stabs anklicken, um dort eine Kraft anzusetzen
+structure	Click a node to fix it (incastro)	Einen Knoten anklicken, um ihn einzuspannen (Einspannung)
+structure	Click a node to hold it with a link (pendolo)	Einen Knoten anklicken, um ihn mit einem Pendelstab zu halten
+structure	Click a node to hold it with a slider (glifo)	Einen Knoten anklicken, um ihn mit einer Parallelführung zu halten
+structure	Click a node to make it an internal hinge, or not	Einen Knoten anklicken, um ihn zu einem Gelenk zu machen oder das Gelenk zu entfernen
+structure	Click a node to pin it (cerniera)	Einen Knoten anklicken, um ihn mit einem Festlager zu halten
+structure	Click a node to put it on a roller (carrello)	Einen Knoten anklicken, um ihn auf ein Loslager zu setzen
+structure	Click to add a node	Klicken, um einen Knoten hinzuzufügen
+structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Zwei Punkte anklicken, um einen Stab zu zeichnen; es geht an seinem Ende weiter (Esc oder Rechtsklick beendet)
+structure	Continuous Beam	Durchlaufträger
+structure	counter-clockwise positive	gegen den Uhrzeigersinn positiv
+structure	Couple	Moment
+structure	direction (°)	Richtung (°)
+structure	Distributed	Streckenlast
+structure	Erase	Löschen
+structure	Fit	Einpassen
+structure	Fixed	Einspannung
+structure	Force	Kraft
+structure	from	von
+structure	From	Von
+structure	From the equations solved together	Aus den gemeinsam gelösten Gleichungen
+structure	from the member	bezogen auf den Stab
+structure	Grid	Raster
+structure	Hinge	Gelenk
+structure	Hinge at its first node	Gelenk am ersten Knoten
+structure	Hinge at its second node	Gelenk am zweiten Knoten
+structure	Hinges	Gelenke
+structure	Hyperstatic, degree {n}	{n}-fach statisch unbestimmt
+structure	Hyperstatic: from the solution by the stiffness method	Statisch unbestimmt: aus der Lösung mit dem Weggrößenverfahren
+structure	Internal forces	Schnittgrößen
+structure	Internal hinge	Gelenk
+structure	Isostatic	Statisch bestimmt
+structure	Labile: {n} degree(s) of freedom	Kinematisch verschieblich: {n} Freiheitsgrad(e)
+structure	Link	Pendelstab
+structure	Loads	Lasten
+structure	member	Stab
+structure	Member	Stab
+structure	Member {n}	Stab {n}
+structure	Members	Stäbe
+structure	Name	Name
+structure	node	Knoten
+structure	Node	Knoten
+structure	Node {n}	Knoten {n}
+structure	Node or Member tool: Enter places the point	Werkzeug Knoten oder Stab: Eingabe setzt den Punkt
+structure	Nodes	Knoten
+structure	No members yet: draw them with Member	Noch keine Stäbe: Zeichnen Sie sie mit Stab
+structure	None	Keines
+structure	Numbers may be calculation parameters or expressions (L/2, q). Direction: degrees from the horizontal, counter-clockwise; −90 is down.	Zahlen können Parameter oder Ausdrücke der Berechnungen sein (L/2, q). Richtung: Grad von der Waagerechten gegen den Uhrzeigersinn; −90 zeigt nach unten.
+structure	One Column	Eine Spalte
+structure	part about the hinge	Teilsystem um das Gelenk
+structure	per projection	je Projektion
+structure	Pin	Festlager
+structure	Point	Punkt
+structure	Portal Frame	Portalrahmen
+structure	Positive Down	Positiv nach unten
+structure	Positive Up	Positiv nach oben
+structure	Reactions	Auflagerreaktionen
+structure	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Auflagerreaktionen sind positiv in Richtung x, in Richtung y und gegen den Uhrzeigersinn: Eine negative wirkt in die Gegenrichtung.
+structure	Remove Member	Stab entfernen
+structure	Remove Node	Knoten entfernen
+structure	Remove the load	Die Last entfernen
+structure	Remove the member with its loads	Den Stab mit seinen Lasten entfernen
+structure	Remove the node with its members, support and loads	Den Knoten mit seinen Stäben, seinem Lager und seinen Lasten entfernen
+structure	Remove the support	Das Lager entfernen
+structure	Roller	Loslager
+structure	Select	Auswählen
+structure	Select a node or a member, drag a node to move it	Einen Knoten oder Stab auswählen, einen Knoten zum Verschieben ziehen
+structure	Select a structure in the document to draw and edit it, or insert one.	Wählen Sie ein Tragwerk im Dokument aus, um es zu zeichnen und zu bearbeiten, oder fügen Sie eines ein.
+structure	Shear	Querkraft
+structure	Show the whole structure	Das ganze Tragwerk anzeigen
+structure	Simply Supported Beam	Einfeldträger
+structure	Slider	Parallelführung
+structure	Snap	Fang
+structure	Snap to the grid (always to the nodes)	Am Raster fangen (an den Knoten immer)
+structure	Support	Lager
+structure	Supports	Lager
+structure	The direction measured from the member's axis (−90: towards the reference fibres), not from the horizontal	Die Richtung gemessen von der Stabachse (−90: zur Bezugsfaser hin), nicht von der Waagerechten
+structure	The intensity per unit of the member's projection across the load (snow on a roof), not per unit of its length	Die Intensität je Einheit der Projektion des Stabs quer zur Last (Schnee auf einem Dach), nicht je Einheit seiner Länge
+structure	The structure can't be read.	Das Tragwerk kann nicht gelesen werden.
+structure	to	bis
+structure	To	Bis
+structure	(truss)	(Fachwerk)
+structure	Truss	Fachwerk
+structure	Two Columns	Zwei Spalten
+structure	Without E, I, A: EI is the same for every member and members do not stretch.	Ohne E, I, A: EI ist für alle Stäbe gleich, und die Stäbe sind dehnstarr.
+structure	Working	Lösungsweg
+structure	Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values	Nach dem Tragwerk seine Lösung als Live-Berechnungen schreiben: die Gleichgewichtsbedingungen für die Auflagerreaktionen, dann die Verläufe N(x), T(x), M(x) jedes Stabs mit ihren Werten
+structure	Write Working	Lösungsweg schreiben
+structure	x	x
+structure	x from {a} to {b}	x von {a} bis {b}
+structure	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x ab dem ersten Knoten des Stabs; N positiv als Zug, T positiv bei Drehung im Uhrzeigersinn, M positiv bei Zug in der Bezugsfaser.
+structure	y	y
+	Structure Editor	Tragwerkseditor
+	Structure Load	Tragwerkslast
+	Structure Member	Tragwerksstab
+	Structure\nEditor	Tragwerks-\neditor
+	Structure Node	Tragwerksknoten
+	Structure Source	Tragwerksquelle
+	Structure Support	Tragwerkslager
+	Subdocument	Unterdokument
+	Symbol = value	Symbol = Wert
+	Tangent line	Tangente
+	Tangent Line: a line touching two circles or arcs; pick each near where it should touch	Tangente: eine Linie, die zwei Kreise oder Bögen berührt; jeden nahe der gewünschten Berührstelle anklicken
+	Tangent line: pick the first circle or arc	Tangente: den ersten Kreis oder Bogen anklicken
+	Tangent line: pick the second circle or arc	Tangente: den zweiten Kreis oder Bogen anklicken
+	Tan, Tan, Radius	Tan, Tan, Radius
+	Tan, tan, radius: pick the first object	Tan, Tan, Radius: das erste Objekt anklicken
+	Tan, tan, radius: pick the second object	Tan, Tan, Radius: das zweite Objekt anklicken
+	Tan, tan, radius: radius (a number, or a point from the second pick)	Tan, Tan, Radius: Radius (eine Zahl oder ein Punkt ab dem zweiten Klick)
+	Tan, Tan, Tan	Tan, Tan, Tan
+	Tan, tan, tan: pick the first object	Tan, Tan, Tan: das erste Objekt anklicken
+	Tan, tan, tan: pick the second object	Tan, Tan, Tan: das zweite Objekt anklicken
+	Tan, tan, tan: pick the third object	Tan, Tan, Tan: das dritte Objekt anklicken
+template	Letter	Brief
+	Text below	Text unterhalb
+	Text gap	Textabstand
+	Text height	Texthöhe
+	Text\nStyle	Text-\nstil
+	Text: position	Text: Position
+	Texts	Texte
+	Text style	Textstil
+	Text Style	Textstil
+	Text Style: font, height, bold and italic of the texts	Textstil: Schriftart, Höhe, Fett und Kursiv der Texte
+	Text: type the text and press Enter	Text: den Text eingeben und die Eingabetaste drücken
+	That would leave a line with no length	Dabei bliebe eine Linie ohne Länge übrig
+	The angle to fill is up to 360°	Der zu füllende Winkel beträgt höchstens 360°
+	The connection dropped; trying again shortly…	Die Verbindung wurde unterbrochen; neuer Versuch in Kürze…
+	The distances are too large for these lines	Die Abstände sind für diese Linien zu groß
+	The download in the background didn't succeed; Update and Restart tries again.	Der Download im Hintergrund ist fehlgeschlagen; Aktualisieren und neu starten versucht es erneut.
+	The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab	Die Registerkarte Aufgabe (Fragen, Varianten und Angaben, Layout), wenn der Cursor in einer Aufgabe steht, sonst die Registerkarte Serie
+	The extension runs out of the drawing	Die Verlängerung läuft aus der Zeichnung hinaus
+	The graph paper after the questions, before the solution: its squares, lines and colour (Show › Graph Paper Before the Solution adds it)	Das Rasterpapier nach den Fragen, vor der Lösung: Kästchen, Linien und Farbe (Anzeigen › Rasterpapier vor der Lösung fügt es hinzu)
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants, in a pane beside the document	Die Angaben: eine Gleichung je Angabe (L = 4.5 m) mit ihrer Beschreibung und die Varianten, in einem Bereich neben dem Dokument
+	The lines are in line	Die Linien liegen auf einer Geraden
+	The lines are parallel	Die Linien sind parallel
+	The next section's header or footer	Die Kopf- oder Fußzeile des nächsten Abschnitts
+	The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Teaching › Exercise, or right-click it), or select all of it and press Delete.	Die Teile einer Aufgabe können nicht einzeln gelöscht werden. Um die ganze Aufgabe zu löschen, verwenden Sie Aufgabe löschen (Unterricht › Aufgabe oder Rechtsklick darauf), oder markieren Sie sie vollständig und drücken Sie Entf.
+	The previous section's header or footer	Die Kopf- oder Fußzeile des vorherigen Abschnitts
+	The radius is too large for these lines	Der Radius ist für diese Linien zu groß
+	There is no object there	Dort ist kein Objekt
+	The spacing is not a number	Der Abstand ist keine Zahl
+	The spelling and grammar check is complete.	Die Rechtschreib- und Grammatikprüfung ist abgeschlossen.
+	The style new objects take; chosen with objects selected, they take it too	Der Stil, den neue Objekte erhalten; bei ausgewählten Objekten gewählt, erhalten auch diese ihn
+	The underlay's drawing is no longer in the document	Die Zeichnung der Unterlage ist nicht mehr im Dokument
+	The units of lengths and forces (moments are their product)	Die Einheiten von Längen und Kräften (Momente sind ihr Produkt)
+	The web version always runs the newest release of Strix Writer.	Die Webversion verwendet immer die neueste Version von Strix Writer.
+	The whole exercise goes: its statement, questions and solution (Undo brings it back)	Die ganze Aufgabe wird entfernt: Aufgabenstellung, Fragen und Lösung (Rückgängig stellt sie wieder her)
+	This section's first page has a header and footer of its own	Die erste Seite dieses Abschnitts hat eine eigene Kopf- und Fußzeile
+	Tick	Schrägstrich
+	TOA Heading	Rechtsgrundlagenverzeichnis-Überschrift
+	TOC {n}	Inhaltsverzeichnis {n}
+	To the end of the column	Bis zum Ende der Spalte
+	To the end of the page	Bis zum Ende der Seite
+	Triangle height	Dreieckshöhe
+	Trim	Stutzen
+	Trim: pick the pieces to take away	Stutzen: die zu entfernenden Stücke anklicken
+	Trim: pick the piece to take away (the other objects cut it)	Stutzen: das zu entfernende Stück anklicken (die anderen Objekte schneiden es)
+	Trim works on lines, circles, arcs and polylines	Stutzen wirkt auf Linien, Kreise, Bögen und Polylinien
+	Truss	Fachwerk
+	Turabian	Turabian
+	Two Columns	Zwei Spalten
+	Underlay: another drawing of the document under this one, faded and locked, to trace over (its objects snap)	Unterlage: eine andere Zeichnung des Dokuments unter dieser, blass und gesperrt, zum Nachzeichnen (ihre Objekte sind fangbar)
+	Undo the last step	Den letzten Schritt rückgängig machen
+	Undo the last vertex	Den letzten Eckpunkt rückgängig machen
+	unit: mm, cm, m or drawing	Einheit: mm, cm, m oder drawing
+	Until the next even page	Bis zur nächsten geraden Seite
+	Until the next odd page	Bis zur nächsten ungeraden Seite
+	Values	Werte
+	Verifying the download…	Download wird überprüft…
+	Vertex X	Eckpunkt X
+	Vertex Y	Eckpunkt Y
+	Vertical dimension	Vertikale Bemaßung
+	Where the drawing sits: its column's width, and the height down to the page's bottom margin. A guide, not a limit.	Wo die Zeichnung steht: die Breite ihrer Spalte und die Höhe bis zum unteren Seitenrand. Eine Orientierung, keine Grenze.
+	Where the exercises start a new page	Wo die Aufgaben eine neue Seite beginnen
+	Which side of each member a diagram's positive values are drawn on	Auf welcher Seite jedes Stabs die positiven Werte einer Zustandslinie gezeichnet werden
+	Write\nWorking	Lösungsweg\nschreiben
+	Write the notable values: at the ends of each stretch, the jumps, the maxima	Die maßgebenden Werte schreiben: an den Enden jedes Abschnitts, die Sprünge, die Maxima
+	Write Working	Lösungsweg schreiben
+	You have the newest version.	Sie haben die neueste Version.
+	Your shortcuts ({count})	Ihre Tastenkombinationen ({count})
+	Zoom Fit	Alles einpassen
+	A right-aligned line for the score obtained against the total: computed from the points, or typed in	Eine rechtsbündige Zeile mit der erreichten Punktzahl von der Gesamtpunktzahl: aus den Punkten berechnet oder eingegeben
+	Total Score	Gesamtpunktzahl
+	Remove Total Score	Gesamtpunktzahl entfernen
+	Insert Analysis	Analyse einfügen
+	a table inside another table is never calculated	eine Tabelle in einer anderen Tabelle wird nie berechnet
+	only tables in the body of the document are calculated	nur Tabellen im Textkörper des Dokuments werden berechnet
+	no inline value at the caret	kein Wert im Text an der Einfügemarke
+	select a structure first	zuerst ein Tragwerk auswählen
+	Lengths in {unit} (or with their own unit: 2.5m, 30cm)	Längen in {unit} (oder mit eigener Einheit: 2.5m, 30cm)
+	The unit lengths are shown and typed in	Die Einheit, in der Längen angezeigt und eingegeben werden
+	Type a size in any unit, such as 3 cm or 300 px.	Geben Sie eine Größe in einer beliebigen Einheit ein, z. B. 3 cm oder 300 px.
+	No other Strix windows are open.	Es sind keine anderen Strix-Fenster geöffnet.
+	Working	Lösungsweg
+	Member	Stab
+	Axial forces	Stabkräfte
+	From the equations solved together	Aus den gemeinsam gelösten Gleichungen
+	Hyperstatic: from the solution by the stiffness method	Statisch unbestimmt: aus der Lösung mit dem Weggrößenverfahren
+	Internal forces	Schnittgrößen
+	part about the hinge	Teilsystem um das Gelenk
+	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Auflagerreaktionen sind positiv in Richtung x, in Richtung y und gegen den Uhrzeigersinn: Eine negative wirkt in die Gegenrichtung.
+	Select a structure in the document to draw and edit it, or insert one.	Wählen Sie ein Tragwerk im Dokument aus, um es zu zeichnen und zu bearbeiten, oder fügen Sie eines ein.
+	x from {a} to {b}	x von {a} bis {b}
+	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x ab dem ersten Knoten des Stabs; N positiv als Zug, T positiv bei Drehung im Uhrzeigersinn, M positiv bei Zug in der Bezugsfaser.
+plot	Fit	Regression

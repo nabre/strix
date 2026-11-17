@@ -1,8 +1,8 @@
 # Graph paper
 
-> **Status:** stage 1 done: model, the seven placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-12 · **Change:** a `none` line style (no lines: a blank block, used by an exercise's blank answer space); previously: new placement To the end of the column (`columnEnd`)
+> **Status:** stage 1 done: model, the seven placements, rendering (screen, PNG, PDF), commands, Insert-tab menu, Graph Paper pane, `.xmath` round trip; whole squares on the bottom margin, Follow columns, frame weight · **Last updated:** 2026-11-17 · **Change:** docs brought up to date (the Teaching tab's Graph Paper group; graph paper through Word); previously: a `none` line style (no lines: a blank block, used by an exercise's blank answer space)
 
-**Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper, `graph.insert`) is a square
+**Graph paper** (*foglio a quadretti*, Insert › Pages › Graph Paper or Teaching › Graph Paper, `graph.insert`) is a square
 grid drawn behind the text, for working a problem by hand, sketching or writing on squares as
 in an exercise book. It is not a picture: it is drawn from a few numbers (the side of a square,
 two kinds of line), so it stays sharp at any zoom, in print and in PDF.
@@ -89,7 +89,7 @@ are clamped, non-finite ones fall back to the defaults. `strix-cli run --cmd
 
 ## Interface
 
-Insert › Pages › **Graph Paper** opens a menu: *To the End of the Page*, *To the End of the Column*, *Page Background*,
+Insert › Pages › **Graph Paper** (the same button is on the Teaching tab, in its Graph Paper group) opens a menu: *To the End of the Page*, *To the End of the Column*, *Page Background*,
 *Until the Next Odd/Even Page*, *For Two Pages*, *For a Height of 5 cm*, then *Graph Paper
 Properties* (the pane) and *Remove Graph Paper*. The icon (a sheet ruled in squares) is drawn in
 code (`icons.rs`, `graphPaper`, `graphPaperProperties`).
@@ -111,8 +111,10 @@ In `.xmath` the grid is one attribute in Strix's namespace (ignorable by other r
 
 Sizes are points; `every`/`major`, `cols=1` (Follow columns) and `frame` (its own weight) are
 written only when set. Unknown keys are skipped and unreadable values keep their defaults; a value
-longer than 1 KiB or with an unknown placement is dropped. Word ignores the attribute, so a
-`.docx` export carries no grid.
+longer than 1 KiB or with an unknown placement is dropped. A `.docx` holds the same attribute;
+Word doesn't draw the grid and drops the attribute when it saves, so a Word document Strix writes
+also keeps the grid's settings in its Strix envelope and gets the grid back when Strix opens it
+again ([word-round-trip.md](word-round-trip.md)).
 
 ## Code
 
@@ -136,6 +138,7 @@ longer than 1 KiB or with an unknown placement is dropped. Word ignores the attr
 
 ## Revision history
 
+- 2026-11-17: docs brought up to date with the code: the Graph Paper group on the Teaching tab; a `.docx` keeps the grid through Word (the envelope), not "no grid".
 - 2026-11-12: line style `none` (`graph.set {"style": "none"}`): a block of the same size with no lines and no frame.
 - 2026-10-28: new: model, placements, rendering, commands, menu and pane, `.xmath` round trip.
 - 2026-10-29: the grid sits on the bottom margin in whole squares; Follow columns; a frame of its own weight.
