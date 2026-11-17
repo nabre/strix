@@ -54,24 +54,38 @@ pub struct RegressionInfo {
 
 const MAX_NOTABLES_PER_SERIES: usize = 32;
 
+/// Touching zeros looked for per series at most (each is a golden-section search).
+const MAX_TOUCH_SEARCHES: usize = 24;
+
 /// Finds zeros `f(x) = 0` along continuous branches via 40-step bisection.
 pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, expr: &str, branches: &[Branch], y_span: f64) -> Vec<NotablePoint> {
     let mut out: Vec<NotablePoint> = Vec::new();
-    let tol_y = 1e-5 * y_span.max(1.0);
+    // Both follow the view's height: in a view a millionth tall, 1e-5 is far from zero.
+    let tol_y = 1e-5 * y_span.abs().max(1e-12);
+    let zero = 1e-12 * y_span.abs().clamp(1e-12, 1.0);
+    let mut touch_searches = 0usize;
     for br in branches {
-        for w in br.windows(2) {
+        let is_zero = |j: usize| br.get(j).is_some_and(|p| p.1.abs() <= zero);
+        for (i, w) in br.windows(2).enumerate() {
             if out.len() >= MAX_NOTABLES_PER_SERIES {
                 return out;
             }
             let (Some(&(mut a, mut fa)), Some(&(mut b, fb))) = (w.first(), w.get(1)) else {
                 continue;
             };
-            if fa.abs() <= 1e-12 {
-                push_unique_notable(&mut out, series_index, NotableKind::Root, a, 0.0, None);
+            // A sample on the axis is a zero when it is alone there: along a stretch of zeros
+            // (`floor(x)` over [0, 1)) there is no point to mark.
+            if fa.abs() <= zero {
+                if !(i > 0 && is_zero(i - 1)) && !is_zero(i + 1) {
+                    push_unique_notable(&mut out, series_index, NotableKind::Root, a, 0.0, None);
+                }
                 continue;
             }
-            if fb.abs() <= 1e-12 {
-                push_unique_notable(&mut out, series_index, NotableKind::Root, b, 0.0, None);
+            if fb.abs() <= zero {
+                // The next pair sees it, but for the branch's last point.
+                if i + 2 >= br.len() {
+                    push_unique_notable(&mut out, series_index, NotableKind::Root, b, 0.0, None);
+                }
                 continue;
             }
             if (fa > 0.0) == (fb > 0.0) {
@@ -82,7 +96,7 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
                 let Some(fm) = eval.eval_at(var, expr, mid) else {
                     break;
                 };
-                if fm.abs() <= 1e-13 {
+                if fm.abs() <= zero * 0.1 {
                     a = mid;
                     b = mid;
                     break;
@@ -101,7 +115,9 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
                 push_unique_notable(&mut out, series_index, NotableKind::Root, root, 0.0, None);
             }
         }
-        // Also detect tangential roots (`x^2 = 0`) where `|f(x_i)|` touches zero without crossing.
+        // Also detect tangential roots (`(x - 1)^2 = 0`) where `|f|` touches zero without
+        // crossing: a sample nearer the axis than its neighbours, on their side of it, and no
+        // further from it than a curve (or a corner, `abs(x - 1)`) that reaches it would be.
         for triple in br.windows(3) {
             if out.len() >= MAX_NOTABLES_PER_SERIES {
                 return out;
@@ -109,9 +125,14 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
             let (Some(&(x0, y0)), Some(&(_, y1)), Some(&(x2, y2))) = (triple.first(), triple.get(1), triple.get(2)) else {
                 continue;
             };
-            if y1.abs() < y0.abs() && y1.abs() <= y2.abs() && y1.abs() <= tol_y {
-                let (rx, ry) = golden_section(eval, var, expr, x0, x2, true);
-                if ry.abs() <= tol_y * 0.1 {
+            let (a0, a1, a2) = (y0.abs(), y1.abs(), y2.abs());
+            let one_side = (y0 > 0.0) == (y1 > 0.0) && (y1 > 0.0) == (y2 > 0.0);
+            let near = a1 <= tol_y || a1 <= 2.0 * (a0 - a1).max(a2 - a1);
+            if a1 > zero && one_side && a1 < a0 && a1 <= a2 && near && touch_searches < MAX_TOUCH_SEARCHES {
+                touch_searches += 1;
+                if let Some((rx, ry)) = golden_section(eval, var, expr, x0, x2, true)
+                    && ry.abs() <= tol_y * 0.1
+                {
                     push_unique_notable(&mut out, series_index, NotableKind::Root, rx, 0.0, None);
                 }
             }
@@ -124,26 +145,33 @@ pub(crate) fn find_roots(eval: &mut ScalarEval, series_index: usize, var: &str, 
 pub(crate) fn find_extrema(eval: &mut ScalarEval, series_index: usize, var: &str, expr: &str, branches: &[Branch]) -> Vec<NotablePoint> {
     let mut out: Vec<NotablePoint> = Vec::new();
     for br in branches {
-        for triple in br.windows(3) {
+        for (i, pair) in br.windows(2).enumerate() {
             if out.len() >= MAX_NOTABLES_PER_SERIES {
                 return out;
             }
-            let (Some(&(x0, y0)), Some(&(_, y1)), Some(&(x2, y2))) = (triple.first(), triple.get(1), triple.get(2)) else {
+            let (Some(&(x0, y0)), Some(&(_, y1))) = (pair.first(), pair.get(1)) else {
                 continue;
             };
-            if y1 < y0 && y1 <= y2 && (y0 - y1).max(y2 - y1) > 1e-12 {
-                let (xm, ym) = golden_section_signed(eval, var, expr, x0, x2, true);
-                push_unique_notable(&mut out, series_index, NotableKind::Minimum, xm, ym, None);
-            } else if y1 > y0 && y1 >= y2 && (y1 - y0).max(y1 - y2) > 1e-12 {
-                let (xm, ym) = golden_section_signed(eval, var, expr, x0, x2, false);
-                push_unique_notable(&mut out, series_index, NotableKind::Maximum, xm, ym, None);
+            // The curve's next height: a flat stretch (two samples level across a peak, a
+            // valley's floor) is an extremum only when the curve turns back after it. One that
+            // goes on the same way (a staircase, `min(x, 1)`) or runs to the branch's end isn't.
+            let Some(&(x2, y2)) = br.iter().skip(i + 2).find(|p| p.1 != y1) else {
+                continue;
+            };
+            let minimum = y1 < y0 && y1 < y2 && (y0 - y1).max(y2 - y1) > 1e-12;
+            let maximum = y1 > y0 && y1 > y2 && (y1 - y0).max(y1 - y2) > 1e-12;
+            if (minimum || maximum)
+                && let Some((xm, ym)) = golden_section_signed(eval, var, expr, x0, x2, minimum)
+            {
+                let kind = if minimum { NotableKind::Minimum } else { NotableKind::Maximum };
+                push_unique_notable(&mut out, series_index, kind, xm, ym, None);
             }
         }
     }
     out
 }
 
-fn golden_section(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f64, mut b: f64, abs_val: bool) -> (f64, f64) {
+fn golden_section(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f64, mut b: f64, abs_val: bool) -> Option<(f64, f64)> {
     let phi = 0.5 * (5.0f64.sqrt() - 1.0);
     let mut c = b - phi * (b - a);
     let mut d = a + phi * (b - a);
@@ -165,12 +193,13 @@ fn golden_section(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f64, mut 
             fd = score(eval, d);
         }
     }
+    // A point that cannot be evaluated (outside the domain, the budget spent) is no result.
     let xm = 0.5 * (a + b);
-    let ym = eval.eval_at(var, expr, xm).unwrap_or(0.0);
-    (xm, ym)
+    let ym = eval.eval_at(var, expr, xm)?;
+    Some((xm, ym))
 }
 
-fn golden_section_signed(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f64, mut b: f64, minimize: bool) -> (f64, f64) {
+fn golden_section_signed(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f64, mut b: f64, minimize: bool) -> Option<(f64, f64)> {
     let phi = 0.5 * (5.0f64.sqrt() - 1.0);
     let mut c = b - phi * (b - a);
     let mut d = a + phi * (b - a);
@@ -192,9 +221,10 @@ fn golden_section_signed(eval: &mut ScalarEval, var: &str, expr: &str, mut a: f6
             fd = score(eval, d);
         }
     }
+    // A point that cannot be evaluated (outside the domain, the budget spent) is no result.
     let xm = 0.5 * (a + b);
-    let ym = eval.eval_at(var, expr, xm).unwrap_or(0.0);
-    (xm, ym)
+    let ym = eval.eval_at(var, expr, xm)?;
+    Some((xm, ym))
 }
 
 fn push_unique_notable(out: &mut Vec<NotablePoint>, series_index: usize, kind: NotableKind, x: f64, y: f64, slope: Option<f64>) {
@@ -221,7 +251,9 @@ pub(crate) fn compute_tangent(
     y_max: f64,
 ) -> Option<(NotablePoint, Option<((f64, f64), (f64, f64))>)> {
     let y0 = eval.eval_at(var, expr, x0)?;
-    let h = 1e-5 * (x_max - x_min).abs().max(1.0);
+    // A step that follows the view's width (a view a millionth wide has its slopes within it),
+    // and that the abscissa can still resolve far from zero.
+    let h = (1e-5 * (x_max - x_min).abs()).max(1e-8 * x0.abs()).max(1e-300);
     let yp = eval.eval_at(var, expr, x0 + h)?;
     let ym = eval.eval_at(var, expr, x0 - h)?;
     let slope = (yp - ym) / (2.0 * h);
@@ -365,14 +397,29 @@ pub(crate) fn compute_regression(series_index: usize, kind: RegressionKind, pts:
     }
 }
 
+/// The mean of the abscissae and their spread (root mean square deviation); `None` when they are
+/// all one value, to rounding, whatever their size (`1e-9` apart at `1e-9` is a spread).
+fn x_mean_and_spread(pts: &[DataPoint]) -> Option<(f64, f64)> {
+    let n = pts.len() as f64;
+    let xm = pts.iter().map(|p| p.x).sum::<f64>() / n;
+    let sxx: f64 = pts.iter().map(|p| (p.x - xm) * (p.x - xm)).sum();
+    let size: f64 = pts.iter().map(|p| p.x * p.x).sum();
+    (sxx.is_finite() && sxx > 1e-24 * size).then(|| (xm, (sxx / n).sqrt()))
+}
+
+/// `+ 1.2500` or `- 1.2500`: a term after the first of an equation.
+fn signed_term(v: f64) -> String {
+    // What rounds to zero has no sign (`+ 0.0000`, never `- 0.0000`).
+    format!("{} {:.4}", if v <= -5e-5 { "-" } else { "+" }, v.abs())
+}
+
 fn fit_linear(series_index: usize, pts: &[DataPoint]) -> Option<RegressionInfo> {
     if pts.len() < 2 {
         return None;
     }
     let n = pts.len() as f64;
-    let sx: f64 = pts.iter().map(|p| p.x).sum();
+    let (xm, _) = x_mean_and_spread(pts)?;
     let sy: f64 = pts.iter().map(|p| p.y).sum();
-    let xm = sx / n;
     let ym = sy / n;
     let mut sxx = 0.0;
     let mut sxy = 0.0;
@@ -381,14 +428,13 @@ fn fit_linear(series_index: usize, pts: &[DataPoint]) -> Option<RegressionInfo> 
         sxx += dx * dx;
         sxy += dx * (p.y - ym);
     }
-    if sxx.abs() <= 1e-15 {
-        return None;
-    }
     let slope = clean_zero(sxy / sxx);
     let intercept = clean_zero(ym - slope * xm);
-    let r2 = r_squared(pts, ym, |x| intercept + slope * x);
-    let sign = if intercept >= 0.0 { "+" } else { "-" };
-    let eq = format!("y = {:.4}x {sign} {:.4} (R² = {:.4})", slope, intercept.abs(), r2);
+    if !(slope.is_finite() && intercept.is_finite()) {
+        return None;
+    }
+    let r2 = r_squared(pts, ym, |x| ym + slope * (x - xm));
+    let eq = format!("y = {:.4}x {} (R² = {:.4})", slope, signed_term(intercept), r2);
     Some(RegressionInfo { series_index, kind: RegressionKind::Linear, coeffs: vec![intercept, slope], r2, equation: eq })
 }
 
@@ -396,25 +442,38 @@ fn fit_quadratic(series_index: usize, pts: &[DataPoint]) -> Option<RegressionInf
     if pts.len() < 3 {
         return None;
     }
+    // Fitted in `u = (x − mean) / spread`, so the sums of powers stay near 1 whatever the
+    // abscissae are (years, nanometres): in `x` itself they lose every digit.
+    let (xm, sd) = x_mean_and_spread(pts)?;
     let mut s = [0.0f64; 5];
     let mut t = [0.0f64; 3];
     for p in pts {
-        let x = p.x;
-        let x2 = x * x;
+        let u = (p.x - xm) / sd;
+        let u2 = u * u;
         s[0] += 1.0;
-        s[1] += x;
-        s[2] += x2;
-        s[3] += x2 * x;
-        s[4] += x2 * x2;
+        s[1] += u;
+        s[2] += u2;
+        s[3] += u2 * u;
+        s[4] += u2 * u2;
         t[0] += p.y;
-        t[1] += x * p.y;
-        t[2] += x2 * p.y;
+        t[1] += u * p.y;
+        t[2] += u2 * p.y;
     }
     let mat = [[s[0], s[1], s[2], t[0]], [s[1], s[2], s[3], t[1]], [s[2], s[3], s[4], t[2]]];
-    let [c0, c1, c2] = solve_3x3(mat)?;
+    let [b0, b1, b2] = solve_3x3(mat)?;
+    // Back to `c0 + c1·x + c2·x²`.
+    let c2 = b2 / (sd * sd);
+    let c1 = b1 / sd - 2.0 * c2 * xm;
+    let c0 = b0 - b1 * xm / sd + c2 * xm * xm;
+    if !(c0.is_finite() && c1.is_finite() && c2.is_finite()) {
+        return None;
+    }
     let ym = t[0] / s[0].max(1.0);
-    let r2 = r_squared(pts, ym, |x| c0 + c1 * x + c2 * x * x);
-    let eq = format!("y = {:.4}x² + {:.4}x + {:.4} (R² = {:.4})", c2, c1, c0, r2);
+    let r2 = r_squared(pts, ym, |x| {
+        let u = (x - xm) / sd;
+        b0 + b1 * u + b2 * u * u
+    });
+    let eq = format!("y = {:.4}x² {}x {} (R² = {:.4})", c2, signed_term(c1), signed_term(c0), r2);
     Some(RegressionInfo {
         series_index,
         kind: RegressionKind::Quadratic,
@@ -435,7 +494,9 @@ fn solve_3x3(mut a: [[f64; 4]; 3]) -> Option<[f64; 3]> {
                 piv = row;
             }
         }
-        if best <= 1e-15 {
+        // The sums are of normalized abscissae (each row has a term of the points' count): a
+        // pivot this small is rounding, the system is singular (two distinct abscissae only).
+        if best <= 1e-9 {
             return None;
         }
         a.swap(col, piv);

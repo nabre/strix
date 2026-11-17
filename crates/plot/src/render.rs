@@ -273,8 +273,8 @@ fn draw_grid_lines(vp: Viewport, x_step: f64, y_step: f64, color: [u8; 3], width
 
 fn draw_ticks_and_labels(p: &Plot, vp: Viewport, x_step: f64, y_step: f64, opts: &Options, prims: &mut Vec<PlotPrim>) {
     let label_col = [0x33, 0x41, 0x55];
-    let tick_opts = Options { digits: 4, zeros: false, ..*opts };
-    for xv in ticks_in(vp.x_min, vp.x_max, x_step) {
+    let x_ticks = ticks_in(vp.x_min, vp.x_max, x_step);
+    for (xv, text) in x_ticks.iter().copied().zip(tick_labels(&x_ticks, x_step, opts)) {
         let (px, _) = vp.to_paper(xv, vp.y_min);
         prims.push(PlotPrim::Path {
             pts: vec![(px, vp.y0 + vp.h), (px, vp.y0 + vp.h + 1.1)],
@@ -283,17 +283,10 @@ fn draw_ticks_and_labels(p: &Plot, vp: Viewport, x_step: f64, y_step: f64, opts:
             fill: None,
             dash: Vec::new(),
         });
-        let v = if xv.abs() < 1e-10 * x_step { 0.0 } else { xv };
-        prims.push(PlotPrim::Text {
-            at: (px, vp.y0 + vp.h + 1.5),
-            text: format_number(v, &tick_opts),
-            height: 2.2,
-            bold: false,
-            anchor: PlotAnchor::TopCenter,
-            color: label_col,
-        });
+        prims.push(PlotPrim::Text { at: (px, vp.y0 + vp.h + 1.5), text, height: 2.2, bold: false, anchor: PlotAnchor::TopCenter, color: label_col });
     }
-    for yv in ticks_in(vp.y_min, vp.y_max, y_step) {
+    let y_ticks = ticks_in(vp.y_min, vp.y_max, y_step);
+    for (yv, text) in y_ticks.iter().copied().zip(tick_labels(&y_ticks, y_step, opts)) {
         let (_, py) = vp.to_paper(vp.x_min, yv);
         prims.push(PlotPrim::Path {
             pts: vec![(vp.x0 - 1.1, py), (vp.x0, py)],
@@ -302,15 +295,7 @@ fn draw_ticks_and_labels(p: &Plot, vp: Viewport, x_step: f64, y_step: f64, opts:
             fill: None,
             dash: Vec::new(),
         });
-        let v = if yv.abs() < 1e-10 * y_step { 0.0 } else { yv };
-        prims.push(PlotPrim::Text {
-            at: (vp.x0 - 1.5, py),
-            text: format_number(v, &tick_opts),
-            height: 2.2,
-            bold: false,
-            anchor: PlotAnchor::MiddleRight,
-            color: label_col,
-        });
+        prims.push(PlotPrim::Text { at: (vp.x0 - 1.5, py), text, height: 2.2, bold: false, anchor: PlotAnchor::MiddleRight, color: label_col });
     }
 
     if !p.title.is_empty() {
@@ -323,6 +308,21 @@ fn draw_ticks_and_labels(p: &Plot, vp: Viewport, x_step: f64, y_step: f64, opts:
             color: [0x0F, 0x17, 0x2A],
         });
     }
+}
+
+/// The labels of an axis's ticks: four digits, or as many more as it takes to tell neighbouring
+/// ticks apart (a narrow range far from zero, `[1000.1, 1000.2]` or `[5, 5.000001]`, would
+/// otherwise read the same under every tick).
+fn tick_labels(ticks: &[f64], step: f64, opts: &Options) -> Vec<String> {
+    let mut labels = Vec::new();
+    for digits in 4..=15u8 {
+        let tick_opts = Options { digits, zeros: false, ..*opts };
+        labels = ticks.iter().map(|&v| format_number(if v.abs() < 1e-10 * step { 0.0 } else { v }, &tick_opts)).collect();
+        if labels.windows(2).all(|w| w.first() != w.get(1)) {
+            break;
+        }
+    }
+    labels
 }
 
 fn axis_caption(label: &str, unit: Option<&str>) -> String {
@@ -653,7 +653,10 @@ pub(crate) fn pretty_formula(expr: &str) -> String {
 fn draw_legend(vp: Viewport, entries: &[(String, [u8; 3], Vec<f64>)], prims: &mut Vec<PlotPrim>) {
     let row_h = 3.6;
     let max_chars = entries.iter().map(|(s, _, _)| s.chars().count()).max().unwrap_or(4);
-    let box_w = (8.0 + max_chars as f64 * 1.35).clamp(16.0, vp.w * 0.55);
+    // At most 55 % of the frame, which on the narrowest plot is less than the 16 mm it would
+    // like at least (`clamp` panics on bounds that cross).
+    let widest = vp.w * 0.55;
+    let box_w = (8.0 + max_chars as f64 * 1.35).max(16.0).min(widest);
     let box_h = 2.4 + entries.len() as f64 * row_h;
     let bx = vp.x0 + vp.w - box_w - 2.0;
     let by = vp.y0 + 2.0;
@@ -705,8 +708,9 @@ fn ticks_in(lo: f64, hi: f64, step: f64) -> Vec<f64> {
     if !(lo.is_finite() && hi.is_finite() && step.is_finite() && step > 0.0) {
         return Vec::new();
     }
-    let first = (lo / step).ceil() as i64;
-    let last = (hi / step).floor() as i64;
+    // A range's end on a tick is that tick: 0.3 / 0.05 is 5.999…, not short of the sixth.
+    let first = (lo / step - 1e-9).ceil() as i64;
+    let last = (hi / step + 1e-9).floor() as i64;
     let count = (last - first + 1).clamp(0, 200) as usize;
     (0..count).map(|k| (first + k as i64) as f64 * step).filter(|v| *v >= lo - 1e-9 * step && *v <= hi + 1e-9 * step).collect()
 }

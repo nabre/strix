@@ -27,7 +27,6 @@ pub(crate) fn fitted_range(p: &Plot, ws: Option<&Worksheet>) -> [f64; 4] {
     for ig in &first.integrals {
         xs.extend([ig.a, ig.b]);
     }
-    let spans = (p.x_max - p.x_min, p.y_max - p.y_min);
     for s in &p.series {
         match &s.kind {
             SeriesKind::Function { .. } => {}
@@ -72,9 +71,14 @@ pub(crate) fn fitted_range(p: &Plot, ws: Option<&Worksheet>) -> [f64; 4] {
             }
         }
     }
-    let (x0, x1) = match hull(&xs).filter(|(a, b)| b - a > 1e-9 * spans.0.abs().max(1.0)) {
-        Some((a, b)) => tidy(a, b),
-        None => (p.x_min, p.x_max),
+    let (x0, x1) = match hull(&xs) {
+        // Wide enough to be a range of its own, however small the numbers (metres for
+        // nanometres), as long as the abscissae can still be told apart.
+        Some((a, b)) if b - a > 1e-9 && b - a > 1e-9 * a.abs().max(b.abs()) => tidy(a, b),
+        // One abscissa (a lone measurement, a tangent point) outside the ranges set: they go
+        // out to it.
+        Some((a, _)) if a < p.x_min || a > p.x_max => tidy(a.min(p.x_min), a.max(p.x_max)),
+        _ => (p.x_min, p.x_max),
     };
 
     // The functions over the new abscissa.
