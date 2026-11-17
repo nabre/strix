@@ -2249,3 +2249,26 @@ fn forms_built_from_text_are_calculated() {
     assert!(matches!(last_error(&["∑_(i=1)^3▒()="]), CalcError::Syntax { .. }));
     assert!(matches!(last_error(&["∫_0^1▒()="]), CalcError::Syntax { .. }));
 }
+
+#[test]
+fn the_working_writes_a_sum_over_known_values_as_its_total() {
+    let mut ws = Worksheet::new(Options { steps: true, ..Options::default() });
+    let rows = table(&[
+        &["i", "A_i", "x_i", "y_i", "= A_i·x_i", "= A_i·y_i"],
+        &["1", "3", "5", "3", "", ""],
+        &["2", "6", "4", "9", "", ""],
+        &["Σ =", "Σ =", "", "", "Σ =", "Σ ="],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    // The sums are the table's totals (9, 39), not the columns written out.
+    let shown = ws.eval_statement("x_g = (∑A_i·x_i)/(∑A_i) =");
+    assert_eq!(shown.display.as_deref(), Some("x_g = (∑A_i·x_i)/(∑A_i) = 39/9 = 4.333"), "{shown:?}");
+    // With a unit, the total carries it; a sum with limits over scalars keeps its working.
+    ws.eval_statement("L = [2; 3] m");
+    assert_eq!(ws.eval_statement("2·∑L =").display.as_deref(), Some("2·∑L = 2·(5 m) = 10 m"));
+    ws.eval_statement("n = 3");
+    assert_eq!(ws.eval_statement("∑_(k=1)^n▒k =").display.as_deref(), Some("∑_(k=1)^n▒k = ∑_(k=1)^(3)▒(k) = 6"));
+    // A sum that is the whole formula: its total is the result, with no working.
+    assert_eq!(ws.eval_statement("∑A_i =").display.as_deref(), Some("∑A_i = 9"));
+}
