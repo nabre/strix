@@ -3901,3 +3901,97 @@ structure	{n} items selected	{n} éléments sélectionnés
 structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Faites glisser l’un d’eux pour les déplacer ensemble ; les flèches les déplacent d’un pas de grille (Maj : dix fois) ; Suppr les supprime.
 structure	Remove Selected	Supprimer la sélection
 structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Cliquez sur un nœud, une barre ou une charge pour voir ses propriétés ; Maj+clic ou une fenêtre ajoutent à la sélection.
+# Strix (2026-11-18): the Structure Editor's ribbon tab and properties.
+	Supports	Appuis
+	Loads	Charges
+	Erase	Effacer
+	Fixed	Encastrement
+	Pin	Appui articulé
+	Roller	Appui à rouleau
+	Link	Bielle
+	Slider	Glissière
+	Internal hinge	Rotule interne
+	Force	Force
+	Couple	Couple
+	Select	Sélectionner
+	Grid	Grille
+	Click a node or a member to remove it (a node with what uses it)	Cliquez sur un nœud ou une barre pour le supprimer (un nœud avec ce qui l’utilise)
+	Click a node to fix it (incastro)	Cliquez sur un nœud pour l’encastrer
+	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
+	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
+	Click a node to hold it with a link (pendolo)	Cliquez sur un nœud pour le retenir par une bielle
+	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pour le retenir par une glissière
+	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
+	Click a node or a point of a member to put a force there	Cliquez sur un nœud ou un point d’une barre pour y appliquer une force
+	Click a node or a point of a member to put a couple there	Cliquez sur un nœud ou un point d’une barre pour y appliquer un couple
+	Click a member to load it along its length	Cliquez sur une barre pour la charger sur sa longueur
+	Snap to the grid (always to the nodes)	Accrochage à la grille (toujours aux nœuds)
+	Show the whole structure	Afficher toute la structure
+	Selection	Sélection
+	Sheet	Feuille
+	Close	Fermer
+	Dimensions	Cotes
+	The grid's step, in the structure's length unit	Le pas de la grille, dans l’unité de longueur de la structure
+	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Afficher sur la feuille les cotes, les pentes des barres inclinées et les angles des forces inclinées (le document les dessine selon Structures › Cotes)
+structure	Dimensions	Cotes
+structure	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Afficher sur la feuille les cotes, les pentes des barres inclinées et les angles des forces inclinées (le document les dessine selon Structures › Cotes)
+structure	Kind	Type
+structure	Angle	Angle
+structure	Length	Longueur
+structure	Slope	Inclinaison
+structure	Section	Section
+structure	Load	Charge
+structure	On	Sur
+structure	direction	direction
+structure	hinged	rotule
+structure	A hinge at this end of the member	Une rotule à cette extrémité de la barre
+structure	Select the load to edit it	Sélectionner la charge pour la modifier
+structure	Structure	Structure
+structure	Title	Titre
+structure	Lengths	Longueurs
+structure	Forces	Forces
+structure	Made of	Composition
+structure	Tables	Tableaux
+structure	Select tool	Outil Sélection
+structure	Add a force here	Ajouter une force ici
+structure	Add a couple here	Ajouter un couple ici
+structure	Draw a member from here	Dessiner une barre d’ici
+structure	Select its loads	Sélectionner ses charges
+structure	Select the connected part	Sélectionner la partie reliée
+structure	Delete	Supprimer
+structure	Add a distributed load	Ajouter une charge répartie
+structure	Split here	Diviser ici
+structure	Split in half	Diviser en deux
+structure	Hinge at end {n}	Articulation à l’extrémité {n}
+structure	Select its ends	Sélectionner ses extrémités
+structure	Reverse	Inverser le sens
+structure	Direction	Direction
+structure	Vertical	Verticale
+structure	Horizontal	Horizontale
+structure	At 45°	À 45°
+structure	Perpendicular to the member	Perpendiculaire à la barre
+structure	Distributed load	Charge répartie
+structure	Uniform	Uniforme
+structure	Triangular	Triangulaire
+structure	On the whole member	Sur toute la barre
+structure	Add a node here	Ajouter un nœud ici
+structure	Select all	Tout sélectionner
+structure	Snap to the grid	Aimanter à la grille
+structure	Deselect	Désélectionner
+structure	Join onto node {n}	Joindre au nœud {n}
+structure	At node {n}	Au nœud {n}
+structure	Double-click	Double-clic
+# Strix (2026-11-18): a new exercise on a structure (structure.exercise).
+	Structure Exercise	Exercice sur une structure
+	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nouvel exercice sur une structure : la structure dans l’énoncé, les réactions et les diagrammes demandés, la résolution et les dessins dans la solution
+	For the structure in the figure, loaded as shown:	Pour la structure de la figure, chargée comme indiqué :
+	Find the support reactions.	Calculez les réactions d’appui.
+	Work out and draw the diagram of the axial force N.	Calculez et tracez le diagramme de l’effort normal N.
+	Work out and draw the diagram of the shear force {T}.	Calculez et tracez le diagramme de l’effort tranchant {T}.
+	Find the points where the shear force {T} is zero.	Trouvez les points où l’effort tranchant {T} est nul.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Calculez le moment fléchissant maximal en ces points ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Calculez et tracez le diagramme du moment fléchissant M.
+	Find the axial force in every member and draw it.	Calculez l’effort normal dans chaque barre et tracez-le.
+	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.
+	The structure can't be solved: its working will be written again as soon as it can.	La structure ne peut pas être résolue : la résolution sera réécrite dès qu’elle le pourra.

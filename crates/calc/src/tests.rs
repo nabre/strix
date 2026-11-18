@@ -263,6 +263,16 @@ fn greek_names_and_subscripts() {
     assert_eq!(last(&["pi*e ="]), "pi*e = 8.54");
 }
 
+/// A subscript listing indices, `q_(1,2)`, is part of the name (a trapezoidal load's ends), with
+/// or without decimal comma (`y_(i+1)`, a table's row, is not: `table_rows_are_read_by_subscript`).
+#[test]
+fn subscripts_listing_indices_are_names() {
+    assert_eq!(last(&["q_(1,1) = 2 kN/m", "q_(1,2) = 5 kN/m", "(q_(1,2) - q_(1,1))·(4 m)/2 ="]), "(q_(1,2) - q_(1,1))·(4 m)/2 = 6 kN");
+    let comma = Options { decimal_comma: true, ..Options::default() };
+    let r = evaluate(&["q_(1,2) = 2,5 kN/m", "2·q_(1,2) ="], &comma);
+    assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("2·q_(1,2) = 5 kN/m"), "{r:?}");
+}
+
 #[test]
 fn implicit_multiplication_precedence() {
     let q = |s: &str| run(&[s]).pop().unwrap().value.unwrap().scalar().unwrap();
@@ -1938,6 +1948,11 @@ fn a_call_shown_with_its_result_is_read_back_as_a_call() {
         let r = run(&["f(x) = x^2 - 4", "a = 0", shown, "f(3) ="]);
         assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("f(3) = 5"), "{shown}");
     }
+    // Shown in a unit, `f(a) = kN·m` asks for the call's value, not a constant function.
+    let r = run(&["M(x) = (30 kN)·x", "a = 2 m", "M(a) = kN·m", "M(1 m) = kN·m"]);
+    let shown: Vec<Option<String>> = r.iter().map(|r| r.display.clone()).collect();
+    assert_eq!(shown.get(2).cloned().flatten().as_deref(), Some("M(a) = 60 kN·m"), "{shown:?}");
+    assert_eq!(shown.get(3).cloned().flatten().as_deref(), Some("M(1 m) = 30 kN·m"), "{shown:?}");
     // An unknown parameter still defines a function, even with a number as its body.
     assert_eq!(last(&["g(u) = 4", "g(9) ="]), "g(9) = 4");
     assert_eq!(last(&["x = 2", "h(x) = x^2", "h(3) ="]), "h(3) = 9");
@@ -2271,4 +2286,25 @@ fn the_working_writes_a_sum_over_known_values_as_its_total() {
     assert_eq!(ws.eval_statement("∑_(k=1)^n▒k =").display.as_deref(), Some("∑_(k=1)^n▒k = ∑_(k=1)^(3)▒(k) = 6"));
     // A sum that is the whole formula: its total is the result, with no working.
     assert_eq!(ws.eval_statement("∑A_i =").display.as_deref(), Some("∑A_i = 9"));
+}
+
+/// An unknown inside a user function's call is solved with the dimension the function's body
+/// gives it, and an interval after `;` picks the root inside it.
+#[test]
+fn an_unknown_in_a_call_and_an_interval_for_its_root() {
+    assert_eq!(last(&["T(x) = (30 kN) - (10 kN/m)·x", "0 kN = T(x_1)"]), "0 kN = T(x_1) ⇒ x_1 = 3 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 0 m ≤ x_1 ≤ 6 m", "x_1 ="]), "x_1 = 2.449 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 6 m ≥ x_1 > 0 m", "x_1 ="]), "x_1 = 2.449 m");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    assert_eq!(shown, "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m ⇒ x_1 = 2.449 m");
+    // The root substituted in a call: one pair of parentheses.
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m", "M(x) = (30 kN)·x", "M(x_1) = kN·m"], &opts);
+    let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+    assert!(shown.contains("M(2.449 m)") && !shown.contains("(("), "{shown}");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    // Read back as written, it solves the same.
+    assert_eq!(last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", &shown, "x_1 ="]), "x_1 = 2.449 m");
+    // The root outside the interval is none.
+    assert!(run(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 3 m ≤ x_1 ≤ 6 m"]).pop().and_then(|r| r.error).is_some());
 }

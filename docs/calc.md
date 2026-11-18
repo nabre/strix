@@ -72,7 +72,7 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   appears multiple times (`2·x + 3 = x + 7`, `s = v_0·t + 1/2·a·t²`), checking dimensional
   homogeneity of `B² − 4·A·C`, reporting `Δ < 0` explicitly, generating quadratic-formula steps,
   computing both roots `x₁, x₂` and filtering by physical domain constraints (`t > 0`, standalone
-  or after `;`). Otherwise it is found **numerically**: its dimension is inferred algebraically
+  or after `;`, also an interval `0 m ≤ x ≤ 6 m`). Otherwise it is found **numerically**: its dimension is inferred algebraically
   from powers `x^k` and inverse ratios across the equation (plus known quantities), every sign
   change on a logarithmic grid from 10⁻¹² to 10¹² (both signs) is refined by bisection (a sign
   change across a pole is dropped), and secant steps catch roots that touch zero (only where `|f|` has a minimum there: a value
@@ -85,7 +85,9 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 - An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
   listed by `calc.recalculate`; the statement before `=` stays as typed, whole (a sum keeps its
   limits: `∑_(k=0)^n▒… = ⚠`). Names depending on a failed definition are undefined.
-- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
+- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`); a subscript
+  listing indices, letters and digits between commas, belongs to the name (`q_(1,2)`, a
+  trapezoidal load's end), with or without decimal comma. A defined
   parameter wins over a unit of the same spelling, **except right after a number**: there unit
   names are units (ISO 80000: a quantity is a number times a unit), so with a mass `m = 400 kg`,
   `L = 4.5 m` is still metres and `q = 12 kN/m` still per metre. The units after a number run on
@@ -473,7 +475,9 @@ notation, in `crates/engine/tests/gallery_calculations.rs`):
   and a body. It is never an equation to solve, even with the parameters unknown. Anything else
   is an ordinary statement: `a(b + 1) =` and `a(3) =` are products, `sin(α) = 0.5` (a built-in
   function) is an equation, `f(3) = 7` a check. To solve an equation in a function, put the
-  call on the right: `7 = f(y) ⇒ y = 3`.
+  call on the right: `7 = f(y) ⇒ y = 3`; with units, the unknown takes the dimension the body
+  gives it (`0 kN = T(x_1) ⇒ x_1 = 3 m`). A call shown in a unit (`M(x_0) = kN·m`, `x_0` known)
+  is a call, never a constant function.
 - **Names in the body**: the parameters shadow the worksheet's parameters (and units: in
   `A(b, h) = b·h`, `h` is the parameter, not the hour; after a number a unit stays a unit).
   Every other name is read from the worksheet **when the function is called**, so

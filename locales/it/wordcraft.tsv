@@ -3985,3 +3985,94 @@ structure	{n} items selected	{n} elementi selezionati
 structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Trascinane uno per spostarli insieme; le frecce li spostano di un passo di griglia (Maiusc: dieci volte); Canc li elimina.
 structure	Remove Selected	Elimina selezionati
 structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Fai clic su un nodo, un'asta o un carico per vederne le proprietà; Maiusc+clic o un riquadro aggiungono alla selezione.
+# Strix (2026-11-18): the Structure Editor's ribbon tab and properties.
+	Supports	Vincoli
+	Loads	Carichi
+	Erase	Elimina
+	Fixed	Incastro
+	Pin	Cerniera
+	Roller	Carrello
+	Link	Pendolo
+	Slider	Glifo
+	Internal hinge	Cerniera interna
+	Force	Forza
+	Couple	Coppia
+	Fit	Adatta
+	Click a node or a member to remove it (a node with what uses it)	Fai clic su un nodo o un'asta per eliminarli (un nodo con ciò che lo usa)
+	Click a node to fix it (incastro)	Fai clic su un nodo per incastrarlo
+	Click a node to pin it (cerniera)	Fai clic su un nodo per metterci una cerniera
+	Click a node to put it on a roller (carrello)	Fai clic su un nodo per metterlo su un carrello (appoggio scorrevole)
+	Click a node to hold it with a link (pendolo)	Fai clic su un nodo per vincolarlo con un pendolo (biella)
+	Click a node to hold it with a slider (glifo)	Fai clic su un nodo per vincolarlo con un glifo (doppio pendolo)
+	Click a node to make it an internal hinge, or not	Fai clic su un nodo per farne una cerniera interna, o toglierla
+	Click a node or a point of a member to put a force there	Fai clic su un nodo o un punto di un'asta per applicarvi una forza
+	Click a node or a point of a member to put a couple there	Fai clic su un nodo o un punto di un'asta per applicarvi una coppia
+	Click a member to load it along its length	Fai clic su un'asta per caricarla lungo la sua lunghezza
+	Snap to the grid (always to the nodes)	Aggancia alla griglia (ai nodi sempre)
+	Show the whole structure	Mostra tutta la struttura
+	Selection	Selezione
+	Sheet	Foglio
+	The grid's step, in the structure's length unit	Il passo della griglia, nell'unità di lunghezza della struttura
+	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Mostra sul foglio le quote, le pendenze delle aste inclinate e gli angoli delle forze inclinate (il documento le disegna come dice Strutture › Quote)
+structure	Dimensions	Quote
+structure	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Mostra sul foglio le quote, le pendenze delle aste inclinate e gli angoli delle forze inclinate (il documento le disegna come dice Strutture › Quote)
+structure	Kind	Tipo
+structure	Angle	Angolo
+structure	Length	Lunghezza
+structure	Slope	Inclinazione
+structure	Section	Sezione
+structure	Load	Carico
+structure	On	Su
+structure	direction	direzione
+structure	hinged	cerniera
+structure	A hinge at this end of the member	Una cerniera a questo estremo dell'asta
+structure	Select the load to edit it	Seleziona il carico per modificarlo
+structure	Structure	Struttura
+structure	Title	Titolo
+structure	Lengths	Lunghezze
+structure	Forces	Forze
+structure	Made of	Composizione
+structure	Tables	Tabelle
+structure	Select tool	Strumento Selezione
+structure	Add a force here	Aggiungi una forza qui
+structure	Add a couple here	Aggiungi una coppia qui
+structure	Draw a member from here	Disegna un'asta da qui
+structure	Select its loads	Seleziona i suoi carichi
+structure	Select the connected part	Seleziona la parte collegata
+structure	Delete	Elimina
+structure	Add a distributed load	Aggiungi un carico distribuito
+structure	Split here	Dividi qui
+structure	Split in half	Dividi a metà
+structure	Hinge at end {n}	Cerniera all'estremo {n}
+structure	Select its ends	Seleziona i suoi estremi
+structure	Reverse	Inverti il verso
+structure	Direction	Direzione
+structure	Vertical	Verticale
+structure	Horizontal	Orizzontale
+structure	At 45°	A 45°
+structure	Perpendicular to the member	Perpendicolare all'asta
+structure	Distributed load	Carico distribuito
+structure	Uniform	Uniforme
+structure	Triangular	Triangolare
+structure	On the whole member	Su tutta l'asta
+structure	Add a node here	Aggiungi un nodo qui
+structure	Select all	Seleziona tutto
+structure	Snap to the grid	Aggancia alla griglia
+structure	Deselect	Deseleziona
+structure	Join onto node {n}	Unisci al nodo {n}
+structure	At node {n}	Nel nodo {n}
+structure	Double-click	Doppio clic
+# Strix (2026-11-18): a new exercise on a structure (structure.exercise).
+	Structure Exercise	Esercizio su struttura
+	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nuovo esercizio su una struttura: la struttura nel testo, le reazioni e i diagrammi richiesti, lo svolgimento e i disegni nella risoluzione
+	For the structure in the figure, loaded as shown:	Per la struttura in figura, caricata come indicato:
+	Find the support reactions.	Calcola le reazioni vincolari.
+	Work out and draw the diagram of the axial force N.	Calcola e rappresenta il grafico dello sforzo normale N.
+	Work out and draw the diagram of the shear force {T}.	Calcola e rappresenta il grafico del taglio {T}.
+	Find the points where the shear force {T} is zero.	Individua i punti in cui il taglio {T} è nullo.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Calcola il momento massimo nei punti relativi ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Calcola e rappresenta il grafico del momento flettente M.
+	Find the axial force in every member and draw it.	Calcola lo sforzo normale in ogni asta e rappresentalo.
+	{T} changes sign under a concentrated load	{T} cambia segno sotto un carico concentrato
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} non si annulla né cambia segno: il momento massimo è a un estremo di un tratto.
+	The structure can't be solved: its working will be written again as soon as it can.	La struttura non è risolvibile: lo svolgimento verrà riscritto appena lo sarà.

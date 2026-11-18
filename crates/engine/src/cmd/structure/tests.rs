@@ -148,16 +148,16 @@ fn template_working(template: &str) -> String {
 fn the_working_solves_the_reactions_and_writes_the_laws() {
     let t = template_working("beam");
     assert!(!t.contains('⚠'), "{t}");
-    assert!(has(&t, "ΣM_A = 0:") && has(&t, "V_B·(6 m)") && has(&t, "V_B&=30 kN"), "{t}");
-    assert!(has(&t, "M_1(x)=(30 kN)·x-(5 kN/m)·x^2"), "{t}");
-    // Equations start with their zero: `0 kN·m = V_B·(6 m) - …`.
-    assert!(has(&t, "0 kN·m&=V_B·(6 m)"), "{t}");
+    assert!(has(&t, "ΣM_A = 0:") && has(&t, "V_B·6 m") && has(&t, "V_B&=30 kN"), "{t}");
+    assert!(has(&t, "M_1(x)=V_A·x-q_1·(x^2)/2"), "{t}");
+    // Equations start with their zero: `0 kN·m = V_B·6 m - …`.
+    assert!(has(&t, "0 kN·m&=V_B·6 m"), "{t}");
     assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
     // A frame: the roller's reaction from the rotation about the pin, exact fractions in the laws.
     let t = template_working("frame");
     assert!(!t.contains('⚠'), "{t}");
     assert!(has(&t, "V_D&=36.667 kN") && has(&t, "H_A&=-10 kN"), "{t}");
-    assert!(has(&t, "N_1(x)=(-70 kN)/3") && has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    assert!(has(&t, "N_1(x)=-V_A") && has(&t, "M_2(6 m)=0 kN·m"), "{t}");
     // A truss: each member's axial force.
     let t = template_working("truss");
     assert!(!t.contains('⚠'), "{t}");
@@ -179,7 +179,7 @@ fn the_working_uses_the_hinge_of_a_gerber_beam() {
     }))
     .unwrap();
     assert!(!t.contains('⚠'), "{t}");
-    assert!(has(&t, "ΣM_B = 0 (part about the hinge B, Member 2):") && has(&t, "V_C·(4 m)") && has(&t, "V_C&=5 kN"), "{t}");
+    assert!(has(&t, "ΣM_B = 0 (part about the hinge B, Member 2):") && has(&t, "V_C·4 m") && has(&t, "V_C&=5 kN"), "{t}");
     assert!(has(&t, "M_1(2 m)=0 kN·m") && has(&t, "M_1(0 m)=-18 kN·m"), "{t}");
 }
 
@@ -210,4 +210,169 @@ fn the_working_follows_the_document_decimal_comma() {
     s.run("structure.working", &json!({})).unwrap();
     let t = text_of(&s);
     assert!(!t.contains('⚠'), "{t}");
+}
+
+/// Each load is named, numbered by kind (`F_1`, `q_1`, a varying load's ends `q_(2,1)` and
+/// `q_(2,2)`, `C_1`): the working defines the names and its equations use them, and calc solves
+/// them to the same reactions.
+#[test]
+fn the_working_names_the_loads() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 10},
+            {"type": "force", "member": "1", "at": 3, "value": 0},
+            {"type": "force", "member": "1", "at": 2, "value": 12},
+            {"type": "distributed", "member": "1", "q1": 2, "q2": 5},
+            {"type": "distributed", "member": "1", "q1": 0, "q2": 4},
+            {"type": "moment", "node": "B", "value": 6}
+        ]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    // Defined with their sizes; the zero force is not numbered.
+    assert!(has(&t, "Loads:"), "{t}");
+    for d in ["q_1=(10 kN/m)", "F_1=(12 kN)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "C_1=(6 kN·m)"] {
+        assert!(has(&t, d), "{d}: {t}");
+    }
+    assert!(!has(&t, "F_2") && !has(&t, "q_(3,1)"), "{t}");
+    // The equations use the names: rectangle and triangle of the trapezoid, the triangle alone.
+    for term in ["q_1·6 m", "F_1·2 m", "q_(2,1)·6 m", "(q_(2,2)-q_(2,1))·6 m/2", "q_(3,2)·6 m/2", "+C_1"] {
+        assert!(has(&t, term), "{term}: {t}");
+    }
+    // ΣM_A: V_B·6 = 10·6·3 + 12·2 + 2·6·3 + 3·6/2·4 + 4·6/2·4 − 6 = 318.
+    assert!(has(&t, "V_B&=53 kN") && has(&t, "V_A&=52 kN"), "{t}");
+}
+
+/// Selects the `k`th structure of the body.
+fn select_structure(s: &mut Session, k: usize) {
+    use wordcraft_doc::para::OBJ;
+    use wordcraft_doc::{Path, Pos, StoryRef};
+    let mut found = Vec::new();
+    for (i, b) in s.doc.body.iter().enumerate() {
+        let Block::Para(p) = &**b else { continue };
+        for (off, o) in p.objects_with_offsets() {
+            if matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Structure) {
+                found.push((i, off));
+            }
+        }
+    }
+    let (i, off) = found[k];
+    let at = Pos::new(StoryRef::Body, Path(vec![i as u32]), off);
+    s.sel = crate::Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
+}
+
+/// The uniform load of the beam template from 0 to `to`.
+fn shortened(to: f64) -> serde_json::Value {
+    json!({"index": 0, "load": {"type": "distributed", "member": "1", "q1": 10, "to": to, "angle": -90}})
+}
+
+#[test]
+fn the_working_follows_the_structure() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "q_1·6 m·3 m") && has(&t, "V_B&=30 kN"), "{t}");
+    // The load shortened in the editor: the working is written again in its place, in its words.
+    s.run("structure.load", &shortened(4.0)).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{t}");
+    assert!(has(&t, "V_B&=13.333 kN"), "{t}");
+    assert_eq!(t.matches("Svolgimento").count(), 1, "{t}");
+    assert_eq!(t.matches("ΣM_A").count(), 1, "written once: {t}");
+    // The structure is still the one selected.
+    assert_eq!(s.run("structure.get", &json!({})).unwrap()["status"], "isostatic");
+    // One undo step brings the working back with the load.
+    s.undo();
+    let t = text_of(&s);
+    assert!(has(&t, "q_1·6 m·3 m") && !has(&t, "q_1·4 m·2 m"), "{t}");
+    // Writing it again rewrites it in place.
+    select_structure(&mut s, 0);
+    s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
+    assert_eq!(text_of(&s).matches("ΣM_A").count(), 1, "{}", text_of(&s));
+}
+
+#[test]
+fn a_working_waits_while_its_structure_cannot_be_solved() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({"labels": {"unsolved": "Non risolvibile."}})).unwrap();
+    s.run("structure.support", &json!({"node": "B", "remove": true})).unwrap();
+    let t = text_of(&s);
+    assert!(t.contains("Non risolvibile.") && !t.contains("ΣM_A"), "{t}");
+    s.run("structure.support", &json!({"node": "B", "kind": "roller"})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains("Non risolvibile.") && has(&t, "V_B&=30 kN"), "{t}");
+}
+
+#[test]
+fn an_exercise_working_follows_any_of_its_drawings() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
+    assert!(has(&text_of(&s), "q_1·6 m·3 m"));
+    // The diagram of M in the solution, changed: the statement and every part follow.
+    select_structure(&mut s, 4);
+    s.run("structure.load", &shortened(4.0)).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{t}");
+    assert_eq!(t.matches("Carichi").count(), 1, "{t}");
+    assert_eq!(s.run("structure.get", &json!({})).unwrap()["structure"]["view"], "moment");
+}
+
+#[test]
+fn a_saved_working_still_follows_its_structure() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
+    for name in ["t.docx", "t.xmath"] {
+        let bytes = crate::io::save_bytes(name, &s.doc).unwrap();
+        let mut s2 = Session::new(crate::io::open_bytes(name, &bytes).unwrap());
+        s2.run("calc.recalculate", &json!({})).unwrap();
+        select_structure(&mut s2, 0);
+        s2.run("structure.load", &shortened(4.0)).unwrap();
+        let t = text_of(&s2);
+        assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{name}: {t}");
+        assert_eq!(t.matches("Svolgimento").count(), 1, "{name}: {t}");
+    }
+}
+
+/// The laws are written with the reactions' and the loads' names, from the part before the
+/// section, and calc works out their values from them; a member in a closed ring keeps its
+/// numbers.
+#[test]
+fn the_laws_use_the_names_of_the_reactions_and_the_loads() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 10, "to": 4}, {"type": "force", "member": "1", "at": 5, "value": 20}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    for law in [
+        "T_1a(x)=V_A-q_1·x",
+        "M_1a(x)=V_A·x-q_1·(x^2)/2",
+        "T_1b(x)=V_A-q_1·4 m",
+        "M_1b(x)=V_A·x-q_1·4 m·(x-2 m)",
+        "T_1c(x)=V_A-q_1·4 m-F_1",
+        "M_1c(x)=V_A·x-q_1·4 m·(x-2 m)-F_1·(x-5 m)",
+    ] {
+        assert!(has(&t, law), "{law}: {t}");
+    }
+    assert!(has(&t, "T_1a(4 m)=-10 kN") && has(&t, "M_1c(5 m)=30 kN·m"), "{t}");
+    // A cantilever: the fixed end's couple.
+    let t = template_working("cantilever");
+    assert!(has(&t, "M_1(x)=V_A·x-M_A") && has(&t, "M_1(0 m)=-30 kN·m"), "{t}");
+    // A closed frame: no part lies before a section alone, the numbers stay.
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 3}, {"id": "C", "x": 4, "y": 3}, {"id": "D", "x": 4, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}, {"id": "4", "a": "D", "b": "A"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "D", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "2", "q1": 10}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠') && has(&t, "M_2(x)=") && !has(&t, "M_2(x)=V_"), "{t}");
 }

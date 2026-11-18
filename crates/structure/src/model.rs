@@ -482,6 +482,32 @@ impl Default for Titles {
     }
 }
 
+/// Which panels a drawing shows: an exercise draws the structure in its statement and the
+/// reactions and the diagrams in its solution, each a drawing of the same structure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum View {
+    /// The structure, its reactions and its diagrams.
+    #[default]
+    All,
+    /// The structure with its loads (and dimensions) only.
+    Structure,
+    /// The reactions only.
+    Reactions,
+    /// The N, V (T), M diagrams (a truss's axial forces) only.
+    Diagrams,
+    /// The N diagram (a truss's axial forces) only: an exercise's question on N.
+    Axial,
+    /// The V (T) diagram only (none for a truss).
+    Shear,
+    /// The M diagram only (none for a truss).
+    Moment,
+}
+
+fn is_all(v: &View) -> bool {
+    *v == View::All
+}
+
 /// How the panels are laid out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -502,6 +528,9 @@ fn is_auto(l: &Layout) -> bool {
 fn default_width() -> f64 {
     160.0
 }
+
+/// At most this many working labels are kept.
+const MAX_WORKING_LABELS: usize = 32;
 
 /// A plane structure: beams, frames and trusses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -527,6 +556,13 @@ pub struct Structure {
     pub titles: Titles,
     #[serde(default, skip_serializing_if = "is_auto")]
     pub layout: Layout,
+    /// The panels drawn.
+    #[serde(default, skip_serializing_if = "is_all")]
+    pub view: View,
+    /// Drawings of one structure (an exercise's statement and solution) share this name: a change
+    /// to one is made to the others, each keeping its own view.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
     /// The drawing's width on paper (mm).
     #[serde(default = "default_width")]
     pub width: f64,
@@ -534,6 +570,10 @@ pub struct Structure {
     /// structure stay, so both copies have the same size).
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub answer: bool,
+    /// The words of its written working (`structure.working`'s labels, in the language it was
+    /// written in), kept so the working is written again in them when the structure changes.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub working_labels: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for Structure {
@@ -549,8 +589,11 @@ impl Default for Structure {
             diagrams: Diagrams::default(),
             titles: Titles::default(),
             layout: Layout::default(),
+            view: View::default(),
+            group: String::new(),
             width: default_width(),
             answer: true,
+            working_labels: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -638,6 +681,12 @@ impl Structure {
     /// Caps counts, cleans names, clamps numbers.
     pub fn sanitized(mut self) -> Structure {
         self.title = self.title.chars().filter(|c| !c.is_control()).take(120).collect();
+        self.group = self.group.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
+        self.working_labels = std::mem::take(&mut self.working_labels)
+            .into_iter()
+            .take(MAX_WORKING_LABELS)
+            .map(|(k, v)| (k.chars().take(40).collect(), v.chars().filter(|c| !c.is_control()).take(400).collect()))
+            .collect();
         for t in [&mut self.titles.n, &mut self.titles.v, &mut self.titles.m] {
             *t = t.chars().filter(|c| !c.is_control()).take(12).collect();
         }

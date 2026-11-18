@@ -185,6 +185,7 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
                     name.push(c);
                     i += 1;
                 }
+                i = subscript_list(&chars, i, &mut name);
                 i = crate::calculus::primes(&chars, i, &mut name);
                 out.push(Token { tok: Tok::Ident(name), pos, byte });
                 continue;
@@ -316,6 +317,30 @@ fn ends_operand(last: Option<&Token>) -> bool {
 }
 
 /// Reads a number starting at character `start`; returns the token and the index after it.
+/// A subscript listing several indices, `_(1,2)` (a trapezoidal load's ends `q_(1,1)`,
+/// `q_(1,2)`), belongs to the name it follows: `name` ends with `_`, `start` is at `(`. Only
+/// letters and digits separated by single commas, so `y_(i+1)` (a table's row) stays as it was.
+fn subscript_list(chars: &[(usize, char)], start: usize, name: &mut String) -> usize {
+    let ch = |i: usize| chars.get(i).map(|&(_, c)| c);
+    if !name.ends_with('_') || ch(start) != Some('(') {
+        return start;
+    }
+    let mut inner = String::new();
+    let mut j = start.saturating_add(1);
+    while let Some(c) = ch(j).filter(|&c| c.is_alphanumeric() || c == ',') {
+        inner.push(c);
+        j += 1;
+    }
+    let good = ch(j) == Some(')') && inner.contains(',') && inner.len() <= 16 && inner.split(',').all(|part| !part.is_empty());
+    if !good {
+        return start;
+    }
+    name.push('(');
+    name.push_str(&inner);
+    name.push(')');
+    j.saturating_add(1)
+}
+
 fn number(chars: &[(usize, char)], start: usize, decimal_comma: bool) -> Result<(Tok, usize), CalcError> {
     let ch = |i: usize| chars.get(i).map(|&(_, c)| c);
     let is_digit = |i: usize| ch(i).is_some_and(|c| c.is_ascii_digit());

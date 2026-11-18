@@ -7,7 +7,7 @@ use strix_calc::{Options, Worksheet, format_number};
 use strix_plot::{PlotAnchor, PlotPrim, PlotRendered};
 
 use crate::diagram::{Action, NotableKind, notables};
-use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind};
+use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind, View};
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
 mod annotate;
@@ -17,7 +17,6 @@ type Rgb = [u8; 3];
 
 const BLACK: Rgb = [0x1F, 0x1F, 0x1F];
 const GREY: Rgb = [0x9A, 0x9A, 0x9A];
-const LIGHT: Rgb = [0xD5, 0xD5, 0xD5];
 const LOAD: Rgb = [0xB0, 0x3A, 0x2E];
 const REACTION: Rgb = [0x1B, 0x4F, 0x72];
 const ERROR: Rgb = [0xC0, 0x1C, 0x1C];
@@ -33,6 +32,12 @@ const AXIS_W: f64 = 0.35;
 const TEXT: f64 = 2.3;
 const ARROW: f64 = 11.0;
 const SPREAD: f64 = 8.0;
+/// The room between a text and the line it names (paper mm).
+const GAP: f64 = 1.0;
+/// The room kept round the drawing, between panels and under a panel's title (paper mm).
+const MARGIN: f64 = 1.0;
+const PANEL_GAP: f64 = 5.0;
+const TITLE_ROW: f64 = 6.0;
 
 /// A rendered structure: its drawing and its analysis.
 #[derive(Debug, Clone, PartialEq)]
@@ -121,11 +126,11 @@ impl Pen {
     /// Text beside `at` on the side `dir` (a paper direction) points to.
     fn beside(&mut self, at: P, dir: P, text: String, c: Rgb) {
         let (anchor, pos) = if dir.0.abs() >= 0.6 {
-            if dir.0 > 0.0 { (PlotAnchor::Left, (at.0 + 0.5, at.1 + TEXT * 0.5)) } else { (PlotAnchor::Right, (at.0 - 0.5, at.1 + TEXT * 0.5)) }
+            if dir.0 > 0.0 { (PlotAnchor::Left, (at.0 + GAP, at.1 + TEXT * 0.4)) } else { (PlotAnchor::Right, (at.0 - GAP, at.1 + TEXT * 0.4)) }
         } else if dir.1 > 0.0 {
-            (PlotAnchor::Center, (at.0, at.1 + TEXT + 0.3))
+            (PlotAnchor::Center, (at.0, at.1 + TEXT * 0.85 + GAP))
         } else {
-            (PlotAnchor::Center, (at.0, at.1 - 0.5))
+            (PlotAnchor::Center, (at.0, at.1 - GAP))
         };
         self.prims.push(PlotPrim::Text { at: pos, text, height: TEXT, bold: false, anchor, color: c });
     }
@@ -383,7 +388,13 @@ impl Ctx<'_> {
                 _ => None,
             })
             .fold(0.0_f64, f64::max);
-        for l in &st.loads {
+        let names = crate::names::load_names(st);
+        // `F₁ = 20 kN`: the load's name before its value.
+        let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {
+            Some(n) => format!("{} = {value}", n.pretty_end(end)),
+            None => value,
+        };
+        for (k, l) in st.loads.iter().enumerate() {
             match l {
                 Load::Force { node, member, at, value, angle } => {
                     let Some(p) = self.point_of(f, node.as_deref(), member.as_deref(), at.value) else { continue };
@@ -395,7 +406,7 @@ impl Ctx<'_> {
                     let tip = add(p, mul(d, -0.5));
                     let tail = add(p, mul(d, -ARROW));
                     self.pen.arrow(tail, tip, LOAD, 0.35);
-                    let label = self.force(value.value.abs());
+                    let label = named(k, 1, self.force(value.value.abs()));
                     self.pen.beside(add(tail, mul(d, -0.8)), mul(d, -1.0), label, LOAD);
                 }
                 Load::Moment { node, member, at, value } => {
@@ -404,7 +415,7 @@ impl Ctx<'_> {
                         continue;
                     }
                     self.pen.couple(p, 4.0, value.value > 0.0, LOAD, 0.35);
-                    let label = self.moment(value.value.abs());
+                    let label = named(k, 1, self.moment(value.value.abs()));
                     self.pen.label(add(p, (5.5, -5.5)), label, LOAD);
                 }
                 Load::Distributed { member, q1, q2, from, to, angle, axes, .. } => {
@@ -448,12 +459,12 @@ impl Ctx<'_> {
                     let out = mul(gp, -1.0);
                     if (q1 - q2).abs() <= 1e-12 * q1.abs().max(q2.abs()) {
                         let mid = tails.get(tails.len() / 2).copied().unwrap_or(first);
-                        let label = self.spread(q1.abs());
+                        let label = named(k, 1, self.spread(q1.abs()));
                         self.pen.beside(add(mid, mul(out, 0.8)), out, label, LOAD);
                     } else {
-                        for (q, at) in [(q1, first), (q2, last)] {
+                        for (end, q, at) in [(1, q1, first), (2, q2, last)] {
                             if q != 0.0 {
-                                let label = self.spread(q.abs());
+                                let label = named(k, end, self.spread(q.abs()));
                                 self.pen.beside(add(at, mul(out, 0.8)), out, label, LOAD);
                             }
                         }
@@ -530,6 +541,30 @@ impl Ctx<'_> {
         let samples: Vec<Vec<Vec<(f64, f64)>>> = an.members.iter().map(|m| sample(m, action)).collect();
         let vmax = samples.iter().flatten().flatten().map(|(_, v)| v.abs()).fold(0.0_f64, f64::max);
         let side = if d.positive == Side::Up { 1.0 } else { -1.0 };
+        // The curves are obstacles: no value or station is written over them.
+        for (m, segs) in an.members.iter().zip(samples.iter()) {
+            let dir = m.dir();
+            let normal = pd((-dir.1, dir.0));
+            for seg in segs {
+                let pts: Vec<P> = seg
+                    .iter()
+                    .map(|&(x, v)| {
+                        let o = if vmax > 0.0 { side * v / vmax * d.amplitude } else { 0.0 };
+                        add(f.p(m.a.0 + dir.0 * x, m.a.1 + dir.1 * x), mul(normal, o))
+                    })
+                    .collect();
+                // Every 0.8 mm along it, so a narrow text can't slip between two samples.
+                for w in pts.windows(2) {
+                    let (a, b) = (w[0], w[1]);
+                    let n = ((b.0 - a.0).hypot(b.1 - a.1) / 0.8).ceil().clamp(1.0, 200.0) as usize;
+                    for k in 0..=n {
+                        let t = k as f64 / n as f64;
+                        let c = (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t);
+                        self.placed.push([c.0 - 0.4, c.1 - 0.4, c.0 + 0.4, c.1 + 0.4]);
+                    }
+                }
+            }
+        }
         // Each value with the places it may go, best first.
         let mut labels: Vec<(Vec<Place>, String, P)> = Vec::new();
         for (m, segs) in an.members.iter().zip(samples.iter()) {
@@ -580,18 +615,18 @@ impl Ctx<'_> {
                     };
                     let point = |x: f64, gap: f64| add(curve(x, interp_member(segs, x).unwrap_or(n.value)), mul(out, gap));
                     let text = self.num(n.value);
-                    let at = point(x, 1.2);
+                    let at = point(x, GAP + 0.4);
                     // One label per place: a value shared by two members at a node, once.
                     if labels.iter().any(|(_, t, a)| *t == text && (a.0 - at.0).hypot(a.1 - at.1) < 8.0) {
                         continue;
                     }
                     let places = if constant {
                         // A stretch of constant value: written level, at its middle or sliding along it.
-                        let mut places = vec![Place::Beside(at, out), Place::Beside(point(x, 3.6), out)];
+                        let mut places = vec![Place::Beside(at, out), Place::Beside(point(x, 3.8), out)];
                         if let Some(seg) = segs.iter().find(|s| s.first().is_some_and(|p| p.0 < x) && s.last().is_some_and(|p| p.0 > x)) {
                             let (Some(&(x0, _)), Some(&(x1, _))) = (seg.first(), seg.last()) else { continue };
                             for t in [0.3, 0.7, 0.15, 0.85] {
-                                places.push(Place::Beside(point(x0 + (x1 - x0) * t, 0.8), out));
+                                places.push(Place::Beside(point(x0 + (x1 - x0) * t, GAP + 0.4), out));
                             }
                         }
                         places
@@ -599,7 +634,14 @@ impl Ctx<'_> {
                         // A value at a point: written across the axis, standing on the curve there.
                         let half = text.chars().count() as f64 * TEXT * 0.55 / 2.0;
                         let angle = annotate::reading_angle(out);
-                        vec![Place::Turned(point(x, 1.0 + half), angle), Place::Turned(point(x, 3.5 + half), angle)]
+                        // Then a little along the axis, either way (clear of an ordinate there).
+                        let step = TEXT * 0.7 / f.k;
+                        let mut places: Vec<Place> = [1.6, 4.0].iter().map(|g| Place::Turned(point(x, g + half), angle)).collect();
+                        for dx in [step, -step, 2.0 * step, -2.0 * step] {
+                            let xs = (x + dx).clamp(0.0, m.length);
+                            places.push(Place::Turned(point(xs, 1.6 + half), angle));
+                        }
+                        places
                     };
                     labels.push((places, text, at));
                 }
@@ -607,8 +649,7 @@ impl Ctx<'_> {
         }
         for (places, text, _) in labels {
             let boxes: Vec<[f64; 4]> = places.iter().map(|p| p.bounds(&text)).collect();
-            let free = boxes.iter().position(|b| !self.placed.iter().any(|o| overlaps(b, o)));
-            let k = free.unwrap_or(0);
+            let k = self.clearest(&boxes);
             if let (Some(place), Some(b)) = (places.get(k), boxes.get(k)) {
                 self.placed.push(*b);
                 match *place {
@@ -666,8 +707,15 @@ impl Ctx<'_> {
                 },
             );
             let angle = annotate::reading_angle(away);
-            let at = add(base, mul(away, 1.4 + half));
-            self.placed.push(annotate::turned_box(at, &text, height, angle));
+            // Across the axis on the tick, else beside it either way: clear of the curve.
+            let along = (away.1, -away.0);
+            let side_step = height * 0.75 + 0.3;
+            let centre = add(base, mul(away, GAP + 0.6 + half));
+            let places = [centre, add(centre, mul(along, side_step)), add(centre, mul(along, -side_step))];
+            let boxes: Vec<[f64; 4]> = places.iter().map(|p| annotate::turned_box(*p, &text, height, angle)).collect();
+            let k = self.clearest(&boxes);
+            let (Some(&at), Some(&b)) = (places.get(k), boxes.get(k)) else { continue };
+            self.placed.push(b);
             self.pen.turned(at, text, height, angle, GREY);
             last = Some(base);
         }
@@ -702,6 +750,7 @@ impl Ctx<'_> {
                     let o = ord(v);
                     let at = if o.abs() >= 4.0 { add(axis(x), mul(normal, o * 0.5)) } else { add(curve(x, v), mul(normal, o.signum() * 2.6)) };
                     self.pen.dot(at, 1.25, [255, 255, 255], Some((color, 0.25)));
+                    self.placed.push([at.0 - 1.5, at.1 - 1.5, at.0 + 1.5, at.1 + 1.5]);
                     self.pen.line(add(at, (-0.75, 0.0)), add(at, (0.75, 0.0)), color, 0.25);
                     if v > 0.0 {
                         self.pen.line(add(at, (0.0, -0.75)), add(at, (0.0, 0.75)), color, 0.25);
@@ -711,6 +760,21 @@ impl Ctx<'_> {
             }
             k_i += 1;
         }
+    }
+
+    /// The first of `boxes` clear of what is written, else the one over the fewest things.
+    fn clearest(&self, boxes: &[[f64; 4]]) -> usize {
+        let mut best = (usize::MAX, 0);
+        for (k, b) in boxes.iter().enumerate() {
+            let hits = self.placed.iter().filter(|o| overlaps(b, o)).count();
+            if hits == 0 {
+                return k;
+            }
+            if hits < best.0 {
+                best = (hits, k);
+            }
+        }
+        best.1
     }
 
     /// Truss: every member in its colour with its axial force.
@@ -832,7 +896,8 @@ fn interp(seg: &[(f64, f64)], x: f64) -> f64 {
 }
 
 impl Structure {
-    /// The structure alone — members, hinges, supports, loads and node names — for an editor:
+    /// The structure alone — members, hinges, supports, loads, node names and, when
+    /// [`dimensions`](crate::Diagrams::dimensions) is on, its dimensions, slopes and angles — for an editor:
     /// `k` paper mm per unit, the world point `origin` at paper (0, 0), y down. Its numbers as
     /// they are (resolve them first).
     pub fn schema_prims(&self, k: f64, origin: (f64, f64), opts: Options) -> Vec<PlotPrim> {
@@ -845,6 +910,7 @@ impl Structure {
         cx.loads(&f);
         cx.force_angles(&f);
         cx.slopes(&f);
+        cx.dimensions(&f);
         cx.node_names(&f);
         cx.pen.prims
     }
@@ -882,98 +948,175 @@ impl Structure {
         let (xmin, xmax) = used.iter().fold((f64::MAX, f64::MIN), |(a, b), p| (a.min(p.0), b.max(p.0)));
         let (ymin, ymax) = used.iter().fold((f64::MAX, f64::MIN), |(a, b), p| (a.min(p.1), b.max(p.1)));
         let (bw, bh) = (xmax - xmin, ymax - ymin);
-        let d = st.diagrams;
-
-        // The panels, top to bottom: (what, room above the structure, below it).
-        let solved = an.status.is_solved();
-        let mut panels = plan(&st, &an);
+        let panels = plan(&st, &an);
         // Two columns for a frame (a tall structure), one for a beam.
         let grid = match st.layout {
             Layout::Column => false,
             Layout::Grid => true,
             Layout::Auto => bh > 0.25 * bw && panels.len() > 2,
         };
-        let cols = if grid { 2.0 } else { 1.0 };
-        let cell = width / cols;
-        let amp = [d.n, d.v, d.m].iter().filter(|x| x.show).map(|x| x.amplitude).fold(0.0_f64, f64::max);
-        // A grid's cells keep room at the left for the reactions' arrows and their values, and at
-        // the right for the chain of heights when there is one.
-        let (side, side_r) = if grid {
-            (22.0, if annotate::has_y_chain(&st) { 14.0 + annotate::Y_CHAIN_ROOM } else { 14.0 })
-        } else {
-            ((8.0 + amp).max(16.0), (8.0 + amp).max(16.0))
-        };
-        let usable = (cell - side - side_r).max(10.0);
-        let mut k = if bw > 0.0 { usable / bw } else { f64::MAX };
+        let cols: usize = if grid { 2 } else { 1 };
+        let cell = width / cols as f64;
+        let avail = (cell - 2.0 * MARGIN).max(10.0);
+        // The scale: the structure as wide as the cell leaves once its texts and arrows are in,
+        // found by drawing it and narrowing it until everything is inside (a few rounds at most).
+        let mut k = if bw > 0.0 { (avail - 30.0).max(10.0) / bw } else { f64::MAX };
         if bh > 0.0 {
             k = k.min(if grid { 60.0 } else { 70.0 } / bh);
         }
         if !k.is_finite() || k == f64::MAX {
             k = 10.0;
         }
-        let sh = bh * k;
-        // A frame's diagrams in proportion to it: at most a fifth of its size on paper.
-        let amp_cap = if bh > 0.0 { 0.2 * (bw * k).max(sh) } else { f64::MAX };
-        for (panel, above, below) in &mut panels {
-            if let Panel::Diagram(action) = panel {
-                let dg = match action {
-                    Action::Axial => d.n,
-                    Action::Shear => d.v,
-                    Action::Moment => d.m,
-                };
-                let pad = (dg.amplitude.min(amp_cap) + 9.0).max(12.0);
-                (*above, *below) = (pad, pad);
+        let mut cx = Ctx { st: &st, an: &an, opts, pen: Pen::default(), amp_cap: f64::MAX, placed: Vec::new() };
+        let mut drawn = Vec::new();
+        for _ in 0..6 {
+            drawn = cx.draw_panels(&panels, k, (xmin, ymax, bw, bh), true);
+            let over = (0..cols).map(|c| column_box(&drawn, c, cols).map_or(0.0, |b| b[2] - b[0] - avail)).fold(0.0_f64, f64::max);
+            let sw = bw * k;
+            if over <= 0.05 || bw <= 0.0 || sw <= 10.0 {
+                break;
             }
+            k = (sw - over - 0.3).max(10.0) / bw;
         }
+        // The columns, each centred in its cell.
+        let shifts: Vec<f64> =
+            (0..cols).map(|c| column_box(&drawn, c, cols).map_or(0.0, |b| cell * c as f64 + (cell - (b[2] - b[0])) / 2.0 - b[0])).collect();
+        // The student's copy: drawn without the answers, laid out as the teacher's.
+        let student = if show { None } else { Some(cx.draw_panels(&panels, k, (xmin, ymax, bw, bh), false)) };
 
-        let mut cx = Ctx { st: &st, an: &an, opts, pen, amp_cap, placed: Vec::new() };
-        let mut y = 2.0;
+        let mut pen = Pen::default();
+        let mut y = MARGIN;
         if !st.title.is_empty() {
-            cx.pen.text((width / 2.0, y + 4.0), st.title.clone(), 3.5, true, PlotAnchor::Center, BLACK);
+            pen.text((width / 2.0, y + 3.5), st.title.clone(), 3.5, true, PlotAnchor::Center, BLACK);
             y += 7.0;
         }
-        let rows: Vec<&[(Panel, f64, f64)]> = if grid { panels.chunks(2).collect() } else { panels.chunks(1).collect() };
-        for (r, row) in rows.iter().enumerate() {
-            let above = row.iter().map(|p| p.1).fold(0.0_f64, f64::max);
-            let below = row.iter().map(|p| p.2).fold(0.0_f64, f64::max);
-            if r > 0 {
-                cx.pen.line((2.0, y), (width - 2.0, y), LIGHT, 0.2);
+        let mut first = true;
+        for (r, row) in drawn.chunks(cols).enumerate() {
+            if !first {
+                y += PANEL_GAP;
             }
-            if grid && row.len() == 2 {
-                cx.pen.line((cell, y + 2.0), (cell, y + above + sh + below - 2.0), LIGHT, 0.2);
+            first = false;
+            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some());
+            let top = y + if titled { TITLE_ROW } else { 0.0 };
+            let height = row.iter().filter_map(|(_, _, b)| b.map(|b| b[3] - b[1])).fold(0.0_f64, f64::max);
+            for (c, (panel, prims, bbox)) in row.iter().enumerate() {
+                let i = r * cols + c;
+                if let Some((text, color)) = cx.panel_title(*panel) {
+                    pen.text((cell * c as f64 + 2.0, y + 4.0), text, 3.0, true, PlotAnchor::Left, color);
+                }
+                let Some(b) = bbox else { continue };
+                let prims = student.as_ref().and_then(|s| s.get(i)).map_or(prims, |s| &s.1);
+                let (dx, dy) = (shifts.get(c).copied().unwrap_or(0.0), top - b[1]);
+                pen.prims.extend(prims.iter().cloned().map(|p| moved(p, dx, dy)));
             }
-            for (c, (panel, _, _)) in row.iter().enumerate() {
-                let left = cell * c as f64;
-                let f = Frame { x0: left + side + (usable - bw * k) / 2.0, top: y + above, xmin, ymax, k };
-                cx.panel(*panel, &f, (left, y), show);
-            }
-            y += above + sh + below;
+            y = top + height;
         }
-        if !solved {
+        let solved = an.status.is_solved();
+        if !solved && st.view != View::Structure {
             let msg = match &an.status {
                 Status::Empty => String::new(),
                 other => other.describe(),
             };
             if !msg.is_empty() {
-                cx.pen.text((width / 2.0, y + 4.0), msg, 3.0, true, PlotAnchor::Center, ERROR);
-                y += 8.0;
+                pen.text((width / 2.0, y + 5.0), msg, 3.0, true, PlotAnchor::Center, ERROR);
+                y += 7.0;
             }
         }
-        let height = y + 2.0;
-        let plot =
-            PlotRendered { size: (width, height), viewport: [0.0, 0.0, width, height], prims: cx.pen.prims, errors, ..PlotRendered::default() };
+        let height = y + MARGIN;
+        let plot = PlotRendered { size: (width, height), viewport: [0.0, 0.0, width, height], prims: pen.prims, errors, ..PlotRendered::default() };
         StructureRendered { plot, analysis: an, resolved: st }
     }
 }
 
+/// A drawn panel: what it is, its primitives (the structure's left at x 0, its top at y 0) and
+/// their box.
+type Drawn = (Panel, Vec<PlotPrim>, Option<[f64; 4]>);
+
+/// The box round the panels of column `c` (of `cols`).
+fn column_box(drawn: &[Drawn], c: usize, cols: usize) -> Option<[f64; 4]> {
+    drawn.iter().enumerate().filter(|(i, _)| i % cols == c).filter_map(|(_, d)| d.2).reduce(union)
+}
+
+fn union(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
+    [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])]
+}
+
+/// The box round what a primitive draws (texts estimated: glyphs ~0.55 of the height wide).
+fn prim_box(p: &PlotPrim) -> Option<[f64; 4]> {
+    let b = match p {
+        PlotPrim::Rect { rect, .. } => [rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]],
+        PlotPrim::Path { pts, stroke, .. } => {
+            let w = stroke.map_or(0.0, |s| s.1 / 2.0);
+            let b = pts.iter().fold([f64::MAX, f64::MAX, f64::MIN, f64::MIN], |b, p| [b[0].min(p.0), b[1].min(p.1), b[2].max(p.0), b[3].max(p.1)]);
+            [b[0] - w, b[1] - w, b[2] + w, b[3] + w]
+        }
+        PlotPrim::Dot { at, r, .. } => [at.0 - r, at.1 - r, at.0 + r, at.1 + r],
+        PlotPrim::Text { at, text, height, bold, anchor, .. } => {
+            let w = text.chars().count() as f64 * height * if *bold { 0.6 } else { 0.55 };
+            let (x0, y0) = match anchor {
+                PlotAnchor::Left => (at.0, at.1 - height * 0.85),
+                PlotAnchor::Center => (at.0 - w / 2.0, at.1 - height * 0.85),
+                PlotAnchor::Right => (at.0 - w, at.1 - height * 0.85),
+                PlotAnchor::TopCenter => (at.0 - w / 2.0, at.1),
+                PlotAnchor::MiddleRight => (at.0 - w, at.1 - height * 0.55),
+            };
+            [x0, y0, x0 + w, y0 + height * 1.1]
+        }
+        PlotPrim::TextAt { at, text, height, angle, .. } => annotate::turned_box(*at, text, *height, *angle),
+    };
+    b.iter().all(|v| v.is_finite()).then_some(b)
+}
+
+/// A primitive moved by `(dx, dy)`.
+fn moved(p: PlotPrim, dx: f64, dy: f64) -> PlotPrim {
+    let m = |q: (f64, f64)| (q.0 + dx, q.1 + dy);
+    match p {
+        PlotPrim::Rect { rect, fill, stroke } => PlotPrim::Rect { rect: [rect[0] + dx, rect[1] + dy, rect[2], rect[3]], fill, stroke },
+        PlotPrim::Path { pts, closed, stroke, fill, dash } => PlotPrim::Path { pts: pts.into_iter().map(m).collect(), closed, stroke, fill, dash },
+        PlotPrim::Dot { at, r, fill, stroke } => PlotPrim::Dot { at: m(at), r, fill, stroke },
+        PlotPrim::Text { at, text, height, bold, anchor, color } => PlotPrim::Text { at: m(at), text, height, bold, anchor, color },
+        PlotPrim::TextAt { at, text, height, angle, color } => PlotPrim::TextAt { at: m(at), text, height, angle, color },
+    }
+}
+
 impl Ctx<'_> {
-    /// Draws one panel in frame `f`, its title at `corner` (its top left).
-    fn panel(&mut self, panel: Panel, f: &Frame, corner: P, show: bool) {
+    /// Every panel drawn at scale `k` (the structure's `(xmin, ymax, width, height)` in world
+    /// units), each on its own, with its box.
+    fn draw_panels(&mut self, panels: &[Panel], k: f64, (xmin, ymax, bw, bh): (f64, f64, f64, f64), show: bool) -> Vec<Drawn> {
+        let sh = bh * k;
+        // A frame's diagrams in proportion to it: at most a fifth of its size on paper.
+        self.amp_cap = if bh > 0.0 { 0.2 * (bw * k).max(sh) } else { f64::MAX };
+        let f = Frame { x0: 0.0, top: 0.0, xmin, ymax, k };
+        panels
+            .iter()
+            .map(|&panel| {
+                self.pen = Pen::default();
+                self.placed.clear();
+                self.panel(panel, &f, show);
+                let prims = std::mem::take(&mut self.pen.prims);
+                let bbox = prims.iter().filter_map(prim_box).reduce(union);
+                (panel, prims, bbox)
+            })
+            .collect()
+    }
+
+    /// A panel's title and its colour (the diagrams' panels have one).
+    fn panel_title(&self, panel: Panel) -> Option<(String, Rgb)> {
         let st = self.st;
-        let d = st.diagrams;
         let fu = st.force_unit.symbol();
         let lu = st.length_unit.symbol();
-        let title = |pen: &mut Pen, text: String, color: Rgb| pen.text((corner.0 + 3.0, corner.1 + 4.5), text, 3.0, true, PlotAnchor::Left, color);
+        match panel {
+            Panel::Schema | Panel::Reactions => None,
+            Panel::Truss => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
+            Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
+            Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", st.titles.v), COLOR_V)),
+            Panel::Diagram(Action::Moment) => Some((format!("{} [{fu}·{lu}]", st.titles.m), COLOR_M)),
+        }
+    }
+
+    /// Draws one panel in frame `f`.
+    fn panel(&mut self, panel: Panel, f: &Frame, show: bool) {
+        let d = self.st.diagrams;
         match panel {
             Panel::Schema => {
                 self.members(f, BLACK, MEMBER_W, true);
@@ -992,7 +1135,6 @@ impl Ctx<'_> {
                 }
             }
             Panel::Truss => {
-                title(&mut self.pen, format!("{} [{fu}]", st.titles.n), COLOR_N);
                 if show {
                     self.truss(f);
                 } else {
@@ -1000,12 +1142,11 @@ impl Ctx<'_> {
                 }
             }
             Panel::Diagram(action) => {
-                let (dg, color, name, unit) = match action {
-                    Action::Axial => (d.n, COLOR_N, st.titles.n.clone(), fu.to_string()),
-                    Action::Shear => (d.v, COLOR_V, st.titles.v.clone(), fu.to_string()),
-                    Action::Moment => (d.m, COLOR_M, st.titles.m.clone(), format!("{fu}·{lu}")),
+                let (dg, color) = match action {
+                    Action::Axial => (d.n, COLOR_N),
+                    Action::Shear => (d.v, COLOR_V),
+                    Action::Moment => (d.m, COLOR_M),
                 };
-                title(&mut self.pen, format!("{name} [{unit}]"), color);
                 self.members(f, GREY, AXIS_W, false);
                 if show {
                     let dg = Diagram { amplitude: dg.amplitude.min(self.amp_cap), ..dg };
@@ -1016,29 +1157,39 @@ impl Ctx<'_> {
     }
 }
 
-/// The panels, top to bottom: (what, room above the structure, below it).
-fn plan(st: &Structure, an: &Analysis) -> Vec<(Panel, f64, f64)> {
+/// The panels the structure's view shows, top to bottom.
+fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
     let d = st.diagrams;
-    let dim_rows = annotate::dimension_room(st);
-    let schema_below = if dim_rows > 0 { annotate::DIM_BELOW + annotate::DIM_STEP * (dim_rows - 1) as f64 + 5.0 } else { 14.0 };
-    let mut panels: Vec<(Panel, f64, f64)> = vec![(Panel::Schema, 16.0, schema_below)];
-    if !an.status.is_solved() {
+    let mut panels = Vec::new();
+    if matches!(st.view, View::All | View::Structure) {
+        panels.push(Panel::Schema);
+    }
+    if !an.status.is_solved() || st.view == View::Structure {
         return panels;
     }
-    if d.reactions {
-        panels.push((Panel::Reactions, 16.0, 22.0));
+    if (d.reactions && st.view == View::All) || st.view == View::Reactions {
+        panels.push(Panel::Reactions);
     }
-    if an.truss {
-        if d.n.show {
-            panels.push((Panel::Truss, 12.0, 8.0));
-        }
-    } else {
-        for (action, dg) in [(Action::Axial, d.n), (Action::Shear, d.v), (Action::Moment, d.m)] {
-            if dg.show {
-                let pad = (dg.amplitude + 6.0).max(9.0);
-                panels.push((Panel::Diagram(action), pad, pad));
+    if matches!(st.view, View::All | View::Diagrams) {
+        if an.truss {
+            if d.n.show {
+                panels.push(Panel::Truss);
+            }
+        } else {
+            for (action, dg) in [(Action::Axial, d.n), (Action::Shear, d.v), (Action::Moment, d.m)] {
+                if dg.show {
+                    panels.push(Panel::Diagram(action));
+                }
             }
         }
+    }
+    // One diagram alone, whatever its flag: the drawing asked for it.
+    match (st.view, an.truss) {
+        (View::Axial, true) => panels.push(Panel::Truss),
+        (View::Axial, false) => panels.push(Panel::Diagram(Action::Axial)),
+        (View::Shear, false) => panels.push(Panel::Diagram(Action::Shear)),
+        (View::Moment, false) => panels.push(Panel::Diagram(Action::Moment)),
+        _ => {}
     }
     panels
 }
@@ -1068,4 +1219,119 @@ enum Panel {
     Reactions,
     Truss,
     Diagram(Action),
+}
+
+#[cfg(test)]
+mod layout_tests {
+    use super::{prim_box, union};
+    use crate::model::{Load, LoadAxes, LoadPer, Member, Node, Num, Structure, Support, SupportKind, View};
+
+    /// The beam of the owner's example: 8 m, 10 kN/m over its first half, 10 kN at 45° at 6 m.
+    fn beam() -> Structure {
+        let mut st = Structure {
+            nodes: vec![
+                Node { id: "A".into(), x: 0.0.into(), y: 0.0.into(), hinge: false },
+                Node { id: "B".into(), x: 8.0.into(), y: 0.0.into(), hinge: false },
+            ],
+            members: vec![Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() }],
+            supports: vec![
+                Support { node: "A".into(), kind: SupportKind::Pin, angle: 0.0.into() },
+                Support { node: "B".into(), kind: SupportKind::Roller, angle: 0.0.into() },
+            ],
+            loads: vec![
+                Load::Distributed {
+                    member: "1".into(),
+                    q1: 10.0.into(),
+                    q2: None,
+                    from: Num::default(),
+                    to: Some(4.0.into()),
+                    angle: Num::new(-90.0),
+                    axes: LoadAxes::Global,
+                    per: LoadPer::Length,
+                },
+                Load::Force { node: None, member: Some("1".into()), at: 6.0.into(), value: 10.0.into(), angle: Num::new(-135.0) },
+            ],
+            ..Structure::default()
+        };
+        st.diagrams.dimensions = true;
+        st.diagrams.stations = true;
+        st
+    }
+
+    fn frame() -> Structure {
+        let mut st = beam();
+        st.nodes = vec![
+            Node { id: "A".into(), x: 0.0.into(), y: 0.0.into(), hinge: false },
+            Node { id: "B".into(), x: 0.0.into(), y: 4.0.into(), hinge: false },
+            Node { id: "C".into(), x: 6.0.into(), y: 4.0.into(), hinge: false },
+            Node { id: "D".into(), x: 6.0.into(), y: 0.0.into(), hinge: false },
+        ];
+        st.members = vec![
+            Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() },
+            Member { id: "2".into(), a: "B".into(), b: "C".into(), ..Member::default() },
+            Member { id: "3".into(), a: "C".into(), b: "D".into(), ..Member::default() },
+        ];
+        st.supports[1].node = "D".into();
+        st.loads = vec![Load::Force { node: Some("B".into()), member: None, at: Num::default(), value: 10.0.into(), angle: Num::new(0.0) }];
+        st
+    }
+
+    #[test]
+    fn everything_drawn_stays_inside_the_drawing() {
+        for st in [beam(), frame()] {
+            let r = st.render(None);
+            let (w, h) = r.plot.size;
+            let b = r.plot.prims.iter().filter_map(prim_box).reduce(union).unwrap();
+            assert!(b[0] >= -0.01 && b[1] >= -0.01 && b[2] <= w + 0.01 && b[3] <= h + 0.01, "{b:?} in {w}×{h}");
+        }
+    }
+
+    #[test]
+    fn panels_have_no_lines_between_them() {
+        let r = beam().render(None);
+        let w = r.plot.size.0;
+        // No line across (nearly) the whole width: the old separators.
+        assert!(!r.plot.prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::Path { pts, .. }
+            if pts.len() == 2 && (pts[0].1 - pts[1].1).abs() < 1e-9 && (pts[0].0 - pts[1].0).abs() > w - 6.0)));
+    }
+
+    #[test]
+    fn a_view_draws_only_its_panels() {
+        let all = beam().render(None).plot;
+        let schema = Structure { view: View::Structure, ..beam() }.render(None).plot;
+        let reactions = Structure { view: View::Reactions, ..beam() }.render(None).plot;
+        let diagrams = Structure { view: View::Diagrams, ..beam() }.render(None).plot;
+        let texts = |p: &strix_plot::PlotRendered| -> Vec<String> {
+            p.prims
+                .iter()
+                .filter_map(|q| match q {
+                    strix_plot::PlotPrim::Text { text, .. } | strix_plot::PlotPrim::TextAt { text, .. } => Some(text.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let has = |p: &strix_plot::PlotRendered, t: &str| texts(p).iter().any(|x| x.contains(t));
+        assert!(has(&schema, "8 m") && !has(&schema, "N [") && !has(&schema, "31.768"));
+        assert!(has(&reactions, "31.768 kN") && !has(&reactions, "8 m") && !has(&reactions, "M ["));
+        assert!(has(&diagrams, "M [") && has(&diagrams, "50.46") && !has(&diagrams, "31.768 kN"));
+        for p in [&schema, &reactions, &diagrams] {
+            assert!(p.size.1 < all.size.1);
+        }
+        // One diagram alone, even with its flag off in the whole drawing.
+        let one = |view: View| {
+            let mut st = Structure { view, ..beam() };
+            st.diagrams.m.show = false;
+            st.render(None).plot
+        };
+        let (axial, shear, moment) = (one(View::Axial), one(View::Shear), one(View::Moment));
+        assert!(has(&axial, "N [") && !has(&axial, "M [") && !has(&axial, "8 m"));
+        assert!(has(&shear, "T [") && !has(&shear, "N [") && !has(&shear, "M ["));
+        assert!(has(&moment, "M [") && has(&moment, "50.46") && !has(&moment, "T ["));
+        assert!(moment.size.1 < diagrams.size.1);
+        // The view is written only when it is not the whole drawing.
+        assert!(!beam().to_json().contains("view"));
+        let json = Structure { view: View::Diagrams, group: "structure-1".into(), ..beam() }.to_json();
+        let back = Structure::from_json(&json).unwrap();
+        assert_eq!((back.view, back.group.as_str()), (View::Diagrams, "structure-1"));
+    }
 }

@@ -3901,3 +3901,98 @@ structure	{n} items selected	{n} Elemente ausgewählt
 structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Eines davon ziehen, um alle zusammen zu verschieben; die Pfeiltasten verschieben um das Raster (Umschalt: zehnfach); Entf löscht sie.
 structure	Remove Selected	Auswahl löschen
 structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Auf einen Knoten, einen Stab oder eine Last klicken, um die Eigenschaften zu sehen; Umschalt+Klick oder ein Rahmen erweitern die Auswahl.
+# Strix (2026-11-18): the Structure Editor's ribbon tab and properties.
+	Supports	Lager
+	Loads	Lasten
+	Erase	Löschen
+	Fixed	Einspannung
+	Pin	Festlager
+	Roller	Loslager
+	Link	Pendelstab
+	Slider	Parallelführung
+	Internal hinge	Gelenk
+	Force	Kraft
+	Couple	Moment
+	Select	Auswählen
+	Grid	Raster
+	Click a node or a member to remove it (a node with what uses it)	Einen Knoten oder Stab anklicken, um ihn zu entfernen (einen Knoten mit allem, was ihn verwendet)
+	Click a node to fix it (incastro)	Einen Knoten anklicken, um ihn einzuspannen (Einspannung)
+	Click a node to pin it (cerniera)	Einen Knoten anklicken, um ihn mit einem Festlager zu halten
+	Click a node to put it on a roller (carrello)	Einen Knoten anklicken, um ihn auf ein Loslager zu setzen
+	Click a node to hold it with a link (pendolo)	Einen Knoten anklicken, um ihn mit einem Pendelstab zu halten
+	Click a node to hold it with a slider (glifo)	Einen Knoten anklicken, um ihn mit einer Parallelführung zu halten
+	Click a node to make it an internal hinge, or not	Einen Knoten anklicken, um ihn zu einem Gelenk zu machen oder das Gelenk zu entfernen
+	Click a node or a point of a member to put a force there	Einen Knoten oder einen Punkt eines Stabs anklicken, um dort eine Kraft anzusetzen
+	Click a node or a point of a member to put a couple there	Einen Knoten oder einen Punkt eines Stabs anklicken, um dort ein Moment anzusetzen
+	Click a member to load it along its length	Einen Stab anklicken, um ihn auf seiner Länge zu belasten
+	Snap to the grid (always to the nodes)	Am Raster fangen (an den Knoten immer)
+	Show the whole structure	Das ganze Tragwerk anzeigen
+	Selection	Auswahl
+	Sheet	Blatt
+	Close	Schließen
+	Draw	Zeichnen
+	Dimensions	Bemaßung
+	The grid's step, in the structure's length unit	Die Rasterweite, in der Längeneinheit des Tragwerks
+	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Auf dem Blatt die Bemaßung, die Neigungen schräger Stäbe und die Winkel schräger Kräfte zeigen (das Dokument zeichnet sie, wie Strukturen › Bemaßung sagt)
+structure	Dimensions	Bemaßung
+structure	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Auf dem Blatt die Bemaßung, die Neigungen schräger Stäbe und die Winkel schräger Kräfte zeigen (das Dokument zeichnet sie, wie Strukturen › Bemaßung sagt)
+structure	Kind	Art
+structure	Angle	Winkel
+structure	Length	Länge
+structure	Slope	Neigung
+structure	Section	Querschnitt
+structure	Load	Last
+structure	On	An
+structure	direction	Richtung
+structure	hinged	Gelenk
+structure	A hinge at this end of the member	Ein Gelenk an diesem Stabende
+structure	Select the load to edit it	Die Last auswählen, um sie zu bearbeiten
+structure	Structure	Tragwerk
+structure	Title	Titel
+structure	Lengths	Längen
+structure	Forces	Kräfte
+structure	Made of	Bestandteile
+structure	Tables	Tabellen
+structure	Select tool	Werkzeug Auswählen
+structure	Add a force here	Hier eine Kraft hinzufügen
+structure	Add a couple here	Hier ein Moment hinzufügen
+structure	Draw a member from here	Von hier einen Stab zeichnen
+structure	Select its loads	Seine Lasten auswählen
+structure	Select the connected part	Verbundenen Teil auswählen
+structure	Delete	Löschen
+structure	Add a distributed load	Streckenlast hinzufügen
+structure	Split here	Hier teilen
+structure	Split in half	In der Mitte teilen
+structure	Hinge at end {n}	Gelenk am Ende {n}
+structure	Select its ends	Seine Enden auswählen
+structure	Reverse	Richtung umkehren
+structure	Direction	Richtung
+structure	Vertical	Senkrecht
+structure	Horizontal	Waagerecht
+structure	At 45°	Unter 45°
+structure	Perpendicular to the member	Senkrecht zum Stab
+structure	Distributed load	Streckenlast
+structure	Uniform	Gleichmäßig
+structure	Triangular	Dreieckig
+structure	On the whole member	Auf dem ganzen Stab
+structure	Add a node here	Hier einen Knoten hinzufügen
+structure	Select all	Alles auswählen
+structure	Snap to the grid	Am Raster fangen
+structure	Deselect	Auswahl aufheben
+structure	Join onto node {n}	Mit Knoten {n} vereinen
+structure	At node {n}	Im Knoten {n}
+structure	Double-click	Doppelklick
+# Strix (2026-11-18): a new exercise on a structure (structure.exercise).
+	Structure Exercise	Tragwerksaufgabe
+	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Eine neue Aufgabe zu einem Tragwerk: das Tragwerk in der Aufgabenstellung, die gesuchten Auflagerreaktionen und Zustandslinien, der Lösungsweg und die Zeichnungen in der Lösung
+	For the structure in the figure, loaded as shown:	Für das abgebildete Tragwerk mit den dargestellten Lasten:
+	Find the support reactions.	Berechnen Sie die Auflagerreaktionen.
+	Work out and draw the diagram of the axial force N.	Berechnen und zeichnen Sie die Normalkraftlinie N.
+	Work out and draw the diagram of the shear force {T}.	Berechnen und zeichnen Sie die Querkraftlinie {T}.
+	Find the points where the shear force {T} is zero.	Bestimmen Sie die Stellen, an denen die Querkraft {T} null ist.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Berechnen Sie das größte Biegemoment an diesen Stellen ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Berechnen und zeichnen Sie die Momentenlinie M.
+	Find the axial force in every member and draw it.	Berechnen Sie die Normalkraft in jedem Stab und zeichnen Sie sie.
+	{T} changes sign under a concentrated load	{T} wechselt unter einer Einzellast das Vorzeichen
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} wird nirgends null und wechselt nicht das Vorzeichen: das größte Moment liegt am Ende eines Abschnitts.
+	The structure can't be solved: its working will be written again as soon as it can.	Das Tragwerk ist nicht lösbar: der Lösungsweg wird neu geschrieben, sobald es lösbar ist.
