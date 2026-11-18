@@ -80,11 +80,11 @@ pub(in crate::cmd::structure) fn parts(
     let u = units(st, comma);
     let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
     let members: Vec<(&MemberResult, Vec<Stretch>)> = an.members.iter().map(|m| (m, stretches(m))).collect();
-    let mut axial_lines = vec![Line::words(forces)];
+    let mut axial_lines = vec![Line::heading(forces)];
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
     for (m, parts) in &members {
-        w.laws(m, parts, Action::Axial, &mut axial_lines);
+        w.laws(m, &w.axial_parts(m, parts), Action::Axial, &mut axial_lines);
         w.laws(m, parts, Action::Shear, &mut shear_lines);
         w.laws(m, parts, Action::Moment, &mut moment_lines);
     }
@@ -225,6 +225,31 @@ impl Writer<'_> {
     /// `T_1a(3 m) = kN`: the law's value at `x`, worked out by calc.
     fn at(&self, tag: &str, action: Action, x: f64) -> String {
         format!("{}_{tag}({}) = {}", self.letter(action), super::at(x, &self.u.l, self.u.comma), self.unit(action))
+    }
+
+    /// Member `m`'s stretches for N: neighbours with the same law of N joined, so N's
+    /// intervals end only where an axial load (or a load's axial part) acts, not at every
+    /// load across the member.
+    fn axial_parts(&self, m: &MemberResult, parts: &[Stretch]) -> Vec<Stretch> {
+        let named = |s: &Stretch| super::named::laws(self.st, &self.us, m, s, self.u)[0].clone();
+        let mut out: Vec<(Stretch, Option<String>)> = Vec::new();
+        for s in parts {
+            let name = named(s);
+            if let Some((last, last_name)) = out.last_mut() {
+                let scale = last.n.iter().chain(s.n.iter()).fold(1e-12_f64, |a, c| a.max(c.abs()));
+                let xm = s.x1.abs().max(1.0);
+                let same = (0..4).all(|k| {
+                    let (a, b) = (last.n.get(k).copied().unwrap_or(0.0), s.n.get(k).copied().unwrap_or(0.0));
+                    ((a - b) * xm.powi(k as i32)).abs() <= 1e-9 * scale * xm.powi(3)
+                });
+                if same && *last_name == name && (last.x1 - s.x0).abs() <= 1e-9 * (1.0 + m.length) {
+                    last.x1 = s.x1;
+                    continue;
+                }
+            }
+            out.push((*s, name));
+        }
+        out.into_iter().map(|(s, _)| s).collect()
     }
 
     /// Member `m`'s laws of `action`, stretch by stretch, with their values at the stretch's ends

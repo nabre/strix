@@ -101,15 +101,24 @@ struct Line {
     /// In place of words and equations, the free body the reactions' equations balance (the
     /// structure drawn with [`View::Equilibrium`](strix_structure::View)).
     figure: bool,
+    /// Kept on the page with the line after it: a heading (words ending with `:`, a noted
+    /// equation's label) never stays alone at the bottom of a page ([`paragraphs_with`]).
+    keep: bool,
 }
 
 impl Line {
     fn words(label: String) -> Line {
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false }
+        let keep = label.trim_end().ends_with(':');
+        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false, keep }
+    }
+
+    /// Words that head what follows them, whatever they end with.
+    fn heading(label: String) -> Line {
+        Line { keep: true, ..Line::words(label) }
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false }
+        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false, keep: false }
     }
 
     fn figure() -> Line {
@@ -117,7 +126,12 @@ impl Line {
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false }
+        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false, keep: true }
+    }
+
+    /// Only equations: the rest of the block its heading opened.
+    fn continues(&self) -> bool {
+        self.label.is_empty() && self.note.is_none() && !self.equations.is_empty()
     }
 }
 
@@ -198,19 +212,31 @@ fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Pa
 
 /// [`paragraphs`], the free body (`figure`) in a paragraph of its own where a line asks for it
 /// (none without it).
+///
+/// Laid out in blocks, so a page break never splits one: a heading (`Line::keep`) and each
+/// line of equations followed by more equations are kept with the next paragraph, and a
+/// stepped equation's lines are kept together. The page then breaks before a block that
+/// doesn't fit, wherever the text above has put it (Word's keep with next, saved with the
+/// document); a block taller than a page breaks as usual.
 fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figure: Option<&InlineObject>) -> Result<Vec<Paragraph>, CmdError> {
     let props = props.clone();
     let mut out = Vec::new();
-    for line in lines {
+    // Only lines that become paragraphs (a figure without its drawing is left out).
+    let shown: Vec<&Line> = lines.iter().filter(|l| !l.figure || figure.is_some()).collect();
+    for (k, line) in shown.iter().enumerate() {
+        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && !line.figure));
         if line.figure {
             if let Some(obj) = figure {
                 let mut para = Paragraph::with_text("", props.clone());
                 para.insert_object(0, obj.clone(), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                para.props.keep_next = keep.then_some(true);
                 out.push(para);
             }
             continue;
         }
         let mut para = Paragraph::with_text(&line.label, props.clone());
+        para.props.keep_next = keep.then_some(true);
+        para.props.keep_lines = line.stepped.then_some(true);
         if let Some(note) = &line.note {
             let math = Math { nodes: parse_linear(note), calc: false, ..Math::default() };
             let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: false };
@@ -849,7 +875,7 @@ fn stretch_header(src: &strix_structure::Member, s: &strix_structure::Stretch, u
 
 fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
     let u = units(st, comma);
-    let mut out = vec![Line::words(labels.heading.clone())];
+    let mut out = vec![Line::heading(labels.heading.clone())];
     // The loads' names, defined before the equations that use them.
     let defs = u.definitions(st);
     if !defs.is_empty() {
@@ -968,7 +994,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         }
         return out;
     }
-    out.push(Line::words(format!("{}: {}", labels.forces, labels.conventions)));
+    out.push(Line::heading(format!("{}: {}", labels.forces, labels.conventions)));
     let shear = shear_name(st);
     for m in &an.members {
         if out.len() >= MAX_LINES {

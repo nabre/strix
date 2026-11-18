@@ -563,3 +563,63 @@ fn each_value_at_a_station_has_its_own_line() {
     assert!(t.contains("M_1"), "{t}");
     one_each(&t);
 }
+
+/// The working is laid out in blocks a page break never splits: a heading stays with the
+/// equations it heads and equations with the next ones, wherever the text above puts it.
+#[test]
+fn page_breaks_never_split_a_block_of_the_working() {
+    use wordcraft_doc::Pos;
+    for filler in [0usize, 10, 20, 25, 30, 35, 40] {
+        let mut s = Session::new(Document::new());
+        for _ in 0..filler {
+            s.run("text.insert", &json!({"text": "Filler line of text."})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("structure.insert", &json!({"template": "frame"})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        let n = s.doc.body.len();
+        let kept: Vec<usize> =
+            (0..n).filter(|&i| matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.props.keep_next == Some(true))).collect();
+        assert!(kept.len() > 5, "the working's blocks are kept with their next paragraph ({filler})");
+        let l = s.layout();
+        let page = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.page);
+        assert!(l.pages.len() > 1 || filler == 0, "the working runs over a page ({filler})");
+        for i in kept {
+            assert_eq!(page(i), page(i + 1), "paragraph {i} is kept with the next ({filler} lines above)");
+        }
+    }
+}
+
+/// In an exercise, N's intervals end only where an axial load acts: the stretches the other
+/// loads make are joined while N's law stays the same.
+#[test]
+fn the_axial_force_s_intervals_end_only_at_axial_loads() {
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    // T and M have three stretches, N one law from 0 m to 6 m.
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1(x)") && !has(&t, "N_1a(x)") && !has(&t, "N_1b(x)"), "{t}");
+    // An askew force: N changes there, and only there.
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10, "angle": -45}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+}
