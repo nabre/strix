@@ -646,7 +646,9 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
     let eval_dim = |e: &Expr| -> Option<Dim> { ctx_eval(e, None).ok().map(|v| v.dim()) };
     let eval_plain =
         |e: &Expr| -> Option<f64> { ctx_eval(e, None).ok().and_then(|v| v.scalar()).filter(|q| q.dim.is_dimensionless()).map(|q| q.value) };
-    let mut dims = infer_unknown_dims(lhs, rhs, x, &eval_dim, &eval_plain);
+    // Through user functions too: `0 kN = T(x_1)` reads `x_1`'s dimension from `T`'s body.
+    let (open_l, open_r) = (inline_calls(lhs, scope, 0), inline_calls(rhs, scope, 0));
+    let mut dims = infer_unknown_dims(&open_l, &open_r, x, &eval_dim, &eval_plain);
     dims.push(Dim::NONE);
     for name in known.iter().filter(|n| *n != x) {
         if let Some(d) = eval_dim(&Expr::Name(name.clone())) {
@@ -713,6 +715,51 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
         return Err(CalcError::TooMuchWork);
     }
     Err(last_err)
+}
+
+/// `e` with each call of a user function (`T(x_1)`) replaced by the function's body, its
+/// parameters by the arguments; a function that is not defined, or calls nested too deep, stay.
+fn inline_calls(e: &Expr, scope: &Scope, depth: usize) -> Expr {
+    if depth > 8 {
+        return e.clone();
+    }
+    let go = |a: &Expr| inline_calls(a, scope, depth);
+    match e {
+        Expr::Apply(name, args) => {
+            let args: Vec<Expr> = args.iter().map(go).collect();
+            match scope.function(name) {
+                Some(f) if f.params.len() == args.len() => {
+                    let body = rename(&f.body, &f.params, &args);
+                    inline_calls(&body, scope, depth + 1)
+                }
+                _ => Expr::Apply(name.clone(), args),
+            }
+        }
+        Expr::Neg(a) => Expr::Neg(Box::new(go(a))),
+        Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(go(a)), Box::new(go(b))),
+        Expr::Call(f, args) => Expr::Call(*f, args.iter().map(go).collect()),
+        Expr::Vector(items) => Expr::Vector(items.iter().map(go).collect()),
+        Expr::Index(a, b) => Expr::Index(Box::new(go(a)), Box::new(go(b))),
+        Expr::Range(a, b) => Expr::Range(Box::new(go(a)), Box::new(go(b))),
+        other => other.clone(),
+    }
+}
+
+/// `body` with each name in `params` replaced by its argument (a sum's own variable shadows).
+fn rename(body: &Expr, params: &[String], args: &[Expr]) -> Expr {
+    let go = |a: &Expr| rename(a, params, args);
+    match body {
+        Expr::Name(n) => params.iter().position(|p| p == n).and_then(|k| args.get(k)).cloned().unwrap_or_else(|| body.clone()),
+        Expr::Neg(a) => Expr::Neg(Box::new(go(a))),
+        Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(go(a)), Box::new(go(b))),
+        Expr::Call(f, a) => Expr::Call(*f, a.iter().map(go).collect()),
+        Expr::Apply(name, a) => Expr::Apply(name.clone(), a.iter().map(go).collect()),
+        Expr::Vector(items) => Expr::Vector(items.iter().map(go).collect()),
+        Expr::Index(a, b) => Expr::Index(Box::new(go(a)), Box::new(go(b))),
+        Expr::Range(a, b) => Expr::Range(Box::new(go(a)), Box::new(go(b))),
+        // A sum or product over its own variable: left as it is (not inlined).
+        other => other.clone(),
+    }
 }
 
 /// Algebraically infers candidate dimensions of `x` from `lhs = rhs` by propagating known

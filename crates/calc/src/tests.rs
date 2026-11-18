@@ -2287,3 +2287,24 @@ fn the_working_writes_a_sum_over_known_values_as_its_total() {
     // A sum that is the whole formula: its total is the result, with no working.
     assert_eq!(ws.eval_statement("∑A_i =").display.as_deref(), Some("∑A_i = 9"));
 }
+
+/// An unknown inside a user function's call is solved with the dimension the function's body
+/// gives it, and an interval after `;` picks the root inside it.
+#[test]
+fn an_unknown_in_a_call_and_an_interval_for_its_root() {
+    assert_eq!(last(&["T(x) = (30 kN) - (10 kN/m)·x", "0 kN = T(x_1)"]), "0 kN = T(x_1) ⇒ x_1 = 3 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 0 m ≤ x_1 ≤ 6 m", "x_1 ="]), "x_1 = 2.449 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 6 m ≥ x_1 > 0 m", "x_1 ="]), "x_1 = 2.449 m");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    assert_eq!(shown, "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m ⇒ x_1 = 2.449 m");
+    // The root substituted in a call: one pair of parentheses.
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m", "M(x) = (30 kN)·x", "M(x_1) = kN·m"], &opts);
+    let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+    assert!(shown.contains("M(2.449 m)") && !shown.contains("(("), "{shown}");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    // Read back as written, it solves the same.
+    assert_eq!(last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", &shown, "x_1 ="]), "x_1 = 2.449 m");
+    // The root outside the interval is none.
+    assert!(run(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 3 m ≤ x_1 ≤ 6 m"]).pop().and_then(|r| r.error).is_some());
+}

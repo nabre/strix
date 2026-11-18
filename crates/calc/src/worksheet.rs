@@ -741,7 +741,7 @@ impl Worksheet {
         for &end in seps.iter().skip(1).chain([tokens.len()].iter()) {
             let seg = tokens.get(start..end)?;
             let seg_end_pos = tokens.get(end).map_or(len, |t| t.pos);
-            constraints.push(self.parse_constraint_tokens(seg, seg_end_pos)?);
+            constraints.extend(self.parse_constraint_tokens(seg, seg_end_pos)?);
             start = end + 1;
         }
         let head_byte = tokens.get(first_sep)?.byte;
@@ -749,14 +749,38 @@ impl Worksheet {
         Some((head_text, tokens.get(..first_sep)?, constraints))
     }
 
-    fn parse_constraint_tokens(&self, seg: &[Token], end_pos: usize) -> Option<DomainConstraint> {
+    /// `t > 0`, or an interval `0 m ≤ x ≤ 6 m` (two constraints, the unknown in the middle).
+    fn parse_constraint_tokens(&self, seg: &[Token], end_pos: usize) -> Option<Vec<DomainConstraint>> {
         let cmps = positions(seg, |t| matches!(t, Tok::Cmp(_)));
-        let [cmp] = cmps.as_slice() else { return None };
-        let Tok::Cmp(op) = seg.get(*cmp)?.tok else { return None };
-        let cmp_pos = seg.get(*cmp).map_or(end_pos, |t| t.pos);
-        let l = self.parse_expr(seg.get(..*cmp)?, cmp_pos).ok()?;
-        let r = self.parse_expr(seg.get(*cmp + 1..)?, end_pos).ok()?;
-        self.domain_constraint_from_exprs(&l, &r, op)
+        let pos_of = |i: usize| seg.get(i).map_or(end_pos, |t| t.pos);
+        let op_at = |i: usize| match seg.get(i).map(|t| &t.tok) {
+            Some(Tok::Cmp(op)) => Some(*op),
+            _ => None,
+        };
+        match cmps.as_slice() {
+            [cmp] => {
+                let l = self.parse_expr(seg.get(..*cmp)?, pos_of(*cmp)).ok()?;
+                let r = self.parse_expr(seg.get(*cmp + 1..)?, end_pos).ok()?;
+                Some(vec![self.domain_constraint_from_exprs(&l, &r, op_at(*cmp)?)?])
+            }
+            [c1, c2] => {
+                let (o1, o2) = (op_at(*c1)?, op_at(*c2)?);
+                // Both the same way: `a ≤ x ≤ b` or `b ≥ x ≥ a`.
+                let rising = |o: char| matches!(o, '<' | '≤');
+                let falling = |o: char| matches!(o, '>' | '≥');
+                if !(rising(o1) && rising(o2) || falling(o1) && falling(o2)) {
+                    return None;
+                }
+                let a = self.parse_expr(seg.get(..*c1)?, pos_of(*c1)).ok()?;
+                let x = self.parse_expr(seg.get(*c1 + 1..*c2)?, pos_of(*c2)).ok()?;
+                let b = self.parse_expr(seg.get(*c2 + 1..)?, end_pos).ok()?;
+                if !matches!(x, Expr::Name(_)) {
+                    return None;
+                }
+                Some(vec![self.domain_constraint_from_exprs(&a, &x, o1)?, self.domain_constraint_from_exprs(&x, &b, o2)?])
+            }
+            _ => None,
+        }
     }
 
     fn domain_constraint_from_exprs(&self, l: &Expr, r: &Expr, op: char) -> Option<DomainConstraint> {
