@@ -468,6 +468,18 @@ impl super::Writer<'_> {
         )
     }
 
+    /// The `a:graphic` of a Strix structure (`word/strix/structureN.json` +
+    /// `word/media/structureN.svg`).
+    pub(super) fn structure_graphic(&mut self, source: &str, svg: Option<&str>, size: (f32, f32), rels: &mut PartRels) -> String {
+        self.strix_svg_graphic(
+            ("word/strix/structure", crate::package::rt::STRIX_STRUCTURE, crate::read::STRUCTURE_URI, "strix:structure", "Structure"),
+            source,
+            svg,
+            size,
+            rels,
+        )
+    }
+
     fn strix_svg_graphic(
         &mut self,
         meta: (&str, &str, &str, &str, &str),
@@ -477,7 +489,11 @@ impl super::Writer<'_> {
         rels: &mut PartRels,
     ) -> String {
         let (json_prefix, rel_type, ext_uri, tag_name, pic_name) = meta;
-        let media_prefix = if tag_name == "strix:plot" { "word/media/plot" } else { "word/media/cad" };
+        let media_prefix = match tag_name {
+            "strix:plot" => "word/media/plot",
+            "strix:structure" => "word/media/structure",
+            _ => "word/media/cad",
+        };
         let json = self.embeds.fresh(json_prefix, ".json");
         self.embeds.parts.push((json.clone(), source.as_bytes().to_vec(), "application/json".to_string(), PartRels::default()));
         let src_id = rels.add(rel_type, &relative(STORY_PART, &json), false);

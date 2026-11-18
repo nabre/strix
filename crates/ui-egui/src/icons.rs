@@ -84,6 +84,7 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
         || paint_draw_to_review(&pen, name)
         || paint_view_and_tables(&pen, name)
         || paint_file_and_tools(&pen, name)
+        || paint_structures(&pen, name)
     {
         return;
     }
@@ -91,6 +92,100 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
     p.rect_stroke(r.shrink(r.width() * 0.12), 3.0, Stroke::new(1.0, c), egui::StrokeKind::Middle);
     let ch = name.chars().next().map(|x| x.to_ascii_uppercase().to_string()).unwrap_or_default();
     p.text(r.center(), egui::Align2::CENTER_CENTER, ch, FontId::proportional(r.height() * 0.45), accent);
+}
+
+/// The Structures tab's icons (Strix's own); false when `name` is not one of them.
+fn paint_structures(pen: &Pen, name: &str) -> bool {
+    let (c, a) = (pen.c, pen.a);
+    match name {
+        // A structure: a beam on a pin and a roller, loads coming down on it.
+        "structure" => {
+            pen.line_c(&[(3.0, 12.0), (17.0, 12.0)], c);
+            pen.closed(&[(4.0, 12.0), (2.5, 15.0), (5.5, 15.0)], c);
+            pen.closed(&[(16.0, 12.0), (14.5, 14.5), (17.5, 14.5)], c);
+            pen.circle(15.0, 15.8, 0.8, c);
+            pen.circle(17.0, 15.8, 0.8, c);
+            pen.line(&[(2.0, 17.5), (6.0, 17.5)]);
+            pen.line(&[(14.0, 17.5), (18.0, 17.5)]);
+            for x in [6.0, 10.0, 14.0] {
+                pen.line_c(&[(x, 4.0), (x, 9.5)], a);
+                pen.fill(&[(x - 1.3, 9.0), (x + 1.3, 9.0), (x, 11.0)], a);
+            }
+            pen.line_c(&[(5.0, 4.0), (15.0, 4.0)], a);
+        }
+        // The structure editor: a frame of members with a pencil.
+        "structureEditor" => {
+            pen.line_c(&[(4.0, 17.0), (4.0, 7.0), (14.0, 7.0), (14.0, 17.0)], c);
+            pen.circle(4.0, 7.0, 1.1, c);
+            pen.circle(14.0, 7.0, 1.1, c);
+            pen.line_c(&[(9.0, 15.0), (17.0, 7.0)], a);
+            pen.fill(&[(16.0, 5.5), (18.5, 8.0), (17.0, 9.5), (14.5, 7.0)], a);
+        }
+        // Reactions: a beam's end on a pin with an arrow pushing up into it.
+        "structureReactions" => {
+            pen.line_c(&[(3.0, 6.0), (17.0, 6.0)], c);
+            pen.closed(&[(10.0, 6.0), (7.5, 10.0), (12.5, 10.0)], c);
+            pen.line_c(&[(10.0, 18.5), (10.0, 12.5)], a);
+            pen.fill(&[(8.5, 13.0), (11.5, 13.0), (10.0, 10.8)], a);
+        }
+        // N: a constant diagram over its axis, hatched, the letter beside.
+        "diagramN" => {
+            pen.line_c(&[(2.0, 14.0), (18.0, 14.0)], c);
+            pen.line_c(&[(2.0, 14.0), (2.0, 8.0), (18.0, 8.0), (18.0, 14.0)], a);
+            for x in [5.0, 8.0, 11.0, 14.0] {
+                pen.line_c(&[(x, 8.5), (x, 13.5)], a.linear_multiply(0.5));
+            }
+        }
+        // T: a shear diagram crossing its axis.
+        "diagramT" => {
+            pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], c);
+            pen.line_c(&[(2.0, 10.0), (2.0, 4.5), (18.0, 15.5), (18.0, 10.0)], a);
+        }
+        // M: a parabola below its axis.
+        "diagramM" => {
+            pen.line_c(&[(2.0, 6.0), (18.0, 6.0)], c);
+            let curve: Vec<(f32, f32)> = (0..=12)
+                .map(|i| {
+                    let t = i as f32 / 12.0;
+                    (2.0 + 16.0 * t, 6.0 + 40.0 * t * (1.0 - t) * 0.3)
+                })
+                .collect();
+            pen.line_c(&curve, a);
+        }
+        // Positive side: an axis with arrows up and down.
+        "diagramSide" => {
+            pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], c);
+            pen.line_c(&[(10.0, 8.5), (10.0, 4.0)], a);
+            pen.fill(&[(8.5, 5.0), (11.5, 5.0), (10.0, 2.5)], a);
+            pen.line_c(&[(10.0, 11.5), (10.0, 16.0)], c);
+            pen.fill(&[(8.5, 15.0), (11.5, 15.0), (10.0, 17.5)], c);
+        }
+        // The Italian convention: a moment diagram on the stretched side, a check mark.
+        "structureItalian" => {
+            pen.line_c(&[(2.0, 7.0), (14.0, 7.0)], c);
+            pen.line_c(&[(2.0, 7.0), (8.0, 13.0), (14.0, 7.0)], a);
+            pen.line_c(&[(13.0, 15.0), (15.0, 17.0), (18.5, 12.5)], a);
+        }
+        // Hatching: lines across an area.
+        "structureHatch" => {
+            pen.line_c(&[(2.0, 15.0), (18.0, 15.0)], c);
+            pen.line_c(&[(2.0, 15.0), (2.0, 6.0), (18.0, 11.0), (18.0, 15.0)], a);
+            for x in [5.0, 8.0, 11.0, 14.0] {
+                let top = 6.0 + 5.0 * (x - 2.0) / 16.0;
+                pen.line_c(&[(x, top + 0.5), (x, 14.5)], c);
+            }
+        }
+        // Signs: a circled plus and a circled minus.
+        "structureSigns" => {
+            pen.circle(6.5, 10.0, 4.0, c);
+            pen.line_c(&[(4.5, 10.0), (8.5, 10.0)], a);
+            pen.line_c(&[(6.5, 8.0), (6.5, 12.0)], a);
+            pen.circle(14.5, 10.0, 4.0, c);
+            pen.line_c(&[(12.5, 10.0), (16.5, 10.0)], a);
+        }
+        _ => return false,
+    }
+    true
 }
 
 /// Icons of one section of the set; false when `name` is not one of them.

@@ -57,6 +57,7 @@ pub fn open(app: &WordApp) -> Vec<Pane> {
         (Pane::Check, v.check_pane),
         (Pane::Archive, v.archive_pane),
         (Pane::Plot, v.plot_pane),
+        (Pane::Structure, v.structure_pane),
         (Pane::Grading, v.grading_pane),
         (Pane::Questions, v.questions_pane),
         (Pane::Data, v.data_pane),

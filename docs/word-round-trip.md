@@ -1,24 +1,25 @@
 # Strix objects through Word
 
-> **Status:** done: Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`) keep Strix objects live through Word; objects changed in Word wait for a decision · **Last updated:** 2026-11-11 · **Change:** first version
+> **Status:** done: Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`) keep Strix objects live through Word (calculations, calculated tables, CAD drawings, plots, plane structures, graph paper); objects changed in Word wait for a decision · **Last updated:** 2026-11-17 · **Change:** docs brought up to date with the code (plots and plane structures listed among the wrapped objects)
 
 A Strix document is an OOXML package: `.xmath` is what Strix saves by default, and a `.docx`
 holds the same package. Strix's own objects carry their live behaviour in markup Word doesn't
-know (`strix:calc` on an equation or a table, a CAD drawing's JSON source attached to its
-picture, an exercise's data on its content control, graph paper on a section or a paragraph).
+know (`strix:calc` on an equation or a table, a CAD drawing's, plot's or plane structure's JSON
+source attached to its picture, an exercise's data on its content control, graph paper on a section or a paragraph).
 Word shows such a file without trouble, but **when Word saves it, that markup is gone**: the
 calculations become plain equations, the drawing a plain picture.
 
 So a Word document Strix writes carries its Strix objects a second time, in two things Word
 keeps when it saves:
 
-- **Content controls.** Every calculation, calculated table, CAD drawing and graph-paper
+- **Content controls.** Every calculation, calculated table, CAD drawing, plot
+  ([plot.md](plot.md)), plane structure ([structures.md](structures.md)) and graph-paper
   paragraph is wrapped in a content control (`w:sdt`) tagged `strix:obj:N`, titled *Strix* and
   locked against deletion (not against editing). Exercises already are content controls.
 - **A custom XML part** (`customXml/strixObjects.xml`, namespace
   `urn:io.github.nabre.strix:objects:2026`; Word may rename it `customXml/itemN.xml`). For each
-  object N: its source (the equation's flags and per-equation `calcOpts`, the table's calc settings, the drawing's JSON, the
-  graph paper's settings) and a fingerprint of what it showed; then the document's calculation options (`<strix:calcOptions>`), each section's graph paper
+  object N: its source (the equation's flags and per-equation `calcOpts`, the table's calc settings, the drawing's, plot's or
+  structure's JSON, the graph paper's settings) and a fingerprint of what it showed; then the document's calculation options (`<strix:calcOptions>`), each section's graph paper
   and frontispiece, and each exercise's data, by their place in the document.
 
 `.xmath` files are written without any of this: they are Strix's own and nobody else saves them.
@@ -77,6 +78,7 @@ content differently doesn't count as a change:
 | Calculated table | the cells' text (equations as linear text), without spaces, is the same |
 | CAD drawing | Word kept the drawing as Strix wrote it; or the picture is Strix's SVG, byte for byte; or it is a picture Word made from it (its own rendering), not cropped, in the same proportions |
 | Scientific plot (`strix-plot`) | Word kept `word/strix/plotN.json` as Strix wrote it; or the picture is Strix's SVG, byte for byte; or it is Word's uncropped rasterised picture in the same proportions |
+| Plane structure | Word kept `word/strix/structureN.json` as Strix wrote it; or the picture is Strix's SVG, byte for byte; or it is Word's uncropped rasterised picture in the same proportions |
 | Graph paper | always (there is nothing to edit) |
 
 Limits: a picture Word made from the drawing and then replaced with *Change Picture* at the same
@@ -102,6 +104,7 @@ in Word, save, and open it in Strix: the bar asks.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-17 | minor | Docs brought up to date with the code: plots and plane structures (`word/strix/structureN.json` + SVG) listed among the objects wrapped and checked |
 | 2026-11-13 | minor | Live scientific and experimental plots (`strix-plot`, `word/strix/plotN.json` + SVG envelope) preserved across Word `.docx` round trips |
 | 2026-11-13 | minor | Inline parametric expressions (`strix:expr` formula), grading scale config (`strix:grading`), choice indices (`strix:choiceIdx`), `shuffleChoices` and option `strix:rationale` preserved across Word `.docx` round trips |
 | 2026-11-13 | minor | Document calculation options (`<strix:calcOptions>`) and per-equation overrides (`calcOpts`) preserved across Word round trips |

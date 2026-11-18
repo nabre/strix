@@ -43,7 +43,9 @@ come from `craft_update` (storytold/craft-libs), shared with the Craft apps.
     the reason), and for `.deb`/`.rpm` packages, whose install asks for the password (they are
     still downloaded ahead, so it's quick). It downloads the package if needed, verifies it,
     puts it in place, and closes Strix so that a helper restarts the new version. It won't start
-    while documents hold unsaved work: it asks to save or close them first.
+    while documents hold unsaved work: it asks to save or close them first, and if something is
+    typed while the package downloads, nothing is replaced (the restart helper would give up
+    waiting for Strix to close) and the section asks again to save or close the documents.
   - **Download** everywhere else: the package for this platform (the `.dmg` on macOS, the
     FreeBSD tarball…) opens in the browser, or the release page when there is none.
 - **Check for updates automatically** (on by default) turns the check at start and the daily
@@ -61,7 +63,8 @@ come from `craft_update` (storytold/craft-libs), shared with the Craft apps.
   the restart) checks at once.
 - **Download updates automatically** (checkbox, on by default; not shown on copies that can't
   replace themselves) turns the download ahead off; turning it off cancels a download under way
-  and deletes a downloaded package. The choice is kept in `strix-update-settings.json` in
+  (one being verified too) and deletes a downloaded package, so nothing is left to install at the
+  next start. The choice is kept in `strix-update-settings.json` in
   Strix's update data folder.
 - The version just installed is not offered again for a day (a binary that still reports the old
   version would otherwise loop).

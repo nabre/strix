@@ -2,14 +2,23 @@
 [Desktop Entry]
 Type=Application
 Name=Strix Writer
-GenericName=Word Processor
-Comment=Write and design documents; open and export Word files
+GenericName=Test and Exercise Editor
+GenericName[it]=Editor di esercizi e momenti di valutazione
+GenericName[fr]=Éditeur d’évaluations et d’exercices
+GenericName[de]=Editor für Klassenarbeiten und Übungen
+Comment=Tests and exercises for teachers, with live calculations; open and save Word files
+Comment[it]=Momenti di valutazione ed esercizi per il docente, con calcoli vivi; apre e salva file Word
+Comment[fr]=Évaluations et exercices pour l’enseignant, avec des calculs vivants ; ouvre et enregistre les fichiers Word
+Comment[de]=Klassenarbeiten und Übungen für Lehrkräfte, mit lebendigen Berechnungen; öffnet und speichert Word-Dateien
 Exec=strix %F
 TryExec=strix
 Icon=io.github.nabre.strix
 Terminal=false
 StartupNotify=true
 StartupWMClass=io.github.nabre.strix
-Categories=Office;WordProcessor;
-Keywords=word;processor;document;xmath;docx;writer;text;letter;report;
+Categories=Office;WordProcessor;Education;Math;
+Keywords=teacher;test;exercise;quiz;assessment;grading;math;calculation;units;CAD;document;xmath;docx;word;processor;
+Keywords[it]=docente;insegnante;esercizio;momento di valutazione;compito;quiz;punteggio;voto;matematica;calcolo;unità;CAD;documento;xmath;docx;word;
+Keywords[fr]=enseignant;professeur;évaluation;exercice;quiz;QCM;barème;note;maths;calcul;unités;CAO;document;xmath;docx;word;
+Keywords[de]=Lehrkraft;Lehrer;Klassenarbeit;Aufgabe;Übung;Quiz;Notenschlüssel;Note;Mathematik;Berechnung;Einheiten;CAD;Dokument;xmath;docx;word;
 MimeType=application/vnd.strix.xmath;application/vnd.strix.xmathm;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.ms-word.document.macroEnabled.12;application/vnd.openxmlformats-officedocument.wordprocessingml.template;application/vnd.ms-word.template.macroEnabled.12;application/msword;application/msword-template;application/vnd.oasis.opendocument.text;application/rtf;text/rtf;text/markdown;text/x-tex;text/html;

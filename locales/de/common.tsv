@@ -1219,3 +1219,10 @@ theme	Appearance	Erscheinungsbild
 @plural	{n} step|{n} steps	{n} Schritt|{n} Schritte
 	−Bin	−Bin
 	● Recording	● Aufzeichnung
+
+# Strix (2026-11-17): the strings the Italian catalog had and this one lacked: CAD drafting (dimensions, level marks, trim, extend, fillet, chamfer, offset, hatching), plane structures (Tragwerke), exercises, header and footer, updates.
+	Border	Rahmen
+@id	file.close	Schließen
+	RGB	RGB
+	X	X
+	Y	Y

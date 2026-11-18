@@ -135,6 +135,7 @@ mod clock;
 mod services;
 mod state;
 mod strix_save;
+mod structure_pane;
 // Strix: the bar for Strix objects changed in another program (docs/word-round-trip.md).
 mod external_edits;
 

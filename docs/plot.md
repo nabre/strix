@@ -14,7 +14,7 @@ A `Plot` holds one or more `Series` drawn over a shared Cartesian viewport (`[xM
   - `tangentAt: x0` — central-difference slope and clipped tangent line at `x0`; with a `domain`, only at a point of it;
   - `integral: [a, b]` — adaptive Simpson definite integral $\int_a^b f(x)\,dx$ with shaded area between the curve and the horizontal axis; with a `domain`, the part of `[a, b]` inside it (reported with those bounds), none when they do not meet.
 - **Parametric curves (`type: "parametric"`):** `(x(t), y(t))` over `t ∈ [tMin, tMax]` evaluated in the active sandbox.
-- **Polar curves (`type: "polar"`):** `ρ = f(θ)` in the plot's angle convention and unit (Reference system).
+- **Polar curves (`type: "polar"`):** `ρ = f(θ)` in the plot's angle convention and unit ([Reference system](#reference-system)).
 - **Experimental data (`type: "data"`):** reads vector columns defined by preceding calculated tables (`calc.table`, `xCol`, `yCol`, optional `dxCol`/`dyCol` or inline `points`), automatically extracting measurement uncertainties (`±`) as horizontal and vertical error bars with end caps, plus optional least-squares **linear** (`c0 + c1·x`) or **quadratic** (`c0 + c1·x + c2·x²`) regression curves with coefficient of determination $R^2$.
 
 ## Axis units
@@ -83,9 +83,9 @@ Plot expressions participate in continuous multi-variant validation (`exercise.d
 
 - **Ribbon:** `Math › Drawing › Plot` (`plot.insert {"openPane": true}`) and `Plot Properties` (`view.plotPane`).
 - **Commands:**
-  - `plot.insert` — inserts a live plot at the caret (`plot` JSON or shorthand `expr`, `xMin`, `xMax`, `yMin`, `yMax`, `title`, `answer`, `openPane`);
-  - `plot.get` — returns `{"plot", "viewport", "notables", "integrals", "regressions", "errors"}` for the selected plot;
-  - `plot.set` — updates the selected plot's specification or fields in one undo step and recalculates.
+  - `plot.insert` — inserts a live plot at the caret (`plot` JSON or shorthand `expr`, `xMin`, `xMax`, `yMin`, `yMax`, `autoRange`, `title`, `xLabel`, `yLabel`, `xUnit`, `yUnit`, `grid`, `minorGrid`, `legend`, `angles`, `angleUnit`, `angleMark`, `answer`, `openPane`);
+  - `plot.get` — returns `{"plot", "viewport", "range", "notables", "integrals", "regressions", "errors"}` for the selected plot;
+  - `plot.set` — updates the selected plot's specification or fields in one undo step and recalculates (the same fields, plus `width`, `height` and `series`);
   - `plot.analysis` — writes the analysis after the selected plot as live calculations (`labels` for the words before each line).
 - **Word `.docx` round-trip:** wrapped in `strix:obj:N` with its JSON source and SVG fingerprint in `customXml/strixObjects.xml` (`docs/word-round-trip.md`), staying live across saves in Microsoft Word.
 
@@ -93,6 +93,7 @@ Plot expressions participate in continuous multi-variant validation (`exercise.d
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-17 | patch | Docs brought up to date with the code: `plot.insert`, `plot.set` and `plot.get` list every field they take or return (`autoRange`, axis labels and units, angles, `range`) |
 | 2026-11-17 | patch | Put right in a review for bugs (`crates/plot`): a plain number is plotted as it is under a `yUnit` (`x^2` with `yUnit: "cm"` was 400 at `x = 2`, while `L + x` through the fallback was not scaled; see *Axis units*); `domain` bounds `tangentAt` and `integral` (the area was reported and shaded outside it); zeros and extrema are told apart by the view's width (an absolute 0.0001 merged the distinct zeros of a narrow view) |
 | 2026-11-17 | patch | Analysis in the document, put right in a review for bugs: a bracket never reaches past the range drawn (`sin(10·x)` on [0.2, 0.4] was bracketed by −0.69 and 1.32, seven zeros); small numbers keep their digits (`tangentAt: 0.00001` was written `0`, as were the limits between zeros less than 0.0001 apart); no tangent is written for a point outside the series' domain |
 | 2026-11-15 | minor | Analysis in the document: `plot.analysis` and Insert Analysis in Document write each function's definition, zeros, extrema, tangent and integral after the plot as live calc regions, using calc's new derivatives and integrals |

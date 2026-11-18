@@ -102,6 +102,16 @@ pub enum Source {
         #[serde(default)]
         h: f32,
     },
+    /// A plane structure with its diagrams: its `strix-structure` JSON and SVG fingerprint.
+    Structure {
+        json: String,
+        #[serde(default)]
+        svg: u64,
+        #[serde(default)]
+        w: f32,
+        #[serde(default)]
+        h: f32,
+    },
     /// Graph paper in the text flow (`ParaProps::graph`, its attribute form).
     GraphParagraph { graph: String },
 }
@@ -114,6 +124,7 @@ impl Source {
             Source::Table { .. } => "calculatedTable",
             Source::Cad { .. } => "cadDrawing",
             Source::Plot { .. } => "plot",
+            Source::Structure { .. } => "structure",
             Source::GraphParagraph { .. } => "graphPaper",
         }
     }
@@ -271,6 +282,10 @@ fn is_plot(o: &InlineObject) -> bool {
     matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Plot && graphic.plot.is_some())
 }
 
+fn is_structure(o: &InlineObject) -> bool {
+    matches!(o, InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Structure && graphic.structure.is_some())
+}
+
 /// The source and fingerprint of an inline Strix object, `None` for any other object.
 fn inline_entry(o: &InlineObject) -> Option<(Source, u64)> {
     match o {
@@ -285,6 +300,10 @@ fn inline_entry(o: &InlineObject) -> Option<(Source, u64)> {
         InlineObject::Graphic { w, h, graphic, .. } if is_plot(o) => {
             let svg = graphic.svg.as_deref().map_or(0, |s| hash(s.as_bytes()));
             Some((Source::Plot { json: graphic.plot.as_deref().unwrap_or("").to_string(), svg, w: *w, h: *h }, 0))
+        }
+        InlineObject::Graphic { w, h, graphic, .. } if is_structure(o) => {
+            let svg = graphic.svg.as_deref().map_or(0, |s| hash(s.as_bytes()));
+            Some((Source::Structure { json: graphic.structure.as_deref().unwrap_or("").to_string(), svg, w: *w, h: *h }, 0))
         }
         _ => None,
     }
@@ -406,7 +425,7 @@ fn holds_strix(b: &Block, depth: usize) -> bool {
         return false;
     }
     match b {
-        Block::Para(p) => p.props.graph.is_some() || p.objects.iter().any(|o| is_strix_equation(o) || is_cad(o) || is_plot(o)),
+        Block::Para(p) => p.props.graph.is_some() || p.objects.iter().any(|o| is_strix_equation(o) || is_cad(o) || is_plot(o) || is_structure(o)),
         Block::Table(t) => t.props.calc || t.rows.iter().flat_map(|r| &r.cells).flat_map(|c| &c.blocks).any(|b| holds_strix(b, depth + 1)),
     }
 }
@@ -1041,6 +1060,22 @@ impl Unwrap<'_> {
                 }
                 _ => false,
             },
+            Source::Structure { json, svg, w, h } => match objects.as_slice() {
+                [InlineObject::Graphic { graphic, .. }] if graphic.kind == GraphicKind::Structure => {
+                    graphic.structure.as_deref() == Some(json.as_str())
+                }
+                [InlineObject::Image { media, w: iw, h: ih, crop, .. }] => {
+                    let bytes = self.media.get(media).map(|b| b.as_slice()).unwrap_or(&[]);
+                    let looks_svg = String::from_utf8_lossy(&bytes[..bytes.len().min(256)]).contains("<svg");
+                    if looks_svg {
+                        *svg == 0 || hash(bytes) == *svg
+                    } else {
+                        let ratio = |a: f32, b: f32| if b > 0.0 { a / b } else { 0.0 };
+                        crop.iter().all(|c| c.abs() < 1e-4) && (ratio(*iw, *ih) - ratio(*w, *h)).abs() < 0.02
+                    }
+                }
+                _ => false,
+            },
             // Graph paper shows nothing to edit.
             Source::GraphParagraph { .. } => true,
             Source::Table { .. } => true,
@@ -1087,6 +1122,22 @@ fn restore(p: &mut Paragraph, e: &Entry, inner: &[usize]) {
                 };
                 if let Some((w, h, alt, float)) = frame {
                     let graphic = Arc::new(Graphic { kind: GraphicKind::Plot, w, h, plot: Some(json.as_str().into()), ..Default::default() });
+                    *obj = InlineObject::Graphic { w, h, alt, float, graphic };
+                }
+            }
+        }
+        Source::Structure { json, .. } => {
+            for &o in inner {
+                let Some(obj) = p.object_at_mut(o) else { continue };
+                let frame = match &*obj {
+                    InlineObject::Image { w, h, alt, float, .. } | InlineObject::Graphic { w, h, alt, float, .. } => {
+                        Some((*w, *h, alt.clone(), float.clone()))
+                    }
+                    _ => None,
+                };
+                if let Some((w, h, alt, float)) = frame {
+                    let graphic =
+                        Arc::new(Graphic { kind: GraphicKind::Structure, w, h, structure: Some(json.as_str().into()), ..Default::default() });
                     *obj = InlineObject::Graphic { w, h, alt, float, graphic };
                 }
             }

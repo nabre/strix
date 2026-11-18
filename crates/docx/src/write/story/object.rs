@@ -205,6 +205,10 @@ impl Writer<'_> {
                     let xml = self.plot_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
                     crate::xml::parse(xml.as_bytes()).ok()
                 }
+                (wordcraft_doc::graphic::GraphicKind::Structure, _, _) => graphic.structure.as_deref().and_then(|source| {
+                    let xml = self.structure_graphic(source, graphic.svg.as_deref(), (*gw, *gh), rels);
+                    crate::xml::parse(xml.as_bytes()).ok()
+                }),
                 _ => None,
             },
         };
@@ -242,6 +246,7 @@ impl Writer<'_> {
                 wordcraft_doc::graphic::GraphicKind::Ink => format!("Ink {docpr}"),
                 wordcraft_doc::graphic::GraphicKind::Cad => format!("CAD Drawing {docpr}"),
                 wordcraft_doc::graphic::GraphicKind::Plot => format!("Plot {docpr}"),
+                wordcraft_doc::graphic::GraphicKind::Structure => format!("Structure {docpr}"),
             };
             let z = self.z;
             self.graphic_frame(

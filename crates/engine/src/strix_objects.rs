@@ -41,19 +41,22 @@ pub enum StrixObjectKind {
     CadDrawing,
     /// A mathematical or experimental plot (its parametric source).
     Plot,
+    /// A plane structure with its diagrams (its parametric source).
+    Structure,
     /// Graph paper behind a section's pages or in the text flow.
     GraphPaper,
 }
 
 impl StrixObjectKind {
     /// Every kind, in listing order.
-    pub const ALL: [StrixObjectKind; 7] = [
+    pub const ALL: [StrixObjectKind; 8] = [
         StrixObjectKind::Calculation,
         StrixObjectKind::CalculatedTable,
         StrixObjectKind::Exercise,
         StrixObjectKind::ResultsSummary,
         StrixObjectKind::CadDrawing,
         StrixObjectKind::Plot,
+        StrixObjectKind::Structure,
         StrixObjectKind::GraphPaper,
     ];
 
@@ -66,6 +69,7 @@ impl StrixObjectKind {
             StrixObjectKind::ResultsSummary => "resultsSummary",
             StrixObjectKind::CadDrawing => "cadDrawing",
             StrixObjectKind::Plot => "plot",
+            StrixObjectKind::Structure => "structure",
             StrixObjectKind::GraphPaper => "graphPaper",
         }
     }
@@ -86,6 +90,8 @@ impl StrixObjectKind {
             StrixObjectKind::CadDrawing => "CAD drawings",
             StrixObjectKind::Plot if one => "plot",
             StrixObjectKind::Plot => "plots",
+            StrixObjectKind::Structure if one => "structure",
+            StrixObjectKind::Structure => "structures",
             StrixObjectKind::GraphPaper => "graph paper",
         }
     }
@@ -169,6 +175,7 @@ fn object(o: &InlineObject, add: &mut dyn FnMut(StrixObjectKind), depth: usize) 
         InlineObject::Equation { math, .. } if math.calc => add(StrixObjectKind::Calculation),
         InlineObject::Graphic { graphic, .. } if graphic.cad.is_some() => add(StrixObjectKind::CadDrawing),
         InlineObject::Graphic { graphic, .. } if graphic.plot.is_some() => add(StrixObjectKind::Plot),
+        InlineObject::Graphic { graphic, .. } if graphic.structure.is_some() => add(StrixObjectKind::Structure),
         InlineObject::ControlStart { control: c } => control(&c.tag, add),
         InlineObject::Group { children, .. } if depth < MAX_DEPTH => {
             for c in children {

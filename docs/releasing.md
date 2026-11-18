@@ -61,7 +61,7 @@ have passed, so a failed CI costs no build minutes.
 | Platform | Artifacts | Signing |
 |---|---|---|
 | macOS | universal `Strix.app` in a `.dmg`, universal CLI zip | Developer ID + notarization (`APPLE_*` secrets) |
-| Windows | x64, x86 and arm64 `.msi` (one dual-scope package: per-user by default, needs no admin rights; "Everyone on this computer" installs per machine) + portable `.zip` + single-file portable `.exe` (see below) | Azure Trusted Signing (`AZURE_*` secrets) |
+| Windows | x64, x86 and arm64 `.msi` (one dual-scope package: per-user by default, needs no admin rights; "Everyone on this computer" installs per machine) + portable `.zip` + single-file portable `.exe` (see below) | SignPath Foundation when `SIGNPATH_API_TOKEN` is set ([code-signing.md](code-signing.md)); otherwise a `WINDOWS_CERTIFICATE` pair, else Azure Trusted Signing (`AZURE_*` secrets) |
 | Linux | x86_64 and aarch64 `.AppImage` (+ `.zsync` for AppImageUpdate), `.flatpak` bundle, `.deb`, `.rpm`, `.tar.gz`; Flathub manifest | checksums |
 | Linux riscv64 | `.tar.gz` (cross-compiled on `ubuntu-24.04`, glibc >= 2.39; CLI smoke-tested under QEMU) | checksums |
 | FreeBSD | x86_64 `.tar.gz` | checksums |
@@ -121,8 +121,8 @@ signing on the `release` branch (as here) and runs macOS on the paid `macos-15-x
 - **Every platform builds whether or not it can be signed.** The **Signing (check only)** job
   reads the secrets and reports, as warnings and in the run's summary, what will be signed: it
   never fails the run. Without `APPLE_CERTIFICATE` macOS is ad-hoc signed and not notarized
-  (Gatekeeper asks users to allow the app); without a `WINDOWS_CERTIFICATE` pair or the six
-  `AZURE_*` secrets Windows is unsigned (SmartScreen warns).
+  (Gatekeeper asks users to allow the app); without `SIGNPATH_API_TOKEN`, a `WINDOWS_CERTIFICATE`
+  pair or the six `AZURE_*` secrets Windows is unsigned (SmartScreen warns).
 - macOS builds on the standard `macos-latest` runner (Apple silicon, the x86_64 half too).
 - FreeBSD x86_64 builds in a VM (`vmactions/freebsd-vm`): the app and the CLI in a tar.gz.
 - Every build waits for the preflight: **Checks already run** must pass, **Signing** must only
@@ -151,6 +151,9 @@ signing on the `release` branch (as here) and runs macOS on the paid `macos-15-x
     `ATTRIBUTION.md`), doesn't run CI, Printing, Packaging lint, FreeBSD or Windows ARM64
     (`pr-scope.yml`): their jobs are skipped, the run still ends "success" and no tree is recorded,
     so the push that merges it runs them. A draft's checks run when it is marked Ready for review.
+  - Dependencies (`deny.yml`, cargo-deny with `deny.toml`: licences, sources, bans and RustSec
+    advisories of everything in `Cargo.lock`) runs on pushes and PRs that change `Cargo.toml`,
+    `Cargo.lock` or `deny.toml`, and weekly; it is not part of the release run.
   - SonarCloud runs only on pushes to `main` (and by hand), not on pull requests: its analysis
     builds the code again and took a runner beside CI on every PR push.
 - `cargo xtask workflows` (in `cargo xtask ci`) keeps the workflows in step: every action from

@@ -1,6 +1,6 @@
 # Live calculations with units
 
-> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, Variables pane with unit converter); systems next · **Last updated:** 2026-11-17 · **Change:** fixes from a review for bugs (a chosen decimal separator is kept with the document; the calculated-table commands are disabled where tables are never calculated); before that, the structures of the Equation tab read as calculations (bars, determinants, floor and ceiling, roots with a degree, logarithms with a base, limits, cases, reciprocal functions); before that, binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
+> **Status:** stages 1–5 done (worksheet with one `=`, symbolic linear/quadratic/`abs` solving and dimensional numeric fallback, Σ/∏, vectors, calculated tables with their own contextual tab, lab statistics and linear regression, number format, working units, checks, `°C`/`°F`, user functions, derivatives and integrals, the Equation tab's structures, Variables pane with unit converter); systems of equations next · **Last updated:** 2026-11-17 · **Change:** docs brought up to date (the Math tab's groups, Rounding under Number Display, the Total Row's places, the stages); before that, fixes from a review for bugs (a chosen decimal separator is kept with the document; the calculated-table commands are disabled where tables are never calculated); before that, the structures of the Equation tab read as calculations (bars, determinants, floor and ceiling, roots with a degree, logarithms with a base, limits, cases, reciprocal functions); before that, binomial coefficients written `(n¦k)`, the closed form of a binomial sum (`∑_(k=0)^n▒(n¦k)·x^k·a^(n−k) = (x + a)^n`) and improper integrals (`∫_(−∞)^∞ e^(−x²) dx`); before that, derivatives `f′(a)` and definite integrals `∫_a^b f(x) dx`; before that, unknown alone on the right solved, inverse trigonometric functions in every written form, exercise data shown as values; before that, Phase 2 math engine & Variables pane (`M4`–`M6`): full SI prefix table (`P`, `T`, `da`, `d`, `p`, `f`) and electromagnetism/photometry/chemistry/topography units; STEM functions (`cbrt`, `root`, `log2`, 2-arg `log`, `atan2`, hyperbolic, `sign`, `mod`), combinatorics (`gcd`/`mcd`, `lcm`/`mcm`, `fact`/`n!`, `binom`) and lab statistics (`median`, `var`, `varp`, `stdev`/`std`, `stdevp`, `slope`, `intercept`, `r2`) plus full Unicode superscripts; symbolic degree 1–2 polynomial solver with dimensional Δ check, domain constraints (`t > 0`) and `|u(x)| = c` branching, algebraic dimension inference in numeric fallback, and the **Variables** pane (`view.variablesPane`, Math › Calculation › Variables)
 
 Strix documents hold live engineering calculations, in the spirit of SMath Studio and Mathcad:
 you write parameters with units, Strix remembers them, and later equations reuse them, solve
@@ -227,8 +227,8 @@ temperatures (`ΔT [°C] = T_2 - T_1`) shows the difference (60, not −213.15),
   | Σ | *7* | *7* | *12* |
 
 - A dash in an input cell (`-`, `–`, `—`) is no value, like an empty cell.
-- **Total Row** (Table Design › Table Style Options › Total Row, also Table Layout › Data and
-  Math › Tables; `table.look {"totalRow"}`): the last row is the totals row. Its first column
+- **Total Row** (Table Design › Table Style Options › Total Row, also Calculated Table › Rows &
+  Columns; `table.look {"totalRow"}`): the last row is the totals row. Its first column
   shows the sign `Σ` (the ordinal column's cell, or a label column's; when the first column is
   summed itself, `Σ = 7`), and each value or formula column's cell shows its sum alone (`7`, in
   the column's unit). A cell written there keeps its own text (`mean =`, `max =`, a label);
@@ -707,9 +707,11 @@ Off, the three characters build up on Space as in Word.
 remove it, Copy gives its linear text (`(L^2)/8`); a plain move drops it.
 
 The **Math** tab gathers the tools: Calculation (New Calculation, Calculate, Always Calculate,
-Recalculate), Symbols, Exercise (docs/exercise.md), Tables (Calculated Table),
-Number Display (More/Fewer Digits, Show Steps, Rounding, Result Layout) and Drawing (CAD Drawing,
-Edit Drawing, see `docs/cad.md`).
+Recalculate, Variables), Symbols (Equation, Symbol), Tables (Calculated Table), Number Display
+(More/Fewer Digits, Show Steps, Rounding, Result Layout) and Drawing (CAD Drawing, Edit Drawing,
+Plot, Plot Properties; see [cad.md](cad.md) and [plot.md](plot.md)). Exercises are on the
+Teaching tab ([exercise.md](exercise.md)), plane structures on the Structures tab
+([structures.md](structures.md)).
 
 Math › Tables has one button, **Calculated Table**: it inserts a calculated table, or, with the
 cursor in a table that isn't calculated, makes that table one. Everything else a calculated table
@@ -725,19 +727,25 @@ none of them.
 2. **One `=`**: unknown detection, symbolic isolation, degree 1–2 polynomial and `abs` solving,
    numeric roots with dimensional inference, checks and comparisons, working units, number format,
    unit hints, `°C`/`°F`, Variables pane and unit converter. *Done.*
-3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`, lab statistics and regression.** *Done.* Still to do: matrices.
+3. **Ranges, vectors, `Σ`/`∏`, user functions `f(x) = …`, lab statistics and regression,
+   derivatives and integrals, the Equation tab's structures.** *Done.* Still to do: matrix
+   arithmetic (a matrix is read only as a vector or inside a determinant).
 4. **Calculated tables.** *Done.*
 5. Solution steps (each isolation step, substitution, result; numeric solves marked) and the
    result layout (inline or line by line). *Done.* Still to do: systems of equations across
-   regions (pending equations solved together), plots.
+   regions (pending equations solved together). Plots are done ([plot.md](plot.md)).
 
 ## Revision history
+
+- 2026-11-17: docs brought up to date with the code: the Math tab's groups (Variables, Plot and Plot Properties; exercises on the Teaching tab), Rounding under Math › Number Display (was Math › Results), Total Row on the Calculated Table tab (no longer Table Layout › Data or Math › Tables), the stages (derivatives, integrals, structures and plots done).
 
 - 2026-11-17: put right in the review of pull request 88: a small slope or curvature on a large value (`f(x) = 101325 + 0.5·x^2`, `f″(1)`) is its value again, not 0 (the smaller steps tried for a function's own scale took it for rounding; `crates/calc/src/calculus.rs`); Math › Calculated Table is greyed out with the cursor in a header, a footer or a note, where it was offered and then refused.
 
 - 2026-11-17: put right in a review for bugs (`crates/calc`, `crates/doc/src/math_linear.rs`): `5! =` in an equation (`c=5!=`) is a factorial and `=`, no longer `≠` (see *A factorial before `=`*); the steps never write a value for the variable of a sum (`∑_i▒i²` after `i = 1..5` was `∑_i▒(([1; 2; 3; 4; 5])²)`, an error from the second calculation on); a stale result `1.2·10^(-5)` is refreshed like `1.2·10^-5`; the `60 K` after a difference of temperatures, read back, no longer turns the working unit to kelvin (the working flipped from `(80 °C) - (20 °C)` to `(353.15 K) - (293.15 K)`); `Σ =` under a `[°C]` column adds the numbers shown (20 and 30 gave 323.15); text inserted as `sin⁻¹(…)`, `sin²(…)` is built with the power on the function's name (it was the function of `⁻¹(…)`), and an n-ary operator whose operand follows a space (`∫_0^1 x^2 + 1 dx`, built with an empty operand: `∫_0^1▒()x^2+1dx`) is read with what follows as its operand.
 
 - 2026-11-17: put right in a review for bugs: a decimal separator chosen with `calc.recalculate {"decimalComma"}` is kept with the document and used by every later calculation (the next plain recalculation failed on what it had written); this page no longer says the separator follows the document's language, which it never did (see *Decimal separator*); the calculated-table commands are disabled on a table inside another table and outside the body, where tables are never calculated (they gave it the header and the style and nothing was worked out); an inline calculation is inline again after its steps leave their lines; turning the total row off leaves a cell holding a note's reference alone; the exercise's result lines and the plot's analysis read a calculation's statement as the calculations do (`kN∕m`, `10^-4`).
+
+- 2026-11-16: calculated tables: a contextual **Calculated Table** tab beside Table Layout holds every command of theirs; Math › Tables keeps the Calculated Table button alone (it also makes the table at the cursor calculated) and Table Layout › Data has none.
 
 - 2026-11-16: the structures of the Equation tab read as calculations (see *Structures of the Equation tab*): `|x|`, `‖v‖`, determinants, `⌊x⌋ ⌈x⌉`, `{…}`, `√(n&x)`, `log_b⁡x`, limits worked out numerically, cases with their conditions, `csc sec cot` with their hyperbolic and inverse functions, the Italian names, accents on names, `x_i` as an element; the steps write an inverse as it is written (`sin^(−1)⁡(…)`, was `asin(…)`). Put right in review: a determinant of small cells is no longer rounded to 0; one value in square brackets is a vector again; a name defined with a subscript stays itself under a sum over that subscript and an element read by number is not an unknown; a function's name without an argument is a name (`det = …`); what follows an applied function's operand multiplies the function (`sin⁡α L`); cases with `otherwise` are read back from the steps; cases are read with decimal commas.
 
@@ -746,8 +754,6 @@ none of them.
 - 2026-11-15: derivatives of user functions (`f′(a)`, `f″(a)`) and definite integrals (`∫_a^b f(x) dx`), numerical, with units; solvable like any call (`0 = f′(x)`); they make the plot's analysis live in the document (`plot.analysis`, [plot.md](plot.md)).
 
 - 2026-11-14: the unknown alone on the right of a formula is solved (`h·r = A ⇒ A = h·r = … = 1.5 m²`, also when it is spelled like a unit of another kind); inverse functions written `sin⁻¹`, `sin^-1`, `sin^(−1)⁡x` (built up) or `arcsin`…, shown as `asin`… in the steps, `sin²(x)` a power of the result, Word's function application `sin⁡x` read; data shown only as values in an exercise's text written as their values in its calculations (`A = (2 m)·r = (2 m)·(0.75 m) = 1.5 m²`), the typed statement kept as the source.
-
-- 2026-11-16: calculated tables: a contextual **Calculated Table** tab beside Table Layout holds every command of theirs; Math › Tables keeps the Calculated Table button alone (it also makes the table at the cursor calculated) and Table Layout › Data has none.
 
 - 2026-11-14: calculated tables: rows by subscript (`y_(i+1)`, `y_(i-1)`, `y_1`, `y_n`, `y_i`; columns named `y_i`), never wrapping round, `–` where there is no such row; the total row shows `Σ` in its first column and the sums alone; Column Total (`table.calcTotal`) per column; in Cells as Equations the whole cell is its equation's place; the Calculated Table style (heavier header bottom and total top edges).
 
@@ -800,7 +806,7 @@ central value, `unc(L)` the absolute uncertainty with the same dimension, and
 last is undefined at zero. Celsius/Fahrenheit uncertainties are differences,
 so no temperature offset is added to the uncertainty.
 
-Math › Results › Rounding offers Maximum Uncertainty and Uncertainty in
+Math › Number Display › Rounding offers Maximum Uncertainty and Uncertainty in
 Quadrature (GUM). The same setting is `calc.options {"uncertainty":"max"|"rss"}`,
 with the existing equation > exercise > document > preferences inheritance and
 Word round trip. Maximum propagation adds absolute derivative contributions;

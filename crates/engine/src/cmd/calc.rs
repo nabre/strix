@@ -44,11 +44,11 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"{"value"?: bool (default: toggle)}: new equations are calculation regions (a preference)"#),
-        CommandSpec::new("calc.steps", "Show Steps", "Math › Results", set_steps)
+        CommandSpec::new("calc.steps", "Show Steps", "Math › Number Display", set_steps)
             .params(r#"{"value"?: bool (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → formulas, solved equations and checks show their solution steps, laid out as calc.layout says"#),
-        CommandSpec::new("calc.layout", "Result Layout", "Math › Results", set_layout)
+        CommandSpec::new("calc.layout", "Result Layout", "Math › Number Display", set_layout)
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
-        CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
+        CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| match calc_table_place(s) {
@@ -93,7 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool, "columnTotal": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row), whether the caret's column is summed there (table.calcTotal)"#),
-        CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
+        CommandSpec::new("calc.variables", "Variables", "Math › Calculation", variables)
             .pure()
             .params(r#"{"digits"?: n, "units"?: {"name" | "document:name" | "exercise:1:name": "unit"}} → {"variables": [{"name", "value", "text", "unit", "si", "shown", "region", "pos", "compatibleUnits", "selectedUnit", "convertedText", "converted"}], "exercises": [{"exercise": 1-based, "title", "variant", "variables": [...]}]}"#),
     ]
@@ -643,8 +643,9 @@ enum Item {
     },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
-    /// A mathematical/experimental plot (`docs/plot.md`) in top-level block `top`: its source.
-    Plot { top: usize, source: Arc<str> },
+    /// A mathematical/experimental plot (`docs/plot.md`) in top-level block `top`: its source;
+    /// with `structure`, a plane structure's (`docs/structures.md`), drawn as a plot is.
+    Plot { top: usize, source: Arc<str>, structure: bool },
 }
 
 /// A cell's text as the calc engine reads it: its first paragraph.
@@ -874,7 +875,13 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     if let InlineObject::Graphic { graphic, .. } = o
                         && graphic.kind == wordcraft_doc::graphic::GraphicKind::Plot
                     {
-                        out.push(Item::Plot { top, source: graphic.plot.clone().unwrap_or_else(|| Arc::from("")) });
+                        out.push(Item::Plot { top, source: graphic.plot.clone().unwrap_or_else(|| Arc::from("")), structure: false });
+                        continue;
+                    }
+                    if let InlineObject::Graphic { graphic, .. } = o
+                        && graphic.kind == wordcraft_doc::graphic::GraphicKind::Structure
+                    {
+                        out.push(Item::Plot { top, source: graphic.structure.clone().unwrap_or_else(|| Arc::from("")), structure: true });
                         continue;
                     }
                     if let InlineObject::Equation { linear, math, .. } = o {
@@ -1128,6 +1135,14 @@ fn run_sheet_with(
                         Outcome::Cad(Some(rendered), errors, Some(Box::new((d, names, screen))))
                     }
                     Err(e) => Outcome::Cad(None, vec![(String::new(), e)], None),
+                },
+                Item::Plot { source, structure: true, .. } => match strix_structure::Structure::from_json(source) {
+                    Ok(st) => {
+                        let rendered = st.render_for(Some(ws), show_sol).plot;
+                        let errs = rendered.errors.clone();
+                        Outcome::Plot(Some(rendered), errs)
+                    }
+                    Err(e) => Outcome::Plot(None, vec![e]),
                 },
                 Item::Plot { source, .. } => match strix_plot::Plot::from_json(source) {
                     Ok(p) => {
@@ -1692,6 +1707,14 @@ fn eval_variant_item(
             }
             Err(e) => errors.push((top, format!("CAD: {e}"))),
         },
+        Item::Plot { source, structure: true, .. } => match strix_structure::Structure::from_json(source) {
+            Ok(st) => {
+                for why in st.render(Some(ws)).plot.errors {
+                    errors.push((top, format!("Structure: {why}")));
+                }
+            }
+            Err(e) => errors.push((top, format!("Structure: {e}"))),
+        },
         Item::Plot { source, .. } => match strix_plot::Plot::from_json(source) {
             Ok(p) => {
                 for why in p.render(Some(ws)).errors {
@@ -1910,6 +1933,29 @@ pub(crate) fn resolved_plot(s: &Session, source: &Arc<str>) -> Option<strix_plot
     }
 }
 
+/// Structure `source` worked out where it sits, against the worksheet it sees there (the main
+/// one, or its exercise's sandbox): its analysis and the teacher's drawing.
+pub(crate) fn resolved_structure(s: &Session, source: &Arc<str>) -> Option<strix_structure::StructureRendered> {
+    let mut found = items(&s.doc.body);
+    let at = found.iter().position(|i| matches!(i, Item::Plot { source: src, structure: true, .. } if Arc::ptr_eq(src, source)))?;
+    let top = match found.get(at) {
+        Some(Item::Plot { top, .. }) => *top,
+        _ => return None,
+    };
+    found.truncate(at);
+    let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
+    let opts = options_now(s);
+    let (sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let st = strix_structure::Structure::from_json(source).ok()?;
+    Some(match zones.get(top).copied().flatten() {
+        Some(e) => match sheets.exercises.get(&e) {
+            Some(ws) => st.render(Some(ws)),
+            None => st.render(Some(&Worksheet::new(opts))),
+        },
+        None => st.render(Some(&sheets.main)),
+    })
+}
+
 /// A drawing resolved where it sits: the drawing, how it renders, the parameters it can show.
 pub(crate) type ResolvedCad = std::rc::Rc<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)>;
 
@@ -1936,7 +1982,7 @@ fn redraw_plots(s: &mut Session, plots: &[Option<RedrawnPlot>]) -> usize {
             let mut touched = false;
             for o in &mut p.objects {
                 let InlineObject::Graphic { w, h, graphic, .. } = o else { continue };
-                if graphic.kind != wordcraft_doc::graphic::GraphicKind::Plot {
+                if !matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Plot | wordcraft_doc::graphic::GraphicKind::Structure) {
                     continue;
                 }
                 if let Some(Some((dw, dh, items, rendered))) = plots.get(index)
@@ -2990,7 +3036,7 @@ fn item_positions(blocks: &[Arc<Block>]) -> Vec<wordcraft_doc::Pos> {
                     let is_graphic = matches!(
                         o,
                         InlineObject::Graphic { graphic, .. }
-                            if matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Cad | wordcraft_doc::graphic::GraphicKind::Plot)
+                            if matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Cad | wordcraft_doc::graphic::GraphicKind::Plot | wordcraft_doc::graphic::GraphicKind::Structure)
                     );
                     if is_graphic || matches!(o, InlineObject::Equation { .. }) {
                         out.push(Pos::new(StoryRef::Body, path.clone(), off));

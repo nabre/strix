@@ -1,4 +1,4 @@
-//! The Assessment Check task pane (`Teaching › Check`, `view.checkPane`): runs `exercise.check`
+//! The Assessment Check task pane (`Teaching › Assessment › Check Assessment`, `view.checkPane`): runs `exercise.check`
 //! across every variant (`A..Z`) and lists errors, warnings and info items with clickable links
 //! to the exact position in the document, plus a shortcut to export the Assessment Pack.
 

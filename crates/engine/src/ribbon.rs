@@ -16,11 +16,12 @@ use crate::Registry;
 
 /// The ribbon's tabs in their default order. `File` opens Backstage: it is always first and
 /// isn't part of the customizable list.
-pub const TABS: [&str; 15] = [
+pub const TABS: [&str; 16] = [
     "File",
     "Home",
     "Insert",
     "Math",
+    "Structures",
     "Teaching",
     "Draw",
     "Design",

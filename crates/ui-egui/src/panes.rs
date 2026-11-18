@@ -69,11 +69,13 @@ pub enum Pane {
     Variables,
     /// Outlining › Master Document: the master document's linked files.
     Subdocuments,
-    /// Teaching › Check: pre-flight inspection across all variants.
+    /// Teaching › Assessment › Check Assessment: pre-flight inspection across all variants.
     Check,
     Archive,
     /// Math › Drawing › Plot Properties: configure Cartesian plots, series and regressions.
     Plot,
+    /// Structures › Editor: draw and edit the selected structure, with its tables.
+    Structure,
     /// Teaching › Scores › Grading Scale › Properties: the points-to-grade table.
     Grading,
     /// Exercise › Questions › Question Settings: the questions of the exercise at the cursor.
@@ -106,6 +108,7 @@ impl Pane {
             Self::Check => "Assessment Check",
             Self::Archive => "Exercise Bank",
             Self::Plot => "Plot Properties",
+            Self::Structure => "Structure Editor",
             Self::Grading => "Grading Scale",
             Self::Questions => "Question Settings",
             Self::Data => "Exercise Data",
@@ -133,6 +136,7 @@ impl Pane {
             Self::Check => (Edge::End, 320.0),
             Self::Archive => (Edge::End, 340.0),
             Self::Plot => (Edge::End, 330.0),
+            Self::Structure => (Edge::End, 440.0),
             Self::Grading => (Edge::End, 300.0),
             Self::Questions => (Edge::End, 320.0),
             Self::Data => (Edge::End, 350.0),
@@ -162,6 +166,7 @@ impl Pane {
             Self::Check => "check",
             Self::Archive => "archive",
             Self::Plot => "plot",
+            Self::Structure => "structure",
             Self::Grading => "grading",
             Self::Questions => "questions",
             Self::Data => "exerciseData",
@@ -170,7 +175,7 @@ impl Pane {
         }
     }
 
-    const ALL: [Self; 22] = [
+    const ALL: [Self; 23] = [
         Self::SmartArtText,
         Self::Navigation,
         Self::Clipboard,
@@ -188,6 +193,7 @@ impl Pane {
         Self::Check,
         Self::Archive,
         Self::Plot,
+        Self::Structure,
         Self::Grading,
         Self::Questions,
         Self::Data,
@@ -217,6 +223,7 @@ impl Pane {
             Self::Check => Some("view.checkPane"),
             Self::Archive => Some("view.archivePane"),
             Self::Plot => Some("view.plotPane"),
+            Self::Structure => Some("view.structurePane"),
             Self::Grading => Some("view.gradingPane"),
             Self::Questions => Some("view.questionsPane"),
             Self::Data => Some("view.dataPane"),
@@ -254,6 +261,7 @@ impl PaneContent<Pane> for Content<'_> {
             Pane::Check => crate::check_pane::pane(app, ui),
             Pane::Archive => crate::archive_pane::pane(app, ui),
             Pane::Plot => crate::plot_pane::pane(app, ui),
+            Pane::Structure => crate::structure_pane::pane(app, ui),
             Pane::Grading => crate::grading_pane::pane(app, ui),
             Pane::Questions => crate::exercise_quiz::pane(app, ui),
             Pane::Data => crate::exercise_panels::pane(app, ui),
