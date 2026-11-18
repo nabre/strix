@@ -39,7 +39,8 @@ commands:
                   only), or by default the carry-over locales (de, pl, pt, it, ru) until Language packs ship
   ci              fmt --check, clippy -D warnings, test, i18n-report, language, doctest, assets,
                   workflows, layers, wasm
-                  (stops at first failure)
+                  (stops at first failure); --lint runs only the check-mode builds (fmt, clippy,
+                  wasm), --no-lint everything else, so CI runs the two halves in parallel
   corpus [--download]
                   show where test corpora live; --download fetches PngSuite into corpus/pngsuite
   stats [--exact] count tests and lines per crate (--exact: ask the test harness via `-- --list`)
@@ -78,7 +79,7 @@ fn main() -> ExitCode {
         Some("test") => cmd_test().and_then(|()| cmd_i18n_report()).and_then(|()| cmd_doctest()),
         Some("i18n-report") => cmd_i18n_report(),
         Some("language") => cmd_language(),
-        Some("ci") => cmd_ci(),
+        Some("ci") => cmd_ci(&rest),
         Some("corpus") => cmd_corpus(rest.contains(&"--download")),
         Some("stats") => stats::run(&root(), rest.contains(&"--exact")),
         Some("parity") => parity::run(&root()),
@@ -250,7 +251,17 @@ fn cmd_doctest() -> Result<(), String> {
     run(c, "cargo test --workspace --doc")
 }
 
-fn cmd_ci() -> Result<(), String> {
+/// The `cargo xtask ci` steps that only build in check mode: `--lint` runs these, `--no-lint`
+/// the others (ci.yml runs them as the shared gate's `lint` and `gate` legs, side by side).
+const LINT_STEPS: [&str; 3] = ["fmt", "clippy", "wasm"];
+
+fn cmd_ci(args: &[&str]) -> Result<(), String> {
+    let lint = match args {
+        [] => None,
+        ["--lint"] => Some(true),
+        ["--no-lint"] => Some(false),
+        _ => return Err(format!("ci: unexpected arguments {args:?} (expected nothing, --lint or --no-lint)")),
+    };
     type Step = (&'static str, Box<dyn Fn() -> Result<(), String>>);
     let steps: Vec<Step> = vec![
         (
@@ -278,6 +289,7 @@ fn cmd_ci() -> Result<(), String> {
         ("layers", Box::new(cmd_layers)),
         ("wasm", Box::new(cmd_wasm)),
     ];
+    let steps: Vec<Step> = steps.into_iter().filter(|(name, _)| lint.is_none_or(|l| LINT_STEPS.contains(name) == l)).collect();
     let mut done = Vec::new();
     for (name, f) in &steps {
         eprintln!("\n=== ci: {name} ===");
