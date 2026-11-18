@@ -1752,7 +1752,7 @@ pub(super) fn summary_lines(
     e: usize,
     answers: &std::collections::HashMap<(usize, u32), Vec<String>>,
     none: &str,
-) -> Vec<String> {
+) -> Vec<(String, Vec<String>)> {
     let its = items(s, layout, e);
     let w = super::exercise_words(s, layout, e);
     let labels: Vec<String> = layout.exercises.get(e).map(|x| x.questions.iter().map(|q| q.label.clone()).collect()).unwrap_or_default();
@@ -1760,6 +1760,7 @@ pub(super) fn summary_lines(
     its.iter()
         .enumerate()
         .filter_map(|(k, it)| {
+            let mut equations = Vec::new();
             let shown = match it.settings.mode {
                 Mode::Choice => {
                     let right = correct_letters(s, it.answer?, it.settings.true_false, w);
@@ -1767,7 +1768,15 @@ pub(super) fn summary_lines(
                 }
                 Mode::Calc => {
                     let n = u32::try_from(k + 1).unwrap_or(u32::MAX);
-                    answers.get(&(e, n)).filter(|v| !v.is_empty()).map(|v| v.join("; ")).unwrap_or_else(|| none.to_string())
+                    match answers.get(&(e, n)).filter(|v| !v.is_empty()) {
+                        // Written as equations (subscripts, upright units), like the calculations.
+                        Some(v) if super::summary_math(v) => {
+                            equations.clone_from(v);
+                            String::new()
+                        }
+                        Some(v) => v.join("; "),
+                        None => none.to_string(),
+                    }
                 }
                 Mode::Open => w.open_answer.to_string(),
                 // A text to complete: its hidden words.
@@ -1780,7 +1789,13 @@ pub(super) fn summary_lines(
                 }
                 Mode::Drawing | Mode::Worked | Mode::Matching => return None,
             };
-            Some(if lone { shown } else { format!("{} {shown}", labels.get(k).cloned().unwrap_or_default()) })
+            let label = labels.get(k).cloned().unwrap_or_default();
+            let text = match (lone, shown.is_empty()) {
+                (true, _) => shown,
+                (false, true) => format!("{label} "),
+                (false, false) => format!("{label} {shown}"),
+            };
+            Some((text, equations))
         })
         .collect()
 }
@@ -2449,7 +2464,9 @@ mod tests {
     }
 
     fn texts(s: &Session) -> Vec<String> {
-        s.doc.body.iter().filter_map(|b| b.as_para()).map(|p| p.text.chars().filter(|&c| c != OBJ).collect()).collect()
+        // The results summary's equations read as their text.
+        let text = |p: &Paragraph| if p.props.style.as_deref() == Some(super::super::STYLE_RESULT) { p.plain_text() } else { p.text.clone() };
+        s.doc.body.iter().filter_map(|b| b.as_para()).map(|p| text(p).chars().filter(|&c| c != OBJ).collect()).collect()
     }
 
     #[test]

@@ -4043,6 +4043,12 @@ structure	Delete	Elimina
 structure	Add a distributed load	Aggiungi un carico distribuito
 structure	Split here	Dividi qui
 structure	Split in half	Dividi a metà
+structure	Join the members	Unisci le aste
+structure	The node must join exactly two members	Il nodo deve collegare esattamente due aste
+structure	The two members are not aligned	Le due aste non sono allineate
+structure	The node has a support	Il nodo ha un vincolo
+structure	There is a hinge at the node	C'è una cerniera nel nodo
+structure	The members have different sections	Le aste hanno sezioni diverse
 structure	Hinge at end {n}	Cerniera all'estremo {n}
 structure	Select its ends	Seleziona i suoi estremi
 structure	Reverse	Inverti il verso
@@ -4064,6 +4070,10 @@ structure	At node {n}	Nel nodo {n}
 structure	Double-click	Doppio clic
 # Strix (2026-11-18): a new exercise on a structure (structure.exercise).
 	Structure Exercise	Esercizio su struttura
+	To\nReport	Passa a\nstruttura
+	To\nExercise	Passa a\nesercizio
+	Switch Structure Mode	Cambia modalità della struttura
+	select a structure, or put the cursor in an exercise on a structure	seleziona una struttura, o metti il cursore in un esercizio su una struttura
 	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nuovo esercizio su una struttura: la struttura nel testo, le reazioni e i diagrammi richiesti, lo svolgimento e i disegni nella risoluzione
 	For the structure in the figure, loaded as shown:	Per la struttura in figura, caricata come indicato:
 	Find the support reactions.	Calcola le reazioni vincolari.

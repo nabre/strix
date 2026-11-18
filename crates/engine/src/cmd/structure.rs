@@ -46,10 +46,19 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("structure.exercise", "Structure Exercise", PLACE, exercise::run).params(
             r#"{"structure"?: object|string, "template"?: "beam"|"cantilever"|"continuous"|"frame"|"truss", "labels"?: {"title"?, "text"?, "jump"?, "nozero"? ({T}: the shear's name), and structure.working's labels}, "questions"?: {"reactions"?, "axial"?, "shear"?, "zeros"?, "maxima"?, "moments"?, "trussAxial"?: string}} → a new exercise on a structure: the statement with the structure and its loads, six questions (reactions; N; T; where T is zero; the greatest moment there; M — a truss: reactions and axial forces), and in the solution under each question its working (T's law solved for its zero, M's law there) and its drawing (the reactions; one diagram each), all drawings of one structure (a change to one is made to the others)"#,
         ),
+        CommandSpec::new("structure.mode", "Switch Structure Mode", PLACE, mode::run).when(mode::disabled).params(
+            r#"{"mode"?: "report"|"exercise" (default: the other one), "working"?: bool (to a report: write its working, default true), "labels"?, "questions"? (as structure.exercise's)} → the selected structure (or the exercise at the caret) passes from a technical report (the structure with all its diagrams and its working after it) to an exercise on it (the structure in the statement, the questions, the working and the drawings in the solution), or back, where it was; the working follows the structure, and its parameters, in either mode"#,
+        ),
         CommandSpec::new("structure.load", "Structure Load", PLACE, load).when(selected).params(
             r#"{"index"?: n, "load"?: object ({"type": "force"|"moment"|"distributed", ...}), "remove"?: bool} → adds a load, replaces load `index`, or removes it"#,
         ),
     ]
+}
+
+/// Whether the structure `structure.mode` would act on is in an exercise (so it would become a
+/// report).
+pub fn in_exercise(s: &Session) -> bool {
+    mode::target(s).is_some_and(|t| t.2.is_some())
 }
 
 /// Whether the selected inline object is a structure.
@@ -607,7 +616,19 @@ fn put(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<Arc<
 }
 
 fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<(), CmdError> {
-    let json_arc = put(s, pos, st)?;
+    let mut json_arc = put(s, pos, st)?;
+    // A structure with parameters and a working keeps what it is written from, so a
+    // recalculation writes the working again only when a parameter changes.
+    let keyed;
+    let st = if !st.expressions().is_empty() && working::has_live(s, &st.group) {
+        keyed = Structure { working_key: mode::values_key(s, &json_arc), ..st.clone() };
+        if keyed.working_key != st.working_key {
+            json_arc = put(s, pos, &keyed)?;
+        }
+        &keyed
+    } else {
+        st
+    };
     // Its written workings follow it (a structure that can't be solved says so there).
     let mut pos = pos.clone();
     working::refresh(s, &json_arc, st, &mut pos)?;
@@ -664,6 +685,8 @@ fn free_group(s: &Session) -> String {
 }
 
 mod exercise;
+mod mode;
+pub(crate) use mode::follow_values;
 mod working;
 
 #[cfg(test)]

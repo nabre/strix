@@ -14,8 +14,8 @@
 
 use serde_json::{Value, json};
 use strix_structure::{
-    Action, Load, LoadName, MemberResult, NotableKind, Resultant, ResultantKind, Status, Structure, SupportKind, load_names, notables, resultants,
-    stretches,
+    Action, Chains, Load, LoadName, MemberResult, NotableKind, Resultant, ResultantKind, Status, Structure, SupportKind, chains, load_names,
+    notables, resultants, stretches,
 };
 use wordcraft_doc::math::{Math, parse_linear, to_linear};
 use wordcraft_doc::para::Paragraph;
@@ -23,10 +23,11 @@ use wordcraft_doc::{Block, InlineObject};
 
 use crate::{CmdError, CmdResult, Session};
 
+mod arms;
 mod live;
 mod named;
 mod questions;
-pub(super) use live::{Part, keep_labels, name as live_name, refresh, wrap};
+pub(super) use live::{Part, any as has_live, keep_labels, name as live_name, range as live_range, refresh, wrap};
 pub(super) use questions::parts;
 
 /// At most this many lines are written.
@@ -344,6 +345,8 @@ struct Units {
     /// ends (`q1`, `q2`).
     names: Vec<Option<LoadName>>,
     ends: Vec<(f64, f64)>,
+    /// The drawing's dimension chains, which the moment arms are written from ([`arms`]).
+    chains: Chains,
 }
 
 impl Units {
@@ -375,7 +378,7 @@ impl Units {
         let Some(name) = self.names.get(r.load).copied().flatten() else { return self.valued(r) };
         match r.kind {
             ResultantKind::Force { .. } | ResultantKind::Couple { .. } => name.linear(),
-            ResultantKind::Spread { length, triangle: false, .. } => format!("{}·{}", name.linear_end(1), self.length(length)),
+            ResultantKind::Spread { length, triangle: false, .. } => format!("{}·{}", name.linear_end(1), self.measure(length)),
             ResultantKind::Spread { length, triangle: true, .. } => {
                 let (q1, q2) = self.ends.get(r.load).copied().unwrap_or((0.0, 0.0));
                 let (n1, n2) = (name.linear_end(1), name.linear_end(2));
@@ -391,35 +394,38 @@ impl Units {
                 } else {
                     format!("({n1} - {n2})")
                 };
-                format!("{height}·{}/2", self.length(length))
+                format!("{height}·({})/2", self.measure(length))
             }
         }
     }
 
     /// The definitions of the loads' names: `F_1 = (20 kN)`, `q_(1,1) = (5 kN/m)` (sizes: the
-    /// equations' signs give the directions).
+    /// equations' signs give the directions), in the names' order.
     fn definitions(&self, st: &Structure) -> Vec<String> {
-        let mut out = Vec::new();
+        let mut out: Vec<(usize, String)> = Vec::new();
         for (l, name) in st.loads.iter().zip(&self.names) {
             let Some(name) = name else { continue };
+            let n = name.number;
             match l {
-                Load::Force { value, .. } => out.push(format!("{} = {}", name.linear(), self.force(value.value))),
-                Load::Moment { value, .. } => out.push(format!("{} = {}", name.linear(), self.moment(value.value))),
+                Load::Force { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.force(value.value)))),
+                Load::Moment { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.moment(value.value)))),
                 Load::Distributed { q1, q2, .. } => {
                     let (a, b) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
                     if !name.varying {
-                        out.push(format!("{} = {}", name.linear(), self.spread(a)));
+                        out.push((n, format!("{} = {}", name.linear(), self.spread(a))));
                         continue;
                     }
                     for (end, q) in [(1, a), (2, b)] {
                         if q != 0.0 {
-                            out.push(format!("{} = {}", name.linear_end(end), self.spread(q)));
+                            out.push((n, format!("{} = {}", name.linear_end(end), self.spread(q))));
                         }
                     }
                 }
             }
         }
-        out
+        // Stable: a varying load's ends stay in order.
+        out.sort_by_key(|(n, _)| *n);
+        out.into_iter().map(|(_, d)| d).collect()
     }
 
     /// The force a resultant amounts to by its numbers (positive).
@@ -470,7 +476,15 @@ fn rotation(p: (f64, f64), us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Unit
             Acts::Along(d) => {
                 let arm = d.1 * dx - d.0 * dy;
                 if arm.abs() > TOL * (1.0 + dx.abs() + dy.abs()) {
-                    eq.unknowns.push((i, arm, format!("{}·{}", k.name, u.length(arm))));
+                    // Along an axis, the arm is a distance the drawing's chains give.
+                    let text = if d.0.abs() < TOL {
+                        u.arm_between(0, p.0, k.at.0)
+                    } else if d.1.abs() < TOL {
+                        u.arm_between(1, p.1, k.at.1)
+                    } else {
+                        u.length(arm)
+                    };
+                    eq.unknowns.push((i, arm, format!("{}·{text}", k.name)));
                 }
             }
         }
@@ -485,11 +499,11 @@ fn rotation(p: (f64, f64), us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Unit
         // Fy·dx − Fx·dy, a term each.
         let fy = v * r.dir.1 * dx;
         if fy.abs() > TOL * v.abs().max(1e-12) * (1.0 + dx.abs()) {
-            eq.loads.push((fy, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.1), u.length(dx))));
+            eq.loads.push((fy, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.1), u.arm(0, p.0, r))));
         }
         let fx = -v * r.dir.0 * dy;
         if fx.abs() > TOL * v.abs().max(1e-12) * (1.0 + dy.abs()) {
-            eq.loads.push((fx, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.0), u.length(dy))));
+            eq.loads.push((fx, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.0), u.arm(1, p.1, r))));
         }
     }
     eq
@@ -629,7 +643,7 @@ fn units(st: &Structure, comma: bool) -> Units {
             _ => (0.0, 0.0),
         })
         .collect();
-    Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends }
+    Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends, chains: chains(st) }
 }
 
 /// The shear's name in the laws: the diagram's title's letters (`T`, `V`).

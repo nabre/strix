@@ -121,6 +121,18 @@ fn paint_structures(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(9.0, 15.0), (17.0, 7.0)], a);
             pen.fill(&[(16.0, 5.5), (18.5, 8.0), (17.0, 9.5), (14.5, 7.0)], a);
         }
+        // Structure mode: a beam on its supports above, a numbered question below, arrows both ways.
+        "structureMode" => {
+            pen.line_c(&[(3.0, 5.0), (12.0, 5.0)], c);
+            pen.closed(&[(3.5, 5.0), (2.3, 7.5), (4.7, 7.5)], c);
+            pen.closed(&[(11.5, 5.0), (10.3, 7.5), (12.7, 7.5)], c);
+            pen.circle(4.0, 14.0, 1.0, c);
+            pen.line_c(&[(6.5, 14.0), (12.0, 14.0)], c);
+            pen.line_c(&[(6.5, 17.0), (10.5, 17.0)], c);
+            pen.line_c(&[(16.0, 4.0), (16.0, 16.0)], a);
+            pen.fill(&[(14.3, 6.0), (17.7, 6.0), (16.0, 3.5)], a);
+            pen.fill(&[(14.3, 14.0), (17.7, 14.0), (16.0, 16.5)], a);
+        }
         // Edit Structure: a beam on its supports in a full sheet, a pencil over it.
         "structureEdit" => {
             pen.line_c(&[(2.5, 3.5), (17.5, 3.5), (17.5, 17.5), (2.5, 17.5), (2.5, 3.5)], c);

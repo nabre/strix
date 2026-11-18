@@ -193,6 +193,35 @@ fn a_labile_structure_has_no_working() {
     assert!(r.is_err_and(|e| e.contains("labile")));
 }
 
+/// Moment arms come from the drawing's chains and the loads' lengths, never a centroid's distance
+/// the drawing doesn't show (q_2 on 3.5…4.5 m: `(3 m + 0.5 m + (1 m)/2)`, not `4 m`).
+#[test]
+fn moment_arms_are_written_from_the_dimensions() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 10, "to": 3},
+            {"type": "distributed", "member": "1", "q1": 10, "from": 3.5, "to": 4.5},
+            {"type": "distributed", "member": "1", "q1": 0, "q2": 6, "from": 4.5}
+        ]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    let first = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_B")).unwrap_or_default();
+    assert!(has(first, "q_1·3 m·(3 m)/2"), "{first}");
+    assert!(has(first, "q_2·1 m·(3 m + 0.5 m + (1 m)/2)"), "{first}");
+    // The triangle grows towards B: its centroid two thirds of its length from its start.
+    assert!(has(first, "·(6 m - (1.5 m)/3)"), "{first}");
+    assert!(!has(first, "·4 m") && !has(first, "·5.5 m"), "{first}");
+    // About B, the whole length less half the load's: fewer terms than the chain up to it.
+    let about_b = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_A")).unwrap_or_default();
+    assert!(has(about_b, "q_1·3 m·(6 m - (3 m)/2)"), "{about_b}");
+    // q·3·1.5 + q·1·4 + 3·1.5/2·(4.5+1) = 45 + 40 + 24.75 = 109.75 → V_B = 18.2917.
+    assert!(has(&t, "V_B&=18.292 kN"), "{t}");
+}
+
 #[test]
 fn the_working_follows_the_document_decimal_comma() {
     let mut s = Session::new(Document::new());
@@ -212,9 +241,9 @@ fn the_working_follows_the_document_decimal_comma() {
     assert!(!t.contains('⚠'), "{t}");
 }
 
-/// Each load is named, numbered by kind (`F_1`, `q_1`, a varying load's ends `q_(2,1)` and
-/// `q_(2,2)`, `C_1`): the working defines the names and its equations use them, and calc solves
-/// them to the same reactions.
+/// Each load is named, one count through all the kinds by place (`q_1`, a varying load's ends
+/// `q_(2,1)` and `q_(2,2)`, `F_4`, `C_5`): the working defines the names in that order and its
+/// equations use them, and calc solves them to the same reactions.
 #[test]
 fn the_working_names_the_loads() {
     let t = working_of(json!({
@@ -234,12 +263,17 @@ fn the_working_names_the_loads() {
     assert!(!t.contains('⚠'), "{t}");
     // Defined with their sizes; the zero force is not numbered.
     assert!(has(&t, "Loads:"), "{t}");
-    for d in ["q_1=(10 kN/m)", "F_1=(12 kN)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "C_1=(6 kN·m)"] {
-        assert!(has(&t, d), "{d}: {t}");
+    let defs = ["q_1=(10 kN/m)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "F_4=(12 kN)", "C_5=(6 kN·m)"];
+    let flat: String = t.chars().filter(|c| !c.is_whitespace()).collect();
+    let mut from = 0;
+    for d in defs {
+        let d: String = d.chars().filter(|c| !c.is_whitespace()).collect();
+        let Some(at) = flat.get(from..).and_then(|rest| rest.find(&d)) else { panic!("{d} after the previous one: {t}") };
+        from += at + d.len();
     }
-    assert!(!has(&t, "F_2") && !has(&t, "q_(3,1)"), "{t}");
+    assert!(!has(&t, "F_1") && !has(&t, "C_1") && !has(&t, "F_6") && !has(&t, "q_(3,1)"), "{t}");
     // The equations use the names: rectangle and triangle of the trapezoid, the triangle alone.
-    for term in ["q_1·6 m", "F_1·2 m", "q_(2,1)·6 m", "(q_(2,2)-q_(2,1))·6 m/2", "q_(3,2)·6 m/2", "+C_1"] {
+    for term in ["q_1·6 m", "F_4·2 m", "q_(2,1)·6 m", "(q_(2,2)-q_(2,1))·(6 m)/2", "q_(3,2)·(6 m)/2", "·2·(6 m)/3", "+C_5"] {
         assert!(has(&t, term), "{term}: {t}");
     }
     // ΣM_A: V_B·6 = 10·6·3 + 12·2 + 2·6·3 + 3·6/2·4 + 4·6/2·4 − 6 = 318.
@@ -275,11 +309,11 @@ fn the_working_follows_the_structure() {
     s.run("structure.insert", &json!({"template": "beam"})).unwrap();
     s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
     let t = text_of(&s);
-    assert!(has(&t, "q_1·6 m·3 m") && has(&t, "V_B&=30 kN"), "{t}");
+    assert!(has(&t, "q_1·6 m·(6 m)/2") && has(&t, "V_B&=30 kN"), "{t}");
     // The load shortened in the editor: the working is written again in its place, in its words.
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
-    assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{t}");
+    assert!(has(&t, "q_1·4 m·(4 m)/2") && !has(&t, "q_1·6 m·(6 m)/2"), "{t}");
     assert!(has(&t, "V_B&=13.333 kN"), "{t}");
     assert_eq!(t.matches("Svolgimento").count(), 1, "{t}");
     assert_eq!(t.matches("ΣM_A").count(), 1, "written once: {t}");
@@ -288,7 +322,7 @@ fn the_working_follows_the_structure() {
     // One undo step brings the working back with the load.
     s.undo();
     let t = text_of(&s);
-    assert!(has(&t, "q_1·6 m·3 m") && !has(&t, "q_1·4 m·2 m"), "{t}");
+    assert!(has(&t, "q_1·6 m·(6 m)/2") && !has(&t, "q_1·4 m·(4 m)/2"), "{t}");
     // Writing it again rewrites it in place.
     select_structure(&mut s, 0);
     s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
@@ -312,12 +346,12 @@ fn a_working_waits_while_its_structure_cannot_be_solved() {
 fn an_exercise_working_follows_any_of_its_drawings() {
     let mut s = Session::new(Document::new());
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
-    assert!(has(&text_of(&s), "q_1·6 m·3 m"));
+    assert!(has(&text_of(&s), "q_1·6 m·(6 m)/2"));
     // The diagram of M in the solution, changed: the statement and every part follow.
     select_structure(&mut s, 4);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
-    assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{t}");
+    assert!(has(&t, "q_1·4 m·(4 m)/2") && !has(&t, "q_1·6 m·(6 m)/2"), "{t}");
     assert_eq!(t.matches("Carichi").count(), 1, "{t}");
     assert_eq!(s.run("structure.get", &json!({})).unwrap()["structure"]["view"], "moment");
 }
@@ -334,7 +368,7 @@ fn a_saved_working_still_follows_its_structure() {
         select_structure(&mut s2, 0);
         s2.run("structure.load", &shortened(4.0)).unwrap();
         let t = text_of(&s2);
-        assert!(has(&t, "q_1·4 m·2 m") && !has(&t, "q_1·6 m·3 m"), "{name}: {t}");
+        assert!(has(&t, "q_1·4 m·(4 m)/2") && !has(&t, "q_1·6 m·(6 m)/2"), "{name}: {t}");
         assert_eq!(t.matches("Svolgimento").count(), 1, "{name}: {t}");
     }
 }
@@ -357,8 +391,8 @@ fn the_laws_use_the_names_of_the_reactions_and_the_loads() {
         "M_1a(x)=V_A·x-q_1·(x^2)/2",
         "T_1b(x)=V_A-q_1·4 m",
         "M_1b(x)=V_A·x-q_1·4 m·(x-2 m)",
-        "T_1c(x)=V_A-q_1·4 m-F_1",
-        "M_1c(x)=V_A·x-q_1·4 m·(x-2 m)-F_1·(x-5 m)",
+        "T_1c(x)=V_A-q_1·4 m-F_2",
+        "M_1c(x)=V_A·x-q_1·4 m·(x-2 m)-F_2·(x-5 m)",
     ] {
         assert!(has(&t, law), "{law}: {t}");
     }

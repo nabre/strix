@@ -161,6 +161,188 @@ pub(super) fn merge_nodes(src: &Structure, from: &str, onto: &str) -> Option<Str
     Some(out)
 }
 
+/// Why two members cannot be joined at a node (shown on the disabled menu item).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NoJoin {
+    /// The node does not join exactly two members.
+    NotTwo,
+    /// The two members are not on one straight line.
+    NotAligned,
+    /// The node has a support.
+    Support,
+    /// A hinge at the node (the node's, or a member's end there).
+    Hinge,
+    /// The members have different sections.
+    Section,
+}
+
+impl NoJoin {
+    /// The reason, in English (translated by the caller).
+    pub(super) fn reason(self) -> &'static str {
+        match self {
+            Self::NotTwo => "The node must join exactly two members",
+            Self::NotAligned => "The two members are not aligned",
+            Self::Support => "The node has a support",
+            Self::Hinge => "There is a hinge at the node",
+            Self::Section => "The members have different sections",
+        }
+    }
+}
+
+/// The node two members `p` and `q` share, when they share exactly one.
+pub(super) fn shared_node(st: &Structure, p: &str, q: &str) -> Option<String> {
+    let (p, q) = (st.member(p)?, st.member(q)?);
+    let ends = |m: &strix_structure::Member| [m.a.clone(), m.b.clone()];
+    let common: Vec<String> = ends(p).into_iter().filter(|e| ends(q).contains(e)).collect();
+    match common.as_slice() {
+        [one] if p.id != q.id => Some(one.clone()),
+        _ => None,
+    }
+}
+
+/// `src` with the two aligned members meeting at `node` joined into one and `node` removed (the
+/// inverse of [`split_member`]): the member that comes first along the line keeps its name and
+/// section and runs on to the other's far end, with its hinge there; the other's loads move onto
+/// it (`at` kept as an expression plus the first one's length), a force or couple at the node
+/// goes onto it where the node was. A member running the other way is turned round first (its
+/// loads measured from the other end, values at that point). `Err` says why it cannot be done.
+pub(super) fn join_members(src: &Structure, st: &Structure, node: &str) -> Result<Structure, NoJoin> {
+    let at_node: Vec<&strix_structure::Member> = st.members.iter().filter(|m| m.a == node || m.b == node).collect();
+    let [p, q] = at_node.as_slice() else { return Err(NoJoin::NotTwo) };
+    if p.a == p.b || q.a == q.b {
+        return Err(NoJoin::NotTwo);
+    }
+    if st.supports.iter().any(|s| s.node == node) {
+        return Err(NoJoin::Support);
+    }
+    let hinged_here = |m: &strix_structure::Member| (m.a == node && m.hinge_a) || (m.b == node && m.hinge_b);
+    if st.node(node).is_some_and(|n| n.hinge) || hinged_here(p) || hinged_here(q) {
+        return Err(NoJoin::Hinge);
+    }
+    if (&p.e, &p.i, &p.area) != (&q.e, &q.i, &q.area) {
+        return Err(NoJoin::Section);
+    }
+    let far = |m: &strix_structure::Member| if m.a == node { m.b.clone() } else { m.a.clone() };
+    let (fp, fq) = (far(p), far(q));
+    let xy = |id: &str| st.node(id).map(|n| (n.x.value, n.y.value));
+    let (Some(o), Some(a), Some(b)) = (xy(node), xy(&fp), xy(&fq)) else { return Err(NoJoin::NotTwo) };
+    if fp == fq {
+        return Err(NoJoin::NotAligned);
+    }
+    // Aligned: the far ends on opposite sides of the node, on one line (sine of the angle
+    // between the two directions within 1e-6).
+    let (u, v) = ((a.0 - o.0, a.1 - o.1), (b.0 - o.0, b.1 - o.1));
+    let (lu, lv) = (u.0.hypot(u.1), v.0.hypot(v.1));
+    if !(lu > EPS && lv > EPS && lu.is_finite() && lv.is_finite()) {
+        return Err(NoJoin::NotAligned);
+    }
+    let cross = (u.0 * v.1 - u.1 * v.0) / (lu * lv);
+    let dot = (u.0 * v.0 + u.1 * v.1) / (lu * lv);
+    if cross.abs() > 1e-6 || dot > -0.5 {
+        return Err(NoJoin::NotAligned);
+    }
+    // The first member along the line: the one ending at the node, else (both start there) the
+    // one listed first, turned round.
+    let (first, second) = match (p.b == node, q.b == node) {
+        (true, _) => (*p, *q),
+        (false, true) => (*q, *p),
+        (false, false) => (*p, *q),
+    };
+    let flip_first = first.b != node;
+    let flip_second = second.a != node;
+    let len1 = st.length(first).unwrap_or(lu);
+    let len2 = st.length(second).unwrap_or(lv);
+    let (id1, id2) = (first.id.clone(), second.id.clone());
+    let mut out = src.clone();
+    let hinge_b = if flip_second { second.hinge_a } else { second.hinge_b };
+    let start_hinge = if flip_first { first.hinge_b } else { first.hinge_a };
+    let start = if flip_first { first.b.clone() } else { first.a.clone() };
+    let end = far(second);
+    if let Some(m) = out.members.iter_mut().find(|m| m.id == id1) {
+        m.a = start;
+        m.b = end;
+        m.hinge_a = start_hinge;
+        m.hinge_b = hinge_b;
+    }
+    out.members.retain(|m| m.id != id2);
+    out.nodes.retain(|n| n.id != node);
+    let mut loads = Vec::with_capacity(out.loads.len());
+    for (k, l) in src.loads.iter().enumerate() {
+        let r = st.loads.get(k).unwrap_or(l);
+        let mut l = l.clone();
+        match (&mut l, r) {
+            (Load::Force { node: n, member, at, .. } | Load::Moment { node: n, member, at, .. }, _) if n.as_deref() == Some(node) => {
+                *n = None;
+                *member = Some(id1.clone());
+                *at = Num::new(round(len1));
+            }
+            (
+                Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. },
+                Load::Force { at: ra, .. } | Load::Moment { at: ra, .. },
+            ) if *m == id1 && flip_first => {
+                *at = Num::new(round(len1 - ra.value));
+            }
+            (
+                Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. },
+                Load::Force { at: ra, .. } | Load::Moment { at: ra, .. },
+            ) if *m == id2 => {
+                *m = id1.clone();
+                *at = if flip_second { Num::new(round(len1 + len2 - ra.value)) } else { shifted(at, len1) };
+            }
+            (
+                Load::Distributed { member, q1, q2, from, to, angle, axes, .. },
+                Load::Distributed { q1: rq1, q2: rq2, from: rf, to: rt, angle: ra, .. },
+            ) if *member == id1 || *member == id2 => {
+                let on_second = *member == id2;
+                let (len, flip, base) = if on_second { (len2, flip_second, len1) } else { (len1, flip_first, 0.0) };
+                if flip {
+                    // Turned round: measured from the other end, its two values swapped, a
+                    // direction in the member's axes turned half round.
+                    let (f, t) = (rf.value, rt.as_ref().map_or(len, |t| t.value));
+                    *from = Num::new(round(base + len - t));
+                    *to = Some(Num::new(round(base + len - f)));
+                    if let Some(rq2) = rq2 {
+                        *q1 = Num::new(rq2.value);
+                        *q2 = Some(Num::new(rq1.value));
+                    }
+                    if *axes == strix_structure::LoadAxes::Local {
+                        let mut d = ra.value + 180.0;
+                        if d > 180.0 {
+                            d -= 360.0;
+                        }
+                        *angle = Num::new(round(d));
+                    }
+                } else if on_second {
+                    *from = if rf.value.abs() <= EPS { Num::new(round(base)) } else { shifted(from, base) };
+                    *to = to.as_ref().map(|t| shifted(t, base));
+                } else if to.is_none() {
+                    // It ended at the member's end: it ends where the node was.
+                    *to = Some(Num::new(round(len1)));
+                }
+                *member = id1.clone();
+                // Up to the joined member's end: "to the end" again.
+                if to.as_ref().is_some_and(|t| (st_value(t, rt, on_second, flip, base, len) - (len1 + len2)).abs() <= EPS) {
+                    *to = None;
+                }
+            }
+            _ => {}
+        }
+        loads.push(l);
+    }
+    out.loads = loads;
+    Ok(out)
+}
+
+/// The value a distributed load's new `to` has (`t` as just written: a plain number, or the
+/// old expression shifted by `base`, whose value is the old one's plus `base`).
+fn st_value(t: &Num, old: &Option<Num>, on_second: bool, flip: bool, base: f64, len: f64) -> f64 {
+    if t.expr.is_none() || flip {
+        return t.value;
+    }
+    let old = old.as_ref().map_or(len, |o| o.value);
+    if on_second { old + base } else { old }
+}
+
 /// `n` negated: `-n`, an expression as `-(e)`, and `-(e)` back to `e`.
 pub(super) fn negated(n: &Num) -> Num {
     match &n.expr {
@@ -416,6 +598,92 @@ mod tests {
         assert!(matches!(&out.loads[0], Load::Force { node: Some(n), .. } if n == "B"));
         assert!(merge_nodes(&src, "B", "B").is_none());
         assert!(merge_nodes(&src, "Z", "B").is_none());
+    }
+
+    #[test]
+    fn joining_undoes_a_split() {
+        let src = beam();
+        let st = resolved(&src);
+        let (split, node) = split_member(&src, &st, "1", 2.0).unwrap();
+        // The split structure's values (L = 6; the moved force's `L/2 - 2` is 1).
+        let mut st2 = resolved(&split);
+        if let Some(Load::Force { at, .. }) = st2.loads.get_mut(0) {
+            at.value = 1.0;
+        }
+        let out = join_members(&split, &st2, &node).unwrap();
+        assert!(out.node(&node).is_none());
+        assert_eq!(out.members.len(), 1);
+        let m = out.member("1").unwrap();
+        assert_eq!((m.a.as_str(), m.b.as_str(), m.hinge_b), ("A", "B", true));
+        // The force goes back to `L/2`, the two pieces of the triangular load stay two.
+        assert!(matches!(&out.loads[0], Load::Force { member: Some(m), at, .. } if m == "1" && at.expr.as_deref() == Some("L/2")));
+        assert!(matches!(&out.loads[1], Load::Force { member: Some(m), at, .. } if m == "1" && at.value == 1.0));
+        match (&out.loads[2], &out.loads[3]) {
+            (Load::Distributed { member: a, from: af, to: at, .. }, Load::Distributed { member: b, from: bf, to: bt, .. }) => {
+                assert_eq!((a.as_str(), af.value, at.as_ref().map(|t| t.value)), ("1", 0.0, Some(2.0)));
+                assert_eq!((b.as_str(), bf.value, bt.is_none()), ("1", 2.0, true));
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn joining_turns_a_member_round_and_takes_the_node_loads() {
+        // 1: A→B, 2: C→B (the other way), aligned along x; a force at B, a load on 2.
+        let src = Structure::from_json(
+            r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":4,"y":0},{"id":"C","x":10,"y":0}],
+                "members":[{"id":"1","a":"A","b":"B"},{"id":"2","a":"C","b":"B","hingeA":true}],
+                "loads":[{"type":"force","node":"B","value":7},
+                         {"type":"force","member":"2","at":1,"value":2},
+                         {"type":"distributed","member":"2","q1":1,"q2":3,"to":4,"axes":"local","angle":-90}]}"#,
+        )
+        .unwrap();
+        let out = join_members(&src, &src, "B").unwrap();
+        let m = out.member("1").unwrap();
+        assert_eq!((m.a.as_str(), m.b.as_str(), m.hinge_a, m.hinge_b), ("A", "C", false, true));
+        assert!(out.member("2").is_none());
+        assert!(matches!(&out.loads[0], Load::Force { node: None, member: Some(m), at, .. } if m == "1" && at.value == 4.0));
+        assert!(matches!(&out.loads[1], Load::Force { member: Some(m), at, .. } if m == "1" && at.value == 9.0));
+        match &out.loads[2] {
+            Load::Distributed { member, q1, q2, from, to, angle, .. } => {
+                assert_eq!(
+                    (member.as_str(), q1.value, q2.as_ref().map(|q| q.value), from.value, to.as_ref().map(|t| t.value), angle.value),
+                    ("1", 3.0, Some(1.0), 6.0, None, 90.0)
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn only_aligned_members_join() {
+        let make = |cx: f64, extra: &str| {
+            Structure::from_json(&format!(
+                r#"{{"nodes":[{{"id":"A","x":0,"y":0}},{{"id":"B","x":4,"y":0}},{{"id":"C","x":{cx},"y":3}}],
+                    "members":[{{"id":"1","a":"A","b":"B"}},{{"id":"2","a":"B","b":"C"}}]{extra}}}"#
+            ))
+            .unwrap()
+        };
+        let bent = make(8.0, "");
+        assert_eq!(join_members(&bent, &bent, "B").err(), Some(NoJoin::NotAligned));
+        assert_eq!(join_members(&bent, &bent, "A").err(), Some(NoJoin::NotTwo));
+        let mut straight = make(8.0, r#","supports":[{"node":"B","kind":"pin"}]"#);
+        for n in &mut straight.nodes {
+            if n.id == "C" {
+                n.y = Num::new(0.0);
+            }
+        }
+        assert_eq!(join_members(&straight, &straight, "B").err(), Some(NoJoin::Support));
+        straight.supports.clear();
+        straight.members[1].hinge_a = true;
+        assert_eq!(join_members(&straight, &straight, "B").err(), Some(NoJoin::Hinge));
+        straight.members[1].hinge_a = false;
+        straight.members[1].i = Some(Num::new(2.0));
+        assert_eq!(join_members(&straight, &straight, "B").err(), Some(NoJoin::Section));
+        straight.members[1].i = None;
+        assert!(join_members(&straight, &straight, "B").is_ok());
+        assert_eq!(shared_node(&straight, "1", "2").as_deref(), Some("B"));
+        assert_eq!(shared_node(&straight, "1", "1"), None);
     }
 
     #[test]

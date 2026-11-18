@@ -601,3 +601,44 @@ fn the_editors_schema_has_the_dimensions_and_its_angles_drawn_as_dimensions() {
     let prims = st.schema_prims(10.0, (-1.0, 3.0), strix_calc::Options::default());
     assert!(!prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::TextAt { text, .. } if text.ends_with(" m") || text.ends_with('°'))));
 }
+
+/// One count runs through all the kinds of load, by place: left to right, then top to bottom,
+/// then force, distributed load, couple; the list's order only breaks what's left of a tie.
+#[test]
+fn loads_are_numbered_together_by_place() {
+    let couple = |node: &str| Load::Moment { node: Some(node.into()), member: None, at: Num::default(), value: Num::new(5.0) };
+    let mut st = Structure {
+        // A portal: column A–C up from the ground, beam C–D, column D–B down to the ground.
+        nodes: vec![node("A", 0.0, 0.0), node("C", 0.0, 4.0), node("D", 6.0, 4.0), node("B", 6.0, 0.0)],
+        members: vec![member("1", "A", "C"), member("2", "C", "D"), member("3", "D", "B")],
+        supports: vec![support("A", SupportKind::Fixed, 0.0), support("B", SupportKind::Fixed, 0.0)],
+        loads: vec![
+            couple("D"),               // x 6, y 4
+            force_on("2", 3.0, 10.0),  // x 3
+            force_at("A", 8.0, 0.0),   // x 0, y 0
+            uniform("2", 2.0),         // x 0, y 4 (its left end, C)
+            force_at("C", 4.0, -90.0), // x 0, y 4, a force: before the distributed load
+            force_on("2", 3.0, 0.0),   // does nothing: no number
+            force_at("D", 6.0, 0.0),   // x 6, y 4, a force: before the couple
+        ],
+        ..Structure::default()
+    };
+    let names = |st: &Structure| -> Vec<String> { crate::load_names(st).iter().map(|n| n.map_or("-".into(), |n| n.linear())).collect() };
+    assert_eq!(names(&st), ["C_6", "F_4", "F_3", "q_2", "F_1", "-", "F_5"]);
+    // A varying load keeps its number on both ends; the column's load starts at its top end.
+    st.loads = vec![
+        Load::Distributed {
+            member: "3".into(),
+            q1: Num::new(1.0),
+            q2: Some(Num::new(3.0)),
+            from: Num::default(),
+            to: None,
+            angle: Num::new(0.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        },
+        force_at("B", 2.0, 0.0),
+    ];
+    let n = crate::load_names(&st);
+    assert_eq!(n.iter().map(|n| n.map(|n| n.linear_end(2))).collect::<Vec<_>>(), [Some("q_(1,2)".to_string()), Some("F_2".to_string())]);
+}

@@ -30,7 +30,7 @@ pub use model::{
     Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, Num, Side, Structure, Support, SupportKind, Titles, View,
 };
 pub use names::{LoadName, load_names};
-pub use render::StructureRendered;
+pub use render::{Chains, StructureRendered, chains};
 pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse};
 pub use working::{Resultant, ResultantKind, Stretch, resultants, stretches};
 

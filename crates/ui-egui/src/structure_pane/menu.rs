@@ -35,6 +35,8 @@ enum Act {
     Couple(Place),
     Distributed(String),
     Split(String, f64),
+    /// The two aligned members at this node joined into one, the node removed.
+    Join(String),
     Reverse(usize),
     Angle(usize, f64),
     Whole(usize),
@@ -106,6 +108,21 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
     let title = |ui: &mut Ui, text: String| {
         ui.label(egui::RichText::new(text).strong().small());
     };
+    // Join members at `node`: offered where two members meet, disabled (with the reason) when
+    // they cannot be joined.
+    let join = |ui: &mut Ui, node: &str| {
+        let why = match edits::join_members(st, st, node) {
+            Ok(_) => None,
+            Err(edits::NoJoin::NotTwo) => return,
+            Err(e) => Some(e.reason()),
+        };
+        let resp = ui.add_enabled(why.is_none(), egui::Button::new(ts("Join the members")));
+        if let Some(why) = why {
+            resp.on_disabled_hover_text(ts(why));
+        } else if resp.clicked() {
+            pick(ui, Act::Join(node.to_string()));
+        }
+    };
     if state.tool != Tool::Select {
         item(ui, "Select tool", "Esc", false, Act::Select);
         ui.separator();
@@ -122,6 +139,7 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             });
             let hinge = st.node(&id).is_some_and(|n| n.hinge);
             item(ui, "Internal hinge", "", hinge, Act::Hinge(id.clone(), !hinge));
+            join(ui, &id);
             ui.separator();
             item(ui, "Add a force here", "", false, Act::Force(Place::Node(id.clone())));
             item(ui, "Add a couple here", "", false, Act::Couple(Place::Node(id.clone())));
@@ -207,6 +225,12 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
         }
         (n, _) => {
             title(ui, fmt(ts("{n} items selected"), &[("n", &n.to_string())]));
+            // Two members meeting at a node: join them there.
+            if let [Sel::Member(p), Sel::Member(q)] = state.sel.as_slice()
+                && let Some(node) = edits::shared_node(st, p, q)
+            {
+                join(ui, &node);
+            }
             item(ui, "Select its loads", "", false, Act::SelectLoads);
             item(ui, "Deselect", "Esc", false, Act::Deselect);
             item(ui, "Delete", "Del", false, Act::Delete);
@@ -299,6 +323,15 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
                 && set(app, &out)
             {
                 state.select(Sel::Node(node));
+            }
+        }
+        Act::Join(node) => {
+            if let Ok(out) = edits::join_members(src, st, &node) {
+                // The member that kept its name: the one now running across where the node was.
+                let kept = st.members.iter().find(|m| (m.a == node || m.b == node) && out.member(&m.id).is_some()).map(|m| m.id.clone());
+                if set(app, &out) {
+                    state.sel = kept.map(Sel::Member).into_iter().collect();
+                }
             }
         }
         Act::Reverse(k) => run_load(app, k, edits::reversed(src, k)),
@@ -457,6 +490,28 @@ mod tests {
         assert!(matches!(&now(&mut app).1.loads[k], Load::Force { value, .. } if value.value == -before));
         apply(&mut app, &src, &st, &mut state, Act::Support("B".into(), Some(SupportKind::Fixed)));
         assert!(now(&mut app).1.supports.iter().any(|s| s.node == "B" && s.kind == SupportKind::Fixed));
+    }
+
+    /// Join the members undoes Split: one member again, the node gone, in one undoable step; a
+    /// corner (members not aligned) is not joined.
+    #[test]
+    fn join_the_members_undoes_a_split() {
+        let (mut app, _) = frame();
+        let mut state = State::default();
+        let (src, st) = now(&mut app);
+        apply(&mut app, &src, &st, &mut state, Act::Split("2".into(), 3.0));
+        let (src, st) = now(&mut app);
+        apply(&mut app, &src, &st, &mut state, Act::Join("E".into()));
+        let (src, st) = now(&mut app);
+        assert!(st.node("E").is_none());
+        assert_eq!(st.members.len(), 3);
+        assert_eq!(state.sel, [Sel::Member("2".into())]);
+        assert_eq!(st.loads.iter().filter(|l| matches!(l, Load::Distributed { member, .. } if member == "2")).count(), 2);
+        // A corner of the frame stays.
+        apply(&mut app, &src, &st, &mut state, Act::Join("B".into()));
+        assert_eq!(now(&mut app).1.members.len(), 3);
+        app.run("edit.undo", json!({})).unwrap();
+        assert_eq!(now(&mut app).1.members.len(), 4);
     }
 
     /// Grips: a node dropped on another joins it; a force's tail turns it by 15° steps.
