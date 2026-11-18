@@ -2,6 +2,12 @@ use super::bx::{Bx, Cls, RunPart, St, classes, compose, finalize, gaps_between, 
 use super::state::op_char;
 use super::{Arg, BrkBin, BrkBinSub, Ctx, MNode, MRun, MSty, MathProps, split_number};
 
+/// Least space between an equation array's rows, in em: a fraction's numerator keeps clear of
+/// the row above and a subscript of the row below.
+pub(super) const EQ_ROW_GAP: f32 = 0.4;
+/// Least baseline-to-baseline distance of an equation array's rows, in em.
+pub(super) const EQ_ROW_SKIP: f32 = 1.4;
+
 impl Ctx {
     /// Rows stacked and centred on the math axis; `gap`: least space between rows, `min_skip`:
     /// least baseline-to-baseline distance.
@@ -100,7 +106,7 @@ impl Ctx {
             finalize(&mut row, &path, em);
             placed.push((row, rx.max(0.0)));
         }
-        let (mut out, bases) = self.stack_rows(placed, st, em * 0.1, em * 1.1);
+        let (mut out, bases) = self.stack_rows(placed, st, em * EQ_ROW_GAP, em * EQ_ROW_SKIP);
         out.w = out.w.max(total);
         (out, bases)
     }
@@ -334,7 +340,7 @@ impl Ctx {
             placed.push((b, x));
         }
         // Stack the lines down from the first one's baseline.
-        let (gap, skip) = (em * 0.2, em * 1.25);
+        let (gap, skip) = (em * 0.3, em * 1.3);
         let mut out = Bx::default();
         let mut y = 0.0f32;
         let mut prev_d: Option<f32> = None;

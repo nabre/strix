@@ -41,7 +41,7 @@ impl Ctx {
             placed.push((b, x));
         }
         self.node_stack.pop();
-        let (mut out, _) = self.stack_rows(placed, st, em * 0.1, em * 1.1);
+        let (mut out, _) = self.stack_rows(placed, st, em * super::rows::EQ_ROW_GAP, em * super::rows::EQ_ROW_SKIP);
         // The caret before and after the array, as when it is laid out whole.
         let w = out.w;
         out.slot(&[], 0, 0.0);
