@@ -3,9 +3,11 @@
 //!
 //! The loads' names come first, defined with their sizes (`F_1 = (20 kN)`, `q_1 = (10 kN/m)`, a
 //! varying load's ends `q_(1,1)` and `q_(1,2)`: [`load_names`], as the drawing writes them). The
-//! reactions come from equilibrium equations written with those names and the structure's
-//! lengths, each with one unknown left, so calc solves it and shows its steps (`0 kN·m = V_B·(6 m)
-//! − q_1·(6 m)·(3 m) ⇒ … ⇒ V_B = 30 kN`): the whole structure's translations and rotations about its
+//! distributed loads' resultants follow as their areas (`F_1 = q_1·6 m`) and the askew forces'
+//! horizontal and vertical parts (`F_(2,h) = F_2·cos(30°)`). The reactions come from equilibrium
+//! equations written with those names, each force's arm about the point worked out before it
+//! (`d_(1,A) = (6 m)/2 = 3 m`), each with one unknown left, so calc solves it and shows its steps
+//! (`0 kN·m = V_B·6 m − F_1·d_(1,A) ⇒ … ⇒ V_B = 30 kN`): the whole structure's translations and rotations about its
 //! supports, and the rotation of a part about an internal hinge. An unknown no equation isolates
 //! (a hyperstatic structure's redundants) is given its value from the stiffness solution, and said
 //! so. Then, member by member and stretch by stretch, the laws `N(x)`, `T(x)`, `M(x)` as calc
@@ -270,6 +272,34 @@ fn sub(id: &str, fallback: usize) -> String {
     if s.is_empty() { fallback.to_string() } else { s }
 }
 
+/// A name with its subscript's indices: `F_1`, `F_(2,1)`, `d_(1,h,A)`.
+fn named(letter: &str, idx: &[String]) -> String {
+    match idx {
+        [one] => format!("{letter}_{one}"),
+        many => format!("{letter}_({})", many.join(",")),
+    }
+}
+
+/// A factor without the parentheses round all of it, for its definition: `3 m + (3 m)/2` from
+/// `(3 m + (3 m)/2)`; `(3 m)/2` stays.
+fn bare(t: &str) -> String {
+    let Some(inner) = t.strip_prefix('(').and_then(|r| r.strip_suffix(')')) else { return t.to_string() };
+    let mut depth = 0i32;
+    for c in inner.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth < 0 {
+                    return t.to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+    if depth == 0 { inner.to_string() } else { t.to_string() }
+}
+
 /// What a reaction component does.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Acts {
@@ -334,6 +364,8 @@ struct Equation {
     unknowns: Vec<(usize, f64, String)>,
     /// Signed value, text without its sign.
     loads: Vec<(f64, String)>,
+    /// The loads' arms it uses, worked out before it: name and definition (`d_(1,A) = 3 m`).
+    arms: Vec<(String, String)>,
 }
 
 /// Units of the structure as calc writes them.
@@ -375,6 +407,89 @@ impl Units {
     /// The force a resultant amounts to, as text (positive): by its load's name (`F_1`,
     /// `q_2·(6 m)`, `(q_(1,2) - q_(1,1))·(4 m)/2`), by its number when the load has none.
     fn resultant(&self, r: &Resultant) -> String {
+        if let Some(f) = self.force_name(r) {
+            return f;
+        }
+        self.area(r)
+    }
+
+    /// A force's subscript as indices: `["1"]` for `F_1` (a force, or a distributed load's
+    /// resultant), `["2", "1"]` and `["2", "2"]` for a trapezoid's rectangle and triangle; `None`
+    /// for a couple or a load with no name.
+    fn force_idx(&self, r: &Resultant) -> Option<Vec<String>> {
+        let name = self.names.get(r.load).copied().flatten()?;
+        let n = name.number.to_string();
+        match r.kind {
+            ResultantKind::Couple { .. } => None,
+            ResultantKind::Force { .. } => Some(vec![n]),
+            ResultantKind::Spread { triangle, .. } => {
+                let (q1, q2) = self.ends.get(r.load).copied().unwrap_or((0.0, 0.0));
+                // A rectangle and a triangle: both resultants are named, by their part.
+                if q1 != 0.0 && q2 != q1 { Some(vec![n, if triangle { "2" } else { "1" }.to_string()]) } else { Some(vec![n]) }
+            }
+        }
+    }
+
+    /// The force a resultant is named by (`F_1`, `F_(2,1)`), a distributed load's included.
+    fn force_name(&self, r: &Resultant) -> Option<String> {
+        self.force_idx(r).map(|i| named("F", &i))
+    }
+
+    /// Does the resultant act askew, so it is split into its horizontal and vertical parts?
+    fn askew(r: &Resultant) -> bool {
+        !matches!(r.kind, ResultantKind::Couple { .. }) && r.dir.0.abs() > TOL && r.dir.1.abs() > TOL
+    }
+
+    /// The resultant's part along `axis` (0: horizontal, 1: vertical), positive, as the equations
+    /// write it: `F_(1,h)` for a force split in two, `F_1` along an axis; by its numbers (with its
+    /// direction's component) for a load with no name.
+    fn component(&self, r: &Resultant, axis: usize) -> String {
+        match self.force_idx(r) {
+            Some(mut i) if Self::askew(r) => {
+                i.push(if axis == 0 { "h" } else { "v" }.to_string());
+                named("F", &i)
+            }
+            Some(i) => named("F", &i),
+            None => format!("{}{}", self.resultant(r), self.factor(if axis == 0 { r.dir.0 } else { r.dir.1 })),
+        }
+    }
+
+    /// The definitions derived from the loads: each distributed load's resultant as its area
+    /// (`F_1 = q_1·3 m`), then each askew force's horizontal and vertical parts
+    /// (`F_(2,h) = F_2·cos(30°)`, `F_(2,v) = F_2·sin(30°)`), in the loads' order.
+    fn derived(&self, rs: &[Resultant]) -> Vec<String> {
+        let mut out: Vec<(usize, String)> = Vec::new();
+        for r in rs {
+            let Some(idx) = self.force_idx(r) else { continue };
+            let n = self.names.get(r.load).copied().flatten().map_or(0, |x| x.number);
+            let f = named("F", &idx);
+            if matches!(r.kind, ResultantKind::Spread { .. }) {
+                out.push((n, format!("{f} = {}", self.area(r))));
+            }
+            if Self::askew(r) {
+                let deg = r.dir.1.abs().atan2(r.dir.0.abs()).to_degrees();
+                let round = (deg * 100.0).round() / 100.0;
+                let (cos, sin) = if (deg - round).abs() < 1e-6 {
+                    let a = precise(round, self.comma);
+                    (format!("cos({a}°)"), format!("sin({a}°)"))
+                } else {
+                    (num(r.dir.0.abs(), self.comma), num(r.dir.1.abs(), self.comma))
+                };
+                for (part, trig) in [("h", cos), ("v", sin)] {
+                    let mut i = idx.clone();
+                    i.push(part.to_string());
+                    out.push((n, format!("{} = {f}·{trig}", named("F", &i))));
+                }
+            }
+        }
+        out.sort_by_key(|(n, _)| *n);
+        out.into_iter().map(|(_, d)| d).collect()
+    }
+
+    /// The force a resultant amounts to from its load's name (positive): a distributed load's
+    /// area (`q_2·6 m`, `(q_(1,2) - q_(1,1))·(4 m)/2`), a force's or couple's name; by its numbers
+    /// when the load has none.
+    fn area(&self, r: &Resultant) -> String {
         let Some(name) = self.names.get(r.load).copied().flatten() else { return self.valued(r) };
         match r.kind {
             ResultantKind::Force { .. } | ResultantKind::Couple { .. } => name.linear(),
@@ -444,7 +559,7 @@ const TOL: f64 = 1e-9;
 
 /// Translation along `axis` (0: x, 1: y) of the loads and unknowns in `part` (all when `None`).
 fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: String) -> Equation {
-    let mut eq = Equation { label, after: ":".to_string(), moment: false, unknowns: Vec::new(), loads: Vec::new() };
+    let mut eq = Equation { label, after: ":".to_string(), moment: false, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
     for (i, k) in us.iter().enumerate() {
         if let Acts::Along(d) = k.acts {
             let c = if axis == 0 { d.0 } else { d.1 };
@@ -460,15 +575,16 @@ fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: 
         let c = if axis == 0 { r.dir.0 } else { r.dir.1 };
         let v = r.value() * c;
         if v.abs() > TOL * r.value().abs().max(1e-12) && c.abs() > TOL {
-            eq.loads.push((v, format!("{}{}", u.resultant(r), u.factor(c))));
+            eq.loads.push((v, u.component(r, axis)));
         }
     }
     eq
 }
 
 /// Rotation about `p` of the loads `rs` and the unknowns `us` (counter-clockwise positive).
-fn rotation(p: (f64, f64), us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Units, label: String) -> Equation {
-    let mut eq = Equation { label, after: ":".to_string(), moment: true, unknowns: Vec::new(), loads: Vec::new() };
+/// `pivot` is the point's subscript, which names the loads' arms about it (`d_(1,A)`).
+fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Units, label: String) -> Equation {
+    let mut eq = Equation { label, after: ":".to_string(), moment: true, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
     for &(i, k) in us {
         let (dx, dy) = (k.at.0 - p.0, k.at.1 - p.1);
         match k.acts {
@@ -496,20 +612,44 @@ fn rotation(p: (f64, f64), us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Unit
             continue;
         }
         let v = r.value();
-        // Fy·dx − Fx·dy, a term each.
+        // Fy·dx − Fx·dy, a term each: the vertical part with its horizontal arm, the horizontal
+        // part with its vertical arm, each arm named after its force and the point (`d_(1,v,A)`)
+        // and worked out before the equation.
         let fy = v * r.dir.1 * dx;
         if fy.abs() > TOL * v.abs().max(1e-12) * (1.0 + dx.abs()) {
-            eq.loads.push((fy, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.1), u.arm(0, p.0, r))));
+            eq.load_term(fy, r, 1, u.arm(0, p.0, r), pivot, u);
         }
         let fx = -v * r.dir.0 * dy;
         if fx.abs() > TOL * v.abs().max(1e-12) * (1.0 + dy.abs()) {
-            eq.loads.push((fx, format!("{}{}·{}", u.resultant(r), u.factor(r.dir.0), u.arm(1, p.1, r))));
+            eq.load_term(fx, r, 0, u.arm(1, p.1, r), pivot, u);
         }
     }
     eq
 }
 
 impl Equation {
+    /// A load's moment: the part of resultant `r` along `axis` times its arm (`arm`, a factor),
+    /// the arm named `d_(…,pivot)` after the force (inline for a load with no name).
+    fn load_term(&mut self, v: f64, r: &Resultant, axis: usize, arm: String, pivot: &str, u: &Units) {
+        let force = u.component(r, axis);
+        let Some(mut idx) = u.force_idx(r) else {
+            self.loads.push((v, format!("{force}·{arm}")));
+            return;
+        };
+        if Units::askew(r) {
+            idx.push(if axis == 0 { "h" } else { "v" }.to_string());
+        }
+        idx.push(pivot.to_string());
+        let d = named("d", &idx);
+        self.loads.push((v, format!("{force}·{d}")));
+        if !self.arms.iter().any(|(n, _)| n == &d) {
+            // Worked out at once (`d_(1,B) = 1 m + 3 m = 4 m`) unless it is a measure already.
+            let arm = bare(&arm);
+            let worked = if arm.contains(['+', '-', '/', '(', '·']) { " =" } else { "" };
+            self.arms.push((d.clone(), format!("{d} = {arm}{worked}")));
+        }
+    }
+
     fn text(&self, us: &[Unknown], u: &Units) -> String {
         let zero = if self.moment { format!("0 {}·{}", u.f, u.l) } else { format!("0 {}", u.f) };
         let present: Vec<&(usize, f64, String)> = self.unknowns.iter().filter(|(i, _, _)| us.get(*i).is_some()).collect();
@@ -676,9 +816,15 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             out.push(Line::eqs(chunk.to_vec(), false));
         }
     }
+    let mut rs = resultants(st);
+    // In the names' order (a trapezoid's rectangle before its triangle: the sort is stable).
+    rs.sort_by_key(|r| u.names.get(r.load).copied().flatten().map_or(usize::MAX, |n| n.number));
+    // The distributed loads' resultants and the askew forces' parts, which the equations use.
+    for chunk in u.derived(&rs).chunks(3) {
+        out.push(Line::eqs(chunk.to_vec(), false));
+    }
     out.push(Line::words(format!("{}:", labels.reactions)));
     let us = unknowns(st, an);
-    let rs = resultants(st);
     // The candidate equations: rotations about the supports first, then the translations, then
     // the parts about the hinges.
     let mut eqs: Vec<Equation> = Vec::new();
@@ -692,7 +838,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     }
     for id in &points {
         if let Some(n) = st.node(id) {
-            eqs.push(rotation((n.x.value, n.y.value), &all, &all_rs, &u, format!("ΣM_{} = 0", sub(id, 0))));
+            eqs.push(rotation((n.x.value, n.y.value), &sub(id, 0), &all, &all_rs, &u, format!("ΣM_{} = 0", sub(id, 0))));
         }
     }
     eqs.push(translation(0, &us, &rs, &u, "ΣF_x = 0".to_string()));
@@ -722,11 +868,12 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             })
             .collect();
         let names: Vec<String> = members.iter().filter_map(|&k| st.members.get(k).map(|m| m.id.clone())).collect();
-        let mut e = rotation((h.x.value, h.y.value), &part_us, &part_rs, &u, format!("ΣM_{} = 0", sub(&hinge, 0)));
+        let mut e = rotation((h.x.value, h.y.value), &sub(&hinge, 0), &part_us, &part_rs, &u, format!("ΣM_{} = 0", sub(&hinge, 0)));
         e.after = format!(" ({} {}, {} {}):", labels.hinge, hinge, labels.member, names.join(", "));
         eqs.push(e);
     }
     let mut known = vec![false; us.len()];
+    let mut defined: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut said_redundant = false;
     while known.iter().any(|k| !k) && out.len() < MAX_LINES {
         if let Some(pos) = eqs.iter().position(|e| e.open(&known).len() == 1) {
@@ -737,6 +884,11 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
                 *slot = true;
             }
             out.push(Line::noted(String::new(), e.label.clone(), e.after.clone()));
+            // Its arms first, each once (a hinge's part may share an arm with its support's).
+            let new: Vec<String> = e.arms.iter().filter(|(n, _)| defined.insert(n.clone())).map(|(_, d)| d.clone()).collect();
+            for chunk in new.chunks(3) {
+                out.push(Line::eqs(chunk.to_vec(), false));
+            }
             out.push(Line { stepped: true, ..Line::eqs(vec![e.text(&us, &u)], true) });
             continue;
         }

@@ -65,7 +65,9 @@ winit or rfd.
   everywhere), layering, wasm build.
 - `cargo xtask parity` regenerates [`parity-checklist.md`](parity-checklist.md); a test keeps the
   catalog percentage above a floor that only rises.
-- GitHub Actions, each check run once: CI (`cargo xtask ci`) on pushes to `main` and on PRs,
+- GitHub Actions, each check run once: CI (`cargo xtask ci`, as two parallel legs: `--no-lint`
+  builds and runs the tests, `--lint` runs fmt, clippy and the wasm check; workspace crates
+  cached with sccache) on pushes to `main` and on PRs,
   but a push to `main` whose exact code (git tree) a PR already passed skips it, as Printing and
   Packaging lint do (`tested-tree.yml`; a nightly run on `main` refreshes the dependency caches
   when every push was skipped); a draft PR, or one that changes only Markdown documentation,

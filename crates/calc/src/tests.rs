@@ -2314,10 +2314,35 @@ fn an_unknown_in_a_call_and_an_interval_for_its_root() {
 #[test]
 fn a_quantity_over_a_number_keeps_its_parentheses() {
     let s = steps(&["q = 10 kN/m", "0 kN·m = V·6 m - q·6 m·(6 m)/2"]).unwrap();
-    assert_eq!(s.first().map(String::as_str), Some("V·6 m = 0 kN·m + q·6 m·(6 m)/2"), "{s:?}");
+    assert_eq!(s.first().map(String::as_str), Some("V·6 m = q·6 m·(6 m)/2"), "{s:?}");
     assert_eq!(s.last().map(String::as_str), Some("V = 30 kN"), "{s:?}");
     // A unit quotient is no number: `12 kN/m` stays as written.
     assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
     let s = steps(&["d = (3 m)/2"]).unwrap_or_default();
     assert!(s.iter().all(|l| !l.contains("3 m/2")), "{s:?}");
+}
+
+/// The owner's moment equation: the terms without the unknown cross over together, in one step,
+/// leaving only the monomial holding it; a zero on the other side is left out.
+#[test]
+fn known_terms_cross_over_in_one_step() {
+    let sheet = ["q_1 = 2 kN/m", "F_2 = 3 kN", "0 kN·m = V_A·4.5 m - q_1·3 m·(1.5 m + 3 m/2) + F_2·1 m"];
+    let s = steps(&sheet).unwrap();
+    assert_eq!(s[0], "V_A·4.5 m = q_1·3 m·(1.5 m + (3 m)/2) - F_2·1 m");
+    assert_eq!(s[1], "V_A = (q_1·3 m·(1.5 m + (3 m)/2) - F_2·1 m)/(4.5 m)");
+    assert_eq!(s.last().map(String::as_str), Some("V_A = 3.333 kN"));
+    assert_eq!(
+        steps(&["a = 2", "b = 3", "c = 1", "a + x·b - c = 10"]).unwrap(),
+        ["x·b = 10 + c - a", "x = (10 + c - a)/b", "x = (10 + 1 - 2)/3", "x = 3"]
+    );
+}
+
+/// A value with a rounding tail (`F·cos(30°)`) leaves a residual of `1e−15 kN·m` against the zero
+/// side once the unknown is isolated: the isolated form is kept, not traded for the polynomial
+/// solver's `−6 m·V = … − 0 kN·m`.
+#[test]
+fn a_rounding_residual_against_zero_keeps_the_isolated_form() {
+    let s = steps(&["F = (20 kN)", "G = F·cos(30°) =", "a = 2 m", "b = 2 m", "0 kN·m = V·6 m - F·a - G·b"]).unwrap();
+    assert_eq!(s.first().map(String::as_str), Some("V·6 m = G·b + F·a"), "{s:?}");
+    assert_eq!(s.last().map(String::as_str), Some("V = 12.44 kN"), "{s:?}");
 }
