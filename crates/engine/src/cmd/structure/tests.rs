@@ -151,7 +151,7 @@ fn the_working_solves_the_reactions_and_writes_the_laws() {
     assert!(has(&t, "ΣM_A = 0:") && has(&t, "V_B·(6 m)") && has(&t, "V_B&=30 kN"), "{t}");
     assert!(has(&t, "M_1(x)=(30 kN)·x-(5 kN/m)·x^2"), "{t}");
     // Equations start with their zero: `0 kN·m = V_B·(6 m) - …`.
-    assert!(has(&t, "0 kN·m = V_B·(6 m)"), "{t}");
+    assert!(has(&t, "0 kN·m&=V_B·(6 m)"), "{t}");
     assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
     // A frame: the roller's reaction from the rotation about the pin, exact fractions in the laws.
     let t = template_working("frame");
