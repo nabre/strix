@@ -504,6 +504,36 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
     let mods = ui.input(|i| i.modifiers);
     let adding = mods.shift || mods.command;
 
+    drag(app, ui, &resp, src, st, v, state, adding);
+    paint_sheet(ui, &resp, st, v, state);
+    if resp.secondary_clicked() {
+        state.start = None;
+    }
+    if resp.clicked()
+        && let Some(p) = resp.interact_pointer_pos()
+    {
+        if state.tool == Tool::Select {
+            match pick(st, v, p) {
+                Some(hit) if adding => state.toggle(hit),
+                Some(hit) => state.select(hit),
+                None if adding => {}
+                None => state.sel.clear(),
+            }
+        } else {
+            click(app, st, v, p, state);
+        }
+    }
+    // Keys, while the pointer is over the sheet and no box is being typed in.
+    let typing = ui.ctx().memory(|m| m.focused().is_some());
+    if (resp.hovered() || resp.has_focus()) && !typing {
+        keys(app, ui, src, st, state);
+    }
+}
+
+/// A drag with the primary button and the Select tool: moves the selection, slides a load along
+/// its member, or draws a selection window.
+#[allow(clippy::too_many_arguments)]
+fn drag(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: &Structure, v: View, state: &mut State, adding: bool) {
     // Dragging with Select: move the selection, slide a load, or draw a selection window.
     if state.tool == Tool::Select {
         if resp.drag_started_by(egui::PointerButton::Primary)
@@ -586,7 +616,12 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
     } else {
         state.gesture = None;
     }
+}
 
+/// The sheet: grid, structure (with the drag under way), selection, hover, selection window,
+/// the member being drawn and the readouts.
+fn paint_sheet(ui: &Ui, resp: &egui::Response, st: &Structure, v: View, state: &State) {
+    let rect = v.rect;
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 2.0, Color32::WHITE);
     grid_lines(&painter, v, state.grid);
@@ -662,28 +697,6 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
             FontId::proportional(11.0),
             Color32::DARK_GRAY,
         );
-    }
-    if resp.secondary_clicked() {
-        state.start = None;
-    }
-    if resp.clicked()
-        && let Some(p) = resp.interact_pointer_pos()
-    {
-        if state.tool == Tool::Select {
-            match pick(st, v, p) {
-                Some(hit) if adding => state.toggle(hit),
-                Some(hit) => state.select(hit),
-                None if adding => {}
-                None => state.sel.clear(),
-            }
-        } else {
-            click(app, st, v, p, state);
-        }
-    }
-    // Keys, while the pointer is over the sheet and no box is being typed in.
-    let typing = ui.ctx().memory(|m| m.focused().is_some());
-    if (resp.hovered() || resp.has_focus()) && !typing {
-        keys(app, ui, src, st, state);
     }
 }
 
@@ -1082,10 +1095,10 @@ fn click(app: &mut WordApp, st: &Structure, v: View, p: Pos2, state: &mut State)
             None => state.sel.clear(),
         },
         Tool::Node => {
-            if on_node.is_none() {
-                if let Some(id) = node_at(app, st, point) {
-                    state.select(Sel::Node(id));
-                }
+            if on_node.is_none()
+                && let Some(id) = node_at(app, st, point)
+            {
+                state.select(Sel::Node(id));
             }
         }
         Tool::Member => member_point(app, st, point, state),
