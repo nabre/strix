@@ -1,11 +1,11 @@
 # Resume notes
 
-Last updated 2026-11-17 (docs brought up to date). Read **Current state**, **In progress** and
+Last updated 2026-11-18 (v0.26.0 prepared, docs brought up to date). Read **Current state**, **In progress** and
 **Next** first. The sections below Current state are the session notes up to 2026-10-28; what
 landed since is in the [progress log](../ROADMAP.md#progress-log), dated, one entry per change.
 
-## Current state (2026-11-17)
-- Version 0.25.0 on `main` (`[workspace.package] version`); releases go through Promote and the
+## Current state (2026-11-18)
+- Version 0.26.0 on `main` (`[workspace.package] version`); releases go through Promote and the
   Release workflow on the `release` branch ([releasing.md](releasing.md)).
 - Strix's own features, each with its document: calculations with units, calculated tables with
   their contextual tab, derivatives, integrals and the Equation tab's structures, Variables pane
@@ -16,7 +16,8 @@ landed since is in the [progress log](../ROADMAP.md#progress-log), dated, one en
   the archive and Exercise Bank ([archive.md](archive.md)); DSA formatting, its own group on the
   Design tab ([dsa.md](dsa.md)); graph paper ([graph-paper.md](graph-paper.md)); CAD drawings and
   their editor ([cad.md](cad.md)); plots ([plot.md](plot.md)); plane structures, the Structures
-  tab, the Structure Editor and the written working ([structures.md](structures.md)); Strix
+  tab, dimensions and stations, the full-page Structure Editor, the written working that follows
+  the structure, the Structure Exercise and the report/exercise modes ([structures.md](structures.md)); Strix
   objects kept through Word ([word-round-trip.md](word-round-trip.md)).
 - Next: see ROADMAP.md (**Next**) and each feature document's Next section.
 

@@ -225,7 +225,9 @@ treillis**, résolu là où il se trouve et dessiné comme dans un manuel
 **réactions d'appui** et les diagrammes de l'**effort normal N**, de l'**effort tranchant T** et du
 **moment fléchissant M** l'un sous l'autre à la même échelle, hachurés, avec ⊕/⊖ et les valeurs
 remarquables ; un treillis montre l'effort normal de chaque barre, traction et compression en deux
-couleurs.
+couleurs. Chaque charge a son nom (`F_1`, `q_2`, `C_3`), le dessin porte les **cotes** de la
+structure, les pentes et les angles des forces, et les diagrammes marquent leurs **abscisses** (où
+tombe une valeur remarquable, mesurée depuis le début de la barre).
 
 - **N'importe quelle structure plane** : encastrements, appuis articulés, appuis à rouleau,
   bielles et glissières sous n'importe quel angle, rotules internes ; forces, couples et charges
@@ -236,13 +238,25 @@ couleurs.
   `q`), si bien que chaque variante d'un exercice a sa structure et ses diagrammes ; la convention
   italienne (moment du côté des fibres tendues) est celle par défaut, et le côté positif de chaque
   diagramme se choisit.
-- **L'Éditeur de structure**, un volet à côté du document : une feuille avec grille et
-  accrochages, des outils pour les nœuds, les barres, les appuis, les rotules et les charges, des
-  coordonnées saisies au clavier, et les tableaux des nœuds, des barres, des appuis et des charges.
+- **L'Éditeur de structure** : un double-clic sur une structure l'ouvre à la place de la page,
+  avec son propre onglet du ruban : une feuille avec grille et accrochages, des outils pour les
+  nœuds, les barres, les appuis, les rotules et les charges, la sélection par clic et par fenêtre,
+  des poignées pour déplacer les nœuds, porter et tourner les charges et étirer les charges
+  réparties, un menu contextuel (diviser ou joindre des barres, appuis, rotules, charges), des
+  coordonnées saisies au clavier, les propriétés de la sélection et les tableaux des nœuds, des
+  barres, des appuis et des charges.
 - **La résolution écrite** : **Écrire la résolution** place la solution après la structure en
-  calculs vivants : les équations d'équilibre qui donnent les réactions, puis les lois N(x), T(x),
-  M(x) de chaque barre tronçon par tronçon, avec leurs valeurs aux extrémités et les extremums du
-  moment.
+  calculs vivants : d'abord les charges, leurs résultantes et composantes et le bras de levier de
+  chaque force, puis les équations d'équilibre écrites sous forme littérale
+  (`0 kN·m = V_B·6 m − F_1·d_(1,A)`), chacune résolue pour sa réaction avec ses étapes, puis les
+  lois de chaque barre (`T_1(x) = V_A − q_1·x`) tronçon par tronçon, avec leurs valeurs aux
+  extrémités et les extremums du moment. La résolution suit la structure : chaque modification de
+  celle-ci, ou d'un paramètre qu'elle lit, la réécrit.
+- **Un exercice sur la structure** : **Exercice sur une structure** écrit un problème entier (la
+  structure dans l'énoncé ; réactions, N, T, où T s'annule, le moment maximal à cet endroit, M),
+  chaque réponse avec sa résolution et son propre dessin ; **Vers l'exercice** et **Vers la
+  structure** font passer une structure, là où elle se trouve, du rapport technique à l'exercice et
+  inversement.
 - Dans la copie de l'élève, **Solution seule** laisse de côté les réactions et les diagrammes et
   garde les cadres vides, si bien que les deux copies ont la même mise en page.
 
@@ -297,7 +311,8 @@ mêmes commandes, et les appels programmatiques n'ouvrent jamais de boîte de di
 commandes d'enseignement, de calcul et de dessin figurent `exercise.insert`, `exercise.setData`,
 `exercise.variant`, `exercise.generateVariants`, `exercise.scores`, `exercise.grading`,
 `exercise.check`, `file.exportPack`, `design.dsa`, `calc.insert`, `table.calc`, `insert.cad`,
-`plot.insert`, `plot.analysis`, `structure.insert` et `structure.working` : un agent peut préparer
+`plot.insert`, `plot.analysis`, `structure.insert`, `structure.working`, `structure.exercise` et
+`structure.mode` : un agent peut préparer
 une évaluation entière, avec ses variantes, son barème et ses copies à imprimer.
 
 ```sh
@@ -343,7 +358,7 @@ calculés, exercices avec données et variantes (générées et vérifiées), qu
 question, évaluations composées depuis la banque d'exercices par les documents maîtres, mise en
 forme DSA, contrôle avant l'impression et export du pack, tableau des points et barème, papier
 quadrillé, dessins CAO paramétriques avec les outils de modification, graphiques avec leur
-analyse, structures planes avec leur résolution, fichiers Word qui gardent les objets Strix.
+analyse, structures planes avec leur résolution et leurs exercices, fichiers Word qui gardent les objets Strix.
 Prochaines étapes notées : systèmes d'équations et matrices, un tableau des résultats par
 exercice et un récapitulatif par variante, questions à remettre en ordre, cotes CAO qui pilotent
 le dessin. Les détails sont dans [ROADMAP.md](../ROADMAP.md) (avec le journal des progrès).

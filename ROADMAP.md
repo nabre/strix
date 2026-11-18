@@ -1,9 +1,9 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix roadmap
 
-> **Last updated:** 2026-11-17 · **Change:** patch (the documentation brought up to date with
-> the code: READMEs, site, brand manual, store texts, feature docs, screenshots and translations;
-> the Structures tab done, next steps listed)
+> **Last updated:** 2026-11-18 · **Change:** minor (v0.26.0 prepared; READMEs, site and feature
+> docs brought up to date with plane structures' stage 4, the structure exercise and the
+> report/exercise modes)
 
 Strix is a tool for teachers of mathematics, science and engineering: calculation exercises with
 units, open and multiple-choice questions, tests assembled from an archive of exercises, scores,
@@ -28,9 +28,13 @@ documents: [calculations](docs/calc.md), [exercises](docs/exercise.md),
 [archive](docs/archive.md), [DSA formatting](docs/dsa.md), [graph paper](docs/graph-paper.md),
 [CAD](docs/cad.md), [plots](docs/plot.md), [plane structures](docs/structures.md), [Word round trip](docs/word-round-trip.md).
 
-The latest feature, **plane structures** (docs/structures.md), is done in its three stages: the
+The latest feature, **plane structures** (docs/structures.md), is done in its four stages: the
 solver, the structure object and its commands; the Structures tab between Math and Teaching with
-the Structure Editor and its tables; the working written after a structure as live calculations.
+the Structure Editor and its tables; the working written after a structure as live calculations,
+algebraic and following the structure; dimensions, stations and the full-page Structure Editor.
+On top of them, a whole exercise on a structure (Structure Exercise) and the switch between a
+technical report and an exercise (To Exercise / To Report). Next there: the working written with
+the structure's parameters instead of their values.
 
 **Next** (to be confirmed by the owner, gathered from the feature documents' Next sections):
 systems of equations across regions and matrices (docs/calc.md); a results table per exercise,
@@ -43,6 +47,7 @@ dimensions with geometric constraints in CAD (docs/cad.md).
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-18: v0.26.0 prepared (version bumped; Promote merges `main` into `release`, where the Release workflow builds every package, tags `v0.26.0` and publishes the release, then redeploys the site): plane structures' stage 4 (dimensions, slopes and force angles on the drawing, stations on the diagrams, the full-page Structure Editor with its ribbon tab, grips, right-click menu, Split and Join the members), every load named, the Structure Exercise (six questions, each with its working and its own drawing), To Exercise / To Report, the working that follows the structure and its parameters, laws written with the reactions' and loads' names, moment equations written algebraically with resultants, parts and arms prepared first, calc's interval-bounded roots and one-step crossings, more room in equation arrays, and the CI gate in two parallel legs. Documentation brought in line: the READMEs in four languages, the site's Structures section in four languages, docs/structures.md, docs/RESUME.md.
 - 2026-11-18: **CI gate in two parallel legs** (`.github/workflows/ci.yml`, `xtask/src/main.rs`). The `gate (ubuntu-24.04)` job ran the whole `cargo xtask ci` alone, compiling the workspace four ways in a row (clippy, tests, doctests, wasm). `cargo xtask ci --lint` (fmt, clippy, wasm check) and `--no-lint` (tests, i18n report, language, doctests, assets, workflows, layers) now run as the shared gate's `lint` and `gate` legs side by side, and the workspace crates' compiled libraries, which the dependency cache leaves out, are cached with sccache (written by runs on `main`, read by pull requests). `cargo xtask ci` with no argument still runs everything.
 - 2026-11-18: **Moment equations written algebraically, the quantities prepared first** (docs/structures.md, Working; `crates/engine/src/cmd/structure/working.rs`). Under the loads, each distributed load's resultant as its area (`F_1 = q_1·3 m = 30 kN`, a trapezoid's `F_(2,1)` and `F_(2,2)`) and each askew force's horizontal and vertical parts (`F_(3,h) = F_3·cos(30°)`, `F_(3,v) = F_3·sin(30°)`); before each rotation, each force's arm about that point named after it (`d_(1,A) = 3 m + (3 m)/2 = 4.5 m`, `d_(3,v,A)`), so the equation reads `0 kN·m = V_B·6 m − F_1·d_(1,A) − F_(3,v)·d_(3,v,A)`. The translations use the parts, the laws past a distributed load its resultant (`M_1b(x) = V_A·x − F_1·(x − 2 m)`). Calc (`crates/calc/src/worksheet.rs`, docs/calc.md): an isolated unknown whose check leaves a rounding residual against a zero side (from `cos(30°)`) is kept, not traded for the polynomial solver's `−6 m·V = … − 0 kN·m`.
 - 2026-11-18: **Known terms cross over in one step** (docs/calc.md, Steps; `crates/calc/src/solve.rs`). Isolating the unknown moved each term without it across the `=` on a line of its own, and kept a zero (`V_A·4.5 m − q_1·… = 0 kN·m − F_2·1 m`, then `V_A·4.5 m = 0 kN·m − F_2·1 m + q_1·…`); they now cross over together, leaving only the monomial holding the unknown, the zero left out (`V_A·4.5 m = q_1·… − F_2·1 m`).
@@ -198,6 +203,7 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-18 | minor | v0.26.0 prepared; READMEs (four languages), site and docs/structures.md brought up to date with structures' stage 4, the structure exercise and the modes |
 | 2026-11-18 | patch | CI: the gate split into a test leg and a lint leg run in parallel (`cargo xtask ci --no-lint` / `--lint`), workspace crates cached with sccache |
 | 2026-11-18 | patch | Structure working: resultants `F_n` as areas, askew forces split into `F_(n,h)`/`F_(n,v)`, arms `d_(n,A)` worked out before each moment equation; calc keeps an isolated unknown despite a rounding residual |
 | 2026-11-18 | patch | Calc steps: the terms without the unknown cross over in one step, a zero left out |
