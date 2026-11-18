@@ -207,6 +207,8 @@ while IFS='|' read -r lang sheading data pheading plead; do
     cmd text.insert '{"text":", "}'
     cmd calc.insert '{"text":"F = 30 kN"}'
     cmd text.insert '{"text":"."}'
+    proofed "$lang"
+    cmd caret.docEnd '{}'
     cmd text.newParagraph '{}'
     # Inserted last and left selected, so the Structure Editor shows it.
     cmd structure.insert "{\"structure\":$BEAM,\"openPane\":true}"
