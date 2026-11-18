@@ -23,8 +23,11 @@ use wordcraft_doc::{Block, InlineObject};
 
 use crate::{CmdError, CmdResult, Session};
 
+mod live;
+mod named;
 mod questions;
-pub(super) use questions::{Parts, parts};
+pub(super) use live::{Part, keep_labels, name as live_name, refresh, wrap};
+pub(super) use questions::parts;
 
 /// At most this many lines are written.
 const MAX_LINES: usize = 400;
@@ -48,6 +51,8 @@ struct Labels {
     jump: String,
     /// An exercise's shear never vanishing nor changing sign.
     nozero: String,
+    /// In place of a working kept up to date, while its structure can't be solved.
+    unsolved: String,
 }
 
 impl Labels {
@@ -73,6 +78,7 @@ impl Labels {
             range: get("range", "x from {a} to {b}"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
             nozero: get("nozero", "{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch."),
+            unsolved: get("unsolved", "The structure can't be solved: its working will be written again as soon as it can."),
         }
     }
 }
@@ -105,25 +111,60 @@ impl Line {
     }
 }
 
+/// Writes the selected structure's working after it, or again in place when it has one: in a
+/// hidden bookmark ([`live`]), so a change to the structure writes it again.
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
-    let (pos, src) = super::selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
-    let st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
-    let r = crate::cmd::calc::resolved_structure(s, &src)
+    let (mut pos, src) = super::selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
+    let mut st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
+    let props = s.doc.para_at(&pos).map(|p| p.mark.clone()).unwrap_or_default();
+    let paras = whole(s, &src, v, &props)?;
+    let count = paras.len();
+    // The structure keeps the working's words and gets a group to name its bookmark.
+    if st.group.is_empty() {
+        st.group = super::free_group(s);
+    }
+    keep_labels(&mut st, v);
+    let src = super::put(s, &pos, &st)?;
+    let name = live::name(&st.group, Part::Whole);
+    match live::range(s, &name) {
+        Some(r) => live::replace(s, r, paras, &name, &mut pos)?,
+        None => {
+            let mut paras = paras;
+            wrap(&mut paras, &name)?;
+            let mut path = pos.path.clone();
+            for para in paras {
+                path = path.with_last(path.last().saturating_add(1));
+                s.doc.insert_block(pos.story, &path, Block::Para(para)).map_err(|e| CmdError::Failed(e.to_string()))?;
+            }
+        }
+    }
+    // Its other workings (an exercise's) take the words too.
+    refresh_others(s, &src, &st, &mut pos)?;
+    s.touch();
+    let report = crate::cmd::calc::recalculate_now(s);
+    Ok(json!({ "lines": count, "recalculated": report }))
+}
+
+/// The structure's workings other than the whole one, written again.
+fn refresh_others(s: &mut Session, src: &std::sync::Arc<str>, st: &Structure, pos: &mut wordcraft_doc::Pos) -> Result<(), CmdError> {
+    let exercise = [Part::Reactions, Part::Axial, Part::Shear, Part::Zeros, Part::Maxima, Part::Moments];
+    if exercise.iter().any(|&p| live::range(s, &live::name(&st.group, p)).is_some()) {
+        refresh(s, src, st, pos)?;
+    }
+    Ok(())
+}
+
+/// The whole working of structure `src` as paragraphs in the character formatting `props`.
+fn whole(s: &Session, src: &std::sync::Arc<str>, v: &Value, props: &wordcraft_doc::CharProps) -> Result<Vec<Paragraph>, CmdError> {
+    let st = Structure::from_json(src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
+    let r = crate::cmd::calc::resolved_structure(s, src)
         .unwrap_or_else(|| st.render(Some(&strix_calc::Worksheet::new(crate::cmd::calc::options_now(s)))));
     if !r.analysis.status.is_solved() {
         return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
     }
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let lines = lines(&r.resolved, &r.analysis, &Labels::from(v), comma);
-    let props = s.doc.para_at(&pos).map(|p| p.mark.clone()).unwrap_or_default();
-    let mut path = pos.path.clone();
-    for para in paragraphs(&lines, &props)? {
-        path = path.with_last(path.last().saturating_add(1));
-        s.doc.insert_block(pos.story, &path, Block::Para(para)).map_err(|e| CmdError::Failed(e.to_string()))?;
-    }
-    s.touch();
-    let report = crate::cmd::calc::recalculate_now(s);
-    Ok(json!({ "lines": lines.len(), "recalculated": report }))
+    paragraphs(&lines, props)
 }
 
 /// The working's lines as paragraphs in the character formatting `props`.
@@ -310,8 +351,9 @@ impl Units {
         qty(v, &self.f, self.comma)
     }
 
+    /// A length (its size) as calc writes it in its working: `6 m`, `(15 m)/8`.
     fn length(&self, v: f64) -> String {
-        qty(v, &self.l, self.comma)
+        arg(v.abs(), &self.l, self.comma)
     }
 
     fn moment(&self, v: f64) -> String {
@@ -455,6 +497,16 @@ fn rotation(p: (f64, f64), us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Unit
 
 impl Equation {
     fn text(&self, us: &[Unknown], u: &Units) -> String {
+        let zero = if self.moment { format!("0 {}·{}", u.f, u.l) } else { format!("0 {}", u.f) };
+        let present: Vec<&(usize, f64, String)> = self.unknowns.iter().filter(|(i, _, _)| us.get(*i).is_some()).collect();
+        // An unknown alone, no load: `H_A = 0 kN`.
+        if let ([(i, _, t)], true) = (present.as_slice(), self.loads.is_empty())
+            && us.get(*i).is_some_and(|k| &k.name == t)
+        {
+            return format!("{t} = {zero}");
+        }
+        // Both sides turned so the first unknown's term is positive (calc would write `V_A = --…`).
+        let flip = present.first().map_or(1.0, |(_, c, _)| if *c < 0.0 { -1.0 } else { 1.0 });
         let mut out = String::new();
         let push = |sign: f64, t: &str, out: &mut String| {
             if out.is_empty() {
@@ -466,18 +518,15 @@ impl Equation {
             }
             out.push_str(t);
         };
-        for (i, c, t) in &self.unknowns {
-            if us.get(*i).is_some() {
-                push(c.signum(), t, &mut out);
-            }
+        for (_, c, t) in &present {
+            push(flip * c.signum(), t, &mut out);
         }
         for (v, t) in &self.loads {
-            push(v.signum(), t, &mut out);
+            push(flip * v.signum(), t, &mut out);
         }
         if out.is_empty() {
             out.push('0');
         }
-        let zero = if self.moment { format!("0 {}·{}", u.f, u.l) } else { format!("0 {}", u.f) };
         format!("{zero} = {out}")
     }
 
@@ -715,7 +764,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         if out.len() >= MAX_LINES {
             break;
         }
-        member_lines(st, m, &u, labels, &shear, &mut out);
+        member_lines(st, &us, m, &u, labels, &shear, &mut out);
     }
     out.truncate(MAX_LINES);
     out
@@ -747,7 +796,7 @@ fn law(c: &[f64; 4], units: [&str; 4], comma: bool) -> String {
     if out.is_empty() { format!("(0 {})", units.first().copied().unwrap_or("")) } else { out }
 }
 
-fn member_lines(st: &Structure, m: &MemberResult, u: &Units, labels: &Labels, shear: &str, out: &mut Vec<Line>) {
+fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, labels: &Labels, shear: &str, out: &mut Vec<Line>) {
     let Some(src) = st.member(&m.id) else { return };
     let parts = stretches(m);
     let id = sub(&m.id, 0);
@@ -761,9 +810,11 @@ fn member_lines(st: &Structure, m: &MemberResult, u: &Units, labels: &Labels, sh
         let tag = stretch_tag(&id, k, parts.len());
         let at = |x: f64| arg(x, l, u.comma);
         out.push(stretch_header(src, s, u, labels));
-        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", law(&s.n, [f, &fl, &fl2, &fl3], u.comma))], true));
-        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", law(&s.v, [f, &fl, &fl2, &fl3], u.comma))], true));
-        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", law(&s.m, [&fm, f, &fl, &fl2], u.comma))], true));
+        // With the reactions' and the loads' names where they can be, else the numbers.
+        let [n, v, mo] = named::laws(st, us, m, s, u);
+        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma)))], true));
+        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma)))], true));
+        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma)))], true));
         let mut values = Vec::new();
         if s.n[1..].iter().any(|c| *c != 0.0) {
             values.push(format!("N_{tag}({}) = {f}", at(s.x0)));

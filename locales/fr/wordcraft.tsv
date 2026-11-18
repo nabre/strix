@@ -3994,3 +3994,4 @@ structure	Double-click	Double-clic
 	Find the axial force in every member and draw it.	Calculez l’effort normal dans chaque barre et tracez-le.
 	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.
+	The structure can't be solved: its working will be written again as soon as it can.	La structure ne peut pas être résolue : la résolution sera réécrite dès qu’elle le pourra.

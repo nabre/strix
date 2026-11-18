@@ -585,7 +585,9 @@ fn load(s: &mut Session, v: &Value) -> CmdResult {
     })
 }
 
-fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<(), CmdError> {
+/// `st` in place of the structure at `pos` and in the other drawings of its group, not redrawn
+/// yet; returns its source.
+fn put(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<Arc<str>, CmdError> {
     let json_arc: Arc<str> = st.to_json().into();
     {
         let para = s.doc.para_mut(pos.story, &pos.path).map_err(|e| CmdError::Failed(e.to_string()))?;
@@ -601,6 +603,15 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<()
         para.touch();
     }
     sync_group(s, pos, st);
+    Ok(json_arc)
+}
+
+fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<(), CmdError> {
+    let json_arc = put(s, pos, st)?;
+    // Its written workings follow it (a structure that can't be solved says so there).
+    let mut pos = pos.clone();
+    working::refresh(s, &json_arc, st, &mut pos)?;
+    let pos = &pos;
     let report = super::calc::recalculate_now(s);
     // A structure the recalculation does not reach (outside the body) is drawn here.
     if report["changed"].as_u64().unwrap_or(0) == 0 && super::calc::resolved_structure(s, &json_arc).is_none() {
@@ -624,6 +635,32 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<()
     }
     s.touch();
     Ok(())
+}
+
+/// A group name no structure in the body has yet: `structure-1`, `structure-2`…
+fn free_group(s: &Session) -> String {
+    let mut used: Vec<String> = Vec::new();
+    for b in &s.doc.body {
+        let wordcraft_doc::Block::Para(p) = &**b else { continue };
+        for (_, o) in p.objects_with_offsets() {
+            if let InlineObject::Graphic { graphic, .. } = o
+                && graphic.kind == GraphicKind::Structure
+                && let Some(st) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
+                && !st.group.is_empty()
+            {
+                used.push(st.group);
+            }
+        }
+    }
+    let mut n = used.len() + 1;
+    for k in 1..=used.len() + 1 {
+        let name = format!("structure-{k}");
+        if !used.contains(&name) {
+            n = k;
+            break;
+        }
+    }
+    format!("structure-{n}")
 }
 
 mod exercise;

@@ -418,6 +418,7 @@ pub(crate) fn working_labels() -> Value {
         "axial": ts("Axial forces"),
         "hinge": ts("part about the hinge"),
         "range": ts("x from {a} to {b}"),
+        "unsolved": ts("The structure can't be solved: its working will be written again as soon as it can."),
     }})
 }
 

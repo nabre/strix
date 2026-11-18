@@ -529,6 +529,9 @@ fn default_width() -> f64 {
     160.0
 }
 
+/// At most this many working labels are kept.
+const MAX_WORKING_LABELS: usize = 32;
+
 /// A plane structure: beams, frames and trusses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -567,6 +570,10 @@ pub struct Structure {
     /// structure stay, so both copies have the same size).
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub answer: bool,
+    /// The words of its written working (`structure.working`'s labels, in the language it was
+    /// written in), kept so the working is written again in them when the structure changes.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub working_labels: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for Structure {
@@ -586,6 +593,7 @@ impl Default for Structure {
             group: String::new(),
             width: default_width(),
             answer: true,
+            working_labels: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -674,6 +682,11 @@ impl Structure {
     pub fn sanitized(mut self) -> Structure {
         self.title = self.title.chars().filter(|c| !c.is_control()).take(120).collect();
         self.group = self.group.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
+        self.working_labels = std::mem::take(&mut self.working_labels)
+            .into_iter()
+            .take(MAX_WORKING_LABELS)
+            .map(|(k, v)| (k.chars().take(40).collect(), v.chars().filter(|c| !c.is_control()).take(400).collect()))
+            .collect();
         for t in [&mut self.titles.n, &mut self.titles.v, &mut self.titles.m] {
             *t = t.chars().filter(|c| !c.is_control()).take(12).collect();
         }

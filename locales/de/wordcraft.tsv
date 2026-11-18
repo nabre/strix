@@ -3995,3 +3995,4 @@ structure	Double-click	Doppelklick
 	Find the axial force in every member and draw it.	Berechnen Sie die Normalkraft in jedem Stab und zeichnen Sie sie.
 	{T} changes sign under a concentrated load	{T} wechselt unter einer Einzellast das Vorzeichen
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} wird nirgends null und wechselt nicht das Vorzeichen: das größte Moment liegt am Ende eines Abschnitts.
+	The structure can't be solved: its working will be written again as soon as it can.	Das Tragwerk ist nicht lösbar: der Lösungsweg wird neu geschrieben, sobald es lösbar ist.

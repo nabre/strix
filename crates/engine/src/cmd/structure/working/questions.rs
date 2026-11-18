@@ -1,5 +1,5 @@
 //! The working of a structure exercise split by its questions (`docs/structures.md`, Exercise):
-//! the reactions; the laws of N; of T; where T vanishes (solved from its law) or changes sign
+//! the reactions; the laws of N; of T; where T vanishes (its law solved within the stretch) or changes sign
 //! under a concentrated load; the moment there; the laws of M. Each part is written under its
 //! question in the solution, in reading order, so a law is defined before what uses it (the
 //! moment's laws of the stretches where T vanishes come with the moment there, and again with
@@ -31,7 +31,12 @@ const Q_ZEROS: u32 = 4;
 const Q_MAXIMA: u32 = 5;
 
 /// The working of structure `src` split by the exercise's questions.
-pub(in crate::cmd::structure) fn parts(s: &Session, src: &std::sync::Arc<str>, v: &Value, props: &wordcraft_doc::CharProps) -> Result<Parts, CmdError> {
+pub(in crate::cmd::structure) fn parts(
+    s: &Session,
+    src: &std::sync::Arc<str>,
+    v: &Value,
+    props: &wordcraft_doc::CharProps,
+) -> Result<Parts, CmdError> {
     let st = Structure::from_json(src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
     let r = crate::cmd::calc::resolved_structure(s, src)
         .unwrap_or_else(|| st.render(Some(&strix_calc::Worksheet::new(crate::cmd::calc::options_now(s)))));
@@ -69,7 +74,7 @@ pub(in crate::cmd::structure) fn parts(s: &Session, src: &std::sync::Arc<str>, v
         });
     }
     let u = units(st, comma);
-    let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st) };
+    let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
     let members: Vec<(&MemberResult, Vec<Stretch>)> = an.members.iter().map(|m| (m, stretches(m))).collect();
     let mut axial_lines = vec![Line::words(forces)];
     let mut shear_lines = Vec::new();
@@ -156,32 +161,13 @@ fn points(members: &[(&MemberResult, Vec<Stretch>)]) -> Vec<Point> {
     out
 }
 
-/// The root calc's solver gives for `0 = c0 + c1·x + c2·x²`: the smallest non-negative one, else
-/// the negative one closest to zero (`docs/calc.md`, Solving); `None` for a law of higher degree.
-fn solver_root(c: &[f64; 4]) -> Option<f64> {
-    if c[3] != 0.0 {
-        return None;
-    }
-    let roots: Vec<f64> = if c[2] == 0.0 {
-        if c[1] == 0.0 { Vec::new() } else { vec![-c[0] / c[1]] }
-    } else {
-        let d = c[1] * c[1] - 4.0 * c[2] * c[0];
-        if d < 0.0 {
-            Vec::new()
-        } else {
-            let r = d.sqrt();
-            vec![(-c[1] - r) / (2.0 * c[2]), (-c[1] + r) / (2.0 * c[2])]
-        }
-    };
-    let non_negative = roots.iter().copied().filter(|r| *r >= -1e-12).fold(None, |a: Option<f64>, r| Some(a.map_or(r, |a| a.min(r))));
-    non_negative.or_else(|| roots.iter().copied().fold(None, |a: Option<f64>, r| Some(a.map_or(r, |a| a.max(r)))))
-}
-
 struct Writer<'a> {
     st: &'a Structure,
     u: &'a Units,
     labels: &'a Labels,
     shear: String,
+    /// The reactions, by their names.
+    us: Vec<super::Unknown>,
 }
 
 impl Writer<'_> {
@@ -207,8 +193,18 @@ impl Writer<'_> {
         }
     }
 
-    /// `M_1a(x) = …`: stretch `s`'s law of `action`.
-    fn law(&self, tag: &str, s: &Stretch, action: Action) -> String {
+    /// `M_1a(x) = …`: stretch `s`'s law of `action` (member `m`'s), with the reactions' and the
+    /// loads' names where it can be.
+    fn law(&self, m: &MemberResult, tag: &str, s: &Stretch, action: Action) -> String {
+        let [n, v, mo] = super::named::laws(self.st, &self.us, m, s, self.u);
+        let named = match action {
+            Action::Axial => n,
+            Action::Shear => v,
+            Action::Moment => mo,
+        };
+        if let Some(body) = named {
+            return format!("{}_{tag}(x) = {body}", self.letter(action));
+        }
         let (f, l) = (self.u.f.as_str(), self.u.l.as_str());
         let fl = format!("{f}/{l}");
         let fl2 = format!("{f}/{l}^2");
@@ -237,7 +233,7 @@ impl Writer<'_> {
             }
             let (tag, _) = self.names(m, k, parts.len());
             out.push(stretch_header(src, s, self.u, self.labels));
-            out.push(Line::eqs(vec![self.law(&tag, s, action)], true));
+            out.push(Line::eqs(vec![self.law(m, &tag, s, action)], true));
             let c = match action {
                 Action::Axial => &s.n,
                 Action::Shear => &s.v,
@@ -261,13 +257,12 @@ impl Writer<'_> {
                     let (tag, x) = self.names(mr, k, parts.len());
                     out.push((stretch_header(src, s, self.u, self.labels), false));
                     let found: Vec<f64> = xs.iter().flatten().copied().collect();
-                    let solvable = match (found.as_slice(), solver_root(&s.v)) {
-                        ([one], Some(r)) => (one - r).abs() <= 1e-6 * (1.0 + mr.length),
-                        _ => false,
-                    };
-                    if solvable {
-                        let zero = format!("0 {}", self.u.f);
-                        out.push((Line { stepped: true, ..Line::eqs(vec![format!("{zero} = {}_{tag}({x})", self.shear)], true) }, true));
+                    // One zero: T's law solved for it within the stretch (a law of degree two has
+                    // another root outside it).
+                    if found.len() == 1 {
+                        let (a, b) = (arg(s.x0, &self.u.l, self.u.comma), arg(s.x1, &self.u.l, self.u.comma));
+                        let eq = format!("0 {} = {}_{tag}({x}); {a} ≤ {x} ≤ {b}", self.u.f, self.shear);
+                        out.push((Line { stepped: true, ..Line::eqs(vec![eq], true) }, true));
                     } else {
                         for (j, at) in found.iter().enumerate() {
                             let name = if found.len() > 1 { format!("x_({tag},{})", j + 1) } else { x.clone() };
@@ -308,7 +303,7 @@ impl Writer<'_> {
             if !defined.contains(&(m, k)) {
                 defined.push((m, k));
                 out.push((stretch_header(src, s, self.u, self.labels), false));
-                out.push((Line::eqs(vec![self.law(&tag, s, Action::Moment)], true), false));
+                out.push((Line::eqs(vec![self.law(mr, &tag, s, Action::Moment)], true), false));
             }
             Some(tag)
         };
@@ -320,8 +315,7 @@ impl Writer<'_> {
                     let count = members.get(m).map_or(1, |(_, parts)| parts.len());
                     let (_, x) = members.get(m).map(|(mr, _)| self.names(mr, k, count)).unwrap_or_default();
                     let found: Vec<f64> = xs.iter().flatten().copied().collect();
-                    let names: Vec<String> =
-                        if found.len() > 1 { (1..=found.len()).map(|j| format!("x_({tag},{j})")).collect() } else { vec![x] };
+                    let names: Vec<String> = if found.len() > 1 { (1..=found.len()).map(|j| format!("x_({tag},{j})")).collect() } else { vec![x] };
                     let eqs = names.iter().map(|n| format!("M_{tag}({n}) = {unit}")).collect();
                     out.push((Line::eqs(eqs, false), true));
                 }
@@ -360,15 +354,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_root_calc_solves_for() {
-        // 30 − 10·x: x = 3.
-        assert_eq!(solver_root(&[30.0, -10.0, 0.0, 0.0]), Some(3.0));
-        // 6 − 5·x + x² = (x − 2)(x − 3): the smaller one.
-        assert_eq!(solver_root(&[6.0, -5.0, 1.0, 0.0]), Some(2.0));
-        // −(x + 1)(x + 4): the negative one closest to zero.
-        assert_eq!(solver_root(&[-4.0, -5.0, -1.0, 0.0]), Some(-1.0));
-        assert_eq!(solver_root(&[1.0, 0.0, 1.0, 0.0]), None);
-        assert_eq!(solver_root(&[1.0, 0.0, 0.0, 1.0]), None);
+    fn a_law_s_value() {
         assert_eq!(value(&[1.0, 2.0, 3.0, 0.0], 2.0), 17.0);
     }
 }

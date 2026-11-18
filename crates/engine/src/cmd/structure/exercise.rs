@@ -22,8 +22,9 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
         None => super::template(p::str(v, "template").unwrap_or("beam"))?,
     };
     super::apply_settings(&mut st, v)?;
-    st.group = free_group(s);
+    st.group = super::free_group(s);
     st.view = View::All;
+    super::working::keep_labels(&mut st, v);
     let st = st.sanitized();
     // A structure with no parameters is checked before anything is written.
     if st.expressions().is_empty() && !st.render(None).analysis.status.is_solved() {
@@ -88,7 +89,18 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
             _ => None,
         })
         .ok_or_else(|| CmdError::Failed("the structure vanished".into()))?;
-    let parts = super::working::parts(s, &src, v, &props)?;
+    let mut parts = super::working::parts(s, &src, v, &props)?;
+    // Each part in its bookmark, so a change to the structure writes it again.
+    {
+        use super::working::{Part, wrap};
+        let name = |p: Part| super::working::live_name(&st.group, p);
+        wrap(&mut parts.reactions, &name(Part::Reactions))?;
+        wrap(&mut parts.axial, &name(Part::Axial))?;
+        wrap(&mut parts.shear, &name(Part::Shear))?;
+        wrap(&mut parts.zeros, &name(Part::Zeros))?;
+        wrap(&mut parts.maxima, &name(Part::Maxima))?;
+        wrap(&mut parts.moments, &name(Part::Moments))?;
+    }
 
     // The solution: under each prompt its working, then its drawing.
     let drawing = |s: &Session, view: View| -> Result<Paragraph, CmdError> {
@@ -129,32 +141,6 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     s.clamp_selection();
     let exercise = super::super::exercise::exercise_at_caret(s);
     Ok(json!({"exercise": exercise, "group": st.group}))
-}
-
-/// A group name no structure in the body has yet: `structure-1`, `structure-2`…
-fn free_group(s: &Session) -> String {
-    let mut used: Vec<String> = Vec::new();
-    for b in &s.doc.body {
-        let Block::Para(p) = &**b else { continue };
-        for (_, o) in p.objects_with_offsets() {
-            if let InlineObject::Graphic { graphic, .. } = o
-                && graphic.kind == GraphicKind::Structure
-                && let Some(st) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
-                && !st.group.is_empty()
-            {
-                used.push(st.group);
-            }
-        }
-    }
-    let mut n = used.len() + 1;
-    for k in 1..=used.len() + 1 {
-        let name = format!("structure-{k}");
-        if !used.contains(&name) {
-            n = k;
-            break;
-        }
-    }
-    format!("structure-{n}")
 }
 
 #[cfg(test)]
@@ -265,15 +251,29 @@ mod tests {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"structure": st})).unwrap();
         let eqs = equations(&s);
-        let zero = eqs.iter().find(|e| e.0.contains("= T_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
+        let zero = eqs.iter().find(|e| e.0.contains("=T_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
         assert_eq!(zero.1, 4, "{eqs:?}");
-        assert!(zero.0.contains("x_1 = 3 m"), "{zero:?}");
+        assert!(zero.0.contains("x_1&=3\u{2009}m"), "{zero:?}");
         let max = eqs.iter().find(|e| e.0.starts_with("M_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
         assert_eq!(max.1, 5);
-        assert!(max.0.contains("45 kN·m"), "{max:?}");
+        assert!(max.0.contains("45\u{2009}kN·m"), "{max:?}");
         // The moment's law comes before its value there.
-        let law = eqs.iter().position(|e| e.0.starts_with("M_1(x) =")).unwrap();
+        let law = eqs.iter().position(|e| e.0.starts_with("M_1(x)=")).unwrap_or_else(|| panic!("{eqs:?}"));
         assert!(law < eqs.iter().position(|e| e.0.starts_with("M_1(x_1)")).unwrap());
+
+        // A triangular load 0 → 30 kN/m: T of degree two, zero at 6 m/√3 = 3.4641 m (its other
+        // root, outside the beam, is left out by the stretch's bounds).
+        let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 0, "q2": 30, "angle": -90}]});
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"structure": st})).unwrap();
+        let eqs = equations(&s);
+        let zero = eqs.iter().find(|e| e.0.contains("=T_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert!(zero.0.contains("x_1&=3.464"), "{zero:?}");
+        let max = eqs.iter().find(|e| e.0.starts_with("M_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert!(max.0.contains("69.282"), "{max:?}");
 
         // A point load in the middle: T changes sign under it, M is greatest there.
         let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}],
@@ -283,9 +283,9 @@ mod tests {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"structure": st})).unwrap();
         let eqs = equations(&s);
-        assert!(eqs.iter().any(|e| e.0.starts_with("T_1a(2 m)") && e.1 == 4), "{eqs:?}");
-        let max = eqs.iter().find(|e| e.0.starts_with("M_1a(2 m)") && e.1 == 5).unwrap_or_else(|| panic!("{eqs:?}"));
-        assert!(max.0.contains("10 kN·m"), "{max:?}");
+        assert!(eqs.iter().any(|e| e.0.starts_with("T_1a(2\u{2009}m)") && e.1 == 4), "{eqs:?}");
+        let max = eqs.iter().find(|e| e.0.starts_with("M_1a(2\u{2009}m)") && e.1 == 5).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert!(max.0.contains("10\u{2009}kN·m"), "{max:?}");
 
         // A cantilever under a point load at its tip: T never vanishes; M greatest at the wall.
         let mut s = Session::new(Document::new());

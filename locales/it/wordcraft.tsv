@@ -4075,3 +4075,4 @@ structure	Double-click	Doppio clic
 	Find the axial force in every member and draw it.	Calcola lo sforzo normale in ogni asta e rappresentalo.
 	{T} changes sign under a concentrated load	{T} cambia segno sotto un carico concentrato
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} non si annulla né cambia segno: il momento massimo è a un estremo di un tratto.
+	The structure can't be solved: its working will be written again as soon as it can.	La struttura non è risolvibile: lo svolgimento verrà riscritto appena lo sarà.
