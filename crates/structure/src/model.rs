@@ -391,6 +391,17 @@ pub struct Diagrams {
     /// ⊕/⊖ in each area.
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub signs: bool,
+    /// The structure's dimensions (chains of distances along x and y, inclined members' slopes)
+    /// and the angles inclined forces make with their members. On in a new structure
+    /// ([`Diagrams::default`], written out), off when absent: a structure saved before they existed
+    /// keeps its drawing and its size on the page.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub dimensions: bool,
+    /// The diagrams' stations: where along each member a notable value is (a maximum, a zero,
+    /// a load's position), written on the axis. On in a new structure, off when absent, as
+    /// `dimensions`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub stations: bool,
 }
 
 impl Diagrams {
@@ -420,7 +431,17 @@ impl Diagrams {
 
 impl Default for Diagrams {
     fn default() -> Self {
-        Diagrams { reactions: true, n: Self::default_n(), v: Self::default_v(), m: Self::default_m(), values: true, hatch: true, signs: true }
+        Diagrams {
+            reactions: true,
+            n: Self::default_n(),
+            v: Self::default_v(),
+            m: Self::default_m(),
+            values: true,
+            hatch: true,
+            signs: true,
+            dimensions: true,
+            stations: true,
+        }
     }
 }
 

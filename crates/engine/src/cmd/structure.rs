@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             r#"→ {"structure": object, "resolved": object (its numbers' values), "status": "isostatic"|"hyperstatic"|"labile"|"invalid"|"empty", "degree"?: n, "message": string, "truss": bool, "reactions": [{"node", "kind", "fx", "fy", "m"}], "members": [{"id", "length", "n": [...], "v": [...], "m": [...]}], "errors": [...]} (notable values: {"x", "value", "kind": "end"|"extreme"|"zero"})"#,
         ),
         CommandSpec::new("structure.set", "Set Structure", PLACE, set).when(selected).params(
-            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN", "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
+            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN", "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?, "dimensions"?, "stations"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
         ),
         CommandSpec::new("structure.node", "Structure Node", PLACE, node).when(selected).params(
             r#"{"id"?: string, "x"?: num|expr, "y"?: num|expr, "hinge"?: bool, "rename"?: string, "remove"?: bool} → adds a node (a new name when id is absent or new), changes it, or removes it with what uses it"#,

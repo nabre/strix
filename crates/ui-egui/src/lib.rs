@@ -783,6 +783,8 @@ pub struct WordApp {
     pub(crate) equation_prev_tab: Option<String>,
     /// The CAD drawing open in the editor (docs/cad.md), in place of the page.
     pub(crate) cad: Option<cad_editor::CadEditor>,
+    /// The structure editor in place of the page, with the tab that was open before it.
+    pub(crate) structure_edit: Option<String>,
     /// The drawing editor's settings, kept while the program runs (snaps, Ortho, grid, panes).
     pub(crate) cad_settings: cad_editor::CadSettings,
     /// SmartArt Text Pane: the item last focused (Promote, Demote and Add Shape act on it) and

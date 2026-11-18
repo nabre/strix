@@ -570,6 +570,9 @@ impl WordApp {
         if id.starts_with("ui.cad") {
             return Some(crate::cad_editor::command(self, id, p));
         }
+        if id.starts_with("ui.structure") {
+            return Some(crate::structure_pane::command(self, id));
+        }
         let s = |k: &str| p.get(k).and_then(Value::as_str);
         Some(Ok(match id {
             "ui.checkForUpdates" | "help.checkForUpdates" => {

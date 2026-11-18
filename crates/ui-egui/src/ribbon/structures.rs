@@ -25,12 +25,17 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 }
             },
         );
+        let editing = app.structure_edit.is_some();
+        let (cmd, label) = if editing { ("ui.structureClose", "Close\nEditor") } else { ("ui.structureEdit", "Edit\nStructure") };
+        super::big(ui, app, "structureEdit", label, cmd, json!({}), false);
         let pane = app.session.view.structure_pane;
         big_toggle(ui, app, "structureEditor", "Structure\nEditor", "view.structurePane", pane);
     });
     let d = &st["diagrams"];
     let shown = |k: &str| d[k]["show"].as_bool().unwrap_or(true);
-    let flag = |k: &str| d[k].as_bool().unwrap_or(true);
+    // Absent flags are on, but dimensions and stations, which a structure saved before them
+    // lacks (off: its drawing stays as it was; a new one writes them).
+    let flag = |k: &str| d[k].as_bool().unwrap_or(!matches!(k, "dimensions" | "stations"));
     let shear = st["titles"]["v"].as_str().unwrap_or("T").to_string();
     group(ui, "Diagrams", None, app, |ui, app| {
         stack(ui, |ui| {
@@ -123,6 +128,26 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 Some("Signs"),
                 "Mark each area of the diagrams with its sign",
                 crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"signs": !on}}), on),
+            );
+        });
+        stack(ui, |ui| {
+            let on = flag("dimensions");
+            small(
+                ui,
+                app,
+                "structureDimensions",
+                Some("Dimensions"),
+                "Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members",
+                crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"dimensions": !on}}), on),
+            );
+            let on = flag("stations");
+            small(
+                ui,
+                app,
+                "structureStations",
+                Some("Stations"),
+                "Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start",
+                crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"stations": !on}}), on),
             );
         });
         stack(ui, |ui| {

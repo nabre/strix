@@ -260,7 +260,7 @@ struct Equation {
     /// Its name as a formula (`ΣM_A = 0`) and words after it.
     label: String,
     after: String,
-    /// Moments (`= 0 kN·m`) or forces (`= 0 kN`).
+    /// Moments (`0 kN·m = …`) or forces (`0 kN = …`).
     moment: bool,
     /// Unknown index, coefficient, text of the term without its sign.
     unknowns: Vec<(usize, f64, String)>,
@@ -395,7 +395,7 @@ impl Equation {
             out.push('0');
         }
         let zero = if self.moment { format!("0 {}·{}", u.f, u.l) } else { format!("0 {}", u.f) };
-        format!("{out} = {zero}")
+        format!("{zero} = {out}")
     }
 
     /// The unknowns in it that are not known yet.

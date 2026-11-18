@@ -3747,7 +3747,7 @@ structure	Remove the node with its members, support and loads	Den Knoten mit sei
 structure	Remove the support	Das Lager entfernen
 structure	Roller	Loslager
 structure	Select	Auswählen
-structure	Select a node or a member, drag a node to move it	Einen Knoten oder Stab auswählen, einen Knoten zum Verschieben ziehen
+structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Knoten, Stäbe und Lasten auswählen (Umschalt+Klick, ein Rahmen); ziehen zum Verschieben, eine Last gleitet entlang ihres Stabs
 structure	Select a structure in the document to draw and edit it, or insert one.	Wählen Sie ein Tragwerk im Dokument aus, um es zu zeichnen und zu bearbeiten, oder fügen Sie eines ein.
 structure	Shear	Querkraft
 structure	Show the whole structure	Das ganze Tragwerk anzeigen
@@ -3886,3 +3886,18 @@ template	Letter	Brief
 	x from {a} to {b}	x von {a} bis {b}
 	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x ab dem ersten Knoten des Stabs; N positiv als Zug, T positiv bei Drehung im Uhrzeigersinn, M positiv bei Zug in der Bezugsfaser.
 plot	Fit	Regression
+	Edit\nStructure	Tragwerk\nbearbeiten
+	Close\nEditor	Editor\nschließen
+	Stations	Stationen
+	Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members	Die Maße des Tragwerks, die Neigungen schräger Stäbe und die Winkel schräger Kräfte zu ihren Stäben angeben
+	Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start	Auf der Achse jedes Diagramms markieren, wo seine markanten Werte liegen (Lage einer Last, ein Maximum, eine Nullstelle), mit dem Abstand vom Stabanfang
+structure	Structure Editor	Tragwerkseditor
+structure	Close Editor	Editor schließen
+structure	Back to the page (Esc with nothing selected)	Zurück zur Seite (Esc, wenn nichts ausgewählt ist)
+structure	Edit in Full Page	Ganzseitig bearbeiten
+structure	Open the structure in its editor, in place of the page (or double-click the structure)	Das Tragwerk in seinem Editor anstelle der Seite öffnen (oder auf das Tragwerk doppelklicken)
+structure	{n} selected · Del removes · arrows move	{n} ausgewählt · Entf löscht · Pfeile verschieben
+structure	{n} items selected	{n} Elemente ausgewählt
+structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Eines davon ziehen, um alle zusammen zu verschieben; die Pfeiltasten verschieben um das Raster (Umschalt: zehnfach); Entf löscht sie.
+structure	Remove Selected	Auswahl löschen
+structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Auf einen Knoten, einen Stab oder eine Last klicken, um die Eigenschaften zu sehen; Umschalt+Klick oder ein Rahmen erweitern die Auswahl.

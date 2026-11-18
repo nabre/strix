@@ -121,6 +121,35 @@ fn paint_structures(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(9.0, 15.0), (17.0, 7.0)], a);
             pen.fill(&[(16.0, 5.5), (18.5, 8.0), (17.0, 9.5), (14.5, 7.0)], a);
         }
+        // Edit Structure: a beam on its supports in a full sheet, a pencil over it.
+        "structureEdit" => {
+            pen.line_c(&[(2.5, 3.5), (17.5, 3.5), (17.5, 17.5), (2.5, 17.5), (2.5, 3.5)], c);
+            pen.line_c(&[(5.0, 12.0), (15.0, 12.0)], c);
+            pen.closed(&[(5.5, 12.0), (4.3, 14.5), (6.7, 14.5)], c);
+            pen.closed(&[(14.5, 12.0), (13.3, 14.5), (15.7, 14.5)], c);
+            pen.line_c(&[(7.0, 10.0), (14.5, 5.5)], a);
+            pen.fill(&[(14.0, 4.5), (16.0, 6.5), (15.0, 7.2), (13.2, 5.6)], a);
+        }
+        // Dimensions: a beam with a dimension line under it, ticks at its ends.
+        "structureDimensions" => {
+            pen.line_c(&[(3.0, 7.0), (17.0, 7.0)], c);
+            pen.line_c(&[(3.0, 9.0), (3.0, 16.0)], c);
+            pen.line_c(&[(17.0, 9.0), (17.0, 16.0)], c);
+            pen.line_c(&[(3.0, 14.0), (17.0, 14.0)], a);
+            pen.line_c(&[(2.0, 15.0), (4.0, 13.0)], a);
+            pen.line_c(&[(16.0, 15.0), (18.0, 13.0)], a);
+        }
+        // Stations: a diagram's axis with ticks and a dotted ordinate up to its curve.
+        "structureStations" => {
+            pen.line_c(&[(2.0, 13.0), (18.0, 13.0)], c);
+            pen.line_c(&[(2.0, 13.0), (10.0, 4.0), (18.0, 13.0)], a);
+            for x in [6.0, 10.0, 14.0] {
+                pen.line_c(&[(x, 12.0), (x, 14.5)], c);
+            }
+            for y in [5.5, 8.0, 10.5] {
+                pen.line_c(&[(10.0, y), (10.0, y + 1.2)], c);
+            }
+        }
         // Reactions: a beam's end on a pin with an arrow pushing up into it.
         "structureReactions" => {
             pen.line_c(&[(3.0, 6.0), (17.0, 6.0)], c);

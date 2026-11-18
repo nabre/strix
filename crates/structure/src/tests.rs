@@ -408,9 +408,7 @@ fn rendering_student_and_teacher_copies_have_the_same_size() {
     let student = st.render_for(None, false);
     assert_eq!(teacher.plot.size, student.plot.size);
     assert!(teacher.plot.prims.len() > student.plot.prims.len());
-    let text = |r: &crate::StructureRendered| -> Vec<String> {
-        r.plot.prims.iter().filter_map(|p| if let strix_plot::PlotPrim::Text { text, .. } = p { Some(text.clone()) } else { None }).collect()
-    };
+    let text = |r: &crate::StructureRendered| -> Vec<String> { texts(r).into_iter().map(|(t, _)| t).collect() };
     let t = text(&teacher);
     assert!(t.iter().any(|s| s == "45"), "the maximum moment is written: {t:?}");
     assert!(t.iter().any(|s| s == "30 kN"), "the reactions are written: {t:?}");
@@ -491,4 +489,94 @@ fn resultants_and_laws_for_a_written_working() {
     assert_close!(s[0].m[2], -5.0);
     assert_eq!(s[0].m[3], 0.0);
     assert_eq!(s[0].n, [0.0; 4]);
+}
+
+/// Every text of a drawing with its angle (level texts: 0).
+fn texts(r: &crate::StructureRendered) -> Vec<(String, f64)> {
+    r.plot
+        .prims
+        .iter()
+        .filter_map(|p| match p {
+            strix_plot::PlotPrim::Text { text, .. } => Some((text.clone(), 0.0)),
+            strix_plot::PlotPrim::TextAt { text, angle, .. } => Some((text.clone(), *angle)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_drawing_has_dimensions_stations_and_values_across_the_members() {
+    let mut st = simple_beam();
+    st.loads.push(Load::Force { node: None, member: Some("1".into()), at: Num::new(2.0), value: Num::new(20.0), angle: Num::new(-60.0) });
+    let t = texts(&st.render(None));
+    let has = |s: &str| t.iter().any(|(x, _)| x == s);
+    // The chain along x: 2 m to the force, 4 m on, 6 m overall.
+    assert!(has("2 m") && has("4 m") && has("6 m"), "{t:?}");
+    // The inclined force's angle with the beam.
+    assert!(has("60°"), "{t:?}");
+    // The force's station on the diagrams, written across the axis.
+    assert!(t.iter().any(|(x, a)| x == "2 m" && (a.abs() - 90.0).abs() < 1e-9), "{t:?}");
+    // M's value at the force's point stands across the beam; N's constant stretch stays level.
+    let m_at_force = t.iter().find(|(x, _)| x.parse::<f64>().is_ok_and(|v| v > 50.0)).cloned();
+    assert!(m_at_force.is_some_and(|(_, a)| (a.abs() - 90.0).abs() < 1e-9), "{t:?}");
+    // Turned off, both go.
+    st.diagrams.dimensions = false;
+    st.diagrams.stations = false;
+    let t = texts(&st.render(None));
+    assert!(!t.iter().any(|(x, _)| x.ends_with(" m") || x.ends_with('°')), "{t:?}");
+}
+
+#[test]
+fn an_inclined_member_has_its_slope_and_a_chain_along_it() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 3.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Pin, 0.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![Load::Force { node: None, member: Some("1".into()), at: Num::new(2.0), value: Num::new(10.0), angle: Num::new(-90.0) }],
+        ..Structure::default()
+    };
+    let t = texts(&st.render(None));
+    let has = |s: &str| t.iter().any(|(x, _)| x == s);
+    // 3-4-5: the slope, the vertical force's angle with the member, distances along it.
+    assert!(has("36.87°"), "{t:?}");
+    assert!(has("53.13°"), "{t:?}");
+    assert!(has("2 m") && has("3 m") && has("4 m"), "{t:?}");
+    // Hostile numbers never panic.
+    let mut bad = st.clone();
+    bad.loads.push(Load::Force {
+        node: None,
+        member: Some("1".into()),
+        at: Num::new(f64::NAN),
+        value: Num::new(1e300),
+        angle: Num::new(f64::INFINITY),
+    });
+    bad.nodes[1].x = Num::new(f64::NAN);
+    let _ = bad.render(None);
+}
+
+#[test]
+fn dimensions_and_stations_are_on_in_a_new_structure_and_off_in_one_saved_before_them() {
+    // A new structure has both, written out, and reads back the same.
+    let st = simple_beam();
+    assert!(st.diagrams.dimensions && st.diagrams.stations);
+    let json = st.to_json();
+    assert!(json.contains("\"dimensions\":true") && json.contains("\"stations\":true"), "{json}");
+    let back = Structure::from_json(&json).unwrap();
+    assert_eq!(back.diagrams, st.diagrams);
+    // One saved before them (its diagrams without the two keys) keeps its drawing and its size.
+    let mut old: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let d = old["diagrams"].as_object_mut().unwrap();
+    d.remove("dimensions");
+    d.remove("stations");
+    let old = Structure::from_json(&old.to_string()).unwrap();
+    assert!(!old.diagrams.dimensions && !old.diagrams.stations);
+    let mut before = st.clone();
+    before.diagrams.dimensions = false;
+    before.diagrams.stations = false;
+    assert_eq!(old.render(None).plot.size, before.render(None).plot.size);
+    // Turned off, they are written as such and read back off.
+    let json = before.to_json();
+    assert!(!json.contains("dimensions") && !json.contains("stations"), "{json}");
+    let back = Structure::from_json(&json).unwrap();
+    assert!(!back.diagrams.dimensions && !back.diagrams.stations);
 }
