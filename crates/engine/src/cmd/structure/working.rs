@@ -374,7 +374,7 @@ fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
                 push("H", Acts::Along((1.0, 0.0)), r.fx);
                 push("V", Acts::Along((0.0, 1.0)), r.fy);
             }
-            SupportKind::Roller | SupportKind::Link | SupportKind::Slider => {
+            SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                 let phi = r.angle.to_radians();
                 let n = (-phi.sin(), phi.cos());
                 if n.0.abs() < 1e-9 {
@@ -1037,7 +1037,8 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
             values.push(format!("M_{tag}({}) = {fm}", at(*x)));
         }
         values.push(format!("M_{tag}({}) = {fm}", at(s.x1)));
-        out.push(Line::eqs(values, false));
+        // One value a line, each under the other.
+        out.extend(values.into_iter().map(|v| Line::eqs(vec![v], false)));
     }
 }
 

@@ -38,7 +38,7 @@ pub fn specs() -> Vec<CommandSpec> {
             r#"{"id"?: string, "a"?: node, "b"?: node, "hingeA"?: bool, "hingeB"?: bool, "e"?: num|expr|null, "i"?: num|expr|null, "area"?: num|expr|null, "remove"?: bool} → adds a member between nodes a and b, changes it, or removes it with its loads"#,
         ),
         CommandSpec::new("structure.support", "Structure Support", PLACE, support).when(selected).params(
-            r#"{"node": string, "kind"?: "fixed"|"pin"|"roller"|"link"|"slider", "angle"?: num|expr, "remove"?: bool} → puts a support on a node (replacing its support), turns it, or removes it"#,
+            r#"{"node": string, "kind"?: "fixed"|"pin"|"roller"|"rollerCircle"|"link"|"slider", "angle"?: num|expr, "remove"?: bool} → puts a support on a node (replacing its support), turns it, or removes it"#,
         ),
         CommandSpec::new("structure.working", "Write Working", PLACE, working::run).when(selected).params(
             r#"{"labels"?: {"heading"?, "loads"?, "reactions"?, "signs"?, "hyperstatic"?, "together"?, "forces"?, "conventions"?, "member"?, "axial"?, "hinge"?, "range"? ("x from {a} to {b}"): string}} → writes after the selected structure its solution as live calculations: the loads' names defined (F_1, q_1, a varying load's ends q_(1,1) and q_(1,2), couples C_1), the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) stretch by stretch with their values (a truss: its axial forces)"#,
@@ -548,9 +548,10 @@ fn support(s: &mut Session, v: &Value) -> CmdResult {
             return Ok(());
         }
         let kind = match p::str(v, "kind") {
-            Some(k) => {
-                Some(SupportKind::parse(k).ok_or_else(|| CmdError::Params(format!("kind: \"{k}\" is not fixed, pin, roller, link or slider")))?)
-            }
+            Some(k) => Some(
+                SupportKind::parse(k)
+                    .ok_or_else(|| CmdError::Params(format!("kind: \"{k}\" is not fixed, pin, roller, rollerCircle, link or slider")))?,
+            ),
             None => None,
         };
         match st.supports.iter_mut().find(|s| s.node == node) {

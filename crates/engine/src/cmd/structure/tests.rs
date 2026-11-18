@@ -539,3 +539,27 @@ fn the_reactions_working_draws_the_free_body() {
     s.run("structure.working", &json!({})).unwrap();
     assert_eq!(views(&s), [View::All, View::Equilibrium]);
 }
+
+/// Each value at a station is a line of its own, in the working and in an exercise's parts.
+#[test]
+fn each_value_at_a_station_has_its_own_line() {
+    let one_each = |t: &str| {
+        for l in t.lines() {
+            // Values at a number of metres: `M_1(3 m)`, `T_1a(0 m)`.
+            let n = l.match_indices("_1").filter(|(i, _)| {
+                let rest = l.get(i + 2..).unwrap_or("");
+                let rest = rest.trim_start_matches(|c: char| c.is_ascii_lowercase());
+                rest.strip_prefix('(').is_some_and(|r| r.starts_with(|c: char| c.is_ascii_digit()))
+            });
+            assert!(n.count() <= 1, "{l}\n{t}");
+        }
+    };
+    let t = template_working("beam");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    one_each(&t);
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(t.contains("M_1"), "{t}");
+    one_each(&t);
+}

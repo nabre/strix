@@ -15,6 +15,11 @@ const DIM_BELOW: f64 = 12.0;
 const DIM_STEP: f64 = 6.5;
 /// From the structure's rightmost point to the vertical dimension line.
 pub(super) const DIM_RIGHT: f64 = 10.0;
+/// The room kept between what is drawn (supports, loads and their names) and a dimension line,
+/// enough for the distance written beside it.
+const DIM_CLEAR: f64 = 4.5;
+/// Between what is drawn and the start of an extension line.
+const EXT_GAP: f64 = 1.0;
 /// Angles within this many degrees of 0°, 90° or 180° are not written (they are evident).
 const SQUARE_TOL: f64 = 0.5;
 
@@ -234,14 +239,22 @@ impl Ctx<'_> {
         let lu = self.st.length_unit.symbol();
         let label = |cx: &Self, d: f64| format!("{} {lu}", cx.num(d));
 
+        // What is drawn so far (members, supports, loads, their names): the chains keep clear.
+        let drawn: Vec<[f64; 4]> = self.pen.prims.iter().filter_map(super::prim_box).collect();
+        // The bottom of what is drawn across paper x `px`, and the right of what is across `py`.
+        let bottom_at = |px: f64| drawn.iter().filter(|b| b[0] <= px + 0.2 && b[2] >= px - 0.2).map(|b| b[3]).fold(f64::MIN, f64::max);
+        let right_at = |py: f64| drawn.iter().filter(|b| b[1] <= py + 0.2 && b[3] >= py - 0.2).map(|b| b[2]).fold(f64::MIN, f64::max);
+        let bottom = drawn.iter().map(|b| b[3]).fold(f64::MIN, f64::max);
+        let right = drawn.iter().map(|b| b[2]).fold(f64::MIN, f64::max);
+
         // Along x, below everything.
-        let base = f.p(0.0, ymin).1 + DIM_BELOW;
+        let base = (f.p(0.0, ymin).1 + DIM_BELOW).max(bottom + DIM_CLEAR);
         let lowest = |x: f64| all.iter().filter(|p| (p.0 - x).abs() <= tol).map(|p| f.p(p.0, p.1).1).fold(f64::MIN, f64::max);
         for (r, row) in x_rows(&ms, tol).iter().enumerate() {
             let y = base + DIM_STEP * r as f64;
             for &x in row {
                 let px = f.p(x, 0.0).0;
-                let from = if r == 0 { lowest(x) + 1.5 } else { base + 1.0 };
+                let from = if r == 0 { (lowest(x) + 1.5).max(bottom_at(px) + EXT_GAP) } else { base + 1.0 };
                 self.pen.line((px, from.min(y - 0.5)), (px, y + 1.2), GREY, 0.15);
                 self.pen.line((px - 0.9, y + 0.9), (px + 0.9, y - 0.9), DIM, 0.3);
             }
@@ -260,11 +273,12 @@ impl Ctx<'_> {
         // Along y, at the right.
         let ys = y_stops(&ms, tol);
         if ys.len() >= 2 {
-            let x = f.p(xmax, 0.0).0 + DIM_RIGHT;
+            let x = (f.p(xmax, 0.0).0 + DIM_RIGHT).max(right + DIM_CLEAR);
             let rightmost = |y: f64| all.iter().filter(|p| (p.1 - y).abs() <= tol).map(|p| f.p(p.0, p.1).0).fold(f64::MIN, f64::max);
             for &yy in &ys {
                 let py = f.p(0.0, yy).1;
-                self.pen.line((rightmost(yy) + 1.5, py), (x + 1.2, py), GREY, 0.15);
+                let from = (rightmost(yy) + 1.5).max(right_at(py) + EXT_GAP);
+                self.pen.line((from.min(x - 0.5), py), (x + 1.2, py), GREY, 0.15);
                 self.pen.line((x - 0.9, py + 0.9), (x + 0.9, py - 0.9), DIM, 0.3);
             }
             if let (Some(&a), Some(&b)) = (ys.first(), ys.last()) {

@@ -42,7 +42,8 @@ const STATION_GAP: f64 = GAP + 2.6;
 /// The room kept round the drawing, between panels and under a panel's title (paper mm).
 const MARGIN: f64 = 1.0;
 const PANEL_GAP: f64 = 5.0;
-const TITLE_ROW: f64 = 6.0;
+/// The row a diagram's title and sign convention take above it (paper mm).
+const TITLE_ROW: f64 = 11.0;
 
 /// A rendered structure: its drawing and its analysis.
 #[derive(Debug, Clone, PartialEq)]
@@ -356,6 +357,10 @@ impl Ctx<'_> {
                     self.pen.dot(q(1.3, 4.0), 0.65, [255, 255, 255], Some((c, 0.3)));
                     ground(&mut self.pen, 4.7, 3.8);
                 }
+                SupportKind::RollerCircle => {
+                    self.pen.dot(q(0.0, 2.0), 2.0, [255, 255, 255], Some((c, 0.35)));
+                    ground(&mut self.pen, 4.0, 3.8);
+                }
                 SupportKind::Link => {
                     self.pen.line(q(0.0, 0.0), q(0.0, 6.0), c, 0.45);
                     self.pen.dot(q(0.0, 6.0), 0.65, [255, 255, 255], Some((c, 0.3)));
@@ -517,7 +522,7 @@ impl Ctx<'_> {
                     comps.push(((1.0, 0.0), r.fx));
                     comps.push(((0.0, 1.0), r.fy));
                 }
-                SupportKind::Roller | SupportKind::Link | SupportKind::Slider => {
+                SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     let n = (-phi.sin(), phi.cos());
                     comps.push((n, r.fx * n.0 + r.fy * n.1));
                 }

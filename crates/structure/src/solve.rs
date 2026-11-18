@@ -494,7 +494,7 @@ fn constrain(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
                 md.constraints.push((k, vec![(ux, 1.0)]));
                 md.constraints.push((k, vec![(uy, 1.0)]));
             }
-            SupportKind::Roller | SupportKind::Link | SupportKind::Slider => md.constraints.push((k, vec![(ux, nx), (uy, ny)])),
+            SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => md.constraints.push((k, vec![(ux, nx), (uy, ny)])),
         }
         if matches!(s.kind, SupportKind::Fixed | SupportKind::Slider)
             && let Some(r) = md.node_rot.get(n).copied().flatten()

@@ -705,3 +705,75 @@ fn the_free_body_names_the_unknowns_resultants_and_parts() {
     let json = st.to_json();
     assert!(json.contains("\"view\":\"equilibrium\""), "{json}");
 }
+
+/// The beam of the owner's report: 10 kN/m over its first 2 m, 10 kN upwards at 4.5 m.
+fn upward_force_beam(roller: SupportKind) -> Structure {
+    let mut st = simple_beam();
+    st.supports = vec![support("A", SupportKind::Pin, 0.0), support("B", roller, 0.0)];
+    st.loads = vec![
+        Load::Distributed {
+            member: "1".into(),
+            q1: 10.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: Some(2.0.into()),
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        },
+        Load::Force { node: None, member: Some("1".into()), at: 4.5.into(), value: 10.0.into(), angle: Num::new(90.0) },
+    ];
+    st
+}
+
+#[test]
+fn the_dimensions_keep_clear_of_the_supports_and_the_loads_below_the_beam() {
+    use strix_plot::PlotPrim;
+    const DIM: [u8; 3] = [0x55, 0x55, 0x55];
+    const GREY: [u8; 3] = [0x9A, 0x9A, 0x9A];
+    for roller in [SupportKind::Roller, SupportKind::RollerCircle] {
+        let st = upward_force_beam(roller);
+        let prims = st.schema_prims(10.0, (0.0, 0.0), Options::default());
+        // The bottom of everything but the dimensions (their lines are DIM, extension lines GREY).
+        let mut bottom = f64::MIN;
+        let mut dims_top = f64::MAX;
+        for p in &prims {
+            match p {
+                PlotPrim::Path { pts, stroke, .. } => {
+                    let low = pts.iter().map(|q| q.1).fold(f64::MIN, f64::max);
+                    match stroke.map(|s| s.0) {
+                        Some(DIM) => dims_top = dims_top.min(pts.iter().map(|q| q.1).fold(f64::MAX, f64::min)),
+                        Some(GREY) => {}
+                        _ => bottom = bottom.max(low),
+                    }
+                }
+                PlotPrim::Dot { at, r, .. } => bottom = bottom.max(at.1 + r),
+                PlotPrim::Text { at, text, .. } => {
+                    if text.contains("kN") {
+                        bottom = bottom.max(at.1);
+                    }
+                }
+                PlotPrim::TextAt { at, text, height, color, .. } if *color == DIM && text.ends_with(" m") => {
+                    dims_top = dims_top.min(at.1 - height);
+                }
+                PlotPrim::TextAt { at, text, height, .. } if text.contains("kN") => bottom = bottom.max(at.1 + height / 2.0),
+                _ => {}
+            }
+        }
+        // The upward force's arrow and its name hang below the beam: the chain goes under them.
+        assert!(bottom > 0.0 && dims_top > bottom, "{roller:?}: dimensions from {dims_top}, drawing down to {bottom}");
+    }
+}
+
+#[test]
+fn a_roller_drawn_as_a_circle_restrains_like_a_roller() {
+    let a = analyse(&upward_force_beam(SupportKind::Roller));
+    let b = analyse(&upward_force_beam(SupportKind::RollerCircle));
+    assert!(a.status.is_solved() && b.status.is_solved());
+    let forces = |an: &crate::Analysis| an.reactions.iter().map(|r| (r.fx, r.fy, r.m)).collect::<Vec<_>>();
+    assert_eq!(forces(&a), forces(&b));
+    assert_eq!(SupportKind::parse("rollerCircle"), Some(SupportKind::RollerCircle));
+    assert_eq!(SupportKind::RollerCircle.name(), "rollerCircle");
+    let json = upward_force_beam(SupportKind::RollerCircle).to_json();
+    assert!(json.contains("\"rollerCircle\""), "{json}");
+}

@@ -244,7 +244,9 @@ impl Writer<'_> {
                 Action::Moment => &s.m,
             };
             if action != Action::Axial || c[1..].iter().any(|c| *c != 0.0) {
-                out.push(Line::eqs(vec![self.at(&tag, action, s.x0), self.at(&tag, action, s.x1)], false));
+                // One value a line.
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x0)], false));
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x1)], false));
             }
         }
     }
@@ -284,7 +286,8 @@ impl Writer<'_> {
                     let jump = self.labels.jump.replace("{T}", &self.shear);
                     let place = format!("x = {} {}", num(x, self.u.comma), self.u.l);
                     out.push((Line::words(format!("{} {} ({}–{}), {place}: {jump}:", self.labels.member, src.id, src.a, src.b)), false));
-                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x), self.at(&after, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&after, Action::Shear, x)], false), true));
                 }
             }
         }

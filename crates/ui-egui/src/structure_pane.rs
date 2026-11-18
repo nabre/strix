@@ -37,13 +37,14 @@ enum Tool {
 }
 
 /// The tools as `ui.structureTool` names them.
-const TOOL_NAMES: [(Tool, &str); 13] = [
+const TOOL_NAMES: [(Tool, &str); 14] = [
     (Tool::Select, "select"),
     (Tool::Node, "node"),
     (Tool::Member, "member"),
     (Tool::Support(SupportKind::Fixed), "fixed"),
     (Tool::Support(SupportKind::Pin), "pin"),
     (Tool::Support(SupportKind::Roller), "roller"),
+    (Tool::Support(SupportKind::RollerCircle), "rollerCircle"),
     (Tool::Support(SupportKind::Link), "link"),
     (Tool::Support(SupportKind::Slider), "slider"),
     (Tool::Hinge, "hinge"),
@@ -463,13 +464,14 @@ fn status_line(ui: &mut Ui, info: &Value) {
 pub(crate) const DIMS_TIP: &str = "Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)";
 
 fn toolbar(ui: &mut Ui, state: &mut State) {
-    let tools: [(Tool, &str, &str); 13] = [
+    let tools: [(Tool, &str, &str); 14] = [
         (Tool::Select, "Select", "Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member"),
         (Tool::Node, "Node", "Click to add a node"),
         (Tool::Member, "Member", "Click two points to draw a member; it goes on from its end (Esc or a right click stops)"),
         (Tool::Support(SupportKind::Fixed), "Fixed", "Click a node to fix it (incastro)"),
         (Tool::Support(SupportKind::Pin), "Pin", "Click a node to pin it (cerniera)"),
         (Tool::Support(SupportKind::Roller), "Roller", "Click a node to put it on a roller (carrello)"),
+        (Tool::Support(SupportKind::RollerCircle), "Roller (circle)", "Click a node to put it on a roller drawn as a circle (carrello)"),
         (Tool::Support(SupportKind::Link), "Link", "Click a node to hold it with a link (pendolo)"),
         (Tool::Support(SupportKind::Slider), "Slider", "Click a node to hold it with a slider (glifo)"),
         (Tool::Hinge, "Internal hinge", "Click a node to make it an internal hinge, or not"),
@@ -1463,11 +1465,12 @@ fn edit_box(ui: &mut Ui, key: impl std::hash::Hash + std::fmt::Debug, current: &
     None
 }
 
-const KINDS: [(Option<SupportKind>, &str); 6] = [
+const KINDS: [(Option<SupportKind>, &str); 7] = [
     (None, "None"),
     (Some(SupportKind::Fixed), "Fixed"),
     (Some(SupportKind::Pin), "Pin"),
     (Some(SupportKind::Roller), "Roller"),
+    (Some(SupportKind::RollerCircle), "Roller (circle)"),
     (Some(SupportKind::Link), "Link"),
     (Some(SupportKind::Slider), "Slider"),
 ];

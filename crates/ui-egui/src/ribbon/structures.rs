@@ -250,8 +250,18 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "structureRoller", Some("Roller"), "Click a node to put it on a roller (carrello)", tool("roller"));
         });
         stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "structureRollerCircle",
+                Some("Roller (circle)"),
+                "Click a node to put it on a roller drawn as a circle (carrello)",
+                tool("rollerCircle"),
+            );
             small(ui, app, "structureLink", Some("Link"), "Click a node to hold it with a link (pendolo)", tool("link"));
             small(ui, app, "structureSlider", Some("Slider"), "Click a node to hold it with a slider (glifo)", tool("slider"));
+        });
+        stack(ui, |ui| {
             small(ui, app, "structureHinge", Some("Internal hinge"), "Click a node to make it an internal hinge, or not", tool("hinge"));
         });
     });

@@ -256,6 +256,12 @@ fn paint_structures(pen: &Pen, name: &str) -> bool {
             pen.circle(12.5, 14.0, 1.2, c);
             pen.line_c(&[(4.0, 15.8), (16.0, 15.8)], c);
         }
+        // Roller drawn as a circle: a wheel under the node on the ground.
+        "structureRollerCircle" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 7.5)], a);
+            pen.circle(10.0, 11.5, 4.0, c);
+            pen.line_c(&[(4.0, 15.8), (16.0, 15.8)], c);
+        }
         // Link: a bar hinged at both ends down to the ground.
         "structureLink" => {
             pen.line_c(&[(10.0, 3.0), (10.0, 5.5)], a);

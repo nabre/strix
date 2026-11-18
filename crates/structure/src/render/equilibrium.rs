@@ -168,7 +168,7 @@ impl Ctx<'_> {
                     comps.push(((1.0, 0.0), "H"));
                     comps.push(((0.0, 1.0), "V"));
                 }
-                SupportKind::Roller | SupportKind::Link | SupportKind::Slider => {
+                SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     let n = (-phi.sin(), phi.cos());
                     if n.0.abs() < TOL {
                         comps.push(((0.0, 1.0), "V"));

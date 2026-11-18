@@ -191,6 +191,9 @@ pub enum SupportKind {
     Pin,
     /// Carrello: the translation across its rolling plane.
     Roller,
+    /// Carrello drawn as a wheel: a circle under the node on the ground (restrains like a
+    /// roller).
+    RollerCircle,
     /// Pendolo: the translation along its link (restrains like a roller, drawn as a bar).
     Link,
     /// Glifo (bipendolo): the translation across its plane and the rotation.
@@ -203,6 +206,7 @@ impl SupportKind {
             SupportKind::Fixed => "fixed",
             SupportKind::Pin => "pin",
             SupportKind::Roller => "roller",
+            SupportKind::RollerCircle => "rollerCircle",
             SupportKind::Link => "link",
             SupportKind::Slider => "slider",
         }
@@ -213,6 +217,7 @@ impl SupportKind {
             "fixed" => Some(SupportKind::Fixed),
             "pin" => Some(SupportKind::Pin),
             "roller" => Some(SupportKind::Roller),
+            "rollerCircle" => Some(SupportKind::RollerCircle),
             "link" => Some(SupportKind::Link),
             "slider" => Some(SupportKind::Slider),
             _ => None,
