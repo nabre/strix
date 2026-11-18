@@ -44,11 +44,11 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"{"value"?: bool (default: toggle)}: new equations are calculation regions (a preference)"#),
-        CommandSpec::new("calc.steps", "Show Steps", "Math › Results", set_steps)
+        CommandSpec::new("calc.steps", "Show Steps", "Math › Number Display", set_steps)
             .params(r#"{"value"?: bool (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → formulas, solved equations and checks show their solution steps, laid out as calc.layout says"#),
-        CommandSpec::new("calc.layout", "Result Layout", "Math › Results", set_layout)
+        CommandSpec::new("calc.layout", "Result Layout", "Math › Number Display", set_layout)
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
-        CommandSpec::new("calc.options", "Number Format", "Math › Results", set_options)
+        CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| match calc_table_place(s) {
@@ -93,7 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .pure()
         .params(r#"→ {"calc": bool, "names": "columnRow"|"rowColumn"|"none", "math": bool, "index": bool, "total": bool, "columnTotal": bool}: whether the table at the caret is calculated, how a data table names its cells, whether its cells are shown as equations, whether it has an ordinal column, whether its last row is the total row (Table Design › Total Row), whether the caret's column is summed there (table.calcTotal)"#),
-        CommandSpec::new("calc.variables", "Variables", "Math › Results", variables)
+        CommandSpec::new("calc.variables", "Variables", "Math › Calculation", variables)
             .pure()
             .params(r#"{"digits"?: n, "units"?: {"name" | "document:name" | "exercise:1:name": "unit"}} → {"variables": [{"name", "value", "text", "unit", "si", "shown", "region", "pos", "compatibleUnits", "selectedUnit", "convertedText", "converted"}], "exercises": [{"exercise": 1-based, "title", "variant", "variables": [...]}]}"#),
     ]
@@ -587,6 +587,16 @@ fn shown_nodes(text: &str, note: Option<&str>) -> wordcraft_doc::math::Arg {
     nodes
 }
 
+/// `text` (a result as the calculations show it, `V_B = 14.075 kN`) as an equation that is not a
+/// calculation: built up from its linear format (subscripts), its units upright in `color`.
+pub(crate) fn shown_equation(text: &str, opts: &Options, color: Rgb) -> InlineObject {
+    let units = Worksheet::new(*opts).units_in(text);
+    let mut nodes = parse_linear(text);
+    style_units(&mut nodes, &units, color, 0);
+    // Its linear text as written, so that it copies and reads as text as the result did.
+    InlineObject::Equation { linear: text.trim().to_string(), math: Math { nodes, ..Math::default() }, display: false }
+}
+
 /// The equation's whole linear text (all its rows).
 fn equation_full(linear: &str, math: &Math) -> String {
     if math.nodes.is_empty() || math.linear { linear.to_string() } else { to_linear(&math.nodes) }
@@ -643,8 +653,9 @@ enum Item {
     },
     /// A CAD drawing (docs/cad.md) in top-level block `top`: its source.
     Cad { top: usize, source: Arc<str> },
-    /// A mathematical/experimental plot (`docs/plot.md`) in top-level block `top`: its source.
-    Plot { top: usize, source: Arc<str> },
+    /// A mathematical/experimental plot (`docs/plot.md`) in top-level block `top`: its source;
+    /// with `structure`, a plane structure's (`docs/structures.md`), drawn as a plot is.
+    Plot { top: usize, source: Arc<str>, structure: bool },
 }
 
 /// A cell's text as the calc engine reads it: its first paragraph.
@@ -874,7 +885,13 @@ fn items(blocks: &[Arc<Block>]) -> Vec<Item> {
                     if let InlineObject::Graphic { graphic, .. } = o
                         && graphic.kind == wordcraft_doc::graphic::GraphicKind::Plot
                     {
-                        out.push(Item::Plot { top, source: graphic.plot.clone().unwrap_or_else(|| Arc::from("")) });
+                        out.push(Item::Plot { top, source: graphic.plot.clone().unwrap_or_else(|| Arc::from("")), structure: false });
+                        continue;
+                    }
+                    if let InlineObject::Graphic { graphic, .. } = o
+                        && graphic.kind == wordcraft_doc::graphic::GraphicKind::Structure
+                    {
+                        out.push(Item::Plot { top, source: graphic.structure.clone().unwrap_or_else(|| Arc::from("")), structure: true });
                         continue;
                     }
                     if let InlineObject::Equation { linear, math, .. } = o {
@@ -1080,12 +1097,21 @@ fn run_sheet_with(
                             }
                         }
                         grid.into_iter()
-                            .map(|row| {
+                            .enumerate()
+                            .map(|(r, row)| {
                                 row.into_iter()
                                     .map(|t| {
                                         // Units only where a quantity or a column's unit is.
                                         let quantity = t.chars().any(|c| c.is_ascii_digit() || c == '[' || c == '(');
-                                        let units = if quantity { ws.units_in(&t) } else { Vec::new() };
+                                        let mut units = if quantity { ws.units_in(&t) } else { Vec::new() };
+                                        // A header's unit (`A_i [m²]`) is no quantity of its own.
+                                        if r == 0 {
+                                            for u in header_units(ws, &t) {
+                                                if !units.contains(&u) {
+                                                    units.push(u);
+                                                }
+                                            }
+                                        }
                                         (t, units)
                                     })
                                     .collect()
@@ -1119,6 +1145,14 @@ fn run_sheet_with(
                         Outcome::Cad(Some(rendered), errors, Some(Box::new((d, names, screen))))
                     }
                     Err(e) => Outcome::Cad(None, vec![(String::new(), e)], None),
+                },
+                Item::Plot { source, structure: true, .. } => match strix_structure::Structure::from_json(source) {
+                    Ok(st) => {
+                        let rendered = st.render_for(Some(ws), show_sol).plot;
+                        let errs = rendered.errors.clone();
+                        Outcome::Plot(Some(rendered), errs)
+                    }
+                    Err(e) => Outcome::Plot(None, vec![e]),
                 },
                 Item::Plot { source, .. } => match strix_plot::Plot::from_json(source) {
                     Ok(p) => {
@@ -1521,6 +1555,10 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
             s.touch();
         }
     }
+    // A structure's working follows the parameters it reads (docs/structures.md, Modes).
+    if super::structure::follow_values(s) {
+        recalculate_now(s);
+    }
     // Exercises show the results: their automatic parts follow.
     super::exercise::update(s);
     let expr_fp_after = super::exercise::expr::fingerprint(&s.doc.body);
@@ -1682,6 +1720,14 @@ fn eval_variant_item(
                 }
             }
             Err(e) => errors.push((top, format!("CAD: {e}"))),
+        },
+        Item::Plot { source, structure: true, .. } => match strix_structure::Structure::from_json(source) {
+            Ok(st) => {
+                for why in st.render(Some(ws)).plot.errors {
+                    errors.push((top, format!("Structure: {why}")));
+                }
+            }
+            Err(e) => errors.push((top, format!("Structure: {e}"))),
         },
         Item::Plot { source, .. } => match strix_plot::Plot::from_json(source) {
             Ok(p) => {
@@ -1901,6 +1947,32 @@ pub(crate) fn resolved_plot(s: &Session, source: &Arc<str>) -> Option<strix_plot
     }
 }
 
+/// Structure `source` worked out where it sits, against the worksheet it sees there (the main
+/// one, or its exercise's sandbox): its analysis and the teacher's drawing.
+pub(crate) fn resolved_structure(s: &Session, source: &Arc<str>) -> Option<strix_structure::StructureRendered> {
+    let ws = worksheet_at(s, source)?;
+    let st = strix_structure::Structure::from_json(source).ok()?;
+    Some(st.render(Some(&ws)))
+}
+
+/// The worksheet structure `source` sees where it sits: the main one, or its exercise's sandbox.
+pub(crate) fn worksheet_at(s: &Session, source: &Arc<str>) -> Option<Worksheet> {
+    let mut found = items(&s.doc.body);
+    let at = found.iter().position(|i| matches!(i, Item::Plot { source: src, structure: true, .. } if Arc::ptr_eq(src, source)))?;
+    let top = match found.get(at) {
+        Some(Item::Plot { top, .. }) => *top,
+        _ => return None,
+    };
+    found.truncate(at);
+    let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
+    let opts = options_now(s);
+    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    Some(match zones.get(top).copied().flatten() {
+        Some(e) => sheets.exercises.remove(&e).unwrap_or_else(|| Worksheet::new(opts)),
+        None => sheets.main,
+    })
+}
+
 /// A drawing resolved where it sits: the drawing, how it renders, the parameters it can show.
 pub(crate) type ResolvedCad = std::rc::Rc<(strix_cad::Drawing, strix_cad::Rendered, Vec<String>)>;
 
@@ -1927,7 +1999,7 @@ fn redraw_plots(s: &mut Session, plots: &[Option<RedrawnPlot>]) -> usize {
             let mut touched = false;
             for o in &mut p.objects {
                 let InlineObject::Graphic { w, h, graphic, .. } = o else { continue };
-                if graphic.kind != wordcraft_doc::graphic::GraphicKind::Plot {
+                if !matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Plot | wordcraft_doc::graphic::GraphicKind::Structure) {
                     continue;
                 }
                 if let Some(Some((dw, dh, items, rendered))) = plots.get(index)
@@ -2450,7 +2522,10 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
             style_units(&mut nodes, units, color, 0);
             // A label (`Support`, `Beam 2`) stays words: no italics, no units; so do the total
             // row's sign and a cell that found no data.
-            let label = cut == 0 && (is_label(text) || text.trim() == TOTAL_SIGN || (!text.trim().is_empty() && strix_calc::is_blank(text)));
+            // A number with its unit stuck to it (`500cm`) is a quantity, not a word.
+            let quantity = text.trim_start().starts_with(|c: char| c.is_ascii_digit()) && !units.is_empty();
+            let label =
+                cut == 0 && ((is_label(text) && !quantity) || text.trim() == TOTAL_SIGN || (!text.trim().is_empty() && strix_calc::is_blank(text)));
             let lead_hidden = p.text.starts_with('=') && p.runs.first().is_some_and(|r| r.props.hidden == Some(true));
             let same = match p.objects.as_slice() {
                 [InlineObject::Equation { math, .. }] => !label && math.nodes == nodes && lead_hidden == (cut > 0),
@@ -2481,6 +2556,18 @@ fn write_math_cells(s: &mut Session, top: usize, grid: &[Vec<(String, Vec<String
         }
     }
     changed
+}
+
+/// The units of a header cell's unit, in square brackets (`A_i [m^2]`, `= q·L/2 [kN]`) or in
+/// parentheses closing a name (`q (kN/m)`), as [`Worksheet::units_in`] finds them after a number.
+fn header_units(ws: &Worksheet, header: &str) -> Vec<String> {
+    let t = header.trim_end();
+    let inner = match (t.rfind('['), t.ends_with(']')) {
+        (Some(open), true) => t.get(open + 1..t.len() - 1),
+        _ if t.ends_with(')') && !t.contains('=') => t.rfind('(').and_then(|open| t.get(open + 1..t.len() - 1)),
+        _ => None,
+    };
+    inner.filter(|u| !u.trim().is_empty()).map_or_else(Vec::new, |u| ws.units_in(&format!("1 {u}")))
 }
 
 /// A cell that names rather than computes: a word or words (`Support`, `Beam 2`), with no digit
@@ -2966,7 +3053,7 @@ fn item_positions(blocks: &[Arc<Block>]) -> Vec<wordcraft_doc::Pos> {
                     let is_graphic = matches!(
                         o,
                         InlineObject::Graphic { graphic, .. }
-                            if matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Cad | wordcraft_doc::graphic::GraphicKind::Plot)
+                            if matches!(graphic.kind, wordcraft_doc::graphic::GraphicKind::Cad | wordcraft_doc::graphic::GraphicKind::Plot | wordcraft_doc::graphic::GraphicKind::Structure)
                     );
                     if is_graphic || matches!(o, InlineObject::Equation { .. }) {
                         out.push(Pos::new(StoryRef::Body, path.clone(), off));
@@ -3267,7 +3354,7 @@ mod tests {
         assert_eq!(texts(&s), ["x:=3m", "x*2=(3m)·2=6m"]);
         s.run("equation.calc", &json!({"value": false})).unwrap();
         // With x unknown again, the last result reads as an equation in x and gives it back.
-        assert_eq!(texts(&s), ["x*2=6m⇒x=6m/2=3m"]);
+        assert_eq!(texts(&s), ["x*2=6m⇒x=(6m)/2=3m"]);
         // New equations follow the preference.
         assert_eq!(s.run("calc.newEquations", &json!({})).unwrap()["calcNewEquations"], true);
     }
@@ -3635,6 +3722,29 @@ mod tests {
         let t = back.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.props.calc_names) } else { None });
         assert_eq!(t, Some(Some(wordcraft_doc::props::CellNames::RowColumn)));
         assert!(s.run("table.calcNames", &json!({"value": "diagonal"})).is_err());
+    }
+
+    /// Cells as equations: the units are in the Unit style everywhere, the headers' units in
+    /// brackets (`A_i [m^2]`, `= A_i·x_i [m^3]`) and a number with its unit stuck to it
+    /// (`500cm`), which is a quantity, not a word.
+    #[test]
+    fn table_cells_as_equations_style_every_unit() {
+        let mut s = session();
+        with_table(&mut s, &[&["i", "A_i [m^2]", "x_i [m]", "= A_i·x_i [m^3]"], &["1", "3", "500cm", ""], &["2", "6", "4", ""]]);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, wordcraft_doc::Path(vec![0, 1, 1, 0]), 0));
+        s.run("table.mathCells", &json!({"value": true})).unwrap();
+        let unit = unit_color(&mut s);
+        let t = s.doc.body.iter().find_map(|b| if let Block::Table(t) = &**b { Some(t.clone()) } else { None }).unwrap();
+        let styled = |r: usize, c: usize| {
+            matches!(t.rows[r].cells[c].blocks.first().map(|b| &**b), Some(Block::Para(p))
+                if matches!(p.objects.as_slice(), [InlineObject::Equation { math, .. }] if format!("{:?}", math.nodes).contains(&format!("{unit:?}"))))
+        };
+        assert!(styled(0, 1) && styled(0, 2) && styled(0, 3), "the headers' units");
+        assert!(styled(1, 2), "500cm is an equation with its unit styled");
+        assert!(!styled(0, 0) && !styled(1, 1), "no unit, no style");
+        assert_eq!(table_texts(&s)[1][3], "15", "500 cm is 5 m: 3 · 5");
+        let again = s.run("calc.recalculate", &json!({})).unwrap();
+        assert_eq!(again["changed"], 0, "stable: {again}");
     }
 
     /// Cells as equations: every cell with text becomes one equation (its units styled), a

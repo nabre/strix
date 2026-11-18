@@ -145,10 +145,10 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                 let left = has(a);
                 let (a2, b2) = ((**a).clone(), (**b).clone());
                 other = match (op, left) {
-                    (BinOp::Add, true) => bin(BinOp::Sub, other, b2),
-                    (BinOp::Add, false) => bin(BinOp::Sub, other, a2),
-                    (BinOp::Sub, true) => bin(BinOp::Add, other, b2),
-                    (BinOp::Sub, false) => bin(BinOp::Sub, a2, other),
+                    (BinOp::Add, true) => move_sub(other, b2),
+                    (BinOp::Add, false) => move_sub(other, a2),
+                    (BinOp::Sub, true) => move_add(other, b2),
+                    (BinOp::Sub, false) => move_sub(a2, other),
                     (BinOp::Mul, true) => bin(BinOp::Div, other, b2),
                     (BinOp::Mul, false) => bin(BinOp::Div, other, a2),
                     // A number goes in front: `4·A`, not `A·4`.
@@ -161,6 +161,11 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                     (BinOp::Pow, false) => bin(BinOp::Div, call(Func::Ln, other), call(Func::Ln, a2)),
                 };
                 side = if left { a } else { b };
+                // The terms without `x` cross over together, in one step: only the monomial
+                // holding `x` stays on its side (`V·4.5 m = q·3 m − F·1 m`, not one line each).
+                if matches!(op, BinOp::Add | BinOp::Sub) && is_additive(side) {
+                    continue;
+                }
             }
             Expr::Call(f, args) => match (f, args.as_slice()) {
                 (Func::Root, [arg, n]) if !has(n) => {
@@ -313,10 +318,10 @@ fn solve_abs(
                 }
                 let (a2, b2) = ((**a).clone(), (**b).clone());
                 other = match (op, ha) {
-                    (BinOp::Add, true) => bin(BinOp::Sub, other, b2),
-                    (BinOp::Add, false) => bin(BinOp::Sub, other, a2),
-                    (BinOp::Sub, true) => bin(BinOp::Add, other, b2),
-                    (BinOp::Sub, false) => bin(BinOp::Sub, a2, other),
+                    (BinOp::Add, true) => move_sub(other, b2),
+                    (BinOp::Add, false) => move_sub(other, a2),
+                    (BinOp::Sub, true) => move_add(other, b2),
+                    (BinOp::Sub, false) => move_sub(a2, other),
                     (BinOp::Mul, true) => bin(BinOp::Div, other, b2),
                     (BinOp::Mul, false) => bin(BinOp::Div, other, a2),
                     (BinOp::Div, true) if matches!(b2, Expr::Num(_)) => bin(BinOp::Mul, b2, other),
@@ -325,6 +330,9 @@ fn solve_abs(
                     _ => return None,
                 };
                 side = if ha { a } else { b };
+                if matches!(op, BinOp::Add | BinOp::Sub) && is_additive(side) {
+                    continue;
+                }
             }
             _ => return None,
         }
@@ -369,6 +377,52 @@ impl Poly {
         } else {
             0
         }
+    }
+}
+
+/// A sum or difference: its terms still have to cross over.
+fn is_additive(e: &Expr) -> bool {
+    matches!(e, Expr::Bin(BinOp::Add | BinOp::Sub, _, _))
+}
+
+/// Zero, bare or with a unit (`0`, `0 kN·m`, `0 kN/m`).
+fn is_zero(e: &Expr) -> bool {
+    fn unit_only(e: &Expr) -> bool {
+        match e {
+            Expr::Unit(_) | Expr::Num(_) => true,
+            Expr::Bin(BinOp::Mul | BinOp::Div | BinOp::Pow, a, b) => unit_only(a) && unit_only(b),
+            _ => false,
+        }
+    }
+    match e {
+        Expr::Num(n) => *n == 0.0,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, b) => is_zero(a) && unit_only(b),
+        _ => false,
+    }
+}
+
+/// `a − b` for a term crossing over, a zero `a` or `b` left out (`−F·1 m`, not `0 kN·m − F·1 m`).
+fn move_sub(a: Expr, b: Expr) -> Expr {
+    if is_zero(&b) {
+        a
+    } else if is_zero(&a) {
+        neg_expr(b)
+    } else {
+        bin(BinOp::Sub, a, b)
+    }
+}
+
+/// `a + b` for a term crossing over, a zero `a` or `b` left out.
+fn move_add(a: Expr, b: Expr) -> Expr {
+    if is_zero(&b) {
+        a
+    } else if is_zero(&a) {
+        b
+    } else if let Expr::Neg(a) = a {
+        // `q·3 m − F·1 m`, not `−F·1 m + q·3 m`.
+        bin(BinOp::Sub, b, *a)
+    } else {
+        bin(BinOp::Add, a, b)
     }
 }
 
@@ -646,7 +700,9 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
     let eval_dim = |e: &Expr| -> Option<Dim> { ctx_eval(e, None).ok().map(|v| v.dim()) };
     let eval_plain =
         |e: &Expr| -> Option<f64> { ctx_eval(e, None).ok().and_then(|v| v.scalar()).filter(|q| q.dim.is_dimensionless()).map(|q| q.value) };
-    let mut dims = infer_unknown_dims(lhs, rhs, x, &eval_dim, &eval_plain);
+    // Through user functions too: `0 kN = T(x_1)` reads `x_1`'s dimension from `T`'s body.
+    let (open_l, open_r) = (inline_calls(lhs, scope, 0), inline_calls(rhs, scope, 0));
+    let mut dims = infer_unknown_dims(&open_l, &open_r, x, &eval_dim, &eval_plain);
     dims.push(Dim::NONE);
     for name in known.iter().filter(|n| *n != x) {
         if let Some(d) = eval_dim(&Expr::Name(name.clone())) {
@@ -713,6 +769,51 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
         return Err(CalcError::TooMuchWork);
     }
     Err(last_err)
+}
+
+/// `e` with each call of a user function (`T(x_1)`) replaced by the function's body, its
+/// parameters by the arguments; a function that is not defined, or calls nested too deep, stay.
+fn inline_calls(e: &Expr, scope: &Scope, depth: usize) -> Expr {
+    if depth > 8 {
+        return e.clone();
+    }
+    let go = |a: &Expr| inline_calls(a, scope, depth);
+    match e {
+        Expr::Apply(name, args) => {
+            let args: Vec<Expr> = args.iter().map(go).collect();
+            match scope.function(name) {
+                Some(f) if f.params.len() == args.len() => {
+                    let body = rename(&f.body, &f.params, &args);
+                    inline_calls(&body, scope, depth + 1)
+                }
+                _ => Expr::Apply(name.clone(), args),
+            }
+        }
+        Expr::Neg(a) => Expr::Neg(Box::new(go(a))),
+        Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(go(a)), Box::new(go(b))),
+        Expr::Call(f, args) => Expr::Call(*f, args.iter().map(go).collect()),
+        Expr::Vector(items) => Expr::Vector(items.iter().map(go).collect()),
+        Expr::Index(a, b) => Expr::Index(Box::new(go(a)), Box::new(go(b))),
+        Expr::Range(a, b) => Expr::Range(Box::new(go(a)), Box::new(go(b))),
+        other => other.clone(),
+    }
+}
+
+/// `body` with each name in `params` replaced by its argument (a sum's own variable shadows).
+fn rename(body: &Expr, params: &[String], args: &[Expr]) -> Expr {
+    let go = |a: &Expr| rename(a, params, args);
+    match body {
+        Expr::Name(n) => params.iter().position(|p| p == n).and_then(|k| args.get(k)).cloned().unwrap_or_else(|| body.clone()),
+        Expr::Neg(a) => Expr::Neg(Box::new(go(a))),
+        Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(go(a)), Box::new(go(b))),
+        Expr::Call(f, a) => Expr::Call(*f, a.iter().map(go).collect()),
+        Expr::Apply(name, a) => Expr::Apply(name.clone(), a.iter().map(go).collect()),
+        Expr::Vector(items) => Expr::Vector(items.iter().map(go).collect()),
+        Expr::Index(a, b) => Expr::Index(Box::new(go(a)), Box::new(go(b))),
+        Expr::Range(a, b) => Expr::Range(Box::new(go(a)), Box::new(go(b))),
+        // A sum or product over its own variable: left as it is (not inlined).
+        other => other.clone(),
+    }
 }
 
 /// Algebraically infers candidate dimensions of `x` from `lhs = rhs` by propagating known

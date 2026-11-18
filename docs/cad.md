@@ -1,6 +1,6 @@
 # CAD drawings
 
-> **Status:** stages 1–2 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations); stage 3 editor in progress · **Last updated:** 2026-11-14 · **Change:** the underlay printed with a drawing counts in its fitted scale, its picture and Zoom Fit, and shows its source's parameters' values and settings; the underlay's layers and all its styles (its Standard dimension style too) nested under the source's name, its layers not printed with an underlay that is not, removed only when empty; length parameters in dimension texts written as the dimension style writes sizes, a `{x}` button beside annotation texts; the Dimension line object snap; a right angle picked anywhere in its square; the style windows keep the keyboard and line up; previously: every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
+> **Status:** stages 1–4 done (model, parametric coordinates, rendering, point entry; drawings in the document, saved, redrawn with the calculations, kept through Word; the editor with its draw, modify, dimension, hatch, block and underlay tools); constraints next · **Last updated:** 2026-11-17 · **Change:** docs brought up to date (stages, the editor's tabs and groups, Move, Copy, Scale, Rotate and Mirror previews); previously: the underlay printed with a drawing counts in its fitted scale, its picture and Zoom Fit, and shows its source's parameters' values and settings; the underlay's layers and all its styles (its Standard dimension style too) nested under the source's name, its layers not printed with an underlay that is not, removed only when empty; length parameters in dimension texts written as the dimension style writes sizes, a `{x}` button beside annotation texts; the Dimension line object snap; a right angle picked anywhere in its square; the style windows keep the keyboard and line up; previously: every length shown and typed in the input unit (the Properties pane's fields, `ui.cadProps`, status line, dimension overlay, block size), the drawing's unit no longer shown; previously: the rectangular array from a base point to an end point (fit, exact spacing, spread), arrays one object (a group, Explode ungroups); previously: texts picked in their box with corner grips, arrowheads picked inside, a hatch's boundary grips; previously: drawing names (slugs, `cad.name`) shown in the underlay list; Arc ways (3 points; centre, start, end; start, centre, end; start, end, radius) on an Arc split button; Polyline on the Line split button, Text only in its own group; drawings are drawn in millimetres (one in cm or m converted in the editor and saved so with the first edit, `Drawing::to_mm`, its expressions kept by `exprUnit`), the Units group only has the input unit; the status line's Snap arrow (object snaps menu, all on or off) in place of the nine object snap icons; scale and name editable in the Properties pane; a new Offset icon; previously: underlays (another drawing of the document under this one, to trace over) and inherited layers and styles; style windows (Dimension, Level, Text Style); units shown in dimension and level texts; dimension and level texts moved with a grip (`textShift`); slope ticks (barbette) and Flip Side for strips; a drawing knows the space where it sits; scales typed by hand; object snaps, Snap, Grid, Ortho and Zoom Fit in the status line (no CAD View tab); Match large beside the Layer Manager, Explode/Join one split button, no Undo/Redo in the ribbon; the document's panes hidden while editing; Grid off by default; previously: named text and dimension styles
 
 Strix documents hold technical drawings whose sizes follow the document's calculations: a beam
 drawn `L` long redraws when `L` changes, and its dimension shows `L = 4.5 m`. This is a Strix
@@ -331,12 +331,11 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    (crate).*
 2. **Document integration**: `insert.cad`, `cad.get/set/add`, regeneration in reading order with
    the calculations, `.xmath` round trip, units in the Unit style. *Done.* Rotated texts and dashed
-   lines in the drawn items done (2026-10-28). Still to do: a picture for Word.
-3. **Editor** (`crates/ui-egui/src/cad_editor.rs`). *First cut done*: double-click a drawing, or
+   lines in the drawn items done (2026-10-28); the SVG picture other programs show and the drawing
+   kept live through Word ([word-round-trip.md](word-round-trip.md)) done.
+3. **Editor** (`crates/ui-egui/src/cad_editor.rs`). *Done*: double-click a drawing, or
    Math › Drawing › Edit Drawing (`ui.cadEdit`): the page gives way to the drawing's sheet and the
-   **CAD Drawing** tab comes up (Draw: Line, Circle, Polyline, Rectangle, Arc, Point, Text;
-   Dimensions: Aligned, Horizontal, Vertical; Modify: Select, Move, Copy, Delete, Undo, Redo;
-   Precision: Snap, Ortho, Grid, Zoom Fit; Close Drawing). Wheel zooms about the pointer, the
+   editor's tabs come up (CAD Drawing, CAD Annotate, CAD Output; see **Tabs** below). Wheel zooms about the pointer, the
    middle button or Alt+drag pans; a grid; a crosshair with snap markers (ends, midpoints,
    centres, grid). The command line takes `x,y`, `@dx,dy`, `@d<a`, `d<a`, a distance towards the
    pointer, a tool alias (`l pl rec c a t m co`), `c` to close a polyline, a radius; Enter ends,
@@ -415,7 +414,7 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    **Panes**: Properties and the Layer Manager each have a header with Detach (a window of its
    own, moved by its background, resizable; `ui.cadToggle {"what": "props.float"}` /
    `"layers.float"`), Dock and Close (×); docked or detached, they stay so for the next drawing.
-   **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Layers), CAD Annotate
+   **Tabs**: the editor has its own tabs — CAD Drawing (Draw, Modify, Block, Underlay, Layers), CAD Annotate
    (Dimensions, Styles, Units, Hatch, Text), CAD Output (Scale, Picture) — each with Close
    Drawing; the document's tabs are disabled until the drawing is closed, and the document's
    task panes (Styles, Navigation, Format Shape…) are hidden while it is open (they come back as
@@ -553,7 +552,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    a mirrored copy about two points. One affine transform (`Affine`, `Drawing::transform`):
    expressions stay linked (`L` scaled by 2 is `(L)*2`), radii scale, paper sizes (texts,
    dimension offsets, hatch spacings) do not; a mirror turns arcs, bulges and angles the other
-   way. Offset: the distance typed (kept while the program runs), the object, the side; a line
+   way. Move, Copy, Scale, Rotate and Mirror show the selection as the next click would leave it,
+   dashed in the accent colour and following the pointer after the base point (dimensions with
+   their distances), as a hot grip does. Offset: the distance typed (kept while the program runs), the object, the side; a line
    moves square to itself, circles and arcs stay concentric, a polyline's corners are mitred and
    its arcs stay concentric (bulges kept); it goes on for the next object.
    **Trim, Extend, Fillet, Chamfer** (CAD Drawing › Modify; `trim tr`, `extend ex`, `fillet f`,
@@ -593,9 +594,9 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    `I`, `S` at the base point, or the array button's menu, `ui.cadArrayMode {"spacing": "fit" |
    "pitch" | "spread", "pitch"}`, kept in the settings as `arraySpacing`, `arrayPitch`): **fit**
    (the default) the counts typed (`4x3`, kept), the last item exactly on the end point; **exact
-   spacing** (interasse rigoroso) the spacing typed (a length, `25` or `2.5cm`; typing one at
+   spacing** (interasse esatto) the spacing typed (a length, `25` or `2.5cm`; typing one at
    the base point switches Fit to it) kept exactly, as many items as fit, the rest left over past
-   the last; **spread** (spalmato) as few items as keep the spacing at most the one typed,
+   the last; **spread** (suddiviso) as few items as keep the spacing at most the one typed,
    spread evenly so the last is on the end point (100 within 30: four spaces of 25). The command
    line says what it came to (`5 items · spacing 25 mm`). The polar array copies it round a
    centre, the number of items typed (kept), each turned as it goes; at most `MAX_ARRAY` (1000)
@@ -668,11 +669,13 @@ points) are drawn from it, so the page, PDF and image exports show it like a cha
    in the JSON is the order they are drawn in; the selection follows the objects.
    Still to do: constraints, joining arcs and polylines in fillets.
 4. Edit commands: move, copy, mirror, offset, trim, extend, fillet, join, explode, match
-   properties; hatch (by selection and by point); angular dimensions, rows and chains.
+   properties; hatch (by point); angular dimensions, rows and chains. *Done* (described under
+   stage 3).
 5. Driving dimensions and geometric constraints bound to parameters (solver).
 
 ## Revision history
 
+- 2026-11-17: docs brought up to date with the code: status and stages (the editor and its edit commands done, the picture for Word done), the CAD Drawing tab's groups (Block and Underlay), the stage 3 summary no longer lists the first cut's ribbon (Undo, Redo, Select, Precision); Move, Copy, Scale, Rotate and Mirror previews (2026-11-15) described.
 - 2026-11-14: the printed underlay counts in the fitted scale, the scales offered, the page picture and Zoom Fit (`Drawing::under_source`, `with_printed_underlay`; a later source by a second pass); the underlay shows its source's labels as they read there (`freeze_labels`); inherited layers and all styles nested under the source's name (`Layer::from`), following its rename, never renamed, removed only when empty, not printed with an underlay that is not (`print_layers_from`), listed under the drawing's name in the Layer Manager; length parameters in dimensions follow the dimension style (`dim_params`); `{x}` parameter menu beside annotation texts; Dimension line snap (`SnapKind::DimLine`, `snap.dimLine`); right angles picked in their square; the style windows keep the keyboard (the command line no longer takes the focus under them) and line up their fields.
 - 2026-11-14: Trim and Extend show what they would take away or add before the click, Offset, Fillet, Chamfer and Match Properties halo the objects (with the result dashed); a dimension's own end mark (`markEnd`); dimension styles' first unit is the input unit; the ribbon's layer box shows the selection's layer (blank across several) and moves the selection to the layer chosen; the reference grip keeps the annotative part (the line follows).
 - 2026-11-14: the input unit is the only unit shown: the Properties pane (coordinates, radii, lengths, scaled distances), `ui.cadProps`, the status line, the dimension overlay and a new block's size show and read lengths in it (`Drawing::fields_typed`, `set_field_typed`); the drawing's own unit (mm) is no longer shown (the Unit rows of the Properties pane and the Picture tab are gone, Input unit offers mm, cm, m).

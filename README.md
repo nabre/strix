@@ -14,9 +14,10 @@
   tests. Calculation exercises keep their data, solution and results live, with variants A, B, C
   for each row of desks; multiple-choice, true/false and open questions carry their points; one
   file per exercise makes an archive, and a test is put together from it, with or without the
-  solutions. A scores table adds the points up by criterion by itself; a grading grid that turns
-  points into marks is planned. Underneath, the equations in the page calculate, with units. It
-  runs natively on Windows, macOS, Linux and BSD, and in the browser via WebAssembly.
+  solutions. A scores table adds the points up by criterion by itself, and a grading scale turns
+  them into marks. Underneath, the equations in the page calculate, with units, and plots, CAD
+  drawings and plane structures follow them. It runs natively on Windows, macOS, Linux and BSD,
+  and in the browser via WebAssembly.
 </p>
 
 <p align="center">
@@ -46,6 +47,8 @@
   <a href="#scores-and-grading">Scores</a> ·
   <a href="#wysiwyg-math">WYSIWYG math</a> ·
   <a href="#cad-drawings-driven-by-the-calculations">CAD drawings</a> ·
+  <a href="#plots">Plots</a> ·
+  <a href="#plane-structures">Structures</a> ·
   <a href="#a-full-document-editor-underneath">Document editor</a> ·
   <a href="#files">Files</a> ·
   <a href="#for-agents-commands-cli-mcp">For agents</a> ·
@@ -55,7 +58,7 @@
 </p>
 
 > **Status: alpha.** The document editor Strix is built on is mature; the exercises, the
-> calculation engine and CAD are new and moving fast. Keep a copy of important documents, and
+> calculation engine, CAD, plots and structures are new and moving fast. Keep a copy of important documents, and
 > [tell us what breaks](https://github.com/nabre/strix/issues).
 
 ## Calculation exercises
@@ -74,8 +77,16 @@ The solution is a live calculation (see [WYSIWYG math](#wysiwyg-math)): the data
 **variants** A, B, C…, and choosing one recalculates the data, the solution and the summary, so
 each row of desks gets its own numbers and no solution is redone by hand. Each exercise is a
 **sandbox**: two exercises can both define `t`. Graph paper can follow the questions, as in an
-exercise book, and a [CAD drawing](#cad-drawings-driven-by-the-calculations) in the statement
-follows the data.
+exercise book, and a [CAD drawing](#cad-drawings-driven-by-the-calculations), a
+[plot](#plots) or a [structure](#plane-structures) in the statement follows the data.
+
+With the cursor in an exercise, the **Exercise** tab comes up beside the others with its
+questions, variants and layout; **Question Settings** (each question's type and points) and
+**Data** (one equation per datum, `L = 4.5 m`, with the variants as buttons) open as panes
+beside the document. **Generate Variants** makes new variants from lists or ranges of values,
+keeping only those whose results are clean (few decimals, positive, all different), and every
+variant is checked as you write: one whose calculation fails (units that don't match, the root
+of a negative number) is flagged at once.
 
 <p align="center">
   <picture>
@@ -95,7 +106,10 @@ mode, so one quiz mixes them ([docs/question-modes.md](docs/question-modes.md)):
 | **Multiple choice** | options A), B), C)… with empty check boxes | the correct boxes ticked (more than one can be) |
 | **True/False** | *True* and *False* with empty boxes | the right one ticked |
 | **Calculation** | a squared space for the working, then `Answer: s = ______ m` | the working as live equations and `Answer: s = 20 m` |
-| **CAD drawing** | a squared space to draw in | the solution's CAD drawing |
+| **CAD drawing** | a squared space to draw in, or a figure to complete | the solution's CAD drawing, or the figure completed |
+| **Inline completion** | a text with a line to write on for each hidden word (or calculated value) | the hidden words, in the *Hidden Word* style |
+| **Matching** | two columns, the right one shuffled, with boxes for the letters | the letters of the right pairs |
+| **Worked example** | the example with its solution, always shown, without points | the same |
 
 A **problem** (statement, data, questions, the solution worked under each question) stays the
 kind for long multi-step exercises.
@@ -115,15 +129,23 @@ quiz needs no statement, and a lone question has no letter.
 ## From the archive to the test
 
 - **One file per exercise** makes an archive. Each file carries its **archive properties**
-  (grade, section, subject, teacher, duration and the score), saved so that Word shows them too
+  (grade, section, subject, teacher, duration, topics and the score), saved so that Word shows
+  them too. The **Exercise Bank** pane (Teaching › Archive) searches a folder of exercises by
+  their properties and text and inserts one as a copy or as a linked subdocument
   ([docs/archive.md](docs/archive.md)).
 - A **master document** puts a test together from those files: its own numbering, frontispiece
   (cover page), page breaks and parts shown (with or without the solutions and the results);
   another master can lay out the same series another way. **None of it changes the files**
   ([docs/master-documents.md](docs/master-documents.md)).
-- **DSA formatting** (Design › Document Formatting › DSA) lays the same test out for students
-  with specific learning difficulties: Reading, Writing, Maths and memory, combinable, the page
+- **DSA formatting** (the **DSA** group on the Design tab) lays the same test out for students
+  with specific learning difficulties: Reading, Writing, Maths and Memory, combinable, the page
   always white ([docs/dsa.md](docs/dsa.md)).
+- **Check Assessment** (Teaching › Assessment) looks the test over before it is printed: every
+  variant, the correct answers, missing solutions, the points and their totals, the answer
+  spaces, the duration and each variant's page count, each problem a click away.
+- **Export Pack** (Teaching › Assessment) writes in one step the students' PDF of each variant,
+  their DSA version and the teacher's key with the worked solutions, the grading scale and a
+  table of every variant's results.
 - **PDF** export for printing; LaTeX, HTML and Markdown copies too.
 
 ## Scores and grading
@@ -143,8 +165,14 @@ out with the test:
 - **totals** across and down follow as points are typed; the grand total is the document's
   **Score** property.
 
-*Planned:* a **grading grid** that turns points into marks (thresholds, scale, rounding).
-Details: [docs/exercise.md](docs/exercise.md).
+A **grading scale** (Teaching › Scores › Grading Scale) turns the points into marks: a table
+with one row per mark, from the lowest to the highest by the step you choose (1–10 by 0.5, for
+instance), and the points that earn it as an interval `[12; 14[`. It starts from a school preset
+(Italy 1–10, Switzerland 1–6, Germany 6–1, France 0–20, percentages) or your own: the pass
+threshold and its mark, a straight line or two, the points rounded to a multiple (0.25, 0.5), the
+maximum taken from the scores table or fixed, and whether the students see it. **Grading Scale
+Properties** opens beside the document with a preview, pass marks in green. Details:
+[docs/exercise.md](docs/exercise.md).
 
 ## WYSIWYG math
 
@@ -208,13 +236,22 @@ v² = 2·a·d                         →  v² = 2·a·d ⇒ d = 125 m         (
 - **Number format.** Digits (default 3), automatic / decimal places / significant digits,
   trailing zeros, half-away-from-zero rounding, scientific notation for very large and very small
   values: on the Math tab.
+- **Functions and temperatures.** Define `f(x) = …` and use it anywhere below; `°C` and `°F`
+  convert as absolute temperatures and as differences. The **Variables** pane (Math ›
+  Calculation › Variables) lists every name defined so far with its value, and converts units.
 - **Errors never stop the sheet.** A failing statement shows `⚠` and its message; later items
   still calculate.
 
+- **Derivatives, integrals and limits.** `f′(a)` and `f″(a)` of a function you define,
+  definite integrals `∫_a^b f(x) dx` with units, limits from each side, binomial sums; the
+  structures of the equation editor (absolute value, roots with a degree, logarithms with a base,
+  cases, determinants) are read as calculations.
+
 The calculation tools are on the **Math** tab: New Calculation, Calculate (also the `=` button
-beside an equation), Recalculate, Calculated Table, number format and CAD Drawing; exercises,
-scores and graph paper are on the **Teaching** tab. Design and
-details: [docs/calc.md](docs/calc.md).
+beside an equation), Recalculate, Calculated Table (with its own tab while the cursor is in
+one), number format, CAD Drawing and Plot; structures have their own **Structures** tab;
+exercises, scores, grading and graph paper are on the **Teaching** tab. Design and details:
+[docs/calc.md](docs/calc.md).
 
 ## CAD drawings driven by the calculations
 
@@ -228,10 +265,12 @@ coordinates, radii and angles can be numbers or **expressions of the calculation
   `b = 6 cm` (units in the Unit style), `<>` the measured size; a parameter that isn't defined
   there shows `[b?]` in red.
 
-Double-click a drawing to edit it on its sheet, with a **CAD Drawing** tab and an AutoCAD-style
-command line (`x,y`, `@dx,dy`, `@d<a`, direct distances, tool aliases): line, circle, arc,
-polyline, rectangle, point, text, aligned / horizontal / vertical dimensions; select, move, copy,
-delete; ortho, grid, zoom. **Object snaps** are exact, computed on the true curves by a geometry
+Double-click a drawing to edit it on its sheet, with its own tabs (**CAD Drawing**, **CAD
+Annotate**, **CAD Output**) and an AutoCAD-style command line (`x,y`, `@dx,dy`, `@d<a`, direct
+distances, tool aliases): line, tangent line, circle, arc, polyline, rectangle, point, text;
+aligned, horizontal, vertical and angular dimensions, chained or from a baseline, with dimension
+styles; hatches; move, copy, rotate, scale, mirror, offset, trim, extend, fillet, chamfer,
+arrays, explode and join, match properties, each previewed before the click; ortho, grid, zoom. **Object snaps** are exact, computed on the true curves by a geometry
 kernel (endpoint, midpoint, centre, node, quadrant, intersection, perpendicular, tangent,
 nearest); **grips** reshape selected objects and keep a coordinate's expression (`b` becomes
 `b + 0.5`). Selection works as in AutoCAD: a click adds, Shift+click removes, a window, a
@@ -243,9 +282,69 @@ geometry with numbers or calculation expressions; it manages the **layers** too.
 stored as JSON in the `.xmath` file together with an automatic SVG
 picture, so other programs still show it. Details: [docs/cad.md](docs/cad.md).
 
-*Planned for CAD:* offset, trim, extend, fillet, mirror and the other modify tools, match
-properties, angular dimensions, hatches, rotated texts, and driving dimensions
-with geometric constraints.
+*Planned for CAD:* driving dimensions with geometric constraints.
+
+## Plots
+
+**Math › Drawing › Plot** draws a live Cartesian plot in the text, from the calculations above
+it ([docs/plot.md](docs/plot.md)): functions `y = f(x)` (poles and asymptotes never joined),
+parametric and polar curves, and experimental data from a calculated table with their error bars
+and a linear or quadratic regression with R². A function can show its **zeros**, **extremes**, a
+**tangent** and a shaded **integral**; **Insert Analysis in Document** writes them after the plot
+as live calculations (`f′(a)`, `∫_a^b f(x) dx`). The axes are named at their arrows and their
+names are the formulas' variables; the ranges fit what there is to show; angles go the
+mathematical or the surveying way, in rad, ° or gon. Change a parameter and the plot redraws; in
+the students' copy a plot (or a single curve) marked as solution leaves an empty, calibrated grid
+of the same size. The **Plot Properties** pane edits every series.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/shots/en/shot-plot-dark.png">
+    <img src="site/shots/en/shot-plot-light.png" alt="A plot in Strix: the function f(x) = x³/3 − x with its zeros, extremes, the tangent at x = 1.5 and the shaded area, and the Plot Properties pane." width="100%">
+  </picture>
+</p>
+
+## Plane structures
+
+The **Structures** tab (between Math and Teaching) inserts a **beam, frame or truss** that is
+solved where it sits and drawn as a textbook draws it ([docs/structures.md](docs/structures.md)):
+the structure with its supports and loads, the **reactions**, and the **N, T (V), M diagrams** one
+under the other at the same scale, hatched, with ⊕/⊖ and the notable values; a truss shows each
+member's axial force, tension and compression in two colours. Every load is named (`F_1`, `q_2`,
+`C_3`), the drawing carries the structure's **dimensions**, slopes and force angles, and the
+diagrams mark their **stations** (where a notable value falls, measured from the member's start).
+
+- **Any plane structure**: fixed ends, pins, rollers, links and sliders at any angle, internal
+  hinges; forces, couples and uniform, triangular or trapezoidal loads, in global or local axes,
+  per length or per projection. It is classified as isostatic, hyperstatic of degree *h* or
+  labile, and solved by the stiffness method.
+- **Driven by the calculations**: every length and load can be a parameter (`L`, `q`), so each
+  variant of an exercise has its own structure and diagrams; the Italian convention (moment on
+  the stretched fibres) is the default, and each diagram's positive side can be chosen.
+- **The Structure Editor**: a double-click on a structure opens it in place of the page, with its
+  own ribbon tab: a sheet with grid and snaps, tools for nodes, members, supports, hinges and
+  loads, selection by click and window, grips to move nodes, carry and turn loads and stretch
+  distributed loads, a right-click menu (split or join members, supports, hinges, loads), typed
+  coordinates, the selection's properties and tables of nodes, members, supports and loads.
+- **The written working**: **Write Working** puts the solution after the structure as live
+  calculations: the loads, their resultants and parts and each force's arm, prepared first, then
+  the equilibrium equations written algebraically (`0 kN·m = V_B·6 m − F_1·d_(1,A)`), each solved
+  for its reaction with its steps, then each member's laws (`T_1(x) = V_A − q_1·x`) stretch by
+  stretch, with their values at the ends and the moment's extremes. The working follows the
+  structure: every change to it, or to a parameter it reads, writes it again.
+- **An exercise on the structure**: **Structure Exercise** writes a whole problem (the structure
+  in the statement; reactions, N, T, where T is zero, the greatest moment there, M), each answer
+  with its working and its own drawing; **To Exercise** and **To Report** switch a structure
+  between a technical report and an exercise, where it stands.
+- In the students' copy, **Solution Only** leaves the reactions and diagrams out and keeps the
+  panels, so both copies have the same layout.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/shots/en/shot-structure-dark.png">
+    <img src="site/shots/en/shot-structure-light.png" alt="Strix with a simply supported beam on the Structures tab, its lengths and loads from the parameters L, q and F: the beam with its loads, the reactions, the T and M diagrams, and the Structure Editor beside the document." width="100%">
+  </picture>
+</p>
 
 ## Graph paper
 
@@ -271,21 +370,24 @@ Interface language picks one by hand). The editor's plan is WordCraft's: [WordCr
 
 | | Formats |
 |---|---|
-| **Saves** | `.xmath` (Strix document) and `.xmathm` (Strix template): an OOXML package that keeps calculations, exercises and drawings live |
-| **Saves back** (documents without Strix objects) | `.docx`, `.docm`, `.dotx`, `.dotm`, `.odt`, `.rtf`, `.txt`, Word XML |
+| **Saves** | `.xmath` (Strix document) and `.xmathm` (Strix template), and Word's `.docx`, `.docm`, `.dotx`, `.dotm`: all keep calculations, exercises, drawings, plots and structures live |
+| **Saves back** (documents without Strix objects) | `.odt`, `.rtf`, `.txt`, Word XML |
 | **Exports** (static copies) | PDF, PNG, LaTeX (`.tex`), HTML, Markdown |
-| **Opens** | `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt`, Word XML |
+| **Opens** | `.xmath`, `.xmathm`, `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.odt`, `.rtf`, `.md`, `.html`, `.tex`, `.txt`, Word XML |
 
-Like Word, Strix opens a `.docx` (or `.odt`, `.rtf`…) and saves it back in the same format. That
-holds as long as the document has no **Strix objects**: calculations, calculated tables,
-exercises, CAD drawings or graph paper. Those formats would keep at most their last look and lose
-the live calculations and the drawings' source, so a document with any saves only as `.xmath`:
-Save proposes a `.xmath` of the same name and says what would be lost ("3 calculations, 1 CAD
-drawing"), Save As leaves out the formats that would lose them, and `file.save`, `strix-cli
-convert` and MCP `save_document` refuse with the same explanation instead of writing a lossy
-file. Exports to PDF, PNG, LaTeX, HTML and Markdown are copies and always work. A new document is
-a `.xmath`. A `.xmath` file stays a standard package, so other programs show the last computed
-values as ordinary equations, tables and pictures.
+A new document is a `.xmath`, and like Word, Strix saves a file back in the format it came from.
+**Word files keep Strix objects through Word**: a `.docx` that Strix writes carries every
+calculation, calculated table, exercise, CAD drawing, plot, structure and graph paper a second
+time, in content controls and a custom XML part that Word keeps when it saves. Open the file in
+Word, edit the text around them, save, and back in Strix the objects are live again; one that
+was changed in Word stays as Word left it and waits for you to decide
+([docs/word-round-trip.md](docs/word-round-trip.md)). The other editable formats (ODT, RTF,
+plain text, Word XML) would keep only the objects' last look, so a document with any is not saved
+to them: Save proposes a `.xmath` and says what would be lost ("3 calculations, 1 CAD drawing"),
+Save As leaves those formats out, and `file.save`, `strix-cli convert` and MCP `save_document`
+refuse with the same explanation instead of writing a lossy file. Exports to PDF, PNG, LaTeX,
+HTML and Markdown are copies and always work. A `.xmath` file stays a standard package, so other
+programs show the last computed values as ordinary equations, tables and pictures.
 
 ## For agents: commands, CLI, MCP
 
@@ -293,9 +395,12 @@ Everything Strix does is a **command** in one registry, with an id, parameters a
 location. The ribbon, keyboard shortcuts, command search, the command line, the control channel
 and the MCP server all dispatch the same commands, and programmatic calls never open dialogs.
 The teaching, calculation and drawing commands include `exercise.insert`, `exercise.questions`,
-`exercise.setData`, `exercise.variant`, `exercise.show`, `exercise.scores`, `archive.properties`,
-`design.dsa`, `equation.answer`, `calc.insert`, `calc.recalculate`, `table.calc`, `insert.cad` and
-`cad.set`, so an agent can prepare a whole test with its variants.
+`exercise.setData`, `exercise.variant`, `exercise.generateVariants`, `exercise.show`,
+`exercise.scores`, `exercise.grading`, `exercise.check`, `file.exportPack`, `archive.properties`,
+`design.dsa`, `equation.answer`, `calc.insert`, `calc.recalculate`, `table.calc`, `insert.cad`,
+`cad.set`, `plot.insert`, `plot.analysis`, `structure.insert`, `structure.set`,
+`structure.working`, `structure.exercise` and `structure.mode`, so an agent can prepare a whole test with its variants, its grading scale
+and its printed copies.
 
 ```sh
 claude mcp add strix -- strix-cli mcp                      # headless documents
@@ -362,12 +467,12 @@ check, the layering check and the wasm build. Contributor and agent instructions
 | Layer | Crate | Job |
 |---|---|---|
 | L0 | `wordcraft-geom` | units and measurements |
-| L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof`, `strix-calc`, `strix-cad` | document model and editing; fonts and shaping; spelling and hyphenation; **quantities, units, solving and worksheet evaluation**; **parametric drawings and the geometry kernel** |
+| L1 | `wordcraft-doc`, `wordcraft-fonts`, `wordcraft-proof`, `strix-calc`, `strix-cad`, `strix-plot`, `strix-structure` | document model and editing; fonts and shaping; spelling and hyphenation; **quantities, units, solving and worksheet evaluation**; **parametric drawings and the geometry kernel**; **plots and their analysis**; **plane structures solved by the stiffness method** |
 | L2 | `wordcraft-layout`, `wordcraft-docx`, `wordcraft-formats` | line breaking, pagination, tables, hit testing; the `.xmath` package (OOXML); imports and static exports |
 | L3 | `wordcraft-render`, `wordcraft-pdf` | rasteriser (vello_cpu); PDF ([craft-pdf](docs/shared-pdf.md), Krilla) |
-| L4 | `wordcraft-engine` | session, undo, the command registry, calculations, exercises, file dispatch |
-| L5 | `wordcraft-mcp` | MCP server |
-| L6 | `wordcraft-ui-egui` | the desktop and web front end, including the CAD editor |
+| L4 | `wordcraft-engine` | session, undo, the command registry, calculations, exercises, grading, file dispatch, the Word round trip |
+| L5 | `wordcraft-mcp`, `wordcraft-zotero` | MCP server; Zotero citations |
+| L6 | `wordcraft-ui-egui` | the desktop and web front end, including the CAD editor, the Structure Editor and the panes |
 | apps | `strix`, `strix-cli`, `strix-web` | desktop, command line, browser |
 
 Strix never panics on purpose: no `unwrap`, `expect` or `unsafe` in production code, and every
@@ -380,25 +485,32 @@ Done:
 1. **Worksheet**: parameters with units, live results, errors, the Calculate button.
 2. **One `=`**: definitions, results, solving for one unknown, checks and comparisons, working
    units, number format, unit hints, solution steps.
-3. **Ranges, vectors, Σ/∏.**
-4. **Calculated tables.**
+3. **Ranges, vectors, Σ/∏**, derivatives, integrals and limits.
+4. **Calculated tables**, with their own tab.
 5. **Exercises**: locked structure, sandbox, repeated questions, results summary, data and
-   variants; open-answer, multiple-choice and true/false questions with points.
-6. **Question modes**: open, multiple choice, true/false, calculation and CAD drawing questions
-   mixed in one quiz, the students' and the corrected copy from one file.
+   variants (generated and checked), the Exercise and Series tabs and the panes beside the
+   document.
+6. **Question modes**: open, multiple choice, true/false, inline completion, calculation and CAD
+   drawing questions mixed in one quiz, the students' and the corrected copy from one file.
 7. **Tests**: master documents that assemble a test from an archive of one file per exercise,
-   frontispiece, parts shown, archive properties, DSA formatting; the scores table.
-8. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
-   exact snaps and grips.
+   frontispiece, parts shown, archive properties, DSA formatting; the check before printing and
+   the export of every copy in one step.
+8. **Scores and grading**: the scores table and the grading scale from points to marks.
+9. **CAD**: parametric drawings in the document, redrawn with the calculations; the editor with
+   exact snaps, grips, dimensions, hatches and the modify tools.
+10. **Plots**: functions, parametric and polar curves, data with regression, their analysis
+    written as calculations.
+11. **Plane structures**: beams, frames and trusses solved and drawn with reactions and N, T, M
+    diagrams, dimensions and stations, the full-page Structure Editor, the written working that
+    follows the structure, exercises on a structure.
+12. **Word round trip**: Strix objects stay live through `.docx` files saved by Word.
 
 Next: being defined (see [ROADMAP.md](ROADMAP.md)). Noted so far:
 
-- Calculations: Variables pane, unit picker, `°C`/`°F`, user functions `f(x) = …`, matrices,
-  systems of equations across regions, plots; number format per document.
-- Grading: a **grading grid** that turns points into marks (thresholds, scale, rounding).
+- Calculations: systems of equations across regions, matrices.
 - Exercises: a results table per exercise and checks against expected values; a summary per
-  variant; an Archive pane and a search across the archive's files.
-- CAD: the modify tools, layers, hatches, angular dimensions, constraints and driving dimensions.
+  variant; ordering questions.
+- CAD: driving dimensions with geometric constraints.
 
 Progress log: [ROADMAP.md](ROADMAP.md). The document editor's plan is
 [WordCraft's roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).

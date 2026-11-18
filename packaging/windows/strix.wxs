@@ -5,7 +5,7 @@
   <?define HasCraftFontLicences=0 ?>
   <?endif?>
   <Package Name="Strix Writer" Manufacturer="The Strix contributors" Version="$(var.Version)" UpgradeCode="075497F9-E861-45D0-9C7F-A74F8C34E6BA" Scope="perUserOrMachine" Compressed="yes" Language="1033">
-    <SummaryInformation Description="Strix Writer word processor" Manufacturer="The Strix contributors" />
+    <SummaryInformation Description="Strix Writer: tests and exercises for teachers" Manufacturer="The Strix contributors" />
     <?include $(sys.SOURCEFILEDIR)install-policy.wxi?>
     <?include $(sys.SOURCEFILEDIR)privacy.wxi?>
     <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
@@ -63,7 +63,7 @@
     <ComponentGroup Id="StrixFiles" Directory="INSTALLFOLDER">
       <Component Id="StrixApp" Guid="855DCEC6-9285-444F-9382-9654B83B34F6">
         <File Id="StrixExe" Source="$(var.BinDir)\strix.exe" KeyPath="yes">
-          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Strix Writer" Description="Strix Writer word processor" WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="StrixIcon.ico" IconIndex="0" />
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Strix Writer" Description="Strix Writer: tests and exercises for teachers" WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="StrixIcon.ico" IconIndex="0" />
         </File>
 
         <RegistryValue Root="HKMU" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\strix.exe" Value="[#StrixExe]" Type="string" />
@@ -81,7 +81,7 @@
       <Component Id="StrixFileTypes" Guid="EFF89E6A-F9B8-49F9-B3AE-E243347484B4">
         <RegistryValue Root="HKMU" Key="Software\RegisteredApplications" Name="Strix" Value="Software\Strix\Capabilities" Type="string" KeyPath="yes" />
         <RegistryValue Root="HKMU" Key="Software\Strix\Capabilities" Name="ApplicationName" Value="Strix Writer" Type="string" />
-        <RegistryValue Root="HKMU" Key="Software\Strix\Capabilities" Name="ApplicationDescription" Value="Write and design documents; open and export Word files." Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Strix\Capabilities" Name="ApplicationDescription" Value="Tests and exercises for teachers, with live calculations; opens and saves Word files." Type="string" />
         <RegistryValue Root="HKMU" Key="Software\Strix\Capabilities" Name="ApplicationIcon" Value="&quot;[#StrixExe]&quot;,0" Type="string" />
         <RegistryValue Root="HKMU" Key="Software\Classes\Applications\strix.exe" Name="FriendlyAppName" Value="Strix Writer" Type="string" />
         <RegistryValue Root="HKMU" Key="Software\Classes\Applications\strix.exe\shell\open\command" Value="&quot;[#StrixExe]&quot; &quot;%1&quot;" Type="string" />

@@ -268,7 +268,11 @@ impl Worksheet {
         // call of known parameters with its result, no definition of a constant function.
         let known = params.iter().all(|p| self.scope.get(p).is_some());
         let result = parse(body, len).is_ok_and(|e| crate::format::is_numeric(&e) || crate::format::is_quantity(&e));
-        if known && (worked || result) {
+        // `M(x_0) = kN·m`: a call shown in a unit, no constant function of one unit.
+        let unit_asked = units_only(body)
+            && body.iter().any(|t| matches!(t.tok, Tok::Ident(_)))
+            && !body.iter().any(|t| matches!(&t.tok, Tok::Ident(n) if params.contains(n) || self.scope.get(n).is_some()));
+        if known && (worked || result || unit_asked) {
             return None;
         }
         // Outside brackets: the conditions of cases (`{█(−x,&x<0@x,&x≥0)┤`) compare inside theirs.
@@ -737,7 +741,7 @@ impl Worksheet {
         for &end in seps.iter().skip(1).chain([tokens.len()].iter()) {
             let seg = tokens.get(start..end)?;
             let seg_end_pos = tokens.get(end).map_or(len, |t| t.pos);
-            constraints.push(self.parse_constraint_tokens(seg, seg_end_pos)?);
+            constraints.extend(self.parse_constraint_tokens(seg, seg_end_pos)?);
             start = end + 1;
         }
         let head_byte = tokens.get(first_sep)?.byte;
@@ -745,14 +749,38 @@ impl Worksheet {
         Some((head_text, tokens.get(..first_sep)?, constraints))
     }
 
-    fn parse_constraint_tokens(&self, seg: &[Token], end_pos: usize) -> Option<DomainConstraint> {
+    /// `t > 0`, or an interval `0 m ≤ x ≤ 6 m` (two constraints, the unknown in the middle).
+    fn parse_constraint_tokens(&self, seg: &[Token], end_pos: usize) -> Option<Vec<DomainConstraint>> {
         let cmps = positions(seg, |t| matches!(t, Tok::Cmp(_)));
-        let [cmp] = cmps.as_slice() else { return None };
-        let Tok::Cmp(op) = seg.get(*cmp)?.tok else { return None };
-        let cmp_pos = seg.get(*cmp).map_or(end_pos, |t| t.pos);
-        let l = self.parse_expr(seg.get(..*cmp)?, cmp_pos).ok()?;
-        let r = self.parse_expr(seg.get(*cmp + 1..)?, end_pos).ok()?;
-        self.domain_constraint_from_exprs(&l, &r, op)
+        let pos_of = |i: usize| seg.get(i).map_or(end_pos, |t| t.pos);
+        let op_at = |i: usize| match seg.get(i).map(|t| &t.tok) {
+            Some(Tok::Cmp(op)) => Some(*op),
+            _ => None,
+        };
+        match cmps.as_slice() {
+            [cmp] => {
+                let l = self.parse_expr(seg.get(..*cmp)?, pos_of(*cmp)).ok()?;
+                let r = self.parse_expr(seg.get(*cmp + 1..)?, end_pos).ok()?;
+                Some(vec![self.domain_constraint_from_exprs(&l, &r, op_at(*cmp)?)?])
+            }
+            [c1, c2] => {
+                let (o1, o2) = (op_at(*c1)?, op_at(*c2)?);
+                // Both the same way: `a ≤ x ≤ b` or `b ≥ x ≥ a`.
+                let rising = |o: char| matches!(o, '<' | '≤');
+                let falling = |o: char| matches!(o, '>' | '≥');
+                if !(rising(o1) && rising(o2) || falling(o1) && falling(o2)) {
+                    return None;
+                }
+                let a = self.parse_expr(seg.get(..*c1)?, pos_of(*c1)).ok()?;
+                let x = self.parse_expr(seg.get(*c1 + 1..*c2)?, pos_of(*c2)).ok()?;
+                let b = self.parse_expr(seg.get(*c2 + 1..)?, end_pos).ok()?;
+                if !matches!(x, Expr::Name(_)) {
+                    return None;
+                }
+                Some(vec![self.domain_constraint_from_exprs(&a, &x, o1)?, self.domain_constraint_from_exprs(&x, &b, o2)?])
+            }
+            _ => None,
+        }
     }
 
     fn domain_constraint_from_exprs(&self, l: &Expr, r: &Expr, op: char) -> Option<DomainConstraint> {
@@ -1026,9 +1054,55 @@ impl Worksheet {
         }
         let bound = bound_in(&[f]);
         let sub = |name: &str| self.substitute(name, skip).filter(|_| !bound.iter().any(|b| b == name));
-        let common = self.common_units(&[f], skip);
+        let mut common = self.known_sums(f, skip);
+        // A formula that is such a sum alone: its total is the result, nothing to work out.
+        if common.iter().any(|(e, _)| std::ptr::eq(*e, f)) {
+            return None;
+        }
+        common.extend(self.common_units(&[f], skip));
         let worked = self.with_common_units(f, &common, &sub);
         (worked != self.with_common_units(f, &[], &|_| None)).then_some(worked)
+    }
+
+    /// The sums and products of `f` over values already known (a table's columns, a list:
+    /// `∑A_i·x_i`), each with its value as a substitution writes it: the total is shown
+    /// (`39`, as a table's `Σ` row has it) instead of the vectors (`∑([3; 6])·([5; 4])`).
+    /// One that reads `skip` (the unknown), or no vector but its own variable's values
+    /// (`∑_i▒k·i²` over `i = 1..5`, `∑_(k=0)^n▒…`), is left alone.
+    fn known_sums<'e>(&self, f: &'e Expr, skip: Option<&str>) -> Vec<(&'e Expr, String)> {
+        fn walk<'e>(ws: &Worksheet, e: &'e Expr, skip: Option<&str>, out: &mut Vec<(&'e Expr, String)>, depth: usize) {
+            if depth > crate::MAX_DEPTH {
+                return;
+            }
+            match e {
+                Expr::Num(_) | Expr::Name(_) | Expr::Unit(_) => {}
+                Expr::Neg(a) => walk(ws, a, skip, out, depth + 1),
+                Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => {
+                    walk(ws, a, skip, out, depth + 1);
+                    walk(ws, b, skip, out, depth + 1);
+                }
+                Expr::Call(_, args) | Expr::Apply(_, args) | Expr::Vector(args) => args.iter().for_each(|a| walk(ws, a, skip, out, depth + 1)),
+                Expr::Nary(n) if matches!(n.op, '∑' | '∏') => {
+                    let mut names = Vec::new();
+                    free_names_where(e, &|n| ws.scope.get(n).is_some(), &mut names);
+                    let known = names.iter().all(|n| Some(n.as_str()) != skip)
+                        && names.iter().any(|v| Some(v) != n.var.as_ref() && matches!(ws.scope.get(v), Some(Value::Vector(_))));
+                    match eval(e, &ws.scope, Names::Worksheet).ok().filter(|_| known) {
+                        Some(v @ Value::Scalar(_)) => {
+                            let (number, unit) = ws.auto_hinted(&v, ws.hint(e).as_deref());
+                            let shown = with_unit(&number, &unit);
+                            let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
+                            out.push((e, if bare { shown } else { format!("({shown})") }));
+                        }
+                        _ => walk(ws, &n.body, skip, out, depth + 1),
+                    }
+                }
+                Expr::Nary(n) => walk(ws, &n.body, skip, out, depth + 1),
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, f, skip, &mut out, 0);
+        out
     }
 
     /// The working of formula `f`, worth `value`, before its result: the closed form of its sums
@@ -1516,7 +1590,7 @@ impl Worksheet {
             let mut scope = self.scope.clone();
             scope.set(x, v.clone());
             let eq_ok = match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
-                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok(),
+                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
                 _ => false,
             };
             let dom_ok = match &v {
@@ -2164,6 +2238,29 @@ fn reads(expr: &Expr, x: &str) -> bool {
 }
 
 /// `Ok` when `a` and `b` are the same quantity (or vector) to within rounding.
+/// Do `a` (the value of `lhs`) and `b` (of `rhs`) differ by rounding alone, measured against
+/// their terms? A side that is zero (`0 kN·m = V·6 m − F·d`) leaves a residual like `1e−15 kN·m`
+/// where the terms are tens: an isolated unknown that satisfies the equation, not a wrong one.
+fn cancels(a: &Value, b: &Value, lhs: &Expr, rhs: &Expr, scope: &Scope) -> bool {
+    /// The largest magnitude among the terms of a sum or difference, at most 64 deep.
+    fn scale(e: &Expr, scope: &Scope, depth: usize) -> f64 {
+        match e {
+            Expr::Bin(BinOp::Add | BinOp::Sub, l, r) if depth < 64 => scale(l, scope, depth + 1).max(scale(r, scope, depth + 1)),
+            Expr::Neg(inner) if depth < 64 => scale(inner, scope, depth + 1),
+            _ => match eval(e, scope, Names::Worksheet) {
+                Ok(Value::Scalar(q)) if q.value.is_finite() => q.value.abs(),
+                _ => 0.0,
+            },
+        }
+    }
+    let (Value::Scalar(qa), Value::Scalar(qb)) = (a, b) else { return false };
+    if a.dim() != b.dim() || !qa.value.is_finite() || !qb.value.is_finite() {
+        return false;
+    }
+    let big = scale(lhs, scope, 0).max(scale(rhs, scope, 0));
+    big > 0.0 && (qa.value - qb.value).abs() <= 1e-9 * big
+}
+
 fn agree(a: &Value, b: &Value, opts: &Options) -> Result<(), CalcError> {
     let (qa, qb) = (a.quantities(), b.quantities());
     let close = |x: f64, y: f64| (x - y).abs() <= 1e-9 * x.abs().max(y.abs()).max(1e-300);

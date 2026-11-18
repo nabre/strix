@@ -1,6 +1,6 @@
 # DSA formatting
 
-> **Status:** F1–F5: the command (`design.dsa`), three versions that combine, taken off exactly; the DSA group on the Design tab, one large button per version; Atkinson Hyperlegible and Lexend in Design › Fonts, downloaded on first use; fonts embedded in `.docx` · **Last updated:** 2026-11-16 · **Change:** a DSA group on the Design tab with one large button per version, instead of a menu in Document Formatting
+> **Status:** F1–F5: the command (`design.dsa`), three versions that combine, taken off exactly; the DSA group on the Design tab, one large button per version; Atkinson Hyperlegible and Lexend in Design › Fonts, downloaded on first use; fonts embedded in `.docx`; direct italics, tabular digits and answer guides (Phase 5) · **Last updated:** 2026-11-17 · **Change:** docs brought up to date with the code (direct italics are converted and restored, tabular digits done; the Next list emptied)
 
 A test laid out for students with specific learning difficulties (DSA, *disturbi specifici
 dell'apprendimento*), from the same exercises: Design › DSA
@@ -41,7 +41,8 @@ others as they are; `{"none": true}` takes them all off; without params it says 
 It changes styles, the document's hyphenation and the exercises' series settings, never the
 text: in a master document the subdocuments' files keep their own formatting (the master's styles
 and series settings stay the master's, [master-documents.md](master-documents.md)). Italics typed
-directly on text (not from a style) stay: changing them would change the text.
+directly on text (not from a style) are shown in bold too, and given back when DSA formatting is
+taken off ([below](#direct-emphasis-and-mathematical-digits-phase-5)).
 
 ## Taken off exactly
 
@@ -76,10 +77,6 @@ table); only TrueType fonts whose licence allows embedding go in (OS/2 `fsType`)
 font once, and the system's fonts never (Word's *Do not embed common system fonts*). Fonts the
 file already embedded stay.
 
-## Next
-
-- Maths and memory: the unit expected next to each answer; tabular figures.
-
 ## Direct emphasis and mathematical digits (Phase 5)
 
 DSA formatting also converts directly italicised prose to bold, with a hidden
@@ -95,3 +92,8 @@ packages carry `w14:numSpacing`. When a problem's solution is hidden, a result
 marked for a question also supplies a guided `symbol = __________ unit` line
 before the solution, beneath its answer space. Removing Maths and memory removes
 these generated guides.
+
+## Next
+
+Nothing planned at the moment: the unit expected next to each answer (the guide line) and tabular
+figures, listed here before, are done.

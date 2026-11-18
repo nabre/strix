@@ -22,6 +22,7 @@ wordcraft-doc = { workspace = true }
 strix-calc = { workspace = true }
 strix-cad = { workspace = true }
 strix-plot = { workspace = true }
+strix-structure = { workspace = true }
 wordcraft-fonts = { workspace = true }
 wordcraft-layout = { workspace = true }
 wordcraft-render = { workspace = true }

@@ -34,6 +34,8 @@ const CHARTEX_URI: &str = "http://schemas.microsoft.com/office/drawing/2014/char
 pub(crate) const CAD_URI: &str = "urn:io.github.nabre.strix:cad";
 /// The `a:graphicData` URI of a Strix plot (`strix:plot`, its JSON source).
 pub(crate) const PLOT_URI: &str = "urn:io.github.nabre.strix:plot";
+/// The `a:graphicData` URI of a Strix structure (`strix:structure`, its JSON source).
+pub(crate) const STRUCTURE_URI: &str = "urn:io.github.nabre.strix:structure";
 /// Largest CAD source read, in bytes.
 pub(super) const MAX_CAD: usize = 8 << 20;
 

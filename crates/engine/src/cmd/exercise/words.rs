@@ -102,7 +102,7 @@ pub(super) const IT: Words = Words {
     points_rounded: "Punti arrotondati al multiplo di",
     pack_row_prefix: "Fila",
     pack_teacher_name: "Correttore_Docente",
-    synoptic_heading: "Tabella sinottica multi-variante",
+    synoptic_heading: "Tabella sinottica delle varianti",
     question_col: "Domanda",
 };
 
@@ -205,7 +205,7 @@ const DE: Words = Words {
     true_word: "Wahr",
     false_word: "Falsch",
     numeric_solution: "(numerische Lösung)",
-    grading_scale: "Notenskala",
+    grading_scale: "Notenschlüssel",
     grade_mark: "Note",
     points_rounded: "Punkte gerundet auf ein Vielfaches von",
     pack_row_prefix: "Variante",

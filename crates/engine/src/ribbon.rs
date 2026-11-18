@@ -16,11 +16,12 @@ use crate::Registry;
 
 /// The ribbon's tabs in their default order. `File` opens Backstage: it is always first and
 /// isn't part of the customizable list.
-pub const TABS: [&str; 15] = [
+pub const TABS: [&str; 16] = [
     "File",
     "Home",
     "Insert",
     "Math",
+    "Structures",
     "Teaching",
     "Draw",
     "Design",
@@ -34,7 +35,7 @@ pub const TABS: [&str; 15] = [
     "Help",
 ];
 /// Tabs that come up with the selection; custom tabs can't take their names.
-pub const CONTEXTUAL_TABS: [&str; 13] = [
+pub const CONTEXTUAL_TABS: [&str; 14] = [
     "Header & Footer",
     "Table Design",
     "Table Layout",
@@ -48,6 +49,7 @@ pub const CONTEXTUAL_TABS: [&str; 13] = [
     "CAD Picture Format",
     "Exercise",
     "Series",
+    "Structure Editor",
 ];
 /// The Quick Access Toolbar's commands until the user changes them.
 pub const DEFAULT_QAT: [&str; 3] = ["file.save", "edit.undo", "edit.redo"];

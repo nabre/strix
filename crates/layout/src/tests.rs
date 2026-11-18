@@ -8051,6 +8051,7 @@ fn graphic_items_scale_with_their_frame() {
         smart_art: None,
         cad: None,
         plot: None,
+        structure: None,
         svg: None,
     };
     let obj = InlineObject::Graphic { w: 500.0, h: 250.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) };

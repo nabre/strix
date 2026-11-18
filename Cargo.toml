@@ -5,7 +5,7 @@ members = ["crates/*", "apps/*", "xtask"]
 default-members = ["crates/*", "apps/strix", "apps/strix-cli", "xtask"]
 
 [workspace.package]
-version = "0.25.0"
+version = "0.26.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
@@ -17,6 +17,7 @@ wordcraft-geom = { path = "crates/geom" }
 strix-calc = { path = "crates/calc" }
 strix-cad = { path = "crates/cad" }
 strix-plot = { path = "crates/plot" }
+strix-structure = { path = "crates/structure" }
 wordcraft-doc = { path = "crates/doc" }
 wordcraft-fonts = { path = "crates/fonts" }
 wordcraft-layout = { path = "crates/layout" }

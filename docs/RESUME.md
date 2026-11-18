@@ -1,15 +1,36 @@
 # Resume notes
 
-Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next** first.
+Last updated 2026-11-18 (v0.26.0 prepared, docs brought up to date). Read **Current state**, **In progress** and
+**Next** first. The sections below Current state are the session notes up to 2026-10-28; what
+landed since is in the [progress log](../ROADMAP.md#progress-log), dated, one entry per change.
 
-## Done
+## Current state (2026-11-18)
+- Version 0.26.0 on `main` (`[workspace.package] version`); releases go through Promote and the
+  Release workflow on the `release` branch ([releasing.md](releasing.md)).
+- Strix's own features, each with its document: calculations with units, calculated tables with
+  their contextual tab, derivatives, integrals and the Equation tab's structures, Variables pane
+  ([calc.md](calc.md)); exercises with the contextual Exercise and Series tabs, the Question
+  Settings, Exercise Data and Grading Scale Properties panes, variants and the variant generator,
+  scores table, grading scale, pre-flight check and assessment pack ([exercise.md](exercise.md),
+  [question-modes.md](question-modes.md)); master documents ([master-documents.md](master-documents.md));
+  the archive and Exercise Bank ([archive.md](archive.md)); DSA formatting, its own group on the
+  Design tab ([dsa.md](dsa.md)); graph paper ([graph-paper.md](graph-paper.md)); CAD drawings and
+  their editor ([cad.md](cad.md)); plots ([plot.md](plot.md)); plane structures, the Structures
+  tab, dimensions and stations, the full-page Structure Editor, the written working that follows
+  the structure, the Structure Exercise and the report/exercise modes ([structures.md](structures.md)); Strix
+  objects kept through Word ([word-round-trip.md](word-round-trip.md)).
+- Next: see ROADMAP.md (**Next**) and each feature document's Next section.
+
+## Done (session notes to 2026-10-28)
 - WordCraft → Strix rename; upstream notices kept; NOTICE Modifications section; ArtCraft brand
   files removed (their licence requires forks to remove them).
 - New icon, Atollo palette in `theme::Tokens` (contrast tests pass).
 - Updates: Strix checks nabre/strix releases at start and offers them (docs/updates.md).
 - i18n catalogs in `locales/`, Italian complete; OS language followed (`auto`).
-- Native files: Strix saves only `.xmath`/`.xmathm`; every other editable format is import-only;
-  static exports PDF, PNG, LaTeX, HTML, Markdown (`io::EXPORT_EXTS`, `io::check_writable`).
+- Native files: `.xmath`/`.xmathm`; since 2026-10-29 a document opened from `.docx`, `.odt`,
+  `.rtf`… saves back to it while it has no Strix objects, and Word documents keep Strix objects
+  through content controls ([word-round-trip.md](word-round-trip.md)); static exports PDF, PNG,
+  LaTeX, HTML, Markdown (`io::EXPORT_EXTS`, `io::check_writable`, `strix_objects::check_save`).
 - Live calculations (docs/calc.md): `strix-calc`; `calc.insert`, `calc.recalculate`,
   `calc.variables`, `equation.calc` (Calculate button `=` beside the equation frame),
   `calc.newEquations` (default on); recalculation on leaving a calculated equation and on F9;
@@ -40,7 +61,9 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   `tests::ime_body_epoch_marks_body_replacements_not_edits` is flaky under the parallel run
   (passes alone). Timing tests (`a_megabyte_long_word_lays_out_quickly`, docx
   `content_control_save_cost`) can fail on a loaded machine. Skip them with `--skip`.
-- GitHub workflows (2026-10-28): CI gate (`gate.yml`, Rust 1.99, craft-fonts) and Printing
+- GitHub workflows: the current flow is in [releasing.md](releasing.md) (`ci.yml`, Printing,
+  Promote, Release, Site, Dependencies with cargo-deny); the notes from 2026-10-28 follow.
+  Then: CI gate (`gate.yml`, Rust 1.99, craft-fonts) and Printing
   (Linux/Windows/macOS UI tests) run on every push to `main`; Windows ARM64 and FreeBSD run
   nightly (FreeBSD's last failure was the non-UTF-8 save test fixed in `a162494`); Packaging
   lint on packaging changes; Release only on the `release` branch and needs the signing
@@ -66,7 +89,8 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
 - CAD stage 2: drawings in the document (`GraphicKind::Cad`, `insert.cad`, `cad.get/set/add`),
   redrawn with the calculations in reading order, `.xmath` round trip; units in the Unit style.
 - Solution steps under formulas and solved equations (`calc.steps`); a unit after a number is
-  always the unit; Exercise Properties pane (data, variants); nested questions and notes.
+  always the unit; Exercise Properties pane (data, variants; replaced on 2026-11-14 by the Exercise
+  and Series tabs and later by panes beside the document); nested questions and notes.
 
 - CAD editor: AutoCAD selection (click adds, Shift removes, window, lasso, fence, polygons,
   previous, undo, Shift+Space cycling), right-click menu, Properties pane (families, stepping,
@@ -181,9 +205,8 @@ Last updated 2026-10-28. Branch `main` (pushed). Read **In progress** and **Next
   versions (their new APIs would mean rewriting upstream code: fonts, docx/formats XML, render,
   pdf tests) and Dependabot ignores their minor/major updates. Take them when upstream does.
 - SonarCloud: owner's organization, project and `SONAR_TOKEN` (see Known).
-- CAD: constraints and driving dimensions (stage 5); fillet/chamfer of arcs and polylines;
-  linear-auto dimensions, extension modes, associative ends, marks per end; input units (`2.5 m` typed); entity names and measures for the
-  calculations; point styles (docs/cad-parity.md, Order of work).
-- Calc: Variables pane, unit picker, systems of equations across regions, plots; number format
-  per document (now a preference).
+- CAD: constraints and driving dimensions (stage 5); joining arcs and polylines in fillets;
+  linear-auto dimensions, extension modes, associative ends, marks per end; entity names and
+  measures for the calculations; point styles (docs/cad.md, docs/cad-parity.md, Order of work).
+- Calc: systems of equations across regions, matrix arithmetic (docs/calc.md, stages).
 - Screenshots in `docs/images/` show the old WordCraft UI; regenerate with `ui_shot`.

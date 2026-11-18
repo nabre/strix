@@ -181,7 +181,7 @@ pub fn teaching_sample(paper: Document) -> Result<Document, CmdError> {
         para("Physics and geometry test", Some("Title")),
         para("Second year · Motion and areas · 50 minutes", Some("Subtitle")),
         para(
-            "A sample test made with Strix. Every result is a live calculation: choose variant B in Teaching › Exercise › Properties and the data, the solutions, the drawing and the results summary follow. Turn off Teaching › Exercise › Show › Solution for the students' copy: the answers hide and the spaces keep their height.",
+            "A sample test made with Strix. Every result is a live calculation: with the cursor in an exercise, choose variant B on the Exercise tab (Calculation › Variant) and the data, the solutions, the drawing and the results summary follow. Turn off Exercise › Layout › Show › Solution for the students' copy: the answers hide and the spaces keep their height.",
             None,
         ),
     ]

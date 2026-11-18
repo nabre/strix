@@ -98,7 +98,10 @@
       <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
       <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
       <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
-      <article class="tile wide"><span class="tile-n">09 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
+      <article class="tile"><span class="tile-n">09 · {{f10Kicker}}</span><h3>{{f10Title}}</h3><p>{{f10Text}}</p></article>
+      <article class="tile"><span class="tile-n">10 · {{f11Kicker}}</span><h3>{{f11Title}}</h3><p>{{f11Text}}</p></article>
+      <article class="tile"><span class="tile-n">11 · {{f12Kicker}}</span><h3>{{f12Title}}</h3><p>{{f12Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">12 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
       <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
     </div>
   </div>
@@ -188,6 +191,30 @@
   </div>
 </section>
 
+<!-- Plane structures -->
+<section id="structures">
+  <div class="wrap show flip">
+    <div>
+      <div class="eyebrow">{{structEyebrow}}</div>
+      <h2>{{structTitle}}</h2>
+      <p class="intro">{{structIntro}}</p>
+      <ul class="points">
+        <li>{{struct1}}</li>
+        <li>{{struct2}}</li>
+        <li>{{struct3}}</li>
+        <li>{{struct4}}</li>
+        <li>{{struct5}}</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-structure-dark.png">
+        <img src="{{root}}assets/shots/{{lang}}/shot-structure-light.png" alt="{{shotStructureAlt}}" width="1440" height="900" loading="lazy">
+      </picture>
+    </figure>
+  </div>
+</section>
+
 <!-- Agents -->
 <section id="agents">
   <div class="wrap">
@@ -214,7 +241,7 @@ strix-cli run --template test \
   --save test-b.xmath
 strix-cli commands</pre>
         <ul class="chips" aria-label="{{agCalcLabel}}">
-          <li>calc.insert</li><li>calc.recalculate</li><li>calc.variables</li><li>calc.steps</li><li>table.calc</li><li>exercise.insert</li><li>equation.answer</li><li>insert.cad</li><li>cad.set</li>
+          <li>calc.insert</li><li>calc.recalculate</li><li>calc.variables</li><li>calc.steps</li><li>table.calc</li><li>exercise.insert</li><li>exercise.grading</li><li>equation.answer</li><li>insert.cad</li><li>cad.set</li><li>plot.insert</li><li>structure.insert</li><li>structure.working</li><li>file.exportPack</li>
         </ul>
       </div>
     </div>

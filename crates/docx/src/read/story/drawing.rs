@@ -70,7 +70,7 @@ impl Reader<'_> {
             // Kept so saving writes the chart or diagram back: the frame around it is written
             // from the object's (possibly moved or resized) size and position.
             let extra: Vec<String> = match kind {
-                GraphicKind::Chart | GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot => Vec::new(),
+                GraphicKind::Chart | GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot | GraphicKind::Structure => Vec::new(),
                 GraphicKind::Diagram => self.diagram_drawing_rel(gd, rels).into_iter().collect(),
             };
             let source = c.child("a:graphic").and_then(|g| self.keep_embedded(g, rels, &extra));
@@ -149,6 +149,14 @@ impl Reader<'_> {
                 .map(|s| Arc::new(Graphic { kind: GraphicKind::Plot, w, h, plot: Some(s.into()), ..Default::default() }));
             return Some(g);
         }
+        if uri == super::STRUCTURE_URI {
+            let g = gd
+                .child("strix:structure")
+                .map(|e| e.text())
+                .filter(|t| t.len() <= MAX_CAD)
+                .map(|s| Arc::new(Graphic { kind: GraphicKind::Structure, w, h, structure: Some(s.into()), ..Default::default() }));
+            return Some(g);
+        }
         // A picture carrying a drawing's source part: the drawing (its SVG is only for others).
         let ext_lst = gd.find("pic:cNvPr").and_then(|p| p.child("a:extLst"))?;
         if let Some(ext) = ext_lst.children("a:ext").find(|e| e.attr("uri") == Some(CAD_URI)) {
@@ -171,6 +179,17 @@ impl Reader<'_> {
                 .filter(|b| b.len() <= MAX_CAD)
                 .and_then(|b| std::str::from_utf8(b).ok())
                 .map(|s| Arc::new(Graphic { kind: GraphicKind::Plot, w, h, plot: Some(s.into()), ..Default::default() }));
+            return Some(g);
+        }
+        if let Some(ext) = ext_lst.children("a:ext").find(|e| e.attr("uri") == Some(super::STRUCTURE_URI)) {
+            let g = ext
+                .child("strix:structure")
+                .and_then(|c| c.attr("r:id"))
+                .and_then(|id| crate::read::part_of(rels, id, crate::package::rt::STRIX_STRUCTURE))
+                .and_then(|part| self.pkg.get_shared(&part))
+                .filter(|b| b.len() <= MAX_CAD)
+                .and_then(|b| std::str::from_utf8(b).ok())
+                .map(|s| Arc::new(Graphic { kind: GraphicKind::Structure, w, h, structure: Some(s.into()), ..Default::default() }));
             return Some(g);
         }
         None
@@ -291,10 +310,22 @@ impl Reader<'_> {
         let part = match kind {
             GraphicKind::Chart => gd.child("c:chart").and_then(|c| c.attr("r:id")).and_then(|id| crate::read::part_of(rels, id, rt::CHART)),
             GraphicKind::Diagram => self.diagram_part(gd, rels),
-            GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot => None,
+            GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot | GraphicKind::Structure => None,
         };
         let Some(path) = part else {
-            return Arc::new(Graphic { kind, items: Vec::new(), w, h, source, chart: None, smart_art: None, cad: None, plot: None, svg: None });
+            return Arc::new(Graphic {
+                kind,
+                items: Vec::new(),
+                w,
+                h,
+                source,
+                chart: None,
+                smart_art: None,
+                cad: None,
+                plot: None,
+                structure: None,
+                svg: None,
+            });
         };
         let key = (kind, path, w.to_bits(), h.to_bits());
         if let Some(g) = self.graphics.get(&key) {
@@ -313,7 +344,7 @@ impl Reader<'_> {
             _ => None,
         };
         let source = if chart.is_some() || smart_art.is_some() { None } else { source };
-        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art, cad: None, plot: None, svg: None });
+        let g = Arc::new(Graphic { kind, items, w, h, source, chart, smart_art, cad: None, plot: None, structure: None, svg: None });
         self.graphics.insert(key, g.clone());
         g
     }
@@ -326,7 +357,7 @@ impl Reader<'_> {
                 None => Vec::new(),
             },
             GraphicKind::Diagram => self.diagram_drawing(path, w, h),
-            GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot => Vec::new(),
+            GraphicKind::Ink | GraphicKind::Cad | GraphicKind::Plot | GraphicKind::Structure => Vec::new(),
         }
     }
 

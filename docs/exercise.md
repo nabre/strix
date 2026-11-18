@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** stage 1 done: three kinds (problem, open answer, multiple choice) and question modes (calculation, CAD drawing: question-modes.md), structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise, a grip to delete an exercise · **Last updated:** 2026-11-12 · **Change:** question modes per question, calculation and CAD drawing questions ([question-modes.md](question-modes.md)); previously: open-answer and multiple-choice exercises (`exercise.insert {"kind"}`, `exercise.questions`): a statement only when wanted, a lone question unlettered, an answer space in cm (squared or blank), options with check boxes on the correct ones (more than one, True/False), points per question shown and added up in the scores table, the answers shown or hidden with the Solution; previously: the generated words in English, Italian, German and French only (Spanish dropped), a language without its own keeps the exercise's words instead of turning English, three-letter tags and Swiss German recognised, the scores table's default criterion follows the language; previously: a scores table (`exercise.scores`); the Teaching tab; the frontispiece is ended by a Frontispiece Break (no control or placeholder); in a master document the series' settings, numbering and styles stay the master's and the files keep their own; hidden parts start no page; previously: numbering has a separator after the number (`.` `:` `-` `)` or a space); the title's paragraph style can't be changed; placeholders come back whenever a part is emptied, Backspace/Delete never join two parts; exercises in a master document's subdocuments follow the master (styles, one summary, the series); previously: in a series every exercise has the first one's page breaks, parts shown and graph paper, brought back in line automatically; a grip in the margin with Select, Properties and Delete Exercise; previously: Exercise Properties in two tabs, Exercise and Series (one tab for a lone exercise); previously: a lone exercise has no number; parts shown (solution, results) and graph paper per exercise, ruled by the series; a frontispiece; the Exercise group reorganised (Show, Frontispiece; Update Summary and Numbering left to Properties and command search); previously: page breaks
+> **Status:** done: three kinds (problem, open answer, multiple choice) and question modes ([question-modes.md](question-modes.md)), structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise; the contextual Exercise and Series tabs with the Question Settings and Exercise Data panes beside the document; data as equations, variants, inline values, the variant generator; scores table, total score, grading scale, pre-flight check and assessment pack · **Last updated:** 2026-11-17 · **Change:** docs brought up to date with the code (status, the Teaching tab's groups, the commands table, Next); the history of earlier changes is under [Revision history](#revision-history)
 
 An **exercise** (Teaching › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -20,7 +20,7 @@ deleted; the automatic parts can't be edited):
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own, **starting again at a) in every exercise** (a copy of an exercise pasted into the same document gets lists of its own too, for its questions and their options), and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
 | Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
-| Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
+| Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises**; each result is written as an equation (subscripts built up, units upright in the unit colour, as the calculations show them: *a) V<sub>B</sub> = 14.075 kN*), not a calculation; several results of one question side by side with `; `; a warning or *risultato non indicato* stays text |
 
 **Editing keeps the structure.** Backspace and Delete never join a paragraph across the edge of
 a part (the statement into the title, a question into the statement, the title into the paragraph
@@ -191,7 +191,8 @@ graph paper (below). No exercise of a series can differ:
   paper you wrote on keeps its text);
 - deleting the first exercise changes nothing: the next one already has the same settings.
 
-Two **contextual ribbon tabs** hold every setting (there is no side pane): **Exercise**, shown
+Two **contextual ribbon tabs** hold every setting (there is no Exercise Properties pane any
+more; the Question Settings and Exercise Data panes open from the Exercise tab): **Exercise**, shown
 with the cursor in an exercise, for that exercise alone (questions, first line, duration,
 variants and data), and **Series**, shown whenever the document has more than one exercise,
 wherever the cursor is, for every exercise (the exercises to go to or delete, numbering, parts
@@ -359,11 +360,14 @@ dots to fill in by hand (`/ ..... pt`). Total Score again (`"on": false`) remove
 
 ## The Teaching tab
 
-The **Teaching** tab (Didattica) gathers what is for teaching: the Exercise group (New Exercise,
-questions and notes, Result Of, Show, Frontispiece, Properties, Delete Exercise), the Scores group
-(Scores Table, Add Criterion, Remove Criterion, Grading Scale, Total Score) and Graph Paper (also in Insert › Pages).
-Inline Expression is no longer on the ribbon (`exercise.insertExpr` stays for scripts and
-`{{expr}}` templates).
+The **Teaching** tab (Didattica) gathers what is for teaching: the **Exercise** group (New
+Exercise with its menu of kinds, **Exercise Tools**, which brings up the Exercise tab or, outside
+the exercises, the Series tab, and Frontispiece; everything else about an exercise is on the
+contextual tabs below), **Archive** (Exercise Bank, [archive.md](archive.md)), **Scores** (Scores
+Table, Add Criterion, Remove Criterion, the **Grading Scale** menu, Total Score), **Assessment**
+(Check Assessment, Export Pack: [below](#grading-scale-strixgrading-variant-generator-pre-flight-check--assessment-pack))
+and **Graph Paper** (also in Insert › Pages). Inline Expression is not on the ribbon
+(`exercise.insertExpr` stays for scripts and `{{expr}}` templates).
 
 ## The Exercise and Series tabs
 
@@ -509,6 +513,18 @@ to the end.
 | `exercise.setData` | replace the data and variants (`{"exercise"?, "data": {"items", "variants", "active"}}`) |
 | `exercise.variant` | make a variant the active one (`{"exercise"?, "active"}`) |
 | `exercise.inlineValue` | the inline value at the caret (`{"expr", "show", "shown", "blank"}`); change it with `{"expr"?, "show"?: "value" \| "both" \| "number"}`, delete it with `{"remove": true}` |
+| `exercise.titleLine` | the first line holds a title or the statement (`{"line": "title" \| "statement"}`; Remove Title / Show Title) |
+| `exercise.questionMode` | change a quiz question's mode in place, keeping its text, points and answer settings ([question-modes.md](question-modes.md)) |
+| `exercise.questionPoints` | set or clear a question's points, in quizzes and problems |
+| `exercise.blank` | Hide Words: an inline completion's hidden word ([question-modes.md](question-modes.md)) |
+| `exercise.insertExpr` | insert an inline value (`{{expr}}`) at the caret |
+| `exercise.generateVariants` | generate clean variants from domains and constraints (below) |
+| `exercise.totalScore` | the total score line (`{"on"?, "points"?}`) |
+| `exercise.grading` | the grading scale table and its settings (below) |
+| `exercise.check` | the pre-flight check of the assessment (below) |
+| `file.exportPack` | export the assessment pack (below) |
+| `view.gradingPane` | show or hide the Grading Scale Properties pane |
+| `view.checkPane` | show or hide the pre-flight check pane (Teaching › Assessment › Check Assessment) |
 | `view.questionsPane` | show or hide the Question Settings pane (`{"value"?: bool}`): the questions of the exercise at the cursor, each with its settings on its row |
 | `view.dataPane` | show or hide the Exercise Data pane (`{"value"?: bool}`): the data and variants of the exercise at the cursor |
 | `view.exercisePane` | bring up the Exercise tab (the Series tab with the cursor outside the exercises) |
@@ -516,19 +532,21 @@ to the end.
 ## Next
 
 - A results table per exercise (question, symbol, value, unit) and a check against expected
-  values; a summary per variant; statement data recalled into the solution as values.
-- Solution steps (substitution, isolation lines) per result.
+  values; a summary per variant in the document (the assessment pack's Teacher Key already has a
+  synoptic table of every variant); statement data recalled into the solution as values.
+
+(Worked steps under a result, listed here before, are calc's Show Steps: [calc.md](calc.md).)
 
 ## Grading scale (`strix:grading`), variant generator, pre-flight check & assessment pack
 
 - The grading table has one row per grade of the grid — from the lowest to the highest grade by the grade step (e.g. 1–10 by 0.5) — and one pair of columns: the points that earn the grade, then the grade. Each grade's points are worked out exactly from the curve (decimals included) and rounded to a multiple (`pointsRound`, e.g. 0.25 or 0.5; hundredths when unset); the grade is earned from its points (included) to the next grade's points (excluded), written as a half-open interval `[12; 14[` (the bracket of the excluded end turned outward) (`;` between the ends with decimal commas, `,` otherwise). The lowest grade starts at 0, the highest is earned with full points (shown alone), and a grade no points earn once rounded (the multiple coarser than its share) shows a dash. The numbers line up: each end of the interval and the grade sit in sub-columns split at the decimal separator (whole part right-aligned, fraction left-aligned, the `;` and the brackets in columns of their own) with no borders between them, so nothing shows on the page or in print. The table is as narrow as its content and centred, and a line under it says how the points are counted ("Punti arrotondati al multiplo di 0,25."). Laying it out side by side is done with page columns; its heading row repeats on every page the table runs onto.
 
 - **Grading Scale Properties** (`Teaching › Scores › Grading Scale › Grading Scale Properties`, `view.gradingPane`): a pane with every property — preset, lowest and highest grade, grade step, curve, pass threshold (%) and pass grade, maximum points from the document's points or fixed, the multiple the points are rounded to, who sees it — and a preview of the scale (pass grades green); Insert or Remove the table. Each change is one `exercise.grading`.
-- **Grading Scale** (`Teaching › Scores › Grading Scale`, `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, grade step (`step`: `0.1`, `0.25`, `0.5`, `1.0`…), points rounded to a multiple (`pointsRound`, `null` = hundredths), and `visibility` (`"teacher"` or `"both"`).
+- **Grading Scale** (`Teaching › Scores › Grading Scale`, a menu: Show Grading Scale, the presets by country, Grading Scale Properties; `exercise.grading`): inserts or updates a `strix:grading` conversion table bound automatically to the `strix:scores` grand total (`maxPoints: null`) or an explicit cap, with school presets (`it-10`, `ch-6`, `de-6` inverted 6→1, `fr-20`, `percent`, `custom`), `linear` or `piecewiseLinear` curve through `(passRatio, passGrade)`, grade step (`step`: `0.1`, `0.25`, `0.5`, `1.0`…), points rounded to a multiple (`pointsRound`, `null` = hundredths), and `visibility` (`"teacher"` or `"both"`).
 - **Continuous validation across all variants** (`exercise.data` `"variantErrors"`): evaluates every variant `A..Z` in memory (sandbox calculations, CAD `Drawing::resolve` and degenerate geometry, and duplicate evaluated multiple-choice options) without mutating the document, showing `⚠` badges and tooltips in the Exercise tab's Variant list.
 - **Controlled variant generator** (`exercise.generateVariants`, Exercise tab › Calculation › *Generate Variants*): deterministically generates `count` clean variants within a bounded budget (`5,000` candidate evaluations) from discrete lists or `[min, max, step]` domains and result constraints (`maxDecimals`, `positiveResults`, `distinctFinalResults`, and `extra` predicates such as `L > b`).
 - **Inline parametric expressions** (`exercise.insertExpr`, `strix:expr`, `{{expr}}` / `{{expr -> unit}}`): evaluated live in the exercise's sandbox (in statements, questions, and multiple-choice options) with units styled in `Unit`.
-- **Assessment pre-flight check** (`Teaching › Assessment › Check Assessment`, `view.checkPane`, `exercise.check`): pure diagnostic command inspecting all variants `A..Z`, choice keys and option collisions, linked subdocuments, unused initial data, missing solutions, score totals, laid-out answer heights, durations, and variant page counts, with click-to-jump positions.
+- **Assessment pre-flight check** (`Teaching › Assessment › Check Assessment`, which shows or hides the check pane, `view.checkPane`; `exercise.check`): pure diagnostic command inspecting all variants `A..Z`, choice keys and option collisions, linked subdocuments, unused initial data, missing solutions, score totals, laid-out answer heights, durations, and variant page counts, with click-to-jump positions.
 - **Assessment Pack batch export** (`Teaching › Assessment › Export Pack`, `file.exportPack`): exports in one step (folder or `.zip` on desktop, `.zip` download on `strix-web`) the Student PDF per variant (`Show = false`), the DSA Student PDF per variant (`design.dsa` active), and the Teacher Key PDF (`Show = true`, worked solutions, grading scale, and final **Multi-Variant Synoptic Table**).
 
 ## Templates
@@ -549,6 +567,8 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
+
+- 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
 
 - 2026-11-17: fixes found in a review: the scores table's points stay with their exercise when another is deleted or inserted (they followed the row's number); Add Note is disabled until the exercise has a question; a datum's description may hold an `=`; the grading scale's `effectiveMaxPoints` is the maximum the scale is built on (0.5 to 10 000); Hide Words (`exercise.blank` without `expr`) refuses a selection over 200 characters, never hiding a part of it, and one in a question repeated in the solution.
 - 2026-11-16: the Question Settings pane has every question's and sub-question's settings on its own row (a quiz question's type, the points), sub-questions indented, instead of one card at the end for the question chosen; what a quiz question's type has opens under its row.

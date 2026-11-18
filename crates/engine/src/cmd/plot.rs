@@ -440,6 +440,24 @@ pub(crate) fn items_of(r: &PlotRendered, body_font: &str) -> (f32, f32, Vec<Grap
                     stroke_width: stroke.map_or(0.0, |(_, w)| pt(w).max(0.25)),
                 });
             }
+            PlotPrim::TextAt { at, text, height, angle, color } => {
+                // Centred on `at`, so turning the box about its centre turns it about `at`.
+                let size = (pt(*height) * CAP_TO_EM).clamp(4.0, 72.0);
+                let w = measure(body_font, false, text, size).max(size * 0.5) + 2.0;
+                let h = size * 1.25;
+                let angle = if angle.is_finite() { (*angle % 360.0) as f32 } else { 0.0 };
+                items.push(GraphicItem::Text {
+                    rect: [pt(at.0) - w * 0.5, pt(at.1) - h * 0.5, w, h],
+                    text: text.clone(),
+                    size,
+                    color: rgb(*color),
+                    bold: false,
+                    italic: false,
+                    align: TextAlign::Center,
+                    font: None,
+                    angle,
+                });
+            }
             PlotPrim::Text { at, text, height, bold, anchor, color } => {
                 let size = (pt(*height) * CAP_TO_EM).clamp(4.0, 72.0);
                 let w = measure(body_font, *bold, text, size).max(size * 0.5);

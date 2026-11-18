@@ -1,10 +1,10 @@
 # Question modes
 
-> **Status:** stage 1 done: a mode per question (open, multiple choice, true/false, calculation,
-> CAD drawing), mixed in one quiz; stages 2–4 planned · **Last updated:** 2026-11-13 · **Change:**
-> new: the teaching side structured as question modes; calculation (worked in a squared space,
-> result line `A = ______ cm²` from the exercise's data and variants) and CAD drawing (the
-> solution's drawing hidden in the students' copy) questions.
+> **Status:** a mode per question (open, multiple choice, true/false, calculation, CAD drawing,
+> worked example, inline completion, matching), mixed in one quiz; figures to complete through
+> the CAD drawing's answer layers and entities · **Last updated:** 2026-11-17 · **Change:** docs
+> brought up to date with the code (the planned stages that landed moved out of Next; the Show
+> Solution path).
 
 Strix's teaching side is built for **assessment moments** (*momenti di valutazione*): tests,
 classwork, homework, a worked example handed out before them. The unit is the **exercise**
@@ -21,8 +21,8 @@ Every mode answers the same three questions:
 | what the teacher prepares | — | the answer, the working, the drawing | results summary |
 | what stays identical | the page layout: the space keeps its height | | |
 
-So the teacher prepares **one** file; Teaching › Exercise › Show › Solution switches between the
-two copies, and in a master document the series decides for every exercise (docs/exercise.md, In
+So the teacher prepares **one** file; Exercise › Layout › Show › Solution (the Series tab's in a
+series, `exercise.show {"solution"}`) switches between the two copies, and in a master document the series decides for every exercise (docs/exercise.md, In
 a master document).
 
 ## The modes
@@ -113,16 +113,17 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 
 ## Next
 
-- **Stage 2 — Worked example** (*esempio svolto*): an exercise shown as a model before the
-  others: numbered on its own (*Esempio 1*), its solution always shown, also in the students'
-  copy, outside the scores table and the results summary.
-- **Stage 3 — Figure to complete**: a CAD drawing given in the question with some parts
-  (dimensions, sides, labels) marked as the answer: hidden in the students' copy, shown in the
-  corrected one. Needs a per-entity "answer" flag in the drawing (crates/cad).
-- **Stage 4 — More closed modes**: fill in the blanks (*completamento*, blanks inline in the
-  question's text), matching (*abbinamento*, two columns), ordering. Each keeps the two-copies
-  rule and gives its line to the summary.
-- **Multiple choice**: parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor rationales (`strix:rationale`), and deterministic per-variant option permutation (`shuffleChoices: true`) are supported via `exercise.questions` and the Exercise tab's Question Settings.
+- **Ordering** (*ordinamento*): items to put in order, keeping the two-copies rule and giving its
+  line to the summary.
+- A worked example numbered on its own (*Esempio 1*) instead of in the exercises' numbering.
+
+Landed from the stages planned here: the **worked example** (`worked`: its solution always shown,
+no points, no row in the scores table), **inline completion** and **matching** (below, Laboratory
+and completion questions), and the **figure to complete** (a CAD drawing whose answer layers or
+entities are hidden in the students' copy: [cad.md](cad.md), Completion drawings).
+**Multiple choice** has parametric options (`{{expr}}` / `strix:expr`), teacher-only distractor
+rationales (`strix:rationale`) and a deterministic per-variant option permutation
+(`shuffleChoices: true`), via `exercise.questions` and the Question Settings pane.
 
 ## Commands
 
@@ -135,6 +136,8 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
 | `exercise.questions` | sets/reports `"type"`, `"points"`, `"tolerance"` (for `calc`, e.g. `"2%"` or `"0.1 cm"`, shown as an interval on the teacher copy), `"shuffleChoices"` and `"rationales"` (for `choice`), plus `"line"`, `"result"`, `"workingPos"`, `"scale"`, `"cadSelect"` |
 
 ## Revision history
+
+- 2026-11-17: Docs brought up to date with the code: the status line; Next keeps only what is still planned (ordering, a worked example's own numbering), the worked example, inline completion, matching and figures to complete listed as landed; Show › Solution is on the Exercise and Series tabs.
 
 - 2026-11-16: every open answer gives a line in the results summary (*domanda a risposta aperta*), also when an exercise or the whole document has open answers alone (no summary before), so that no part is forgotten when correcting.
 - 2026-11-13: one result line per result (the values the working doesn't use afterwards), right-aligned in columns that line up at the `=`, 1 cm apart for handwriting 8 mm tall; the corrected copy writes the value on the line, underlined.
@@ -152,7 +155,7 @@ answer: it goes in the statement or among the questions as an ordinary CAD drawi
   points are always unset. An exercise containing only worked examples has no
   row in the scores table.
 - `cloze`: inline completion — a text with gaps (*testo bucato*) the students fill in by hand.
-  - **Hidden words**: select words inside an exercise and click Exercise › Questions › Hide
+  - **Hidden words**: select words inside an exercise and click Exercise › Inline Completion › Hide
     Words (`exercise.blank` with no `expr`), or type `[[word]]` in an inline completion
     question. Elsewhere `[[…]]` stays as typed, and so does one holding brackets (a list
     `[[1, 2], [3, 4]]`) or inside another control. The corrected copy shows the words; the

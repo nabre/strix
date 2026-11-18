@@ -1,7 +1,8 @@
 name: CI
 
-# Quality gates for every push to main and every pull request (`cargo xtask ci`), through the
-# suite's shared gate workflow in craft-common-actions. A push to main whose code a PR already
+# Quality gates for every push to main and every pull request (`cargo xtask ci`, split into a
+# test leg and a lint leg that run in parallel), through the suite's shared gate workflow in
+# craft-common-actions. A push to main whose code a PR already
 # passed doesn't run them again (tested-tree.yml); a draft PR, or one that changes only
 # documentation, doesn't run them at all (pr-scope.yml).
 on:
@@ -48,6 +49,13 @@ jobs:
     # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:
+      # Two legs side by side instead of one long one: `gate` builds and runs the tests,
+      # `lint` the check-mode builds (fmt, clippy, the wasm check), each with its own cache.
+      command: cargo xtask ci --no-lint
+      lint-command: cargo xtask ci --lint
+      # The workspace crates' compiled libraries, which the dependency cache leaves out, in an
+      # sccache cache that runs on main write and pull requests read.
+      sccache: true
       # Same craft-fonts commit as release.yml.
       craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
       packages: >-

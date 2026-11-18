@@ -2445,9 +2445,9 @@ paper	Envelope DL	Enveloppe DL
 	Add a note between the questions: free text that is not a question	Ajouter une note entre les questions : texte libre qui n’est pas une question
 	Add a period with double-space	Ajouter un point avec un double espace
 	Add a question at the end of the exercise at the cursor	Ajouter une question à la fin de l’exercice sous le curseur
-	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Ajouter une question imbriquée sous la dernière (a.1, a.1.1) ; Tab et Maj+Tab changent le niveau d’une question
+	Add a question nested under the last one (a.1, a.1.1); Tab and Shift+Tab change a question's level	Ajouter une question imbriquée sous la dernière (a.1, a.1.1) ; Tab et Maj+Tab changent le niveau d’une question
 	Add a variant: a copy of the active one's values	Ajouter une variante : une copie des valeurs de la variante active
-	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Ajouter une donnée : une équation comme L = 4.5 m, avec sa valeur dans chaque variante
+	Add a datum: an equation such as L = 4.5 m, with its value in every variant	Ajouter une donnée : une équation comme L = 4.5 m, avec sa valeur dans chaque variante
 	Add to CAD Drawing	Ajouter au dessin CAO
 	Advanced Properties…	Propriétés avancées…
 	Aligned texts	Textes alignés
@@ -2456,7 +2456,7 @@ paper	Envelope DL	Enveloppe DL
 	An array has	Un réseau a
 	Apply to all exercises	Appliquer à tous les exercices
 	As the grid lines	Comme les lignes de la grille
-	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	L’enregistrement automatique ne conserve que les documents Strix (.xmath) ; {name} est dans un autre format. Enregistrez au format .xmath pour activer l’enregistrement automatique.
+	AutoSave only keeps Strix documents (.xmath); {name} is in another format. Save as .xmath to turn on AutoSave.	L’enregistrement automatique ne conserve que les documents Strix (.xmath) ; {name} est dans un autre format. Enregistrez au format .xmath pour activer l’enregistrement automatique.
 	Automatic (Decimals, Significant Below 1)	Automatique (décimales, chiffres significatifs sous 1)
 	Automatic updates are not available yet. New versions are published at {url}	Les mises à jour automatiques ne sont pas encore disponibles. Les nouvelles versions sont publiées sur {url}
 	Automatically add words to list (First Letter)	Ajouter automatiquement les mots à la liste (première lettre)
@@ -2490,7 +2490,7 @@ paper	Envelope DL	Enveloppe DL
 	Continue without restoring	Continuer sans restaurer
 	Coordinates take a number or an expression of the calculations (L/2)	Les coordonnées acceptent un nombre ou une expression des calculs (L/2)
 	Could not check for updates:\n{error}	Impossible de rechercher les mises à jour :\n{error}
-	Couldn't save {name}, so it is still open and nothing was lost: {error}	Impossible d’enregistrer {name} ; il reste ouvert et rien n’est perdu : {error}
+	Couldn't save {name}, so it is still open and nothing was lost: {error}	Impossible d’enregistrer {name} ; il reste ouvert et rien n’est perdu : {error}
 	Create Subdocument	Créer un sous-document
 	Create Subdocument…	Créer un sous-document…
 	Crop on the page works on unturned pictures: set Rotation to 0° first, or use the crop boxes	Le rognage sur la page fonctionne sur les images non pivotées : réglez d’abord la rotation sur 0° ou utilisez les cadres de rognage
@@ -2504,10 +2504,10 @@ paper	Envelope DL	Enveloppe DL
 	Delete the exercise at the cursor, or the exercises selected, whole: its statement, questions and solution go, its results leave the summary (Undo brings it back)	Supprimer l’exercice sous le curseur, ou les exercices sélectionnés, en entier : son énoncé, ses questions et sa solution disparaissent, ses résultats quittent le récapitulatif (Annuler le rétablit)
 	Delete the layer (its objects go to layer 0)	Supprimer le calque (ses objets passent sur le calque 0)
 	Detach: a window of its own	Détacher : dans sa propre fenêtre
-	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Les cotes et arcs d’angle placés d’un clic ou d’une poignée gardent leur distance dans le dessin (ils suivent sa taille et son échelle) ; désactivé : sur le papier (identique à l’impression)
+	Dimension lines and angle arcs placed with a click or a grip keep their distance in the drawing (they follow its size and scale); off, on paper (the same in print)	Les cotes et arcs d’angle placés d’un clic ou d’une poignée gardent leur distance dans le dessin (ils suivent sa taille et son échelle) ; désactivé : sur le papier (identique à l’impression)
 	Dimension texts along their line (never upside down), not level	Textes de cote le long de leur ligne (jamais à l’envers), et non à l’horizontale
 	Dimension units	Unités de cote
-	Discard the recovery copy of {name}?	Abandonner la copie de récupération de {name} ?
+	Discard the recovery copy of {name}?	Abandonner la copie de récupération de {name} ?
 	Discard…	Abandonner…
 	Dock	Ancrer
 	Dock Left	Ancrer à gauche
@@ -2536,7 +2536,7 @@ paper	Envelope DL	Enveloppe DL
 	Fence	Clôture
 	Fewer Digits	Moins de chiffres
 	File type	Type de fichier
-	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Fichier › Nouveau liste ici les modèles .xmathm, .dotx et .dotm sous Personnel ; Enregistrer comme modèle Strix part d’ici.
+	File › New lists the .xmathm, .dotx and .dotm templates here under Personal; Save as Strix Template starts here.	Fichier › Nouveau liste ici les modèles .xmathm, .dotx et .dotm sous Personnel ; Enregistrer comme modèle Strix part d’ici.
 	First exercise: {label}	Premier exercice : {label}
 	Fitted to Frame	Ajusté au cadre
 	Float	Flottant
@@ -2553,7 +2553,7 @@ paper	Envelope DL	Enveloppe DL
 	Graph Paper at Cursor	Papier millimétré au curseur
 	Grid lines	Lignes de grille
 	Grip	Poignée
-	Grip: the new point (click, or type it; Esc puts it back)	Poignée : le nouveau point (cliquez ou saisissez-le ; Échap le remet)
+	Grip: the new point (click, or type it; Esc puts it back)	Poignée : le nouveau point (cliquez ou saisissez-le ; Échap le remet)
 	Heavier lines	Lignes plus épaisses
 	How results are rounded	Comment les résultats sont arrondis
 	Imported 1 source	1 source importée
@@ -2566,7 +2566,7 @@ paper	Envelope DL	Enveloppe DL
 	Insert Subdocument…	Insérer un sous-document…
 	Items:	Éléments :
 	Keep the file	Conserver le fichier
-	Keep the text in this document, without the link; the file stays as it is	Conserver le texte dans ce document, sans le lien ; le fichier reste tel quel
+	Keep the text in this document, without the link; the file stays as it is	Conserver le texte dans ce document, sans le lien ; le fichier reste tel quel
 	Keep this version	Conserver cette version
 	Layer:	Calque :
 	Limit the drawing's size on paper (from the page's text area): the scales offered are those at which it fits	Limiter la taille du dessin sur le papier (d’après la zone de texte de la page) : les échelles proposées sont celles où il tient
@@ -2615,10 +2615,10 @@ paper	Envelope DL	Enveloppe DL
 	Open the file in a window of its own	Ouvrir le fichier dans sa propre fenêtre
 	Opens Strix documents (.xmath, .xmathm), .docx, .doc, .rtf and .odt files and Word templates with Strix from now on.	Ouvre désormais avec Strix les documents Strix (.xmath, .xmathm), les fichiers .docx, .doc, .rtf et .odt et les modèles Word.
 	Ordinal Column	Colonne ordinale
-	Other corner of the window (to the right: whole objects; to the left: touched too)	Autre coin de la fenêtre (vers la droite : objets entiers ; vers la gauche : objets touchés aussi)
+	Other corner of the window (to the right: whole objects; to the left: touched too)	Autre coin de la fenêtre (vers la droite : objets entiers ; vers la gauche : objets touchés aussi)
 	Outer frame	Cadre extérieur
 	Overwrite the file with the text shown here	Écraser le fichier avec le texte affiché ici
-	Padding	Remplissage
+	Padding	Marge intérieure
 	Page color	Couleur de page
 	Pane Options	Options du volet
 	Placement	Placement
@@ -2696,9 +2696,9 @@ paper	Envelope DL	Enveloppe DL
 	Text properties only: Word's number, date and yes-no types aren't offered.	Propriétés de texte uniquement : les types nombre, date et oui/non de Word ne sont pas proposés.
 	That format doesn't keep everything, so the document is still open. Save it as a Strix document (.xmath) to go on.	Ce format ne conserve pas tout, le document reste donc ouvert. Enregistrez-le comme document Strix (.xmath) pour continuer.
 	That would make the object degenerate	Cela rendrait l’objet dégénéré
-	Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise.	Chaque donnée est une équation (L = 4.5 m) : la résolution l'utilise par son symbole. L'exercice liste les données qu'il ne montre pas déjà ailleurs, et on peut aussi les y modifier directement. Changer de variante recalcule l'exercice.
+	Each datum is an equation (L = 4.5 m): the solution uses it by its symbol. The exercise lists the data it doesn't already show, and they can be edited there too. Changing the variant recalculates the exercise.	Chaque donnée est une équation (L = 4.5 m) : la résolution l’utilise par son symbole. L’exercice liste les données qu’il ne montre pas déjà ailleurs, et on peut aussi les y modifier directement. Changer de variante recalcule l’exercice.
 	The document has no subdocuments.	Le document n’a aucun sous-document.
-	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ dans la première colonne, les sommes sous leurs colonnes) ; une cellule écrite là garde son propre texte (moyenne =, max =)
+	The last row sums each column (Σ in the first column, the sums under theirs); a cell written there keeps its own text (mean =, max =)	La dernière ligne additionne chaque colonne (Σ dans la première colonne, les sommes sous leurs colonnes) ; une cellule écrite là garde son propre texte (moyenne =, max =)
 	Column Total	Total de la colonne
 	Sum the column at the cursor in the total row, or leave its cell there empty	Additionner la colonne du curseur dans la ligne des totaux, ou laisser sa cellule vide
 	The layer of the selected objects becomes the current layer	Le calque des objets sélectionnés devient le calque courant
@@ -2711,7 +2711,7 @@ paper	Envelope DL	Enveloppe DL
 	The {name} dictionary is installed: spelling in {language} is checked now.	Le dictionnaire {name} est installé : l’orthographe en {language} est maintenant vérifiée.
 	This cannot be undone. Your original file stays unchanged.	Cette action est irréversible. Votre fichier d’origine reste inchangé.
 	This copy of Strix Writer can't replace itself: download the new version and install it over this one.	Cette copie de Strix Writer ne peut pas se remplacer elle-même : téléchargez la nouvelle version et installez-la par-dessus celle-ci.
-	This document has Strix objects ({objects}). They stay live in a Strix document (.xmath) and in a Word document (.docx); OpenDocument, RTF, plain text and Word XML would lose them. PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ce document contient des objets Strix ({objects}). Ils restent dynamiques dans un document Strix (.xmath) et dans un document Word (.docx) ; OpenDocument, RTF, texte brut et Word XML les perdraient. Les exportations PDF, PNG, LaTeX, HTML et Markdown restent disponibles en copies statiques.
+	This document has Strix objects ({objects}). They stay live in a Strix document (.xmath) and in a Word document (.docx); OpenDocument, RTF, plain text and Word XML would lose them. PDF, PNG, LaTeX, HTML and Markdown exports stay available as static copies.	Ce document contient des objets Strix ({objects}). Ils restent dynamiques dans un document Strix (.xmath) et dans un document Word (.docx) ; OpenDocument, RTF, texte brut et Word XML les perdraient. Les exportations PDF, PNG, LaTeX, HTML et Markdown restent disponibles en copies statiques.
 	This document has no custom properties.	Ce document n’a aucune propriété personnalisée.
 	This document links no other documents yet. Insert one, or select paragraphs and create one from them: its text shows here and is saved back to its own file.	Ce document ne lie encore aucun autre document. Insérez-en un, ou sélectionnez des paragraphes et créez-en un à partir d’eux : son texte s’affiche ici et est réenregistré dans son propre fichier.
 	This equation is the result of the question it is worked under (shown in the results summary)	Cette équation est le résultat de la question sous laquelle elle est traitée (affiché dans le récapitulatif des résultats)
@@ -2744,7 +2744,7 @@ paper	Envelope DL	Enveloppe DL
 	annotative {size}	annotatif {size}
 	click adds, Shift+click removes	un clic ajoute, Maj+clic retire
 	click on empty space for a window, drag for a lasso	cliquez dans le vide pour une fenêtre, faites glisser pour un lasso
-	click the vertices; Enter or right-click closes, Esc cancels	cliquez sur les sommets ; Entrée ou clic droit ferme, Échap annule
+	click the vertices; Enter or right-click closes, Esc cancels	cliquez sur les sommets ; Entrée ou clic droit ferme, Échap annule
 	click to pick it	cliquez pour le choisir
 	conflict	conflit
 	cycle:	alterner :
@@ -2809,14 +2809,14 @@ paper	Envelope DL	Enveloppe DL
 	Delete Blank Paragraphs in the Whole Document	Supprimer les paragraphes vides dans tout le document
 	Delete Previous Sentence	Supprimer la phrase précédente
 	Dictionary files	Fichiers de dictionnaire
-	Display server:	Serveur d’affichage :
+	Display server:	Serveur d’affichage :
 	Document background	Arrière-plan du document
 	Drawing Name	Nom du dessin
 	Emphasis Mark	Signe d’accentuation
 	English, the languages of this document and every installed Language pack. Language packs add spelling dictionaries and hyphenation.	L’anglais, les langues de ce document et chaque module linguistique installé. Les modules linguistiques ajoutent des dictionnaires orthographiques et la césure.
 	Flat OpenDocument Text (*.fodt)	Texte OpenDocument plat (*.fodt)
-	Gray-25%	Gris 25 %
-	Gray-50%	Gris 50 %
+	Gray-25%	Gris 25 %
+	Gray-50%	Gris 50 %
 	Header & Footer Options	Options d’en-tête et de pied de page
 	Ignore Once	Ignorer une fois
 	Indent Leading Spaces	Mettre en retrait les espaces de début
@@ -2830,7 +2830,7 @@ paper	Envelope DL	Enveloppe DL
 	Language packs aren't available in the browser	Les modules linguistiques ne sont pas disponibles dans le navigateur
 	Language packs need the font store folder, and there is none on this computer.	Les modules linguistiques ont besoin du dossier de la réserve de polices, et cet ordinateur n’en a pas.
 	Linux display server	Serveur d’affichage Linux
-	Macro name:	Nom de la macro :
+	Macro name:	Nom de la macro :
 	Missing Fonts	Polices manquantes
 	More options	Plus d’options
 	Not in Dictionary	Absent du dictionnaire
@@ -2848,7 +2848,7 @@ paper	Envelope DL	Enveloppe DL
 	Scores Table	Tableau des points
 	Screen Paper Color	Couleur du papier à l’écran
 	Screen only. Document backgrounds, printing and exports keep their colours. Dark page and explicit Read Mode colours take precedence.	À l’écran seulement. Les arrière-plans du document, l’impression et les exportations gardent leurs couleurs. La page sombre et les couleurs choisies pour le Mode Lecture sont prioritaires.
-	Screen paper color:	Couleur du papier à l’écran :
+	Screen paper color:	Couleur du papier à l’écran :
 	Select Canvas Member	Sélectionner un élément de la zone de dessin
 	Separate Paragraphs	Séparer les paragraphes
 	Sepia	Sépia
@@ -2858,7 +2858,7 @@ paper	Envelope DL	Enveloppe DL
 	Shown in substitute fonts. Click for details.	Affiché avec des polices de substitution. Cliquez pour les détails.
 	Split Lines into Paragraphs	Scinder les lignes en paragraphes
 	Status bar	Barre d’état
-	Status bar count:	Comptage dans la barre d’état :
+	Status bar count:	Comptage dans la barre d’état :
 	Strict Export Report	Rapport d’exportation stricte
 	Suggestions	Suggestions
 	Synchronous Scrolling	Défilement synchrone
@@ -2871,19 +2871,19 @@ paper	Envelope DL	Enveloppe DL
 	a shape inside a drawing canvas is placed by the canvas	une forme dans une zone de dessin est placée par la zone
 	only the desktop app has several windows	seule l’application de bureau a plusieurs fenêtres
 	turn on View Side by Side first	activez d’abord Afficher côte à côte
-	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} n’est pas installée sur cet ordinateur : son texte est donc affiché en {shown}. Les sauts de ligne et le nombre de pages peuvent différer de ceux de l’ordinateur où le document a été créé. Si vous avez le fichier de la police, ajoutez-le avec Ajouter une police… à la fin de cette liste.
+	{font} isn't installed on this computer, so its text is shown in {shown}. Line breaks and page count can differ from where the document was made. If you have the font file, add it with Add Font… at the end of this list.	{font} n’est pas installée sur cet ordinateur : son texte est donc affiché en {shown}. Les sauts de ligne et le nombre de pages peuvent différer de ceux de l’ordinateur où le document a été créé. Si vous avez le fichier de la police, ajoutez-le avec Ajouter une police… à la fin de cette liste.
 	{language} (default)	{language} (par défaut)
 	{n} KB	{n} Ko
 	A newer version is downloaded in the background and installed, without any question, the next time Strix Writer starts.	Une version plus récente est téléchargée en arrière-plan et installée, sans aucune question, au prochain démarrage de Strix Writer.
 	Add Criterion	Ajouter un critère
-	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Ajouter un critère au tableau des points : deux colonnes, l’une laissée vide et l’autre pour les points (tapez son nom dans l’en-tête)
+	Add a criterion to the scores table: two columns, one left empty and one for the points (type its name in the header)	Ajouter un critère au tableau des points : deux colonnes, l’une laissée vide et l’autre pour les points (tapez son nom dans l’en-tête)
 	Always Calculate	Toujours calculer
 	Calculate Table	Calculer le tableau
-	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Choisir ce que montre l’exercice (tous les exercices d’une série) : les parties masquées restent dans le document comme texte masqué
+	Choose what the exercise shows (every exercise in a series): hidden parts stay in the document as hidden text	Choisir ce que montre l’exercice (tous les exercices d’une série) : les parties masquées restent dans le document comme texte masqué
 	Data and variants, page breaks, numbering, parts shown and graph paper, in the Exercise Properties pane	Données et variantes, sauts de page, numérotation, parties affichées et papier millimétré, dans le volet Propriétés de l’exercice
 	Download updates automatically	Télécharger les mises à jour automatiquement
 	Check for updates automatically	Rechercher automatiquement les mises à jour
-	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	Au démarrage puis une fois par jour, Strix Writer demande à GitHub la liste de ses versions. Rien sur vous, votre ordinateur ou vos documents n'est envoyé.
+	When Strix Writer starts and once a day, it asks GitHub for the list of its releases. Nothing about you, your computer or your documents is sent.	Au démarrage puis une fois par jour, Strix Writer demande à GitHub la liste de ses versions. Rien sur vous, votre ordinateur ou vos documents n’est envoyé.
 	Strix Writer looks for a newer version only when you choose Check for Updates.	Strix Writer ne recherche une version plus récente que lorsque vous choisissez Rechercher des mises à jour.
 	Drawing Space	Espace du dessin
 	Drawing Underlay	Sous-couche du dessin
@@ -2899,7 +2899,7 @@ paper	Envelope DL	Enveloppe DL
 	Rounding	Arrondi
 	Scores	Points
 	Scores\nTable	Tableau\ndes points
-	Show the substitution steps of every calculation: the formula with its values, then the result	Afficher les étapes de chaque calcul : la formule avec ses valeurs, puis le résultat
+	Show the substitution steps of every calculation: the formula with its values, then the result	Afficher les étapes de chaque calcul : la formule avec ses valeurs, puis le résultat
 	Strix Writer looks for a newer version when it starts and once a day.	Strix Writer recherche une version plus récente au démarrage et une fois par jour.
 	Strix Writer {version}	Strix Writer {version}
 	Teaching	Enseignement
@@ -2909,17 +2909,17 @@ paper	Envelope DL	Enveloppe DL
 	All on	Tout activer
 	All off	Tout désactiver
 	Arc, 3 points	Arc, 3 points
-	Arc 3 points: start point	Arc 3 points : point de départ
-	Arc 3 points: a point on the arc	Arc 3 points : un point de l’arc
-	Arc 3 points: end point	Arc 3 points : point d’arrivée
-	Arc: centre (or a3p, sce, ser)	Arc : centre (ou a3p, sce, ser)
-	Arc: end point	Arc : point d’arrivée
-	Arc: radius (a point or a number)	Arc : rayon (un point ou un nombre)
-	Arc: start, a point on it, end	Arc : départ, un point de l’arc, arrivée
+	Arc 3 points: start point	Arc 3 points : point de départ
+	Arc 3 points: a point on the arc	Arc 3 points : un point de l’arc
+	Arc 3 points: end point	Arc 3 points : point d’arrivée
+	Arc: centre (or a3p, sce, ser)	Arc : centre (ou a3p, sce, ser)
+	Arc: end point	Arc : point d’arrivée
+	Arc: radius (a point or a number)	Arc : rayon (un point ou un nombre)
+	Arc: start, a point on it, end	Arc : départ, un point de l’arc, arrivée
 	Arc, start centre end	Arc, départ centre arrivée
-	Arc: start, centre, end (counter-clockwise)	Arc : départ, centre, arrivée (sens antihoraire)
+	Arc: start, centre, end (counter-clockwise)	Arc : départ, centre, arrivée (sens antihoraire)
 	Arc, start end radius	Arc, départ arrivée rayon
-	Arc: start, end, radius	Arc : départ, arrivée, rayon
+	Arc: start, end, radius	Arc : départ, arrivée, rayon
 	A short name for the drawing (letters, digits and hyphens), shown in the underlay list	Un nom court pour le dessin (lettres, chiffres et traits d’union), affiché dans la liste des sous-couches
 	Centre, Start, End	Centre, départ, arrivée
 	Start, Centre, End	Départ, centre, arrivée
@@ -2928,12 +2928,12 @@ paper	Envelope DL	Enveloppe DL
 	The start and end are the same point	Le départ et l’arrivée sont le même point
 	The three points are in line	Les trois points sont alignés
 	3 Points	3 points
-	Arc: centre	Arc : centre
-	Arc: start point	Arc : point de départ
-	Arc: centre, start, end (counter-clockwise)	Arc : centre, départ, arrivée (sens antihoraire)
-	Arc: end point (counter-clockwise)	Arc : point d’arrivée (sens antihoraire)
+	Arc: centre	Arc : centre
+	Arc: start point	Arc : point de départ
+	Arc: centre, start, end (counter-clockwise)	Arc : centre, départ, arrivée (sens antihoraire)
+	Arc: end point (counter-clockwise)	Arc : point d’arrivée (sens antihoraire)
 	Fitted to frame	Ajusté au cadre
-	Polyline: points, Enter to end, c to close	Polyligne : points, Entrée pour terminer, c pour fermer
+	Polyline: points, Enter to end, c to close	Polyligne : points, Entrée pour terminer, c pour fermer
 	Snap	Accrochage
 	Tangent Line	Ligne tangente
 	Type a scale such as 1:75 or 2:1	Saisissez une échelle comme 1:75 ou 2:1
@@ -2943,18 +2943,18 @@ paper	Envelope DL	Enveloppe DL
 	Update automatically	Mettre à jour automatiquement
 @plural	{n} font not installed|{n} fonts not installed	{n} police non installée|{n} polices non installées
 @plural	…and {n} more|…and {n} more	…et {n} autre|…et {n} autres
-@plural	{n} Strix object was changed in another program and is static for now.|{n} Strix objects were changed in another program and are static for now.	{n} objet Strix a été modifié dans un autre programme et reste statique pour l'instant.|{n} objets Strix ont été modifiés dans un autre programme et restent statiques pour l'instant.
+@plural	{n} Strix object was changed in another program and is static for now.|{n} Strix objects were changed in another program and are static for now.	{n} objet Strix a été modifié dans un autre programme et reste statique pour l’instant.|{n} objets Strix ont été modifiés dans un autre programme et restent statiques pour l’instant.
 	Recalculate from Strix	Recalculer depuis Strix
-	Make them live again from their Strix source: the changes made in the other program are replaced	Les rend de nouveau dynamiques depuis leur source Strix : les modifications faites dans l'autre programme sont remplacées
+	Make them live again from their Strix source: the changes made in the other program are replaced	Les rend de nouveau dynamiques depuis leur source Strix : les modifications faites dans l’autre programme sont remplacées
 	Keep Changes	Conserver les modifications
-	Keep what the other program shows: they stay static and lose their Strix source	Conserve ce qu'affiche l'autre programme : ils restent statiques et perdent leur source Strix
+	Keep what the other program shows: they stay static and lose their Strix source	Conserve ce qu’affiche l’autre programme : ils restent statiques et perdent leur source Strix
 	Decide Later	Décider plus tard
 	Objects Changed in Another Program	Objets modifiés dans un autre programme
 	DSA	TSA
 	Reading\n(dyslexia)	Lecture\n(dyslexie)
 	Writing\n(dysgraphia)	Écriture\n(dysgraphie)
 	Maths and Memory\n(dyscalculia)	Calcul et mémoire\n(dyscalculie)
-	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, texte à trous, tableau à compléter
+	Insert an exercise; the menu offers the kinds: problem, open answer, multiple choice, true or false, inline completion, table to complete	Insérer un exercice ; le menu propose les types : problème, réponse ouverte, choix multiple, vrai ou faux, texte à trous, tableau à compléter
 	Problem (Statement, Questions, Solution)	Problème (énoncé, questions, solution)
 	Open Answer	Réponse ouverte
 	Multiple Choice	Choix multiple
@@ -2969,48 +2969,48 @@ paper	Envelope DL	Enveloppe DL
 	Square (mm)	Carreau (mm)
 	Total	Total
 	Add a question like the last one	Ajouter une question comme la dernière
-	Mark this option correct (more than one can be)	Marquer cette option comme correcte (plusieurs peuvent l'être)
-	Graph paper in the answer space; off, the space is blank	Papier quadrillé dans l'espace de réponse ; désactivé, l'espace est vierge
-	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Les réponses s'affichent ou se masquent avec la Solution (Enseignement › Exercice › Afficher) : masquées, un espace de réponse garde sa hauteur et chaque case est vide.
+	Mark this option correct (more than one can be)	Marquer cette option comme correcte (plusieurs peuvent l’être)
+	Graph paper in the answer space; off, the space is blank	Papier millimétré dans l’espace de réponse ; désactivé, l’espace est vierge
+	The answers show or hide with the Solution (Teaching › Exercise › Show): hidden, an answer space keeps its height and every box is empty.	Les réponses s’affichent ou se masquent avec la Solution (Enseignement › Exercice › Afficher) : masquées, un espace de réponse garde sa hauteur et chaque case est vide.
 	{font} (download)	{font} (télécharger)
 	{font} (downloading…)	{font} (téléchargement…)
-	{font} (download failed: click to try again)	{font} (échec du téléchargement : cliquez pour réessayer)
-	letters told apart at a glance, for low vision and dyslexia	des lettres qui se distinguent d'un coup d'œil, pour la basse vision et la dyslexie
+	{font} (download failed: click to try again)	{font} (échec du téléchargement : cliquez pour réessayer)
+	letters told apart at a glance, for low vision and dyslexia	des lettres qui se distinguent d’un coup d’œil, pour la basse vision et la dyslexie
 	wide letters and spacing, for reading fluency	des lettres et des espacements larges, pour la fluidité de lecture
 	Downloaded from Google Fonts (SIL Open Font License) on the first click	Téléchargé depuis Google Fonts (SIL Open Font License) au premier clic
-	Downloading fonts isn't available here	Le téléchargement de polices n'est pas disponible ici
-	Couldn't download the font: {error}	Impossible de télécharger la police : {error}
+	Downloading fonts isn't available here	Le téléchargement de polices n’est pas disponible ici
+	Couldn't download the font: {error}	Impossible de télécharger la police : {error}
 	Embed Fonts in the File	Incorporer les polices dans le fichier
-	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu'ils sont activés.
-	Couldn't turn on downloading: {error}	Impossible d'activer les téléchargements : {error}
+	Only you can turn on downloading: click the button yourself. Agents can install once it is on.	Vous seul pouvez activer les téléchargements : cliquez vous-même sur le bouton. Les agents peuvent installer une fois qu’ils sont activés.
+	Couldn't turn on downloading: {error}	Impossible d’activer les téléchargements : {error}
 # Strix (2026-11-12): question modes (docs/question-modes.md).
 	CAD Drawing Question	Question avec dessin CAO
 	Question Type	Type de question
-	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Ajouter à l'exercice au curseur une question d'un type : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
+	Add a question of a given type to the exercise at the cursor: open answer, multiple choice, true or false, calculation, CAD drawing	Ajouter à l’exercice sous le curseur une question d’un type donné : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO
 # Strix (2026-11-13): CAD arrays from a base point to an end point, and blocks (docs/cad.md).
-	Array: base point	Réseau : point de base
-	Array: end point (the far corner of the grid)	Réseau : point final (le coin opposé de la grille)
-	Array: end point (the items run along the line to it)	Réseau : point final (les éléments suivent la ligne jusqu'à lui)
-	F fit · I exact spacing · S spread · a number: the spacing · 4x3: columns x rows (1xN: along a line)	F jusqu'au point final · I entraxe exact · S réparti · un nombre : l'entraxe · 4x3 : colonnes x lignes (1xN : le long d'une ligne)
-	fit to the end point,	jusqu'au point final,
+	Array: base point	Réseau : point de base
+	Array: end point (the far corner of the grid)	Réseau : point final (le coin opposé de la grille)
+	Array: end point (the items run along the line to it)	Réseau : point final (les éléments suivent la ligne jusqu’à lui)
+	F fit · I exact spacing · S spread · a number: the spacing · 4x3: columns x rows (1xN: along a line)	F jusqu’au point final · I entraxe exact · S réparti · un nombre : l’entraxe · 4x3 : colonnes x lignes (1xN : le long d’une ligne)
+	fit to the end point,	jusqu’au point final,
 	exact spacing	entraxe exact
 	spread within	réparti dans
 	not set	non défini
-	Type the spacing (a length), then the base point	Tapez l'entraxe (une longueur), puis le point de base
+	Type the spacing (a length), then the base point	Tapez l’entraxe (une longueur), puis le point de base
 	A spacing is more than 0	Un entraxe est supérieur à 0
-	Array made, one object:	Réseau créé, un seul objet :
+	Array made, one object:	Réseau créé, un seul objet :
 	spacing	entraxe
 	items	éléments
 	Spacing	Espacement
-	Fit to the end point (the items typed, the last on the end point)	Jusqu'au point final (les éléments tapés, le dernier sur le point final)
-	Exact spacing (as many as fit, the rest left over)	Entraxe exact (autant qu'il en tient, le reste en surplus)
-	Spread evenly (within the spacing, the last on the end point)	Réparti régulièrement (dans l'entraxe, le dernier sur le point final)
-	Type the spacing first	Tapez d'abord l'entraxe
-	The end point is on the base point: the items would overlap	Le point final est sur le point de base : les éléments se superposeraient
-	The end point is not a number	Le point final n'est pas un nombre
-	The spacing is longer than from the base point to the end point: no copies	L'entraxe est plus long que la distance du point de base au point final : aucune copie
-	Nothing to explode: select polylines, rectangles or arrays	Rien à décomposer : sélectionnez des polylignes, des rectangles ou des réseaux
-	Array: base to end point (fit, exact spacing or spread), one object	Réseau : du point de base au point final (jusqu'au point final, entraxe exact ou réparti), un seul objet
+	Fit to the end point (the items typed, the last on the end point)	Jusqu’au point final (les éléments tapés, le dernier sur le point final)
+	Exact spacing (as many as fit, the rest left over)	Entraxe exact (autant qu’il en tient, le reste en surplus)
+	Spread evenly (within the spacing, the last on the end point)	Réparti régulièrement (dans l’entraxe, le dernier sur le point final)
+	Type the spacing first	Tapez d’abord l’entraxe
+	The end point is on the base point: the items would overlap	Le point final est sur le point de base : les éléments se superposeraient
+	The end point is not a number	Le point final n’est pas un nombre
+	The spacing is longer than from the base point to the end point: no copies	L’entraxe est plus long que la distance du point de base au point final : aucune copie
+	Nothing to explode: select polylines, rectangles or arrays	Rien à décomposer : sélectionnez des polylignes, des rectangles ou des réseaux
+	Array: base to end point (fit, exact spacing or spread), one object	Réseau : du point de base au point final (jusqu’au point final, entraxe exact ou réparti), un seul objet
 	Block	Bloc
 	Create\nBlock	Créer\nun bloc
 	Insert\nBlock	Insérer\nun bloc
@@ -3018,21 +3018,21 @@ paper	Envelope DL	Enveloppe DL
 	Insert Block	Insérer un bloc
 	Create Block…	Créer un bloc…
 	Insert Block…	Insérer un bloc…
-	No blocks yet: select objects and use Create Block	Pas encore de bloc : sélectionnez des objets et utilisez Créer un bloc
-	Create Block: select the objects first	Créer un bloc : sélectionnez d'abord les objets
+	No blocks yet: select objects and use Create Block	Pas encore de bloc : sélectionnez des objets et utilisez Créer un bloc
+	Create Block: select the objects first	Créer un bloc : sélectionnez d’abord les objets
 	base point (Esc cancels)	point de base (Échap annule)
-	insertion point (Esc cancels)	point d'insertion (Échap annule)
+	insertion point (Esc cancels)	point d’insertion (Échap annule)
 	scale	échelle
-	Block created:	Bloc créé :
-	Block inserted:	Bloc inséré :
+	Block created:	Bloc créé :
+	Block inserted:	Bloc inséré :
 	Base point	Point de base
 	Pick it in the drawing	Indiquez-le dans le dessin
 	Centre of the selection	Centre de la sélection
 	Lower left corner of the selection	Coin inférieur gauche de la sélection
-	Annotative: the same size on paper at every scale	Annotatif : même taille sur le papier à toutes les échelles
-	Drawn at the drawing's scale,	Dessiné à l'échelle du dessin,
-	Inserted at another scale 1:N it is scaled N / (this N) about its insertion point, and again whenever the drawing's scale changes.	Inséré à une autre échelle 1:N, il est mis à l'échelle N / (ce N) autour de son point d'insertion, et de nouveau à chaque changement d'échelle du dessin.
-	Plain: the same size in the drawing at every scale (inserted with scale 1).	Normal : même taille dans le dessin à toutes les échelles (inséré avec le facteur 1).
+	Annotative: the same size on paper at every scale	Annotatif : même taille sur le papier à toutes les échelles
+	Drawn at the drawing's scale,	Dessiné à l’échelle du dessin,
+	Inserted at another scale 1:N it is scaled N / (this N) about its insertion point, and again whenever the drawing's scale changes.	Inséré à une autre échelle 1:N, il est mis à l’échelle N / (ce N) autour de son point d’insertion, et de nouveau à chaque changement d’échelle du dessin.
+	Plain: the same size in the drawing at every scale (inserted with scale 1).	Normal : même taille dans le dessin à toutes les échelles (inséré avec le facteur 1).
 	on paper at	sur le papier à
 	Turn the selected objects into the block	Transformer les objets sélectionnés en bloc
 	There is already a block with this name	Il existe déjà un bloc portant ce nom
@@ -3040,22 +3040,22 @@ paper	Envelope DL	Enveloppe DL
 	Annotative, drawn at	Annotatif, dessiné à
 	; the drawing is at	; le dessin est à
 	proposed scale	échelle proposée
-	It follows the drawing's scale from now on.	Il suit désormais l'échelle du dessin.
-	Plain block: scale 1 keeps the size it was made with.	Bloc normal : le facteur 1 garde la taille avec laquelle il a été créé.
-	On paper:	Sur le papier :
-	Use the proposed scale	Utiliser l'échelle proposée
-	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L'échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l'angle un nombre
+	It follows the drawing's scale from now on.	Il suit désormais l’échelle du dessin.
+	Plain block: scale 1 keeps the size it was made with.	Bloc normal : le facteur 1 garde la taille avec laquelle il a été créé.
+	On paper:	Sur le papier :
+	Use the proposed scale	Utiliser l’échelle proposée
+	The scale is a number more than 0 (or a ratio, 1:2), the angle a number	L’échelle est un nombre supérieur à 0 (ou un rapport, 1:2), l’angle un nombre
 	Give the block a name	Donnez un nom au bloc
 	Variants & Data	Variantes et données
 	Question Mode	Mode de la question
 	Question Points	Points de la question
 	Mode	Mode
 	Go to working	Aller à la résolution
-	Put the cursor in this calculation's working space	Place le curseur dans l'espace de résolution de ce calcul
-	Open in CAD editor	Ouvrir dans l'éditeur CAO
-	Select this question's solution drawing and open it in the CAD editor	Sélectionne le dessin de corrigé de cette question et l'ouvre dans l'éditeur CAO
+	Put the cursor in this calculation's working space	Placer le curseur dans l’espace de résolution de ce calcul
+	Open in CAD editor	Ouvrir dans l’éditeur CAO
+	Select this question's solution drawing and open it in the CAD editor	Sélectionner le dessin de solution de cette question et l’ouvrir dans l’éditeur CAO
 	No result equation yet	Aucune équation de résultat
-	write a question first	écrivez d'abord une question
+	write a question first	écrivez d’abord une question
 # Strix (2026-11-13): Variables pane and archive/font strings (docs/calc.md).
 	Variables Pane	Volet Variables
 	Filter variables…	Filtrer les variables…
@@ -3064,7 +3064,7 @@ paper	Envelope DL	Enveloppe DL
 	Variant {v}	Variante {v}
 	No matching variables.	Aucune variable correspondante.
 	Go to definition	Aller à la définition
-	Defined:	Définie :
+	Defined:	Définie :
 	Archive	Archive
 	Archive Properties	Propriétés de l’archive
 	Download Font	Télécharger la police
@@ -3075,7 +3075,7 @@ paper	Envelope DL	Enveloppe DL
 	Check Assessment	Contrôler l’évaluation
 	Export Assessment Pack	Exporter le pack d’évaluation
 	Export Assessment Pack…	Exporter le pack d’évaluation…
-	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Exporte les PDF élève pour chaque variante, les copies aménagées et le corrigé enseignant avec tableau synoptique
+	Export student PDFs for every variant, DSA copies and the teacher key with synoptic table	Exporter les PDF élève de chaque variante, les copies aménagées et le corrigé enseignant avec le tableau synoptique
 	All checks passed across every variant.	Tous les contrôles sont validés pour chaque variante.
 	Errors	Erreurs
 	Warnings	Avertissements
@@ -3093,22 +3093,22 @@ paper	Envelope DL	Enveloppe DL
 	Min	Min
 	Max	Max
 	Step	Pas
-	Deterministically generate clean, constraint-checked variants across the specified domains	Génère de façon déterministe des variantes vérifiées sur les domaines indiqués
+	Deterministically generate clean, constraint-checked variants across the specified domains	Générer de façon déterministe des variantes propres, vérifiées par les contraintes, sur les domaines indiqués
 	Shuffle options per variant	Mélanger les options par variante
-	Keep variant A in canonical order and deterministically permute options in variants B, C…	Conserve la variante A dans l’ordre canonique et permute de façon déterministe les options dans les variantes B, C…
+	Keep variant A in canonical order and deterministically permute options in variants B, C…	Conserver la variante A dans l’ordre canonique et permuter de façon déterministe les options dans les variantes B, C…
 	Rationales	Justifications
 	Teacher notes per option	Notes enseignant par option
 	Tolerance	Tolérance
 	Assessment	Évaluation
 	Export\nPack	Exporter\nle pack
-	Grading Scale	Barème de notes
-	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Insérer ou configurer le tableau de conversion points-note (1–10, 1–6, 6–1, 0–20, %)
-	Show Grading Scale	Afficher le barème de notes
+	Grading Scale	Barème de notation
+	Insert or configure the points-to-grade conversion table (1–10, 1–6, 6–1, 0–20, %)	Insérer ou configurer le tableau de conversion points-note (1–10, 1–6, 6–1, 0–20, %)
+	Show Grading Scale	Afficher le barème de notation
 	Italy (1–10)	Italie (1–10)
 	Switzerland (1–6)	Suisse (1–6)
 	Germany (6–1)	Allemagne (6–1)
 	France (0–20)	France (0–20)
-	Percentage (0–100%)	Pourcentage (0–100 %)
+	Percentage (0–100%)	Pourcentage (0–100 %)
 	Linear Curve	Courbe linéaire
 	Piecewise Curve (Pass Threshold)	Courbe par morceaux (seuil de réussite)
 	Step 0.1	Pas 0,1
@@ -3135,8 +3135,8 @@ paper	Envelope DL	Enveloppe DL
 	Inline Completion	Texte à trous
 	Matching	Appariement
 	Inline Blank	Lacune dans le texte
-	Grade	Niveau
-	Profession	Filière
+	Grade	Classe
+	Profession	Profession
 	Teacher	Enseignant
 	Pairs (left = right)	Paires (gauche = droite)
 	School Subject	Matière
@@ -3152,8 +3152,8 @@ paper	Envelope DL	Enveloppe DL
 	Solution only	Solution seule
 	Answer	Corrigé
 	Student\nPreview	Aperçu\nélève
-	Student Preview: hide solution-only layers and objects as on the student copy	Aperçu élève : masque les calques et objets réservés au corrigé comme sur la copie élève
-	Solution only: hidden when the exercise's solution is hidden	Solution seule : masqué lorsque le corrigé de l’exercice est masqué
+	Student Preview: hide solution-only layers and objects as on the student copy	Aperçu élève : masquer les calques et objets réservés à la solution, comme sur la copie élève
+	Solution only: hidden when the exercise's solution is hidden	Solution seule : masqué lorsque la solution de l’exercice est masquée
 	Select a plot in the document to edit its axes, functions and experimental data.	Sélectionnez un graphique dans le document pour modifier ses axes, fonctions et données expérimentales.
 	Axes & Frame	Axes et cadre
 	X range	Intervalle X
@@ -3171,28 +3171,28 @@ paper	Envelope DL	Enveloppe DL
 	Minimum	Minimum
 	Maximum	Maximum
 	Tangent	Tangente
-	Insert Analysis in Document	Insérer l'analyse dans le document
-	Writes after the plot each function's definition and live calculations of its zeros, extrema, tangent and integral	Écrit après le graphique la définition de chaque fonction et les calculs dynamiques de ses zéros, extremums, tangente et intégrale
+	Insert Analysis in Document	Insérer l’analyse dans le document
+	Writes after the plot each function's definition and live calculations of its zeros, extrema, tangent and integral	Écrire après le graphique la définition de chaque fonction et les calculs dynamiques de ses zéros, extremums, tangente et intégrale
 	Abscissa	Abscisse
 	Ordinate	Ordonnée
-	The axis name, written at the tip of its arrow; when it is a name (x, E, t), the formulas use it as their variable	Le nom de l'axe, écrit à la pointe de sa flèche ; si c'est un nom (x, E, t), les formules l'utilisent comme variable
+	The axis name, written at the tip of its arrow; when it is a name (x, E, t), the formulas use it as their variable	Le nom de l’axe, écrit à la pointe de sa flèche ; si c’est un nom (x, E, t), les formules l’utilisent comme variable
 	Reference System	Repère
 	Angles	Angles
-	Angle unit	Unité d'angle
+	Angle unit	Unité d’angle
 	Surveying (clockwise)	Topographique (sens horaire)
 	Mathematical (counter-clockwise)	Mathématique (sens antihoraire)
-	Angles start from the positive ordinate and turn clockwise, like a bearing from north	Les angles partent de l'ordonnée positive et tournent dans le sens horaire, comme un gisement depuis le nord
-	Angles start from the positive abscissa and turn counter-clockwise	Les angles partent de l'abscisse positive et tournent dans le sens antihoraire
+	Angles start from the positive ordinate and turn clockwise, like a bearing from north	Les angles partent de l’ordonnée positive et tournent dans le sens horaire, comme un gisement depuis le nord
+	Angles start from the positive abscissa and turn counter-clockwise	Les angles partent de l’abscisse positive et tournent dans le sens antihoraire
 	Radians (rad)	Radians (rad)
 	Degrees (°)	Degrés (°)
 	Gradians (gon)	Grades (gon)
 	Show angle direction	Afficher le sens des angles
-	Draw an arc with an arrow from the reference axis in the direction angles grow	Dessine un arc fléché depuis l'axe de référence dans le sens où les angles croissent
+	Draw an arc with an arrow from the reference axis in the direction angles grow	Dessiner un arc fléché depuis l’axe de référence dans le sens où les angles croissent
 	Polar	Polaire
 	Full turn	Tour complet
 	Ranges	Plages
 	Automatic	Automatique
-	Fit the ranges to what the plot shows: roots, extrema, tangent points, integral bounds, data and curves	Ajuste les plages à ce que le graphique montre : zéros, extremums, points de tangence, bornes d'intégration, données et courbes
+	Fit the ranges to what the plot shows: roots, extrema, tangent points, integral bounds, data and curves	Ajuster les plages à ce que le graphique montre : zéros, extremums, points de tangence, bornes d’intégration, données et courbes
 	On the student copy, draw only the Cartesian grid and axes so students can sketch the curve by hand	Sur la copie élève, trace uniquement le repère et la grille pour que les élèves tracent la courbe à la main
 	Series	Séries
 	Parametric	Paramétrique
@@ -3210,35 +3210,35 @@ paper	Envelope DL	Enveloppe DL
 	Section	Section
 	Set Plot	Définir le graphique
 	select a plot first	sélectionnez d’abord un graphique
-	Add a question at the end of the exercise	Ajouter une question à la fin de l'exercice
+	Add a question at the end of the exercise	Ajouter une question à la fin de l’exercice
 	Answer Space	Espace de réponse
-	A problem's questions are answered in its solution.	Les questions d'un problème trouvent leur réponse dans sa solution.
+	A problem's questions are answered in its solution.	Les questions d’un problème trouvent leur réponse dans sa solution.
 	Grade step	Pas des notes
 	Correct Options	Options correctes
 	Curve	Courbe
 	Custom	Personnalisé
-	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Supprimer tout l'exercice : énoncé, questions et solution (Annuler le rétablit)
+	Delete this exercise whole: its statement, questions and solution (Undo brings it back)	Supprimer tout l’exercice : énoncé, questions et solution (Annuler le rétablit)
 	Duration	Durée
 	Exercises	Exercices
 	Fixed maximum	Maximum fixe
-	From the document's points ({points})	D'après les points du document ({points})
+	From the document's points ({points})	D’après les points du document ({points})
 	General	Général
 	Points rounded to the multiple of	Points arrondis au multiple de
-	Hidden now: the solutions are hidden (student copy).	Masquée pour l'instant : les solutions sont masquées (copie élève).
+	Hidden now: the solutions are hidden (student copy).	Masquée pour l’instant : les solutions sont masquées (copie élève).
 	Highest grade	Note la plus haute
-	How far an answer may be from the result and still be right: 2% or 0.1 cm	De combien une réponse peut s'écarter du résultat et rester juste : 2% ou 0,1 cm
+	How far an answer may be from the result and still be right: 2% or 0.1 cm	De combien une réponse peut s’écarter du résultat et rester juste : 2% ou 0,1 cm
 	Insert Grading Scale	Insérer le barème
 	Like the last one	Comme la dernière
 	Lowest grade	Note la plus basse
-	No question yet: write one in the exercise, or add one.	Aucune question pour l'instant : écrivez-en une dans l'exercice ou ajoutez-en une.
-	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	Les points de chaque note sont calculés exactement d'après la courbe, puis arrondis à ce multiple (0,01 : centièmes)
-	One pair per line: left = right	Une paire par ligne : gauche = droite
+	No question yet: write one in the exercise, or add one.	Aucune question pour l’instant : écrivez-en une dans l’exercice ou ajoutez-en une.
+	Each grade's points are worked out exactly from the curve, then rounded to this multiple (0.01: hundredths)	Les points de chaque note sont calculés exactement d’après la courbe, puis arrondis à ce multiple (0,01 : centièmes)
+	One pair per line: left = right	Une paire par ligne : gauche = droite
 	Pairs	Paires
 	Pass grade	Note de réussite
 	Pass Mark	Seuil de réussite
 	Pass threshold	Seuil de réussite
 	Piecewise (pass threshold)	Par morceaux (seuil de réussite)
-	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	Par morceaux : le seuil de réussite des points donne la note de réussite, et les notes montent régulièrement en dessous et au-dessus. Linéaire : la note suit les points régulièrement.
+	Piecewise: the pass threshold of the points gives the pass grade, and the grades rise evenly below and above it. Linear: the grade follows the points evenly.	Par morceaux : le seuil de réussite des points donne la note de réussite, et les notes montent régulièrement en dessous et au-dessus. Linéaire : la note suit les points régulièrement.
 	Preset	Préréglage
 	Preview	Aperçu
 	Put the cursor in this exercise's title	Placer le curseur dans le titre de cet exercice
@@ -3250,50 +3250,50 @@ paper	Envelope DL	Enveloppe DL
 	Student and teacher copies	Copies élève et enseignant
 	Take the grading scale table out of the document (Undo brings it back)	Retirer le barème du document (Annuler le rétablit)
 	Teacher copy only	Copie enseignant seulement
-	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Le document n'a pas de barème. Insérez-en un : il convertit les points obtenus en note.
-	The most points this question gives; empty: not scored	Le maximum de points de cette question ; vide : sans points
+	The document has no grading scale. Insert one: it converts the points obtained into a grade.	Le document n’a pas de barème. Insérez-en un : il convertit les points obtenus en note.
+	The most points this question gives; empty: not scored	Le maximum de points de cette question ; vide : sans points
 	The scores table's grand total, else the questions' points added up	Le total du tableau des points, sinon la somme des points des questions
 	Type	Type
-	Write the options in the exercise: each line under the question is one.	Écrivez les options dans l'exercice : chaque ligne sous la question en est une.
+	Write the options in the exercise: each line under the question is one.	Écrivez les options dans l’exercice : chaque ligne sous la question en est une.
 	Grading Scale Properties	Propriétés du barème
 	Title Line	Ligne de titre
-	The result line is generated from the working: write the working in the space above it.	La ligne de résultat est générée à partir du calcul : écrivez le calcul dans l'espace au-dessus.
+	The result line is generated from the working: write the working in the space above it.	La ligne de résultat est générée à partir du calcul : écrivez le calcul dans l’espace au-dessus.
 	Inline Value	Valeur dans le texte
 	Value and Unit	Valeur et unité
 	Symbol = Value	Symbole = valeur
 	Number Only	Nombre seul
 	Delete Value	Supprimer la valeur
-	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Ce que montre la valeur : une donnée (R), un calcul (2*R) ou une conversion (R -> cm). Entrée l'applique.
+	What the value shows: a datum (R), a calculation (2*R) or a conversion (R -> cm). Enter applies it.	Ce que montre la valeur : une donnée (R), un calcul (2*R) ou une conversion (R -> cm). Entrée l’applique.
 	Download Thesaurus	Télécharger le thésaurus
 	Thesaurus Pane	Volet Thésaurus
 	Download the {name} thesaurus	Télécharger le thésaurus {name}
 	Downloading the {name} thesaurus…	Téléchargement du thésaurus {name}…
-	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Télécharge le thésaurus {name} depuis les dictionnaires de LibreOffice ({source}), sous licence {licence}, avec les fichiers qui indiquent sa licence, dans votre dossier de dictionnaires. Le thésaurus et le menu Synonymes l'utilisent aussitôt.
-	The {name} thesaurus is installed: synonyms in {language} come from it now.	Le thésaurus {name} est installé : les synonymes en {language} en proviennent désormais.
-	The {name} thesaurus couldn't be downloaded: {reason}	Impossible de télécharger le thésaurus {name} : {reason}
+	Downloads the thesaurus {name} from LibreOffice's dictionaries ({source}), licensed {licence}, with the files that state its licence, into your dictionaries folder. The Thesaurus and the Synonyms menu use it at once.	Télécharge le thésaurus {name} depuis les dictionnaires de LibreOffice ({source}), sous licence {licence}, avec les fichiers qui indiquent sa licence, dans votre dossier de dictionnaires. Le thésaurus et le menu Synonymes l’utilisent aussitôt.
+	The {name} thesaurus is installed: synonyms in {language} come from it now.	Le thésaurus {name} est installé : les synonymes en {language} en proviennent désormais.
+	The {name} thesaurus couldn't be downloaded: {reason}	Impossible de télécharger le thésaurus {name} : {reason}
 	Search for a word	Rechercher un mot
 	Look up	Rechercher
-	Put the insertion point in a word, or type one above, to see its synonyms.	Placez le point d'insertion dans un mot, ou tapez-en un ci-dessus, pour voir ses synonymes.
-	No synonyms found for “{word}”.	Aucun synonyme trouvé pour « {word} ».
-	Showing “{entry}”.	Affichage de « {entry} ».
+	Put the insertion point in a word, or type one above, to see its synonyms.	Placez le point d’insertion dans un mot, ou tapez-en un ci-dessus, pour voir ses synonymes.
+	No synonyms found for “{word}”.	Aucun synonyme trouvé pour « {word} ».
+	Showing “{entry}”.	Affichage de « {entry} ».
 	Look up this word	Rechercher ce mot
-	Replace the word at the insertion point with this one	Remplacer le mot au point d'insertion par celui-ci
+	Replace the word at the insertion point with this one	Remplacer le mot au point d’insertion par celui-ci
 	From the {name} thesaurus.	Tiré du thésaurus {name}.
 	From Strix's short built-in list.	Tiré de la courte liste intégrée de Strix.
-	The thesaurus couldn't be read: {reason}	Impossible de lire le thésaurus : {reason}
-	No thesaurus for {language} is installed yet.	Aucun thésaurus n'est encore installé pour {language}.
-	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes
+	The thesaurus couldn't be read: {reason}	Impossible de lire le thésaurus : {reason}
+	No thesaurus for {language} is installed yet.	Aucun thésaurus n’est encore installé pour {language}.
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes
 	Description	Description
 	High contrast only	Contraste élevé uniquement
 	Hide Words	Masquer des mots
-	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Masque les mots sélectionnés pour un texte à trous à compléter à la main : la copie corrigée les montre, celle des élèves une ligne pour écrire ([[mot]] saisi dans une question à compléter fait de même)
-	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	L'épaisseur des traits des extrémités ; Automatique : un trait oblique plus épais que la ligne, une flèche aussi fine
-	pick the dimension to go on from, near the end to start at (Enter: the last one)	choisissez la cote à prolonger, près de l'extrémité de départ (Entrée : la dernière)
+	Hide the selected words for a text to complete by hand: the corrected copy shows them, the students' copy a line to write on ([[word]] typed in an inline completion question does the same)	Masque les mots sélectionnés pour un texte à trous à compléter à la main : la copie corrigée les montre, celle des élèves une ligne pour écrire ([[mot]] saisi dans une question à compléter fait de même)
+	The width of the marks' lines; Automatic: a tick heavier than the line, an arrow as thin	L’épaisseur des traits des extrémités ; Automatique : un trait oblique plus épais que la ligne, une flèche aussi fine
+	pick the dimension to go on from, near the end to start at (Enter: the last one)	choisissez la cote à prolonger, près de l’extrémité de départ (Entrée : la dernière)
 	Pick a linear dimension	Choisissez une cote linéaire
 	ByStyle	Par style
 	ByLayer / ByStyle	Par calque / Par style
-	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Lignes de cote, d'attache et de repère ; Par calque : celle du calque. Les extrémités gardent leur épaisseur
-	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Lignes de cote, d'attache et de repère ; Par calque : celui du calque. Extrémités et textes restent continus
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks keep their own width	Lignes de cote, d’attache et de repère ; Par calque : celle du calque. Les extrémités gardent leur épaisseur
+	Dimension, extension and leader lines; ByLayer: the layer's. Marks and texts stay solid	Lignes de cote, d’attache et de repère ; Par calque : celui du calque. Extrémités et textes restent continus
 	Vertical mirror	Miroir vertical
 	Horizontal mirror	Miroir horizontal
 	Fill	Remplissage
@@ -3302,11 +3302,706 @@ paper	Envelope DL	Enveloppe DL
 	Finished level	Fini
 	Reference line, text side	Trait de référence, côté texte
 	Reference line, other side	Trait de référence, côté opposé
-	0: automatic (the triangle height)	0 : automatique (la hauteur du triangle)
+	0: automatic (the triangle height)	0 : automatique (la hauteur du triangle)
 	Symbols Pane	Volet Symboles
 	Close\nEquation	Fermer\nl’équation
 	Check\nAssessment	Contrôler\nl’évaluation
 mark	Grade	Note
-	Points: a number, or empty for a question that is not scored	Points : un nombre, ou vide pour une question non notée
-	Duration: 1 to 600 minutes, or empty	Durée : de 1 à 600 minutes, ou vide
-	Scale: a point away from the base point, or a factor above 0	Échelle : un point éloigné du point de base, ou un facteur supérieur à 0
+	Points: a number, or empty for a question that is not scored	Points : un nombre, ou vide pour une question non notée
+	Duration: 1 to 600 minutes, or empty	Durée : de 1 à 600 minutes, ou vide
+	Scale: a point away from the base point, or a factor above 0	Échelle : un point éloigné du point de base, ou un facteur supérieur à 0
+# Strix (2026-11-17): the rest of Strix's own strings (CAD editor, hatches, level marks, styles, headers and footers,
+# updates, exercise and series tabs) and the plane structures (Structures tab, Structure Editor, written working).
+	Not a Result	Pas un résultat
+	Exercise Title	Titre d’exercice
+	Exercise Question	Question d’exercice
+	Exercise Heading	En-tête d’exercice
+	Exercise Prompt	Rappel des questions
+	The parts of an exercise can't be deleted one by one. To delete the whole exercise, use Delete Exercise (Teaching › Exercise, or right-click it), or select all of it and press Delete.	Les parties d’un exercice ne peuvent pas être supprimées une à une. Pour supprimer l’exercice entier, utilisez Supprimer l’exercice (Enseignement › Exercice, ou clic droit sur l’exercice), ou sélectionnez-le en entier et appuyez sur Suppr.
+	Exercise Note	Note d’exercice
+	Aligned	Alignée
+	Ortho	Ortho
+	Close\nDrawing	Fermer\nle dessin
+	Rectangle by two corners	Rectangle par deux coins
+	Horizontal dimension	Cote horizontale
+	Vertical dimension	Cote verticale
+	Move the selection: base point, second point	Déplacer la sélection : point de base, deuxième point
+	Copy the selection: base point, second point	Copier la sélection : point de base, deuxième point
+	Delete the selection (Del)	Supprimer la sélection (Suppr)
+	Select objects: click, or drag a window (left to right) or a crossing (right to left)	Sélectionner des objets : cliquez, ou tracez une fenêtre (de gauche à droite) ou une fenêtre sécante (de droite à gauche)
+	Line: first point	Ligne : premier point
+	Line: next point (Enter or Esc to end)	Ligne : point suivant (Entrée ou Échap pour terminer)
+	Polyline: first point	Polyligne : premier point
+	Polyline: next point (Enter to end, c to close)	Polyligne : point suivant (Entrée pour terminer, c pour fermer)
+	Rectangle: first corner	Rectangle : premier coin
+	Rectangle: other corner	Rectangle : coin opposé
+	Circle: centre	Cercle : centre
+	Point: location	Point : position
+	Text: position	Texte : position
+	Text: type the text and press Enter	Texte : saisissez le texte et appuyez sur Entrée
+	Dimension: first point	Cote : premier point
+	Dimension: second point	Cote : deuxième point
+	Dimension: where the dimension line goes	Cote : position de la ligne de cote
+	Base point (select the objects first)	Point de base (sélectionnez d’abord les objets)
+	Second point	Deuxième point
+	Node	Nœud
+	Quadrant	Quadrant
+	Perpendicular	Perpendiculaire
+	Nearest	Proche
+	Centre	Centre
+	Add (a click adds)	Ajouter (un clic ajoute)
+	Add the objects of the same type on the same layer	Ajouter les objets du même type sur le même calque
+	Aligned dimension	Cote alignée
+	Centre X	Centre X
+	Centre Y	Centre Y
+	Close Drawing	Fermer le dessin
+	Closed	Fermée
+	Confirm the objects	Valider les objets
+	Dash-dot	Tiret-point
+	Dimension	Cote
+	Draw the selection above every other object	Dessiner la sélection au-dessus de tous les autres objets
+	Draw the selection under every other object	Dessiner la sélection sous tous les autres objets
+	End X	Fin X
+	End Y	Fin Y
+	End angle	Angle de fin
+	Grey	Gris
+	Previous selection	Sélection précédente
+	Put the grip back	Remettre la poignée en place
+	Remove (a click removes)	Retirer (un clic retire)
+	Select Similar	Sélectionner les similaires
+	Shown	Visible
+	Start X	Début X
+	Start Y	Début Y
+	Start angle	Angle de début
+	Undo the last step	Annuler la dernière étape
+	Undo the last vertex	Annuler le dernier sommet
+	Vertex X	Sommet X
+	Vertex Y	Sommet Y
+	Zoom Fit	Zoom ajusté
+	CAD Annotate	Annotation CAO
+	CAD View	Affichage CAO
+	CAD Output	Sortie CAO
+	Layer\nManager	Gestionnaire\nde calques
+	Layer Manager	Gestionnaire de calques
+	Shown (hidden layers are neither drawn nor picked)	Visible (les calques masqués ne sont ni dessinés ni sélectionnables)
+	Locked: shown and snapped to, but its objects can't be picked	Verrouillé : visible et accrochable, mais ses objets ne peuvent pas être sélectionnés
+	Printed: off, the layer shows only in the editor	Imprimé : désactivé, le calque n’apparaît que dans l’éditeur
+	Amber	Ambre
+	Lime	Citron vert
+	Sky blue	Bleu ciel
+	Indigo	Indigo
+	Grey 80%	Gris 80 %
+	Grey 65%	Gris 65 %
+	Grey 50%	Gris 50 %
+	Grey 35%	Gris 35 %
+	Grey 20%	Gris 20 %
+	Grey 10%	Gris 10 %
+	Tangent line	Ligne tangente
+	Circle: centre, then the radius	Cercle : centre, puis rayon
+	Circle: centre, then the diameter	Cercle : centre, puis diamètre
+	Circle: the two ends of a diameter	Cercle : les deux extrémités d’un diamètre
+	Circle: three points on it	Cercle : trois points du cercle
+	Circle: touching two objects, with a radius	Cercle : tangent à deux objets, avec un rayon
+	Circle: touching three objects	Cercle : tangent à trois objets
+	Centre, Radius	Centre, rayon
+	Centre, Diameter	Centre, diamètre
+	2 Points	2 points
+	Tan, Tan, Radius	Tan, tan, rayon
+	Tan, Tan, Tan	Tan, tan, tan
+	Circle, centre and diameter	Cercle, centre et diamètre
+	Circle, 2 points	Cercle, 2 points
+	Circle, 3 points	Cercle, 3 points
+	Circle, tan tan radius	Cercle, tan tan rayon
+	Circle, tan tan tan	Cercle, tan tan tan
+	Tangent line: pick the first circle or arc	Ligne tangente : choisissez le premier cercle ou arc
+	Tangent line: pick the second circle or arc	Ligne tangente : choisissez le deuxième cercle ou arc
+	Circle: centre (or 2p, 3p, ttr, ttt)	Cercle : centre (ou 2p, 3p, ttr, ttt)
+	Circle: radius (a point or a number; d for the diameter)	Cercle : rayon (un point ou un nombre ; d pour le diamètre)
+	Circle: diameter (a point or a number)	Cercle : diamètre (un point ou un nombre)
+	Circle 2 points: first end of the diameter	Cercle 2 points : première extrémité du diamètre
+	Circle 2 points: second end of the diameter	Cercle 2 points : seconde extrémité du diamètre
+	Circle 3 points: first point	Cercle 3 points : premier point
+	Circle 3 points: second point	Cercle 3 points : deuxième point
+	Circle 3 points: third point	Cercle 3 points : troisième point
+	Tan, tan, radius: pick the first object	Tan, tan, rayon : choisissez le premier objet
+	Tan, tan, radius: pick the second object	Tan, tan, rayon : choisissez le deuxième objet
+	Tan, tan, radius: radius (a number, or a point from the second pick)	Tan, tan, rayon : rayon (un nombre, ou un point à partir du deuxième choix)
+	Tan, tan, tan: pick the first object	Tan, tan, tan : choisissez le premier objet
+	Tan, tan, tan: pick the second object	Tan, tan, tan : choisissez le deuxième objet
+	Tan, tan, tan: pick the third object	Tan, tan, tan : choisissez le troisième objet
+	Dimension Style	Style de cote
+	Text height	Hauteur du texte
+	Mark size	Taille des extrémités
+	Extension gap	Écart des lignes d’attache
+	Extension beyond	Dépassement des lignes d’attache
+	Text gap	Écart du texte
+	Angular dimension	Cote angulaire
+	Angular dimension: the vertex, a point on each side, where the arc goes	Cote angulaire : le sommet, un point sur chaque côté, la position de l’arc
+	Angular dimension: the vertex	Cote angulaire : le sommet
+	Angular dimension: a point on the first side	Cote angulaire : un point sur le premier côté
+	Angular dimension: a point on the second side	Cote angulaire : un point sur le second côté
+	Angular dimension: where the arc goes	Cote angulaire : position de l’arc
+	Text below	Texte en dessous
+	By style	Selon le style
+	Tick	Trait oblique
+	First ray X	Premier côté X
+	First ray Y	Premier côté Y
+	Second ray X	Second côté X
+	Second ray Y	Second côté Y
+	Fit to\nPage	Ajuster\nà la page
+	Hatch	Hachures
+	Hatched\nStrip	Bande\nhachurée
+	Hatched strip	Bande hachurée
+	Hatched strip: pick the line or polyline it follows	Bande hachurée : choisissez la ligne ou la polyligne qu’elle suit
+	Hatched strip: click on the side it goes	Bande hachurée : cliquez du côté où elle va
+	Explode: polylines into lines and arcs	Décomposer : les polylignes en lignes et arcs
+	Join: objects that meet end to end into a polyline	Joindre : les objets qui se touchent bout à bout en une polyligne
+	Snap: to the object snaps and the grid	Accrochage : aux points d’accrochage des objets et à la grille
+	Ortho: lines level or plumb (F8)	Ortho : lignes horizontales ou verticales (F8)
+	on	activé
+	off	désactivé
+	Dimension\nStyle	Style\nde cote
+	Level\nStyle	Style de cote\nde niveau
+	Text\nStyle	Style\nde texte
+	Dimension Style: marks, sizes, text and units of the dimensions	Style de cote : extrémités, tailles, texte et unités des cotes
+	Level Style: text, triangle and unit of the level marks	Style de cote de niveau : texte, triangle et unité des cotes de niveau
+	Text Style: font, height, bold and italic of the texts	Style de texte : police, hauteur, gras et italique des textes
+	Texts	Textes
+	Level Style	Style de cote de niveau
+	Show the unit	Afficher l’unité
+	Sizes end with their unit (3.50 m); off, the number alone	Les mesures se terminent par leur unité (3,50 m) ; désactivé, le nombre seul
+	Level marks take the dimension styles: these settings are the style's.	Les cotes de niveau utilisent les styles de cote : ces réglages sont ceux du style.
+	Triangle height	Hauteur du triangle
+	0: the dimension text height	0 : la hauteur du texte des cotes
+	0: automatic (a text and a fifth)	0 : automatique (une hauteur de texte et un cinquième)
+	Elevations end with their unit (+3.00 m); off, the number alone	Les niveaux se terminent par leur unité (+3,00 m) ; désactivé, le nombre seul
+	Slope\nTicks	Hachures\nde talus
+	Slope ticks	Hachures de talus
+	Slope ticks: pick the line or polyline of the crest	Hachures de talus : choisissez la ligne ou la polyligne de la crête
+	Slope ticks: click on the side the slope goes down	Hachures de talus : cliquez du côté où le talus descend
+	Short ticks	Traits courts
+	Flip Side	Inverser le côté
+	Flip the selected hatched strips and slope ticks to the other side of their line	Faire passer les bandes hachurées et les hachures de talus sélectionnées de l’autre côté de leur ligne
+	Space here	Espace ici
+	Where the drawing sits: its column's width, and the height down to the page's bottom margin. A guide, not a limit.	L’emplacement du dessin : la largeur de sa colonne et la hauteur jusqu’à la marge inférieure de la page. Un repère, pas une limite.
+	Fit Here	Ajuster ici
+	Make the space here the maximum size and fit the scale to it	Faire de l’espace ici la taille maximale et y ajuster l’échelle
+	Side	Côté
+	Solid	Plein
+	Hatch: click inside the region to fill (islands are left out)	Hachures : cliquez à l’intérieur de la zone à remplir (les îlots restent vides)
+	No closed object around that point: draw a closed polyline, a rectangle or a circle	Aucun objet fermé autour de ce point : dessinez une polyligne fermée, un rectangle ou un cercle
+	Steel	Acier
+	Along the path	Le long du tracé
+	Islands	Îlots
+	Scale: base point	Échelle : point de base
+	Scale: factor (type it, or a point that many units from the base)	Échelle : facteur (saisissez-le, ou un point à autant d’unités du point de base)
+	Rotate: base point	Rotation : point de base
+	Rotate: angle in degrees (type it, or a point in that direction)	Rotation : angle en degrés (saisissez-le, ou un point dans cette direction)
+	Mirror: first point of the axis	Miroir : premier point de l’axe
+	Mirror: second point of the axis (a mirrored copy is made)	Miroir : second point de l’axe (une copie symétrique est créée)
+	Offset: pick the object (type a number to change the distance)	Décaler : choisissez l’objet (saisissez un nombre pour changer la distance)
+	Offset: click on the side to offset to	Décaler : cliquez du côté vers lequel décaler
+	Rotate the selection: base point, then the angle	Faire pivoter la sélection : point de base, puis angle
+	Scale the selection: base point, then the factor	Mettre la sélection à l’échelle : point de base, puis facteur
+	A mirrored copy of the selection: two points of the axis	Une copie symétrique de la sélection : deux points de l’axe
+	Offset: the distance (type it), the object, the side	Décaler : la distance (saisissez-la), l’objet, le côté
+	Trim	Ajuster
+	Extend	Prolonger
+	Fillet	Raccord
+	Trim: pick the piece to take away (the other objects cut it)	Ajuster : choisissez le morceau à enlever (les autres objets le coupent)
+	Extend: pick near the end to extend (to the next object)	Prolonger : cliquez près de l’extrémité à prolonger (jusqu’à l’objet suivant)
+	Fillet: pick the first line (type a number to change the radius)	Raccord : choisissez la première ligne (saisissez un nombre pour changer le rayon)
+	Fillet: pick the second line	Raccord : choisissez la seconde ligne
+	Chamfer: pick the first line (type a number to change the distance)	Chanfrein : choisissez la première ligne (saisissez un nombre pour changer la distance)
+	Chamfer: pick the second line	Chanfrein : choisissez la seconde ligne
+	Trim: pick the pieces to take away	Ajuster : choisissez les morceaux à enlever
+	Extend: pick near the ends to extend	Prolonger : cliquez près des extrémités à prolonger
+	A fillet radius or chamfer distance is 0 or more	Un rayon de raccord ou une distance de chanfrein vaut 0 ou plus
+	Pick a line, circle, arc or polyline	Choisissez une ligne, un cercle, un arc ou une polyligne
+	Pick a line	Choisissez une ligne
+	There is no object there	Il n’y a aucun objet à cet endroit
+	Trim works on lines, circles, arcs and polylines	Ajuster s’applique aux lignes, cercles, arcs et polylignes
+	A closed object is trimmed between two crossings	Un objet fermé est ajusté entre deux intersections
+	Extend works on lines, arcs and open polylines	Prolonger s’applique aux lignes, arcs et polylignes ouvertes
+	A closed object has no end to extend	Un objet fermé n’a pas d’extrémité à prolonger
+	Nothing to extend to: no object lies ahead of that end	Rien jusqu’où prolonger : aucun objet ne se trouve devant cette extrémité
+	The extension runs out of the drawing	Le prolongement sort du dessin
+	A fillet radius is 0 or more	Un rayon de raccord vaut 0 ou plus
+	The radius is too large for these lines	Le rayon est trop grand pour ces lignes
+	Chamfer distances are 0 or more	Les distances de chanfrein valent 0 ou plus
+	The distances are too large for these lines	Les distances sont trop grandes pour ces lignes
+	Pick two different lines	Choisissez deux lignes différentes
+	Fillet and Chamfer join two lines	Raccord et Chanfrein relient deux lignes
+	The lines are parallel	Les lignes sont parallèles
+	Pick each line on the part to keep	Choisissez chaque ligne sur la partie à conserver
+	The lines are in line	Les lignes sont alignées
+	That would leave a line with no length	Il resterait une ligne de longueur nulle
+	Explode	Décomposer
+	Match Properties	Copier les propriétés
+	Match	Copier propr.
+	Rectangular Array	Réseau rectangulaire
+	Polar Array	Réseau polaire
+	Select the objects, then Enter	Sélectionnez les objets, puis Entrée
+	Match Properties: pick the source object	Copier les propriétés : choisissez l’objet source
+	Match Properties: pick the objects that take its look (Enter to end)	Copier les propriétés : choisissez les objets qui prennent son apparence (Entrée pour terminer)
+	Stretch: first corner of the crossing window	Étirer : premier coin de la fenêtre sécante
+	Stretch: other corner (the points inside it move)	Étirer : coin opposé (les points à l’intérieur se déplacent)
+	Stretch: base point	Étirer : point de base
+	Stretch: second point	Étirer : deuxième point
+	Polar array: centre (type a number to change how many items)	Réseau polaire : centre (saisissez un nombre pour changer le nombre d’éléments)
+	Pick an object	Choisissez un objet
+	Nothing to stretch: the window takes no points	Rien à étirer : la fenêtre ne contient aucun point
+	Stretch: a crossing window, then a base point and a second point	Étirer : une fenêtre sécante, puis un point de base et un deuxième point
+	Match Properties: the source, then the objects that take its look	Copier les propriétés : la source, puis les objets qui prennent son apparence
+	Select two or more lines, arcs or open polylines to join	Sélectionnez au moins deux lignes, arcs ou polylignes ouvertes à joindre
+	Nothing to join: the objects must meet end to end	Rien à joindre : les objets doivent se toucher bout à bout
+	Nothing to join	Rien à joindre
+	Select the objects first	Sélectionnez d’abord les objets
+	The spacing is not a number	L’entraxe n’est pas un nombre
+	The angle to fill is up to 360°	L’angle à remplir vaut au plus 360°
+	Dash-dot-dot	Tiret-point-point
+	Set a maximum size first	Définissez d’abord une taille maximale
+	To the end of the page	Jusqu’à la fin de la page
+	To the end of the column	Jusqu’à la fin de la colonne
+	Page background	Arrière-plan de la page
+	Until the next odd page	Jusqu’à la prochaine page impaire
+	Until the next even page	Jusqu’à la prochaine page paire
+	For a number of pages	Sur un nombre de pages
+	For a height	Sur une hauteur
+	Light blue	Bleu clair
+	Light green	Vert clair
+	Light orange	Orange clair
+	Light grey	Gris clair
+	Behind the text of every page of this section.	Derrière le texte de chaque page de cette section.
+	A block in the text: write on it, or press Enter at its end to go on below it.	Un bloc dans le texte : écrivez dessus, ou appuyez sur Entrée à sa fin pour continuer en dessous.
+	Continue dimension	Cote continue
+	Baseline dimension	Cote de ligne de base
+	Level mark	Cote de niveau
+	Continue: next point (Enter or Esc to end)	Continue : point suivant (Entrée ou Échap pour terminer)
+	Baseline: next point (Enter or Esc to end)	Ligne de base : point suivant (Entrée ou Échap pour terminer)
+	Level mark: the point on the level (Enter or Esc to end)	Cote de niveau : le point sur le niveau (Entrée ou Échap pour terminer)
+	Continue: dimensions in a chain, each from the last one's end, on its line	Continue : cotes en chaîne, chacune depuis la fin de la précédente, sur sa ligne
+	Baseline: dimensions from the same first point, each a row further out	Ligne de base : cotes depuis le même premier point, chacune une rangée plus loin
+	Level mark: the elevation of a point above the datum (±0.00), in metres	Cote de niveau : l’altitude d’un point au-dessus du niveau de référence (±0.00), en mètres
+	Flip the selected dimensions: the line to the other side, the other side of an angle, a level mark under its level	Retourner les cotes sélectionnées : la ligne de l’autre côté, l’autre côté d’un angle, une cote de niveau sous son niveau
+	Draw a linear dimension first, or select the one to go on from	Dessinez d’abord une cote linéaire, ou sélectionnez celle à prolonger
+	Pick a point away from where the dimension starts	Choisissez un point éloigné du début de la cote
+	Datum (±0.00) Y	Niveau de référence (±0.00) Y
+	Annotative distance	Distance annotative
+	Scaled distance	Distance à l’échelle
+	Scaled radius	Rayon à l’échelle
+	Annotative radius	Rayon annotatif
+	On paper, mm: the same in print at any scale (annotative)	Sur le papier, mm : identique à l’impression à toutes les échelles (annotatif)
+	a radius is more than 0	un rayon est supérieur à 0
+	Metres	Mètres
+	Centimetres	Centimètres
+	Millimetres	Millimètres
+	SIA 400: m from 1 m, cm below	SIA 400 : m à partir de 1 m, cm en dessous
+	Line width	Épaisseur de ligne
+	Line beyond	Dépassement de la ligne
+	unit: mm, cm, m or drawing	unité : mm, cm, m ou drawing
+	At the start	Au début
+	At the end	À la fin
+	At both ends	Aux deux extrémités
+	Underlay: another drawing of the document under this one, faded and locked, to trace over (its objects snap)	Sous-couche : un autre dessin du document sous celui-ci, estompé et verrouillé, pour le décalquer (ses objets sont accrochables)
+	No other drawing in the document	Aucun autre dessin dans le document
+	page	page
+	Import styles and layers only	Importer seulement les styles et les calques
+	Fade	Estompage
+	Print with the drawing	Imprimer avec le dessin
+	Remove Underlay	Supprimer la sous-couche
+	The underlay's drawing is no longer in the document	Le dessin de la sous-couche n’est plus dans le document
+	Solution	Solution
+	Results in the Summary	Résultats dans le récapitulatif
+	Graph Paper Before the Solution	Papier millimétré avant la solution
+	New page before each exercise	Nouvelle page avant chaque exercice
+	New page before each solution	Nouvelle page avant chaque solution
+	Restart Now	Redémarrer maintenant
+	downloaded	téléchargée
+	Don't Restart	Ne pas redémarrer
+	Downloading in the background…	Téléchargement en arrière-plan…
+	It will be installed when you restart Strix Writer.	Elle sera installée au prochain redémarrage de Strix Writer.
+	Strix Writer restarts in the new version as soon as it closes.	Strix Writer redémarrera dans la nouvelle version dès sa fermeture.
+	Installing it asks for your password, then Strix Writer restarts.	L’installation demande votre mot de passe, puis Strix Writer redémarre.
+	The download in the background didn't succeed; Update and Restart tries again.	Le téléchargement en arrière-plan a échoué ; Mettre à jour et redémarrer réessaie.
+	Line: two points, then more to go on	Ligne : deux points, puis d’autres pour continuer
+	Tangent Line: a line touching two circles or arcs; pick each near where it should touch	Ligne tangente : une ligne tangente à deux cercles ou arcs ; choisissez chacun près du point de contact voulu
+	Fillet: two lines joined with an arc (type the radius; 0 makes the corner)	Raccord : deux lignes reliées par un arc (saisissez le rayon ; 0 fait l’angle vif)
+	Chamfer: two lines cut at the corner (type the distance; 0 makes the corner)	Chanfrein : deux lignes coupées à l’angle (saisissez la distance ; 0 fait l’angle vif)
+	Polar Array: of the selection round a centre (type how many items)	Réseau polaire : de la sélection autour d’un centre (saisissez le nombre d’éléments)
+	Text Style	Style de texte
+	Dimension style	Style de cote
+	Text style	Style de texte
+	Start mark	Extrémité de départ
+	As the start	Comme au départ
+	Mark width	Épaisseur des extrémités
+	Document font	Police du document
+	The style new objects take; chosen with objects selected, they take it too	Le style des nouveaux objets ; choisi avec des objets sélectionnés, ils le prennent aussi
+	A new style, a copy of this one, made current	Un nouveau style, copie de celui-ci, rendu courant
+	Delete this style: its objects take Standard	Supprimer ce style : ses objets prennent Standard
+	Standard: the document's font. New makes a style of your own.	Standard : la police du document. Nouveau crée votre propre style.
+	Marks	Extrémités
+	Select Exercise	Sélectionner l’exercice
+	The whole exercise goes: its statement, questions and solution (Undo brings it back)	L’exercice entier disparaît : son énoncé, ses questions et sa solution (Annuler le rétablit)
+	Published {date}	Publiée le {date}
+	Verifying the download…	Vérification du téléchargement…
+	The connection dropped; trying again shortly…	La connexion a été interrompue ; nouvelle tentative sous peu…
+	Downloading in the background: {done} of {total} MB	Téléchargement en arrière-plan : {done} sur {total} Mo
+	Could not check for updates.	Impossible de rechercher les mises à jour.
+	Last attempt: {time}. Strix Writer tries again within an hour.	Dernière tentative : {time}. Strix Writer réessaie dans l’heure.
+	You have the newest version.	Vous avez la version la plus récente.
+	Last checked: {time}	Dernière vérification : {time}
+	The web version always runs the newest release of Strix Writer.	La version web exécute toujours la dernière version publiée de Strix Writer.
+	Reserved by the interface: it can't be given to another command.	Réservé par l’interface : il ne peut pas être attribué à une autre commande.
+	{key} removed from {command}	{key} retiré de {command}
+	Your shortcuts ({count})	Vos raccourcis ({count})
+	Collapse the Ribbon	Réduire le ruban
+	Separator	Séparateur
+	Period (1.)	Point (1.)
+	Colon (1:)	Deux-points (1:)
+	Dash (1 -)	Tiret (1 -)
+	Parenthesis (1))	Parenthèse (1))
+	Space (1 Title)	Espace (1 Titre)
+	Subdocument	Sous-document
+	Click to put the cursor in it: Unlink, Reload and Open act on it.	Cliquez pour y placer le curseur : Délier, Recharger et Ouvrir agissent sur lui.
+	Go to Header	Atteindre l’en-tête
+	Go to Footer	Atteindre le pied de page
+	Edit this page's header	Modifier l’en-tête de cette page
+	Edit this page's footer	Modifier le pied de page de cette page
+	The previous section's header or footer	L’en-tête ou le pied de page de la section précédente
+	The next section's header or footer	L’en-tête ou le pied de page de la section suivante
+	Link Header to Previous	Lier l’en-tête au précédent
+	Link Footer to Previous	Lier le pied de page au précédent
+	On: this section shows the previous section's header. Off: it has its own (a copy to change)	Activé : cette section affiche l’en-tête de la section précédente. Désactivé : elle a le sien (une copie à modifier)
+	On: this section shows the previous section's footer. Off: it has its own (a copy to change)	Activé : cette section affiche le pied de page de la section précédente. Désactivé : elle a le sien (une copie à modifier)
+	Close Header\nand Footer	Fermer l’en-tête\net le pied de page
+	This section's first page has a header and footer of its own	La première page de cette section a son propre en-tête et son propre pied de page
+	Even pages have a header and footer of their own (the whole document)	Les pages paires ont leur propre en-tête et leur propre pied de page (tout le document)
+	Layers of another drawing (its underlay or imported): usable like the drawing's own	Calques d’un autre dessin (sa sous-couche ou importés) : utilisables comme ceux du dessin
+	A layer of another drawing can be deleted only when no object is on it	Un calque d’un autre dessin ne peut être supprimé que s’il ne porte aucun objet
+	Measured size	Mesure réelle
+	No parameters are defined before the drawing	Aucun paramètre n’est défini avant le dessin
+	Symbol = value	Symbole = valeur
+	Insert a parameter of the calculations: its value, its symbol or both	Insérer un paramètre des calculs : sa valeur, son symbole ou les deux
+	Exercise Tools	Outils d’exercice
+	The Exercise tab (questions, variants and data, layout) with the cursor in an exercise, else the Series tab	L’onglet Exercice (questions, variantes et données, mise en page) quand le curseur est dans un exercice, sinon l’onglet Série
+	Question\nSettings	Paramètres\ndes questions
+	Every question with its type and points, and the settings of the one chosen: answer space, correct options, tolerance…, in a pane beside the document	Chaque question avec son type et ses points, et les paramètres de celle choisie : espace de réponse, options correctes, tolérance…, dans un volet à côté du document
+	Put the cursor in an exercise to see its questions' settings.	Placez le curseur dans un exercice pour voir les paramètres de ses questions.
+	Add a question at the end of the exercise; the menu offers the types: open answer, multiple choice, true or false, calculation, CAD drawing…	Ajouter une question à la fin de l’exercice ; le menu propose les types : réponse ouverte, choix multiple, vrai ou faux, calcul, dessin CAO…
+	Show Title	Afficher le titre
+	Remove Title	Supprimer le titre
+	Give the exercise a title after the number; the text next to the number goes back under it	Donner à l’exercice un titre après le numéro ; le texte à côté du numéro repasse en dessous
+	Remove the exercise's title: the statement's text goes next to the number (Show Title brings the title back)	Supprimer le titre de l’exercice : le texte de l’énoncé se place à côté du numéro (Afficher le titre rétablit le titre)
+	Problem	Problème
+	Add Variant	Ajouter une variante
+	Remove Variant	Supprimer la variante
+	The initial data: an equation per datum (L = 4.5 m) with its description, and the variants, in a pane beside the document	Les données initiales : une équation par donnée (L = 4.5 m) avec sa description, et les variantes, dans un volet à côté du document
+	Generate\nVariants	Générer des\nvariantes
+	Generate clean variants from each datum's range, checked against the constraints on the results (add data first)	Générer des variantes propres à partir de l’intervalle de chaque donnée, vérifiées par rapport aux contraintes sur les résultats (ajoutez d’abord des données)
+	The graph paper after the questions, before the solution: its squares, lines and colour (Show › Graph Paper Before the Solution adds it)	Le papier millimétré après les questions, avant la solution : ses carreaux, ses lignes et sa couleur (Afficher › Papier millimétré avant la solution l’ajoute)
+	Where the exercises start a new page	Où les exercices commencent une nouvelle page
+	Series\nSettings	Paramètres\nde la série
+	Page breaks, parts shown, graph paper and numbering are the series': they are in the Series tab	Les sauts de page, les parties affichées, le papier millimétré et la numérotation appartiennent à la série : ils se trouvent dans l’onglet Série
+	Select the whole exercise: its statement, questions and solution	Sélectionner l’exercice entier : son énoncé, ses questions et sa solution
+	Go To\nExercise	Atteindre\nl’exercice
+	Put the cursor in an exercise's title	Placer le curseur dans le titre d’un exercice
+	Previous Exercise	Exercice précédent
+	Next Exercise	Exercice suivant
+	Put the cursor in the previous exercise's title	Placer le curseur dans le titre de l’exercice précédent
+	Put the cursor in the next exercise's title	Placer le curseur dans le titre de l’exercice suivant
+	Delete an exercise whole: its statement, questions and solution (Undo brings it back)	Supprimer un exercice en entier : son énoncé, ses questions et sa solution (Annuler le rétablit)
+	Dimension line	Ligne de cote
+	Add a variant: a copy of the active one's values (add data first)	Ajouter une variante : une copie des valeurs de la variante active (ajoutez d’abord des données)
+	1 structure	1 structure
+	{n} structures	{n} structures
+	Structure	Structure
+	Structure Source	Source de la structure
+	Set Structure	Définir la structure
+	Structure Node	Nœud de la structure
+	Structure Member	Barre de la structure
+	Structure Support	Appui de la structure
+	Structure Load	Charge de la structure
+	Structure\nEditor	Éditeur de\nstructure
+	Structure Editor	Éditeur de structure
+	Insert a beam, frame or truss with its reactions and diagrams	Insérer une poutre, un portique ou un treillis avec ses réactions et ses diagrammes
+	Diagrams	Diagrammes
+	Reactions	Réactions
+	Draw the reactions on the structure, in a panel of their own	Dessiner les réactions sur la structure, dans un cadre à part
+	Axial Force N	Effort normal N
+	Draw the axial force diagram (a truss: each member's force)	Dessiner le diagramme de l’effort normal (pour un treillis : l’effort dans chaque barre)
+	Shear	Effort tranchant
+	Draw the shear diagram	Dessiner le diagramme de l’effort tranchant
+	Moment M	Moment M
+	Draw the bending moment diagram	Dessiner le diagramme du moment fléchissant
+	Positive Side	Côté positif
+	Which side of each member a diagram's positive values are drawn on	De quel côté de chaque barre les valeurs positives d’un diagramme sont dessinées
+	Italian Convention	Convention italienne
+	N and T positive up, M on the stretched fibres (positive down)	N et T positifs vers le haut, M du côté des fibres tendues (positif vers le bas)
+	Write the notable values: at the ends of each stretch, the jumps, the maxima	Écrire les valeurs remarquables : aux extrémités de chaque tronçon, les sauts, les maximums
+	Hatching	Hachures
+	Hatch the diagrams' areas across the members	Hachurer les aires des diagrammes perpendiculairement aux barres
+	Signs	Signes
+	Mark each area of the diagrams with its sign	Marquer chaque aire des diagrammes de son signe
+	Panel Layout	Disposition
+	How the panels are laid out: one under the other, or two by two	Comment les cadres sont disposés : l’un sous l’autre, ou deux par deux
+	Automatic (Frames in Two Columns)	Automatique (portiques sur deux colonnes)
+	One Column	Une colonne
+	Two Columns	Deux colonnes
+	The units of lengths and forces (moments are their product)	Les unités des longueurs et des forces (les moments sont leur produit)
+	Solution\nOnly	Solution\nseule
+	Simply Supported Beam	Poutre sur deux appuis
+	Cantilever	Console
+	Continuous Beam	Poutre continue
+	Portal Frame	Portique
+	Truss	Treillis
+	Values	Valeurs
+	Write\nWorking	Écrire la\nrésolution
+	Write Working	Écrire la résolution
+structure	(truss)	(treillis)
+structure	Add Couple	Ajouter un couple
+structure	Add Distributed Load	Ajouter une charge répartie
+structure	Add Force	Ajouter une force
+structure	Add Member	Ajouter une barre
+structure	Add Node	Ajouter un nœud
+structure	Angle (°)	Angle (°)
+structure	Angle: the support turned counter-clockwise; 0 stands on the ground, 90 on a wall to the right, −90 on a wall to the left.	Angle : l’appui tourné dans le sens antihoraire ; 0 repose sur le sol, 90 sur un mur à droite, −90 sur un mur à gauche.
+structure	Automatic (Frames in Two Columns)	Automatique (portiques sur deux colonnes)
+structure	Cantilever	Console
+structure	Click a member to load it along its length	Cliquez sur une barre pour la charger sur sa longueur
+structure	Click a node or a member to remove it (a node with what uses it)	Cliquez sur un nœud ou une barre pour le supprimer (un nœud avec ce qui l’utilise)
+structure	Click a node or a member to see its properties.	Cliquez sur un nœud ou une barre pour voir ses propriétés.
+structure	Click a node or a point of a member to put a couple there	Cliquez sur un nœud ou un point d’une barre pour y appliquer un couple
+structure	Click a node or a point of a member to put a force there	Cliquez sur un nœud ou un point d’une barre pour y appliquer une force
+structure	Click a node to fix it (incastro)	Cliquez sur un nœud pour l’encastrer
+structure	Click a node to hold it with a link (pendolo)	Cliquez sur un nœud pour le retenir par une bielle
+structure	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pour le retenir par une glissière
+structure	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
+structure	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
+structure	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
+structure	Click to add a node	Cliquez pour ajouter un nœud
+structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Cliquez sur deux points pour dessiner une barre ; on continue depuis son extrémité (Échap ou un clic droit arrête)
+structure	Continuous Beam	Poutre continue
+structure	Couple	Couple
+structure	Distributed	Répartie
+structure	Erase	Effacer
+structure	Fit	Ajuster
+structure	Fixed	Encastrement
+structure	Force	Force
+structure	Grid	Grille
+structure	Hinge	Rotule
+structure	Hinge at its first node	Rotule au premier nœud
+structure	Hinge at its second node	Rotule au second nœud
+structure	Hinges	Rotules
+structure	Hyperstatic, degree {n}	Hyperstatique de degré {n}
+structure	Internal hinge	Rotule interne
+structure	Isostatic	Isostatique
+structure	Labile: {n} degree(s) of freedom	Hypostatique : {n} degré(s) de liberté
+structure	Link	Bielle
+structure	Loads	Charges
+structure	Member	Barre
+structure	Member {n}	Barre {n}
+structure	Members	Barres
+structure	Name	Nom
+structure	No members yet: draw them with Member	Aucune barre pour l’instant : dessinez-les avec Barre
+structure	Node	Nœud
+structure	Node or Member tool: Enter places the point	Outil Nœud ou Barre : Entrée place le point
+structure	Node {n}	Nœud {n}
+structure	Nodes	Nœuds
+structure	None	Aucun
+structure	Numbers may be calculation parameters or expressions (L/2, q). Direction: degrees from the horizontal, counter-clockwise; −90 is down.	Les nombres peuvent être des paramètres des calculs ou des expressions (L/2, q). Direction : degrés depuis l’horizontale, dans le sens antihoraire ; −90 est vers le bas.
+structure	One Column	Une colonne
+structure	Pin	Appui articulé
+structure	Point	Point
+structure	Portal Frame	Portique
+structure	Positive Down	Positifs vers le bas
+structure	Positive Up	Positifs vers le haut
+structure	Remove Member	Supprimer la barre
+structure	Remove Node	Supprimer le nœud
+structure	Remove the load	Supprimer la charge
+structure	Remove the node with its members, support and loads	Supprimer le nœud avec ses barres, son appui et ses charges
+structure	Remove the member with its loads	Supprimer la barre avec ses charges
+structure	Remove the support	Supprimer l’appui
+structure	Roller	Appui à rouleau
+structure	Select	Sélectionner
+structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Sélectionner nœuds, barres et charges (Maj+clic, une fenêtre) ; faire glisser pour les déplacer, une charge glisse le long de sa barre
+structure	Select a structure in the document to draw and edit it, or insert one.	Sélectionnez une structure dans le document pour la dessiner et la modifier, ou insérez-en une.
+structure	Shear	Effort tranchant
+structure	Show the whole structure	Afficher toute la structure
+structure	Simply Supported Beam	Poutre sur deux appuis
+structure	Slider	Glissière
+structure	Snap	Accrochage
+structure	Snap to the grid (always to the nodes)	Accrochage à la grille (toujours aux nœuds)
+structure	Support	Appui
+structure	Supports	Appuis
+structure	The direction measured from the member's axis (−90: towards the reference fibres), not from the horizontal	La direction mesurée depuis l’axe de la barre (−90 : vers les fibres de référence), et non depuis l’horizontale
+structure	The intensity per unit of the member's projection across the load (snow on a roof), not per unit of its length	L’intensité par unité de projection de la barre perpendiculairement à la charge (la neige sur un toit), et non par unité de longueur
+structure	The structure can't be read.	Impossible de lire la structure.
+structure	Truss	Treillis
+structure	Two Columns	Deux colonnes
+structure	Without E, I, A: EI is the same for every member and members do not stretch.	Sans E, I, A : EI est le même pour toutes les barres et les barres sont inextensibles.
+structure	at	à
+structure	at {n}	en {n}
+structure	counter-clockwise positive	positif dans le sens antihoraire
+structure	direction (°)	direction (°)
+structure	from	de
+structure	from the member	depuis la barre
+structure	member	barre
+structure	node	nœud
+structure	per projection	par projection
+structure	to	à
+structure	From	De
+structure	To	À
+structure	x	x
+structure	y	y
+structure	Working	Résolution
+structure	Reactions	Réactions d’appui
+structure	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Les réactions sont positives selon x, selon y et dans le sens antihoraire : une réaction négative agit en sens inverse.
+structure	Hyperstatic: from the solution by the stiffness method	Structure hyperstatique : d’après la résolution par la méthode des déplacements
+structure	From the equations solved together	D’après les équations résolues ensemble
+structure	Internal forces	Efforts internes
+structure	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x depuis le premier nœud de la barre ; N positif en traction, T positif s’il fait tourner dans le sens horaire, M positif s’il tend les fibres de référence.
+structure	Axial forces	Efforts normaux dans les barres
+structure	part about the hinge	partie autour de la rotule
+structure	Write Working	Écrire la résolution
+structure	Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values	Écrire après la structure sa résolution sous forme de calculs dynamiques : les équations d’équilibre qui donnent les réactions, puis les lois N(x), T(x), M(x) de chaque barre avec leurs valeurs
+structure	x from {a} to {b}	x de {a} à {b}
+	A right-aligned line for the score obtained against the total: computed from the points, or typed in	Une ligne alignée à droite pour les points obtenus sur le total : calculés à partir des points, ou saisis
+	Axial forces	Efforts normaux dans les barres
+	From the equations solved together	D’après les équations résolues ensemble
+	Hyperstatic: from the solution by the stiffness method	Structure hyperstatique : d’après la résolution par la méthode des déplacements
+	Insert Analysis	Insérer l’analyse
+	Internal forces	Efforts internes
+	Member	Barre
+	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Les réactions sont positives selon x, selon y et dans le sens antihoraire : une réaction négative agit en sens inverse.
+	Remove Total Score	Supprimer le total des points
+	Select a structure in the document to draw and edit it, or insert one.	Sélectionnez une structure dans le document pour la dessiner et la modifier, ou insérez-en une.
+	Total Score	Total des points
+	Working	Résolution
+	a table inside another table is never calculated	un tableau placé dans un autre tableau n’est jamais calculé
+	no inline value at the caret	aucune valeur dans le texte au point d’insertion
+	only tables in the body of the document are calculated	seuls les tableaux du corps du document sont calculés
+	part about the hinge	partie autour de la rotule
+	select a structure first	sélectionnez d’abord une structure
+	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x depuis le premier nœud de la barre ; N positif en traction, T positif s’il fait tourner dans le sens horaire, M positif s’il tend les fibres de référence.
+	x from {a} to {b}	x de {a} à {b}
+plot	Fit	Régression
+	Edit\nStructure	Modifier la\nstructure
+	Close\nEditor	Fermer\nl’éditeur
+	Stations	Abscisses
+	Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members	Écrire les cotes de la structure, les pentes des barres inclinées et les angles que les forces inclinées font avec leurs barres
+	Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start	Marquer sur l’axe de chaque diagramme où sont ses valeurs remarquables (la position d’une charge, un maximum, un zéro) avec la distance depuis le début de la barre
+structure	Structure Editor	Éditeur de structure
+structure	Close Editor	Fermer l’éditeur
+structure	Back to the page (Esc with nothing selected)	Revenir à la page (Échap sans rien de sélectionné)
+structure	Edit in Full Page	Modifier en pleine page
+structure	Open the structure in its editor, in place of the page (or double-click the structure)	Ouvrir la structure dans son éditeur, à la place de la page (ou double-cliquer sur la structure)
+structure	{n} selected · Del removes · arrows move	{n} sélectionnés · Suppr supprime · flèches déplacent
+structure	{n} items selected	{n} éléments sélectionnés
+structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Faites glisser l’un d’eux pour les déplacer ensemble ; les flèches les déplacent d’un pas de grille (Maj : dix fois) ; Suppr les supprime.
+structure	Remove Selected	Supprimer la sélection
+structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Cliquez sur un nœud, une barre ou une charge pour voir ses propriétés ; Maj+clic ou une fenêtre ajoutent à la sélection.
+# Strix (2026-11-18): the Structure Editor's ribbon tab and properties.
+	Supports	Appuis
+	Loads	Charges
+	Erase	Effacer
+	Fixed	Encastrement
+	Pin	Appui articulé
+	Roller	Appui à rouleau
+	Link	Bielle
+	Slider	Glissière
+	Internal hinge	Rotule interne
+	Force	Force
+	Couple	Couple
+	Select	Sélectionner
+	Grid	Grille
+	Click a node or a member to remove it (a node with what uses it)	Cliquez sur un nœud ou une barre pour le supprimer (un nœud avec ce qui l’utilise)
+	Click a node to fix it (incastro)	Cliquez sur un nœud pour l’encastrer
+	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
+	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
+	Click a node to hold it with a link (pendolo)	Cliquez sur un nœud pour le retenir par une bielle
+	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pour le retenir par une glissière
+	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
+	Click a node or a point of a member to put a force there	Cliquez sur un nœud ou un point d’une barre pour y appliquer une force
+	Click a node or a point of a member to put a couple there	Cliquez sur un nœud ou un point d’une barre pour y appliquer un couple
+	Click a member to load it along its length	Cliquez sur une barre pour la charger sur sa longueur
+	Snap to the grid (always to the nodes)	Accrochage à la grille (toujours aux nœuds)
+	Show the whole structure	Afficher toute la structure
+	Selection	Sélection
+	Sheet	Feuille
+	Close	Fermer
+	Dimensions	Cotes
+	The grid's step, in the structure's length unit	Le pas de la grille, dans l’unité de longueur de la structure
+	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Afficher sur la feuille les cotes, les pentes des barres inclinées et les angles des forces inclinées (le document les dessine selon Structures › Cotes)
+structure	Dimensions	Cotes
+structure	Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)	Afficher sur la feuille les cotes, les pentes des barres inclinées et les angles des forces inclinées (le document les dessine selon Structures › Cotes)
+structure	Kind	Type
+structure	Angle	Angle
+structure	Length	Longueur
+structure	Slope	Inclinaison
+structure	Section	Section
+structure	Load	Charge
+structure	On	Sur
+structure	direction	direction
+structure	hinged	rotule
+structure	A hinge at this end of the member	Une rotule à cette extrémité de la barre
+structure	Select the load to edit it	Sélectionner la charge pour la modifier
+structure	Structure	Structure
+structure	Title	Titre
+structure	Lengths	Longueurs
+structure	Forces	Forces
+structure	Made of	Composition
+structure	Tables	Tableaux
+structure	Select tool	Outil Sélection
+structure	Add a force here	Ajouter une force ici
+structure	Add a couple here	Ajouter un couple ici
+structure	Draw a member from here	Dessiner une barre d’ici
+structure	Select its loads	Sélectionner ses charges
+structure	Select the connected part	Sélectionner la partie reliée
+structure	Delete	Supprimer
+structure	Add a distributed load	Ajouter une charge répartie
+structure	Split here	Diviser ici
+structure	Split in half	Diviser en deux
+structure	Join the members	Joindre les barres
+structure	The node must join exactly two members	Le nœud doit relier exactement deux barres
+structure	The two members are not aligned	Les deux barres ne sont pas alignées
+structure	The node has a support	Le nœud a un appui
+structure	There is a hinge at the node	Il y a une articulation au nœud
+structure	The members have different sections	Les barres ont des sections différentes
+structure	Hinge at end {n}	Articulation à l’extrémité {n}
+structure	Select its ends	Sélectionner ses extrémités
+structure	Reverse	Inverser le sens
+structure	Direction	Direction
+structure	Vertical	Verticale
+structure	Horizontal	Horizontale
+structure	At 45°	À 45°
+structure	Perpendicular to the member	Perpendiculaire à la barre
+structure	Distributed load	Charge répartie
+structure	Uniform	Uniforme
+structure	Triangular	Triangulaire
+structure	On the whole member	Sur toute la barre
+structure	Add a node here	Ajouter un nœud ici
+structure	Select all	Tout sélectionner
+structure	Snap to the grid	Aimanter à la grille
+structure	Deselect	Désélectionner
+structure	Join onto node {n}	Joindre au nœud {n}
+structure	At node {n}	Au nœud {n}
+structure	Double-click	Double-clic
+# Strix (2026-11-18): a new exercise on a structure (structure.exercise).
+	Structure Exercise	Exercice sur une structure
+	To\nReport	Vers la\nstructure
+	To\nExercise	Vers\nl’exercice
+	Switch Structure Mode	Changer le mode de la structure
+	select a structure, or put the cursor in an exercise on a structure	sélectionnez une structure, ou placez le curseur dans un exercice sur une structure
+	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nouvel exercice sur une structure : la structure dans l’énoncé, les réactions et les diagrammes demandés, la résolution et les dessins dans la solution
+	For the structure in the figure, loaded as shown:	Pour la structure de la figure, chargée comme indiqué :
+	Find the support reactions.	Calculez les réactions d’appui.
+	Work out and draw the diagram of the axial force N.	Calculez et tracez le diagramme de l’effort normal N.
+	Work out and draw the diagram of the shear force {T}.	Calculez et tracez le diagramme de l’effort tranchant {T}.
+	Find the points where the shear force {T} is zero.	Trouvez les points où l’effort tranchant {T} est nul.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Calculez le moment fléchissant maximal en ces points ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Calculez et tracez le diagramme du moment fléchissant M.
+	Find the axial force in every member and draw it.	Calculez l’effort normal dans chaque barre et tracez-le.
+	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.
+	The structure can't be solved: its working will be written again as soon as it can.	La structure ne peut pas être résolue : la résolution sera réécrite dès qu’elle le pourra.

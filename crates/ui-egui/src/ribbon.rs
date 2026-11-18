@@ -27,6 +27,7 @@ mod references;
 mod review;
 mod shape;
 mod strix;
+mod structures;
 mod table;
 mod tabs;
 mod underline;
@@ -141,6 +142,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 tabs.push((name.to_string(), false));
             }
         }
+    }
+    // The full-page structure editor brings up its tab of tools.
+    if app.structure_edit.is_some() && !tabs.iter().any(|(n, _)| n == crate::structure_pane::EDITOR_TAB) {
+        tabs.push((crate::structure_pane::EDITOR_TAB.to_string(), false));
     }
     // While the drawing is open in its editor, its picture's tab gives way to the editor's.
     for ct in contextual_tabs(&app.session).into_iter().filter(|t| !(app.cad.is_some() && *t == "CAD Picture Format")) {
@@ -473,6 +478,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Home" => home(app, ui),
                         "Insert" => insert(app, ui),
                         "Math" => strix::math(app, ui),
+                        "Structures" => structures::structures(app, ui),
+                        crate::structure_pane::EDITOR_TAB if app.structure_edit.is_some() => structures::structure_editor(app, ui),
                         "Teaching" => strix::teaching(app, ui),
                         "Header & Footer" => strix::header_footer(app, ui),
                         exercise::EXERCISE_TAB => exercise::exercise_tab(app, ui),

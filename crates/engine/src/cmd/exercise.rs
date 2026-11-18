@@ -212,10 +212,10 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"on"?: bool (insert a right-aligned `Punteggio: .......... / 20 pt` line after the caret's paragraph, outside the exercises / remove it), "points"?: number | null (the maximum used when the document's points give none)} → {"on", "points" (the maximum shown), "computed" (the scores table's grand total, else the exercises' question points added up; null without points), "manual"}"#),
         CommandSpec::new("exercise.grading", "Grading Scale", "Teaching › Scores", grading::command)
             .params(r#"{"on"?: bool (insert or remove the strix:grading scale table), "preset"?: "it-10" | "ch-6" | "de-6" | "fr-20" | "percent" | "custom", "maxPoints"?: number | null (null = bound automatically to strix:scores grand total), "minGrade"?: number, "maxGrade"?: number, "passRatio"?: 0.05–0.95, "passGrade"?: number, "curve"?: "linear" | "piecewiseLinear", "step"?: number (the grade grid's step, e.g. 0.25 | 0.5 | 1), "pointsRound"?: number | null (the multiple the points of each grade are rounded to; null = hundredths), "visibility"?: "teacher" | "both"} → {"on", "preset", "maxPoints", "effectiveMaxPoints", …, "pointsRound", "scale": [{"grade", "from", "to" (excluded; null on the highest grade), "points" (= from), "pass", "empty", "text" ("[from; to[")}]}"#),
-        CommandSpec::new("exercise.check", "Check Assessment", "Teaching › Check", check::command)
+        CommandSpec::new("exercise.check", "Check Assessment", "Teaching › Assessment", check::command)
             .pure()
             .params(r#"→ {"ok": bool, "errors": n, "warnings": n, "infos": n, "issues": [{"kind": "error"|"warning"|"info", "code", "message", "exercise"?, "variant"?, "pos"}]}; inspects all variants A..Z, choices, subdocuments, scores, durations and laid-out answer heights without mutating the session"#),
-        CommandSpec::new("file.exportPack", "Export Assessment Pack", "Teaching › Export", pack::command)
+        CommandSpec::new("file.exportPack", "Export Assessment Pack", "Teaching › Assessment", pack::command)
             .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
             .params(r#"{"path"?: string (directory or .zip file path), "returnBytes"?: bool (returns base64 zip in zipBase64), "includeDsa"?: bool (default true), "includeTeacher"?: bool (default true)} → exports Student PDFs per variant, DSA Student PDFs, and Teacher Key PDF (with Grading Scale and Multi-Variant Synoptic Table)"#),
         CommandSpec::new("design.dsa", "DSA", "Design › DSA", dsa::command).params(
@@ -750,6 +750,17 @@ impl Exercise {
 
 fn plain(p: &Paragraph) -> String {
     p.text.chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string()
+}
+
+/// [`plain`], with a summary line's equations as their text (`a) V_B = 14 kN`): how tests read
+/// the results summary.
+#[cfg(test)]
+fn plain_shown(p: &Paragraph) -> String {
+    if p.props.style.as_deref() == Some(STYLE_RESULT) {
+        p.plain_text().chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string()
+    } else {
+        plain(p)
+    }
 }
 
 /// Reads the exercise structure from the body's control markers.
@@ -1300,6 +1311,21 @@ pub fn context(s: &Session) -> (bool, usize) {
 }
 
 /// The exercise holding the caret.
+/// A problem exercise put in by another command (a structure's exercise): `exercise.insert`'s
+/// params, the caret in its title afterwards.
+pub(super) fn insert_problem(s: &mut Session, v: &Value) -> CmdResult {
+    insert(s, v)
+}
+
+/// The exercise at the caret's statement (its first and last top-level block) and its repeated
+/// questions in the solution (the first and last top-level block of each).
+pub(super) fn statement_and_prompts(s: &Session) -> Option<(Option<(usize, usize)>, Vec<(usize, usize)>)> {
+    let e = exercise_at_caret(s)?;
+    let layout = scan(s);
+    let ex = layout.exercises.get(e)?;
+    Some((ex.text_blocks, ex.prompts.clone()))
+}
+
 pub(super) fn exercise_at_caret(s: &Session) -> Option<usize> {
     if s.sel.focus.story != StoryRef::Body {
         return None;
@@ -1852,6 +1878,12 @@ fn capitalized(t: &str) -> String {
     c.next().map_or_else(String::new, |f| f.to_uppercase().chain(c).collect())
 }
 
+/// Whether the summary writes these results as equations: each one `name = value`, none a
+/// warning (those stay words).
+fn summary_math(found: &[String]) -> bool {
+    !found.is_empty() && found.iter().all(|f| !f.trim().is_empty() && !f.trim_start().starts_with('⚠'))
+}
+
 /// The first block of the results summary, when the document has one.
 /// A control of an exercise that never shows a placeholder when emptied: an answer (an empty
 /// space prints empty), the points, an option's box.
@@ -2074,7 +2106,9 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= stem_items::problem_guides(s, &answers);
     let layout = scan(s);
     // Hidden results are hidden text in the summary; the heading too when every one is hidden.
-    let mut lines = vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results))];
+    // Each line: its style, its text, whether hidden, the results written as equations after the text.
+    let mut lines: Vec<(&str, String, bool, Vec<String>)> =
+        vec![(STYLE_HEADING, w.results.to_string(), layout.exercises.iter().all(|e| !e.show.results), Vec::new())];
     // Each exercise by its label alone (`Esercizio 1`, as the document numbers them); a lone
     // exercise has no label, so only its variant heads it (when it has several).
     let labels = numbering::current(s);
@@ -2096,17 +2130,21 @@ pub(crate) fn update(s: &mut Session) -> bool {
         };
         let hide = !e.show.results;
         if let Some(head) = head {
-            lines.push((STYLE_RESULT, head, hide));
+            lines.push((STYLE_RESULT, head, hide, Vec::new()));
         }
         if let Some(quiz) = quiz {
-            lines.extend(quiz.into_iter().map(|l| (STYLE_RESULT, l, hide)));
+            lines.extend(quiz.into_iter().map(|(l, eqs)| (STYLE_RESULT, l, hide, eqs)));
             continue;
         }
         for (k, q) in e.questions.iter().enumerate() {
             let question = u32::try_from(k + 1).unwrap_or(u32::MAX);
-            let value = answers.get(&(n, question)).map_or_else(|| w.no_result.to_string(), |found| found.join("; "));
             // Only the question's letter and its result: the question itself is above, in the exercise.
-            lines.push((STYLE_RESULT, format!("{} {value}", q.label), hide));
+            // The results as equations (subscripts, upright units), like the calculations.
+            match answers.get(&(n, question)).filter(|v| !v.is_empty()) {
+                Some(found) if summary_math(found) => lines.push((STYLE_RESULT, format!("{} ", q.label), hide, found.clone())),
+                Some(found) => lines.push((STYLE_RESULT, format!("{} {}", q.label, found.join("; ")), hide, Vec::new())),
+                None => lines.push((STYLE_RESULT, format!("{} {}", q.label, w.no_result), hide, Vec::new())),
+            }
         }
     }
     // Nothing to sum up (drawings, matchings alone): no summary.
@@ -2130,11 +2168,24 @@ pub(crate) fn update(s: &mut Session) -> bool {
         .unwrap_or_else(|| control(TAG_RESULTS, w.results, ControlLock::SdtContentLocked));
     let n = lines.len();
     let mut first = Some(ctl);
+    let calc_opts = super::calc::options_now(s);
+    let unit_color = super::calc::unit_color_of(s);
     let mut new: Vec<Paragraph> = lines
         .iter()
         .enumerate()
-        .map(|(i, (style, text, hide))| {
-            let mut p = para(style, text, first.take().into_iter().collect(), usize::from(i + 1 == n), None);
+        .map(|(i, (style, text, hide, eqs))| {
+            let opens: Vec<ContentControl> = first.take().into_iter().collect();
+            let lead = opens.len() * OBJ.len_utf8();
+            // The equations go after the text, `; ` between them: the separators are written
+            // first, each equation inserted at its place from the last.
+            let joints = "; ".repeat(eqs.len().saturating_sub(1));
+            let mut p = para(style, &format!("{text}{joints}"), opens, usize::from(i + 1 == n), None);
+            let props = p.runs.first().map(|r| r.props.clone()).unwrap_or_default();
+            let at = lead.saturating_add(text.chars().filter(|&c| c != OBJ && c != '\n').take(MAX_TEXT).map(char::len_utf8).sum::<usize>());
+            for (k, eq) in eqs.iter().enumerate().rev() {
+                let obj = super::calc::shown_equation(eq, &calc_opts, unit_color);
+                let _ = p.insert_object(at.saturating_add(k.saturating_mul("; ".len())), obj, &props);
+            }
             if *hide {
                 for r in &mut p.runs {
                     r.props.hidden = Some(true);
@@ -2186,7 +2237,7 @@ mod tests {
             .body
             .iter()
             .map(|b| match &**b {
-                Block::Para(p) => plain(p),
+                Block::Para(p) => plain_shown(p),
                 Block::Table(_) => "[table]".into(),
             })
             .collect()
@@ -2405,6 +2456,24 @@ mod tests {
         let t = texts(&s);
         assert!(t.contains(&"a) M = 30.375 kN·m".to_string()), "{t:?}");
         assert!(t.contains(&"b) risultato non indicato".to_string()), "{t:?}");
+        // The result is an equation (built up: subscripts, upright units), not a calculation:
+        // reported here by its linear text.
+        let summary = s.doc.body.iter().rev().find_map(|b| match &**b {
+            Block::Para(p) if plain(p) == "a)" => Some(p.clone()),
+            _ => None,
+        });
+        let summary = summary.unwrap();
+        let eqs: Vec<_> = summary
+            .objects
+            .iter()
+            .filter_map(|o| match o {
+                InlineObject::Equation { linear, math, .. } => Some((linear.clone(), math.calc, math.answer, math.nodes.is_empty())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(eqs.len(), 1, "{eqs:?}");
+        assert_eq!(eqs[0].0, "M = 30.375 kN·m");
+        assert!(!eqs[0].1 && eqs[0].2 == 0 && !eqs[0].3, "{eqs:?}");
         // The mark survives saving.
         let bytes = crate::io::save_bytes("e.xmath", &s.doc).unwrap();
         let doc = crate::io::open_bytes("e.xmath", &bytes).unwrap();
@@ -2412,6 +2481,39 @@ mod tests {
             |b| matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Equation { math, .. } if math.answer == 1))),
         );
         assert!(marked);
+    }
+
+    /// Found in use: the summary wrote results as linear text (`V_B = 14.075 kN`). They are
+    /// equations, subscripts built up, two results of one question side by side with `; `.
+    #[test]
+    fn summary_results_are_equations_with_subscripts() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"title": "Trave", "questions": ["Reazioni"]})).unwrap();
+        let free = texts(&s).iter().position(|t| t == "Reazioni").map(|i| i + 1).unwrap();
+        let free = texts(&s).iter().skip(free).position(|t| t == "Reazioni").map_or(free, |k| free + k + 1);
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, body_path(free), 0));
+        for t in ["V_B = 14 kN", "V_A = 26 kN"] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            let mut at = s.sel.focus.clone();
+            at.off -= OBJ.len_utf8();
+            s.sel = crate::Selection::caret(at);
+            s.run("equation.answer", &json!({"question": 1})).unwrap();
+            let mut at = s.sel.focus.clone();
+            at.off += OBJ.len_utf8();
+            s.sel = crate::Selection::caret(at);
+            s.run("text.insert", &json!({"text": " "})).unwrap();
+        }
+        let p = s.doc.body.last().and_then(|b| b.as_para()).cloned().unwrap();
+        let eqs: Vec<&wordcraft_doc::math::Math> =
+            p.objects.iter().filter_map(|o| if let InlineObject::Equation { math, .. } = o { Some(math) } else { None }).collect();
+        assert_eq!(eqs.len(), 2, "{:?}", p.text);
+        for m in &eqs {
+            assert!(!m.calc && m.answer == 0);
+            assert!(matches!(m.nodes.first(), Some(wordcraft_doc::math::MNode::Script { .. })), "{:?}", m.nodes);
+        }
+        // The question's letter, then the two with `; ` between them.
+        assert_eq!(p.text.chars().filter(|&c| c != OBJ).collect::<String>(), "a) ; ");
+        assert_eq!(plain_shown(&p), "a) V_B = 14 kN; V_A = 26 kN");
     }
 
     #[test]

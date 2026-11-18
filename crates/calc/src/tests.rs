@@ -263,6 +263,16 @@ fn greek_names_and_subscripts() {
     assert_eq!(last(&["pi*e ="]), "pi*e = 8.54");
 }
 
+/// A subscript listing indices, `q_(1,2)`, is part of the name (a trapezoidal load's ends), with
+/// or without decimal comma (`y_(i+1)`, a table's row, is not: `table_rows_are_read_by_subscript`).
+#[test]
+fn subscripts_listing_indices_are_names() {
+    assert_eq!(last(&["q_(1,1) = 2 kN/m", "q_(1,2) = 5 kN/m", "(q_(1,2) - q_(1,1))·(4 m)/2 ="]), "(q_(1,2) - q_(1,1))·(4 m)/2 = 6 kN");
+    let comma = Options { decimal_comma: true, ..Options::default() };
+    let r = evaluate(&["q_(1,2) = 2,5 kN/m", "2·q_(1,2) ="], &comma);
+    assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("2·q_(1,2) = 5 kN/m"), "{r:?}");
+}
+
 #[test]
 fn implicit_multiplication_precedence() {
     let q = |s: &str| run(&[s]).pop().unwrap().value.unwrap().scalar().unwrap();
@@ -1938,6 +1948,11 @@ fn a_call_shown_with_its_result_is_read_back_as_a_call() {
         let r = run(&["f(x) = x^2 - 4", "a = 0", shown, "f(3) ="]);
         assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("f(3) = 5"), "{shown}");
     }
+    // Shown in a unit, `f(a) = kN·m` asks for the call's value, not a constant function.
+    let r = run(&["M(x) = (30 kN)·x", "a = 2 m", "M(a) = kN·m", "M(1 m) = kN·m"]);
+    let shown: Vec<Option<String>> = r.iter().map(|r| r.display.clone()).collect();
+    assert_eq!(shown.get(2).cloned().flatten().as_deref(), Some("M(a) = 60 kN·m"), "{shown:?}");
+    assert_eq!(shown.get(3).cloned().flatten().as_deref(), Some("M(1 m) = 30 kN·m"), "{shown:?}");
     // An unknown parameter still defines a function, even with a number as its body.
     assert_eq!(last(&["g(u) = 4", "g(9) ="]), "g(9) = 4");
     assert_eq!(last(&["x = 2", "h(x) = x^2", "h(3) ="]), "h(3) = 9");
@@ -2248,4 +2263,86 @@ fn forms_built_from_text_are_calculated() {
     // Nothing after it is still no operand.
     assert!(matches!(last_error(&["∑_(i=1)^3▒()="]), CalcError::Syntax { .. }));
     assert!(matches!(last_error(&["∫_0^1▒()="]), CalcError::Syntax { .. }));
+}
+
+#[test]
+fn the_working_writes_a_sum_over_known_values_as_its_total() {
+    let mut ws = Worksheet::new(Options { steps: true, ..Options::default() });
+    let rows = table(&[
+        &["i", "A_i", "x_i", "y_i", "= A_i·x_i", "= A_i·y_i"],
+        &["1", "3", "5", "3", "", ""],
+        &["2", "6", "4", "9", "", ""],
+        &["Σ =", "Σ =", "", "", "Σ =", "Σ ="],
+    ]);
+    let r = ws.eval_table(&rows);
+    assert_eq!(r.errors, vec![]);
+    // The sums are the table's totals (9, 39), not the columns written out.
+    let shown = ws.eval_statement("x_g = (∑A_i·x_i)/(∑A_i) =");
+    assert_eq!(shown.display.as_deref(), Some("x_g = (∑A_i·x_i)/(∑A_i) = 39/9 = 4.333"), "{shown:?}");
+    // With a unit, the total carries it; a sum with limits over scalars keeps its working.
+    ws.eval_statement("L = [2; 3] m");
+    assert_eq!(ws.eval_statement("2·∑L =").display.as_deref(), Some("2·∑L = 2·(5 m) = 10 m"));
+    ws.eval_statement("n = 3");
+    assert_eq!(ws.eval_statement("∑_(k=1)^n▒k =").display.as_deref(), Some("∑_(k=1)^n▒k = ∑_(k=1)^(3)▒(k) = 6"));
+    // A sum that is the whole formula: its total is the result, with no working.
+    assert_eq!(ws.eval_statement("∑A_i =").display.as_deref(), Some("∑A_i = 9"));
+}
+
+/// An unknown inside a user function's call is solved with the dimension the function's body
+/// gives it, and an interval after `;` picks the root inside it.
+#[test]
+fn an_unknown_in_a_call_and_an_interval_for_its_root() {
+    assert_eq!(last(&["T(x) = (30 kN) - (10 kN/m)·x", "0 kN = T(x_1)"]), "0 kN = T(x_1) ⇒ x_1 = 3 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 0 m ≤ x_1 ≤ 6 m", "x_1 ="]), "x_1 = 2.449 m");
+    assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 6 m ≥ x_1 > 0 m", "x_1 ="]), "x_1 = 2.449 m");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    assert_eq!(shown, "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m ⇒ x_1 = 2.449 m");
+    // The root substituted in a call: one pair of parentheses.
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m", "M(x) = (30 kN)·x", "M(x_1) = kN·m"], &opts);
+    let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+    assert!(shown.contains("M(2.449 m)") && !shown.contains("(("), "{shown}");
+    let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
+    // Read back as written, it solves the same.
+    assert_eq!(last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", &shown, "x_1 ="]), "x_1 = 2.449 m");
+    // The root outside the interval is none.
+    assert!(run(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 3 m ≤ x_1 ≤ 6 m"]).pop().and_then(|r| r.error).is_some());
+}
+
+/// A quantity over a number keeps its parentheses in the steps, also as a product's last factor
+/// (a lever arm `(6 m)/2`): `6 m/2` reads, and is set, as `6·m/2`.
+#[test]
+fn a_quantity_over_a_number_keeps_its_parentheses() {
+    let s = steps(&["q = 10 kN/m", "0 kN·m = V·6 m - q·6 m·(6 m)/2"]).unwrap();
+    assert_eq!(s.first().map(String::as_str), Some("V·6 m = q·6 m·(6 m)/2"), "{s:?}");
+    assert_eq!(s.last().map(String::as_str), Some("V = 30 kN"), "{s:?}");
+    // A unit quotient is no number: `12 kN/m` stays as written.
+    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
+    let s = steps(&["d = (3 m)/2"]).unwrap_or_default();
+    assert!(s.iter().all(|l| !l.contains("3 m/2")), "{s:?}");
+}
+
+/// The owner's moment equation: the terms without the unknown cross over together, in one step,
+/// leaving only the monomial holding it; a zero on the other side is left out.
+#[test]
+fn known_terms_cross_over_in_one_step() {
+    let sheet = ["q_1 = 2 kN/m", "F_2 = 3 kN", "0 kN·m = V_A·4.5 m - q_1·3 m·(1.5 m + 3 m/2) + F_2·1 m"];
+    let s = steps(&sheet).unwrap();
+    assert_eq!(s[0], "V_A·4.5 m = q_1·3 m·(1.5 m + (3 m)/2) - F_2·1 m");
+    assert_eq!(s[1], "V_A = (q_1·3 m·(1.5 m + (3 m)/2) - F_2·1 m)/(4.5 m)");
+    assert_eq!(s.last().map(String::as_str), Some("V_A = 3.333 kN"));
+    assert_eq!(
+        steps(&["a = 2", "b = 3", "c = 1", "a + x·b - c = 10"]).unwrap(),
+        ["x·b = 10 + c - a", "x = (10 + c - a)/b", "x = (10 + 1 - 2)/3", "x = 3"]
+    );
+}
+
+/// A value with a rounding tail (`F·cos(30°)`) leaves a residual of `1e−15 kN·m` against the zero
+/// side once the unknown is isolated: the isolated form is kept, not traded for the polynomial
+/// solver's `−6 m·V = … − 0 kN·m`.
+#[test]
+fn a_rounding_residual_against_zero_keeps_the_isolated_form() {
+    let s = steps(&["F = (20 kN)", "G = F·cos(30°) =", "a = 2 m", "b = 2 m", "0 kN·m = V·6 m - F·a - G·b"]).unwrap();
+    assert_eq!(s.first().map(String::as_str), Some("V·6 m = G·b + F·a"), "{s:?}");
+    assert_eq!(s.last().map(String::as_str), Some("V = 12.44 kN"), "{s:?}");
 }

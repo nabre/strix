@@ -226,6 +226,26 @@ pub(crate) fn render_with(expr: &Expr, sub: &dyn Fn(&str) -> Option<String>) -> 
 
 /// [`render`], with any node `sub` gives text for written as that text (a parameter by its
 /// value, a written quantity converted to another unit: `30 cm` → `0.3 m`).
+/// `text` without one pair of parentheses around all of it (`(3.464 m)` → `3.464 m`); as it is
+/// when they close earlier (`(a) + (b)`).
+fn unwrapped(text: &str) -> &str {
+    let Some(inner) = text.strip_prefix('(').and_then(|t| t.strip_suffix(')')) else { return text };
+    let mut depth = 0_i32;
+    for c in inner.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth < 0 {
+                    return text;
+                }
+            }
+            _ => {}
+        }
+    }
+    if depth == 0 { inner } else { text }
+}
+
 pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -> String {
     if let Some(text) = sub(expr) {
         return text;
@@ -299,11 +319,12 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                     };
                     format!("({})", stacked.join("¦"))
                 }
-                _ => format!("{}({})", func.name(), args.join("; ")),
+                _ => format!("{}({})", func.name(), args.iter().map(|a| unwrapped(a)).collect::<Vec<_>>().join("; ")),
             }
         }
         Expr::Apply(name, args) => {
-            let args: Vec<String> = args.iter().map(render).collect();
+            // A value substituted in its own parentheses needs no second pair: `M((3.464 m))`.
+            let args: Vec<String> = args.iter().map(|a| unwrapped(&render(a)).to_string()).collect();
             format!("{name}({})", args.join("; "))
         }
         Expr::Vector(items) => {
@@ -346,7 +367,21 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
             }
             BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right))),
             BinOp::Div => {
-                format!("{}/{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_product(right)))
+                let den = wrap(right, is_sum(right) || is_product(right));
+                // A quantity divided by a number keeps its parentheses, also as the last factor of
+                // a product: `q·(3 m)/2`, not `q·3 m/2`, which reads (and is set) as `3·m/2`.
+                if !is_units(right) {
+                    if is_quantity(left) {
+                        return format!("({})/{den}", render(left));
+                    }
+                    if let Expr::Bin(BinOp::Mul, a, b) = &**left
+                        && is_quantity(b)
+                        && !is_quantity(left)
+                    {
+                        return format!("{}·({})/{den}", wrap(a, is_sum(a)), render(b));
+                    }
+                }
+                format!("{}/{}", wrap(left, is_sum(left)), den)
             }
             BinOp::Pow => {
                 let base = wrap(left, !matches!(**left, Expr::Name(_) | Expr::Num(_)));

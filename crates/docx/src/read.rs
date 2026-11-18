@@ -39,7 +39,7 @@ use crate::units::{flag, int, on_off, tw, u32_of};
 use crate::xml::El;
 pub(crate) use props::PropCtx;
 use story::StoryCtx;
-pub(crate) use story::{CAD_URI, PLOT_URI};
+pub(crate) use story::{CAD_URI, PLOT_URI, STRUCTURE_URI};
 
 mod meta;
 mod parts;

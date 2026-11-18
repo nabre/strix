@@ -264,6 +264,16 @@ pub fn pointer(app: &mut WordApp, ui: &Ui, resp: &egui::Response, pages: &[Rect]
         let _ = app.run("ui.cadEdit", json!({}));
         return true;
     }
+    // A double-click on a structure opens its editor in place of the page.
+    if resp.double_clicked()
+        && app.canvas.obj_drag.as_ref().is_none_or(|d| !d.drag.moved)
+        && selected(app).is_some()
+        && wordcraft_engine::cmd::structure::is_selected(&app.session)
+    {
+        app.canvas.obj_drag = None;
+        let _ = app.run("ui.structureEdit", json!({}));
+        return true;
+    }
     if let Some(mut d) = app.canvas.obj_drag.take() {
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
             return true; // cancelled: dropped without a change

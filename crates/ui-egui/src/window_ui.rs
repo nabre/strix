@@ -165,6 +165,8 @@ impl WordApp {
             // The CAD editor works on the active window's document; switching windows keeps it
             // pointing there, and it closes when its drawing is gone.
             cad: _,
+            // Like the CAD editor: it closes when its structure is no longer selected.
+            structure_edit: _,
             // The drawing editor's settings are the program's, not a window's.
             cad_settings: _,
             services: _,
