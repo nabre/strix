@@ -145,10 +145,10 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                 let left = has(a);
                 let (a2, b2) = ((**a).clone(), (**b).clone());
                 other = match (op, left) {
-                    (BinOp::Add, true) => bin(BinOp::Sub, other, b2),
-                    (BinOp::Add, false) => bin(BinOp::Sub, other, a2),
-                    (BinOp::Sub, true) => bin(BinOp::Add, other, b2),
-                    (BinOp::Sub, false) => bin(BinOp::Sub, a2, other),
+                    (BinOp::Add, true) => move_sub(other, b2),
+                    (BinOp::Add, false) => move_sub(other, a2),
+                    (BinOp::Sub, true) => move_add(other, b2),
+                    (BinOp::Sub, false) => move_sub(a2, other),
                     (BinOp::Mul, true) => bin(BinOp::Div, other, b2),
                     (BinOp::Mul, false) => bin(BinOp::Div, other, a2),
                     // A number goes in front: `4·A`, not `A·4`.
@@ -161,6 +161,11 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
                     (BinOp::Pow, false) => bin(BinOp::Div, call(Func::Ln, other), call(Func::Ln, a2)),
                 };
                 side = if left { a } else { b };
+                // The terms without `x` cross over together, in one step: only the monomial
+                // holding `x` stays on its side (`V·4.5 m = q·3 m − F·1 m`, not one line each).
+                if matches!(op, BinOp::Add | BinOp::Sub) && is_additive(side) {
+                    continue;
+                }
             }
             Expr::Call(f, args) => match (f, args.as_slice()) {
                 (Func::Root, [arg, n]) if !has(n) => {
@@ -313,10 +318,10 @@ fn solve_abs(
                 }
                 let (a2, b2) = ((**a).clone(), (**b).clone());
                 other = match (op, ha) {
-                    (BinOp::Add, true) => bin(BinOp::Sub, other, b2),
-                    (BinOp::Add, false) => bin(BinOp::Sub, other, a2),
-                    (BinOp::Sub, true) => bin(BinOp::Add, other, b2),
-                    (BinOp::Sub, false) => bin(BinOp::Sub, a2, other),
+                    (BinOp::Add, true) => move_sub(other, b2),
+                    (BinOp::Add, false) => move_sub(other, a2),
+                    (BinOp::Sub, true) => move_add(other, b2),
+                    (BinOp::Sub, false) => move_sub(a2, other),
                     (BinOp::Mul, true) => bin(BinOp::Div, other, b2),
                     (BinOp::Mul, false) => bin(BinOp::Div, other, a2),
                     (BinOp::Div, true) if matches!(b2, Expr::Num(_)) => bin(BinOp::Mul, b2, other),
@@ -325,6 +330,9 @@ fn solve_abs(
                     _ => return None,
                 };
                 side = if ha { a } else { b };
+                if matches!(op, BinOp::Add | BinOp::Sub) && is_additive(side) {
+                    continue;
+                }
             }
             _ => return None,
         }
@@ -369,6 +377,52 @@ impl Poly {
         } else {
             0
         }
+    }
+}
+
+/// A sum or difference: its terms still have to cross over.
+fn is_additive(e: &Expr) -> bool {
+    matches!(e, Expr::Bin(BinOp::Add | BinOp::Sub, _, _))
+}
+
+/// Zero, bare or with a unit (`0`, `0 kN·m`, `0 kN/m`).
+fn is_zero(e: &Expr) -> bool {
+    fn unit_only(e: &Expr) -> bool {
+        match e {
+            Expr::Unit(_) | Expr::Num(_) => true,
+            Expr::Bin(BinOp::Mul | BinOp::Div | BinOp::Pow, a, b) => unit_only(a) && unit_only(b),
+            _ => false,
+        }
+    }
+    match e {
+        Expr::Num(n) => *n == 0.0,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, b) => is_zero(a) && unit_only(b),
+        _ => false,
+    }
+}
+
+/// `a − b` for a term crossing over, a zero `a` or `b` left out (`−F·1 m`, not `0 kN·m − F·1 m`).
+fn move_sub(a: Expr, b: Expr) -> Expr {
+    if is_zero(&b) {
+        a
+    } else if is_zero(&a) {
+        neg_expr(b)
+    } else {
+        bin(BinOp::Sub, a, b)
+    }
+}
+
+/// `a + b` for a term crossing over, a zero `a` or `b` left out.
+fn move_add(a: Expr, b: Expr) -> Expr {
+    if is_zero(&b) {
+        a
+    } else if is_zero(&a) {
+        b
+    } else if let Expr::Neg(a) = a {
+        // `q·3 m − F·1 m`, not `−F·1 m + q·3 m`.
+        bin(BinOp::Sub, b, *a)
+    } else {
+        bin(BinOp::Add, a, b)
     }
 }
 

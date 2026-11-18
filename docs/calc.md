@@ -68,7 +68,9 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
   `3 m·5 m`.
 - Solving: the unknown is **isolated** symbolically when it appears once (inverting `+ − · /`,
   powers, `√`, `|u(x)| = c` via `±` branching, `exp ln log`, `sin cos tan` and their inverses,
-  principal values), or solved **symbolically as a degree 1–2 polynomial** (`poly_coeffs`) when it
+  principal values; the isolated value is kept when it satisfies the equation, a rounding residual
+  measured against the equation's terms — `0 kN·m = V·6 m − F·d` with `F = F_2·cos(30°)` leaves
+  `1e−15 kN·m` against a zero side), or solved **symbolically as a degree 1–2 polynomial** (`poly_coeffs`) when it
   appears multiple times (`2·x + 3 = x + 7`, `s = v_0·t + 1/2·a·t²`), checking dimensional
   homogeneity of `B² − 4·A·C`, reporting `Δ < 0` explicitly, generating quadratic-formula steps,
   computing both roots `x₁, x₂` and filtering by physical domain constraints (`t > 0`, standalone
@@ -576,7 +578,7 @@ or `calc.layout`.
 | Statement | Steps |
 |---|---|
 | a formula: `M = q·L²/8 =`, `M = q·L²/8`, `q·L²/8 =`, `A := …  =` | the values substituted (with their units, one unit per kind), the result |
-| solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
+| solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; the terms without the unknown cross over together, in one step, leaving only the monomial holding it, a zero left out: `0 kN·m = V_A·4.5 m − q_1·3 m·1.5 m + F_2·1 m` gives `V_A·4.5 m = q_1·3 m·1.5 m − F_2·1 m` at once; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
 | solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
 

@@ -1590,7 +1590,7 @@ impl Worksheet {
             let mut scope = self.scope.clone();
             scope.set(x, v.clone());
             let eq_ok = match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
-                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok(),
+                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
                 _ => false,
             };
             let dom_ok = match &v {
@@ -2238,6 +2238,29 @@ fn reads(expr: &Expr, x: &str) -> bool {
 }
 
 /// `Ok` when `a` and `b` are the same quantity (or vector) to within rounding.
+/// Do `a` (the value of `lhs`) and `b` (of `rhs`) differ by rounding alone, measured against
+/// their terms? A side that is zero (`0 kN·m = V·6 m − F·d`) leaves a residual like `1e−15 kN·m`
+/// where the terms are tens: an isolated unknown that satisfies the equation, not a wrong one.
+fn cancels(a: &Value, b: &Value, lhs: &Expr, rhs: &Expr, scope: &Scope) -> bool {
+    /// The largest magnitude among the terms of a sum or difference, at most 64 deep.
+    fn scale(e: &Expr, scope: &Scope, depth: usize) -> f64 {
+        match e {
+            Expr::Bin(BinOp::Add | BinOp::Sub, l, r) if depth < 64 => scale(l, scope, depth + 1).max(scale(r, scope, depth + 1)),
+            Expr::Neg(inner) if depth < 64 => scale(inner, scope, depth + 1),
+            _ => match eval(e, scope, Names::Worksheet) {
+                Ok(Value::Scalar(q)) if q.value.is_finite() => q.value.abs(),
+                _ => 0.0,
+            },
+        }
+    }
+    let (Value::Scalar(qa), Value::Scalar(qb)) = (a, b) else { return false };
+    if a.dim() != b.dim() || !qa.value.is_finite() || !qb.value.is_finite() {
+        return false;
+    }
+    let big = scale(lhs, scope, 0).max(scale(rhs, scope, 0));
+    big > 0.0 && (qa.value - qb.value).abs() <= 1e-9 * big
+}
+
 fn agree(a: &Value, b: &Value, opts: &Options) -> Result<(), CalcError> {
     let (qa, qb) = (a.quantities(), b.quantities());
     let close = |x: f64, y: f64| (x - y).abs() <= 1e-9 * x.abs().max(y.abs()).max(1e-300);
