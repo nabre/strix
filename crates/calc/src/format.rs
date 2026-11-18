@@ -367,7 +367,21 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
             }
             BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right))),
             BinOp::Div => {
-                format!("{}/{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_product(right)))
+                let den = wrap(right, is_sum(right) || is_product(right));
+                // A quantity divided by a number keeps its parentheses, also as the last factor of
+                // a product: `q·(3 m)/2`, not `q·3 m/2`, which reads (and is set) as `3·m/2`.
+                if !is_units(right) {
+                    if is_quantity(left) {
+                        return format!("({})/{den}", render(left));
+                    }
+                    if let Expr::Bin(BinOp::Mul, a, b) = &**left
+                        && is_quantity(b)
+                        && !is_quantity(left)
+                    {
+                        return format!("{}·({})/{den}", wrap(a, is_sum(a)), render(b));
+                    }
+                }
+                format!("{}/{}", wrap(left, is_sum(left)), den)
             }
             BinOp::Pow => {
                 let base = wrap(left, !matches!(**left, Expr::Name(_) | Expr::Num(_)));

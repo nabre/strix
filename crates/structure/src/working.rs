@@ -28,6 +28,9 @@ pub struct Resultant {
     /// Unit direction of a force (a couple's is unused).
     pub dir: (f64, f64),
     pub kind: ResultantKind,
+    /// A distributed load's loaded stretch, from the end where a triangle's intensity is zero
+    /// (its centroid is two thirds of the way); a concentrated load's point twice.
+    pub span: ((f64, f64), (f64, f64)),
 }
 
 impl Resultant {
@@ -67,9 +70,15 @@ pub fn resultants(st: &Structure) -> Vec<Resultant> {
                 let Some(p) = point else { continue };
                 if let Load::Force { angle, .. } = l {
                     let th = angle.value.to_radians();
-                    out.push(Resultant { load: k, at: p, dir: (th.cos(), th.sin()), kind: ResultantKind::Force { value: value.value } });
+                    out.push(Resultant {
+                        load: k,
+                        at: p,
+                        dir: (th.cos(), th.sin()),
+                        kind: ResultantKind::Force { value: value.value },
+                        span: (p, p),
+                    });
                 } else {
-                    out.push(Resultant { load: k, at: p, dir: (0.0, 0.0), kind: ResultantKind::Couple { value: value.value } });
+                    out.push(Resultant { load: k, at: p, dir: (0.0, 0.0), kind: ResultantKind::Couple { value: value.value }, span: (p, p) });
                 }
             }
             Load::Distributed { member, q1, q2, from, to, angle, axes, per } => {
@@ -94,8 +103,15 @@ pub fn resultants(st: &Structure) -> Vec<Resultant> {
                 let length = (s1 - s0) * factor;
                 let (q1, q2) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
                 let point = |s: f64| (a.0 + d.0 * s, a.1 + d.1 * s);
+                let span = (point(s0), point(s1));
                 if q1 != 0.0 {
-                    out.push(Resultant { load: k, at: point((s0 + s1) / 2.0), dir, kind: ResultantKind::Spread { q: q1, length, triangle: false } });
+                    out.push(Resultant {
+                        load: k,
+                        at: point((s0 + s1) / 2.0),
+                        dir,
+                        kind: ResultantKind::Spread { q: q1, length, triangle: false },
+                        span,
+                    });
                 }
                 if q2 != q1 {
                     out.push(Resultant {
@@ -103,6 +119,7 @@ pub fn resultants(st: &Structure) -> Vec<Resultant> {
                         at: point(s0 + (s1 - s0) * 2.0 / 3.0),
                         dir,
                         kind: ResultantKind::Spread { q: q2 - q1, length, triangle: true },
+                        span,
                     });
                 }
             }

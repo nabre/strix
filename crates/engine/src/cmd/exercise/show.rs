@@ -401,7 +401,7 @@ mod tests {
                 .iter()
                 .filter_map(|b| b.as_para())
                 .filter(|p| p.props.style.as_deref() == Some(STYLE_RESULT))
-                .map(super::super::plain)
+                .map(super::super::plain_shown)
                 .collect()
         };
         let before = results(&s);

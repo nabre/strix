@@ -2308,3 +2308,16 @@ fn an_unknown_in_a_call_and_an_interval_for_its_root() {
     // The root outside the interval is none.
     assert!(run(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 3 m ≤ x_1 ≤ 6 m"]).pop().and_then(|r| r.error).is_some());
 }
+
+/// A quantity over a number keeps its parentheses in the steps, also as a product's last factor
+/// (a lever arm `(6 m)/2`): `6 m/2` reads, and is set, as `6·m/2`.
+#[test]
+fn a_quantity_over_a_number_keeps_its_parentheses() {
+    let s = steps(&["q = 10 kN/m", "0 kN·m = V·6 m - q·6 m·(6 m)/2"]).unwrap();
+    assert_eq!(s.first().map(String::as_str), Some("V·6 m = 0 kN·m + q·6 m·(6 m)/2"), "{s:?}");
+    assert_eq!(s.last().map(String::as_str), Some("V = 30 kN"), "{s:?}");
+    // A unit quotient is no number: `12 kN/m` stays as written.
+    assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
+    let s = steps(&["d = (3 m)/2"]).unwrap_or_default();
+    assert!(s.iter().all(|l| !l.contains("3 m/2")), "{s:?}");
+}

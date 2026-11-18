@@ -574,6 +574,10 @@ pub struct Structure {
     /// written in), kept so the working is written again in them when the structure changes.
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub working_labels: std::collections::BTreeMap<String, String>,
+    /// What its written working was last written from (a hash of its values as the calculations
+    /// give them), so a change of a parameter it reads writes the working again.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub working_key: String,
 }
 
 impl Default for Structure {
@@ -594,6 +598,7 @@ impl Default for Structure {
             width: default_width(),
             answer: true,
             working_labels: std::collections::BTreeMap::new(),
+            working_key: String::new(),
         }
     }
 }
@@ -682,6 +687,7 @@ impl Structure {
     pub fn sanitized(mut self) -> Structure {
         self.title = self.title.chars().filter(|c| !c.is_control()).take(120).collect();
         self.group = self.group.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
+        self.working_key = self.working_key.chars().filter(char::is_ascii_hexdigit).take(16).collect();
         self.working_labels = std::mem::take(&mut self.working_labels)
             .into_iter()
             .take(MAX_WORKING_LABELS)

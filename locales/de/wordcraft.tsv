@@ -3963,6 +3963,12 @@ structure	Delete	Löschen
 structure	Add a distributed load	Streckenlast hinzufügen
 structure	Split here	Hier teilen
 structure	Split in half	In der Mitte teilen
+structure	Join the members	Stäbe verbinden
+structure	The node must join exactly two members	Der Knoten muss genau zwei Stäbe verbinden
+structure	The two members are not aligned	Die beiden Stäbe liegen nicht auf einer Linie
+structure	The node has a support	Der Knoten hat ein Auflager
+structure	There is a hinge at the node	Am Knoten ist ein Gelenk
+structure	The members have different sections	Die Stäbe haben verschiedene Querschnitte
 structure	Hinge at end {n}	Gelenk am Ende {n}
 structure	Select its ends	Seine Enden auswählen
 structure	Reverse	Richtung umkehren
@@ -3984,6 +3990,10 @@ structure	At node {n}	Im Knoten {n}
 structure	Double-click	Doppelklick
 # Strix (2026-11-18): a new exercise on a structure (structure.exercise).
 	Structure Exercise	Tragwerksaufgabe
+	To\nReport	Zum\nTragwerk
+	To\nExercise	Zur\nAufgabe
+	Switch Structure Mode	Tragwerksmodus wechseln
+	select a structure, or put the cursor in an exercise on a structure	Wählen Sie ein Tragwerk aus oder setzen Sie den Cursor in eine Tragwerksaufgabe
 	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Eine neue Aufgabe zu einem Tragwerk: das Tragwerk in der Aufgabenstellung, die gesuchten Auflagerreaktionen und Zustandslinien, der Lösungsweg und die Zeichnungen in der Lösung
 	For the structure in the figure, loaded as shown:	Für das abgebildete Tragwerk mit den dargestellten Lasten:
 	Find the support reactions.	Berechnen Sie die Auflagerreaktionen.

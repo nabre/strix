@@ -73,6 +73,18 @@ pub(in crate::cmd::structure) fn name(group: &str, part: Part) -> String {
     format!("{PREFIX}{g}_{}", part.tag())
 }
 
+/// Whether `group` has a written working in the body (whole, or an exercise's part).
+pub(in crate::cmd::structure) fn any(s: &Session, group: &str) -> bool {
+    if group.is_empty() {
+        return false;
+    }
+    let names: Vec<String> = PARTS.iter().map(|&p| name(group, p)).collect();
+    s.doc.body.iter().any(|b| match &**b {
+        Block::Para(p) => p.objects.iter().any(|o| matches!(o, InlineObject::BookmarkStart { name } if names.contains(name))),
+        _ => false,
+    })
+}
+
 /// Keeps in `st` the working's words given in `v`'s `labels`.
 pub(in crate::cmd::structure) fn keep_labels(st: &mut Structure, v: &Value) {
     let Some(labels) = v.get("labels").and_then(Value::as_object) else { return };

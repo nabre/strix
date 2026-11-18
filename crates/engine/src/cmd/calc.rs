@@ -587,6 +587,16 @@ fn shown_nodes(text: &str, note: Option<&str>) -> wordcraft_doc::math::Arg {
     nodes
 }
 
+/// `text` (a result as the calculations show it, `V_B = 14.075 kN`) as an equation that is not a
+/// calculation: built up from its linear format (subscripts), its units upright in `color`.
+pub(crate) fn shown_equation(text: &str, opts: &Options, color: Rgb) -> InlineObject {
+    let units = Worksheet::new(*opts).units_in(text);
+    let mut nodes = parse_linear(text);
+    style_units(&mut nodes, &units, color, 0);
+    // Its linear text as written, so that it copies and reads as text as the result did.
+    InlineObject::Equation { linear: text.trim().to_string(), math: Math { nodes, ..Math::default() }, display: false }
+}
+
 /// The equation's whole linear text (all its rows).
 fn equation_full(linear: &str, math: &Math) -> String {
     if math.nodes.is_empty() || math.linear { linear.to_string() } else { to_linear(&math.nodes) }
@@ -1545,6 +1555,10 @@ pub(crate) fn auto_recalculate(s: &mut Session) {
             s.touch();
         }
     }
+    // A structure's working follows the parameters it reads (docs/structures.md, Modes).
+    if super::structure::follow_values(s) {
+        recalculate_now(s);
+    }
     // Exercises show the results: their automatic parts follow.
     super::exercise::update(s);
     let expr_fp_after = super::exercise::expr::fingerprint(&s.doc.body);
@@ -1936,6 +1950,13 @@ pub(crate) fn resolved_plot(s: &Session, source: &Arc<str>) -> Option<strix_plot
 /// Structure `source` worked out where it sits, against the worksheet it sees there (the main
 /// one, or its exercise's sandbox): its analysis and the teacher's drawing.
 pub(crate) fn resolved_structure(s: &Session, source: &Arc<str>) -> Option<strix_structure::StructureRendered> {
+    let ws = worksheet_at(s, source)?;
+    let st = strix_structure::Structure::from_json(source).ok()?;
+    Some(st.render(Some(&ws)))
+}
+
+/// The worksheet structure `source` sees where it sits: the main one, or its exercise's sandbox.
+pub(crate) fn worksheet_at(s: &Session, source: &Arc<str>) -> Option<Worksheet> {
     let mut found = items(&s.doc.body);
     let at = found.iter().position(|i| matches!(i, Item::Plot { source: src, structure: true, .. } if Arc::ptr_eq(src, source)))?;
     let top = match found.get(at) {
@@ -1945,14 +1966,10 @@ pub(crate) fn resolved_structure(s: &Session, source: &Arc<str>) -> Option<strix
     found.truncate(at);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
     let opts = options_now(s);
-    let (sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
-    let st = strix_structure::Structure::from_json(source).ok()?;
+    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
     Some(match zones.get(top).copied().flatten() {
-        Some(e) => match sheets.exercises.get(&e) {
-            Some(ws) => st.render(Some(ws)),
-            None => st.render(Some(&Worksheet::new(opts))),
-        },
-        None => st.render(Some(&sheets.main)),
+        Some(e) => sheets.exercises.remove(&e).unwrap_or_else(|| Worksheet::new(opts)),
+        None => sheets.main,
     })
 }
 
@@ -3337,7 +3354,7 @@ mod tests {
         assert_eq!(texts(&s), ["x:=3m", "x*2=(3m)·2=6m"]);
         s.run("equation.calc", &json!({"value": false})).unwrap();
         // With x unknown again, the last result reads as an equation in x and gives it back.
-        assert_eq!(texts(&s), ["x*2=6m⇒x=6m/2=3m"]);
+        assert_eq!(texts(&s), ["x*2=6m⇒x=(6m)/2=3m"]);
         // New equations follow the preference.
         assert_eq!(s.run("calc.newEquations", &json!({})).unwrap()["calcNewEquations"], true);
     }

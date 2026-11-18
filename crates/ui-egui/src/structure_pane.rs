@@ -356,7 +356,8 @@ fn with_state(app: &WordApp, f: impl FnOnce(&mut State)) -> Result<Value, String
     Ok(json!({"tool": s.tool.name(), "snap": s.snap, "grid": s.grid, "dimensions": s.dims}))
 }
 
-/// UI commands (`ui.structure*`): `ui.structureEdit` opens the full-page editor,
+/// UI commands (`ui.structure*`): `ui.structureEdit` opens the full-page editor (`ui.structureNew`,
+/// `{"template"?}`: on a new structure),
 /// `ui.structureClose` closes it; the editor's tab: `ui.structureTool` (`{"tool": "select" |
 /// "node" | "member" | "fixed" | "pin" | "roller" | "link" | "slider" | "hinge" | "force" |
 /// "couple" | "distributed" | "erase"}`), `ui.structureSnap` and `ui.structureDimensions`
@@ -366,6 +367,12 @@ pub(crate) fn command(app: &mut WordApp, id: &str, p: &Value) -> Result<Value, S
     let on = p.get("on").and_then(Value::as_bool);
     match id {
         "ui.structureEdit" => {
+            open(app)?;
+            Ok(json!({"open": true}))
+        }
+        "ui.structureNew" => {
+            let template = p.get("template").and_then(Value::as_str).unwrap_or("beam");
+            app.run("structure.insert", json!({"template": template}))?;
             open(app)?;
             Ok(json!({"open": true}))
         }
@@ -398,7 +405,7 @@ fn empty_state(app: &mut WordApp, ui: &mut Ui) {
     ui.add_space(8.0);
     for (template, label) in TEMPLATES {
         if ui.button(ts(label)).clicked() {
-            let _ = app.run("structure.insert", json!({"template": template, "openPane": true}));
+            let _ = app.run("ui.structureNew", json!({"template": template}));
         }
     }
 }

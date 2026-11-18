@@ -3,7 +3,7 @@
 
 use super::common::stack;
 use super::language::mi_check;
-use super::{Ui, Value, WordApp, big_toggle, group, json, menu_button, small};
+use super::{Ui, Value, WordApp, group, json, menu_button, small};
 
 pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
     let info = crate::structure_pane::info(app, ui);
@@ -21,7 +21,7 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
             ),
             |ui, app| {
                 for (template, label) in crate::structure_pane::TEMPLATES {
-                    super::mi(ui, app, label, "structure.insert", json!({"template": template, "openPane": true}));
+                    super::mi(ui, app, label, "ui.structureNew", json!({"template": template}));
                 }
             },
         );
@@ -41,11 +41,13 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 }
             },
         );
+        // One editor: the full-page one (also a double-click on the structure).
         let editing = app.structure_edit.is_some();
-        let (cmd, label) = if editing { ("ui.structureClose", "Close\nEditor") } else { ("ui.structureEdit", "Edit\nStructure") };
+        let (cmd, label) = if editing { ("ui.structureClose", "Close\nEditor") } else { ("ui.structureEdit", "Structure\nEditor") };
         super::big(ui, app, "structureEdit", label, cmd, json!({}), false);
-        let pane = app.session.view.structure_pane;
-        big_toggle(ui, app, "structureEditor", "Structure\nEditor", "view.structurePane", pane);
+        // Report ⇄ exercise: the label says where the structure goes.
+        let label = if wordcraft_engine::cmd::structure::in_exercise(&app.session) { "To\nReport" } else { "To\nExercise" };
+        super::big(ui, app, "structureMode", label, "structure.mode", mode_labels(), false);
     });
     let d = &st["diagrams"];
     let shown = |k: &str| d[k]["show"].as_bool().unwrap_or(true);
@@ -318,6 +320,15 @@ fn positive_menu(ui: &mut Ui, app: &mut WordApp, d: &Value, shear: &str) {
 /// `s` in the interface's language as the structure editor words it.
 fn ts(s: &str) -> &str {
     crate::i18n::tc("structure", s)
+}
+
+/// `structure.mode`'s params: the exercise's words and the working's in the interface's language.
+fn mode_labels() -> Value {
+    let mut v = exercise_labels("");
+    if let Some(o) = v.as_object_mut() {
+        o.remove("template");
+    }
+    v
 }
 
 /// `structure.exercise`'s params for `template`: the exercise's words and the working's in the

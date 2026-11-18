@@ -181,6 +181,27 @@ fn y_stops(ms: &Measures, tol: f64) -> Vec<f64> {
     distinct(ms.nodes.iter().chain(&ms.on_plumb).map(|p| p.1).collect(), tol)
 }
 
+/// The distances the drawing's dimensions give: the chains along x (nearest the structure first,
+/// each a row of stations whose neighbours are dimensioned) and the chain along y.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Chains {
+    pub x: Vec<Vec<f64>>,
+    pub y: Vec<Vec<f64>>,
+    /// Two stations closer than this are the same.
+    pub tol: f64,
+}
+
+/// The chains [`Ctx::dimensions`] draws (whether or not the drawing shows them).
+pub fn chains(st: &Structure) -> Chains {
+    let ms = measures(st);
+    if ms.nodes.len() < 2 {
+        return Chains::default();
+    }
+    let tol = tolerance(&ms);
+    let ys = y_stops(&ms, tol);
+    Chains { x: x_rows(&ms, tol), y: if ys.len() >= 2 { vec![ys] } else { Vec::new() }, tol }
+}
+
 impl Ctx<'_> {
     /// Chains of distances below the structure (x) and at its right (y), and along each
     /// inclined member that carries loads.

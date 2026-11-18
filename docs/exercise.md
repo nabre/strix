@@ -20,7 +20,7 @@ deleted; the automatic parts can't be edited):
 | Questions | `strix:exercise.questions` | can't delete | questions (style Exercise Question), lettered by a list of their own, **starting again at a) in every exercise** (a copy of an exercise pasted into the same document gets lists of its own too, for its questions and their options), and **nested** up to three levels: a), a.1), a.1.1) (Tab / Shift+Tab, or Add Sub-question); between them any free content: **notes** (style Exercise Note, Add Note), tables, figures |
 | Solution | `strix:exercise.solution` | can't delete | a heading (Risoluzione), then each question repeated with its free working under it |
 | Repeated question | `strix:exercise.prompt` | read-only | `a) …`: one per question, rebuilt automatically; the working after it stays |
-| Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises** |
+| Results summary | `strix:results` | read-only | at the very end of the document, **one for all exercises**; each result is written as an equation (subscripts built up, units upright in the unit colour, as the calculations show them: *a) V<sub>B</sub> = 14.075 kN*), not a calculation; several results of one question side by side with `; `; a warning or *risultato non indicato* stays text |
 
 **Editing keeps the structure.** Backspace and Delete never join a paragraph across the edge of
 a part (the statement into the title, a question into the statement, the title into the paragraph

@@ -580,6 +580,10 @@ or `calc.layout`.
 | solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
 
+A quantity divided by a number keeps its parentheses in every step, also as a product's last
+factor: `q·6 m·(6 m)/2` stays so when the terms move (written `q·6 m·6 m/2` it would read, and be
+set, as `6·m/2`); a unit quotient is not a number (`12 kN/m` stays as written).
+
 The variable a sum, a product, an integral or a limit runs over is never substituted, whatever
 is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
 `∑_i▒k·i² = ∑_i▒(2·i²) = 110`, and `∑_i▒i² =` shows `∑_i▒i² = 55` (nothing to substitute). Read

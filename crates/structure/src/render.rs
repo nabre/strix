@@ -11,6 +11,7 @@ use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
 mod annotate;
+pub use annotate::{Chains, chains};
 
 type P = (f64, f64);
 type Rgb = [u8; 3];
