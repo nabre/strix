@@ -310,7 +310,9 @@ The **Structures** tab (between Math and Teaching) inserts a **beam, frame or tr
 solved where it sits and drawn as a textbook draws it ([docs/structures.md](docs/structures.md)):
 the structure with its supports and loads, the **reactions**, and the **N, T (V), M diagrams** one
 under the other at the same scale, hatched, with ⊕/⊖ and the notable values; a truss shows each
-member's axial force, tension and compression in two colours.
+member's axial force, tension and compression in two colours. Every load is named (`F_1`, `q_2`,
+`C_3`), the drawing carries the structure's **dimensions**, slopes and force angles, and the
+diagrams mark their **stations** (where a notable value falls, measured from the member's start).
 
 - **Any plane structure**: fixed ends, pins, rollers, links and sliders at any angle, internal
   hinges; forces, couples and uniform, triangular or trapezoidal loads, in global or local axes,
@@ -319,12 +321,21 @@ member's axial force, tension and compression in two colours.
 - **Driven by the calculations**: every length and load can be a parameter (`L`, `q`), so each
   variant of an exercise has its own structure and diagrams; the Italian convention (moment on
   the stretched fibres) is the default, and each diagram's positive side can be chosen.
-- **The Structure Editor**, a pane beside the document: a sheet with grid and snaps, tools for
-  nodes, members, supports, hinges and loads, typed coordinates, and tables of nodes, members,
-  supports and loads.
+- **The Structure Editor**: a double-click on a structure opens it in place of the page, with its
+  own ribbon tab: a sheet with grid and snaps, tools for nodes, members, supports, hinges and
+  loads, selection by click and window, grips to move nodes, carry and turn loads and stretch
+  distributed loads, a right-click menu (split or join members, supports, hinges, loads), typed
+  coordinates, the selection's properties and tables of nodes, members, supports and loads.
 - **The written working**: **Write Working** puts the solution after the structure as live
-  calculations: the equilibrium equations giving the reactions, then each member's laws N(x),
-  T(x), M(x) stretch by stretch, with their values at the ends and the moment's extremes.
+  calculations: the loads, their resultants and parts and each force's arm, prepared first, then
+  the equilibrium equations written algebraically (`0 kN·m = V_B·6 m − F_1·d_(1,A)`), each solved
+  for its reaction with its steps, then each member's laws (`T_1(x) = V_A − q_1·x`) stretch by
+  stretch, with their values at the ends and the moment's extremes. The working follows the
+  structure: every change to it, or to a parameter it reads, writes it again.
+- **An exercise on the structure**: **Structure Exercise** writes a whole problem (the structure
+  in the statement; reactions, N, T, where T is zero, the greatest moment there, M), each answer
+  with its working and its own drawing; **To Exercise** and **To Report** switch a structure
+  between a technical report and an exercise, where it stands.
 - In the students' copy, **Solution Only** leaves the reactions and diagrams out and keeps the
   panels, so both copies have the same layout.
 
@@ -387,8 +398,8 @@ The teaching, calculation and drawing commands include `exercise.insert`, `exerc
 `exercise.setData`, `exercise.variant`, `exercise.generateVariants`, `exercise.show`,
 `exercise.scores`, `exercise.grading`, `exercise.check`, `file.exportPack`, `archive.properties`,
 `design.dsa`, `equation.answer`, `calc.insert`, `calc.recalculate`, `table.calc`, `insert.cad`,
-`cad.set`, `plot.insert`, `plot.analysis`, `structure.insert`, `structure.set` and
-`structure.working`, so an agent can prepare a whole test with its variants, its grading scale
+`cad.set`, `plot.insert`, `plot.analysis`, `structure.insert`, `structure.set`,
+`structure.working`, `structure.exercise` and `structure.mode`, so an agent can prepare a whole test with its variants, its grading scale
 and its printed copies.
 
 ```sh
@@ -490,7 +501,8 @@ Done:
 10. **Plots**: functions, parametric and polar curves, data with regression, their analysis
     written as calculations.
 11. **Plane structures**: beams, frames and trusses solved and drawn with reactions and N, T, M
-    diagrams, the Structure Editor, the written working.
+    diagrams, dimensions and stations, the full-page Structure Editor, the written working that
+    follows the structure, exercises on a structure.
 12. **Word round trip**: Strix objects stay live through `.docx` files saved by Word.
 
 Next: being defined (see [ROADMAP.md](ROADMAP.md)). Noted so far:

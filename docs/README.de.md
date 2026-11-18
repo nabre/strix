@@ -225,7 +225,10 @@ ein Fachwerk** ein, das an Ort und Stelle berechnet und wie im Lehrbuch gezeichn
 ([structures.md](structures.md), auf Englisch): das Tragwerk mit Lagern und Lasten, die
 **Auflagerreaktionen** und die **Zustandslinien** von Normalkraft, Querkraft und Biegemoment
 untereinander im selben Maßstab, schraffiert, mit ⊕/⊖ und den maßgebenden Werten; ein Fachwerk
-zeigt die Stabkraft jedes Stabs, Zug und Druck in zwei Farben. Die Zustandslinien heißen
+zeigt die Stabkraft jedes Stabs, Zug und Druck in zwei Farben. Jede Last hat ihren Namen (`F_1`,
+`q_2`, `C_3`), die Zeichnung trägt die **Bemaßung** des Tragwerks, die Neigungen und die Winkel
+der Kräfte, und die Zustandslinien markieren ihre **Stationen** (wo ein maßgebender Wert liegt,
+gemessen vom Stabanfang). Die Zustandslinien heißen
 standardmäßig N, T und M; den Titel der Querkraft kann man pro Tragwerk ändern, etwa in Q.
 
 - **Jedes ebene Tragwerk**: Einspannungen, Festlager, Loslager, Pendelstäbe und
@@ -237,13 +240,23 @@ standardmäßig N, T und M; den Titel der Querkraft kann man pro Tragwerk änder
   `q`), so hat jede Variante einer Aufgabe ihr eigenes Tragwerk und ihre eigenen Zustandslinien;
   die italienische Konvention (Moment auf der Seite der gezogenen Faser) ist voreingestellt, und
   die positive Seite jeder Zustandslinie ist wählbar.
-- **Der Tragwerkseditor**, ein Bereich neben dem Dokument: ein Blatt mit Raster und Fang,
-  Werkzeuge für Knoten, Stäbe, Lager, Gelenke und Lasten, eingetippte Koordinaten und Tabellen der
-  Knoten, Stäbe, Lager und Lasten.
+- **Der Tragwerkseditor**: Ein Doppelklick auf ein Tragwerk öffnet es anstelle der Seite, mit
+  einem eigenen Menüband-Reiter: ein Blatt mit Raster und Fang, Werkzeuge für Knoten, Stäbe,
+  Lager, Gelenke und Lasten, Auswahl per Klick und Fenster, Griffe zum Verschieben von Knoten,
+  Versetzen und Drehen von Lasten und Strecken von Streckenlasten, ein Kontextmenü (Stäbe teilen
+  oder verbinden, Lager, Gelenke, Lasten), eingetippte Koordinaten, die Eigenschaften der Auswahl
+  und Tabellen der Knoten, Stäbe, Lager und Lasten.
 - **Der geschriebene Lösungsweg**: **Lösungsweg schreiben** setzt die Lösung als lebendige
-  Berechnungen hinter das Tragwerk: die Gleichgewichtsbedingungen, die die Auflagerreaktionen
-  ergeben, dann die Verläufe N(x), T(x), M(x) jedes Stabs Abschnitt für Abschnitt, mit ihren
-  Werten an den Enden und den Extrema des Moments.
+  Berechnungen hinter das Tragwerk: zuerst die Lasten, ihre Resultierenden und Komponenten und der
+  Hebelarm jeder Kraft, dann die Gleichgewichtsbedingungen in allgemeiner Form
+  (`0 kN·m = V_B·6 m − F_1·d_(1,A)`), jede mit ihren Schritten nach ihrer Auflagerreaktion
+  aufgelöst, dann die Verläufe jedes Stabs (`T_1(x) = V_A − q_1·x`) Abschnitt für Abschnitt, mit
+  ihren Werten an den Enden und den Extrema des Moments. Der Lösungsweg folgt dem Tragwerk: Jede
+  Änderung daran oder an einem Parameter, den es liest, schreibt ihn neu.
+- **Eine Aufgabe zum Tragwerk**: **Tragwerksaufgabe** schreibt eine ganze Aufgabe (das Tragwerk im
+  Aufgabentext; Auflagerreaktionen, N, T, wo T null wird, das größte Moment dort, M), jede Antwort
+  mit ihrem Lösungsweg und ihrer eigenen Zeichnung; **Zur Aufgabe** und **Zum Tragwerk** wandeln
+  ein Tragwerk an Ort und Stelle zwischen technischem Bericht und Aufgabe um.
 - In der Kopie der Schüler lässt **Nur Lösung** Auflagerreaktionen und Zustandslinien weg und
   behält die leeren Felder, so haben beide Kopien dasselbe Layout.
 
@@ -299,7 +312,8 @@ programmatische Aufrufe öffnen nie Dialoge. Zu den Befehlen für Unterricht, Be
 Zeichnung gehören `exercise.insert`, `exercise.setData`, `exercise.variant`,
 `exercise.generateVariants`, `exercise.scores`, `exercise.grading`, `exercise.check`,
 `file.exportPack`, `design.dsa`, `calc.insert`, `table.calc`, `insert.cad`, `plot.insert`,
-`plot.analysis`, `structure.insert` und `structure.working`: Ein Agent kann eine ganze
+`plot.analysis`, `structure.insert`, `structure.working`, `structure.exercise` und
+`structure.mode`: Ein Agent kann eine ganze
 Klassenarbeit vorbereiten, mit ihren Varianten, ihrem Notenschlüssel und den Kopien zum Drucken.
 
 ```sh
@@ -345,7 +359,7 @@ berechnete Tabellen, Aufgaben mit Angaben und Varianten (generiert und geprüft)
 Fragemodi, Klassenarbeiten aus der Aufgabensammlung über Masterdokumente, DSA-Formatierung,
 Kontrolle vor dem Druck und Export des Prüfungspakets, Punktetabelle und Notenschlüssel,
 Karopapier, parametrische CAD-Zeichnungen mit den Änderungswerkzeugen, Diagramme mit ihrer
-Analyse, ebene Tragwerke mit ihrem Lösungsweg, Word-Dateien, die Strix-Objekte behalten. Als
+Analyse, ebene Tragwerke mit ihrem Lösungsweg und ihren Aufgaben, Word-Dateien, die Strix-Objekte behalten. Als
 Nächstes notiert: Gleichungssysteme und Matrizen, eine Ergebnistabelle pro Aufgabe und eine
 Übersicht pro Variante, Fragen zum Ordnen, CAD-Bemaßungen, die die Zeichnung steuern. Details in
 [ROADMAP.md](../ROADMAP.md) (mit dem

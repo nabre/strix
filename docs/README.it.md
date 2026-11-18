@@ -220,7 +220,9 @@ travatura reticolare** che viene risolta dove si trova e disegnata come sul libr
 ([structures.md](structures.md)): la struttura con vincoli e carichi, le **reazioni vincolari** e
 i **diagrammi di N, T e M** uno sotto l'altro alla stessa scala, tratteggiati, con ⊕/⊖ e i valori
 notevoli; una reticolare mostra lo sforzo normale di ogni asta, trazione e compressione in due
-colori.
+colori. Ogni carico ha il suo nome (`F_1`, `q_2`, `C_3`), il disegno porta le **quote** della
+struttura, le inclinazioni e gli angoli delle forze, e i diagrammi segnano le **progressive** (dove
+cade un valore notevole, misurato dall'inizio dell'asta).
 
 - **Qualsiasi struttura piana**: incastri, cerniere, carrelli, pendoli e doppi pendoli con
   qualsiasi inclinazione, cerniere interne; forze, coppie e carichi distribuiti uniformi,
@@ -231,12 +233,22 @@ colori.
   variante di un esercizio ha la sua struttura e i suoi diagrammi; la convenzione italiana
   (momento dalla parte delle fibre tese) è quella predefinita, e il lato positivo di ogni
   diagramma si può scegliere.
-- **L'editor della struttura**, un riquadro accanto al documento: un foglio con griglia e snap,
-  strumenti per nodi, aste, vincoli, cerniere e carichi, coordinate digitate, e le tabelle di nodi,
-  aste, vincoli e carichi.
+- **L'editor della struttura**: un doppio clic su una struttura la apre al posto della pagina,
+  con la sua scheda della barra multifunzione: un foglio con griglia e snap, strumenti per nodi,
+  aste, vincoli, cerniere e carichi, selezione con clic e finestra, maniglie per spostare i nodi,
+  portare e ruotare i carichi e allungare i distribuiti, un menu del tasto destro (dividere o
+  unire aste, vincoli, cerniere, carichi), coordinate digitate, le proprietà della selezione e le
+  tabelle di nodi, aste, vincoli e carichi.
 - **Lo svolgimento scritto**: **Scrivi svolgimento** mette la soluzione dopo la struttura come
-  calcoli vivi: le equazioni di equilibrio che danno le reazioni, poi le leggi N(x), T(x), M(x)
-  di ogni asta tratto per tratto, con i valori agli estremi e i massimi del momento.
+  calcoli vivi: prima i carichi, le loro risultanti e componenti e il braccio di ogni forza, poi
+  le equazioni di equilibrio scritte in forma letterale (`0 kN·m = V_B·6 m − F_1·d_(1,A)`), ognuna
+  risolta per la sua reazione con i passaggi, poi le leggi di ogni asta (`T_1(x) = V_A − q_1·x`)
+  tratto per tratto, con i valori agli estremi e i massimi del momento. Lo svolgimento segue la
+  struttura: ogni modifica, o a un parametro che legge, lo riscrive.
+- **Un esercizio sulla struttura**: **Esercizio su struttura** scrive un problema intero (la
+  struttura nel testo; reazioni, N, T, dove T si annulla, il momento massimo lì, M), ogni
+  risposta con il suo svolgimento e il suo disegno; **Passa a esercizio** e **Passa a struttura**
+  trasformano una struttura da relazione tecnica a esercizio e viceversa, dove si trova.
 - Nella copia dello studente le reazioni e i diagrammi restano fuori e i riquadri vuoti
   rimangono, così le due copie hanno la stessa impaginazione.
 
@@ -292,7 +304,8 @@ e le chiamate programmatiche non aprono mai finestre di dialogo. Fra i comandi d
 del calcolo e del disegno ci sono `exercise.insert`, `exercise.setData`, `exercise.variant`,
 `exercise.generateVariants`, `exercise.scores`, `exercise.grading`, `exercise.check`,
 `file.exportPack`, `design.dsa`, `calc.insert`, `table.calc`, `insert.cad`, `plot.insert`,
-`plot.analysis`, `structure.insert` e `structure.working`: un agente può preparare un intero
+`plot.analysis`, `structure.insert`, `structure.working`, `structure.exercise` e
+`structure.mode`: un agente può preparare un intero
 momento di valutazione, con le varianti, la scala di valutazione e le copie da stampare.
 
 ```sh
@@ -338,7 +351,7 @@ con dati e varianti (generate e controllate), quiz con tutte le modalità di dom
 valutazione composti dall'archivio con i documenti master, formattazione DSA, controllo prima
 della stampa ed esportazione del pacchetto, tabella dei punteggi e scala di valutazione, foglio a
 quadretti, disegni CAD parametrici con gli strumenti di modifica, grafici con la loro analisi,
-strutture piane con lo svolgimento, file Word che conservano gli oggetti Strix. Prossimi passi
+strutture piane con lo svolgimento e i loro esercizi, file Word che conservano gli oggetti Strix. Prossimi passi
 annotati: sistemi di equazioni e matrici, una tabella dei risultati per esercizio e un riepilogo
 per variante, domande di ordinamento, quote CAD che comandano il disegno.
 I dettagli sono in [ROADMAP.md](../ROADMAP.md) (con il registro
