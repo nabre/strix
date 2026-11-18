@@ -638,6 +638,10 @@ impl CadEditor {
 
 /// Opens the selected CAD drawing in the editor.
 pub fn open(app: &mut WordApp) -> Result<(), String> {
+    // One editor in place of the page at a time.
+    if app.structure_edit.is_some() {
+        return Err("close the structure editor first".into());
+    }
     let kept = app.cad_settings;
     let (pos, drawing, rendered, names) = wordcraft_engine::cmd::cad::edited(&app.session).ok_or("select a CAD drawing first")?;
     let source = current_source(app, &pos);

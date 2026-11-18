@@ -3887,6 +3887,7 @@ template	Letter	Brief
 	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x ab dem ersten Knoten des Stabs; N positiv als Zug, T positiv bei Drehung im Uhrzeigersinn, M positiv bei Zug in der Bezugsfaser.
 plot	Fit	Regression
 	Edit\nStructure	Tragwerk\nbearbeiten
+	Close\nEditor	Editor\nschließen
 	Stations	Stationen
 	Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members	Die Maße des Tragwerks, die Neigungen schräger Stäbe und die Winkel schräger Kräfte zu ihren Stäben angeben
 	Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start	Auf der Achse jedes Diagramms markieren, wo seine markanten Werte liegen (Lage einer Last, ein Maximum, eine Nullstelle), mit dem Abstand vom Stabanfang
