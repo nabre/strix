@@ -268,7 +268,11 @@ impl Worksheet {
         // call of known parameters with its result, no definition of a constant function.
         let known = params.iter().all(|p| self.scope.get(p).is_some());
         let result = parse(body, len).is_ok_and(|e| crate::format::is_numeric(&e) || crate::format::is_quantity(&e));
-        if known && (worked || result) {
+        // `M(x_0) = kN·m`: a call shown in a unit, no constant function of one unit.
+        let unit_asked = units_only(body)
+            && body.iter().any(|t| matches!(t.tok, Tok::Ident(_)))
+            && !body.iter().any(|t| matches!(&t.tok, Tok::Ident(n) if params.contains(n) || self.scope.get(n).is_some()));
+        if known && (worked || result || unit_asked) {
             return None;
         }
         // Outside brackets: the conditions of cases (`{█(−x,&x<0@x,&x≥0)┤`) compare inside theirs.

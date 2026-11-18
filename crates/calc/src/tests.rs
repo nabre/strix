@@ -1948,6 +1948,11 @@ fn a_call_shown_with_its_result_is_read_back_as_a_call() {
         let r = run(&["f(x) = x^2 - 4", "a = 0", shown, "f(3) ="]);
         assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("f(3) = 5"), "{shown}");
     }
+    // Shown in a unit, `f(a) = kN·m` asks for the call's value, not a constant function.
+    let r = run(&["M(x) = (30 kN)·x", "a = 2 m", "M(a) = kN·m", "M(1 m) = kN·m"]);
+    let shown: Vec<Option<String>> = r.iter().map(|r| r.display.clone()).collect();
+    assert_eq!(shown.get(2).cloned().flatten().as_deref(), Some("M(a) = 60 kN·m"), "{shown:?}");
+    assert_eq!(shown.get(3).cloned().flatten().as_deref(), Some("M(1 m) = 30 kN·m"), "{shown:?}");
     // An unknown parameter still defines a function, even with a number as its body.
     assert_eq!(last(&["g(u) = 4", "g(9) ="]), "g(9) = 4");
     assert_eq!(last(&["x = 2", "h(x) = x^2", "h(3) ="]), "h(3) = 9");
