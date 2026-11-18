@@ -20,7 +20,7 @@ A `Structure` (JSON, camelCase) has:
 - **Every number is a `Num`**: a JSON number, or an expression of the calculation parameters (`"L/2"`, `"q"`). A parameter with a unit converts to the structure's units (`L = 450 cm` is 4.5 in a metre structure, `q = 12 kN/m` is 12, `30°` is 30 degrees); a plain number counts in the structure's units; `L/2 - 1` mixes a length and a number, so lengths count as plain numbers in the structure's unit there, as coordinates do in a CAD drawing. A failed expression keeps its last value and is reported.
 - **Diagrams** `{reactions, n, v, m, values, hatch, signs, dimensions, stations}`: each of `n`, `v`, `m` has `show`, `positive` (`up`: the member's `+y` side; `down`: the reference fibres' side) and `amplitude` (the largest value's height, paper mm, 12 by default). **Italian convention** (default, `structure.set {"convention": "italian"}`): N and V positive up, M positive down, so the moment is drawn on the stretched fibres. `titles {n, v, m}` name the panels (`N`, `T`, `M` by default; `V` for English texts).
 - `title`, `width` (paper mm, 160), `answer` (true: reactions and diagrams are the answer, hidden in the student copy).
-- `view` (`all` by default, not written; `structure`: the structure with its loads only; `reactions`: the reactions only; `diagrams`: the diagrams only) and `group` (a name the drawings of one structure share, `structure-1`…: see [Exercise](#exercise)).
+- `view` (`all` by default, not written; `structure`: the structure with its loads only; `reactions`: the reactions only; `diagrams`: the diagrams only; `axial`, `shear`, `moment`: one diagram only, whatever its flag — a truss's `axial` its axial forces) and `group` (a name the drawings of one structure share, `structure-1`…: see [Exercise](#exercise)).
 
 Sign conventions: N positive in tension; V positive when it turns the piece clockwise; M positive when it stretches the reference fibres.
 
@@ -65,7 +65,7 @@ A `GraphicKind::Structure` graphic holds the JSON source (`Graphic::structure`),
 | `structure.support {node, kind?, angle?, remove?}` | one support per node: puts, changes or removes it |
 | `structure.load {index?, load?, remove?}` | adds, replaces or removes a load |
 | `structure.working {labels?}` | writes the solution after the structure as live calculations ([Working](#working)) |
-| `structure.exercise {structure?, template?, labels?}` | a new exercise on a structure ([Exercise](#exercise)) → `{exercise, group}` |
+| `structure.exercise {structure?, template?, labels?, questions?}` | a new exercise on a structure ([Exercise](#exercise)) → `{exercise, group}` |
 
 ## The Structures tab (Strutture)
 
@@ -105,13 +105,19 @@ A task pane (docked right, 440 pt) for the selected structure, every change made
 
 ## Exercise
 
-`structure.exercise` (Structures › Structure › **Structure Exercise**, a menu of the templates) writes a new problem exercise ([exercise.md](exercise.md)) after the caret's paragraph, in the interface's language (`labels`: `title`, `text`, `reactions`, `diagrams` — `{T}` is the shear's title — and the working's labels):
+`structure.exercise` (Structures › Structure › **Structure Exercise**, a menu of the templates) writes a new problem exercise ([exercise.md](exercise.md)) after the caret's paragraph, in the interface's language (`questions`: `reactions`, `axial`, `shear`, `zeros`, `maxima`, `moments`, `trussAxial`; `labels`: `title`, `text`, `jump`, `nozero` and the working's labels — `{T}` is the shear's title):
 
 - **Statement:** a line (*Per la struttura in figura, caricata come indicato:*) and under it the structure with its loads, dimensions and angles (`view: structure`).
-- **Questions:** a) classify the structure and find the support reactions; b) write N, T, M stretch by stretch and draw their diagrams.
-- **Solution**, under each repeated question: a) the reactions' working (the loads' names, the equilibrium equations with their steps, the signs' note) and the drawing of the reactions (`view: reactions`); b) the laws stretch by stretch with their values and the N, T, M diagrams (`view: diagrams`). The equations solving the reactions (and a redundant's value) are marked as question a)'s result, so the results summary lists them.
+- **Questions:** a) find the support reactions; b) work out and draw the diagram of N; c) of T; d) find the points where T is zero; e) work out the greatest bending moment at those points (T(x) = 0); f) work out and draw the diagram of M. A truss: a) the reactions; b) the axial force in every member.
+- **Solution**, under each repeated question:
+  - a) the reactions' working (the loads' names, the equilibrium equations with their steps, the signs' note) and the drawing of the reactions (`view: reactions`);
+  - b), c), f) the conventions (under b), then each stretch's law `N_1(x)`, `T_1(x)`, `M_1(x)` with its values at the stretch's ends (a constant N: its law alone) and that diagram alone (`view: axial`, `shear`, `moment`);
+  - d) for each stretch where T vanishes, its law solved for the place: `0 kN = T_1(x_1) ⇒ x_1 = 3 m` (when calc's solver would give another root of the law, or T vanishes twice in the stretch, the place is defined, `x_1 = 3 m`, and checked, `T_1(x_1) = 0 kN`); where T changes sign under a concentrated load, its values on both sides (`T_1a(2 m)`, `T_1b(2 m)`); where it does neither, a line saying so;
+  - e) the law of M of each of those stretches and its value there (`M_1(x_1) = 45 kN·m`, `M_1a(2 m)`); with no such point, at the stretch's end where |M| is greatest.
 
-The three drawings share a `group` (`structure-1`, `structure-2`… one per exercise): a change made to one of them — in the Structure Editor, by a `structure.*` command — is made to the others, each keeping its own view and width. The working is written with the structure's values at the time: after a change, write it again. Hidden solutions (the student copy) take the reactions and diagrams with them, as any solution.
+  The equations solving the reactions (and a redundant's value), the places of d) and the moments of e) are marked as their questions' results, so the results summary lists them.
+
+The drawings share a `group` (`structure-1`, `structure-2`… one per exercise): a change made to one of them — in the Structure Editor, by a `structure.*` command — is made to the others, each keeping its own view and width. The working is written with the structure's values at the time: after a change, write it again. Hidden solutions (the student copy) take the reactions and diagrams with them, as any solution.
 
 ## Next
 

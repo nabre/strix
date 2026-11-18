@@ -1183,6 +1183,14 @@ fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
             }
         }
     }
+    // One diagram alone, whatever its flag: the drawing asked for it.
+    match (st.view, an.truss) {
+        (View::Axial, true) => panels.push(Panel::Truss),
+        (View::Axial, false) => panels.push(Panel::Diagram(Action::Axial)),
+        (View::Shear, false) => panels.push(Panel::Diagram(Action::Shear)),
+        (View::Moment, false) => panels.push(Panel::Diagram(Action::Moment)),
+        _ => {}
+    }
     panels
 }
 
@@ -1309,6 +1317,17 @@ mod layout_tests {
         for p in [&schema, &reactions, &diagrams] {
             assert!(p.size.1 < all.size.1);
         }
+        // One diagram alone, even with its flag off in the whole drawing.
+        let one = |view: View| {
+            let mut st = Structure { view, ..beam() };
+            st.diagrams.m.show = false;
+            st.render(None).plot
+        };
+        let (axial, shear, moment) = (one(View::Axial), one(View::Shear), one(View::Moment));
+        assert!(has(&axial, "N [") && !has(&axial, "M [") && !has(&axial, "8 m"));
+        assert!(has(&shear, "T [") && !has(&shear, "N [") && !has(&shear, "M ["));
+        assert!(has(&moment, "M [") && has(&moment, "50.46") && !has(&moment, "T ["));
+        assert!(moment.size.1 < diagrams.size.1);
         // The view is written only when it is not the whole drawing.
         assert!(!beam().to_json().contains("view"));
         let json = Structure { view: View::Diagrams, group: "structure-1".into(), ..beam() }.to_json();

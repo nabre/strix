@@ -23,6 +23,9 @@ use wordcraft_doc::{Block, InlineObject};
 
 use crate::{CmdError, CmdResult, Session};
 
+mod questions;
+pub(super) use questions::{Parts, parts};
+
 /// At most this many lines are written.
 const MAX_LINES: usize = 400;
 
@@ -41,6 +44,10 @@ struct Labels {
     hinge: String,
     /// A stretch's extent: `{a}` and `{b}` its ends.
     range: String,
+    /// An exercise's shear changing sign under a concentrated load (`{T}`: the shear's name).
+    jump: String,
+    /// An exercise's shear never vanishing nor changing sign.
+    nozero: String,
 }
 
 impl Labels {
@@ -64,6 +71,8 @@ impl Labels {
             axial: get("axial", "Axial forces"),
             hinge: get("hinge", "part about the hinge"),
             range: get("range", "x from {a} to {b}"),
+            jump: get("jump", "{T} changes sign under a concentrated load"),
+            nozero: get("nozero", "{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch."),
         }
     }
 }
@@ -147,47 +156,6 @@ fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Pa
         out.push(para);
     }
     Ok(out)
-}
-
-/// The working of structure `src` in two parts, for an exercise's solution: the reactions
-/// (without the heading) and the internal forces (a truss: its axial forces).
-pub(super) fn sections(
-    s: &Session,
-    src: &std::sync::Arc<str>,
-    v: &Value,
-    props: &wordcraft_doc::CharProps,
-) -> Result<(Vec<Paragraph>, Vec<Paragraph>), CmdError> {
-    let st = Structure::from_json(src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
-    let r = crate::cmd::calc::resolved_structure(s, src)
-        .unwrap_or_else(|| st.render(Some(&strix_calc::Worksheet::new(crate::cmd::calc::options_now(s)))));
-    if !r.analysis.status.is_solved() {
-        return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
-    }
-    let comma = crate::cmd::calc::options_now(s).decimal_comma;
-    let labels = Labels::from(v);
-    let all = lines(&r.resolved, &r.analysis, &labels, comma);
-    let forces = format!("{}: {}", labels.forces, labels.conventions);
-    let axial = format!("{}:", labels.axial);
-    let split = all.iter().position(|l| l.note.is_none() && l.equations.is_empty() && (l.label == forces || l.label == axial)).unwrap_or(all.len());
-    let (first, second) = all.split_at(split);
-    let first = first.get(1..).unwrap_or(&[]);
-    let mut reactions = paragraphs(first, props)?;
-    // The reactions are the first question's result: the equations solving them, and those
-    // giving a redundant its value.
-    let names: Vec<String> = unknowns(&r.resolved, &r.analysis).into_iter().map(|k| format!("{} = ", k.name)).collect();
-    for (line, para) in first.iter().zip(reactions.iter_mut()) {
-        let result = line.stepped || (!line.equations.is_empty() && line.equations.iter().all(|e| names.iter().any(|n| e.starts_with(n.as_str()))));
-        if !result {
-            continue;
-        }
-        let offs: Vec<usize> = para.objects_with_offsets().filter(|(_, o)| matches!(o, InlineObject::Equation { .. })).map(|(off, _)| off).collect();
-        for off in offs {
-            if let Some(InlineObject::Equation { math, .. }) = para.object_at_mut(off) {
-                math.answer = 1;
-            }
-        }
-    }
-    Ok((reactions, paragraphs(second, props)?))
 }
 
 /// A number as calc reads it: six significant digits, no trailing zeros, the document's decimal
@@ -602,7 +570,8 @@ fn hinge_parts(st: &Structure) -> Vec<(String, Vec<usize>)> {
     out
 }
 
-fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
+/// The structure's units and load names, for the working's texts.
+fn units(st: &Structure, comma: bool) -> Units {
     let ends = st
         .loads
         .iter()
@@ -611,7 +580,30 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             _ => (0.0, 0.0),
         })
         .collect();
-    let u = Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends };
+    Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends }
+}
+
+/// The shear's name in the laws: the diagram's title's letters (`T`, `V`).
+fn shear_name(st: &Structure) -> String {
+    let t: String = st.titles.v.chars().filter(|c| c.is_alphabetic()).take(2).collect();
+    if t.is_empty() { "T".to_string() } else { t }
+}
+
+/// A stretch's tag in the laws' names: the member's (`1`), with a letter when the member has
+/// several stretches (`1a`, `1b`…).
+fn stretch_tag(id: &str, k: usize, count: usize) -> String {
+    if count > 1 { format!("{id}{}", char::from(b'a'.saturating_add(u8::try_from(k.min(25)).unwrap_or(25)))) } else { id.to_string() }
+}
+
+/// The words before a stretch's laws: `Member 1 (A–B), x from 0 m to 6 m:`.
+fn stretch_header(src: &strix_structure::Member, s: &strix_structure::Stretch, u: &Units, labels: &Labels) -> Line {
+    let plain = |x: f64| format!("{} {}", num(x, u.comma), u.l);
+    let range = labels.range.replace("{a}", &plain(s.x0)).replace("{b}", &plain(s.x1));
+    Line::words(format!("{} {} ({}–{}), {range}:", labels.member, src.id, src.a, src.b))
+}
+
+fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
+    let u = units(st, comma);
     let mut out = vec![Line::words(labels.heading.clone())];
     // The loads' names, defined before the equations that use them.
     let defs = u.definitions(st);
@@ -718,10 +710,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         return out;
     }
     out.push(Line::words(format!("{}: {}", labels.forces, labels.conventions)));
-    let shear = {
-        let t: String = st.titles.v.chars().filter(|c| c.is_alphabetic()).take(2).collect();
-        if t.is_empty() { "T".to_string() } else { t }
-    };
+    let shear = shear_name(st);
     for m in &an.members {
         if out.len() >= MAX_LINES {
             break;
@@ -769,12 +758,9 @@ fn member_lines(st: &Structure, m: &MemberResult, u: &Units, labels: &Labels, sh
     let fm = format!("{f}·{l}");
     let extremes: Vec<f64> = notables(m, Action::Moment).into_iter().filter(|n| n.kind == NotableKind::Extreme).map(|n| n.x).collect();
     for (k, s) in parts.iter().enumerate() {
-        let tag =
-            if parts.len() > 1 { format!("{id}{}", char::from(b'a'.saturating_add(u8::try_from(k.min(25)).unwrap_or(25)))) } else { id.clone() };
+        let tag = stretch_tag(&id, k, parts.len());
         let at = |x: f64| arg(x, l, u.comma);
-        let plain = |x: f64| format!("{} {l}", num(x, u.comma));
-        let range = labels.range.replace("{a}", &plain(s.x0)).replace("{b}", &plain(s.x1));
-        out.push(Line::words(format!("{} {} ({}–{}), {range}:", labels.member, m.id, src.a, src.b)));
+        out.push(stretch_header(src, s, u, labels));
         out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", law(&s.n, [f, &fl, &fl2, &fl3], u.comma))], true));
         out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", law(&s.v, [f, &fl, &fl2, &fl3], u.comma))], true));
         out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", law(&s.m, [&fm, f, &fl, &fl2], u.comma))], true));

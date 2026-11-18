@@ -3985,5 +3985,12 @@ structure	Double-click	Double-clic
 	Structure Exercise	Exercice sur une structure
 	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nouvel exercice sur une structure : la structure dans l’énoncé, les réactions et les diagrammes demandés, la résolution et les dessins dans la solution
 	For the structure in the figure, loaded as shown:	Pour la structure de la figure, chargée comme indiqué :
-	Classify the structure and find the support reactions.	Classez la structure et calculez les réactions d’appui.
-	Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.	Écrivez les efforts internes N, {T}, M tronçon par tronçon et tracez leurs diagrammes.
+	Find the support reactions.	Calculez les réactions d’appui.
+	Work out and draw the diagram of the axial force N.	Calculez et tracez le diagramme de l’effort normal N.
+	Work out and draw the diagram of the shear force {T}.	Calculez et tracez le diagramme de l’effort tranchant {T}.
+	Find the points where the shear force {T} is zero.	Trouvez les points où l’effort tranchant {T} est nul.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Calculez le moment fléchissant maximal en ces points ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Calculez et tracez le diagramme du moment fléchissant M.
+	Find the axial force in every member and draw it.	Calculez l’effort normal dans chaque barre et tracez-le.
+	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.

@@ -3986,5 +3986,12 @@ structure	Double-click	Doppelklick
 	Structure Exercise	Tragwerksaufgabe
 	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Eine neue Aufgabe zu einem Tragwerk: das Tragwerk in der Aufgabenstellung, die gesuchten Auflagerreaktionen und Zustandslinien, der Lösungsweg und die Zeichnungen in der Lösung
 	For the structure in the figure, loaded as shown:	Für das abgebildete Tragwerk mit den dargestellten Lasten:
-	Classify the structure and find the support reactions.	Bestimmen Sie die statische Bestimmtheit des Tragwerks und berechnen Sie die Auflagerreaktionen.
-	Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.	Schreiben Sie die Schnittgrößen N, {T}, M abschnittsweise auf und zeichnen Sie ihre Zustandslinien.
+	Find the support reactions.	Berechnen Sie die Auflagerreaktionen.
+	Work out and draw the diagram of the axial force N.	Berechnen und zeichnen Sie die Normalkraftlinie N.
+	Work out and draw the diagram of the shear force {T}.	Berechnen und zeichnen Sie die Querkraftlinie {T}.
+	Find the points where the shear force {T} is zero.	Bestimmen Sie die Stellen, an denen die Querkraft {T} null ist.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Berechnen Sie das größte Biegemoment an diesen Stellen ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Berechnen und zeichnen Sie die Momentenlinie M.
+	Find the axial force in every member and draw it.	Berechnen Sie die Normalkraft in jedem Stab und zeichnen Sie sie.
+	{T} changes sign under a concentrated load	{T} wechselt unter einer Einzellast das Vorzeichen
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} wird nirgends null und wechselt nicht das Vorzeichen: das größte Moment liegt am Ende eines Abschnitts.

@@ -327,10 +327,22 @@ fn exercise_labels(template: &str) -> Value {
     if let Some(l) = v.get_mut("labels").and_then(Value::as_object_mut) {
         l.insert("title".into(), json!(ts("Structure")));
         l.insert("text".into(), json!(ts("For the structure in the figure, loaded as shown:")));
-        l.insert("reactions".into(), json!(ts("Classify the structure and find the support reactions.")));
-        l.insert("diagrams".into(), json!(ts("Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.")));
+        l.insert("jump".into(), json!(ts("{T} changes sign under a concentrated load")));
+        l.insert("nozero".into(), json!(ts("{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.")));
     }
     if let Some(o) = v.as_object_mut() {
+        o.insert(
+            "questions".into(),
+            json!({
+                "reactions": ts("Find the support reactions."),
+                "axial": ts("Work out and draw the diagram of the axial force N."),
+                "shear": ts("Work out and draw the diagram of the shear force {T}."),
+                "zeros": ts("Find the points where the shear force {T} is zero."),
+                "maxima": ts("Work out the greatest bending moment at those points ({T}(x) = 0)."),
+                "moments": ts("Work out and draw the diagram of the bending moment M."),
+                "trussAxial": ts("Find the axial force in every member and draw it."),
+            }),
+        );
         o.insert("template".into(), json!(template));
     }
     v

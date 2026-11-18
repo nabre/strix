@@ -496,6 +496,12 @@ pub enum View {
     Reactions,
     /// The N, V (T), M diagrams (a truss's axial forces) only.
     Diagrams,
+    /// The N diagram (a truss's axial forces) only: an exercise's question on N.
+    Axial,
+    /// The V (T) diagram only (none for a truss).
+    Shear,
+    /// The M diagram only (none for a truss).
+    Moment,
 }
 
 fn is_all(v: &View) -> bool {

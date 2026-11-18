@@ -4066,5 +4066,12 @@ structure	Double-click	Doppio clic
 	Structure Exercise	Esercizio su struttura
 	A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution	Un nuovo esercizio su una struttura: la struttura nel testo, le reazioni e i diagrammi richiesti, lo svolgimento e i disegni nella risoluzione
 	For the structure in the figure, loaded as shown:	Per la struttura in figura, caricata come indicato:
-	Classify the structure and find the support reactions.	Classifica la struttura e calcola le reazioni vincolari.
-	Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.	Scrivi le caratteristiche della sollecitazione N, {T}, M tratto per tratto e traccia i loro diagrammi.
+	Find the support reactions.	Calcola le reazioni vincolari.
+	Work out and draw the diagram of the axial force N.	Calcola e rappresenta il grafico dello sforzo normale N.
+	Work out and draw the diagram of the shear force {T}.	Calcola e rappresenta il grafico del taglio {T}.
+	Find the points where the shear force {T} is zero.	Individua i punti in cui il taglio {T} è nullo.
+	Work out the greatest bending moment at those points ({T}(x) = 0).	Calcola il momento massimo nei punti relativi ({T}(x) = 0).
+	Work out and draw the diagram of the bending moment M.	Calcola e rappresenta il grafico del momento flettente M.
+	Find the axial force in every member and draw it.	Calcola lo sforzo normale in ogni asta e rappresentalo.
+	{T} changes sign under a concentrated load	{T} cambia segno sotto un carico concentrato
+	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} non si annulla né cambia segno: il momento massimo è a un estremo di un tratto.

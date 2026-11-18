@@ -1,10 +1,12 @@
 //! `structure.exercise`: a new exercise on a plane structure (`docs/structures.md`, Exercise).
 //!
 //! The statement holds the structure with its loads (`view: structure`); the questions ask for
-//! the reactions and for the internal forces; in the solution, under each repeated question, its
-//! working (the equilibrium equations; the laws stretch by stretch) and its drawing (the
-//! reactions; the N, T, M diagrams). The three drawings share a `group`, so a change made to one
-//! (in the Structure Editor, by a command) is made to the others, each keeping its view.
+//! the reactions, the diagram of N, the diagram of T, where T is zero, the greatest moment there
+//! and the diagram of M (a truss: the reactions and the axial forces). In the solution, under
+//! each repeated question, its working (the equilibrium equations; the laws stretch by stretch;
+//! T's law solved for its zero; M's law there) and its drawing (the reactions; one diagram each).
+//! The drawings share a `group`, so a change made to one (in the Structure Editor, by a command)
+//! is made to the others, each keeping its view.
 
 use serde_json::{Value, json};
 use strix_structure::{Structure, View};
@@ -33,16 +35,34 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let shear = st.titles.v.clone();
     let title = label("title", "Structure");
     let text = label("text", "For the structure in the figure, loaded as shown:");
-    let q1 = label("reactions", "Classify the structure and find the support reactions.");
-    let q2 = label("diagrams", "Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.").replace("{T}", &shear);
-    super::super::exercise::insert_problem(s, &json!({"title": title, "text": text, "questions": [q1, q2]}))?;
+    // The questions: their words from `questions` (the working's own words are in `labels`).
+    let truss = st.render(None).analysis.truss;
+    let asked: Vec<(&str, &str)> = if truss {
+        vec![("reactions", "Find the support reactions."), ("trussAxial", "Find the axial force in every member and draw it.")]
+    } else {
+        vec![
+            ("reactions", "Find the support reactions."),
+            ("axial", "Work out and draw the diagram of the axial force N."),
+            ("shear", "Work out and draw the diagram of the shear force {T}."),
+            ("zeros", "Find the points where the shear force {T} is zero."),
+            ("maxima", "Work out the greatest bending moment at those points ({T}(x) = 0)."),
+            ("moments", "Work out and draw the diagram of the bending moment M."),
+        ]
+    };
+    let questions: Vec<String> = asked
+        .iter()
+        .map(|(k, d)| {
+            v.get("questions").and_then(|l| l.get(*k)).and_then(Value::as_str).map(|t| t.chars().take(400).collect()).unwrap_or_else(|| d.to_string())
+        })
+        .map(|q: String| q.replace("{T}", &shear))
+        .collect();
+    super::super::exercise::insert_problem(s, &json!({"title": title, "text": text, "questions": questions}))?;
     let caret = s.sel.clone();
     let (text_blocks, prompts) = super::super::exercise::statement_and_prompts(s).ok_or_else(|| CmdError::Failed("the exercise vanished".into()))?;
     let (_, t1) = text_blocks.ok_or_else(|| CmdError::Failed("the exercise has no statement".into()))?;
-    let (&(_, a1), &(_, b1)) = match (prompts.first(), prompts.get(1)) {
-        (Some(a), Some(b)) => (a, b),
-        _ => return Err(CmdError::Failed("the exercise has no solution".into())),
-    };
+    if prompts.len() < questions.len() {
+        return Err(CmdError::Failed("the exercise has no solution".into()));
+    }
 
     // The statement: the structure in a paragraph of its own after its words.
     let Some(Block::Para(para)) = s.doc.body.get(t1).map(|b| &**b) else {
@@ -56,8 +76,6 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let schema = Structure { view: View::Structure, ..st.clone() };
     s.doc.insert_object(&below, super::graphic(s, &schema), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
     super::super::calc::recalculate_now(s);
-    // The blocks after the statement moved one down.
-    let (a1, b1) = (a1 + 1, b1 + 1);
     let src = s
         .doc
         .body
@@ -70,21 +88,37 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
             _ => None,
         })
         .ok_or_else(|| CmdError::Failed("the structure vanished".into()))?;
-    let (reactions, forces) = super::working::sections(s, &src, v, &props)?;
+    let parts = super::working::parts(s, &src, v, &props)?;
 
-    // The solution, the second question first so the first one's blocks keep their places.
+    // The solution: under each prompt its working, then its drawing.
     let drawing = |s: &Session, view: View| -> Result<Paragraph, CmdError> {
         let mut para = Paragraph::with_text("", props.clone());
         para.insert_object(0, super::graphic(s, &Structure { view, ..st.clone() }), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
         Ok(para)
     };
-    let mut second = forces;
-    second.push(drawing(s, View::Diagrams)?);
-    let mut first = reactions;
-    first.push(drawing(s, View::Reactions)?);
-    for (after, blocks) in [(b1, second), (a1, first)] {
+    let with = |mut blocks: Vec<Paragraph>, view: Option<View>| -> Result<Vec<Paragraph>, CmdError> {
+        if let Some(view) = view {
+            blocks.push(drawing(s, view)?);
+        }
+        Ok(blocks)
+    };
+    let answers = if parts.truss {
+        vec![with(parts.reactions, Some(View::Reactions))?, with(parts.axial, Some(View::Axial))?]
+    } else {
+        vec![
+            with(parts.reactions, Some(View::Reactions))?,
+            with(parts.axial, Some(View::Axial))?,
+            with(parts.shear, Some(View::Shear))?,
+            with(parts.zeros, None)?,
+            with(parts.maxima, None)?,
+            with(parts.moments, Some(View::Moment))?,
+        ]
+    };
+    // The last question first, so the earlier ones' blocks keep their places; the blocks after
+    // the statement moved one down.
+    for (&(_, after), blocks) in prompts.iter().zip(answers).rev() {
         for (k, para) in blocks.into_iter().enumerate() {
-            let i = (after + 1 + k).min(s.doc.body.len());
+            let i = (after + 2 + k).min(s.doc.body.len());
             s.doc.body.insert(i, para_block(para));
         }
     }
@@ -157,15 +191,20 @@ mod tests {
     fn a_structure_exercise_has_the_structure_in_its_statement_and_the_results_in_its_solution() {
         let mut s = Session::new(Document::new());
         let r = s
-            .run("structure.exercise", &json!({"labels": {"title": "Trave", "reactions": "Calcola le reazioni.", "diagrams": "Traccia N, {T}, M."}}))
+            .run(
+                "structure.exercise",
+                &json!({"labels": {"title": "Trave", "reactions": "Reazioni"}, "questions": {"reactions": "Calcola le reazioni.", "zeros": "Dove {T} = 0?"}}),
+            )
             .unwrap();
         assert_eq!(r["group"], "structure-1", "{r}");
         let found = structures(&s);
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Diagrams]);
+        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
         assert!(found.iter().all(|f| f.2.group == "structure-1"));
         let t = text(&s);
-        assert!(t.contains("Trave") && t.contains("Calcola le reazioni.") && t.contains("Traccia N, T, M."), "{t}");
+        assert!(t.contains("Trave") && t.contains("Calcola le reazioni.") && t.contains("Dove T = 0?"), "{t}");
+        // The working's heading is its own word, not the question's.
+        assert!(t.contains("Reazioni:") && !t.contains("Calcola le reazioni.:"), "{t}");
         // The statement's drawing comes before the questions, the others after their prompts.
         let q = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Calcola le reazioni."))).unwrap();
         assert!(found[0].0 < q && found[1].0 > q && found[2].0 > found[1].0);
@@ -193,11 +232,74 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 3);
+        assert_eq!(found.len(), 5);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Diagrams]);
+        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
+    }
+
+    /// The equations of the body in reading order: (linear text, result of question).
+    fn equations(s: &Session) -> Vec<(String, u32)> {
+        s.doc
+            .body
+            .iter()
+            .filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None })
+            .flat_map(|p| p.objects.iter())
+            .filter_map(|o| match o {
+                InlineObject::Equation { linear, math, .. } => Some((linear.to_string(), math.answer)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_exercise_finds_where_the_shear_vanishes_and_the_moment_there() {
+        // A simply supported beam 6 m long under 10 kN/m: T = 30 kN − 10 kN/m·x, zero at 3 m,
+        // M = 45 kN·m there.
+        let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10, "angle": -90}]});
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"structure": st})).unwrap();
+        let eqs = equations(&s);
+        let zero = eqs.iter().find(|e| e.0.contains("= T_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert_eq!(zero.1, 4, "{eqs:?}");
+        assert!(zero.0.contains("x_1 = 3 m"), "{zero:?}");
+        let max = eqs.iter().find(|e| e.0.starts_with("M_1(x_1)")).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert_eq!(max.1, 5);
+        assert!(max.0.contains("45 kN·m"), "{max:?}");
+        // The moment's law comes before its value there.
+        let law = eqs.iter().position(|e| e.0.starts_with("M_1(x) =")).unwrap();
+        assert!(law < eqs.iter().position(|e| e.0.starts_with("M_1(x_1)")).unwrap());
+
+        // A point load in the middle: T changes sign under it, M is greatest there.
+        let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "force", "member": "1", "at": 2, "value": 10, "angle": -90}]});
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"structure": st})).unwrap();
+        let eqs = equations(&s);
+        assert!(eqs.iter().any(|e| e.0.starts_with("T_1a(2 m)") && e.1 == 4), "{eqs:?}");
+        let max = eqs.iter().find(|e| e.0.starts_with("M_1a(2 m)") && e.1 == 5).unwrap_or_else(|| panic!("{eqs:?}"));
+        assert!(max.0.contains("10 kN·m"), "{max:?}");
+
+        // A cantilever under a point load at its tip: T never vanishes; M greatest at the wall.
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"template": "cantilever"})).unwrap();
+        assert!(text(&s).contains("never vanishes"), "{}", text(&s));
+        assert!(equations(&s).iter().any(|e| e.0.starts_with("M_") && e.1 == 5));
+    }
+
+    #[test]
+    fn a_truss_exercise_asks_for_the_reactions_and_the_axial_forces() {
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"template": "truss"})).unwrap();
+        let views: Vec<View> = structures(&s).iter().map(|f| f.2.view).collect();
+        assert_eq!(views, [View::Structure, View::Reactions, View::Axial]);
+        assert!(text(&s).contains("axial force in every member"), "{}", text(&s));
     }
 }
