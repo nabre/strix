@@ -10,7 +10,9 @@ use strix_structure::{Action, MemberResult, NotableKind, Stretch, Structure, not
 use wordcraft_doc::InlineObject;
 use wordcraft_doc::para::Paragraph;
 
-use super::{Labels, Line, Units, arg, lines, num, paragraphs, shear_name, signed, stretch_header, stretch_tag, sub, units, unknowns};
+use super::{
+    Labels, Line, Units, free_body, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units, unknowns,
+};
 use crate::{CmdError, Session};
 
 /// The solution's parts, one per question (a truss has only the reactions and the axial forces:
@@ -43,6 +45,8 @@ pub(in crate::cmd::structure) fn parts(
     if !r.analysis.status.is_solved() {
         return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
     }
+    // The free body drawn from the structure as written (its parameters, not their values).
+    let fig = free_body(s, &st);
     let (st, an) = (&r.resolved, &r.analysis);
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let labels = Labels::from(v);
@@ -53,7 +57,7 @@ pub(in crate::cmd::structure) fn parts(
     let (first, rest) = all.split_at(split);
     // Without the working's heading.
     let first = first.get(1..).unwrap_or(&[]);
-    let mut reactions = paragraphs(first, props)?;
+    let mut reactions = paragraphs_with(first, props, Some(&fig))?;
     // The reactions are the first question's result: the equations solving them, and those
     // giving a redundant its value.
     let names: Vec<String> = unknowns(st, an).into_iter().map(|k| format!("{} = ", k.name)).collect();
@@ -220,7 +224,7 @@ impl Writer<'_> {
 
     /// `T_1a(3 m) = kN`: the law's value at `x`, worked out by calc.
     fn at(&self, tag: &str, action: Action, x: f64) -> String {
-        format!("{}_{tag}({}) = {}", self.letter(action), arg(x, &self.u.l, self.u.comma), self.unit(action))
+        format!("{}_{tag}({}) = {}", self.letter(action), super::at(x, &self.u.l, self.u.comma), self.unit(action))
     }
 
     /// Member `m`'s laws of `action`, stretch by stretch, with their values at the stretch's ends
@@ -260,7 +264,7 @@ impl Writer<'_> {
                     // One zero: T's law solved for it within the stretch (a law of degree two has
                     // another root outside it).
                     if found.len() == 1 {
-                        let (a, b) = (arg(s.x0, &self.u.l, self.u.comma), arg(s.x1, &self.u.l, self.u.comma));
+                        let (a, b) = (super::at(s.x0, &self.u.l, self.u.comma), super::at(s.x1, &self.u.l, self.u.comma));
                         let eq = format!("0 {} = {}_{tag}({x}); {a} ≤ {x} ≤ {b}", self.u.f, self.shear);
                         out.push((Line { stepped: true, ..Line::eqs(vec![eq], true) }, true));
                     } else {
