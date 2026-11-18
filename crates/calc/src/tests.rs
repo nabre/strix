@@ -263,6 +263,16 @@ fn greek_names_and_subscripts() {
     assert_eq!(last(&["pi*e ="]), "pi*e = 8.54");
 }
 
+/// A subscript listing indices, `q_(1,2)`, is part of the name (a trapezoidal load's ends), with
+/// or without decimal comma (`y_(i+1)`, a table's row, is not: `table_rows_are_read_by_subscript`).
+#[test]
+fn subscripts_listing_indices_are_names() {
+    assert_eq!(last(&["q_(1,1) = 2 kN/m", "q_(1,2) = 5 kN/m", "(q_(1,2) - q_(1,1))·(4 m)/2 ="]), "(q_(1,2) - q_(1,1))·(4 m)/2 = 6 kN");
+    let comma = Options { decimal_comma: true, ..Options::default() };
+    let r = evaluate(&["q_(1,2) = 2,5 kN/m", "2·q_(1,2) ="], &comma);
+    assert_eq!(r.last().and_then(|r| r.display.clone()).as_deref(), Some("2·q_(1,2) = 5 kN/m"), "{r:?}");
+}
+
 #[test]
 fn implicit_multiplication_precedence() {
     let q = |s: &str| run(&[s]).pop().unwrap().value.unwrap().scalar().unwrap();

@@ -85,7 +85,9 @@ parameter (`m = 3 kg` defines `m` although `m` is also the metre).
 - An error never stops later items: the region shows `= ⚠` (or `⇒ x = ⚠`) and the message is
   listed by `calc.recalculate`; the statement before `=` stays as typed, whole (a sum keeps its
   limits: `∑_(k=0)^n▒… = ⚠`). Names depending on a failed definition are undefined.
-- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`). A defined
+- Identifiers: letters (Latin, Greek), digits, `_` subscripts (`f_ck`, `σ_max`); a subscript
+  listing indices, letters and digits between commas, belongs to the name (`q_(1,2)`, a
+  trapezoidal load's end), with or without decimal comma. A defined
   parameter wins over a unit of the same spelling, **except right after a number**: there unit
   names are units (ISO 80000: a quantity is a number times a unit), so with a mass `m = 400 kg`,
   `L = 4.5 m` is still metres and `q = 12 kN/m` still per metre. The units after a number run on
